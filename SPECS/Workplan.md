@@ -116,7 +116,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - The detail panel exposes checkpoint-level actions for branch, merge, and compile workflows.
   - The task satisfies PRD FR-3 and the inspection portions of Flow A.
 
-### CTXB-P2-T3 — Implement ancestor and sibling lineage navigation
+### ✅ CTXB-P2-T3 — Implement ancestor and sibling lineage navigation
 - **Description:** Add explicit navigation actions that jump from a derived conversation to its parent checkpoint and from that checkpoint to related sibling branches or merge-related nodes.
 - **Priority:** P0
 - **Dependencies:** CTXB-P2-T2

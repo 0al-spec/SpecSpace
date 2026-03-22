@@ -13,6 +13,7 @@
 | CTXB-P1-T5 | [CTXB-P1-T5_Expose_Graph_Aware_API_Contracts_For_UI_And_Compilation/](CTXB-P1-T5_Expose_Graph_Aware_API_Contracts_For_UI_And_Compilation/) | 2026-03-22 | PASS |
 | CTXB-P2-T1 | [CTXB-P2-T1_Render_The_Conversation_Graph_On_A_Canvas/](CTXB-P2-T1_Render_The_Conversation_Graph_On_A_Canvas/) | 2026-03-22 | PASS |
 | CTXB-P2-T2 | [CTXB-P2-T2_Add_Conversation_Detail_And_Checkpoint_Inspection_Panels/](CTXB-P2-T2_Add_Conversation_Detail_And_Checkpoint_Inspection_Panels/) | 2026-03-22 | PASS |
+| CTXB-P2-T3 | [CTXB-P2-T3_Implement_Ancestor_And_Sibling_Lineage_Navigation/](CTXB-P2-T3_Implement_Ancestor_And_Sibling_Lineage_Navigation/) | 2026-03-22 | PASS |
 
 ## Historical Artifacts
 
@@ -38,3 +39,4 @@
 | 2026-03-22 | CTXB-P2-T1 | Archived REVIEW_graph_canvas report |
 | 2026-03-22 | CTXB-P2-T2 | Archived Add_Conversation_Detail_And_Checkpoint_Inspection_Panels (PASS) |
 | 2026-03-22 | CTXB-P2-T2 | Archived REVIEW_detail_inspectors report |
+| 2026-03-22 | CTXB-P2-T3 | Archived Implement_Ancestor_And_Sibling_Lineage_Navigation (PASS) |
