@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ContextBuilder</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #efe6d8;
+      --panel: #fffaf2;
+      --panel-2: #f8efe2;
+      --line: #d7c8b2;
+      --text: #201a14;
+      --muted: #6e6457;
+      --user: #ddeeff;
+      --assistant: #efe1cb;
+      --accent: #8f5c2c;
+      --danger: #a33a2a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, #f9f2e8 0%, transparent 28%),
+        linear-gradient(180deg, #f2ebdf 0%, #e8dcc9 100%);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      border-right: 1px solid var(--line);
+      background: rgba(255, 250, 242, 0.86);
+      backdrop-filter: blur(12px);
+      padding: 24px 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+
+    .sidebar h1 {
+      margin: 0 0 6px;
+      font-size: 1.5rem;
+    }
+
+    .sidebar p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .sidebar-actions,
+    .editor-actions,
+    .toolbar-actions,
+    .message-actions,
+    .file-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button,
+    .button-link {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 10px 14px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    button:hover,
+    .button-link:hover {
+      background: #f8f0e3;
+    }
+
+    button.danger {
+      color: var(--danger);
+      border-color: #dcb0aa;
+    }
+
+    .file-list {
+      margin-top: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .file-item {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.82);
+    }
+
+    .file-item.active {
+      border-color: var(--accent);
+      background: #fff4e6;
+    }
+
+    .file-name {
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+      overflow-wrap: anywhere;
+    }
+
+    .file-meta {
+      margin-top: 8px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .main {
+      padding: 28px 22px 56px;
+    }
+
+    .toolbar,
+    .editor,
+    .messages-empty {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 250, 242, 0.88);
+      padding: 18px;
+      margin-bottom: 22px;
+    }
+
+    .toolbar-title {
+      margin: 0 0 6px;
+      font-size: 1.8rem;
+      line-height: 1.1;
+    }
+
+    .status {
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .editor[hidden] {
+      display: none;
+    }
+
+    .editor-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .editor-title,
+    .save-name {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--text);
+    }
+
+    .editor-list {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .editor-message {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: white;
+    }
+
+    .editor-message textarea {
+      width: 100%;
+      min-height: 130px;
+      margin-top: 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .messages {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .message {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px 18px;
+      box-shadow: 0 12px 24px rgba(65, 45, 23, 0.06);
+    }
+
+    .message.user {
+      background: var(--user);
+    }
+
+    .message.assistant {
+      background: var(--assistant);
+    }
+
+    .message.unknown {
+      background: white;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .content {
+      white-space: pre-wrap;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .content.collapsed {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      overflow: hidden;
+    }
+
+    .chevron {
+      min-width: 42px;
+      padding: 8px 12px;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    .message-actions {
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h1>ContextBuilder</h1>
+      <p>Browse and edit extracted dialog JSON files from the configured folder.</p>
+      <div class="sidebar-actions">
+        <button id="refreshFilesButton" type="button">Refresh list</button>
+        <button id="newBranchButton" type="button">New empty file</button>
+      </div>
+      <div id="folderStatus" class="file-meta"></div>
+      <div id="fileList" class="file-list"></div>
+    </aside>
+
+    <main class="main">
+      <section class="toolbar">
+        <h2 id="dialogTitle" class="toolbar-title">No dialog selected</h2>
+        <div id="status" class="status">Open a file from the sidebar.</div>
+        <div class="toolbar-actions">
+          <button id="saveCurrentButton" type="button">Save current file</button>
+          <button id="saveAsButton" type="button">Save as new file</button>
+          <button id="deleteCurrentButton" class="danger" type="button">Delete current file</button>
+        </div>
+      </section>
+
+      <section id="editor" class="editor" hidden>
+        <div class="editor-head">
+          <strong>Branch Editor</strong>
+          <div class="editor-actions">
+            <button id="addUserMessageButton" type="button">Add user message</button>
+            <button id="addAssistantMessageButton" type="button">Add assistant message</button>
+            <button id="closeEditorButton" type="button">Close editor</button>
+          </div>
+        </div>
+        <input id="branchTitle" class="editor-title" type="text" placeholder="Dialog title">
+        <div style="margin-top: 12px;">
+          <input id="saveName" class="save-name" type="text" placeholder="file-name.json">
+        </div>
+        <div style="margin-top: 12px;" class="editor-actions">
+          <button id="saveBranchButton" type="button">Create file</button>
+          <button id="overwriteBranchButton" type="button">Overwrite current file</button>
+        </div>
+        <div id="editorList" class="editor-list"></div>
+      </section>
+
+      <section id="messages" class="messages-empty">
+        No dialog loaded.
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const fileListNode = document.getElementById("fileList");
+    const folderStatusNode = document.getElementById("folderStatus");
+    const refreshFilesButton = document.getElementById("refreshFilesButton");
+    const newBranchButton = document.getElementById("newBranchButton");
+
+    const dialogTitleNode = document.getElementById("dialogTitle");
+    const statusNode = document.getElementById("status");
+    const messagesNode = document.getElementById("messages");
+    const saveCurrentButton = document.getElementById("saveCurrentButton");
+    const saveAsButton = document.getElementById("saveAsButton");
+    const deleteCurrentButton = document.getElementById("deleteCurrentButton");
+
+    const editorNode = document.getElementById("editor");
+    const branchTitleNode = document.getElementById("branchTitle");
+    const saveNameNode = document.getElementById("saveName");
+    const saveBranchButton = document.getElementById("saveBranchButton");
+    const overwriteBranchButton = document.getElementById("overwriteBranchButton");
+    const addUserMessageButton = document.getElementById("addUserMessageButton");
+    const addAssistantMessageButton = document.getElementById("addAssistantMessageButton");
+    const closeEditorButton = document.getElementById("closeEditorButton");
+    const editorListNode = document.getElementById("editorList");
+
+    let files = [];
+    let currentFileName = null;
+    let currentConversation = null;
+    let branchConversation = null;
+
+    function setStatus(text) {
+      statusNode.textContent = text;
+    }
+
+    function slugify(text) {
+      const slug = (text || "dialog")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      return slug || "dialog";
+    }
+
+    function defaultFileName(title) {
+      return `${slugify(title)}.json`;
+    }
+
+    async function api(url, options = {}) {
+      const response = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options
+      });
+      const text = await response.text();
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (error) {
+        throw new Error("Viewer API is unavailable. Restart ContextBuilder with make serve DIALOG_DIR=/path/to/dialogs. Response was not JSON.");
+      }
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      return data;
+    }
+
+    function renderFileList() {
+      fileListNode.innerHTML = "";
+      files.forEach((file) => {
+        const item = document.createElement("div");
+        item.className = `file-item ${file.name === currentFileName ? "active" : ""}`;
+
+        const name = document.createElement("div");
+        name.className = "file-name";
+        name.textContent = file.name;
+
+        const actions = document.createElement("div");
+        actions.className = "file-actions";
+
+        const openButton = document.createElement("button");
+        openButton.type = "button";
+        openButton.textContent = "Open";
+        openButton.addEventListener("click", () => loadFile(file.name));
+
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "danger";
+        deleteButton.textContent = "Delete";
+        deleteButton.addEventListener("click", () => deleteFile(file.name));
+
+        actions.append(openButton, deleteButton);
+
+        const meta = document.createElement("div");
+        meta.className = "file-meta";
+        meta.textContent = `${Math.round(file.size / 1024)} KB`;
+
+        item.append(name, actions, meta);
+        fileListNode.append(item);
+      });
+    }
+
+    function renderConversation() {
+      const data = currentConversation;
+      const messages = Array.isArray(data?.messages) ? data.messages : [];
+      dialogTitleNode.textContent = data?.title || currentFileName || "No dialog selected";
+      setStatus(currentFileName ? `${currentFileName} | ${messages.length} messages` : "Open a file from the sidebar.");
+
+      if (!messages.length) {
+        messagesNode.className = "messages-empty";
+        messagesNode.textContent = "No dialog loaded.";
+        return;
+      }
+
+      messagesNode.className = "messages";
+      messagesNode.innerHTML = "";
+
+      messages.forEach((message, index) => {
+        const article = document.createElement("article");
+        article.className = `message ${message.role || "unknown"}`;
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+
+        const label = document.createElement("div");
+        label.textContent = `${index + 1}. ${message.role || "unknown"}`;
+
+        const topActions = document.createElement("div");
+        topActions.className = "message-actions";
+
+        const toggleButton = document.createElement("button");
+        toggleButton.type = "button";
+        toggleButton.className = "chevron";
+        toggleButton.textContent = "▾";
+        toggleButton.setAttribute("aria-label", "Expand message");
+
+        const topBranchButton = makeBranchButton(index);
+        topActions.append(toggleButton, topBranchButton);
+
+        const content = document.createElement("div");
+        content.className = "content collapsed";
+        content.textContent = message.content || "";
+
+        toggleButton.addEventListener("click", () => {
+          const collapsed = content.classList.toggle("collapsed");
+          toggleButton.textContent = collapsed ? "▾" : "▴";
+          toggleButton.setAttribute("aria-label", collapsed ? "Expand message" : "Collapse message");
+        });
+
+        const bottomActions = document.createElement("div");
+        bottomActions.className = "message-actions";
+        const bottomBranchButton = makeBranchButton(index);
+        bottomActions.append(bottomBranchButton);
+
+        meta.append(label, topActions);
+        article.append(meta, content, bottomActions);
+        messagesNode.append(article);
+      });
+    }
+
+    function makeBranchButton(index) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "Branch here";
+      button.addEventListener("click", () => openBranchEditor(index));
+      return button;
+    }
+
+    function openBranchEditor(index) {
+      if (!currentConversation || !Array.isArray(currentConversation.messages)) {
+        return;
+      }
+
+      const baseMessages = currentConversation.messages.slice(0, index + 1).map((message) => ({
+        role: message.role || "unknown",
+        content: message.content || ""
+      }));
+
+      branchConversation = {
+        title: `${currentConversation.title || "Untitled"} (branch ${index + 1})`,
+        source_file: currentConversation.source_file || null,
+        branched_from_file: currentFileName,
+        branched_from_index: index,
+        branched_from_message_id: currentConversation.messages[index]?.message_id || null,
+        message_count: baseMessages.length,
+        messages: baseMessages
+      };
+
+      branchTitleNode.value = branchConversation.title;
+      saveNameNode.value = defaultFileName(branchConversation.title);
+      renderBranchEditor();
+      editorNode.hidden = false;
+      editorNode.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function openEmptyEditor() {
+      branchConversation = {
+        title: "New dialog",
+        source_file: null,
+        message_count: 0,
+        messages: []
+      };
+      branchTitleNode.value = branchConversation.title;
+      saveNameNode.value = defaultFileName(branchConversation.title);
+      renderBranchEditor();
+      editorNode.hidden = false;
+      editorNode.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function openEditorFromCurrent() {
+      if (!currentConversation || !Array.isArray(currentConversation.messages)) {
+        openEmptyEditor();
+        return;
+      }
+      branchConversation = {
+        ...currentConversation,
+        title: `${currentConversation.title || "Untitled"} (copy)`,
+        messages: currentConversation.messages.map((message) => ({
+          role: message.role || "unknown",
+          content: message.content || ""
+        }))
+      };
+      branchTitleNode.value = branchConversation.title;
+      saveNameNode.value = defaultFileName(branchConversation.title);
+      renderBranchEditor();
+      editorNode.hidden = false;
+      editorNode.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function renderBranchEditor() {
+      if (!branchConversation) {
+        return;
+      }
+
+      editorListNode.innerHTML = "";
+      branchConversation.messages.forEach((message, index) => {
+        const wrap = document.createElement("div");
+        wrap.className = "editor-message";
+
+        const label = document.createElement("div");
+        label.textContent = `${index + 1}. ${message.role}`;
+
+        const textarea = document.createElement("textarea");
+        textarea.value = message.content || "";
+        textarea.addEventListener("input", () => {
+          branchConversation.messages[index].content = textarea.value;
+        });
+
+        wrap.append(label, textarea);
+        editorListNode.append(wrap);
+      });
+    }
+
+    function syncBranchMeta() {
+      if (!branchConversation) {
+        return;
+      }
+      branchConversation.title = branchTitleNode.value.trim() || "Untitled";
+      branchConversation.message_count = branchConversation.messages.length;
+    }
+
+    async function refreshFiles() {
+      const result = await api("/api/files");
+      files = result.files;
+      folderStatusNode.textContent = result.dialog_dir;
+      renderFileList();
+    }
+
+    async function loadFile(name) {
+      const result = await api(`/api/file?name=${encodeURIComponent(name)}`);
+      currentFileName = result.name;
+      currentConversation = result.data;
+      renderFileList();
+      renderConversation();
+    }
+
+    async function saveConversation(name, data, overwrite) {
+      return api("/api/file", {
+        method: "POST",
+        body: JSON.stringify({ name, data, overwrite })
+      });
+    }
+
+    async function saveBranchAsNew() {
+      if (!branchConversation) {
+        return;
+      }
+      syncBranchMeta();
+      const fileName = saveNameNode.value.trim() || defaultFileName(branchConversation.title);
+      await saveConversation(fileName, branchConversation, false);
+      await refreshFiles();
+      await loadFile(fileName);
+      setStatus(`Created ${fileName}`);
+    }
+
+    async function overwriteCurrent() {
+      if (!branchConversation) {
+        return;
+      }
+      syncBranchMeta();
+      const target = currentFileName || saveNameNode.value.trim() || defaultFileName(branchConversation.title);
+      await saveConversation(target, branchConversation, true);
+      await refreshFiles();
+      await loadFile(target);
+      setStatus(`Saved ${target}`);
+    }
+
+    async function saveCurrentFile() {
+      if (!currentConversation || !currentFileName) {
+        setStatus("No current file to save.");
+        return;
+      }
+      await saveConversation(currentFileName, currentConversation, true);
+      await refreshFiles();
+      setStatus(`Saved ${currentFileName}`);
+    }
+
+    async function deleteFile(name) {
+      const confirmed = window.confirm(`Delete ${name}?`);
+      if (!confirmed) {
+        return;
+      }
+      await api(`/api/file?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+      if (name === currentFileName) {
+        currentFileName = null;
+        currentConversation = null;
+        renderConversation();
+      }
+      await refreshFiles();
+      setStatus(`Deleted ${name}`);
+    }
+
+    branchTitleNode.addEventListener("input", () => {
+      if (!branchConversation) {
+        return;
+      }
+      branchConversation.title = branchTitleNode.value;
+      if (!saveNameNode.value.trim()) {
+        saveNameNode.value = defaultFileName(branchTitleNode.value);
+      }
+    });
+
+    addUserMessageButton.addEventListener("click", () => {
+      if (!branchConversation) {
+        openEmptyEditor();
+      }
+      branchConversation.messages.push({ role: "user", content: "" });
+      renderBranchEditor();
+    });
+
+    addAssistantMessageButton.addEventListener("click", () => {
+      if (!branchConversation) {
+        openEmptyEditor();
+      }
+      branchConversation.messages.push({ role: "assistant", content: "" });
+      renderBranchEditor();
+    });
+
+    saveBranchButton.addEventListener("click", () => {
+      saveBranchAsNew().catch((error) => setStatus(error.message));
+    });
+
+    overwriteBranchButton.addEventListener("click", () => {
+      overwriteCurrent().catch((error) => setStatus(error.message));
+    });
+
+    closeEditorButton.addEventListener("click", () => {
+      editorNode.hidden = true;
+      branchConversation = null;
+      editorListNode.innerHTML = "";
+    });
+
+    refreshFilesButton.addEventListener("click", () => {
+      refreshFiles().catch((error) => setStatus(error.message));
+    });
+
+    newBranchButton.addEventListener("click", openEmptyEditor);
+    saveCurrentButton.addEventListener("click", () => {
+      saveCurrentFile().catch((error) => setStatus(error.message));
+    });
+    saveAsButton.addEventListener("click", openEditorFromCurrent);
+    deleteCurrentButton.addEventListener("click", () => {
+      if (currentFileName) {
+        deleteFile(currentFileName).catch((error) => setStatus(error.message));
+      }
+    });
+
+    refreshFiles()
+      .then(() => {
+        const params = new URLSearchParams(window.location.search);
+        const requestedFile = params.get("file");
+        if (requestedFile) {
+          const fileName = requestedFile.split("/").pop();
+          if (fileName) {
+            return loadFile(fileName);
+          }
+        }
+        if (files.length) {
+          return loadFile(files[0].name);
+        }
+      })
+      .catch((error) => setStatus(error.message));
+  </script>
+</body>
+</html>

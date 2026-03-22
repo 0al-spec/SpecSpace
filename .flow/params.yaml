@@ -1,0 +1,25 @@
+# Flow configuration for ContextBuilder.
+
+project:
+  name: ContextBuilder
+  description: Local viewer and editor for extracted dialog JSON files.
+  language: Python
+  package_manager: none
+  default_branch: main
+
+verify:
+  tests: make test
+  lint: make lint
+
+task_system:
+  kind: file
+  project_key: CTXB
+  task_url_template: "SPECS/Workplan.md#{task_id}-{task_name_slug}"
+
+nfrs:
+  api_response_ms: 200
+  memory_mb: 256
+
+structure:
+  source: viewer/
+  tests: tests/
