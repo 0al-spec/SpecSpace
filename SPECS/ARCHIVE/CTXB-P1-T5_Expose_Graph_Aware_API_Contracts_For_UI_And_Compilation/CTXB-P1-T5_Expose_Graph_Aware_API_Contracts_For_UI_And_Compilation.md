@@ -134,3 +134,7 @@ Verification:
 ## Notes
 
 The implementation should stay thin: reuse the existing normalized workspace listing and graph snapshot as the only lineage source, then shape API-friendly views on top. Later tasks should be able to render the graph, inspect checkpoints, and choose compile targets using these contracts without restating graph rules in the client.
+
+---
+**Archived:** 2026-03-22
+**Verdict:** PASS
