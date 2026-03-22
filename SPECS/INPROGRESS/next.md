@@ -1,16 +1,15 @@
-# In Progress Queue
+# Next Task: CTXB-P1-T2 — Normalize imported conversations into graph roots or linked nodes
 
-No task is currently selected.
+**Priority:** P0
+**Phase:** Canonical Graph Foundation
+**Effort:** 4-6 hours
+**Dependencies:** CTXB-P1-T1
+**Status:** Selected
 
-## Recently Archived
+## Description
 
-- `CTXB-P1-T1` — Define the canonical conversation and lineage schema (`PASS`, archived 2026-03-22)
-
-## Suggested Next Tasks
-
-1. `CTXB-P1-T2` — Normalize imported conversations into graph roots or linked nodes
-2. `CTXB-P1-T3` — Validate lineage integrity and reject ambiguous graph state
+Implement deterministic normalization rules that map imported JSON conversations into explicit graph roots when they contain enough stable identity, while rejecting ambiguous or insufficient inputs with actionable errors.
 
 ## Next Step
 
-Run `SELECT` or update this file to choose the next task from `SPECS/Workplan.md`.
+Run the PLAN command to create the implementation PRD for `CTXB-P1-T2`.
