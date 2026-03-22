@@ -7,16 +7,28 @@
   <style>
     :root {
       color-scheme: light;
-      --bg: #efe6d8;
-      --panel: #fffaf2;
-      --panel-2: #f8efe2;
-      --line: #d7c8b2;
-      --text: #201a14;
-      --muted: #6e6457;
-      --user: #ddeeff;
-      --assistant: #efe1cb;
-      --accent: #8f5c2c;
-      --danger: #a33a2a;
+      --bg: #ece3d4;
+      --panel: rgba(255, 250, 242, 0.9);
+      --panel-strong: rgba(255, 247, 236, 0.98);
+      --panel-muted: rgba(246, 236, 221, 0.88);
+      --line: #d4c4ac;
+      --line-strong: #b89f7f;
+      --text: #231b15;
+      --muted: #6d6255;
+      --accent: #915a24;
+      --accent-soft: #f5e0c7;
+      --accent-strong: #6c4012;
+      --root: #d7efd4;
+      --root-line: #5d8b58;
+      --branch: #dbe6ff;
+      --branch-line: #4e689b;
+      --merge: #ffe7cc;
+      --merge-line: #b06924;
+      --broken: #f8d7d1;
+      --broken-line: #b54131;
+      --shadow: 0 22px 50px rgba(76, 51, 28, 0.12);
+      --user: #e5efff;
+      --assistant: #f2e4cf;
     }
 
     * {
@@ -25,11 +37,40 @@
 
     body {
       margin: 0;
+      min-height: 100vh;
       font-family: Georgia, "Times New Roman", serif;
       color: var(--text);
       background:
-        radial-gradient(circle at top left, #f9f2e8 0%, transparent 28%),
-        linear-gradient(180deg, #f2ebdf 0%, #e8dcc9 100%);
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.72) 0%, transparent 24%),
+        radial-gradient(circle at top right, rgba(255, 241, 220, 0.58) 0%, transparent 26%),
+        linear-gradient(180deg, #f1e9dc 0%, #e6d9c4 100%);
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+    }
+
+    button:hover {
+      background: #fbf3e7;
+      border-color: var(--line-strong);
+      transform: translateY(-1px);
+    }
+
+    button.danger {
+      color: var(--broken-line);
+      border-color: #d8a6a0;
     }
 
     .app {
@@ -39,66 +80,57 @@
     }
 
     .sidebar {
-      border-right: 1px solid var(--line);
-      background: rgba(255, 250, 242, 0.86);
-      backdrop-filter: blur(12px);
-      padding: 24px 18px;
       position: sticky;
       top: 0;
       height: 100vh;
       overflow: auto;
+      padding: 24px 18px 28px;
+      border-right: 1px solid rgba(158, 126, 85, 0.24);
+      background: rgba(255, 249, 240, 0.72);
+      backdrop-filter: blur(16px);
     }
 
     .sidebar h1 {
-      margin: 0 0 6px;
-      font-size: 1.5rem;
+      margin: 0 0 8px;
+      font-size: 1.6rem;
+      line-height: 1;
     }
 
     .sidebar p {
       margin: 0 0 18px;
       color: var(--muted);
-      line-height: 1.4;
+      line-height: 1.5;
     }
 
     .sidebar-actions,
     .editor-actions,
     .toolbar-actions,
     .message-actions,
-    .file-actions {
+    .file-actions,
+    .graph-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
     }
 
-    button,
-    input,
-    textarea {
-      font: inherit;
+    .sidebar-block {
+      margin-top: 18px;
+      padding: 14px;
+      border: 1px solid rgba(191, 168, 138, 0.72);
+      border-radius: 18px;
+      background: rgba(255, 252, 246, 0.88);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
     }
 
-    button,
-    .button-link {
-      border: 1px solid var(--line);
-      background: white;
-      color: var(--text);
-      border-radius: 999px;
-      padding: 10px 14px;
-      cursor: pointer;
-      text-decoration: none;
-    }
-
-    button:hover,
-    .button-link:hover {
-      background: #f8f0e3;
-    }
-
-    button.danger {
-      color: var(--danger);
-      border-color: #dcb0aa;
+    .eyebrow {
+      margin-bottom: 8px;
+      font-size: 0.76rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
     }
 
     .file-list {
-      margin-top: 18px;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -106,51 +138,252 @@
 
     .file-item {
       border: 1px solid var(--line);
-      border-radius: 14px;
+      border-radius: 16px;
       padding: 12px;
-      background: rgba(255, 255, 255, 0.82);
+      background: rgba(255, 255, 255, 0.88);
     }
 
     .file-item.active {
       border-color: var(--accent);
-      background: #fff4e6;
+      background: #fff0df;
+      box-shadow: 0 10px 20px rgba(145, 90, 36, 0.12);
+    }
+
+    .file-head,
+    .panel-head,
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
     }
 
     .file-name {
-      font-size: 0.95rem;
-      margin-bottom: 8px;
+      font-size: 0.94rem;
+      line-height: 1.35;
       overflow-wrap: anywhere;
     }
 
-    .file-meta {
-      margin-top: 8px;
-      font-size: 0.82rem;
+    .file-meta,
+    .status-line,
+    .graph-legend,
+    .selection-hint {
+      font-size: 0.85rem;
       color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .kind-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .kind-chip.root {
+      background: var(--root);
+      border-color: rgba(93, 139, 88, 0.28);
+      color: var(--root-line);
+    }
+
+    .kind-chip.branch {
+      background: var(--branch);
+      border-color: rgba(78, 104, 155, 0.24);
+      color: var(--branch-line);
+    }
+
+    .kind-chip.merge {
+      background: var(--merge);
+      border-color: rgba(176, 105, 36, 0.24);
+      color: var(--merge-line);
+    }
+
+    .kind-chip.broken {
+      background: var(--broken);
+      border-color: rgba(181, 65, 49, 0.24);
+      color: var(--broken-line);
     }
 
     .main {
-      padding: 28px 22px 56px;
+      padding: 28px 24px 56px;
     }
 
-    .toolbar,
-    .editor,
-    .messages-empty {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: rgba(255, 250, 242, 0.88);
-      padding: 18px;
+    .panel {
       margin-bottom: 22px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .panel.copy-muted {
+      background: var(--panel-muted);
+    }
+
+    .graph-panel {
+      background:
+        radial-gradient(circle at top right, rgba(255, 244, 226, 0.86) 0%, transparent 30%),
+        radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.58) 0%, transparent 30%),
+        var(--panel-strong);
+    }
+
+    .panel h2,
+    .toolbar-title {
+      margin: 0;
+      font-size: 1.95rem;
+      line-height: 1.08;
+    }
+
+    .panel-copy {
+      margin: 8px 0 0;
+      max-width: 52rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .graph-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 18px 0 14px;
+    }
+
+    .graph-viewport {
+      position: relative;
+      overflow: hidden;
+      min-height: 520px;
+      border-radius: 20px;
+      border: 1px solid rgba(150, 120, 84, 0.32);
+      background:
+        linear-gradient(rgba(211, 193, 170, 0.26) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(211, 193, 170, 0.26) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255, 252, 247, 0.98) 0%, rgba(246, 236, 223, 0.94) 100%);
+      background-size: 24px 24px, 24px 24px, 100% 100%;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .graph-viewport.panning {
+      cursor: grabbing;
+    }
+
+    #graphCanvas {
+      width: 100%;
+      min-height: 520px;
+      display: block;
+    }
+
+    .graph-empty-copy {
+      font-size: 1rem;
+      fill: var(--muted);
+    }
+
+    .graph-edge {
+      fill: none;
+      stroke-width: 3.5;
+      stroke-linecap: round;
+      opacity: 0.9;
+    }
+
+    .graph-edge.branch {
+      stroke: var(--branch-line);
+    }
+
+    .graph-edge.merge {
+      stroke: var(--merge-line);
+    }
+
+    .graph-edge.root {
+      stroke: var(--root-line);
+    }
+
+    .graph-edge.broken {
+      stroke: var(--broken-line);
+      stroke-dasharray: 10 10;
+    }
+
+    .graph-edge-label {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      fill: var(--muted);
+    }
+
+    .graph-node {
+      cursor: pointer;
+      outline: none;
+    }
+
+    .graph-node-card {
+      stroke-width: 2.5;
+      filter: drop-shadow(0 14px 22px rgba(83, 57, 28, 0.14));
+    }
+
+    .graph-node.root .graph-node-card {
+      fill: var(--root);
+      stroke: rgba(93, 139, 88, 0.82);
+    }
+
+    .graph-node.branch .graph-node-card {
+      fill: var(--branch);
+      stroke: rgba(78, 104, 155, 0.82);
+    }
+
+    .graph-node.merge .graph-node-card {
+      fill: var(--merge);
+      stroke: rgba(176, 105, 36, 0.82);
+    }
+
+    .graph-node.broken .graph-node-card {
+      fill: #fff4f1;
+      stroke: rgba(181, 65, 49, 0.94);
+    }
+
+    .graph-node.selected .graph-node-card {
+      stroke: var(--accent-strong);
+      stroke-width: 4.5;
+    }
+
+    .graph-node-title {
+      font-size: 17px;
+      font-weight: 700;
+      fill: var(--text);
+    }
+
+    .graph-node-meta {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      fill: var(--muted);
+    }
+
+    .graph-node-footnote {
+      font-size: 12px;
+      fill: var(--muted);
+    }
+
+    .graph-node-warning {
+      font-size: 13px;
+      font-weight: 700;
+      fill: var(--broken-line);
     }
 
     .toolbar-title {
-      margin: 0 0 6px;
-      font-size: 1.8rem;
-      line-height: 1.1;
+      margin-bottom: 6px;
     }
 
     .status {
-      color: var(--muted);
       margin-bottom: 14px;
+      color: var(--muted);
+      line-height: 1.5;
     }
 
     .editor[hidden] {
@@ -176,18 +409,20 @@
       color: var(--text);
     }
 
-    .editor-list {
-      margin-top: 14px;
+    .editor-list,
+    .messages {
       display: flex;
       flex-direction: column;
       gap: 12px;
     }
 
-    .editor-message {
+    .editor-message,
+    .message,
+    .messages-empty {
       border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 12px;
-      background: white;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 16px;
     }
 
     .editor-message textarea {
@@ -199,19 +434,6 @@
       padding: 10px 12px;
       resize: vertical;
       line-height: 1.5;
-    }
-
-    .messages {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .message {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 16px 18px;
-      box-shadow: 0 12px 24px rgba(65, 45, 23, 0.06);
     }
 
     .message.user {
@@ -227,10 +449,6 @@
     }
 
     .meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
       margin-bottom: 10px;
       font-size: 0.82rem;
       letter-spacing: 0.08em;
@@ -263,7 +481,12 @@
       margin-top: 12px;
     }
 
-    @media (max-width: 900px) {
+    .messages-empty {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1100px) {
       .app {
         grid-template-columns: 1fr;
       }
@@ -272,7 +495,32 @@
         position: static;
         height: auto;
         border-right: 0;
-        border-bottom: 1px solid var(--line);
+        border-bottom: 1px solid rgba(158, 126, 85, 0.24);
+      }
+
+      .graph-viewport,
+      #graphCanvas {
+        min-height: 460px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .main {
+        padding: 18px 14px 36px;
+      }
+
+      .panel {
+        padding: 16px;
+      }
+
+      .panel h2,
+      .toolbar-title {
+        font-size: 1.55rem;
+      }
+
+      .graph-viewport,
+      #graphCanvas {
+        min-height: 400px;
       }
     }
   </style>
@@ -281,19 +529,64 @@
   <div class="app">
     <aside class="sidebar">
       <h1>ContextBuilder</h1>
-      <p>Browse and edit extracted dialog JSON files from the configured folder.</p>
+      <p>Graph-first navigation for local conversation lineages. Use the canvas to choose a branch, then keep the file tools here as a secondary control surface.</p>
       <div class="sidebar-actions">
-        <button id="refreshFilesButton" type="button">Refresh list</button>
+        <button id="refreshFilesButton" type="button">Refresh workspace</button>
         <button id="newBranchButton" type="button">New empty file</button>
       </div>
-      <div id="folderStatus" class="file-meta"></div>
-      <div id="fileList" class="file-list"></div>
+
+      <section class="sidebar-block">
+        <div class="eyebrow">Workspace</div>
+        <div id="folderStatus" class="file-meta">No dialog directory loaded.</div>
+        <div id="workspaceStats" class="status-line">Open the viewer against a dialog folder to build the graph.</div>
+      </section>
+
+      <section class="sidebar-block">
+        <div class="eyebrow">Files</div>
+        <div id="fileList" class="file-list"></div>
+      </section>
     </aside>
 
     <main class="main">
-      <section class="toolbar">
-        <h2 id="dialogTitle" class="toolbar-title">No dialog selected</h2>
-        <div id="status" class="status">Open a file from the sidebar.</div>
+      <section id="graphPanel" class="panel graph-panel">
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">Graph canvas</div>
+            <h2>Conversation lineage</h2>
+            <p id="graphSummary" class="panel-copy">Load a dialog workspace to render the conversation graph.</p>
+          </div>
+          <div class="graph-actions">
+            <button id="centerSelectionButton" type="button">Center selection</button>
+          </div>
+        </div>
+        <div id="graphSelectionHint" class="selection-hint">Drag the canvas to pan. Click a node to inspect it.</div>
+        <div class="graph-legend">
+          <span class="kind-chip root">Root</span>
+          <span class="kind-chip branch">Branch</span>
+          <span class="kind-chip merge">Merge</span>
+          <span class="kind-chip broken">Broken lineage</span>
+        </div>
+        <div id="graphViewport" class="graph-viewport">
+          <svg id="graphCanvas" viewBox="0 0 1200 720" aria-label="Conversation lineage canvas">
+            <defs>
+              <marker id="graph-arrow-branch" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#4e689b"></path>
+              </marker>
+              <marker id="graph-arrow-merge" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#b06924"></path>
+              </marker>
+              <marker id="graph-arrow-broken" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#b54131"></path>
+              </marker>
+            </defs>
+            <g id="graphStage"></g>
+          </svg>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 id="dialogTitle" class="toolbar-title">No conversation selected</h2>
+        <div id="status" class="status">Select a node on the graph or open a file from the sidebar.</div>
         <div class="toolbar-actions">
           <button id="saveCurrentButton" type="button">Save current file</button>
           <button id="saveAsButton" type="button">Save as new file</button>
@@ -301,7 +594,7 @@
         </div>
       </section>
 
-      <section id="editor" class="editor" hidden>
+      <section id="editor" class="panel editor copy-muted" hidden>
         <div class="editor-head">
           <strong>Branch Editor</strong>
           <div class="editor-actions">
@@ -321,17 +614,31 @@
         <div id="editorList" class="editor-list"></div>
       </section>
 
-      <section id="messages" class="messages-empty">
-        No dialog loaded.
+      <section id="messages" class="panel messages-empty">
+        No conversation loaded.
       </section>
     </main>
   </div>
 
   <script>
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const NODE_WIDTH = 248;
+    const NODE_HEIGHT = 128;
+    const NODE_GAP_X = 146;
+    const NODE_GAP_Y = 72;
+
     const fileListNode = document.getElementById("fileList");
     const folderStatusNode = document.getElementById("folderStatus");
+    const workspaceStatsNode = document.getElementById("workspaceStats");
     const refreshFilesButton = document.getElementById("refreshFilesButton");
     const newBranchButton = document.getElementById("newBranchButton");
+
+    const graphSummaryNode = document.getElementById("graphSummary");
+    const graphSelectionHintNode = document.getElementById("graphSelectionHint");
+    const graphViewportNode = document.getElementById("graphViewport");
+    const graphCanvasNode = document.getElementById("graphCanvas");
+    const graphStageNode = document.getElementById("graphStage");
+    const centerSelectionButton = document.getElementById("centerSelectionButton");
 
     const dialogTitleNode = document.getElementById("dialogTitle");
     const statusNode = document.getElementById("status");
@@ -353,7 +660,23 @@
     let files = [];
     let currentFileName = null;
     let currentConversation = null;
+    let currentValidation = null;
     let branchConversation = null;
+    let graphState = {
+      api: null,
+      layout: null,
+      selectedConversationId: null
+    };
+    let panState = {
+      x: 64,
+      y: 54,
+      isPanning: false,
+      pointerId: null,
+      originX: 0,
+      originY: 0,
+      startX: 0,
+      startY: 0
+    };
 
     function setStatus(text) {
       statusNode.textContent = text;
@@ -389,15 +712,248 @@
       return data;
     }
 
+    function createSvgNode(tag, attributes = {}) {
+      const node = document.createElementNS(SVG_NS, tag);
+      Object.entries(attributes).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          node.setAttribute(key, String(value));
+        }
+      });
+      return node;
+    }
+
+    function kindLabel(kind) {
+      if (kind === "canonical-root") {
+        return "Root";
+      }
+      if (kind === "canonical-merge") {
+        return "Merge";
+      }
+      if (kind === "canonical-branch") {
+        return "Branch";
+      }
+      if (kind === "imported-root") {
+        return "Imported root";
+      }
+      return "Invalid";
+    }
+
+    function kindClass(kind) {
+      if (kind === "canonical-root") {
+        return "root";
+      }
+      if (kind === "canonical-merge") {
+        return "merge";
+      }
+      return "branch";
+    }
+
+    function wrapText(text, maxLineLength = 26, maxLines = 3) {
+      const words = String(text || "").trim().split(/\s+/).filter(Boolean);
+      if (!words.length) {
+        return ["Untitled conversation"];
+      }
+
+      const lines = [];
+      let currentLine = "";
+      words.forEach((word) => {
+        const candidate = currentLine ? `${currentLine} ${word}` : word;
+        if (candidate.length <= maxLineLength) {
+          currentLine = candidate;
+          return;
+        }
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+        currentLine = word;
+      });
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
+      if (lines.length <= maxLines) {
+        return lines;
+      }
+
+      const trimmed = lines.slice(0, maxLines);
+      trimmed[maxLines - 1] = `${trimmed[maxLines - 1].slice(0, Math.max(0, maxLineLength - 1))}…`;
+      return trimmed;
+    }
+
+    function buildGraphIndexes(graph) {
+      const nodesById = new Map();
+      const edgesById = new Map();
+      (graph?.nodes || []).forEach((node) => nodesById.set(node.conversation_id, node));
+      (graph?.edges || []).forEach((edge) => edgesById.set(edge.edge_id, edge));
+      return { nodesById, edgesById };
+    }
+
+    function nodeHasBrokenState(node, edgesById) {
+      if (!node) {
+        return false;
+      }
+      if (Array.isArray(node.diagnostics) && node.diagnostics.length > 0) {
+        return true;
+      }
+      return (node.parent_edge_ids || []).some((edgeId) => edgesById.get(edgeId)?.status === "broken");
+    }
+
+    function nodeSortKey(node, edgesById) {
+      const hasBrokenState = nodeHasBrokenState(node, edgesById) ? 1 : 0;
+      const kindWeight = node.kind === "canonical-root" ? 0 : node.kind === "canonical-branch" ? 1 : 2;
+      const parentKey = (node.parent_edge_ids || [])
+        .map((edgeId) => edgesById.get(edgeId)?.parent_conversation_id || "")
+        .sort()
+        .join("|");
+      return [hasBrokenState, kindWeight, parentKey, node.title || "", node.conversation_id];
+    }
+
+    function compareKeys(left, right) {
+      for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+        const leftValue = left[index] ?? "";
+        const rightValue = right[index] ?? "";
+        if (leftValue < rightValue) {
+          return -1;
+        }
+        if (leftValue > rightValue) {
+          return 1;
+        }
+      }
+      return 0;
+    }
+
+    function computeGraphLayout(graph) {
+      const { nodesById, edgesById } = buildGraphIndexes(graph);
+      const depthByConversationId = new Map();
+
+      function resolvedParentEdges(node) {
+        return (node.parent_edge_ids || [])
+          .map((edgeId) => edgesById.get(edgeId))
+          .filter((edge) => edge && edge.status === "resolved" && nodesById.has(edge.parent_conversation_id));
+      }
+
+      function depthFor(conversationId, activePath = new Set()) {
+        if (depthByConversationId.has(conversationId)) {
+          return depthByConversationId.get(conversationId);
+        }
+        if (activePath.has(conversationId)) {
+          return 0;
+        }
+
+        const nextPath = new Set(activePath);
+        nextPath.add(conversationId);
+        const node = nodesById.get(conversationId);
+        const parentEdges = resolvedParentEdges(node);
+
+        let depth = 0;
+        if (parentEdges.length) {
+          depth = Math.max(...parentEdges.map((edge) => depthFor(edge.parent_conversation_id, nextPath) + 1));
+        } else if ((node.parent_edge_ids || []).length > 0) {
+          depth = 1;
+        }
+
+        depthByConversationId.set(conversationId, depth);
+        return depth;
+      }
+
+      (graph.nodes || []).forEach((node) => depthFor(node.conversation_id));
+
+      const columns = new Map();
+      [...(graph.nodes || [])]
+        .sort((left, right) => compareKeys(nodeSortKey(left, edgesById), nodeSortKey(right, edgesById)))
+        .forEach((node) => {
+          const depth = depthByConversationId.get(node.conversation_id) || 0;
+          const column = columns.get(depth) || [];
+          column.push(node);
+          columns.set(depth, column);
+        });
+
+      const positions = new Map();
+      const columnDepths = [...columns.keys()].sort((left, right) => left - right);
+      let tallestColumn = 0;
+      columnDepths.forEach((depth) => {
+        const column = columns.get(depth) || [];
+        tallestColumn = Math.max(tallestColumn, column.length);
+        column.forEach((node, index) => {
+          positions.set(node.conversation_id, {
+            x: depth * (NODE_WIDTH + NODE_GAP_X),
+            y: index * (NODE_HEIGHT + NODE_GAP_Y)
+          });
+        });
+      });
+
+      const width = Math.max(
+        1120,
+        columnDepths.length * NODE_WIDTH + Math.max(0, columnDepths.length - 1) * NODE_GAP_X + 240
+      );
+      const height = Math.max(640, tallestColumn * NODE_HEIGHT + Math.max(0, tallestColumn - 1) * NODE_GAP_Y + 220);
+
+      return {
+        width,
+        height,
+        positions,
+        edgesById,
+        nodesById
+      };
+    }
+
+    function edgeAnchorY(node, edgeId, slotField, position) {
+      const ids = node?.[slotField] || [];
+      const index = Math.max(0, ids.indexOf(edgeId));
+      const spacing = ids.length > 1 ? 18 : 0;
+      const totalHeight = spacing * Math.max(0, ids.length - 1);
+      return position.y + NODE_HEIGHT / 2 - totalHeight / 2 + index * spacing;
+    }
+
+    function edgePath(startX, startY, endX, endY) {
+      const deltaX = Math.max(52, (endX - startX) * 0.45);
+      return `M ${startX} ${startY} C ${startX + deltaX} ${startY}, ${endX - deltaX} ${endY}, ${endX} ${endY}`;
+    }
+
+    function buildGraphSummary(graphApi) {
+      if (!graphApi) {
+        return "Load a dialog workspace to render the conversation graph.";
+      }
+      const summary = graphApi.summary;
+      return `${summary.node_count} nodes, ${summary.edge_count} edges, ${summary.root_count} roots, ${summary.blocked_file_count} blocked files. The canvas mirrors the graph API directly.`;
+    }
+
+    function renderWorkspaceStats() {
+      const graphApi = graphState.api;
+      const nodeCount = graphApi?.summary?.node_count || 0;
+      const blockedCount = graphApi?.summary?.blocked_file_count || 0;
+      workspaceStatsNode.textContent = `${files.length} JSON files | ${nodeCount} graph nodes | ${blockedCount} blocked files`;
+    }
+
     function renderFileList() {
       fileListNode.innerHTML = "";
+
+      if (!files.length) {
+        const emptyState = document.createElement("div");
+        emptyState.className = "file-meta";
+        emptyState.textContent = "No JSON files detected in the configured workspace.";
+        fileListNode.append(emptyState);
+        return;
+      }
+
       files.forEach((file) => {
-        const item = document.createElement("div");
+        const item = document.createElement("article");
         item.className = `file-item ${file.name === currentFileName ? "active" : ""}`;
+
+        const head = document.createElement("div");
+        head.className = "file-head";
 
         const name = document.createElement("div");
         name.className = "file-name";
         name.textContent = file.name;
+
+        const chip = document.createElement("span");
+        const issueCount = file.validation?.errors?.length || 0;
+        const chipClass = issueCount ? "broken" : kindClass(file.kind);
+        chip.className = `kind-chip ${chipClass}`;
+        chip.textContent = issueCount ? `${issueCount} issue${issueCount === 1 ? "" : "s"}` : kindLabel(file.kind);
+
+        head.append(name, chip);
 
         const actions = document.createElement("div");
         actions.className = "file-actions";
@@ -405,38 +961,218 @@
         const openButton = document.createElement("button");
         openButton.type = "button";
         openButton.textContent = "Open";
-        openButton.addEventListener("click", () => loadFile(file.name));
+        openButton.addEventListener("click", () => {
+          loadFile(file.name).catch((error) => setStatus(error.message));
+        });
 
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
         deleteButton.className = "danger";
         deleteButton.textContent = "Delete";
-        deleteButton.addEventListener("click", () => deleteFile(file.name));
+        deleteButton.addEventListener("click", () => {
+          deleteFile(file.name).catch((error) => setStatus(error.message));
+        });
 
         actions.append(openButton, deleteButton);
 
         const meta = document.createElement("div");
         meta.className = "file-meta";
-        meta.textContent = `${Math.round(file.size / 1024)} KB`;
+        meta.textContent = `${Math.round(file.size / 1024)} KB | ${kindLabel(file.kind)}${issueCount ? ` | ${issueCount} validation issue${issueCount === 1 ? "" : "s"}` : ""}`;
 
-        item.append(name, actions, meta);
+        item.append(head, actions, meta);
         fileListNode.append(item);
       });
+    }
+
+    function updateGraphTransform() {
+      graphStageNode.setAttribute("transform", `translate(${panState.x} ${panState.y})`);
+      graphViewportNode.classList.toggle("panning", panState.isPanning);
+    }
+
+    function renderGraph() {
+      graphStageNode.innerHTML = "";
+      graphSummaryNode.textContent = buildGraphSummary(graphState.api);
+
+      const graph = graphState.api?.graph;
+      if (!graph || !graph.nodes.length) {
+        const message = createSvgNode("text", {
+          x: 72,
+          y: 120,
+          class: "graph-empty-copy"
+        });
+        message.textContent = graph?.blocked_files?.length
+          ? "No graph-safe conversations yet. Fix or remove blocked files to populate the canvas."
+          : "No graph nodes available in this workspace.";
+        graphStageNode.append(message);
+        graphSelectionHintNode.textContent = "Drag the canvas to pan. No selectable graph nodes are available yet.";
+        graphCanvasNode.setAttribute("viewBox", "0 0 1200 720");
+        graphState.layout = null;
+        updateGraphTransform();
+        return;
+      }
+
+      graphState.layout = computeGraphLayout(graph);
+      const { width, height, positions, edgesById, nodesById } = graphState.layout;
+      graphCanvasNode.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+      (graph.edges || []).forEach((edge) => {
+        const childNode = nodesById.get(edge.child_conversation_id);
+        const childPosition = positions.get(edge.child_conversation_id);
+        if (!childNode || !childPosition) {
+          return;
+        }
+
+        const parentNode = nodesById.get(edge.parent_conversation_id);
+        const parentPosition = positions.get(edge.parent_conversation_id);
+        const endX = childPosition.x;
+        const endY = edgeAnchorY(childNode, edge.edge_id, "parent_edge_ids", childPosition);
+
+        let startX = childPosition.x - 84;
+        let startY = endY - 28;
+        if (parentNode && parentPosition) {
+          startX = parentPosition.x + NODE_WIDTH;
+          startY = edgeAnchorY(parentNode, edge.edge_id, "child_edge_ids", parentPosition);
+        }
+
+        const path = createSvgNode("path", {
+          d: edgePath(startX, startY, endX, endY),
+          class: `graph-edge ${edge.status === "broken" ? "broken" : edge.link_type}`,
+          "marker-end": edge.status === "broken"
+            ? "url(#graph-arrow-broken)"
+            : edge.link_type === "merge"
+              ? "url(#graph-arrow-merge)"
+              : "url(#graph-arrow-branch)"
+        });
+        graphStageNode.append(path);
+
+        if (edge.status === "broken" && !(parentNode && parentPosition)) {
+          const marker = createSvgNode("circle", {
+            cx: startX,
+            cy: startY,
+            r: 8,
+            fill: "#fff7f6",
+            stroke: "#b54131",
+            "stroke-width": 2.5
+          });
+          graphStageNode.append(marker);
+        }
+
+        const label = createSvgNode("text", {
+          x: (startX + endX) / 2,
+          y: (startY + endY) / 2 - 10,
+          class: "graph-edge-label",
+          "text-anchor": "middle"
+        });
+        label.textContent = edge.status === "broken" ? "broken" : edge.link_type;
+        graphStageNode.append(label);
+      });
+
+      (graph.nodes || []).forEach((node) => {
+        const position = positions.get(node.conversation_id);
+        const brokenState = nodeHasBrokenState(node, edgesById);
+        const selected = graphState.selectedConversationId === node.conversation_id;
+        const nodeGroup = createSvgNode("g", {
+          class: `graph-node ${kindClass(node.kind)} ${brokenState ? "broken" : ""} ${selected ? "selected" : ""}`,
+          transform: `translate(${position.x} ${position.y})`,
+          tabindex: "0",
+          role: "button",
+          "aria-label": `${kindLabel(node.kind)} ${node.title || node.conversation_id}`
+        });
+
+        nodeGroup.addEventListener("click", () => {
+          selectConversation(node.conversation_id).catch((error) => setStatus(error.message));
+        });
+        nodeGroup.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectConversation(node.conversation_id).catch((error) => setStatus(error.message));
+          }
+        });
+
+        const card = createSvgNode("rect", {
+          class: "graph-node-card",
+          width: NODE_WIDTH,
+          height: NODE_HEIGHT,
+          rx: 24,
+          ry: 24
+        });
+        nodeGroup.append(card);
+
+        const titleLines = wrapText(node.title || node.conversation_id, 26, 3);
+        titleLines.forEach((line, index) => {
+          const title = createSvgNode("text", {
+            x: 18,
+            y: 28 + index * 20,
+            class: "graph-node-title"
+          });
+          title.textContent = line;
+          nodeGroup.append(title);
+        });
+
+        const meta = createSvgNode("text", {
+          x: 18,
+          y: 94,
+          class: "graph-node-meta"
+        });
+        meta.textContent = kindLabel(node.kind);
+        nodeGroup.append(meta);
+
+        const fileName = createSvgNode("text", {
+          x: 18,
+          y: 112,
+          class: "graph-node-footnote"
+        });
+        fileName.textContent = node.file_name;
+        nodeGroup.append(fileName);
+
+        const checkpointMeta = createSvgNode("text", {
+          x: NODE_WIDTH - 18,
+          y: 112,
+          class: "graph-node-footnote",
+          "text-anchor": "end"
+        });
+        checkpointMeta.textContent = `${node.checkpoint_count} checkpoints`;
+        nodeGroup.append(checkpointMeta);
+
+        if (brokenState) {
+          const warning = createSvgNode("text", {
+            x: NODE_WIDTH - 18,
+            y: 28,
+            class: "graph-node-warning",
+            "text-anchor": "end"
+          });
+          warning.textContent = "Broken lineage";
+          nodeGroup.append(warning);
+        }
+
+        graphStageNode.append(nodeGroup);
+      });
+
+      const selectedNode = graphState.selectedConversationId
+        ? nodesById.get(graphState.selectedConversationId)
+        : null;
+      graphSelectionHintNode.textContent = selectedNode
+        ? `Selected ${kindLabel(selectedNode.kind).toLowerCase()}: ${selectedNode.title || selectedNode.conversation_id}. Drag the canvas to pan or center the active node.`
+        : "Drag the canvas to pan. Click a node to inspect it.";
+      updateGraphTransform();
     }
 
     function renderConversation() {
       const data = currentConversation;
       const messages = Array.isArray(data?.messages) ? data.messages : [];
-      dialogTitleNode.textContent = data?.title || currentFileName || "No dialog selected";
-      setStatus(currentFileName ? `${currentFileName} | ${messages.length} messages` : "Open a file from the sidebar.");
+      dialogTitleNode.textContent = data?.title || currentFileName || "No conversation selected";
 
       if (!messages.length) {
-        messagesNode.className = "messages-empty";
-        messagesNode.textContent = "No dialog loaded.";
+        setStatus(currentFileName ? `${currentFileName} is loaded but contains no messages.` : "Select a node on the graph or open a file from the sidebar.");
+        messagesNode.className = "panel messages-empty";
+        messagesNode.textContent = "No conversation loaded.";
         return;
       }
 
-      messagesNode.className = "messages";
+      const kindText = currentValidation?.kind ? kindLabel(currentValidation.kind) : "Conversation";
+      setStatus(`${currentFileName || "Unsaved conversation"} | ${messages.length} messages | ${kindText}`);
+
+      messagesNode.className = "panel messages";
       messagesNode.innerHTML = "";
 
       messages.forEach((message, index) => {
@@ -473,13 +1209,79 @@
 
         const bottomActions = document.createElement("div");
         bottomActions.className = "message-actions";
-        const bottomBranchButton = makeBranchButton(index);
-        bottomActions.append(bottomBranchButton);
+        bottomActions.append(makeBranchButton(index));
 
         meta.append(label, topActions);
         article.append(meta, content, bottomActions);
         messagesNode.append(article);
       });
+    }
+
+    function findGraphNodeByConversationId(conversationId) {
+      return graphState.api?.graph?.nodes?.find((node) => node.conversation_id === conversationId) || null;
+    }
+
+    function findGraphNodeByFileName(fileName) {
+      return graphState.api?.graph?.nodes?.find((node) => node.file_name === fileName) || null;
+    }
+
+    function resolveSelectionFromFileResponse(result) {
+      const conversationId = result.data?.conversation_id || result.validation?.conversation_id;
+      return findGraphNodeByConversationId(conversationId) ? conversationId : null;
+    }
+
+    async function refreshWorkspace() {
+      const [filesResult, graphResult] = await Promise.all([
+        api("/api/files"),
+        api("/api/graph")
+      ]);
+
+      files = filesResult.files;
+      graphState.api = graphResult;
+      folderStatusNode.textContent = filesResult.dialog_dir;
+      renderWorkspaceStats();
+
+      if (graphState.selectedConversationId && !findGraphNodeByConversationId(graphState.selectedConversationId)) {
+        graphState.selectedConversationId = null;
+      }
+
+      renderFileList();
+      renderGraph();
+    }
+
+    async function loadFile(name, options = {}) {
+      const result = await api(`/api/file?name=${encodeURIComponent(name)}`);
+      currentFileName = result.name;
+      currentConversation = result.data;
+      currentValidation = result.validation;
+
+      if (Object.prototype.hasOwnProperty.call(options, "selectedConversationId")) {
+        graphState.selectedConversationId = options.selectedConversationId;
+      } else {
+        graphState.selectedConversationId = resolveSelectionFromFileResponse(result);
+      }
+
+      renderFileList();
+      renderGraph();
+      renderConversation();
+    }
+
+    async function selectConversation(conversationId) {
+      const node = findGraphNodeByConversationId(conversationId);
+      if (!node) {
+        return;
+      }
+
+      graphState.selectedConversationId = conversationId;
+      renderGraph();
+
+      if (currentFileName === node.file_name && currentConversation) {
+        renderFileList();
+        renderConversation();
+        return;
+      }
+
+      await loadFile(node.file_name, { selectedConversationId: conversationId });
     }
 
     function makeBranchButton(index) {
@@ -536,6 +1338,7 @@
         openEmptyEditor();
         return;
       }
+
       branchConversation = {
         ...currentConversation,
         title: `${currentConversation.title || "Untitled"} (copy)`,
@@ -583,21 +1386,6 @@
       branchConversation.message_count = branchConversation.messages.length;
     }
 
-    async function refreshFiles() {
-      const result = await api("/api/files");
-      files = result.files;
-      folderStatusNode.textContent = result.dialog_dir;
-      renderFileList();
-    }
-
-    async function loadFile(name) {
-      const result = await api(`/api/file?name=${encodeURIComponent(name)}`);
-      currentFileName = result.name;
-      currentConversation = result.data;
-      renderFileList();
-      renderConversation();
-    }
-
     async function saveConversation(name, data, overwrite) {
       return api("/api/file", {
         method: "POST",
@@ -609,10 +1397,11 @@
       if (!branchConversation) {
         return;
       }
+
       syncBranchMeta();
       const fileName = saveNameNode.value.trim() || defaultFileName(branchConversation.title);
       await saveConversation(fileName, branchConversation, false);
-      await refreshFiles();
+      await refreshWorkspace();
       await loadFile(fileName);
       setStatus(`Created ${fileName}`);
     }
@@ -621,10 +1410,11 @@
       if (!branchConversation) {
         return;
       }
+
       syncBranchMeta();
       const target = currentFileName || saveNameNode.value.trim() || defaultFileName(branchConversation.title);
       await saveConversation(target, branchConversation, true);
-      await refreshFiles();
+      await refreshWorkspace();
       await loadFile(target);
       setStatus(`Saved ${target}`);
     }
@@ -634,8 +1424,10 @@
         setStatus("No current file to save.");
         return;
       }
+
       await saveConversation(currentFileName, currentConversation, true);
-      await refreshFiles();
+      await refreshWorkspace();
+      await loadFile(currentFileName);
       setStatus(`Saved ${currentFileName}`);
     }
 
@@ -644,15 +1436,108 @@
       if (!confirmed) {
         return;
       }
+
       await api(`/api/file?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+
       if (name === currentFileName) {
         currentFileName = null;
         currentConversation = null;
+        currentValidation = null;
+      }
+
+      await refreshWorkspace();
+
+      if (graphState.selectedConversationId) {
+        const selectedNode = findGraphNodeByConversationId(graphState.selectedConversationId);
+        if (selectedNode) {
+          await loadFile(selectedNode.file_name, { selectedConversationId: selectedNode.conversation_id });
+          setStatus(`Deleted ${name}`);
+          return;
+        }
+      }
+
+      if (graphState.api?.graph?.nodes?.length) {
+        await selectConversation(graphState.api.graph.nodes[0].conversation_id);
+      } else if (files.length) {
+        await loadFile(files[0].name, { selectedConversationId: null });
+      } else {
+        renderFileList();
+        renderGraph();
         renderConversation();
       }
-      await refreshFiles();
+
       setStatus(`Deleted ${name}`);
     }
+
+    function centerOnSelection() {
+      if (!graphState.layout || !graphState.selectedConversationId) {
+        return;
+      }
+
+      const position = graphState.layout.positions.get(graphState.selectedConversationId);
+      if (!position) {
+        return;
+      }
+
+      const viewportRect = graphViewportNode.getBoundingClientRect();
+      panState.x = Math.round(viewportRect.width / 2 - (position.x + NODE_WIDTH / 2));
+      panState.y = Math.round(viewportRect.height / 2 - (position.y + NODE_HEIGHT / 2));
+      updateGraphTransform();
+    }
+
+    graphViewportNode.addEventListener("pointerdown", (event) => {
+      const clickedNode = event.target.closest(".graph-node");
+      if (clickedNode) {
+        return;
+      }
+
+      panState.isPanning = true;
+      panState.pointerId = event.pointerId;
+      panState.originX = panState.x;
+      panState.originY = panState.y;
+      panState.startX = event.clientX;
+      panState.startY = event.clientY;
+      graphViewportNode.setPointerCapture(event.pointerId);
+      updateGraphTransform();
+    });
+
+    graphViewportNode.addEventListener("pointermove", (event) => {
+      if (!panState.isPanning || event.pointerId !== panState.pointerId) {
+        return;
+      }
+
+      panState.x = panState.originX + (event.clientX - panState.startX);
+      panState.y = panState.originY + (event.clientY - panState.startY);
+      updateGraphTransform();
+    });
+
+    function endPan(event) {
+      if (!panState.isPanning) {
+        return;
+      }
+      if (event.pointerId !== undefined && event.pointerId !== panState.pointerId) {
+        return;
+      }
+
+      panState.isPanning = false;
+      if (panState.pointerId !== null) {
+        try {
+          graphViewportNode.releasePointerCapture(panState.pointerId);
+        } catch (error) {
+          // Ignore release errors if the pointer capture is already gone.
+        }
+      }
+      panState.pointerId = null;
+      updateGraphTransform();
+    }
+
+    graphViewportNode.addEventListener("pointerup", endPan);
+    graphViewportNode.addEventListener("pointercancel", endPan);
+    graphViewportNode.addEventListener("pointerleave", (event) => {
+      if (panState.isPanning && event.buttons === 0) {
+        endPan(event);
+      }
+    });
 
     branchTitleNode.addEventListener("input", () => {
       if (!branchConversation) {
@@ -695,7 +1580,20 @@
     });
 
     refreshFilesButton.addEventListener("click", () => {
-      refreshFiles().catch((error) => setStatus(error.message));
+      refreshWorkspace()
+        .then(() => {
+          if (currentFileName && files.some((file) => file.name === currentFileName)) {
+            return loadFile(currentFileName);
+          }
+          if (graphState.api?.graph?.nodes?.length) {
+            return selectConversation(graphState.api.graph.nodes[0].conversation_id);
+          }
+          if (files.length) {
+            return loadFile(files[0].name, { selectedConversationId: null });
+          }
+          renderConversation();
+        })
+        .catch((error) => setStatus(error.message));
     });
 
     newBranchButton.addEventListener("click", openEmptyEditor);
@@ -708,22 +1606,39 @@
         deleteFile(currentFileName).catch((error) => setStatus(error.message));
       }
     });
+    centerSelectionButton.addEventListener("click", centerOnSelection);
 
-    refreshFiles()
-      .then(() => {
-        const params = new URLSearchParams(window.location.search);
-        const requestedFile = params.get("file");
-        if (requestedFile) {
-          const fileName = requestedFile.split("/").pop();
-          if (fileName) {
-            return loadFile(fileName);
-          }
+    async function initialize() {
+      await refreshWorkspace();
+
+      const params = new URLSearchParams(window.location.search);
+      const requestedFile = params.get("file");
+      if (requestedFile) {
+        const fileName = requestedFile.split("/").pop();
+        if (fileName) {
+          await loadFile(fileName);
+          return;
         }
-        if (files.length) {
-          return loadFile(files[0].name);
-        }
-      })
-      .catch((error) => setStatus(error.message));
+      }
+
+      if (graphState.api?.graph?.roots?.length) {
+        await selectConversation(graphState.api.graph.roots[0]);
+        centerOnSelection();
+        return;
+      }
+
+      if (graphState.api?.graph?.nodes?.length) {
+        await selectConversation(graphState.api.graph.nodes[0].conversation_id);
+        centerOnSelection();
+        return;
+      }
+
+      if (files.length) {
+        await loadFile(files[0].name, { selectedConversationId: null });
+      }
+    }
+
+    initialize().catch((error) => setStatus(error.message));
   </script>
 </body>
 </html>

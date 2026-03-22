@@ -27,6 +27,16 @@ You can also run the server directly:
 python3 viewer/server.py --port 8000 --dialog-dir /absolute/path/to/dialogs
 ```
 
+## Graph-First Viewer
+
+The viewer now opens in a graph-first mode instead of treating the file list as the primary navigation surface.
+
+- The main canvas is driven by `GET /api/graph` and renders the current workspace lineage directly.
+- Root, branch, and merge conversations have distinct node states so the graph can be read without opening each file first.
+- Broken lineage stays visible as a broken edge and warning state instead of disappearing from the canvas.
+- Drag the canvas background to pan, then click a node to load that conversation into the transcript panel.
+- The file list remains available in the sidebar for file-level actions such as open, delete, and save flows.
+
 ## File Contract
 
 ContextBuilder currently supports imported root conversations in the shape produced by `ChatGPTDialogs` and defines a stricter canonical shape for conversations created and normalized by ContextBuilder itself.
