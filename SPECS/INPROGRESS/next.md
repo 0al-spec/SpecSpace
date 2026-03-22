@@ -1,6 +1,9 @@
 # In Progress Queue
 
-No task is currently selected.
+**Current Task:** `CTXB-P2-T4` — Preserve graph context across hard refresh
+- **Priority:** P1
+- **Dependencies:** CTXB-P2-T1, CTXB-P2-T2
+- **Branch:** `feature/CTXB-P2-T4-refresh-persistence`
 
 ## Recently Archived
 
@@ -12,10 +15,9 @@ No task is currently selected.
 
 ## Suggested Next Tasks
 
-1. `CTXB-P2-T4` — Preserve graph context across hard refresh
-2. `CTXB-P2-T5` — Surface integrity issues directly in the graph UI
-3. `CTXB-P1-T6` — Correct compile-target root metadata for incomplete lineage
+1. `CTXB-P2-T5` — Surface integrity issues directly in the graph UI
+2. `CTXB-P1-T6` — Correct compile-target root metadata for incomplete lineage
 
 ## Next Step
 
-Run `SELECT` or update this file to choose the next task from `SPECS/Workplan.md`.
+Complete `CTXB-P2-T4`, then run `SELECT` for the next task.
