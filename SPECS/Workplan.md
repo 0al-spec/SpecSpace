@@ -170,7 +170,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - The "Graph canvas" eyebrow and "Conversation lineage" heading are removed.
   - The graph summary, legend, and canvas remain fully functional.
 
-### CTXB-P2-T8 — Simplify sidebar file list interactions
+### ✅ CTXB-P2-T8 — Simplify sidebar file list interactions
 - **Description:** Remove the "Open" button from sidebar file entries — clicking anywhere on the file cell should open/select the file. Replace the "Delete" button with a compact trash icon or "X" symbol that triggers a confirmation dialog before deletion.
 - **Priority:** P2
 - **Dependencies:** CTXB-P2-T1
