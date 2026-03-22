@@ -43,3 +43,4 @@
 | 2026-03-22 | CTXB-P2-T3 | Archived Implement_Ancestor_And_Sibling_Lineage_Navigation (PASS) |
 | 2026-03-22 | CTXB-P2-T3 | Archived REVIEW_lineage_navigation report |
 | 2026-03-22 | CTXB-P2-T4 | Archived Preserve_Graph_Context_Across_Hard_Refresh (PASS) |
+| 2026-03-22 | CTXB-P2-T4 | Archived REVIEW_refresh_persistence report |
