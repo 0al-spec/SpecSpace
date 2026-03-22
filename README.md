@@ -207,7 +207,16 @@ ContextBuilder now validates both individual payloads and whole-workspace lineag
 
 - `GET /api/files` now returns per-file validation metadata plus aggregate diagnostics for the current dialog directory.
 - `GET /api/file` returns the requested payload together with the current validation result for that file.
+- `GET /api/graph` returns the graph snapshot together with a summary that separates blocking integrity issues from non-blocking lineage diagnostics.
+- `GET /api/conversation?conversation_id=...` returns one graph-safe conversation node, its parent and child edges, and compile-target-ready lineage metadata.
+- `GET /api/checkpoint?conversation_id=...&message_id=...` returns one checkpoint anchor, its outbound child edges, and compile-target metadata anchored to that exact message.
 - `POST /api/file` validates the file name and payload before writing. Valid imported roots are normalized into canonical roots on save; malformed or ambiguous payloads are rejected with structured error codes.
+
+Graph lookup error behavior:
+
+- unknown `conversation_id` values return `404`
+- blocked `conversation_id` values return `409` with the blocking diagnostics
+- unknown checkpoint anchors return `404`
 
 ### Graph Snapshot Model
 
@@ -242,6 +251,37 @@ Important graph rules:
 2. Duplicate `conversation_id` values block graph indexing for that identity and move the affected files into `blocked_files`.
 3. Invalid JSON files remain visible only through diagnostics and are not indexed as graph nodes.
 4. Node, edge, and diagnostic ordering is deterministic so later canvas and compile workflows can build on a stable snapshot.
+
+### Graph Detail API
+
+The graph-specific read API builds on the same snapshot and exposes stable graph identifiers for later UI and compilation workflows:
+
+- `GET /api/graph` returns:
+  - `graph`: the full snapshot described above
+  - `summary`: counts for nodes, edges, roots, blocked files, total diagnostics, blocking issues, and non-blocking issues
+  - `integrity`: the same graph diagnostics split into `blocking` and `non_blocking`
+- `GET /api/conversation?conversation_id=...` returns:
+  - `conversation`: the indexed node payload
+  - `parent_edges` and `child_edges`
+  - `integrity`: related diagnostics split into `blocking` and `non_blocking`
+  - `compile_target`: deterministic selection metadata for the whole conversation
+- `GET /api/checkpoint?conversation_id=...&message_id=...` returns:
+  - `conversation`: the owning conversation node
+  - `checkpoint`: the selected message anchor
+  - `child_edges`: outbound branch or merge edges from that checkpoint
+  - `compile_target`: deterministic selection metadata for that exact checkpoint
+
+Current `compile_target` fields are intended to unblock later export tasks without persisting selection state yet:
+
+- `scope`: `conversation` or `checkpoint`
+- `target_conversation_id` and optional `target_message_id`
+- `lineage_conversation_ids`: deterministic ancestor ordering ending at the selected target
+- `lineage_edge_ids`: parent edges included in the selected ancestry
+- `lineage_paths`: root-to-target conversation paths, preserving merge provenance as multiple paths
+- `root_conversation_ids`: reachable roots for the selected target
+- `merge_parent_conversation_ids`: merge parents visible in the selected ancestry
+- `unresolved_parent_edge_ids`: broken parent edges that make the lineage incomplete
+- `is_lineage_complete`: `false` when any parent edge in the selected ancestry is unresolved
 
 The intended upstream producer is `ChatGPTDialogs`, but any directory with the same JSON contract is valid.
 

@@ -6,19 +6,19 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-try:
-    from viewer import schema
-except ImportError:  # pragma: no cover - allows running `python viewer/server.py`
-    import schema  # type: ignore[no-redef]
-
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
+if __package__ in {None, ""}:  # pragma: no cover - allows running `python viewer/server.py`
+    sys.path.insert(0, str(REPO_ROOT))
+
+from viewer import schema  # noqa: E402
+
 NON_BLOCKING_GRAPH_ERROR_CODES = frozenset(
     {
         "missing_parent_conversation",
@@ -324,6 +324,272 @@ def build_graph_snapshot(
     }
 
 
+def graph_diagnostic_is_blocking(diagnostic: dict[str, Any]) -> bool:
+    code = diagnostic.get("code")
+    return not isinstance(code, str) or code not in NON_BLOCKING_GRAPH_ERROR_CODES
+
+
+def split_graph_diagnostics(diagnostics: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    blocking = [item for item in diagnostics if graph_diagnostic_is_blocking(item)]
+    non_blocking = [item for item in diagnostics if not graph_diagnostic_is_blocking(item)]
+    return {
+        "blocking": sort_graph_diagnostics(blocking),
+        "non_blocking": sort_graph_diagnostics(non_blocking),
+    }
+
+
+def build_graph_summary(graph: dict[str, Any]) -> dict[str, Any]:
+    integrity = split_graph_diagnostics(graph["diagnostics"])
+    return {
+        "node_count": len(graph["nodes"]),
+        "edge_count": len(graph["edges"]),
+        "root_count": len(graph["roots"]),
+        "blocked_file_count": len(graph["blocked_files"]),
+        "diagnostic_count": len(graph["diagnostics"]),
+        "blocking_issue_count": len(integrity["blocking"]),
+        "non_blocking_issue_count": len(integrity["non_blocking"]),
+        "has_blocking_issues": bool(integrity["blocking"]),
+    }
+
+
+def collect_graph_api(dialog_dir: Path) -> dict[str, Any]:
+    workspace = collect_workspace_listing(dialog_dir)
+    graph = workspace["graph"]
+    return {
+        "dialog_dir": workspace["dialog_dir"],
+        "graph": graph,
+        "summary": build_graph_summary(graph),
+        "integrity": split_graph_diagnostics(graph["diagnostics"]),
+    }
+
+
+def build_graph_indexes(
+    graph: dict[str, Any],
+) -> tuple[
+    dict[str, dict[str, Any]],
+    dict[str, dict[str, Any]],
+    dict[str, list[dict[str, Any]]],
+]:
+    nodes_by_conversation = {
+        node["conversation_id"]: node
+        for node in graph["nodes"]
+        if isinstance(node.get("conversation_id"), str)
+    }
+    edges_by_id = {
+        edge["edge_id"]: edge
+        for edge in graph["edges"]
+        if isinstance(edge.get("edge_id"), str)
+    }
+    blocked_by_conversation: dict[str, list[dict[str, Any]]] = {}
+    for blocked in graph["blocked_files"]:
+        conversation_id = blocked.get("conversation_id")
+        if isinstance(conversation_id, str):
+            blocked_by_conversation.setdefault(conversation_id, []).append(blocked)
+    return nodes_by_conversation, edges_by_id, blocked_by_conversation
+
+
+def sort_lineage_paths(paths: list[list[str]]) -> list[list[str]]:
+    unique_paths = {tuple(path) for path in paths}
+    return [list(path) for path in sorted(unique_paths, key=lambda item: (len(item), item))]
+
+
+def build_lineage_paths(
+    conversation_id: str,
+    nodes_by_conversation: dict[str, dict[str, Any]],
+    edges_by_id: dict[str, dict[str, Any]],
+    active_stack: tuple[str, ...] = (),
+) -> list[list[str]]:
+    if conversation_id in active_stack:
+        return [[conversation_id]]
+
+    node = nodes_by_conversation[conversation_id]
+    resolved_parent_edges = [
+        edges_by_id[edge_id]
+        for edge_id in node["parent_edge_ids"]
+        if edge_id in edges_by_id
+        and edges_by_id[edge_id]["status"] == "resolved"
+        and edges_by_id[edge_id]["parent_conversation_id"] in nodes_by_conversation
+    ]
+    if not resolved_parent_edges:
+        return [[conversation_id]]
+
+    paths: list[list[str]] = []
+    next_stack = (*active_stack, conversation_id)
+    for edge in resolved_parent_edges:
+        parent_paths = build_lineage_paths(
+            edge["parent_conversation_id"],
+            nodes_by_conversation,
+            edges_by_id,
+            next_stack,
+        )
+        for parent_path in parent_paths:
+            paths.append(parent_path + [conversation_id])
+    return sort_lineage_paths(paths)
+
+
+def build_compile_target(
+    graph: dict[str, Any],
+    conversation_id: str,
+    *,
+    scope: str,
+    target_message_id: str | None = None,
+    checkpoint: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    nodes_by_conversation, edges_by_id, _ = build_graph_indexes(graph)
+    node = nodes_by_conversation[conversation_id]
+    visited_conversations: set[str] = set()
+    visited_edges: set[str] = set()
+    unresolved_parent_edge_ids: set[str] = set()
+    ordered_conversations: list[str] = []
+
+    def visit(current_id: str) -> None:
+        if current_id in visited_conversations:
+            return
+        visited_conversations.add(current_id)
+        current_node = nodes_by_conversation[current_id]
+        for edge_id in current_node["parent_edge_ids"]:
+            edge = edges_by_id.get(edge_id)
+            if edge is None:
+                continue
+            visited_edges.add(edge_id)
+            if edge["status"] != "resolved" or edge["parent_conversation_id"] not in nodes_by_conversation:
+                unresolved_parent_edge_ids.add(edge_id)
+                continue
+            visit(edge["parent_conversation_id"])
+        ordered_conversations.append(current_id)
+
+    visit(conversation_id)
+    lineage_paths = build_lineage_paths(conversation_id, nodes_by_conversation, edges_by_id)
+    root_conversation_ids = sorted({path[0] for path in lineage_paths if path})
+    merge_parent_conversation_ids = sorted(
+        {
+            edges_by_id[edge_id]["parent_conversation_id"]
+            for edge_id in visited_edges
+            if edge_id in edges_by_id and edges_by_id[edge_id]["link_type"] == "merge"
+        }
+    )
+    payload = {
+        "scope": scope,
+        "target_conversation_id": conversation_id,
+        "target_message_id": target_message_id,
+        "target_kind": node["kind"],
+        "lineage_conversation_ids": ordered_conversations,
+        "lineage_edge_ids": sorted(visited_edges),
+        "lineage_paths": lineage_paths,
+        "root_conversation_ids": root_conversation_ids,
+        "merge_parent_conversation_ids": merge_parent_conversation_ids,
+        "unresolved_parent_edge_ids": sorted(unresolved_parent_edge_ids),
+        "is_lineage_complete": not unresolved_parent_edge_ids,
+    }
+    if checkpoint is not None:
+        payload["target_checkpoint_index"] = checkpoint["index"]
+        payload["target_checkpoint_role"] = checkpoint["role"]
+    return payload
+
+
+def collect_related_diagnostics(
+    node: dict[str, Any],
+    parent_edges: list[dict[str, Any]],
+    child_edges: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    diagnostics = list(node["diagnostics"])
+    for edge in parent_edges + child_edges:
+        diagnostics.extend(edge["diagnostics"])
+    return split_graph_diagnostics(diagnostics)
+
+
+def collect_conversation_api(dialog_dir: Path, conversation_id: str) -> tuple[int, dict[str, Any]]:
+    if not conversation_id:
+        return HTTPStatus.BAD_REQUEST, {"error": "conversation_id is required"}
+
+    workspace = collect_workspace_listing(dialog_dir)
+    graph = workspace["graph"]
+    nodes_by_conversation, edges_by_id, blocked_by_conversation = build_graph_indexes(graph)
+
+    node = nodes_by_conversation.get(conversation_id)
+    if node is None:
+        blocked_files = blocked_by_conversation.get(conversation_id, [])
+        if blocked_files:
+            diagnostics = sort_graph_diagnostics(
+                [
+                    diagnostic
+                    for blocked in blocked_files
+                    for diagnostic in blocked["diagnostics"]
+                ]
+            )
+            return HTTPStatus.CONFLICT, {
+                "error": "Conversation is blocked by validation errors",
+                "conversation_id": conversation_id,
+                "blocked_files": blocked_files,
+                "diagnostics": diagnostics,
+            }
+        return HTTPStatus.NOT_FOUND, {"error": "Conversation not found", "conversation_id": conversation_id}
+
+    parent_edges = [edges_by_id[edge_id] for edge_id in node["parent_edge_ids"] if edge_id in edges_by_id]
+    child_edges = [edges_by_id[edge_id] for edge_id in node["child_edge_ids"] if edge_id in edges_by_id]
+    return HTTPStatus.OK, {
+        "conversation": node,
+        "parent_edges": parent_edges,
+        "child_edges": child_edges,
+        "compile_target": build_compile_target(graph, conversation_id, scope="conversation"),
+        "integrity": collect_related_diagnostics(node, parent_edges, child_edges),
+    }
+
+
+def collect_checkpoint_api(dialog_dir: Path, conversation_id: str, message_id: str) -> tuple[int, dict[str, Any]]:
+    if not conversation_id:
+        return HTTPStatus.BAD_REQUEST, {"error": "conversation_id is required"}
+    if not message_id:
+        return HTTPStatus.BAD_REQUEST, {"error": "message_id is required", "conversation_id": conversation_id}
+
+    workspace = collect_workspace_listing(dialog_dir)
+    graph = workspace["graph"]
+    nodes_by_conversation, edges_by_id, blocked_by_conversation = build_graph_indexes(graph)
+
+    node = nodes_by_conversation.get(conversation_id)
+    if node is None:
+        blocked_files = blocked_by_conversation.get(conversation_id, [])
+        if blocked_files:
+            diagnostics = sort_graph_diagnostics(
+                [
+                    diagnostic
+                    for blocked in blocked_files
+                    for diagnostic in blocked["diagnostics"]
+                ]
+            )
+            return HTTPStatus.CONFLICT, {
+                "error": "Conversation is blocked by validation errors",
+                "conversation_id": conversation_id,
+                "message_id": message_id,
+                "blocked_files": blocked_files,
+                "diagnostics": diagnostics,
+            }
+        return HTTPStatus.NOT_FOUND, {"error": "Conversation not found", "conversation_id": conversation_id}
+
+    checkpoint = next((item for item in node["checkpoints"] if item["message_id"] == message_id), None)
+    if checkpoint is None:
+        return HTTPStatus.NOT_FOUND, {
+            "error": "Checkpoint not found",
+            "conversation_id": conversation_id,
+            "message_id": message_id,
+        }
+
+    child_edges = [edges_by_id[edge_id] for edge_id in checkpoint["child_edge_ids"] if edge_id in edges_by_id]
+    return HTTPStatus.OK, {
+        "conversation": node,
+        "checkpoint": checkpoint,
+        "child_edges": child_edges,
+        "compile_target": build_compile_target(
+            graph,
+            conversation_id,
+            scope="checkpoint",
+            target_message_id=message_id,
+            checkpoint=checkpoint,
+        ),
+        "integrity": collect_related_diagnostics(node, [], child_edges),
+    }
+
+
 def dialog_path_for_name(dialog_dir: Path, name: str) -> Path:
     return (dialog_dir / name).resolve()
 
@@ -433,6 +699,15 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/files":
             self.handle_list_files()
             return
+        if parsed.path == "/api/graph":
+            self.handle_graph()
+            return
+        if parsed.path == "/api/conversation":
+            self.handle_get_conversation(parsed)
+            return
+        if parsed.path == "/api/checkpoint":
+            self.handle_get_checkpoint(parsed)
+            return
         if parsed.path == "/api/file":
             self.handle_get_file(parsed)
             return
@@ -454,6 +729,22 @@ class ViewerHandler(BaseHTTPRequestHandler):
 
     def handle_list_files(self) -> None:
         json_response(self, HTTPStatus.OK, collect_workspace_listing(self.server.dialog_dir))
+
+    def handle_graph(self) -> None:
+        json_response(self, HTTPStatus.OK, collect_graph_api(self.server.dialog_dir))
+
+    def handle_get_conversation(self, parsed) -> None:
+        params = parse_qs(parsed.query)
+        conversation_id = params.get("conversation_id", [""])[0]
+        status, payload = collect_conversation_api(self.server.dialog_dir, conversation_id)
+        json_response(self, status, payload)
+
+    def handle_get_checkpoint(self, parsed) -> None:
+        params = parse_qs(parsed.query)
+        conversation_id = params.get("conversation_id", [""])[0]
+        message_id = params.get("message_id", [""])[0]
+        status, payload = collect_checkpoint_api(self.server.dialog_dir, conversation_id, message_id)
+        json_response(self, status, payload)
 
     def handle_get_file(self, parsed) -> None:
         params = parse_qs(parsed.query)

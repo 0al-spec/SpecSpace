@@ -1,7 +1,6 @@
 import json
 import tempfile
 import unittest
-from copy import deepcopy
 from pathlib import Path
 
 from viewer import server
