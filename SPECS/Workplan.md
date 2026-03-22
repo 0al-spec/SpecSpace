@@ -149,6 +149,49 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - Unsupported files or blocking errors are explicit and actionable.
   - The UI does not silently suppress graph inconsistencies.
 
+### CTXB-P2-T6 — Add collapsible sidebar toggle
+- **Description:** Add a button that collapses and expands the sidebar so the graph canvas and inspectors can use the full viewport width when the file list is not needed.
+- **Priority:** P2
+- **Dependencies:** CTXB-P2-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** toggle button in `viewer/index.html`, sidebar collapse/expand CSS and state
+- **Acceptance Criteria:**
+  - A visible toggle button collapses the sidebar in one click.
+  - Clicking the toggle again restores the sidebar.
+  - The graph canvas and inspector panels expand to fill the freed space.
+
+### CTXB-P2-T7 — Remove the "Graph canvas" heading from the graph panel
+- **Description:** Remove the static "Graph canvas" eyebrow and "Conversation lineage" heading from the graph panel. The graph summary line and legend are sufficient orientation.
+- **Priority:** P2
+- **Dependencies:** CTXB-P2-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** HTML and CSS cleanup in `viewer/index.html`
+- **Acceptance Criteria:**
+  - The "Graph canvas" eyebrow and "Conversation lineage" heading are removed.
+  - The graph summary, legend, and canvas remain fully functional.
+
+### CTXB-P2-T8 — Simplify sidebar file list interactions
+- **Description:** Remove the "Open" button from sidebar file entries — clicking anywhere on the file cell should open/select the file. Replace the "Delete" button with a compact trash icon or "X" symbol that triggers a confirmation dialog before deletion.
+- **Priority:** P2
+- **Dependencies:** CTXB-P2-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** updated file list rendering in `viewer/index.html`, confirmation dialog for delete
+- **Acceptance Criteria:**
+  - Clicking a file cell opens/selects that file without needing a separate "Open" button.
+  - Delete is triggered by a compact icon that shows a confirmation dialog before proceeding.
+  - No accidental deletions are possible.
+
+### CTXB-P2-T9 — Remove the redundant file toolbar block
+- **Description:** Remove the block that shows the selected file name, message count, kind label, and the "Save current file", "Save as new file", "Delete current file" buttons. This information duplicates the conversation inspector and the sidebar, and the actions are either redundant or better placed elsewhere.
+- **Priority:** P2
+- **Dependencies:** CTXB-P2-T2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** HTML removal in `viewer/index.html`, any orphaned JS cleanup
+- **Acceptance Criteria:**
+  - The file toolbar block is removed from the page.
+  - No functionality is lost — equivalent actions remain accessible from the sidebar or inspectors.
+  - All existing tests continue to pass.
+
 ## Phase 3: Authoring and Compile Target Selection
 
 Intent: implement the workflows that mutate graph structure safely and let the user mark a concrete line of reasoning as the target for context compilation.
