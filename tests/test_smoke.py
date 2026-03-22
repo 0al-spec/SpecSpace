@@ -52,6 +52,14 @@ class ContextBuilderSmokeTests(unittest.TestCase):
         self.assertIn("selectedCheckpointId", html)
         self.assertIn("Inspect checkpoint", html)
 
+    def test_viewer_index_surfaces_integrity_issues_in_graph_ui(self) -> None:
+        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn('id="blockedFilesList"', html)
+        self.assertIn("renderBlockedFiles", html)
+        self.assertIn("has_blocking_issues", html)
+        self.assertIn("blocking_issue_count", html)
+
     def test_viewer_index_persists_and_restores_graph_context(self) -> None:
         html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
 

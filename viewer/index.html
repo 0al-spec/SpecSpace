@@ -255,6 +255,18 @@
       margin: 18px 0 14px;
     }
 
+    .blocked-files-container {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 16px;
+      background: var(--broken);
+      border: 1px solid var(--broken-line);
+    }
+
+    .blocked-files-container .eyebrow {
+      color: var(--broken-line);
+    }
+
     .graph-viewport {
       position: relative;
       overflow: hidden;
@@ -726,6 +738,10 @@
             <g id="graphStage"></g>
           </svg>
         </div>
+        <div id="blockedFilesContainer" class="blocked-files-container" hidden>
+          <div class="eyebrow">Blocked files</div>
+          <div id="blockedFilesList" class="detail-list"></div>
+        </div>
       </section>
 
       <section class="panel">
@@ -832,6 +848,8 @@
     const graphCanvasNode = document.getElementById("graphCanvas");
     const graphStageNode = document.getElementById("graphStage");
     const centerSelectionButton = document.getElementById("centerSelectionButton");
+    const blockedFilesContainer = document.getElementById("blockedFilesContainer");
+    const blockedFilesListNode = document.getElementById("blockedFilesList");
 
     const dialogTitleNode = document.getElementById("dialogTitle");
     const statusNode = document.getElementById("status");
@@ -1189,7 +1207,19 @@
         return "Load a dialog workspace to render the conversation graph.";
       }
       const summary = graphApi.summary;
-      return `${summary.node_count} nodes, ${summary.edge_count} edges, ${summary.root_count} roots, ${summary.blocked_file_count} blocked files. The canvas mirrors the graph API directly.`;
+      const parts = [
+        `${summary.node_count} nodes`,
+        `${summary.edge_count} edges`,
+        `${summary.root_count} roots`,
+      ];
+      if (summary.blocked_file_count) {
+        parts.push(`${summary.blocked_file_count} blocked files`);
+      }
+      let text = parts.join(", ") + ".";
+      if (summary.has_blocking_issues) {
+        text += ` ${summary.blocking_issue_count} blocking issue${summary.blocking_issue_count === 1 ? "" : "s"} found — blocked files are listed below the canvas.`;
+      }
+      return text;
     }
 
     function setEmptyState(node, className, text) {
@@ -1640,9 +1670,23 @@
 
     function renderWorkspaceStats() {
       const graphApi = graphState.api;
-      const nodeCount = graphApi?.summary?.node_count || 0;
-      const blockedCount = graphApi?.summary?.blocked_file_count || 0;
-      workspaceStatsNode.textContent = `${files.length} JSON files | ${nodeCount} graph nodes | ${blockedCount} blocked files`;
+      const summary = graphApi?.summary;
+      const nodeCount = summary?.node_count || 0;
+      const blockedCount = summary?.blocked_file_count || 0;
+      const blockingCount = summary?.blocking_issue_count || 0;
+      const nonBlockingCount = summary?.non_blocking_issue_count || 0;
+      const parts = [
+        `${files.length} JSON files`,
+        `${nodeCount} graph nodes`,
+        `${blockedCount} blocked files`,
+      ];
+      if (blockingCount) {
+        parts.push(`${blockingCount} blocking issue${blockingCount === 1 ? "" : "s"}`);
+      }
+      if (nonBlockingCount) {
+        parts.push(`${nonBlockingCount} non-blocking issue${nonBlockingCount === 1 ? "" : "s"}`);
+      }
+      workspaceStatsNode.textContent = parts.join(" | ");
     }
 
     function renderFileList() {
@@ -1855,13 +1899,17 @@
         nodeGroup.append(checkpointMeta);
 
         if (brokenState) {
+          const diagnosticCount = (node.diagnostics || []).length;
+          const warningLabel = diagnosticCount
+            ? `${diagnosticCount} issue${diagnosticCount === 1 ? "" : "s"}`
+            : "Broken lineage";
           const warning = createSvgNode("text", {
             x: NODE_WIDTH - 18,
             y: 28,
             class: "graph-node-warning",
             "text-anchor": "end"
           });
-          warning.textContent = "Broken lineage";
+          warning.textContent = warningLabel;
           nodeGroup.append(warning);
         }
 
@@ -1875,6 +1923,37 @@
         ? `Selected ${kindLabel(selectedNode.kind).toLowerCase()}: ${selectedNode.title || selectedNode.conversation_id}. Drag the canvas to pan or center the active node.`
         : "Drag the canvas to pan. Click a node to inspect it.";
       updateGraphTransform();
+    }
+
+    function renderBlockedFiles() {
+      const blockedFiles = graphState.api?.graph?.blocked_files || [];
+      if (!blockedFiles.length) {
+        blockedFilesContainer.hidden = true;
+        return;
+      }
+
+      blockedFilesContainer.hidden = false;
+      blockedFilesListNode.className = "detail-list";
+      blockedFilesListNode.innerHTML = "";
+
+      blockedFiles.forEach((blocked) => {
+        const diagnostics = blocked.diagnostics || [];
+        const codes = diagnostics.map((d) => d.code).join(", ") || "unknown";
+        const messages = diagnostics.map((d) => d.message).join(" · ");
+        blockedFilesListNode.append(
+          createDetailItem({
+            title: blocked.file_name,
+            meta: blocked.conversation_id
+              ? `${blocked.conversation_id} · ${diagnostics.length} diagnostic${diagnostics.length === 1 ? "" : "s"}`
+              : `${diagnostics.length} diagnostic${diagnostics.length === 1 ? "" : "s"}`,
+            copy: messages || "This file was rejected during graph construction.",
+            pills: [
+              createDetailPill("Blocked", "warning"),
+              ...diagnostics.map((d) => createDetailPill(d.code)),
+            ],
+          }),
+        );
+      });
     }
 
     function renderConversation() {
@@ -1977,6 +2056,7 @@
 
       renderFileList();
       renderGraph();
+      renderBlockedFiles();
       renderInspectors();
     }
 
