@@ -35,6 +35,9 @@ The viewer now opens in a graph-first mode instead of treating the file list as 
 - Root, branch, and merge conversations have distinct node states so the graph can be read without opening each file first.
 - Broken lineage stays visible as a broken edge and warning state instead of disappearing from the canvas.
 - Drag the canvas background to pan, then click a node to load that conversation into the transcript panel.
+- Selecting a node also opens a structured conversation inspector with lineage edges, integrity details, and a checkpoint inventory.
+- Click `Inspect checkpoint` on a transcript message or checkpoint card to focus that exact message anchor and review its workflow metadata.
+- Branching from the active checkpoint is available directly from the checkpoint inspector, while merge and compile actions remain visible as later-phase affordances.
 - The file list remains available in the sidebar for file-level actions such as open, delete, and save flows.
 
 ## File Contract

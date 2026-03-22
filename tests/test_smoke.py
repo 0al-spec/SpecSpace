@@ -29,6 +29,29 @@ class ContextBuilderSmokeTests(unittest.TestCase):
         self.assertIn("pointerdown", html)
         self.assertIn("pointermove", html)
 
+    def test_viewer_index_exposes_conversation_and_checkpoint_inspectors(self) -> None:
+        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn('id="conversationDetailPanel"', html)
+        self.assertIn('id="conversationMeta"', html)
+        self.assertIn('id="conversationLineage"', html)
+        self.assertIn('id="conversationIntegrity"', html)
+        self.assertIn('id="checkpointList"', html)
+        self.assertIn('id="checkpointDetailPanel"', html)
+        self.assertIn('id="checkpointMeta"', html)
+        self.assertIn('id="checkpointActions"', html)
+
+    def test_viewer_index_requests_detail_apis_and_tracks_checkpoint_state(self) -> None:
+        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn('api(`/api/conversation?conversation_id=${encodeURIComponent(conversationId)}`)', html)
+        self.assertIn(
+            'api(`/api/checkpoint?conversation_id=${encodeURIComponent(conversationId)}&message_id=${encodeURIComponent(messageId)}`)',
+            html,
+        )
+        self.assertIn("selectedCheckpointId", html)
+        self.assertIn("Inspect checkpoint", html)
+
     def test_server_module_loads(self) -> None:
         module_path = REPO_ROOT / "viewer" / "server.py"
         spec = importlib.util.spec_from_file_location("contextbuilder_server", module_path)

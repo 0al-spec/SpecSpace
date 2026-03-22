@@ -376,6 +376,137 @@
       fill: var(--broken-line);
     }
 
+    .inspection-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+      gap: 22px;
+    }
+
+    .inspection-panel {
+      min-height: 100%;
+    }
+
+    .detail-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .detail-card {
+      padding: 14px;
+      border: 1px solid rgba(191, 168, 138, 0.72);
+      border-radius: 18px;
+      background: rgba(255, 252, 246, 0.82);
+    }
+
+    .detail-list,
+    .checkpoint-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .detail-list.empty,
+    .checkpoint-list.empty {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .detail-item {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .detail-item.active {
+      border-color: var(--accent);
+      background: #fff3e5;
+      box-shadow: 0 8px 18px rgba(145, 90, 36, 0.1);
+    }
+
+    .detail-item-head,
+    .detail-item-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .detail-item-meta {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.45;
+    }
+
+    .detail-item-copy,
+    .detail-note {
+      margin-top: 8px;
+      color: var(--muted);
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .detail-item-actions,
+    .checkpoint-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .detail-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(191, 168, 138, 0.72);
+      background: rgba(255, 252, 246, 0.9);
+      font-size: 0.76rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .detail-pill.warning {
+      border-color: rgba(181, 65, 49, 0.28);
+      background: #fff1ee;
+      color: var(--broken-line);
+    }
+
+    .detail-pill.ok {
+      border-color: rgba(93, 139, 88, 0.28);
+      background: #eef9ea;
+      color: var(--root-line);
+    }
+
+    .checkpoint-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .checkpoint-meta-cell {
+      padding: 12px;
+      border: 1px solid rgba(191, 168, 138, 0.72);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.82);
+    }
+
+    .checkpoint-meta-cell strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
     .toolbar-title {
       margin-bottom: 6px;
     }
@@ -448,6 +579,11 @@
       background: white;
     }
 
+    .message.active-checkpoint {
+      border-color: var(--accent);
+      box-shadow: 0 10px 22px rgba(145, 90, 36, 0.14);
+    }
+
     .meta {
       margin-bottom: 10px;
       font-size: 0.82rem;
@@ -502,6 +638,10 @@
       #graphCanvas {
         min-height: 460px;
       }
+
+      .inspection-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media (max-width: 720px) {
@@ -521,6 +661,10 @@
       .graph-viewport,
       #graphCanvas {
         min-height: 400px;
+      }
+
+      .checkpoint-meta-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -594,6 +738,55 @@
         </div>
       </section>
 
+      <section class="inspection-grid">
+        <section id="conversationDetailPanel" class="panel inspection-panel copy-muted">
+          <div class="eyebrow">Conversation inspector</div>
+          <h2>Selection details</h2>
+          <p id="conversationMeta" class="panel-copy">Select a graph node to inspect metadata, lineage, and checkpoints.</p>
+          <div class="detail-stack">
+            <div class="detail-card">
+              <div class="eyebrow">Lineage</div>
+              <div id="conversationLineage" class="detail-list empty">Parent and child lineage will appear for the selected conversation.</div>
+            </div>
+            <div class="detail-card">
+              <div class="eyebrow">Integrity</div>
+              <div id="conversationIntegrity" class="detail-list empty">Graph-safe diagnostics will appear here when the selection has lineage issues.</div>
+            </div>
+            <div class="detail-card">
+              <div class="eyebrow">Checkpoints</div>
+              <div id="checkpointList" class="checkpoint-list empty">Select a conversation to inspect its checkpoints.</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="checkpointDetailPanel" class="panel inspection-panel">
+          <div class="eyebrow">Checkpoint inspector</div>
+          <h2>Checkpoint workflow</h2>
+          <p id="checkpointMeta" class="panel-copy">Select a transcript message or checkpoint card to inspect message identity and available actions.</p>
+          <div id="checkpointActions" class="checkpoint-actions"></div>
+          <div class="checkpoint-meta-grid">
+            <div class="checkpoint-meta-cell">
+              <strong>Selection</strong>
+              <div id="checkpointSummary" class="detail-note">No checkpoint selected.</div>
+            </div>
+            <div class="checkpoint-meta-cell">
+              <strong>Compile Target</strong>
+              <div id="checkpointCompileTarget" class="detail-note">Checkpoint compile-target metadata will appear here.</div>
+            </div>
+          </div>
+          <div class="detail-stack">
+            <div class="detail-card">
+              <div class="eyebrow">Child edges</div>
+              <div id="checkpointChildren" class="detail-list empty">Checkpoint descendants will appear once a checkpoint is selected.</div>
+            </div>
+            <div class="detail-card">
+              <div class="eyebrow">Workflow notes</div>
+              <div id="checkpointWorkflowNotes" class="detail-list empty">Branching is available now. Merge and compile remain visible here as later-phase work.</div>
+            </div>
+          </div>
+        </section>
+      </section>
+
       <section id="editor" class="panel editor copy-muted" hidden>
         <div class="editor-head">
           <strong>Branch Editor</strong>
@@ -647,6 +840,19 @@
     const saveAsButton = document.getElementById("saveAsButton");
     const deleteCurrentButton = document.getElementById("deleteCurrentButton");
 
+    const conversationDetailPanelNode = document.getElementById("conversationDetailPanel");
+    const conversationMetaNode = document.getElementById("conversationMeta");
+    const conversationLineageNode = document.getElementById("conversationLineage");
+    const conversationIntegrityNode = document.getElementById("conversationIntegrity");
+    const checkpointListNode = document.getElementById("checkpointList");
+    const checkpointDetailPanelNode = document.getElementById("checkpointDetailPanel");
+    const checkpointMetaNode = document.getElementById("checkpointMeta");
+    const checkpointActionsNode = document.getElementById("checkpointActions");
+    const checkpointSummaryNode = document.getElementById("checkpointSummary");
+    const checkpointCompileTargetNode = document.getElementById("checkpointCompileTarget");
+    const checkpointChildrenNode = document.getElementById("checkpointChildren");
+    const checkpointWorkflowNotesNode = document.getElementById("checkpointWorkflowNotes");
+
     const editorNode = document.getElementById("editor");
     const branchTitleNode = document.getElementById("branchTitle");
     const saveNameNode = document.getElementById("saveName");
@@ -676,6 +882,11 @@
       originY: 0,
       startX: 0,
       startY: 0
+    };
+    let inspectorState = {
+      conversationDetail: null,
+      checkpointDetail: null,
+      selectedCheckpointId: null
     };
 
     function setStatus(text) {
@@ -916,6 +1127,420 @@
       }
       const summary = graphApi.summary;
       return `${summary.node_count} nodes, ${summary.edge_count} edges, ${summary.root_count} roots, ${summary.blocked_file_count} blocked files. The canvas mirrors the graph API directly.`;
+    }
+
+    function setEmptyState(node, className, text) {
+      node.className = className;
+      node.textContent = text;
+    }
+
+    function createDetailPill(text, variant = "") {
+      const pill = document.createElement("span");
+      pill.className = `detail-pill${variant ? ` ${variant}` : ""}`;
+      pill.textContent = text;
+      return pill;
+    }
+
+    function createActionButton(text, handler, { disabled = false, title = "" } = {}) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = text;
+      button.disabled = disabled;
+      if (title) {
+        button.title = title;
+      }
+      if (!disabled) {
+        button.addEventListener("click", handler);
+      }
+      return button;
+    }
+
+    function createDetailItem({ title, meta = "", copy = "", active = false, pills = [], actions = [] }) {
+      const item = document.createElement("article");
+      item.className = `detail-item${active ? " active" : ""}`;
+
+      const head = document.createElement("div");
+      head.className = "detail-item-head";
+
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      head.append(heading);
+
+      if (pills.length) {
+        const pillRow = document.createElement("div");
+        pillRow.className = "detail-item-actions";
+        pillRow.style.marginTop = "0";
+        pills.forEach((pill) => pillRow.append(pill));
+        head.append(pillRow);
+      }
+
+      item.append(head);
+
+      if (meta) {
+        const metaNode = document.createElement("div");
+        metaNode.className = "detail-item-meta";
+        metaNode.textContent = meta;
+        item.append(metaNode);
+      }
+
+      if (copy) {
+        const copyNode = document.createElement("div");
+        copyNode.className = "detail-item-copy";
+        copyNode.textContent = copy;
+        item.append(copyNode);
+      }
+
+      if (actions.length) {
+        const actionRow = document.createElement("div");
+        actionRow.className = "detail-item-actions";
+        actions.forEach((action) => actionRow.append(action));
+        item.append(actionRow);
+      }
+
+      return item;
+    }
+
+    function messagePreview(text, maxLength = 120) {
+      const normalized = String(text || "").replace(/\s+/g, " ").trim();
+      if (!normalized) {
+        return "No message content.";
+      }
+      if (normalized.length <= maxLength) {
+        return normalized;
+      }
+      return `${normalized.slice(0, Math.max(0, maxLength - 1))}…`;
+    }
+
+    function currentConversationId() {
+      return graphState.selectedConversationId || inspectorState.conversationDetail?.conversation?.conversation_id || null;
+    }
+
+    function clearInspectorState() {
+      inspectorState.conversationDetail = null;
+      inspectorState.checkpointDetail = null;
+      inspectorState.selectedCheckpointId = null;
+    }
+
+    function determineCheckpointSelection(conversationDetail, preferredMessageId = null) {
+      const checkpoints = conversationDetail?.conversation?.checkpoints || [];
+      if (!checkpoints.length) {
+        return null;
+      }
+
+      if (preferredMessageId && checkpoints.some((checkpoint) => checkpoint.message_id === preferredMessageId)) {
+        return preferredMessageId;
+      }
+
+      if (
+        inspectorState.selectedCheckpointId
+        && checkpoints.some((checkpoint) => checkpoint.message_id === inspectorState.selectedCheckpointId)
+      ) {
+        return inspectorState.selectedCheckpointId;
+      }
+
+      return checkpoints[checkpoints.length - 1].message_id;
+    }
+
+    function createOpenConversationButton(conversationId, label) {
+      return createActionButton(label, () => {
+        selectConversation(conversationId).catch((error) => setStatus(error.message));
+      });
+    }
+
+    function renderConversationInspector() {
+      const detail = inspectorState.conversationDetail;
+      if (!detail || !detail.conversation) {
+        conversationMetaNode.textContent = "Select a graph node to inspect metadata, lineage, and checkpoints.";
+        setEmptyState(
+          conversationLineageNode,
+          "detail-list empty",
+          "Parent and child lineage will appear for the selected conversation.",
+        );
+        setEmptyState(
+          conversationIntegrityNode,
+          "detail-list empty",
+          "Graph-safe diagnostics will appear here when the selection has lineage issues.",
+        );
+        setEmptyState(
+          checkpointListNode,
+          "checkpoint-list empty",
+          "Select a conversation to inspect its checkpoints.",
+        );
+        return;
+      }
+
+      const conversation = detail.conversation;
+      const parentEdges = detail.parent_edges || [];
+      const childEdges = detail.child_edges || [];
+      const integrity = detail.integrity || { blocking: [], non_blocking: [] };
+      const compileTarget = detail.compile_target || { lineage_paths: [], root_conversation_ids: [] };
+      const issueCount = integrity.blocking.length + integrity.non_blocking.length;
+      const rootSummary = compileTarget.root_conversation_ids?.length
+        ? compileTarget.root_conversation_ids.join(", ")
+        : "No reachable roots";
+
+      conversationMetaNode.textContent = [
+        conversation.conversation_id,
+        kindLabel(conversation.kind),
+        conversation.file_name,
+        `${conversation.message_count} messages`,
+        `${conversation.checkpoint_count} checkpoints`,
+        `${compileTarget.lineage_paths?.length || 0} lineage paths`,
+        `Roots: ${rootSummary}`,
+        issueCount ? `${issueCount} surfaced issue${issueCount === 1 ? "" : "s"}` : "No surfaced issues",
+      ].join(" | ");
+
+      conversationLineageNode.className = "detail-list";
+      conversationLineageNode.innerHTML = "";
+      conversationLineageNode.append(
+        createDetailItem({
+          title: conversation.title || conversation.conversation_id,
+          meta: `Selected ${kindLabel(conversation.kind).toLowerCase()} conversation`,
+          copy: `Source file: ${conversation.file_name}`,
+          pills: [
+            createDetailPill(
+              compileTarget.is_lineage_complete ? "Lineage complete" : "Lineage partial",
+              compileTarget.is_lineage_complete ? "ok" : "warning",
+            ),
+          ],
+        }),
+      );
+
+      if (!parentEdges.length) {
+        conversationLineageNode.append(
+          createDetailItem({
+            title: "No parent edges",
+            meta: "Root conversation in the current graph snapshot",
+            copy: "This selection does not derive from an earlier checkpoint inside the workspace.",
+            pills: [createDetailPill("Root", "ok")],
+          }),
+        );
+      } else {
+        parentEdges.forEach((edge) => {
+          const actions = [];
+          if (edge.status === "resolved") {
+            actions.push(createOpenConversationButton(edge.parent_conversation_id, "Open parent conversation"));
+          }
+          conversationLineageNode.append(
+            createDetailItem({
+              title: edge.parent_conversation_id,
+              meta: `${edge.link_type} link from ${edge.parent_message_id}`,
+              copy: edge.status === "resolved"
+                ? `Parent file: ${edge.parent_file_name}`
+                : "The parent reference is still visible but unresolved in the workspace.",
+              pills: [createDetailPill(edge.status === "resolved" ? "Resolved" : "Broken", edge.status === "resolved" ? "ok" : "warning")],
+              actions,
+            }),
+          );
+        });
+      }
+
+      if (!childEdges.length) {
+        conversationLineageNode.append(
+          createDetailItem({
+            title: "No child edges",
+            meta: "No derived conversations yet",
+            copy: "Branches or merges created from this conversation will appear here.",
+          }),
+        );
+      } else {
+        childEdges.forEach((edge) => {
+          conversationLineageNode.append(
+            createDetailItem({
+              title: edge.child_conversation_id,
+              meta: `${edge.link_type} child from ${edge.parent_message_id}`,
+              copy: `Child file: ${edge.child_file_name}`,
+              pills: [createDetailPill(edge.status === "resolved" ? "Resolved" : "Broken", edge.status === "resolved" ? "ok" : "warning")],
+              actions: [createOpenConversationButton(edge.child_conversation_id, "Open child conversation")],
+            }),
+          );
+        });
+      }
+
+      conversationIntegrityNode.className = "detail-list";
+      conversationIntegrityNode.innerHTML = "";
+      if (!issueCount) {
+        conversationIntegrityNode.append(
+          createDetailItem({
+            title: "No active integrity issues",
+            meta: "The selected conversation and its related edges are graph-safe.",
+            pills: [createDetailPill("Healthy", "ok")],
+          }),
+        );
+      } else {
+        integrity.blocking.forEach((diagnostic) => {
+          conversationIntegrityNode.append(
+            createDetailItem({
+              title: diagnostic.code,
+              meta: "Blocking",
+              copy: diagnostic.message,
+              pills: [createDetailPill("Blocking", "warning")],
+            }),
+          );
+        });
+        integrity.non_blocking.forEach((diagnostic) => {
+          conversationIntegrityNode.append(
+            createDetailItem({
+              title: diagnostic.code,
+              meta: "Non-blocking",
+              copy: diagnostic.message,
+              pills: [createDetailPill("Non-blocking")],
+            }),
+          );
+        });
+      }
+
+      checkpointListNode.className = "checkpoint-list";
+      checkpointListNode.innerHTML = "";
+      (conversation.checkpoints || []).forEach((checkpoint) => {
+        checkpointListNode.append(
+          createDetailItem({
+            title: `Checkpoint ${checkpoint.index + 1}`,
+            meta: `${checkpoint.role} · ${checkpoint.message_id}`,
+            copy: messagePreview(checkpoint.content, 100),
+            active: inspectorState.selectedCheckpointId === checkpoint.message_id,
+            pills: [createDetailPill(`${checkpoint.child_edge_ids?.length || 0} child edges`)],
+            actions: [
+              createActionButton("Inspect checkpoint", () => {
+                selectCheckpoint(checkpoint.message_id).catch((error) => setStatus(error.message));
+              }),
+            ],
+          }),
+        );
+      });
+    }
+
+    function renderCheckpointInspector() {
+      const detail = inspectorState.checkpointDetail;
+      if (!detail || !detail.checkpoint) {
+        checkpointMetaNode.textContent = "Select a transcript message or checkpoint card to inspect message identity and available actions.";
+        checkpointActionsNode.innerHTML = "";
+        checkpointSummaryNode.textContent = "No checkpoint selected.";
+        checkpointCompileTargetNode.textContent = "Checkpoint compile-target metadata will appear here.";
+        setEmptyState(
+          checkpointChildrenNode,
+          "detail-list empty",
+          "Checkpoint descendants will appear once a checkpoint is selected.",
+        );
+        setEmptyState(
+          checkpointWorkflowNotesNode,
+          "detail-list empty",
+          "Branching is available now. Merge and compile remain visible here as later-phase work.",
+        );
+        return;
+      }
+
+      const checkpoint = detail.checkpoint;
+      const childEdges = detail.child_edges || [];
+      const compileTarget = detail.compile_target || { lineage_paths: [], unresolved_parent_edge_ids: [] };
+      checkpointMetaNode.textContent = `Message ${checkpoint.index + 1} | ${checkpoint.role} | ${checkpoint.message_id}`;
+      checkpointSummaryNode.textContent = messagePreview(checkpoint.content, 240);
+      checkpointCompileTargetNode.textContent = [
+        `${compileTarget.lineage_paths?.length || 0} lineage paths`,
+        compileTarget.is_lineage_complete ? "lineage complete" : `${compileTarget.unresolved_parent_edge_ids.length} unresolved parent edges`,
+      ].join(" | ");
+
+      checkpointActionsNode.innerHTML = "";
+      checkpointActionsNode.append(
+        createActionButton("Branch from checkpoint", () => openBranchEditor(checkpoint.index)),
+        createActionButton("Use in merge (later)", () => {}, {
+          disabled: true,
+          title: "Merge authoring lands in CTXB-P3-T2.",
+        }),
+        createActionButton("Compile target (later)", () => {}, {
+          disabled: true,
+          title: "Compile target selection lands in CTXB-P3-T4.",
+        }),
+      );
+
+      checkpointChildrenNode.className = "detail-list";
+      checkpointChildrenNode.innerHTML = "";
+      if (!childEdges.length) {
+        checkpointChildrenNode.append(
+          createDetailItem({
+            title: "No child conversations",
+            meta: "Nothing branches from this checkpoint yet.",
+          }),
+        );
+      } else {
+        childEdges.forEach((edge) => {
+          checkpointChildrenNode.append(
+            createDetailItem({
+              title: edge.child_conversation_id,
+              meta: `${edge.link_type} child via ${edge.parent_message_id}`,
+              copy: `Child file: ${edge.child_file_name}`,
+              pills: [createDetailPill(edge.status === "resolved" ? "Resolved" : "Broken", edge.status === "resolved" ? "ok" : "warning")],
+              actions: [createOpenConversationButton(edge.child_conversation_id, "Open child conversation")],
+            }),
+          );
+        });
+      }
+
+      checkpointWorkflowNotesNode.className = "detail-list";
+      checkpointWorkflowNotesNode.innerHTML = "";
+      checkpointWorkflowNotesNode.append(
+        createDetailItem({
+          title: "Branch workflow",
+          meta: "Available now",
+          copy: "Use the active checkpoint to prefill a derived conversation in the branch editor.",
+          pills: [createDetailPill("Live", "ok")],
+        }),
+        createDetailItem({
+          title: "Merge workflow",
+          meta: "Deferred to a later task",
+          copy: "Merge provenance will be surfaced here before the multi-parent save flow is implemented.",
+        }),
+        createDetailItem({
+          title: "Compile workflow",
+          meta: "Deferred to a later task",
+          copy: "Compile target selection will build on this same checkpoint identity once export work begins.",
+        }),
+      );
+    }
+
+    function renderInspectors() {
+      renderConversationInspector();
+      renderCheckpointInspector();
+    }
+
+    async function loadCheckpointInspector(conversationId, messageId) {
+      const detail = await api(`/api/checkpoint?conversation_id=${encodeURIComponent(conversationId)}&message_id=${encodeURIComponent(messageId)}`);
+      if (currentConversationId() !== conversationId) {
+        return;
+      }
+
+      inspectorState.selectedCheckpointId = messageId;
+      inspectorState.checkpointDetail = detail;
+      renderInspectors();
+      renderConversation();
+    }
+
+    async function selectCheckpoint(messageId) {
+      const conversationId = currentConversationId();
+      if (!conversationId || !messageId) {
+        return;
+      }
+
+      inspectorState.selectedCheckpointId = messageId;
+      renderConversationInspector();
+      renderConversation();
+      await loadCheckpointInspector(conversationId, messageId);
+    }
+
+    async function loadConversationInspector(conversationId, preferredMessageId = null) {
+      const detail = await api(`/api/conversation?conversation_id=${encodeURIComponent(conversationId)}`);
+      if (currentConversationId() !== conversationId) {
+        return;
+      }
+
+      inspectorState.conversationDetail = detail;
+      inspectorState.selectedCheckpointId = determineCheckpointSelection(detail, preferredMessageId);
+      inspectorState.checkpointDetail = null;
+      renderInspectors();
+
+      if (inspectorState.selectedCheckpointId) {
+        await loadCheckpointInspector(conversationId, inspectorState.selectedCheckpointId);
+      }
     }
 
     function renderWorkspaceStats() {
@@ -1177,13 +1802,21 @@
 
       messages.forEach((message, index) => {
         const article = document.createElement("article");
-        article.className = `message ${message.role || "unknown"}`;
+        const isActiveCheckpoint = Boolean(
+          inspectorState.selectedCheckpointId
+          && message.message_id
+          && inspectorState.selectedCheckpointId === message.message_id,
+        );
+        article.className = `message ${message.role || "unknown"}${isActiveCheckpoint ? " active-checkpoint" : ""}`;
+        if (message.message_id) {
+          article.dataset.messageId = message.message_id;
+        }
 
         const meta = document.createElement("div");
         meta.className = "meta";
 
         const label = document.createElement("div");
-        label.textContent = `${index + 1}. ${message.role || "unknown"}`;
+        label.textContent = `${index + 1}. ${message.role || "unknown"}${message.message_id ? ` | ${message.message_id}` : ""}`;
 
         const topActions = document.createElement("div");
         topActions.className = "message-actions";
@@ -1194,8 +1827,9 @@
         toggleButton.textContent = "▾";
         toggleButton.setAttribute("aria-label", "Expand message");
 
+        const inspectButton = makeInspectCheckpointButton(message.message_id);
         const topBranchButton = makeBranchButton(index);
-        topActions.append(toggleButton, topBranchButton);
+        topActions.append(toggleButton, inspectButton, topBranchButton);
 
         const content = document.createElement("div");
         content.className = "content collapsed";
@@ -1209,7 +1843,7 @@
 
         const bottomActions = document.createElement("div");
         bottomActions.className = "message-actions";
-        bottomActions.append(makeBranchButton(index));
+        bottomActions.append(makeInspectCheckpointButton(message.message_id), makeBranchButton(index));
 
         meta.append(label, topActions);
         article.append(meta, content, bottomActions);
@@ -1243,13 +1877,16 @@
 
       if (graphState.selectedConversationId && !findGraphNodeByConversationId(graphState.selectedConversationId)) {
         graphState.selectedConversationId = null;
+        clearInspectorState();
       }
 
       renderFileList();
       renderGraph();
+      renderInspectors();
     }
 
     async function loadFile(name, options = {}) {
+      const previousConversationId = currentConversationId();
       const result = await api(`/api/file?name=${encodeURIComponent(name)}`);
       currentFileName = result.name;
       currentConversation = result.data;
@@ -1261,9 +1898,26 @@
         graphState.selectedConversationId = resolveSelectionFromFileResponse(result);
       }
 
+      if (graphState.selectedConversationId !== previousConversationId) {
+        inspectorState.selectedCheckpointId = Object.prototype.hasOwnProperty.call(options, "selectedCheckpointId")
+          ? options.selectedCheckpointId
+          : null;
+        inspectorState.checkpointDetail = null;
+      }
+
       renderFileList();
       renderGraph();
       renderConversation();
+
+      if (graphState.selectedConversationId) {
+        await loadConversationInspector(
+          graphState.selectedConversationId,
+          Object.prototype.hasOwnProperty.call(options, "selectedCheckpointId") ? options.selectedCheckpointId : null,
+        );
+      } else {
+        clearInspectorState();
+        renderInspectors();
+      }
     }
 
     async function selectConversation(conversationId) {
@@ -1277,11 +1931,26 @@
 
       if (currentFileName === node.file_name && currentConversation) {
         renderFileList();
-        renderConversation();
+        await loadConversationInspector(conversationId);
         return;
       }
 
       await loadFile(node.file_name, { selectedConversationId: conversationId });
+    }
+
+    function makeInspectCheckpointButton(messageId) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "Inspect checkpoint";
+      if (!messageId) {
+        button.disabled = true;
+        button.title = "This message does not expose a stable message_id.";
+        return button;
+      }
+      button.addEventListener("click", () => {
+        selectCheckpoint(messageId).catch((error) => setStatus(error.message));
+      });
+      return button;
     }
 
     function makeBranchButton(index) {
@@ -1461,8 +2130,10 @@
       } else if (files.length) {
         await loadFile(files[0].name, { selectedConversationId: null });
       } else {
+        clearInspectorState();
         renderFileList();
         renderGraph();
+        renderInspectors();
         renderConversation();
       }
 
@@ -1591,6 +2262,8 @@
           if (files.length) {
             return loadFile(files[0].name, { selectedConversationId: null });
           }
+          clearInspectorState();
+          renderInspectors();
           renderConversation();
         })
         .catch((error) => setStatus(error.message));
