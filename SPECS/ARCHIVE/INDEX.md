@@ -19,3 +19,4 @@
 | Date | Task ID | Action |
 |------|---------|--------|
 | 2026-03-22 | CTXB-P1-T1 | Archived Define_Canonical_Conversation_And_Lineage_Schema (PASS) |
+| 2026-03-22 | CTXB-P1-T1 | Archived REVIEW_canonical_schema report |
