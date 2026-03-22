@@ -1740,6 +1740,11 @@
       files.forEach((file) => {
         const item = document.createElement("article");
         item.className = `file-item ${file.name === currentFileName ? "active" : ""}`;
+        item.style.cursor = "pointer";
+        item.addEventListener("click", (e) => {
+          if (e.target.closest(".file-delete-btn")) return;
+          loadFile(file.name).catch((error) => setStatus(error.message));
+        });
 
         const head = document.createElement("div");
         head.className = "file-head";
@@ -1759,22 +1764,18 @@
         const actions = document.createElement("div");
         actions.className = "file-actions";
 
-        const openButton = document.createElement("button");
-        openButton.type = "button";
-        openButton.textContent = "Open";
-        openButton.addEventListener("click", () => {
-          loadFile(file.name).catch((error) => setStatus(error.message));
-        });
-
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
-        deleteButton.className = "danger";
-        deleteButton.textContent = "Delete";
+        deleteButton.className = "danger file-delete-btn";
+        deleteButton.title = "Delete file";
+        deleteButton.textContent = "\u00d7";
+        deleteButton.style.cssText = "padding: 4px 8px; font-size: 16px; line-height: 1; min-width: 0;";
         deleteButton.addEventListener("click", () => {
+          if (!confirm(`Delete "${file.name}"? This cannot be undone.`)) return;
           deleteFile(file.name).catch((error) => setStatus(error.message));
         });
 
-        actions.append(openButton, deleteButton);
+        actions.append(deleteButton);
 
         const meta = document.createElement("div");
         meta.className = "file-meta";
