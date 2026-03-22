@@ -16,6 +16,10 @@
 | CTXB-P2-T3 | [CTXB-P2-T3_Implement_Ancestor_And_Sibling_Lineage_Navigation/](CTXB-P2-T3_Implement_Ancestor_And_Sibling_Lineage_Navigation/) | 2026-03-22 | PASS |
 | CTXB-P2-T4 | [CTXB-P2-T4_Preserve_Graph_Context_Across_Hard_Refresh/](CTXB-P2-T4_Preserve_Graph_Context_Across_Hard_Refresh/) | 2026-03-22 | PASS |
 | CTXB-P2-T5 | [CTXB-P2-T5_Surface_Integrity_Issues_In_Graph_UI/](CTXB-P2-T5_Surface_Integrity_Issues_In_Graph_UI/) | 2026-03-22 | PASS |
+| CTXB-P2-T6 | [CTXB-P2-T6_Add_Collapsible_Sidebar_Toggle/](CTXB-P2-T6_Add_Collapsible_Sidebar_Toggle/) | 2026-03-22 | PASS |
+| CTXB-P2-T7 | [CTXB-P2-T7_Remove_Graph_Canvas_Heading/](CTXB-P2-T7_Remove_Graph_Canvas_Heading/) | 2026-03-22 | PASS |
+| CTXB-P2-T8 | [CTXB-P2-T8_Simplify_Sidebar_File_List_Interactions/](CTXB-P2-T8_Simplify_Sidebar_File_List_Interactions/) | 2026-03-22 | PASS |
+| CTXB-P2-T9 | [CTXB-P2-T9_Remove_Redundant_File_Toolbar_Block/](CTXB-P2-T9_Remove_Redundant_File_Toolbar_Block/) | 2026-03-22 | PASS |
 
 ## Historical Artifacts
 
@@ -47,3 +51,11 @@
 | 2026-03-22 | CTXB-P2-T4 | Archived REVIEW_refresh_persistence report |
 | 2026-03-22 | CTXB-P2-T5 | Archived Surface_Integrity_Issues_In_Graph_UI (PASS) |
 | 2026-03-22 | CTXB-P2-T5 | Archived REVIEW_integrity_issues_ui report |
+| 2026-03-22 | CTXB-P2-T6 | Archived Add_Collapsible_Sidebar_Toggle (PASS) |
+| 2026-03-22 | CTXB-P2-T6 | Archived REVIEW_sidebar_toggle report |
+| 2026-03-22 | CTXB-P2-T7 | Archived Remove_Graph_Canvas_Heading (PASS) |
+| 2026-03-22 | CTXB-P2-T7 | Archived REVIEW_graph_heading_removal report |
+| 2026-03-22 | CTXB-P2-T8 | Archived Simplify_Sidebar_File_List_Interactions (PASS) |
+| 2026-03-22 | CTXB-P2-T8 | Archived REVIEW_sidebar_file_list report |
+| 2026-03-22 | CTXB-P2-T9 | Archived Remove_Redundant_File_Toolbar_Block (PASS) |
+| 2026-03-22 | CTXB-P2-T9 | Archived REVIEW_file_toolbar_removal report |

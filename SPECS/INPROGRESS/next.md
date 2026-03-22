@@ -1,14 +1,13 @@
 # In Progress Queue
 
-No task is currently selected.
+**Current Task:** None — UI polish batch (T6–T9) complete.
 
 ## Recently Archived
 
-- `CTXB-P2-T5` — Surface integrity issues directly in the graph UI (`PASS`, archived 2026-03-22)
-- `CTXB-P2-T4` — Preserve graph context across hard refresh (`PASS`, archived 2026-03-22)
-- `CTXB-P2-T3` — Implement ancestor and sibling lineage navigation (`PASS`, archived 2026-03-22)
-- `CTXB-P2-T2` — Add conversation detail and checkpoint inspection panels (`PASS`, archived 2026-03-22)
-- `CTXB-P2-T1` — Render the conversation graph on a canvas (`PASS`, archived 2026-03-22)
+- `CTXB-P2-T9` — Remove redundant file toolbar block (`PASS`, archived 2026-03-22)
+- `CTXB-P2-T8` — Simplify sidebar file list interactions (`PASS`, archived 2026-03-22)
+- `CTXB-P2-T7` — Remove the "Graph canvas" heading (`PASS`, archived 2026-03-22)
+- `CTXB-P2-T6` — Add collapsible sidebar toggle (`PASS`, archived 2026-03-22)
 
 ## Suggested Next Tasks
 
@@ -17,4 +16,4 @@ No task is currently selected.
 
 ## Next Step
 
-Run `SELECT` or update this file to choose the next task from `SPECS/Workplan.md`.
+Merge `feature/CTXB-P2-T6-T9-ui-polish` into `main`, then select the next task.

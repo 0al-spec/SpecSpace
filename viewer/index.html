@@ -79,6 +79,40 @@
       min-height: 100vh;
     }
 
+    .app.sidebar-collapsed {
+      grid-template-columns: 0 minmax(0, 1fr);
+    }
+
+    .app.sidebar-collapsed .sidebar {
+      overflow: hidden;
+      padding: 0;
+      visibility: hidden;
+    }
+
+    .sidebar-toggle {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 10;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel-strong);
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .app:not(.sidebar-collapsed) .sidebar-toggle {
+      left: 312px;
+    }
+
     .sidebar {
       position: sticky;
       top: 0;
@@ -212,6 +246,8 @@
 
     .main {
       padding: 28px 24px 56px;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .panel {
@@ -704,11 +740,10 @@
     </aside>
 
     <main class="main">
+      <button id="sidebarToggle" type="button" class="sidebar-toggle" title="Toggle sidebar">&#9776;</button>
       <section id="graphPanel" class="panel graph-panel">
         <div class="panel-head">
           <div>
-            <div class="eyebrow">Graph canvas</div>
-            <h2>Conversation lineage</h2>
             <p id="graphSummary" class="panel-copy">Load a dialog workspace to render the conversation graph.</p>
           </div>
           <div class="graph-actions">
@@ -744,15 +779,7 @@
         </div>
       </section>
 
-      <section class="panel">
-        <h2 id="dialogTitle" class="toolbar-title">No conversation selected</h2>
-        <div id="status" class="status">Select a node on the graph or open a file from the sidebar.</div>
-        <div class="toolbar-actions">
-          <button id="saveCurrentButton" type="button">Save current file</button>
-          <button id="saveAsButton" type="button">Save as new file</button>
-          <button id="deleteCurrentButton" class="danger" type="button">Delete current file</button>
-        </div>
-      </section>
+      <div id="status" class="status">Select a node on the graph or open a file from the sidebar.</div>
 
       <section class="inspection-grid">
         <section id="conversationDetailPanel" class="panel inspection-panel copy-muted">
@@ -841,6 +868,8 @@
     const workspaceStatsNode = document.getElementById("workspaceStats");
     const refreshFilesButton = document.getElementById("refreshFilesButton");
     const newBranchButton = document.getElementById("newBranchButton");
+    const sidebarToggle = document.getElementById("sidebarToggle");
+    const appNode = document.querySelector(".app");
 
     const graphSummaryNode = document.getElementById("graphSummary");
     const graphSelectionHintNode = document.getElementById("graphSelectionHint");
@@ -851,12 +880,8 @@
     const blockedFilesContainer = document.getElementById("blockedFilesContainer");
     const blockedFilesListNode = document.getElementById("blockedFilesList");
 
-    const dialogTitleNode = document.getElementById("dialogTitle");
     const statusNode = document.getElementById("status");
     const messagesNode = document.getElementById("messages");
-    const saveCurrentButton = document.getElementById("saveCurrentButton");
-    const saveAsButton = document.getElementById("saveAsButton");
-    const deleteCurrentButton = document.getElementById("deleteCurrentButton");
 
     const conversationDetailPanelNode = document.getElementById("conversationDetailPanel");
     const conversationMetaNode = document.getElementById("conversationMeta");
@@ -1703,6 +1728,11 @@
       files.forEach((file) => {
         const item = document.createElement("article");
         item.className = `file-item ${file.name === currentFileName ? "active" : ""}`;
+        item.style.cursor = "pointer";
+        item.addEventListener("click", (e) => {
+          if (e.target.closest(".file-delete-btn")) return;
+          loadFile(file.name).catch((error) => setStatus(error.message));
+        });
 
         const head = document.createElement("div");
         head.className = "file-head";
@@ -1722,22 +1752,18 @@
         const actions = document.createElement("div");
         actions.className = "file-actions";
 
-        const openButton = document.createElement("button");
-        openButton.type = "button";
-        openButton.textContent = "Open";
-        openButton.addEventListener("click", () => {
-          loadFile(file.name).catch((error) => setStatus(error.message));
-        });
-
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
-        deleteButton.className = "danger";
-        deleteButton.textContent = "Delete";
+        deleteButton.className = "danger file-delete-btn";
+        deleteButton.title = "Delete file";
+        deleteButton.textContent = "\u00d7";
+        deleteButton.style.cssText = "padding: 4px 8px; font-size: 16px; line-height: 1; min-width: 0;";
         deleteButton.addEventListener("click", () => {
+          if (!confirm(`Delete "${file.name}"? This cannot be undone.`)) return;
           deleteFile(file.name).catch((error) => setStatus(error.message));
         });
 
-        actions.append(openButton, deleteButton);
+        actions.append(deleteButton);
 
         const meta = document.createElement("div");
         meta.className = "file-meta";
@@ -1959,8 +1985,6 @@
     function renderConversation() {
       const data = currentConversation;
       const messages = Array.isArray(data?.messages) ? data.messages : [];
-      dialogTitleNode.textContent = data?.title || currentFileName || "No conversation selected";
-
       if (!messages.length) {
         setStatus(currentFileName ? `${currentFileName} is loaded but contains no messages.` : "Select a node on the graph or open a file from the sidebar.");
         messagesNode.className = "panel messages-empty";
@@ -2179,27 +2203,6 @@
       editorNode.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
-    function openEditorFromCurrent() {
-      if (!currentConversation || !Array.isArray(currentConversation.messages)) {
-        openEmptyEditor();
-        return;
-      }
-
-      branchConversation = {
-        ...currentConversation,
-        title: `${currentConversation.title || "Untitled"} (copy)`,
-        messages: currentConversation.messages.map((message) => ({
-          role: message.role || "unknown",
-          content: message.content || ""
-        }))
-      };
-      branchTitleNode.value = branchConversation.title;
-      saveNameNode.value = defaultFileName(branchConversation.title);
-      renderBranchEditor();
-      editorNode.hidden = false;
-      editorNode.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
     function renderBranchEditor() {
       if (!branchConversation) {
         return;
@@ -2263,18 +2266,6 @@
       await refreshWorkspace();
       await loadFile(target);
       setStatus(`Saved ${target}`);
-    }
-
-    async function saveCurrentFile() {
-      if (!currentConversation || !currentFileName) {
-        setStatus("No current file to save.");
-        return;
-      }
-
-      await saveConversation(currentFileName, currentConversation, true);
-      await refreshWorkspace();
-      await loadFile(currentFileName);
-      setStatus(`Saved ${currentFileName}`);
     }
 
     async function deleteFile(name) {
@@ -2448,14 +2439,14 @@
     });
 
     newBranchButton.addEventListener("click", openEmptyEditor);
-    saveCurrentButton.addEventListener("click", () => {
-      saveCurrentFile().catch((error) => setStatus(error.message));
-    });
-    saveAsButton.addEventListener("click", openEditorFromCurrent);
-    deleteCurrentButton.addEventListener("click", () => {
-      if (currentFileName) {
-        deleteFile(currentFileName).catch((error) => setStatus(error.message));
-      }
+
+    // Sidebar toggle
+    if (sessionStorage.getItem("ctxb_sidebar_collapsed") === "true") {
+      appNode.classList.add("sidebar-collapsed");
+    }
+    sidebarToggle.addEventListener("click", () => {
+      appNode.classList.toggle("sidebar-collapsed");
+      sessionStorage.setItem("ctxb_sidebar_collapsed", appNode.classList.contains("sidebar-collapsed"));
     });
     centerSelectionButton.addEventListener("click", () => {
       centerOnSelection();
