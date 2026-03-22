@@ -9,6 +9,7 @@
 | CTXB-P1-T1 | [CTXB-P1-T1_Define_Canonical_Conversation_And_Lineage_Schema/](CTXB-P1-T1_Define_Canonical_Conversation_And_Lineage_Schema/) | 2026-03-22 | PASS |
 | CTXB-P1-T2 | [CTXB-P1-T2_Normalize_Imported_Conversations_Into_Graph_Roots_Or_Linked_Nodes/](CTXB-P1-T2_Normalize_Imported_Conversations_Into_Graph_Roots_Or_Linked_Nodes/) | 2026-03-22 | PASS |
 | CTXB-P1-T3 | [CTXB-P1-T3_Validate_Lineage_Integrity_And_Reject_Ambiguous_Graph_State/](CTXB-P1-T3_Validate_Lineage_Integrity_And_Reject_Ambiguous_Graph_State/) | 2026-03-22 | PASS |
+| CTXB-P1-T4 | [CTXB-P1-T4_Build_The_Conversation_Graph_Index_And_Diagnostics_Model/](CTXB-P1-T4_Build_The_Conversation_Graph_Index_And_Diagnostics_Model/) | 2026-03-22 | PASS |
 
 ## Historical Artifacts
 
@@ -26,3 +27,4 @@
 | 2026-03-22 | CTXB-P1-T2 | Archived REVIEW_import_normalization report |
 | 2026-03-22 | CTXB-P1-T3 | Archived Validate_Lineage_Integrity_And_Reject_Ambiguous_Graph_State (PASS) |
 | 2026-03-22 | CTXB-P1-T3 | Archived REVIEW_lineage_validation report |
+| 2026-03-22 | CTXB-P1-T4 | Archived Build_The_Conversation_Graph_Index_And_Diagnostics_Model (PASS) |
