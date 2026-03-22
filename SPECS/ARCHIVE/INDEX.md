@@ -21,6 +21,7 @@
 | CTXB-P2-T8 | [CTXB-P2-T8_Simplify_Sidebar_File_List_Interactions/](CTXB-P2-T8_Simplify_Sidebar_File_List_Interactions/) | 2026-03-22 | PASS |
 | CTXB-P2-T9 | [CTXB-P2-T9_Remove_Redundant_File_Toolbar_Block/](CTXB-P2-T9_Remove_Redundant_File_Toolbar_Block/) | 2026-03-22 | PASS |
 | CTXB-P2-T10 | [CTXB-P2-T10_Convert_Inspectors_To_Overlay_Panels/](CTXB-P2-T10_Convert_Inspectors_To_Overlay_Panels/) | 2026-03-22 | PASS |
+| CTXB-P2-T11 | [CTXB-P2-T11_Add_Expand_Collapse_Control/](CTXB-P2-T11_Add_Expand_Collapse_Control/) | 2026-03-22 | PASS |
 
 ## Historical Artifacts
 
@@ -62,3 +63,4 @@
 | 2026-03-22 | CTXB-P2-T9 | Archived REVIEW_file_toolbar_removal report |
 | 2026-03-22 | CTXB-P2-T10 | Archived Convert_Inspectors_To_Overlay_Panels (PASS) |
 | 2026-03-22 | CTXB-P2-T10 | Archived REVIEW_inspector_overlays report |
+| 2026-03-22 | CTXB-P2-T11 | Archived Add_Expand_Collapse_Control (PASS) |

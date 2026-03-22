@@ -205,7 +205,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - Clicking empty graph canvas space hides both inspector panels.
   - All existing tests continue to pass.
 
-### CTXB-P2-T11 — Add expand/collapse control to conversation nodes
+### ✅ CTXB-P2-T11 — Add expand/collapse control to conversation nodes
 - **Description:** Add a clickable expand/collapse toggle to each conversation node on the graph canvas. Clicking it toggles an `expanded` flag on the node's state. No layout changes yet — this task only adds the control, tracks the state, and visually indicates whether the node is expanded or collapsed.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2-T1
