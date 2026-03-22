@@ -160,7 +160,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - Clicking the toggle again restores the sidebar.
   - The graph canvas and inspector panels expand to fill the freed space.
 
-### CTXB-P2-T7 — Remove the "Graph canvas" heading from the graph panel
+### ✅ CTXB-P2-T7 — Remove the "Graph canvas" heading from the graph panel
 - **Description:** Remove the static "Graph canvas" eyebrow and "Conversation lineage" heading from the graph panel. The graph summary line and legend are sufficient orientation.
 - **Priority:** P2
 - **Dependencies:** CTXB-P2-T1
