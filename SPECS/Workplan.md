@@ -149,7 +149,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - Unsupported files or blocking errors are explicit and actionable.
   - The UI does not silently suppress graph inconsistencies.
 
-### CTXB-P2-T6 — Add collapsible sidebar toggle
+### ✅ CTXB-P2-T6 — Add collapsible sidebar toggle
 - **Description:** Add a button that collapses and expands the sidebar so the graph canvas and inspectors can use the full viewport width when the file list is not needed.
 - **Priority:** P2
 - **Dependencies:** CTXB-P2-T1

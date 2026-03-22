@@ -16,6 +16,7 @@
 | CTXB-P2-T3 | [CTXB-P2-T3_Implement_Ancestor_And_Sibling_Lineage_Navigation/](CTXB-P2-T3_Implement_Ancestor_And_Sibling_Lineage_Navigation/) | 2026-03-22 | PASS |
 | CTXB-P2-T4 | [CTXB-P2-T4_Preserve_Graph_Context_Across_Hard_Refresh/](CTXB-P2-T4_Preserve_Graph_Context_Across_Hard_Refresh/) | 2026-03-22 | PASS |
 | CTXB-P2-T5 | [CTXB-P2-T5_Surface_Integrity_Issues_In_Graph_UI/](CTXB-P2-T5_Surface_Integrity_Issues_In_Graph_UI/) | 2026-03-22 | PASS |
+| CTXB-P2-T6 | [CTXB-P2-T6_Add_Collapsible_Sidebar_Toggle/](CTXB-P2-T6_Add_Collapsible_Sidebar_Toggle/) | 2026-03-22 | PASS |
 
 ## Historical Artifacts
 
@@ -47,3 +48,4 @@
 | 2026-03-22 | CTXB-P2-T4 | Archived REVIEW_refresh_persistence report |
 | 2026-03-22 | CTXB-P2-T5 | Archived Surface_Integrity_Issues_In_Graph_UI (PASS) |
 | 2026-03-22 | CTXB-P2-T5 | Archived REVIEW_integrity_issues_ui report |
+| 2026-03-22 | CTXB-P2-T6 | Archived Add_Collapsible_Sidebar_Toggle (PASS) |
