@@ -15,6 +15,7 @@
 | CTXB-P2-T2 | [CTXB-P2-T2_Add_Conversation_Detail_And_Checkpoint_Inspection_Panels/](CTXB-P2-T2_Add_Conversation_Detail_And_Checkpoint_Inspection_Panels/) | 2026-03-22 | PASS |
 | CTXB-P2-T3 | [CTXB-P2-T3_Implement_Ancestor_And_Sibling_Lineage_Navigation/](CTXB-P2-T3_Implement_Ancestor_And_Sibling_Lineage_Navigation/) | 2026-03-22 | PASS |
 | CTXB-P2-T4 | [CTXB-P2-T4_Preserve_Graph_Context_Across_Hard_Refresh/](CTXB-P2-T4_Preserve_Graph_Context_Across_Hard_Refresh/) | 2026-03-22 | PASS |
+| CTXB-P2-T5 | [CTXB-P2-T5_Surface_Integrity_Issues_In_Graph_UI/](CTXB-P2-T5_Surface_Integrity_Issues_In_Graph_UI/) | 2026-03-22 | PASS |
 
 ## Historical Artifacts
 
@@ -44,3 +45,4 @@
 | 2026-03-22 | CTXB-P2-T3 | Archived REVIEW_lineage_navigation report |
 | 2026-03-22 | CTXB-P2-T4 | Archived Preserve_Graph_Context_Across_Hard_Refresh (PASS) |
 | 2026-03-22 | CTXB-P2-T4 | Archived REVIEW_refresh_persistence report |
+| 2026-03-22 | CTXB-P2-T5 | Archived Surface_Integrity_Issues_In_Graph_UI (PASS) |

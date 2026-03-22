@@ -138,7 +138,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - If the prior objects were removed externally, the UI falls back to the nearest valid state with a clear notice.
   - The behavior satisfies PRD FR-9, NFR-6, and Flow E.
 
-### CTXB-P2-T5 — Surface integrity issues directly in the graph UI
+### ✅ CTXB-P2-T5 — Surface integrity issues directly in the graph UI
 - **Description:** Show broken references, duplicate IDs, unsupported files, and compile-blocking validation errors in the UI so the user can distinguish data issues from missing content.
 - **Priority:** P1
 - **Dependencies:** CTXB-P1-T3, CTXB-P2-T1
