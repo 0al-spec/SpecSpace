@@ -161,6 +161,27 @@ Merge conversations are canonical conversations with two or more parent referenc
 - Parent references always use `conversation_id`, `message_id`, and `link_type`.
 - ContextBuilder preserves imported provenance such as `source_file`, `turn_id`, and `source` when exporting to downstream artifacts.
 
+### Normalization Rules
+
+Imported JSON files are normalized into canonical roots before they participate in graph indexing:
+
+1. If a payload is already canonical, ContextBuilder preserves it as-is.
+2. If a payload matches the imported root shape and has stable message identity, ContextBuilder derives a deterministic `conversation_id` and adds:
+
+```json
+{
+  "lineage": {
+    "parents": []
+  }
+}
+```
+
+3. Deterministic `conversation_id` generation is based on stable imported provenance:
+   - `source_file`
+   - `title`
+   - ordered `message_id` values
+4. Imported payloads that are missing stable message identity or have inconsistent `message_count` are rejected as invalid and must not silently enter the graph.
+
 The intended upstream producer is `ChatGPTDialogs`, but any directory with the same JSON contract is valid.
 
 ## Repository Layout

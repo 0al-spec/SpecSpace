@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import copy
+import hashlib
+import json
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -35,6 +39,19 @@ PARENT_REFERENCE_REQUIRED_FIELDS = (
     "message_id",
     "link_type",
 )
+
+
+@dataclass(frozen=True)
+class NormalizationError:
+    code: str
+    message: str
+
+
+@dataclass(frozen=True)
+class NormalizationResult:
+    kind: str
+    normalized: dict[str, Any] | None
+    errors: tuple[NormalizationError, ...] = ()
 
 
 def _is_mapping(value: Any) -> bool:
@@ -117,3 +134,108 @@ def imported_message_provenance(payload: dict[str, Any]) -> dict[str, str]:
         if isinstance(value, str) and value:
             provenance[field] = value
     return provenance
+
+
+def collect_normalization_errors(payload: dict[str, Any]) -> tuple[NormalizationError, ...]:
+    if not _is_mapping(payload):
+        return (NormalizationError("invalid_payload", "Payload must be a JSON object."),)
+
+    if is_canonical_conversation(payload):
+        return ()
+
+    missing_fields = [field for field in IMPORTED_ROOT_REQUIRED_FIELDS if field not in payload]
+    if missing_fields:
+        return (
+            NormalizationError(
+                "missing_top_level_fields",
+                f"Imported conversation is missing required top-level fields: {', '.join(missing_fields)}.",
+            ),
+        )
+
+    messages = payload.get("messages")
+    if not isinstance(messages, list):
+        return (NormalizationError("invalid_messages", "`messages` must be a list."),)
+
+    errors: list[NormalizationError] = []
+    if payload.get("message_count") != len(messages):
+        errors.append(
+            NormalizationError(
+                "message_count_mismatch",
+                "`message_count` does not match the number of messages.",
+            )
+        )
+
+    message_ids: list[str] = []
+    for index, message in enumerate(messages):
+        if not _is_mapping(message):
+            errors.append(
+                NormalizationError(
+                    "invalid_message_payload",
+                    f"Message at index {index} is not a JSON object.",
+                )
+            )
+            continue
+
+        missing_message_fields = [field for field in MESSAGE_REQUIRED_FIELDS if field not in message]
+        if missing_message_fields:
+            errors.append(
+                NormalizationError(
+                    "missing_message_fields",
+                    f"Message at index {index} is missing required fields: {', '.join(missing_message_fields)}.",
+                )
+            )
+            continue
+
+        message_id = message.get("message_id")
+        if isinstance(message_id, str) and message_id:
+            message_ids.append(message_id)
+        else:
+            errors.append(
+                NormalizationError(
+                    "invalid_message_id",
+                    f"Message at index {index} has an invalid `message_id`.",
+                )
+            )
+
+    if len(message_ids) != len(set(message_ids)):
+        errors.append(
+            NormalizationError(
+                "duplicate_message_ids",
+                "Imported conversation contains duplicate `message_id` values.",
+            )
+        )
+
+    return tuple(errors)
+
+
+def derive_conversation_id(payload: dict[str, Any]) -> str:
+    if is_canonical_conversation(payload):
+        return str(payload["conversation_id"])
+
+    basis = {
+        "source_file": payload.get("source_file", ""),
+        "title": payload.get("title", ""),
+        "message_ids": [message.get("message_id", "") for message in payload.get("messages", []) if _is_mapping(message)],
+    }
+    digest = hashlib.sha1(
+        json.dumps(basis, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()[:12]
+    return f"conv-{digest}"
+
+
+def normalize_conversation(payload: dict[str, Any]) -> NormalizationResult:
+    if is_canonical_conversation(payload):
+        return NormalizationResult(
+            kind=classify_conversation(payload),
+            normalized=copy.deepcopy(payload),
+        )
+
+    errors = collect_normalization_errors(payload)
+    if errors:
+        return NormalizationResult(kind="invalid", normalized=None, errors=errors)
+
+    normalized = copy.deepcopy(payload)
+    normalized["conversation_id"] = derive_conversation_id(payload)
+    normalized["lineage"] = {"parents": []}
+
+    return NormalizationResult(kind="canonical-root", normalized=normalized)
