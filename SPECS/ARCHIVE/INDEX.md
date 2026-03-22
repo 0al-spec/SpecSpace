@@ -19,6 +19,7 @@
 | CTXB-P2-T6 | [CTXB-P2-T6_Add_Collapsible_Sidebar_Toggle/](CTXB-P2-T6_Add_Collapsible_Sidebar_Toggle/) | 2026-03-22 | PASS |
 | CTXB-P2-T7 | [CTXB-P2-T7_Remove_Graph_Canvas_Heading/](CTXB-P2-T7_Remove_Graph_Canvas_Heading/) | 2026-03-22 | PASS |
 | CTXB-P2-T8 | [CTXB-P2-T8_Simplify_Sidebar_File_List_Interactions/](CTXB-P2-T8_Simplify_Sidebar_File_List_Interactions/) | 2026-03-22 | PASS |
+| CTXB-P2-T9 | [CTXB-P2-T9_Remove_Redundant_File_Toolbar_Block/](CTXB-P2-T9_Remove_Redundant_File_Toolbar_Block/) | 2026-03-22 | PASS |
 
 ## Historical Artifacts
 
@@ -56,3 +57,4 @@
 | 2026-03-22 | CTXB-P2-T7 | Archived REVIEW_graph_heading_removal report |
 | 2026-03-22 | CTXB-P2-T8 | Archived Simplify_Sidebar_File_List_Interactions (PASS) |
 | 2026-03-22 | CTXB-P2-T8 | Archived REVIEW_sidebar_file_list report |
+| 2026-03-22 | CTXB-P2-T9 | Archived Remove_Redundant_File_Toolbar_Block (PASS) |

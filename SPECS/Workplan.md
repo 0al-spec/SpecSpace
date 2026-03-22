@@ -181,7 +181,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - Delete is triggered by a compact icon that shows a confirmation dialog before proceeding.
   - No accidental deletions are possible.
 
-### CTXB-P2-T9 — Remove the redundant file toolbar block
+### ✅ CTXB-P2-T9 — Remove the redundant file toolbar block
 - **Description:** Remove the block that shows the selected file name, message count, kind label, and the "Save current file", "Save as new file", "Delete current file" buttons. This information duplicates the conversation inspector and the sidebar, and the actions are either redundant or better placed elsewhere.
 - **Priority:** P2
 - **Dependencies:** CTXB-P2-T2
