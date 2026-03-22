@@ -192,6 +192,80 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - No functionality is lost — equivalent actions remain accessible from the sidebar or inspectors.
   - All existing tests continue to pass.
 
+### CTXB-P2-T10 — Convert inspectors to right-side overlay panels driven by selection state
+- **Description:** Move the Conversation Inspector and Checkpoint Inspector from below the graph into overlay panels that slide in from the right edge of the viewport. The graph canvas expands to fill all available space (excluding the sidebar). The Conversation Inspector appears when a graph node is selected; the Checkpoint Inspector appears only when a checkpoint is selected within the Conversation Inspector. Clicking empty space on the graph dismisses both panels.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2-T2, CTXB-P2-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** overlay panel CSS and layout changes in `viewer/index.html`, selection-driven show/hide logic, click-on-empty-space dismissal
+- **Acceptance Criteria:**
+  - The graph canvas fills all main-area space (no inspection grid below it).
+  - The Conversation Inspector slides in as a right-side overlay when a graph node is selected.
+  - The Checkpoint Inspector appears (stacked or nested) only when a checkpoint is selected.
+  - Clicking empty graph canvas space hides both inspector panels.
+  - All existing tests continue to pass.
+
+### CTXB-P2-T11 — Add expand/collapse control to conversation nodes
+- **Description:** Add a clickable expand/collapse toggle to each conversation node on the graph canvas. Clicking it toggles an `expanded` flag on the node's state. No layout changes yet — this task only adds the control, tracks the state, and visually indicates whether the node is expanded or collapsed.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** expand/collapse control in SVG node rendering, per-node expanded state
+- **Acceptance Criteria:**
+  - Each conversation node has a visible expand/collapse icon (e.g., ▸/▾).
+  - Clicking the icon toggles the node's expanded state.
+  - The icon reflects the current state (collapsed vs expanded).
+  - All existing tests continue to pass.
+
+### CTXB-P2-T12 — Render message sub-nodes inside expanded conversation nodes
+- **Description:** When a conversation node is expanded, render its messages as vertically stacked sub-nodes inside the conversation boundary. Each message sub-node shows `role | first 25 characters of content`. The conversation node resizes to fit its messages. Other nodes and edges are not repositioned yet.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2-T11
+- **Parallelizable:** no
+- **Outputs / Artifacts:** message sub-node SVG rendering, dynamic node height calculation
+- **Acceptance Criteria:**
+  - Expanding a node reveals its messages as labeled sub-nodes inside the conversation boundary.
+  - Each sub-node shows `role | {trimmed content}`.
+  - The conversation node boundary grows to contain all message sub-nodes.
+  - Collapsing returns the node to its compact size.
+  - All existing tests continue to pass.
+
+### CTXB-P2-T13 — Reflow graph layout when nodes expand or collapse
+- **Description:** When a conversation node expands or collapses, recalculate positions of downstream nodes so they don't overlap. Push sibling and descendant nodes down/right to accommodate the expanded height.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2-T12
+- **Parallelizable:** no
+- **Outputs / Artifacts:** layout reflow logic in graph rendering
+- **Acceptance Criteria:**
+  - Expanding a node pushes neighboring nodes to avoid overlap.
+  - Collapsing pulls them back.
+  - Edges update to follow the new node positions.
+  - All existing tests continue to pass.
+
+### CTXB-P2-T14 — Route edges to message-level anchors in expanded nodes
+- **Description:** When a conversation node is expanded, re-route branch and merge edges so they connect to the specific message sub-node where the fork or join occurs (using the parent `message_id` from the edge data). When collapsed, edges connect at the conversation node level as before.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2-T12
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** edge anchor recalculation in graph rendering
+- **Acceptance Criteria:**
+  - Branch/merge edges connect to the exact message sub-node when the parent conversation is expanded.
+  - Edges revert to conversation-level anchors when collapsed.
+  - The visual clearly shows which message is the branch/merge point.
+  - All existing tests continue to pass.
+
+### CTXB-P2-T15 — Click message sub-node to select checkpoint in inspector
+- **Description:** Clicking a message sub-node in the expanded graph selects it as the active checkpoint in the inspector. This connects the graph-level message view with the existing checkpoint inspection flow.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2-T12, CTXB-P2-T10
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** click handler on message sub-nodes, checkpoint selection integration
+- **Acceptance Criteria:**
+  - Clicking a message sub-node selects the corresponding checkpoint in the inspector.
+  - The clicked sub-node gets a visual highlight (active state).
+  - The checkpoint inspector overlay shows the selected message's details.
+  - All existing tests continue to pass.
+
 ## Phase 3: Authoring and Compile Target Selection
 
 Intent: implement the workflows that mutate graph structure safely and let the user mark a concrete line of reasoning as the target for context compilation.
