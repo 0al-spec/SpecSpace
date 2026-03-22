@@ -1,0 +1,30 @@
+{
+  "conversation_id": "conv-trust-social-branding-branch",
+  "title": "Trust Social Branding Branch",
+  "source_file": "/examples/import/Trust_Social_branding.html",
+  "messages": [
+    {
+      "message_id": "msg-branch-1",
+      "role": "user",
+      "content": "Continue from the protocol naming checkpoint and explore product branding.",
+      "turn_id": "turn-branch-1",
+      "source": "conversation-turn-1"
+    },
+    {
+      "message_id": "msg-branch-2",
+      "role": "assistant",
+      "content": "Use a warm product brand and keep MIR as the protocol layer.",
+      "turn_id": "turn-branch-2",
+      "source": "conversation-turn-2"
+    }
+  ],
+  "lineage": {
+    "parents": [
+      {
+        "conversation_id": "conv-trust-social-root",
+        "message_id": "msg-root-2",
+        "link_type": "branch"
+      }
+    ]
+  }
+}

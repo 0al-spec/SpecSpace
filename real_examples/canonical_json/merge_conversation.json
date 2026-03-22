@@ -1,0 +1,35 @@
+{
+  "conversation_id": "conv-contextbuilder-merge",
+  "title": "ContextBuilder Merge Conversation",
+  "source_file": "/examples/import/ContextBuilder_merge.html",
+  "messages": [
+    {
+      "message_id": "msg-merge-1",
+      "role": "user",
+      "content": "Combine the graph model idea with the Hyperprompt compile path.",
+      "turn_id": "turn-merge-1",
+      "source": "conversation-turn-1"
+    },
+    {
+      "message_id": "msg-merge-2",
+      "role": "assistant",
+      "content": "Treat the graph as the selection model and Hyperprompt as the deterministic compiler.",
+      "turn_id": "turn-merge-2",
+      "source": "conversation-turn-2"
+    }
+  ],
+  "lineage": {
+    "parents": [
+      {
+        "conversation_id": "conv-trust-social-root",
+        "message_id": "msg-root-2",
+        "link_type": "merge"
+      },
+      {
+        "conversation_id": "conv-trust-social-branding-branch",
+        "message_id": "msg-branch-2",
+        "link_type": "merge"
+      }
+    ]
+  }
+}

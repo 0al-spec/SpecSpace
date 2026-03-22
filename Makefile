@@ -22,4 +22,4 @@ test:
 	@$(PYTHON) -m unittest discover -s tests -p 'test_*.py'
 
 lint:
-	@$(PYTHON) -m py_compile viewer/server.py tests/test_smoke.py
+	@$(PYTHON) -m py_compile viewer/server.py viewer/schema.py tests/test_smoke.py tests/test_schema.py
