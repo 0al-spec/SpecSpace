@@ -192,7 +192,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - No functionality is lost — equivalent actions remain accessible from the sidebar or inspectors.
   - All existing tests continue to pass.
 
-### CTXB-P2-T10 — Convert inspectors to right-side overlay panels driven by selection state
+### ✅ CTXB-P2-T10 — Convert inspectors to right-side overlay panels driven by selection state
 - **Description:** Move the Conversation Inspector and Checkpoint Inspector from below the graph into overlay panels that slide in from the right edge of the viewport. The graph canvas expands to fill all available space (excluding the sidebar). The Conversation Inspector appears when a graph node is selected; the Checkpoint Inspector appears only when a checkpoint is selected within the Conversation Inspector. Clicking empty space on the graph dismisses both panels.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2-T2, CTXB-P2-T6

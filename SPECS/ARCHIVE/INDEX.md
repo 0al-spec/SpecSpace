@@ -20,6 +20,7 @@
 | CTXB-P2-T7 | [CTXB-P2-T7_Remove_Graph_Canvas_Heading/](CTXB-P2-T7_Remove_Graph_Canvas_Heading/) | 2026-03-22 | PASS |
 | CTXB-P2-T8 | [CTXB-P2-T8_Simplify_Sidebar_File_List_Interactions/](CTXB-P2-T8_Simplify_Sidebar_File_List_Interactions/) | 2026-03-22 | PASS |
 | CTXB-P2-T9 | [CTXB-P2-T9_Remove_Redundant_File_Toolbar_Block/](CTXB-P2-T9_Remove_Redundant_File_Toolbar_Block/) | 2026-03-22 | PASS |
+| CTXB-P2-T10 | [CTXB-P2-T10_Convert_Inspectors_To_Overlay_Panels/](CTXB-P2-T10_Convert_Inspectors_To_Overlay_Panels/) | 2026-03-22 | PASS |
 
 ## Historical Artifacts
 
@@ -59,3 +60,4 @@
 | 2026-03-22 | CTXB-P2-T8 | Archived REVIEW_sidebar_file_list report |
 | 2026-03-22 | CTXB-P2-T9 | Archived Remove_Redundant_File_Toolbar_Block (PASS) |
 | 2026-03-22 | CTXB-P2-T9 | Archived REVIEW_file_toolbar_removal report |
+| 2026-03-22 | CTXB-P2-T10 | Archived Convert_Inspectors_To_Overlay_Panels (PASS) |
