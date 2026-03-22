@@ -1,6 +1,9 @@
 # In Progress Queue
 
-No task is currently selected.
+**Current Task:** `CTXB-P2-T3` — Implement ancestor and sibling lineage navigation
+- **Priority:** P0
+- **Dependencies:** CTXB-P2-T2
+- **Branch:** `feature/CTXB-P2-T3-lineage-navigation`
 
 ## Recently Archived
 
@@ -12,9 +15,9 @@ No task is currently selected.
 
 ## Suggested Next Tasks
 
-1. `CTXB-P2-T3` — Implement ancestor and sibling lineage navigation
-2. `CTXB-P2-T5` — Surface integrity issues directly in the graph UI
+1. `CTXB-P2-T5` — Surface integrity issues directly in the graph UI
+2. `CTXB-P1-T6` — Correct compile-target root metadata for incomplete lineage
 
 ## Next Step
 
-Run `SELECT` or update this file to choose the next task from `SPECS/Workplan.md`.
+Complete `CTXB-P2-T3`, then run `SELECT` for the next task.
