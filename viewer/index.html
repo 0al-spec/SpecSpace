@@ -779,15 +779,7 @@
         </div>
       </section>
 
-      <section class="panel">
-        <h2 id="dialogTitle" class="toolbar-title">No conversation selected</h2>
-        <div id="status" class="status">Select a node on the graph or open a file from the sidebar.</div>
-        <div class="toolbar-actions">
-          <button id="saveCurrentButton" type="button">Save current file</button>
-          <button id="saveAsButton" type="button">Save as new file</button>
-          <button id="deleteCurrentButton" class="danger" type="button">Delete current file</button>
-        </div>
-      </section>
+      <div id="status" class="status">Select a node on the graph or open a file from the sidebar.</div>
 
       <section class="inspection-grid">
         <section id="conversationDetailPanel" class="panel inspection-panel copy-muted">
@@ -888,12 +880,8 @@
     const blockedFilesContainer = document.getElementById("blockedFilesContainer");
     const blockedFilesListNode = document.getElementById("blockedFilesList");
 
-    const dialogTitleNode = document.getElementById("dialogTitle");
     const statusNode = document.getElementById("status");
     const messagesNode = document.getElementById("messages");
-    const saveCurrentButton = document.getElementById("saveCurrentButton");
-    const saveAsButton = document.getElementById("saveAsButton");
-    const deleteCurrentButton = document.getElementById("deleteCurrentButton");
 
     const conversationDetailPanelNode = document.getElementById("conversationDetailPanel");
     const conversationMetaNode = document.getElementById("conversationMeta");
@@ -1997,8 +1985,6 @@
     function renderConversation() {
       const data = currentConversation;
       const messages = Array.isArray(data?.messages) ? data.messages : [];
-      dialogTitleNode.textContent = data?.title || currentFileName || "No conversation selected";
-
       if (!messages.length) {
         setStatus(currentFileName ? `${currentFileName} is loaded but contains no messages.` : "Select a node on the graph or open a file from the sidebar.");
         messagesNode.className = "panel messages-empty";
@@ -2217,27 +2203,6 @@
       editorNode.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
-    function openEditorFromCurrent() {
-      if (!currentConversation || !Array.isArray(currentConversation.messages)) {
-        openEmptyEditor();
-        return;
-      }
-
-      branchConversation = {
-        ...currentConversation,
-        title: `${currentConversation.title || "Untitled"} (copy)`,
-        messages: currentConversation.messages.map((message) => ({
-          role: message.role || "unknown",
-          content: message.content || ""
-        }))
-      };
-      branchTitleNode.value = branchConversation.title;
-      saveNameNode.value = defaultFileName(branchConversation.title);
-      renderBranchEditor();
-      editorNode.hidden = false;
-      editorNode.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
     function renderBranchEditor() {
       if (!branchConversation) {
         return;
@@ -2301,18 +2266,6 @@
       await refreshWorkspace();
       await loadFile(target);
       setStatus(`Saved ${target}`);
-    }
-
-    async function saveCurrentFile() {
-      if (!currentConversation || !currentFileName) {
-        setStatus("No current file to save.");
-        return;
-      }
-
-      await saveConversation(currentFileName, currentConversation, true);
-      await refreshWorkspace();
-      await loadFile(currentFileName);
-      setStatus(`Saved ${currentFileName}`);
     }
 
     async function deleteFile(name) {
@@ -2494,15 +2447,6 @@
     sidebarToggle.addEventListener("click", () => {
       appNode.classList.toggle("sidebar-collapsed");
       sessionStorage.setItem("ctxb_sidebar_collapsed", appNode.classList.contains("sidebar-collapsed"));
-    });
-    saveCurrentButton.addEventListener("click", () => {
-      saveCurrentFile().catch((error) => setStatus(error.message));
-    });
-    saveAsButton.addEventListener("click", openEditorFromCurrent);
-    deleteCurrentButton.addEventListener("click", () => {
-      if (currentFileName) {
-        deleteFile(currentFileName).catch((error) => setStatus(error.message));
-      }
     });
     centerSelectionButton.addEventListener("click", () => {
       centerOnSelection();
