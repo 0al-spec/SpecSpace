@@ -172,6 +172,47 @@ class GraphApiContractTests(unittest.TestCase):
         self.assertEqual(payload["compile_target"]["lineage_paths"], [["conv-trust-social-root"]])
         self.assertTrue(payload["compile_target"]["is_lineage_complete"])
 
+    def test_collect_checkpoint_api_returns_sibling_edges_for_lineage_navigation(self) -> None:
+        """Verify that a parent checkpoint exposes all child edges as siblings for lineage navigation."""
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        branch_payload = load_json(CANONICAL_FIXTURES / "branch_conversation.json")
+        merge_payload = load_json(CANONICAL_FIXTURES / "merge_conversation.json")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(
+                dialog_dir,
+                {
+                    "root.json": root_payload,
+                    "branch.json": branch_payload,
+                    "merge.json": merge_payload,
+                },
+            )
+
+            # First, get the branch conversation to find its parent edge.
+            conv_status, conv_payload = server.collect_conversation_api(
+                dialog_dir,
+                "conv-trust-social-branding-branch",
+            )
+            self.assertEqual(conv_status, HTTPStatus.OK)
+            parent_edge = conv_payload["parent_edges"][0]
+            self.assertEqual(parent_edge["parent_conversation_id"], "conv-trust-social-root")
+            self.assertEqual(parent_edge["parent_message_id"], "msg-root-2")
+
+            # Navigate to the parent checkpoint — this is the ancestor jump.
+            cp_status, cp_payload = server.collect_checkpoint_api(
+                dialog_dir,
+                parent_edge["parent_conversation_id"],
+                parent_edge["parent_message_id"],
+            )
+
+        self.assertEqual(cp_status, HTTPStatus.OK)
+        # The child edges of this checkpoint are the siblings of the branch.
+        sibling_ids = {edge["child_conversation_id"] for edge in cp_payload["child_edges"]}
+        self.assertIn("conv-trust-social-branding-branch", sibling_ids)
+        self.assertIn("conv-contextbuilder-merge", sibling_ids)
+        self.assertEqual(len(cp_payload["child_edges"]), 2)
+
     def test_collect_conversation_api_returns_structured_error_for_blocked_identity(self) -> None:
         root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
         branch_payload = load_json(CANONICAL_FIXTURES / "branch_conversation.json")

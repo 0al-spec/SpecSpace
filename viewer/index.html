@@ -1247,6 +1247,18 @@
       });
     }
 
+    function createGoToParentCheckpointButton(parentConversationId, parentMessageId) {
+      return createActionButton("Go to parent checkpoint", async () => {
+        try {
+          await selectConversation(parentConversationId);
+          await selectCheckpoint(parentMessageId);
+          centerOnSelection();
+        } catch (error) {
+          setStatus(error.message);
+        }
+      });
+    }
+
     function renderConversationInspector() {
       const detail = inspectorState.conversationDetail;
       if (!detail || !detail.conversation) {
@@ -1319,6 +1331,7 @@
         parentEdges.forEach((edge) => {
           const actions = [];
           if (edge.status === "resolved") {
+            actions.push(createGoToParentCheckpointButton(edge.parent_conversation_id, edge.parent_message_id));
             actions.push(createOpenConversationButton(edge.parent_conversation_id, "Open parent conversation"));
           }
           conversationLineageNode.append(
@@ -1463,14 +1476,32 @@
           }),
         );
       } else {
+        const selectedConvId = graphState.selectedConversationId;
+        checkpointChildrenNode.append(
+          createDetailItem({
+            title: `${childEdges.length} sibling branch${childEdges.length === 1 ? "" : "es"} from this checkpoint`,
+            meta: "Navigate to any sibling to explore related lines of reasoning.",
+          }),
+        );
         childEdges.forEach((edge) => {
+          const isCurrent = edge.child_conversation_id === selectedConvId;
+          const actions = isCurrent
+            ? []
+            : [createActionButton("Go to sibling", () => {
+                selectConversation(edge.child_conversation_id)
+                  .then(() => centerOnSelection())
+                  .catch((error) => setStatus(error.message));
+              })];
           checkpointChildrenNode.append(
             createDetailItem({
               title: edge.child_conversation_id,
               meta: `${edge.link_type} child via ${edge.parent_message_id}`,
               copy: `Child file: ${edge.child_file_name}`,
-              pills: [createDetailPill(edge.status === "resolved" ? "Resolved" : "Broken", edge.status === "resolved" ? "ok" : "warning")],
-              actions: [createOpenConversationButton(edge.child_conversation_id, "Open child conversation")],
+              pills: [
+                createDetailPill(edge.status === "resolved" ? "Resolved" : "Broken", edge.status === "resolved" ? "ok" : "warning"),
+                ...(isCurrent ? [createDetailPill("Current", "ok")] : []),
+              ],
+              actions,
             }),
           );
         });
@@ -1928,6 +1959,7 @@
 
       graphState.selectedConversationId = conversationId;
       renderGraph();
+      centerOnSelection();
 
       if (currentFileName === node.file_name && currentConversation) {
         renderFileList();
