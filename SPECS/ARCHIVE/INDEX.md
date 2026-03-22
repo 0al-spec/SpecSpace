@@ -25,3 +25,4 @@
 | 2026-03-22 | CTXB-P1-T2 | Archived Normalize_Imported_Conversations_Into_Graph_Roots_Or_Linked_Nodes (PASS) |
 | 2026-03-22 | CTXB-P1-T2 | Archived REVIEW_import_normalization report |
 | 2026-03-22 | CTXB-P1-T3 | Archived Validate_Lineage_Integrity_And_Reject_Ambiguous_Graph_State (PASS) |
+| 2026-03-22 | CTXB-P1-T3 | Archived REVIEW_lineage_validation report |
