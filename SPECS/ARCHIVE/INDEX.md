@@ -34,3 +34,4 @@
 | 2026-03-22 | CTXB-P1-T5 | Archived Expose_Graph_Aware_API_Contracts_For_UI_And_Compilation (PASS) |
 | 2026-03-22 | CTXB-P1-T5 | Archived REVIEW_graph_api_contracts report |
 | 2026-03-22 | CTXB-P2-T1 | Archived Render_The_Conversation_Graph_On_A_Canvas (PASS) |
+| 2026-03-22 | CTXB-P2-T1 | Archived REVIEW_graph_canvas report |
