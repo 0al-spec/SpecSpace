@@ -889,6 +889,69 @@
       selectedCheckpointId: null
     };
 
+    const STORAGE_KEY = "ctxb_graph_context";
+
+    function persistGraphContext() {
+      try {
+        const context = {
+          conversationId: graphState.selectedConversationId || null,
+          checkpointId: inspectorState.selectedCheckpointId || null,
+          panX: panState.x,
+          panY: panState.y,
+        };
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(context));
+
+        const hashParts = [];
+        if (context.conversationId) {
+          hashParts.push(`conversation=${encodeURIComponent(context.conversationId)}`);
+        }
+        if (context.checkpointId) {
+          hashParts.push(`checkpoint=${encodeURIComponent(context.checkpointId)}`);
+        }
+        if (hashParts.length) {
+          history.replaceState(null, "", `#${hashParts.join("&")}`);
+        } else {
+          history.replaceState(null, "", location.pathname + location.search);
+        }
+      } catch {
+        // sessionStorage may be unavailable in some contexts
+      }
+    }
+
+    function readPersistedContext() {
+      let conversationId = null;
+      let checkpointId = null;
+      let panX = null;
+      let panY = null;
+
+      // URL hash takes precedence
+      if (location.hash.length > 1) {
+        const hashParams = new URLSearchParams(location.hash.slice(1));
+        conversationId = hashParams.get("conversation") || null;
+        checkpointId = hashParams.get("checkpoint") || null;
+      }
+
+      // Fall back to sessionStorage
+      try {
+        const stored = sessionStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const context = JSON.parse(stored);
+          if (!conversationId) {
+            conversationId = context.conversationId || null;
+          }
+          if (!checkpointId) {
+            checkpointId = context.checkpointId || null;
+          }
+          panX = typeof context.panX === "number" ? context.panX : null;
+          panY = typeof context.panY === "number" ? context.panY : null;
+        }
+      } catch {
+        // sessionStorage may be unavailable
+      }
+
+      return { conversationId, checkpointId, panX, panY };
+    }
+
     function setStatus(text) {
       statusNode.textContent = text;
     }
@@ -1553,6 +1616,7 @@
       }
 
       inspectorState.selectedCheckpointId = messageId;
+      persistGraphContext();
       renderConversationInspector();
       renderConversation();
       await loadCheckpointInspector(conversationId, messageId);
@@ -1960,6 +2024,7 @@
       graphState.selectedConversationId = conversationId;
       renderGraph();
       centerOnSelection();
+      persistGraphContext();
 
       if (currentFileName === node.file_name && currentConversation) {
         renderFileList();
@@ -2232,6 +2297,7 @@
       }
       panState.pointerId = null;
       updateGraphTransform();
+      persistGraphContext();
     }
 
     graphViewportNode.addEventListener("pointerup", endPan);
@@ -2311,7 +2377,10 @@
         deleteFile(currentFileName).catch((error) => setStatus(error.message));
       }
     });
-    centerSelectionButton.addEventListener("click", centerOnSelection);
+    centerSelectionButton.addEventListener("click", () => {
+      centerOnSelection();
+      persistGraphContext();
+    });
 
     async function initialize() {
       await refreshWorkspace();
@@ -2324,6 +2393,29 @@
           await loadFile(fileName);
           return;
         }
+      }
+
+      // Restore persisted graph context (URL hash takes precedence over sessionStorage).
+      const persisted = readPersistedContext();
+      if (persisted.conversationId) {
+        const node = findGraphNodeByConversationId(persisted.conversationId);
+        if (node) {
+          if (persisted.panX !== null && persisted.panY !== null) {
+            panState.x = persisted.panX;
+            panState.y = persisted.panY;
+            updateGraphTransform();
+          }
+          const loadOptions = { selectedConversationId: persisted.conversationId };
+          if (persisted.checkpointId) {
+            loadOptions.selectedCheckpointId = persisted.checkpointId;
+          }
+          await loadFile(node.file_name, loadOptions);
+          persistGraphContext();
+          return;
+        }
+
+        // Persisted conversation no longer exists — fall back with notice.
+        setStatus(`Previously selected conversation "${persisted.conversationId}" is no longer in the workspace. Falling back to the nearest valid state.`);
       }
 
       if (graphState.api?.graph?.roots?.length) {
