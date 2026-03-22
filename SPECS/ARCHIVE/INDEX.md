@@ -12,6 +12,7 @@
 | CTXB-P1-T4 | [CTXB-P1-T4_Build_The_Conversation_Graph_Index_And_Diagnostics_Model/](CTXB-P1-T4_Build_The_Conversation_Graph_Index_And_Diagnostics_Model/) | 2026-03-22 | PASS |
 | CTXB-P1-T5 | [CTXB-P1-T5_Expose_Graph_Aware_API_Contracts_For_UI_And_Compilation/](CTXB-P1-T5_Expose_Graph_Aware_API_Contracts_For_UI_And_Compilation/) | 2026-03-22 | PASS |
 | CTXB-P2-T1 | [CTXB-P2-T1_Render_The_Conversation_Graph_On_A_Canvas/](CTXB-P2-T1_Render_The_Conversation_Graph_On_A_Canvas/) | 2026-03-22 | PASS |
+| CTXB-P2-T2 | [CTXB-P2-T2_Add_Conversation_Detail_And_Checkpoint_Inspection_Panels/](CTXB-P2-T2_Add_Conversation_Detail_And_Checkpoint_Inspection_Panels/) | 2026-03-22 | PASS |
 
 ## Historical Artifacts
 
@@ -35,3 +36,4 @@
 | 2026-03-22 | CTXB-P1-T5 | Archived REVIEW_graph_api_contracts report |
 | 2026-03-22 | CTXB-P2-T1 | Archived Render_The_Conversation_Graph_On_A_Canvas (PASS) |
 | 2026-03-22 | CTXB-P2-T1 | Archived REVIEW_graph_canvas report |
+| 2026-03-22 | CTXB-P2-T2 | Archived Add_Conversation_Detail_And_Checkpoint_Inspection_Panels (PASS) |

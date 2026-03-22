@@ -1,15 +1,20 @@
-# Next Task: CTXB-P2-T2 — Add conversation detail and checkpoint inspection panels
+# In Progress Queue
 
-**Priority:** P0
-**Phase:** Phase 2: Graph Navigation and Orientation UX
-**Effort:** 8-10 hours
-**Dependencies:** CTXB-P2-T1
-**Status:** Selected
+No task is currently selected.
 
-## Description
+## Recently Archived
 
-When a conversation node is selected, show transcript messages, checkpoint metadata, lineage information, and available navigation or authoring actions without leaving the graph-first workspace.
+- `CTXB-P2-T2` — Add conversation detail and checkpoint inspection panels (`PASS`, archived 2026-03-22)
+- `CTXB-P2-T1` — Render the conversation graph on a canvas (`PASS`, archived 2026-03-22)
+- `CTXB-P1-T5` — Expose graph-aware API contracts for UI and compilation (`PASS`, archived 2026-03-22)
+- `CTXB-P1-T4` — Build the conversation graph index and diagnostics model (`PASS`, archived 2026-03-22)
+- `CTXB-P1-T3` — Validate lineage integrity and reject ambiguous graph state (`PASS`, archived 2026-03-22)
+
+## Suggested Next Tasks
+
+1. `CTXB-P2-T3` — Implement ancestor and sibling lineage navigation
+2. `CTXB-P2-T5` — Surface integrity issues directly in the graph UI
 
 ## Next Step
 
-Run the PLAN command to generate the implementation-ready PRD.
+Run `SELECT` or update this file to choose the next task from `SPECS/Workplan.md`.

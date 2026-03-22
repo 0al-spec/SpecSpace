@@ -129,3 +129,7 @@ Verification:
 ## Notes
 
 Keep the current transcript rendering as the primary content surface while making the inspector the structured control plane for metadata and actions. This task should leave later navigation and compile work easier, not partially implemented.
+
+---
+**Archived:** 2026-03-22
+**Verdict:** PASS

@@ -105,7 +105,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - The canvas supports panning and node selection.
   - The rendered graph reflects the lineage data returned by the API.
 
-### CTXB-P2-T2 — Add conversation detail and checkpoint inspection panels
+### ✅ CTXB-P2-T2 — Add conversation detail and checkpoint inspection panels
 - **Description:** When a conversation node is selected, show transcript messages, checkpoint metadata, lineage information, and available navigation or authoring actions.
 - **Priority:** P0
 - **Dependencies:** CTXB-P2-T1
