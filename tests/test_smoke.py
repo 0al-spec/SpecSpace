@@ -68,6 +68,13 @@ class ContextBuilderSmokeTests(unittest.TestCase):
         self.assertIn("sessionStorage", html)
         self.assertIn("location.hash", html)
 
+    def test_viewer_index_exposes_collapsible_sidebar_toggle(self) -> None:
+        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn('id="sidebarToggle"', html)
+        self.assertIn("sidebar-collapsed", html)
+        self.assertIn("ctxb_sidebar_collapsed", html)
+
     def test_server_module_loads(self) -> None:
         module_path = REPO_ROOT / "viewer" / "server.py"
         spec = importlib.util.spec_from_file_location("contextbuilder_server", module_path)

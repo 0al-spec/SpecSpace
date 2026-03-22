@@ -84,7 +84,9 @@
     }
 
     .app.sidebar-collapsed .sidebar {
-      display: none;
+      overflow: hidden;
+      padding: 0;
+      visibility: hidden;
     }
 
     .sidebar-toggle {
@@ -244,6 +246,8 @@
 
     .main {
       padding: 28px 24px 56px;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .panel {
