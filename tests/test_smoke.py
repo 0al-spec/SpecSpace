@@ -67,6 +67,13 @@ class ContextBuilderSmokeTests(unittest.TestCase):
         self.assertIn("sessionStorage", html)
         self.assertIn("location.hash", html)
 
+    def test_viewer_index_exposes_expandable_graph_nodes(self) -> None:
+        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn("expandedNodes", html)
+        self.assertIn("graph-node-expand", html)
+        self.assertIn("MSG_SUB_HEIGHT", html)
+
     def test_viewer_index_exposes_inspector_overlay(self) -> None:
         html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
 

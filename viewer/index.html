@@ -1902,10 +1902,20 @@
         graphStageNode.append(label);
       });
 
+      const MSG_SUB_HEIGHT = 28;
+      const MSG_SUB_START_Y = 130;
+      const MSG_SUB_PAD = 18;
+
       (graph.nodes || []).forEach((node) => {
         const position = positions.get(node.conversation_id);
         const brokenState = nodeHasBrokenState(node, edgesById);
         const selected = graphState.selectedConversationId === node.conversation_id;
+        const isExpanded = graphState.expandedNodes.has(node.conversation_id);
+        const checkpoints = node.checkpoints || [];
+        const nodeHeight = isExpanded && checkpoints.length
+          ? MSG_SUB_START_Y + checkpoints.length * MSG_SUB_HEIGHT + MSG_SUB_PAD
+          : NODE_HEIGHT;
+
         const nodeGroup = createSvgNode("g", {
           class: `graph-node ${kindClass(node.kind)} ${brokenState ? "broken" : ""} ${selected ? "selected" : ""}`,
           transform: `translate(${position.x} ${position.y})`,
@@ -1927,7 +1937,7 @@
         const card = createSvgNode("rect", {
           class: "graph-node-card",
           width: NODE_WIDTH,
-          height: NODE_HEIGHT,
+          height: nodeHeight,
           rx: 24,
           ry: 24
         });
@@ -1969,14 +1979,39 @@
         checkpointMeta.textContent = `${node.checkpoint_count} checkpoints`;
         nodeGroup.append(checkpointMeta);
 
-        const isExpanded = graphState.expandedNodes.has(node.conversation_id);
+        if (isExpanded && checkpoints.length) {
+          const divider = createSvgNode("line", {
+            x1: 14, y1: MSG_SUB_START_Y - 8,
+            x2: NODE_WIDTH - 14, y2: MSG_SUB_START_Y - 8,
+            stroke: "var(--line)", "stroke-width": 1, "stroke-dasharray": "4 3"
+          });
+          nodeGroup.append(divider);
+
+          checkpoints.forEach((cp, idx) => {
+            const cy = MSG_SUB_START_Y + idx * MSG_SUB_HEIGHT;
+            const subBg = createSvgNode("rect", {
+              x: 10, y: cy - 2,
+              width: NODE_WIDTH - 20, height: MSG_SUB_HEIGHT - 4,
+              rx: 6, fill: cp.role === "user" ? "var(--user)" : "var(--assistant)",
+              stroke: "var(--line)", "stroke-width": 0.5
+            });
+            const trimmed = (cp.content || "").slice(0, 25).replace(/\n/g, " ");
+            const subLabel = createSvgNode("text", {
+              x: 18, y: cy + 15,
+              class: "graph-node-footnote"
+            });
+            subLabel.textContent = `${cp.role} | ${trimmed}${(cp.content || "").length > 25 ? "\u2026" : ""}`;
+            nodeGroup.append(subBg, subLabel);
+          });
+        }
+
         const expandToggle = createSvgNode("g", {
           class: "graph-node-expand",
           cursor: "pointer"
         });
         const expandBg = createSvgNode("rect", {
           x: NODE_WIDTH / 2 - 14,
-          y: NODE_HEIGHT - 18,
+          y: nodeHeight - 18,
           width: 28,
           height: 18,
           rx: 9,
@@ -1986,7 +2021,7 @@
         });
         const expandIcon = createSvgNode("text", {
           x: NODE_WIDTH / 2,
-          y: NODE_HEIGHT - 4,
+          y: nodeHeight - 4,
           "text-anchor": "middle",
           class: "graph-node-footnote",
           style: "pointer-events: none;"
