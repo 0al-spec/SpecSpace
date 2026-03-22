@@ -37,3 +37,4 @@
 | 2026-03-22 | CTXB-P2-T1 | Archived Render_The_Conversation_Graph_On_A_Canvas (PASS) |
 | 2026-03-22 | CTXB-P2-T1 | Archived REVIEW_graph_canvas report |
 | 2026-03-22 | CTXB-P2-T2 | Archived Add_Conversation_Detail_And_Checkpoint_Inspection_Panels (PASS) |
+| 2026-03-22 | CTXB-P2-T2 | Archived REVIEW_detail_inspectors report |
