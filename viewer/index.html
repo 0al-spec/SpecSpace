@@ -248,6 +248,9 @@
       padding: 28px 24px 56px;
       min-width: 0;
       overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
     }
 
     .panel {
@@ -264,6 +267,10 @@
     }
 
     .graph-panel {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      margin-bottom: 0;
       background:
         radial-gradient(circle at top right, rgba(255, 244, 226, 0.86) 0%, transparent 30%),
         radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.58) 0%, transparent 30%),
@@ -306,6 +313,7 @@
     .graph-viewport {
       position: relative;
       overflow: hidden;
+      flex: 1;
       min-height: 520px;
       border-radius: 20px;
       border: 1px solid rgba(150, 120, 84, 0.32);
@@ -424,14 +432,32 @@
       fill: var(--broken-line);
     }
 
-    .inspection-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-      gap: 22px;
+    .inspector-overlay {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 420px;
+      max-width: 90vw;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      z-index: 20;
+      overflow-y: auto;
+      padding: 18px;
+      background: var(--panel-muted);
+      border-left: 1px solid var(--line);
+      box-shadow: -8px 0 32px rgba(76, 51, 28, 0.10);
+      transform: translateX(100%);
+      transition: transform 220ms ease;
     }
 
-    .inspection-panel {
-      min-height: 100%;
+    .inspector-overlay.visible {
+      transform: translateX(0);
+    }
+
+    .inspector-overlay .inspection-panel {
+      flex: none;
     }
 
     .detail-stack {
@@ -687,9 +713,6 @@
         min-height: 460px;
       }
 
-      .inspection-grid {
-        grid-template-columns: 1fr;
-      }
     }
 
     @media (max-width: 720px) {
@@ -781,7 +804,7 @@
 
       <div id="status" class="status">Select a node on the graph or open a file from the sidebar.</div>
 
-      <section class="inspection-grid">
+      <div id="inspectorOverlay" class="inspector-overlay">
         <section id="conversationDetailPanel" class="panel inspection-panel copy-muted">
           <div class="eyebrow">Conversation inspector</div>
           <h2>Selection details</h2>
@@ -828,7 +851,7 @@
             </div>
           </div>
         </section>
-      </section>
+      </div>
 
       <section id="editor" class="panel editor copy-muted" hidden>
         <div class="editor-head">
@@ -883,6 +906,7 @@
     const statusNode = document.getElementById("status");
     const messagesNode = document.getElementById("messages");
 
+    const inspectorOverlayNode = document.getElementById("inspectorOverlay");
     const conversationDetailPanelNode = document.getElementById("conversationDetailPanel");
     const conversationMetaNode = document.getElementById("conversationMeta");
     const conversationLineageNode = document.getElementById("conversationLineage");
@@ -924,7 +948,8 @@
       originX: 0,
       originY: 0,
       startX: 0,
-      startY: 0
+      startY: 0,
+      didDrag: false
     };
     let inspectorState = {
       conversationDetail: null,
@@ -1650,6 +1675,25 @@
     function renderInspectors() {
       renderConversationInspector();
       renderCheckpointInspector();
+      updateInspectorOverlay();
+    }
+
+    function updateInspectorOverlay() {
+      const hasConversation = Boolean(inspectorState.conversationDetail?.conversation);
+      const hasCheckpoint = Boolean(inspectorState.checkpointDetail?.checkpoint);
+      inspectorOverlayNode.classList.toggle("visible", hasConversation);
+      checkpointDetailPanelNode.hidden = !hasCheckpoint;
+    }
+
+    function dismissInspectors() {
+      graphState.selectedConversationId = null;
+      inspectorState.conversationDetail = null;
+      inspectorState.selectedCheckpointId = null;
+      inspectorState.checkpointDetail = null;
+      renderInspectors();
+      renderGraph();
+      renderConversation();
+      persistGraphContext();
     }
 
     async function loadCheckpointInspector(conversationId, messageId) {
@@ -2326,6 +2370,7 @@
 
     graphViewportNode.addEventListener("pointerdown", (event) => {
       const clickedNode = event.target.closest(".graph-node");
+      panState.didDrag = false;
       if (clickedNode) {
         return;
       }
@@ -2345,8 +2390,13 @@
         return;
       }
 
-      panState.x = panState.originX + (event.clientX - panState.startX);
-      panState.y = panState.originY + (event.clientY - panState.startY);
+      const dx = event.clientX - panState.startX;
+      const dy = event.clientY - panState.startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        panState.didDrag = true;
+      }
+      panState.x = panState.originX + dx;
+      panState.y = panState.originY + dy;
       updateGraphTransform();
     });
 
@@ -2377,6 +2427,12 @@
       if (panState.isPanning && event.buttons === 0) {
         endPan(event);
       }
+    });
+
+    graphViewportNode.addEventListener("click", (event) => {
+      if (panState.didDrag) return;
+      if (event.target.closest(".graph-node")) return;
+      dismissInspectors();
     });
 
     branchTitleNode.addEventListener("input", () => {
@@ -2452,6 +2508,8 @@
       centerOnSelection();
       persistGraphContext();
     });
+
+    updateInspectorOverlay();
 
     async function initialize() {
       await refreshWorkspace();

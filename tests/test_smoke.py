@@ -67,6 +67,14 @@ class ContextBuilderSmokeTests(unittest.TestCase):
         self.assertIn("sessionStorage", html)
         self.assertIn("location.hash", html)
 
+    def test_viewer_index_exposes_inspector_overlay(self) -> None:
+        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn('id="inspectorOverlay"', html)
+        self.assertIn("inspector-overlay", html)
+        self.assertIn("updateInspectorOverlay", html)
+        self.assertIn("dismissInspectors", html)
+
     def test_viewer_index_exposes_collapsible_sidebar_toggle(self) -> None:
         html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
 
