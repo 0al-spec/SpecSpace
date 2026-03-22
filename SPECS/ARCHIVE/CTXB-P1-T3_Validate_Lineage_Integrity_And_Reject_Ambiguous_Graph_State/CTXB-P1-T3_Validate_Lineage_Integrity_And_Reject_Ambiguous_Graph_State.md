@@ -158,3 +158,7 @@ Verification:
 ## Notes
 
 This task should leave behind a validation layer that `CTXB-P1-T4` can call directly when building the in-memory graph. The server should become the first consumer of that layer so invalid inputs fail early and diagnostics are already available to later UI work.
+
+---
+**Archived:** 2026-03-22
+**Verdict:** PASS

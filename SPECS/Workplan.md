@@ -46,7 +46,7 @@ Intent: establish the deterministic data model, validation rules, and graph API 
   - Files missing stable conversation or message identity are rejected with actionable errors.
   - No imported file enters the graph with ambiguous provenance.
 
-### CTXB-P1-T3 — Validate lineage integrity and reject ambiguous graph state
+### ✅ CTXB-P1-T3 — Validate lineage integrity and reject ambiguous graph state
 - **Description:** Add validation for duplicate conversation IDs, duplicate message IDs in lineage contexts, missing parent references, invalid filenames, and malformed lineage payloads.
 - **Priority:** P0
 - **Dependencies:** CTXB-P1-T1
