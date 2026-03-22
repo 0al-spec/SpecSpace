@@ -162,3 +162,7 @@ Verification:
 ## Notes
 
 This task should end with one authoritative graph snapshot builder that later API and UI work can consume directly. `CTXB-P1-T5` should only need to shape or expose that model, not reinterpret lineage rules, duplicate-ID handling, or broken-edge behavior.
+
+---
+**Archived:** 2026-03-22
+**Verdict:** PASS
