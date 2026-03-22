@@ -127,7 +127,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - A user can continue from the ancestor context to sibling branches without manual file lookup.
   - The implementation satisfies PRD FR-6 and Flow D.
 
-### CTXB-P2-T4 — Preserve graph context across hard refresh
+### ✅ CTXB-P2-T4 — Preserve graph context across hard refresh
 - **Description:** Persist and restore the active conversation, active checkpoint, and canvas viewport across `Cmd+R` or manual reload when those objects still exist after the refresh.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2-T1, CTXB-P2-T2
