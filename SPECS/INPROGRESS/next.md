@@ -1,6 +1,9 @@
 # In Progress Queue
 
-**Current Task:** None — UI polish batch (T6–T9) complete.
+**Current Task:** `CTXB-P2-T10` — Convert inspectors to right-side overlay panels
+- **Priority:** P1
+- **Dependencies:** CTXB-P2-T2, CTXB-P2-T6
+- **Branch:** `feature/CTXB-P2-T10-T12-inspector-overlays`
 
 ## Recently Archived
 
@@ -11,9 +14,10 @@
 
 ## Suggested Next Tasks
 
-1. `CTXB-P1-T6` — Correct compile-target root metadata for incomplete lineage
-2. `CTXB-P3-T1` — Implement branch creation from any checkpoint
+1. `CTXB-P2-T10` — Convert inspectors to right-side overlay panels
+2. `CTXB-P2-T11` — Add expand/collapse control to conversation nodes
+3. `CTXB-P2-T12` — Render message sub-nodes inside expanded nodes
 
 ## Next Step
 
-Merge `feature/CTXB-P2-T6-T9-ui-polish` into `main`, then select the next task.
+Complete `CTXB-P2-T10`, then continue with T11–T12.
