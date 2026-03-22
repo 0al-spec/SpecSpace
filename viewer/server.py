@@ -19,6 +19,13 @@ except ImportError:  # pragma: no cover - allows running `python viewer/server.p
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+NON_BLOCKING_GRAPH_ERROR_CODES = frozenset(
+    {
+        "missing_parent_conversation",
+        "ambiguous_parent_conversation",
+        "missing_parent_message",
+    }
+)
 
 
 def json_response(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> None:
@@ -50,6 +57,270 @@ def serialize_validation(
         "kind": kind,
         "conversation_id": conversation_id,
         "errors": serialize_errors(errors),
+    }
+
+
+def graph_error_is_blocking(error: schema.NormalizationError) -> bool:
+    return error.code not in NON_BLOCKING_GRAPH_ERROR_CODES
+
+
+def base_conversation_kind(normalized: dict[str, Any] | None) -> str:
+    if isinstance(normalized, dict):
+        return schema.classify_conversation(normalized)
+    return "invalid"
+
+
+def serialize_graph_diagnostics(
+    *,
+    file_name: str,
+    conversation_id: str | None,
+    errors: tuple[schema.NormalizationError, ...] | list[schema.NormalizationError],
+    scope: str,
+    edge_id: str | None = None,
+) -> list[dict[str, Any]]:
+    diagnostics: list[dict[str, Any]] = []
+    for error in errors:
+        item: dict[str, Any] = {
+            "scope": scope,
+            "file_name": file_name,
+            "code": error.code,
+            "message": error.message,
+        }
+        if conversation_id is not None:
+            item["conversation_id"] = conversation_id
+        if edge_id is not None:
+            item["edge_id"] = edge_id
+        diagnostics.append(item)
+    return diagnostics
+
+
+def build_checkpoint(message: dict[str, Any], index: int) -> dict[str, Any]:
+    checkpoint = {
+        "message_id": message["message_id"],
+        "index": index,
+        "role": message["role"],
+        "content": message["content"],
+        "child_edge_ids": [],
+    }
+    for field in ("turn_id", "source"):
+        value = message.get(field)
+        if isinstance(value, str) and value:
+            checkpoint[field] = value
+    return checkpoint
+
+
+def sort_graph_diagnostics(diagnostics: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        diagnostics,
+        key=lambda item: (
+            str(item.get("file_name", "")),
+            str(item.get("conversation_id", "")),
+            str(item.get("scope", "")),
+            str(item.get("edge_id", "")),
+            str(item.get("code", "")),
+            str(item.get("message", "")),
+        ),
+    )
+
+
+def build_graph_snapshot(
+    discovered: list[tuple[dict[str, Any], dict[str, Any] | None, tuple[schema.NormalizationError, ...]]],
+    reports: dict[str, schema.FileValidationReport],
+) -> dict[str, Any]:
+    diagnostics: list[dict[str, Any]] = []
+    blocked_files: list[dict[str, Any]] = []
+    nodes_by_conversation: dict[str, dict[str, Any]] = {}
+    reports_by_file_name: dict[str, schema.FileValidationReport] = {}
+    normalized_reports_by_conversation: dict[str, list[schema.FileValidationReport]] = {}
+    checkpoints_by_conversation: dict[str, dict[str, dict[str, Any]]] = {}
+
+    for meta, payload, load_errors in discovered:
+        file_name = meta["name"]
+        if load_errors or payload is None:
+            file_diagnostics = serialize_graph_diagnostics(
+                file_name=file_name,
+                conversation_id=None,
+                errors=load_errors,
+                scope="file",
+            )
+            blocked_files.append(
+                {
+                    "file_name": file_name,
+                    "conversation_id": None,
+                    "kind": "invalid",
+                    "diagnostics": file_diagnostics,
+                }
+            )
+            diagnostics.extend(file_diagnostics)
+            continue
+
+        report = reports[file_name]
+        reports_by_file_name[file_name] = report
+        normalized = report.normalized
+        conversation_id = None
+        if isinstance(normalized, dict):
+            value = normalized.get("conversation_id")
+            if isinstance(value, str):
+                conversation_id = value
+                normalized_reports_by_conversation.setdefault(value, []).append(report)
+
+        blocking_errors = [error for error in report.errors if graph_error_is_blocking(error)]
+        kind = base_conversation_kind(normalized)
+        if normalized is None or blocking_errors:
+            file_diagnostics = serialize_graph_diagnostics(
+                file_name=file_name,
+                conversation_id=conversation_id,
+                errors=report.errors,
+                scope="file",
+            )
+            blocked_files.append(
+                {
+                    "file_name": file_name,
+                    "conversation_id": conversation_id,
+                    "kind": kind,
+                    "diagnostics": file_diagnostics,
+                }
+            )
+            diagnostics.extend(file_diagnostics)
+            continue
+
+        node_diagnostics = serialize_graph_diagnostics(
+            file_name=file_name,
+            conversation_id=conversation_id,
+            errors=report.errors,
+            scope="node",
+        )
+        checkpoints = [build_checkpoint(message, index) for index, message in enumerate(normalized["messages"])]
+        node = {
+            "conversation_id": conversation_id,
+            "file_name": file_name,
+            "kind": kind,
+            "title": normalized.get("title", ""),
+            "source_file": normalized.get("source_file"),
+            "message_count": len(normalized["messages"]),
+            "checkpoint_count": len(checkpoints),
+            "checkpoints": checkpoints,
+            "parent_edge_ids": [],
+            "child_edge_ids": [],
+            "diagnostics": node_diagnostics,
+        }
+        nodes_by_conversation[conversation_id] = node
+        checkpoints_by_conversation[conversation_id] = {
+            checkpoint["message_id"]: checkpoint for checkpoint in checkpoints
+        }
+        diagnostics.extend(node_diagnostics)
+
+    edges: list[dict[str, Any]] = []
+    for file_name, report in sorted(reports_by_file_name.items()):
+        normalized = report.normalized
+        if normalized is None:
+            continue
+
+        conversation_id = normalized.get("conversation_id")
+        if not isinstance(conversation_id, str) or conversation_id not in nodes_by_conversation:
+            continue
+
+        node = nodes_by_conversation[conversation_id]
+        for index, parent in enumerate(normalized["lineage"]["parents"]):
+            edge_id = (
+                f"{conversation_id}:{index}:{parent['conversation_id']}:{parent['message_id']}:{parent['link_type']}"
+            )
+            edge_errors: list[schema.NormalizationError] = []
+            parent_file_name: str | None = None
+            parent_conversation_id = parent["conversation_id"]
+            parent_reports = normalized_reports_by_conversation.get(parent_conversation_id, [])
+
+            if not parent_reports:
+                edge_errors.append(
+                    schema.NormalizationError(
+                        "missing_parent_conversation",
+                        f"Parent conversation `{parent_conversation_id}` is missing or invalid.",
+                    )
+                )
+            elif len(parent_reports) > 1:
+                edge_errors.append(
+                    schema.NormalizationError(
+                        "ambiguous_parent_conversation",
+                        f"Parent conversation `{parent_conversation_id}` is ambiguous because the workspace contains duplicates.",
+                    )
+                )
+            else:
+                parent_report = parent_reports[0]
+                parent_file_name = parent_report.file_name
+                parent_node = nodes_by_conversation.get(parent_conversation_id)
+                if parent_node is None:
+                    edge_errors.append(
+                        schema.NormalizationError(
+                            "missing_parent_conversation",
+                            f"Parent conversation `{parent_conversation_id}` is missing or invalid.",
+                        )
+                    )
+                else:
+                    checkpoint_map = checkpoints_by_conversation[parent_conversation_id]
+                    checkpoint = checkpoint_map.get(parent["message_id"])
+                    if checkpoint is None:
+                        edge_errors.append(
+                            schema.NormalizationError(
+                                "missing_parent_message",
+                                f"Parent message `{parent['message_id']}` does not exist in conversation `{parent_conversation_id}`.",
+                            )
+                        )
+                    else:
+                        checkpoint["child_edge_ids"].append(edge_id)
+                        parent_node["child_edge_ids"].append(edge_id)
+
+            edge_diagnostics = serialize_graph_diagnostics(
+                file_name=file_name,
+                conversation_id=conversation_id,
+                errors=edge_errors,
+                scope="edge",
+                edge_id=edge_id,
+            )
+            node["parent_edge_ids"].append(edge_id)
+            edges.append(
+                {
+                    "edge_id": edge_id,
+                    "link_type": parent["link_type"],
+                    "parent_conversation_id": parent_conversation_id,
+                    "parent_file_name": parent_file_name,
+                    "parent_message_id": parent["message_id"],
+                    "child_conversation_id": conversation_id,
+                    "child_file_name": file_name,
+                    "status": "broken" if edge_errors else "resolved",
+                    "diagnostics": edge_diagnostics,
+                }
+            )
+            diagnostics.extend(edge_diagnostics)
+
+    nodes = sorted(nodes_by_conversation.values(), key=lambda node: (node["conversation_id"], node["file_name"]))
+    for node in nodes:
+        node["child_edge_ids"].sort()
+        node["parent_edge_ids"].sort()
+        for checkpoint in node["checkpoints"]:
+            checkpoint["child_edge_ids"].sort()
+        node["diagnostics"] = sort_graph_diagnostics(node["diagnostics"])
+
+    blocked_files = sorted(blocked_files, key=lambda item: item["file_name"])
+    for blocked in blocked_files:
+        blocked["diagnostics"] = sort_graph_diagnostics(blocked["diagnostics"])
+
+    edges = sorted(
+        edges,
+        key=lambda edge: (
+            edge["child_file_name"],
+            edge["parent_conversation_id"],
+            edge["parent_message_id"],
+            edge["link_type"],
+        ),
+    )
+    roots = sorted(node["conversation_id"] for node in nodes if not node["parent_edge_ids"])
+
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "roots": roots,
+        "blocked_files": blocked_files,
+        "diagnostics": sort_graph_diagnostics(diagnostics),
     }
 
 
@@ -121,6 +392,7 @@ def collect_workspace_listing(dialog_dir: Path) -> dict[str, Any]:
     return {
         "files": files,
         "diagnostics": diagnostics,
+        "graph": build_graph_snapshot(discovered, reports),
         "dialog_dir": str(dialog_dir),
     }
 

@@ -209,6 +209,40 @@ ContextBuilder now validates both individual payloads and whole-workspace lineag
 - `GET /api/file` returns the requested payload together with the current validation result for that file.
 - `POST /api/file` validates the file name and payload before writing. Valid imported roots are normalized into canonical roots on save; malformed or ambiguous payloads are rejected with structured error codes.
 
+### Graph Snapshot Model
+
+`GET /api/files` now also returns a `graph` snapshot derived from the same normalized workspace scan. The graph snapshot is the authoritative lineage model for later UI and compile tasks.
+
+The snapshot currently contains:
+
+- `nodes`: graph-safe conversations keyed by unique `conversation_id`
+- `edges`: resolved or broken parent links from parent checkpoints to child conversations
+- `roots`: canonical root conversation IDs with no parent references
+- `blocked_files`: files that remain diagnostics-only because they are invalid JSON, structurally invalid, or blocked by duplicate `conversation_id` values
+- `diagnostics`: aggregate graph diagnostics for nodes, edges, and blocked files
+
+Each graph node includes:
+
+- `conversation_id`, `file_name`, `kind`, `title`, and `source_file`
+- `checkpoints` derived from ordered messages, each with `message_id`, message metadata, and any outbound child edge IDs
+- `parent_edge_ids` and `child_edge_ids`
+- node-level diagnostics such as broken parent references
+
+Each graph edge includes:
+
+- the parent conversation and parent `message_id`
+- the child conversation and child file
+- `link_type` (`branch` or `merge`)
+- `status` (`resolved` or `broken`)
+- any edge-specific diagnostics
+
+Important graph rules:
+
+1. Missing parent conversations or missing parent messages do not hide an otherwise valid child conversation; the node remains visible with broken-edge diagnostics.
+2. Duplicate `conversation_id` values block graph indexing for that identity and move the affected files into `blocked_files`.
+3. Invalid JSON files remain visible only through diagnostics and are not indexed as graph nodes.
+4. Node, edge, and diagnostic ordering is deterministic so later canvas and compile workflows can build on a stable snapshot.
+
 The intended upstream producer is `ChatGPTDialogs`, but any directory with the same JSON contract is valid.
 
 ## Repository Layout
