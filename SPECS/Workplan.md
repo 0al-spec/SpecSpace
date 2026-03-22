@@ -57,7 +57,7 @@ Intent: establish the deterministic data model, validation rules, and graph API 
   - Broken lineage references are reported explicitly instead of being silently ignored.
   - Validation covers PRD FR-7, FR-8, NFR-5, and NFR-7.
 
-### CTXB-P1-T4 — Build the conversation graph index and diagnostics model
+### CTXB-P1-T4 — Build the conversation graph index and diagnostics model **INPROGRESS**
 - **Description:** Convert the validated file set into an in-memory graph model that resolves conversation nodes, checkpoint relationships, parent edges, child edges, merge edges, and broken-link diagnostics.
 - **Priority:** P0
 - **Dependencies:** CTXB-P1-T2, CTXB-P1-T3

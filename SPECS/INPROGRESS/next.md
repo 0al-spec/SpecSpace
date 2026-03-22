@@ -1,18 +1,15 @@
-# In Progress Queue
+# Next Task: CTXB-P1-T4 — Build the conversation graph index and diagnostics model
 
-No task is currently selected.
+**Priority:** P0
+**Phase:** Canonical Graph Foundation
+**Effort:** 6-8 hours
+**Dependencies:** CTXB-P1-T2, CTXB-P1-T3
+**Status:** Selected
 
-## Recently Archived
+## Description
 
-- `CTXB-P1-T3` — Validate lineage integrity and reject ambiguous graph state (`PASS`, archived 2026-03-22)
-- `CTXB-P1-T2` — Normalize imported conversations into graph roots or linked nodes (`PASS`, archived 2026-03-22)
-- `CTXB-P1-T1` — Define the canonical conversation and lineage schema (`PASS`, archived 2026-03-22)
-
-## Suggested Next Tasks
-
-1. `CTXB-P1-T4` — Build the conversation graph index and diagnostics model
-2. `CTXB-P1-T5` — Expose graph-aware API contracts for UI and compilation
+Build a shared in-memory graph index that turns validated workspace conversations into graph-ready nodes, lineage edges, checkpoint metadata, and explicit diagnostics so later API and UI tasks can consume one authoritative model.
 
 ## Next Step
 
-Run `SELECT` or update this file to choose the next task from `SPECS/Workplan.md`.
+Run the PLAN command to create the implementation PRD for `CTXB-P1-T4`.
