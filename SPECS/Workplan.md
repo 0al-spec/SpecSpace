@@ -35,7 +35,7 @@ Intent: establish the deterministic data model, validation rules, and graph API 
   - Parent references require `conversation_id`, `message_id`, and `link_type`.
   - The contract matches PRD sections §4.2, §4.4, and §6.
 
-### CTXB-P1-T2 — Normalize imported conversations into graph roots or linked nodes
+### ✅ CTXB-P1-T2 — Normalize imported conversations into graph roots or linked nodes
 - **Description:** Implement deterministic rules for classifying externally supplied files as valid roots, valid linked conversations, or invalid inputs that require normalization.
 - **Priority:** P0
 - **Dependencies:** CTXB-P1-T1

@@ -144,3 +144,7 @@ Verification:
 ## Notes
 
 This task should leave behind a normalization primitive that later work can call from validation, graph indexing, and API layers. Future tasks must consume this shared normalization path instead of rebuilding import logic inside `viewer/server.py`.
+
+---
+**Archived:** 2026-03-22
+**Verdict:** PASS
