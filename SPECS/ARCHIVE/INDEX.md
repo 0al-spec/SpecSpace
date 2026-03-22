@@ -31,3 +31,4 @@
 | 2026-03-22 | CTXB-P1-T4 | Archived Build_The_Conversation_Graph_Index_And_Diagnostics_Model (PASS) |
 | 2026-03-22 | CTXB-P1-T4 | Archived REVIEW_graph_indexing report |
 | 2026-03-22 | CTXB-P1-T5 | Archived Expose_Graph_Aware_API_Contracts_For_UI_And_Compilation (PASS) |
+| 2026-03-22 | CTXB-P1-T5 | Archived REVIEW_graph_api_contracts report |
