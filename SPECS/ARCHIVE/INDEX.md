@@ -52,3 +52,4 @@
 | 2026-03-22 | CTXB-P2-T6 | Archived Add_Collapsible_Sidebar_Toggle (PASS) |
 | 2026-03-22 | CTXB-P2-T6 | Archived REVIEW_sidebar_toggle report |
 | 2026-03-22 | CTXB-P2-T7 | Archived Remove_Graph_Canvas_Heading (PASS) |
+| 2026-03-22 | CTXB-P2-T7 | Archived REVIEW_graph_heading_removal report |
