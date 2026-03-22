@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(make test:*)",
+      "Bash(make lint:*)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(python -m pytest tests/test_smoke.py -v)",
+      "Bash(python -m pytest tests/ --cov --cov-report=term-missing)",
+      "Bash(git mv:*)"
+    ]
+  }
+}
