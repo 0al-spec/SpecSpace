@@ -40,3 +40,4 @@
 | 2026-03-22 | CTXB-P2-T2 | Archived Add_Conversation_Detail_And_Checkpoint_Inspection_Panels (PASS) |
 | 2026-03-22 | CTXB-P2-T2 | Archived REVIEW_detail_inspectors report |
 | 2026-03-22 | CTXB-P2-T3 | Archived Implement_Ancestor_And_Sibling_Lineage_Navigation (PASS) |
+| 2026-03-22 | CTXB-P2-T3 | Archived REVIEW_lineage_navigation report |
