@@ -1,15 +1,16 @@
-# Next Task: CTXB-P1-T1 — Define the canonical conversation and lineage schema
+# In Progress Queue
 
-**Priority:** P0
-**Phase:** Canonical Graph Foundation
-**Effort:** 3-5 hours
-**Dependencies:** none
-**Status:** Selected
+No task is currently selected.
 
-## Description
+## Recently Archived
 
-Specify the required JSON contract for root, branch, and merge conversations, including stable conversation identifiers, message identifiers, parent reference metadata, and the minimum data needed by the graph and Hyperprompt compile pipeline.
+- `CTXB-P1-T1` — Define the canonical conversation and lineage schema (`PASS`, archived 2026-03-22)
+
+## Suggested Next Tasks
+
+1. `CTXB-P1-T2` — Normalize imported conversations into graph roots or linked nodes
+2. `CTXB-P1-T3` — Validate lineage integrity and reject ambiguous graph state
 
 ## Next Step
 
-Run the PLAN command to create the implementation PRD for `CTXB-P1-T1`.
+Run `SELECT` or update this file to choose the next task from `SPECS/Workplan.md`.

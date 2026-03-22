@@ -146,3 +146,7 @@ Verification:
 ## Notes
 
 When this task completes, later tasks should build on the schema helper module instead of duplicating field-name literals across `viewer/server.py`, tests, or export logic. Subsequent docs should reference this task when implementing validation, graph indexing, and Hyperprompt export.
+
+---
+**Archived:** 2026-03-22
+**Verdict:** PASS

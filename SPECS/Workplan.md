@@ -24,7 +24,7 @@ This workplan implements the product defined in [SPECS/PRD.md](/Users/egor/Devel
 
 Intent: establish the deterministic data model, validation rules, and graph API required by every later workflow, including authoring and context compilation.
 
-### CTXB-P1-T1 — Define the canonical conversation and lineage schema
+### ✅ CTXB-P1-T1 — Define the canonical conversation and lineage schema
 - **Description:** Specify the required JSON contract for root, branch, and merge conversations, including stable conversation identifiers, message identifiers, and parent reference metadata.
 - **Priority:** P0
 - **Dependencies:** none
