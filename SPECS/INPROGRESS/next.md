@@ -1,15 +1,15 @@
-# Next Task: CTXB-001 — Add automated smoke coverage for viewer and API
+# Next Task: CTXB-P1-T1 — Define the canonical conversation and lineage schema
 
 **Priority:** P0
-**Phase:** Reliability Foundation
-**Effort:** 4-6 hours
-**Dependencies:** None
+**Phase:** Canonical Graph Foundation
+**Effort:** 3-5 hours
+**Dependencies:** none
 **Status:** Selected
 
 ## Description
 
-Expand the current minimal checks into real automated smoke coverage for the local HTTP API and the viewer shell so future changes can be validated without relying on manual browser checks.
+Specify the required JSON contract for root, branch, and merge conversations, including stable conversation identifiers, message identifiers, parent reference metadata, and the minimum data needed by the graph and Hyperprompt compile pipeline.
 
 ## Next Step
 
-Run the PLAN command to create the implementation PRD for `CTXB-001`.
+Run the PLAN command to create the implementation PRD for `CTXB-P1-T1`.
