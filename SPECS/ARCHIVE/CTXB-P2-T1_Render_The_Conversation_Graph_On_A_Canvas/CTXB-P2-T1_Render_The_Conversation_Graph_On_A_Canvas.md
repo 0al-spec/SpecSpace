@@ -125,3 +125,7 @@ Verification:
 ## Notes
 
 Update `README.md` only for behavior that ships in this task: graph-first navigation, node-state meaning, and the continued presence of file editing controls. Leave checkpoint inspection and navigation details to later PRDs.
+
+---
+**Archived:** 2026-03-22
+**Verdict:** PASS

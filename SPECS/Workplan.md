@@ -94,7 +94,7 @@ Intent: establish the deterministic data model, validation rules, and graph API 
 
 Intent: replace the flat file-browser mental model with a canvas-based graph experience that makes lineage visible, keeps the user oriented, and exposes the information needed to select a continuation path.
 
-### CTXB-P2-T1 — Render the conversation graph on a canvas **INPROGRESS**
+### ✅ CTXB-P2-T1 — Render the conversation graph on a canvas
 - **Description:** Replace the current flat sidebar-first browsing flow with a canvas that renders conversation nodes, branch edges, merge edges, and node state.
 - **Priority:** P0
 - **Dependencies:** CTXB-P1-T5
