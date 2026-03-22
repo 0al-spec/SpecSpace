@@ -68,7 +68,7 @@ Intent: establish the deterministic data model, validation rules, and graph API 
   - Broken edges remain visible as diagnostics in the model.
   - Graph indexing satisfies PRD FR-1 and lineage rules in §4.2.
 
-### CTXB-P1-T5 — Expose graph-aware API contracts for UI and compilation
+### CTXB-P1-T5 — Expose graph-aware API contracts for UI and compilation **INPROGRESS**
 - **Description:** Extend the local HTTP API so the UI and export pipeline can fetch graph data, checkpoint metadata, integrity issues, and compile-relevant selection metadata safely.
 - **Priority:** P0
 - **Dependencies:** CTXB-P1-T4
