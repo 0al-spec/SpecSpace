@@ -40,6 +40,11 @@ PARENT_REFERENCE_REQUIRED_FIELDS = (
     "link_type",
 )
 
+ALLOWED_PARENT_LINK_TYPES = (
+    "branch",
+    "merge",
+)
+
 
 @dataclass(frozen=True)
 class NormalizationError:
@@ -54,8 +59,27 @@ class NormalizationResult:
     errors: tuple[NormalizationError, ...] = ()
 
 
+@dataclass(frozen=True)
+class ValidationResult:
+    kind: str
+    normalized: dict[str, Any] | None
+    errors: tuple[NormalizationError, ...] = ()
+
+
+@dataclass(frozen=True)
+class FileValidationReport:
+    file_name: str
+    kind: str
+    normalized: dict[str, Any] | None
+    errors: tuple[NormalizationError, ...] = ()
+
+
 def _is_mapping(value: Any) -> bool:
     return isinstance(value, dict)
+
+
+def _is_non_empty_string(value: Any) -> bool:
+    return isinstance(value, str) and bool(value)
 
 
 def has_required_fields(payload: dict[str, Any], required_fields: tuple[str, ...]) -> bool:
@@ -77,11 +101,26 @@ def is_imported_root_conversation(payload: dict[str, Any]) -> bool:
 
 
 def is_message_payload(payload: dict[str, Any]) -> bool:
-    return _is_mapping(payload) and has_required_fields(payload, MESSAGE_REQUIRED_FIELDS)
+    if not _is_mapping(payload) or not has_required_fields(payload, MESSAGE_REQUIRED_FIELDS):
+        return False
+
+    if not _is_non_empty_string(payload.get("message_id")):
+        return False
+
+    if not _is_non_empty_string(payload.get("role")):
+        return False
+
+    return isinstance(payload.get("content"), str)
 
 
 def is_canonical_conversation(payload: dict[str, Any]) -> bool:
     if not _is_mapping(payload) or not has_required_fields(payload, CANONICAL_CONVERSATION_REQUIRED_FIELDS):
+        return False
+
+    if not _is_non_empty_string(payload.get("conversation_id")):
+        return False
+
+    if not isinstance(payload.get("title"), str):
         return False
 
     messages = payload.get("messages")
@@ -100,7 +139,20 @@ def is_canonical_conversation(payload: dict[str, Any]) -> bool:
 
 
 def is_parent_reference(payload: dict[str, Any]) -> bool:
-    return _is_mapping(payload) and has_required_fields(payload, PARENT_REFERENCE_REQUIRED_FIELDS)
+    if not _is_mapping(payload) or not has_required_fields(payload, PARENT_REFERENCE_REQUIRED_FIELDS):
+        return False
+
+    if not _is_non_empty_string(payload.get("conversation_id")):
+        return False
+
+    if not _is_non_empty_string(payload.get("message_id")):
+        return False
+
+    return payload.get("link_type") in ALLOWED_PARENT_LINK_TYPES
+
+
+def looks_like_canonical_conversation(payload: dict[str, Any]) -> bool:
+    return _is_mapping(payload) and ("conversation_id" in payload or "lineage" in payload)
 
 
 def classify_conversation(payload: dict[str, Any]) -> str:
@@ -136,6 +188,19 @@ def imported_message_provenance(payload: dict[str, Any]) -> dict[str, str]:
     return provenance
 
 
+def validate_file_name(name: str) -> tuple[NormalizationError, ...]:
+    if not _is_non_empty_string(name):
+        return (NormalizationError("invalid_filename", "File name must be a non-empty `.json` file name."),)
+
+    if "/" in name or "\\" in name:
+        return (NormalizationError("invalid_filename", "File name must not include path separators."),)
+
+    if not name.endswith(".json"):
+        return (NormalizationError("invalid_filename", "File name must end with `.json`."),)
+
+    return ()
+
+
 def collect_normalization_errors(payload: dict[str, Any]) -> tuple[NormalizationError, ...]:
     if not _is_mapping(payload):
         return (NormalizationError("invalid_payload", "Payload must be a JSON object."),)
@@ -143,20 +208,21 @@ def collect_normalization_errors(payload: dict[str, Any]) -> tuple[Normalization
     if is_canonical_conversation(payload):
         return ()
 
+    errors: list[NormalizationError] = []
     missing_fields = [field for field in IMPORTED_ROOT_REQUIRED_FIELDS if field not in payload]
     if missing_fields:
-        return (
+        errors.append(
             NormalizationError(
                 "missing_top_level_fields",
                 f"Imported conversation is missing required top-level fields: {', '.join(missing_fields)}.",
-            ),
+            )
         )
 
     messages = payload.get("messages")
     if not isinstance(messages, list):
-        return (NormalizationError("invalid_messages", "`messages` must be a list."),)
+        errors.append(NormalizationError("invalid_messages", "`messages` must be a list."))
+        return tuple(errors)
 
-    errors: list[NormalizationError] = []
     if payload.get("message_count") != len(messages):
         errors.append(
             NormalizationError(
@@ -186,16 +252,34 @@ def collect_normalization_errors(payload: dict[str, Any]) -> tuple[Normalization
             )
             continue
 
-        message_id = message.get("message_id")
-        if isinstance(message_id, str) and message_id:
-            message_ids.append(message_id)
-        else:
+        if not _is_non_empty_string(message.get("message_id")):
             errors.append(
                 NormalizationError(
                     "invalid_message_id",
                     f"Message at index {index} has an invalid `message_id`.",
                 )
             )
+            continue
+
+        if not _is_non_empty_string(message.get("role")):
+            errors.append(
+                NormalizationError(
+                    "invalid_message_role",
+                    f"Message at index {index} has an invalid `role`.",
+                )
+            )
+            continue
+
+        if not isinstance(message.get("content"), str):
+            errors.append(
+                NormalizationError(
+                    "invalid_message_content",
+                    f"Message at index {index} has invalid `content`.",
+                )
+            )
+            continue
+
+        message_ids.append(message["message_id"])
 
     if len(message_ids) != len(set(message_ids)):
         errors.append(
@@ -204,6 +288,179 @@ def collect_normalization_errors(payload: dict[str, Any]) -> tuple[Normalization
                 "Imported conversation contains duplicate `message_id` values.",
             )
         )
+
+    return tuple(errors)
+
+
+def collect_canonical_validation_errors(payload: dict[str, Any]) -> tuple[NormalizationError, ...]:
+    if not _is_mapping(payload):
+        return (NormalizationError("invalid_payload", "Payload must be a JSON object."),)
+
+    errors: list[NormalizationError] = []
+    missing_fields = [field for field in CANONICAL_CONVERSATION_REQUIRED_FIELDS if field not in payload]
+    if missing_fields:
+        errors.append(
+            NormalizationError(
+                "missing_canonical_fields",
+                f"Canonical conversation is missing required fields: {', '.join(missing_fields)}.",
+            )
+        )
+
+    if "conversation_id" in payload and not _is_non_empty_string(payload.get("conversation_id")):
+        errors.append(
+            NormalizationError(
+                "invalid_conversation_id",
+                "Canonical conversation must include a non-empty `conversation_id`.",
+            )
+        )
+
+    if "title" in payload and not isinstance(payload.get("title"), str):
+        errors.append(NormalizationError("invalid_title", "Canonical conversation `title` must be a string."))
+
+    messages = payload.get("messages")
+    message_ids: list[str] = []
+    if "messages" in payload and not isinstance(messages, list):
+        errors.append(NormalizationError("invalid_messages", "`messages` must be a list."))
+    elif isinstance(messages, list):
+        for index, message in enumerate(messages):
+            if not _is_mapping(message):
+                errors.append(
+                    NormalizationError(
+                        "invalid_message_payload",
+                        f"Message at index {index} is not a JSON object.",
+                    )
+                )
+                continue
+
+            missing_message_fields = [field for field in MESSAGE_REQUIRED_FIELDS if field not in message]
+            if missing_message_fields:
+                errors.append(
+                    NormalizationError(
+                        "missing_message_fields",
+                        f"Message at index {index} is missing required fields: {', '.join(missing_message_fields)}.",
+                    )
+                )
+                continue
+
+            if not _is_non_empty_string(message.get("message_id")):
+                errors.append(
+                    NormalizationError(
+                        "invalid_message_id",
+                        f"Message at index {index} has an invalid `message_id`.",
+                    )
+                )
+                continue
+
+            if not _is_non_empty_string(message.get("role")):
+                errors.append(
+                    NormalizationError(
+                        "invalid_message_role",
+                        f"Message at index {index} has an invalid `role`.",
+                    )
+                )
+                continue
+
+            if not isinstance(message.get("content"), str):
+                errors.append(
+                    NormalizationError(
+                        "invalid_message_content",
+                        f"Message at index {index} has invalid `content`.",
+                    )
+                )
+                continue
+
+            message_ids.append(message["message_id"])
+
+        if len(message_ids) != len(set(message_ids)):
+            errors.append(
+                NormalizationError(
+                    "duplicate_message_ids",
+                    "Canonical conversation contains duplicate `message_id` values.",
+                )
+            )
+
+    lineage = payload.get("lineage")
+    parent_links: list[str] = []
+    if "lineage" in payload and not _is_mapping(lineage):
+        errors.append(NormalizationError("invalid_lineage", "`lineage` must be a JSON object."))
+    elif _is_mapping(lineage):
+        parents = lineage.get("parents")
+        if not isinstance(parents, list):
+            errors.append(NormalizationError("invalid_lineage_parents", "`lineage.parents` must be a list."))
+        else:
+            seen_parents: set[tuple[str, str, str]] = set()
+            for index, parent in enumerate(parents):
+                if not _is_mapping(parent):
+                    errors.append(
+                        NormalizationError(
+                            "invalid_parent_reference",
+                            f"Parent reference at index {index} is not a JSON object.",
+                        )
+                    )
+                    continue
+
+                missing_parent_fields = [field for field in PARENT_REFERENCE_REQUIRED_FIELDS if field not in parent]
+                if missing_parent_fields:
+                    errors.append(
+                        NormalizationError(
+                            "invalid_parent_reference",
+                            f"Parent reference at index {index} is missing required fields: {', '.join(missing_parent_fields)}.",
+                        )
+                    )
+                    continue
+
+                if not _is_non_empty_string(parent.get("conversation_id")) or not _is_non_empty_string(
+                    parent.get("message_id")
+                ):
+                    errors.append(
+                        NormalizationError(
+                            "invalid_parent_reference",
+                            f"Parent reference at index {index} must include non-empty conversation and message IDs.",
+                        )
+                    )
+                    continue
+
+                if parent.get("link_type") not in ALLOWED_PARENT_LINK_TYPES:
+                    errors.append(
+                        NormalizationError(
+                            "invalid_parent_link_type",
+                            f"Parent reference at index {index} has unsupported `link_type`.",
+                        )
+                    )
+                    continue
+
+                key = (
+                    parent["conversation_id"],
+                    parent["message_id"],
+                    parent["link_type"],
+                )
+                if key in seen_parents:
+                    errors.append(
+                        NormalizationError(
+                            "duplicate_parent_reference",
+                            "Canonical conversation contains duplicate parent references.",
+                        )
+                    )
+                    continue
+
+                seen_parents.add(key)
+                parent_links.append(parent["link_type"])
+
+            if len(parents) == 1 and parent_links and parent_links[0] != "branch":
+                errors.append(
+                    NormalizationError(
+                        "invalid_branch_lineage",
+                        "Single-parent conversations must use `branch` as the parent `link_type`.",
+                    )
+                )
+
+            if len(parents) > 1 and any(link_type != "merge" for link_type in parent_links):
+                errors.append(
+                    NormalizationError(
+                        "invalid_merge_lineage",
+                        "Multi-parent conversations must use `merge` as the parent `link_type`.",
+                    )
+                )
 
     return tuple(errors)
 
@@ -239,3 +496,118 @@ def normalize_conversation(payload: dict[str, Any]) -> NormalizationResult:
     normalized["lineage"] = {"parents": []}
 
     return NormalizationResult(kind="canonical-root", normalized=normalized)
+
+
+def validate_conversation(payload: dict[str, Any]) -> ValidationResult:
+    if looks_like_canonical_conversation(payload):
+        normalized = copy.deepcopy(payload)
+        errors = collect_canonical_validation_errors(normalized)
+        if errors:
+            return ValidationResult(kind="invalid", normalized=normalized, errors=errors)
+        return ValidationResult(kind=classify_conversation(normalized), normalized=normalized)
+
+    normalized_result = normalize_conversation(payload)
+    if normalized_result.errors:
+        return ValidationResult(kind="invalid", normalized=None, errors=normalized_result.errors)
+
+    normalized = normalized_result.normalized
+    if normalized is None:
+        return ValidationResult(
+            kind="invalid",
+            normalized=None,
+            errors=(NormalizationError("invalid_payload", "Failed to normalize payload."),),
+        )
+
+    errors = collect_canonical_validation_errors(normalized)
+    if errors:
+        return ValidationResult(kind="invalid", normalized=normalized, errors=errors)
+
+    return ValidationResult(kind=normalized_result.kind, normalized=normalized)
+
+
+def validate_workspace(entries: list[tuple[str, dict[str, Any]]]) -> tuple[FileValidationReport, ...]:
+    initial_reports: list[FileValidationReport] = []
+    errors_by_name: dict[str, list[NormalizationError]] = {}
+
+    for file_name, payload in entries:
+        result = validate_conversation(payload)
+        initial_reports.append(
+            FileValidationReport(
+                file_name=file_name,
+                kind=result.kind,
+                normalized=result.normalized,
+                errors=result.errors,
+            )
+        )
+        errors_by_name[file_name] = list(result.errors)
+
+    conversation_groups: dict[str, list[FileValidationReport]] = {}
+    for report in initial_reports:
+        if report.normalized is None or errors_by_name[report.file_name]:
+            continue
+        conversation_id = report.normalized["conversation_id"]
+        conversation_groups.setdefault(conversation_id, []).append(report)
+
+    for conversation_id, reports in conversation_groups.items():
+        if len(reports) < 2:
+            continue
+        for report in reports:
+            errors_by_name[report.file_name].append(
+                NormalizationError(
+                    "duplicate_conversation_id",
+                    f"`conversation_id` `{conversation_id}` appears in multiple workspace files.",
+                )
+            )
+
+    for report in initial_reports:
+        report_errors = errors_by_name[report.file_name]
+        if report.normalized is None or report_errors:
+            continue
+
+        parents = report.normalized["lineage"]["parents"]
+        for parent in parents:
+            parent_reports = conversation_groups.get(parent["conversation_id"])
+            if not parent_reports:
+                report_errors.append(
+                    NormalizationError(
+                        "missing_parent_conversation",
+                        f"Parent conversation `{parent['conversation_id']}` is missing or invalid.",
+                    )
+                )
+                continue
+
+            if len(parent_reports) > 1:
+                report_errors.append(
+                    NormalizationError(
+                        "ambiguous_parent_conversation",
+                        f"Parent conversation `{parent['conversation_id']}` is ambiguous because the workspace contains duplicates.",
+                    )
+                )
+                continue
+
+            parent_messages = {
+                message["message_id"]
+                for message in parent_reports[0].normalized["messages"]
+                if _is_mapping(message) and _is_non_empty_string(message.get("message_id"))
+            }
+            if parent["message_id"] not in parent_messages:
+                report_errors.append(
+                    NormalizationError(
+                        "missing_parent_message",
+                        f"Parent message `{parent['message_id']}` does not exist in conversation `{parent['conversation_id']}`.",
+                    )
+                )
+
+    final_reports: list[FileValidationReport] = []
+    for report in initial_reports:
+        merged_errors = tuple(errors_by_name[report.file_name])
+        final_reports.append(
+            FileValidationReport(
+                file_name=report.file_name,
+                kind=report.kind if not merged_errors else "invalid",
+                normalized=report.normalized,
+                errors=merged_errors,
+            )
+        )
+
+    return tuple(final_reports)

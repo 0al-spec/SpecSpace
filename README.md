@@ -182,6 +182,33 @@ Imported JSON files are normalized into canonical roots before they participate 
    - ordered `message_id` values
 4. Imported payloads that are missing stable message identity or have inconsistent `message_count` are rejected as invalid and must not silently enter the graph.
 
+### Integrity Validation Rules
+
+ContextBuilder now validates both individual payloads and whole-workspace lineage integrity before conversations are persisted or treated as graph-ready:
+
+1. Canonical conversations must include:
+   - a non-empty `conversation_id`,
+   - valid message payloads with stable `message_id` values,
+   - a `lineage.parents` list when stored in canonical form.
+2. Duplicate `message_id` values inside the same canonical conversation are rejected.
+3. Parent references must always include:
+   - `conversation_id`,
+   - `message_id`,
+   - `link_type` with value `branch` or `merge`.
+4. Single-parent conversations must use `branch` links; multi-parent conversations must use `merge` links.
+5. Duplicate parent references are rejected.
+6. Workspace validation surfaces:
+   - duplicate `conversation_id` values across files,
+   - missing parent conversations,
+   - missing parent `message_id` values,
+   - invalid or unreadable JSON files.
+
+### API Validation Behavior
+
+- `GET /api/files` now returns per-file validation metadata plus aggregate diagnostics for the current dialog directory.
+- `GET /api/file` returns the requested payload together with the current validation result for that file.
+- `POST /api/file` validates the file name and payload before writing. Valid imported roots are normalized into canonical roots on save; malformed or ambiguous payloads are rejected with structured error codes.
+
 The intended upstream producer is `ChatGPTDialogs`, but any directory with the same JSON contract is valid.
 
 ## Repository Layout
