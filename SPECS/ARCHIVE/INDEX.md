@@ -55,3 +55,4 @@
 | 2026-03-22 | CTXB-P2-T7 | Archived Remove_Graph_Canvas_Heading (PASS) |
 | 2026-03-22 | CTXB-P2-T7 | Archived REVIEW_graph_heading_removal report |
 | 2026-03-22 | CTXB-P2-T8 | Archived Simplify_Sidebar_File_List_Interactions (PASS) |
+| 2026-03-22 | CTXB-P2-T8 | Archived REVIEW_sidebar_file_list report |
