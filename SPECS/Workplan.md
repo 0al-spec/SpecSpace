@@ -79,6 +79,17 @@ Intent: establish the deterministic data model, validation rules, and graph API 
   - API responses clearly separate valid graph data from blocking validation errors.
   - The contract supports PRD FR-1, FR-3, FR-11, and FR-16.
 
+### CTXB-P1-T6 — Correct compile-target root metadata for incomplete lineage
+- **Description:** Ensure graph selections with unresolved parent edges expose partial lineage honestly and never label the selected conversation as a reachable root unless it is a true root conversation.
+- **Priority:** P1
+- **Dependencies:** CTXB-P1-T5
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** compile-target helper adjustment in `viewer/server.py`, regression tests for broken-lineage selection metadata, README contract clarification
+- **Acceptance Criteria:**
+  - Incomplete lineage selections do not include synthetic roots in `root_conversation_ids`.
+  - The API contract clearly distinguishes reachable roots from partial or broken ancestry.
+  - Regression tests cover broken-parent and missing-parent-message compile-target responses.
+
 ## Phase 2: Graph Navigation and Orientation UX
 
 Intent: replace the flat file-browser mental model with a canvas-based graph experience that makes lineage visible, keeps the user oriented, and exposes the information needed to select a continuation path.

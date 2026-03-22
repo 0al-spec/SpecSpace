@@ -13,7 +13,7 @@ No task is currently selected.
 ## Suggested Next Tasks
 
 1. `CTXB-P2-T1` — Render the conversation graph on a canvas
-2. `CTXB-P2-T2` — Add conversation detail and checkpoint inspection panels
+2. `CTXB-P1-T6` — Correct compile-target root metadata for incomplete lineage
 
 ## Next Step
 
