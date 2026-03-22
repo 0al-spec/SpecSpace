@@ -46,3 +46,4 @@
 | 2026-03-22 | CTXB-P2-T4 | Archived Preserve_Graph_Context_Across_Hard_Refresh (PASS) |
 | 2026-03-22 | CTXB-P2-T4 | Archived REVIEW_refresh_persistence report |
 | 2026-03-22 | CTXB-P2-T5 | Archived Surface_Integrity_Issues_In_Graph_UI (PASS) |
+| 2026-03-22 | CTXB-P2-T5 | Archived REVIEW_integrity_issues_ui report |
