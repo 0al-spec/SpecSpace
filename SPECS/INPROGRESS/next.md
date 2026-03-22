@@ -1,6 +1,9 @@
 # In Progress Queue
 
-No task is currently selected.
+**Current Task:** `CTXB-P2-T6` — Add collapsible sidebar toggle
+- **Priority:** P2
+- **Dependencies:** CTXB-P2-T1
+- **Branch:** `feature/CTXB-P2-T6-T9-ui-polish`
 
 ## Recently Archived
 
@@ -12,9 +15,10 @@ No task is currently selected.
 
 ## Suggested Next Tasks
 
-1. `CTXB-P1-T6` — Correct compile-target root metadata for incomplete lineage
-2. `CTXB-P3-T1` — Implement branch creation from any checkpoint
+1. `CTXB-P2-T7` — Remove "Graph canvas" heading
+2. `CTXB-P2-T8` — Simplify sidebar file list interactions
+3. `CTXB-P2-T9` — Remove redundant file toolbar block
 
 ## Next Step
 
-Run `SELECT` or update this file to choose the next task from `SPECS/Workplan.md`.
+Complete `CTXB-P2-T6`, then continue with T7–T9.
