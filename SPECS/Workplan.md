@@ -217,7 +217,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - The icon reflects the current state (collapsed vs expanded).
   - All existing tests continue to pass.
 
-### CTXB-P2-T12 — Render message sub-nodes inside expanded conversation nodes
+### ✅ CTXB-P2-T12 — Render message sub-nodes inside expanded conversation nodes
 - **Description:** When a conversation node is expanded, render its messages as vertically stacked sub-nodes inside the conversation boundary. Each message sub-node shows `role | first 25 characters of content`. The conversation node resizes to fit its messages. Other nodes and edges are not repositioned yet.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2-T11

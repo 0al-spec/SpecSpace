@@ -22,6 +22,7 @@
 | CTXB-P2-T9 | [CTXB-P2-T9_Remove_Redundant_File_Toolbar_Block/](CTXB-P2-T9_Remove_Redundant_File_Toolbar_Block/) | 2026-03-22 | PASS |
 | CTXB-P2-T10 | [CTXB-P2-T10_Convert_Inspectors_To_Overlay_Panels/](CTXB-P2-T10_Convert_Inspectors_To_Overlay_Panels/) | 2026-03-22 | PASS |
 | CTXB-P2-T11 | [CTXB-P2-T11_Add_Expand_Collapse_Control/](CTXB-P2-T11_Add_Expand_Collapse_Control/) | 2026-03-22 | PASS |
+| CTXB-P2-T12 | [CTXB-P2-T12_Render_Message_Sub_Nodes/](CTXB-P2-T12_Render_Message_Sub_Nodes/) | 2026-03-22 | PASS |
 
 ## Historical Artifacts
 
@@ -65,3 +66,4 @@
 | 2026-03-22 | CTXB-P2-T10 | Archived REVIEW_inspector_overlays report |
 | 2026-03-22 | CTXB-P2-T11 | Archived Add_Expand_Collapse_Control (PASS) |
 | 2026-03-22 | CTXB-P2-T11 | Archived REVIEW_expand_collapse_control report |
+| 2026-03-22 | CTXB-P2-T12 | Archived Render_Message_Sub_Nodes (PASS) |
