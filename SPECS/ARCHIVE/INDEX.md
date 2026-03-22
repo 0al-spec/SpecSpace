@@ -61,3 +61,4 @@
 | 2026-03-22 | CTXB-P2-T9 | Archived Remove_Redundant_File_Toolbar_Block (PASS) |
 | 2026-03-22 | CTXB-P2-T9 | Archived REVIEW_file_toolbar_removal report |
 | 2026-03-22 | CTXB-P2-T10 | Archived Convert_Inspectors_To_Overlay_Panels (PASS) |
+| 2026-03-22 | CTXB-P2-T10 | Archived REVIEW_inspector_overlays report |
