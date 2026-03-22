@@ -938,7 +938,8 @@
     let graphState = {
       api: null,
       layout: null,
-      selectedConversationId: null
+      selectedConversationId: null,
+      expandedNodes: new Set()
     };
     let panState = {
       x: 64,
@@ -1967,6 +1968,41 @@
         });
         checkpointMeta.textContent = `${node.checkpoint_count} checkpoints`;
         nodeGroup.append(checkpointMeta);
+
+        const isExpanded = graphState.expandedNodes.has(node.conversation_id);
+        const expandToggle = createSvgNode("g", {
+          class: "graph-node-expand",
+          cursor: "pointer"
+        });
+        const expandBg = createSvgNode("rect", {
+          x: NODE_WIDTH / 2 - 14,
+          y: NODE_HEIGHT - 18,
+          width: 28,
+          height: 18,
+          rx: 9,
+          fill: "rgba(255,255,255,0.8)",
+          stroke: "var(--line)",
+          "stroke-width": 1
+        });
+        const expandIcon = createSvgNode("text", {
+          x: NODE_WIDTH / 2,
+          y: NODE_HEIGHT - 4,
+          "text-anchor": "middle",
+          class: "graph-node-footnote",
+          style: "pointer-events: none;"
+        });
+        expandIcon.textContent = isExpanded ? "\u25BE" : "\u25B8";
+        expandToggle.append(expandBg, expandIcon);
+        expandToggle.addEventListener("click", (event) => {
+          event.stopPropagation();
+          if (graphState.expandedNodes.has(node.conversation_id)) {
+            graphState.expandedNodes.delete(node.conversation_id);
+          } else {
+            graphState.expandedNodes.add(node.conversation_id);
+          }
+          renderGraph();
+        });
+        nodeGroup.append(expandToggle);
 
         if (brokenState) {
           const diagnosticCount = (node.diagnostics || []).length;
