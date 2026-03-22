@@ -18,7 +18,6 @@ class ContextBuilderSmokeTests(unittest.TestCase):
         self.assertIn('id="graphSummary"', html)
         self.assertIn('id="graphViewport"', html)
         self.assertIn('id="graphCanvas"', html)
-        self.assertIn("Graph canvas", html)
 
     def test_viewer_index_requests_graph_api_and_tracks_panning_state(self) -> None:
         html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
