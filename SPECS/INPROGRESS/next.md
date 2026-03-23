@@ -1,6 +1,9 @@
 # In Progress Queue
 
-**Current Task:** None — T13–T15 complete on branch `feature/CTXB-P2-T13-T15-message-subgraph`
+**Current Task:** `CTXB-P2R-T1` — Scaffold Vite + React + React Flow project in viewer
+- **Priority:** P0
+- **Dependencies:** none
+- **Branch:** `feature/CTXB-P2R-T1-scaffold-react-flow`
 
 ## Recently Archived
 
@@ -10,8 +13,9 @@
 
 ## Suggested Next Tasks
 
-1. `CTXB-P2-T16` — Click message node to select checkpoint in inspector
+1. `CTXB-P2R-T2` — Implement custom conversation node component
+2. `CTXB-P2R-T5` — Migrate sidebar to React component (parallelizable with T2)
 
 ## Next Step
 
-Merge branch to main, then start `CTXB-P2-T16`.
+Complete `CTXB-P2R-T1`, then continue with T2–T9.
