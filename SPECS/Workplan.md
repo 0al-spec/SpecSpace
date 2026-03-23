@@ -319,7 +319,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Collapsing returns to the compact conversation node.
   - Edges from other conversations route to the specific message node (parent_message_id).
 
-### CTXB-P2R-T4 — Connect graph API data to React Flow nodes and edges
+### ✅ CTXB-P2R-T4 — Connect graph API data to React Flow nodes and edges
 - **Description:** Fetch graph data from `/api/graph`, transform conversation nodes into React Flow node objects and lineage edges into React Flow edge objects. Handle expanded/collapsed state, kind-based styling, and broken-edge visual states. Use `dagre` or `elkjs` for automatic layout (replacing the manual column-based layout).
 - **Priority:** P0
 - **Dependencies:** CTXB-P2R-T2
