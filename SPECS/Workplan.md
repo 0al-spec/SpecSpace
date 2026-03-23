@@ -559,6 +559,19 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - The pasted message gets a new unique `message_id`.
   - The graph refreshes after each paste operation.
 
+### CTXB-P3-T12 — Connect messages across conversations via branch creation
+- **Description:** Allow the user to connect a message from one conversation to a message in another conversation. Instead of creating a direct message-to-message edge (which would violate the schema) or duplicating entire chains (unpredictable), this action creates a new branch conversation from the source message containing a single copy of the target message with a new `message_id`. The result is a clean, predictable one-node branch that the user can extend. The UI flow: select a checkpoint (source), choose "Connect to…", select a checkpoint in another conversation (target), system creates a new branch from source with a copy of the target message.
+- **Priority:** P2
+- **Dependencies:** CTXB-P3-T1, CTXB-P3-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** cross-conversation connect action in inspector, branch-with-copied-message logic, connect tests
+- **Acceptance Criteria:**
+  - A user can initiate a connection from a checkpoint in one conversation to a checkpoint in another.
+  - The action creates a new branch conversation from the source checkpoint.
+  - The new branch contains one message: a copy of the target checkpoint's content with a new unique `message_id`.
+  - No existing conversations or messages are modified.
+  - The graph refreshes showing the new branch node with a lineage edge from the source.
+
 ## Phase 4: Hyperprompt Export and Compilation Pipeline
 
 Intent: turn the selected branch into actual filesystem artifacts that Hyperprompt can compile, then produce the final continuation-ready Markdown context.
