@@ -295,7 +295,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - API calls to `/api/*` proxy to the Python backend.
   - The legacy `index.html` remains functional at its current path.
 
-### CTXB-P2R-T2 — Implement custom conversation node component
+### ✅ CTXB-P2R-T2 — Implement custom conversation node component
 - **Description:** Create a React Flow custom node type for conversation nodes. It renders the same visual as the current SVG cards: title, kind label, file name, checkpoint count, and broken-lineage warning. Supports `selected` state styling. Includes the expand/collapse toggle.
 - **Priority:** P0
 - **Dependencies:** CTXB-P2R-T1
