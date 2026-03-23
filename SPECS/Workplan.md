@@ -267,7 +267,8 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - The visual clearly shows which message is the branch/merge point.
   - All existing tests continue to pass.
 
-### CTXB-P2-T16 — Click message node to select checkpoint in inspector
+### ~~CTXB-P2-T16~~ — Click message node to select checkpoint in inspector
+- **Status:** Absorbed into CTXB-P2R-T6 (inspector overlay migration)
 - **Description:** Clicking a message node in the expanded subgraph selects it as the active checkpoint in the inspector overlay. This connects the graph-level message view with the existing checkpoint inspection flow.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2-T13, CTXB-P2-T10
@@ -278,6 +279,116 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - The clicked message node gets a visual highlight (active state).
   - The checkpoint inspector overlay shows the selected message's details.
   - All existing tests continue to pass.
+
+## Phase 2R: Migrate Viewer to React Flow
+
+Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge routing, pan/zoom, and subflow code) with React Flow, gaining built-in interaction primitives (drag, zoom, minimap, smart edge routing, native subflows) and a component-based architecture that scales for Phase 3+ features.
+
+### CTXB-P2R-T1 — Scaffold Vite + React + React Flow project in viewer
+- **Description:** Initialize a Vite + React + TypeScript project inside `viewer/`. Install React Flow as a dependency. Set up dev server proxy to the existing Python backend on port 8001. Create a minimal `App` component that renders a React Flow canvas with a single hardcoded node to prove the toolchain works end-to-end. Keep the old `index.html` as `index.legacy.html` until migration is complete.
+- **Priority:** P0
+- **Dependencies:** none
+- **Parallelizable:** no
+- **Outputs / Artifacts:** `viewer/package.json`, `viewer/vite.config.ts`, `viewer/src/App.tsx`, dev server running
+- **Acceptance Criteria:**
+  - `npm run dev` in `viewer/` starts a dev server that renders a React Flow canvas.
+  - API calls to `/api/*` proxy to the Python backend.
+  - The legacy `index.html` remains functional at its current path.
+
+### CTXB-P2R-T2 — Implement custom conversation node component
+- **Description:** Create a React Flow custom node type for conversation nodes. It renders the same visual as the current SVG cards: title, kind label, file name, checkpoint count, and broken-lineage warning. Supports `selected` state styling. Includes the expand/collapse toggle.
+- **Priority:** P0
+- **Dependencies:** CTXB-P2R-T1
+- **Parallelizable:** no
+- **Outputs / Artifacts:** `ConversationNode.tsx` component, node type registration
+- **Acceptance Criteria:**
+  - Conversation nodes render with title, kind, file name, checkpoint count.
+  - Selected nodes show accent border.
+  - Broken-lineage nodes show warning badge.
+  - Expand/collapse toggle is visible and functional.
+
+### CTXB-P2R-T3 — Implement message subflow rendering with React Flow group nodes
+- **Description:** When a conversation node is expanded, render it as a React Flow group (parent) node containing child message nodes. Each message node shows `role | trimmed content` with role-based coloring. Sequential messages are connected by internal edges. Use React Flow's native `parentId` and `extent: 'parent'` for containment.
+- **Priority:** P0
+- **Dependencies:** CTXB-P2R-T2
+- **Parallelizable:** no
+- **Outputs / Artifacts:** `MessageNode.tsx` component, subflow layout logic, internal edge generation
+- **Acceptance Criteria:**
+  - Expanded conversations render as React Flow group nodes with child message nodes.
+  - Messages are connected by vertical edges within the group.
+  - Collapsing returns to the compact conversation node.
+  - Edges from other conversations route to the specific message node (parent_message_id).
+
+### CTXB-P2R-T4 — Connect graph API data to React Flow nodes and edges
+- **Description:** Fetch graph data from `/api/graph`, transform conversation nodes into React Flow node objects and lineage edges into React Flow edge objects. Handle expanded/collapsed state, kind-based styling, and broken-edge visual states. Use `dagre` or `elkjs` for automatic layout (replacing the manual column-based layout).
+- **Priority:** P0
+- **Dependencies:** CTXB-P2R-T2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** graph data fetching hook, node/edge transformation, auto-layout integration
+- **Acceptance Criteria:**
+  - The graph renders all conversation nodes and edges from the API.
+  - Root, branch, merge, and broken nodes are visually distinct.
+  - Layout is computed automatically and avoids overlap.
+  - Expanding/collapsing a node triggers re-layout.
+
+### CTXB-P2R-T5 — Migrate sidebar to React component
+- **Description:** Convert the sidebar (workspace path, file list, refresh/new-file buttons, collapse toggle) from inline HTML+JS to a React component. Preserve all existing interactions: click-to-select, delete with confirmation, sidebar collapse/expand with sessionStorage persistence.
+- **Priority:** P0
+- **Dependencies:** CTXB-P2R-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `Sidebar.tsx` component, file list state management
+- **Acceptance Criteria:**
+  - Sidebar renders workspace info and file list.
+  - Click-to-select, delete with confirmation, and collapse toggle work.
+  - Collapse state persists across refresh via sessionStorage.
+
+### CTXB-P2R-T6 — Migrate inspector overlay to React component
+- **Description:** Convert the conversation inspector and checkpoint inspector overlays to React components. Selection-driven visibility: conversation inspector appears when a graph node is selected; checkpoint inspector appears when a checkpoint is selected. Click-on-empty-canvas dismisses both. Preserve lineage navigation buttons (go-to-parent, open-child-conversation).
+- **Priority:** P0
+- **Dependencies:** CTXB-P2R-T4
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `InspectorOverlay.tsx`, `ConversationInspector.tsx`, `CheckpointInspector.tsx` components
+- **Acceptance Criteria:**
+  - Conversation inspector slides in when a node is selected.
+  - Checkpoint inspector appears when a checkpoint/message is selected.
+  - Clicking empty canvas dismisses both.
+  - Lineage navigation (parent, children) works.
+  - Message clicking in the graph selects the checkpoint in the inspector (absorbs T16).
+
+### CTXB-P2R-T7 — Restore session persistence and graph context
+- **Description:** Persist and restore selected conversation, selected checkpoint, expanded nodes, and viewport position across page reload using sessionStorage. Match the behavior of the legacy implementation.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2R-T4, CTXB-P2R-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** session persistence hooks, restore-on-mount logic
+- **Acceptance Criteria:**
+  - Reload restores selected conversation, checkpoint, expanded nodes, and viewport.
+  - If referenced objects no longer exist, falls back gracefully.
+
+### CTXB-P2R-T8 — Add React Flow controls: minimap, background, and keyboard shortcuts
+- **Description:** Add React Flow's built-in `<MiniMap>`, `<Background>` (dot grid), and `<Controls>` (zoom in/out/fit) components. Add keyboard shortcut for fit-view (e.g., `F` key). Style to match the existing warm/muted design system.
+- **Priority:** P2
+- **Dependencies:** CTXB-P2R-T4
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** minimap, background, controls integration, keyboard handlers
+- **Acceptance Criteria:**
+  - Minimap shows a navigable overview of the graph.
+  - Background grid provides spatial orientation.
+  - Zoom controls and fit-view shortcut work.
+  - Styling matches the existing design system.
+
+### CTXB-P2R-T9 — Remove legacy viewer and update tests
+- **Description:** Delete `index.legacy.html` (the old single-file viewer). Update smoke tests to validate the new React-based viewer build output. Update the Python server to serve the Vite build output. Ensure `npm run build` produces a production bundle.
+- **Priority:** P0
+- **Dependencies:** CTXB-P2R-T5, CTXB-P2R-T6, CTXB-P2R-T7
+- **Parallelizable:** no
+- **Outputs / Artifacts:** legacy file removal, updated smoke tests, production build config
+- **Acceptance Criteria:**
+  - The legacy `index.html` is removed.
+  - `npm run build` produces a working production bundle.
+  - The Python server serves the built viewer.
+  - All smoke tests pass against the new viewer.
+  - T16 functionality (click message → select checkpoint) is verified.
 
 ## Phase 3: Authoring and Compile Target Selection
 
@@ -456,7 +567,8 @@ Intent: lock down graph and compile behavior with regression coverage and make t
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
 - Phase 2 depends on the graph-ready API and turns lineage into a usable visual model.
-- Phase 3 depends on both the graph foundation and the inspection UI because authoring and compile selection operate on selected checkpoints.
+- Phase 2R replaces the custom SVG renderer with React Flow. It depends on the graph API (P1) and replaces all P2 rendering code. T16 is absorbed into P2R-T6.
+- Phase 3 depends on both the graph foundation and the React Flow viewer (P2R) because authoring and compile selection operate on selected checkpoints.
 - Phase 4 depends on the compile target model and turns the selected branch into Hyperprompt-compatible filesystem artifacts.
 - Phase 5 validates and documents the complete graph-to-context workflow.
 
