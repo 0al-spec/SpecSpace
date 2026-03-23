@@ -51,3 +51,7 @@ Instead of replacing all nodes, merge new graph data with existing user-dragged 
 - `make test` — all tests pass
 - `make lint` — clean
 - TypeScript check — clean
+
+---
+**Archived:** 2026-03-24
+**Verdict:** PASS
