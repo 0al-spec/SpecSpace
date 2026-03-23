@@ -23,6 +23,43 @@ export interface LayoutOptions {
   rankSep?: number;
 }
 
+/**
+ * Compute stable top-level positions using dagre, treating all nodes as
+ * collapsed (NODE_WIDTH × NODE_HEIGHT). Call this only when the graph
+ * topology changes — not when expand state changes.
+ */
+export function computeBasePositions(
+  nodeIds: string[],
+  edgePairs: { source: string; target: string }[],
+  options: LayoutOptions = {},
+): Map<string, { x: number; y: number }> {
+  const { direction = "LR", nodeSep = 60, rankSep = 120 } = options;
+
+  const g = new dagre.graphlib.Graph();
+  g.setDefaultEdgeLabel(() => ({}));
+  g.setGraph({ rankdir: direction, nodesep: nodeSep, ranksep: rankSep });
+
+  for (const id of nodeIds) {
+    g.setNode(id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+  }
+
+  const idSet = new Set(nodeIds);
+  for (const { source, target } of edgePairs) {
+    if (idSet.has(source) && idSet.has(target)) {
+      g.setEdge(source, target);
+    }
+  }
+
+  dagre.layout(g);
+
+  const positions = new Map<string, { x: number; y: number }>();
+  for (const id of nodeIds) {
+    const pos = g.node(id);
+    positions.set(id, { x: pos.x - NODE_WIDTH / 2, y: pos.y - NODE_HEIGHT / 2 });
+  }
+  return positions;
+}
+
 export function layoutNodes(
   nodes: Node[],
   edges: Edge[],
