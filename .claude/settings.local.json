@@ -11,7 +11,9 @@
       "Bash(python -m pytest tests/ -v)",
       "Bash(python -m pytest tests/test_smoke.py -v)",
       "Bash(python -m pytest tests/ --cov --cov-report=term-missing)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)"
     ]
   }
 }

@@ -3,6 +3,12 @@
   "configurations": [
     {
       "name": "ContextBuilder Viewer",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "viewer/app"],
+      "port": 5173
+    },
+    {
+      "name": "Python API",
       "runtimeExecutable": "python3",
       "runtimeArgs": ["viewer/server.py", "--port", "8001", "--dialog-dir", "./real_examples/canonical_json"],
       "port": 8001
