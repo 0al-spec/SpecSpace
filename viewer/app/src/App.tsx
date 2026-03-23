@@ -89,7 +89,21 @@ function AppInner() {
     useSessionString("selected_message");
 
   useEffect(() => {
-    setNodes(graphNodes);
+    setNodes((prev) => {
+      if (prev.length === 0) return graphNodes;
+      // Build lookup of current top-level node positions to preserve drag state
+      const prevPositions = new Map<string, { x: number; y: number }>();
+      for (const n of prev) {
+        if (!n.parentId) {
+          prevPositions.set(n.id, n.position);
+        }
+      }
+      return graphNodes.map((n) => {
+        if (n.parentId) return n; // child nodes use relative positions
+        const existing = prevPositions.get(n.id);
+        return existing ? { ...n, position: existing } : n;
+      });
+    });
   }, [graphNodes]);
 
   const onNodesChange = useCallback(
