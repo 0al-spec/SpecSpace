@@ -1,8 +1,8 @@
 import dagre from "dagre";
 import type { Node, Edge } from "@xyflow/react";
 
-const NODE_WIDTH = 248;
-const NODE_HEIGHT = 148;
+export const NODE_WIDTH = 248;
+export const NODE_HEIGHT = 148;
 const HEADER_HEIGHT = 40;
 const MSG_HEIGHT = 36;
 const MSG_GAP = 16;
