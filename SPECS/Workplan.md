@@ -243,7 +243,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - Collapsing returns to the single compact node.
   - All existing tests continue to pass.
 
-### CTXB-P2-T14 — Reflow graph layout for expanded message subgraphs
+### ✅ CTXB-P2-T14 — Reflow graph layout for expanded message subgraphs
 - **Description:** When a conversation node expands into a message subgraph, recalculate positions of sibling and downstream conversation nodes so they don't overlap. The expanded message chain occupies more vertical space; neighboring nodes must shift to accommodate.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2-T13
