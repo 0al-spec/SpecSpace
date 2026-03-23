@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import type { ConversationNodeData } from "./types";
 import { layoutNodes, expandedNodeHeight } from "./layoutGraph";
+import { useSessionSet } from "./useSessionState";
 
 const HEADER_HEIGHT = 40;
 const MSG_HEIGHT = 36;
@@ -54,7 +55,7 @@ export function useGraphData() {
   const [apiGraph, setApiGraph] = useState<ApiGraph | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [expandedNodes, setExpandedNodes] = useSessionSet("expanded_nodes");
 
   const fetchGraph = useCallback(async () => {
     setLoading(true);
