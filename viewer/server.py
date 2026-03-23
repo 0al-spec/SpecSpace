@@ -865,9 +865,24 @@ class ViewerHandler(BaseHTTPRequestHandler):
         json_response(self, HTTPStatus.OK, {"ok": True, "name": name})
 
     def handle_static(self, request_path: str) -> None:
-        relative = request_path.lstrip("/") or "viewer/index.html"
-        path = (self.server.repo_root / relative).resolve()
-        if not str(path).startswith(str(self.server.repo_root)) or not path.exists() or path.is_dir():
+        dist_dir = self.server.repo_root / "viewer" / "app" / "dist"
+        relative = request_path.lstrip("/")
+
+        if not relative:
+            path = dist_dir / "index.html"
+        else:
+            candidate = (dist_dir / relative).resolve()
+            if str(candidate).startswith(str(dist_dir.resolve())) and candidate.exists() and not candidate.is_dir():
+                path = candidate
+            elif "." in relative.split("/")[-1]:
+                # Request has a file extension but file not found — 404
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            else:
+                # SPA fallback: serve index.html for non-file routes
+                path = dist_dir / "index.html"
+
+        if not path.exists():
             self.send_error(HTTPStatus.NOT_FOUND)
             return
 
@@ -921,7 +936,7 @@ def main() -> None:
     server.dialog_dir = args.dialog_dir.resolve()
     server.dialog_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Serving ContextBuilder at http://localhost:{args.port}/viewer/index.html")
+    print(f"Serving ContextBuilder at http://localhost:{args.port}/")
     print(f"Dialog folder: {server.dialog_dir}")
     server.serve_forever()
 

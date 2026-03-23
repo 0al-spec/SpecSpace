@@ -7,88 +7,58 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class ContextBuilderSmokeTests(unittest.TestCase):
-    def test_viewer_assets_exist(self) -> None:
-        self.assertTrue((REPO_ROOT / "viewer" / "index.html").is_file())
+    def test_react_app_source_exists(self) -> None:
+        self.assertTrue((REPO_ROOT / "viewer" / "app" / "src" / "App.tsx").is_file())
+        self.assertTrue((REPO_ROOT / "viewer" / "app" / "package.json").is_file())
         self.assertTrue((REPO_ROOT / "viewer" / "server.py").is_file())
 
-    def test_viewer_index_exposes_graph_canvas_shell(self) -> None:
-        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
+    def test_legacy_viewer_removed(self) -> None:
+        self.assertFalse((REPO_ROOT / "viewer" / "index.html").exists())
 
-        self.assertIn('id="graphPanel"', html)
-        self.assertIn('id="graphSummary"', html)
-        self.assertIn('id="graphViewport"', html)
-        self.assertIn('id="graphCanvas"', html)
+    def test_react_app_has_graph_components(self) -> None:
+        app_src = REPO_ROOT / "viewer" / "app" / "src"
+        self.assertTrue((app_src / "ConversationNode.tsx").is_file())
+        self.assertTrue((app_src / "MessageNode.tsx").is_file())
+        self.assertTrue((app_src / "SubflowHeader.tsx").is_file())
 
-    def test_viewer_index_requests_graph_api_and_tracks_panning_state(self) -> None:
-        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
+    def test_react_app_has_data_hooks(self) -> None:
+        app_src = REPO_ROOT / "viewer" / "app" / "src"
+        self.assertTrue((app_src / "useGraphData.ts").is_file())
+        self.assertTrue((app_src / "useSessionState.ts").is_file())
 
-        self.assertIn('api("/api/graph")', html)
-        self.assertIn("graphState =", html)
-        self.assertIn("panState =", html)
-        self.assertIn("pointerdown", html)
-        self.assertIn("pointermove", html)
+    def test_react_app_has_sidebar_and_inspector(self) -> None:
+        app_src = REPO_ROOT / "viewer" / "app" / "src"
+        self.assertTrue((app_src / "Sidebar.tsx").is_file())
+        self.assertTrue((app_src / "InspectorOverlay.tsx").is_file())
 
-    def test_viewer_index_exposes_conversation_and_checkpoint_inspectors(self) -> None:
-        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
+    def test_react_app_uses_react_flow(self) -> None:
+        app_tsx = (REPO_ROOT / "viewer" / "app" / "src" / "App.tsx").read_text()
+        self.assertIn("ReactFlow", app_tsx)
+        self.assertIn("MiniMap", app_tsx)
+        self.assertIn("Background", app_tsx)
+        self.assertIn("Controls", app_tsx)
 
-        self.assertIn('id="conversationDetailPanel"', html)
-        self.assertIn('id="conversationMeta"', html)
-        self.assertIn('id="conversationLineage"', html)
-        self.assertIn('id="conversationIntegrity"', html)
-        self.assertIn('id="checkpointList"', html)
-        self.assertIn('id="checkpointDetailPanel"', html)
-        self.assertIn('id="checkpointMeta"', html)
-        self.assertIn('id="checkpointActions"', html)
+    def test_react_app_has_session_persistence(self) -> None:
+        session_state = (REPO_ROOT / "viewer" / "app" / "src" / "useSessionState.ts").read_text()
+        self.assertIn("sessionStorage", session_state)
+        self.assertIn("useSessionString", session_state)
+        self.assertIn("useSessionSet", session_state)
 
-    def test_viewer_index_requests_detail_apis_and_tracks_checkpoint_state(self) -> None:
-        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
+    def test_react_app_fetches_graph_api(self) -> None:
+        hook = (REPO_ROOT / "viewer" / "app" / "src" / "useGraphData.ts").read_text()
+        self.assertIn('"/api/graph"', hook)
+        self.assertIn("layoutNodes", hook)
 
-        self.assertIn('api(`/api/conversation?conversation_id=${encodeURIComponent(conversationId)}`)', html)
-        self.assertIn(
-            'api(`/api/checkpoint?conversation_id=${encodeURIComponent(conversationId)}&message_id=${encodeURIComponent(messageId)}`)',
-            html,
-        )
-        self.assertIn("selectedCheckpointId", html)
-        self.assertIn("Inspect checkpoint", html)
+    def test_vite_config_proxies_api(self) -> None:
+        vite_config = (REPO_ROOT / "viewer" / "app" / "vite.config.ts").read_text()
+        self.assertIn("/api", vite_config)
+        self.assertIn("http://localhost:8001", vite_config)
 
-    def test_viewer_index_surfaces_integrity_issues_in_graph_ui(self) -> None:
-        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
-
-        self.assertIn('id="blockedFilesList"', html)
-        self.assertIn("renderBlockedFiles", html)
-        self.assertIn("has_blocking_issues", html)
-        self.assertIn("blocking_issue_count", html)
-
-    def test_viewer_index_persists_and_restores_graph_context(self) -> None:
-        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
-
-        self.assertIn("persistGraphContext", html)
-        self.assertIn("readPersistedContext", html)
-        self.assertIn("sessionStorage", html)
-        self.assertIn("location.hash", html)
-
-    def test_viewer_index_exposes_expandable_graph_nodes(self) -> None:
-        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
-
-        self.assertIn("expandedNodes", html)
-        self.assertIn("graph-node-expand", html)
-        self.assertIn("MSG_NODE_HEIGHT", html)
-        self.assertIn("graph-msg-node", html)
-
-    def test_viewer_index_exposes_inspector_overlay(self) -> None:
-        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
-
-        self.assertIn('id="inspectorOverlay"', html)
-        self.assertIn("inspector-overlay", html)
-        self.assertIn("updateInspectorOverlay", html)
-        self.assertIn("dismissInspectors", html)
-
-    def test_viewer_index_exposes_collapsible_sidebar_toggle(self) -> None:
-        html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
-
-        self.assertIn('id="sidebarToggle"', html)
-        self.assertIn("sidebar-collapsed", html)
-        self.assertIn("ctxb_sidebar_collapsed", html)
+    def test_server_serves_from_dist(self) -> None:
+        server_py = (REPO_ROOT / "viewer" / "server.py").read_text()
+        self.assertIn("viewer", server_py)
+        self.assertIn("app", server_py)
+        self.assertIn("dist", server_py)
 
     def test_server_module_loads(self) -> None:
         module_path = REPO_ROOT / "viewer" / "server.py"
