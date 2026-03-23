@@ -230,39 +230,52 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - Collapsing returns the node to its compact size.
   - All existing tests continue to pass.
 
-### CTXB-P2-T13 — Reflow graph layout when nodes expand or collapse
-- **Description:** When a conversation node expands or collapses, recalculate positions of downstream nodes so they don't overlap. Push sibling and descendant nodes down/right to accommodate the expanded height.
+### CTXB-P2-T13 — Render expanded messages as separate graph nodes with internal edges
+- **Description:** When a conversation node is expanded, replace the inline message labels (from T12) with proper separate SVG node groups for each message. Connect sequential messages with vertical edges (msg1 → msg2 → msg3). A lightweight conversation header shows the title above the message chain. This creates a true subgraph that T14 can route cross-conversation edges into.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2-T12
+- **Parallelizable:** no
+- **Outputs / Artifacts:** message node SVG groups, internal edge rendering, conversation header
+- **Acceptance Criteria:**
+  - Each message renders as its own graph node (distinct SVG group with card background).
+  - Sequential messages within a conversation are connected by vertical edges.
+  - A conversation header label identifies the parent conversation.
+  - Collapsing returns to the single compact node.
+  - All existing tests continue to pass.
+
+### CTXB-P2-T14 — Reflow graph layout for expanded message subgraphs
+- **Description:** When a conversation node expands into a message subgraph, recalculate positions of sibling and downstream conversation nodes so they don't overlap. The expanded message chain occupies more vertical space; neighboring nodes must shift to accommodate.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2-T13
 - **Parallelizable:** no
 - **Outputs / Artifacts:** layout reflow logic in graph rendering
 - **Acceptance Criteria:**
   - Expanding a node pushes neighboring nodes to avoid overlap.
   - Collapsing pulls them back.
-  - Edges update to follow the new node positions.
+  - Cross-conversation edges update to follow the new node positions.
   - All existing tests continue to pass.
 
-### CTXB-P2-T14 — Route edges to message-level anchors in expanded nodes
-- **Description:** When a conversation node is expanded, re-route branch and merge edges so they connect to the specific message sub-node where the fork or join occurs (using the parent `message_id` from the edge data). When collapsed, edges connect at the conversation node level as before.
+### CTXB-P2-T15 — Route cross-conversation edges to message-level nodes
+- **Description:** When a conversation is expanded into message nodes, re-route branch and merge edges so they connect to the specific message node where the fork or join occurs (using the parent `message_id` from the edge data). When collapsed, edges connect at the conversation node level as before.
 - **Priority:** P1
-- **Dependencies:** CTXB-P2-T12
+- **Dependencies:** CTXB-P2-T13
 - **Parallelizable:** yes
 - **Outputs / Artifacts:** edge anchor recalculation in graph rendering
 - **Acceptance Criteria:**
-  - Branch/merge edges connect to the exact message sub-node when the parent conversation is expanded.
+  - Branch/merge edges connect to the exact message node when the parent conversation is expanded.
   - Edges revert to conversation-level anchors when collapsed.
   - The visual clearly shows which message is the branch/merge point.
   - All existing tests continue to pass.
 
-### CTXB-P2-T15 — Click message sub-node to select checkpoint in inspector
-- **Description:** Clicking a message sub-node in the expanded graph selects it as the active checkpoint in the inspector. This connects the graph-level message view with the existing checkpoint inspection flow.
+### CTXB-P2-T16 — Click message node to select checkpoint in inspector
+- **Description:** Clicking a message node in the expanded subgraph selects it as the active checkpoint in the inspector overlay. This connects the graph-level message view with the existing checkpoint inspection flow.
 - **Priority:** P1
-- **Dependencies:** CTXB-P2-T12, CTXB-P2-T10
+- **Dependencies:** CTXB-P2-T13, CTXB-P2-T10
 - **Parallelizable:** yes
-- **Outputs / Artifacts:** click handler on message sub-nodes, checkpoint selection integration
+- **Outputs / Artifacts:** click handler on message nodes, checkpoint selection integration
 - **Acceptance Criteria:**
-  - Clicking a message sub-node selects the corresponding checkpoint in the inspector.
-  - The clicked sub-node gets a visual highlight (active state).
+  - Clicking a message node selects the corresponding checkpoint in the inspector.
+  - The clicked message node gets a visual highlight (active state).
   - The checkpoint inspector overlay shows the selected message's details.
   - All existing tests continue to pass.
 
