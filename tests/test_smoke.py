@@ -47,7 +47,7 @@ class ContextBuilderSmokeTests(unittest.TestCase):
     def test_react_app_fetches_graph_api(self) -> None:
         hook = (REPO_ROOT / "viewer" / "app" / "src" / "useGraphData.ts").read_text()
         self.assertIn('"/api/graph"', hook)
-        self.assertIn("layoutNodes", hook)
+        self.assertIn("computeBasePositions", hook)
 
     def test_vite_config_proxies_api(self) -> None:
         vite_config = (REPO_ROOT / "viewer" / "app" / "vite.config.ts").read_text()

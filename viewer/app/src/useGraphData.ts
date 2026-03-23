@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import type { ConversationNodeData } from "./types";
-import { layoutNodes, expandedNodeHeight, NODE_WIDTH, NODE_HEIGHT } from "./layoutGraph";
+import { computeBasePositions, expandedNodeHeight, NODE_WIDTH, NODE_HEIGHT } from "./layoutGraph";
 import { useSessionSet } from "./useSessionState";
 
 const HEADER_HEIGHT = 40;
@@ -90,6 +90,18 @@ export function useGraphData() {
     });
   }, []);
 
+  // Compute stable top-level positions from dagre — only when graph topology changes,
+  // NOT when expand state changes. This prevents all nodes from jumping on expand/collapse.
+  const basePositions = useMemo(() => {
+    if (!apiGraph) return new Map<string, { x: number; y: number }>();
+    const nodeIds = apiGraph.nodes.map((n) => n.conversation_id);
+    const edgePairs = apiGraph.edges.map((e) => ({
+      source: e.parent_conversation_id,
+      target: e.child_conversation_id,
+    }));
+    return computeBasePositions(nodeIds, edgePairs);
+  }, [apiGraph]);
+
   const { nodes, edges } = useMemo(() => {
     if (!apiGraph) return { nodes: [], edges: [] };
 
@@ -112,11 +124,12 @@ export function useGraphData() {
       if (isExpanded && apiNode.checkpoints.length > 0) {
         const contentHeight = expandedNodeHeight(apiNode.checkpoints.length);
         const groupWidth = 248;
+        const basePos = basePositions.get(apiNode.conversation_id) ?? { x: 0, y: 0 };
 
         allNodes.push({
           id: apiNode.conversation_id,
           type: "group",
-          position: { x: 0, y: 0 },
+          position: basePos,
           data: {},
           style: {
             width: groupWidth,
@@ -189,7 +202,7 @@ export function useGraphData() {
         allNodes.push({
           id: apiNode.conversation_id,
           type: "conversation",
-          position: { x: 0, y: 0 },
+          position: basePositions.get(apiNode.conversation_id) ?? { x: 0, y: 0 },
           data: nodeData,
           width: NODE_WIDTH,
           height: NODE_HEIGHT,
@@ -244,11 +257,8 @@ export function useGraphData() {
       });
     }
 
-    // Layout top-level nodes using dagre
-    const laidOut = layoutNodes(allNodes, allEdges);
-
-    return { nodes: laidOut, edges: allEdges };
-  }, [apiGraph, expandedNodes, onToggleExpand]);
+    return { nodes: allNodes, edges: allEdges };
+  }, [apiGraph, expandedNodes, onToggleExpand, basePositions]);
 
   return { nodes, edges, loading, error, refresh: fetchGraph };
 }
