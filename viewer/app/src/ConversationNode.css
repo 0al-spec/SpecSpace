@@ -68,8 +68,8 @@
 
 .conversation-node-warning {
   position: absolute;
-  top: 18px;
-  right: 18px;
+  top: 10px;
+  right: 40px;
   font-size: 13px;
   font-weight: 700;
   color: var(--broken-line);
@@ -77,12 +77,14 @@
 
 .conversation-node-expand {
   position: absolute;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 28px;
-  height: 18px;
-  border-radius: 9px;
+  top: 8px;
+  right: 8px;
+  bottom: auto;
+  left: auto;
+  transform: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.8);
   font-size: 12px;
