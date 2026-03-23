@@ -21,7 +21,7 @@ When a conversation node is expanded, replace the inline message labels with pro
   - Internal edges between sequential message nodes
   - The expand toggle at the bottom
 - Message nodes use the same width as conversation nodes but shorter height (~36px).
-- The conversation boundary is implied by the header and message chain, not a bounding box.
+- The conversation boundary is a visible subflow container (dashed border, muted background) like React Flow sub-flows.
 
 ## Acceptance Tests
 

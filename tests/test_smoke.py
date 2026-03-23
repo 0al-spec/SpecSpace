@@ -72,7 +72,8 @@ class ContextBuilderSmokeTests(unittest.TestCase):
 
         self.assertIn("expandedNodes", html)
         self.assertIn("graph-node-expand", html)
-        self.assertIn("MSG_SUB_HEIGHT", html)
+        self.assertIn("MSG_NODE_HEIGHT", html)
+        self.assertIn("graph-msg-node", html)
 
     def test_viewer_index_exposes_inspector_overlay(self) -> None:
         html = (REPO_ROOT / "viewer" / "index.html").read_text(encoding="utf-8")

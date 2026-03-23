@@ -432,6 +432,20 @@
       fill: var(--broken-line);
     }
 
+    .subflow-container {
+      fill: var(--panel-muted);
+      stroke: var(--line);
+      stroke-width: 2;
+      stroke-dasharray: 6 3;
+      filter: none;
+    }
+
+    .graph-node.selected .subflow-container {
+      stroke: var(--accent-strong);
+      stroke-width: 3;
+      stroke-dasharray: none;
+    }
+
     .inspector-overlay {
       position: fixed;
       top: 0;
@@ -1902,133 +1916,38 @@
         graphStageNode.append(label);
       });
 
-      const MSG_SUB_HEIGHT = 28;
-      const MSG_SUB_START_Y = 130;
-      const MSG_SUB_PAD = 18;
+      const MSG_NODE_HEIGHT = 36;
+      const MSG_NODE_GAP = 8;
+      const MSG_EDGE_GAP = 4;
+      const HEADER_HEIGHT = 32;
+      const SUBFLOW_PAD = 14;
+      const MSG_NODE_WIDTH = NODE_WIDTH - SUBFLOW_PAD * 2;
 
-      (graph.nodes || []).forEach((node) => {
-        const position = positions.get(node.conversation_id);
-        const brokenState = nodeHasBrokenState(node, edgesById);
-        const selected = graphState.selectedConversationId === node.conversation_id;
+      function expandedNodeHeight(checkpointCount) {
+        return HEADER_HEIGHT + checkpointCount * (MSG_NODE_HEIGHT + MSG_NODE_GAP) - MSG_NODE_GAP + SUBFLOW_PAD + 28;
+      }
+
+      function makeExpandToggle(node, y) {
         const isExpanded = graphState.expandedNodes.has(node.conversation_id);
-        const checkpoints = node.checkpoints || [];
-        const nodeHeight = isExpanded && checkpoints.length
-          ? MSG_SUB_START_Y + checkpoints.length * MSG_SUB_HEIGHT + MSG_SUB_PAD
-          : NODE_HEIGHT;
-
-        const nodeGroup = createSvgNode("g", {
-          class: `graph-node ${kindClass(node.kind)} ${brokenState ? "broken" : ""} ${selected ? "selected" : ""}`,
-          transform: `translate(${position.x} ${position.y})`,
-          tabindex: "0",
-          role: "button",
-          "aria-label": `${kindLabel(node.kind)} ${node.title || node.conversation_id}`
-        });
-
-        nodeGroup.addEventListener("click", () => {
-          selectConversation(node.conversation_id).catch((error) => setStatus(error.message));
-        });
-        nodeGroup.addEventListener("keydown", (event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            selectConversation(node.conversation_id).catch((error) => setStatus(error.message));
-          }
-        });
-
-        const card = createSvgNode("rect", {
-          class: "graph-node-card",
-          width: NODE_WIDTH,
-          height: nodeHeight,
-          rx: 24,
-          ry: 24
-        });
-        nodeGroup.append(card);
-
-        const titleLines = wrapText(node.title || node.conversation_id, 26, 3);
-        titleLines.forEach((line, index) => {
-          const title = createSvgNode("text", {
-            x: 18,
-            y: 28 + index * 20,
-            class: "graph-node-title"
-          });
-          title.textContent = line;
-          nodeGroup.append(title);
-        });
-
-        const meta = createSvgNode("text", {
-          x: 18,
-          y: 94,
-          class: "graph-node-meta"
-        });
-        meta.textContent = kindLabel(node.kind);
-        nodeGroup.append(meta);
-
-        const fileName = createSvgNode("text", {
-          x: 18,
-          y: 112,
-          class: "graph-node-footnote"
-        });
-        fileName.textContent = node.file_name;
-        nodeGroup.append(fileName);
-
-        const checkpointMeta = createSvgNode("text", {
-          x: NODE_WIDTH - 18,
-          y: 112,
-          class: "graph-node-footnote",
-          "text-anchor": "end"
-        });
-        checkpointMeta.textContent = `${node.checkpoint_count} checkpoints`;
-        nodeGroup.append(checkpointMeta);
-
-        if (isExpanded && checkpoints.length) {
-          const divider = createSvgNode("line", {
-            x1: 14, y1: MSG_SUB_START_Y - 8,
-            x2: NODE_WIDTH - 14, y2: MSG_SUB_START_Y - 8,
-            stroke: "var(--line)", "stroke-width": 1, "stroke-dasharray": "4 3"
-          });
-          nodeGroup.append(divider);
-
-          checkpoints.forEach((cp, idx) => {
-            const cy = MSG_SUB_START_Y + idx * MSG_SUB_HEIGHT;
-            const subBg = createSvgNode("rect", {
-              x: 10, y: cy - 2,
-              width: NODE_WIDTH - 20, height: MSG_SUB_HEIGHT - 4,
-              rx: 6, fill: cp.role === "user" ? "var(--user)" : "var(--assistant)",
-              stroke: "var(--line)", "stroke-width": 0.5
-            });
-            const trimmed = (cp.content || "").slice(0, 25).replace(/\n/g, " ");
-            const subLabel = createSvgNode("text", {
-              x: 18, y: cy + 15,
-              class: "graph-node-footnote"
-            });
-            subLabel.textContent = `${cp.role} | ${trimmed}${(cp.content || "").length > 25 ? "\u2026" : ""}`;
-            nodeGroup.append(subBg, subLabel);
-          });
-        }
-
-        const expandToggle = createSvgNode("g", {
+        const toggle = createSvgNode("g", {
           class: "graph-node-expand",
           cursor: "pointer"
         });
-        const expandBg = createSvgNode("rect", {
-          x: NODE_WIDTH / 2 - 14,
-          y: nodeHeight - 18,
-          width: 28,
-          height: 18,
-          rx: 9,
+        const bg = createSvgNode("rect", {
+          x: NODE_WIDTH / 2 - 14, y: y,
+          width: 28, height: 18, rx: 9,
           fill: "rgba(255,255,255,0.8)",
-          stroke: "var(--line)",
-          "stroke-width": 1
+          stroke: "var(--line)", "stroke-width": 1
         });
-        const expandIcon = createSvgNode("text", {
-          x: NODE_WIDTH / 2,
-          y: nodeHeight - 4,
+        const icon = createSvgNode("text", {
+          x: NODE_WIDTH / 2, y: y + 14,
           "text-anchor": "middle",
           class: "graph-node-footnote",
           style: "pointer-events: none;"
         });
-        expandIcon.textContent = isExpanded ? "\u25BE" : "\u25B8";
-        expandToggle.append(expandBg, expandIcon);
-        expandToggle.addEventListener("click", (event) => {
+        icon.textContent = isExpanded ? "\u25BE" : "\u25B8";
+        toggle.append(bg, icon);
+        toggle.addEventListener("click", (event) => {
           event.stopPropagation();
           if (graphState.expandedNodes.has(node.conversation_id)) {
             graphState.expandedNodes.delete(node.conversation_id);
@@ -2037,24 +1956,173 @@
           }
           renderGraph();
         });
-        nodeGroup.append(expandToggle);
+        return toggle;
+      }
 
-        if (brokenState) {
-          const diagnosticCount = (node.diagnostics || []).length;
-          const warningLabel = diagnosticCount
-            ? `${diagnosticCount} issue${diagnosticCount === 1 ? "" : "s"}`
-            : "Broken lineage";
-          const warning = createSvgNode("text", {
-            x: NODE_WIDTH - 18,
-            y: 28,
-            class: "graph-node-warning",
-            "text-anchor": "end"
+      (graph.nodes || []).forEach((node) => {
+        const position = positions.get(node.conversation_id);
+        const brokenState = nodeHasBrokenState(node, edgesById);
+        const selected = graphState.selectedConversationId === node.conversation_id;
+        const isExpanded = graphState.expandedNodes.has(node.conversation_id);
+        const checkpoints = node.checkpoints || [];
+
+        if (isExpanded && checkpoints.length) {
+          // --- Expanded: render message subgraph ---
+          const totalHeight = expandedNodeHeight(checkpoints.length);
+          const nodeGroup = createSvgNode("g", {
+            class: `graph-node ${kindClass(node.kind)} ${brokenState ? "broken" : ""} ${selected ? "selected" : ""}`,
+            transform: `translate(${position.x} ${position.y})`,
+            tabindex: "0",
+            role: "group",
+            "aria-label": `Expanded ${kindLabel(node.kind)} ${node.title || node.conversation_id}`
           });
-          warning.textContent = warningLabel;
-          nodeGroup.append(warning);
-        }
 
-        graphStageNode.append(nodeGroup);
+          nodeGroup.addEventListener("click", (e) => {
+            if (e.target.closest(".graph-msg-node") || e.target.closest(".graph-node-expand")) return;
+            selectConversation(node.conversation_id).catch((error) => setStatus(error.message));
+          });
+
+          // Container rect (subflow boundary)
+          const container = createSvgNode("rect", {
+            class: "graph-node-card subflow-container",
+            width: NODE_WIDTH, height: totalHeight,
+            rx: 16, ry: 16
+          });
+          nodeGroup.append(container);
+
+          // Header
+          const headerTitle = createSvgNode("text", {
+            x: SUBFLOW_PAD, y: 20,
+            class: "graph-node-meta"
+          });
+          headerTitle.textContent = `${wrapText(node.title || node.conversation_id, 28, 1)[0]} (${kindLabel(node.kind)})`;
+          nodeGroup.append(headerTitle);
+
+          // Message nodes (positioned inside container with padding)
+          checkpoints.forEach((cp, idx) => {
+            const my = HEADER_HEIGHT + idx * (MSG_NODE_HEIGHT + MSG_NODE_GAP);
+
+            // Internal edge to previous message
+            if (idx > 0) {
+              const prevY = HEADER_HEIGHT + (idx - 1) * (MSG_NODE_HEIGHT + MSG_NODE_GAP) + MSG_NODE_HEIGHT;
+              const edgeLine = createSvgNode("line", {
+                x1: NODE_WIDTH / 2, y1: prevY + MSG_EDGE_GAP,
+                x2: NODE_WIDTH / 2, y2: my - MSG_EDGE_GAP,
+                stroke: "var(--line-strong)", "stroke-width": 1.5
+              });
+              nodeGroup.append(edgeLine);
+            }
+
+            // Message card
+            const msgGroup = createSvgNode("g", {
+              class: "graph-msg-node",
+              cursor: "pointer",
+              "data-message-id": cp.message_id
+            });
+
+            const msgCard = createSvgNode("rect", {
+              x: SUBFLOW_PAD, y: my,
+              width: MSG_NODE_WIDTH, height: MSG_NODE_HEIGHT,
+              rx: 10,
+              fill: cp.role === "user" ? "var(--user)" : "var(--assistant)",
+              stroke: "var(--line)", "stroke-width": 1
+            });
+
+            const trimmed = (cp.content || "").slice(0, 25).replace(/\n/g, " ");
+            const msgLabel = createSvgNode("text", {
+              x: SUBFLOW_PAD + 10, y: my + 22,
+              class: "graph-node-footnote"
+            });
+            msgLabel.textContent = `${cp.role} | ${trimmed}${(cp.content || "").length > 25 ? "\u2026" : ""}`;
+
+            msgGroup.append(msgCard, msgLabel);
+            nodeGroup.append(msgGroup);
+          });
+
+          // Expand toggle at bottom
+          nodeGroup.append(makeExpandToggle(node, totalHeight - 20));
+
+          if (brokenState) {
+            const diagnosticCount = (node.diagnostics || []).length;
+            const warning = createSvgNode("text", {
+              x: NODE_WIDTH - 4, y: 16,
+              class: "graph-node-warning", "text-anchor": "end"
+            });
+            warning.textContent = diagnosticCount ? `${diagnosticCount} issue${diagnosticCount === 1 ? "" : "s"}` : "Broken lineage";
+            nodeGroup.append(warning);
+          }
+
+          graphStageNode.append(nodeGroup);
+
+        } else {
+          // --- Collapsed: compact node ---
+          const nodeGroup = createSvgNode("g", {
+            class: `graph-node ${kindClass(node.kind)} ${brokenState ? "broken" : ""} ${selected ? "selected" : ""}`,
+            transform: `translate(${position.x} ${position.y})`,
+            tabindex: "0",
+            role: "button",
+            "aria-label": `${kindLabel(node.kind)} ${node.title || node.conversation_id}`
+          });
+
+          nodeGroup.addEventListener("click", () => {
+            selectConversation(node.conversation_id).catch((error) => setStatus(error.message));
+          });
+          nodeGroup.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              selectConversation(node.conversation_id).catch((error) => setStatus(error.message));
+            }
+          });
+
+          const card = createSvgNode("rect", {
+            class: "graph-node-card",
+            width: NODE_WIDTH, height: NODE_HEIGHT,
+            rx: 24, ry: 24
+          });
+          nodeGroup.append(card);
+
+          const titleLines = wrapText(node.title || node.conversation_id, 26, 3);
+          titleLines.forEach((line, index) => {
+            const title = createSvgNode("text", {
+              x: 18, y: 28 + index * 20,
+              class: "graph-node-title"
+            });
+            title.textContent = line;
+            nodeGroup.append(title);
+          });
+
+          const meta = createSvgNode("text", { x: 18, y: 94, class: "graph-node-meta" });
+          meta.textContent = kindLabel(node.kind);
+          nodeGroup.append(meta);
+
+          const fileName = createSvgNode("text", { x: 18, y: 112, class: "graph-node-footnote" });
+          fileName.textContent = node.file_name;
+          nodeGroup.append(fileName);
+
+          const checkpointMeta = createSvgNode("text", {
+            x: NODE_WIDTH - 18, y: 112,
+            class: "graph-node-footnote", "text-anchor": "end"
+          });
+          checkpointMeta.textContent = `${node.checkpoint_count} checkpoints`;
+          nodeGroup.append(checkpointMeta);
+
+          nodeGroup.append(makeExpandToggle(node, NODE_HEIGHT - 18));
+
+          if (brokenState) {
+            const diagnosticCount = (node.diagnostics || []).length;
+            const warningLabel = diagnosticCount
+              ? `${diagnosticCount} issue${diagnosticCount === 1 ? "" : "s"}`
+              : "Broken lineage";
+            const warning = createSvgNode("text", {
+              x: NODE_WIDTH - 18, y: 28,
+              class: "graph-node-warning", "text-anchor": "end"
+            });
+            warning.textContent = warningLabel;
+            nodeGroup.append(warning);
+          }
+
+          graphStageNode.append(nodeGroup);
+        }
       });
 
       const selectedNode = graphState.selectedConversationId
