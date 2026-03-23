@@ -284,7 +284,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
 
 Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge routing, pan/zoom, and subflow code) with React Flow, gaining built-in interaction primitives (drag, zoom, minimap, smart edge routing, native subflows) and a component-based architecture that scales for Phase 3+ features.
 
-### CTXB-P2R-T1 — Scaffold Vite + React + React Flow project in viewer
+### ✅ CTXB-P2R-T1 — Scaffold Vite + React + React Flow project in viewer
 - **Description:** Initialize a Vite + React + TypeScript project inside `viewer/`. Install React Flow as a dependency. Set up dev server proxy to the existing Python backend on port 8001. Create a minimal `App` component that renders a React Flow canvas with a single hardcoded node to prove the toolchain works end-to-end. Keep the old `index.html` as `index.legacy.html` until migration is complete.
 - **Priority:** P0
 - **Dependencies:** none
