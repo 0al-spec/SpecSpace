@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** none
+**Current Task:** `CTXB-P2R-B3` — Expand/collapse overwrites user-dragged node positions (P1)
 
 ## Recently Archived
 - `CTXB-P3-T1` — Implement Branch Creation (PASS, 2026-03-24)
