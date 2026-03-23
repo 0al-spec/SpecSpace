@@ -418,6 +418,16 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Node positions are stable across expand/collapse toggles.
   - Positions only update when the API graph data changes (new conversations added/removed).
 
+### CTXB-P2R-B3 — Expand/collapse overwrites user-dragged node positions
+- **Description:** When a user manually drags nodes to rearrange the graph, then expands or collapses any conversation node, all nodes snap back to their dagre-computed positions. Root cause: the `useMemo` in `useGraphData` rebuilds all nodes with `basePositions` (dagre), and `setNodes(graphNodes)` in `App.tsx` replaces the current node array — discarding any position changes applied via `onNodesChange` (drag). Fix: when expand state changes, merge the new node data with existing user-dragged positions instead of replacing them. Only use dagre positions for nodes that have no user-set position yet.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2R-B2
+- **Parallelizable:** yes
+- **Acceptance Criteria:**
+  - Dragging a node to a new position persists across expand/collapse of any node.
+  - Only newly added nodes (from graph refresh) receive dagre-computed positions.
+  - Expanding a node resizes it in place without moving other nodes.
+
 ### ✅ CTXB-P2R-T11 — Route cross-conversation edges to message-level nodes in expanded subflows
 - **Description:** When a conversation is expanded into message sub-nodes, route cross-conversation edges (branch/merge) to the specific message node identified by `parent_message_id` from the API edge data. Currently edges always connect at the conversation/group level even when expanded. React Flow supports edges between child nodes in sub-flows via `parentId`. When both source and target conversations are expanded, edges should connect the exact message nodes. When only one side is expanded, the edge should connect the message node on the expanded side to the conversation node on the collapsed side.
 - **Priority:** P1
@@ -432,7 +442,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
 
 Intent: implement the workflows that mutate graph structure safely and let the user mark a concrete line of reasoning as the target for context compilation.
 
-### CTXB-P3-T1 — Implement branch creation from any checkpoint
+### ✅ CTXB-P3-T1 — Implement branch creation from any checkpoint
 - **Description:** Add the UI and API workflow that creates a new conversation file from a selected checkpoint while preserving the exact parent conversation and parent message identifiers.
 - **Priority:** P0
 - **Dependencies:** CTXB-P1-T5, CTXB-P2-T2
@@ -487,6 +497,91 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - Deleted or modified files update the graph and current selection safely.
   - The implementation satisfies PRD FR-10 and NFR-8.
 
+### CTXB-P3-T6 — Add message authoring to conversations
+- **Description:** Let the user add messages to an existing conversation via the inspector. The user provides role and content (paste or type). Messages are appended and persisted via `POST /api/file` with `overwrite: true`. Each new message gets a deterministic `message_id`.
+- **Priority:** P1
+- **Dependencies:** CTXB-P3-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** message authoring UI in inspector overlay, message ID generation logic, authoring tests
+- **Acceptance Criteria:**
+  - A user can add a message (role + content) to any conversation from the inspector.
+  - The message is persisted to the conversation file and appears after graph refresh.
+  - Each added message receives a unique, deterministic `message_id`.
+  - Validation errors are surfaced to the user.
+
+### CTXB-P3-T7 — Expose delete conversation action in the UI
+- **Description:** Add a delete button to the conversation inspector that calls `DELETE /api/file` and refreshes the graph. Include a confirmation step to prevent accidental deletion.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2-T2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** delete button in inspector overlay, confirmation dialog, delete action tests
+- **Acceptance Criteria:**
+  - A delete button is visible in the conversation inspector.
+  - Clicking it shows a confirmation dialog before proceeding.
+  - On confirm, the file is deleted via the API and the graph refreshes without the removed node.
+  - Child conversations with lineage references to the deleted conversation show broken edges.
+
+### CTXB-P3-T8 — Reorder messages within a conversation
+- **Description:** Allow the user to change the linear order of messages inside a conversation. The inspector shows drag handles or move-up/move-down controls on each message. Reordering updates the `messages` array and persists via `POST /api/file` with `overwrite: true`. Cross-conversation edges that reference moved `message_id` values remain valid because IDs don't change — only array position does.
+- **Priority:** P2
+- **Dependencies:** CTXB-P3-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** message reorder UI in inspector, array mutation logic, reorder tests
+- **Acceptance Criteria:**
+  - A user can move a message up or down within the same conversation.
+  - The reordered array is persisted and survives a graph refresh.
+  - Existing lineage edges referencing any reordered message remain resolved.
+
+### CTXB-P3-T9 — Move messages between conversations
+- **Description:** Allow the user to move (cut + paste) a message from one conversation to another. The source conversation loses the message and the target conversation gains it. If the moved message was a lineage anchor (referenced by a child conversation's parent edge), the edge becomes broken — the UI warns before proceeding. Persists both files atomically.
+- **Priority:** P2
+- **Dependencies:** CTXB-P3-T6, CTXB-P3-T8
+- **Parallelizable:** no
+- **Outputs / Artifacts:** move-message action in inspector, two-file atomic save, broken-edge warning, move tests
+- **Acceptance Criteria:**
+  - A user can move a message from one conversation to another.
+  - Both source and target files are updated and persisted.
+  - If the message is a lineage anchor, the user is warned before the move proceeds.
+  - The graph refreshes showing the updated message locations.
+
+### CTXB-P3-T10 — Duplicate a conversation with its messages
+- **Description:** Add a "Duplicate" action on the conversation inspector that creates a copy of the selected conversation with all its messages. The copy gets a new `conversation_id` and file name, and new `message_id` values for each message. The copy's lineage references the same parents as the original (if any), creating a sibling branch.
+- **Priority:** P2
+- **Dependencies:** CTXB-P3-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** duplicate action in inspector, ID regeneration logic, duplicate tests
+- **Acceptance Criteria:**
+  - A user can duplicate any conversation from the inspector.
+  - The copy has distinct `conversation_id` and `message_id` values.
+  - The copy preserves the same lineage parent references as the original.
+  - The new node appears in the graph as a sibling of the original.
+
+### CTXB-P3-T11 — Copy and paste messages across conversations
+- **Description:** Implement clipboard-style copy/paste for messages. Copying a message stores it in an in-memory clipboard. Paste behavior depends on context: (A) paste with no conversation selected creates a new single-message conversation (a new root with no lineage), (B) paste with a conversation selected inserts the message into that conversation without automatic lineage connections — the user must manually connect it (reorder, set as anchor, etc.).
+- **Priority:** P2
+- **Dependencies:** CTXB-P3-T6, CTXB-P3-T1
+- **Parallelizable:** no
+- **Outputs / Artifacts:** message clipboard state, paste-as-new-conversation logic, paste-into-conversation logic, copy/paste tests
+- **Acceptance Criteria:**
+  - A user can copy a message from the checkpoint inspector.
+  - Pasting with no selection creates a new root conversation containing only the copied message.
+  - Pasting with a conversation selected inserts the message into that conversation without creating lineage edges.
+  - The pasted message gets a new unique `message_id`.
+  - The graph refreshes after each paste operation.
+
+### CTXB-P3-T12 — Connect messages across conversations via branch creation
+- **Description:** Allow the user to connect a message from one conversation to a message in another conversation. Instead of creating a direct message-to-message edge (which would violate the schema) or duplicating entire chains (unpredictable), this action creates a new branch conversation from the source message containing a single copy of the target message with a new `message_id`. The result is a clean, predictable one-node branch that the user can extend. The UI flow: select a checkpoint (source), choose "Connect to…", select a checkpoint in another conversation (target), system creates a new branch from source with a copy of the target message.
+- **Priority:** P2
+- **Dependencies:** CTXB-P3-T1, CTXB-P3-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** cross-conversation connect action in inspector, branch-with-copied-message logic, connect tests
+- **Acceptance Criteria:**
+  - A user can initiate a connection from a checkpoint in one conversation to a checkpoint in another.
+  - The action creates a new branch conversation from the source checkpoint.
+  - The new branch contains one message: a copy of the target checkpoint's content with a new unique `message_id`.
+  - No existing conversations or messages are modified.
+  - The graph refreshes showing the new branch node with a lineage edge from the source.
+
 ## Phase 4: Hyperprompt Export and Compilation Pipeline
 
 Intent: turn the selected branch into actual filesystem artifacts that Hyperprompt can compile, then produce the final continuation-ready Markdown context.
@@ -503,7 +598,7 @@ Intent: turn the selected branch into actual filesystem artifacts that Hyperprom
   - The output satisfies PRD FR-12 and §6.4.
 
 ### CTXB-P4-T2 — Generate a valid Hyperprompt root file for the selected branch
-- **Description:** Build a root `.hc` file that references the exported Markdown nodes in deterministic order and nesting, matching Hyperprompt syntax requirements.
+- **Description:** Build a root `.hc` file that references the exported Markdown nodes in deterministic order and nesting, matching Hyperprompt syntax requirements. For merge conversations, the order of entries in `lineage.parents` determines the emission order of parent lineage chains: the first parent's full chain is referenced first, the second parent's chain second, and so on. The merge conversation's own messages come last. This gives the user direct control over the compiled prompt structure via the parent array order (see PRD §4.4 rule 3 and §6.3).
 - **Priority:** P0
 - **Dependencies:** CTXB-P4-T1
 - **Parallelizable:** no
@@ -511,6 +606,7 @@ Intent: turn the selected branch into actual filesystem artifacts that Hyperprom
 - **Acceptance Criteria:**
   - The `.hc` file references only generated `.md` or `.hc` files inside the export root.
   - The file is valid Hyperprompt syntax with no path traversal or circular structure.
+  - For merge conversations, parent lineage chains appear in the order defined by `lineage.parents`.
   - The generated structure satisfies PRD FR-13 and §6.5.
 
 ### CTXB-P4-T3 — Integrate Hyperprompt compiler invocation

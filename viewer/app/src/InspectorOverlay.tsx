@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import "./InspectorOverlay.css";
+import BranchDialog from "./BranchDialog";
 
 interface ConversationDetail {
   conversation: {
@@ -51,6 +52,7 @@ interface InspectorOverlayProps {
   selectedConversationId: string | null;
   selectedMessageId: string | null;
   onDismiss: () => void;
+  onGraphRefresh: () => void;
 }
 
 const kindLabels: Record<string, string> = {
@@ -66,11 +68,13 @@ export default function InspectorOverlay({
   selectedConversationId,
   selectedMessageId,
   onDismiss,
+  onGraphRefresh,
 }: InspectorOverlayProps) {
   const [convDetail, setConvDetail] = useState<ConversationDetail | null>(null);
   const [checkpointDetail, setCheckpointDetail] =
     useState<CheckpointDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showBranchDialog, setShowBranchDialog] = useState(false);
 
   useEffect(() => {
     if (!selectedConversationId) {
@@ -225,7 +229,26 @@ export default function InspectorOverlay({
               ))}
             </div>
           )}
+
+          <button
+            className="inspector-branch-btn"
+            onClick={() => setShowBranchDialog(true)}
+          >
+            Create Branch
+          </button>
         </>
+      )}
+
+      {showBranchDialog && selectedConversationId && selectedMessageId && (
+        <BranchDialog
+          parentConversationId={selectedConversationId}
+          parentMessageId={selectedMessageId}
+          onCreated={() => {
+            setShowBranchDialog(false);
+            onGraphRefresh();
+          }}
+          onCancel={() => setShowBranchDialog(false)}
+        />
       )}
     </div>
   );

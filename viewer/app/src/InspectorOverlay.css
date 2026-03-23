@@ -146,6 +146,25 @@
   margin-top: 8px;
 }
 
+.inspector-branch-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: Georgia, "Times New Roman", serif;
+  background: var(--branch-line);
+  color: white;
+  border: 1px solid var(--branch-line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.inspector-branch-btn:hover {
+  opacity: 0.9;
+}
+
 .inspector-loading {
   font-size: 14px;
   color: var(--muted);

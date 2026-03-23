@@ -97,8 +97,9 @@ To avoid ambiguity, v1 compile behavior must be deterministic and explicit:
 
 1. Compiling a selected branch includes the ordered lineage path required to continue from the chosen point.
 2. If a selected conversation has merge parents, the compiled context must preserve parent provenance explicitly instead of silently flattening their origin.
-3. The system must not invent content, summarize content, or infer missing links during compilation.
-4. The compiled artifact must be derived only from selected graph data and generated file references.
+3. The order of entries in `lineage.parents` determines compilation order: the first parent's full lineage chain is emitted first, the second parent's chain second, and so on. The merge conversation's own messages come last. This gives the user direct control over the final prompt structure by controlling the array order in the source JSON.
+4. The system must not invent content, summarize content, or infer missing links during compilation.
+5. The compiled artifact must be derived only from selected graph data and generated file references.
 
 ### 4.5 External Dependency
 
@@ -158,6 +159,8 @@ Each parent reference must include:
 1. `conversation_id`
 2. `message_id`
 3. `link_type` with value `branch` or `merge`
+
+The order of entries in `lineage.parents` is significant. For merge conversations, the array order determines the compilation order of parent lineage chains in the final compiled context. The first entry's full chain appears first in the output, the second entry's chain appears second, and so on. This allows the user to control the structure of the compiled prompt by reordering parents.
 
 ### 6.4 Exported Markdown Node Contract
 
