@@ -1,10 +1,11 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P2R-T5` — Migrate sidebar to React component
+**Current Task:** `CTXB-P2R-T6` — Migrate inspector overlay to React component
 - **Priority:** P0
-- **Dependencies:** CTXB-P2R-T1
-- **Branch:** `feature/CTXB-P2R-T5-sidebar-react`
+- **Dependencies:** CTXB-P2R-T4
+- **Branch:** `feature/CTXB-P2R-T6-inspector-react`
 
 ## Recently Archived
 
-- `CTXB-P2R-T4` — Connect graph API data to React Flow (`PASS`, archived 2026-03-23)
+- `CTXB-P2R-T5` — Sidebar React (`PASS`, archived 2026-03-23)
+- `CTXB-P2R-T4` — Graph API Connection (`PASS`, archived 2026-03-23)
