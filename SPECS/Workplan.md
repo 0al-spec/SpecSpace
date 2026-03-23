@@ -331,7 +331,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Layout is computed automatically and avoids overlap.
   - Expanding/collapsing a node triggers re-layout.
 
-### CTXB-P2R-T5 — Migrate sidebar to React component
+### ✅ CTXB-P2R-T5 — Migrate sidebar to React component
 - **Description:** Convert the sidebar (workspace path, file list, refresh/new-file buttons, collapse toggle) from inline HTML+JS to a React component. Preserve all existing interactions: click-to-select, delete with confirmation, sidebar collapse/expand with sessionStorage persistence.
 - **Priority:** P0
 - **Dependencies:** CTXB-P2R-T1
