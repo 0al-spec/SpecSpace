@@ -582,6 +582,19 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - No existing conversations or messages are modified.
   - The graph refreshes showing the new branch node with a lineage edge from the source.
 
+### CTXB-P3-T13 — Apply external lineage manifest to canonicalize imported conversations
+- **Description:** Add a `make canonicalize` command that reads a `lineage.json` manifest (produced by ChatGPTDialogs' `detect_lineage.py`) from a source dialog directory and outputs canonical conversation files with injected `conversation_id` and `lineage` fields into a target directory. This bridges the open-source detection step in ChatGPTDialogs with ContextBuilder's proprietary canonicalization pipeline. The command reads each file listed in the manifest, injects the detected metadata, validates the result against the canonical schema, and writes it to `canonical_json/` (or a user-specified output dir). Files not present in the manifest become explicit roots with a slug-derived `conversation_id`.
+- **Priority:** P1
+- **Dependencies:** CTXB-P1-T1, CTXB-P1-T2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `viewer/canonicalize.py` script, `make canonicalize` Makefile target, canonicalize tests
+- **Acceptance Criteria:**
+  - Running `make canonicalize DIALOG_DIR=… OUTPUT_DIR=…` produces canonical JSON files with `conversation_id` and `lineage` fields for all detected branches.
+  - Files with no parent in the manifest are written as roots with a slug-derived `conversation_id`.
+  - Output files pass the existing schema validation (`CTXB-P1-T1` rules).
+  - The command is idempotent — running it twice on the same inputs produces identical output.
+  - ContextBuilder server can load the output directory and display the full lineage graph with edges.
+
 ## Phase 4: Hyperprompt Export and Compilation Pipeline
 
 Intent: turn the selected branch into actual filesystem artifacts that Hyperprompt can compile, then produce the final continuation-ready Markdown context.
