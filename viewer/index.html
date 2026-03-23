@@ -899,6 +899,16 @@
     const NODE_HEIGHT = 128;
     const NODE_GAP_X = 146;
     const NODE_GAP_Y = 72;
+    const MSG_NODE_HEIGHT = 36;
+    const MSG_NODE_GAP = 8;
+    const MSG_EDGE_GAP = 4;
+    const HEADER_HEIGHT = 32;
+    const SUBFLOW_PAD = 14;
+    const MSG_NODE_WIDTH = NODE_WIDTH - SUBFLOW_PAD * 2;
+
+    function expandedNodeHeight(checkpointCount) {
+      return HEADER_HEIGHT + checkpointCount * (MSG_NODE_HEIGHT + MSG_NODE_GAP) - MSG_NODE_GAP + SUBFLOW_PAD + 28;
+    }
 
     const fileListNode = document.getElementById("fileList");
     const folderStatusNode = document.getElementById("folderStatus");
@@ -1227,23 +1237,30 @@
 
       const positions = new Map();
       const columnDepths = [...columns.keys()].sort((left, right) => left - right);
-      let tallestColumn = 0;
+      let maxColumnHeight = 0;
       columnDepths.forEach((depth) => {
         const column = columns.get(depth) || [];
-        tallestColumn = Math.max(tallestColumn, column.length);
-        column.forEach((node, index) => {
+        let yOffset = 0;
+        column.forEach((node) => {
           positions.set(node.conversation_id, {
             x: depth * (NODE_WIDTH + NODE_GAP_X),
-            y: index * (NODE_HEIGHT + NODE_GAP_Y)
+            y: yOffset
           });
+          const isExpanded = graphState.expandedNodes.has(node.conversation_id);
+          const checkpoints = node.checkpoints || [];
+          const nodeHeight = (isExpanded && checkpoints.length)
+            ? expandedNodeHeight(checkpoints.length)
+            : NODE_HEIGHT;
+          yOffset += nodeHeight + NODE_GAP_Y;
         });
+        maxColumnHeight = Math.max(maxColumnHeight, yOffset - NODE_GAP_Y);
       });
 
       const width = Math.max(
         1120,
         columnDepths.length * NODE_WIDTH + Math.max(0, columnDepths.length - 1) * NODE_GAP_X + 240
       );
-      const height = Math.max(640, tallestColumn * NODE_HEIGHT + Math.max(0, tallestColumn - 1) * NODE_GAP_Y + 220);
+      const height = Math.max(640, maxColumnHeight + 220);
 
       return {
         width,
@@ -1254,12 +1271,19 @@
       };
     }
 
+    function nodeEffectiveHeight(node) {
+      const isExpanded = graphState.expandedNodes.has(node.conversation_id);
+      const checkpoints = node.checkpoints || [];
+      return (isExpanded && checkpoints.length) ? expandedNodeHeight(checkpoints.length) : NODE_HEIGHT;
+    }
+
     function edgeAnchorY(node, edgeId, slotField, position) {
       const ids = node?.[slotField] || [];
       const index = Math.max(0, ids.indexOf(edgeId));
       const spacing = ids.length > 1 ? 18 : 0;
       const totalHeight = spacing * Math.max(0, ids.length - 1);
-      return position.y + NODE_HEIGHT / 2 - totalHeight / 2 + index * spacing;
+      const h = nodeEffectiveHeight(node);
+      return position.y + h / 2 - totalHeight / 2 + index * spacing;
     }
 
     function edgePath(startX, startY, endX, endY) {
@@ -1916,17 +1940,6 @@
         graphStageNode.append(label);
       });
 
-      const MSG_NODE_HEIGHT = 36;
-      const MSG_NODE_GAP = 8;
-      const MSG_EDGE_GAP = 4;
-      const HEADER_HEIGHT = 32;
-      const SUBFLOW_PAD = 14;
-      const MSG_NODE_WIDTH = NODE_WIDTH - SUBFLOW_PAD * 2;
-
-      function expandedNodeHeight(checkpointCount) {
-        return HEADER_HEIGHT + checkpointCount * (MSG_NODE_HEIGHT + MSG_NODE_GAP) - MSG_NODE_GAP + SUBFLOW_PAD + 28;
-      }
-
       function makeExpandToggle(node, y) {
         const isExpanded = graphState.expandedNodes.has(node.conversation_id);
         const toggle = createSvgNode("g", {
@@ -2502,8 +2515,10 @@
       }
 
       const viewportRect = graphViewportNode.getBoundingClientRect();
+      const selectedNode = graphState.layout.nodesById.get(graphState.selectedConversationId);
+      const h = selectedNode ? nodeEffectiveHeight(selectedNode) : NODE_HEIGHT;
       panState.x = Math.round(viewportRect.width / 2 - (position.x + NODE_WIDTH / 2));
-      panState.y = Math.round(viewportRect.height / 2 - (position.y + NODE_HEIGHT / 2));
+      panState.y = Math.round(viewportRect.height / 2 - (position.y + h / 2));
       updateGraphTransform();
     }
 
