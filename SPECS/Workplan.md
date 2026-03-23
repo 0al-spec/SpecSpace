@@ -487,6 +487,30 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - Deleted or modified files update the graph and current selection safely.
   - The implementation satisfies PRD FR-10 and NFR-8.
 
+### CTXB-P3-T6 — Add message authoring to conversations
+- **Description:** Let the user add messages to an existing conversation via the inspector. The user provides role and content (paste or type). Messages are appended and persisted via `POST /api/file` with `overwrite: true`. Each new message gets a deterministic `message_id`.
+- **Priority:** P1
+- **Dependencies:** CTXB-P3-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** message authoring UI in inspector overlay, message ID generation logic, authoring tests
+- **Acceptance Criteria:**
+  - A user can add a message (role + content) to any conversation from the inspector.
+  - The message is persisted to the conversation file and appears after graph refresh.
+  - Each added message receives a unique, deterministic `message_id`.
+  - Validation errors are surfaced to the user.
+
+### CTXB-P3-T7 — Expose delete conversation action in the UI
+- **Description:** Add a delete button to the conversation inspector that calls `DELETE /api/file` and refreshes the graph. Include a confirmation step to prevent accidental deletion.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2-T2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** delete button in inspector overlay, confirmation dialog, delete action tests
+- **Acceptance Criteria:**
+  - A delete button is visible in the conversation inspector.
+  - Clicking it shows a confirmation dialog before proceeding.
+  - On confirm, the file is deleted via the API and the graph refreshes without the removed node.
+  - Child conversations with lineage references to the deleted conversation show broken edges.
+
 ## Phase 4: Hyperprompt Export and Compilation Pipeline
 
 Intent: turn the selected branch into actual filesystem artifacts that Hyperprompt can compile, then produce the final continuation-ready Markdown context.
