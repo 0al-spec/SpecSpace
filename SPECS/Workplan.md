@@ -408,7 +408,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - The expand/collapse button is positioned in the top-right corner of both the collapsed conversation node and the expanded subflow header.
   - Button position does not shift when toggling between collapsed and expanded states.
 
-### CTXB-P2R-B2 — Graph re-layouts entirely when expanding a conversation node
+### ✅ CTXB-P2R-B2 — Graph re-layouts entirely when expanding a conversation node
 - **Description:** Every time a conversation node is expanded or collapsed, the entire graph runs dagre layout again, causing all nodes to jump to new positions. This is disorienting — users lose spatial context. Root cause: the `useMemo` in `useGraphData` that calls `layoutNodes` (dagre) depends on `expandedNodes`, so it re-runs on every toggle. Fix: compute base positions once when `apiGraph` changes and reuse them when expand state changes.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2R-T3
