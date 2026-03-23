@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -6,7 +6,9 @@ import {
   MiniMap,
   useReactFlow,
   ReactFlowProvider,
+  applyNodeChanges,
   type NodeMouseHandler,
+  type NodeChange,
   type Viewport,
   type Node,
 } from "@xyflow/react";
@@ -79,11 +81,23 @@ function FitViewShortcut() {
 }
 
 function AppInner() {
-  const { nodes, edges, loading, error, refresh } = useGraphData();
+  const { nodes: graphNodes, edges, loading, error, refresh } = useGraphData();
+  const [nodes, setNodes] = useState<Node[]>([]);
   const [selectedConversationId, setSelectedConversationId] =
     useSessionString("selected_conversation");
   const [selectedMessageId, setSelectedMessageId] =
     useSessionString("selected_message");
+
+  useEffect(() => {
+    setNodes(graphNodes);
+  }, [graphNodes]);
+
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      setNodes((nds) => applyNodeChanges(changes, nds));
+    },
+    [],
+  );
 
   const savedViewport = useRef(loadViewport());
   const hasFitView = !savedViewport.current;
@@ -147,6 +161,7 @@ function AppInner() {
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
             onNodeClick={onNodeClick}
             onPaneClick={onPaneClick}
             onMoveEnd={onMoveEnd}

@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import type { ConversationNodeData } from "./types";
-import { layoutNodes, expandedNodeHeight } from "./layoutGraph";
+import { layoutNodes, expandedNodeHeight, NODE_WIDTH, NODE_HEIGHT } from "./layoutGraph";
 import { useSessionSet } from "./useSessionState";
 
 const HEADER_HEIGHT = 40;
 const MSG_HEIGHT = 36;
 const MSG_GAP = 16;
 const SUBFLOW_PAD = 14;
+const MSG_NODE_WIDTH = NODE_WIDTH - SUBFLOW_PAD * 2;
 
 interface ApiNode {
   conversation_id: string;
@@ -139,6 +140,7 @@ export function useGraphData() {
             conversationId: apiNode.conversation_id,
             onToggleExpand,
           },
+          style: { width: MSG_NODE_WIDTH, height: HEADER_HEIGHT - 8 },
         });
 
         apiNode.checkpoints.forEach((cp, idx) => {
@@ -158,6 +160,7 @@ export function useGraphData() {
               messageId: cp.message_id,
               index: idx,
             },
+            style: { width: MSG_NODE_WIDTH, height: MSG_HEIGHT },
           });
 
           if (idx > 0) {
@@ -188,6 +191,9 @@ export function useGraphData() {
           type: "conversation",
           position: { x: 0, y: 0 },
           data: nodeData,
+          width: NODE_WIDTH,
+          height: NODE_HEIGHT,
+          style: { width: NODE_WIDTH, height: NODE_HEIGHT },
         });
       }
     }
