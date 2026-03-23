@@ -1,0 +1,109 @@
+.conversation-node {
+  width: 248px;
+  min-height: 128px;
+  border-radius: 24px;
+  padding: 18px;
+  font-family: Georgia, "Times New Roman", serif;
+  color: var(--text);
+  border: 2.5px solid transparent;
+  box-shadow: 0 14px 22px rgba(83, 57, 28, 0.14);
+  position: relative;
+  cursor: pointer;
+}
+
+.conversation-node.root {
+  background: var(--root);
+  border-color: rgba(93, 139, 88, 0.82);
+}
+
+.conversation-node.branch {
+  background: var(--branch);
+  border-color: rgba(78, 104, 155, 0.82);
+}
+
+.conversation-node.merge {
+  background: var(--merge);
+  border-color: rgba(176, 105, 36, 0.82);
+}
+
+.conversation-node.broken {
+  background: #fff4f1;
+  border-color: rgba(181, 65, 49, 0.94);
+}
+
+.conversation-node.selected {
+  border-color: var(--accent-strong);
+  border-width: 4.5px;
+}
+
+.conversation-node-title {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.conversation-node-meta {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.conversation-node-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.conversation-node-filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.conversation-node-warning {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--broken-line);
+}
+
+.conversation-node-expand {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 18px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.conversation-node-expand:hover {
+  background: white;
+  border-color: var(--line-strong);
+}
+
+/* React Flow handle styling */
+.conversation-node .react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--line-strong);
+  border: 2px solid white;
+}

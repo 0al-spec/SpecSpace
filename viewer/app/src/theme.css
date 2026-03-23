@@ -1,0 +1,63 @@
+:root {
+  --bg: #ece3d4;
+  --panel: rgba(255, 250, 242, 0.9);
+  --panel-strong: rgba(255, 247, 236, 0.98);
+  --panel-muted: rgba(246, 236, 221, 0.88);
+  --line: #d4c4ac;
+  --line-strong: #b89f7f;
+  --text: #231b15;
+  --muted: #6d6255;
+  --accent: #915a24;
+  --accent-soft: #f5e0c7;
+  --accent-strong: #6c4012;
+  --root: #d7efd4;
+  --root-line: #5d8b58;
+  --branch: #dbe6ff;
+  --branch-line: #4e689b;
+  --merge: #ffe7cc;
+  --merge-line: #b06924;
+  --broken: #f8d7d1;
+  --broken-line: #b54131;
+  --shadow: 0 22px 50px rgba(76, 51, 28, 0.12);
+  --user: #e5efff;
+  --assistant: #f2e4cf;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.72) 0%, transparent 24%),
+    radial-gradient(circle at top right, rgba(255, 241, 220, 0.58) 0%, transparent 26%),
+    linear-gradient(180deg, #f1e9dc 0%, #e6d9c4 100%);
+}
+
+/* Override React Flow defaults to match our theme */
+.react-flow__edge-path {
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+
+.react-flow__edge-text {
+  font-size: 12px;
+  fill: var(--muted);
+}
+
+.react-flow__controls button {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--text);
+}
+
+.react-flow__controls button:hover {
+  background: #fbf3e7;
+}
+
+.react-flow__background {
+  background: var(--bg);
+}
