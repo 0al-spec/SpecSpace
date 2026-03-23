@@ -588,7 +588,7 @@ Intent: turn the selected branch into actual filesystem artifacts that Hyperprom
   - The output satisfies PRD FR-12 and §6.4.
 
 ### CTXB-P4-T2 — Generate a valid Hyperprompt root file for the selected branch
-- **Description:** Build a root `.hc` file that references the exported Markdown nodes in deterministic order and nesting, matching Hyperprompt syntax requirements.
+- **Description:** Build a root `.hc` file that references the exported Markdown nodes in deterministic order and nesting, matching Hyperprompt syntax requirements. For merge conversations, the order of entries in `lineage.parents` determines the emission order of parent lineage chains: the first parent's full chain is referenced first, the second parent's chain second, and so on. The merge conversation's own messages come last. This gives the user direct control over the compiled prompt structure via the parent array order (see PRD §4.4 rule 3 and §6.3).
 - **Priority:** P0
 - **Dependencies:** CTXB-P4-T1
 - **Parallelizable:** no
@@ -596,6 +596,7 @@ Intent: turn the selected branch into actual filesystem artifacts that Hyperprom
 - **Acceptance Criteria:**
   - The `.hc` file references only generated `.md` or `.hc` files inside the export root.
   - The file is valid Hyperprompt syntax with no path traversal or circular structure.
+  - For merge conversations, parent lineage chains appear in the order defined by `lineage.parents`.
   - The generated structure satisfies PRD FR-13 and §6.5.
 
 ### CTXB-P4-T3 — Integrate Hyperprompt compiler invocation
