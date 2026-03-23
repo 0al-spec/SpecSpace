@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-22
+**Last Updated:** 2026-03-23
 
 ## Archived Tasks
 
@@ -23,6 +23,7 @@
 | CTXB-P2-T10 | [CTXB-P2-T10_Convert_Inspectors_To_Overlay_Panels/](CTXB-P2-T10_Convert_Inspectors_To_Overlay_Panels/) | 2026-03-22 | PASS |
 | CTXB-P2-T11 | [CTXB-P2-T11_Add_Expand_Collapse_Control/](CTXB-P2-T11_Add_Expand_Collapse_Control/) | 2026-03-22 | PASS |
 | CTXB-P2-T12 | [CTXB-P2-T12_Render_Message_Sub_Nodes/](CTXB-P2-T12_Render_Message_Sub_Nodes/) | 2026-03-22 | PASS |
+| CTXB-P2-T13 | [CTXB-P2-T13_Render_Message_Subgraph/](CTXB-P2-T13_Render_Message_Subgraph/) | 2026-03-23 | PASS |
 
 ## Historical Artifacts
 
@@ -68,3 +69,4 @@
 | 2026-03-22 | CTXB-P2-T11 | Archived REVIEW_expand_collapse_control report |
 | 2026-03-22 | CTXB-P2-T12 | Archived Render_Message_Sub_Nodes (PASS) |
 | 2026-03-22 | CTXB-P2-T12 | Archived REVIEW_message_sub_nodes report |
+| 2026-03-23 | CTXB-P2-T13 | Archived Render_Message_Subgraph (PASS) |

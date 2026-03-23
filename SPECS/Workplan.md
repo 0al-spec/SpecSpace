@@ -230,7 +230,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - Collapsing returns the node to its compact size.
   - All existing tests continue to pass.
 
-### CTXB-P2-T13 — Render expanded messages as separate graph nodes with internal edges
+### ✅ CTXB-P2-T13 — Render expanded messages as separate graph nodes with internal edges
 - **Description:** When a conversation node is expanded, replace the inline message labels (from T12) with proper separate SVG node groups for each message. Connect sequential messages with vertical edges (msg1 → msg2 → msg3). A lightweight conversation header shows the title above the message chain. This creates a true subgraph that T14 can route cross-conversation edges into.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2-T12
