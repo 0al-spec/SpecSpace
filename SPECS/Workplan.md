@@ -511,6 +511,54 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - On confirm, the file is deleted via the API and the graph refreshes without the removed node.
   - Child conversations with lineage references to the deleted conversation show broken edges.
 
+### CTXB-P3-T8 — Reorder messages within a conversation
+- **Description:** Allow the user to change the linear order of messages inside a conversation. The inspector shows drag handles or move-up/move-down controls on each message. Reordering updates the `messages` array and persists via `POST /api/file` with `overwrite: true`. Cross-conversation edges that reference moved `message_id` values remain valid because IDs don't change — only array position does.
+- **Priority:** P2
+- **Dependencies:** CTXB-P3-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** message reorder UI in inspector, array mutation logic, reorder tests
+- **Acceptance Criteria:**
+  - A user can move a message up or down within the same conversation.
+  - The reordered array is persisted and survives a graph refresh.
+  - Existing lineage edges referencing any reordered message remain resolved.
+
+### CTXB-P3-T9 — Move messages between conversations
+- **Description:** Allow the user to move (cut + paste) a message from one conversation to another. The source conversation loses the message and the target conversation gains it. If the moved message was a lineage anchor (referenced by a child conversation's parent edge), the edge becomes broken — the UI warns before proceeding. Persists both files atomically.
+- **Priority:** P2
+- **Dependencies:** CTXB-P3-T6, CTXB-P3-T8
+- **Parallelizable:** no
+- **Outputs / Artifacts:** move-message action in inspector, two-file atomic save, broken-edge warning, move tests
+- **Acceptance Criteria:**
+  - A user can move a message from one conversation to another.
+  - Both source and target files are updated and persisted.
+  - If the message is a lineage anchor, the user is warned before the move proceeds.
+  - The graph refreshes showing the updated message locations.
+
+### CTXB-P3-T10 — Duplicate a conversation with its messages
+- **Description:** Add a "Duplicate" action on the conversation inspector that creates a copy of the selected conversation with all its messages. The copy gets a new `conversation_id` and file name, and new `message_id` values for each message. The copy's lineage references the same parents as the original (if any), creating a sibling branch.
+- **Priority:** P2
+- **Dependencies:** CTXB-P3-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** duplicate action in inspector, ID regeneration logic, duplicate tests
+- **Acceptance Criteria:**
+  - A user can duplicate any conversation from the inspector.
+  - The copy has distinct `conversation_id` and `message_id` values.
+  - The copy preserves the same lineage parent references as the original.
+  - The new node appears in the graph as a sibling of the original.
+
+### CTXB-P3-T11 — Copy and paste messages across conversations
+- **Description:** Implement clipboard-style copy/paste for messages. Copying a message stores it in an in-memory clipboard. Paste behavior depends on context: (A) paste with no conversation selected creates a new single-message conversation (a new root with no lineage), (B) paste with a conversation selected inserts the message into that conversation without automatic lineage connections — the user must manually connect it (reorder, set as anchor, etc.).
+- **Priority:** P2
+- **Dependencies:** CTXB-P3-T6, CTXB-P3-T1
+- **Parallelizable:** no
+- **Outputs / Artifacts:** message clipboard state, paste-as-new-conversation logic, paste-into-conversation logic, copy/paste tests
+- **Acceptance Criteria:**
+  - A user can copy a message from the checkpoint inspector.
+  - Pasting with no selection creates a new root conversation containing only the copied message.
+  - Pasting with a conversation selected inserts the message into that conversation without creating lineage edges.
+  - The pasted message gets a new unique `message_id`.
+  - The graph refreshes after each paste operation.
+
 ## Phase 4: Hyperprompt Export and Compilation Pipeline
 
 Intent: turn the selected branch into actual filesystem artifacts that Hyperprompt can compile, then produce the final continuation-ready Markdown context.
