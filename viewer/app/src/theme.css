@@ -61,3 +61,17 @@ body {
 .react-flow__background {
   background: var(--bg);
 }
+
+/* App layout */
+.app-layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
