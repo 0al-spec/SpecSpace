@@ -291,6 +291,118 @@ class GraphApiHttpTests(unittest.TestCase):
         self.assertEqual(payload["conversation_id"], "conv-missing")
 
 
+class BranchCreationApiTests(unittest.TestCase):
+    def test_branch_creation_from_checkpoint_produces_valid_graph_edge(self) -> None:
+        """POST /api/file with a branch payload creates a child node linked to the parent checkpoint."""
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+
+        branch_data = {
+            "conversation_id": "conv-new-branch",
+            "title": "New Branch from Checkpoint",
+            "messages": [],
+            "lineage": {
+                "parents": [
+                    {
+                        "conversation_id": "conv-trust-social-root",
+                        "message_id": "msg-root-2",
+                        "link_type": "branch",
+                    }
+                ]
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+
+            httpd, thread, base_url = start_test_server(dialog_dir)
+
+            try:
+                # Create the branch via API
+                status, payload = request_json(
+                    base_url,
+                    "/api/file",
+                    method="POST",
+                    data={"name": "new-branch.json", "data": branch_data},
+                )
+                self.assertEqual(status, HTTPStatus.OK)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["validation"]["kind"], "canonical-branch")
+
+                # Verify the branch file exists on disk
+                self.assertTrue((dialog_dir / "new-branch.json").exists())
+
+                # Fetch graph and verify the new node and edge
+                status, graph_payload = request_json(base_url, "/api/graph")
+                self.assertEqual(status, HTTPStatus.OK)
+                self.assertEqual(graph_payload["summary"]["node_count"], 2)
+
+                graph = graph_payload["graph"]
+                node_ids = {n["conversation_id"] for n in graph["nodes"]}
+                self.assertIn("conv-new-branch", node_ids)
+                self.assertIn("conv-trust-social-root", node_ids)
+
+                # Verify the edge from root checkpoint to new branch
+                branch_edges = [
+                    e for e in graph["edges"]
+                    if e["child_conversation_id"] == "conv-new-branch"
+                ]
+                self.assertEqual(len(branch_edges), 1)
+                edge = branch_edges[0]
+                self.assertEqual(edge["parent_conversation_id"], "conv-trust-social-root")
+                self.assertEqual(edge["parent_message_id"], "msg-root-2")
+                self.assertEqual(edge["link_type"], "branch")
+                self.assertEqual(edge["status"], "resolved")
+
+                # Verify checkpoint API shows the new child edge
+                status, cp_payload = request_json(
+                    base_url,
+                    "/api/checkpoint?conversation_id=conv-trust-social-root&message_id=msg-root-2",
+                )
+                self.assertEqual(status, HTTPStatus.OK)
+                child_ids = {e["child_conversation_id"] for e in cp_payload["child_edges"]}
+                self.assertIn("conv-new-branch", child_ids)
+            finally:
+                stop_test_server(httpd, thread)
+
+    def test_branch_creation_rejects_duplicate_file_name(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+
+        branch_data = {
+            "conversation_id": "conv-new-branch",
+            "title": "New Branch",
+            "messages": [],
+            "lineage": {
+                "parents": [
+                    {
+                        "conversation_id": "conv-trust-social-root",
+                        "message_id": "msg-root-2",
+                        "link_type": "branch",
+                    }
+                ]
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+
+            httpd, thread, base_url = start_test_server(dialog_dir)
+
+            try:
+                # Try to create a branch with the same filename as the root
+                status, payload = request_json(
+                    base_url,
+                    "/api/file",
+                    method="POST",
+                    data={"name": "root.json", "data": branch_data},
+                )
+                self.assertEqual(status, HTTPStatus.CONFLICT)
+                self.assertEqual(payload["error"], "File already exists")
+            finally:
+                stop_test_server(httpd, thread)
+
+
 class FileApiHttpTests(unittest.TestCase):
     def test_file_api_supports_read_write_delete_and_error_paths(self) -> None:
         root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")

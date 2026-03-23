@@ -1,0 +1,110 @@
+.branch-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(76, 51, 28, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.branch-dialog {
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px;
+  width: 380px;
+  max-width: 90vw;
+  box-shadow: 0 12px 40px rgba(76, 51, 28, 0.18);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.branch-dialog-heading {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--text);
+}
+
+.branch-dialog-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 16px;
+  word-break: break-all;
+}
+
+.branch-dialog-label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.branch-dialog-input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: Georgia, "Times New Roman", serif;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--text);
+  box-sizing: border-box;
+}
+
+.branch-dialog-input:focus {
+  outline: none;
+  border-color: var(--accent-strong);
+}
+
+.branch-dialog-error {
+  font-size: 13px;
+  color: var(--broken-line);
+  background: var(--broken);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+
+.branch-dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.branch-dialog-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-family: Georgia, "Times New Roman", serif;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+}
+
+.branch-dialog-btn.cancel {
+  background: white;
+  color: var(--muted);
+}
+
+.branch-dialog-btn.cancel:hover {
+  background: #fbf3e7;
+}
+
+.branch-dialog-btn.create {
+  background: var(--branch-line);
+  color: white;
+  border-color: var(--branch-line);
+  font-weight: 700;
+}
+
+.branch-dialog-btn.create:hover {
+  opacity: 0.9;
+}
+
+.branch-dialog-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -184,6 +184,7 @@ function AppInner() {
         selectedConversationId={selectedConversationId}
         selectedMessageId={selectedMessageId}
         onDismiss={dismissInspector}
+        onGraphRefresh={refresh}
       />
     </div>
   );
