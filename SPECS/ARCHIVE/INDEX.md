@@ -33,6 +33,7 @@
 | CTXB-P2R-T5 | [CTXB-P2R-T5_Sidebar_React/](CTXB-P2R-T5_Sidebar_React/) | 2026-03-23 | PASS |
 | CTXB-P2R-T6 | [CTXB-P2R-T6_Inspector_React/](CTXB-P2R-T6_Inspector_React/) | 2026-03-23 | PASS |
 | CTXB-P2R-T7 | [CTXB-P2R-T7_Session_Persistence/](CTXB-P2R-T7_Session_Persistence/) | 2026-03-23 | PASS |
+| CTXB-P2R-T8 | [CTXB-P2R-T8_Controls_Minimap/](CTXB-P2R-T8_Controls_Minimap/) | 2026-03-23 | PASS |
 
 ## Historical Artifacts
 
@@ -98,3 +99,4 @@
 | 2026-03-23 | CTXB-P2R-T6 | Archived REVIEW_inspector_react report |
 | 2026-03-23 | CTXB-P2R-T7 | Archived Session_Persistence (PASS) |
 | 2026-03-23 | CTXB-P2R-T7 | Archived REVIEW_session_persistence report |
+| 2026-03-23 | CTXB-P2R-T8 | Archived Controls_Minimap (PASS) |

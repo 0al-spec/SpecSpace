@@ -23,3 +23,7 @@ Add React Flow's built-in `<MiniMap>`, `<Background>` (dot grid), and `<Controls
 
 - `viewer/app/src/App.tsx` — Add MiniMap, keyboard shortcut
 - `viewer/app/src/theme.css` — MiniMap styling overrides
+
+---
+**Archived:** 2026-03-23
+**Verdict:** PASS

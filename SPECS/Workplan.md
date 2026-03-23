@@ -365,7 +365,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Reload restores selected conversation, checkpoint, expanded nodes, and viewport.
   - If referenced objects no longer exist, falls back gracefully.
 
-### CTXB-P2R-T8 — Add React Flow controls: minimap, background, and keyboard shortcuts
+### ✅ CTXB-P2R-T8 — Add React Flow controls: minimap, background, and keyboard shortcuts
 - **Description:** Add React Flow's built-in `<MiniMap>`, `<Background>` (dot grid), and `<Controls>` (zoom in/out/fit) components. Add keyboard shortcut for fit-view (e.g., `F` key). Style to match the existing warm/muted design system.
 - **Priority:** P2
 - **Dependencies:** CTXB-P2R-T4
