@@ -390,7 +390,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - All smoke tests pass against the new viewer.
   - T16 functionality (click message → select checkpoint) is verified.
 
-### CTXB-P2R-B1 — MiniMap does not render graph nodes
+### ✅ CTXB-P2R-B1 — MiniMap does not render graph nodes
 - **Description:** The MiniMap component appears in the bottom-right corner but does not display any node representations inside it. The minimap viewport box is visible but the graph items (conversation nodes, message nodes) are missing.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2R-T8
