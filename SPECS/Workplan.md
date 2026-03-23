@@ -342,7 +342,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Click-to-select, delete with confirmation, and collapse toggle work.
   - Collapse state persists across refresh via sessionStorage.
 
-### CTXB-P2R-T6 — Migrate inspector overlay to React component
+### ✅ CTXB-P2R-T6 — Migrate inspector overlay to React component
 - **Description:** Convert the conversation inspector and checkpoint inspector overlays to React components. Selection-driven visibility: conversation inspector appears when a graph node is selected; checkpoint inspector appears when a checkpoint is selected. Click-on-empty-canvas dismisses both. Preserve lineage navigation buttons (go-to-parent, open-child-conversation).
 - **Priority:** P0
 - **Dependencies:** CTXB-P2R-T4
