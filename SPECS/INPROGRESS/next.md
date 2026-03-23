@@ -1,6 +1,9 @@
 # In Progress Queue
 
-**Current Task:** None — batch T10–T12 complete.
+**Current Task:** `CTXB-P2-T13` — Render expanded messages as separate graph nodes with internal edges
+- **Priority:** P1
+- **Dependencies:** CTXB-P2-T12
+- **Branch:** `feature/CTXB-P2-T13-T15-message-subgraph`
 
 ## Recently Archived
 
@@ -10,10 +13,10 @@
 
 ## Suggested Next Tasks
 
-1. `CTXB-P2-T13` — Reflow graph layout when nodes expand/collapse
-2. `CTXB-P2-T14` — Route edges to message-level anchors
-3. `CTXB-P2-T15` — Click message sub-node to select checkpoint
+1. `CTXB-P2-T13` — Render expanded messages as separate graph nodes with internal edges
+2. `CTXB-P2-T14` — Reflow graph layout for expanded message subgraphs
+3. `CTXB-P2-T15` — Route cross-conversation edges to message-level nodes
 
 ## Next Step
 
-Merge `feature/CTXB-P2-T10-T12-inspector-overlays` into `main`, then continue with T13–T15.
+Complete `CTXB-P2-T13`, then continue with T14–T15.
