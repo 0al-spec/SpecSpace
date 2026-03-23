@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** (none)
+**Current Task:** `CTXB-P3-T13` — Apply external lineage manifest to canonicalize imported conversations (P1)
 
 ## Recently Archived
 - `CTXB-P2R-B3` — Preserve Dragged Positions (PASS, 2026-03-24)
