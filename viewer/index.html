@@ -1888,6 +1888,13 @@
       const { width, height, positions, edgesById, nodesById } = graphState.layout;
       graphCanvasNode.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
+      function messageAnchorY(node, position, messageId) {
+        const checkpoints = node.checkpoints || [];
+        const idx = checkpoints.findIndex((cp) => cp.message_id === messageId);
+        if (idx < 0) return null;
+        return position.y + HEADER_HEIGHT + idx * (MSG_NODE_HEIGHT + MSG_NODE_GAP) + MSG_NODE_HEIGHT / 2;
+      }
+
       (graph.edges || []).forEach((edge) => {
         const childNode = nodesById.get(edge.child_conversation_id);
         const childPosition = positions.get(edge.child_conversation_id);
@@ -1897,14 +1904,30 @@
 
         const parentNode = nodesById.get(edge.parent_conversation_id);
         const parentPosition = positions.get(edge.parent_conversation_id);
-        const endX = childPosition.x;
-        const endY = edgeAnchorY(childNode, edge.edge_id, "parent_edge_ids", childPosition);
 
+        // Child edge endpoint
+        const childExpanded = graphState.expandedNodes.has(edge.child_conversation_id) && (childNode.checkpoints || []).length;
+        const endX = childPosition.x;
+        let endY;
+        if (childExpanded) {
+          // Anchor to first message node in child conversation
+          endY = childPosition.y + HEADER_HEIGHT + MSG_NODE_HEIGHT / 2;
+        } else {
+          endY = edgeAnchorY(childNode, edge.edge_id, "parent_edge_ids", childPosition);
+        }
+
+        // Parent edge endpoint
         let startX = childPosition.x - 84;
         let startY = endY - 28;
         if (parentNode && parentPosition) {
           startX = parentPosition.x + NODE_WIDTH;
-          startY = edgeAnchorY(parentNode, edge.edge_id, "child_edge_ids", parentPosition);
+          const parentExpanded = graphState.expandedNodes.has(edge.parent_conversation_id) && (parentNode.checkpoints || []).length;
+          if (parentExpanded && edge.parent_message_id) {
+            const msgY = messageAnchorY(parentNode, parentPosition, edge.parent_message_id);
+            startY = msgY !== null ? msgY : edgeAnchorY(parentNode, edge.edge_id, "child_edge_ids", parentPosition);
+          } else {
+            startY = edgeAnchorY(parentNode, edge.edge_id, "child_edge_ids", parentPosition);
+          }
         }
 
         const path = createSvgNode("path", {
