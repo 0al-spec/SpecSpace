@@ -377,7 +377,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Zoom controls and fit-view shortcut work.
   - Styling matches the existing design system.
 
-### CTXB-P2R-T9 — Remove legacy viewer and update tests
+### ✅ CTXB-P2R-T9 — Remove legacy viewer and update tests
 - **Description:** Delete `index.legacy.html` (the old single-file viewer). Update smoke tests to validate the new React-based viewer build output. Update the Python server to serve the Vite build output. Ensure `npm run build` produces a production bundle.
 - **Priority:** P0
 - **Dependencies:** CTXB-P2R-T5, CTXB-P2R-T6, CTXB-P2R-T7

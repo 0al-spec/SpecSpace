@@ -30,3 +30,7 @@ Delete the legacy single-file `viewer/index.html` (2747 lines). Update the Pytho
 - `viewer/index.html` (delete)
 - `viewer/server.py` (update static file serving)
 - `tests/test_smoke.py` (rewrite for React viewer)
+
+---
+**Archived:** 2026-03-23
+**Verdict:** PASS
