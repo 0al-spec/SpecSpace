@@ -36,6 +36,7 @@
 | CTXB-P2R-T8 | [CTXB-P2R-T8_Controls_Minimap/](CTXB-P2R-T8_Controls_Minimap/) | 2026-03-23 | PASS |
 | CTXB-P2R-T9 | [CTXB-P2R-T9_Remove_Legacy_Viewer/](CTXB-P2R-T9_Remove_Legacy_Viewer/) | 2026-03-23 | PASS |
 | CTXB-P2R-B1 | [CTXB-P2R-B1_MiniMap_Fix/](CTXB-P2R-B1_MiniMap_Fix/) | 2026-03-24 | PASS |
+| CTXB-P2R-T10 | [CTXB-P2R-T10_Fix_Expand_Button_Position/](CTXB-P2R-T10_Fix_Expand_Button_Position/) | 2026-03-24 | PASS |
 
 ## Historical Artifacts
 
@@ -107,3 +108,4 @@
 | 2026-03-23 | CTXB-P2R-T9 | Archived REVIEW_remove_legacy_viewer report |
 | 2026-03-24 | CTXB-P2R-B1 | Archived MiniMap_Fix (PASS) |
 | 2026-03-24 | CTXB-P2R-B1 | Archived REVIEW_minimap_fix report |
+| 2026-03-24 | CTXB-P2R-T10 | Archived Fix_Expand_Button_Position (PASS) |

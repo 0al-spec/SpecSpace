@@ -399,7 +399,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - The MiniMap renders visible representations of all graph nodes.
   - Node colors match their kind (root=green, branch=blue, merge=orange).
 
-### CTXB-P2R-T10 — Fix expand/collapse button position to top-right corner
+### ✅ CTXB-P2R-T10 — Fix expand/collapse button position to top-right corner
 - **Description:** The expand/collapse toggle button on conversation nodes jumps between bottom-center (collapsed `ConversationNode`) and top-left (expanded `SubflowHeader`). Move it to a consistent top-right position in both states so the control stays in a predictable location when toggling.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2R-T2

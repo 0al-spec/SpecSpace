@@ -1,9 +1,10 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P2R-T10` — Fix expand/collapse button position to top-right corner
-- **Priority:** P2
-- **Dependencies:** CTXB-P2R-T8
-- **Branch:** `feature/CTXB-P2R-T10-expand-button-position`
+**Current Task:** none
 
 ## Recently Archived
+- `CTXB-P2R-T10` — Fix Expand Button Position (PASS, 2026-03-24)
 - `CTXB-P2R-B1` — MiniMap Fix (PASS, 2026-03-24)
+
+## Suggested Next Tasks
+- `CTXB-P2R-T11` — Route cross-conversation edges to message-level nodes in expanded subflows (P2)
