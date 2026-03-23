@@ -390,6 +390,34 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - All smoke tests pass against the new viewer.
   - T16 functionality (click message → select checkpoint) is verified.
 
+### CTXB-P2R-B1 — MiniMap does not render graph nodes
+- **Description:** The MiniMap component appears in the bottom-right corner but does not display any node representations inside it. The minimap viewport box is visible but the graph items (conversation nodes, message nodes) are missing.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2R-T8
+- **Parallelizable:** yes
+- **Acceptance Criteria:**
+  - The MiniMap renders visible representations of all graph nodes.
+  - Node colors match their kind (root=green, branch=blue, merge=orange).
+
+### CTXB-P2R-T10 — Fix expand/collapse button position to top-right corner
+- **Description:** The expand/collapse toggle button on conversation nodes jumps between bottom-center (collapsed `ConversationNode`) and top-left (expanded `SubflowHeader`). Move it to a consistent top-right position in both states so the control stays in a predictable location when toggling.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2R-T2
+- **Parallelizable:** yes
+- **Acceptance Criteria:**
+  - The expand/collapse button is positioned in the top-right corner of both the collapsed conversation node and the expanded subflow header.
+  - Button position does not shift when toggling between collapsed and expanded states.
+
+### CTXB-P2R-T11 — Route cross-conversation edges to message-level nodes in expanded subflows
+- **Description:** When a conversation is expanded into message sub-nodes, route cross-conversation edges (branch/merge) to the specific message node identified by `parent_message_id` from the API edge data. Currently edges always connect at the conversation/group level even when expanded. React Flow supports edges between child nodes in sub-flows via `parentId`. When both source and target conversations are expanded, edges should connect the exact message nodes. When only one side is expanded, the edge should connect the message node on the expanded side to the conversation node on the collapsed side.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2R-T3, CTXB-P2R-T4
+- **Parallelizable:** yes
+- **Acceptance Criteria:**
+  - When a parent conversation is expanded, branch/merge edges originate from the specific message node matching `parent_message_id`.
+  - When collapsed, edges revert to conversation-level anchors.
+  - The visual clearly shows which message is the branch/merge point.
+
 ## Phase 3: Authoring and Compile Target Selection
 
 Intent: implement the workflows that mutate graph structure safely and let the user mark a concrete line of reasoning as the target for context compilation.
