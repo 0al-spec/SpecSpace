@@ -198,13 +198,43 @@ export function useGraphData() {
       }
     }
 
-    // Cross-conversation edges
+    // Build message_id → node_id lookup for expanded conversations
+    const msgToNodeId = new Map<string, string>();
+    for (const apiNode of apiGraph.nodes) {
+      if (expandedNodes.has(apiNode.conversation_id)) {
+        apiNode.checkpoints.forEach((cp, idx) => {
+          msgToNodeId.set(cp.message_id, `${apiNode.conversation_id}-msg-${idx}`);
+        });
+      }
+    }
+
+    // Cross-conversation edges — route to message-level nodes when conversations are expanded
     for (const apiEdge of apiGraph.edges) {
       const isBroken = apiEdge.status === "broken";
+      const isParentExpanded = expandedNodes.has(apiEdge.parent_conversation_id);
+      const isChildExpanded = expandedNodes.has(apiEdge.child_conversation_id);
+
+      // Source: specific message node if parent is expanded and message is known
+      const source = isParentExpanded
+        ? (msgToNodeId.get(apiEdge.parent_message_id) ?? apiEdge.parent_conversation_id)
+        : apiEdge.parent_conversation_id;
+
+      // Target: subflow header node if child is expanded
+      const target = isChildExpanded
+        ? `${apiEdge.child_conversation_id}-header`
+        : apiEdge.child_conversation_id;
+
+      const sourceHandle = isParentExpanded && msgToNodeId.has(apiEdge.parent_message_id)
+        ? "right"
+        : undefined;
+      const targetHandle = isChildExpanded ? "left" : undefined;
+
       allEdges.push({
         id: apiEdge.edge_id,
-        source: apiEdge.parent_conversation_id,
-        target: apiEdge.child_conversation_id,
+        source,
+        target,
+        sourceHandle,
+        targetHandle,
         label: apiEdge.link_type,
         type: "default",
         style: isBroken

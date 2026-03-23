@@ -9,7 +9,7 @@ export default function SubflowHeader({
 }: NodeProps<SubflowHeaderType>) {
   return (
     <div className="subflow-header">
-      <Handle type="target" position={Position.Left} />
+      <Handle type="target" position={Position.Left} id="left" />
       <span className="subflow-header-title">
         {data.title} ({data.kind})
       </span>
@@ -23,7 +23,7 @@ export default function SubflowHeader({
       >
         {"\u25BE"}
       </button>
-      <Handle type="source" position={Position.Right} />
+      <Handle type="source" position={Position.Right} id="right" />
     </div>
   );
 }

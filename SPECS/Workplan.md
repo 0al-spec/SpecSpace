@@ -408,7 +408,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - The expand/collapse button is positioned in the top-right corner of both the collapsed conversation node and the expanded subflow header.
   - Button position does not shift when toggling between collapsed and expanded states.
 
-### CTXB-P2R-T11 — Route cross-conversation edges to message-level nodes in expanded subflows
+### ✅ CTXB-P2R-T11 — Route cross-conversation edges to message-level nodes in expanded subflows
 - **Description:** When a conversation is expanded into message sub-nodes, route cross-conversation edges (branch/merge) to the specific message node identified by `parent_message_id` from the API edge data. Currently edges always connect at the conversation/group level even when expanded. React Flow supports edges between child nodes in sub-flows via `parentId`. When both source and target conversations are expanded, edges should connect the exact message nodes. When only one side is expanded, the edge should connect the message node on the expanded side to the conversation node on the collapsed side.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2R-T3, CTXB-P2R-T4
