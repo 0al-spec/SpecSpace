@@ -418,6 +418,16 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Node positions are stable across expand/collapse toggles.
   - Positions only update when the API graph data changes (new conversations added/removed).
 
+### CTXB-P2R-B3 — Expand/collapse overwrites user-dragged node positions
+- **Description:** When a user manually drags nodes to rearrange the graph, then expands or collapses any conversation node, all nodes snap back to their dagre-computed positions. Root cause: the `useMemo` in `useGraphData` rebuilds all nodes with `basePositions` (dagre), and `setNodes(graphNodes)` in `App.tsx` replaces the current node array — discarding any position changes applied via `onNodesChange` (drag). Fix: when expand state changes, merge the new node data with existing user-dragged positions instead of replacing them. Only use dagre positions for nodes that have no user-set position yet.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2R-B2
+- **Parallelizable:** yes
+- **Acceptance Criteria:**
+  - Dragging a node to a new position persists across expand/collapse of any node.
+  - Only newly added nodes (from graph refresh) receive dagre-computed positions.
+  - Expanding a node resizes it in place without moving other nodes.
+
 ### ✅ CTXB-P2R-T11 — Route cross-conversation edges to message-level nodes in expanded subflows
 - **Description:** When a conversation is expanded into message sub-nodes, route cross-conversation edges (branch/merge) to the specific message node identified by `parent_message_id` from the API edge data. Currently edges always connect at the conversation/group level even when expanded. React Flow supports edges between child nodes in sub-flows via `parentId`. When both source and target conversations are expanded, edges should connect the exact message nodes. When only one side is expanded, the edge should connect the message node on the expanded side to the conversation node on the collapsed side.
 - **Priority:** P1
