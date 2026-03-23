@@ -255,7 +255,7 @@ Intent: replace the flat file-browser mental model with a canvas-based graph exp
   - Cross-conversation edges update to follow the new node positions.
   - All existing tests continue to pass.
 
-### CTXB-P2-T15 — Route cross-conversation edges to message-level nodes
+### ✅ CTXB-P2-T15 — Route cross-conversation edges to message-level nodes
 - **Description:** When a conversation is expanded into message nodes, re-route branch and merge edges so they connect to the specific message node where the fork or join occurs (using the parent `message_id` from the edge data). When collapsed, edges connect at the conversation node level as before.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2-T13
