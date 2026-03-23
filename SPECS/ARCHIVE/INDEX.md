@@ -37,6 +37,7 @@
 | CTXB-P2R-T9 | [CTXB-P2R-T9_Remove_Legacy_Viewer/](CTXB-P2R-T9_Remove_Legacy_Viewer/) | 2026-03-23 | PASS |
 | CTXB-P2R-B1 | [CTXB-P2R-B1_MiniMap_Fix/](CTXB-P2R-B1_MiniMap_Fix/) | 2026-03-24 | PASS |
 | CTXB-P2R-T10 | [CTXB-P2R-T10_Fix_Expand_Button_Position/](CTXB-P2R-T10_Fix_Expand_Button_Position/) | 2026-03-24 | PASS |
+| CTXB-P2R-T11 | [CTXB-P2R-T11_Message_Level_Edge_Routing/](CTXB-P2R-T11_Message_Level_Edge_Routing/) | 2026-03-24 | PASS |
 
 ## Historical Artifacts
 
@@ -110,3 +111,4 @@
 | 2026-03-24 | CTXB-P2R-B1 | Archived REVIEW_minimap_fix report |
 | 2026-03-24 | CTXB-P2R-T10 | Archived Fix_Expand_Button_Position (PASS) |
 | 2026-03-24 | CTXB-P2R-T10 | Archived REVIEW_expand_button_position report |
+| 2026-03-24 | CTXB-P2R-T11 | Archived Message_Level_Edge_Routing (PASS) |
