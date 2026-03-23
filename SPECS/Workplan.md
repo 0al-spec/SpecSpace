@@ -418,7 +418,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Node positions are stable across expand/collapse toggles.
   - Positions only update when the API graph data changes (new conversations added/removed).
 
-### CTXB-P2R-B3 — Expand/collapse overwrites user-dragged node positions
+### CTXB-P2R-B3 — Expand/collapse overwrites user-dragged node positions ✅
 - **Description:** When a user manually drags nodes to rearrange the graph, then expands or collapses any conversation node, all nodes snap back to their dagre-computed positions. Root cause: the `useMemo` in `useGraphData` rebuilds all nodes with `basePositions` (dagre), and `setNodes(graphNodes)` in `App.tsx` replaces the current node array — discarding any position changes applied via `onNodesChange` (drag). Fix: when expand state changes, merge the new node data with existing user-dragged positions instead of replacing them. Only use dagre positions for nodes that have no user-set position yet.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2R-B2

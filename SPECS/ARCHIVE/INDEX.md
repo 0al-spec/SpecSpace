@@ -40,6 +40,7 @@
 | CTXB-P2R-T11 | [CTXB-P2R-T11_Message_Level_Edge_Routing/](CTXB-P2R-T11_Message_Level_Edge_Routing/) | 2026-03-24 | PASS |
 | CTXB-P2R-B2 | [CTXB-P2R-B2_Stable_Layout_On_Expand/](CTXB-P2R-B2_Stable_Layout_On_Expand/) | 2026-03-24 | PASS |
 | CTXB-P3-T1 | [CTXB-P3-T1_Implement_Branch_Creation/](CTXB-P3-T1_Implement_Branch_Creation/) | 2026-03-24 | PASS |
+| CTXB-P2R-B3 | [CTXB-P2R-B3_Preserve_Dragged_Positions/](CTXB-P2R-B3_Preserve_Dragged_Positions/) | 2026-03-24 | PASS |
 
 ## Historical Artifacts
 
@@ -119,3 +120,5 @@
 | 2026-03-24 | CTXB-P2R-B2 | Archived REVIEW_stable_layout report |
 | 2026-03-24 | CTXB-P3-T1 | Archived Implement_Branch_Creation (PASS) |
 | 2026-03-24 | CTXB-P3-T1 | Archived REVIEW_branch_creation report |
+| 2026-03-24 | CTXB-P2R-B3 | Archived Preserve_Dragged_Positions (PASS) |
+| 2026-03-24 | CTXB-P2R-B3 | Archived REVIEW_preserve_dragged_positions report |
