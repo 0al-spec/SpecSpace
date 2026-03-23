@@ -11,9 +11,11 @@ export default function MessageNode({ data }: NodeProps<MessageNodeType>) {
 
   return (
     <div className={`message-node ${roleClass}`}>
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={Position.Top} id="top" />
+      <Handle type="target" position={Position.Left} id="left" />
       <span className="message-node-label">{label}</span>
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="source" position={Position.Bottom} id="bottom" />
+      <Handle type="source" position={Position.Right} id="right" />
     </div>
   );
 }
