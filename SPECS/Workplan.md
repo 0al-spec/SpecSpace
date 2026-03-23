@@ -307,7 +307,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Broken-lineage nodes show warning badge.
   - Expand/collapse toggle is visible and functional.
 
-### CTXB-P2R-T3 — Implement message subflow rendering with React Flow group nodes
+### ✅ CTXB-P2R-T3 — Implement message subflow rendering with React Flow group nodes
 - **Description:** When a conversation node is expanded, render it as a React Flow group (parent) node containing child message nodes. Each message node shows `role | trimmed content` with role-based coloring. Sequential messages are connected by internal edges. Use React Flow's native `parentId` and `extent: 'parent'` for containment.
 - **Priority:** P0
 - **Dependencies:** CTXB-P2R-T2
