@@ -355,7 +355,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Lineage navigation (parent, children) works.
   - Message clicking in the graph selects the checkpoint in the inspector (absorbs T16).
 
-### CTXB-P2R-T7 — Restore session persistence and graph context
+### ✅ CTXB-P2R-T7 — Restore session persistence and graph context
 - **Description:** Persist and restore selected conversation, selected checkpoint, expanded nodes, and viewport position across page reload using sessionStorage. Match the behavior of the legacy implementation.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2R-T4, CTXB-P2R-T6

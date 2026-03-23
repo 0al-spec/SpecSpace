@@ -16,3 +16,7 @@ Persist and restore selected conversation, selected message, expanded nodes, and
 
 1. Reload restores selected conversation, checkpoint, expanded nodes, and viewport.
 2. If referenced objects no longer exist, falls back gracefully.
+
+---
+**Archived:** 2026-03-23
+**Verdict:** PASS
