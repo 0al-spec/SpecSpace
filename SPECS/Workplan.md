@@ -432,7 +432,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
 
 Intent: implement the workflows that mutate graph structure safely and let the user mark a concrete line of reasoning as the target for context compilation.
 
-### CTXB-P3-T1 — Implement branch creation from any checkpoint
+### ✅ CTXB-P3-T1 — Implement branch creation from any checkpoint
 - **Description:** Add the UI and API workflow that creates a new conversation file from a selected checkpoint while preserving the exact parent conversation and parent message identifiers.
 - **Priority:** P0
 - **Dependencies:** CTXB-P1-T5, CTXB-P2-T2
