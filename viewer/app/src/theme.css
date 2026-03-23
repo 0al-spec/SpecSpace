@@ -62,6 +62,12 @@ body {
   background: var(--bg);
 }
 
+.react-flow__minimap {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
 /* App layout */
 .app-layout {
   display: flex;

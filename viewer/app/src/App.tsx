@@ -1,10 +1,14 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   ReactFlow,
   Background,
   Controls,
+  MiniMap,
+  useReactFlow,
+  ReactFlowProvider,
   type NodeMouseHandler,
   type Viewport,
+  type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./theme.css";
@@ -35,7 +39,46 @@ function loadViewport(): Viewport | undefined {
   return undefined;
 }
 
-export default function App() {
+const kindColorMap: Record<string, string> = {
+  root: "#5d8b58",
+  branch: "#4e689b",
+  merge: "#b06924",
+};
+
+function minimapNodeColor(node: Node): string {
+  if (node.type === "group" || node.type === "conversation") {
+    const kind = (node.data as { kind?: string }).kind ?? "";
+    return kindColorMap[kind] ?? "#b89f7f";
+  }
+  if (node.type === "message") {
+    const role = (node.data as { role?: string }).role;
+    return role === "user" ? "#8eaed4" : "#c4a67a";
+  }
+  return "#b89f7f";
+}
+
+function FitViewShortcut() {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (
+        e.key === "f" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
+        fitView({ duration: 300 });
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [fitView]);
+  return null;
+}
+
+function AppInner() {
   const { nodes, edges, loading, error, refresh } = useGraphData();
   const [selectedConversationId, setSelectedConversationId] =
     useSessionString("selected_conversation");
@@ -112,6 +155,13 @@ export default function App() {
           >
             <Background />
             <Controls />
+            <MiniMap
+              nodeColor={minimapNodeColor}
+              maskColor="rgba(236, 227, 212, 0.7)"
+              pannable
+              zoomable
+            />
+            <FitViewShortcut />
           </ReactFlow>
         )}
       </main>
@@ -121,5 +171,13 @@ export default function App() {
         onDismiss={dismissInspector}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ReactFlowProvider>
+      <AppInner />
+    </ReactFlowProvider>
   );
 }
