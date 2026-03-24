@@ -190,7 +190,7 @@ export function useGraphData() {
           kind,
           fileName: apiNode.file_name,
           checkpointCount: apiNode.checkpoint_count,
-          isExpanded: false,
+          isExpanded: expandedNodes.has(apiNode.conversation_id),
           hasBrokenLineage,
           diagnosticCount: apiNode.diagnostics.length,
           onToggleExpand,
@@ -208,10 +208,22 @@ export function useGraphData() {
       }
     }
 
-    // Build message_id → node_id lookup for expanded conversations
+    // "Effectively expanded" = in expandedNodes AND has at least one checkpoint.
+    // Nodes that are toggled expanded but have no checkpoints still render as
+    // ConversationNode (collapsed appearance), so edge routing must not treat
+    // them as group nodes — otherwise targetHandle:"left" references a handle
+    // that does not exist on ConversationNode and ReactFlow drops the edge.
+    const effectivelyExpanded = new Set<string>();
+    for (const apiNode of apiGraph.nodes) {
+      if (expandedNodes.has(apiNode.conversation_id) && apiNode.checkpoints.length > 0) {
+        effectivelyExpanded.add(apiNode.conversation_id);
+      }
+    }
+
+    // Build message_id → node_id lookup for effectively expanded conversations
     const msgToNodeId = new Map<string, string>();
     for (const apiNode of apiGraph.nodes) {
-      if (expandedNodes.has(apiNode.conversation_id)) {
+      if (effectivelyExpanded.has(apiNode.conversation_id)) {
         apiNode.checkpoints.forEach((cp, idx) => {
           msgToNodeId.set(cp.message_id, `${apiNode.conversation_id}-msg-${idx}`);
         });
@@ -221,8 +233,8 @@ export function useGraphData() {
     // Cross-conversation edges — route to message-level nodes when conversations are expanded
     for (const apiEdge of apiGraph.edges) {
       const isBroken = apiEdge.status === "broken";
-      const isParentExpanded = expandedNodes.has(apiEdge.parent_conversation_id);
-      const isChildExpanded = expandedNodes.has(apiEdge.child_conversation_id);
+      const isParentExpanded = effectivelyExpanded.has(apiEdge.parent_conversation_id);
+      const isChildExpanded = effectivelyExpanded.has(apiEdge.child_conversation_id);
 
       // Source: specific message node if parent is expanded; fall back to the
       // expanded group container when message_id is unknown.
