@@ -428,7 +428,7 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Only newly added nodes (from graph refresh) receive dagre-computed positions.
   - Expanding a node resizes it in place without moving other nodes.
 
-### CTXB-P2R-B4 — Cross-conversation edge disappears when both conversations are expanded
+### ✅ CTXB-P2R-B4 — Cross-conversation edge disappears when both conversations are expanded
 - **Description:** When two conversations (e.g. `Агентная_Операционная_Система_-_Pre-Implementation_Balance_Metrics.json` and `Агентная_Операционная_Система_-_SIB_Metrics_Full.json`) are connected via a branch/merge edge, the edge is visible when at least one conversation is collapsed. However, when both conversations are expanded into their message sub-nodes, the edge vanishes entirely. In the broken case, sometimes a stray edge appears from a specific checkpoint message to the first node of the target conversation, suggesting the edge routing logic may be creating or destroying edges at the wrong collapse/expand boundaries. Root cause unknown — likely in `useGraphData` edge-building logic or React Flow's handling of edges crossing parent group boundaries.
 - **Priority:** P1
 - **Dependencies:** CTXB-P2R-B3, CTXB-P2R-T11

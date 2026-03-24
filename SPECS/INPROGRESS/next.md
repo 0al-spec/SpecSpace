@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P2R-B4` — Cross-conversation edge disappears when both conversations are expanded (P1 bug fix)
+**Current Task:** (none)
 
 ## Recently Archived
+- `CTXB-P2R-B4` — Cross-Conversation Edge Disappears (PASS, 2026-03-24)
 - `CTXB-P3-T13` — Apply External Lineage Manifest (PASS, 2026-03-24)
 - `CTXB-P2R-B3` — Preserve Dragged Positions (PASS, 2026-03-24)
 - `CTXB-P3-T1` — Implement Branch Creation (PASS, 2026-03-24)
