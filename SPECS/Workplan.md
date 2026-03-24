@@ -476,7 +476,7 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - The created file includes valid lineage metadata and appears as a child node after reload.
   - Branch creation satisfies PRD FR-4 and Flow B.
 
-### CTXB-P3-T2 — Implement merge conversation creation with multi-parent lineage
+### ✅ CTXB-P3-T2 — Implement merge conversation creation with multi-parent lineage
 - **Description:** Add the workflow that creates a new conversation file referencing two or more parent checkpoints without attempting to synthesize or auto-merge message bodies.
 - **Priority:** P0
 - **Dependencies:** CTXB-P1-T5, CTXB-P2-T2

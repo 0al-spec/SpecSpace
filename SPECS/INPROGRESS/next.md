@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P3-T2` — Implement merge conversation creation with multi-parent lineage (P0)
+**Current Task:** (none)
 
 ## Recently Archived
+- `CTXB-P3-T2` — Implement merge conversation creation with multi-parent lineage (PASS, 2026-03-25)
 - `CTXB-P2R-B5` — Message node title is draggable and shows sockets; overlapped by message node; collapse button floats (PASS, 2026-03-24)
 - `CTXB-P2R-B4` — Cross-Conversation Edge Disappears (PASS, 2026-03-24)
 - `CTXB-P3-T13` — Apply External Lineage Manifest (PASS, 2026-03-24)
