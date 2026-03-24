@@ -26,6 +26,20 @@ class ContextBuilderSmokeTests(unittest.TestCase):
         self.assertTrue((app_src / "useGraphData.ts").is_file())
         self.assertTrue((app_src / "useSessionState.ts").is_file())
 
+    def test_expanded_subflow_title_is_decorative_not_a_node(self) -> None:
+        app_src = REPO_ROOT / "viewer" / "app" / "src"
+        app_tsx = (app_src / "App.tsx").read_text()
+        use_graph_data = (app_src / "useGraphData.ts").read_text()
+        subflow_header = (app_src / "SubflowHeader.tsx").read_text()
+        subflow_header_css = (app_src / "SubflowHeader.css").read_text()
+
+        self.assertIn("group:", app_tsx)
+        self.assertNotIn("subflowHeader:", app_tsx)
+        self.assertNotIn('type: "subflowHeader"', use_graph_data)
+        self.assertNotIn("Handle", subflow_header)
+        self.assertNotIn(".react-flow__handle", subflow_header_css)
+        self.assertNotIn("top: 50%", subflow_header_css)
+
     def test_react_app_has_sidebar_and_inspector(self) -> None:
         app_src = REPO_ROOT / "viewer" / "app" / "src"
         self.assertTrue((app_src / "Sidebar.tsx").is_file())

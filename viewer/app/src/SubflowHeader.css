@@ -2,14 +2,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 36px 4px 8px;
+  min-height: 28px;
+  padding: 6px 36px 6px 8px;
   position: relative;
-}
-
-.subflow-header .conversation-node-expand {
-  top: 50%;
-  right: 6px;
-  transform: translateY(-50%);
 }
 
 .subflow-header-title {
@@ -18,11 +13,4 @@
   text-transform: uppercase;
   color: var(--muted);
   font-family: Georgia, "Times New Roman", serif;
-}
-
-.subflow-header .react-flow__handle {
-  width: 8px;
-  height: 8px;
-  background: var(--line-strong);
-  border: 2px solid white;
 }

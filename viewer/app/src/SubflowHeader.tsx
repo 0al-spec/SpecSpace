@@ -1,15 +1,13 @@
-import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { SubflowHeaderData } from "./types";
-import type { Node } from "@xyflow/react";
+import "./SubflowHeader.css";
 
-type SubflowHeaderType = Node<SubflowHeaderData, "subflowHeader">;
+interface SubflowHeaderProps {
+  data: SubflowHeaderData;
+}
 
-export default function SubflowHeader({
-  data,
-}: NodeProps<SubflowHeaderType>) {
+export default function SubflowHeader({ data }: SubflowHeaderProps) {
   return (
     <div className="subflow-header">
-      <Handle type="target" position={Position.Left} id="left" />
       <span className="subflow-header-title">
         {data.title} ({data.kind})
       </span>
@@ -23,7 +21,6 @@ export default function SubflowHeader({
       >
         {"\u25BE"}
       </button>
-      <Handle type="source" position={Position.Right} id="right" />
     </div>
   );
 }

@@ -24,6 +24,11 @@ export interface SubflowHeaderData extends Record<string, unknown> {
   onToggleExpand: (conversationId: string) => void;
 }
 
+export interface ExpandedConversationGroupData extends SubflowHeaderData {
+  hasBrokenLineage: boolean;
+  diagnosticCount: number;
+}
+
 export interface Checkpoint {
   message_id: string;
   role: string;

@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Node, Edge } from "@xyflow/react";
-import type { ConversationNodeData } from "./types";
+import type {
+  ConversationNodeData,
+  ExpandedConversationGroupData,
+} from "./types";
 import { computeBasePositions, expandedNodeHeight, NODE_WIDTH, NODE_HEIGHT } from "./layoutGraph";
 import { useSessionSet } from "./useSessionState";
 
@@ -126,11 +129,20 @@ export function useGraphData() {
         const groupWidth = 248;
         const basePos = basePositions.get(apiNode.conversation_id) ?? { x: 0, y: 0 };
 
+        const groupData: ExpandedConversationGroupData = {
+          title: apiNode.title,
+          kind,
+          conversationId: apiNode.conversation_id,
+          onToggleExpand,
+          hasBrokenLineage,
+          diagnosticCount: apiNode.diagnostics.length,
+        };
+
         allNodes.push({
           id: apiNode.conversation_id,
           type: "group",
           position: basePos,
-          data: {},
+          data: groupData,
           style: {
             width: groupWidth,
             height: contentHeight,
@@ -139,21 +151,6 @@ export function useGraphData() {
             borderRadius: 16,
             padding: 0,
           },
-        });
-
-        allNodes.push({
-          id: `${apiNode.conversation_id}-header`,
-          type: "subflowHeader",
-          position: { x: SUBFLOW_PAD, y: 4 },
-          parentId: apiNode.conversation_id,
-          extent: "parent" as const,
-          data: {
-            title: apiNode.title,
-            kind: apiNode.kind,
-            conversationId: apiNode.conversation_id,
-            onToggleExpand,
-          },
-          style: { width: MSG_NODE_WIDTH, height: HEADER_HEIGHT - 8 },
         });
 
         apiNode.checkpoints.forEach((cp, idx) => {
@@ -227,22 +224,22 @@ export function useGraphData() {
       const isParentExpanded = expandedNodes.has(apiEdge.parent_conversation_id);
       const isChildExpanded = expandedNodes.has(apiEdge.child_conversation_id);
 
-      // Source: specific message node if parent is expanded; fall back to header
-      // (not the group node, which has no handles) when message_id is unknown.
+      // Source: specific message node if parent is expanded; fall back to the
+      // expanded group container when message_id is unknown.
       let source: string;
       let sourceHandle: string | undefined;
       if (isParentExpanded) {
         source = msgToNodeId.get(apiEdge.parent_message_id)
-          ?? `${apiEdge.parent_conversation_id}-header`;
+          ?? apiEdge.parent_conversation_id;
         sourceHandle = "right";
       } else {
         source = apiEdge.parent_conversation_id;
         sourceHandle = undefined;
       }
 
-      // Target: subflow header node if child is expanded
+      // Target: expanded group container if child is expanded
       const target = isChildExpanded
-        ? `${apiEdge.child_conversation_id}-header`
+        ? apiEdge.child_conversation_id
         : apiEdge.child_conversation_id;
       const targetHandle = isChildExpanded ? "left" : undefined;
 

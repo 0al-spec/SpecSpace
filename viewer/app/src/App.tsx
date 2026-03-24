@@ -16,10 +16,9 @@ import "@xyflow/react/dist/style.css";
 import "./theme.css";
 import "./ConversationNode.css";
 import "./MessageNode.css";
-import "./SubflowHeader.css";
 import ConversationNode from "./ConversationNode";
+import ExpandedConversationNode from "./ExpandedConversationNode";
 import MessageNode from "./MessageNode";
-import SubflowHeader from "./SubflowHeader";
 import Sidebar from "./Sidebar";
 import InspectorOverlay from "./InspectorOverlay";
 import { useGraphData } from "./useGraphData";
@@ -27,8 +26,8 @@ import { useSessionString } from "./useSessionState";
 
 const nodeTypes = {
   conversation: ConversationNode,
+  group: ExpandedConversationNode,
   message: MessageNode,
-  subflowHeader: SubflowHeader,
 };
 
 function loadViewport(): Viewport | undefined {
@@ -128,10 +127,6 @@ function AppInner() {
         const convId = node.parentId || null;
         setSelectedConversationId(convId);
         setSelectedMessageId(msgData.messageId || null);
-      } else if (node.type === "subflowHeader") {
-        const headerData = node.data as { conversationId?: string };
-        setSelectedConversationId(headerData.conversationId || null);
-        setSelectedMessageId(null);
       }
     },
     [setSelectedConversationId, setSelectedMessageId],
