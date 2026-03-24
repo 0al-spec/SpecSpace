@@ -50,6 +50,7 @@
 | Folder | Description |
 |--------|-------------|
 | [_Historical/](_Historical/) | Non-task artifacts (reviews, reports) |
+| [REVIEW_message_title_decorator.md](_Historical/REVIEW_message_title_decorator.md) | Message title decorator review report |
 
 ## Archive Log
 
