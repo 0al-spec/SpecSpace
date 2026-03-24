@@ -227,19 +227,23 @@ export function useGraphData() {
       const isParentExpanded = expandedNodes.has(apiEdge.parent_conversation_id);
       const isChildExpanded = expandedNodes.has(apiEdge.child_conversation_id);
 
-      // Source: specific message node if parent is expanded and message is known
-      const source = isParentExpanded
-        ? (msgToNodeId.get(apiEdge.parent_message_id) ?? apiEdge.parent_conversation_id)
-        : apiEdge.parent_conversation_id;
+      // Source: specific message node if parent is expanded; fall back to header
+      // (not the group node, which has no handles) when message_id is unknown.
+      let source: string;
+      let sourceHandle: string | undefined;
+      if (isParentExpanded) {
+        source = msgToNodeId.get(apiEdge.parent_message_id)
+          ?? `${apiEdge.parent_conversation_id}-header`;
+        sourceHandle = "right";
+      } else {
+        source = apiEdge.parent_conversation_id;
+        sourceHandle = undefined;
+      }
 
       // Target: subflow header node if child is expanded
       const target = isChildExpanded
         ? `${apiEdge.child_conversation_id}-header`
         : apiEdge.child_conversation_id;
-
-      const sourceHandle = isParentExpanded && msgToNodeId.has(apiEdge.parent_message_id)
-        ? "right"
-        : undefined;
       const targetHandle = isChildExpanded ? "left" : undefined;
 
       allEdges.push({
@@ -250,6 +254,7 @@ export function useGraphData() {
         targetHandle,
         label: apiEdge.link_type,
         type: "default",
+        zIndex: 1,
         style: isBroken
           ? { stroke: "var(--broken-line)", strokeDasharray: "6 3", strokeWidth: 2 }
           : { stroke: "var(--line-strong)", strokeWidth: 2 },
