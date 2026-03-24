@@ -10,7 +10,7 @@
     {
       "name": "Python API",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["viewer/server.py", "--port", "8001", "--dialog-dir", "./real_examples/canonical_json"],
+      "runtimeArgs": ["viewer/server.py", "--port", "8001", "--dialog-dir", "/tmp/canonical_json"],
       "port": 8001
     }
   ]
