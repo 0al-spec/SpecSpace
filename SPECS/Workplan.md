@@ -487,6 +487,17 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - The created file records every parent reference deterministically.
   - The resulting node renders with multiple inbound edges and no implicit transcript synthesis.
 
+### ✅ CTXB-P3-B1 — Expanding an empty merge node hides parent edges
+- **Description:** When a user creates a merge conversation (which starts with empty `messages`) and clicks its expand button, the edges from both parent conversations to this merge node disappear from the canvas.
+- **Priority:** P1
+- **Dependencies:** CTXB-P3-T2, CTXB-P2R-T11
+- **Parallelizable:** yes
+- **Acceptance Criteria:**
+  - Expanding an empty merge node keeps all inbound parent edges visible and correctly anchored.
+  - Collapsing the same node restores conversation-level edge anchors without data loss.
+  - The fix covers both the two-parent case and any future n-parent merge nodes.
+  - All existing tests continue to pass.
+
 ### CTXB-P3-T3 — Define the compile target model and export workspace layout
 - **Description:** Specify what a selected branch means for compilation, how merge parents are represented, and where generated export artifacts are written on disk.
 - **Priority:** P0
