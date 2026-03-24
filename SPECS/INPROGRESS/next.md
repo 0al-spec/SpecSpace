@@ -13,5 +13,6 @@
 - `CTXB-P2R-T11` — Message-Level Edge Routing (PASS, 2026-03-24)
 
 ## Suggested Next Tasks
+- `CTXB-P3-B1` — Expanding an empty merge node hides parent edges (P1)
 - `CTXB-P3-T6` — Message Authoring (P1)
 - `CTXB-P3-T7` — Delete Conversation UI (P1)
