@@ -68,3 +68,7 @@ If the node-construction logic is easiest to test after extraction, extract the 
 - Update only the workflow artifacts needed for completion: the validation report now, then archive bookkeeping after the task passes.
 - No product documentation outside `SPECS/` is expected to change for this task.
 - Preserve the current graph API and backend tests; this is a frontend rendering refactor, not a data-contract change.
+
+---
+**Archived:** 2026-03-24
+**Verdict:** PASS

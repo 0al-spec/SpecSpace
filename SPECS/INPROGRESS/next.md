@@ -1,15 +1,17 @@
-# Next Task: CTXB-P2R-B5 — Message node title is draggable and shows sockets; overlapped by message node; collapse button floats
+# In Progress Queue
 
-**Priority:** P1
-**Phase:** Phase 2R: React Flow refinements
-**Effort:** 4h
-**Dependencies:** CTXB-P2R-T3, CTXB-P2R-T4
-**Status:** Selected
+**Current Task:** (none)
 
-## Description
+## Recently Archived
+- `CTXB-P2R-B5` — Message node title is draggable and shows sockets; overlapped by message node; collapse button floats (PASS, 2026-03-24)
+- `CTXB-P2R-B4` — Cross-Conversation Edge Disappears (PASS, 2026-03-24)
+- `CTXB-P3-T13` — Apply External Lineage Manifest (PASS, 2026-03-24)
+- `CTXB-P2R-B3` — Preserve Dragged Positions (PASS, 2026-03-24)
+- `CTXB-P3-T1` — Implement Branch Creation (PASS, 2026-03-24)
+- `CTXB-P2R-B2` — Stable Layout on Expand (PASS, 2026-03-24)
+- `CTXB-P2R-T11` — Message-Level Edge Routing (PASS, 2026-03-24)
 
-The title inside an expanded message subflow currently behaves like an interactive node, which makes it draggable, shows sockets, and visually collides with the first real message node. The expand/collapse control also floats with the sub-node instead of staying attached to the conversation header. The title should be rendered as a passive decorator so it stays lightweight and does not participate in graph interactions.
-
-## Next Step
-
-Run the PLAN command to generate the implementation-ready PRD.
+## Suggested Next Tasks
+- `CTXB-P3-T2` — Implement merge conversation creation with multi-parent lineage (P0)
+- `CTXB-P3-T6` — Message Authoring (P1)
+- `CTXB-P3-T7` — Delete Conversation UI (P1)
