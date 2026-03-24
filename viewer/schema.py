@@ -6,7 +6,7 @@ import copy
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypedDict
 
 
 IMPORTED_ROOT_REQUIRED_FIELDS = (
@@ -72,6 +72,25 @@ class FileValidationReport:
     kind: str
     normalized: dict[str, Any] | None
     errors: tuple[NormalizationError, ...] = ()
+
+
+class CompileTargetPayload(TypedDict, total=False):
+    """Serialized compile-target payload returned by the conversation and checkpoint APIs."""
+
+    scope: str                                   # "conversation" | "checkpoint"
+    target_conversation_id: str
+    target_message_id: str | None                # present for checkpoint scope
+    target_kind: str                             # "root" | "branch" | "merge"
+    lineage_conversation_ids: list[str]          # ordered oldest-first
+    lineage_edge_ids: list[str]                  # sorted
+    lineage_paths: list[list[str]]               # sorted paths to roots
+    root_conversation_ids: list[str]             # sorted
+    merge_parent_conversation_ids: list[str]     # sorted
+    unresolved_parent_edge_ids: list[str]        # sorted
+    is_lineage_complete: bool
+    export_dir: str                              # absolute path for export artifacts
+    target_checkpoint_index: int                 # present for checkpoint scope
+    target_checkpoint_role: str                  # present for checkpoint scope
 
 
 def _is_mapping(value: Any) -> bool:

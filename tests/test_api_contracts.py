@@ -172,6 +172,40 @@ class GraphApiContractTests(unittest.TestCase):
         self.assertEqual(payload["compile_target"]["lineage_paths"], [["conv-trust-social-root"]])
         self.assertTrue(payload["compile_target"]["is_lineage_complete"])
 
+    def test_compile_target_includes_export_dir_conversation_scope(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        branch_payload = load_json(CANONICAL_FIXTURES / "branch_conversation.json")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload, "branch.json": branch_payload})
+
+            status, payload = server.collect_conversation_api(
+                dialog_dir,
+                "conv-trust-social-branding-branch",
+            )
+
+        self.assertEqual(status, HTTPStatus.OK)
+        expected_export_dir = str(dialog_dir / "export" / "conv-trust-social-branding-branch")
+        self.assertEqual(payload["compile_target"]["export_dir"], expected_export_dir)
+
+    def test_compile_target_includes_export_dir_checkpoint_scope(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+
+            status, payload = server.collect_checkpoint_api(
+                dialog_dir,
+                "conv-trust-social-root",
+                "msg-root-2",
+            )
+
+        self.assertEqual(status, HTTPStatus.OK)
+        expected_export_dir = str(dialog_dir / "export" / "conv-trust-social-root--msg-root-2")
+        self.assertEqual(payload["compile_target"]["export_dir"], expected_export_dir)
+
     def test_collect_checkpoint_api_returns_sibling_edges_for_lineage_navigation(self) -> None:
         """Verify that a parent checkpoint exposes all child edges as siblings for lineage navigation."""
         root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")

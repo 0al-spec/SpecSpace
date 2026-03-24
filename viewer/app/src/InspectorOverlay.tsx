@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import "./InspectorOverlay.css";
 import BranchDialog from "./BranchDialog";
 import MergeDialog from "./MergeDialog";
+import type { CompileTarget } from "./types";
 
 interface ConversationDetail {
   conversation: {
@@ -14,11 +15,7 @@ interface ConversationDetail {
   };
   parent_edges: EdgeEntry[];
   child_edges: EdgeEntry[];
-  compile_target: {
-    lineage_paths: string[][];
-    root_conversation_ids: string[];
-    is_lineage_complete: boolean;
-  };
+  compile_target: CompileTarget;
 }
 
 interface CheckpointEntry {
@@ -145,6 +142,11 @@ export default function InspectorOverlay({
             <div className="inspector-lineage-meta">
               Source file: {conv.file_name}
             </div>
+            {convDetail?.compile_target?.export_dir && (
+              <div className="inspector-lineage-meta">
+                Export: <code>{convDetail.compile_target.export_dir}</code>
+              </div>
+            )}
           </div>
 
           {/* Parent edges */}

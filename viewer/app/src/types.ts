@@ -34,3 +34,20 @@ export interface Checkpoint {
   role: string;
   content: string;
 }
+
+export interface CompileTarget {
+  scope: "conversation" | "checkpoint";
+  target_conversation_id: string;
+  target_message_id: string | null;
+  target_kind: "root" | "branch" | "merge";
+  lineage_conversation_ids: string[];
+  lineage_edge_ids: string[];
+  lineage_paths: string[][];
+  root_conversation_ids: string[];
+  merge_parent_conversation_ids: string[];
+  unresolved_parent_edge_ids: string[];
+  is_lineage_complete: boolean;
+  export_dir: string;
+  target_checkpoint_index?: number;
+  target_checkpoint_role?: string;
+}

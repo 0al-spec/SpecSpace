@@ -432,6 +432,7 @@ def build_compile_target(
     conversation_id: str,
     *,
     scope: str,
+    dialog_dir: Path,
     target_message_id: str | None = None,
     checkpoint: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -468,6 +469,12 @@ def build_compile_target(
             if edge_id in edges_by_id and edges_by_id[edge_id]["link_type"] == "merge"
         }
     )
+    if target_message_id is not None:
+        export_subdir = f"{conversation_id}--{target_message_id}"
+    else:
+        export_subdir = conversation_id
+    export_dir = str(dialog_dir / "export" / export_subdir)
+
     payload = {
         "scope": scope,
         "target_conversation_id": conversation_id,
@@ -480,6 +487,7 @@ def build_compile_target(
         "merge_parent_conversation_ids": merge_parent_conversation_ids,
         "unresolved_parent_edge_ids": sorted(unresolved_parent_edge_ids),
         "is_lineage_complete": not unresolved_parent_edge_ids,
+        "export_dir": export_dir,
     }
     if checkpoint is not None:
         payload["target_checkpoint_index"] = checkpoint["index"]
@@ -531,7 +539,7 @@ def collect_conversation_api(dialog_dir: Path, conversation_id: str) -> tuple[in
         "conversation": node,
         "parent_edges": parent_edges,
         "child_edges": child_edges,
-        "compile_target": build_compile_target(graph, conversation_id, scope="conversation"),
+        "compile_target": build_compile_target(graph, conversation_id, scope="conversation", dialog_dir=dialog_dir),
         "integrity": collect_related_diagnostics(node, parent_edges, child_edges),
     }
 
@@ -583,6 +591,7 @@ def collect_checkpoint_api(dialog_dir: Path, conversation_id: str, message_id: s
             graph,
             conversation_id,
             scope="checkpoint",
+            dialog_dir=dialog_dir,
             target_message_id=message_id,
             checkpoint=checkpoint,
         ),
