@@ -428,6 +428,17 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Only newly added nodes (from graph refresh) receive dagre-computed positions.
   - Expanding a node resizes it in place without moving other nodes.
 
+### CTXB-P2R-B4 — Cross-conversation edge disappears when both conversations are expanded
+- **Description:** When two conversations (e.g. `Агентная_Операционная_Система_-_Pre-Implementation_Balance_Metrics.json` and `Агентная_Операционная_Система_-_SIB_Metrics_Full.json`) are connected via a branch/merge edge, the edge is visible when at least one conversation is collapsed. However, when both conversations are expanded into their message sub-nodes, the edge vanishes entirely. In the broken case, sometimes a stray edge appears from a specific checkpoint message to the first node of the target conversation, suggesting the edge routing logic may be creating or destroying edges at the wrong collapse/expand boundaries. Root cause unknown — likely in `useGraphData` edge-building logic or React Flow's handling of edges crossing parent group boundaries.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2R-B3, CTXB-P2R-T11
+- **Parallelizable:** no
+- **Acceptance Criteria:**
+  - Branch/merge edges remain visible and properly anchored when both source and target conversations are expanded.
+  - When both are collapsed, edges return to conversation-level anchors.
+  - Mixed states (one expanded, one collapsed) show edge connecting message node on expanded side to conversation node on collapsed side.
+  - No stray edges appear during state transitions.
+
 ### ✅ CTXB-P2R-T11 — Route cross-conversation edges to message-level nodes in expanded subflows
 - **Description:** When a conversation is expanded into message sub-nodes, route cross-conversation edges (branch/merge) to the specific message node identified by `parent_message_id` from the API edge data. Currently edges always connect at the conversation/group level even when expanded. React Flow supports edges between child nodes in sub-flows via `parentId`. When both source and target conversations are expanded, edges should connect the exact message nodes. When only one side is expanded, the edge should connect the message node on the expanded side to the conversation node on the collapsed side.
 - **Priority:** P1
