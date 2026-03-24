@@ -190,3 +190,7 @@ Fill in `CTXB-P3-T3_Validation_Report.md` with results.
 - `CompileTargetPayload` is a TypedDict, not a dataclass, to match the dict-returning style used throughout `server.py`.
 - The `--` separator in checkpoint scope directory names avoids `/` which would require nested directory creation.
 - Workplan: mark CTXB-P3-T3 ✅ after archive.
+
+---
+**Archived:** 2026-03-25
+**Verdict:** PASS

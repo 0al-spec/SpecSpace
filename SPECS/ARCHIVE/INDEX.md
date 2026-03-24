@@ -46,6 +46,7 @@
 | CTXB-P2R-B5 | [CTXB-P2R-B5_Message_Node_Title_Is_Draggable_And_Shows_Sockets_Overlapped_By_Message_Node_Collapse_Button_Floats/](CTXB-P2R-B5_Message_Node_Title_Is_Draggable_And_Shows_Sockets_Overlapped_By_Message_Node_Collapse_Button_Floats/) | 2026-03-24 | PASS |
 | CTXB-P3-T2 | [CTXB-P3-T2_Implement_merge_conversation_creation_with_multi-parent_lineage/](CTXB-P3-T2_Implement_merge_conversation_creation_with_multi-parent_lineage/) | 2026-03-25 | PASS |
 | CTXB-P3-B1 | [CTXB-P3-B1_Expanding_an_empty_merge_node_hides_parent_edges/](CTXB-P3-B1_Expanding_an_empty_merge_node_hides_parent_edges/) | 2026-03-25 | PASS |
+| CTXB-P3-T3 | [CTXB-P3-T3_Define_The_Compile_Target_Model_And_Export_Workspace_Layout/](CTXB-P3-T3_Define_The_Compile_Target_Model_And_Export_Workspace_Layout/) | 2026-03-25 | PASS |
 
 ## Historical Artifacts
 
@@ -139,3 +140,4 @@
 | 2026-03-25 | CTXB-P3-T2 | Archived REVIEW_merge_conversation_creation report |
 | 2026-03-25 | CTXB-P3-B1 | Archived Expanding_an_empty_merge_node_hides_parent_edges (PASS) |
 | 2026-03-25 | CTXB-P3-B1 | Archived REVIEW_expand_empty_merge_edges report |
+| 2026-03-25 | CTXB-P3-T3 | Archived Define_The_Compile_Target_Model_And_Export_Workspace_Layout (PASS) |

@@ -498,7 +498,7 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - The fix covers both the two-parent case and any future n-parent merge nodes.
   - All existing tests continue to pass.
 
-### CTXB-P3-T3 — Define the compile target model and export workspace layout
+### ✅ CTXB-P3-T3 — Define the compile target model and export workspace layout
 - **Description:** Specify what a selected branch means for compilation, how merge parents are represented, and where generated export artifacts are written on disk.
 - **Priority:** P0
 - **Dependencies:** CTXB-P1-T5, CTXB-P2-T2
