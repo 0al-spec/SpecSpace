@@ -127,3 +127,4 @@
 | 2026-03-24 | CTXB-P3-T13 | Archived Apply_External_Lineage_Manifest (PASS) |
 | 2026-03-24 | CTXB-P3-T13 | Archived REVIEW_canonicalize_lineage_manifest report |
 | 2026-03-24 | CTXB-P2R-B4 | Archived Cross_Conversation_Edge_Disappears (PASS) |
+| 2026-03-24 | CTXB-P2R-B4 | Archived REVIEW_cross_conversation_edge report |
