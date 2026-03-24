@@ -73,3 +73,7 @@ Add `make canonicalize` target to `Makefile`.
 ### T4: Run quality gates
 - `make test` — all tests pass.
 - `make lint` — clean.
+
+---
+**Archived:** 2026-03-24
+**Verdict:** PASS

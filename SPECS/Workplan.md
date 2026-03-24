@@ -582,7 +582,7 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - No existing conversations or messages are modified.
   - The graph refreshes showing the new branch node with a lineage edge from the source.
 
-### CTXB-P3-T13 — Apply external lineage manifest to canonicalize imported conversations
+### ✅ CTXB-P3-T13 — Apply external lineage manifest to canonicalize imported conversations
 - **Description:** Add a `make canonicalize` command that reads a `lineage.json` manifest (produced by ChatGPTDialogs' `detect_lineage.py`) from a source dialog directory and outputs canonical conversation files with injected `conversation_id` and `lineage` fields into a target directory. This bridges the open-source detection step in ChatGPTDialogs with ContextBuilder's proprietary canonicalization pipeline. The command reads each file listed in the manifest, injects the detected metadata, validates the result against the canonical schema, and writes it to `canonical_json/` (or a user-specified output dir). Files not present in the manifest become explicit roots with a slug-derived `conversation_id`.
 - **Priority:** P1
 - **Dependencies:** CTXB-P1-T1, CTXB-P1-T2
