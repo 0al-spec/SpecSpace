@@ -45,6 +45,7 @@
 | CTXB-P2R-B4 | [CTXB-P2R-B4_Cross_Conversation_Edge_Disappears/](CTXB-P2R-B4_Cross_Conversation_Edge_Disappears/) | 2026-03-24 | PASS |
 | CTXB-P2R-B5 | [CTXB-P2R-B5_Message_Node_Title_Is_Draggable_And_Shows_Sockets_Overlapped_By_Message_Node_Collapse_Button_Floats/](CTXB-P2R-B5_Message_Node_Title_Is_Draggable_And_Shows_Sockets_Overlapped_By_Message_Node_Collapse_Button_Floats/) | 2026-03-24 | PASS |
 | CTXB-P3-T2 | [CTXB-P3-T2_Implement_merge_conversation_creation_with_multi-parent_lineage/](CTXB-P3-T2_Implement_merge_conversation_creation_with_multi-parent_lineage/) | 2026-03-25 | PASS |
+| CTXB-P3-B1 | [CTXB-P3-B1_Expanding_an_empty_merge_node_hides_parent_edges/](CTXB-P3-B1_Expanding_an_empty_merge_node_hides_parent_edges/) | 2026-03-25 | PASS |
 
 ## Historical Artifacts
 
@@ -53,6 +54,7 @@
 | [_Historical/](_Historical/) | Non-task artifacts (reviews, reports) |
 | [REVIEW_message_title_decorator.md](_Historical/REVIEW_message_title_decorator.md) | Message title decorator review report |
 | [REVIEW_merge_conversation_creation.md](_Historical/REVIEW_merge_conversation_creation.md) | Merge conversation creation review report |
+| [REVIEW_expand_empty_merge_edges.md](_Historical/REVIEW_expand_empty_merge_edges.md) | Expand empty merge node hides edges review report |
 
 ## Archive Log
 
@@ -135,3 +137,5 @@
 | 2026-03-24 | CTXB-P2R-B5 | Archived Message_Node_Title_Is_Draggable_And_Shows_Sockets_Overlapped_By_Message_Node_Collapse_Button_Floats (PASS) |
 | 2026-03-25 | CTXB-P3-T2 | Archived Implement_merge_conversation_creation_with_multi-parent_lineage (PASS) |
 | 2026-03-25 | CTXB-P3-T2 | Archived REVIEW_merge_conversation_creation report |
+| 2026-03-25 | CTXB-P3-B1 | Archived Expanding_an_empty_merge_node_hides_parent_edges (PASS) |
+| 2026-03-25 | CTXB-P3-B1 | Archived REVIEW_expand_empty_merge_edges report |
