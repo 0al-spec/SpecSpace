@@ -124,3 +124,4 @@
 | 2026-03-24 | CTXB-P2R-B3 | Archived Preserve_Dragged_Positions (PASS) |
 | 2026-03-24 | CTXB-P2R-B3 | Archived REVIEW_preserve_dragged_positions report |
 | 2026-03-24 | CTXB-P3-T13 | Archived Apply_External_Lineage_Manifest (PASS) |
+| 2026-03-24 | CTXB-P3-T13 | Archived REVIEW_canonicalize_lineage_manifest report |
