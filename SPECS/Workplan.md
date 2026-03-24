@@ -449,6 +449,18 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - When collapsed, edges revert to conversation-level anchors.
   - The visual clearly shows which message is the branch/merge point.
 
+### CTXB-P2R-B5 — Message node title is draggable and shows sockets; overlapped by message node; collapse button floats
+- **Description:** The first message sub-node within an expanded conversation node has several rendering and interaction issues: (1) the sub-node title renders as a draggable node instead of a non-interactive decorator, causing it to show two sockets (input/output); (2) the title is visually overlapped by the first actual message node below it; (3) the conversation expand/collapse button floats alongside the title node instead of being fixed to the conversation header. The title is meant to be a lightweight label for the subflow, not an interactive node. Suggested fix: render the subflow title as a simple text decorator (label, badge, or SVG text) rather than as a React Flow node, so it does not participate in edge anchoring or dragging.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2R-T3, CTXB-P2R-T4
+- **Parallelizable:** yes
+- **Acceptance Criteria:**
+  - The conversation header (title) inside an expanded subflow is a non-interactive decorator (text label or badge).
+  - The header does not render sockets or respond to drag.
+  - Message nodes are rendered below the header without overlap.
+  - The expand/collapse button is positioned at the conversation node level, not floating with sub-nodes.
+  - All existing tests continue to pass.
+
 ## Phase 3: Authoring and Compile Target Selection
 
 Intent: implement the workflows that mutate graph structure safely and let the user mark a concrete line of reasoning as the target for context compilation.
