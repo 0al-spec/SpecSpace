@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import "./InspectorOverlay.css";
 import BranchDialog from "./BranchDialog";
+import MergeDialog from "./MergeDialog";
 
 interface ConversationDetail {
   conversation: {
@@ -75,6 +76,7 @@ export default function InspectorOverlay({
     useState<CheckpointDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [showBranchDialog, setShowBranchDialog] = useState(false);
+  const [showMergeDialog, setShowMergeDialog] = useState(false);
 
   useEffect(() => {
     if (!selectedConversationId) {
@@ -236,6 +238,12 @@ export default function InspectorOverlay({
           >
             Create Branch
           </button>
+          <button
+            className="inspector-branch-btn inspector-merge-btn"
+            onClick={() => setShowMergeDialog(true)}
+          >
+            Create Merge
+          </button>
         </>
       )}
 
@@ -248,6 +256,18 @@ export default function InspectorOverlay({
             onGraphRefresh();
           }}
           onCancel={() => setShowBranchDialog(false)}
+        />
+      )}
+
+      {showMergeDialog && selectedConversationId && selectedMessageId && (
+        <MergeDialog
+          parent1ConversationId={selectedConversationId}
+          parent1MessageId={selectedMessageId}
+          onCreated={() => {
+            setShowMergeDialog(false);
+            onGraphRefresh();
+          }}
+          onCancel={() => setShowMergeDialog(false)}
         />
       )}
     </div>

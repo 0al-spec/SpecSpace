@@ -403,6 +403,249 @@ class BranchCreationApiTests(unittest.TestCase):
                 stop_test_server(httpd, thread)
 
 
+class MergeCreationApiTests(unittest.TestCase):
+    def test_merge_creation_from_two_checkpoints_produces_canonical_merge_node(self) -> None:
+        """POST /api/file with a two-parent merge payload creates a canonical-merge node with two inbound edges."""
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        branch_payload = load_json(CANONICAL_FIXTURES / "branch_conversation.json")
+
+        merge_data = {
+            "conversation_id": "conv-new-merge",
+            "title": "Merge from Two Checkpoints",
+            "messages": [],
+            "lineage": {
+                "parents": [
+                    {
+                        "conversation_id": "conv-trust-social-root",
+                        "message_id": "msg-root-2",
+                        "link_type": "merge",
+                    },
+                    {
+                        "conversation_id": "conv-trust-social-branding-branch",
+                        "message_id": "msg-branch-2",
+                        "link_type": "merge",
+                    },
+                ]
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(
+                dialog_dir,
+                {"root.json": root_payload, "branch.json": branch_payload},
+            )
+
+            httpd, thread, base_url = start_test_server(dialog_dir)
+
+            try:
+                # Create the merge via API
+                status, payload = request_json(
+                    base_url,
+                    "/api/file",
+                    method="POST",
+                    data={"name": "new-merge.json", "data": merge_data},
+                )
+                self.assertEqual(status, HTTPStatus.OK)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["validation"]["kind"], "canonical-merge")
+
+                # Verify the merge file exists on disk
+                self.assertTrue((dialog_dir / "new-merge.json").exists())
+
+                # Fetch graph and verify the new node and edges
+                status, graph_payload = request_json(base_url, "/api/graph")
+                self.assertEqual(status, HTTPStatus.OK)
+                self.assertEqual(graph_payload["summary"]["node_count"], 3)
+
+                graph = graph_payload["graph"]
+                node_ids = {n["conversation_id"] for n in graph["nodes"]}
+                self.assertIn("conv-new-merge", node_ids)
+
+                # Verify two inbound edges to the merge node
+                merge_edges = [
+                    e for e in graph["edges"]
+                    if e["child_conversation_id"] == "conv-new-merge"
+                ]
+                self.assertEqual(len(merge_edges), 2)
+                for edge in merge_edges:
+                    self.assertEqual(edge["link_type"], "merge")
+                    self.assertEqual(edge["status"], "resolved")
+
+                parent_ids = {e["parent_conversation_id"] for e in merge_edges}
+                self.assertIn("conv-trust-social-root", parent_ids)
+                self.assertIn("conv-trust-social-branding-branch", parent_ids)
+            finally:
+                stop_test_server(httpd, thread)
+
+    def test_merge_creation_rejects_single_parent(self) -> None:
+        """A merge payload with only one parent must be rejected — merges require ≥ 2 parents."""
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+
+        merge_data = {
+            "conversation_id": "conv-bad-merge",
+            "title": "Bad Merge — Only One Parent",
+            "messages": [],
+            "lineage": {
+                "parents": [
+                    {
+                        "conversation_id": "conv-trust-social-root",
+                        "message_id": "msg-root-2",
+                        "link_type": "merge",
+                    }
+                ]
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+
+            httpd, thread, base_url = start_test_server(dialog_dir)
+
+            try:
+                status, payload = request_json(
+                    base_url,
+                    "/api/file",
+                    method="POST",
+                    data={"name": "bad-merge.json", "data": merge_data},
+                )
+                self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+                self.assertEqual(payload["error"], "Validation failed")
+            finally:
+                stop_test_server(httpd, thread)
+
+    def test_merge_creation_rejects_duplicate_parents(self) -> None:
+        """A merge payload referencing the same parent twice must be rejected."""
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+
+        merge_data = {
+            "conversation_id": "conv-dup-merge",
+            "title": "Duplicate Parent Merge",
+            "messages": [],
+            "lineage": {
+                "parents": [
+                    {
+                        "conversation_id": "conv-trust-social-root",
+                        "message_id": "msg-root-2",
+                        "link_type": "merge",
+                    },
+                    {
+                        "conversation_id": "conv-trust-social-root",
+                        "message_id": "msg-root-2",
+                        "link_type": "merge",
+                    },
+                ]
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+
+            httpd, thread, base_url = start_test_server(dialog_dir)
+
+            try:
+                status, payload = request_json(
+                    base_url,
+                    "/api/file",
+                    method="POST",
+                    data={"name": "dup-merge.json", "data": merge_data},
+                )
+                self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+                self.assertEqual(payload["error"], "Validation failed")
+            finally:
+                stop_test_server(httpd, thread)
+
+    def test_merge_creation_rejects_missing_parent_conversation(self) -> None:
+        """A merge payload referencing a non-existent parent conversation must be rejected."""
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+
+        merge_data = {
+            "conversation_id": "conv-orphan-merge",
+            "title": "Orphan Merge",
+            "messages": [],
+            "lineage": {
+                "parents": [
+                    {
+                        "conversation_id": "conv-trust-social-root",
+                        "message_id": "msg-root-2",
+                        "link_type": "merge",
+                    },
+                    {
+                        "conversation_id": "conv-does-not-exist",
+                        "message_id": "msg-x-1",
+                        "link_type": "merge",
+                    },
+                ]
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+
+            httpd, thread, base_url = start_test_server(dialog_dir)
+
+            try:
+                status, payload = request_json(
+                    base_url,
+                    "/api/file",
+                    method="POST",
+                    data={"name": "orphan-merge.json", "data": merge_data},
+                )
+                self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+                self.assertEqual(payload["error"], "Validation failed")
+            finally:
+                stop_test_server(httpd, thread)
+
+    def test_merge_creation_rejects_duplicate_file_name(self) -> None:
+        """POSTing a merge with a name matching an existing file must return 409."""
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        branch_payload = load_json(CANONICAL_FIXTURES / "branch_conversation.json")
+
+        merge_data = {
+            "conversation_id": "conv-new-merge",
+            "title": "Merge",
+            "messages": [],
+            "lineage": {
+                "parents": [
+                    {
+                        "conversation_id": "conv-trust-social-root",
+                        "message_id": "msg-root-2",
+                        "link_type": "merge",
+                    },
+                    {
+                        "conversation_id": "conv-trust-social-branding-branch",
+                        "message_id": "msg-branch-2",
+                        "link_type": "merge",
+                    },
+                ]
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(
+                dialog_dir,
+                {"root.json": root_payload, "branch.json": branch_payload},
+            )
+
+            httpd, thread, base_url = start_test_server(dialog_dir)
+
+            try:
+                status, payload = request_json(
+                    base_url,
+                    "/api/file",
+                    method="POST",
+                    data={"name": "root.json", "data": merge_data},
+                )
+                self.assertEqual(status, HTTPStatus.CONFLICT)
+                self.assertEqual(payload["error"], "File already exists")
+            finally:
+                stop_test_server(httpd, thread)
+
+
 class FileApiHttpTests(unittest.TestCase):
     def test_file_api_supports_read_write_delete_and_error_paths(self) -> None:
         root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")

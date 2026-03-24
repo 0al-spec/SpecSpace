@@ -1,0 +1,16 @@
+.merge-dialog {
+  width: 440px;
+}
+
+.merge-dialog-select {
+  cursor: pointer;
+}
+
+.merge-create-btn {
+  background: var(--merge-line, #7c3aed);
+  border-color: var(--merge-line, #7c3aed);
+}
+
+.merge-create-btn:hover {
+  opacity: 0.9;
+}
