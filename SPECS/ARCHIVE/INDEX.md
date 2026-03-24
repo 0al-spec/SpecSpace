@@ -52,6 +52,7 @@
 |--------|-------------|
 | [_Historical/](_Historical/) | Non-task artifacts (reviews, reports) |
 | [REVIEW_message_title_decorator.md](_Historical/REVIEW_message_title_decorator.md) | Message title decorator review report |
+| [REVIEW_merge_conversation_creation.md](_Historical/REVIEW_merge_conversation_creation.md) | Merge conversation creation review report |
 
 ## Archive Log
 
@@ -133,3 +134,4 @@
 | 2026-03-24 | CTXB-P2R-B4 | Archived REVIEW_cross_conversation_edge report |
 | 2026-03-24 | CTXB-P2R-B5 | Archived Message_Node_Title_Is_Draggable_And_Shows_Sockets_Overlapped_By_Message_Node_Collapse_Button_Floats (PASS) |
 | 2026-03-25 | CTXB-P3-T2 | Archived Implement_merge_conversation_creation_with_multi-parent_lineage (PASS) |
+| 2026-03-25 | CTXB-P3-T2 | Archived REVIEW_merge_conversation_creation report |
