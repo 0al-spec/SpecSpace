@@ -52,6 +52,7 @@
 |--------|-------------|
 | [_Historical/](_Historical/) | Non-task artifacts (reviews, reports) |
 | [REVIEW_message_title_decorator.md](_Historical/REVIEW_message_title_decorator.md) | Message title decorator review report |
+| [REVIEW_expand_empty_merge_edges.md](_Historical/REVIEW_expand_empty_merge_edges.md) | Expand empty merge node hides edges review report |
 
 ## Archive Log
 
@@ -133,3 +134,4 @@
 | 2026-03-24 | CTXB-P2R-B4 | Archived REVIEW_cross_conversation_edge report |
 | 2026-03-24 | CTXB-P2R-B5 | Archived Message_Node_Title_Is_Draggable_And_Shows_Sockets_Overlapped_By_Message_Node_Collapse_Button_Floats (PASS) |
 | 2026-03-25 | CTXB-P3-B1 | Archived Expanding_an_empty_merge_node_hides_parent_edges (PASS) |
+| 2026-03-25 | CTXB-P3-B1 | Archived REVIEW_expand_empty_merge_edges report |
