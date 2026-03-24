@@ -582,7 +582,7 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - No existing conversations or messages are modified.
   - The graph refreshes showing the new branch node with a lineage edge from the source.
 
-### CTXB-P3-T13 — Apply external lineage manifest to canonicalize imported conversations
+### ✅ CTXB-P3-T13 — Apply external lineage manifest to canonicalize imported conversations
 - **Description:** Add a `make canonicalize` command that reads a `lineage.json` manifest (produced by ChatGPTDialogs' `detect_lineage.py`) from a source dialog directory and outputs canonical conversation files with injected `conversation_id` and `lineage` fields into a target directory. This bridges the open-source detection step in ChatGPTDialogs with ContextBuilder's proprietary canonicalization pipeline. The command reads each file listed in the manifest, injects the detected metadata, validates the result against the canonical schema, and writes it to `canonical_json/` (or a user-specified output dir). Files not present in the manifest become explicit roots with a slug-derived `conversation_id`.
 - **Priority:** P1
 - **Dependencies:** CTXB-P1-T1, CTXB-P1-T2
@@ -594,6 +594,16 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - Output files pass the existing schema validation (`CTXB-P1-T1` rules).
   - The command is idempotent — running it twice on the same inputs produces identical output.
   - ContextBuilder server can load the output directory and display the full lineage graph with edges.
+
+### CTXB-P3-T14 — Workspace validation pass after canonicalize
+- **Description:** After `make canonicalize` writes all canonical files, run a cross-file workspace validation pass using `schema.validate_workspace`. Report any files with missing parent conversations or duplicate `conversation_id` values. This catches cases where a parent file failed to canonicalize but its child was written — the child's lineage edge will be broken and the user needs to know.
+- **Priority:** P2
+- **Dependencies:** CTXB-P3-T13
+- **Parallelizable:** yes
+- **Acceptance Criteria:**
+  - After writing all files, `canonicalize.py` runs `schema.validate_workspace` on the output directory.
+  - Files with missing parent references are reported with a clear error message.
+  - The command exits non-zero if any workspace-level errors are found.
 
 ## Phase 4: Hyperprompt Export and Compilation Pipeline
 
