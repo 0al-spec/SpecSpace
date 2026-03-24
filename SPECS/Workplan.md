@@ -595,6 +595,16 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - The command is idempotent — running it twice on the same inputs produces identical output.
   - ContextBuilder server can load the output directory and display the full lineage graph with edges.
 
+### CTXB-P3-T14 — Workspace validation pass after canonicalize
+- **Description:** After `make canonicalize` writes all canonical files, run a cross-file workspace validation pass using `schema.validate_workspace`. Report any files with missing parent conversations or duplicate `conversation_id` values. This catches cases where a parent file failed to canonicalize but its child was written — the child's lineage edge will be broken and the user needs to know.
+- **Priority:** P2
+- **Dependencies:** CTXB-P3-T13
+- **Parallelizable:** yes
+- **Acceptance Criteria:**
+  - After writing all files, `canonicalize.py` runs `schema.validate_workspace` on the output directory.
+  - Files with missing parent references are reported with a clear error message.
+  - The command exits non-zero if any workspace-level errors are found.
+
 ## Phase 4: Hyperprompt Export and Compilation Pipeline
 
 Intent: turn the selected branch into actual filesystem artifacts that Hyperprompt can compile, then produce the final continuation-ready Markdown context.
