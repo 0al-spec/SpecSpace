@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-25 (CTXB-P4-T2)
+**Last Updated:** 2026-03-25 (CTXB-P4-T3)
 
 ## Archived Tasks
 
@@ -50,6 +50,7 @@
 | CTXB-P3-T4 | [CTXB-P3-T4_Let_user_select_active_branch_as_compile_target/](CTXB-P3-T4_Let_user_select_active_branch_as_compile_target/) | 2026-03-25 | PASS |
 | CTXB-P4-T1 | [CTXB-P4-T1_Export_selected_graph_nodes_into_deterministic_Markdown_files/](CTXB-P4-T1_Export_selected_graph_nodes_into_deterministic_Markdown_files/) | 2026-03-25 | PASS |
 | CTXB-P4-T2 | [CTXB-P4-T2_Generate_Hyperprompt_root_file/](CTXB-P4-T2_Generate_Hyperprompt_root_file/) | 2026-03-25 | PASS |
+| CTXB-P4-T3 | [CTXB-P4-T3_Integrate_Hyperprompt_Compiler_Invocation/](CTXB-P4-T3_Integrate_Hyperprompt_Compiler_Invocation/) | 2026-03-25 | PASS |
 
 ## Historical Artifacts
 
@@ -155,3 +156,4 @@
 | 2026-03-25 | CTXB-P4-T1 | Archived REVIEW_export_graph_nodes report |
 | 2026-03-25 | CTXB-P4-T2 | Archived Generate_Hyperprompt_root_file (PASS) |
 | 2026-03-25 | CTXB-P4-T2 | Archived REVIEW_generate_hc_root_file report |
+| 2026-03-25 | CTXB-P4-T3 | Archived Integrate_Hyperprompt_Compiler_Invocation (PASS) |

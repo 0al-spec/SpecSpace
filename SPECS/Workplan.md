@@ -673,7 +673,7 @@ Intent: turn the selected branch into actual filesystem artifacts that Hyperprom
   - For merge conversations, parent lineage chains appear in `lineage.parents` order.
   - The generated structure satisfies PRD FR-13 and §6.5.
 
-### CTXB-P4-T3 — Integrate Hyperprompt compiler invocation
+### ✅ CTXB-P4-T3 — Integrate Hyperprompt compiler invocation
 - **Description:** Invoke the Hyperprompt compiler (`/Users/egor/Development/GitHub/0AL/Hyperprompt/.build/release/hyperprompt`) as a subprocess to compile the generated `root.hc` into a final Markdown context artifact and manifest.
 - **Priority:** P0
 - **Dependencies:** CTXB-P4-T2
