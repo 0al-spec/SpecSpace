@@ -62,6 +62,7 @@
 | [REVIEW_compile_target_model.md](_Historical/REVIEW_compile_target_model.md) | Compile target model review report |
 | [REVIEW_compile_target_selection.md](_Historical/REVIEW_compile_target_selection.md) | Compile target selection UI review report |
 | [REVIEW_export_graph_nodes.md](_Historical/REVIEW_export_graph_nodes.md) | Export graph nodes Markdown files review report |
+| [REVIEW_generate_hc_root_file.md](_Historical/REVIEW_generate_hc_root_file.md) | Generate Hyperprompt root .hc file review report |
 
 ## Archive Log
 
@@ -153,3 +154,4 @@
 | 2026-03-25 | CTXB-P4-T1 | Archived Export_selected_graph_nodes_into_deterministic_Markdown_files (PASS) |
 | 2026-03-25 | CTXB-P4-T1 | Archived REVIEW_export_graph_nodes report |
 | 2026-03-25 | CTXB-P4-T2 | Archived Generate_Hyperprompt_root_file (PASS) |
+| 2026-03-25 | CTXB-P4-T2 | Archived REVIEW_generate_hc_root_file report |
