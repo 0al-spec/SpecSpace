@@ -1,6 +1,8 @@
+import { useContext } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { ConversationNodeData } from "./types";
 import type { Node } from "@xyflow/react";
+import { CompileTargetContext } from "./CompileTargetContext";
 
 type ConversationNodeType = Node<ConversationNodeData, "conversation">;
 
@@ -14,11 +16,15 @@ export default function ConversationNode({
   data,
   selected,
 }: NodeProps<ConversationNodeType>) {
+  const { compileTargetConversationId, compileTargetMessageId } =
+    useContext(CompileTargetContext);
+  const isCompileTarget =
+    compileTargetConversationId === data.conversationId && !compileTargetMessageId;
   const kindClass = data.hasBrokenLineage ? "broken" : data.kind;
 
   return (
     <div
-      className={`conversation-node ${kindClass} ${selected ? "selected" : ""}`}
+      className={`conversation-node ${kindClass} ${selected ? "selected" : ""} ${isCompileTarget ? "compile-target" : ""}`}
     >
       <Handle type="target" position={Position.Left} />
 

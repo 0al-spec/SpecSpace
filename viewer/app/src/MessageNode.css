@@ -39,3 +39,8 @@
 .message-node:hover .react-flow__handle {
   opacity: 0.7;
 }
+
+.message-node.compile-target {
+  box-shadow: 0 0 0 2px #d97706;
+  border-color: #d97706;
+}

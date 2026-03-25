@@ -36,6 +36,20 @@
   border-width: 4.5px;
 }
 
+.conversation-node.compile-target {
+  box-shadow: 0 0 0 3px #d97706, 0 14px 22px rgba(83, 57, 28, 0.14);
+}
+
+.conversation-node.compile-target::before {
+  content: "\25CE";
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font-size: 13px;
+  color: #92400e;
+  pointer-events: none;
+}
+
 .conversation-node-title {
   font-size: 17px;
   font-weight: 700;

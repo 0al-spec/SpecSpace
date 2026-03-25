@@ -23,6 +23,7 @@ import Sidebar from "./Sidebar";
 import InspectorOverlay from "./InspectorOverlay";
 import { useGraphData } from "./useGraphData";
 import { useSessionString } from "./useSessionState";
+import { CompileTargetContext } from "./CompileTargetContext";
 
 const nodeTypes = {
   conversation: ConversationNode,
@@ -86,6 +87,18 @@ function AppInner() {
     useSessionString("selected_conversation");
   const [selectedMessageId, setSelectedMessageId] =
     useSessionString("selected_message");
+  const [compileTargetConversationId, setCompileTargetConversationId] =
+    useSessionString("compile_target_conversation_id");
+  const [compileTargetMessageId, setCompileTargetMessageId] =
+    useSessionString("compile_target_message_id");
+
+  const setCompileTarget = useCallback(
+    (convId: string | null, msgId: string | null) => {
+      setCompileTargetConversationId(convId);
+      setCompileTargetMessageId(msgId);
+    },
+    [setCompileTargetConversationId, setCompileTargetMessageId],
+  );
 
   useEffect(() => {
     setNodes((prev) => {
@@ -151,51 +164,58 @@ function AppInner() {
   }, []);
 
   return (
-    <div className="app-layout">
-      <Sidebar />
-      <main className="app-main">
-        {loading && (
-          <div style={{ padding: 40, fontFamily: "Georgia, serif" }}>
-            Loading graph…
-          </div>
-        )}
-        {error && (
-          <div style={{ padding: 40, fontFamily: "Georgia, serif" }}>
-            <p>Error loading graph: {error}</p>
-            <button onClick={refresh}>Retry</button>
-          </div>
-        )}
-        {!loading && !error && (
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onNodeClick={onNodeClick}
-            onPaneClick={onPaneClick}
-            onMoveEnd={onMoveEnd}
-            defaultViewport={savedViewport.current}
-            fitView={hasFitView}
-          >
-            <Background />
-            <Controls />
-            <MiniMap
-              nodeColor={minimapNodeColor}
-              maskColor="rgba(236, 227, 212, 0.7)"
-              pannable
-              zoomable
-            />
-            <FitViewShortcut />
-          </ReactFlow>
-        )}
-      </main>
-      <InspectorOverlay
-        selectedConversationId={selectedConversationId}
-        selectedMessageId={selectedMessageId}
-        onDismiss={dismissInspector}
-        onGraphRefresh={refresh}
-      />
-    </div>
+    <CompileTargetContext.Provider
+      value={{ compileTargetConversationId, compileTargetMessageId }}
+    >
+      <div className="app-layout">
+        <Sidebar />
+        <main className="app-main">
+          {loading && (
+            <div style={{ padding: 40, fontFamily: "Georgia, serif" }}>
+              Loading graph…
+            </div>
+          )}
+          {error && (
+            <div style={{ padding: 40, fontFamily: "Georgia, serif" }}>
+              <p>Error loading graph: {error}</p>
+              <button onClick={refresh}>Retry</button>
+            </div>
+          )}
+          {!loading && !error && (
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              onNodesChange={onNodesChange}
+              onNodeClick={onNodeClick}
+              onPaneClick={onPaneClick}
+              onMoveEnd={onMoveEnd}
+              defaultViewport={savedViewport.current}
+              fitView={hasFitView}
+            >
+              <Background />
+              <Controls />
+              <MiniMap
+                nodeColor={minimapNodeColor}
+                maskColor="rgba(236, 227, 212, 0.7)"
+                pannable
+                zoomable
+              />
+              <FitViewShortcut />
+            </ReactFlow>
+          )}
+        </main>
+        <InspectorOverlay
+          selectedConversationId={selectedConversationId}
+          selectedMessageId={selectedMessageId}
+          onDismiss={dismissInspector}
+          onGraphRefresh={refresh}
+          compileTargetConversationId={compileTargetConversationId}
+          compileTargetMessageId={compileTargetMessageId}
+          onSetCompileTarget={setCompileTarget}
+        />
+      </div>
+    </CompileTargetContext.Provider>
   );
 }
 

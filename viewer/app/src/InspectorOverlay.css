@@ -175,3 +175,20 @@
   color: var(--muted);
   padding: 20px 0;
 }
+
+.inspector-compile-target-active {
+  background: #fef3c7;
+  color: #92400e;
+  margin-left: 6px;
+}
+
+.inspector-compile-target-btn {
+  background: #78350f;
+  border-color: #78350f;
+  color: white;
+}
+
+.inspector-compile-target-btn.active {
+  background: #065f46;
+  border-color: #065f46;
+}

@@ -44,6 +44,7 @@ interface CheckpointDetail {
     conversation_id: string;
     title: string;
   };
+  compile_target?: CompileTarget;
 }
 
 interface InspectorOverlayProps {
@@ -51,6 +52,9 @@ interface InspectorOverlayProps {
   selectedMessageId: string | null;
   onDismiss: () => void;
   onGraphRefresh: () => void;
+  compileTargetConversationId: string | null;
+  compileTargetMessageId: string | null;
+  onSetCompileTarget: (convId: string | null, msgId: string | null) => void;
 }
 
 const kindLabels: Record<string, string> = {
@@ -67,6 +71,9 @@ export default function InspectorOverlay({
   selectedMessageId,
   onDismiss,
   onGraphRefresh,
+  compileTargetConversationId,
+  compileTargetMessageId,
+  onSetCompileTarget,
 }: InspectorOverlayProps) {
   const [convDetail, setConvDetail] = useState<ConversationDetail | null>(null);
   const [checkpointDetail, setCheckpointDetail] =
@@ -139,6 +146,12 @@ export default function InspectorOverlay({
                 ? "LINEAGE COMPLETE"
                 : "LINEAGE INCOMPLETE"}
             </span>
+            {compileTargetConversationId === selectedConversationId &&
+              !compileTargetMessageId && (
+                <span className="inspector-lineage-badge inspector-compile-target-active">
+                  ACTIVE COMPILE TARGET
+                </span>
+              )}
             <div className="inspector-lineage-meta">
               Source file: {conv.file_name}
             </div>
@@ -148,6 +161,16 @@ export default function InspectorOverlay({
               </div>
             )}
           </div>
+
+          <button
+            className={`inspector-branch-btn inspector-compile-target-btn${compileTargetConversationId === selectedConversationId && !compileTargetMessageId ? " active" : ""}`}
+            onClick={() => onSetCompileTarget(selectedConversationId, null)}
+          >
+            {compileTargetConversationId === selectedConversationId &&
+            !compileTargetMessageId
+              ? "Compile Target \u2713"
+              : "Set as Compile Target"}
+          </button>
 
           {/* Parent edges */}
           {(convDetail?.parent_edges || []).length === 0 && (
@@ -234,6 +257,30 @@ export default function InspectorOverlay({
             </div>
           )}
 
+          {checkpointDetail.compile_target && (
+            <>
+              {compileTargetConversationId === selectedConversationId &&
+                compileTargetMessageId === checkpointDetail.checkpoint.message_id && (
+                  <span className="inspector-lineage-badge inspector-compile-target-active" style={{ display: "inline-block", marginBottom: 8 }}>
+                    ACTIVE COMPILE TARGET
+                  </span>
+                )}
+            </>
+          )}
+          <button
+            className={`inspector-branch-btn inspector-compile-target-btn${compileTargetConversationId === selectedConversationId && compileTargetMessageId === checkpointDetail.checkpoint.message_id ? " active" : ""}`}
+            onClick={() =>
+              onSetCompileTarget(
+                selectedConversationId,
+                checkpointDetail.checkpoint.message_id,
+              )
+            }
+          >
+            {compileTargetConversationId === selectedConversationId &&
+            compileTargetMessageId === checkpointDetail.checkpoint.message_id
+              ? "Compile Target \u2713"
+              : "Set as Compile Target"}
+          </button>
           <button
             className="inspector-branch-btn"
             onClick={() => setShowBranchDialog(true)}
