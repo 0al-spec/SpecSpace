@@ -72,6 +72,7 @@
 | [REVIEW_expose_compile_results.md](_Historical/REVIEW_expose_compile_results.md) | Expose compile results and artifact locations review report |
 | [REVIEW_schema_validation_integrity_tests.md](_Historical/REVIEW_schema_validation_integrity_tests.md) | Schema validation and graph integrity tests review report |
 | [REVIEW_branch_merge_compile_target_tests.md](_Historical/REVIEW_branch_merge_compile_target_tests.md) | Branch, merge, and compile target selection tests review report |
+| [REVIEW_export_hc_compile_tests.md](_Historical/REVIEW_export_hc_compile_tests.md) | Markdown export, .hc generation, and compile integration tests review report |
 
 ## Archive Log
 
@@ -173,3 +174,4 @@
 | 2026-03-26 | CTXB-P5-T2 | Archived Add_automated_tests_for_branch_merge_and_compile_target_selection_workflows (PASS) |
 | 2026-03-26 | CTXB-P5-T2 | Archived REVIEW_branch_merge_compile_target_tests report |
 | 2026-03-26 | CTXB-P5-T3 | Archived Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration (PASS) |
+| 2026-03-26 | CTXB-P5-T3 | Archived REVIEW_export_hc_compile_tests report |
