@@ -750,7 +750,7 @@ Intent: lock down graph and compile behavior with regression coverage and make t
   - The pipeline catches broken references, invalid compiler setup, and incorrect artifact generation.
   - Successful compile flows are covered end-to-end.
 
-### CTXB-P5-T4 — Update product and contributor documentation for the graph-to-context workflow
+### ✅ CTXB-P5-T4 — Update product and contributor documentation for the graph-to-context workflow
 - **Description:** Rewrite repository documentation so it matches the graph product scope, the canonical file contract, the Hyperprompt dependency, and the compile workflow.
 - **Priority:** P1
 - **Dependencies:** CTXB-P4-T4
