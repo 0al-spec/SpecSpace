@@ -656,7 +656,7 @@ Intent: turn the selected branch into actual filesystem artifacts that Hyperprom
   - Node filenames are deterministic (e.g., `{index:04d}_{message_id}.md`).
   - The output directory structure satisfies PRD FR-12 and §6.4.
 
-### CTXB-P4-T2 — Generate a valid Hyperprompt root file for the selected branch
+### ✅ CTXB-P4-T2 — Generate a valid Hyperprompt root file for the selected branch
 - **Description:** Build a root `.hc` file at `{export_dir}/root.hc` that references the exported Markdown nodes in deterministic order and nesting, matching Hyperprompt syntax. Hyperprompt syntax uses 4-space indentation, double-quoted strings, and detects file references by path separators (`.` or `/`). For merge conversations, parent lineage chains appear in `lineage.parents` order; merge messages come last. This controls the final compiled prompt structure.
 - **Priority:** P0
 - **Dependencies:** CTXB-P4-T1
