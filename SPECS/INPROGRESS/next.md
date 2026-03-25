@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** (none)
+**Current Task:** `CTXB-P4-T3` — Integrate Hyperprompt compiler invocation
 
 ## Recently Archived
 - `CTXB-P4-T2` — Generate a valid Hyperprompt root file for the selected branch (PASS, 2026-03-25)
@@ -12,6 +12,6 @@
 - `CTXB-P2R-B5` — Message node title is draggable and shows sockets; overlapped by message node; collapse button floats (PASS, 2026-03-24)
 
 ## Suggested Next Tasks
-- `CTXB-P4-T3` — Integrate Hyperprompt compiler invocation (P0)
 - `CTXB-P4-T4` — Expose compile results and artifact locations (P0)
+- `CTXB-P4-T5` — Preserve provenance from compiled artifact back to graph selection (P1)
 - `CTXB-P3-T5` — Re-index and reconcile external file changes (P1)
