@@ -60,6 +60,7 @@
 | [REVIEW_expand_empty_merge_edges.md](_Historical/REVIEW_expand_empty_merge_edges.md) | Expand empty merge node hides edges review report |
 | [REVIEW_compile_target_model.md](_Historical/REVIEW_compile_target_model.md) | Compile target model review report |
 | [REVIEW_compile_target_selection.md](_Historical/REVIEW_compile_target_selection.md) | Compile target selection UI review report |
+| [REVIEW_export_graph_nodes.md](_Historical/REVIEW_export_graph_nodes.md) | Export graph nodes Markdown files review report |
 
 ## Archive Log
 
@@ -149,3 +150,4 @@
 | 2026-03-25 | CTXB-P3-T4 | Archived Let_user_select_active_branch_as_compile_target (PASS) |
 | 2026-03-25 | CTXB-P3-T4 | Archived REVIEW_compile_target_selection report |
 | 2026-03-25 | CTXB-P4-T1 | Archived Export_selected_graph_nodes_into_deterministic_Markdown_files (PASS) |
+| 2026-03-25 | CTXB-P4-T1 | Archived REVIEW_export_graph_nodes report |
