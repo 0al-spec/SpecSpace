@@ -23,3 +23,11 @@ nfrs:
 structure:
   source: viewer/
   tests: tests/
+
+hyperprompt:
+  repo: /Users/egor/Development/GitHub/0AL/Hyperprompt
+  binary: /Users/egor/Development/GitHub/0AL/Hyperprompt/.build/release/hyperprompt
+  build_cmd: "cd /Users/egor/Development/GitHub/0AL/Hyperprompt && swift build -c release"
+  input_ext: .hc
+  default_output: out.md
+  default_manifest: manifest.json

@@ -644,37 +644,54 @@ Intent: implement the workflows that mutate graph structure safely and let the u
 Intent: turn the selected branch into actual filesystem artifacts that Hyperprompt can compile, then produce the final continuation-ready Markdown context.
 
 ### CTXB-P4-T1 — Export selected graph nodes into deterministic Markdown files
-- **Description:** Materialize the selected branch as a set of Markdown node files, each carrying source provenance and original content in a stable representation.
+- **Description:** Materialize the selected branch as a set of `.md` node files under `{dialog_dir}/export/{target_id}/nodes/`. Each file corresponds to one message and carries role, content, source `conversation_id`, and `message_id` in a stable front-matter + body representation. These files are the leaf inputs to the Hyperprompt `.hc` root file generated in CTXB-P4-T2.
 - **Priority:** P0
 - **Dependencies:** CTXB-P3-T3, CTXB-P3-T4
 - **Parallelizable:** no
-- **Outputs / Artifacts:** generated `.md` export nodes, export metadata, deterministic file naming rules
+- **Outputs / Artifacts:** generated `.md` export nodes under `{export_dir}/nodes/`, export metadata
+- **Compiler context:** Hyperprompt binary at `/Users/egor/Development/GitHub/0AL/Hyperprompt/.build/release/hyperprompt` — reads `.hc` root file and resolves `.md` references relative to `--root`. Leaf `.md` files produced here are referenced by the `.hc` file generated in CTXB-P4-T2.
 - **Acceptance Criteria:**
   - Repeated export of unchanged inputs yields identical Markdown node files.
   - Each export node preserves source `conversation_id`, `message_id`, role, and content.
-  - The output satisfies PRD FR-12 and §6.4.
+  - Node filenames are deterministic (e.g., `{index:04d}_{message_id}.md`).
+  - The output directory structure satisfies PRD FR-12 and §6.4.
 
 ### CTXB-P4-T2 — Generate a valid Hyperprompt root file for the selected branch
-- **Description:** Build a root `.hc` file that references the exported Markdown nodes in deterministic order and nesting, matching Hyperprompt syntax requirements. For merge conversations, the order of entries in `lineage.parents` determines the emission order of parent lineage chains: the first parent's full chain is referenced first, the second parent's chain second, and so on. The merge conversation's own messages come last. This gives the user direct control over the compiled prompt structure via the parent array order (see PRD §4.4 rule 3 and §6.3).
+- **Description:** Build a root `.hc` file at `{export_dir}/root.hc` that references the exported Markdown nodes in deterministic order and nesting, matching Hyperprompt syntax. Hyperprompt syntax uses 4-space indentation, double-quoted strings, and detects file references by path separators (`.` or `/`). For merge conversations, parent lineage chains appear in `lineage.parents` order; merge messages come last. This controls the final compiled prompt structure.
 - **Priority:** P0
 - **Dependencies:** CTXB-P4-T1
 - **Parallelizable:** no
-- **Outputs / Artifacts:** generated `.hc` file, root-file generation logic, syntax validation path
+- **Outputs / Artifacts:** `{export_dir}/root.hc`, root-file generation logic
+- **Hyperprompt `.hc` syntax:**
+  - Each line: `"path/to/file.md"` or `"path/to/sub.hc"` or `"Inline text"`
+  - Nesting: 4 spaces per level → Markdown heading depth
+  - Comments: lines starting with `#`
+  - Example: `"nodes/0001_msg_id.md"` nested under `"Conversation Title"`
 - **Acceptance Criteria:**
-  - The `.hc` file references only generated `.md` or `.hc` files inside the export root.
-  - The file is valid Hyperprompt syntax with no path traversal or circular structure.
-  - For merge conversations, parent lineage chains appear in the order defined by `lineage.parents`.
+  - The `.hc` file passes `hyperprompt root.hc --dry-run` with exit code 0.
+  - References only `.md` files inside `{export_dir}/nodes/` — no path traversal.
+  - For merge conversations, parent lineage chains appear in `lineage.parents` order.
   - The generated structure satisfies PRD FR-13 and §6.5.
 
 ### CTXB-P4-T3 — Integrate Hyperprompt compiler invocation
-- **Description:** Invoke a configured local Hyperprompt compiler executable to compile the generated `.hc` file into a final Markdown context artifact and optional manifest.
+- **Description:** Invoke the Hyperprompt compiler (`/Users/egor/Development/GitHub/0AL/Hyperprompt/.build/release/hyperprompt`) as a subprocess to compile the generated `root.hc` into a final Markdown context artifact and manifest.
 - **Priority:** P0
 - **Dependencies:** CTXB-P4-T2
 - **Parallelizable:** no
-- **Outputs / Artifacts:** subprocess integration, compiled `.md` output, optional manifest, compile diagnostics
+- **Outputs / Artifacts:** `{export_dir}/compiled.md`, `{export_dir}/manifest.json`, compile diagnostics
+- **Invocation:**
+  ```
+  hyperprompt {export_dir}/root.hc \
+    --root {export_dir} \
+    --output {export_dir}/compiled.md \
+    --manifest {export_dir}/manifest.json \
+    --stats
+  ```
+- **Exit codes to handle:** 0 success, 1 IO error, 2 syntax error, 3 resolution/circular error, 4 internal error
 - **Acceptance Criteria:**
-  - Successful compile produces a final Markdown artifact from the generated `.hc`.
-  - Missing compiler binaries or non-zero exits surface actionable errors.
+  - Successful compile writes `compiled.md` and `manifest.json` to `{export_dir}`.
+  - Non-zero exits surface the exit code and stderr as actionable errors to the user.
+  - Missing binary at the configured path surfaces a clear "Hyperprompt not found" error.
   - The integration satisfies PRD FR-14, FR-15, and NFR-11.
 
 ### CTXB-P4-T4 — Expose compile results and artifact locations
