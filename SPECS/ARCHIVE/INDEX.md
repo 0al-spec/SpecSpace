@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-25 (CTXB-P4-T4)
+**Last Updated:** 2026-03-26 (CTXB-P5-T1)
 
 ## Archived Tasks
 
@@ -52,6 +52,7 @@
 | CTXB-P4-T2 | [CTXB-P4-T2_Generate_Hyperprompt_root_file/](CTXB-P4-T2_Generate_Hyperprompt_root_file/) | 2026-03-25 | PASS |
 | CTXB-P4-T3 | [CTXB-P4-T3_Integrate_Hyperprompt_Compiler_Invocation/](CTXB-P4-T3_Integrate_Hyperprompt_Compiler_Invocation/) | 2026-03-25 | PASS |
 | CTXB-P4-T4 | [CTXB-P4-T4_Expose_Compile_Results_And_Artifact_Locations/](CTXB-P4-T4_Expose_Compile_Results_And_Artifact_Locations/) | 2026-03-25 | PASS |
+| CTXB-P5-T1 | [CTXB-P5-T1_Add_automated_tests_for_schema_validation_and_graph_integrity_failures/](CTXB-P5-T1_Add_automated_tests_for_schema_validation_and_graph_integrity_failures/) | 2026-03-26 | PASS |
 
 ## Historical Artifacts
 
@@ -163,3 +164,4 @@
 | 2026-03-25 | CTXB-P4-T3 | Archived REVIEW_hyperprompt_compiler_invocation report |
 | 2026-03-25 | CTXB-P4-T4 | Archived Expose_Compile_Results_And_Artifact_Locations (PASS) |
 | 2026-03-25 | CTXB-P4-T4 | Archived REVIEW_expose_compile_results report |
+| 2026-03-26 | CTXB-P5-T1 | Archived Add_automated_tests_for_schema_validation_and_graph_integrity_failures (PASS) |

@@ -720,7 +720,7 @@ Intent: turn the selected branch into actual filesystem artifacts that Hyperprom
 
 Intent: lock down graph and compile behavior with regression coverage and make the end-to-end workflow understandable for contributors and operators.
 
-### CTXB-P5-T1 — Add automated tests for schema validation and graph integrity failures
+### ✅ CTXB-P5-T1 — Add automated tests for schema validation and graph integrity failures
 - **Description:** Extend the test suite to cover invalid imports, duplicate IDs, missing parents, malformed lineage, and graph diagnostics.
 - **Priority:** P0
 - **Dependencies:** CTXB-P1-T5
