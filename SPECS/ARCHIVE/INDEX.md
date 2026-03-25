@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-26 (CTXB-P5-T3)
+**Last Updated:** 2026-03-26 (CTXB-P5-T4)
 
 ## Archived Tasks
 
@@ -55,6 +55,7 @@
 | CTXB-P5-T1 | [CTXB-P5-T1_Add_automated_tests_for_schema_validation_and_graph_integrity_failures/](CTXB-P5-T1_Add_automated_tests_for_schema_validation_and_graph_integrity_failures/) | 2026-03-26 | PASS |
 | CTXB-P5-T2 | [CTXB-P5-T2_Add_automated_tests_for_branch_merge_and_compile_target_selection_workflows/](CTXB-P5-T2_Add_automated_tests_for_branch_merge_and_compile_target_selection_workflows/) | 2026-03-26 | PASS |
 | CTXB-P5-T3 | [CTXB-P5-T3_Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration/](CTXB-P5-T3_Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration/) | 2026-03-26 | PASS |
+| CTXB-P5-T4 | [CTXB-P5-T4_Update_product_and_contributor_documentation_for_the_graph-to-context_workflow/](CTXB-P5-T4_Update_product_and_contributor_documentation_for_the_graph-to-context_workflow/) | 2026-03-26 | PASS |
 
 ## Historical Artifacts
 
@@ -73,6 +74,7 @@
 | [REVIEW_schema_validation_integrity_tests.md](_Historical/REVIEW_schema_validation_integrity_tests.md) | Schema validation and graph integrity tests review report |
 | [REVIEW_branch_merge_compile_target_tests.md](_Historical/REVIEW_branch_merge_compile_target_tests.md) | Branch, merge, and compile target selection tests review report |
 | [REVIEW_export_hc_compile_tests.md](_Historical/REVIEW_export_hc_compile_tests.md) | Markdown export, .hc generation, and compile integration tests review report |
+| [REVIEW_product_docs.md](_Historical/REVIEW_product_docs.md) | Product and contributor documentation review report |
 
 ## Archive Log
 
@@ -175,3 +177,4 @@
 | 2026-03-26 | CTXB-P5-T2 | Archived REVIEW_branch_merge_compile_target_tests report |
 | 2026-03-26 | CTXB-P5-T3 | Archived Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration (PASS) |
 | 2026-03-26 | CTXB-P5-T3 | Archived REVIEW_export_hc_compile_tests report |
+| 2026-03-26 | CTXB-P5-T4 | Archived Update_product_and_contributor_documentation_for_the_graph-to-context_workflow (PASS) |

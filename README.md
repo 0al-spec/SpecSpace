@@ -1,52 +1,140 @@
 # ContextBuilder
 
-ContextBuilder is the local viewer/editor repository for already extracted dialog JSON files.
+ContextBuilder is a local graph viewer and context compiler for conversation JSON files. It reads a directory of dialog JSON files, builds a lineage graph of roots, branches, and merges, lets you select a thought direction, and compiles that selection into a Hyperprompt-backed Markdown context artifact ready for an external LLM or agent.
 
-It does not capture browser tabs and it does not parse raw HTML. Its job is narrower:
+## Scope Boundaries
 
-- serve a local HTTP API over a directory of dialog JSON files
-- provide a browser UI for browsing and editing those files
+| Concern | Owner |
+|---------|-------|
+| Extracting conversations from browser HTML | `ChatGPTDialogs` |
+| Graph structure, validation, selection, export, compile orchestration | **ContextBuilder** (this repo) |
+| Running LLMs, executing prompts, agent workflows | External — ContextBuilder hands off a compiled Markdown artifact |
+| Browser capture, cloud sync, semantic retrieval | Out of scope for v1 |
+
+ContextBuilder does not execute models. Its output is a deterministic Markdown file you hand to an external agent.
+
+---
 
 ## Quick Start
 
-Point the viewer at a directory containing extracted dialog JSON files, for example `ChatGPTDialogs/import_json/`:
+Point the viewer at a directory containing dialog JSON files:
 
 ```bash
-make serve DIALOG_DIR=/absolute/path/to/ChatGPTDialogs/import_json
+make serve DIALOG_DIR=/absolute/path/to/dialogs
 ```
 
 Then open:
 
-```text
+```
 http://localhost:8000/viewer/index.html
 ```
 
-You can also run the server directly:
+Or run the server directly (with a custom Hyperprompt binary path):
 
 ```bash
-python3 viewer/server.py --port 8000 --dialog-dir /absolute/path/to/dialogs
+python3 viewer/server.py --port 8000 --dialog-dir /path/to/dialogs \
+  --hyperprompt-binary /path/to/hyperprompt
 ```
+
+### Development Mode (React UI + API)
+
+```bash
+make dev DIALOG_DIR=/path/to/dialogs
+# API on :8001, React UI on :5173
+```
+
+---
+
+## Graph-to-Context Pipeline
+
+```
+JSON conversations on disk
+        │
+        ▼
+  ContextBuilder API          GET /api/graph
+  (graph index +              GET /api/conversation
+   validation)                GET /api/checkpoint
+        │
+        ▼
+  Select branch target        POST /api/export
+  → Export lineage nodes      → export/{target}/nodes/*.md
+  → Generate root.hc          → export/{target}/root.hc
+        │
+        ▼
+  Compile with Hyperprompt    POST /api/compile
+        │
+        ▼
+  compiled.md                 ← hand to external agent
+```
+
+1. **Graph index** — ContextBuilder reads all JSON files in the dialog directory, validates and normalizes them, and builds an in-memory lineage graph.
+2. **Export** — You select a conversation or checkpoint as the compile target. ContextBuilder writes each ancestor conversation as a deterministic Markdown file under `export/{target}/nodes/` and generates `export/{target}/root.hc` — a Hyperprompt root file that references them in lineage order.
+3. **Compile** — Hyperprompt reads `root.hc`, resolves the included node files, and writes `export/{target}/compiled.md`. That file is the final context artifact.
+
+### Export Directory Layout
+
+```
+{dialog-dir}/export/{target}/
+├── nodes/
+│   ├── {conv-id-1}.md
+│   ├── {conv-id-2}.md
+│   └── ...
+├── root.hc          ← Hyperprompt root file
+├── compiled.md      ← final compiled artifact
+└── manifest.json    ← compiler manifest (written by Hyperprompt)
+```
+
+The export directory is deterministically regenerated on each export. Prior contents are removed.
+
+---
+
+## Hyperprompt Dependency
+
+ContextBuilder calls the [Hyperprompt](https://github.com/0AL/Hyperprompt) compiler to produce the final Markdown artifact.
+
+### Build Hyperprompt
+
+```bash
+cd /path/to/Hyperprompt
+swift build -c release
+# binary at: .build/release/hyperprompt
+```
+
+### Pass the Binary to ContextBuilder
+
+```bash
+python3 viewer/server.py \
+  --dialog-dir /path/to/dialogs \
+  --hyperprompt-binary /path/to/Hyperprompt/.build/release/hyperprompt
+```
+
+Or set `make serve` to pass the flag by editing the Makefile `serve` target.
+
+If the binary is missing or non-executable, `POST /api/compile` returns a structured error and leaves the export directory intact so you can inspect the generated `.hc` file.
+
+---
 
 ## Graph-First Viewer
 
-The viewer now opens in a graph-first mode instead of treating the file list as the primary navigation surface.
+The viewer opens in a graph-first mode:
 
-- The main canvas is driven by `GET /api/graph` and renders the current workspace lineage directly.
-- Root, branch, and merge conversations have distinct node states so the graph can be read without opening each file first.
-- Broken lineage stays visible as a broken edge and warning state instead of disappearing from the canvas.
-- Drag the canvas background to pan, then click a node to load that conversation into the transcript panel.
-- Selecting a node also opens a structured conversation inspector with lineage edges, integrity details, and a checkpoint inventory.
-- Click `Inspect checkpoint` on a transcript message or checkpoint card to focus that exact message anchor and review its workflow metadata.
-- Branching from the active checkpoint is available directly from the checkpoint inspector, while merge and compile actions remain visible as later-phase affordances.
-- The file list remains available in the sidebar for file-level actions such as open, delete, and save flows.
+- The main canvas is driven by `GET /api/graph` and renders workspace lineage.
+- Root, branch, and merge conversations have distinct node states.
+- Broken lineage is visible as broken edges and warning states, not silently hidden.
+- Drag the canvas background to pan; click a node to open its transcript and inspector.
+- The inspector shows lineage edges, integrity details, and a checkpoint inventory.
+- Click `Inspect checkpoint` on a message to focus that checkpoint and review its workflow metadata.
+- Branching from the active checkpoint is available from the checkpoint inspector.
+- Compile actions are accessible from the checkpoint inspector once a target is selected.
+- The sidebar file list remains available for file-level actions (open, delete, save).
+
+---
 
 ## File Contract
 
-ContextBuilder currently supports imported root conversations in the shape produced by `ChatGPTDialogs` and defines a stricter canonical shape for conversations created and normalized by ContextBuilder itself.
-
 ### Imported Root Format
 
-Current imported examples under `real_examples/import_json/` use this shape:
+Files produced by `ChatGPTDialogs` (or any compatible exporter):
 
 ```json
 {
@@ -54,32 +142,17 @@ Current imported examples under `real_examples/import_json/` use this shape:
   "source_file": "/absolute/path/to/file.html",
   "message_count": 42,
   "messages": [
-    {
-      "role": "user",
-      "content": "..."
-    },
-    {
-      "role": "assistant",
-      "content": "..."
-    }
+    { "role": "user", "content": "..." },
+    { "role": "assistant", "content": "..." }
   ]
 }
 ```
 
-In the current imported data:
-
-- top-level files do not yet include `conversation_id`
-- top-level files do not yet include lineage metadata
-- messages include `message_id`
-- messages may also include `turn_id` and `source`
-
-Important: `message_id` and `turn_id` must not be assumed equivalent. Real imported examples show they may differ while both remain stable and meaningful.
-
-Imported files are treated as compatible root conversations. They can be indexed and viewed immediately, but they require normalization before they become canonical branch or merge conversations in the graph.
+Imported files may omit `conversation_id` and lineage metadata. ContextBuilder normalizes them into canonical roots on first save.
 
 ### Canonical Conversation Format
 
-Canonical conversations created or normalized by ContextBuilder must follow this shape:
+Canonical conversations created or normalized by ContextBuilder:
 
 ```json
 {
@@ -101,26 +174,17 @@ Canonical conversations created or normalized by ContextBuilder must follow this
 }
 ```
 
-Canonical message semantics:
-
-- `message_id` is the canonical message anchor for graph lineage and exported context artifacts
-- `turn_id` is preserved imported provenance when available
-- `source` is a stable imported source anchor when available
+- `message_id` is the canonical anchor for graph lineage and export artifacts.
+- `turn_id` and `source` are preserved imported provenance when available.
 
 ### Canonical Branch Format
-
-Branch conversations are canonical conversations with exactly one parent reference:
 
 ```json
 {
   "conversation_id": "conv-branding-branch",
   "title": "Branding Branch",
   "messages": [
-    {
-      "message_id": "msg-branch-1",
-      "role": "user",
-      "content": "Continue from the protocol naming checkpoint."
-    }
+    { "message_id": "msg-branch-1", "role": "user", "content": "Continue from the protocol naming checkpoint." }
   ],
   "lineage": {
     "parents": [
@@ -136,176 +200,212 @@ Branch conversations are canonical conversations with exactly one parent referen
 
 ### Canonical Merge Format
 
-Merge conversations are canonical conversations with two or more parent references:
-
 ```json
 {
   "conversation_id": "conv-contextbuilder-merge",
   "title": "Context Compiler Merge",
   "messages": [
-    {
-      "message_id": "msg-merge-1",
-      "role": "user",
-      "content": "Combine graph selection with Hyperprompt compilation."
-    }
+    { "message_id": "msg-merge-1", "role": "user", "content": "Combine graph selection with Hyperprompt compilation." }
   ],
   "lineage": {
     "parents": [
-      {
-        "conversation_id": "conv-trust-social-root",
-        "message_id": "msg-root-2",
-        "link_type": "merge"
-      },
-      {
-        "conversation_id": "conv-branding-branch",
-        "message_id": "msg-branch-2",
-        "link_type": "merge"
-      }
+      { "conversation_id": "conv-trust-social-root", "message_id": "msg-root-2", "link_type": "merge" },
+      { "conversation_id": "conv-branding-branch", "message_id": "msg-branch-2", "link_type": "merge" }
     ]
   }
 }
 ```
 
-### Schema Notes
+### Schema Rules
 
-- Imported roots remain valid inputs even when `conversation_id` is missing.
+- Imported roots are valid inputs even when `conversation_id` is absent.
 - Canonical files created by ContextBuilder must include `conversation_id`.
-- `lineage.parents` is mandatory for canonical files and empty only for canonical roots.
-- Parent references always use `conversation_id`, `message_id`, and `link_type`.
-- ContextBuilder preserves imported provenance such as `source_file`, `turn_id`, and `source` when exporting to downstream artifacts.
+- `lineage.parents` is mandatory for canonical files; empty only for canonical roots.
+- Parent references always require `conversation_id`, `message_id`, and `link_type`.
+- `link_type` is `branch` for single-parent conversations and `merge` for multi-parent.
+- ContextBuilder preserves imported provenance (`source_file`, `turn_id`, `source`) in exports.
 
 ### Normalization Rules
 
-Imported JSON files are normalized into canonical roots before they participate in graph indexing:
+1. Already-canonical payloads are preserved as-is.
+2. Imported roots with stable message identity get a deterministic `conversation_id` and `lineage: { parents: [] }` added on save.
+3. `conversation_id` is derived from `source_file`, `title`, and ordered `message_id` values.
+4. Payloads missing stable message identity or with inconsistent `message_count` are rejected.
 
-1. If a payload is already canonical, ContextBuilder preserves it as-is.
-2. If a payload matches the imported root shape and has stable message identity, ContextBuilder derives a deterministic `conversation_id` and adds:
+---
 
-```json
-{
-  "lineage": {
-    "parents": []
-  }
-}
-```
+## Integrity Validation
 
-3. Deterministic `conversation_id` generation is based on stable imported provenance:
-   - `source_file`
-   - `title`
-   - ordered `message_id` values
-4. Imported payloads that are missing stable message identity or have inconsistent `message_count` are rejected as invalid and must not silently enter the graph.
+ContextBuilder validates individual payloads and whole-workspace lineage before persisting or graph-indexing any conversation:
 
-### Integrity Validation Rules
-
-ContextBuilder now validates both individual payloads and whole-workspace lineage integrity before conversations are persisted or treated as graph-ready:
-
-1. Canonical conversations must include:
-   - a non-empty `conversation_id`,
-   - valid message payloads with stable `message_id` values,
-   - a `lineage.parents` list when stored in canonical form.
-2. Duplicate `message_id` values inside the same canonical conversation are rejected.
-3. Parent references must always include:
-   - `conversation_id`,
-   - `message_id`,
-   - `link_type` with value `branch` or `merge`.
-4. Single-parent conversations must use `branch` links; multi-parent conversations must use `merge` links.
+1. Canonical conversations require a non-empty `conversation_id`, valid messages with stable `message_id` values, and a `lineage.parents` list.
+2. Duplicate `message_id` values within one conversation are rejected.
+3. Parent references must include `conversation_id`, `message_id`, and `link_type`.
+4. Single-parent conversations use `branch` links; multi-parent use `merge` links.
 5. Duplicate parent references are rejected.
-6. Workspace validation surfaces:
-   - duplicate `conversation_id` values across files,
-   - missing parent conversations,
-   - missing parent `message_id` values,
-   - invalid or unreadable JSON files.
+6. Workspace validation surfaces: duplicate `conversation_id` across files, missing parent conversations, missing parent `message_id` values, and invalid JSON.
 
-### API Validation Behavior
+---
 
-- `GET /api/files` now returns per-file validation metadata plus aggregate diagnostics for the current dialog directory.
-- `GET /api/file` returns the requested payload together with the current validation result for that file.
-- `GET /api/graph` returns the graph snapshot together with a summary that separates blocking integrity issues from non-blocking lineage diagnostics.
-- `GET /api/conversation?conversation_id=...` returns one graph-safe conversation node, its parent and child edges, and compile-target-ready lineage metadata.
-- `GET /api/checkpoint?conversation_id=...&message_id=...` returns one checkpoint anchor, its outbound child edges, and compile-target metadata anchored to that exact message.
-- `POST /api/file` validates the file name and payload before writing. Valid imported roots are normalized into canonical roots on save; malformed or ambiguous payloads are rejected with structured error codes.
+## API Reference
 
-Graph lookup error behavior:
+### Read APIs
 
-- unknown `conversation_id` values return `404`
-- blocked `conversation_id` values return `409` with the blocking diagnostics
-- unknown checkpoint anchors return `404`
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/files` | Workspace listing with per-file validation metadata and graph snapshot |
+| `GET /api/graph` | Full graph snapshot, summary counts, and integrity split (blocking / non-blocking) |
+| `GET /api/file?name=...` | One file payload with its validation result |
+| `GET /api/conversation?conversation_id=...` | One graph node with edges, integrity, and compile target metadata |
+| `GET /api/checkpoint?conversation_id=...&message_id=...` | One checkpoint anchor with child edges and compile target metadata |
 
-### Graph Snapshot Model
+### Write APIs
 
-`GET /api/files` now also returns a `graph` snapshot derived from the same normalized workspace scan. The graph snapshot is the authoritative lineage model for later UI and compile tasks.
+| Endpoint | Body | Description |
+|----------|------|-------------|
+| `POST /api/file` | `{ name, data, overwrite? }` | Validate and save a conversation file |
+| `DELETE /api/file?name=...` | — | Delete a conversation file |
 
-The snapshot currently contains:
+### Compile APIs
 
-- `nodes`: graph-safe conversations keyed by unique `conversation_id`
-- `edges`: resolved or broken parent links from parent checkpoints to child conversations
-- `roots`: canonical root conversation IDs with no parent references
-- `blocked_files`: files that remain diagnostics-only because they are invalid JSON, structurally invalid, or blocked by duplicate `conversation_id` values
-- `diagnostics`: aggregate graph diagnostics for nodes, edges, and blocked files
+| Endpoint | Body | Description |
+|----------|------|-------------|
+| `POST /api/export` | `{ conversation_id, message_id? }` | Export lineage nodes to disk and generate `root.hc` |
+| `POST /api/compile` | `{ conversation_id, message_id? }` | Export lineage nodes and invoke the Hyperprompt compiler |
+
+**Export response fields:**
+
+- `export_dir` — absolute path to the export directory
+- `hc_file` — absolute path to `root.hc`
+- `nodes_written` — list of node filenames written
+- `compile_target` — the compile target metadata used
+
+**Compile response fields** (in addition to export fields):
+
+- `compile.compiled_md` — absolute path to `compiled.md`
+- `compile.manifest_json` — absolute path to `manifest.json`
+- `compile.error` — present only on failure, with a human-readable description
+
+### Error Behavior
+
+- Unknown `conversation_id` → `404`
+- Conversation blocked by integrity errors → `409` with diagnostics
+- Unknown checkpoint anchor → `404`
+- Hyperprompt binary missing or compile failure → `500` with `compile.error`
+
+---
+
+## Graph Snapshot Model
+
+`GET /api/graph` returns:
+
+- `graph.nodes` — graph-safe conversations keyed by `conversation_id`
+- `graph.edges` — resolved or broken parent links between checkpoints and child conversations
+- `graph.roots` — canonical root `conversation_id` values with no parents
+- `graph.blocked_files` — files excluded from the graph due to validation errors
+- `graph.diagnostics` — aggregate counts for nodes, edges, roots, blocked files, and issues
+- `summary` — counts for nodes, edges, roots, blocked files, total diagnostics, blocking issues, non-blocking issues
+- `integrity` — diagnostics split into `blocking` and `non_blocking`
 
 Each graph node includes:
 
-- `conversation_id`, `file_name`, `kind`, `title`, and `source_file`
-- `checkpoints` derived from ordered messages, each with `message_id`, message metadata, and any outbound child edge IDs
+- `conversation_id`, `file_name`, `kind` (root / branch / merge), `title`, `source_file`
+- `checkpoints` — ordered messages, each with `message_id`, metadata, and outbound child edge IDs
 - `parent_edge_ids` and `child_edge_ids`
-- node-level diagnostics such as broken parent references
+- node-level diagnostics for broken parent references
 
 Each graph edge includes:
 
-- the parent conversation and parent `message_id`
-- the child conversation and child file
+- parent conversation and `message_id`
+- child conversation and file
 - `link_type` (`branch` or `merge`)
 - `status` (`resolved` or `broken`)
-- any edge-specific diagnostics
+- edge-specific diagnostics
 
-Important graph rules:
+### Compile Target Fields
 
-1. Missing parent conversations or missing parent messages do not hide an otherwise valid child conversation; the node remains visible with broken-edge diagnostics.
-2. Duplicate `conversation_id` values block graph indexing for that identity and move the affected files into `blocked_files`.
-3. Invalid JSON files remain visible only through diagnostics and are not indexed as graph nodes.
-4. Node, edge, and diagnostic ordering is deterministic so later canvas and compile workflows can build on a stable snapshot.
+Returned by `GET /api/conversation` and `GET /api/checkpoint`:
 
-### Graph Detail API
+| Field | Description |
+|-------|-------------|
+| `scope` | `conversation` or `checkpoint` |
+| `target_conversation_id` | Selected conversation |
+| `target_message_id` | Selected message anchor (checkpoint scope only) |
+| `lineage_conversation_ids` | Deterministic ancestor ordering ending at target |
+| `lineage_edge_ids` | Parent edges included in the ancestry |
+| `lineage_paths` | Root-to-target paths, preserving merge provenance |
+| `root_conversation_ids` | Reachable roots for the selected target |
+| `merge_parent_conversation_ids` | Merge parents visible in ancestry |
+| `unresolved_parent_edge_ids` | Broken parent edges making lineage incomplete |
+| `is_lineage_complete` | `false` when any ancestor edge is unresolved |
 
-The graph-specific read API builds on the same snapshot and exposes stable graph identifiers for later UI and compilation workflows:
-
-- `GET /api/graph` returns:
-  - `graph`: the full snapshot described above
-  - `summary`: counts for nodes, edges, roots, blocked files, total diagnostics, blocking issues, and non-blocking issues
-  - `integrity`: the same graph diagnostics split into `blocking` and `non_blocking`
-- `GET /api/conversation?conversation_id=...` returns:
-  - `conversation`: the indexed node payload
-  - `parent_edges` and `child_edges`
-  - `integrity`: related diagnostics split into `blocking` and `non_blocking`
-  - `compile_target`: deterministic selection metadata for the whole conversation
-- `GET /api/checkpoint?conversation_id=...&message_id=...` returns:
-  - `conversation`: the owning conversation node
-  - `checkpoint`: the selected message anchor
-  - `child_edges`: outbound branch or merge edges from that checkpoint
-  - `compile_target`: deterministic selection metadata for that exact checkpoint
-
-Current `compile_target` fields are intended to unblock later export tasks without persisting selection state yet:
-
-- `scope`: `conversation` or `checkpoint`
-- `target_conversation_id` and optional `target_message_id`
-- `lineage_conversation_ids`: deterministic ancestor ordering ending at the selected target
-- `lineage_edge_ids`: parent edges included in the selected ancestry
-- `lineage_paths`: root-to-target conversation paths, preserving merge provenance as multiple paths
-- `root_conversation_ids`: reachable roots for the selected target
-- `merge_parent_conversation_ids`: merge parents visible in the selected ancestry
-- `unresolved_parent_edge_ids`: broken parent edges that make the lineage incomplete
-- `is_lineage_complete`: `false` when any parent edge in the selected ancestry is unresolved
-
-The intended upstream producer is `ChatGPTDialogs`, but any directory with the same JSON contract is valid.
+---
 
 ## Repository Layout
 
-- `viewer/server.py`: local viewer API and static file server
-- `viewer/index.html`: browser UI for browsing and editing dialogs
-- `Makefile`: local server entrypoint
+```
+ContextBuilder/
+├── viewer/
+│   ├── server.py          # Local API and static file server (Python)
+│   ├── schema.py          # Schema validation helpers
+│   ├── canonicalize.py    # Batch import normalization script
+│   └── app/               # React + TypeScript UI (Vite)
+│       ├── src/           # React components and graph canvas
+│       └── dist/          # Built UI assets (served by server.py)
+├── tests/                 # Python unit and integration tests
+├── real_examples/         # Example dialog JSON fixtures
+├── Makefile               # Developer entrypoints
+└── README.md
+```
 
-## Scope Boundary
+---
 
-- `ChatGPTDialogs`: extractor, fixtures, HTML-to-JSON contract docs
-- `ContextBuilder`: viewer-web and viewer-api
-- `capture-browser`: separate concern, intentionally not part of this repository
+## Makefile Targets
+
+| Target | Purpose |
+|--------|---------|
+| `make serve DIALOG_DIR=...` | Start the combined API + static file server |
+| `make dev DIALOG_DIR=...` | Start API on :8001 and React dev server on :5173 |
+| `make api DIALOG_DIR=...` | Start API only |
+| `make ui` | Start React dev server only |
+| `make canonicalize DIALOG_DIR=... OUTPUT_DIR=...` | Batch-normalize imported JSON to canonical form |
+| `make canon DIALOG_DIR=...` | Alias for `canonicalize` with default `OUTPUT_DIR=/tmp/canonical_json` |
+| `make test` | Run all Python tests |
+| `make lint` | Syntax-check Python source files |
+
+---
+
+## Contributor Guide
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+ (for the React UI)
+- [Hyperprompt](https://github.com/0AL/Hyperprompt) compiler binary (for compile tests and runtime compile)
+
+### Run Tests
+
+```bash
+make test
+```
+
+### Lint
+
+```bash
+make lint
+```
+
+### Understand the Pipeline
+
+1. `viewer/schema.py` — canonical schema rules and validation helpers used by the server and tests.
+2. `viewer/canonicalize.py` — batch normalization for imported root JSON files.
+3. `viewer/server.py` — all HTTP handlers, graph indexing, export, and compile orchestration.
+4. `viewer/app/src/` — React graph canvas, inspector panels, compile affordances.
+5. `tests/` — unit tests for schema, graph indexing, API handlers, export pipeline, and compile integration.
+
+### Adding a New Conversation Kind
+
+1. Add schema rules to `viewer/schema.py`.
+2. Update `build_graph_index` in `viewer/server.py` to handle the new kind.
+3. Add fixture files under `real_examples/` or `tests/fixtures/`.
+4. Add regression tests in `tests/`.

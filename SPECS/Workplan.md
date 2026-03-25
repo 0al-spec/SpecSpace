@@ -750,7 +750,7 @@ Intent: lock down graph and compile behavior with regression coverage and make t
   - The pipeline catches broken references, invalid compiler setup, and incorrect artifact generation.
   - Successful compile flows are covered end-to-end.
 
-### CTXB-P5-T4 — Update product and contributor documentation for the graph-to-context workflow
+### ✅ CTXB-P5-T4 — Update product and contributor documentation for the graph-to-context workflow
 - **Description:** Rewrite repository documentation so it matches the graph product scope, the canonical file contract, the Hyperprompt dependency, and the compile workflow.
 - **Priority:** P1
 - **Dependencies:** CTXB-P4-T4
@@ -760,6 +760,16 @@ Intent: lock down graph and compile behavior with regression coverage and make t
   - The docs explain what ContextBuilder owns and what external agents own.
   - The docs describe root, branch, merge, export node, `.hc`, and compiled artifact concepts.
   - A contributor can understand the local graph-to-context pipeline.
+
+### CTXB-P5-T6 — Add HYPERPROMPT_BINARY variable to Makefile serve target
+- **Description:** Add a `HYPERPROMPT_BINARY` make variable to the `serve` target so contributors can pass a custom Hyperprompt binary path via `make serve` without editing the Makefile directly.
+- **Priority:** P2
+- **Dependencies:** CTXB-P5-T4
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** Updated `Makefile`
+- **Acceptance Criteria:**
+  - `make serve DIALOG_DIR=... HYPERPROMPT_BINARY=...` passes the binary path to `viewer/server.py --hyperprompt-binary`.
+  - Default value matches `DEFAULT_HYPERPROMPT_BINARY` in `server.py`.
 
 ### CTXB-P5-T5 — Add end-to-end verification guidance for handing compiled context to an external agent
 - **Description:** Document the local operator flow from JSON conversations to final compiled Markdown so the compiled artifact can be used immediately in downstream agent workflows.
