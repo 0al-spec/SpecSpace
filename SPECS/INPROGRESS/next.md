@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** (none)
+**Current Task:** `CTXB-P4-T1` — Export selected graph nodes into deterministic Markdown files
 
 ## Recently Archived
 - `CTXB-P3-T4` — Let the user select the active branch as a compile target (PASS, 2026-03-25)
@@ -10,6 +10,6 @@
 - `CTXB-P2R-B5` — Message node title is draggable and shows sockets; overlapped by message node; collapse button floats (PASS, 2026-03-24)
 
 ## Suggested Next Tasks
-- `CTXB-P4-T1` — Export selected graph nodes into deterministic Markdown files (P0)
+- `CTXB-P4-T2` — Generate a valid Hyperprompt root file for the selected branch (P0)
 - `CTXB-P3-T5` — Re-index and reconcile external file changes (P1)
 - `CTXB-P3-T6` — Message Authoring (P1)
