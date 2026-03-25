@@ -64,6 +64,7 @@
 | [REVIEW_compile_target_selection.md](_Historical/REVIEW_compile_target_selection.md) | Compile target selection UI review report |
 | [REVIEW_export_graph_nodes.md](_Historical/REVIEW_export_graph_nodes.md) | Export graph nodes Markdown files review report |
 | [REVIEW_generate_hc_root_file.md](_Historical/REVIEW_generate_hc_root_file.md) | Generate Hyperprompt root .hc file review report |
+| [REVIEW_hyperprompt_compiler_invocation.md](_Historical/REVIEW_hyperprompt_compiler_invocation.md) | Hyperprompt compiler invocation review report |
 
 ## Archive Log
 
@@ -157,3 +158,4 @@
 | 2026-03-25 | CTXB-P4-T2 | Archived Generate_Hyperprompt_root_file (PASS) |
 | 2026-03-25 | CTXB-P4-T2 | Archived REVIEW_generate_hc_root_file report |
 | 2026-03-25 | CTXB-P4-T3 | Archived Integrate_Hyperprompt_Compiler_Invocation (PASS) |
+| 2026-03-25 | CTXB-P4-T3 | Archived REVIEW_hyperprompt_compiler_invocation report |
