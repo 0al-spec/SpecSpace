@@ -74,6 +74,7 @@
 | [REVIEW_schema_validation_integrity_tests.md](_Historical/REVIEW_schema_validation_integrity_tests.md) | Schema validation and graph integrity tests review report |
 | [REVIEW_branch_merge_compile_target_tests.md](_Historical/REVIEW_branch_merge_compile_target_tests.md) | Branch, merge, and compile target selection tests review report |
 | [REVIEW_export_hc_compile_tests.md](_Historical/REVIEW_export_hc_compile_tests.md) | Markdown export, .hc generation, and compile integration tests review report |
+| [REVIEW_product_docs.md](_Historical/REVIEW_product_docs.md) | Product and contributor documentation review report |
 
 ## Archive Log
 
