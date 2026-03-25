@@ -461,6 +461,18 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - The expand/collapse button is positioned at the conversation node level, not floating with sub-nodes.
   - All existing tests continue to pass.
 
+### CTXB-P2R-B6 — Selecting a conversation node or message subnode does not populate the right inspector
+- **Description:** Clicking a conversation node or a message sub-node on the graph canvas does not populate the right-side inspector panel — the inspector remains empty. Expected behaviour: selecting any conversation node should load that conversation's detail (title, lineage edges, integrity, checkpoints) into the inspector; selecting a message sub-node should load that checkpoint's detail.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2R-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** Fix in `viewer/app/src/`; regression tests or manual verification steps
+- **Acceptance Criteria:**
+  - Clicking a conversation node populates the inspector with conversation detail (title, kind, parent/child edges, checkpoints).
+  - Clicking a message sub-node populates the inspector with checkpoint detail.
+  - Inspector content updates on every subsequent selection.
+  - Deselecting clears or retains the last selection gracefully (no blank flash).
+
 ## Phase 3: Authoring and Compile Target Selection
 
 Intent: implement the workflows that mutate graph structure safely and let the user mark a concrete line of reasoning as the target for context compilation.
