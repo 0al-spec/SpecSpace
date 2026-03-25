@@ -509,7 +509,7 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - Export artifacts have a stable local directory structure.
   - Merge provenance is preserved explicitly in the selection model.
 
-### CTXB-P3-T4 — Let the user select the active branch as a compile target
+### ✅ CTXB-P3-T4 — Let the user select the active branch as a compile target
 - **Description:** Add UI actions and state handling so the user can mark the active conversation or checkpoint lineage as the branch to compile into external context.
 - **Priority:** P0
 - **Dependencies:** CTXB-P3-T3

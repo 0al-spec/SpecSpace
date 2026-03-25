@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-25
+**Last Updated:** 2026-03-25 (CTXB-P3-T4)
 
 ## Archived Tasks
 
@@ -47,6 +47,7 @@
 | CTXB-P3-T2 | [CTXB-P3-T2_Implement_merge_conversation_creation_with_multi-parent_lineage/](CTXB-P3-T2_Implement_merge_conversation_creation_with_multi-parent_lineage/) | 2026-03-25 | PASS |
 | CTXB-P3-B1 | [CTXB-P3-B1_Expanding_an_empty_merge_node_hides_parent_edges/](CTXB-P3-B1_Expanding_an_empty_merge_node_hides_parent_edges/) | 2026-03-25 | PASS |
 | CTXB-P3-T3 | [CTXB-P3-T3_Define_The_Compile_Target_Model_And_Export_Workspace_Layout/](CTXB-P3-T3_Define_The_Compile_Target_Model_And_Export_Workspace_Layout/) | 2026-03-25 | PASS |
+| CTXB-P3-T4 | [CTXB-P3-T4_Let_user_select_active_branch_as_compile_target/](CTXB-P3-T4_Let_user_select_active_branch_as_compile_target/) | 2026-03-25 | PASS |
 
 ## Historical Artifacts
 
@@ -143,3 +144,4 @@
 | 2026-03-25 | CTXB-P3-B1 | Archived REVIEW_expand_empty_merge_edges report |
 | 2026-03-25 | CTXB-P3-T3 | Archived Define_The_Compile_Target_Model_And_Export_Workspace_Layout (PASS) |
 | 2026-03-25 | CTXB-P3-T3 | Archived REVIEW_compile_target_model report |
+| 2026-03-25 | CTXB-P3-T4 | Archived Let_user_select_active_branch_as_compile_target (PASS) |
