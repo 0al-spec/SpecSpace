@@ -694,7 +694,7 @@ Intent: turn the selected branch into actual filesystem artifacts that Hyperprom
   - Missing binary at the configured path surfaces a clear "Hyperprompt not found" error.
   - The integration satisfies PRD FR-14, FR-15, and NFR-11.
 
-### CTXB-P4-T4 — Expose compile results and artifact locations
+### ✅ CTXB-P4-T4 — Expose compile results and artifact locations
 - **Description:** Show compile status, output paths, and failure details in the UI and API so the user can immediately use the generated context artifact with an external agent.
 - **Priority:** P0
 - **Dependencies:** CTXB-P4-T3
