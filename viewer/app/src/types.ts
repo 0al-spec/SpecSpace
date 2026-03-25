@@ -35,6 +35,26 @@ export interface Checkpoint {
   content: string;
 }
 
+export interface CompileSuccess {
+  status: "ok";
+  compiled_md: string;
+  manifest_json: string;
+  exit_code: 0;
+  stdout: string;
+  stderr: string;
+}
+
+export interface CompileFailure {
+  status: "error";
+  error: string;
+  details?: string;
+  exit_code: number | null;
+  stderr?: string;
+  stdout?: string;
+}
+
+export type CompileResult = CompileSuccess | CompileFailure;
+
 export interface CompileTarget {
   scope: "conversation" | "checkpoint";
   target_conversation_id: string;

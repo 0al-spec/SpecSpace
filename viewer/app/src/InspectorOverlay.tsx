@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./InspectorOverlay.css";
 import BranchDialog from "./BranchDialog";
 import MergeDialog from "./MergeDialog";
-import type { CompileTarget } from "./types";
+import type { CompileTarget, CompileResult } from "./types";
 
 interface ConversationDetail {
   conversation: {
@@ -81,6 +81,8 @@ export default function InspectorOverlay({
   const [loading, setLoading] = useState(false);
   const [showBranchDialog, setShowBranchDialog] = useState(false);
   const [showMergeDialog, setShowMergeDialog] = useState(false);
+  const [compiling, setCompiling] = useState(false);
+  const [compileResult, setCompileResult] = useState<CompileResult | null>(null);
 
   useEffect(() => {
     if (!selectedConversationId) {
@@ -112,6 +114,55 @@ export default function InspectorOverlay({
       .then((data) => setCheckpointDetail(data))
       .catch(() => {});
   }, [selectedConversationId, selectedMessageId]);
+
+  // Reset compile result when the active compile target changes.
+  useEffect(() => {
+    setCompileResult(null);
+  }, [compileTargetConversationId, compileTargetMessageId]);
+
+  const handleCompile = useCallback(async () => {
+    if (!compileTargetConversationId || compiling) return;
+    setCompiling(true);
+    setCompileResult(null);
+    try {
+      const body: Record<string, string> = { conversation_id: compileTargetConversationId };
+      if (compileTargetMessageId) body.message_id = compileTargetMessageId;
+      const res = await fetch("/api/compile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      const compilePayload = data.compile ?? data;
+      if (res.ok && compilePayload.exit_code === 0) {
+        setCompileResult({
+          status: "ok",
+          compiled_md: compilePayload.compiled_md,
+          manifest_json: compilePayload.manifest_json,
+          exit_code: 0,
+          stdout: compilePayload.stdout ?? "",
+          stderr: compilePayload.stderr ?? "",
+        });
+      } else {
+        setCompileResult({
+          status: "error",
+          error: compilePayload.error ?? "Compile failed",
+          details: compilePayload.details,
+          exit_code: compilePayload.exit_code ?? null,
+          stderr: compilePayload.stderr ?? "",
+          stdout: compilePayload.stdout ?? "",
+        });
+      }
+    } catch (err) {
+      setCompileResult({
+        status: "error",
+        error: String(err),
+        exit_code: null,
+      });
+    } finally {
+      setCompiling(false);
+    }
+  }, [compileTargetConversationId, compileTargetMessageId, compiling]);
 
   const visible = Boolean(selectedConversationId);
   const conv = convDetail?.conversation;
@@ -293,6 +344,72 @@ export default function InspectorOverlay({
           >
             Create Merge
           </button>
+        </>
+      )}
+
+      {compileTargetConversationId && (
+        <>
+          <div className="inspector-divider" />
+          <div className="inspector-section-label">COMPILE</div>
+          <div className="inspector-compile-target-summary">
+            <span className="inspector-compile-target-id">{compileTargetConversationId}</span>
+            {compileTargetMessageId && (
+              <span className="inspector-compile-target-msg"> @ {compileTargetMessageId}</span>
+            )}
+          </div>
+          <button
+            className="inspector-branch-btn inspector-compile-btn"
+            onClick={handleCompile}
+            disabled={compiling}
+          >
+            {compiling ? "Compiling\u2026" : "Compile"}
+          </button>
+
+          {compileResult && (
+            <div className={`inspector-compile-result ${compileResult.status === "ok" ? "inspector-compile-ok" : "inspector-compile-error"}`}>
+              {compileResult.status === "ok" ? (
+                <>
+                  <div className="inspector-compile-result-label">COMPILE RESULT</div>
+                  <div className="inspector-compile-exit">Exit code: {compileResult.exit_code}</div>
+                  <div className="inspector-compile-artifact">
+                    <span className="inspector-compile-artifact-name">compiled.md</span>
+                    <button
+                      className="inspector-copy-btn"
+                      onClick={() => navigator.clipboard?.writeText(compileResult.compiled_md)}
+                      title="Copy path"
+                    >
+                      copy
+                    </button>
+                    <div className="inspector-compile-path">{compileResult.compiled_md}</div>
+                  </div>
+                  <div className="inspector-compile-artifact">
+                    <span className="inspector-compile-artifact-name">manifest.json</span>
+                    <button
+                      className="inspector-copy-btn"
+                      onClick={() => navigator.clipboard?.writeText(compileResult.manifest_json)}
+                      title="Copy path"
+                    >
+                      copy
+                    </button>
+                    <div className="inspector-compile-path">{compileResult.manifest_json}</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="inspector-compile-result-label">
+                    COMPILE ERROR{compileResult.exit_code != null ? ` \u2014 Exit code: ${compileResult.exit_code}` : ""}
+                  </div>
+                  <div className="inspector-compile-error-msg">{compileResult.error}</div>
+                  {compileResult.details && (
+                    <div className="inspector-compile-error-detail">{compileResult.details}</div>
+                  )}
+                  {compileResult.stderr && (
+                    <pre className="inspector-compile-stderr">{compileResult.stderr}</pre>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </>
       )}
 
