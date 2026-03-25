@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import shutil
 import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -700,6 +701,105 @@ def validate_write_request(
     return candidate.normalized, ()
 
 
+def _render_node_markdown(conversation_id: str, checkpoint: dict[str, Any]) -> str:
+    """Render one checkpoint as a Markdown node file with a provenance comment."""
+    parts = [
+        f"conversation_id: {conversation_id}",
+        f"message_id: {checkpoint['message_id']}",
+        f"role: {checkpoint['role']}",
+    ]
+    if checkpoint.get("turn_id"):
+        parts.append(f"turn_id: {checkpoint['turn_id']}")
+    if checkpoint.get("source"):
+        parts.append(f"source: {checkpoint['source']}")
+    comment = "<!-- " + "  ".join(parts) + " -->"
+    return comment + "\n\n" + checkpoint["content"] + "\n"
+
+
+def export_graph_nodes(
+    dialog_dir: Path,
+    conversation_id: str,
+    message_id: str | None = None,
+) -> tuple[int, dict[str, Any]]:
+    """Export lineage nodes for the given compile target as deterministic Markdown files."""
+    if not conversation_id:
+        return HTTPStatus.BAD_REQUEST, {"error": "conversation_id is required"}
+
+    workspace = collect_workspace_listing(dialog_dir)
+    graph = workspace["graph"]
+    nodes_by_conversation, edges_by_id, _ = build_graph_indexes(graph)
+
+    node = nodes_by_conversation.get(conversation_id)
+    if node is None:
+        return HTTPStatus.NOT_FOUND, {"error": "Conversation not found", "conversation_id": conversation_id}
+
+    checkpoint: dict[str, Any] | None = None
+    if message_id is not None:
+        checkpoint = next((cp for cp in node["checkpoints"] if cp["message_id"] == message_id), None)
+        if checkpoint is None:
+            return HTTPStatus.NOT_FOUND, {
+                "error": "Checkpoint not found",
+                "conversation_id": conversation_id,
+                "message_id": message_id,
+            }
+
+    scope = "checkpoint" if message_id is not None else "conversation"
+    compile_target = build_compile_target(
+        graph,
+        conversation_id,
+        scope=scope,
+        dialog_dir=dialog_dir,
+        target_message_id=message_id,
+        checkpoint=checkpoint,
+    )
+
+    export_dir = Path(compile_target["export_dir"])
+    nodes_dir = export_dir / "nodes"
+
+    # Clean export dir to guarantee determinism on re-export.
+    if export_dir.exists():
+        shutil.rmtree(export_dir)
+    nodes_dir.mkdir(parents=True)
+
+    target_conv_id = compile_target["target_conversation_id"]
+    target_checkpoint_index: int | None = compile_target.get("target_checkpoint_index")
+
+    conversations_written: list[dict[str, Any]] = []
+    total_node_count = 0
+
+    for conv_id in compile_target["lineage_conversation_ids"]:
+        conv_node = nodes_by_conversation.get(conv_id)
+        if conv_node is None:
+            continue
+
+        checkpoints: list[dict[str, Any]] = conv_node["checkpoints"]
+        if scope == "checkpoint" and conv_id == target_conv_id and target_checkpoint_index is not None:
+            checkpoints = checkpoints[: target_checkpoint_index + 1]
+
+        conv_dir = nodes_dir / conv_id
+        conv_dir.mkdir()
+
+        files_written: list[str] = []
+        for cp in checkpoints:
+            filename = f"{cp['index']:04d}_{cp['message_id']}.md"
+            (conv_dir / filename).write_text(_render_node_markdown(conv_id, cp), encoding="utf-8")
+            files_written.append(filename)
+            total_node_count += 1
+
+        conversations_written.append({
+            "conversation_id": conv_id,
+            "node_dir": f"nodes/{conv_id}/",
+            "files": files_written,
+        })
+
+    return HTTPStatus.OK, {
+        "export_dir": str(export_dir),
+        "node_count": total_node_count,
+        "conversations": conversations_written,
+        "compile_target": compile_target,
+    }
+
+
 class ViewerHandler(BaseHTTPRequestHandler):
     server_version = "ContextBuilderViewer/0.1"
 
@@ -726,6 +826,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/api/file":
             self.handle_write_file()
+            return
+        if parsed.path == "/api/export":
+            self.handle_export()
             return
         self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -794,6 +897,15 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "workspace_diagnostics": workspace["diagnostics"],
             },
         )
+
+    def handle_export(self) -> None:
+        payload = self.read_json_body()
+        if payload is None:
+            return
+        conversation_id = payload.get("conversation_id", "")
+        message_id = payload.get("message_id") or None
+        status, response = export_graph_nodes(self.server.dialog_dir, conversation_id, message_id)
+        json_response(self, status, response)
 
     def handle_write_file(self) -> None:
         payload = self.read_json_body()

@@ -787,5 +787,227 @@ class FileApiHttpTests(unittest.TestCase):
                 stop_test_server(httpd, thread)
 
 
+class ExportApiTests(unittest.TestCase):
+    """Tests for POST /api/export — export_graph_nodes()."""
+
+    def test_conversation_scope_exports_all_lineage_messages(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        branch_payload = load_json(CANONICAL_FIXTURES / "branch_conversation.json")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload, "branch.json": branch_payload})
+
+            status, payload = server.export_graph_nodes(dialog_dir, "conv-trust-social-branding-branch")
+
+        self.assertEqual(status, HTTPStatus.OK)
+        # Both root (2 msgs) and branch (2 msgs) should be exported.
+        self.assertEqual(payload["node_count"], 4)
+        conv_ids = [c["conversation_id"] for c in payload["conversations"]]
+        self.assertIn("conv-trust-social-root", conv_ids)
+        self.assertIn("conv-trust-social-branding-branch", conv_ids)
+
+    def test_conversation_scope_writes_files_to_disk(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        branch_payload = load_json(CANONICAL_FIXTURES / "branch_conversation.json")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload, "branch.json": branch_payload})
+
+            status, payload = server.export_graph_nodes(dialog_dir, "conv-trust-social-branding-branch")
+
+            self.assertEqual(status, HTTPStatus.OK)
+            export_dir = Path(payload["export_dir"])
+            self.assertTrue(export_dir.exists())
+
+            root_dir = export_dir / "nodes" / "conv-trust-social-root"
+            branch_dir = export_dir / "nodes" / "conv-trust-social-branding-branch"
+            self.assertTrue(root_dir.exists())
+            self.assertTrue(branch_dir.exists())
+
+            root_files = sorted(root_dir.iterdir())
+            self.assertEqual(len(root_files), 2)
+            self.assertTrue(root_files[0].name.startswith("0000_"))
+            self.assertTrue(root_files[1].name.startswith("0001_"))
+
+    def test_node_file_contains_provenance_comment_and_content(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+
+            status, payload = server.export_graph_nodes(dialog_dir, "conv-trust-social-root")
+
+            self.assertEqual(status, HTTPStatus.OK)
+            export_dir = Path(payload["export_dir"])
+            root_dir = export_dir / "nodes" / "conv-trust-social-root"
+            first_file = sorted(root_dir.iterdir())[0]
+            text = first_file.read_text(encoding="utf-8")
+
+        self.assertTrue(text.startswith("<!--"))
+        self.assertIn("conversation_id: conv-trust-social-root", text)
+        self.assertIn("message_id:", text)
+        self.assertIn("role:", text)
+        # Content follows the comment
+        self.assertIn("\n\n", text)
+        # File ends with newline
+        self.assertTrue(text.endswith("\n"))
+
+    def test_checkpoint_scope_truncates_target_conversation(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+
+            # Root has 2 messages: msg-root-1 (index 0) and msg-root-2 (index 1).
+            # Exporting at checkpoint msg-root-1 should export only 1 message.
+            status, payload = server.export_graph_nodes(
+                dialog_dir, "conv-trust-social-root", "msg-root-1"
+            )
+
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(payload["node_count"], 1)
+        conv_entry = payload["conversations"][0]
+        self.assertEqual(len(conv_entry["files"]), 1)
+        self.assertTrue(conv_entry["files"][0].startswith("0000_"))
+
+    def test_checkpoint_scope_includes_messages_up_to_and_including_target(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+
+            # Export at index 1 (msg-root-2) — should include both messages.
+            status, payload = server.export_graph_nodes(
+                dialog_dir, "conv-trust-social-root", "msg-root-2"
+            )
+
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(payload["node_count"], 2)
+
+    def test_export_is_deterministic_on_re_export(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+
+            status1, payload1 = server.export_graph_nodes(dialog_dir, "conv-trust-social-root")
+            export_dir = Path(payload1["export_dir"])
+            files_first = {
+                p.relative_to(export_dir): p.read_bytes()
+                for p in sorted(export_dir.rglob("*.md"))
+            }
+
+            # Re-export
+            status2, payload2 = server.export_graph_nodes(dialog_dir, "conv-trust-social-root")
+            files_second = {
+                p.relative_to(export_dir): p.read_bytes()
+                for p in sorted(export_dir.rglob("*.md"))
+            }
+
+        self.assertEqual(status1, HTTPStatus.OK)
+        self.assertEqual(status2, HTTPStatus.OK)
+        self.assertEqual(files_first, files_second)
+
+    def test_re_export_removes_stale_files(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+
+            _, payload = server.export_graph_nodes(dialog_dir, "conv-trust-social-root")
+            export_dir = Path(payload["export_dir"])
+
+            # Plant a stale file
+            stale = export_dir / "nodes" / "conv-trust-social-root" / "9999_stale.md"
+            stale.write_text("stale", encoding="utf-8")
+            self.assertTrue(stale.exists())
+
+            # Re-export should remove it
+            server.export_graph_nodes(dialog_dir, "conv-trust-social-root")
+            self.assertFalse(stale.exists())
+
+    def test_missing_conversation_id_returns_400(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            status, payload = server.export_graph_nodes(Path(tmp_dir), "")
+        self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+        self.assertIn("conversation_id", payload["error"])
+
+    def test_unknown_conversation_id_returns_404(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+            status, payload = server.export_graph_nodes(dialog_dir, "conv-does-not-exist")
+        self.assertEqual(status, HTTPStatus.NOT_FOUND)
+
+    def test_unknown_message_id_returns_404(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+            status, payload = server.export_graph_nodes(
+                dialog_dir, "conv-trust-social-root", "msg-does-not-exist"
+            )
+        self.assertEqual(status, HTTPStatus.NOT_FOUND)
+
+    def test_response_includes_compile_target(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+            status, payload = server.export_graph_nodes(dialog_dir, "conv-trust-social-root")
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertIn("compile_target", payload)
+        self.assertEqual(payload["compile_target"]["scope"], "conversation")
+
+    def test_http_export_endpoint_returns_ok(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        branch_payload = load_json(CANONICAL_FIXTURES / "branch_conversation.json")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload, "branch.json": branch_payload})
+            httpd, thread, base_url = start_test_server(dialog_dir)
+
+            try:
+                status, payload = request_json(
+                    base_url,
+                    "/api/export",
+                    method="POST",
+                    data={"conversation_id": "conv-trust-social-branding-branch"},
+                )
+                self.assertEqual(status, HTTPStatus.OK)
+                self.assertEqual(payload["node_count"], 4)
+                self.assertIn("export_dir", payload)
+            finally:
+                stop_test_server(httpd, thread)
+
+    def test_http_export_endpoint_missing_conversation_id_returns_400(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+            httpd, thread, base_url = start_test_server(dialog_dir)
+
+            try:
+                status, payload = request_json(
+                    base_url,
+                    "/api/export",
+                    method="POST",
+                    data={},
+                )
+                self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+            finally:
+                stop_test_server(httpd, thread)
+
+
 if __name__ == "__main__":
     unittest.main()
