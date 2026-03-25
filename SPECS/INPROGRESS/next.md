@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** (none)
+**Current Task:** `CTXB-P5-T3` — Add automated tests for Markdown export, .hc generation, and Hyperprompt compile integration
 
 ## Recently Archived
 - `CTXB-P5-T2` — Add automated tests for branch, merge, and compile target selection workflows (PASS, 2026-03-26)
@@ -12,6 +12,6 @@
 - `CTXB-P3-T4` — Let the user select the active branch as a compile target (PASS, 2026-03-25)
 
 ## Suggested Next Tasks
-- `CTXB-P5-T3` — Add automated tests for Markdown export, .hc generation, and Hyperprompt compile integration (P0)
+- `CTXB-P5-T4` — Update product and contributor documentation for the graph-to-context workflow (P1)
 - `CTXB-P4-T5` — Preserve provenance from compiled artifact back to graph selection (P1)
 - `CTXB-P3-T5` — Re-index and reconcile external file changes (P1)
