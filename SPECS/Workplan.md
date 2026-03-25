@@ -730,7 +730,7 @@ Intent: lock down graph and compile behavior with regression coverage and make t
   - Duplicate IDs, missing parents, and malformed lineage are covered by automated tests.
   - The suite fails when graph integrity behavior regresses.
 
-### CTXB-P5-T2 — Add automated tests for branch, merge, and compile target selection workflows
+### ✅ CTXB-P5-T2 — Add automated tests for branch, merge, and compile target selection workflows
 - **Description:** Cover the authoring and selection flows that create or choose the reasoning branch to export.
 - **Priority:** P0
 - **Dependencies:** CTXB-P3-T4
