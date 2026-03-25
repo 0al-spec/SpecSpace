@@ -1008,6 +1008,84 @@ class ExportApiTests(unittest.TestCase):
             finally:
                 stop_test_server(httpd, thread)
 
+    # --- CTXB-P4-T2: root.hc generation ---
+
+    def test_hc_file_written_to_export_dir(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+            status, payload = server.export_graph_nodes(dialog_dir, "conv-trust-social-root")
+            self.assertEqual(status, HTTPStatus.OK)
+            self.assertIn("hc_file", payload)
+            self.assertTrue(Path(payload["hc_file"]).exists())
+            self.assertEqual(Path(payload["hc_file"]).name, "root.hc")
+
+    def test_hc_file_references_all_node_files(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        branch_payload = load_json(CANONICAL_FIXTURES / "branch_conversation.json")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload, "branch.json": branch_payload})
+            status, payload = server.export_graph_nodes(
+                dialog_dir, "conv-trust-social-branding-branch"
+            )
+            hc_text = Path(payload["hc_file"]).read_text(encoding="utf-8")
+        self.assertEqual(status, HTTPStatus.OK)
+        for conv in payload["conversations"]:
+            for filename in conv["files"]:
+                expected_ref = f'"nodes/{conv["conversation_id"]}/{filename}"'
+                self.assertIn(expected_ref, hc_text)
+
+    def test_hc_file_sections_ordered_root_before_branch(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        branch_payload = load_json(CANONICAL_FIXTURES / "branch_conversation.json")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload, "branch.json": branch_payload})
+            status, payload = server.export_graph_nodes(
+                dialog_dir, "conv-trust-social-branding-branch"
+            )
+            hc_text = Path(payload["hc_file"]).read_text(encoding="utf-8")
+        self.assertEqual(status, HTTPStatus.OK)
+        root_idx = hc_text.index("nodes/conv-trust-social-root/")
+        branch_idx = hc_text.index("nodes/conv-trust-social-branding-branch/")
+        self.assertLess(root_idx, branch_idx)
+
+    def test_hc_file_uses_conversation_title_as_section_header(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+            status, payload = server.export_graph_nodes(dialog_dir, "conv-trust-social-root")
+            hc_text = Path(payload["hc_file"]).read_text(encoding="utf-8")
+        self.assertEqual(status, HTTPStatus.OK)
+        title = root_payload.get("title", "conv-trust-social-root")
+        self.assertIn(f'"{title}"', hc_text)
+
+    def test_hc_file_uses_4_space_indent_for_node_lines(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+            status, payload = server.export_graph_nodes(dialog_dir, "conv-trust-social-root")
+            hc_text = Path(payload["hc_file"]).read_text(encoding="utf-8")
+        self.assertEqual(status, HTTPStatus.OK)
+        node_lines = [line for line in hc_text.splitlines() if "nodes/" in line]
+        self.assertTrue(len(node_lines) > 0)
+        for line in node_lines:
+            self.assertTrue(line.startswith("    "), f"Expected 4-space indent: {line!r}")
+            self.assertFalse(line.startswith("     "), f"Too many spaces: {line!r}")
+
+    def test_hc_file_ends_with_newline(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+            _, payload = server.export_graph_nodes(dialog_dir, "conv-trust-social-root")
+            hc_text = Path(payload["hc_file"]).read_text(encoding="utf-8")
+        self.assertTrue(hc_text.endswith("\n"))
+
 
 if __name__ == "__main__":
     unittest.main()

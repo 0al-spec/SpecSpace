@@ -701,6 +701,21 @@ def validate_write_request(
     return candidate.normalized, ()
 
 
+def generate_hc_root(
+    conversations: list[dict[str, Any]],
+    titles_by_conv: dict[str, str],
+) -> str:
+    """Generate root.hc content referencing all exported node files in lineage order."""
+    lines: list[str] = ["# ContextBuilder export"]
+    for conv_entry in conversations:
+        conv_id = conv_entry["conversation_id"]
+        title = titles_by_conv.get(conv_id) or conv_id
+        lines.append(f'"{title}"')
+        for filename in conv_entry["files"]:
+            lines.append(f'    "nodes/{conv_id}/{filename}"')
+    return "\n".join(lines) + "\n"
+
+
 def _render_node_markdown(conversation_id: str, checkpoint: dict[str, Any]) -> str:
     """Render one checkpoint as a Markdown node file with a provenance comment."""
     parts = [
@@ -792,8 +807,18 @@ def export_graph_nodes(
             "files": files_written,
         })
 
+    titles_by_conv = {
+        conv_id: nodes_by_conversation[conv_id].get("title", "") or conv_id
+        for conv_id in compile_target["lineage_conversation_ids"]
+        if conv_id in nodes_by_conversation
+    }
+    hc_content = generate_hc_root(conversations_written, titles_by_conv)
+    hc_file = export_dir / "root.hc"
+    hc_file.write_text(hc_content, encoding="utf-8")
+
     return HTTPStatus.OK, {
         "export_dir": str(export_dir),
+        "hc_file": str(hc_file),
         "node_count": total_node_count,
         "conversations": conversations_written,
         "compile_target": compile_target,
