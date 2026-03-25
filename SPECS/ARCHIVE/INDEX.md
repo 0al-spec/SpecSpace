@@ -68,6 +68,7 @@
 | [REVIEW_generate_hc_root_file.md](_Historical/REVIEW_generate_hc_root_file.md) | Generate Hyperprompt root .hc file review report |
 | [REVIEW_hyperprompt_compiler_invocation.md](_Historical/REVIEW_hyperprompt_compiler_invocation.md) | Hyperprompt compiler invocation review report |
 | [REVIEW_expose_compile_results.md](_Historical/REVIEW_expose_compile_results.md) | Expose compile results and artifact locations review report |
+| [REVIEW_schema_validation_integrity_tests.md](_Historical/REVIEW_schema_validation_integrity_tests.md) | Schema validation and graph integrity tests review report |
 
 ## Archive Log
 
@@ -165,3 +166,4 @@
 | 2026-03-25 | CTXB-P4-T4 | Archived Expose_Compile_Results_And_Artifact_Locations (PASS) |
 | 2026-03-25 | CTXB-P4-T4 | Archived REVIEW_expose_compile_results report |
 | 2026-03-26 | CTXB-P5-T1 | Archived Add_automated_tests_for_schema_validation_and_graph_integrity_failures (PASS) |
+| 2026-03-26 | CTXB-P5-T1 | Archived REVIEW_schema_validation_integrity_tests report |
