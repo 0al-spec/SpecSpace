@@ -740,7 +740,7 @@ Intent: lock down graph and compile behavior with regression coverage and make t
   - Branch and merge workflows are protected by automated tests.
   - Compile target selection is deterministic and regression-tested.
 
-### CTXB-P5-T3 — Add automated tests for Markdown export, `.hc` generation, and Hyperprompt compile integration
+### ✅ CTXB-P5-T3 — Add automated tests for Markdown export, `.hc` generation, and Hyperprompt compile integration
 - **Description:** Cover export node generation, root `.hc` creation, compiler invocation, missing compiler failures, and successful compiled artifact output.
 - **Priority:** P0
 - **Dependencies:** CTXB-P4-T4

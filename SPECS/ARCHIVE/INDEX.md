@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-26 (CTXB-P5-T2)
+**Last Updated:** 2026-03-26 (CTXB-P5-T3)
 
 ## Archived Tasks
 
@@ -54,6 +54,7 @@
 | CTXB-P4-T4 | [CTXB-P4-T4_Expose_Compile_Results_And_Artifact_Locations/](CTXB-P4-T4_Expose_Compile_Results_And_Artifact_Locations/) | 2026-03-25 | PASS |
 | CTXB-P5-T1 | [CTXB-P5-T1_Add_automated_tests_for_schema_validation_and_graph_integrity_failures/](CTXB-P5-T1_Add_automated_tests_for_schema_validation_and_graph_integrity_failures/) | 2026-03-26 | PASS |
 | CTXB-P5-T2 | [CTXB-P5-T2_Add_automated_tests_for_branch_merge_and_compile_target_selection_workflows/](CTXB-P5-T2_Add_automated_tests_for_branch_merge_and_compile_target_selection_workflows/) | 2026-03-26 | PASS |
+| CTXB-P5-T3 | [CTXB-P5-T3_Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration/](CTXB-P5-T3_Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration/) | 2026-03-26 | PASS |
 
 ## Historical Artifacts
 
@@ -171,3 +172,4 @@
 | 2026-03-26 | CTXB-P5-T1 | Archived REVIEW_schema_validation_integrity_tests report |
 | 2026-03-26 | CTXB-P5-T2 | Archived Add_automated_tests_for_branch_merge_and_compile_target_selection_workflows (PASS) |
 | 2026-03-26 | CTXB-P5-T2 | Archived REVIEW_branch_merge_compile_target_tests report |
+| 2026-03-26 | CTXB-P5-T3 | Archived Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration (PASS) |
