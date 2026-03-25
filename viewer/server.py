@@ -7,6 +7,7 @@ import argparse
 import json
 import mimetypes
 import shutil
+import subprocess
 import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -825,6 +826,104 @@ def export_graph_nodes(
     }
 
 
+_EXIT_CODE_DESCRIPTIONS: dict[int, str] = {
+    1: "IO error",
+    2: "Syntax error",
+    3: "Resolution/circular dependency error",
+    4: "Internal compiler error",
+}
+
+DEFAULT_HYPERPROMPT_BINARY = "/Users/egor/Development/GitHub/0AL/Hyperprompt/.build/release/hyperprompt"
+
+
+def invoke_hyperprompt(
+    export_dir: Path,
+    binary_path: str,
+) -> tuple[int, dict[str, Any]]:
+    """Invoke the Hyperprompt compiler on the exported root.hc.
+
+    Returns (http_status, payload). On success the payload contains
+    compiled_md and manifest_json paths. On failure it contains error,
+    exit_code, stderr, and stdout.
+    """
+    binary = Path(binary_path)
+    if not binary.exists():
+        return HTTPStatus.UNPROCESSABLE_ENTITY, {
+            "error": "Hyperprompt not found",
+            "details": f"Binary not found at: {binary_path}",
+            "exit_code": None,
+        }
+
+    hc_file = export_dir / "root.hc"
+    if not hc_file.exists():
+        return HTTPStatus.BAD_REQUEST, {
+            "error": "root.hc not found in export directory",
+            "details": f"Expected: {hc_file}",
+            "exit_code": None,
+        }
+
+    compiled_md = export_dir / "compiled.md"
+    manifest_json = export_dir / "manifest.json"
+
+    cmd = [
+        str(binary),
+        str(hc_file),
+        "--root", str(export_dir),
+        "--output", str(compiled_md),
+        "--manifest", str(manifest_json),
+        "--stats",
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    except subprocess.TimeoutExpired:
+        return HTTPStatus.INTERNAL_SERVER_ERROR, {
+            "error": "Hyperprompt compiler timed out",
+            "exit_code": None,
+        }
+    except Exception as exc:
+        return HTTPStatus.INTERNAL_SERVER_ERROR, {
+            "error": f"Failed to invoke Hyperprompt: {exc}",
+            "exit_code": None,
+        }
+
+    if result.returncode != 0:
+        description = _EXIT_CODE_DESCRIPTIONS.get(result.returncode, "Unknown error")
+        return HTTPStatus.UNPROCESSABLE_ENTITY, {
+            "error": f"Hyperprompt compiler failed: {description}",
+            "exit_code": result.returncode,
+            "stderr": result.stderr,
+            "stdout": result.stdout,
+        }
+
+    return HTTPStatus.OK, {
+        "compiled_md": str(compiled_md),
+        "manifest_json": str(manifest_json),
+        "exit_code": 0,
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+    }
+
+
+def compile_graph_nodes(
+    dialog_dir: Path,
+    conversation_id: str,
+    message_id: str | None,
+    hyperprompt_binary: str,
+) -> tuple[int, dict[str, Any]]:
+    """Export lineage nodes and invoke the Hyperprompt compiler in one step."""
+    export_status, export_response = export_graph_nodes(dialog_dir, conversation_id, message_id)
+    if export_status != HTTPStatus.OK:
+        return export_status, export_response
+
+    export_dir = Path(export_response["export_dir"])
+    compile_status, compile_response = invoke_hyperprompt(export_dir, hyperprompt_binary)
+
+    combined = dict(export_response)
+    combined["compile"] = compile_response
+    return compile_status, combined
+
+
 class ViewerHandler(BaseHTTPRequestHandler):
     server_version = "ContextBuilderViewer/0.1"
 
@@ -854,6 +953,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/export":
             self.handle_export()
+            return
+        if parsed.path == "/api/compile":
+            self.handle_compile()
             return
         self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -930,6 +1032,20 @@ class ViewerHandler(BaseHTTPRequestHandler):
         conversation_id = payload.get("conversation_id", "")
         message_id = payload.get("message_id") or None
         status, response = export_graph_nodes(self.server.dialog_dir, conversation_id, message_id)
+        json_response(self, status, response)
+
+    def handle_compile(self) -> None:
+        payload = self.read_json_body()
+        if payload is None:
+            return
+        conversation_id = payload.get("conversation_id", "")
+        message_id = payload.get("message_id") or None
+        status, response = compile_graph_nodes(
+            self.server.dialog_dir,
+            conversation_id,
+            message_id,
+            self.server.hyperprompt_binary,
+        )
         json_response(self, status, response)
 
     def handle_write_file(self) -> None:
@@ -1075,12 +1191,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--dialog-dir", type=Path, required=True)
+    parser.add_argument(
+        "--hyperprompt-binary",
+        type=str,
+        default=DEFAULT_HYPERPROMPT_BINARY,
+        help="Path to the Hyperprompt compiler binary",
+    )
     args = parser.parse_args()
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), ViewerHandler)
     server.repo_root = REPO_ROOT
     server.dialog_dir = args.dialog_dir.resolve()
     server.dialog_dir.mkdir(parents=True, exist_ok=True)
+    server.hyperprompt_binary = args.hyperprompt_binary
 
     print(f"Serving ContextBuilder at http://localhost:{args.port}/")
     print(f"Dialog folder: {server.dialog_dir}")
