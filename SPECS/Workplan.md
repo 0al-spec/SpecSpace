@@ -643,7 +643,7 @@ Intent: implement the workflows that mutate graph structure safely and let the u
 
 Intent: turn the selected branch into actual filesystem artifacts that Hyperprompt can compile, then produce the final continuation-ready Markdown context.
 
-### CTXB-P4-T1 — Export selected graph nodes into deterministic Markdown files
+### ✅ CTXB-P4-T1 — Export selected graph nodes into deterministic Markdown files
 - **Description:** Materialize the selected branch as a set of `.md` node files under `{dialog_dir}/export/{target_id}/nodes/`. Each file corresponds to one message and carries role, content, source `conversation_id`, and `message_id` in a stable front-matter + body representation. These files are the leaf inputs to the Hyperprompt `.hc` root file generated in CTXB-P4-T2.
 - **Priority:** P0
 - **Dependencies:** CTXB-P3-T3, CTXB-P3-T4
