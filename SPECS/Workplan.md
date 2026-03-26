@@ -800,6 +800,22 @@ Intent: lock down graph and compile behavior with regression coverage and make t
   - `POST /api/compile` returns actionable path diagnostics when both default and fallback locations are missing.
   - If `deps/` fallback is used, setup and lookup behavior are documented.
 
+### CTXB-P5-B2 — Compile fails with Hyperprompt syntax error: multiple root nodes in generated export
+- **Description:** Reproduce and fix compile failure when compiling a conversation chain:
+  - `COMPILE ERROR — EXIT CODE: 2`
+  - `Hyperprompt compiler failed: Syntax error`
+  - `Error: Multiple root nodes (depth 0) found at line 2, line 9, line 20, line 39, line 64, line 91. Hypercode documents must have exactly one root. Exit code: 2.`
+  The generated `.hc` structure appears to emit multiple depth-0 roots. Investigate and adjust export formatting so the document has exactly one root and all included conversation/message nodes are nested at a single intended indentation level.
+- **Priority:** P1
+- **Dependencies:** CTXB-P4-T2, CTXB-P4-T3
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** updated `.hc` generation strategy in `viewer/server.py`, regression tests for compile success on multi-conversation chains, docs note for expected root.hc structure
+- **Acceptance Criteria:**
+  - Compiling the same conversation chain no longer fails with "Multiple root nodes (depth 0)".
+  - Generated `root.hc` has exactly one depth-0 root node.
+  - Conversation/message includes are emitted with consistent one-level nesting under that root.
+  - `POST /api/compile` succeeds for the affected chain and existing compile tests remain green.
+
 ### ✅ CTXB-P5-T5 — Add end-to-end verification guidance for handing compiled context to an external agent
 - **Description:** Document the local operator flow from JSON conversations to final compiled Markdown so the compiled artifact can be used immediately in downstream agent workflows.
 - **Priority:** P1
