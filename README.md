@@ -79,6 +79,8 @@ JSON conversations on disk
 │   ├── {conv-id-1}.md
 │   ├── {conv-id-2}.md
 │   └── ...
+├── provenance.md   ← compile-target provenance included in compiled output
+├── provenance.json ← machine-readable provenance for traceability/audit
 ├── root.hc          ← Hyperprompt root file
 ├── compiled.md      ← final compiled artifact
 └── manifest.json    ← compiler manifest (written by Hyperprompt)
@@ -354,13 +356,18 @@ ContextBuilder validates individual payloads and whole-workspace lineage before 
 
 - `export_dir` — absolute path to the export directory
 - `hc_file` — absolute path to `root.hc`
-- `nodes_written` — list of node filenames written
+- `provenance_md` — absolute path to `provenance.md`
+- `provenance_json` — absolute path to `provenance.json`
+- `node_count` — total number of exported node markdown files
+- `conversations` — exported conversations with node directories and file lists
 - `compile_target` — the compile target metadata used
 
 **Compile response fields** (in addition to export fields):
 
 - `compile.compiled_md` — absolute path to `compiled.md`
 - `compile.manifest_json` — absolute path to `manifest.json`
+- `compile.provenance_md` — absolute path to `provenance.md`
+- `compile.provenance_json` — absolute path to `provenance.json`
 - `compile.error` — present only on failure, with a human-readable description
 
 ### Error Behavior

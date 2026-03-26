@@ -256,6 +256,7 @@ class TestCompileEndpoint(unittest.TestCase):
         self.assertEqual(payload["compile"]["exit_code"], 0)
         self.assertIn("compiled_md", payload["compile"])
         self.assertIn("manifest_json", payload["compile"])
+        self.assertIn("provenance_json", payload["compile"])
 
     def test_compile_with_missing_binary_returns_422(self):
         self._httpd.hyperprompt_binary = "/nonexistent/hp"

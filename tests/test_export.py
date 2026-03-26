@@ -145,6 +145,18 @@ class GenerateHcRootTests(unittest.TestCase):
         result = server.generate_hc_root(conversations, {})
         self.assertIn('"conv-root"', result)
 
+    def test_output_contains_provenance_section_when_provided(self) -> None:
+        conversations = [
+            {"conversation_id": "conv-root", "files": ["0000_msg-1.md"]},
+        ]
+        result = server.generate_hc_root(
+            conversations,
+            {"conv-root": "Root"},
+            provenance_file="provenance.md",
+        )
+        self.assertIn('"ContextBuilder compile provenance"', result)
+        self.assertIn('"provenance.md"', result)
+
 
 # ---------------------------------------------------------------------------
 # export_graph_nodes
@@ -214,6 +226,27 @@ class ExportGraphNodesTests(unittest.TestCase):
         hc_content = Path(payload["hc_file"]).read_text(encoding="utf-8")
         self.assertIn("# ContextBuilder export", hc_content)
         self.assertIn(f"nodes/{ROOT_ID}/", hc_content)
+
+    def test_export_writes_provenance_sidecar_files(self) -> None:
+        status, payload = server.export_graph_nodes(self._dialog_dir, ROOT_ID)
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertIn("provenance_json", payload)
+        self.assertIn("provenance_md", payload)
+        self.assertTrue(Path(payload["provenance_json"]).exists())
+        self.assertTrue(Path(payload["provenance_md"]).exists())
+
+    def test_provenance_json_contains_target_and_source_files(self) -> None:
+        status, payload = server.export_graph_nodes(self._dialog_dir, BRANCH_ID)
+        self.assertEqual(status, HTTPStatus.OK)
+
+        provenance = json.loads(Path(payload["provenance_json"]).read_text(encoding="utf-8"))
+        self.assertEqual(provenance["schema"], "contextbuilder.compile_provenance.v1")
+        self.assertEqual(provenance["target"]["conversation_id"], BRANCH_ID)
+        self.assertIsNone(provenance["target"]["message_id"])
+
+        source_ids = [item["conversation_id"] for item in provenance["source_conversations"]]
+        self.assertIn(ROOT_ID, source_ids)
+        self.assertIn(BRANCH_ID, source_ids)
 
     def test_branch_export_includes_root_in_lineage(self) -> None:
         status, payload = server.export_graph_nodes(self._dialog_dir, BRANCH_ID)
@@ -327,6 +360,7 @@ class CompileGraphNodesTests(unittest.TestCase):
         self.assertEqual(status, HTTPStatus.OK)
         self.assertIn("compiled_md", payload["compile"])
         self.assertIn("manifest_json", payload["compile"])
+        self.assertIn("provenance_json", payload["compile"])
 
     def test_empty_conversation_id_returns_400(self) -> None:
         status, payload = server.compile_graph_nodes(

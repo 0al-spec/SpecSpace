@@ -39,6 +39,8 @@ export interface CompileSuccess {
   status: "ok";
   compiled_md: string;
   manifest_json: string;
+  provenance_json?: string;
+  provenance_md?: string;
   exit_code: 0;
   stdout: string;
   stderr: string;

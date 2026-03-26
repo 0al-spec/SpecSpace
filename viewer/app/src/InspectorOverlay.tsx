@@ -149,6 +149,8 @@ export default function InspectorOverlay({
           status: "ok",
           compiled_md: compilePayload.compiled_md,
           manifest_json: compilePayload.manifest_json,
+          provenance_json: compilePayload.provenance_json,
+          provenance_md: compilePayload.provenance_md,
           exit_code: 0,
           stdout: compilePayload.stdout ?? "",
           stderr: compilePayload.stderr ?? "",
@@ -410,6 +412,32 @@ export default function InspectorOverlay({
                     </button>
                     <div className="inspector-compile-path">{compileResult.manifest_json}</div>
                   </div>
+                  {compileResult.provenance_json && (
+                    <div className="inspector-compile-artifact">
+                      <span className="inspector-compile-artifact-name">provenance.json</span>
+                      <button
+                        className="inspector-copy-btn"
+                        onClick={() => navigator.clipboard?.writeText(compileResult.provenance_json ?? "")}
+                        title="Copy path"
+                      >
+                        copy
+                      </button>
+                      <div className="inspector-compile-path">{compileResult.provenance_json}</div>
+                    </div>
+                  )}
+                  {compileResult.provenance_md && (
+                    <div className="inspector-compile-artifact">
+                      <span className="inspector-compile-artifact-name">provenance.md</span>
+                      <button
+                        className="inspector-copy-btn"
+                        onClick={() => navigator.clipboard?.writeText(compileResult.provenance_md ?? "")}
+                        title="Copy path"
+                      >
+                        copy
+                      </button>
+                      <div className="inspector-compile-path">{compileResult.provenance_md}</div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>

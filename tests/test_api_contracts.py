@@ -986,6 +986,8 @@ class ExportApiTests(unittest.TestCase):
                 self.assertEqual(status, HTTPStatus.OK)
                 self.assertEqual(payload["node_count"], 4)
                 self.assertIn("export_dir", payload)
+                self.assertIn("provenance_json", payload)
+                self.assertIn("provenance_md", payload)
             finally:
                 stop_test_server(httpd, thread)
 
@@ -1036,6 +1038,17 @@ class ExportApiTests(unittest.TestCase):
             for filename in conv["files"]:
                 expected_ref = f'"nodes/{conv["conversation_id"]}/{filename}"'
                 self.assertIn(expected_ref, hc_text)
+
+    def test_hc_file_references_provenance_markdown(self) -> None:
+        root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": root_payload})
+            status, payload = server.export_graph_nodes(dialog_dir, "conv-trust-social-root")
+            hc_text = Path(payload["hc_file"]).read_text(encoding="utf-8")
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertIn('"ContextBuilder compile provenance"', hc_text)
+        self.assertIn('"provenance.md"', hc_text)
 
     def test_hc_file_sections_ordered_root_before_branch(self) -> None:
         root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")

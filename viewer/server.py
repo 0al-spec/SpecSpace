@@ -705,9 +705,13 @@ def validate_write_request(
 def generate_hc_root(
     conversations: list[dict[str, Any]],
     titles_by_conv: dict[str, str],
+    provenance_file: str | None = None,
 ) -> str:
     """Generate root.hc content referencing all exported node files in lineage order."""
     lines: list[str] = ["# ContextBuilder export"]
+    if provenance_file:
+        lines.append('"ContextBuilder compile provenance"')
+        lines.append(f'    "{provenance_file}"')
     for conv_entry in conversations:
         conv_id = conv_entry["conversation_id"]
         title = titles_by_conv.get(conv_id) or conv_id
@@ -730,6 +734,96 @@ def _render_node_markdown(conversation_id: str, checkpoint: dict[str, Any]) -> s
         parts.append(f"source: {checkpoint['source']}")
     comment = "<!-- " + "  ".join(parts) + " -->"
     return comment + "\n\n" + checkpoint["content"] + "\n"
+
+
+def build_compile_provenance(
+    *,
+    compile_target: dict[str, Any],
+    conversations_written: list[dict[str, Any]],
+    nodes_by_conversation: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Build deterministic provenance metadata for export + compiled artifacts."""
+    source_conversations: list[dict[str, Any]] = []
+    for conversation in conversations_written:
+        conv_id = conversation["conversation_id"]
+        node = nodes_by_conversation.get(conv_id, {})
+        source_conversations.append(
+            {
+                "conversation_id": conv_id,
+                "file_name": node.get("file_name"),
+                "title": node.get("title", ""),
+                "node_dir": conversation["node_dir"],
+                "node_files": list(conversation["files"]),
+            }
+        )
+
+    target = {
+        "scope": compile_target.get("scope"),
+        "conversation_id": compile_target.get("target_conversation_id"),
+        "message_id": compile_target.get("target_message_id"),
+        "kind": compile_target.get("target_kind"),
+        "checkpoint_index": compile_target.get("target_checkpoint_index"),
+        "checkpoint_role": compile_target.get("target_checkpoint_role"),
+        "export_dir": compile_target.get("export_dir"),
+    }
+    lineage = {
+        "conversation_ids": list(compile_target.get("lineage_conversation_ids", [])),
+        "edge_ids": list(compile_target.get("lineage_edge_ids", [])),
+        "paths": list(compile_target.get("lineage_paths", [])),
+        "root_conversation_ids": list(compile_target.get("root_conversation_ids", [])),
+        "merge_parent_conversation_ids": list(compile_target.get("merge_parent_conversation_ids", [])),
+        "unresolved_parent_edge_ids": list(compile_target.get("unresolved_parent_edge_ids", [])),
+        "is_complete": bool(compile_target.get("is_lineage_complete", False)),
+    }
+    return {
+        "schema": "contextbuilder.compile_provenance.v1",
+        "target": target,
+        "lineage": lineage,
+        "source_conversations": source_conversations,
+    }
+
+
+def render_compile_provenance_markdown(provenance: dict[str, Any]) -> str:
+    """Render compile-target provenance as deterministic markdown included in root.hc."""
+    target = provenance.get("target", {})
+    source_conversations = provenance.get("source_conversations", [])
+    lineage = provenance.get("lineage", {})
+    lineage_ids = lineage.get("conversation_ids", [])
+    if isinstance(lineage_ids, list) and lineage_ids:
+        lineage_text = " -> ".join(str(item) for item in lineage_ids)
+    else:
+        lineage_text = "(none)"
+
+    message_id = target.get("message_id")
+    if isinstance(message_id, str) and message_id:
+        message_value = message_id
+    else:
+        message_value = "(none)"
+
+    parts: list[str] = [
+        "<!-- contextbuilder_provenance schema=contextbuilder.compile_provenance.v1 -->",
+        "",
+        "# ContextBuilder Compile Provenance",
+        "",
+        f"- Scope: {target.get('scope', 'unknown')}",
+        f"- Target conversation_id: {target.get('conversation_id', '')}",
+        f"- Target message_id: {message_value}",
+        f"- Target kind: {target.get('kind', '')}",
+        f"- Lineage complete: {'yes' if lineage.get('is_complete') else 'no'}",
+        f"- Lineage conversations: {lineage_text}",
+        "",
+        "## Source Conversations",
+    ]
+    for item in source_conversations:
+        conversation_id = item.get("conversation_id", "")
+        file_name = item.get("file_name", "")
+        node_files = item.get("node_files", [])
+        node_count = len(node_files) if isinstance(node_files, list) else 0
+        parts.append(f"- `{conversation_id}` from `{file_name}` ({node_count} node files)")
+    if not source_conversations:
+        parts.append("- (none)")
+    parts.append("")
+    return "\n".join(parts)
 
 
 def export_graph_nodes(
@@ -813,13 +907,32 @@ def export_graph_nodes(
         for conv_id in compile_target["lineage_conversation_ids"]
         if conv_id in nodes_by_conversation
     }
-    hc_content = generate_hc_root(conversations_written, titles_by_conv)
+    provenance = build_compile_provenance(
+        compile_target=compile_target,
+        conversations_written=conversations_written,
+        nodes_by_conversation=nodes_by_conversation,
+    )
+    provenance_json_file = export_dir / "provenance.json"
+    provenance_json_file.write_text(
+        json.dumps(provenance, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    provenance_md_file = export_dir / "provenance.md"
+    provenance_md_file.write_text(render_compile_provenance_markdown(provenance), encoding="utf-8")
+
+    hc_content = generate_hc_root(
+        conversations_written,
+        titles_by_conv,
+        provenance_file="provenance.md",
+    )
     hc_file = export_dir / "root.hc"
     hc_file.write_text(hc_content, encoding="utf-8")
 
     return HTTPStatus.OK, {
         "export_dir": str(export_dir),
         "hc_file": str(hc_file),
+        "provenance_json": str(provenance_json_file),
+        "provenance_md": str(provenance_md_file),
         "node_count": total_node_count,
         "conversations": conversations_written,
         "compile_target": compile_target,
@@ -918,6 +1031,10 @@ def compile_graph_nodes(
 
     export_dir = Path(export_response["export_dir"])
     compile_status, compile_response = invoke_hyperprompt(export_dir, hyperprompt_binary)
+    if "provenance_json" in export_response:
+        compile_response["provenance_json"] = export_response["provenance_json"]
+    if "provenance_md" in export_response:
+        compile_response["provenance_md"] = export_response["provenance_md"]
 
     combined = dict(export_response)
     combined["compile"] = compile_response

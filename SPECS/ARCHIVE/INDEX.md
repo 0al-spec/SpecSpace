@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-26 (CTXB-P5-T5)
+**Last Updated:** 2026-03-26 (CTXB-P4-T5)
 
 ## Archived Tasks
 
@@ -52,6 +52,7 @@
 | CTXB-P4-T2 | [CTXB-P4-T2_Generate_Hyperprompt_root_file/](CTXB-P4-T2_Generate_Hyperprompt_root_file/) | 2026-03-25 | PASS |
 | CTXB-P4-T3 | [CTXB-P4-T3_Integrate_Hyperprompt_Compiler_Invocation/](CTXB-P4-T3_Integrate_Hyperprompt_Compiler_Invocation/) | 2026-03-25 | PASS |
 | CTXB-P4-T4 | [CTXB-P4-T4_Expose_Compile_Results_And_Artifact_Locations/](CTXB-P4-T4_Expose_Compile_Results_And_Artifact_Locations/) | 2026-03-25 | PASS |
+| CTXB-P4-T5 | [CTXB-P4-T5_Preserve_Provenance_From_Compiled_Artifact_Back_To_Graph_Selection/](CTXB-P4-T5_Preserve_Provenance_From_Compiled_Artifact_Back_To_Graph_Selection/) | 2026-03-26 | PASS |
 | CTXB-P5-T1 | [CTXB-P5-T1_Add_automated_tests_for_schema_validation_and_graph_integrity_failures/](CTXB-P5-T1_Add_automated_tests_for_schema_validation_and_graph_integrity_failures/) | 2026-03-26 | PASS |
 | CTXB-P5-T2 | [CTXB-P5-T2_Add_automated_tests_for_branch_merge_and_compile_target_selection_workflows/](CTXB-P5-T2_Add_automated_tests_for_branch_merge_and_compile_target_selection_workflows/) | 2026-03-26 | PASS |
 | CTXB-P5-T3 | [CTXB-P5-T3_Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration/](CTXB-P5-T3_Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration/) | 2026-03-26 | PASS |
@@ -78,6 +79,7 @@
 | [REVIEW_export_hc_compile_tests.md](_Historical/REVIEW_export_hc_compile_tests.md) | Markdown export, .hc generation, and compile integration tests review report |
 | [REVIEW_product_docs.md](_Historical/REVIEW_product_docs.md) | Product and contributor documentation review report |
 | [REVIEW_external_agent_handoff_guide.md](_Historical/REVIEW_external_agent_handoff_guide.md) | External agent handoff verification documentation review report |
+| [REVIEW_ctxb_p4_t5_compile_provenance.md](_Historical/REVIEW_ctxb_p4_t5_compile_provenance.md) | Compile provenance traceability review report |
 
 ## Archive Log
 
@@ -174,6 +176,7 @@
 | 2026-03-25 | CTXB-P4-T3 | Archived REVIEW_hyperprompt_compiler_invocation report |
 | 2026-03-25 | CTXB-P4-T4 | Archived Expose_Compile_Results_And_Artifact_Locations (PASS) |
 | 2026-03-25 | CTXB-P4-T4 | Archived REVIEW_expose_compile_results report |
+| 2026-03-26 | CTXB-P4-T5 | Archived Preserve_Provenance_From_Compiled_Artifact_Back_To_Graph_Selection (PASS) |
 | 2026-03-26 | CTXB-P5-T1 | Archived Add_automated_tests_for_schema_validation_and_graph_integrity_failures (PASS) |
 | 2026-03-26 | CTXB-P5-T1 | Archived REVIEW_schema_validation_integrity_tests report |
 | 2026-03-26 | CTXB-P5-T2 | Archived Add_automated_tests_for_branch_merge_and_compile_target_selection_workflows (PASS) |
@@ -185,3 +188,4 @@
 | 2026-03-26 | CTXB-P2R-B6 | Archived REVIEW_inspector_selection_bug report |
 | 2026-03-26 | CTXB-P5-T5 | Archived Add_end-to-end_verification_guidance_for_handing_compiled_context_to_an_external_agent (PASS) |
 | 2026-03-26 | CTXB-P5-T5 | Archived REVIEW_external_agent_handoff_guide report |
+| 2026-03-26 | CTXB-P4-T5 | Archived REVIEW_ctxb_p4_t5_compile_provenance report |

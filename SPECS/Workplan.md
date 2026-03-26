@@ -717,7 +717,7 @@ Intent: turn the selected branch into actual filesystem artifacts that Hyperprom
   - Failed compiles show actionable diagnostics instead of silent failure.
   - The task satisfies PRD FR-15 and Flow D.
 
-### CTXB-P4-T5 — Preserve provenance from compiled artifact back to graph selection
+### ✅ CTXB-P4-T5 — Preserve provenance from compiled artifact back to graph selection
 - **Description:** Ensure that the generated artifacts remain traceable to the originating graph selection and source conversation files.
 - **Priority:** P1
 - **Dependencies:** CTXB-P4-T1, CTXB-P4-T3
