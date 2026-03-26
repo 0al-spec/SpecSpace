@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** (none)
+**Current Task:** `CTXB-P5-B1` — Compile fails with "Hyperprompt not found" for branch compilation on arm64 build layout
 
 ## Recently Archived
 - `CTXB-P4-T5` — Preserve provenance from compiled artifact back to graph selection (PASS, 2026-03-26)
