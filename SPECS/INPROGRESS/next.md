@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P5-B1` — Compile fails with "Hyperprompt not found" for branch compilation on arm64 build layout
+**Current Task:** (none)
 
 ## Recently Archived
+- `CTXB-P5-B1` — Compile fails with "Hyperprompt not found" for branch compilation on arm64 build layout (PASS, 2026-03-26)
 - `CTXB-P4-T5` — Preserve provenance from compiled artifact back to graph selection (PASS, 2026-03-26)
 - `CTXB-P5-T5` — Add end-to-end verification guidance for handing compiled context to an external agent (PASS, 2026-03-26)
 - `CTXB-P2R-B6` — Selecting a conversation node or message subnode does not populate the right inspector (PASS, 2026-03-26)

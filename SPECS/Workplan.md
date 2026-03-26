@@ -783,7 +783,7 @@ Intent: lock down graph and compile behavior with regression coverage and make t
   - `make serve DIALOG_DIR=... HYPERPROMPT_BINARY=...` passes the binary path to `viewer/server.py --hyperprompt-binary`.
   - Default value matches `DEFAULT_HYPERPROMPT_BINARY` in `server.py`.
 
-### CTXB-P5-B1 — Compile fails with "Hyperprompt not found" for branch compilation on arm64 build layout **INPROGRESS**
+### ✅ CTXB-P5-B1 — Compile fails with "Hyperprompt not found" for branch compilation on arm64 build layout
 - **Description:** Reproduce and fix runtime compile failure shown in UI:
   - `Compile`
   - `COMPILE ERROR`

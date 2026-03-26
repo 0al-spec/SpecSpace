@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-26 (CTXB-P4-T5)
+**Last Updated:** 2026-03-26 (CTXB-P5-B1)
 
 ## Archived Tasks
 
@@ -59,6 +59,7 @@
 | CTXB-P5-T4 | [CTXB-P5-T4_Update_product_and_contributor_documentation_for_the_graph-to-context_workflow/](CTXB-P5-T4_Update_product_and_contributor_documentation_for_the_graph-to-context_workflow/) | 2026-03-26 | PASS |
 | CTXB-P2R-B6 | [CTXB-P2R-B6_Inspector_Selection_Bug/](CTXB-P2R-B6_Inspector_Selection_Bug/) | 2026-03-26 | PASS |
 | CTXB-P5-T5 | [CTXB-P5-T5_Add_end-to-end_verification_guidance_for_handing_compiled_context_to_an_external_agent/](CTXB-P5-T5_Add_end-to-end_verification_guidance_for_handing_compiled_context_to_an_external_agent/) | 2026-03-26 | PASS |
+| CTXB-P5-B1 | [CTXB-P5-B1_Compile_Fails_With_Hyperprompt_Not_Found_For_Branch_Compilation_On_Arm64_Build_Layout/](CTXB-P5-B1_Compile_Fails_With_Hyperprompt_Not_Found_For_Branch_Compilation_On_Arm64_Build_Layout/) | 2026-03-26 | PASS |
 
 ## Historical Artifacts
 
@@ -189,3 +190,4 @@
 | 2026-03-26 | CTXB-P5-T5 | Archived Add_end-to-end_verification_guidance_for_handing_compiled_context_to_an_external_agent (PASS) |
 | 2026-03-26 | CTXB-P5-T5 | Archived REVIEW_external_agent_handoff_guide report |
 | 2026-03-26 | CTXB-P4-T5 | Archived REVIEW_ctxb_p4_t5_compile_provenance report |
+| 2026-03-26 | CTXB-P5-B1 | Archived Compile_Fails_With_Hyperprompt_Not_Found_For_Branch_Compilation_On_Arm64_Build_Layout (PASS) |
