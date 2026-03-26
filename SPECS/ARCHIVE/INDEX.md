@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-26 (CTXB-P5-T4)
+**Last Updated:** 2026-03-26 (CTXB-P2R-B6)
 
 ## Archived Tasks
 
@@ -56,6 +56,7 @@
 | CTXB-P5-T2 | [CTXB-P5-T2_Add_automated_tests_for_branch_merge_and_compile_target_selection_workflows/](CTXB-P5-T2_Add_automated_tests_for_branch_merge_and_compile_target_selection_workflows/) | 2026-03-26 | PASS |
 | CTXB-P5-T3 | [CTXB-P5-T3_Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration/](CTXB-P5-T3_Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration/) | 2026-03-26 | PASS |
 | CTXB-P5-T4 | [CTXB-P5-T4_Update_product_and_contributor_documentation_for_the_graph-to-context_workflow/](CTXB-P5-T4_Update_product_and_contributor_documentation_for_the_graph-to-context_workflow/) | 2026-03-26 | PASS |
+| CTXB-P2R-B6 | [CTXB-P2R-B6_Inspector_Selection_Bug/](CTXB-P2R-B6_Inspector_Selection_Bug/) | 2026-03-26 | PASS |
 
 ## Historical Artifacts
 
@@ -178,3 +179,4 @@
 | 2026-03-26 | CTXB-P5-T3 | Archived Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration (PASS) |
 | 2026-03-26 | CTXB-P5-T3 | Archived REVIEW_export_hc_compile_tests report |
 | 2026-03-26 | CTXB-P5-T4 | Archived Update_product_and_contributor_documentation_for_the_graph-to-context_workflow (PASS) |
+| 2026-03-26 | CTXB-P2R-B6 | Archived Inspector_Selection_Bug (PASS) |

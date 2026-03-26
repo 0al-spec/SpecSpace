@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P2R-B6` — Selecting a conversation node or message subnode does not populate the right inspector
+**Current Task:** (none)
 
 ## Recently Archived
+- `CTXB-P2R-B6` — Selecting a conversation node or message subnode does not populate the right inspector (PASS, 2026-03-26)
 - `CTXB-P5-T4` — Update product and contributor documentation for the graph-to-context workflow (PASS, 2026-03-26)
 - `CTXB-P5-T3` — Add automated tests for Markdown export, .hc generation, and Hyperprompt compile integration (PASS, 2026-03-26)
 - `CTXB-P5-T2` — Add automated tests for branch, merge, and compile target selection workflows (PASS, 2026-03-26)
