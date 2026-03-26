@@ -47,3 +47,7 @@ Current `generate_hc_root()` emits one top-level quoted node per conversation, c
 - Preserve deterministic ordering from `compile_target.lineage_conversation_ids`.
 - Keep output format compatible with existing path references (`nodes/{conversation_id}/{filename}`).
 - Keep provenance include under the same single-root tree.
+
+---
+**Archived:** 2026-03-26
+**Verdict:** PASS

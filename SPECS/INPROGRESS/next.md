@@ -1,15 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P5-B2` — Compile fails with Hyperprompt syntax error: multiple root nodes in generated export
-
-## Current Task Metadata
-- **Task ID:** `CTXB-P5-B2`
-- **Priority:** P1
-- **Dependencies:** `CTXB-P4-T2`, `CTXB-P4-T3`
-- **Selected On:** 2026-03-26
-- **Review Subject:** `ctxb_p5_b2_compile_roots`
+**Current Task:** (none)
 
 ## Recently Archived
+- `CTXB-P5-B2` — Compile fails with Hyperprompt syntax error: multiple root nodes in generated export (PASS, 2026-03-26)
 - `CTXB-P5-B1` — Compile fails with "Hyperprompt not found" for branch compilation on arm64 build layout (PASS, 2026-03-26)
 - `CTXB-P4-T5` — Preserve provenance from compiled artifact back to graph selection (PASS, 2026-03-26)
 - `CTXB-P5-T5` — Add end-to-end verification guidance for handing compiled context to an external agent (PASS, 2026-03-26)

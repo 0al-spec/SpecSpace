@@ -800,7 +800,7 @@ Intent: lock down graph and compile behavior with regression coverage and make t
   - `POST /api/compile` returns actionable path diagnostics when both default and fallback locations are missing.
   - If `deps/` fallback is used, setup and lookup behavior are documented.
 
-### CTXB-P5-B2 — Compile fails with Hyperprompt syntax error: multiple root nodes in generated export
+### ✅ CTXB-P5-B2 — Compile fails with Hyperprompt syntax error: multiple root nodes in generated export
 - **Description:** Reproduce and fix compile failure when compiling a conversation chain:
   - `COMPILE ERROR — EXIT CODE: 2`
   - `Hyperprompt compiler failed: Syntax error`
