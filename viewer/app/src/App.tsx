@@ -118,6 +118,20 @@ function AppInner() {
     });
   }, [graphNodes]);
 
+  // Clear stale selection if the stored conversation ID no longer exists in graph data.
+  useEffect(() => {
+    if (!selectedConversationId || graphNodes.length === 0) return;
+    const ids = new Set(
+      graphNodes
+        .filter((n) => !n.parentId)
+        .map((n) => n.id),
+    );
+    if (!ids.has(selectedConversationId)) {
+      setSelectedConversationId(null);
+      setSelectedMessageId(null);
+    }
+  }, [graphNodes, selectedConversationId, setSelectedConversationId, setSelectedMessageId]);
+
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       setNodes((nds) => applyNodeChanges(changes, nds));

@@ -79,6 +79,7 @@ export default function InspectorOverlay({
   const [checkpointDetail, setCheckpointDetail] =
     useState<CheckpointDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [convError, setConvError] = useState<string | null>(null);
   const [showBranchDialog, setShowBranchDialog] = useState(false);
   const [showMergeDialog, setShowMergeDialog] = useState(false);
   const [compiling, setCompiling] = useState(false);
@@ -88,17 +89,26 @@ export default function InspectorOverlay({
     if (!selectedConversationId) {
       setConvDetail(null);
       setCheckpointDetail(null);
+      setConvError(null);
       return;
     }
 
     setLoading(true);
+    setConvError(null);
     fetch(`/api/conversation?conversation_id=${encodeURIComponent(selectedConversationId)}`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (r.ok) return r.json();
+        setConvError(`Conversation not found (${r.status})`);
+        return null;
+      })
       .then((data) => {
         setConvDetail(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        setConvError(`Failed to load conversation: ${err.message ?? err}`);
+        setLoading(false);
+      });
   }, [selectedConversationId]);
 
   useEffect(() => {
@@ -174,6 +184,13 @@ export default function InspectorOverlay({
       </button>
 
       {loading && <div className="inspector-loading">Loading…</div>}
+
+      {!loading && convError && (
+        <div className="inspector-section-label">CONVERSATION INSPECTOR</div>
+      )}
+      {!loading && convError && (
+        <div className="inspector-meta">{convError}</div>
+      )}
 
       {conv && (
         <>
