@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-26 (CTXB-P5-B2)
+**Last Updated:** 2026-03-26 (CTXB-P3-T5)
 
 ## Archived Tasks
 
@@ -61,6 +61,7 @@
 | CTXB-P5-T5 | [CTXB-P5-T5_Add_end-to-end_verification_guidance_for_handing_compiled_context_to_an_external_agent/](CTXB-P5-T5_Add_end-to-end_verification_guidance_for_handing_compiled_context_to_an_external_agent/) | 2026-03-26 | PASS |
 | CTXB-P5-B1 | [CTXB-P5-B1_Compile_Fails_With_Hyperprompt_Not_Found_For_Branch_Compilation_On_Arm64_Build_Layout/](CTXB-P5-B1_Compile_Fails_With_Hyperprompt_Not_Found_For_Branch_Compilation_On_Arm64_Build_Layout/) | 2026-03-26 | PASS |
 | CTXB-P5-B2 | [CTXB-P5-B2_Compile_Fails_With_Hyperprompt_Syntax_Error_Multiple_Root_Nodes_In_Generated_Export/](CTXB-P5-B2_Compile_Fails_With_Hyperprompt_Syntax_Error_Multiple_Root_Nodes_In_Generated_Export/) | 2026-03-26 | PASS |
+| CTXB-P3-T5 | [CTXB-P3-T5_Re-index_and_reconcile_external_file_changes/](CTXB-P3-T5_Re-index_and_reconcile_external_file_changes/) | 2026-03-26 | PASS |
 
 ## Historical Artifacts
 
@@ -197,3 +198,4 @@
 | 2026-03-26 | CTXB-P5-B1 | Archived REVIEW_ctxb_p5_b1_hyperprompt_path_resolution report |
 | 2026-03-26 | CTXB-P5-B2 | Archived Compile_Fails_With_Hyperprompt_Syntax_Error_Multiple_Root_Nodes_In_Generated_Export (PASS) |
 | 2026-03-26 | CTXB-P5-B2 | Archived REVIEW_ctxb_p5_b2_compile_roots report |
+| 2026-03-26 | CTXB-P3-T5 | Archived Re-index_and_reconcile_external_file_changes (PASS) |

@@ -1,16 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P3-T5` — Re-index and reconcile external file changes
-
-## Task Metadata
-- **ID:** CTXB-P3-T5
-- **Name:** Re-index and reconcile external file changes
-- **Priority:** P1
-- **Dependencies:** CTXB-P1-T4 (✅), CTXB-P2-T1 (✅)
-- **Branch:** `feature/CTXB-P3-T5-reindex-external-changes`
-- **Started:** 2026-03-26
+**Current Task:** (none)
 
 ## Recently Archived
+- `CTXB-P3-T5` — Re-index and reconcile external file changes (PASS, 2026-03-26)
 - `CTXB-P5-B2` — Compile fails with Hyperprompt syntax error: multiple root nodes in generated export (PASS, 2026-03-26)
 - `CTXB-P5-B1` — Compile fails with "Hyperprompt not found" for branch compilation on arm64 build layout (PASS, 2026-03-26)
 - `CTXB-P4-T5` — Preserve provenance from compiled artifact back to graph selection (PASS, 2026-03-26)

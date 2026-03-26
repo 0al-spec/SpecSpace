@@ -532,7 +532,7 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - The selected target is unambiguous and serializable.
   - The workflow satisfies PRD FR-11 and Flow D / Flow E preconditions.
 
-### CTXB-P3-T5 — Re-index and reconcile external file changes
+### ✅ CTXB-P3-T5 — Re-index and reconcile external file changes
 - **Description:** Allow the user to refresh or re-index the workspace so that file additions, edits, or deletions performed by external agents or tools become visible without restarting the application.
 - **Priority:** P1
 - **Dependencies:** CTXB-P1-T4, CTXB-P2-T1
