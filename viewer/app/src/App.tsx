@@ -206,6 +206,7 @@ function AppInner() {
               onMoveEnd={onMoveEnd}
               defaultViewport={savedViewport.current}
               fitView={hasFitView}
+              minZoom={0.125}
             >
               <Background />
               <Controls />
