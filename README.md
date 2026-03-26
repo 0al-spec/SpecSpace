@@ -68,7 +68,7 @@ JSON conversations on disk
 ```
 
 1. **Graph index** — ContextBuilder reads all JSON files in the dialog directory, validates and normalizes them, and builds an in-memory lineage graph.
-2. **Export** — You select a conversation or checkpoint as the compile target. ContextBuilder writes each ancestor conversation as a deterministic Markdown file under `export/{target}/nodes/` and generates `export/{target}/root.hc` — a Hyperprompt root file that references them in lineage order.
+2. **Export** — You select a conversation or checkpoint as the compile target. ContextBuilder writes each ancestor conversation as a deterministic Markdown file under `export/{target}/nodes/` and generates `export/{target}/root.hc` with exactly one depth-0 root node. Provenance, conversation labels, and node includes are emitted as children under that root in lineage order.
 3. **Compile** — Hyperprompt reads `root.hc`, resolves the included node files, and writes `export/{target}/compiled.md`. That file is the final context artifact.
 
 ### Export Directory Layout
@@ -160,7 +160,7 @@ Use this runbook when you need a reproducible path from local JSON conversations
 For the returned `{export_dir}`, verify all expected outputs:
 
 1. `nodes/*.md` exists and contains one deterministic file per exported lineage conversation.
-2. `root.hc` exists and references node files in lineage order.
+2. `root.hc` exists, has exactly one depth-0 root node, and references node files in lineage order.
 3. `compiled.md` exists and is non-empty.
 4. `manifest.json` exists (when Hyperprompt compile succeeds).
 

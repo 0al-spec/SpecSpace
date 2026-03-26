@@ -707,15 +707,15 @@ def generate_hc_root(
     titles_by_conv: dict[str, str],
     provenance_file: str | None = None,
 ) -> str:
-    """Generate root.hc content referencing all exported node files in lineage order."""
-    lines: list[str] = ["# ContextBuilder export"]
+    """Generate root.hc content with a single depth-0 root node."""
+    lines: list[str] = ["# ContextBuilder export", '"ContextBuilder export root"']
     if provenance_file:
-        lines.append('"ContextBuilder compile provenance"')
+        lines.append('    "ContextBuilder compile provenance"')
         lines.append(f'    "{provenance_file}"')
     for conv_entry in conversations:
         conv_id = conv_entry["conversation_id"]
         title = titles_by_conv.get(conv_id) or conv_id
-        lines.append(f'"{title}"')
+        lines.append(f'    "{title}"')
         for filename in conv_entry["files"]:
             lines.append(f'    "nodes/{conv_id}/{filename}"')
     return "\n".join(lines) + "\n"

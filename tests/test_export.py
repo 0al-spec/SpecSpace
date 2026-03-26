@@ -58,6 +58,46 @@ def make_stub_binary(directory: Path, exit_code: int = 0, write_output: bool = T
     return str(stub)
 
 
+def make_structure_validating_stub_binary(directory: Path) -> str:
+    """Stub compiler that fails with exit 2 when root.hc has multiple depth-0 nodes."""
+    script = textwrap.dedent("""\
+        #!/bin/sh
+        hc="$1"
+        shift
+        out=""
+        manifest=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --output) shift; out="$1" ;;
+                --manifest) shift; manifest="$1" ;;
+            esac
+            shift
+        done
+
+        roots=0
+        while IFS= read -r line || [ -n "$line" ]; do
+            case "$line" in
+                ""|\\#*) continue ;;
+                " "*) continue ;;
+                *) roots=$((roots + 1)) ;;
+            esac
+        done < "$hc"
+
+        if [ "$roots" -ne 1 ]; then
+            echo "Multiple root nodes (depth 0) found." >&2
+            exit 2
+        fi
+
+        [ -n "$out" ] && echo "# compiled" > "$out"
+        [ -n "$manifest" ] && echo '{}' > "$manifest"
+        exit 0
+    """)
+    stub = directory / "hp_structure_stub"
+    stub.write_text(script, encoding="utf-8")
+    stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
+    return str(stub)
+
+
 # ---------------------------------------------------------------------------
 # _render_node_markdown
 # ---------------------------------------------------------------------------
@@ -156,6 +196,21 @@ class GenerateHcRootTests(unittest.TestCase):
         )
         self.assertIn('"ContextBuilder compile provenance"', result)
         self.assertIn('"provenance.md"', result)
+
+    def test_output_has_exactly_one_depth_zero_root_node(self) -> None:
+        conversations = [
+            {"conversation_id": "conv-a", "files": ["0000_msg-a.md"]},
+            {"conversation_id": "conv-b", "files": ["0000_msg-b.md"]},
+        ]
+        result = server.generate_hc_root(
+            conversations, {"conv-a": "A", "conv-b": "B"}, provenance_file="provenance.md"
+        )
+        non_comment_lines = [
+            line for line in result.splitlines() if line and not line.lstrip().startswith("#")
+        ]
+        depth_zero = [line for line in non_comment_lines if not line.startswith(" ")]
+        self.assertEqual(len(depth_zero), 1)
+        self.assertEqual(depth_zero[0], '"ContextBuilder export root"')
 
 
 # ---------------------------------------------------------------------------
@@ -384,6 +439,22 @@ class CompileGraphNodesTests(unittest.TestCase):
         )
         self.assertEqual(status, HTTPStatus.UNPROCESSABLE_ENTITY)
         self.assertEqual(payload["compile"]["exit_code"], 2)
+
+    def test_multi_conversation_chain_compiles_with_single_root_hc_structure(self) -> None:
+        write_workspace(
+            self._dialog_dir,
+            {
+                "root.json": load_json(CANONICAL_FIXTURES / "root_conversation.json"),
+                "branch.json": load_json(CANONICAL_FIXTURES / "branch_conversation.json"),
+            },
+        )
+        strict_stub = make_structure_validating_stub_binary(self._dialog_dir)
+
+        status, payload = server.compile_graph_nodes(
+            self._dialog_dir, BRANCH_ID, None, strict_stub
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(payload["compile"]["exit_code"], 0)
 
 
 if __name__ == "__main__":
