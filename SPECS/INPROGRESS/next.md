@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** (none)
+**Current Task:** `CTXB-P1-T6` — Correct compile-target root metadata for incomplete lineage
 
 ## Recently Archived
 - `CTXB-P2R-T12` — Increase maximum zoom-out on the graph canvas (PASS, 2026-03-26)
