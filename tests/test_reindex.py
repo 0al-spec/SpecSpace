@@ -9,7 +9,6 @@ import copy
 import json
 import tempfile
 import unittest
-from http import HTTPStatus
 from pathlib import Path
 
 from viewer import server
