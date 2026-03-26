@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** (none)
+**Current Task:** `CTXB-P2R-B6` — Selecting a conversation node or message subnode does not populate the right inspector
 
 ## Recently Archived
 - `CTXB-P5-T4` — Update product and contributor documentation for the graph-to-context workflow (PASS, 2026-03-26)
