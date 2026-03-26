@@ -84,7 +84,7 @@ class CompileTargetPayload(TypedDict, total=False):
     lineage_conversation_ids: list[str]          # ordered oldest-first
     lineage_edge_ids: list[str]                  # sorted
     lineage_paths: list[list[str]]               # sorted paths to roots
-    root_conversation_ids: list[str]             # sorted
+    root_conversation_ids: list[str]             # sorted; empty when is_lineage_complete is False
     merge_parent_conversation_ids: list[str]     # sorted
     unresolved_parent_edge_ids: list[str]        # sorted
     is_lineage_complete: bool
