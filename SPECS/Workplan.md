@@ -79,7 +79,7 @@ Intent: establish the deterministic data model, validation rules, and graph API 
   - API responses clearly separate valid graph data from blocking validation errors.
   - The contract supports PRD FR-1, FR-3, FR-11, and FR-16.
 
-### CTXB-P1-T6 — Correct compile-target root metadata for incomplete lineage
+### ✅ CTXB-P1-T6 — Correct compile-target root metadata for incomplete lineage
 - **Description:** Ensure graph selections with unresolved parent edges expose partial lineage honestly and never label the selected conversation as a reachable root unless it is a true root conversation.
 - **Priority:** P1
 - **Dependencies:** CTXB-P1-T5

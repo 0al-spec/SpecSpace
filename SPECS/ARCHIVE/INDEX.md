@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-26 (CTXB-P2R-T12)
+**Last Updated:** 2026-03-26 (CTXB-P1-T6)
 
 ## Archived Tasks
 
@@ -11,6 +11,7 @@
 | CTXB-P1-T3 | [CTXB-P1-T3_Validate_Lineage_Integrity_And_Reject_Ambiguous_Graph_State/](CTXB-P1-T3_Validate_Lineage_Integrity_And_Reject_Ambiguous_Graph_State/) | 2026-03-22 | PASS |
 | CTXB-P1-T4 | [CTXB-P1-T4_Build_The_Conversation_Graph_Index_And_Diagnostics_Model/](CTXB-P1-T4_Build_The_Conversation_Graph_Index_And_Diagnostics_Model/) | 2026-03-22 | PASS |
 | CTXB-P1-T5 | [CTXB-P1-T5_Expose_Graph_Aware_API_Contracts_For_UI_And_Compilation/](CTXB-P1-T5_Expose_Graph_Aware_API_Contracts_For_UI_And_Compilation/) | 2026-03-22 | PASS |
+| CTXB-P1-T6 | [CTXB-P1-T6_Correct_compile-target_root_metadata_for_incomplete_lineage/](CTXB-P1-T6_Correct_compile-target_root_metadata_for_incomplete_lineage/) | 2026-03-26 | PASS |
 | CTXB-P2-T1 | [CTXB-P2-T1_Render_The_Conversation_Graph_On_A_Canvas/](CTXB-P2-T1_Render_The_Conversation_Graph_On_A_Canvas/) | 2026-03-22 | PASS |
 | CTXB-P2-T2 | [CTXB-P2-T2_Add_Conversation_Detail_And_Checkpoint_Inspection_Panels/](CTXB-P2-T2_Add_Conversation_Detail_And_Checkpoint_Inspection_Panels/) | 2026-03-22 | PASS |
 | CTXB-P2-T3 | [CTXB-P2-T3_Implement_Ancestor_And_Sibling_Lineage_Navigation/](CTXB-P2-T3_Implement_Ancestor_And_Sibling_Lineage_Navigation/) | 2026-03-22 | PASS |
