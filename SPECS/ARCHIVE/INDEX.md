@@ -87,6 +87,7 @@
 | [REVIEW_ctxb_p5_b1_hyperprompt_path_resolution.md](_Historical/REVIEW_ctxb_p5_b1_hyperprompt_path_resolution.md) | Hyperprompt fallback path resolution review report |
 | [REVIEW_ctxb_p5_b2_compile_roots.md](_Historical/REVIEW_ctxb_p5_b2_compile_roots.md) | Single-root `.hc` compile fix review report |
 | [REVIEW_reindex_external_changes.md](_Historical/REVIEW_reindex_external_changes.md) | Re-index external file changes review report |
+| [REVIEW_ctxb_p2r_t12_min_zoom.md](_Historical/REVIEW_ctxb_p2r_t12_min_zoom.md) | Increase maximum zoom-out on graph canvas review report |
 
 ## Archive Log
 
@@ -203,3 +204,4 @@
 | 2026-03-26 | CTXB-P3-T5 | Archived Re-index_and_reconcile_external_file_changes (PASS) |
 | 2026-03-26 | CTXB-P3-T5 | Archived REVIEW_reindex_external_changes report |
 | 2026-03-26 | CTXB-P2R-T12 | Archived Increase_maximum_zoom-out_on_the_graph_canvas (PASS) |
+| 2026-03-26 | CTXB-P2R-T12 | Archived REVIEW_ctxb_p2r_t12_min_zoom report |
