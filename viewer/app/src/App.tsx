@@ -182,7 +182,7 @@ function AppInner() {
       value={{ compileTargetConversationId, compileTargetMessageId }}
     >
       <div className="app-layout">
-        <Sidebar />
+        <Sidebar onRefresh={refresh} />
         <main className="app-main">
           {loading && (
             <div style={{ padding: 40, fontFamily: "Georgia, serif" }}>

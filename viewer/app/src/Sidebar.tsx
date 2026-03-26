@@ -10,6 +10,7 @@ interface FileEntry {
 interface SidebarProps {
   onSelectFile?: (fileName: string) => void;
   selectedFile?: string | null;
+  onRefresh?: () => void;
 }
 
 const COLLAPSE_KEY = "ctxb_sidebar_collapsed";
@@ -39,7 +40,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024).toFixed(0)} KB`;
 }
 
-export default function Sidebar({ onSelectFile, selectedFile }: SidebarProps) {
+export default function Sidebar({ onSelectFile, selectedFile, onRefresh }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(() => {
     return sessionStorage.getItem(COLLAPSE_KEY) === "true";
   });
@@ -97,7 +98,13 @@ export default function Sidebar({ onSelectFile, selectedFile }: SidebarProps) {
             </p>
           </div>
 
-          <button className="sidebar-refresh" onClick={fetchFiles}>
+          <button
+            className="sidebar-refresh"
+            onClick={() => {
+              fetchFiles();
+              onRefresh?.();
+            }}
+          >
             Refresh workspace
           </button>
 
