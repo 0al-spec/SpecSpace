@@ -473,6 +473,16 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Inspector content updates on every subsequent selection.
   - Deselecting clears or retains the last selection gracefully (no blank flash).
 
+### CTXB-P2R-T12 — Increase maximum zoom-out on the graph canvas
+- **Description:** Allow the graph canvas to zoom out ~4× further than the current limit so large graphs with many nodes fit in the viewport without panning. Achieved by lowering `minZoom` on the React Flow component (e.g. from the default `0.5` to `0.125`).
+- **Priority:** P2
+- **Dependencies:** CTXB-P2R-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `minZoom` prop update in `viewer/app/src/App.tsx`
+- **Acceptance Criteria:**
+  - The user can zoom out until the graph is approximately 4× smaller than the previous minimum zoom level.
+  - All existing tests continue to pass.
+
 ## Phase 3: Authoring and Compile Target Selection
 
 Intent: implement the workflows that mutate graph structure safely and let the user mark a concrete line of reasoning as the target for context compilation.
