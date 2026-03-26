@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-26 (CTXB-P2R-B6)
+**Last Updated:** 2026-03-26 (CTXB-P5-T5)
 
 ## Archived Tasks
 
@@ -57,6 +57,7 @@
 | CTXB-P5-T3 | [CTXB-P5-T3_Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration/](CTXB-P5-T3_Add_automated_tests_for_Markdown_export_hc_generation_and_Hyperprompt_compile_integration/) | 2026-03-26 | PASS |
 | CTXB-P5-T4 | [CTXB-P5-T4_Update_product_and_contributor_documentation_for_the_graph-to-context_workflow/](CTXB-P5-T4_Update_product_and_contributor_documentation_for_the_graph-to-context_workflow/) | 2026-03-26 | PASS |
 | CTXB-P2R-B6 | [CTXB-P2R-B6_Inspector_Selection_Bug/](CTXB-P2R-B6_Inspector_Selection_Bug/) | 2026-03-26 | PASS |
+| CTXB-P5-T5 | [CTXB-P5-T5_Add_end-to-end_verification_guidance_for_handing_compiled_context_to_an_external_agent/](CTXB-P5-T5_Add_end-to-end_verification_guidance_for_handing_compiled_context_to_an_external_agent/) | 2026-03-26 | PASS |
 
 ## Historical Artifacts
 
@@ -76,6 +77,7 @@
 | [REVIEW_branch_merge_compile_target_tests.md](_Historical/REVIEW_branch_merge_compile_target_tests.md) | Branch, merge, and compile target selection tests review report |
 | [REVIEW_export_hc_compile_tests.md](_Historical/REVIEW_export_hc_compile_tests.md) | Markdown export, .hc generation, and compile integration tests review report |
 | [REVIEW_product_docs.md](_Historical/REVIEW_product_docs.md) | Product and contributor documentation review report |
+| [REVIEW_external_agent_handoff_guide.md](_Historical/REVIEW_external_agent_handoff_guide.md) | External agent handoff verification documentation review report |
 
 ## Archive Log
 
@@ -181,3 +183,5 @@
 | 2026-03-26 | CTXB-P5-T4 | Archived Update_product_and_contributor_documentation_for_the_graph-to-context_workflow (PASS) |
 | 2026-03-26 | CTXB-P2R-B6 | Archived Inspector_Selection_Bug (PASS) |
 | 2026-03-26 | CTXB-P2R-B6 | Archived REVIEW_inspector_selection_bug report |
+| 2026-03-26 | CTXB-P5-T5 | Archived Add_end-to-end_verification_guidance_for_handing_compiled_context_to_an_external_agent (PASS) |
+| 2026-03-26 | CTXB-P5-T5 | Archived REVIEW_external_agent_handoff_guide report |

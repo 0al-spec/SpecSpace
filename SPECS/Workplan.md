@@ -783,7 +783,7 @@ Intent: lock down graph and compile behavior with regression coverage and make t
   - `make serve DIALOG_DIR=... HYPERPROMPT_BINARY=...` passes the binary path to `viewer/server.py --hyperprompt-binary`.
   - Default value matches `DEFAULT_HYPERPROMPT_BINARY` in `server.py`.
 
-### CTXB-P5-T5 — Add end-to-end verification guidance for handing compiled context to an external agent
+### ✅ CTXB-P5-T5 — Add end-to-end verification guidance for handing compiled context to an external agent
 - **Description:** Document the local operator flow from JSON conversations to final compiled Markdown so the compiled artifact can be used immediately in downstream agent workflows.
 - **Priority:** P1
 - **Dependencies:** CTXB-P5-T3, CTXB-P5-T4

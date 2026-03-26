@@ -114,6 +114,83 @@ If the binary is missing or non-executable, `POST /api/compile` returns a struct
 
 ---
 
+## End-to-End Handoff Verification
+
+Use this runbook when you need a reproducible path from local JSON conversations to a compiled artifact ready for an external agent.
+
+### 1. Preflight Checks
+
+1. Start from canonical JSON conversations (or run `make canon` first).
+2. Start the server:
+   ```bash
+   make serve DIALOG_DIR=/absolute/path/to/canonical_json
+   ```
+3. If you need a custom Hyperprompt binary path, run the server directly:
+   ```bash
+   python3 viewer/server.py \
+     --port 8000 \
+     --dialog-dir /absolute/path/to/canonical_json \
+     --hyperprompt-binary /absolute/path/to/hyperprompt
+   ```
+4. Confirm API health by opening `http://localhost:8000/viewer/index.html` and checking that the graph loads.
+
+### 2. Select and Compile a Target
+
+1. In the graph, select a conversation or checkpoint.
+2. Trigger compile from the checkpoint inspector, or call the API:
+   ```bash
+   curl -sS -X POST http://localhost:8000/api/compile \
+     -H "Content-Type: application/json" \
+     -d '{"conversation_id":"<target-conversation-id>","message_id":"<optional-checkpoint-id>"}'
+   ```
+3. Record `export_dir`, `hc_file`, and `compile.compiled_md` from the response.
+
+### 3. Verify Artifacts
+
+For the returned `{export_dir}`, verify all expected outputs:
+
+1. `nodes/*.md` exists and contains one deterministic file per exported lineage conversation.
+2. `root.hc` exists and references node files in lineage order.
+3. `compiled.md` exists and is non-empty.
+4. `manifest.json` exists (when Hyperprompt compile succeeds).
+
+Minimal shell verification:
+
+```bash
+ls -la "{export_dir}/nodes"
+test -s "{export_dir}/root.hc"
+test -s "{export_dir}/compiled.md"
+test -s "{export_dir}/manifest.json"
+```
+
+### 4. Failure Triage
+
+- `404` from `POST /api/compile`: target `conversation_id` or `message_id` does not exist.
+- `409` from `POST /api/compile`: target is blocked by integrity errors; inspect graph diagnostics and fix lineage/schema issues first.
+- `500` with `compile.error`: Hyperprompt binary missing, non-executable, or compile-time failure; verify `--hyperprompt-binary` path and rerun.
+
+When compile fails, inspect `root.hc` and exported node Markdown files in `{export_dir}` before retrying.
+
+### 5. External Agent Handoff Checklist
+
+Before handing off to an external LLM/agent, package:
+
+1. `compiled.md` (primary context artifact).
+2. `manifest.json` (provenance and compile metadata).
+3. Target metadata used for compilation (`conversation_id`, optional `message_id`, and timestamp).
+4. Optional: `root.hc` and `nodes/` for auditability/debugging.
+
+Recommended handoff note template:
+
+```
+Context artifact: /absolute/path/to/export/<target>/compiled.md
+Manifest: /absolute/path/to/export/<target>/manifest.json
+Compile target: conversation_id=<id>, message_id=<id-or-none>
+Compiled at: YYYY-MM-DDTHH:MM:SSZ
+```
+
+---
+
 ## Graph-First Viewer
 
 The viewer opens in a graph-first mode:
