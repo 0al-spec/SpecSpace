@@ -463,7 +463,11 @@ def build_compile_target(
 
     visit(conversation_id)
     lineage_paths = build_lineage_paths(conversation_id, nodes_by_conversation, edges_by_id)
-    root_conversation_ids = sorted({path[0] for path in lineage_paths if path})
+    root_conversation_ids = sorted(
+        conv_id
+        for conv_id in {path[0] for path in lineage_paths if path}
+        if not nodes_by_conversation[conv_id]["parent_edge_ids"]
+    )
     merge_parent_conversation_ids = sorted(
         {
             edges_by_id[edge_id]["parent_conversation_id"]

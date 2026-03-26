@@ -252,6 +252,129 @@ class CompileTargetDeterminismTests(unittest.TestCase):
         )
 
 
+BROKEN_ROOT_ID = "conv-broken-root"
+BROKEN_BRANCH_ID = "conv-broken-branch"
+
+BROKEN_ROOT_PAYLOAD = {
+    "conversation_id": BROKEN_ROOT_ID,
+    "title": "Broken Root",
+    "messages": [
+        {"message_id": "msg-br-1", "role": "user", "content": "Hello."},
+        {"message_id": "msg-br-2", "role": "assistant", "content": "Hi."},
+    ],
+    "lineage": {"parents": []},
+}
+
+# Branch whose parent conversation is absent from the workspace
+ORPHAN_BRANCH_PAYLOAD = {
+    "conversation_id": BROKEN_BRANCH_ID,
+    "title": "Orphan Branch",
+    "messages": [
+        {"message_id": "msg-ob-1", "role": "user", "content": "Follow on."},
+    ],
+    "lineage": {
+        "parents": [
+            {
+                "conversation_id": "conv-missing-parent",
+                "message_id": "msg-missing-1",
+                "link_type": "branch",
+            }
+        ]
+    },
+}
+
+# Branch whose parent conversation is present but the referenced message is absent
+BAD_MSG_BRANCH_PAYLOAD = {
+    "conversation_id": BROKEN_BRANCH_ID,
+    "title": "Bad Message Branch",
+    "messages": [
+        {"message_id": "msg-bm-1", "role": "user", "content": "Follow on."},
+    ],
+    "lineage": {
+        "parents": [
+            {
+                "conversation_id": BROKEN_ROOT_ID,
+                "message_id": "msg-br-nonexistent",
+                "link_type": "branch",
+            }
+        ]
+    },
+}
+
+
+class CompileTargetBrokenLineageTests(unittest.TestCase):
+    """root_conversation_ids is empty when lineage is incomplete."""
+
+    def _ct(self, dialog_dir: Path, conversation_id: str) -> dict:
+        status, payload = server.collect_conversation_api(dialog_dir, conversation_id)
+        self.assertEqual(status, HTTPStatus.OK)
+        return payload["compile_target"]
+
+    def test_branch_with_missing_parent_conversation_has_empty_root_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            write_workspace(Path(tmp), {"branch.json": ORPHAN_BRANCH_PAYLOAD})
+            ct = self._ct(Path(tmp), BROKEN_BRANCH_ID)
+        self.assertEqual(ct["root_conversation_ids"], [])
+
+    def test_branch_with_missing_parent_conversation_is_lineage_incomplete(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            write_workspace(Path(tmp), {"branch.json": ORPHAN_BRANCH_PAYLOAD})
+            ct = self._ct(Path(tmp), BROKEN_BRANCH_ID)
+        self.assertFalse(ct["is_lineage_complete"])
+
+    def test_branch_with_missing_parent_conversation_has_unresolved_edge_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            write_workspace(Path(tmp), {"branch.json": ORPHAN_BRANCH_PAYLOAD})
+            ct = self._ct(Path(tmp), BROKEN_BRANCH_ID)
+        self.assertTrue(ct["unresolved_parent_edge_ids"])
+
+    def test_branch_with_missing_parent_message_has_empty_root_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            write_workspace(
+                Path(tmp),
+                {"root.json": BROKEN_ROOT_PAYLOAD, "branch.json": BAD_MSG_BRANCH_PAYLOAD},
+            )
+            ct = self._ct(Path(tmp), BROKEN_BRANCH_ID)
+        self.assertEqual(ct["root_conversation_ids"], [])
+
+    def test_branch_with_missing_parent_message_is_lineage_incomplete(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            write_workspace(
+                Path(tmp),
+                {"root.json": BROKEN_ROOT_PAYLOAD, "branch.json": BAD_MSG_BRANCH_PAYLOAD},
+            )
+            ct = self._ct(Path(tmp), BROKEN_BRANCH_ID)
+        self.assertFalse(ct["is_lineage_complete"])
+
+    def test_complete_lineage_still_produces_correct_root_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            write_workspace(
+                Path(tmp),
+                {
+                    "root.json": BROKEN_ROOT_PAYLOAD,
+                    "branch.json": {
+                        "conversation_id": BROKEN_BRANCH_ID,
+                        "title": "Good Branch",
+                        "messages": [
+                            {"message_id": "msg-gb-1", "role": "user", "content": "Follow on."},
+                        ],
+                        "lineage": {
+                            "parents": [
+                                {
+                                    "conversation_id": BROKEN_ROOT_ID,
+                                    "message_id": "msg-br-2",
+                                    "link_type": "branch",
+                                }
+                            ]
+                        },
+                    },
+                },
+            )
+            ct = self._ct(Path(tmp), BROKEN_BRANCH_ID)
+        self.assertEqual(ct["root_conversation_ids"], [BROKEN_ROOT_ID])
+        self.assertTrue(ct["is_lineage_complete"])
+
+
 class BranchMergeWriteValidationTests(unittest.TestCase):
     """validate_write_request accepts canonical branch and merge payloads."""
 
