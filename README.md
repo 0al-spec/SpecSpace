@@ -426,7 +426,7 @@ Returned by `GET /api/conversation` and `GET /api/checkpoint`:
 | `lineage_conversation_ids` | Deterministic ancestor ordering ending at target |
 | `lineage_edge_ids` | Parent edges included in the ancestry |
 | `lineage_paths` | Root-to-target paths, preserving merge provenance |
-| `root_conversation_ids` | Reachable roots for the selected target |
+| `root_conversation_ids` | True graph roots reachable from the target; empty when `is_lineage_complete` is `false` |
 | `merge_parent_conversation_ids` | Merge parents visible in ancestry |
 | `unresolved_parent_edge_ids` | Broken parent edges making lineage incomplete |
 | `is_lineage_complete` | `false` when any ancestor edge is unresolved |
