@@ -180,3 +180,4 @@
 | 2026-03-26 | CTXB-P5-T3 | Archived REVIEW_export_hc_compile_tests report |
 | 2026-03-26 | CTXB-P5-T4 | Archived Update_product_and_contributor_documentation_for_the_graph-to-context_workflow (PASS) |
 | 2026-03-26 | CTXB-P2R-B6 | Archived Inspector_Selection_Bug (PASS) |
+| 2026-03-26 | CTXB-P2R-B6 | Archived REVIEW_inspector_selection_bug report |
