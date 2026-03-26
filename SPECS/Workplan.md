@@ -783,6 +783,23 @@ Intent: lock down graph and compile behavior with regression coverage and make t
   - `make serve DIALOG_DIR=... HYPERPROMPT_BINARY=...` passes the binary path to `viewer/server.py --hyperprompt-binary`.
   - Default value matches `DEFAULT_HYPERPROMPT_BINARY` in `server.py`.
 
+### CTXB-P5-B1 — Compile fails with "Hyperprompt not found" for branch compilation on arm64 build layout
+- **Description:** Reproduce and fix runtime compile failure shown in UI:
+  - `Compile`
+  - `COMPILE ERROR`
+  - `Hyperprompt not found`
+  - `Binary not found at: /Users/egor/Development/GitHub/0AL/Hyperprompt/.build/release/hyperprompt`
+  The real local binary path is `/Users/egor/Development/GitHub/0AL/Hyperprompt/.build/arm64-apple-macosx/release/hyperprompt`. Fix path resolution so branch compilation works out of the box on this layout. Optional implementation: maintain a project-local copy/symlink under `deps/` and use that as default fallback.
+- **Priority:** P1
+- **Dependencies:** CTXB-P4-T3, CTXB-P5-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** updated binary resolution strategy (`server.py` and/or `Makefile`), docs note for local Hyperprompt path
+- **Acceptance Criteria:**
+  - Compile succeeds without manual path edits when Hyperprompt exists at the arm64 path above.
+  - UI no longer shows "Hyperprompt not found" for this environment.
+  - `POST /api/compile` returns actionable path diagnostics when both default and fallback locations are missing.
+  - If `deps/` fallback is used, setup and lookup behavior are documented.
+
 ### ✅ CTXB-P5-T5 — Add end-to-end verification guidance for handing compiled context to an external agent
 - **Description:** Document the local operator flow from JSON conversations to final compiled Markdown so the compiled artifact can be used immediately in downstream agent workflows.
 - **Priority:** P1
