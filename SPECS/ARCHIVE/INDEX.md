@@ -81,6 +81,7 @@
 | [REVIEW_product_docs.md](_Historical/REVIEW_product_docs.md) | Product and contributor documentation review report |
 | [REVIEW_external_agent_handoff_guide.md](_Historical/REVIEW_external_agent_handoff_guide.md) | External agent handoff verification documentation review report |
 | [REVIEW_ctxb_p4_t5_compile_provenance.md](_Historical/REVIEW_ctxb_p4_t5_compile_provenance.md) | Compile provenance traceability review report |
+| [REVIEW_ctxb_p5_b1_hyperprompt_path_resolution.md](_Historical/REVIEW_ctxb_p5_b1_hyperprompt_path_resolution.md) | Hyperprompt fallback path resolution review report |
 
 ## Archive Log
 
@@ -191,3 +192,4 @@
 | 2026-03-26 | CTXB-P5-T5 | Archived REVIEW_external_agent_handoff_guide report |
 | 2026-03-26 | CTXB-P4-T5 | Archived REVIEW_ctxb_p4_t5_compile_provenance report |
 | 2026-03-26 | CTXB-P5-B1 | Archived Compile_Fails_With_Hyperprompt_Not_Found_For_Branch_Compilation_On_Arm64_Build_Layout (PASS) |
+| 2026-03-26 | CTXB-P5-B1 | Archived REVIEW_ctxb_p5_b1_hyperprompt_path_resolution report |
