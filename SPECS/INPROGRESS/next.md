@@ -1,6 +1,13 @@
 # In Progress Queue
 
-**Current Task:** (none)
+**Current Task:** `CTXB-P5-B2` — Compile fails with Hyperprompt syntax error: multiple root nodes in generated export
+
+## Current Task Metadata
+- **Task ID:** `CTXB-P5-B2`
+- **Priority:** P1
+- **Dependencies:** `CTXB-P4-T2`, `CTXB-P4-T3`
+- **Selected On:** 2026-03-26
+- **Review Subject:** `ctxb_p5_b2_compile_roots`
 
 ## Recently Archived
 - `CTXB-P5-B1` — Compile fails with "Hyperprompt not found" for branch compilation on arm64 build layout (PASS, 2026-03-26)
