@@ -99,7 +99,9 @@ ContextBuilder calls the [Hyperprompt](https://github.com/0AL/Hyperprompt) compi
 ```bash
 cd /path/to/Hyperprompt
 swift build -c release
-# binary at: .build/release/hyperprompt
+# binary at one of:
+#   .build/release/hyperprompt
+#   .build/arm64-apple-macosx/release/hyperprompt
 ```
 
 ### Pass the Binary to ContextBuilder
@@ -110,9 +112,15 @@ python3 viewer/server.py \
   --hyperprompt-binary /path/to/Hyperprompt/.build/release/hyperprompt
 ```
 
-Or set `make serve` to pass the flag by editing the Makefile `serve` target.
+If `--hyperprompt-binary` is not provided (or uses the default value), ContextBuilder resolves Hyperprompt in this order:
 
-If the binary is missing or non-executable, `POST /api/compile` returns a structured error and leaves the export directory intact so you can inspect the generated `.hc` file.
+1. `.build/release/hyperprompt`
+2. `.build/arm64-apple-macosx/release/hyperprompt`
+3. `.build/x86_64-apple-macosx/release/hyperprompt`
+4. `.build/*/release/hyperprompt` (other architecture-specific layouts)
+5. `deps/hyperprompt` inside this repository
+
+If no candidate exists, `POST /api/compile` returns `422` with `compile.checked_paths` so you can see exactly which paths were attempted. The export directory remains intact so you can inspect the generated `.hc` file.
 
 ---
 
@@ -169,7 +177,7 @@ test -s "{export_dir}/manifest.json"
 
 - `404` from `POST /api/compile`: target `conversation_id` or `message_id` does not exist.
 - `409` from `POST /api/compile`: target is blocked by integrity errors; inspect graph diagnostics and fix lineage/schema issues first.
-- `500` with `compile.error`: Hyperprompt binary missing, non-executable, or compile-time failure; verify `--hyperprompt-binary` path and rerun.
+- `422` with `compile.error`: Hyperprompt binary missing or compile-time failure; inspect `compile.checked_paths`, verify `--hyperprompt-binary` path (if set), and rerun.
 
 When compile fails, inspect `root.hc` and exported node Markdown files in `{export_dir}` before retrying.
 
@@ -375,7 +383,7 @@ ContextBuilder validates individual payloads and whole-workspace lineage before 
 - Unknown `conversation_id` → `404`
 - Conversation blocked by integrity errors → `409` with diagnostics
 - Unknown checkpoint anchor → `404`
-- Hyperprompt binary missing or compile failure → `500` with `compile.error`
+- Hyperprompt binary missing or compile failure → `422` with `compile.error`
 
 ---
 

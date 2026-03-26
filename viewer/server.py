@@ -949,6 +949,41 @@ _EXIT_CODE_DESCRIPTIONS: dict[int, str] = {
 DEFAULT_HYPERPROMPT_BINARY = "/Users/egor/Development/GitHub/0AL/Hyperprompt/.build/release/hyperprompt"
 
 
+def _default_hyperprompt_fallbacks(default_binary: Path) -> list[tuple[str, Path]]:
+    build_dir = default_binary.parent.parent
+    candidates: list[tuple[str, Path]] = [
+        ("fallback_arm64", build_dir / "arm64-apple-macosx" / "release" / "hyperprompt"),
+        ("fallback_x86_64", build_dir / "x86_64-apple-macosx" / "release" / "hyperprompt"),
+    ]
+    for candidate in sorted(build_dir.glob("*/release/hyperprompt")):
+        candidates.append(("fallback_arch_glob", candidate))
+    candidates.append(("fallback_deps", REPO_ROOT / "deps" / "hyperprompt"))
+    return candidates
+
+
+def resolve_hyperprompt_binary(configured_binary: str) -> tuple[str | None, list[str], str]:
+    requested = Path(configured_binary).expanduser()
+    default_binary = Path(DEFAULT_HYPERPROMPT_BINARY).expanduser()
+
+    candidates: list[tuple[str, Path]] = [("configured", requested)]
+    if requested == default_binary:
+        candidates.extend(_default_hyperprompt_fallbacks(default_binary))
+
+    checked_paths: list[str] = []
+    seen_paths: set[str] = set()
+    for source, candidate in candidates:
+        candidate_path = candidate.expanduser()
+        candidate_text = str(candidate_path)
+        if candidate_text in seen_paths:
+            continue
+        seen_paths.add(candidate_text)
+        checked_paths.append(candidate_text)
+        if candidate_path.exists() and candidate_path.is_file():
+            return candidate_text, checked_paths, source
+
+    return None, checked_paths, "missing"
+
+
 def invoke_hyperprompt(
     export_dir: Path,
     binary_path: str,
@@ -959,13 +994,17 @@ def invoke_hyperprompt(
     compiled_md and manifest_json paths. On failure it contains error,
     exit_code, stderr, and stdout.
     """
-    binary = Path(binary_path)
-    if not binary.exists():
+    resolved_binary, checked_paths, resolution_source = resolve_hyperprompt_binary(binary_path)
+    if resolved_binary is None:
+        checked_lines = "\n".join(f"- {path}" for path in checked_paths)
         return HTTPStatus.UNPROCESSABLE_ENTITY, {
             "error": "Hyperprompt not found",
-            "details": f"Binary not found at: {binary_path}",
+            "details": f"Binary not found at: {binary_path}\nChecked paths:\n{checked_lines}",
             "exit_code": None,
+            "checked_paths": checked_paths,
+            "requested_binary": binary_path,
         }
+    binary = Path(resolved_binary)
 
     hc_file = export_dir / "root.hc"
     if not hc_file.exists():
@@ -1015,6 +1054,8 @@ def invoke_hyperprompt(
         "exit_code": 0,
         "stdout": result.stdout,
         "stderr": result.stderr,
+        "binary_path": resolved_binary,
+        "binary_resolution": resolution_source,
     }
 
 

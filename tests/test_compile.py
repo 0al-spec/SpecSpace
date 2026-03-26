@@ -93,6 +93,74 @@ class TestInvokeHyperprompt(unittest.TestCase):
         self.assertIn("Hyperprompt not found", payload["error"])
         self.assertIsNone(payload["exit_code"])
 
+    def test_default_binary_falls_back_to_arm64_release_layout(self):
+        with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
+            export_dir = self._make_export_dir(td_path)
+            default_binary = td_path / ".build" / "release" / "hyperprompt"
+            arm64_binary = td_path / ".build" / "arm64-apple-macosx" / "release" / "hyperprompt"
+            arm64_binary.parent.mkdir(parents=True, exist_ok=True)
+            arm64_binary.write_text(
+                textwrap.dedent("""\
+                    #!/bin/sh
+                    out=""
+                    manifest=""
+                    while [ $# -gt 0 ]; do
+                        case "$1" in
+                            --output) shift; out="$1" ;;
+                            --manifest) shift; manifest="$1" ;;
+                        esac
+                        shift
+                    done
+                    [ -n "$out" ] && echo "# compiled" > "$out"
+                    [ -n "$manifest" ] && echo '{}' > "$manifest"
+                    exit 0
+                """),
+                encoding="utf-8",
+            )
+            arm64_binary.chmod(arm64_binary.stat().st_mode | stat.S_IEXEC)
+
+            original_default = server.DEFAULT_HYPERPROMPT_BINARY
+            try:
+                server.DEFAULT_HYPERPROMPT_BINARY = str(default_binary)
+                status, payload = server.invoke_hyperprompt(export_dir, str(default_binary))
+            finally:
+                server.DEFAULT_HYPERPROMPT_BINARY = original_default
+
+        self.assertEqual(status, HTTPStatus.OK, payload)
+        self.assertEqual(payload["exit_code"], 0)
+        self.assertEqual(payload["binary_path"], str(arm64_binary))
+
+    def test_missing_default_binary_reports_checked_fallback_candidates(self):
+        with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
+            export_dir = self._make_export_dir(td_path)
+            default_binary = td_path / ".build" / "release" / "hyperprompt"
+            expected_arm64 = td_path / ".build" / "arm64-apple-macosx" / "release" / "hyperprompt"
+
+            original_default = server.DEFAULT_HYPERPROMPT_BINARY
+            try:
+                server.DEFAULT_HYPERPROMPT_BINARY = str(default_binary)
+                status, payload = server.invoke_hyperprompt(export_dir, str(default_binary))
+            finally:
+                server.DEFAULT_HYPERPROMPT_BINARY = original_default
+
+        self.assertEqual(status, HTTPStatus.UNPROCESSABLE_ENTITY)
+        self.assertIn("Hyperprompt not found", payload["error"])
+        self.assertIn(str(default_binary), payload["checked_paths"])
+        self.assertIn(str(expected_arm64), payload["checked_paths"])
+
+    def test_explicit_binary_override_does_not_use_default_fallbacks(self):
+        with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
+            export_dir = self._make_export_dir(td_path)
+            explicit_binary = td_path / "custom" / "hyperprompt"
+
+            status, payload = server.invoke_hyperprompt(export_dir, str(explicit_binary))
+
+        self.assertEqual(status, HTTPStatus.UNPROCESSABLE_ENTITY)
+        self.assertEqual(payload["checked_paths"], [str(explicit_binary)])
+
     def test_missing_hc_file_returns_400(self):
         with tempfile.TemporaryDirectory() as td:
             export_dir = self._make_export_dir(Path(td), include_hc=False)
