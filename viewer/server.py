@@ -717,6 +717,8 @@ def generate_hc_root(
         lines.append('    "ContextBuilder compile provenance"')
         lines.append(f'    "{provenance_file}"')
     for conv_entry in conversations:
+        if not conv_entry["files"]:
+            continue
         conv_id = conv_entry["conversation_id"]
         title = titles_by_conv.get(conv_id) or conv_id
         lines.append(f'    "{title}"')

@@ -180,10 +180,48 @@ class GenerateHcRootTests(unittest.TestCase):
 
     def test_falls_back_to_conv_id_when_title_missing(self) -> None:
         conversations = [
-            {"conversation_id": "conv-root", "files": []},
+            {"conversation_id": "conv-root", "files": ["0000_msg-1.md"]},
         ]
         result = server.generate_hc_root(conversations, {})
         self.assertIn('"conv-root"', result)
+
+    def test_zero_file_conversation_is_omitted_from_hc(self) -> None:
+        conversations = [
+            {"conversation_id": "conv-parent", "files": ["0000_msg-1.md"]},
+            {"conversation_id": "conv-branch", "files": []},
+        ]
+        result = server.generate_hc_root(
+            conversations, {"conv-parent": "Parent", "conv-branch": "Testing"}
+        )
+        self.assertNotIn('"Testing"', result)
+        self.assertNotIn('"conv-branch"', result)
+        self.assertIn('"nodes/conv-parent/0000_msg-1.md"', result)
+
+    def test_all_zero_file_conversations_produces_root_only(self) -> None:
+        conversations = [
+            {"conversation_id": "conv-branch", "files": []},
+        ]
+        result = server.generate_hc_root(
+            conversations, {"conv-branch": "Testing"}
+        )
+        non_comment_lines = [
+            line for line in result.splitlines() if line and not line.lstrip().startswith("#")
+        ]
+        self.assertEqual(non_comment_lines, ['"ContextBuilder export root"'])
+
+    def test_depth_zero_root_still_single_with_zero_file_conv(self) -> None:
+        conversations = [
+            {"conversation_id": "conv-a", "files": ["0000_msg-a.md"]},
+            {"conversation_id": "conv-b", "files": []},
+        ]
+        result = server.generate_hc_root(
+            conversations, {"conv-a": "A", "conv-b": "Testing"}
+        )
+        non_comment_lines = [
+            line for line in result.splitlines() if line and not line.lstrip().startswith("#")
+        ]
+        depth_zero = [line for line in non_comment_lines if not line.startswith(" ")]
+        self.assertEqual(len(depth_zero), 1)
 
     def test_output_contains_provenance_section_when_provided(self) -> None:
         conversations = [
