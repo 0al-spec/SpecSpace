@@ -90,6 +90,7 @@
 | [REVIEW_ctxb_p5_b2_compile_roots.md](_Historical/REVIEW_ctxb_p5_b2_compile_roots.md) | Single-root `.hc` compile fix review report |
 | [REVIEW_reindex_external_changes.md](_Historical/REVIEW_reindex_external_changes.md) | Re-index external file changes review report |
 | [REVIEW_ctxb_p2r_t12_min_zoom.md](_Historical/REVIEW_ctxb_p2r_t12_min_zoom.md) | Increase maximum zoom-out on graph canvas review report |
+| [REVIEW_ctxb_p5_b3_zero_checkpoint_compile.md](_Historical/REVIEW_ctxb_p5_b3_zero_checkpoint_compile.md) | Zero-checkpoint branch compile fix review report |
 
 ## Archive Log
 
@@ -208,3 +209,4 @@
 | 2026-03-26 | CTXB-P2R-T12 | Archived Increase_maximum_zoom-out_on_the_graph_canvas (PASS) |
 | 2026-03-26 | CTXB-P2R-T12 | Archived REVIEW_ctxb_p2r_t12_min_zoom report |
 | 2026-03-31 | CTXB-P5-B3 | Archived Compile_Fails_When_Selected_Branch_Has_Zero_Checkpoints (PASS) |
+| 2026-03-31 | CTXB-P5-B3 | Archived REVIEW_ctxb_p5_b3_zero_checkpoint_compile report |
