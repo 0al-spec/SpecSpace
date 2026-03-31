@@ -826,6 +826,17 @@ Intent: lock down graph and compile behavior with regression coverage and make t
   - Conversation/message includes are emitted with consistent one-level nesting under that root.
   - `POST /api/compile` succeeds for the affected chain and existing compile tests remain green.
 
+### CTXB-P5-B3 — Compile fails when selected branch has zero checkpoints (empty title node in root.hc)
+- **Description:** When a BRANCH conversation has no checkpoints (0 messages), the export still emits it as a title-only node (`    "Testing"`) in `root.hc` with no file children. Depending on Hyperprompt parser behaviour, an empty container node may cause a compile error. Reproduces with `conv-march-branch` from the canonical 30-file workspace — the compile panel shows `COMPILE ERROR — EXIT CODE: 2` with a "Multiple root nodes" message (observed against a stale server, but the underlying edge case — a branch with no content — is not yet handled or tested). Fix the export to either skip zero-checkpoint conversations or emit them in a valid form; add a regression test.
+- **Priority:** P2
+- **Dependencies:** CTXB-P5-B2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** updated export logic in `viewer/server.py`, regression test in `tests/test_export.py`
+- **Acceptance Criteria:**
+  - Selecting a BRANCH node with 0 checkpoints and clicking Compile does not produce a Hyperprompt syntax error.
+  - If the branch has no content, the compile either succeeds (emitting only the parent lineage) or surfaces a clear user-facing message explaining why the branch is empty.
+  - Existing compile/export tests remain green.
+
 ### ✅ CTXB-P5-T5 — Add end-to-end verification guidance for handing compiled context to an external agent
 - **Description:** Document the local operator flow from JSON conversations to final compiled Markdown so the compiled artifact can be used immediately in downstream agent workflows.
 - **Priority:** P1
