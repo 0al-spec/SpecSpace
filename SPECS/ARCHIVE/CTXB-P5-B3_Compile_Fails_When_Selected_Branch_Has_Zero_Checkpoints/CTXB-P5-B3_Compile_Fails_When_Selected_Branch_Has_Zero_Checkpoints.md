@@ -1,6 +1,8 @@
 # CTXB-P5-B3 — Compile fails when selected branch has zero checkpoints (empty title node in root.hc)
 
-**Status:** In Progress
+**Status:** Complete
+**Verdict:** PASS
+**Archived:** 2026-03-31
 **Priority:** P2
 **Phase:** Phase 5 — Hardening, Tests, and Documentation
 **Dependencies:** CTXB-P5-B2
