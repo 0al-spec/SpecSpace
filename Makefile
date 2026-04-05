@@ -4,9 +4,9 @@ API_PORT ?= 8001
 UI_PORT ?= 5173
 DIALOG_DIR ?=
 OUTPUT_DIR ?=
-CANONICAL_DIR ?= /tmp/canonical_json
+CANONICAL_DIR ?= $(HOME)/Development/GitHub/ChatGPTDialogs/canonical_json
 
-.PHONY: help serve api ui dev test lint canonicalize canon
+.PHONY: help serve api ui dev stop test lint canonicalize canon
 
 help:
 	@echo "Targets:"
@@ -15,7 +15,8 @@ help:
 	@echo "  make canon DIALOG_DIR=/path/to/import_json [OUTPUT_DIR=/tmp/canonical_json]"
 	@echo "  make api [DIALOG_DIR=/tmp/canonical_json] [API_PORT=8001]"
 	@echo "  make ui [UI_PORT=5173]"
-	@echo "  make dev [DIALOG_DIR=/tmp/canonical_json] [API_PORT=8001] [UI_PORT=5173]"
+	@echo "  make dev [DIALOG_DIR=...] [API_PORT=8001] [UI_PORT=5173]"
+	@echo "  make stop [API_PORT=8001] [UI_PORT=5173]"
 	@echo "  make test"
 	@echo "  make lint"
 
@@ -51,8 +52,13 @@ dev:
 	trap 'kill $$api_pid 2>/dev/null || true' EXIT INT TERM; \
 	npm run dev --prefix viewer/app -- --host 127.0.0.1 --port "$(UI_PORT)"
 
+stop:
+	@lsof -ti:$(API_PORT) | xargs kill 2>/dev/null || true
+	@lsof -ti:$(UI_PORT) | xargs kill 2>/dev/null || true
+	@echo "Stopped servers on ports $(API_PORT) and $(UI_PORT)"
+
 test:
 	@$(PYTHON) -m unittest discover -s tests -p 'test_*.py'
 
 lint:
-	@$(PYTHON) -m py_compile viewer/server.py viewer/schema.py tests/test_*.py
+	@$(PYTHON) -m py_compile $$(find viewer tests -name '*.py' | sort)
