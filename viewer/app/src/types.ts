@@ -57,6 +57,51 @@ export interface CompileFailure {
 
 export type CompileResult = CompileSuccess | CompileFailure;
 
+// ---------------------------------------------------------------------------
+// SpecGraph types
+// ---------------------------------------------------------------------------
+
+export interface ApiSpecNode {
+  node_id: string;
+  file_name: string;
+  title: string;
+  kind: string;
+  status: string;
+  maturity: number | null;
+  acceptance_count: number;
+  decisions_count: number;
+  depends_on: string[];
+  refines: string[];
+  relates_to: string[];
+  diagnostics: Array<{ message: string; edge_kind?: string }>;
+}
+
+export interface ApiSpecEdge {
+  edge_id: string;
+  edge_kind: "depends_on" | "refines" | "relates_to";
+  source_id: string;
+  target_id: string;
+  status: "resolved" | "broken";
+}
+
+export interface ApiSpecGraph {
+  nodes: ApiSpecNode[];
+  edges: ApiSpecEdge[];
+  roots: string[];
+  blocked_files: unknown[];
+  diagnostics: unknown[];
+  summary: {
+    node_count: number;
+    edge_count: number;
+    root_count: number;
+    blocked_file_count: number;
+    diagnostic_count: number;
+    broken_edge_count: number;
+  };
+}
+
+export type GraphMode = "conversations" | "specifications";
+
 export interface CompileTarget {
   scope: "conversation" | "checkpoint";
   target_conversation_id: string;

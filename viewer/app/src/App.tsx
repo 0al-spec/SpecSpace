@@ -19,16 +19,21 @@ import "./MessageNode.css";
 import ConversationNode from "./ConversationNode";
 import ExpandedConversationNode from "./ExpandedConversationNode";
 import MessageNode from "./MessageNode";
+import SpecNode from "./SpecNode";
+import "./SpecNode.css";
 import Sidebar from "./Sidebar";
 import InspectorOverlay from "./InspectorOverlay";
 import { useGraphData } from "./useGraphData";
 import { useSessionString } from "./useSessionState";
 import { CompileTargetContext } from "./CompileTargetContext";
+// GraphMode imported for use by Sidebar/mode-switcher (T6)
+import type { GraphMode as _GraphMode } from "./types"; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 const nodeTypes = {
   conversation: ConversationNode,
   group: ExpandedConversationNode,
   message: MessageNode,
+  spec: SpecNode,
 };
 
 function loadViewport(): Viewport | undefined {
@@ -47,6 +52,16 @@ const kindColorMap: Record<string, string> = {
   merge: "#b06924",
 };
 
+const specStatusColorMap: Record<string, string> = {
+  idea: "#b0b0b0",
+  stub: "#c8a72a",
+  outlined: "#4e82b8",
+  specified: "#6e5ab8",
+  linked: "#3e9a58",
+  reviewed: "#2a7c7c",
+  frozen: "#4a5568",
+};
+
 function minimapNodeColor(node: Node): string {
   if (node.type === "group" || node.type === "conversation") {
     const kind = (node.data as { kind?: string }).kind ?? "";
@@ -55,6 +70,10 @@ function minimapNodeColor(node: Node): string {
   if (node.type === "message") {
     const role = (node.data as { role?: string }).role;
     return role === "user" ? "#8eaed4" : "#c4a67a";
+  }
+  if (node.type === "spec") {
+    const status = (node.data as { status?: string }).status ?? "";
+    return specStatusColorMap[status] ?? "#9b8ec4";
   }
   return "#b89f7f";
 }

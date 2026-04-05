@@ -1,0 +1,130 @@
+/* SpecNode — specification graph node (visually distinct from ConversationNode) */
+
+.spec-node {
+  width: 220px;
+  min-height: 110px;
+  border-radius: 8px;           /* squared vs round for conversations */
+  padding: 14px 16px 12px;
+  font-family: "Courier New", Courier, monospace;  /* monospace feel for spec/code */
+  color: var(--text);
+  border: 2px solid var(--spec-border, #9b8ec4);
+  background: var(--spec-bg, #f0ecfa);
+  box-shadow: 0 6px 16px rgba(60, 40, 100, 0.10);
+  position: relative;
+  cursor: pointer;
+}
+
+/* Selected state */
+.spec-node.selected {
+  border-color: var(--accent-strong);
+  border-width: 3px;
+  box-shadow: 0 0 0 2px var(--accent-soft), 0 6px 16px rgba(60, 40, 100, 0.18);
+}
+
+/* Status-based border colour */
+.spec-node.status-idea       { border-color: #b0b0b0; background: #f5f5f5; }
+.spec-node.status-stub       { border-color: #c8a72a; background: #fdf8e8; }
+.spec-node.status-outlined   { border-color: #4e82b8; background: #eef4fb; }
+.spec-node.status-specified  { border-color: #6e5ab8; background: #f0ecfa; }
+.spec-node.status-linked     { border-color: #3e9a58; background: #eaf5ed; }
+.spec-node.status-reviewed   { border-color: #2a7c7c; background: #e8f5f5; }
+.spec-node.status-frozen     { border-color: #4a5568; background: #f0f2f5; }
+
+/* Selected overrides status border to accent */
+.spec-node.selected {
+  border-color: var(--accent-strong);
+}
+
+/* Node ID badge */
+.spec-node-id {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 5px;
+  font-family: "Courier New", Courier, monospace;
+}
+
+/* Title */
+.spec-node-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 8px;
+  word-break: break-word;
+  font-family: Georgia, serif;
+}
+
+/* Kind + status row */
+.spec-node-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.spec-node-kind-badge {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.07);
+  color: var(--muted);
+  font-family: "Courier New", Courier, monospace;
+}
+
+.spec-node-status-badge {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: "Courier New", Courier, monospace;
+}
+
+.spec-node-status-badge.status-idea       { background: #e0e0e0; color: #555; }
+.spec-node-status-badge.status-stub       { background: #fde68a; color: #92400e; }
+.spec-node-status-badge.status-outlined   { background: #bfdbfe; color: #1e3a8a; }
+.spec-node-status-badge.status-specified  { background: #ddd6fe; color: #4c1d95; }
+.spec-node-status-badge.status-linked     { background: #bbf7d0; color: #14532d; }
+.spec-node-status-badge.status-reviewed   { background: #99f6e4; color: #134e4a; }
+.spec-node-status-badge.status-frozen     { background: #e2e8f0; color: #1e293b; }
+
+/* Maturity bar */
+.spec-node-maturity {
+  margin-top: 4px;
+}
+
+.spec-node-maturity-label {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+  font-family: "Courier New", Courier, monospace;
+}
+
+.spec-node-maturity-track {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.spec-node-maturity-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #6e5ab8, #3e9a58);
+  transition: width 0.3s ease;
+}
+
+/* React Flow handles */
+.spec-node .react-flow__handle {
+  width: 7px;
+  height: 7px;
+  background: #9b8ec4;
+  border: 2px solid white;
+  border-radius: 2px;  /* square handles vs round for conversations */
+}
