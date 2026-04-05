@@ -1,12 +1,18 @@
-"""Tests for viewer/specgraph.py — YAML spec ingestion and graph construction."""
+"""Tests for viewer/specgraph.py — YAML spec ingestion, graph construction, and API endpoints."""
 
+import json
 import tempfile
+import threading
 import unittest
+from http.server import ThreadingHTTPServer
 from pathlib import Path
+from typing import Optional
+from urllib.error import HTTPError
+from urllib.request import urlopen
 
 import yaml
 
-from viewer import specgraph
+from viewer import server, specgraph
 
 
 # ---------------------------------------------------------------------------
@@ -276,6 +282,146 @@ class CollectSpecGraphApiTests(unittest.TestCase):
 
         self.assertEqual(result["graph"]["summary"]["node_count"], 0)
         self.assertEqual(result["graph"]["summary"]["edge_count"], 0)
+
+
+# ---------------------------------------------------------------------------
+# API endpoint tests (HTTP layer)
+# ---------------------------------------------------------------------------
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def start_spec_test_server(
+    dialog_dir: Path,
+    spec_dir: Optional[Path] = None,
+) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.ViewerHandler)
+    httpd.repo_root = REPO_ROOT
+    httpd.dialog_dir = dialog_dir
+    httpd.hyperprompt_binary = ""
+    httpd.spec_dir = spec_dir
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    return httpd, thread, f"http://127.0.0.1:{httpd.server_port}"
+
+
+def stop_test_server(httpd: ThreadingHTTPServer, thread: threading.Thread) -> None:
+    httpd.shutdown()
+    thread.join()
+    httpd.server_close()
+
+
+class CapabilitiesEndpointTests(unittest.TestCase):
+    def test_spec_graph_false_when_not_configured(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            httpd, thread, base = start_spec_test_server(Path(tmp), spec_dir=None)
+            try:
+                body = json.loads(urlopen(f"{base}/api/capabilities").read())
+            finally:
+                stop_test_server(httpd, thread)
+
+        self.assertFalse(body["spec_graph"])
+
+    def test_spec_graph_true_when_configured(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dialog, tempfile.TemporaryDirectory() as tmp_spec:
+            write_yaml(Path(tmp_spec), "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = start_spec_test_server(Path(tmp_dialog), spec_dir=Path(tmp_spec))
+            try:
+                body = json.loads(urlopen(f"{base}/api/capabilities").read())
+            finally:
+                stop_test_server(httpd, thread)
+
+        self.assertTrue(body["spec_graph"])
+
+
+class SpecGraphEndpointTests(unittest.TestCase):
+    def test_returns_404_when_not_configured(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            httpd, thread, base = start_spec_test_server(Path(tmp), spec_dir=None)
+            try:
+                with self.assertRaises(HTTPError) as ctx:
+                    urlopen(f"{base}/api/spec-graph")
+            finally:
+                stop_test_server(httpd, thread)
+
+        self.assertEqual(ctx.exception.code, 404)
+
+    def test_returns_graph_when_configured(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dialog, tempfile.TemporaryDirectory() as tmp_spec:
+            write_yaml(Path(tmp_spec), "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = start_spec_test_server(Path(tmp_dialog), spec_dir=Path(tmp_spec))
+            try:
+                body = json.loads(urlopen(f"{base}/api/spec-graph").read())
+            finally:
+                stop_test_server(httpd, thread)
+
+        self.assertIn("graph", body)
+        self.assertEqual(body["graph"]["summary"]["node_count"], 1)
+
+    def test_response_shape_matches_conversation_graph(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dialog, tempfile.TemporaryDirectory() as tmp_spec:
+            write_yaml(Path(tmp_spec), "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = start_spec_test_server(Path(tmp_dialog), spec_dir=Path(tmp_spec))
+            try:
+                body = json.loads(urlopen(f"{base}/api/spec-graph").read())
+            finally:
+                stop_test_server(httpd, thread)
+
+        graph = body["graph"]
+        self.assertIn("nodes", graph)
+        self.assertIn("edges", graph)
+        self.assertIn("roots", graph)
+        self.assertIn("summary", graph)
+
+
+class SpecNodeEndpointTests(unittest.TestCase):
+    def test_returns_404_when_not_configured(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            httpd, thread, base = start_spec_test_server(Path(tmp), spec_dir=None)
+            try:
+                with self.assertRaises(HTTPError) as ctx:
+                    urlopen(f"{base}/api/spec-node?id=SG-SPEC-0001")
+            finally:
+                stop_test_server(httpd, thread)
+
+        self.assertEqual(ctx.exception.code, 404)
+
+    def test_returns_node_data(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dialog, tempfile.TemporaryDirectory() as tmp_spec:
+            write_yaml(Path(tmp_spec), "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = start_spec_test_server(Path(tmp_dialog), spec_dir=Path(tmp_spec))
+            try:
+                body = json.loads(urlopen(f"{base}/api/spec-node?id=SG-SPEC-0001").read())
+            finally:
+                stop_test_server(httpd, thread)
+
+        self.assertEqual(body["node_id"], "SG-SPEC-0001")
+        self.assertIn("data", body)
+        self.assertEqual(body["data"]["title"], MINIMAL_SPEC["title"])
+
+    def test_returns_404_for_unknown_node(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dialog, tempfile.TemporaryDirectory() as tmp_spec:
+            write_yaml(Path(tmp_spec), "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = start_spec_test_server(Path(tmp_dialog), spec_dir=Path(tmp_spec))
+            try:
+                with self.assertRaises(HTTPError) as ctx:
+                    urlopen(f"{base}/api/spec-node?id=NONEXISTENT")
+            finally:
+                stop_test_server(httpd, thread)
+
+        self.assertEqual(ctx.exception.code, 404)
+
+    def test_returns_400_for_missing_id_param(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dialog, tempfile.TemporaryDirectory() as tmp_spec:
+            write_yaml(Path(tmp_spec), "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = start_spec_test_server(Path(tmp_dialog), spec_dir=Path(tmp_spec))
+            try:
+                with self.assertRaises(HTTPError) as ctx:
+                    urlopen(f"{base}/api/spec-node")
+            finally:
+                stop_test_server(httpd, thread)
+
+        self.assertEqual(ctx.exception.code, 400)
 
 
 if __name__ == "__main__":

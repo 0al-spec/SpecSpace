@@ -20,6 +20,7 @@ if __package__ in {None, ""}:  # pragma: no cover - allows running `python viewe
     sys.path.insert(0, str(REPO_ROOT))
 
 from viewer import schema  # noqa: E402
+from viewer import specgraph  # noqa: E402
 
 NON_BLOCKING_GRAPH_ERROR_CODES = frozenset(
     {
@@ -1108,6 +1109,15 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/file":
             self.handle_get_file(parsed)
             return
+        if parsed.path == "/api/spec-graph":
+            self.handle_spec_graph()
+            return
+        if parsed.path == "/api/spec-node":
+            self.handle_spec_node(parsed)
+            return
+        if parsed.path == "/api/capabilities":
+            self.handle_capabilities()
+            return
         self.handle_static(parsed.path)
 
     def do_POST(self) -> None:
@@ -1129,6 +1139,45 @@ class ViewerHandler(BaseHTTPRequestHandler):
             self.handle_delete_file(parsed)
             return
         self.send_error(HTTPStatus.NOT_FOUND)
+
+    def handle_capabilities(self) -> None:
+        json_response(
+            self,
+            HTTPStatus.OK,
+            {
+                "spec_graph": self.server.spec_dir is not None,
+            },
+        )
+
+    def handle_spec_graph(self) -> None:
+        if self.server.spec_dir is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "Spec graph not configured. Start the server with --spec-dir."},
+            )
+            return
+        json_response(self, HTTPStatus.OK, specgraph.collect_spec_graph_api(self.server.spec_dir))
+
+    def handle_spec_node(self, parsed) -> None:
+        if self.server.spec_dir is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "Spec graph not configured. Start the server with --spec-dir."},
+            )
+            return
+        params = parse_qs(parsed.query)
+        node_id = params.get("id", [""])[0]
+        if not node_id:
+            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing required query parameter: id"})
+            return
+        nodes, _ = specgraph.load_spec_nodes(self.server.spec_dir)
+        detail = specgraph.get_spec_node_detail(nodes, node_id)
+        if detail is None:
+            json_response(self, HTTPStatus.NOT_FOUND, {"error": f"Spec node '{node_id}' not found"})
+            return
+        json_response(self, HTTPStatus.OK, {"node_id": node_id, "data": detail})
 
     def handle_list_files(self) -> None:
         json_response(self, HTTPStatus.OK, collect_workspace_listing(self.server.dialog_dir))
@@ -1361,6 +1410,12 @@ def main() -> None:
         default=DEFAULT_HYPERPROMPT_BINARY,
         help="Path to the Hyperprompt compiler binary",
     )
+    parser.add_argument(
+        "--spec-dir",
+        type=Path,
+        default=None,
+        help="Path to a SpecGraph specs/nodes directory (enables /api/spec-graph)",
+    )
     args = parser.parse_args()
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), ViewerHandler)
@@ -1368,6 +1423,7 @@ def main() -> None:
     server.dialog_dir = args.dialog_dir.resolve()
     server.dialog_dir.mkdir(parents=True, exist_ok=True)
     server.hyperprompt_binary = args.hyperprompt_binary
+    server.spec_dir = args.spec_dir.resolve() if args.spec_dir else None
 
     print(f"Serving ContextBuilder at http://localhost:{args.port}/")
     print(f"Dialog folder: {server.dialog_dir}")
