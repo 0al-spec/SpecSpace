@@ -120,11 +120,17 @@
   transition: width 0.3s ease;
 }
 
-/* React Flow handles */
+/* React Flow handles — base */
 .spec-node .react-flow__handle {
-  width: 7px;
-  height: 7px;
-  background: #9b8ec4;
+  width: 8px;
+  height: 8px;
   border: 2px solid white;
   border-radius: 2px;  /* square handles vs round for conversations */
 }
+
+/* Per-kind handle colors */
+.spec-node .spec-handle-depends_on { background: #b54131; }
+.spec-node .spec-handle-refines    { background: #4e689b; }
+.spec-node .spec-handle-relates_to { background: #9b8ec4; }
+.spec-node .spec-handle-broken     { background: #b54131; border-style: dashed; }
+.spec-node .spec-handle-default    { background: #9b8ec4; }

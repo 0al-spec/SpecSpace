@@ -21,13 +21,13 @@ import ExpandedConversationNode from "./ExpandedConversationNode";
 import MessageNode from "./MessageNode";
 import SpecNode from "./SpecNode";
 import "./SpecNode.css";
-import Sidebar from "./Sidebar";
+import Sidebar, { MODE_KEY } from "./Sidebar";
 import InspectorOverlay from "./InspectorOverlay";
 import { useGraphData } from "./useGraphData";
+import { useSpecGraphData } from "./useSpecGraphData";
 import { useSessionString } from "./useSessionState";
 import { CompileTargetContext } from "./CompileTargetContext";
-// GraphMode imported for use by Sidebar/mode-switcher (T6)
-import type { GraphMode as _GraphMode } from "./types"; // eslint-disable-line @typescript-eslint/no-unused-vars
+import type { GraphMode } from "./types";
 
 const nodeTypes = {
   conversation: ConversationNode,
@@ -44,6 +44,16 @@ function loadViewport(): Viewport | undefined {
     // ignore
   }
   return undefined;
+}
+
+function loadInitialMode(): GraphMode {
+  try {
+    const stored = sessionStorage.getItem(MODE_KEY);
+    if (stored === "specifications") return "specifications";
+  } catch {
+    // ignore
+  }
+  return "conversations";
 }
 
 const kindColorMap: Record<string, string> = {
@@ -99,9 +109,39 @@ function FitViewShortcut() {
   return null;
 }
 
+// Check once at startup if spec support is available
+async function checkSpecAvailable(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/capabilities");
+    if (!res.ok) return false;
+    const data = await res.json();
+    return Boolean(data.spec_graph);
+  } catch {
+    return false;
+  }
+}
+
 function AppInner() {
-  const { nodes: graphNodes, edges, loading, error, refresh } = useGraphData();
+  const [graphMode, setGraphMode] = useState<GraphMode>(loadInitialMode);
+  const [specAvailable, setSpecAvailable] = useState(false);
+
+  // Check capabilities once on mount
+  useEffect(() => {
+    checkSpecAvailable().then(setSpecAvailable);
+  }, []);
+
+  // Conversation graph data
+  const convGraph = useGraphData();
+
+  // Spec graph data (always fetched so it's ready when mode switches)
+  const specGraph = useSpecGraphData();
+
+  // Choose active graph data by mode
+  const activeGraph = graphMode === "conversations" ? convGraph : specGraph;
+  const { nodes: graphNodes, edges, loading, error, refresh } = activeGraph;
+
   const [nodes, setNodes] = useState<Node[]>([]);
+
   const [selectedConversationId, setSelectedConversationId] =
     useSessionString("selected_conversation");
   const [selectedMessageId, setSelectedMessageId] =
@@ -119,10 +159,16 @@ function AppInner() {
     [setCompileTargetConversationId, setCompileTargetMessageId],
   );
 
+  // Reset local node state when mode changes
+  useEffect(() => {
+    setNodes([]);
+    setSelectedConversationId(null);
+    setSelectedMessageId(null);
+  }, [graphMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     setNodes((prev) => {
       if (prev.length === 0) return graphNodes;
-      // Build lookup of current top-level node positions to preserve drag state
       const prevPositions = new Map<string, { x: number; y: number }>();
       for (const n of prev) {
         if (!n.parentId) {
@@ -130,20 +176,18 @@ function AppInner() {
         }
       }
       return graphNodes.map((n) => {
-        if (n.parentId) return n; // child nodes use relative positions
+        if (n.parentId) return n;
         const existing = prevPositions.get(n.id);
         return existing ? { ...n, position: existing } : n;
       });
     });
   }, [graphNodes]);
 
-  // Clear stale selection if the stored conversation ID no longer exists in graph data.
+  // Clear stale selection
   useEffect(() => {
     if (!selectedConversationId || graphNodes.length === 0) return;
     const ids = new Set(
-      graphNodes
-        .filter((n) => !n.parentId)
-        .map((n) => n.id),
+      graphNodes.filter((n) => !n.parentId).map((n) => n.id),
     );
     if (!ids.has(selectedConversationId)) {
       setSelectedConversationId(null);
@@ -173,6 +217,11 @@ function AppInner() {
         const convId = node.parentId || null;
         setSelectedConversationId(convId);
         setSelectedMessageId(msgData.messageId || null);
+      } else if (node.type === "spec") {
+        // In spec mode, use the node id as the "selected conversation" so the
+        // inspector (future T7) can show spec detail.
+        setSelectedConversationId(node.id);
+        setSelectedMessageId(null);
       }
     },
     [setSelectedConversationId, setSelectedMessageId],
@@ -201,7 +250,12 @@ function AppInner() {
       value={{ compileTargetConversationId, compileTargetMessageId }}
     >
       <div className="app-layout">
-        <Sidebar onRefresh={refresh} />
+        <Sidebar
+          onRefresh={refresh}
+          graphMode={graphMode}
+          onGraphModeChange={setGraphMode}
+          specAvailable={specAvailable}
+        />
         <main className="app-main">
           {loading && (
             <div style={{ padding: 40, fontFamily: "Georgia, serif" }}>
@@ -239,15 +293,18 @@ function AppInner() {
             </ReactFlow>
           )}
         </main>
-        <InspectorOverlay
-          selectedConversationId={selectedConversationId}
-          selectedMessageId={selectedMessageId}
-          onDismiss={dismissInspector}
-          onGraphRefresh={refresh}
-          compileTargetConversationId={compileTargetConversationId}
-          compileTargetMessageId={compileTargetMessageId}
-          onSetCompileTarget={setCompileTarget}
-        />
+        {/* Inspector only available in conversation mode (spec inspector is T7) */}
+        {graphMode === "conversations" && (
+          <InspectorOverlay
+            selectedConversationId={selectedConversationId}
+            selectedMessageId={selectedMessageId}
+            onDismiss={dismissInspector}
+            onGraphRefresh={refresh}
+            compileTargetConversationId={compileTargetConversationId}
+            compileTargetMessageId={compileTargetMessageId}
+            onSetCompileTarget={setCompileTarget}
+          />
+        )}
       </div>
     </CompileTargetContext.Provider>
   );

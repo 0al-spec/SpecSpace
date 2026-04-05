@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import "./Sidebar.css";
+import type { GraphMode } from "./types";
 
 interface FileEntry {
   name: string;
@@ -7,13 +8,24 @@ interface FileEntry {
   kind: string;
 }
 
+interface SpecEntry {
+  node_id: string;
+  title: string;
+  kind: string;
+  status: string;
+}
+
 interface SidebarProps {
   onSelectFile?: (fileName: string) => void;
   selectedFile?: string | null;
   onRefresh?: () => void;
+  graphMode: GraphMode;
+  onGraphModeChange: (mode: GraphMode) => void;
+  specAvailable: boolean;
 }
 
 const COLLAPSE_KEY = "ctxb_sidebar_collapsed";
+const MODE_KEY = "ctxb_graph_mode";
 
 const kindColors: Record<string, string> = {
   "canonical-root": "root",
@@ -40,12 +52,21 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024).toFixed(0)} KB`;
 }
 
-export default function Sidebar({ onSelectFile, selectedFile, onRefresh }: SidebarProps) {
+export default function Sidebar({
+  onSelectFile,
+  selectedFile,
+  onRefresh,
+  graphMode,
+  onGraphModeChange,
+  specAvailable,
+}: SidebarProps) {
   const [collapsed, setCollapsed] = useState(() => {
     return sessionStorage.getItem(COLLAPSE_KEY) === "true";
   });
   const [files, setFiles] = useState<FileEntry[]>([]);
+  const [specNodes, setSpecNodes] = useState<SpecEntry[]>([]);
   const [dialogDir, setDialogDir] = useState("");
+  const [specDir, setSpecDir] = useState("");
   const [loading, setLoading] = useState(true);
 
   const fetchFiles = useCallback(async () => {
@@ -67,9 +88,45 @@ export default function Sidebar({ onSelectFile, selectedFile, onRefresh }: Sideb
     }
   }, []);
 
+  const fetchSpecNodes = useCallback(async () => {
+    if (!specAvailable) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/spec-graph");
+      if (!res.ok) return;
+      const data = await res.json();
+      setSpecDir(data.spec_dir || "");
+      const graphNodes = data.graph?.nodes || [];
+      setSpecNodes(
+        graphNodes.map((n: { node_id: string; title: string; kind: string; status: string }) => ({
+          node_id: n.node_id,
+          title: n.title,
+          kind: n.kind,
+          status: n.status,
+        })),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [specAvailable]);
+
   useEffect(() => {
-    fetchFiles();
-  }, [fetchFiles]);
+    if (graphMode === "conversations") {
+      fetchFiles();
+    } else {
+      fetchSpecNodes();
+    }
+  }, [graphMode, fetchFiles, fetchSpecNodes]);
+
+  const handleRefresh = useCallback(() => {
+    if (graphMode === "conversations") {
+      fetchFiles();
+      onRefresh?.();
+    } else {
+      fetchSpecNodes();
+      onRefresh?.();
+    }
+  }, [graphMode, fetchFiles, fetchSpecNodes, onRefresh]);
 
   const toggleCollapse = useCallback(() => {
     setCollapsed((prev) => {
@@ -78,6 +135,20 @@ export default function Sidebar({ onSelectFile, selectedFile, onRefresh }: Sideb
       return next;
     });
   }, []);
+
+  const handleModeChange = useCallback(
+    (mode: GraphMode) => {
+      sessionStorage.setItem(MODE_KEY, mode);
+      onGraphModeChange(mode);
+    },
+    [onGraphModeChange],
+  );
+
+  const workspacePath = graphMode === "conversations" ? dialogDir : specDir;
+  const itemCount =
+    graphMode === "conversations" ? files.length : specNodes.length;
+  const itemLabel =
+    graphMode === "conversations" ? "JSON files" : "spec nodes";
 
   return (
     <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
@@ -94,51 +165,88 @@ export default function Sidebar({ onSelectFile, selectedFile, onRefresh }: Sideb
           <div className="sidebar-header">
             <h1 className="sidebar-title">ContextBuilder</h1>
             <p className="sidebar-description">
-              Graph-first navigation for local conversation lineages.
+              {graphMode === "conversations"
+                ? "Graph-first navigation for local conversation lineages."
+                : "Specification graph viewer."}
             </p>
           </div>
 
-          <button
-            className="sidebar-refresh"
-            onClick={() => {
-              fetchFiles();
-              onRefresh?.();
-            }}
-          >
+          {/* Mode switcher — only shown when spec support is available */}
+          {specAvailable && (
+            <div className="sidebar-mode-switcher">
+              <button
+                className={`sidebar-mode-btn ${graphMode === "conversations" ? "active" : ""}`}
+                onClick={() => handleModeChange("conversations")}
+                title="Conversation lineage graph"
+              >
+                Conversations
+              </button>
+              <button
+                className={`sidebar-mode-btn spec-mode ${graphMode === "specifications" ? "active" : ""}`}
+                onClick={() => handleModeChange("specifications")}
+                title="Specification dependency graph"
+              >
+                Specs
+              </button>
+            </div>
+          )}
+
+          <button className="sidebar-refresh" onClick={handleRefresh}>
             Refresh workspace
           </button>
 
           <div className="sidebar-workspace">
             <div className="sidebar-section-label">WORKSPACE</div>
-            <div className="sidebar-workspace-path">{dialogDir}</div>
+            <div className="sidebar-workspace-path">{workspacePath}</div>
             <div className="sidebar-workspace-stats">
-              {files.length} JSON files
+              {itemCount} {itemLabel}
             </div>
           </div>
 
-          <div className="sidebar-files">
-            <div className="sidebar-section-label">FILES</div>
-            {loading && <div className="sidebar-loading">Loading…</div>}
-            {files.map((file) => (
-              <div
-                key={file.name}
-                className={`sidebar-file-item ${selectedFile === file.name ? "selected" : ""}`}
-                onClick={() => onSelectFile?.(file.name)}
-              >
-                <div className="sidebar-file-name">{file.name}</div>
-                <span
-                  className={`sidebar-file-badge ${kindColors[file.kind] || ""}`}
+          {graphMode === "conversations" && (
+            <div className="sidebar-files">
+              <div className="sidebar-section-label">FILES</div>
+              {loading && <div className="sidebar-loading">Loading…</div>}
+              {files.map((file) => (
+                <div
+                  key={file.name}
+                  className={`sidebar-file-item ${selectedFile === file.name ? "selected" : ""}`}
+                  onClick={() => onSelectFile?.(file.name)}
                 >
-                  {kindLabels[file.kind] || file.kind.toUpperCase()}
-                </span>
-                <div className="sidebar-file-size">
-                  {formatSize(file.size)} | {kindLabels[file.kind] || file.kind}
+                  <div className="sidebar-file-name">{file.name}</div>
+                  <span
+                    className={`sidebar-file-badge ${kindColors[file.kind] || ""}`}
+                  >
+                    {kindLabels[file.kind] || file.kind.toUpperCase()}
+                  </span>
+                  <div className="sidebar-file-size">
+                    {formatSize(file.size)} | {kindLabels[file.kind] || file.kind}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+
+          {graphMode === "specifications" && (
+            <div className="sidebar-files">
+              <div className="sidebar-section-label">SPEC NODES</div>
+              {loading && <div className="sidebar-loading">Loading…</div>}
+              {specNodes.map((spec) => (
+                <div key={spec.node_id} className="sidebar-spec-item">
+                  <div className="sidebar-spec-id">{spec.node_id}</div>
+                  <div className="sidebar-spec-title">{spec.title}</div>
+                  <span className="sidebar-file-badge spec">
+                    {spec.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
     </aside>
   );
 }
+
+// Export the session storage key so App.tsx can read the persisted mode on boot
+export { MODE_KEY };

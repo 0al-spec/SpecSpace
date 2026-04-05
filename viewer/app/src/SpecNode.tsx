@@ -2,6 +2,12 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Node } from "@xyflow/react";
 import "./SpecNode.css";
 
+export interface SpecEdgeHandle {
+  handleId: string;
+  edgeKind: string;
+  broken: boolean;
+}
+
 export interface SpecNodeData extends Record<string, unknown> {
   nodeId: string;
   title: string;
@@ -11,6 +17,10 @@ export interface SpecNodeData extends Record<string, unknown> {
   acceptanceCount: number;
   decisionsCount: number;
   hasBrokenEdges: boolean;
+  /** One entry per outgoing edge — rendered as source handles on the right */
+  sourceHandles: SpecEdgeHandle[];
+  /** One entry per incoming edge — rendered as target handles on the left */
+  targetHandles: SpecEdgeHandle[];
 }
 
 export type SpecNodeType = Node<SpecNodeData, "spec">;
@@ -25,6 +35,12 @@ const STATUS_LABELS: Record<string, string> = {
   frozen: "frozen",
 };
 
+/** Returns evenly-spaced top percentages for n handles */
+function handleTops(count: number): number[] {
+  if (count === 0) return [];
+  return Array.from({ length: count }, (_, i) => ((i + 1) / (count + 1)) * 100);
+}
+
 export default function SpecNode({
   data,
   selected,
@@ -32,11 +48,27 @@ export default function SpecNode({
   const statusClass = `status-${data.status}`;
   const statusLabel = STATUS_LABELS[data.status] ?? data.status;
 
+  const srcTops = handleTops(data.sourceHandles.length);
+  const tgtTops = handleTops(data.targetHandles.length);
+
   return (
     <div
       className={`spec-node ${statusClass} ${selected ? "selected" : ""}`}
     >
-      <Handle type="target" position={Position.Left} />
+      {/* Target handles (left) — one per incoming edge */}
+      {data.targetHandles.length > 0
+        ? data.targetHandles.map((h, i) => (
+            <Handle
+              key={h.handleId}
+              type="target"
+              position={Position.Left}
+              id={h.handleId}
+              className={`spec-handle ${h.broken ? "spec-handle-broken" : `spec-handle-${h.edgeKind}`}`}
+              style={{ top: `${tgtTops[i]}%` }}
+            />
+          ))
+        : <Handle type="target" position={Position.Left} className="spec-handle spec-handle-default" />
+      }
 
       {/* ID badge */}
       <div className="spec-node-id">{data.nodeId}</div>
@@ -72,7 +104,20 @@ export default function SpecNode({
         </div>
       )}
 
-      <Handle type="source" position={Position.Right} />
+      {/* Source handles (right) — one per outgoing edge */}
+      {data.sourceHandles.length > 0
+        ? data.sourceHandles.map((h, i) => (
+            <Handle
+              key={h.handleId}
+              type="source"
+              position={Position.Right}
+              id={h.handleId}
+              className={`spec-handle ${h.broken ? "spec-handle-broken" : `spec-handle-${h.edgeKind}`}`}
+              style={{ top: `${srcTops[i]}%` }}
+            />
+          ))
+        : <Handle type="source" position={Position.Right} className="spec-handle spec-handle-default" />
+      }
     </div>
   );
 }
