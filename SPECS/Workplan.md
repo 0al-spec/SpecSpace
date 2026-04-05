@@ -847,6 +847,122 @@ Intent: lock down graph and compile behavior with regression coverage and make t
   - A user can follow the documented local workflow from JSON conversations to final compiled context output.
   - The final handoff path to an external agent is explicit and reproducible.
 
+## Phase 6: SpecGraph Specification Viewer
+
+Intent: reuse the existing ContextBuilder graph rendering infrastructure to visualize SpecGraph specification nodes (YAML) alongside conversations, providing a unified graph exploration experience for both conversation lineage and specification dependency graphs.
+
+PRD: [CTXB-P6-T1_SpecGraph_Viewer.md](INPROGRESS/CTXB-P6-T1_SpecGraph_Viewer.md)
+
+### CTXB-P6-T1 — YAML spec ingestion and graph construction
+- **Description:** Create `viewer/specgraph.py` module that reads `*.yaml` files from a configurable spec directory, parses them with PyYAML, and builds an in-memory graph. Extract nodes (id, title, kind, status, maturity) and edges from `depends_on`, `refines`, and `relates_to` fields. Identify root nodes (no incoming `refines`). Surface diagnostics for missing edge targets and malformed YAML. Be tolerant of unknown fields to handle schema evolution.
+- **Priority:** P0
+- **Dependencies:** none
+- **Parallelizable:** no
+- **Outputs / Artifacts:** `viewer/specgraph.py`, PyYAML dependency
+- **Acceptance Criteria:**
+  - `load_spec_nodes(spec_dir)` returns parsed node dicts for all valid YAML files.
+  - `build_spec_graph(nodes)` produces a graph with nodes, edges, roots, and diagnostics.
+  - Edges are extracted from `depends_on`, `refines`, and `relates_to` with correct directionality.
+  - Missing edge targets produce diagnostics, not crashes.
+  - Unknown YAML fields are preserved, not rejected.
+
+### CTXB-P6-T2 — Spec graph API endpoints
+- **Description:** Add `--spec-dir` CLI argument to `viewer/server.py`. Implement `GET /api/spec-graph` returning the full spec graph (nodes, edges, roots, diagnostics, summary) in a shape consistent with `GET /api/graph`. Implement `GET /api/spec-node?id=...` returning a single spec node with full YAML content. Existing conversation endpoints remain unchanged.
+- **Priority:** P0
+- **Dependencies:** CTXB-P6-T1
+- **Parallelizable:** no
+- **Outputs / Artifacts:** updated `viewer/server.py`
+- **Acceptance Criteria:**
+  - `GET /api/spec-graph` returns all spec nodes and edges with summary counts.
+  - `GET /api/spec-node?id=SG-SPEC-0001` returns the full parsed YAML content for that node.
+  - Unknown `id` returns 404.
+  - Conversation API endpoints are unaffected by the addition.
+  - Server starts without `--spec-dir` (spec features are simply unavailable).
+
+### CTXB-P6-T3 — Makefile SPEC_DIR support
+- **Description:** Add a `SPEC_DIR` variable to the `serve`, `dev`, and `api` Makefile targets. When provided, pass `--spec-dir` to `viewer/server.py`. When omitted, the server starts without spec graph support.
+- **Priority:** P1
+- **Dependencies:** CTXB-P6-T2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** updated `Makefile`
+- **Acceptance Criteria:**
+  - `make serve DIALOG_DIR=... SPEC_DIR=...` passes both directories to the server.
+  - `make serve DIALOG_DIR=...` (no SPEC_DIR) still works without errors.
+  - `make dev DIALOG_DIR=... SPEC_DIR=...` starts both API and UI with spec support.
+
+### CTXB-P6-T4 — Spec node React component
+- **Description:** Create a `SpecNode.tsx` custom React Flow node type for collapsed spec nodes. Display: id badge, title, kind label, status badge (color-coded by lifecycle stage), maturity progress bar (0.0-1.0). Visual style must be distinct from `ConversationNode` — use a different shape, border, or color scheme to avoid confusion.
+- **Priority:** P0
+- **Dependencies:** CTXB-P6-T2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `viewer/app/src/SpecNode.tsx`, node type registration in `App.tsx`
+- **Acceptance Criteria:**
+  - Spec nodes render with id, title, kind, status badge, and maturity bar.
+  - Status badges are color-coded (e.g., idea=gray, stub=yellow, outlined=blue, specified=indigo, linked=green, reviewed=teal, frozen=slate).
+  - Spec nodes are visually distinct from conversation nodes at a glance.
+  - Clicking a spec node triggers selection (for inspector integration).
+
+### CTXB-P6-T5 — Spec edge rendering with typed styles
+- **Description:** Render the three spec edge types with distinct visual styles on the React Flow canvas. `depends_on`: solid line, arrow, warm/red tint. `refines`: dashed line, arrow, blue tint. `relates_to`: dotted line, no arrowhead, gray tint. Add edge type to edge labels or tooltips.
+- **Priority:** P1
+- **Dependencies:** CTXB-P6-T4
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** edge style definitions in `viewer/app/src/theme.css` or inline styles, edge type mapping in `useGraphData.ts`
+- **Acceptance Criteria:**
+  - `depends_on`, `refines`, and `relates_to` edges are visually distinguishable.
+  - Edge direction is correct (arrow points from source to target per SpecGraph semantics).
+  - Edge labels or tooltips show the edge type.
+
+### CTXB-P6-T6 — Graph mode switcher
+- **Description:** Add a mode toggle or tab control in the sidebar to switch between "Conversations" and "Specifications" graph views. Each mode fetches its respective API endpoint (`/api/graph` or `/api/spec-graph`), clears the canvas, and renders with the appropriate node/edge types. Persist the active mode in sessionStorage. Hide the Specifications tab when the server has no `--spec-dir` configured (detect via a new `GET /api/capabilities` endpoint or an error response from `/api/spec-graph`).
+- **Priority:** P0
+- **Dependencies:** CTXB-P6-T4, CTXB-P6-T5
+- **Parallelizable:** no
+- **Outputs / Artifacts:** updated `viewer/app/src/Sidebar.tsx`, `viewer/app/src/App.tsx`, `viewer/app/src/useGraphData.ts`
+- **Acceptance Criteria:**
+  - The sidebar shows a Conversations / Specifications toggle when spec support is available.
+  - Switching modes loads the correct graph data and renders the correct node types.
+  - Active mode persists across page reload.
+  - The toggle is hidden when spec support is not configured.
+
+### CTXB-P6-T7 — Spec inspector panel
+- **Description:** Extend the inspector overlay to display spec node details when a spec node is selected. Show: metadata table (id, kind, status, maturity, depends_on, refines, relates_to), acceptance criteria list, `specification.objective`, scope (in/out lists), terminology entries, decisions list. Reuse the existing inspector panel layout and interaction patterns (slide-in, dismiss on empty canvas click).
+- **Priority:** P1
+- **Dependencies:** CTXB-P6-T4, CTXB-P6-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** updated `viewer/app/src/InspectorOverlay.tsx` or new `SpecInspector.tsx`
+- **Acceptance Criteria:**
+  - Clicking a spec node opens the inspector with full metadata.
+  - Acceptance criteria are rendered as a checklist.
+  - Specification objective, scope, terminology, and decisions are displayed.
+  - Clicking empty canvas dismisses the inspector.
+  - Inspector works for all three existing spec nodes (0001, 0002, 0003).
+
+### CTXB-P6-T8 — Expanded spec node with sub-items
+- **Description:** Create an `ExpandedSpecNode.tsx` group container (analogous to `ExpandedConversationNode`) that shows a spec's internal structure as sub-nodes when expanded. Sub-items include: acceptance criteria (one sub-node per criterion), decisions (one sub-node per decision), and invariants (one sub-node per invariant). Each sub-item shows a brief label and can be selected to view full content in the inspector.
+- **Priority:** P2
+- **Dependencies:** CTXB-P6-T4, CTXB-P6-T7
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `viewer/app/src/ExpandedSpecNode.tsx`, `viewer/app/src/SpecSubItemNode.tsx`
+- **Acceptance Criteria:**
+  - Expanding a spec node shows its acceptance criteria, decisions, and invariants as sub-nodes.
+  - Collapsing returns to the compact spec node.
+  - Sub-items are visually distinguishable by type (criterion vs. decision vs. invariant).
+  - Selecting a sub-item shows its full content in the inspector.
+  - Cross-spec edges update anchors correctly when expanded/collapsed.
+
+### CTXB-P6-T9 — Python tests for spec ingestion and API
+- **Description:** Add test coverage for `viewer/specgraph.py` and the spec API endpoints. Cover: YAML parsing of valid and malformed files, graph construction with edges and roots, missing edge target diagnostics, API response shape for `GET /api/spec-graph` and `GET /api/spec-node`, 404 for unknown node id, graceful behavior when `--spec-dir` is not configured.
+- **Priority:** P1
+- **Dependencies:** CTXB-P6-T2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `tests/test_specgraph.py`
+- **Acceptance Criteria:**
+  - YAML parsing tests cover valid specs, malformed YAML, and files with unknown fields.
+  - Graph construction tests verify edge extraction, root identification, and diagnostics.
+  - API tests verify response shape, 404 handling, and no-spec-dir graceful degradation.
+  - All tests pass with `make test`.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
@@ -855,6 +971,7 @@ Intent: lock down graph and compile behavior with regression coverage and make t
 - Phase 3 depends on both the graph foundation and the React Flow viewer (P2R) because authoring and compile selection operate on selected checkpoints.
 - Phase 4 depends on the compile target model and turns the selected branch into Hyperprompt-compatible filesystem artifacts.
 - Phase 5 validates and documents the complete graph-to-context workflow.
+- Phase 6 reuses the React Flow viewer (P2R) and Python server (P1) to render SpecGraph YAML specs as a second graph mode. Independent of Phases 3-5 conversation authoring and compile features.
 
 ## Task Status Legend
 
