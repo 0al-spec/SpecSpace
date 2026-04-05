@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** (none)
+**Current Task:** CTXB-P6-T1 — Render SpecGraph specification nodes in the ContextBuilder viewer
 
 ## Recently Archived
 - `CTXB-P5-B3` — Compile fails when selected branch has zero checkpoints (PASS, 2026-03-31)
