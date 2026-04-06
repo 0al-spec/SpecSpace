@@ -136,7 +136,7 @@
   min-width: 10px !important;
   min-height: 10px !important;
   border-radius: 2px !important;
-  transition: opacity 0.15s, transform 0.15s;
+  transition: opacity 0.15s;
 }
 
 /* Per-kind colors — shared by active and potential */
@@ -144,19 +144,42 @@
 .spec-node .spec-handle-refines    { background: #4e689b; }
 .spec-node .spec-handle-relates_to { background: #7c3aed; }
 
-/* Gap handles — unmet evidence criteria, shown on bottom edge */
+/* Gap handles — unmet gaps, shown on bottom edge */
 .spec-node .spec-handle-gap {
   background: #f59e0b !important;
   border: 2px solid white !important;
   border-radius: 2px !important;
-  width: 8px !important;
-  height: 8px !important;
-  opacity: 0.85;
-  transition: opacity 0.15s, transform 0.15s;
+  width: 10px !important;
+  height: 10px !important;
+  opacity: 0.75;
+  transition: opacity 0.15s;
+  /* CSS tooltip */
+  position: absolute;
 }
-.spec-node:hover .spec-handle-gap {
+.spec-node .spec-handle-gap:hover {
   opacity: 1;
-  transform: scale(1.2);
+}
+/* CSS tooltip via data-tooltip */
+.spec-node .spec-handle-gap::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 20, 10, 0.88);
+  color: #fff;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 10px;
+  white-space: nowrap;
+  padding: 3px 7px;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+}
+.spec-node .spec-handle-gap:hover::after {
+  opacity: 1;
 }
 
 /* Active — full color, solid white border */
@@ -180,5 +203,4 @@
 }
 .spec-node:hover .spec-handle-potential {
   opacity: 1;
-  transform: scale(1.2);
 }

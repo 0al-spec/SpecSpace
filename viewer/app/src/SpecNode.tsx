@@ -132,7 +132,7 @@ export default function SpecNode({
         );
       })}
 
-      {/* Gap handles (bottom) — one slot per unmet acceptance criterion */}
+      {/* Gap handles (bottom) — one slot per gap */}
       {data.gapCount > 0 && slotTops(data.gapCount).map((pct, i) => (
         <Handle
           key={`gap-${i}`}
@@ -141,7 +141,7 @@ export default function SpecNode({
           id={`gap-${i}`}
           className="spec-handle spec-handle-gap"
           style={{ left: `${pct}%` }}
-          title={`Gap ${i + 1} of ${data.gapCount} — unmet criterion, unformalized input, or unrun spec`}
+          data-tooltip={`gap ${i + 1}/${data.gapCount}`}
         />
       ))}
     </div>
