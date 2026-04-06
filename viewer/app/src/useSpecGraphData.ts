@@ -95,7 +95,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
       });
     }
 
-    // Tree mode: inverted refines edges form the tree skeleton
+    // Tree mode: inverted refines edges form the tree skeleton (LR: roots left, leaves right)
     const edgePairs = apiGraph.edges
       .filter((e) => e.status === "resolved" && e.edge_kind === "refines")
       .map((e) => ({
@@ -103,9 +103,9 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
         target: e.source_id,
       }));
     return computeBasePositions(nodeIds, edgePairs, {
-      direction: "TB",
-      nodeSep: 80,
-      rankSep: 120,
+      direction: "LR",
+      nodeSep: 60,
+      rankSep: 140,
     });
   }, [apiGraph, viewMode]);
 
