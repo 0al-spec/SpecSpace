@@ -27,7 +27,7 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
         return r.json();
       })
       .then((data) => {
-        setDetail(data.node ?? data);
+        setDetail(data.data ?? data.node ?? data);
         setLoading(false);
       })
       .catch((e) => {
