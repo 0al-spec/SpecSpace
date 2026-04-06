@@ -15,8 +15,8 @@ const RENDERED_EDGE_KINDS = new Set(["depends_on", "relates_to"]);
 
 // Edge style per kind
 const EDGE_STYLES: Record<string, React.CSSProperties> = {
-  depends_on: { stroke: "#b54131", strokeWidth: 2 },
-  relates_to: { stroke: "#9b8ec4", strokeWidth: 1.5, strokeDasharray: "2 4" },
+  depends_on: { stroke: "#dc2626", strokeWidth: 2 },
+  relates_to: { stroke: "#7c3aed", strokeWidth: 1.5, strokeDasharray: "2 4" },
 };
 
 const EDGE_LABELS: Record<string, string> = {

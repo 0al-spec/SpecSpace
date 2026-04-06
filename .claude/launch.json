@@ -3,14 +3,14 @@
   "configurations": [
     {
       "name": "ContextBuilder Viewer",
-      "runtimeExecutable": "/opt/homebrew/bin/node",
-      "runtimeArgs": ["viewer/app/node_modules/.bin/vite", "--host", "127.0.0.1", "--port", "5173"],
+      "runtimeExecutable": "/opt/homebrew/bin/npm",
+      "runtimeArgs": ["--prefix", "viewer/app", "run", "dev"],
       "port": 5173
     },
     {
       "name": "Python API",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["viewer/server.py", "--port", "8001", "--dialog-dir", "/Users/egor/Development/GitHub/ChatGPTDialogs/canonical_json"],
+      "runtimeArgs": ["viewer/server.py", "--port", "8001", "--dialog-dir", "/Users/egor/Development/GitHub/ChatGPTDialogs/canonical_json", "--spec-dir", "/Users/egor/Development/GitHub/0AL/SpecGraph/specs/nodes"],
       "port": 8001
     }
   ]

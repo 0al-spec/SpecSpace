@@ -22,13 +22,13 @@
 }
 
 /* Status-based border colour */
-.spec-node.status-idea       { border-color: #b0b0b0; background: #f5f5f5; }
-.spec-node.status-stub       { border-color: #c8a72a; background: #fdf8e8; }
-.spec-node.status-outlined   { border-color: #4e82b8; background: #eef4fb; }
-.spec-node.status-specified  { border-color: #6e5ab8; background: #f0ecfa; }
-.spec-node.status-linked     { border-color: #3e9a58; background: #eaf5ed; }
-.spec-node.status-reviewed   { border-color: #2a7c7c; background: #e8f5f5; }
-.spec-node.status-frozen     { border-color: #4a5568; background: #f0f2f5; }
+.spec-node.status-idea       { border-color: #888;    background: #f2f2f2; }
+.spec-node.status-stub       { border-color: #d4910a; background: #fef3d0; }
+.spec-node.status-outlined   { border-color: #2e76cc; background: #e6f0fc; }
+.spec-node.status-specified  { border-color: #5b3ec8; background: #ede8fc; }
+.spec-node.status-linked     { border-color: #1e9145; background: #e2f7e9; }
+.spec-node.status-reviewed   { border-color: #0e8a7c; background: #daf4f0; }
+.spec-node.status-frozen     { border-color: #3a4f6a; background: #eaeff5; }
 
 /* Selected overrides status border to accent */
 .spec-node.selected {
@@ -84,18 +84,18 @@
   font-family: "Courier New", Courier, monospace;
 }
 
-.spec-node-status-badge.status-idea       { background: #e0e0e0; color: #555; }
-.spec-node-status-badge.status-stub       { background: #fde68a; color: #92400e; }
-.spec-node-status-badge.status-outlined   { background: #bfdbfe; color: #1e3a8a; }
-.spec-node-status-badge.status-specified  { background: #ddd6fe; color: #4c1d95; }
-.spec-node-status-badge.status-linked     { background: #bbf7d0; color: #14532d; }
-.spec-node-status-badge.status-reviewed   { background: #99f6e4; color: #134e4a; }
-.spec-node-status-badge.status-frozen     { background: #e2e8f0; color: #1e293b; }
+.spec-node-status-badge.status-idea       { background: #d4d4d4; color: #333; }
+.spec-node-status-badge.status-stub       { background: #fcd34d; color: #78350f; }
+.spec-node-status-badge.status-outlined   { background: #93c5fd; color: #1e3a8a; }
+.spec-node-status-badge.status-specified  { background: #c4b5fd; color: #3b0764; }
+.spec-node-status-badge.status-linked     { background: #6ee7a0; color: #064e24; }
+.spec-node-status-badge.status-reviewed   { background: #5eead4; color: #0a3330; }
+.spec-node-status-badge.status-frozen     { background: #94a3b8; color: #0f172a; }
 
 /* "Refined by N" counter badge — replaces hidden refines edges */
 .spec-node-refined-by {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: #818cf8;
+  color: #fff;
   font-size: 10px;
 }
 
@@ -123,35 +123,39 @@
 .spec-node-maturity-fill {
   height: 100%;
   border-radius: 2px;
-  background: linear-gradient(90deg, #6e5ab8, #3e9a58);
+  background: linear-gradient(90deg, #7c3aed, #059669);
   transition: width 0.3s ease;
 }
 
-/* React Flow handles — base */
+/* React Flow handles — base reset */
 .spec-node .react-flow__handle {
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;  /* square handles vs round for conversations */
+  display: block !important;
+  box-sizing: border-box !important;
+  width: 10px !important;
+  height: 10px !important;
+  min-width: 10px !important;
+  min-height: 10px !important;
+  border-radius: 2px !important;
   transition: opacity 0.15s, transform 0.15s;
 }
 
 /* Active — has a real edge connected */
 .spec-node .spec-handle-active {
-  border: 2px solid white;
+  border: 2px solid white !important;
   opacity: 1;
 }
 
 /* Potential — no edge yet; growth point */
 .spec-node .spec-handle-potential {
-  border: 2px dashed rgba(0,0,0,0.25);
+  border: 2px dashed rgba(0,0,0,0.30) !important;
   background: transparent !important;
   opacity: 0.45;
 }
 .spec-node:hover .spec-handle-potential {
-  opacity: 0.75;
-  transform: scale(1.15);
+  opacity: 0.8;
+  transform: scale(1.2);
 }
 
-/* Per-kind colors (apply to active; potential overrides bg to transparent) */
-.spec-node .spec-handle-depends_on { background: #b54131; }
-.spec-node .spec-handle-relates_to { background: #9b8ec4; }
+/* Per-kind colors (apply to active; potential overrides bg to transparent above) */
+.spec-node .spec-handle-depends_on { background: #dc2626; }
+.spec-node .spec-handle-relates_to { background: #7c3aed; }
