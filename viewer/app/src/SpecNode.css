@@ -139,23 +139,27 @@
   transition: opacity 0.15s, transform 0.15s;
 }
 
-/* Active — has a real edge connected */
+/* Per-kind colors — shared by active and potential */
+.spec-node .spec-handle-depends_on { background: #dc2626; }
+.spec-node .spec-handle-relates_to { background: #7c3aed; }
+
+/* Active — full color, solid white border */
 .spec-node .spec-handle-active {
   border: 2px solid white !important;
   opacity: 1;
 }
 
-/* Potential — no edge yet; growth point */
+/* Potential — same fill color at 60% opacity, dashed border */
 .spec-node .spec-handle-potential {
-  border: 2px dashed rgba(0,0,0,0.30) !important;
-  background: transparent !important;
-  opacity: 0.45;
+  opacity: 0.6;
+}
+.spec-node .spec-handle-potential.spec-handle-depends_on {
+  border: 2px dashed #dc2626 !important;
+}
+.spec-node .spec-handle-potential.spec-handle-relates_to {
+  border: 2px dashed #7c3aed !important;
 }
 .spec-node:hover .spec-handle-potential {
-  opacity: 0.8;
+  opacity: 1;
   transform: scale(1.2);
 }
-
-/* Per-kind colors (apply to active; potential overrides bg to transparent above) */
-.spec-node .spec-handle-depends_on { background: #dc2626; }
-.spec-node .spec-handle-relates_to { background: #7c3aed; }
