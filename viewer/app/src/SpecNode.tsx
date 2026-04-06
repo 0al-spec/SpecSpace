@@ -21,6 +21,8 @@ export interface SpecNodeData extends Record<string, unknown> {
   activeSourceKinds: Set<string>;
   /** Edge kinds that have ≥1 incoming edge to this node */
   activeTargetKinds: Set<string>;
+  /** Which handle kinds to render (subset of SPEC_HANDLE_KINDS); mode-dependent */
+  visibleHandleKinds: readonly SpecHandleKind[];
 }
 
 export type SpecNodeType = Node<SpecNodeData, "spec">;
@@ -40,8 +42,6 @@ function slotTops(count: number): number[] {
   return Array.from({ length: count }, (_, i) => ((i + 1) / (count + 1)) * 100);
 }
 
-const SLOT_TOPS = slotTops(SPEC_HANDLE_KINDS.length);
-
 export default function SpecNode({
   data,
   selected,
@@ -49,12 +49,15 @@ export default function SpecNode({
   const statusClass = `status-${data.status}`;
   const statusLabel = STATUS_LABELS[data.status] ?? data.status;
 
+  const kinds = data.visibleHandleKinds;
+  const tops = slotTops(kinds.length);
+
   return (
     <div
       className={`spec-node ${statusClass} ${selected ? "selected" : ""}`}
     >
-      {/* Target handles (left) — one slot per kind, always visible */}
-      {SPEC_HANDLE_KINDS.map((kind, i) => {
+      {/* Target handles (left) — one slot per visible kind */}
+      {kinds.map((kind, i) => {
         const active = data.activeTargetKinds.has(kind);
         return (
           <Handle
@@ -63,7 +66,7 @@ export default function SpecNode({
             position={Position.Left}
             id={`tgt-${kind}`}
             className={`spec-handle spec-handle-${kind} ${active ? "spec-handle-active" : "spec-handle-potential"}`}
-            style={{ top: `${SLOT_TOPS[i]}%` }}
+            style={{ top: `${tops[i]}%` }}
             title={active ? `← ${kind}` : `potential ← ${kind}`}
           />
         );
@@ -111,8 +114,8 @@ export default function SpecNode({
         </div>
       )}
 
-      {/* Source handles (right) — one slot per kind, always visible */}
-      {SPEC_HANDLE_KINDS.map((kind, i) => {
+      {/* Source handles (right) — one slot per visible kind */}
+      {kinds.map((kind, i) => {
         const active = data.activeSourceKinds.has(kind);
         return (
           <Handle
@@ -121,7 +124,7 @@ export default function SpecNode({
             position={Position.Right}
             id={`src-${kind}`}
             className={`spec-handle spec-handle-${kind} ${active ? "spec-handle-active" : "spec-handle-potential"}`}
-            style={{ top: `${SLOT_TOPS[i]}%` }}
+            style={{ top: `${tops[i]}%` }}
             title={active ? `${kind} →` : `potential ${kind} →`}
           />
         );

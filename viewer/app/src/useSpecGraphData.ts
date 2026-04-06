@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import type { ApiSpecGraph, SpecViewOptions } from "./types";
 import type { SpecNodeData } from "./SpecNode";
+import { SPEC_HANDLE_KINDS, type SpecHandleKind } from "./SpecNode";
 import { computeBasePositions } from "./layoutGraph";
 
 // Spec node dimensions
@@ -114,6 +115,19 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
   // -----------------------------------------------------------------------
   const { nodes, edges } = useMemo(() => {
     if (!apiGraph) return { nodes: [], edges: [] };
+
+    // Determine which handle kinds are visible based on mode + toggles
+    let visibleKinds: readonly SpecHandleKind[];
+    if (viewMode === "canonical") {
+      visibleKinds = SPEC_HANDLE_KINDS; // all three
+    } else {
+      // Tree mode: always show refines (tree skeleton)
+      const kinds: SpecHandleKind[] = ["refines"];
+      if (showCrossLinks) {
+        kinds.push("depends_on", "relates_to");
+      }
+      visibleKinds = kinds;
+    }
 
     // Pre-compute lookup structures
     const refinesEdges = apiGraph.edges.filter((e) => e.edge_kind === "refines");
@@ -267,6 +281,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
         refinedByCount: refinedByCount.get(apiNode.node_id) ?? 0,
         activeSourceKinds: activeSourceKinds.get(apiNode.node_id) ?? new Set(),
         activeTargetKinds: activeTargetKinds.get(apiNode.node_id) ?? new Set(),
+        visibleHandleKinds: visibleKinds,
       };
 
       return {
