@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import "./SpecNode.css";
 import "./SpecInspector.css";
 
 interface SpecInspectorProps {
@@ -57,20 +58,29 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
 
       {detail && !loading && (
         <div className="spec-inspector-content">
-          {/* Header */}
-          <div className="spec-inspector-id">{str(detail.id)}</div>
-          <div className="spec-inspector-title">{str(detail.title)}</div>
-
-          <div className="spec-inspector-badges">
-            <span className="spec-inspector-badge kind">{str(detail.kind)}</span>
-            <span className={`spec-inspector-badge status-${str(detail.status)}`}>
-              {str(detail.status)}
-            </span>
-            {detail.maturity != null && (
-              <span className="spec-inspector-badge maturity">
-                {Math.round((detail.maturity as number) * 100)}% maturity
+          {/* Header card — same visual as the graph node */}
+          <div className={`spec-inspector-card spec-node status-${str(detail.status)}`}>
+            <div className="spec-node-id">{str(detail.id)}</div>
+            <div className="spec-node-title">{str(detail.title)}</div>
+            <div className="spec-node-meta">
+              <span className="spec-node-kind-badge">{str(detail.kind)}</span>
+              <span className={`spec-node-status-badge status-${str(detail.status)}`}>
+                {str(detail.status)}
               </span>
-            )}
+            </div>
+            {detail.maturity != null ? (
+              <div className="spec-node-maturity">
+                <div className="spec-node-maturity-label">
+                  Maturity {Math.round((detail.maturity as number) * 100)}%
+                </div>
+                <div className="spec-node-maturity-track">
+                  <div
+                    className="spec-node-maturity-fill"
+                    style={{ width: `${Math.round((detail.maturity as number) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {/* Edge lists */}

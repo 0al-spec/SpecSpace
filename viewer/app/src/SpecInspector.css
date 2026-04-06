@@ -61,6 +61,14 @@
   margin-top: 8px;
 }
 
+/* Header card — reuses spec-node classes but resets size/cursor */
+.spec-inspector-card.spec-node {
+  width: auto;
+  min-height: auto;
+  cursor: default;
+  margin-bottom: 20px;
+}
+
 /* ID */
 .spec-inspector-id {
   font-size: 11px;
