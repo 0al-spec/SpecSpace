@@ -92,6 +92,13 @@
 .spec-node-status-badge.status-reviewed   { background: #99f6e4; color: #134e4a; }
 .spec-node-status-badge.status-frozen     { background: #e2e8f0; color: #1e293b; }
 
+/* "Refined by N" counter badge — replaces hidden refines edges */
+.spec-node-refined-by {
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 10px;
+}
+
 /* Maturity bar */
 .spec-node-maturity {
   margin-top: 4px;
@@ -122,15 +129,29 @@
 
 /* React Flow handles — base */
 .spec-node .react-flow__handle {
-  width: 8px;
-  height: 8px;
-  border: 2px solid white;
+  width: 9px;
+  height: 9px;
   border-radius: 2px;  /* square handles vs round for conversations */
+  transition: opacity 0.15s, transform 0.15s;
 }
 
-/* Per-kind handle colors */
+/* Active — has a real edge connected */
+.spec-node .spec-handle-active {
+  border: 2px solid white;
+  opacity: 1;
+}
+
+/* Potential — no edge yet; growth point */
+.spec-node .spec-handle-potential {
+  border: 2px dashed rgba(0,0,0,0.25);
+  background: transparent !important;
+  opacity: 0.45;
+}
+.spec-node:hover .spec-handle-potential {
+  opacity: 0.75;
+  transform: scale(1.15);
+}
+
+/* Per-kind colors (apply to active; potential overrides bg to transparent) */
 .spec-node .spec-handle-depends_on { background: #b54131; }
-.spec-node .spec-handle-refines    { background: #4e689b; }
 .spec-node .spec-handle-relates_to { background: #9b8ec4; }
-.spec-node .spec-handle-broken     { background: #b54131; border-style: dashed; }
-.spec-node .spec-handle-default    { background: #9b8ec4; }
