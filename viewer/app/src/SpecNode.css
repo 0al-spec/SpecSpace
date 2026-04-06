@@ -141,6 +141,7 @@
 
 /* Per-kind colors — shared by active and potential */
 .spec-node .spec-handle-depends_on { background: #dc2626; }
+.spec-node .spec-handle-refines    { background: #4e689b; }
 .spec-node .spec-handle-relates_to { background: #7c3aed; }
 
 /* Active — full color, solid white border */
@@ -155,6 +156,9 @@
 }
 .spec-node .spec-handle-potential.spec-handle-depends_on {
   border: 2px dashed #dc2626 !important;
+}
+.spec-node .spec-handle-potential.spec-handle-refines {
+  border: 2px dashed #4e689b !important;
 }
 .spec-node .spec-handle-potential.spec-handle-relates_to {
   border: 2px dashed #7c3aed !important;

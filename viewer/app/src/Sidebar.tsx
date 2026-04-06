@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import "./Sidebar.css";
-import type { GraphMode } from "./types";
+import type { GraphMode, SpecViewOptions } from "./types";
 
 interface FileEntry {
   name: string;
@@ -22,6 +22,8 @@ interface SidebarProps {
   graphMode: GraphMode;
   onGraphModeChange: (mode: GraphMode) => void;
   specAvailable: boolean;
+  specViewOptions: SpecViewOptions;
+  onSpecViewOptionsChange: (opts: SpecViewOptions) => void;
 }
 
 const COLLAPSE_KEY = "ctxb_sidebar_collapsed";
@@ -59,6 +61,8 @@ export default function Sidebar({
   graphMode,
   onGraphModeChange,
   specAvailable,
+  specViewOptions,
+  onSpecViewOptionsChange,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(() => {
     return sessionStorage.getItem(COLLAPSE_KEY) === "true";
@@ -188,6 +192,65 @@ export default function Sidebar({
               >
                 Specs
               </button>
+            </div>
+          )}
+
+          {/* Spec view controls — only in specifications mode */}
+          {graphMode === "specifications" && (
+            <div className="sidebar-spec-controls">
+              {/* Tree / Canonical sub-mode switcher */}
+              <div className="sidebar-mode-switcher sidebar-spec-view-switcher">
+                <button
+                  className={`sidebar-mode-btn spec-mode ${specViewOptions.viewMode === "tree" ? "active" : ""}`}
+                  onClick={() =>
+                    onSpecViewOptionsChange({ ...specViewOptions, viewMode: "tree" })
+                  }
+                  title="Tree Projection — inverted refines hierarchy"
+                >
+                  Tree
+                </button>
+                <button
+                  className={`sidebar-mode-btn spec-mode ${specViewOptions.viewMode === "canonical" ? "active" : ""}`}
+                  onClick={() =>
+                    onSpecViewOptionsChange({ ...specViewOptions, viewMode: "canonical" })
+                  }
+                  title="Canonical Graph — raw edges as stored"
+                >
+                  Canonical
+                </button>
+              </div>
+
+              {/* Toggles — only meaningful in tree mode */}
+              {specViewOptions.viewMode === "tree" && (
+                <div className="sidebar-spec-toggles">
+                  <label className="sidebar-toggle-label">
+                    <input
+                      type="checkbox"
+                      checked={specViewOptions.showBlocking}
+                      onChange={(e) =>
+                        onSpecViewOptionsChange({
+                          ...specViewOptions,
+                          showBlocking: e.target.checked,
+                        })
+                      }
+                    />
+                    Show Blocking
+                  </label>
+                  <label className="sidebar-toggle-label">
+                    <input
+                      type="checkbox"
+                      checked={specViewOptions.showCrossLinks}
+                      onChange={(e) =>
+                        onSpecViewOptionsChange({
+                          ...specViewOptions,
+                          showCrossLinks: e.target.checked,
+                        })
+                      }
+                    />
+                    Show Cross-Links
+                  </label>
+                </div>
+              )}
             </div>
           )}
 

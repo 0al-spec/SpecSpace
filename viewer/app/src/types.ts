@@ -102,6 +102,16 @@ export interface ApiSpecGraph {
 
 export type GraphMode = "conversations" | "specifications";
 
+/** Spec view mode within the specifications graph mode */
+export type SpecViewMode = "tree" | "canonical";
+
+/** Options controlling which secondary edges are displayed in tree mode */
+export interface SpecViewOptions {
+  viewMode: SpecViewMode;
+  showCrossLinks: boolean;
+  showBlocking: boolean;
+}
+
 export interface CompileTarget {
   scope: "conversation" | "checkpoint";
   target_conversation_id: string;

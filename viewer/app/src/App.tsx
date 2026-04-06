@@ -27,7 +27,7 @@ import { useGraphData } from "./useGraphData";
 import { useSpecGraphData } from "./useSpecGraphData";
 import { useSessionString } from "./useSessionState";
 import { CompileTargetContext } from "./CompileTargetContext";
-import type { GraphMode } from "./types";
+import type { GraphMode, SpecViewOptions } from "./types";
 
 const nodeTypes = {
   conversation: ConversationNode,
@@ -121,9 +121,16 @@ async function checkSpecAvailable(): Promise<boolean> {
   }
 }
 
+const DEFAULT_SPEC_VIEW: SpecViewOptions = {
+  viewMode: "tree",
+  showCrossLinks: false,
+  showBlocking: true,
+};
+
 function AppInner() {
   const [graphMode, setGraphMode] = useState<GraphMode>(loadInitialMode);
   const [specAvailable, setSpecAvailable] = useState(false);
+  const [specViewOptions, setSpecViewOptions] = useState<SpecViewOptions>(DEFAULT_SPEC_VIEW);
 
   // Check capabilities once on mount
   useEffect(() => {
@@ -134,7 +141,7 @@ function AppInner() {
   const convGraph = useGraphData();
 
   // Spec graph data (always fetched so it's ready when mode switches)
-  const specGraph = useSpecGraphData();
+  const specGraph = useSpecGraphData(specViewOptions);
 
   // Choose active graph data by mode
   const activeGraph = graphMode === "conversations" ? convGraph : specGraph;
@@ -255,6 +262,8 @@ function AppInner() {
           graphMode={graphMode}
           onGraphModeChange={setGraphMode}
           specAvailable={specAvailable}
+          specViewOptions={specViewOptions}
+          onSpecViewOptionsChange={setSpecViewOptions}
         />
         <main className="app-main">
           {loading && (

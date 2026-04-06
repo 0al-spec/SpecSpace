@@ -2,8 +2,8 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Node } from "@xyflow/react";
 import "./SpecNode.css";
 
-/** Canonical rendered edge kinds — order determines top-to-bottom slot position */
-export const SPEC_HANDLE_KINDS = ["depends_on", "relates_to"] as const;
+/** All possible handle kinds — order determines top-to-bottom slot position */
+export const SPEC_HANDLE_KINDS = ["depends_on", "refines", "relates_to"] as const;
 export type SpecHandleKind = typeof SPEC_HANDLE_KINDS[number];
 
 export interface SpecNodeData extends Record<string, unknown> {

@@ -224,6 +224,39 @@
   color: #4c1d95;
 }
 
+/* Spec view controls */
+.sidebar-spec-controls {
+  margin-bottom: 12px;
+}
+
+.sidebar-spec-view-switcher {
+  margin-bottom: 8px;
+}
+
+.sidebar-spec-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.sidebar-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: "Courier New", Courier, monospace;
+}
+
+.sidebar-toggle-label input[type="checkbox"] {
+  accent-color: #7c3aed;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
 /* Spec node list items in sidebar */
 .sidebar-file-badge.spec {
   background: #f0ecfa;
