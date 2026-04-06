@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "ContextBuilder Viewer",
-      "runtimeExecutable": "/opt/homebrew/bin/npm",
-      "runtimeArgs": ["--prefix", "viewer/app", "run", "dev"],
+      "runtimeExecutable": "/opt/homebrew/bin/node",
+      "runtimeArgs": ["viewer/app/node_modules/.bin/vite", "--config", "viewer/app/vite.config.ts"],
       "port": 5173
     },
     {
