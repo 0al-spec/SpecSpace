@@ -14,11 +14,11 @@
   cursor: pointer;
 }
 
-/* Selected state */
+/* Selected state — outline only, no border-width change to avoid layout shift */
 .spec-node.selected {
-  border-color: var(--accent-strong);
-  border-width: 3px;
-  box-shadow: 0 0 0 2px var(--accent-soft), 0 6px 16px rgba(60, 40, 100, 0.18);
+  outline: 2px solid var(--accent-strong, #6d28d9);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px var(--accent-soft, #ede9fe), 0 6px 16px rgba(60, 40, 100, 0.18);
 }
 
 /* Status-based border colour */
@@ -30,10 +30,6 @@
 .spec-node.status-reviewed   { border-color: #0e8a7c; background: #daf4f0; }
 .spec-node.status-frozen     { border-color: #3a4f6a; background: #eaeff5; }
 
-/* Selected overrides status border to accent */
-.spec-node.selected {
-  border-color: var(--accent-strong);
-}
 
 /* Node ID badge */
 .spec-node-id {
