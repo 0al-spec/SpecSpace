@@ -1,0 +1,209 @@
+.spec-inspector {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 440px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+  overflow-y: auto;
+  padding: 24px 20px 32px;
+  background: var(--panel-muted, #f7f3ed);
+  border-left: 1px solid var(--line, #e0d8cc);
+  box-shadow: -8px 0 32px rgba(76, 51, 28, 0.10);
+  transform: translateX(100%);
+  transition: transform 220ms ease;
+  pointer-events: none;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.spec-inspector.visible {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* Close button */
+.spec-inspector-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--line, #e0d8cc);
+  background: white;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted, #888);
+  z-index: 1;
+}
+.spec-inspector-close:hover {
+  background: #fbf3e7;
+}
+
+/* Loading / error */
+.spec-inspector-loading,
+.spec-inspector-error {
+  margin-top: 48px;
+  font-size: 14px;
+  color: var(--muted, #888);
+  text-align: center;
+}
+.spec-inspector-error { color: #b54131; }
+
+/* Content wrapper */
+.spec-inspector-content {
+  margin-top: 8px;
+}
+
+/* ID */
+.spec-inspector-id {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted, #888);
+  font-family: "Courier New", Courier, monospace;
+  margin-bottom: 6px;
+}
+
+/* Title */
+.spec-inspector-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text, #2c2018);
+  margin-bottom: 12px;
+}
+
+/* Status / kind badges row */
+.spec-inspector-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.spec-inspector-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-family: "Courier New", Courier, monospace;
+}
+.spec-inspector-badge.kind         { background: rgba(0,0,0,0.07); color: var(--muted,#888); }
+.spec-inspector-badge.maturity     { background: #e0e7ff; color: #3730a3; }
+.spec-inspector-badge.status-idea      { background: #d4d4d4; color: #333; }
+.spec-inspector-badge.status-stub      { background: #fcd34d; color: #78350f; }
+.spec-inspector-badge.status-outlined  { background: #93c5fd; color: #1e3a8a; }
+.spec-inspector-badge.status-specified { background: #c4b5fd; color: #3b0764; }
+.spec-inspector-badge.status-linked    { background: #6ee7a0; color: #064e24; }
+.spec-inspector-badge.status-reviewed  { background: #5eead4; color: #0a3330; }
+.spec-inspector-badge.status-frozen    { background: #94a3b8; color: #0f172a; }
+
+/* Section headers */
+.spec-inspector-section {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted, #888);
+  margin-top: 20px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line, #e0d8cc);
+  padding-bottom: 4px;
+}
+
+/* Tag list (depends_on, inputs, etc.) */
+.spec-inspector-tags {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.spec-inspector-tag {
+  font-size: 11px;
+  font-family: "Courier New", Courier, monospace;
+  background: white;
+  border: 1px solid var(--line, #e0d8cc);
+  border-radius: 4px;
+  padding: 2px 8px;
+  color: var(--text, #2c2018);
+}
+
+/* Acceptance list */
+.spec-inspector-list {
+  padding-left: 18px;
+  margin: 0;
+}
+.spec-inspector-list-item {
+  font-size: 13px;
+  line-height: 1.55;
+  margin-bottom: 6px;
+  color: var(--text, #2c2018);
+}
+
+/* Evidence blocks */
+.spec-inspector-evidence {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: white;
+  border: 1px solid var(--line, #e0d8cc);
+  border-radius: 8px;
+}
+.spec-inspector-evidence-criterion {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text, #2c2018);
+}
+.spec-inspector-evidence-text {
+  font-size: 12px;
+  color: var(--muted, #888);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* Pre / raw dump */
+.spec-inspector-pre {
+  font-size: 11px;
+  font-family: "Courier New", Courier, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: white;
+  border: 1px solid var(--line, #e0d8cc);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--text, #2c2018);
+  line-height: 1.5;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* Runtime table */
+.spec-inspector-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: "Courier New", Courier, monospace;
+}
+.spec-inspector-table-key {
+  color: var(--muted, #888);
+  padding: 3px 10px 3px 0;
+  white-space: nowrap;
+  vertical-align: top;
+  width: 40%;
+}
+.spec-inspector-table-val {
+  color: var(--text, #2c2018);
+  padding: 3px 0;
+  word-break: break-all;
+}

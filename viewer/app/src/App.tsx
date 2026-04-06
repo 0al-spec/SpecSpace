@@ -20,6 +20,7 @@ import ConversationNode from "./ConversationNode";
 import ExpandedConversationNode from "./ExpandedConversationNode";
 import MessageNode from "./MessageNode";
 import SpecNode from "./SpecNode";
+import SpecInspector from "./SpecInspector";
 import "./SpecNode.css";
 import Sidebar, { MODE_KEY } from "./Sidebar";
 import InspectorOverlay from "./InspectorOverlay";
@@ -302,7 +303,15 @@ function AppInner() {
             </ReactFlow>
           )}
         </main>
-        {/* Inspector only available in conversation mode (spec inspector is T7) */}
+        {/* Spec inspector */}
+        {graphMode === "specifications" && (
+          <SpecInspector
+            selectedNodeId={selectedConversationId}
+            onDismiss={dismissInspector}
+          />
+        )}
+
+        {/* Conversation inspector */}
         {graphMode === "conversations" && (
           <InspectorOverlay
             selectedConversationId={selectedConversationId}
