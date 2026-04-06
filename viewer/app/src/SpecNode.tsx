@@ -23,6 +23,8 @@ export interface SpecNodeData extends Record<string, unknown> {
   activeTargetKinds: Set<string>;
   /** Which handle kinds to render (subset of SPEC_HANDLE_KINDS); mode-dependent */
   visibleHandleKinds: readonly SpecHandleKind[];
+  /** Number of unmet acceptance criteria — each rendered as a gap handle on the bottom */
+  gapCount: number;
 }
 
 export type SpecNodeType = Node<SpecNodeData, "spec">;
@@ -129,6 +131,19 @@ export default function SpecNode({
           />
         );
       })}
+
+      {/* Gap handles (bottom) — one slot per unmet acceptance criterion */}
+      {data.gapCount > 0 && slotTops(data.gapCount).map((pct, i) => (
+        <Handle
+          key={`gap-${i}`}
+          type="source"
+          position={Position.Bottom}
+          id={`gap-${i}`}
+          className="spec-handle spec-handle-gap"
+          style={{ left: `${pct}%` }}
+          title={`Gap ${i + 1} of ${data.gapCount} — unmet criterion, unformalized input, or unrun spec`}
+        />
+      ))}
     </div>
   );
 }

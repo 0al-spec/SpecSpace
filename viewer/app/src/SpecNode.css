@@ -144,6 +144,21 @@
 .spec-node .spec-handle-refines    { background: #4e689b; }
 .spec-node .spec-handle-relates_to { background: #7c3aed; }
 
+/* Gap handles — unmet evidence criteria, shown on bottom edge */
+.spec-node .spec-handle-gap {
+  background: #f59e0b !important;
+  border: 2px solid white !important;
+  border-radius: 2px !important;
+  width: 8px !important;
+  height: 8px !important;
+  opacity: 0.85;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.spec-node:hover .spec-handle-gap {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
 /* Active — full color, solid white border */
 .spec-node .spec-handle-active {
   border: 2px solid white !important;

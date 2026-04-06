@@ -70,6 +70,10 @@ export interface ApiSpecNode {
   maturity: number | null;
   acceptance_count: number;
   decisions_count: number;
+  evidence_gap: number;
+  input_gap: number;
+  execution_gap: number;
+  gap_count: number;
   depends_on: string[];
   refines: string[];
   relates_to: string[];

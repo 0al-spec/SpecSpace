@@ -282,6 +282,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
         activeSourceKinds: activeSourceKinds.get(apiNode.node_id) ?? new Set(),
         activeTargetKinds: activeTargetKinds.get(apiNode.node_id) ?? new Set(),
         visibleHandleKinds: visibleKinds,
+        gapCount: apiNode.gap_count ?? 0,
       };
 
       return {

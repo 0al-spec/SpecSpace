@@ -197,6 +197,35 @@ def build_spec_graph(
         decisions = spec_section.get("decisions") or [] if isinstance(spec_section, dict) else []
         decisions_count = len(decisions) if isinstance(decisions, list) else 0
 
+        # Evidence gap: criteria without a corresponding non-empty evidence entry
+        evidence_list = raw.get("acceptance_evidence") or []
+        met_criteria: set[str] = set()
+        if isinstance(evidence_list, list):
+            for ev in evidence_list:
+                if isinstance(ev, dict) and ev.get("evidence"):
+                    crit = ev.get("criterion", "")
+                    if crit:
+                        met_criteria.add(str(crit).strip())
+        criteria_list = acceptance if isinstance(acceptance, list) else []
+        evidence_gap = sum(
+            1 for c in criteria_list
+            if str(c).strip() not in met_criteria
+        )
+
+        # Input gap: inputs that reference raw files (not spec node IDs)
+        # A spec-node input looks like "specs/nodes/SG-SPEC-XXXX.yaml";
+        # everything else (README.md, tasks.md, etc.) is an unformalized upstream.
+        inputs_list = raw.get("inputs") or []
+        input_gap = sum(
+            1 for inp in (inputs_list if isinstance(inputs_list, list) else [])
+            if "nodes/" not in str(inp)
+        )
+
+        # Execution gap: spec has never been run (last_outcome is None)
+        execution_gap = 1 if raw.get("last_outcome") is None else 0
+
+        gap_count = evidence_gap + input_gap + execution_gap
+
         serialized_nodes.append(
             {
                 "node_id": node_id,
@@ -207,6 +236,10 @@ def build_spec_graph(
                 "maturity": raw.get("maturity") if isinstance(raw.get("maturity"), (int, float)) else None,
                 "acceptance_count": acceptance_count,
                 "decisions_count": decisions_count,
+                "evidence_gap": evidence_gap,
+                "input_gap": input_gap,
+                "execution_gap": execution_gap,
+                "gap_count": gap_count,
                 "depends_on": _coerce_id_list(raw.get("depends_on")),
                 "refines": _coerce_id_list(raw.get("refines")),
                 "relates_to": _coerce_id_list(raw.get("relates_to")),
