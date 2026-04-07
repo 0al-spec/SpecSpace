@@ -14,6 +14,13 @@
   cursor: pointer;
 }
 
+/* Edge-endpoint highlight — applied directly on .spec-node via data.edgeHighlighted */
+.spec-node.edge-endpoint-highlight {
+  outline: 2px solid rgba(109, 40, 217, 0.6);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(109, 40, 217, 0.1), 0 6px 16px rgba(60, 40, 100, 0.15);
+}
+
 /* Selected state — outline only, no border-width change to avoid layout shift */
 .spec-node.selected {
   outline: 2px solid var(--accent-strong, #6d28d9);

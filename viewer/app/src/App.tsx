@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -8,6 +8,7 @@ import {
   ReactFlowProvider,
   applyNodeChanges,
   type NodeMouseHandler,
+  type EdgeMouseHandler,
   type NodeChange,
   type Viewport,
   type Node,
@@ -152,6 +153,7 @@ function AppInner() {
   const [nodes, setNodes] = useState<Node[]>([]);
 
   const [chatOpen, setChatOpen] = useState(false);
+  const [highlightedEdge, setHighlightedEdge] = useState<{ id: string; source: string; target: string } | null>(null);
 
   const [selectedConversationId, setSelectedConversationId] =
     useSessionString("selected_conversation");
@@ -238,9 +240,35 @@ function AppInner() {
     [setSelectedConversationId, setSelectedMessageId],
   );
 
+  const displayNodes = useMemo(() => {
+    if (!highlightedEdge) return nodes;
+    const endpointIds = new Set([highlightedEdge.source, highlightedEdge.target]);
+    return nodes.map((n) =>
+      endpointIds.has(n.id)
+        ? { ...n, data: { ...n.data, edgeHighlighted: true } }
+        : n
+    );
+  }, [nodes, highlightedEdge]);
+
+  const displayEdges = useMemo(() => {
+    if (!highlightedEdge) return edges;
+    return edges.map((e) =>
+      e.id === highlightedEdge.id
+        ? { ...e, className: ((e.className ?? "") + " edge-highlight").trim() }
+        : e
+    );
+  }, [edges, highlightedEdge]);
+
+  const onEdgeClick: EdgeMouseHandler = useCallback((_event, edge) => {
+    setHighlightedEdge((prev) =>
+      prev?.id === edge.id ? null : { id: edge.id, source: edge.source, target: edge.target }
+    );
+  }, []);
+
   const onPaneClick = useCallback(() => {
     setSelectedConversationId(null);
     setSelectedMessageId(null);
+    setHighlightedEdge(null);
   }, [setSelectedConversationId, setSelectedMessageId]);
 
   const dismissInspector = useCallback(() => {
@@ -283,11 +311,12 @@ function AppInner() {
           )}
           {!loading && !error && (
             <ReactFlow
-              nodes={nodes}
-              edges={edges}
+              nodes={displayNodes}
+              edges={displayEdges}
               nodeTypes={nodeTypes}
               onNodesChange={onNodesChange}
               onNodeClick={onNodeClick}
+              onEdgeClick={onEdgeClick}
               onPaneClick={onPaneClick}
               onMoveEnd={onMoveEnd}
               defaultViewport={savedViewport.current}

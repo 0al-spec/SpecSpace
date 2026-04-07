@@ -25,6 +25,8 @@ export interface SpecNodeData extends Record<string, unknown> {
   visibleHandleKinds: readonly SpecHandleKind[];
   /** Number of unmet acceptance criteria — each rendered as a gap handle on the bottom */
   gapCount: number;
+  /** Set when this node is an endpoint of the currently highlighted edge */
+  edgeHighlighted?: boolean;
 }
 
 export type SpecNodeType = Node<SpecNodeData, "spec">;
@@ -56,7 +58,7 @@ export default function SpecNode({
 
   return (
     <div
-      className={`spec-node ${statusClass} ${selected ? "selected" : ""}`}
+      className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""}`}
     >
       {/* Target handles (left) — one slot per visible kind */}
       {kinds.map((kind, i) => {

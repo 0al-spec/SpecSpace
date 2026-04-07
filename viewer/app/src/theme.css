@@ -81,3 +81,15 @@ body {
   min-width: 0;
   position: relative;
 }
+
+/* ── Edge highlight (click to highlight edge + endpoints) ─────────────────── */
+
+.react-flow__edge.edge-highlight .react-flow__edge-path {
+  stroke-width: 4 !important;
+  opacity: 1 !important;
+  animation: edge-pulse 1.6s ease-in-out infinite;
+}
+@keyframes edge-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
