@@ -22,6 +22,7 @@ import MessageNode from "./MessageNode";
 import SpecNode from "./SpecNode";
 import SpecInspector from "./SpecInspector";
 import "./SpecNode.css";
+import AgentChat, { AgentChatTrigger } from "./AgentChat";
 import Sidebar, { MODE_KEY } from "./Sidebar";
 import InspectorOverlay from "./InspectorOverlay";
 import { useGraphData } from "./useGraphData";
@@ -149,6 +150,8 @@ function AppInner() {
   const { nodes: graphNodes, edges, loading, error, refresh } = activeGraph;
 
   const [nodes, setNodes] = useState<Node[]>([]);
+
+  const [chatOpen, setChatOpen] = useState(false);
 
   const [selectedConversationId, setSelectedConversationId] =
     useSessionString("selected_conversation");
@@ -323,6 +326,13 @@ function AppInner() {
             onSetCompileTarget={setCompileTarget}
           />
         )}
+        {/* Agent chat */}
+        <AgentChatTrigger onClick={() => setChatOpen((v) => !v)} active={chatOpen} />
+        <AgentChat
+          open={chatOpen}
+          onClose={() => setChatOpen(false)}
+          contextNodeId={graphMode === "specifications" ? selectedConversationId : null}
+        />
       </div>
     </CompileTargetContext.Provider>
   );
