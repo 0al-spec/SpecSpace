@@ -198,6 +198,35 @@
   overflow-y: auto;
 }
 
+/* ── Gap highlighting ────────────────────────────────────────────────────── */
+
+/* Unmet acceptance criterion */
+.spec-inspector-list-item.gap-unmet {
+  color: #92400e;
+}
+.gap-dot {
+  color: #f59e0b;
+  font-size: 9px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+/* Raw (non-spec-node) input */
+.spec-inspector-tag.gap-input {
+  border-color: #f59e0b;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+/* Execution gap — never run */
+tr.gap-row td.spec-inspector-table-key {
+  color: #92400e;
+}
+td.gap-null {
+  color: #f59e0b;
+  font-style: italic;
+}
+
 /* Runtime table */
 .spec-inspector-table {
   width: 100%;

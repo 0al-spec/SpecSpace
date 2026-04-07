@@ -39,13 +39,21 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
 
   const visible = Boolean(selectedNodeId);
 
-  // Typed accessors to avoid `unknown` leaking into JSX
   const acceptance = Array.isArray(detail?.acceptance)
     ? (detail!.acceptance as string[])
     : [];
   const evidence = Array.isArray(detail?.acceptance_evidence)
     ? (detail!.acceptance_evidence as Array<Record<string, unknown>>)
     : [];
+
+  // Compute gap sets from available data
+  const metCriteria = new Set(
+    evidence.map((ev) => String(ev.criterion ?? "").trim()).filter(Boolean)
+  );
+  const inputs = Array.isArray(detail?.inputs)
+    ? (detail!.inputs as unknown[]).map(String)
+    : [];
+  const executionGap = detail != null && detail.last_outcome == null;
 
   return (
     <aside className={`spec-inspector ${visible ? "visible" : ""}`}>
@@ -58,7 +66,7 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
 
       {detail && !loading && (
         <div className="spec-inspector-content">
-          {/* Header card — same visual as the graph node */}
+          {/* Header card */}
           <div className={`spec-inspector-card spec-node status-${str(detail.status)}`}>
             <div className="spec-node-id">{str(detail.id)}</div>
             <div className="spec-node-title">{str(detail.title)}</div>
@@ -88,14 +96,20 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
           <FieldList label="refines" value={detail.refines} />
           <FieldList label="relates_to" value={detail.relates_to} />
 
-          {/* Acceptance criteria */}
+          {/* Acceptance criteria — unmet ones highlighted */}
           {acceptance.length > 0 && (
             <section>
               <div className="spec-inspector-section">Acceptance</div>
               <ol className="spec-inspector-list">
-                {acceptance.map((c, i) => (
-                  <li key={i} className="spec-inspector-list-item">{String(c)}</li>
-                ))}
+                {acceptance.map((c, i) => {
+                  const unmet = evidence.length > 0 && !metCriteria.has(c.trim());
+                  return (
+                    <li key={i} className={`spec-inspector-list-item${unmet ? " gap-unmet" : ""}`}>
+                      {unmet && <span className="gap-dot" title="No evidence">●</span>}
+                      {String(c)}
+                    </li>
+                  );
+                })}
               </ol>
             </section>
           )}
@@ -115,8 +129,24 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
             </section>
           ) : null}
 
-          {/* Inputs / Outputs */}
-          <FieldList label="inputs" value={detail.inputs} />
+          {/* Inputs — raw file inputs highlighted */}
+          {inputs.length > 0 ? (
+            <section>
+              <div className="spec-inspector-section">inputs</div>
+              <ul className="spec-inspector-tags">
+                {inputs.map((inp) => {
+                  const isRaw = !inp.includes("nodes/");
+                  return (
+                    <li key={inp} className={`spec-inspector-tag${isRaw ? " gap-input" : ""}`}>
+                      {inp}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
+
+          {/* Outputs */}
           <FieldList label="outputs" value={detail.outputs} />
 
           {/* Prompt */}
@@ -127,12 +157,12 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
             </section>
           ) : null}
 
-          {/* Runtime state */}
+          {/* Runtime state — execution gap highlighted */}
           <section>
             <div className="spec-inspector-section">Runtime</div>
             <table className="spec-inspector-table">
               <tbody>
-                <Row k="last_outcome" v={detail.last_outcome} />
+                <Row k="last_outcome" v={detail.last_outcome} gap={executionGap} />
                 <Row k="last_blocker" v={detail.last_blocker} />
                 <Row k="last_run_at" v={detail.last_run_at} />
                 <Row k="gate_state" v={detail.gate_state} />
@@ -142,7 +172,7 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
             </table>
           </section>
 
-          {/* Raw specification block — dump as JSON for now */}
+          {/* Raw specification block */}
           {detail.specification ? (
             <section>
               <div className="spec-inspector-section">Specification (raw)</div>
@@ -179,12 +209,15 @@ function FieldList({ label, value }: { label: string; value: unknown }) {
   );
 }
 
-function Row({ k, v }: { k: string; v: unknown }) {
-  if (v == null) return null;
+function Row({ k, v, gap }: { k: string; v: unknown; gap?: boolean }) {
+  const isNull = v == null;
+  if (isNull && !gap) return null;
   return (
-    <tr>
+    <tr className={gap ? "gap-row" : undefined}>
       <td className="spec-inspector-table-key">{k}</td>
-      <td className="spec-inspector-table-val">{String(v)}</td>
+      <td className={`spec-inspector-table-val${gap ? " gap-null" : ""}`}>
+        {isNull ? "—" : String(v)}
+      </td>
     </tr>
   );
 }
