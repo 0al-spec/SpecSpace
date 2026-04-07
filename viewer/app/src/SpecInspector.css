@@ -219,11 +219,16 @@
 }
 
 /* Execution gap — never run */
-tr.gap-row td.spec-inspector-table-key {
+tr.gap-row td {
+  background: #fffbeb;
   color: #92400e;
 }
+tr.gap-row td:first-child {
+  border-left: 2px solid #f59e0b;
+  padding-left: 6px;
+  border-radius: 4px 0 0 4px;
+}
 td.gap-null {
-  color: #f59e0b;
   font-style: italic;
 }
 
