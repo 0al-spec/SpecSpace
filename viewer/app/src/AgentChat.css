@@ -162,6 +162,10 @@
   align-items: center;
   justify-content: center;
 }
+/* Hide when already at bottom (primitive sets disabled="") */
+.agent-chat-scroll-btn:disabled {
+  display: none;
+}
 
 /* ── Messages ────────────────────────────────────────────────────────────────── */
 
@@ -175,7 +179,7 @@
   align-self: flex-end;
   background: var(--accent-strong, #6d28d9);
   color: white;
-  padding: 8px 12px;
+  padding: 4px 12px;
   border-radius: 12px 12px 2px 12px;
   font-family: Georgia, serif;
 }
@@ -183,7 +187,7 @@
   align-self: flex-start;
   background: white;
   color: var(--text, #2c2018);
-  padding: 10px 12px;
+  padding: 5px 12px;
   border-radius: 2px 12px 12px 12px;
   border: 1px solid var(--line, #e0d8cc);
   font-family: Georgia, serif;
