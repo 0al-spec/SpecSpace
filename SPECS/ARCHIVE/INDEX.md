@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-03-31 (CTXB-P5-B3)
+**Last Updated:** 2026-04-11 (CTXB-P6-T1)
 
 ## Archived Tasks
 
@@ -65,6 +65,7 @@
 | CTXB-P3-T5 | [CTXB-P3-T5_Re-index_and_reconcile_external_file_changes/](CTXB-P3-T5_Re-index_and_reconcile_external_file_changes/) | 2026-03-26 | PASS |
 | CTXB-P2R-T12 | [CTXB-P2R-T12_Increase_maximum_zoom-out_on_the_graph_canvas/](CTXB-P2R-T12_Increase_maximum_zoom-out_on_the_graph_canvas/) | 2026-03-26 | PASS |
 | CTXB-P5-B3 | [CTXB-P5-B3_Compile_Fails_When_Selected_Branch_Has_Zero_Checkpoints/](CTXB-P5-B3_Compile_Fails_When_Selected_Branch_Has_Zero_Checkpoints/) | 2026-03-31 | PASS |
+| CTXB-P6-T1 | [CTXB-P6-T1_SpecGraph_Viewer/](CTXB-P6-T1_SpecGraph_Viewer/) | 2026-04-11 | PASS |
 
 ## Historical Artifacts
 
@@ -91,6 +92,7 @@
 | [REVIEW_reindex_external_changes.md](_Historical/REVIEW_reindex_external_changes.md) | Re-index external file changes review report |
 | [REVIEW_ctxb_p2r_t12_min_zoom.md](_Historical/REVIEW_ctxb_p2r_t12_min_zoom.md) | Increase maximum zoom-out on graph canvas review report |
 | [REVIEW_ctxb_p5_b3_zero_checkpoint_compile.md](_Historical/REVIEW_ctxb_p5_b3_zero_checkpoint_compile.md) | Zero-checkpoint branch compile fix review report |
+| [REVIEW_ctxb_p6_t1_specgraph_viewer.md](_Historical/REVIEW_ctxb_p6_t1_specgraph_viewer.md) | SpecGraph Specification Viewer review report |
 
 ## Archive Log
 
@@ -210,3 +212,5 @@
 | 2026-03-26 | CTXB-P2R-T12 | Archived REVIEW_ctxb_p2r_t12_min_zoom report |
 | 2026-03-31 | CTXB-P5-B3 | Archived Compile_Fails_When_Selected_Branch_Has_Zero_Checkpoints (PASS) |
 | 2026-03-31 | CTXB-P5-B3 | Archived REVIEW_ctxb_p5_b3_zero_checkpoint_compile report |
+| 2026-04-11 | CTXB-P6-T1 | Archived SpecGraph_Viewer — full Phase 6 (T1-T9) (PASS) |
+| 2026-04-11 | CTXB-P6-T1 | Archived REVIEW_ctxb_p6_t1_specgraph_viewer report |
