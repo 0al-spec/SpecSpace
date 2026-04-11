@@ -28,6 +28,10 @@ export interface SpecNodeData extends Record<string, unknown> {
   /** Set when this node is an endpoint of the currently highlighted edge */
   edgeHighlighted?: boolean;
   searchDimmed?: boolean;
+  /** Whether this spec is currently expanded (sub-items loading or group shown) */
+  isExpanded?: boolean;
+  /** Callback to toggle expanded/collapsed state */
+  onToggleExpand?: (nodeId: string) => void;
 }
 
 export type SpecNodeType = Node<SpecNodeData, "spec">;
@@ -147,6 +151,20 @@ export default function SpecNode({
           data-tooltip={`gap ${i + 1}/${data.gapCount}`}
         />
       ))}
+
+      {/* Expand/collapse button — shown when node has expandable sub-items */}
+      {(data.acceptanceCount > 0 || data.decisionsCount > 0) && data.onToggleExpand && (
+        <button
+          className={`spec-node-expand${data.isExpanded ? " expanded" : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onToggleExpand!(data.nodeId);
+          }}
+          title={data.isExpanded ? "Collapse sub-items" : "Expand sub-items"}
+        >
+          {data.isExpanded ? "▾" : "▸"}
+        </button>
+      )}
     </div>
   );
 }

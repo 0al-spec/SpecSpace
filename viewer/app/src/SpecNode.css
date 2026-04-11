@@ -214,3 +214,28 @@
 .spec-node:hover .spec-handle-potential {
   opacity: 1;
 }
+
+/* Expand/collapse toggle button */
+.spec-node-expand {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 2px 5px;
+  border-radius: 3px;
+  line-height: 1;
+  opacity: 0.5;
+  transition: opacity 0.15s, background 0.15s;
+}
+.spec-node:hover .spec-node-expand,
+.spec-node-expand.expanded {
+  opacity: 1;
+}
+.spec-node-expand:hover {
+  background: rgba(0, 0, 0, 0.07);
+  color: var(--text);
+}
