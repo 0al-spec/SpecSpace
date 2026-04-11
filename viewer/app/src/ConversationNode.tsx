@@ -24,7 +24,7 @@ export default function ConversationNode({
 
   return (
     <div
-      className={`conversation-node ${kindClass} ${selected ? "selected" : ""} ${isCompileTarget ? "compile-target" : ""}`}
+      className={`conversation-node ${kindClass} ${selected ? "selected" : ""} ${isCompileTarget ? "compile-target" : ""} ${(data as ConversationNodeData & { searchDimmed?: boolean }).searchDimmed ? "search-dimmed" : ""}`}
     >
       <Handle type="target" position={Position.Left} />
 

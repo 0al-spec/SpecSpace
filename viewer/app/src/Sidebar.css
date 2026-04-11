@@ -270,6 +270,17 @@
   margin-bottom: 8px;
   background: #faf8ff;
   font-family: "Courier New", Courier, monospace;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.sidebar-spec-item:hover {
+  background: #f0ecfa;
+  border-color: #b8a8e8;
+}
+.sidebar-spec-item.selected {
+  background: #ede8fc;
+  border-color: #7c3aed;
+  outline: none;
 }
 
 .sidebar-spec-id {

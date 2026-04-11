@@ -27,6 +27,7 @@ export interface SpecNodeData extends Record<string, unknown> {
   gapCount: number;
   /** Set when this node is an endpoint of the currently highlighted edge */
   edgeHighlighted?: boolean;
+  searchDimmed?: boolean;
 }
 
 export type SpecNodeType = Node<SpecNodeData, "spec">;
@@ -58,7 +59,7 @@ export default function SpecNode({
 
   return (
     <div
-      className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""}`}
+      className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""} ${data.searchDimmed ? "search-dimmed" : ""}`}
     >
       {/* Target handles (left) — one slot per visible kind */}
       {kinds.map((kind, i) => {

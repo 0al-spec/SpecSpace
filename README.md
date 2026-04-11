@@ -2,6 +2,8 @@
 
 ContextBuilder is a local graph viewer and context compiler for conversation JSON files. It reads a directory of dialog JSON files, builds a lineage graph of roots, branches, and merges, lets you select a thought direction, and compiles that selection into a Hyperprompt-backed Markdown context artifact ready for an external LLM or agent.
 
+> **Engineering docs:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system design, module breakdown, data flow · [docs/PROBLEMS.md](docs/PROBLEMS.md) — known issues and shortcomings
+
 ## Scope Boundaries
 
 | Concern | Owner |
@@ -17,16 +19,22 @@ ContextBuilder does not execute models. Its output is a deterministic Markdown f
 
 ## Quick Start
 
-Point the viewer at a directory containing dialog JSON files:
+Canonicalize imported conversations and start both the API and UI in one shot:
 
 ```bash
-make serve DIALOG_DIR=/absolute/path/to/dialogs
+make quickstart DIALOG_DIR=/absolute/path/to/import_json OUTPUT_DIR=/absolute/path/to/canonical_json
+```
+
+Or start just the server pointing at an existing canonical directory:
+
+```bash
+make serve DIALOG_DIR=/absolute/path/to/canonical_json
 ```
 
 Then open:
 
 ```
-http://localhost:8000/viewer/index.html
+http://localhost:8000/
 ```
 
 Or run the server directly (with a custom Hyperprompt binary path):
@@ -40,7 +48,7 @@ python3 viewer/server.py --port 8000 --dialog-dir /path/to/dialogs \
 
 ```bash
 make dev DIALOG_DIR=/path/to/dialogs
-# API on :8001, React UI on :5173
+# API on :8001, React UI on :5173 → http://localhost:5173/
 ```
 
 ---
@@ -76,15 +84,20 @@ JSON conversations on disk
 ```
 {dialog-dir}/export/{target}/
 ├── nodes/
-│   ├── {conv-id-1}.md
-│   ├── {conv-id-2}.md
-│   └── ...
+│   ├── {conv-id-1}/
+│   │   ├── 0000_{msg-id}.md
+│   │   ├── 0001_{msg-id}.md
+│   │   └── ...
+│   └── {conv-id-2}/
+│       └── ...
 ├── provenance.md   ← compile-target provenance included in compiled output
 ├── provenance.json ← machine-readable provenance for traceability/audit
-├── root.hc          ← Hyperprompt root file
-├── compiled.md      ← final compiled artifact
-└── manifest.json    ← compiler manifest (written by Hyperprompt)
+├── root.hc         ← Hyperprompt root file
+├── compiled.md     ← final compiled artifact
+└── manifest.json   ← compiler manifest (written by Hyperprompt)
 ```
+
+Each conversation gets its own subdirectory under `nodes/`. Each message checkpoint is a separate Markdown file named `{index}_{message_id}.md`, with a YAML front-matter comment preserving `conversation_id`, `message_id`, `role`, and optional provenance fields.
 
 The export directory is deterministically regenerated on each export. Prior contents are removed.
 
@@ -345,6 +358,10 @@ ContextBuilder validates individual payloads and whole-workspace lineage before 
 | `GET /api/file?name=...` | One file payload with its validation result |
 | `GET /api/conversation?conversation_id=...` | One graph node with edges, integrity, and compile target metadata |
 | `GET /api/checkpoint?conversation_id=...&message_id=...` | One checkpoint anchor with child edges and compile target metadata |
+| `GET /api/capabilities` | Feature flags: `spec_graph` (true when `--spec-dir` is set) |
+| `GET /api/spec-graph` | SpecGraph snapshot: nodes, edges, roots, gap metrics (requires `--spec-dir`) |
+| `GET /api/spec-node?id=...` | Full YAML payload for one spec node (requires `--spec-dir`) |
+| `GET /api/spec-watch` | SSE stream — fires a `change` event when YAML spec files change on disk |
 
 ### Write APIs
 
@@ -438,14 +455,20 @@ Returned by `GET /api/conversation` and `GET /api/checkpoint`:
 ```
 ContextBuilder/
 ├── viewer/
-│   ├── server.py          # Local API and static file server (Python)
-│   ├── schema.py          # Schema validation helpers
-│   ├── canonicalize.py    # Batch import normalization script
+│   ├── server.py          # HTTP server: routing, graph indexing, export, compile
+│   ├── schema.py          # Schema validation, normalization, and classification
+│   ├── canonicalize.py    # Batch import normalization CLI
+│   ├── specgraph.py       # SpecGraph YAML ingestion and graph construction
 │   └── app/               # React + TypeScript UI (Vite)
-│       ├── src/           # React components and graph canvas
+│       ├── src/           # React components, graph canvas, data hooks
 │       └── dist/          # Built UI assets (served by server.py)
 ├── tests/                 # Python unit and integration tests
 ├── real_examples/         # Example dialog JSON fixtures
+├── docs/                  # Engineering documentation
+│   ├── ARCHITECTURE.md    # System architecture (top-level → detail)
+│   ├── PROBLEMS.md        # Known issues and shortcomings
+│   ├── CANONICALIZATION.md
+│   └── QUICKSTART.md
 ├── Makefile               # Developer entrypoints
 └── README.md
 ```
@@ -456,14 +479,16 @@ ContextBuilder/
 
 | Target | Purpose |
 |--------|---------|
-| `make serve DIALOG_DIR=...` | Start the combined API + static file server |
+| `make quickstart` | Canonicalize + start API + start UI in one shot |
+| `make serve DIALOG_DIR=...` | Start the combined API + static file server (port 8000) |
 | `make dev DIALOG_DIR=...` | Start API on :8001 and React dev server on :5173 |
-| `make api DIALOG_DIR=...` | Start API only |
+| `make api` | Start API only (uses `$CANONICAL_DIR` default) |
 | `make ui` | Start React dev server only |
 | `make canonicalize DIALOG_DIR=... OUTPUT_DIR=...` | Batch-normalize imported JSON to canonical form |
-| `make canon DIALOG_DIR=...` | Alias for `canonicalize` with default `OUTPUT_DIR=/tmp/canonical_json` |
+| `make canon` | Canonicalize with default input/output paths |
 | `make test` | Run all Python tests |
 | `make lint` | Syntax-check Python source files |
+| `make stop` | Kill servers running on ports 8001 and 5173 |
 
 ---
 
@@ -489,15 +514,20 @@ make lint
 
 ### Understand the Pipeline
 
+See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for a full top-down description of the system: data model, backend modules, frontend components, and the export/compile pipeline.
+
+Quick orientation:
+
 1. `viewer/schema.py` — canonical schema rules and validation helpers used by the server and tests.
 2. `viewer/canonicalize.py` — batch normalization for imported root JSON files.
-3. `viewer/server.py` — all HTTP handlers, graph indexing, export, and compile orchestration.
-4. `viewer/app/src/` — React graph canvas, inspector panels, compile affordances.
-5. `tests/` — unit tests for schema, graph indexing, API handlers, export pipeline, and compile integration.
+3. `viewer/specgraph.py` — YAML spec node ingestion and SpecGraph construction.
+4. `viewer/server.py` — all HTTP handlers, graph indexing, export, and compile orchestration.
+5. `viewer/app/src/` — React graph canvas, inspector panels, compile affordances.
+6. `tests/` — unit tests for schema, graph indexing, API handlers, export pipeline, and compile integration.
 
 ### Adding a New Conversation Kind
 
 1. Add schema rules to `viewer/schema.py`.
-2. Update `build_graph_index` in `viewer/server.py` to handle the new kind.
+2. Update `build_graph_snapshot` in `viewer/server.py` to handle the new kind.
 3. Add fixture files under `real_examples/` or `tests/fixtures/`.
 4. Add regression tests in `tests/`.

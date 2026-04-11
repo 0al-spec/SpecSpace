@@ -963,6 +963,202 @@ PRD: [CTXB-P6-T1_SpecGraph_Viewer.md](INPROGRESS/CTXB-P6-T1_SpecGraph_Viewer.md)
   - API tests verify response shape, 404 handling, and no-spec-dir graceful degradation.
   - All tests pass with `make test`.
 
+## Phase 7: Technical Debt and Quality
+
+Intent: address the known architectural and code quality problems identified in [docs/PROBLEMS.md](../docs/PROBLEMS.md). Tasks are grouped by area. None of these tasks add user-visible features; they improve reliability, performance, maintainability, and portability.
+
+### CTXB-P7-T1 — Workspace cache with mtime-based invalidation
+- **Description:** Every API call currently re-reads all JSON files, re-validates, and rebuilds the entire graph snapshot from scratch. Add a request-scoped or server-level workspace cache keyed on per-file `(name, mtime, size)` tuples. On each request, scan directory stats only (no file reads), compare against the cache key, and rebuild only changed files. The cache must be invalidated atomically when any file changes — correct graph state takes strict precedence over performance.
+- **Priority:** P1
+- **Dependencies:** none
+- **Parallelizable:** no
+- **Source:** docs/PROBLEMS.md §1, §17
+- **Outputs / Artifacts:** cache layer in `viewer/server.py`, regression tests confirming stale-read protection
+- **Acceptance Criteria:**
+  - A request to `/api/conversation?conversation_id=X` does not read unchanged files that were already loaded for a prior `/api/graph` call in the same second.
+  - Any file change (new file, modified file, deleted file) is reflected within one subsequent request.
+  - All existing API contract tests continue to pass.
+
+### CTXB-P7-T2 — Split server.py into focused modules
+- **Description:** `viewer/server.py` (~1500 lines) bundles HTTP routing, graph indexing, export pipeline, compile invocation, provenance rendering, static file serving, and SSE watching into one file. Extract at least: `graph.py` (graph building, lineage traversal, compile-target construction), `export.py` (export_graph_nodes, generate_hc_root, render_markdown, provenance), `compile.py` (hyperprompt resolution, invocation). Keep `server.py` as thin routing + request/response handling only.
+- **Priority:** P2
+- **Dependencies:** CTXB-P7-T1
+- **Parallelizable:** no
+- **Source:** docs/PROBLEMS.md §2
+- **Outputs / Artifacts:** `viewer/graph.py`, `viewer/export.py`, `viewer/compile.py`; updated `viewer/server.py`
+- **Acceptance Criteria:**
+  - `viewer/server.py` is reduced to ≤400 lines of routing and handler code.
+  - All existing tests pass without modification.
+  - Public function signatures are unchanged from the test perspective.
+
+### CTXB-P7-T3 — Introduce typed dataclasses for graph objects
+- **Description:** Graph nodes, edges, checkpoints, and compile targets are currently all `dict[str, Any]`. Replace the most-accessed internal types with `@dataclass` or `TypedDict` definitions. Minimum scope: `GraphNode`, `GraphEdge`, `Checkpoint`. `CompileTargetPayload` is already defined as a TypedDict in `schema.py` but is not enforced — start enforcing it.
+- **Priority:** P2
+- **Dependencies:** CTXB-P7-T2
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §2
+- **Outputs / Artifacts:** typed dataclasses in `viewer/graph.py` (or `viewer/schema.py`); mypy clean
+- **Acceptance Criteria:**
+  - `GraphNode`, `GraphEdge`, and `Checkpoint` are typed dataclasses or TypedDicts.
+  - `mypy viewer/` passes with no errors on the new types.
+  - All existing tests pass.
+
+### CTXB-P7-T4 — Extract shared message validation helper in schema.py
+- **Description:** `collect_normalization_errors()` and `collect_canonical_validation_errors()` each contain ~60 lines of nearly identical message-validation logic. Extract it into a private `_validate_messages(messages, errors)` helper used by both callers.
+- **Priority:** P1
+- **Dependencies:** none
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §3
+- **Outputs / Artifacts:** updated `viewer/schema.py`
+- **Acceptance Criteria:**
+  - The shared helper exists and is used by both validation functions.
+  - No duplication of the per-message validation loop remains.
+  - All existing schema and validation tests pass.
+
+### CTXB-P7-T5 — Remove hardcoded developer paths
+- **Description:** `DEFAULT_HYPERPROMPT_BINARY` in `server.py` is hardcoded to `/Users/egor/...`. The Makefile defaults `CANONICAL_DIR` and `SPEC_DIR` to paths under `$(HOME)/Development/GitHub/...`. Replace `DEFAULT_HYPERPROMPT_BINARY` with a relative/discoverable default (e.g. `deps/hyperprompt` only). Update Makefile defaults to use safe, project-relative or user-overridable paths with no hardcoded layout assumption.
+- **Priority:** P1
+- **Dependencies:** none
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §4
+- **Outputs / Artifacts:** updated `viewer/server.py`, updated `Makefile`
+- **Acceptance Criteria:**
+  - `DEFAULT_HYPERPROMPT_BINARY` does not contain any absolute user-specific path.
+  - `make serve DIALOG_DIR=...` works without relying on a hardcoded `$(HOME)/Development/...` layout.
+  - Binary resolution still tries `deps/hyperprompt` as the last fallback.
+
+### CTXB-P7-T6 — Consolidate path traversal protection in dialog_path_for_name
+- **Description:** Path containment checks currently live in `safe_dialog_path()` (HTTP layer only). Internal callers (`load_workspace_payloads`, `validate_write_request`) call `dialog_path_for_name` directly without containment checks. Move the containment check into `dialog_path_for_name` itself so it is enforced for all callers, not just HTTP handlers. Raise a `ValueError` if the resolved path escapes `dialog_dir`.
+- **Priority:** P1
+- **Dependencies:** none
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §5
+- **Outputs / Artifacts:** updated `viewer/server.py`; test for path-escape rejection
+- **Acceptance Criteria:**
+  - Calling `dialog_path_for_name(dialog_dir, "../../etc/passwd.json")` raises `ValueError`.
+  - `safe_dialog_path` delegates to the updated function without duplicating the check.
+  - All existing tests pass.
+
+### CTXB-P7-T7 — Fix SSE spec-watch thread management
+- **Description:** `handle_spec_watch()` blocks a server thread indefinitely with a `while True: time.sleep(1)` polling loop. Each browser tab holds one thread permanently with no timeout or limit. Add: (1) a maximum connection timeout (e.g. 5 minutes) after which the SSE stream is closed gracefully, (2) a server-level connection counter with a hard limit (e.g. 5 concurrent watchers), and (3) consider replacing polling with `watchdog` or `os.scandir` + `stat` caching to reduce per-poll overhead.
+- **Priority:** P2
+- **Dependencies:** none
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §6
+- **Outputs / Artifacts:** updated `handle_spec_watch` in `viewer/server.py`
+- **Acceptance Criteria:**
+  - An SSE connection is closed server-side after the configured timeout.
+  - No more than N concurrent spec-watch connections are allowed (configurable constant).
+  - The browser frontend reconnects automatically after server-side close (EventSource auto-reconnect).
+
+### CTXB-P7-T8 — Add rmtree safety marker to export directory
+- **Description:** `export_graph_nodes()` calls `shutil.rmtree(export_dir)` unconditionally before writing. If path construction is wrong, this could delete arbitrary directories. Write a sentinel file (e.g. `.ctxb_export`) into the export directory at creation time. Before `rmtree`, verify the sentinel exists; if it doesn't, abort with an error instead of deleting.
+- **Priority:** P1
+- **Dependencies:** none
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §12
+- **Outputs / Artifacts:** sentinel write/check logic in `viewer/server.py` (or `viewer/export.py` after T2)
+- **Acceptance Criteria:**
+  - A directory without `.ctxb_export` is never deleted by the export pipeline.
+  - Export to a fresh path creates the sentinel before writing node files.
+  - Re-export to an existing path verifies the sentinel before `rmtree`.
+
+### CTXB-P7-T9 — Decompose App.tsx god component
+- **Description:** `App.tsx` (590 lines) owns 15+ concerns including selection state, compile target, viewport, search, chat, edge highlighting, and keyboard shortcuts. Extract at minimum: (1) `useSelectionState` hook (selectedConversationId, selectedMessageId, compileTarget), (2) `useViewportSync` hook (panToNode, fitNodes, panToPoint, onMoveEnd), (3) `useKeyboardShortcuts` hook. The component itself should orchestrate these hooks and delegate to the inspector/search/chat subcomponents it already mounts.
+- **Priority:** P2
+- **Dependencies:** none
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §7
+- **Outputs / Artifacts:** `viewer/app/src/useSelectionState.ts`, `viewer/app/src/useViewportSync.ts`, `viewer/app/src/useKeyboardShortcuts.ts`; refactored `App.tsx`
+- **Acceptance Criteria:**
+  - `App.tsx` is reduced to ≤250 lines.
+  - Extracted hooks cover the functionality described above.
+  - No behaviour regressions (manual smoke test + existing smoke tests pass).
+
+### CTXB-P7-T10 — Add React Error Boundaries
+- **Description:** There are no `ErrorBoundary` components in the React app. A runtime error in any component crashes the entire UI to a white screen. Add error boundaries at: (1) the top-level `AppInner` wrapper, (2) the inspector panels (`SpecInspector`, `InspectorOverlay`), (3) the ReactFlow canvas. Each boundary should render a "Something went wrong" fallback with a Retry button.
+- **Priority:** P1
+- **Dependencies:** none
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §8
+- **Outputs / Artifacts:** `viewer/app/src/ErrorBoundary.tsx`; applied at three locations in `App.tsx`
+- **Acceptance Criteria:**
+  - A thrown error inside `SpecInspector` shows the fallback UI without crashing the graph canvas.
+  - The Retry button resets the error boundary state.
+  - The top-level boundary catches errors from any unprotected component.
+
+### CTXB-P7-T11 — Enable TypeScript strict mode and add ESLint
+- **Description:** Add `"strict": true` to `tsconfig.json`. Add ESLint with `@typescript-eslint/recommended` rules. Fix all resulting type errors (primarily `as` casts and implicit `any`). Add `npm run typecheck` (`tsc --noEmit`) and `npm run lint` scripts to `package.json`.
+- **Priority:** P2
+- **Dependencies:** CTXB-P7-T9
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §9
+- **Outputs / Artifacts:** updated `tsconfig.json`, `.eslintrc.json`, `package.json`
+- **Acceptance Criteria:**
+  - `npm run typecheck` passes with zero errors.
+  - `npm run lint` passes with zero errors.
+  - No `as` casts for data fields that could be replaced with proper generics.
+
+### CTXB-P7-T12 — Extract shared data-fetching base hook
+- **Description:** `useGraphData` and `useSpecGraphData` independently implement fetch + loading/error state + refresh. Extract a shared `useFetchedData<T>(url, transform)` base hook to deduplicate the pattern. Additionally, add SSE auto-refresh to `useGraphData` (analogous to the existing `spec-watch` listener in `useSpecGraphData`) so conversation graph users don't need to manually refresh after external file changes.
+- **Priority:** P2
+- **Dependencies:** none
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §10
+- **Outputs / Artifacts:** `viewer/app/src/useFetchedData.ts`; updated `useGraphData.ts`, `useSpecGraphData.ts`
+- **Acceptance Criteria:**
+  - Both hooks use the shared base for fetch + loading/error/refresh.
+  - `useGraphData` reacts to conversation file changes without a manual refresh (requires a new `GET /api/watch` or polling, or reusing the existing SSE pattern).
+  - No behaviour regressions.
+
+### CTXB-P7-T13 — Add CI pipeline (GitHub Actions)
+- **Description:** Add a GitHub Actions workflow that runs on every push and PR. Minimum checks: (1) `make test` (Python unit tests), (2) `make lint` (py_compile), (3) `npm run typecheck` (TypeScript), (4) `npm run build` (Vite production build). Run Python checks with Python 3.11.
+- **Priority:** P1
+- **Dependencies:** CTXB-P7-T11
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §16
+- **Outputs / Artifacts:** `.github/workflows/ci.yml`
+- **Acceptance Criteria:**
+  - The CI workflow runs on push to any branch and on PR to main.
+  - All four checks must pass for the workflow to succeed.
+  - Failures produce actionable output (test names, type errors, build errors).
+
+### CTXB-P7-T14 — Expose compile capability in /api/capabilities and surface in UI
+- **Description:** `/api/capabilities` currently only reports `spec_graph`. Add a `compile` flag: `true` when the Hyperprompt binary is resolvable at server startup, `false` otherwise. In the UI, grey out or hide the Compile button when `compile` is false, and show an inline tooltip explaining the binary is not configured.
+- **Priority:** P1
+- **Dependencies:** none
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §14
+- **Outputs / Artifacts:** updated `handle_capabilities` in `viewer/server.py`; updated compile affordances in `viewer/app/src/InspectorOverlay.tsx`
+- **Acceptance Criteria:**
+  - `GET /api/capabilities` includes `"compile": true/false`.
+  - The Compile button is disabled with a visible explanation when `compile` is false.
+  - No user needs to click Compile and receive a cryptic 422 to discover the binary is missing.
+
+### CTXB-P7-T15 — Replace SHA-1 with SHA-256 for conversation ID derivation
+- **Description:** `derive_conversation_id()` in `schema.py` uses SHA-1 with a 12-character hex truncation. Replace with SHA-256 and keep the same 12-character truncation length (collision probability is still acceptable for a local tool). This is a non-breaking change because the function is only called for imported roots that lack a `conversation_id`; canonical files already have stable IDs.
+- **Priority:** P2
+- **Dependencies:** none
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §13
+- **Outputs / Artifacts:** updated `viewer/schema.py`
+- **Acceptance Criteria:**
+  - `derive_conversation_id` uses `hashlib.sha256`, not `hashlib.sha1`.
+  - Existing tests that assert on specific derived IDs are updated.
+  - No other behaviour changes.
+
+### CTXB-P7-T16 — Hide AgentChat behind a feature flag
+- **Description:** `AgentChat.tsx` exposes a chat UI with a hardcoded mock adapter. The button is always visible, implying functional AI assistance that does not exist. Until a real `/api/agent` endpoint is implemented, hide the `AgentChatTrigger` button behind a `capabilities.agent` feature flag (default `false`). The component can remain in the codebase for future development.
+- **Priority:** P2
+- **Dependencies:** CTXB-P7-T14
+- **Parallelizable:** yes
+- **Source:** docs/PROBLEMS.md §15
+- **Outputs / Artifacts:** updated `App.tsx`; updated `handle_capabilities` in `viewer/server.py`
+- **Acceptance Criteria:**
+  - The chat trigger button is not rendered when `capabilities.agent` is `false` or absent.
+  - `GET /api/capabilities` returns `"agent": false` (placeholder for future).
+  - Existing smoke tests are updated to reflect the hidden button.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
@@ -972,6 +1168,7 @@ PRD: [CTXB-P6-T1_SpecGraph_Viewer.md](INPROGRESS/CTXB-P6-T1_SpecGraph_Viewer.md)
 - Phase 4 depends on the compile target model and turns the selected branch into Hyperprompt-compatible filesystem artifacts.
 - Phase 5 validates and documents the complete graph-to-context workflow.
 - Phase 6 reuses the React Flow viewer (P2R) and Python server (P1) to render SpecGraph YAML specs as a second graph mode. Independent of Phases 3-5 conversation authoring and compile features.
+- Phase 7 addresses technical debt identified in docs/PROBLEMS.md. Tasks are largely independent of each other and of Phases 3-6, with the exception that T2/T3 (server split + types) depend on T1 (cache layer).
 
 ## Task Status Legend
 

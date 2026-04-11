@@ -87,7 +87,8 @@ export default function AgentChat({ open, onClose, contextNodeId }: AgentChatPro
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className={`agent-chat ${open ? "open" : ""}`} role="dialog" aria-label="Agent chat">
+      <div className={`agent-chat-backdrop ${open ? "open" : ""}`} onClick={onClose}>
+      <div className={`agent-chat`} role="dialog" aria-label="Agent chat" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="agent-chat-header">
           <span className="agent-chat-title">
@@ -136,6 +137,7 @@ export default function AgentChat({ open, onClose, contextNodeId }: AgentChatPro
             </ComposerPrimitive.Root>
           </div>
         </ThreadPrimitive.Root>
+      </div>
       </div>
     </AssistantRuntimeProvider>
   );

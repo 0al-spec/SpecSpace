@@ -26,6 +26,21 @@
   pointer-events: auto;
 }
 
+/* Resize handle */
+.spec-inspector-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 2;
+  transition: background 0.15s;
+}
+.spec-inspector-resize-handle:hover {
+  background: rgba(124, 58, 237, 0.12);
+}
+
 /* Close button */
 .spec-inspector-close {
   position: absolute;
@@ -63,34 +78,161 @@
   margin-top: 8px;
 }
 
-/* Header card — reuses spec-node classes but resets size/cursor */
-.spec-inspector-card.spec-node {
+/* ── Header card ─────────────────────────────────────────────────────────── */
+
+.spec-inspector-header-card {
   width: auto;
   min-height: auto;
   cursor: default;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
+  border-radius: 10px;
 }
 
-/* ID */
-.spec-inspector-id {
-  font-size: 11px;
+.spec-inspector-header-card .spec-node-id.node-link {
+  display: inline-block;
+  background: white;
+  border: 1px solid var(--line, #e0d8cc);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.spec-inspector-header-card .spec-node-id.node-link:hover {
+  background: #ede8fc;
+  border-color: #7c3aed;
+  color: #5b21b6;
+}
+
+.spec-inspector-main-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text, #2c2018);
+  margin: 4px 0 10px;
+  font-family: Georgia, serif;
+}
+
+.spec-inspector-objective {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text, #2c2018);
+  margin: 0 0 12px;
+  font-style: normal;
+  font-weight: 400;
+}
+
+/* ── Generic section box ─────────────────────────────────────────────────── */
+
+.spec-inspector-box {
+  background: white;
+  border: 1px solid var(--line, #e0d8cc);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.spec-inspector-field-group {
+  margin-bottom: 12px;
+}
+
+.spec-inspector-field-group:last-child {
+  margin-bottom: 0;
+}
+
+.spec-inspector-box-label {
+  font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted, #888);
   font-family: "Courier New", Courier, monospace;
+  margin-bottom: 10px;
+}
+
+/* ── Scope ───────────────────────────────────────────────────────────────── */
+
+.spec-inspector-scope-group + .spec-inspector-scope-group {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line, #e0d8cc);
+}
+
+.spec-inspector-scope-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: "Courier New", Courier, monospace;
   margin-bottom: 6px;
 }
 
-/* Title */
-.spec-inspector-title {
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--text, #2c2018);
-  margin-bottom: 12px;
+.spec-inspector-scope-label.scope-in  { color: #166534; }
+.spec-inspector-scope-label.scope-out { color: #9f1239; }
+
+.spec-inspector-scope-list {
+  list-style: disc;
+  padding-left: 16px;
+  margin: 0;
 }
 
-/* Status / kind badges row */
+.spec-inspector-scope-list li {
+  font-size: 13px;
+  line-height: 1.55;
+  margin-bottom: 3px;
+  color: var(--text, #2c2018);
+}
+
+/* ── Collapsible evidence box ────────────────────────────────────────────── */
+
+.spec-inspector-box-collapsible {
+  padding: 0;
+  overflow: hidden;
+}
+
+.spec-inspector-box-toggle .spec-inspector-box-label {
+  margin-bottom: 0;
+}
+
+.spec-inspector-box-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 12px 16px;
+  cursor: pointer;
+  border-radius: 10px;
+  font-family: inherit;
+}
+
+.spec-inspector-box-collapsible.open .spec-inspector-box-toggle {
+  border-radius: 10px 10px 0 0;
+}
+
+.spec-inspector-box-toggle:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.spec-inspector-toggle-icon {
+  font-size: 8px;
+  opacity: 0.5;
+}
+
+.spec-inspector-evidence-list {
+  border-top: 1px solid var(--line, #e0d8cc);
+}
+
+.spec-inspector-evidence-item {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line, #e0d8cc);
+}
+
+.spec-inspector-evidence-item:last-child {
+  border-bottom: none;
+}
+
+/* Status / kind badges row (legacy) */
 .spec-inspector-badges {
   display: flex;
   flex-wrap: wrap;
@@ -147,6 +289,15 @@
   border-radius: 4px;
   padding: 2px 8px;
   color: var(--text, #2c2018);
+}
+.spec-inspector-tag.node-link {
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.spec-inspector-tag.node-link:hover {
+  background: #ede8fc;
+  border-color: #7c3aed;
+  color: #5b21b6;
 }
 
 /* Acceptance list */
@@ -230,6 +381,46 @@ tr.gap-row td:first-child {
 }
 td.gap-null {
   font-style: italic;
+}
+
+/* Malformed field badge */
+.spec-inspector-list-item.format-error {
+  opacity: 0.8;
+}
+.malformed-field {
+  display: inline;
+}
+.malformed-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-family: system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  border-radius: 3px;
+  padding: 1px 5px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.malformed-badge:hover {
+  background: #fee2e2;
+}
+.malformed-raw {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-family: "Courier New", Courier, monospace;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #7f1d1d;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 /* Runtime table */

@@ -24,6 +24,8 @@ interface SidebarProps {
   specAvailable: boolean;
   specViewOptions: SpecViewOptions;
   onSpecViewOptionsChange: (opts: SpecViewOptions) => void;
+  onSpecNodeSelect?: (nodeId: string) => void;
+  selectedSpecNodeId?: string | null;
 }
 
 const COLLAPSE_KEY = "ctxb_sidebar_collapsed";
@@ -63,6 +65,8 @@ export default function Sidebar({
   specAvailable,
   specViewOptions,
   onSpecViewOptionsChange,
+  onSpecNodeSelect,
+  selectedSpecNodeId,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(() => {
     return sessionStorage.getItem(COLLAPSE_KEY) === "true";
@@ -198,7 +202,7 @@ export default function Sidebar({
           {/* Spec view controls — only in specifications mode */}
           {graphMode === "specifications" && (
             <div className="sidebar-spec-controls">
-              {/* Tree / Canonical sub-mode switcher */}
+              {/* Tree / Linear / Canonical sub-mode switcher */}
               <div className="sidebar-mode-switcher sidebar-spec-view-switcher">
                 <button
                   className={`sidebar-mode-btn spec-mode ${specViewOptions.viewMode === "tree" ? "active" : ""}`}
@@ -208,6 +212,15 @@ export default function Sidebar({
                   title="Tree Projection — inverted refines hierarchy"
                 >
                   Tree
+                </button>
+                <button
+                  className={`sidebar-mode-btn spec-mode ${specViewOptions.viewMode === "linear" ? "active" : ""}`}
+                  onClick={() =>
+                    onSpecViewOptionsChange({ ...specViewOptions, viewMode: "linear" })
+                  }
+                  title="Linear — all forward edges flow left-to-right"
+                >
+                  Linear
                 </button>
                 <button
                   className={`sidebar-mode-btn spec-mode ${specViewOptions.viewMode === "canonical" ? "active" : ""}`}
@@ -220,8 +233,8 @@ export default function Sidebar({
                 </button>
               </div>
 
-              {/* Toggles — only meaningful in tree mode */}
-              {specViewOptions.viewMode === "tree" && (
+              {/* Toggles — meaningful in tree and linear modes */}
+              {(specViewOptions.viewMode === "tree" || specViewOptions.viewMode === "linear") && (
                 <div className="sidebar-spec-toggles">
                   <label className="sidebar-toggle-label">
                     <input
@@ -236,19 +249,21 @@ export default function Sidebar({
                     />
                     Show Blocking
                   </label>
-                  <label className="sidebar-toggle-label">
-                    <input
-                      type="checkbox"
-                      checked={specViewOptions.showCrossLinks}
-                      onChange={(e) =>
-                        onSpecViewOptionsChange({
-                          ...specViewOptions,
-                          showCrossLinks: e.target.checked,
-                        })
-                      }
-                    />
-                    Show Cross-Links
-                  </label>
+                  {specViewOptions.viewMode === "tree" && (
+                    <label className="sidebar-toggle-label">
+                      <input
+                        type="checkbox"
+                        checked={specViewOptions.showCrossLinks}
+                        onChange={(e) =>
+                          onSpecViewOptionsChange({
+                            ...specViewOptions,
+                            showCrossLinks: e.target.checked,
+                          })
+                        }
+                      />
+                      Show Cross-Links
+                    </label>
+                  )}
                 </div>
               )}
             </div>
@@ -295,7 +310,11 @@ export default function Sidebar({
               <div className="sidebar-section-label">SPEC NODES</div>
               {loading && <div className="sidebar-loading">Loading…</div>}
               {specNodes.map((spec) => (
-                <div key={spec.node_id} className="sidebar-spec-item">
+                <div
+                  key={spec.node_id}
+                  className={`sidebar-spec-item${selectedSpecNodeId === spec.node_id ? " selected" : ""}`}
+                  onClick={() => onSpecNodeSelect?.(spec.node_id)}
+                >
                   <div className="sidebar-spec-id">{spec.node_id}</div>
                   <div className="sidebar-spec-title">{spec.title}</div>
                   <span className="sidebar-file-badge spec">

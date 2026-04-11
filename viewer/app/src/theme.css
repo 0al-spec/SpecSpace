@@ -66,6 +66,13 @@ body {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
+  transition: right 220ms ease, transform 220ms ease;
+}
+
+/* Shift minimap left when any inspector is open */
+.app-layout:has(.spec-inspector.visible) .react-flow__minimap,
+.app-layout:has(.inspector-overlay.visible) .react-flow__minimap {
+  transform: translateX(-450px);
 }
 
 /* App layout */

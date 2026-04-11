@@ -5,11 +5,13 @@ UI_PORT ?= 5173
 DIALOG_DIR ?=
 OUTPUT_DIR ?=
 CANONICAL_DIR ?= $(HOME)/Development/GitHub/ChatGPTDialogs/canonical_json
+SPEC_DIR ?= $(HOME)/Development/GitHub/0AL/SpecGraph/specs/nodes
 
-.PHONY: help serve api ui dev stop test lint canonicalize canon
+.PHONY: help serve api ui dev stop test lint canonicalize canon quickstart
 
 help:
 	@echo "Targets:"
+	@echo "  make quickstart              Canonicalize + run API + UI (all-in-one)"
 	@echo "  make serve DIALOG_DIR=/absolute/path/to/dialogs [PORT=8000]"
 	@echo "  make canonicalize DIALOG_DIR=/path/to/import_json OUTPUT_DIR=/path/to/canonical_json"
 	@echo "  make canon DIALOG_DIR=/path/to/import_json [OUTPUT_DIR=/tmp/canonical_json]"
@@ -26,7 +28,7 @@ serve:
 		echo "Example: make serve DIALOG_DIR=/absolute/path/to/ChatGPTDialogs/import_json"; \
 		exit 1; \
 	fi
-	@$(PYTHON) viewer/server.py --port $(PORT) --dialog-dir "$(DIALOG_DIR)"
+	@$(PYTHON) viewer/server.py --port $(PORT) --dialog-dir "$(DIALOG_DIR)" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",)
 
 canonicalize:
 	@if [ -z "$(DIALOG_DIR)" ] || [ -z "$(OUTPUT_DIR)" ]; then \
@@ -47,7 +49,7 @@ ui:
 
 dev:
 	@npm install --prefix viewer/app
-	@$(PYTHON) viewer/server.py --port "$(API_PORT)" --dialog-dir "$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))" & \
+	@$(PYTHON) viewer/server.py --port "$(API_PORT)" --dialog-dir "$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",) & \
 	api_pid=$$!; \
 	trap 'kill $$api_pid 2>/dev/null || true' EXIT INT TERM; \
 	npm run dev --prefix viewer/app -- --host 127.0.0.1 --port "$(UI_PORT)"
@@ -62,3 +64,10 @@ test:
 
 lint:
 	@$(PYTHON) -m py_compile $$(find viewer tests -name '*.py' | sort)
+
+quickstart:
+	@$(MAKE) canon DIALOG_DIR=/Users/egor/Development/GitHub/ChatGPTDialogs/import_json
+	@echo "✓ Canonicalized"
+	@$(MAKE) api & api_pid=$$!; \
+	trap 'kill $$api_pid 2>/dev/null || true' EXIT INT TERM; \
+	$(MAKE) ui

@@ -21,6 +21,11 @@
   box-shadow: 0 0 0 5px rgba(109, 40, 217, 0.1), 0 6px 16px rgba(60, 40, 100, 0.15);
 }
 
+.spec-node.search-dimmed {
+  opacity: 0.15;
+  transition: opacity 150ms ease;
+}
+
 /* Selected state — outline only, no border-width change to avoid layout shift */
 .spec-node.selected {
   outline: 2px solid var(--accent-strong, #6d28d9);
@@ -161,6 +166,7 @@
 }
 .spec-node .spec-handle-gap:hover {
   opacity: 1;
+  cursor: pointer;
 }
 /* CSS tooltip via data-tooltip */
 .spec-node .spec-handle-gap::after {
@@ -191,9 +197,10 @@
   opacity: 1;
 }
 
-/* Potential — same fill color at 60% opacity, dashed border */
+/* Potential — same fill color at 60% opacity, dashed border, clickable */
 .spec-node .spec-handle-potential {
   opacity: 0.6;
+  cursor: pointer;
 }
 .spec-node .spec-handle-potential.spec-handle-depends_on {
   border: 2px dashed #dc2626 !important;

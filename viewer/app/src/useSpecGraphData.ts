@@ -3,7 +3,7 @@ import type { Node, Edge } from "@xyflow/react";
 import type { ApiSpecGraph, SpecViewOptions } from "./types";
 import type { SpecNodeData } from "./SpecNode";
 import { SPEC_HANDLE_KINDS, type SpecHandleKind } from "./SpecNode";
-import { computeBasePositions } from "./layoutGraph";
+import { computeBasePositions, computeLinearPositions } from "./layoutGraph";
 
 // Spec node dimensions
 const SPEC_NODE_WIDTH = 220;
@@ -35,8 +35,15 @@ const TREE_BLOCKING_EDGE_STYLE: React.CSSProperties = {
 /** Tree mode: cross-link overlay (relates_to or cross-branch depends_on) */
 const TREE_CROSSLINK_STYLE: React.CSSProperties = {
   stroke: "#7c3aed",
-  strokeWidth: 1.5,
-  strokeDasharray: "3 5",
+  strokeWidth: 2.5,
+  strokeDasharray: "5 4",
+};
+
+/** Linear mode: backward relates_to (pointing to ancestor / left) */
+const LINEAR_BACKWARD_STYLE: React.CSSProperties = {
+  stroke: "#9b8ec4",
+  strokeWidth: 2.5,
+  strokeDasharray: "3 6",
 };
 
 const BROKEN_EDGE_STYLE: React.CSSProperties = {
@@ -74,41 +81,68 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
     fetchGraph();
   }, [fetchGraph]);
 
+  // SSE: re-fetch whenever spec files change on disk
+  useEffect(() => {
+    const es = new EventSource("/api/spec-watch");
+    es.addEventListener("change", () => fetchGraph());
+    es.onerror = () => {
+      // EventSource auto-reconnects; nothing to do here
+    };
+    return () => es.close();
+  }, [fetchGraph]);
+
   const { viewMode, showCrossLinks, showBlocking } = viewOptions;
 
   // -----------------------------------------------------------------------
-  // Dagre layout — topology-dependent, recomputed only when graph or mode changes
+  // Layout — topology-dependent, recomputed only when graph or mode changes
   // -----------------------------------------------------------------------
-  const basePositions = useMemo(() => {
-    if (!apiGraph) return new Map<string, { x: number; y: number }>();
+  const layoutResult = useMemo<{
+    positions: Map<string, { x: number; y: number }>;
+    backEdges: Set<string>;
+  }>(() => {
+    const empty = { positions: new Map<string, { x: number; y: number }>(), backEdges: new Set<string>() };
+    if (!apiGraph) return empty;
 
     const nodeIds = apiGraph.nodes.map((n) => n.node_id);
 
     if (viewMode === "canonical") {
-      // Canonical: all resolved edges drive layout
       const edgePairs = apiGraph.edges
         .filter((e) => e.status === "resolved")
         .map((e) => ({ source: e.source_id, target: e.target_id }));
-      return computeBasePositions(nodeIds, edgePairs, {
-        direction: "LR",
-        nodeSep: 60,
-        rankSep: 140,
-      });
+      return {
+        positions: computeBasePositions(nodeIds, edgePairs, { direction: "LR", nodeSep: 60, rankSep: 140 }),
+        backEdges: new Set<string>(),
+      };
     }
 
-    // Tree mode: inverted refines edges form the tree skeleton (LR: roots left, leaves right)
+    if (viewMode === "linear") {
+      // All forward edges: inverted refines + depends_on as-is + relates_to as-is
+      const resolved = apiGraph.edges.filter((e) => e.status === "resolved");
+      const allForward = [
+        ...resolved.filter((e) => e.edge_kind === "refines")
+          .map((e) => ({ source: e.target_id, target: e.source_id })), // invert
+        ...resolved.filter((e) => e.edge_kind === "depends_on")
+          .map((e) => ({ source: e.source_id, target: e.target_id })), // as-is
+        ...resolved.filter((e) => e.edge_kind === "relates_to")
+          .map((e) => ({ source: e.source_id, target: e.target_id })), // as-is
+      ];
+      const treeEdges = resolved.filter((e) => e.edge_kind === "refines")
+        .map((e) => ({ source: e.target_id, target: e.source_id }));
+      return computeLinearPositions(nodeIds, allForward, treeEdges);
+    }
+
+    // Tree mode
     const edgePairs = apiGraph.edges
       .filter((e) => e.status === "resolved" && e.edge_kind === "refines")
-      .map((e) => ({
-        source: e.target_id, // invert: parent → child
-        target: e.source_id,
-      }));
-    return computeBasePositions(nodeIds, edgePairs, {
-      direction: "LR",
-      nodeSep: 60,
-      rankSep: 140,
-    });
+      .map((e) => ({ source: e.target_id, target: e.source_id }));
+    return {
+      positions: computeBasePositions(nodeIds, edgePairs, { direction: "LR", nodeSep: 60, rankSep: 140 }),
+      backEdges: new Set<string>(),
+    };
   }, [apiGraph, viewMode]);
+
+  const basePositions = layoutResult.positions;
+  const linearBackEdges = layoutResult.backEdges;
 
   // -----------------------------------------------------------------------
   // Build React Flow nodes + edges
@@ -118,7 +152,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
 
     // Determine which handle kinds are visible based on mode + toggles
     let visibleKinds: readonly SpecHandleKind[];
-    if (viewMode === "canonical") {
+    if (viewMode === "canonical" || viewMode === "linear") {
       visibleKinds = SPEC_HANDLE_KINDS; // all three
     } else {
       // Tree mode: always show refines (tree skeleton)
@@ -188,6 +222,71 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
           animated: isBroken,
           zIndex: 1,
           style,
+        });
+      }
+    } else if (viewMode === "linear") {
+      // ── Linear mode ──
+      // All forward edges rendered; relates_to that point backward get distinct style.
+      // Use basePositions x-coordinate to determine direction.
+
+      // (1) Tree edges from inverted refines (parent → child)
+      for (const e of refinesEdges) {
+        if (e.status === "broken") continue;
+        const parentId = e.target_id;
+        const childId = e.source_id;
+        const pairKey = `${parentId}::${childId}`;
+        const isBlocking = pairedBlockingSet.has(pairKey);
+        markActive(parentId, childId, "refines");
+        allEdges.push({
+          id: `tree-${e.edge_id}`,
+          source: parentId,
+          target: childId,
+          sourceHandle: "src-refines",
+          targetHandle: "tgt-refines",
+          label: isBlocking && showBlocking ? "blocking" : undefined,
+          type: "default",
+          animated: false,
+          zIndex: 2,
+          style: isBlocking && showBlocking ? TREE_BLOCKING_EDGE_STYLE : TREE_EDGE_STYLE,
+        });
+      }
+
+      // (2) depends_on (not paired blocking)
+      for (const d of dependsOnEdges) {
+        if (d.status === "broken") continue;
+        const pairKey = `${d.source_id}::${d.target_id}`;
+        if (pairedBlockingSet.has(pairKey)) continue;
+        markActive(d.source_id, d.target_id, "depends_on");
+        allEdges.push({
+          id: `lin-dep-${d.edge_id}`,
+          source: d.source_id,
+          target: d.target_id,
+          sourceHandle: "src-depends_on",
+          targetHandle: "tgt-depends_on",
+          label: "depends_on",
+          type: "default",
+          animated: false,
+          zIndex: 1,
+          style: CANONICAL_EDGE_STYLES.depends_on,
+        });
+      }
+
+      // (3) relates_to — use linearBackEdges to detect backward
+      for (const r of relatesToEdges) {
+        if (r.status === "broken") continue;
+        const isBackward = linearBackEdges.has(`${r.source_id}::${r.target_id}`);
+        markActive(r.source_id, r.target_id, "relates_to");
+        allEdges.push({
+          id: `lin-rel-${r.edge_id}`,
+          source: r.source_id,
+          target: r.target_id,
+          sourceHandle: "src-relates_to",
+          targetHandle: "tgt-relates_to",
+          label: "relates_to",
+          type: "default",
+          animated: false,
+          zIndex: 0,
+          style: isBackward ? LINEAR_BACKWARD_STYLE : TREE_CROSSLINK_STYLE,
         });
       }
     } else {

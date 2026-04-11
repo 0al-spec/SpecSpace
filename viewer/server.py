@@ -6,9 +6,11 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import os
 import shutil
 import subprocess
 import sys
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -1112,6 +1114,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/spec-graph":
             self.handle_spec_graph()
             return
+        if parsed.path == "/api/spec-watch":
+            self.handle_spec_watch()
+            return
         if parsed.path == "/api/spec-node":
             self.handle_spec_node(parsed)
             return
@@ -1398,6 +1403,64 @@ class ViewerHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format: str, *args) -> None:
         return
+
+    def handle_spec_watch(self) -> None:
+        """SSE endpoint: streams a 'change' event whenever spec files are modified."""
+        if self.server.spec_dir is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "Spec graph not configured. Start the server with --spec-dir."},
+            )
+            return
+
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Accel-Buffering", "no")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+
+        def get_mtimes(directory: Path) -> dict[str, float]:
+            result: dict[str, float] = {}
+            try:
+                with os.scandir(directory) as entries:
+                    for entry in entries:
+                        if entry.is_file() and entry.name.endswith((".yaml", ".yml")):
+                            result[entry.name] = entry.stat().st_mtime
+            except OSError:
+                pass
+            return result
+
+        def send(line: bytes) -> bool:
+            try:
+                self.wfile.write(line)
+                self.wfile.flush()
+                return True
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                return False
+
+        if not send(b": connected\n\n"):
+            return
+
+        last_mtimes = get_mtimes(self.server.spec_dir)
+        keepalive_counter = 0
+
+        while True:
+            time.sleep(1)
+            keepalive_counter += 1
+
+            current_mtimes = get_mtimes(self.server.spec_dir)
+            if current_mtimes != last_mtimes:
+                last_mtimes = current_mtimes
+                if not send(b"event: change\ndata: {}\n\n"):
+                    return
+                keepalive_counter = 0
+            elif keepalive_counter >= 15:
+                # Comment-only keepalive to prevent proxy timeouts
+                if not send(b": keepalive\n\n"):
+                    return
+                keepalive_counter = 0
 
 
 def main() -> None:

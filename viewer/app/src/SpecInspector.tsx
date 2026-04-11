@@ -1,19 +1,44 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import "./SpecNode.css";
 import "./SpecInspector.css";
 
 interface SpecInspectorProps {
   selectedNodeId: string | null;
-  onDismiss: () => void;
+  onDismiss?: () => void;
+  onFocusNode?: (nodeId: string) => void;
 }
 
 // Raw YAML payload from /api/spec-node
 type SpecDetail = Record<string, unknown>;
 
-export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspectorProps) {
+export default function SpecInspector({ selectedNodeId, onFocusNode }: SpecInspectorProps) {
   const [detail, setDetail] = useState<SpecDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [width, setWidth] = useState(440);
+  const dragStartRef = useRef<{ x: number; w: number; maxW: number } | null>(null);
+
+  const onHandleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const sidebar = document.querySelector<HTMLElement>(".sidebar");
+    const sidebarRight = sidebar ? sidebar.getBoundingClientRect().right : 0;
+    const maxW = Math.min(window.innerWidth / 2, window.innerWidth - sidebarRight);
+    dragStartRef.current = { x: e.clientX, w: width, maxW };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!dragStartRef.current) return;
+      const delta = dragStartRef.current.x - ev.clientX;
+      const next = Math.min(Math.max(280, dragStartRef.current.w + delta), dragStartRef.current.maxW);
+      setWidth(next);
+    };
+    const onUp = () => {
+      dragStartRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [width]);
 
   useEffect(() => {
     if (!selectedNodeId) {
@@ -39,37 +64,64 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
 
   const visible = Boolean(selectedNodeId);
 
-  const acceptance = Array.isArray(detail?.acceptance)
-    ? (detail!.acceptance as string[])
-    : [];
+  const acceptanceRaw = Array.isArray(detail?.acceptance) ? (detail!.acceptance as unknown[]) : [];
+  const acceptance = acceptanceRaw.map((item) =>
+    typeof item === "string"
+      ? { text: item, malformed: false }
+      : { text: JSON.stringify(item, null, 2), malformed: true }
+  );
   const evidence = Array.isArray(detail?.acceptance_evidence)
     ? (detail!.acceptance_evidence as Array<Record<string, unknown>>)
     : [];
 
   // Compute gap sets from available data
   const metCriteria = new Set(
-    evidence.map((ev) => String(ev.criterion ?? "").trim()).filter(Boolean)
+    evidence.map((ev) => String(ev.criterion ?? "").trim()).filter(Boolean),
   );
   const inputs = Array.isArray(detail?.inputs)
     ? (detail!.inputs as unknown[]).map(String)
     : [];
   const executionGap = detail != null && detail.last_outcome == null;
 
+  const hasLinks = [detail?.depends_on, detail?.refines, detail?.relates_to].some(
+    (v) => Array.isArray(v) && (v as unknown[]).length > 0,
+  );
+
+  const objective = (() => {
+    const spec = detail?.specification as Record<string, unknown> | null | undefined;
+    const obj = spec?.objective ?? (detail as Record<string, unknown> | null)?.objective;
+    return obj ? String(obj) : null;
+  })();
+
+  const scope = (() => {
+    if (!detail) return null;
+    const spec = detail.specification as Record<string, unknown> | null | undefined;
+    const raw = (detail.scope ?? spec?.scope) as Record<string, unknown> | null | undefined;
+    if (!raw) return null;
+    return {
+      in: Array.isArray(raw.in) ? (raw.in as unknown[]).map(String) : raw.in ? [String(raw.in)] : [] as string[],
+      out: Array.isArray(raw.out) ? (raw.out as unknown[]).map(String) : raw.out ? [String(raw.out)] : [] as string[],
+    };
+  })();
+
   return (
-    <aside className={`spec-inspector ${visible ? "visible" : ""}`}>
-      <button className="spec-inspector-close" onClick={onDismiss} title="Close">
-        ✕
-      </button>
+    <aside className={`spec-inspector ${visible ? "visible" : ""}`} style={{ width: `${width}px` }}>
+      <div className="spec-inspector-resize-handle" onMouseDown={onHandleMouseDown} />
 
       {loading && <div className="spec-inspector-loading">Loading…</div>}
       {error && <div className="spec-inspector-error">Error: {error}</div>}
 
       {detail && !loading && (
         <div className="spec-inspector-content">
-          {/* Header card */}
-          <div className={`spec-inspector-card spec-node status-${str(detail.status)}`}>
-            <div className="spec-node-id">{str(detail.id)}</div>
-            <div className="spec-node-title">{str(detail.title)}</div>
+          {/* 1+2. Header card: title + objective + status + maturity */}
+          <div className={`spec-inspector-header-card spec-node status-${str(detail.status)}`}>
+            <div
+              className={`spec-node-id${onFocusNode ? " node-link" : ""}`}
+              onClick={onFocusNode ? () => onFocusNode(str(detail.id)) : undefined}
+              title={onFocusNode ? "Focus node on graph" : undefined}
+            >{str(detail.id)}</div>
+            <h2 className="spec-inspector-main-title">{str(detail.title)}</h2>
+            {objective && <p className="spec-inspector-objective">{objective}</p>}
             <div className="spec-node-meta">
               <span className="spec-node-kind-badge">{str(detail.kind)}</span>
               <span className={`spec-node-status-badge status-${str(detail.status)}`}>
@@ -91,53 +143,78 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
             ) : null}
           </div>
 
-          {/* Edge lists */}
-          <FieldList label="depends_on" value={detail.depends_on} />
-          <FieldList label="refines" value={detail.refines} />
-          <FieldList label="relates_to" value={detail.relates_to} />
+          {/* 3. Links box */}
+          {hasLinks && (
+            <div className="spec-inspector-box">
+              <FieldList label="depends_on" value={detail.depends_on} onNodeClick={onFocusNode} inline />
+              <FieldList label="refines" value={detail.refines} onNodeClick={onFocusNode} inline />
+              <FieldList label="relates_to" value={detail.relates_to} onNodeClick={onFocusNode} inline />
+            </div>
+          )}
 
-          {/* Acceptance criteria — unmet ones highlighted */}
+          {/* 4. Scope box */}
+          {scope && (scope.in.length > 0 || scope.out.length > 0) ? (
+            <div className="spec-inspector-box">
+              <div className="spec-inspector-box-label">Scope</div>
+              {scope.in.length > 0 && (
+                <div className="spec-inspector-scope-group">
+                  <div className="spec-inspector-scope-label scope-in">In scope</div>
+                  <ul className="spec-inspector-scope-list">
+                    {scope.in.map((item, i) => <li key={i}>{item}</li>)}
+                  </ul>
+                </div>
+              )}
+              {scope.out.length > 0 && (
+                <div className="spec-inspector-scope-group">
+                  <div className="spec-inspector-scope-label scope-out">Out of scope</div>
+                  <ul className="spec-inspector-scope-list">
+                    {scope.out.map((item, i) => <li key={i}>{item}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {/* 5. Acceptance box */}
           {acceptance.length > 0 && (
-            <section>
-              <div className="spec-inspector-section">Acceptance</div>
+            <div className="spec-inspector-box">
+              <div className="spec-inspector-box-label">Acceptance</div>
               <ol className="spec-inspector-list">
-                {acceptance.map((c, i) => {
-                  const unmet = evidence.length > 0 && !metCriteria.has(c.trim());
+                {acceptance.map(({ text, malformed }, i) => {
+                  const unmet = !malformed && evidence.length > 0 && !metCriteria.has(text.trim());
                   return (
-                    <li key={i} className={`spec-inspector-list-item${unmet ? " gap-unmet" : ""}`}>
+                    <li key={i} className={`spec-inspector-list-item${unmet ? " gap-unmet" : ""}${malformed ? " format-error" : ""}`}>
                       {unmet && <span className="gap-dot" title="No evidence">●</span>}
-                      {String(c)}
+                      {malformed
+                        ? <MalformedBadge raw={text} />
+                        : text}
                     </li>
                   );
                 })}
               </ol>
-            </section>
+            </div>
           )}
 
-          {/* Evidence */}
-          {evidence.length > 0 ? (
-            <section>
-              <div className="spec-inspector-section">Evidence</div>
-              {evidence.map((ev, i) => (
-                <div key={i} className="spec-inspector-evidence">
-                  <div className="spec-inspector-evidence-criterion">{str(ev.criterion)}</div>
-                  {Boolean(ev.evidence) ? (
-                    <div className="spec-inspector-evidence-text">{str(ev.evidence)}</div>
-                  ) : null}
-                </div>
-              ))}
-            </section>
-          ) : null}
+          {/* 6. Evidence — collapsible box */}
+          {evidence.length > 0 && (
+            <EvidenceSection evidence={evidence} />
+          )}
 
-          {/* Inputs — raw file inputs highlighted */}
+          {/* — secondary — */}
           {inputs.length > 0 ? (
             <section>
               <div className="spec-inspector-section">inputs</div>
               <ul className="spec-inspector-tags">
                 {inputs.map((inp) => {
                   const isRaw = !inp.includes("nodes/");
+                  const nodeId = !isRaw ? extractNodeId(inp) : null;
                   return (
-                    <li key={inp} className={`spec-inspector-tag${isRaw ? " gap-input" : ""}`}>
+                    <li
+                      key={inp}
+                      className={`spec-inspector-tag${isRaw ? " gap-input" : ""}${nodeId && onFocusNode ? " node-link" : ""}`}
+                      onClick={nodeId && onFocusNode ? () => onFocusNode(nodeId) : undefined}
+                      title={nodeId ? `Focus ${nodeId} on graph` : undefined}
+                    >
                       {inp}
                     </li>
                   );
@@ -146,10 +223,8 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
             </section>
           ) : null}
 
-          {/* Outputs */}
-          <FieldList label="outputs" value={detail.outputs} />
+          <FieldList label="outputs" value={detail.outputs} onNodeClick={onFocusNode} />
 
-          {/* Prompt */}
           {detail.prompt ? (
             <section>
               <div className="spec-inspector-section">Prompt</div>
@@ -157,7 +232,6 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
             </section>
           ) : null}
 
-          {/* Runtime state — execution gap highlighted */}
           <section>
             <div className="spec-inspector-section">Runtime</div>
             <table className="spec-inspector-table">
@@ -172,7 +246,6 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
             </table>
           </section>
 
-          {/* Raw specification block */}
           {detail.specification ? (
             <section>
               <div className="spec-inspector-section">Specification (raw)</div>
@@ -189,23 +262,86 @@ export default function SpecInspector({ selectedNodeId, onDismiss }: SpecInspect
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+function MalformedBadge({ raw }: { raw: string }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <span className="malformed-field">
+      <span
+        className="malformed-badge"
+        onClick={() => setExpanded((v) => !v)}
+        title="Malformed field — click to inspect"
+      >FORMAT ERROR</span>
+      {expanded && <pre className="malformed-raw">{raw}</pre>}
+    </span>
+  );
+}
+
 function str(v: unknown): string {
   if (v == null) return "—";
   return String(v);
 }
 
-function FieldList({ label, value }: { label: string; value: unknown }) {
-  const items = Array.isArray(value) ? (value as unknown[]).map(String).filter(Boolean) : [];
-  if (items.length === 0) return null;
-  return (
-    <section>
-      <div className="spec-inspector-section">{label}</div>
+/** Strip path prefix and extension to get bare node ID (e.g. "specs/nodes/SG-SPEC-0002.yaml" → "SG-SPEC-0002") */
+function extractNodeId(item: string): string {
+  return item.replace(/^.*nodes\//, "").replace(/\.[^.]+$/, "");
+}
+
+function FieldList({ label, value, onNodeClick, inline }: { label: string; value: unknown; onNodeClick?: (id: string) => void; inline?: boolean }) {
+  const rawItems = Array.isArray(value) ? (value as unknown[]) : [];
+  if (rawItems.length === 0) return null;
+  const tags = (
+    <>
+      <div className={inline ? "spec-inspector-box-label" : "spec-inspector-section"}>{label}</div>
       <ul className="spec-inspector-tags">
-        {items.map((item) => (
-          <li key={item} className="spec-inspector-tag">{item}</li>
-        ))}
+        {rawItems.map((raw, i) => {
+          if (typeof raw !== "string") {
+            return (
+              <li key={i} className="spec-inspector-tag format-error">
+                <MalformedBadge raw={JSON.stringify(raw, null, 2)} />
+              </li>
+            );
+          }
+          const item = raw;
+          const nodeId = extractNodeId(item);
+          const clickable = Boolean(onNodeClick);
+          return (
+            <li
+              key={item}
+              className={`spec-inspector-tag${clickable ? " node-link" : ""}`}
+              onClick={clickable ? () => onNodeClick!(nodeId) : undefined}
+              title={clickable ? `Focus ${nodeId} on graph` : undefined}
+            >
+              {item}
+            </li>
+          );
+        })}
       </ul>
-    </section>
+    </>
+  );
+  return inline ? <div className="spec-inspector-field-group">{tags}</div> : <section>{tags}</section>;
+}
+
+function EvidenceSection({ evidence }: { evidence: Array<Record<string, unknown>> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`spec-inspector-box spec-inspector-box-collapsible${open ? " open" : ""}`}>
+      <button className="spec-inspector-box-toggle" onClick={() => setOpen((v) => !v)}>
+        <span className="spec-inspector-box-label">Evidence ({evidence.length})</span>
+        <span className="spec-inspector-toggle-icon">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="spec-inspector-evidence-list">
+          {evidence.map((ev, i) => (
+            <div key={i} className="spec-inspector-evidence-item">
+              <div className="spec-inspector-evidence-criterion">{str(ev.criterion)}</div>
+              {Boolean(ev.evidence) && (
+                <div className="spec-inspector-evidence-text">{str(ev.evidence)}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
