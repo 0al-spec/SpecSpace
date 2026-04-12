@@ -220,36 +220,14 @@ def validate_file_name(name: str) -> tuple[NormalizationError, ...]:
     return ()
 
 
-def collect_normalization_errors(payload: dict[str, Any]) -> tuple[NormalizationError, ...]:
-    if not _is_mapping(payload):
-        return (NormalizationError("invalid_payload", "Payload must be a JSON object."),)
+def _validate_messages(messages: list[Any], errors: list[NormalizationError]) -> list[str]:
+    """Validate each item in *messages*, appending errors to *errors* in-place.
 
-    if is_canonical_conversation(payload):
-        return ()
-
-    errors: list[NormalizationError] = []
-    missing_fields = [field for field in IMPORTED_ROOT_REQUIRED_FIELDS if field not in payload]
-    if missing_fields:
-        errors.append(
-            NormalizationError(
-                "missing_top_level_fields",
-                f"Imported conversation is missing required top-level fields: {', '.join(missing_fields)}.",
-            )
-        )
-
-    messages = payload.get("messages")
-    if not isinstance(messages, list):
-        errors.append(NormalizationError("invalid_messages", "`messages` must be a list."))
-        return tuple(errors)
-
-    if payload.get("message_count") != len(messages):
-        errors.append(
-            NormalizationError(
-                "message_count_mismatch",
-                "`message_count` does not match the number of messages.",
-            )
-        )
-
+    Returns the list of valid ``message_id`` values encountered (for duplicate
+    detection by the caller).  Validation stops for each individual message on
+    the first structural error (missing fields, bad id, etc.) so that subsequent
+    checks are not run against incomplete data.
+    """
     message_ids: list[str] = []
     for index, message in enumerate(messages):
         if not _is_mapping(message):
@@ -299,12 +277,45 @@ def collect_normalization_errors(payload: dict[str, Any]) -> tuple[Normalization
             continue
 
         message_ids.append(message["message_id"])
+    return message_ids
 
+
+def collect_normalization_errors(payload: dict[str, Any]) -> tuple[NormalizationError, ...]:
+    if not _is_mapping(payload):
+        return (NormalizationError("invalid_payload", "Payload must be a JSON object."),)
+
+    if is_canonical_conversation(payload):
+        return ()
+
+    errors: list[NormalizationError] = []
+    missing_fields = [field for field in IMPORTED_ROOT_REQUIRED_FIELDS if field not in payload]
+    if missing_fields:
+        errors.append(
+            NormalizationError(
+                "missing_top_level_fields",
+                f"Imported conversation is missing required top-level fields: {', '.join(missing_fields)}.",
+            )
+        )
+
+    messages = payload.get("messages")
+    if not isinstance(messages, list):
+        errors.append(NormalizationError("invalid_messages", "`messages` must be a list."))
+        return tuple(errors)
+
+    if payload.get("message_count") != len(messages):
+        errors.append(
+            NormalizationError(
+                "message_count_mismatch",
+                "`message_count` does not match the number of messages.",
+            )
+        )
+
+    message_ids = _validate_messages(messages, errors)
     if len(message_ids) != len(set(message_ids)):
         errors.append(
             NormalizationError(
                 "duplicate_message_ids",
-                "Imported conversation contains duplicate `message_id` values.",
+                "Conversation contains duplicate `message_id` values.",
             )
         )
 
@@ -337,64 +348,15 @@ def collect_canonical_validation_errors(payload: dict[str, Any]) -> tuple[Normal
         errors.append(NormalizationError("invalid_title", "Canonical conversation `title` must be a string."))
 
     messages = payload.get("messages")
-    message_ids: list[str] = []
     if "messages" in payload and not isinstance(messages, list):
         errors.append(NormalizationError("invalid_messages", "`messages` must be a list."))
     elif isinstance(messages, list):
-        for index, message in enumerate(messages):
-            if not _is_mapping(message):
-                errors.append(
-                    NormalizationError(
-                        "invalid_message_payload",
-                        f"Message at index {index} is not a JSON object.",
-                    )
-                )
-                continue
-
-            missing_message_fields = [field for field in MESSAGE_REQUIRED_FIELDS if field not in message]
-            if missing_message_fields:
-                errors.append(
-                    NormalizationError(
-                        "missing_message_fields",
-                        f"Message at index {index} is missing required fields: {', '.join(missing_message_fields)}.",
-                    )
-                )
-                continue
-
-            if not _is_non_empty_string(message.get("message_id")):
-                errors.append(
-                    NormalizationError(
-                        "invalid_message_id",
-                        f"Message at index {index} has an invalid `message_id`.",
-                    )
-                )
-                continue
-
-            if not _is_non_empty_string(message.get("role")):
-                errors.append(
-                    NormalizationError(
-                        "invalid_message_role",
-                        f"Message at index {index} has an invalid `role`.",
-                    )
-                )
-                continue
-
-            if not isinstance(message.get("content"), str):
-                errors.append(
-                    NormalizationError(
-                        "invalid_message_content",
-                        f"Message at index {index} has invalid `content`.",
-                    )
-                )
-                continue
-
-            message_ids.append(message["message_id"])
-
+        message_ids = _validate_messages(messages, errors)
         if len(message_ids) != len(set(message_ids)):
             errors.append(
                 NormalizationError(
                     "duplicate_message_ids",
-                    "Canonical conversation contains duplicate `message_id` values.",
+                    "Conversation contains duplicate `message_id` values.",
                 )
             )
 

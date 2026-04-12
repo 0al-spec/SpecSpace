@@ -1023,7 +1023,8 @@ Intent: address the known architectural and code quality problems identified in 
   - `mypy viewer/` passes with no errors on the new types.
   - All existing tests pass.
 
-### CTXB-P7-T4 — Extract shared message validation helper in schema.py
+### ✅ CTXB-P7-T4 — Extract shared message validation helper in schema.py
+- **Status:** DONE (2026-04-12, PASS)
 - **Description:** `collect_normalization_errors()` and `collect_canonical_validation_errors()` each contain ~60 lines of nearly identical message-validation logic. Extract it into a private `_validate_messages(messages, errors)` helper used by both callers.
 - **Priority:** P1
 - **Dependencies:** none
