@@ -136,7 +136,6 @@ class TestInvokeHyperprompt(unittest.TestCase):
             td_path = Path(td)
             export_dir = self._make_export_dir(td_path)
             default_binary = td_path / ".build" / "release" / "hyperprompt"
-            expected_arm64 = td_path / ".build" / "arm64-apple-macosx" / "release" / "hyperprompt"
 
             original_default = server.DEFAULT_HYPERPROMPT_BINARY
             try:
@@ -147,8 +146,12 @@ class TestInvokeHyperprompt(unittest.TestCase):
 
         self.assertEqual(status, HTTPStatus.UNPROCESSABLE_ENTITY)
         self.assertIn("Hyperprompt not found", payload["error"])
+        # The configured (default) path must always appear in checked_paths.
         self.assertIn(str(default_binary), payload["checked_paths"])
-        self.assertIn(str(expected_arm64), payload["checked_paths"])
+        # Arch-specific subdirectories are found via glob only when they exist;
+        # since none were created in this tmpdir, only the configured path and
+        # the deps fallback are checked (deps may be deduplicated if it equals default).
+        self.assertGreaterEqual(len(payload["checked_paths"]), 1)
 
     def test_explicit_binary_override_does_not_use_default_fallbacks(self):
         with tempfile.TemporaryDirectory() as td:
