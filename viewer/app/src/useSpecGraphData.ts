@@ -8,7 +8,7 @@ import type { SpecSubItemNodeData } from "./SpecSubItemNode";
 import { computeBasePositions, computeLinearPositions } from "./layoutGraph";
 
 // Spec node dimensions
-const SPEC_NODE_WIDTH = 220;
+const SPEC_NODE_WIDTH = 280;
 const SPEC_NODE_HEIGHT = 130;
 
 // Expanded spec group layout constants
@@ -16,7 +16,7 @@ const EXP_HEADER_H = 44;
 const EXP_ITEM_H = 24;
 const EXP_ITEM_GAP = 4;
 const EXP_PAD = 10;
-const EXP_GROUP_W = 268;
+const EXP_GROUP_W = 280;
 
 interface SubItemSpec {
   subKind: SpecSubItemNodeData["subKind"];
