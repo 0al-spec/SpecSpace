@@ -6,7 +6,11 @@ import type { SpecHandleKind } from "./SpecNode";
 export interface ExpandedSpecGroupData extends Record<string, unknown> {
   nodeId: string;
   title: string;
+  kind: string;
   status: string;
+  maturity: number | null;
+  hasBrokenEdges: boolean;
+  refinedByCount: number;
   onToggleExpand: (nodeId: string) => void;
   visibleHandleKinds: readonly SpecHandleKind[];
   activeSourceKinds: Set<string>;
@@ -15,14 +19,20 @@ export interface ExpandedSpecGroupData extends Record<string, unknown> {
 
 export type ExpandedSpecNodeType = Node<ExpandedSpecGroupData, "expandedSpec">;
 
-/** Evenly-spaced top% for N slots in the handle area (top 60% of node) */
+const STATUS_LABELS: Record<string, string> = {
+  idea: "idea", stub: "stub", outlined: "outlined", specified: "specified",
+  linked: "linked", reviewed: "reviewed", frozen: "frozen",
+};
+
+/** Evenly-spaced top% for N handle slots within the top 50% of the node height */
 function handleTops(count: number): number[] {
-  const areaFrac = 0.5; // handles occupy top 50% of the group height
+  const areaFrac = 0.5;
   return Array.from({ length: count }, (_, i) => ((i + 1) / (count + 1)) * areaFrac * 100);
 }
 
 export default function ExpandedSpecNode({ data, selected }: NodeProps<ExpandedSpecNodeType>) {
   const statusClass = `status-${data.status}`;
+  const statusLabel = STATUS_LABELS[data.status] ?? data.status;
   const kinds = data.visibleHandleKinds;
   const tops = handleTops(kinds.length);
 
@@ -44,20 +54,55 @@ export default function ExpandedSpecNode({ data, selected }: NodeProps<ExpandedS
         );
       })}
 
-      {/* Header */}
-      <div className="expanded-spec-node-header">
-        <span className="expanded-spec-node-id">{data.nodeId}</span>
-        <span className="expanded-spec-node-title">{data.title}</span>
-        <button
-          className="expanded-spec-node-collapse"
-          onClick={(e) => {
-            e.stopPropagation();
-            data.onToggleExpand(data.nodeId);
-          }}
-          title="Collapse"
-        >
-          ▾
-        </button>
+      {/* Collapse button — top-right, always visible */}
+      <button
+        className="expanded-spec-node-collapse"
+        onClick={(e) => {
+          e.stopPropagation();
+          data.onToggleExpand(data.nodeId);
+        }}
+        title="Collapse"
+      >
+        ▾
+      </button>
+
+      {/* ── Same content as collapsed SpecNode ── */}
+      <div className="expanded-spec-node-body">
+        {/* ID badge */}
+        <div className="spec-node-id">{data.nodeId}</div>
+
+        {/* Title */}
+        <div className="spec-node-title">{data.title}</div>
+
+        {/* Kind + status badges */}
+        <div className="spec-node-meta">
+          <span className="spec-node-kind-badge">{data.kind}</span>
+          <span className={`spec-node-status-badge ${statusClass}`}>{statusLabel}</span>
+          {data.hasBrokenEdges && (
+            <span className="spec-node-status-badge status-stub" title="Broken edge references">⚠ broken</span>
+          )}
+          {data.refinedByCount > 0 && (
+            <span className="spec-node-status-badge spec-node-refined-by" title={`Refined by ${data.refinedByCount} child spec${data.refinedByCount > 1 ? "s" : ""}`}>
+              ↳ {data.refinedByCount}
+            </span>
+          )}
+        </div>
+
+        {/* Maturity bar */}
+        {data.maturity !== null && (
+          <div className="spec-node-maturity">
+            <div className="spec-node-maturity-label">maturity {Math.round(data.maturity * 100)}%</div>
+            <div className="spec-node-maturity-track">
+              <div
+                className="spec-node-maturity-fill"
+                style={{ width: `${Math.min(1, Math.max(0, data.maturity)) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Divider before sub-items */}
+        <div className="expanded-spec-node-divider" />
       </div>
 
       {/* Source handles (right) — same IDs as collapsed SpecNode */}

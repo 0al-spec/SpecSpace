@@ -12,7 +12,8 @@ const SPEC_NODE_WIDTH = 280;
 const SPEC_NODE_HEIGHT = 130;
 
 // Expanded spec group layout constants
-const EXP_HEADER_H = 44;
+// EXP_BODY_H: height of the spec content block (mirrors collapsed node ~130px)
+const EXP_BODY_H = SPEC_NODE_HEIGHT;
 const EXP_ITEM_H = 24;
 const EXP_ITEM_GAP = 4;
 const EXP_PAD = 10;
@@ -480,13 +481,17 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
         const n = subItems.length;
         const GRP_H =
           n === 0
-            ? EXP_HEADER_H + EXP_PAD * 2 + EXP_ITEM_H // empty placeholder row
-            : EXP_HEADER_H + EXP_PAD + n * EXP_ITEM_H + (n - 1) * EXP_ITEM_GAP + EXP_PAD;
+            ? EXP_BODY_H + EXP_PAD * 2 + EXP_ITEM_H // spec content + empty placeholder row
+            : EXP_BODY_H + EXP_PAD + n * EXP_ITEM_H + (n - 1) * EXP_ITEM_GAP + EXP_PAD;
 
         const groupData: ExpandedSpecGroupData = {
           nodeId: apiNode.node_id,
           title: apiNode.title,
+          kind: apiNode.kind,
           status: apiNode.status,
+          maturity: apiNode.maturity,
+          hasBrokenEdges: apiNode.diagnostics.length > 0,
+          refinedByCount: refinedByCount.get(apiNode.node_id) ?? 0,
           onToggleExpand,
           visibleHandleKinds: visibleKinds,
           activeSourceKinds: activeSourceKinds.get(apiNode.node_id) ?? new Set(),
@@ -516,7 +521,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
             type: "specSubItem",
             position: {
               x: EXP_PAD,
-              y: EXP_HEADER_H + EXP_PAD + i * (EXP_ITEM_H + EXP_ITEM_GAP),
+              y: EXP_BODY_H + EXP_PAD + i * (EXP_ITEM_H + EXP_ITEM_GAP),
             },
             parentId: apiNode.node_id,
             extent: "parent" as const,

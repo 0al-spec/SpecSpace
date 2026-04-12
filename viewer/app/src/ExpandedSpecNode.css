@@ -19,47 +19,19 @@
 }
 
 /* Status-based border colours (mirrors SpecNode) */
-.expanded-spec-node.status-idea       { border-color: #888;    background: #f5f5f5; }
-.expanded-spec-node.status-stub       { border-color: #d4910a; background: #fffbeb; }
-.expanded-spec-node.status-outlined   { border-color: #2e76cc; background: #eff6ff; }
-.expanded-spec-node.status-specified  { border-color: #5b3ec8; background: #f5f3ff; }
-.expanded-spec-node.status-linked     { border-color: #1e9145; background: #f0fdf4; }
-.expanded-spec-node.status-reviewed   { border-color: #0e8a7c; background: #f0fdfa; }
-.expanded-spec-node.status-frozen     { border-color: #3a4f6a; background: #f1f5f9; }
+.expanded-spec-node.status-idea       { border-color: #888;    background: #f2f2f2; }
+.expanded-spec-node.status-stub       { border-color: #d4910a; background: #fef3d0; }
+.expanded-spec-node.status-outlined   { border-color: #2e76cc; background: #e6f0fc; }
+.expanded-spec-node.status-specified  { border-color: #5b3ec8; background: #ede8fc; }
+.expanded-spec-node.status-linked     { border-color: #1e9145; background: #e2f7e9; }
+.expanded-spec-node.status-reviewed   { border-color: #0e8a7c; background: #daf4f0; }
+.expanded-spec-node.status-frozen     { border-color: #3a4f6a; background: #eaeff5; }
 
-/* ── Header ── */
-.expanded-spec-node-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px 6px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  height: 44px;
-  box-sizing: border-box;
-}
-
-.expanded-spec-node-id {
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  flex-shrink: 0;
-  font-family: "Courier New", Courier, monospace;
-}
-
-.expanded-spec-node-title {
-  font-size: 11px;
-  font-weight: 700;
-  font-family: Georgia, serif;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-  color: var(--text);
-}
-
+/* ── Collapse button — top-right, always visible ── */
 .expanded-spec-node-collapse {
+  position: absolute;
+  top: 6px;
+  right: 6px;
   background: none;
   border: none;
   cursor: pointer;
@@ -67,12 +39,24 @@
   color: var(--muted);
   padding: 2px 4px;
   border-radius: 3px;
-  flex-shrink: 0;
   line-height: 1;
+  z-index: 1;
 }
 .expanded-spec-node-collapse:hover {
   background: rgba(0, 0, 0, 0.06);
   color: var(--text);
+}
+
+/* ── Body — mirrors collapsed SpecNode padding ── */
+.expanded-spec-node-body {
+  padding: 14px 16px 0;
+}
+
+/* Divider between spec content and sub-items */
+.expanded-spec-node-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 8px 0 0;
 }
 
 /* ── Handles — reuse .spec-handle-* classes from SpecNode.css ── */
