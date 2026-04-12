@@ -1582,10 +1582,10 @@ def main() -> None:
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), ViewerHandler)
     server.repo_root = REPO_ROOT
-    server.dialog_dir = args.dialog_dir.resolve()
+    server.dialog_dir = args.dialog_dir.expanduser().resolve()
     server.dialog_dir.mkdir(parents=True, exist_ok=True)
     server.hyperprompt_binary = args.hyperprompt_binary
-    server.spec_dir = args.spec_dir.resolve() if args.spec_dir else None
+    server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
 
     print(f"Serving ContextBuilder at http://localhost:{args.port}/")
     print(f"Dialog folder: {server.dialog_dir}")
