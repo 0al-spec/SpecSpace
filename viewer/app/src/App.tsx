@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ErrorBoundary from "./ErrorBoundary";
 import {
   ReactFlow,
   Background,
@@ -527,52 +528,58 @@ function AppInner() {
             </div>
           )}
           {/* ReactFlow stays mounted during background refreshes to preserve zoom/pan */}
-          <ReactFlow
-            nodes={displayNodes}
-            edges={displayEdges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onNodeClick={onNodeClick}
-            onEdgeClick={onEdgeClick}
-            onPaneClick={onPaneClick}
-            onMoveEnd={onMoveEnd}
-            defaultViewport={savedViewport.current}
-            fitView={hasFitView}
-            minZoom={0.125}
-            style={{ opacity: loading && nodes.length > 0 ? 0.6 : 1, transition: "opacity 150ms" }}
-          >
-            <Background />
-            <Controls />
-            <MiniMap
-              nodeColor={minimapNodeColor}
-              maskColor="rgba(236, 227, 212, 0.7)"
-              pannable
-              zoomable
-              onClick={onMiniMapClick}
-            />
-            <FitViewShortcut />
-          </ReactFlow>
+          <ErrorBoundary label="Canvas">
+            <ReactFlow
+              nodes={displayNodes}
+              edges={displayEdges}
+              nodeTypes={nodeTypes}
+              onNodesChange={onNodesChange}
+              onNodeClick={onNodeClick}
+              onEdgeClick={onEdgeClick}
+              onPaneClick={onPaneClick}
+              onMoveEnd={onMoveEnd}
+              defaultViewport={savedViewport.current}
+              fitView={hasFitView}
+              minZoom={0.125}
+              style={{ opacity: loading && nodes.length > 0 ? 0.6 : 1, transition: "opacity 150ms" }}
+            >
+              <Background />
+              <Controls />
+              <MiniMap
+                nodeColor={minimapNodeColor}
+                maskColor="rgba(236, 227, 212, 0.7)"
+                pannable
+                zoomable
+                onClick={onMiniMapClick}
+              />
+              <FitViewShortcut />
+            </ReactFlow>
+          </ErrorBoundary>
         </main>
         {/* Spec inspector */}
         {graphMode === "specifications" && (
-          <SpecInspector
-            selectedNodeId={selectedConversationId}
-            onDismiss={dismissInspector}
-            onFocusNode={onFocusNode}
-          />
+          <ErrorBoundary label="SpecInspector">
+            <SpecInspector
+              selectedNodeId={selectedConversationId}
+              onDismiss={dismissInspector}
+              onFocusNode={onFocusNode}
+            />
+          </ErrorBoundary>
         )}
 
         {/* Conversation inspector */}
         {graphMode === "conversations" && (
-          <InspectorOverlay
-            selectedConversationId={selectedConversationId}
-            selectedMessageId={selectedMessageId}
-            onDismiss={dismissInspector}
-            onGraphRefresh={refresh}
-            compileTargetConversationId={compileTargetConversationId}
-            compileTargetMessageId={compileTargetMessageId}
-            onSetCompileTarget={setCompileTarget}
-          />
+          <ErrorBoundary label="InspectorOverlay">
+            <InspectorOverlay
+              selectedConversationId={selectedConversationId}
+              selectedMessageId={selectedMessageId}
+              onDismiss={dismissInspector}
+              onGraphRefresh={refresh}
+              compileTargetConversationId={compileTargetConversationId}
+              compileTargetMessageId={compileTargetMessageId}
+              onSetCompileTarget={setCompileTarget}
+            />
+          </ErrorBoundary>
         )}
         {/* Agent chat */}
         <AgentChatTrigger onClick={() => setChatOpen((v) => !v)} active={chatOpen} />
@@ -597,8 +604,10 @@ function AppInner() {
 
 export default function App() {
   return (
-    <ReactFlowProvider>
-      <AppInner />
-    </ReactFlowProvider>
+    <ErrorBoundary label="App">
+      <ReactFlowProvider>
+        <AppInner />
+      </ReactFlowProvider>
+    </ErrorBoundary>
   );
 }
