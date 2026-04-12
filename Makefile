@@ -4,8 +4,8 @@ API_PORT ?= 8001
 UI_PORT ?= 5173
 DIALOG_DIR ?=
 OUTPUT_DIR ?=
-CANONICAL_DIR ?= $(HOME)/Development/GitHub/ChatGPTDialogs/canonical_json
-SPEC_DIR ?= $(HOME)/Development/GitHub/0AL/SpecGraph/specs/nodes
+CANONICAL_DIR ?=
+SPEC_DIR ?=
 
 .PHONY: help serve api ui dev stop test lint canonicalize canon quickstart
 
@@ -66,7 +66,12 @@ lint:
 	@$(PYTHON) -m py_compile $$(find viewer tests -name '*.py' | sort)
 
 quickstart:
-	@$(MAKE) canon DIALOG_DIR=/Users/egor/Development/GitHub/ChatGPTDialogs/import_json
+	@if [ -z "$(DIALOG_DIR)" ]; then \
+		echo "DIALOG_DIR is required for quickstart"; \
+		echo "Example: make quickstart DIALOG_DIR=/path/to/import_json"; \
+		exit 1; \
+	fi
+	@$(MAKE) canon DIALOG_DIR="$(DIALOG_DIR)"
 	@echo "✓ Canonicalized"
 	@$(MAKE) api & api_pid=$$!; \
 	trap 'kill $$api_pid 2>/dev/null || true' EXIT INT TERM; \

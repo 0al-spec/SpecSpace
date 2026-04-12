@@ -1032,17 +1032,20 @@ _EXIT_CODE_DESCRIPTIONS: dict[int, str] = {
     4: "Internal compiler error",
 }
 
-DEFAULT_HYPERPROMPT_BINARY = "/Users/egor/Development/GitHub/0AL/Hyperprompt/.build/release/hyperprompt"
+DEFAULT_HYPERPROMPT_BINARY = str(REPO_ROOT / "deps" / "hyperprompt")
 
 
 def _default_hyperprompt_fallbacks(default_binary: Path) -> list[tuple[str, Path]]:
+    """Return additional candidate paths when the configured binary is not found.
+
+    Searches for the binary in sibling architecture directories relative to the
+    configured path (e.g. Swift multi-arch build output under a ``.build`` tree)
+    and falls back to ``deps/hyperprompt`` at the repository root.
+    """
     build_dir = default_binary.parent.parent
-    candidates: list[tuple[str, Path]] = [
-        ("fallback_arm64", build_dir / "arm64-apple-macosx" / "release" / "hyperprompt"),
-        ("fallback_x86_64", build_dir / "x86_64-apple-macosx" / "release" / "hyperprompt"),
-    ]
+    candidates: list[tuple[str, Path]] = []
     for candidate in sorted(build_dir.glob("*/release/hyperprompt")):
-        candidates.append(("fallback_arch_glob", candidate))
+        candidates.append(("fallback_glob", candidate))
     candidates.append(("fallback_deps", REPO_ROOT / "deps" / "hyperprompt"))
     return candidates
 
