@@ -295,6 +295,20 @@ function AppInner() {
     [panToNode],
   );
 
+  /** Select a conversation node by file name (sidebar FILES click). */
+  const onConversationFileSelect = useCallback(
+    (fileName: string) => {
+      const node = graphNodes.find(
+        (n) => !n.parentId && (n.data as { fileName?: string }).fileName === fileName,
+      );
+      if (!node) return;
+      setSelectedConversationId(node.id);
+      setSelectedMessageId(null);
+      panToNode(node.id, 50);
+    },
+    [graphNodes, setSelectedConversationId, setSelectedMessageId, panToNode],
+  );
+
   // Reset local node state when graph mode changes (full reset)
   useEffect(() => {
     setNodes([]);
@@ -525,6 +539,12 @@ function AppInner() {
           onSpecViewOptionsChange={setSpecViewOptions}
           onSpecNodeSelect={onSpecNodeSelect}
           selectedSpecNodeId={graphMode === "specifications" ? selectedConversationId : null}
+          onSelectFile={onConversationFileSelect}
+          selectedFile={
+            graphMode === "conversations" && selectedConversationId
+              ? (graphNodes.find((n) => n.id === selectedConversationId)?.data as { fileName?: string })?.fileName ?? null
+              : null
+          }
         />
         <main className="app-main">
           {/* Initial load spinner — only when there are no nodes yet */}
