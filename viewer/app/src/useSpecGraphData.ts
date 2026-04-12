@@ -520,6 +520,8 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
             },
             parentId: apiNode.node_id,
             extent: "parent" as const,
+            draggable: false,
+            selectable: false,
             data: subData,
             style: { width: EXP_GROUP_W - EXP_PAD * 2, height: EXP_ITEM_H },
           });

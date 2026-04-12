@@ -218,7 +218,7 @@
 /* Expand/collapse toggle button */
 .spec-node-expand {
   position: absolute;
-  bottom: 6px;
+  top: 6px;
   right: 6px;
   background: none;
   border: none;
