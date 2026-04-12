@@ -1036,7 +1036,8 @@ Intent: address the known architectural and code quality problems identified in 
   - No duplication of the per-message validation loop remains.
   - All existing schema and validation tests pass.
 
-### CTXB-P7-T5 — Remove hardcoded developer paths
+### ✅ CTXB-P7-T5 — Remove hardcoded developer paths
+- **Status:** DONE (2026-04-12, PASS)
 - **Description:** `DEFAULT_HYPERPROMPT_BINARY` in `server.py` is hardcoded to `/Users/egor/...`. The Makefile defaults `CANONICAL_DIR` and `SPEC_DIR` to paths under `$(HOME)/Development/GitHub/...`. Replace `DEFAULT_HYPERPROMPT_BINARY` with a relative/discoverable default (e.g. `deps/hyperprompt` only). Update Makefile defaults to use safe, project-relative or user-overridable paths with no hardcoded layout assumption.
 - **Priority:** P1
 - **Dependencies:** none
