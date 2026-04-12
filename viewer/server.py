@@ -1264,6 +1264,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
             HTTPStatus.OK,
             {
                 "spec_graph": self.server.spec_dir is not None,
+                "compile": self.server.compile_available,
             },
         )
 
@@ -1606,6 +1607,8 @@ def main() -> None:
     server.dialog_dir = args.dialog_dir.expanduser().resolve()
     server.dialog_dir.mkdir(parents=True, exist_ok=True)
     server.hyperprompt_binary = args.hyperprompt_binary
+    resolved_binary, _, _ = resolve_hyperprompt_binary(args.hyperprompt_binary)
+    server.compile_available = resolved_binary is not None
     server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
 
     print(f"Serving ContextBuilder at http://localhost:{args.port}/")

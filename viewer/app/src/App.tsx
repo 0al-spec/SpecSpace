@@ -119,15 +119,23 @@ function FitViewShortcut() {
   return null;
 }
 
-// Check once at startup if spec support is available
-async function checkSpecAvailable(): Promise<boolean> {
+interface Capabilities {
+  specAvailable: boolean;
+  compileAvailable: boolean;
+}
+
+// Check once at startup which optional features are available
+async function checkCapabilities(): Promise<Capabilities> {
   try {
     const res = await fetch("/api/capabilities");
-    if (!res.ok) return false;
+    if (!res.ok) return { specAvailable: false, compileAvailable: false };
     const data = await res.json();
-    return Boolean(data.spec_graph);
+    return {
+      specAvailable: Boolean(data.spec_graph),
+      compileAvailable: Boolean(data.compile),
+    };
   } catch {
-    return false;
+    return { specAvailable: false, compileAvailable: false };
   }
 }
 
@@ -140,11 +148,15 @@ const DEFAULT_SPEC_VIEW: SpecViewOptions = {
 function AppInner() {
   const [graphMode, setGraphMode] = useState<GraphMode>(loadInitialMode);
   const [specAvailable, setSpecAvailable] = useState(false);
+  const [compileAvailable, setCompileAvailable] = useState(false);
   const [specViewOptions, setSpecViewOptions] = useState<SpecViewOptions>(DEFAULT_SPEC_VIEW);
 
   // Check capabilities once on mount
   useEffect(() => {
-    checkSpecAvailable().then(setSpecAvailable);
+    checkCapabilities().then(({ specAvailable, compileAvailable }) => {
+      setSpecAvailable(specAvailable);
+      setCompileAvailable(compileAvailable);
+    });
   }, []);
 
   // Conversation graph data
@@ -578,6 +590,7 @@ function AppInner() {
               compileTargetConversationId={compileTargetConversationId}
               compileTargetMessageId={compileTargetMessageId}
               onSetCompileTarget={setCompileTarget}
+              compileAvailable={compileAvailable}
             />
           </ErrorBoundary>
         )}
