@@ -1099,7 +1099,7 @@ Intent: address the known architectural and code quality problems identified in 
   - Extracted hooks cover the functionality described above.
   - No behaviour regressions (manual smoke test + existing smoke tests pass).
 
-### CTXB-P7-T10 — Add React Error Boundaries
+### ✅ CTXB-P7-T10 — Add React Error Boundaries — DONE (PASS, 2026-04-12)
 - **Description:** There are no `ErrorBoundary` components in the React app. A runtime error in any component crashes the entire UI to a white screen. Add error boundaries at: (1) the top-level `AppInner` wrapper, (2) the inspector panels (`SpecInspector`, `InspectorOverlay`), (3) the ReactFlow canvas. Each boundary should render a "Something went wrong" fallback with a Retry button.
 - **Priority:** P1
 - **Dependencies:** none
