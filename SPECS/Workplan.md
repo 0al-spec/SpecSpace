@@ -1074,7 +1074,8 @@ Intent: address the known architectural and code quality problems identified in 
   - No more than N concurrent spec-watch connections are allowed (configurable constant).
   - The browser frontend reconnects automatically after server-side close (EventSource auto-reconnect).
 
-### CTXB-P7-T8 — Add rmtree safety marker to export directory
+### ✅ CTXB-P7-T8 — Add rmtree safety marker to export directory
+- **Status:** DONE (2026-04-12, PASS)
 - **Description:** `export_graph_nodes()` calls `shutil.rmtree(export_dir)` unconditionally before writing. If path construction is wrong, this could delete arbitrary directories. Write a sentinel file (e.g. `.ctxb_export`) into the export directory at creation time. Before `rmtree`, verify the sentinel exists; if it doesn't, abort with an error instead of deleting.
 - **Priority:** P1
 - **Dependencies:** none
