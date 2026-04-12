@@ -671,7 +671,19 @@ def collect_checkpoint_api(dialog_dir: Path, conversation_id: str, message_id: s
 
 
 def dialog_path_for_name(dialog_dir: Path, name: str) -> Path:
-    return (dialog_dir / name).resolve()
+    """Resolve *name* relative to *dialog_dir* and enforce containment.
+
+    Raises ``ValueError`` if the resolved path escapes *dialog_dir* (directory
+    traversal attempt).  *dialog_dir* must already be an absolute resolved path.
+    """
+    resolved = (dialog_dir / name).resolve()
+    dir_str = str(dialog_dir.resolve())
+    # Use os.sep suffix to avoid false matches (e.g. /tmp/foo vs /tmp/foobar).
+    if not (str(resolved).startswith(dir_str + os.sep) or str(resolved) == dir_str):
+        raise ValueError(
+            f"Path '{name}' resolves outside dialog_dir '{dialog_dir}': {resolved}"
+        )
+    return resolved
 
 
 def load_json_file(path: Path) -> tuple[dict[str, Any] | None, tuple[schema.NormalizationError, ...]]:
@@ -1483,10 +1495,10 @@ class ViewerHandler(BaseHTTPRequestHandler):
     def safe_dialog_path(self, name: str) -> Path | None:
         if schema.validate_file_name(name):
             return None
-        path = dialog_path_for_name(self.server.dialog_dir.resolve(), name)
-        if not str(path).startswith(str(self.server.dialog_dir.resolve())):
+        try:
+            return dialog_path_for_name(self.server.dialog_dir.resolve(), name)
+        except ValueError:
             return None
-        return path
 
     def log_message(self, format: str, *args) -> None:
         return
