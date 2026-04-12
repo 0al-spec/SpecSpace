@@ -473,6 +473,25 @@ Intent: replace the custom SVG graph renderer (~500 lines of manual layout, edge
   - Inspector content updates on every subsequent selection.
   - Deselecting clears or retains the last selection gracefully (no blank flash).
 
+### CTXB-P2R-B7 — Cross-conversation edge becomes internal to child conversation on sequential expand
+- **Description:** When two connected conversations are expanded in sequence — first the ROOT (`Агентная_Операционная_Система_-_SpecGraph_-_RLM.json`), then its BRANCH child (`Агентная_Операционная_Система_-_SpecGraph_-_RLM_-_Graph-native_recursive_reasoning_runtime.json`) — the edge that correctly connected the two conversations (or their message nodes) before the second expand is replaced by an edge that appears _inside_ the second conversation's subflow. The edge looks like an internal link within the BRANCH conversation rather than a cross-conversation edge. Before expanding the second conversation, the edge is rendered correctly.
+- **Priority:** P1
+- **Dependencies:** CTXB-P2R-B4, CTXB-P2R-T11
+- **Parallelizable:** no
+- **Source:** User-reported, 2026-04-12
+- **Repro steps:**
+  1. Open the CONVERSATIONS graph.
+  2. Expand `Агентная_Операционная_Система_-_SpecGraph_-_RLM | ROOT`.
+  3. Observe: the edge to the BRANCH child is correctly drawn.
+  4. Expand `Агентная_Операционная_Система_-_SpecGraph_-_RLM_-_Graph-native_recursive_reasoning_runtime | BRANCH`.
+  5. Observe: the cross-conversation edge disappears and is replaced by an edge that appears to be internal to the BRANCH conversation subflow.
+- **Hypothesis:** When the BRANCH conversation is expanded, edge endpoint re-mapping (in `useGraphData`) produces a target node that has the BRANCH group as its `parentId`. React Flow then treats the edge as internal to that group and clips or re-routes it within the group's coordinate space. The edge loses its cross-group identity. Possibly the message node chosen as the target already existed in the collapsed representation (as a synthetic root message node), and expanding adds a real `parentId`, causing the edge to be silently adopted into the group.
+- **Acceptance Criteria:**
+  - Expanding both conversations in any order leaves the cross-conversation edge correctly routed between the two subflows.
+  - The edge connects the specific message node (branch point) in the ROOT subflow to the first message node of the BRANCH subflow.
+  - No "internal" edge appears within either conversation's subflow as a side effect of expanding.
+  - Collapsing either conversation returns the edge to conversation-level anchors.
+
 ### ✅ CTXB-P2R-T12 — Increase maximum zoom-out on the graph canvas
 - **Description:** Allow the graph canvas to zoom out ~4× further than the current limit so large graphs with many nodes fit in the viewport without panning. Achieved by lowering `minZoom` on the React Flow component (e.g. from the default `0.5` to `0.125`).
 - **Priority:** P2
