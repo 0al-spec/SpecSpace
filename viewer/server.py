@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -31,6 +32,67 @@ NON_BLOCKING_GRAPH_ERROR_CODES = frozenset(
         "missing_parent_message",
     }
 )
+
+
+# ---------------------------------------------------------------------------
+# Workspace cache — avoids re-reading unchanged JSON files on every request
+# ---------------------------------------------------------------------------
+
+def _scan_dir_key(dialog_dir: Path) -> frozenset[tuple[str, float, int]]:
+    """Return a fingerprint of all *.json files in dialog_dir using stat only (no reads)."""
+    try:
+        with os.scandir(dialog_dir) as entries:
+            result: list[tuple[str, float, int]] = []
+            for entry in entries:
+                if entry.is_file() and entry.name.endswith(".json"):
+                    st = entry.stat()
+                    result.append((entry.name, st.st_mtime, st.st_size))
+            return frozenset(result)
+    except OSError:
+        return frozenset()
+
+
+class WorkspaceCache:
+    """Thread-safe cache for collect_workspace_listing results.
+
+    A cache miss occurs when any file is added, removed, or has its mtime/size
+    changed.  On a miss the full workspace is rebuilt and the cache updated
+    atomically under a lock.  Concurrent callers on a miss serialize through
+    the lock — exactly one rebuilds, others wait and then get the fresh result.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._key: frozenset[tuple[str, float, int]] | None = None
+        self._result: dict[str, Any] | None = None
+
+    def get(self, dialog_dir: Path) -> dict[str, Any]:
+        new_key = _scan_dir_key(dialog_dir)
+        with self._lock:
+            if self._key == new_key and self._result is not None:
+                return self._result
+            result = _build_workspace_listing(dialog_dir)
+            self._key = new_key
+            self._result = result
+            return result
+
+    def invalidate(self) -> None:
+        """Force cache miss on the next request (e.g. after a write operation)."""
+        with self._lock:
+            self._key = None
+            self._result = None
+
+
+# Registry: one WorkspaceCache per dialog_dir path used in the process.
+_WORKSPACE_CACHES: dict[Path, WorkspaceCache] = {}
+_REGISTRY_LOCK = threading.Lock()
+
+
+def _get_workspace_cache(dialog_dir: Path) -> WorkspaceCache:
+    with _REGISTRY_LOCK:
+        if dialog_dir not in _WORKSPACE_CACHES:
+            _WORKSPACE_CACHES[dialog_dir] = WorkspaceCache()
+        return _WORKSPACE_CACHES[dialog_dir]
 
 
 def json_response(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> None:
@@ -636,7 +698,12 @@ def load_workspace_payloads(dialog_dir: Path, exclude_name: str | None = None) -
     return payloads
 
 
-def collect_workspace_listing(dialog_dir: Path) -> dict[str, Any]:
+def _build_workspace_listing(dialog_dir: Path) -> dict[str, Any]:
+    """Build the full workspace listing by reading and validating all JSON files.
+
+    This is the uncached implementation.  Call ``collect_workspace_listing``
+    instead, which adds mtime-based caching.
+    """
     discovered: list[tuple[dict[str, Any], dict[str, Any] | None, tuple[schema.NormalizationError, ...]]] = []
     payloads: list[tuple[str, dict[str, Any]]] = []
 
@@ -679,6 +746,16 @@ def collect_workspace_listing(dialog_dir: Path) -> dict[str, Any]:
         "graph": build_graph_snapshot(discovered, reports),
         "dialog_dir": str(dialog_dir),
     }
+
+
+def collect_workspace_listing(dialog_dir: Path) -> dict[str, Any]:
+    """Return the workspace listing, using a per-directory mtime-based cache.
+
+    The cache is invalidated whenever any *.json file in *dialog_dir* is added,
+    removed, or has its mtime/size changed.  File reads are performed only on a
+    cache miss.  Thread-safe under ``ThreadingHTTPServer``.
+    """
+    return _get_workspace_cache(dialog_dir).get(dialog_dir)
 
 
 def validate_write_request(
@@ -1307,6 +1384,10 @@ class ViewerHandler(BaseHTTPRequestHandler):
             json_response(self, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"Failed to write file: {exc}"})
             return
 
+        # Invalidate cache so the next read sees the updated file immediately,
+        # even if mtime resolution hasn't advanced (e.g. HFS+ 1-second granularity).
+        _get_workspace_cache(self.server.dialog_dir).invalidate()
+
         validation = schema.validate_conversation(normalized)
         json_response(
             self,
@@ -1341,6 +1422,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         except Exception as exc:
             json_response(self, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"Failed to delete file: {exc}"})
             return
+
+        # Invalidate cache so the next read sees the deletion immediately.
+        _get_workspace_cache(self.server.dialog_dir).invalidate()
 
         json_response(self, HTTPStatus.OK, {"ok": True, "name": name})
 
