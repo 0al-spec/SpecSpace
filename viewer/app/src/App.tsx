@@ -21,6 +21,8 @@ import ConversationNode from "./ConversationNode";
 import ExpandedConversationNode from "./ExpandedConversationNode";
 import MessageNode from "./MessageNode";
 import SpecNode from "./SpecNode";
+import ExpandedSpecNode from "./ExpandedSpecNode";
+import SpecSubItemNode from "./SpecSubItemNode";
 import SpecInspector from "./SpecInspector";
 import "./SpecNode.css";
 import AgentChat, { AgentChatTrigger } from "./AgentChat";
@@ -38,6 +40,8 @@ const nodeTypes = {
   group: ExpandedConversationNode,
   message: MessageNode,
   spec: SpecNode,
+  expandedSpec: ExpandedSpecNode,
+  specSubItem: SpecSubItemNode,
 };
 
 function loadViewport(): Viewport | undefined {
@@ -85,10 +89,11 @@ function minimapNodeColor(node: Node): string {
     const role = (node.data as { role?: string }).role;
     return role === "user" ? "#8eaed4" : "#c4a67a";
   }
-  if (node.type === "spec") {
+  if (node.type === "spec" || node.type === "expandedSpec") {
     const status = (node.data as { status?: string }).status ?? "";
     return specStatusColorMap[status] ?? "#9b8ec4";
   }
+  if (node.type === "specSubItem") return "#9b8ec4";
   return "#b89f7f";
 }
 
@@ -387,7 +392,7 @@ function AppInner() {
   const onNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
       // Clicking a free (potential/gap) handle on a spec node → open agent chat
-      if (node.type === "spec") {
+      if (node.type === "spec" || node.type === "expandedSpec") {
         const target = (_event.target as HTMLElement).closest?.(
           ".spec-handle-potential, .spec-handle-gap",
         );
@@ -410,10 +415,18 @@ function AppInner() {
         const convId = node.parentId || null;
         setSelectedConversationId(convId);
         setSelectedMessageId(msgData.messageId || null);
-      } else if (node.type === "spec") {
+      } else if (node.type === "spec" || node.type === "expandedSpec") {
         setSelectedConversationId(node.id);
         setSelectedMessageId(null);
         panToNode(node.id, 50, true);
+      } else if (node.type === "specSubItem") {
+        // Select the parent spec for the inspector
+        const parentId = node.parentId ?? null;
+        if (parentId) {
+          setSelectedConversationId(parentId);
+          setSelectedMessageId(null);
+          panToNode(parentId, 50, true);
+        }
       }
     },
     [setSelectedConversationId, setSelectedMessageId, panToNode],

@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** CTXB-P6-T1 — Render SpecGraph specification nodes in the ContextBuilder viewer
+**Current Task:** —
 
 ## Recently Archived
+- `CTXB-P6-T1` — SpecGraph Specification Viewer (PASS, 2026-04-11)
 - `CTXB-P5-B3` — Compile fails when selected branch has zero checkpoints (PASS, 2026-03-31)
 - `CTXB-P1-T6` — Correct compile-target root metadata for incomplete lineage (PASS, 2026-03-26)
 - `CTXB-P2R-T12` — Increase maximum zoom-out on the graph canvas (PASS, 2026-03-26)
@@ -20,5 +21,4 @@
 - `CTXB-P4-T3` — Integrate Hyperprompt compiler invocation (PASS, 2026-03-25)
 
 ## Suggested Next Tasks
-- `CTXB-P1-T6` — Correct compile-target root metadata for incomplete lineage (P1)
-- `CTXB-P5-T6` — Add HYPERPROMPT_BINARY variable to Makefile serve target (P2)
+- Phase 7 tasks (technical debt) — `SPECS/Workplan.md ## Phase 7`

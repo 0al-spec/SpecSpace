@@ -1,13 +1,88 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import type { ApiSpecGraph, SpecViewOptions } from "./types";
 import type { SpecNodeData } from "./SpecNode";
 import { SPEC_HANDLE_KINDS, type SpecHandleKind } from "./SpecNode";
+import type { ExpandedSpecGroupData } from "./ExpandedSpecNode";
+import type { SpecSubItemNodeData } from "./SpecSubItemNode";
 import { computeBasePositions, computeLinearPositions } from "./layoutGraph";
 
 // Spec node dimensions
-const SPEC_NODE_WIDTH = 220;
+const SPEC_NODE_WIDTH = 280;
 const SPEC_NODE_HEIGHT = 130;
+
+// Expanded spec group layout constants
+// EXP_BODY_H: height of the spec content block (mirrors collapsed node ~130px)
+const EXP_BODY_H = SPEC_NODE_HEIGHT;
+const EXP_ITEM_H = 24;
+const EXP_ITEM_GAP = 4;
+const EXP_PAD = 10;
+const EXP_GROUP_W = 280;
+
+interface SubItemSpec {
+  subKind: SpecSubItemNodeData["subKind"];
+  index: number;
+  label: string;
+  met: boolean;
+}
+
+/** Extract acceptance criteria, decisions, and invariants from raw spec YAML detail. */
+function extractSubItems(detail: Record<string, unknown>): SubItemSpec[] {
+  const items: SubItemSpec[] = [];
+
+  const acceptance = Array.isArray(detail.acceptance) ? (detail.acceptance as unknown[]) : [];
+  const specSection =
+    typeof detail.specification === "object" &&
+    detail.specification !== null &&
+    !Array.isArray(detail.specification)
+      ? (detail.specification as Record<string, unknown>)
+      : {};
+  const decisions = Array.isArray(specSection.decisions) ? (specSection.decisions as unknown[]) : [];
+  const invariants = Array.isArray(specSection.invariants) ? (specSection.invariants as unknown[]) : [];
+
+  // Met criteria from evidence
+  const evidenceList = Array.isArray(detail.acceptance_evidence)
+    ? (detail.acceptance_evidence as Array<Record<string, unknown>>)
+    : [];
+  const metCriteria = new Set(
+    evidenceList
+      .filter((ev) => ev && ev.evidence)
+      .map((ev) => String(ev.criterion ?? "").trim())
+      .filter(Boolean),
+  );
+
+  const truncate = (s: string) => (s.length > 58 ? s.slice(0, 57) + "…" : s);
+
+  acceptance.forEach((item, i) => {
+    const text = typeof item === "string" ? item : JSON.stringify(item);
+    items.push({ subKind: "acceptance", index: i, label: truncate(text), met: metCriteria.has(text.trim()) });
+  });
+
+  decisions.forEach((item, i) => {
+    let text: string;
+    if (typeof item === "string") {
+      text = item;
+    } else if (typeof item === "object" && item !== null) {
+      const obj = item as Record<string, unknown>;
+      text =
+        typeof obj.decision === "string"
+          ? obj.decision
+          : typeof obj.title === "string"
+            ? obj.title
+            : JSON.stringify(item);
+    } else {
+      text = String(item);
+    }
+    items.push({ subKind: "decision", index: i, label: truncate(text), met: false });
+  });
+
+  invariants.forEach((item, i) => {
+    const text = typeof item === "string" ? item : JSON.stringify(item);
+    items.push({ subKind: "invariant", index: i, label: truncate(text), met: false });
+  });
+
+  return items;
+}
 
 // ---------------------------------------------------------------------------
 // Edge styles
@@ -60,6 +135,34 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
   const [apiGraph, setApiGraph] = useState<ApiSpecGraph | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Expansion state
+  const [expandedSpecIds, setExpandedSpecIds] = useState<Set<string>>(new Set());
+  const specDetailsRef = useRef<Map<string, Record<string, unknown>>>(new Map());
+  const [specDetails, setSpecDetails] = useState<Map<string, Record<string, unknown>>>(new Map());
+
+  const onToggleExpand = useCallback(async (nodeId: string) => {
+    setExpandedSpecIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
+    // Fetch full YAML detail if not already cached
+    if (!specDetailsRef.current.has(nodeId)) {
+      try {
+        const res = await fetch(`/api/spec-node?id=${encodeURIComponent(nodeId)}`);
+        if (res.ok) {
+          const json = await res.json();
+          const detail: Record<string, unknown> = json.data ?? json.node ?? json;
+          specDetailsRef.current.set(nodeId, detail);
+          setSpecDetails(new Map(specDetailsRef.current));
+        }
+      } catch {
+        // ignore fetch errors — node stays collapsed
+      }
+    }
+  }, []);
 
   const fetchGraph = useCallback(async () => {
     setLoading(true);
@@ -364,39 +467,104 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
       }
     }
 
-    // Build nodes
-    const allNodes: Node[] = apiGraph.nodes.map((apiNode) => {
+    // Build nodes — switch to expanded group + sub-items when expanded and detail is loaded
+    const allNodes: Node[] = [];
+
+    for (const apiNode of apiGraph.nodes) {
       const hasBrokenEdges = apiNode.diagnostics.length > 0;
+      const isExpanded = expandedSpecIds.has(apiNode.node_id);
+      const expandedDetail = isExpanded ? specDetails.get(apiNode.node_id) : undefined;
 
-      const nodeData: SpecNodeData = {
-        nodeId: apiNode.node_id,
-        title: apiNode.title,
-        kind: apiNode.kind,
-        status: apiNode.status,
-        maturity: apiNode.maturity,
-        acceptanceCount: apiNode.acceptance_count,
-        decisionsCount: apiNode.decisions_count,
-        hasBrokenEdges,
-        refinedByCount: refinedByCount.get(apiNode.node_id) ?? 0,
-        activeSourceKinds: activeSourceKinds.get(apiNode.node_id) ?? new Set(),
-        activeTargetKinds: activeTargetKinds.get(apiNode.node_id) ?? new Set(),
-        visibleHandleKinds: visibleKinds,
-        gapCount: apiNode.gap_count ?? 0,
-      };
+      if (isExpanded && expandedDetail) {
+        // ── Expanded: group container + sub-item children ──
+        const subItems = extractSubItems(expandedDetail);
+        const n = subItems.length;
+        const GRP_H =
+          n === 0
+            ? EXP_BODY_H + EXP_PAD * 2 + EXP_ITEM_H // spec content + empty placeholder row
+            : EXP_BODY_H + EXP_PAD + n * EXP_ITEM_H + (n - 1) * EXP_ITEM_GAP + EXP_PAD;
 
-      return {
-        id: apiNode.node_id,
-        type: "spec",
-        position: basePositions.get(apiNode.node_id) ?? { x: 0, y: 0 },
-        data: nodeData,
-        width: SPEC_NODE_WIDTH,
-        height: SPEC_NODE_HEIGHT,
-        style: { width: SPEC_NODE_WIDTH, height: SPEC_NODE_HEIGHT },
-      };
-    });
+        const groupData: ExpandedSpecGroupData = {
+          nodeId: apiNode.node_id,
+          title: apiNode.title,
+          kind: apiNode.kind,
+          status: apiNode.status,
+          maturity: apiNode.maturity,
+          hasBrokenEdges: apiNode.diagnostics.length > 0,
+          refinedByCount: refinedByCount.get(apiNode.node_id) ?? 0,
+          onToggleExpand,
+          visibleHandleKinds: visibleKinds,
+          activeSourceKinds: activeSourceKinds.get(apiNode.node_id) ?? new Set(),
+          activeTargetKinds: activeTargetKinds.get(apiNode.node_id) ?? new Set(),
+        };
+
+        allNodes.push({
+          id: apiNode.node_id,
+          type: "expandedSpec",
+          position: basePositions.get(apiNode.node_id) ?? { x: 0, y: 0 },
+          data: groupData,
+          width: EXP_GROUP_W,
+          height: GRP_H,
+          style: { width: EXP_GROUP_W, height: GRP_H },
+        });
+
+        subItems.forEach((item, i) => {
+          const subId = `${apiNode.node_id}-sub-${item.subKind}-${item.index}`;
+          const subData: SpecSubItemNodeData = {
+            subKind: item.subKind,
+            index: item.index,
+            label: item.label,
+            met: item.met,
+          };
+          allNodes.push({
+            id: subId,
+            type: "specSubItem",
+            position: {
+              x: EXP_PAD,
+              y: EXP_BODY_H + EXP_PAD + i * (EXP_ITEM_H + EXP_ITEM_GAP),
+            },
+            parentId: apiNode.node_id,
+            extent: "parent" as const,
+            draggable: false,
+            selectable: false,
+            data: subData,
+            style: { width: EXP_GROUP_W - EXP_PAD * 2, height: EXP_ITEM_H },
+          });
+        });
+      } else {
+        // ── Collapsed (or expansion pending detail fetch) ──
+        const nodeData: SpecNodeData = {
+          nodeId: apiNode.node_id,
+          title: apiNode.title,
+          kind: apiNode.kind,
+          status: apiNode.status,
+          maturity: apiNode.maturity,
+          acceptanceCount: apiNode.acceptance_count,
+          decisionsCount: apiNode.decisions_count,
+          hasBrokenEdges,
+          refinedByCount: refinedByCount.get(apiNode.node_id) ?? 0,
+          activeSourceKinds: activeSourceKinds.get(apiNode.node_id) ?? new Set(),
+          activeTargetKinds: activeTargetKinds.get(apiNode.node_id) ?? new Set(),
+          visibleHandleKinds: visibleKinds,
+          gapCount: apiNode.gap_count ?? 0,
+          isExpanded,
+          onToggleExpand,
+        };
+
+        allNodes.push({
+          id: apiNode.node_id,
+          type: "spec",
+          position: basePositions.get(apiNode.node_id) ?? { x: 0, y: 0 },
+          data: nodeData,
+          width: SPEC_NODE_WIDTH,
+          height: SPEC_NODE_HEIGHT,
+          style: { width: SPEC_NODE_WIDTH, height: SPEC_NODE_HEIGHT },
+        });
+      }
+    }
 
     return { nodes: allNodes, edges: allEdges };
-  }, [apiGraph, basePositions, viewMode, showCrossLinks, showBlocking]);
+  }, [apiGraph, basePositions, viewMode, showCrossLinks, showBlocking, expandedSpecIds, specDetails, onToggleExpand]);
 
   return {
     nodes,
