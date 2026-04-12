@@ -1,16 +1,9 @@
 # In Progress Queue
 
-**Current Task:** CTXB-P7-T1 — Workspace cache with mtime-based invalidation
-
-## Task Metadata
-- **ID:** CTXB-P7-T1
-- **Phase:** 7 — Technical Debt and Quality
-- **Priority:** P1
-- **Branch:** feature/CTXB-P7-T1-workspace-cache
-- **Started:** 2026-04-12
-- **Dependencies:** none
+**Current Task:** —
 
 ## Recently Archived
+- `CTXB-P7-T1` — Workspace cache with mtime-based invalidation (PASS, 2026-04-12)
 - `CTXB-P6-T1` — SpecGraph Specification Viewer (PASS, 2026-04-11)
 - `CTXB-P5-B3` — Compile fails when selected branch has zero checkpoints (PASS, 2026-03-31)
 - `CTXB-P1-T6` — Correct compile-target root metadata for incomplete lineage (PASS, 2026-03-26)
@@ -27,3 +20,7 @@
 - `CTXB-P5-T1` — Add automated tests for schema validation and graph integrity failures (PASS, 2026-03-26)
 - `CTXB-P4-T4` — Expose compile results and artifact locations (PASS, 2026-03-25)
 - `CTXB-P4-T3` — Integrate Hyperprompt compiler invocation (PASS, 2026-03-25)
+
+## Suggested Next Tasks
+- Phase 7 tasks (technical debt) — `SPECS/Workplan.md ## Phase 7`
+- CTXB-P7-T2 — Split server.py into focused modules (depends on T1, now unblocked)
