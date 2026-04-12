@@ -1147,7 +1147,7 @@ Intent: address the known architectural and code quality problems identified in 
   - All four checks must pass for the workflow to succeed.
   - Failures produce actionable output (test names, type errors, build errors).
 
-### CTXB-P7-T14 — Expose compile capability in /api/capabilities and surface in UI
+### ✅ CTXB-P7-T14 — Expose compile capability in /api/capabilities and surface in UI — DONE (PASS, 2026-04-12)
 - **Description:** `/api/capabilities` currently only reports `spec_graph`. Add a `compile` flag: `true` when the Hyperprompt binary is resolvable at server startup, `false` otherwise. In the UI, grey out or hide the Compile button when `compile` is false, and show an inline tooltip explaining the binary is not configured.
 - **Priority:** P1
 - **Dependencies:** none
