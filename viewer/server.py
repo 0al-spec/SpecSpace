@@ -25,6 +25,8 @@ if __package__ in {None, ""}:  # pragma: no cover - allows running `python viewe
 from viewer import schema  # noqa: E402
 from viewer import specgraph  # noqa: E402
 
+EXPORT_SENTINEL = ".ctxb_export"
+
 NON_BLOCKING_GRAPH_ERROR_CODES = frozenset(
     {
         "missing_parent_conversation",
@@ -965,9 +967,28 @@ def export_graph_nodes(
     nodes_dir = export_dir / "nodes"
 
     # Clean export dir to guarantee determinism on re-export.
+    # Before deleting, verify the sentinel file is present so we never
+    # accidentally rmtree a directory that was not created by this pipeline.
     if export_dir.exists():
+        sentinel = export_dir / EXPORT_SENTINEL
+        if not sentinel.exists():
+            return HTTPStatus.INTERNAL_SERVER_ERROR, {
+                "error": "Export directory missing safety sentinel — aborting",
+                "details": (
+                    f"Directory '{export_dir}' exists but does not contain"
+                    f" '{EXPORT_SENTINEL}'. It was not created by ContextBuilder"
+                    " and will not be deleted. Remove it manually or ensure it"
+                    f" contains '{EXPORT_SENTINEL}'."
+                ),
+                "export_dir": str(export_dir),
+            }
         shutil.rmtree(export_dir)
     nodes_dir.mkdir(parents=True)
+    # Write sentinel so future re-exports can verify ownership.
+    (export_dir / EXPORT_SENTINEL).write_text(
+        "ContextBuilder export directory — do not remove this file.\n",
+        encoding="utf-8",
+    )
 
     target_conv_id = compile_target["target_conversation_id"]
     target_checkpoint_index: int | None = compile_target.get("target_checkpoint_index")
