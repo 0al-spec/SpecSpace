@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-04-12 (CTXB-P7-T10)
+**Last Updated:** 2026-04-12 (CTXB-P7-T14)
 
 ## Archived Tasks
 
@@ -72,6 +72,7 @@
 | CTXB-P7-T6 | [CTXB-P7-T6_Consolidate_Path_Traversal_Protection/](CTXB-P7-T6_Consolidate_Path_Traversal_Protection/) | 2026-04-12 | PASS |
 | CTXB-P7-T8 | [CTXB-P7-T8_Add_rmtree_Safety_Marker/](CTXB-P7-T8_Add_rmtree_Safety_Marker/) | 2026-04-12 | PASS |
 | CTXB-P7-T10 | [CTXB-P7-T10_Add_React_Error_Boundaries/](CTXB-P7-T10_Add_React_Error_Boundaries/) | 2026-04-12 | PASS |
+| CTXB-P7-T14 | [CTXB-P7-T14_Expose_compile_capability/](CTXB-P7-T14_Expose_compile_capability/) | 2026-04-12 | PASS |
 
 ## Historical Artifacts
 

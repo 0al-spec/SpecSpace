@@ -55,6 +55,8 @@ interface InspectorOverlayProps {
   compileTargetConversationId: string | null;
   compileTargetMessageId: string | null;
   onSetCompileTarget: (convId: string | null, msgId: string | null) => void;
+  /** Whether the Hyperprompt binary is available server-side. Default: true. */
+  compileAvailable?: boolean;
 }
 
 const kindLabels: Record<string, string> = {
@@ -74,6 +76,7 @@ export default function InspectorOverlay({
   compileTargetConversationId,
   compileTargetMessageId,
   onSetCompileTarget,
+  compileAvailable = true,
 }: InspectorOverlayProps) {
   const [convDetail, setConvDetail] = useState<ConversationDetail | null>(null);
   const [checkpointDetail, setCheckpointDetail] =
@@ -379,10 +382,17 @@ export default function InspectorOverlay({
           <button
             className="inspector-branch-btn inspector-compile-btn"
             onClick={handleCompile}
-            disabled={compiling}
+            disabled={compiling || !compileAvailable}
+            title={!compileAvailable ? "Hyperprompt binary not configured — set --hyperprompt-binary when starting the server" : undefined}
           >
             {compiling ? "Compiling\u2026" : "Compile"}
           </button>
+          {!compileAvailable && (
+            <div className="inspector-compile-unavailable">
+              Hyperprompt binary not found. Start the server with{" "}
+              <code>--hyperprompt-binary</code> pointing to a valid binary.
+            </div>
+          )}
 
           {compileResult && (
             <div className={`inspector-compile-result ${compileResult.status === "ok" ? "inspector-compile-ok" : "inspector-compile-error"}`}>

@@ -294,11 +294,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 def start_spec_test_server(
     dialog_dir: Path,
     spec_dir: Optional[Path] = None,
+    compile_available: bool = False,
 ) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.ViewerHandler)
     httpd.repo_root = REPO_ROOT
     httpd.dialog_dir = dialog_dir
     httpd.hyperprompt_binary = ""
+    httpd.compile_available = compile_available
     httpd.spec_dir = spec_dir
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
@@ -332,6 +334,28 @@ class CapabilitiesEndpointTests(unittest.TestCase):
                 stop_test_server(httpd, thread)
 
         self.assertTrue(body["spec_graph"])
+
+    def test_compile_false_when_binary_unavailable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            httpd, thread, base = start_spec_test_server(Path(tmp), compile_available=False)
+            try:
+                body = json.loads(urlopen(f"{base}/api/capabilities").read())
+            finally:
+                stop_test_server(httpd, thread)
+
+        self.assertIn("compile", body)
+        self.assertFalse(body["compile"])
+
+    def test_compile_true_when_binary_available(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            httpd, thread, base = start_spec_test_server(Path(tmp), compile_available=True)
+            try:
+                body = json.loads(urlopen(f"{base}/api/capabilities").read())
+            finally:
+                stop_test_server(httpd, thread)
+
+        self.assertIn("compile", body)
+        self.assertTrue(body["compile"])
 
 
 class SpecGraphEndpointTests(unittest.TestCase):
