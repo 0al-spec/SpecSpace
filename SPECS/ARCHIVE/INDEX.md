@@ -228,3 +228,4 @@
 | 2026-04-12 | CTXB-P7-T6 | Archived Consolidate_Path_Traversal_Protection (PASS) |
 | 2026-04-12 | CTXB-P7-T6 | Archived REVIEW_ctxb_p7_t6_path_traversal report (PASS, no findings) |
 | 2026-04-12 | CTXB-P7-T8 | Archived Add_rmtree_Safety_Marker (PASS) |
+| 2026-04-12 | CTXB-P7-T8 | Archived REVIEW_ctxb_p7_t8_rmtree_sentinel report (PASS, no findings) |
