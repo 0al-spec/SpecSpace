@@ -225,3 +225,4 @@
 | 2026-04-12 | CTXB-P7-T5 | Archived Remove_Hardcoded_Developer_Paths (PASS) |
 | 2026-04-12 | CTXB-P7-T5 | Archived REVIEW_ctxb_p7_t5_remove_hardcoded_paths report (PASS, no findings) |
 | 2026-04-12 | CTXB-P7-T6 | Archived Consolidate_Path_Traversal_Protection (PASS) |
+| 2026-04-12 | CTXB-P7-T6 | Archived REVIEW_ctxb_p7_t6_path_traversal report (PASS, no findings) |
