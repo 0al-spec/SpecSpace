@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-04-11 (CTXB-P6-T1)
+**Last Updated:** 2026-04-12 (CTXB-P7-T1)
 
 ## Archived Tasks
 
@@ -66,6 +66,7 @@
 | CTXB-P2R-T12 | [CTXB-P2R-T12_Increase_maximum_zoom-out_on_the_graph_canvas/](CTXB-P2R-T12_Increase_maximum_zoom-out_on_the_graph_canvas/) | 2026-03-26 | PASS |
 | CTXB-P5-B3 | [CTXB-P5-B3_Compile_Fails_When_Selected_Branch_Has_Zero_Checkpoints/](CTXB-P5-B3_Compile_Fails_When_Selected_Branch_Has_Zero_Checkpoints/) | 2026-03-31 | PASS |
 | CTXB-P6-T1 | [CTXB-P6-T1_SpecGraph_Viewer/](CTXB-P6-T1_SpecGraph_Viewer/) | 2026-04-11 | PASS |
+| CTXB-P7-T1 | [CTXB-P7-T1_Workspace_Cache/](CTXB-P7-T1_Workspace_Cache/) | 2026-04-12 | PASS |
 
 ## Historical Artifacts
 
@@ -214,3 +215,5 @@
 | 2026-03-31 | CTXB-P5-B3 | Archived REVIEW_ctxb_p5_b3_zero_checkpoint_compile report |
 | 2026-04-11 | CTXB-P6-T1 | Archived SpecGraph_Viewer — full Phase 6 (T1-T9) (PASS) |
 | 2026-04-11 | CTXB-P6-T1 | Archived REVIEW_ctxb_p6_t1_specgraph_viewer report |
+| 2026-04-12 | CTXB-P7-T1 | Archived Workspace_Cache — mtime-based invalidation (PASS) |
+| 2026-04-12 | CTXB-P7-T1 | Archived REVIEW_ctxb_p7_t1_workspace_cache report (PASS, no findings) |

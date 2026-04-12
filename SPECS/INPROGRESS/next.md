@@ -3,6 +3,7 @@
 **Current Task:** —
 
 ## Recently Archived
+- `CTXB-P7-T1` — Workspace cache with mtime-based invalidation (PASS, 2026-04-12)
 - `CTXB-P6-T1` — SpecGraph Specification Viewer (PASS, 2026-04-11)
 - `CTXB-P5-B3` — Compile fails when selected branch has zero checkpoints (PASS, 2026-03-31)
 - `CTXB-P1-T6` — Correct compile-target root metadata for incomplete lineage (PASS, 2026-03-26)
@@ -22,3 +23,4 @@
 
 ## Suggested Next Tasks
 - Phase 7 tasks (technical debt) — `SPECS/Workplan.md ## Phase 7`
+- CTXB-P7-T2 — Split server.py into focused modules (depends on T1, now unblocked)

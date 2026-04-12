@@ -967,7 +967,8 @@ PRD: [CTXB-P6-T1_SpecGraph_Viewer.md](ARCHIVE/CTXB-P6-T1_SpecGraph_Viewer/CTXB-P
 
 Intent: address the known architectural and code quality problems identified in [docs/PROBLEMS.md](../docs/PROBLEMS.md). Tasks are grouped by area. None of these tasks add user-visible features; they improve reliability, performance, maintainability, and portability.
 
-### CTXB-P7-T1 — Workspace cache with mtime-based invalidation
+### ✅ CTXB-P7-T1 — Workspace cache with mtime-based invalidation
+- **Status:** DONE (2026-04-12, PASS)
 - **Description:** Every API call currently re-reads all JSON files, re-validates, and rebuilds the entire graph snapshot from scratch. Add a request-scoped or server-level workspace cache keyed on per-file `(name, mtime, size)` tuples. On each request, scan directory stats only (no file reads), compare against the cache key, and rebuild only changed files. The cache must be invalidated atomically when any file changes — correct graph state takes strict precedence over performance.
 - **Priority:** P1
 - **Dependencies:** none
