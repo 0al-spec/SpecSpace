@@ -357,6 +357,49 @@ class ExportGraphNodesTests(unittest.TestCase):
         root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
         self.assertEqual(len(list(nodes_dir.iterdir())), len(root_payload["messages"]))
 
+    def test_sentinel_written_on_first_export(self) -> None:
+        """Export must create the sentinel file in export_dir."""
+        status, payload = server.export_graph_nodes(self._dialog_dir, ROOT_ID)
+        self.assertEqual(status, HTTPStatus.OK)
+        sentinel = Path(payload["export_dir"]) / server.EXPORT_SENTINEL
+        self.assertTrue(sentinel.exists(), f"Sentinel {server.EXPORT_SENTINEL} not found after export")
+
+    def test_re_export_with_sentinel_succeeds(self) -> None:
+        """A second export on a sentinel-bearing directory must succeed."""
+        server.export_graph_nodes(self._dialog_dir, ROOT_ID)
+        status, payload = server.export_graph_nodes(self._dialog_dir, ROOT_ID)
+        self.assertEqual(status, HTTPStatus.OK)
+        sentinel = Path(payload["export_dir"]) / server.EXPORT_SENTINEL
+        self.assertTrue(sentinel.exists())
+
+    def test_missing_sentinel_blocks_rmtree(self) -> None:
+        """A pre-existing directory without the sentinel must be refused."""
+        # Use an isolated tmpdir so this test's cleanup doesn't affect siblings.
+        with tempfile.TemporaryDirectory() as isolated_tmp:
+            isolated_dir = Path(isolated_tmp)
+            write_workspace(
+                isolated_dir,
+                {
+                    "root.json": load_json(CANONICAL_FIXTURES / "root_conversation.json"),
+                    "branch.json": load_json(CANONICAL_FIXTURES / "branch_conversation.json"),
+                    "merge.json": load_json(CANONICAL_FIXTURES / "merge_conversation.json"),
+                },
+            )
+            # First export to discover where export_dir lives and create sentinel.
+            status, payload = server.export_graph_nodes(isolated_dir, ROOT_ID)
+            self.assertEqual(status, HTTPStatus.OK)
+            export_dir = Path(payload["export_dir"])
+
+            # Remove the sentinel to simulate a foreign/corrupted directory.
+            (export_dir / server.EXPORT_SENTINEL).unlink()
+
+            # Second export must fail rather than rmtree the directory.
+            status2, payload2 = server.export_graph_nodes(isolated_dir, ROOT_ID)
+            self.assertEqual(status2, HTTPStatus.INTERNAL_SERVER_ERROR)
+            self.assertIn("sentinel", payload2["error"].lower())
+            # The directory must NOT have been deleted.
+            self.assertTrue(export_dir.exists())
+
     def test_empty_conversation_id_returns_400(self) -> None:
         status, payload = server.export_graph_nodes(self._dialog_dir, "")
         self.assertEqual(status, HTTPStatus.BAD_REQUEST)
