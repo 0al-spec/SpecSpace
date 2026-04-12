@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-04-12 (CTXB-P7-T1)
+**Last Updated:** 2026-04-12 (CTXB-P7-T4)
 
 ## Archived Tasks
 
@@ -67,6 +67,7 @@
 | CTXB-P5-B3 | [CTXB-P5-B3_Compile_Fails_When_Selected_Branch_Has_Zero_Checkpoints/](CTXB-P5-B3_Compile_Fails_When_Selected_Branch_Has_Zero_Checkpoints/) | 2026-03-31 | PASS |
 | CTXB-P6-T1 | [CTXB-P6-T1_SpecGraph_Viewer/](CTXB-P6-T1_SpecGraph_Viewer/) | 2026-04-11 | PASS |
 | CTXB-P7-T1 | [CTXB-P7-T1_Workspace_Cache/](CTXB-P7-T1_Workspace_Cache/) | 2026-04-12 | PASS |
+| CTXB-P7-T4 | [CTXB-P7-T4_Extract_Shared_Message_Validation_Helper/](CTXB-P7-T4_Extract_Shared_Message_Validation_Helper/) | 2026-04-12 | PASS |
 
 ## Historical Artifacts
 
@@ -217,3 +218,4 @@
 | 2026-04-11 | CTXB-P6-T1 | Archived REVIEW_ctxb_p6_t1_specgraph_viewer report |
 | 2026-04-12 | CTXB-P7-T1 | Archived Workspace_Cache — mtime-based invalidation (PASS) |
 | 2026-04-12 | CTXB-P7-T1 | Archived REVIEW_ctxb_p7_t1_workspace_cache report (PASS, no findings) |
+| 2026-04-12 | CTXB-P7-T4 | Archived Extract_Shared_Message_Validation_Helper (PASS) |
