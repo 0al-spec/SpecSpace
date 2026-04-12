@@ -1049,7 +1049,8 @@ Intent: address the known architectural and code quality problems identified in 
   - `make serve DIALOG_DIR=...` works without relying on a hardcoded `$(HOME)/Development/...` layout.
   - Binary resolution still tries `deps/hyperprompt` as the last fallback.
 
-### CTXB-P7-T6 — Consolidate path traversal protection in dialog_path_for_name
+### ✅ CTXB-P7-T6 — Consolidate path traversal protection in dialog_path_for_name
+- **Status:** DONE (2026-04-12, PASS)
 - **Description:** Path containment checks currently live in `safe_dialog_path()` (HTTP layer only). Internal callers (`load_workspace_payloads`, `validate_write_request`) call `dialog_path_for_name` directly without containment checks. Move the containment check into `dialog_path_for_name` itself so it is enforced for all callers, not just HTTP handlers. Raise a `ValueError` if the resolved path escapes `dialog_dir`.
 - **Priority:** P1
 - **Dependencies:** none
