@@ -8,6 +8,7 @@ import {
   useReactFlow,
   ReactFlowProvider,
   applyNodeChanges,
+  SelectionMode,
   type NodeMouseHandler,
   type EdgeMouseHandler,
   type NodeChange,
@@ -418,6 +419,9 @@ function AppInner() {
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
+      // Shift+click: ReactFlow handles multi-selection visually — skip inspector
+      if (_event.shiftKey) return;
+
       // Clicking a free (potential/gap) handle on a spec node → open agent chat
       if (node.type === "spec" || node.type === "expandedSpec") {
         const target = (_event.target as HTMLElement).closest?.(
@@ -574,6 +578,10 @@ function AppInner() {
               fitView={hasFitView}
               minZoom={0.125}
               style={{ opacity: loading && nodes.length > 0 ? 0.6 : 1, transition: "opacity 150ms" }}
+              multiSelectionKeyCode="Shift"
+              selectionKeyCode="Shift"
+              selectionMode={SelectionMode.Partial}
+              edgesFocusable={false}
             >
               <Background />
               <Controls />
