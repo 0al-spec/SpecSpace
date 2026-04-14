@@ -102,7 +102,7 @@ export function useGraphData() {
       source: e.parent_conversation_id,
       target: e.child_conversation_id,
     }));
-    return computeBasePositions(nodeIds, edgePairs);
+    return computeBasePositions(nodeIds, edgePairs, { rankSep: NODE_WIDTH, nodeSep: NODE_WIDTH });
   }, [apiGraph]);
 
   const { nodes, edges } = useMemo(() => {
