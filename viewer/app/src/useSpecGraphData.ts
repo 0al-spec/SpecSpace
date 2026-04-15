@@ -194,7 +194,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
     return () => es.close();
   }, [fetchGraph]);
 
-  const { viewMode, showCrossLinks, showBlocking } = viewOptions;
+  const { viewMode, showCrossLinks, showBlocking, showDependsOn } = viewOptions;
 
   // -----------------------------------------------------------------------
   // Layout — topology-dependent, recomputed only when graph or mode changes
@@ -356,6 +356,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
 
       // (2) depends_on (not paired blocking)
       for (const d of dependsOnEdges) {
+        if (!showDependsOn) continue;
         if (d.status === "broken") continue;
         const pairKey = `${d.source_id}::${d.target_id}`;
         if (pairedBlockingSet.has(pairKey)) continue;
@@ -564,7 +565,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
     }
 
     return { nodes: allNodes, edges: allEdges };
-  }, [apiGraph, basePositions, viewMode, showCrossLinks, showBlocking, expandedSpecIds, specDetails, onToggleExpand]);
+  }, [apiGraph, basePositions, viewMode, showCrossLinks, showBlocking, showDependsOn, expandedSpecIds, specDetails, onToggleExpand]);
 
   return {
     nodes,

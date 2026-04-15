@@ -264,6 +264,21 @@ export default function Sidebar({
                       Show Cross-Links
                     </label>
                   )}
+                  {specViewOptions.viewMode === "linear" && (
+                    <label className="sidebar-toggle-label">
+                      <input
+                        type="checkbox"
+                        checked={specViewOptions.showDependsOn}
+                        onChange={(e) =>
+                          onSpecViewOptionsChange({
+                            ...specViewOptions,
+                            showDependsOn: e.target.checked,
+                          })
+                        }
+                      />
+                      Show depends_on
+                    </label>
+                  )}
                 </div>
               )}
             </div>

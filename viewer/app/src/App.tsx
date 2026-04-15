@@ -144,6 +144,7 @@ const DEFAULT_SPEC_VIEW: SpecViewOptions = {
   viewMode: "tree",
   showCrossLinks: false,
   showBlocking: true,
+  showDependsOn: true,
 };
 
 function AppInner() {
@@ -181,6 +182,7 @@ function AppInner() {
     useSessionString("selected_conversation");
   const [selectedMessageId, setSelectedMessageId] =
     useSessionString("selected_message");
+  const [selectedSubItemId, setSelectedSubItemId] = useState<string | null>(null);
   const [compileTargetConversationId, setCompileTargetConversationId] =
     useSessionString("compile_target_conversation_id");
   const [compileTargetMessageId, setCompileTargetMessageId] =
@@ -449,18 +451,25 @@ function AppInner() {
       } else if (node.type === "spec" || node.type === "expandedSpec") {
         setSelectedConversationId(node.id);
         setSelectedMessageId(null);
+        setSelectedSubItemId(null);
         panToNode(node.id, 50, true);
       } else if (node.type === "specSubItem") {
-        // Select the parent spec for the inspector
+        // Select the parent spec for the inspector and highlight the sub-item
         const parentId = node.parentId ?? null;
+        const subData = node.data as { subKind?: string; index?: number };
         if (parentId) {
           setSelectedConversationId(parentId);
           setSelectedMessageId(null);
+          setSelectedSubItemId(
+            subData.subKind != null && subData.index != null
+              ? `${subData.subKind}-${subData.index}`
+              : null,
+          );
           panToNode(parentId, 50, true);
         }
       }
     },
-    [setSelectedConversationId, setSelectedMessageId, panToNode],
+    [setSelectedConversationId, setSelectedMessageId, setSelectedSubItemId, panToNode],
   );
 
   const displayNodes = useMemo(() => {
@@ -519,6 +528,7 @@ function AppInner() {
   const dismissInspector = useCallback(() => {
     setSelectedConversationId(null);
     setSelectedMessageId(null);
+    setSelectedSubItemId(null);
   }, [setSelectedConversationId, setSelectedMessageId]);
 
   const onMoveEnd = useCallback((_event: unknown, viewport: Viewport) => {
@@ -601,8 +611,10 @@ function AppInner() {
           <ErrorBoundary label="SpecInspector">
             <SpecInspector
               selectedNodeId={selectedConversationId}
+              selectedSubItemId={selectedSubItemId}
               onDismiss={dismissInspector}
               onFocusNode={onFocusNode}
+              onSelectSubItem={setSelectedSubItemId}
             />
           </ErrorBoundary>
         )}

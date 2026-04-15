@@ -182,6 +182,13 @@ export default function InspectorOverlay({
   const visible = Boolean(selectedConversationId);
   const conv = convDetail?.conversation;
 
+  // Keep CSS variable in sync so minimap can anchor to the inspector's left edge
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--conv-inspector-width", visible ? "420px" : "0px");
+    return () => root.style.setProperty("--conv-inspector-width", "0px");
+  }, [visible]);
+
   return (
     <div className={`inspector-overlay ${visible ? "visible" : ""}`}>
       <button className="inspector-close" onClick={onDismiss} title="Close">

@@ -4,19 +4,24 @@ import "./SpecInspector.css";
 
 interface SpecInspectorProps {
   selectedNodeId: string | null;
+  /** Highlight a sub-item in the inspector. Format: "{subKind}-{index}", e.g. "acceptance-2" */
+  selectedSubItemId?: string | null;
   onDismiss?: () => void;
   onFocusNode?: (nodeId: string) => void;
+  /** Called when user clicks a sub-item in the inspector; null to deselect. */
+  onSelectSubItem?: (subItemId: string | null) => void;
 }
 
 // Raw YAML payload from /api/spec-node
 type SpecDetail = Record<string, unknown>;
 
-export default function SpecInspector({ selectedNodeId, onFocusNode }: SpecInspectorProps) {
+export default function SpecInspector({ selectedNodeId, selectedSubItemId, onDismiss, onFocusNode, onSelectSubItem }: SpecInspectorProps) {
   const [detail, setDetail] = useState<SpecDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [width, setWidth] = useState(440);
   const dragStartRef = useRef<{ x: number; w: number; maxW: number } | null>(null);
+  const highlightedItemRef = useRef<HTMLLIElement | null>(null);
 
   const onHandleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -64,12 +69,60 @@ export default function SpecInspector({ selectedNodeId, onFocusNode }: SpecInspe
 
   const visible = Boolean(selectedNodeId);
 
+  // Keep CSS variable in sync so minimap can anchor to the inspector's left edge
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--spec-inspector-width", visible ? `${width}px` : "0px");
+    return () => root.style.setProperty("--spec-inspector-width", "0px");
+  }, [visible, width]);
+
+  // Scroll highlighted sub-item into view.
+  // Depends on both selectedSubItemId AND detail so it fires after the async
+  // fetch completes and the list items are committed to the DOM.
+  useEffect(() => {
+    if (!selectedSubItemId || !highlightedItemRef.current) return;
+    highlightedItemRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedSubItemId, detail]);
+
+
   const acceptanceRaw = Array.isArray(detail?.acceptance) ? (detail!.acceptance as unknown[]) : [];
   const acceptance = acceptanceRaw.map((item) =>
     typeof item === "string"
       ? { text: item, malformed: false }
       : { text: JSON.stringify(item, null, 2), malformed: true }
   );
+
+  const specSection = (detail?.specification as Record<string, unknown>) ?? {};
+
+  const decisionsRaw = Array.isArray(specSection.decisions) ? (specSection.decisions as unknown[]) : [];
+  const decisions = decisionsRaw.map((item) => {
+    if (typeof item === "string") return { id: null, statement: item, rationale: null };
+    if (typeof item === "object" && item !== null) {
+      const obj = item as Record<string, unknown>;
+      return {
+        id: typeof obj.id === "string" ? obj.id : null,
+        statement: typeof obj.statement === "string" ? obj.statement
+          : typeof obj.decision === "string" ? obj.decision
+          : JSON.stringify(obj),
+        rationale: typeof obj.rationale === "string" ? obj.rationale : null,
+      };
+    }
+    return { id: null, statement: JSON.stringify(item), rationale: null };
+  });
+
+  const invariantsRaw = Array.isArray(specSection.invariants) ? (specSection.invariants as unknown[]) : [];
+  const invariants = invariantsRaw.map((item) => {
+    if (typeof item === "string") return { id: null, statement: item };
+    if (typeof item === "object" && item !== null) {
+      const obj = item as Record<string, unknown>;
+      return {
+        id: typeof obj.id === "string" ? obj.id : null,
+        statement: typeof obj.statement === "string" ? obj.statement : JSON.stringify(obj),
+      };
+    }
+    return { id: null, statement: JSON.stringify(item) };
+  });
+
   const evidence = Array.isArray(detail?.acceptance_evidence)
     ? (detail!.acceptance_evidence as Array<Record<string, unknown>>)
     : [];
@@ -107,6 +160,11 @@ export default function SpecInspector({ selectedNodeId, onFocusNode }: SpecInspe
   return (
     <aside className={`spec-inspector ${visible ? "visible" : ""}`} style={{ width: `${width}px` }}>
       <div className="spec-inspector-resize-handle" onMouseDown={onHandleMouseDown} />
+      {onDismiss && (
+        <button className="spec-inspector-close" onClick={onDismiss} aria-label="Close inspector">
+          ✕
+        </button>
+      )}
 
       {loading && <div className="spec-inspector-loading">Loading…</div>}
       {error && <div className="spec-inspector-error">Error: {error}</div>}
@@ -160,7 +218,20 @@ export default function SpecInspector({ selectedNodeId, onFocusNode }: SpecInspe
                 <div className="spec-inspector-scope-group">
                   <div className="spec-inspector-scope-label scope-in">In scope</div>
                   <ul className="spec-inspector-scope-list">
-                    {scope.in.map((item, i) => <li key={i}>{item}</li>)}
+                    {scope.in.map((item, i) => {
+                      const subId = `scope_in-${i}`;
+                      const isHighlighted = selectedSubItemId === subId;
+                      return (
+                        <li
+                          key={i}
+                          ref={isHighlighted ? highlightedItemRef : null}
+                          className={`selectable${isHighlighted ? " sub-item-highlighted" : ""}`}
+                          onClick={() => onSelectSubItem?.(isHighlighted ? null : subId)}
+                        >
+                          {item}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
@@ -168,7 +239,20 @@ export default function SpecInspector({ selectedNodeId, onFocusNode }: SpecInspe
                 <div className="spec-inspector-scope-group">
                   <div className="spec-inspector-scope-label scope-out">Out of scope</div>
                   <ul className="spec-inspector-scope-list">
-                    {scope.out.map((item, i) => <li key={i}>{item}</li>)}
+                    {scope.out.map((item, i) => {
+                      const subId = `scope_out-${i}`;
+                      const isHighlighted = selectedSubItemId === subId;
+                      return (
+                        <li
+                          key={i}
+                          ref={isHighlighted ? highlightedItemRef : null}
+                          className={`selectable${isHighlighted ? " sub-item-highlighted" : ""}`}
+                          onClick={() => onSelectSubItem?.(isHighlighted ? null : subId)}
+                        >
+                          {item}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
@@ -182,8 +266,15 @@ export default function SpecInspector({ selectedNodeId, onFocusNode }: SpecInspe
               <ol className="spec-inspector-list">
                 {acceptance.map(({ text, malformed }, i) => {
                   const unmet = !malformed && evidence.length > 0 && !metCriteria.has(text.trim());
+                  const id = `acceptance-${i}`;
+                  const isHighlighted = selectedSubItemId === id;
                   return (
-                    <li key={i} className={`spec-inspector-list-item${unmet ? " gap-unmet" : ""}${malformed ? " format-error" : ""}`}>
+                    <li
+                      key={i}
+                      ref={isHighlighted ? highlightedItemRef : null}
+                      className={`spec-inspector-list-item selectable${unmet ? " gap-unmet" : ""}${malformed ? " format-error" : ""}${isHighlighted ? " sub-item-highlighted" : ""}`}
+                      onClick={() => onSelectSubItem?.(isHighlighted ? null : id)}
+                    >
                       {unmet && <span className="gap-dot" title="No evidence">●</span>}
                       {malformed
                         ? <MalformedBadge raw={text} />
@@ -198,6 +289,57 @@ export default function SpecInspector({ selectedNodeId, onFocusNode }: SpecInspe
           {/* 6. Evidence — collapsible box */}
           {evidence.length > 0 && (
             <EvidenceSection evidence={evidence} />
+          )}
+
+          {/* 7. Decisions */}
+          {decisions.length > 0 && (
+            <div className="spec-inspector-box">
+              <div className="spec-inspector-box-label">Decisions</div>
+              <ol className="spec-inspector-list">
+                {decisions.map(({ id, statement, rationale }, i) => {
+                  const subId = `decision-${i}`;
+                  const isHighlighted = selectedSubItemId === subId;
+                  return (
+                    <li
+                      key={i}
+                      ref={isHighlighted ? highlightedItemRef : null}
+                      className={`spec-inspector-list-item selectable${isHighlighted ? " sub-item-highlighted" : ""}`}
+                      onClick={() => onSelectSubItem?.(isHighlighted ? null : subId)}
+                    >
+                      {id && <span className="spec-inspector-sub-id">{id}</span>}
+                      {statement}
+                      {rationale && (
+                        <div className="spec-inspector-sub-rationale">{rationale}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          )}
+
+          {/* 8. Invariants */}
+          {invariants.length > 0 && (
+            <div className="spec-inspector-box">
+              <div className="spec-inspector-box-label">Invariants</div>
+              <ol className="spec-inspector-list">
+                {invariants.map(({ id, statement }, i) => {
+                  const subId = `invariant-${i}`;
+                  const isHighlighted = selectedSubItemId === subId;
+                  return (
+                    <li
+                      key={i}
+                      ref={isHighlighted ? highlightedItemRef : null}
+                      className={`spec-inspector-list-item selectable${isHighlighted ? " sub-item-highlighted" : ""}`}
+                      onClick={() => onSelectSubItem?.(isHighlighted ? null : subId)}
+                    >
+                      {id && <span className="spec-inspector-sub-id">{id}</span>}
+                      {statement}
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
           )}
 
           {/* — secondary — */}

@@ -69,10 +69,17 @@ body {
   transition: right 220ms ease, transform 220ms ease;
 }
 
-/* Shift minimap left when any inspector is open */
-.app-layout:has(.spec-inspector.visible) .react-flow__minimap,
-.app-layout:has(.inspector-overlay.visible) .react-flow__minimap {
-  transform: translateX(-450px);
+/* Anchor minimap to the left edge of the inspector (whichever is open).
+   --spec-inspector-width and --conv-inspector-width are set via JS in
+   SpecInspector / InspectorOverlay so the value tracks live resizing. */
+:root {
+  --spec-inspector-width: 0px;
+  --conv-inspector-width: 0px;
+}
+
+.react-flow__minimap {
+  right: calc(max(var(--spec-inspector-width), var(--conv-inspector-width)) + 10px) !important;
+  transition: right 220ms ease;
 }
 
 /* App layout */

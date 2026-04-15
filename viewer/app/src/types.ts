@@ -114,6 +114,8 @@ export interface SpecViewOptions {
   viewMode: SpecViewMode;
   showCrossLinks: boolean;
   showBlocking: boolean;
+  /** Linear mode: show/hide depends_on edges */
+  showDependsOn: boolean;
 }
 
 export interface CompileTarget {
