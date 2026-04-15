@@ -6,6 +6,7 @@ DIALOG_DIR ?=
 OUTPUT_DIR ?=
 CANONICAL_DIR ?=
 SPEC_DIR ?=
+HYPERPROMPT_BINARY ?=
 
 .PHONY: help serve api ui dev stop test lint canonicalize canon quickstart
 
@@ -28,7 +29,7 @@ serve:
 		echo "Example: make serve DIALOG_DIR=/absolute/path/to/ChatGPTDialogs/import_json"; \
 		exit 1; \
 	fi
-	@$(PYTHON) viewer/server.py --port $(PORT) --dialog-dir "$(DIALOG_DIR)" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",)
+	@$(PYTHON) viewer/server.py --port $(PORT) --dialog-dir "$(DIALOG_DIR)" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",) $(if $(strip $(HYPERPROMPT_BINARY)),--hyperprompt-binary "$(HYPERPROMPT_BINARY)",)
 
 canonicalize:
 	@if [ -z "$(DIALOG_DIR)" ] || [ -z "$(OUTPUT_DIR)" ]; then \
@@ -49,7 +50,7 @@ ui:
 
 dev:
 	@npm install --prefix viewer/app
-	@$(PYTHON) viewer/server.py --port "$(API_PORT)" --dialog-dir "$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",) & \
+	@$(PYTHON) viewer/server.py --port "$(API_PORT)" --dialog-dir "$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",) $(if $(strip $(HYPERPROMPT_BINARY)),--hyperprompt-binary "$(HYPERPROMPT_BINARY)",) & \
 	api_pid=$$!; \
 	trap 'kill $$api_pid 2>/dev/null || true' EXIT INT TERM; \
 	npm run dev --prefix viewer/app -- --host 127.0.0.1 --port "$(UI_PORT)"
