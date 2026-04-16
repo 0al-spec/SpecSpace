@@ -1,3 +1,4 @@
+import { useState, useCallback, useRef } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Node } from "@xyflow/react";
 import "./SpecNode.css";
@@ -32,6 +33,10 @@ export interface SpecNodeData extends Record<string, unknown> {
   isExpanded?: boolean;
   /** Callback to toggle expanded/collapsed state */
   onToggleExpand?: (nodeId: string) => void;
+  /** Whether this node's branch (descendants) is collapsed */
+  isBranchCollapsed?: boolean;
+  /** Callback to toggle branch collapsed/expanded */
+  onToggleBranch?: (nodeId: string) => void;
 }
 
 export type SpecNodeType = Node<SpecNodeData, "spec">;
@@ -61,9 +66,24 @@ export default function SpecNode({
   const kinds = data.visibleHandleKinds;
   const tops = slotTops(kinds.length);
 
+  const [btnVisible, setBtnVisible] = useState(false);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showBtn = useCallback(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    setBtnVisible(true);
+  }, []);
+
+  const scheduleHide = useCallback(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => setBtnVisible(false), 2000);
+  }, []);
+
   return (
     <div
       className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""} ${data.searchDimmed ? "search-dimmed" : ""}`}
+      onMouseEnter={showBtn}
+      onMouseLeave={scheduleHide}
     >
       {/* Target handles (left) — one slot per visible kind */}
       {kinds.map((kind, i) => {
@@ -163,6 +183,23 @@ export default function SpecNode({
           title={data.isExpanded ? "Collapse sub-items" : "Expand sub-items"}
         >
           {data.isExpanded ? "▾" : "▸"}
+        </button>
+      )}
+
+      {/* Branch collapse button — shown when node has children */}
+      {data.refinedByCount > 0 && data.onToggleBranch && (
+        <button
+          className="spec-node-branch-btn"
+          style={{ opacity: btnVisible ? 1 : 0, pointerEvents: btnVisible ? "auto" : "none" }}
+          onMouseEnter={showBtn}
+          onMouseLeave={scheduleHide}
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onToggleBranch!(data.nodeId);
+          }}
+          title={data.isBranchCollapsed ? "Expand branch" : "Collapse branch"}
+        >
+          {data.isBranchCollapsed ? "▶" : "▼"}
         </button>
       )}
     </div>

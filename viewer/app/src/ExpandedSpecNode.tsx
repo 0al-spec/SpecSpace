@@ -1,3 +1,4 @@
+import { useState, useCallback, useRef } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Node } from "@xyflow/react";
 import "./ExpandedSpecNode.css";
@@ -15,6 +16,8 @@ export interface ExpandedSpecGroupData extends Record<string, unknown> {
   visibleHandleKinds: readonly SpecHandleKind[];
   activeSourceKinds: Set<string>;
   activeTargetKinds: Set<string>;
+  isBranchCollapsed?: boolean;
+  onToggleBranch?: (nodeId: string) => void;
 }
 
 export type ExpandedSpecNodeType = Node<ExpandedSpecGroupData, "expandedSpec">;
@@ -36,8 +39,25 @@ export default function ExpandedSpecNode({ data, selected }: NodeProps<ExpandedS
   const kinds = data.visibleHandleKinds;
   const tops = handleTops(kinds.length);
 
+  const [btnVisible, setBtnVisible] = useState(false);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showBtn = useCallback(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    setBtnVisible(true);
+  }, []);
+
+  const scheduleHide = useCallback(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => setBtnVisible(false), 2000);
+  }, []);
+
   return (
-    <div className={`expanded-spec-node ${statusClass} ${selected ? "selected" : ""}`}>
+    <div
+      className={`expanded-spec-node ${statusClass} ${selected ? "selected" : ""}`}
+      onMouseEnter={showBtn}
+      onMouseLeave={scheduleHide}
+    >
       {/* Target handles (left) — same IDs as collapsed SpecNode for seamless edge routing */}
       {kinds.map((kind, i) => {
         const active = data.activeTargetKinds.has(kind);
@@ -120,6 +140,23 @@ export default function ExpandedSpecNode({ data, selected }: NodeProps<ExpandedS
           />
         );
       })}
+
+      {/* Branch collapse button — shown when node has children */}
+      {data.refinedByCount > 0 && data.onToggleBranch && (
+        <button
+          className="spec-node-branch-btn"
+          style={{ opacity: btnVisible ? 1 : 0, pointerEvents: btnVisible ? "auto" : "none" }}
+          onMouseEnter={showBtn}
+          onMouseLeave={scheduleHide}
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onToggleBranch!(data.nodeId);
+          }}
+          title={data.isBranchCollapsed ? "Expand branch" : "Collapse branch"}
+        >
+          {data.isBranchCollapsed ? "▶" : "▼"}
+        </button>
+      )}
     </div>
   );
 }

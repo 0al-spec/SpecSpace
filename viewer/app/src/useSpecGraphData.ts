@@ -6,6 +6,7 @@ import { SPEC_HANDLE_KINDS, type SpecHandleKind } from "./SpecNode";
 import type { ExpandedSpecGroupData } from "./ExpandedSpecNode";
 import type { SpecSubItemNodeData } from "./SpecSubItemNode";
 import { computeBasePositions, computeLinearPositions } from "./layoutGraph";
+import { useSessionSet } from "./useSessionState";
 
 // Spec node dimensions
 const SPEC_NODE_WIDTH = 280;
@@ -141,6 +142,18 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
   const specDetailsRef = useRef<Map<string, Record<string, unknown>>>(new Map());
   const [specDetails, setSpecDetails] = useState<Map<string, Record<string, unknown>>>(new Map());
 
+  // Branch collapse state
+  const [collapsedBranchIds, setCollapsedBranchIds] = useSessionSet("collapsed_spec_branches");
+
+  const onToggleBranch = useCallback((nodeId: string) => {
+    setCollapsedBranchIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
+  }, [setCollapsedBranchIds]);
+
   const onToggleExpand = useCallback(async (nodeId: string) => {
     setExpandedSpecIds((prev) => {
       const next = new Set(prev);
@@ -270,6 +283,25 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
     const refinesEdges = apiGraph.edges.filter((e) => e.edge_kind === "refines");
     const dependsOnEdges = apiGraph.edges.filter((e) => e.edge_kind === "depends_on");
     const relatesToEdges = apiGraph.edges.filter((e) => e.edge_kind === "relates_to");
+
+    // parent→children map (in tree direction: parent is e.target_id, child is e.source_id)
+    const parentToChildren = new Map<string, string[]>();
+    for (const e of refinesEdges) {
+      if (!parentToChildren.has(e.target_id)) parentToChildren.set(e.target_id, []);
+      parentToChildren.get(e.target_id)!.push(e.source_id);
+    }
+
+    // BFS: find all node IDs hidden because their ancestor is collapsed
+    const hiddenNodeIds = new Set<string>();
+    for (const rootId of collapsedBranchIds) {
+      const queue = [...(parentToChildren.get(rootId) ?? [])];
+      while (queue.length > 0) {
+        const id = queue.shift()!;
+        if (hiddenNodeIds.has(id)) continue;
+        hiddenNodeIds.add(id);
+        queue.push(...(parentToChildren.get(id) ?? []));
+      }
+    }
 
     // "parent depends_on child" paired with "child refines parent"
     // Key: `${parent}::${child}`, exists if both refines and depends_on link them
@@ -472,6 +504,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
     const allNodes: Node[] = [];
 
     for (const apiNode of apiGraph.nodes) {
+      if (hiddenNodeIds.has(apiNode.node_id)) continue;
       const hasBrokenEdges = apiNode.diagnostics.length > 0;
       const isExpanded = expandedSpecIds.has(apiNode.node_id);
       const expandedDetail = isExpanded ? specDetails.get(apiNode.node_id) : undefined;
@@ -497,6 +530,8 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
           visibleHandleKinds: visibleKinds,
           activeSourceKinds: activeSourceKinds.get(apiNode.node_id) ?? new Set(),
           activeTargetKinds: activeTargetKinds.get(apiNode.node_id) ?? new Set(),
+          isBranchCollapsed: collapsedBranchIds.has(apiNode.node_id),
+          onToggleBranch,
         };
 
         allNodes.push({
@@ -550,6 +585,8 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
           gapCount: apiNode.gap_count ?? 0,
           isExpanded,
           onToggleExpand,
+          isBranchCollapsed: collapsedBranchIds.has(apiNode.node_id),
+          onToggleBranch,
         };
 
         allNodes.push({
@@ -564,8 +601,11 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
       }
     }
 
-    return { nodes: allNodes, edges: allEdges };
-  }, [apiGraph, basePositions, viewMode, showCrossLinks, showBlocking, showDependsOn, expandedSpecIds, specDetails, onToggleExpand]);
+    const visibleEdges = allEdges.filter(
+      (e) => !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target)
+    );
+    return { nodes: allNodes, edges: visibleEdges };
+  }, [apiGraph, basePositions, viewMode, showCrossLinks, showBlocking, showDependsOn, expandedSpecIds, specDetails, onToggleExpand, collapsedBranchIds, onToggleBranch]);
 
   return {
     nodes,
