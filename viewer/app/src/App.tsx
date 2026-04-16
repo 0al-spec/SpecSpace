@@ -25,6 +25,7 @@ import MessageNode from "./MessageNode";
 import SpecNode from "./SpecNode";
 import ExpandedSpecNode from "./ExpandedSpecNode";
 import SpecSubItemNode from "./SpecSubItemNode";
+import CollapsedBranchNode from "./CollapsedBranchNode";
 import SpecInspector from "./SpecInspector";
 import "./SpecNode.css";
 import AgentChat, { AgentChatTrigger } from "./AgentChat";
@@ -44,6 +45,7 @@ const nodeTypes = {
   spec: SpecNode,
   expandedSpec: ExpandedSpecNode,
   specSubItem: SpecSubItemNode,
+  collapsedBranch: CollapsedBranchNode,
 };
 
 function loadViewport(): Viewport | undefined {
@@ -96,6 +98,7 @@ function minimapNodeColor(node: Node): string {
     return specStatusColorMap[status] ?? "#9b8ec4";
   }
   if (node.type === "specSubItem") return "#9b8ec4";
+  if (node.type === "collapsedBranch") return "#4e689b";
   return "#b89f7f";
 }
 

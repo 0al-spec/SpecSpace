@@ -5,6 +5,7 @@ import type { SpecNodeData } from "./SpecNode";
 import { SPEC_HANDLE_KINDS, type SpecHandleKind } from "./SpecNode";
 import type { ExpandedSpecGroupData } from "./ExpandedSpecNode";
 import type { SpecSubItemNodeData } from "./SpecSubItemNode";
+import type { CollapsedBranchNodeData } from "./CollapsedBranchNode";
 import { computeBasePositions, computeLinearPositions } from "./layoutGraph";
 import { useSessionSet } from "./useSessionState";
 
@@ -599,6 +600,90 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
           style: { width: SPEC_NODE_WIDTH, height: SPEC_NODE_HEIGHT },
         });
       }
+    }
+
+    // ── Synthetic collapsed-branch nodes ────────────────────────────────────
+    // For each collapsed root that is itself visible, add a round proxy node
+    // positioned at the centroid of its direct children's layout positions.
+    const COLLAPSED_SIZE = 72;
+
+    for (const collapsedRootId of collapsedBranchIds) {
+      // Skip if the root itself is hidden (nested collapse)
+      if (hiddenNodeIds.has(collapsedRootId)) continue;
+      // Skip if the node doesn't exist in the API graph
+      if (!apiGraph.nodes.find((n) => n.node_id === collapsedRootId)) continue;
+
+      // Count all descendants via BFS
+      let descendantCount = 0;
+      const bfsQueue = [...(parentToChildren.get(collapsedRootId) ?? [])];
+      const bfsVisited = new Set<string>();
+      while (bfsQueue.length > 0) {
+        const id = bfsQueue.shift()!;
+        if (bfsVisited.has(id)) continue;
+        bfsVisited.add(id);
+        descendantCount++;
+        bfsQueue.push(...(parentToChildren.get(id) ?? []));
+      }
+      if (descendantCount === 0) continue;
+
+      // Position: centroid of direct children (their pre-collapse layout positions)
+      const directChildren = parentToChildren.get(collapsedRootId) ?? [];
+      let syntheticPos: { x: number; y: number };
+      if (directChildren.length > 0) {
+        const childPositions = directChildren.map(
+          (c) => basePositions.get(c) ?? { x: 0, y: 0 },
+        );
+        const avgX = childPositions.reduce((s, p) => s + p.x, 0) / childPositions.length;
+        const avgY = childPositions.reduce((s, p) => s + p.y, 0) / childPositions.length;
+        syntheticPos = {
+          x: avgX + SPEC_NODE_WIDTH / 2 - COLLAPSED_SIZE / 2,
+          y: avgY + SPEC_NODE_HEIGHT / 2 - COLLAPSED_SIZE / 2,
+        };
+      } else {
+        // Fallback: place to the right of parent (tree LR assumption)
+        const parentPos = basePositions.get(collapsedRootId) ?? { x: 0, y: 0 };
+        syntheticPos = {
+          x: parentPos.x + SPEC_NODE_WIDTH + 80,
+          y: parentPos.y + (SPEC_NODE_HEIGHT - COLLAPSED_SIZE) / 2,
+        };
+      }
+
+      const syntheticId = `__collapsed__${collapsedRootId}`;
+      const syntheticData: CollapsedBranchNodeData = {
+        collapsedRootId,
+        count: descendantCount,
+        onExpand: onToggleBranch,
+      };
+      allNodes.push({
+        id: syntheticId,
+        type: "collapsedBranch",
+        position: syntheticPos,
+        data: syntheticData,
+        width: COLLAPSED_SIZE,
+        height: COLLAPSED_SIZE,
+        style: { width: COLLAPSED_SIZE, height: COLLAPSED_SIZE },
+      });
+
+      // Edge: direction matches the view mode
+      // Tree / linear: parent → synthetic (parent is source, synthetic is child)
+      // Canonical: refines go child→parent, so synthetic → parent
+      const isCanonical = viewMode === "canonical";
+      allEdges.push({
+        id: `__collapsed_edge__${collapsedRootId}`,
+        source: isCanonical ? syntheticId : collapsedRootId,
+        target: isCanonical ? collapsedRootId : syntheticId,
+        sourceHandle: isCanonical ? "src" : "src-refines",
+        targetHandle: isCanonical ? "tgt-refines" : "tgt",
+        type: "default",
+        animated: false,
+        zIndex: 1,
+        style: {
+          stroke: "#4e689b",
+          strokeWidth: 1.5,
+          strokeDasharray: "5 4",
+          opacity: 0.7,
+        },
+      });
     }
 
     const visibleEdges = allEdges.filter(

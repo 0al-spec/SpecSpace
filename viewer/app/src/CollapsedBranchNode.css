@@ -1,0 +1,38 @@
+.collapsed-branch-node {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--branch, #dbe6ff);
+  border: 2px dashed var(--branch-line, #4e689b);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(78, 104, 155, 0.18);
+}
+
+.collapsed-branch-node:hover {
+  background: #c8d9ff;
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(78, 104, 155, 0.28);
+}
+
+.collapsed-branch-count {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--branch-line, #4e689b);
+  line-height: 1;
+  font-family: Georgia, serif;
+}
+
+.collapsed-branch-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--branch-line, #4e689b);
+  font-family: "Courier New", monospace;
+  opacity: 0.75;
+}
