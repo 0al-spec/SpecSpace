@@ -27,6 +27,8 @@ import ExpandedSpecNode from "./ExpandedSpecNode";
 import SpecSubItemNode from "./SpecSubItemNode";
 import CollapsedBranchNode from "./CollapsedBranchNode";
 import SpecInspector from "./SpecInspector";
+import SpecLens from "./SpecLens";
+import SpecForceGraph from "./SpecForceGraph";
 import "./SpecNode.css";
 import AgentChat, { AgentChatTrigger } from "./AgentChat";
 import SearchPalette from "./SearchPalette";
@@ -186,6 +188,7 @@ function AppInner() {
   const [selectedMessageId, setSelectedMessageId] =
     useSessionString("selected_message");
   const [selectedSubItemId, setSelectedSubItemId] = useState<string | null>(null);
+  const [lensNodeId, setLensNodeId] = useState<string | null>(null);
   const [compileTargetConversationId, setCompileTargetConversationId] =
     useSessionString("compile_target_conversation_id");
   const [compileTargetMessageId, setCompileTargetMessageId] =
@@ -576,7 +579,19 @@ function AppInner() {
               <button onClick={refresh}>Retry</button>
             </div>
           )}
-          {/* ReactFlow stays mounted during background refreshes to preserve zoom/pan */}
+          {/* Force-directed view — replaces ReactFlow when viewMode === "force" */}
+          {graphMode === "specifications" && specViewOptions.viewMode === "force" && specGraph.rawGraph && (
+            <ErrorBoundary label="SpecForceGraph">
+              <SpecForceGraph
+                apiGraph={specGraph.rawGraph}
+                selectedNodeId={selectedConversationId}
+                onSelectNode={onSpecNodeSelect}
+              />
+            </ErrorBoundary>
+          )}
+
+          {/* ReactFlow stays mounted during background refreshes to preserve zoom/pan.
+              Hidden (not unmounted) in force mode so zoom/pan state is preserved. */}
           <ErrorBoundary label="Canvas">
             <ReactFlow
               nodes={displayNodes}
@@ -590,7 +605,11 @@ function AppInner() {
               defaultViewport={savedViewport.current}
               fitView={hasFitView}
               minZoom={0.125}
-              style={{ opacity: loading && nodes.length > 0 ? 0.6 : 1, transition: "opacity 150ms" }}
+              style={{
+                opacity: loading && nodes.length > 0 ? 0.6 : 1,
+                transition: "opacity 150ms",
+                display: graphMode === "specifications" && specViewOptions.viewMode === "force" ? "none" : undefined,
+              }}
               multiSelectionKeyCode="Shift"
               selectionKeyCode="Shift"
               selectionMode={SelectionMode.Partial}
@@ -608,6 +627,7 @@ function AppInner() {
               <FitViewShortcut />
             </ReactFlow>
           </ErrorBoundary>
+
         </main>
         {/* Spec inspector */}
         {graphMode === "specifications" && (
@@ -618,6 +638,7 @@ function AppInner() {
               onDismiss={dismissInspector}
               onFocusNode={onFocusNode}
               onSelectSubItem={setSelectedSubItemId}
+              onOpenLens={setLensNodeId}
             />
           </ErrorBoundary>
         )}
@@ -637,6 +658,21 @@ function AppInner() {
             />
           </ErrorBoundary>
         )}
+        {/* Spec lens — force-directed neighbourhood overlay (position: fixed, top-level) */}
+        {graphMode === "specifications" && lensNodeId && specGraph.rawGraph && (
+          <ErrorBoundary label="SpecLens">
+            <SpecLens
+              nodeId={lensNodeId}
+              apiGraph={specGraph.rawGraph}
+              onClose={() => setLensNodeId(null)}
+              onSelectNode={(id) => {
+                setLensNodeId(id);
+                onSpecNodeSelect(id);
+              }}
+            />
+          </ErrorBoundary>
+        )}
+
         {/* Agent chat */}
         <AgentChatTrigger onClick={() => setChatOpen((v) => !v)} active={chatOpen} />
         <AgentChat

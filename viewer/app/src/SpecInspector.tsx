@@ -10,12 +10,14 @@ interface SpecInspectorProps {
   onFocusNode?: (nodeId: string) => void;
   /** Called when user clicks a sub-item in the inspector; null to deselect. */
   onSelectSubItem?: (subItemId: string | null) => void;
+  /** Open the force-directed lens for the selected node */
+  onOpenLens?: (nodeId: string) => void;
 }
 
 // Raw YAML payload from /api/spec-node
 type SpecDetail = Record<string, unknown>;
 
-export default function SpecInspector({ selectedNodeId, selectedSubItemId, onDismiss, onFocusNode, onSelectSubItem }: SpecInspectorProps) {
+export default function SpecInspector({ selectedNodeId, selectedSubItemId, onDismiss, onFocusNode, onSelectSubItem, onOpenLens }: SpecInspectorProps) {
   const [detail, setDetail] = useState<SpecDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,11 +162,22 @@ export default function SpecInspector({ selectedNodeId, selectedSubItemId, onDis
   return (
     <aside className={`spec-inspector ${visible ? "visible" : ""}`} style={{ width: `${width}px` }}>
       <div className="spec-inspector-resize-handle" onMouseDown={onHandleMouseDown} />
-      {onDismiss && (
-        <button className="spec-inspector-close" onClick={onDismiss} aria-label="Close inspector">
-          ✕
-        </button>
-      )}
+      <div className="spec-inspector-actions">
+        {onOpenLens && selectedNodeId && (
+          <button
+            className="spec-inspector-lens-btn"
+            onClick={() => onOpenLens(selectedNodeId)}
+            title="Open force-directed lens view"
+          >
+            ⊙
+          </button>
+        )}
+        {onDismiss && (
+          <button className="spec-inspector-close" onClick={onDismiss} aria-label="Close inspector">
+            ✕
+          </button>
+        )}
+      </div>
 
       {loading && <div className="spec-inspector-loading">Loading…</div>}
       {error && <div className="spec-inspector-error">Error: {error}</div>}

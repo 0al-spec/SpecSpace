@@ -231,6 +231,15 @@ export default function Sidebar({
                 >
                   Canonical
                 </button>
+                <button
+                  className={`sidebar-mode-btn spec-mode ${specViewOptions.viewMode === "force" ? "active" : ""}`}
+                  onClick={() =>
+                    onSpecViewOptionsChange({ ...specViewOptions, viewMode: "force" })
+                  }
+                  title="Force-directed — organic layout showing all connections"
+                >
+                  Force
+                </button>
               </div>
 
               {/* Toggles — meaningful in tree and linear modes */}

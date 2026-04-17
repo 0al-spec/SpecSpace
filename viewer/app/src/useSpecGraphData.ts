@@ -699,5 +699,6 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
     error,
     refresh: fetchGraph,
     summary: apiGraph?.summary ?? null,
+    rawGraph: apiGraph,
   };
 }

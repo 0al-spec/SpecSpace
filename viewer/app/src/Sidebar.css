@@ -224,6 +224,13 @@
   color: #4c1d95;
 }
 
+/* 4 spec-mode buttons need tighter sizing to fit */
+.sidebar-mode-btn.spec-mode {
+  padding: 6px 4px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
 /* Spec view controls */
 .sidebar-spec-controls {
   margin-bottom: 12px;

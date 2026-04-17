@@ -41,27 +41,35 @@
   background: rgba(124, 58, 237, 0.12);
 }
 
-/* Close button */
-.spec-inspector-close {
+/* Action buttons row (lens + close) */
+.spec-inspector-actions {
   position: absolute;
   top: 12px;
   right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 1;
+}
+
+.spec-inspector-close,
+.spec-inspector-lens-btn {
   width: 30px;
   height: 30px;
   border-radius: 999px;
   border: 1px solid var(--line, #e0d8cc);
   background: white;
-  font-size: 13px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--muted, #888);
-  z-index: 1;
 }
-.spec-inspector-close:hover {
-  background: #fbf3e7;
-}
+.spec-inspector-close { font-size: 13px; }
+.spec-inspector-lens-btn { font-size: 16px; color: #7c3aed; }
+
+.spec-inspector-close:hover  { background: #fbf3e7; }
+.spec-inspector-lens-btn:hover { background: rgba(124, 58, 237, 0.08); color: #5b21b6; }
 
 /* Loading / error */
 .spec-inspector-loading,

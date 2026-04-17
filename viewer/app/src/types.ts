@@ -107,7 +107,7 @@ export interface ApiSpecGraph {
 export type GraphMode = "conversations" | "specifications";
 
 /** Spec view mode within the specifications graph mode */
-export type SpecViewMode = "tree" | "linear" | "canonical";
+export type SpecViewMode = "tree" | "linear" | "canonical" | "force";
 
 /** Options controlling which secondary edges are displayed in tree mode */
 export interface SpecViewOptions {
