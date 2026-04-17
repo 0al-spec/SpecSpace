@@ -658,17 +658,12 @@ function AppInner() {
             />
           </ErrorBoundary>
         )}
-        {/* Spec lens — force-directed neighbourhood overlay (position: fixed, top-level) */}
-        {graphMode === "specifications" && lensNodeId && specGraph.rawGraph && (
+        {/* Spec lens — floating content viewer (position: fixed, top-level) */}
+        {graphMode === "specifications" && lensNodeId && (
           <ErrorBoundary label="SpecLens">
             <SpecLens
               nodeId={lensNodeId}
-              apiGraph={specGraph.rawGraph}
               onClose={() => setLensNodeId(null)}
-              onSelectNode={(id) => {
-                setLensNodeId(id);
-                onSpecNodeSelect(id);
-              }}
             />
           </ErrorBoundary>
         )}

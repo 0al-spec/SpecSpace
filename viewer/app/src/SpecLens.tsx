@@ -1,428 +1,323 @@
-import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
-import * as d3 from "d3";
-import type { ApiSpecGraph } from "./types";
+/**
+ * SpecLens — floating document view of a spec node.
+ *
+ * Opened via the ⊙ button in the SpecInspector header.
+ * Shows the full specification content (objective, AC, decisions,
+ * invariants, scope, links) in a draggable, resizable panel.
+ */
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
 import "./SpecLens.css";
 
-// ─── Colour maps ────────────────────────────────────────────────────────────
+// ─── Raw API shape ────────────────────────────────────────────────────────────
 
-const STATUS_FILL: Record<string, string> = {
-  idea:      "#b0b0b0",
-  stub:      "#c8a72a",
-  outlined:  "#4e82b8",
-  specified: "#6e5ab8",
-  linked:    "#3e9a58",
-  reviewed:  "#2a7c7c",
-  frozen:    "#4a5568",
-};
+type SpecDetail = Record<string, unknown>;
 
-const EDGE_COLOR: Record<string, string> = {
-  refines:    "#4e689b",
-  depends_on: "#dc2626",
-  relates_to: "#7c3aed",
-};
-
-const EDGE_DASH: Record<string, string | null> = {
-  refines:    "6 3",
-  depends_on: null,
-  relates_to: "3 6",
-};
-
-// ─── D3 datum types ─────────────────────────────────────────────────────────
-
-interface SimNode extends d3.SimulationNodeDatum {
-  node_id: string;
-  title: string;
-  kind: string;
-  status: string;
-  isCenter: boolean;
+function str(v: unknown): string {
+  return typeof v === "string" ? v : "";
 }
 
-type EdgeKind = "depends_on" | "refines" | "relates_to";
+// ─── Sub-parsers ──────────────────────────────────────────────────────────────
 
-interface SimLink extends d3.SimulationLinkDatum<SimNode> {
-  edge_id: string;
-  edge_kind: EdgeKind;
+interface Decision { id: string | null; statement: string; rationale: string | null }
+interface Invariant { id: string | null; statement: string }
+interface ScopeData  { in: string[]; out: string[] }
+
+function parseDecisions(detail: SpecDetail): Decision[] {
+  const spec = (detail.specification as Record<string, unknown>) ?? {};
+  const raw = Array.isArray(spec.decisions) ? (spec.decisions as unknown[]) : [];
+  return raw.map((item) => {
+    if (typeof item === "string") return { id: null, statement: item, rationale: null };
+    const obj = item as Record<string, unknown>;
+    return {
+      id:        typeof obj.id        === "string" ? obj.id        : null,
+      statement: typeof obj.statement === "string" ? obj.statement
+               : typeof obj.decision  === "string" ? obj.decision  : JSON.stringify(obj),
+      rationale: typeof obj.rationale === "string" ? obj.rationale : null,
+    };
+  });
 }
 
-// ─── Subgraph extraction ─────────────────────────────────────────────────────
-
-function buildSubgraph(
-  apiGraph: ApiSpecGraph,
-  centerNodeId: string,
-  hops: number,
-): { nodes: SimNode[]; links: SimLink[] } {
-  // BFS: collect node IDs within `hops` hops from center
-  const nodeSet = new Set<string>([centerNodeId]);
-  let frontier = [centerNodeId];
-
-  for (let h = 0; h < hops; h++) {
-    const next: string[] = [];
-    for (const e of apiGraph.edges) {
-      if (e.status !== "resolved") continue;
-      for (const id of frontier) {
-        if (e.source_id === id && !nodeSet.has(e.target_id)) {
-          nodeSet.add(e.target_id);
-          next.push(e.target_id);
-        }
-        if (e.target_id === id && !nodeSet.has(e.source_id)) {
-          nodeSet.add(e.source_id);
-          next.push(e.source_id);
-        }
-      }
-    }
-    frontier = next;
-  }
-
-  // All resolved edges between collected nodes
-  const seen = new Set<string>();
-  const links: SimLink[] = [];
-  for (const e of apiGraph.edges) {
-    if (e.status !== "resolved") continue;
-    if (nodeSet.has(e.source_id) && nodeSet.has(e.target_id) && !seen.has(e.edge_id)) {
-      seen.add(e.edge_id);
-      links.push({
-        edge_id: e.edge_id,
-        edge_kind: e.edge_kind as EdgeKind,
-        // D3 accepts string IDs when forceLink has an .id() accessor
-        source: e.source_id as unknown as SimNode,
-        target: e.target_id as unknown as SimNode,
-      });
-    }
-  }
-
-  const nodes: SimNode[] = apiGraph.nodes
-    .filter((n) => nodeSet.has(n.node_id))
-    .map((n) => ({
-      node_id: n.node_id,
-      title:   n.title,
-      kind:    n.kind,
-      status:  n.status,
-      isCenter: n.node_id === centerNodeId,
-    }));
-
-  return { nodes, links };
+function parseInvariants(detail: SpecDetail): Invariant[] {
+  const spec = (detail.specification as Record<string, unknown>) ?? {};
+  const raw = Array.isArray(spec.invariants) ? (spec.invariants as unknown[]) : [];
+  return raw.map((item) => {
+    if (typeof item === "string") return { id: null, statement: item };
+    const obj = item as Record<string, unknown>;
+    return {
+      id:        typeof obj.id        === "string" ? obj.id        : null,
+      statement: typeof obj.statement === "string" ? obj.statement : JSON.stringify(obj),
+    };
+  });
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+function parseScope(detail: SpecDetail): ScopeData | null {
+  const spec = (detail.specification as Record<string, unknown>) ?? {};
+  const raw  = (detail.scope ?? spec.scope) as Record<string, unknown> | null | undefined;
+  if (!raw) return null;
+  return {
+    in:  Array.isArray(raw.in)  ? (raw.in  as unknown[]).map(String) : raw.in  ? [String(raw.in)]  : [],
+    out: Array.isArray(raw.out) ? (raw.out as unknown[]).map(String) : raw.out ? [String(raw.out)] : [],
+  };
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export interface SpecLensProps {
-  nodeId:       string;
-  apiGraph:     ApiSpecGraph;
-  onClose:      () => void;
-  /** Called when the user clicks a neighbor node in the lens */
-  onSelectNode: (nodeId: string) => void;
+  nodeId:  string;
+  onClose: () => void;
 }
 
-export default function SpecLens({ nodeId, apiGraph, onClose, onSelectNode }: SpecLensProps) {
-  const svgRef    = useRef<SVGSVGElement>(null);
+const PANEL_W = 560;
+const PANEL_H = 640;
+
+export default function SpecLens({ nodeId, onClose }: SpecLensProps) {
   const panelRef  = useRef<HTMLDivElement>(null);
-  const [pos, setPos]   = useState({ x: 60, y: 60 });
-  const [hops, setHops] = useState(1);
+  const posRef    = useRef({ x: 60, y: 60 });
+  const [pos, setPos] = useState({ x: 60, y: 60 });
+  const [detail, setDetail] = useState<SpecDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
 
-  // Keep onSelectNode stable inside the D3 effect
-  const onSelectNodeRef = useRef(onSelectNode);
-  useLayoutEffect(() => { onSelectNodeRef.current = onSelectNode; });
-
-  // ── Center panel on first mount (position: fixed → relative to viewport) ─
+  // ── Centre on mount ───────────────────────────────────────────────────────
   useEffect(() => {
-    setPos({
-      x: Math.max(20, (window.innerWidth  - 640) / 2),
-      y: Math.max(20, (window.innerHeight - 500) / 2),
-    });
+    const init = {
+      x: Math.max(20, (window.innerWidth  - PANEL_W) / 2),
+      y: Math.max(20, (window.innerHeight - PANEL_H) / 2),
+    };
+    posRef.current = init;
+    setPos(init);
   }, []);
 
-  // ── Drag title bar ───────────────────────────────────────────────────────
-  const posRef = useRef(pos);
+  // ── Fetch spec data ───────────────────────────────────────────────────────
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    setDetail(null);
+    fetch(`/api/spec-node?id=${encodeURIComponent(nodeId)}`)
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((data) => { setDetail(data.data ?? data.node ?? data); setLoading(false); })
+      .catch((e)   => { setError(e.message); setLoading(false); });
+  }, [nodeId]);
+
+  // ── Escape closes ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  // ── Drag title bar ────────────────────────────────────────────────────────
   useLayoutEffect(() => { posRef.current = pos; });
 
   const onTitleBarMouseDown = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest("button,input,label")) return;
+    if ((e.target as HTMLElement).closest("button")) return;
     e.preventDefault();
     const { x: origX, y: origY } = posRef.current;
-    const startX = e.clientX;
-    const startY = e.clientY;
+    const startX = e.clientX, startY = e.clientY;
     const onMove = (ev: MouseEvent) =>
       setPos({ x: origX + ev.clientX - startX, y: origY + ev.clientY - startY });
     const onUp = () => {
       window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("mouseup",   onUp);
     };
     window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("mouseup",   onUp);
   }, []);
 
-  // ── D3 force simulation ──────────────────────────────────────────────────
-  useEffect(() => {
-    const svgEl = svgRef.current;
-    if (!svgEl) return;
+  // ── Parsed data ───────────────────────────────────────────────────────────
+  const acceptance = detail
+    ? (Array.isArray(detail.acceptance) ? (detail.acceptance as unknown[]) : []).map((v) => String(v))
+    : [];
 
-    const W = svgEl.clientWidth  || 640;
-    const H = svgEl.clientHeight || 440;
-
-    const { nodes, links } = buildSubgraph(apiGraph, nodeId, hops);
-
-    // Initial positions: center node at canvas center, others spread around it
-    const simNodes: SimNode[] = nodes.map((n) => ({
-      ...n,
-      x: W / 2 + (n.isCenter ? 0 : (Math.random() - 0.5) * 220),
-      y: H / 2 + (n.isCenter ? 0 : (Math.random() - 0.5) * 220),
-    }));
-
-    const root = d3.select(svgEl);
-    root.selectAll("*").remove();
-
-    // Zoom / pan layer
-    const g = root.append("g");
-    root.call(
-      d3.zoom<SVGSVGElement, unknown>()
-        .scaleExtent([0.2, 4])
-        .on("zoom", (ev) => g.attr("transform", ev.transform)),
-    );
-
-    // Arrow-head markers (one per edge kind)
-    const defs = root.append("defs");
-    for (const [kind, color] of Object.entries(EDGE_COLOR)) {
-      defs.append("marker")
-        .attr("id", `la-${kind}`)
-        .attr("markerWidth", 8).attr("markerHeight", 6)
-        .attr("refX", 8).attr("refY", 3)
-        .attr("orient", "auto")
-        .append("path")
-        .attr("d", "M0,0 L0,6 L8,3 z")
-        .attr("fill", color)
-        .attr("opacity", 0.8);
-    }
-
-    // Force simulation
-    const sim = d3.forceSimulation<SimNode>(simNodes)
-      .force(
-        "link",
-        d3.forceLink<SimNode, SimLink>(links)
-          .id((d) => d.node_id)
-          .distance((l) => (l.edge_kind === "refines" ? 170 : 140))
-          .strength(0.5),
+  const evidence = detail && Array.isArray(detail.acceptance_evidence)
+    ? new Set(
+        (detail.acceptance_evidence as Array<Record<string, unknown>>)
+          .filter((ev) => ev && ev.evidence)
+          .map((ev) => String(ev.criterion ?? "").trim())
+          .filter(Boolean),
       )
-      .force("charge", d3.forceManyBody<SimNode>().strength(-700))
-      .force("center",    d3.forceCenter(W / 2, H / 2))
-      .force("collision", d3.forceCollide<SimNode>((d) => (d.isCenter ? 58 : 46)));
+    : new Set<string>();
 
-    // Node radius helper
-    const R = (n: SimNode) => (n.isCenter ? 46 : 34);
+  const decisions  = detail ? parseDecisions(detail)  : [];
+  const invariants = detail ? parseInvariants(detail) : [];
+  const scope      = detail ? parseScope(detail)      : null;
 
-    // ── Edges ──────────────────────────────────────────────────────────────
-    const linkSel = g.append("g")
-      .attr("class", "lens-links")
-      .selectAll<SVGLineElement, SimLink>("line")
-      .data(links)
-      .join("line")
-      .attr("stroke",        (d) => EDGE_COLOR[d.edge_kind] ?? "#999")
-      .attr("stroke-width",  (d) => (d.edge_kind === "depends_on" ? 2.5 : 1.8))
-      .attr("stroke-dasharray", (d) => EDGE_DASH[d.edge_kind] ?? null)
-      .attr("opacity", 0.6)
-      .attr("marker-end", (d) => `url(#la-${d.edge_kind})`);
+  const spec        = (detail?.specification as Record<string, unknown>) ?? {};
+  const objective   = str(spec.objective ?? (detail as Record<string, unknown> | null)?.objective);
 
-    // Edge kind labels
-    const edgeLabelSel = g.append("g")
-      .selectAll<SVGTextElement, SimLink>("text")
-      .data(links)
-      .join("text")
-      .attr("font-size",   9)
-      .attr("font-family", "Courier New, monospace")
-      .attr("fill",        (d) => EDGE_COLOR[d.edge_kind] ?? "#999")
-      .attr("text-anchor", "middle")
-      .attr("pointer-events", "none")
-      .attr("opacity", 0.75)
-      .text((d) => d.edge_kind);
+  const links = {
+    depends_on: Array.isArray(detail?.depends_on) ? (detail!.depends_on as unknown[]).map(String) : [],
+    refines:    Array.isArray(detail?.refines)    ? (detail!.refines    as unknown[]).map(String) : [],
+    relates_to: Array.isArray(detail?.relates_to) ? (detail!.relates_to as unknown[]).map(String) : [],
+  };
+  const hasLinks = links.depends_on.length + links.refines.length + links.relates_to.length > 0;
 
-    // ── Nodes ──────────────────────────────────────────────────────────────
-    const nodeSel = g.append("g")
-      .attr("class", "lens-nodes")
-      .selectAll<SVGGElement, SimNode>("g")
-      .data(simNodes, (d) => d.node_id)
-      .join("g")
-      .attr("cursor", (d) => (d.isCenter ? "default" : "pointer"))
-      .on("click", (_ev, d) => {
-        if (!d.isCenter) onSelectNodeRef.current(d.node_id);
-      });
+  const status   = str(detail?.status);
+  const maturity = typeof detail?.maturity === "number" ? detail.maturity : null;
 
-    // Drag behaviour
-    nodeSel.call(
-      d3.drag<SVGGElement, SimNode>()
-        .on("start", (ev, d) => {
-          if (!ev.active) sim.alphaTarget(0.3).restart();
-          d.fx = d.x;
-          d.fy = d.y;
-        })
-        .on("drag", (ev, d) => {
-          d.fx = ev.x;
-          d.fy = ev.y;
-        })
-        .on("end", (ev, d) => {
-          if (!ev.active) sim.alphaTarget(0);
-          d.fx = null;
-          d.fy = null;
-        }),
-    );
-
-    // Circle background
-    nodeSel.append("circle")
-      .attr("r",            (d) => R(d))
-      .attr("fill",         (d) => STATUS_FILL[d.status] ?? "#9b8ec4")
-      .attr("fill-opacity", (d) => (d.isCenter ? 0.22 : 0.12))
-      .attr("stroke",       (d) => (d.isCenter ? "#7c3aed" : (STATUS_FILL[d.status] ?? "#9b8ec4")))
-      .attr("stroke-width", (d) => (d.isCenter ? 2.5 : 1.5));
-
-    // Node-id label (above circle)
-    nodeSel.append("text")
-      .attr("y",           (d) => -R(d) - 5)
-      .attr("text-anchor", "middle")
-      .attr("font-size",   8)
-      .attr("font-family", "Courier New, monospace")
-      .attr("fill",        "#888")
-      .attr("pointer-events", "none")
-      .text((d) => d.node_id);
-
-    // Title (word-wrapped inside circle)
-    nodeSel.append("text")
-      .attr("text-anchor",  "middle")
-      .attr("fill",         "#222")
-      .attr("pointer-events", "none")
-      .each(function (d) {
-        const el      = d3.select(this);
-        const maxR    = R(d);
-        const fSize   = d.isCenter ? 10 : 9;
-        const lineH   = fSize + 2;
-        const maxCh   = Math.floor((maxR * 1.8) / (fSize * 0.58));
-        const maxLines = 3;
-
-        el.attr("font-size",   fSize)
-          .attr("font-weight", d.isCenter ? "bold" : "normal")
-          .attr("font-family", "Georgia, serif");
-
-        const words = d.title.split(/\s+/);
-        const lines: string[] = [];
-        let cur = "";
-        for (const w of words) {
-          if (lines.length >= maxLines) break;
-          const test = cur ? `${cur} ${w}` : w;
-          if (test.length <= maxCh) {
-            cur = test;
-          } else {
-            if (cur) lines.push(cur);
-            cur = w.length > maxCh ? w.slice(0, maxCh - 1) + "…" : w;
-          }
-        }
-        if (cur && lines.length < maxLines) {
-          lines.push(cur.length > maxCh ? cur.slice(0, maxCh - 1) + "…" : cur);
-        }
-
-        const totalH = lines.length * lineH;
-        lines.forEach((line, i) => {
-          el.append("tspan")
-            .attr("x",  0)
-            .attr("dy", i === 0 ? -totalH / 2 + lineH / 2 : lineH)
-            .text(line);
-        });
-      });
-
-    // Status badge (below circle)
-    nodeSel.append("text")
-      .attr("y",           (d) => R(d) + 13)
-      .attr("text-anchor", "middle")
-      .attr("font-size",   8)
-      .attr("font-family", "Courier New, monospace")
-      .attr("fill",        (d) => STATUS_FILL[d.status] ?? "#9b8ec4")
-      .attr("pointer-events", "none")
-      .text((d) => d.status);
-
-    // ── Tick: update positions ─────────────────────────────────────────────
-    sim.on("tick", () => {
-      // Edge: draw from circle edge to circle edge (with arrowhead clearance)
-      linkSel.each(function (d) {
-        const src = d.source as SimNode;
-        const tgt = d.target as SimNode;
-        const sx = src.x ?? 0, sy = src.y ?? 0;
-        const tx = tgt.x ?? 0, ty = tgt.y ?? 0;
-        const dx = tx - sx, dy = ty - sy;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        d3.select(this)
-          .attr("x1", sx + (dx / dist) * R(src))
-          .attr("y1", sy + (dy / dist) * R(src))
-          .attr("x2", tx - (dx / dist) * (R(tgt) + 10))
-          .attr("y2", ty - (dy / dist) * (R(tgt) + 10));
-      });
-
-      edgeLabelSel
-        .attr("x", (d) => {
-          const s = d.source as SimNode, t = d.target as SimNode;
-          return ((s.x ?? 0) + (t.x ?? 0)) / 2;
-        })
-        .attr("y", (d) => {
-          const s = d.source as SimNode, t = d.target as SimNode;
-          return ((s.y ?? 0) + (t.y ?? 0)) / 2 - 5;
-        });
-
-      nodeSel.attr("transform", (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
-    });
-
-    return () => { sim.stop(); };
-  }, [apiGraph, nodeId, hops]);
-
-  // ── Render ────────────────────────────────────────────────────────────────
-  const centerNode = apiGraph.nodes.find((n) => n.node_id === nodeId);
-  const neighborCount = (() => {
-    const set = new Set<string>();
-    for (const e of apiGraph.edges) {
-      if (e.status !== "resolved") continue;
-      if (e.source_id === nodeId) set.add(e.target_id);
-      if (e.target_id === nodeId) set.add(e.source_id);
-    }
-    return set.size;
-  })();
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div
       ref={panelRef}
       className="spec-lens-panel"
       style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
     >
-      {/* Title bar — drag handle */}
+      {/* Title bar */}
       <div className="spec-lens-titlebar" onMouseDown={onTitleBarMouseDown}>
         <span className="spec-lens-node-id">{nodeId}</span>
-        <span className="spec-lens-node-title">{centerNode?.title ?? ""}</span>
-        <div className="spec-lens-controls">
-          <label className="spec-lens-hop-toggle" title="Show second-degree neighbors">
-            <input
-              type="checkbox"
-              checked={hops === 2}
-              onChange={(e) => setHops(e.target.checked ? 2 : 1)}
-            />
-            2&nbsp;hops
-          </label>
-          <span className="spec-lens-neighbor-count">{neighborCount} neighbors</span>
-          <button className="spec-lens-close" onClick={onClose} title="Close lens (Escape)">✕</button>
-        </div>
+        {detail && (
+          <span className={`spec-lens-status-badge sl-status-${status}`}>{status}</span>
+        )}
+        <span className="spec-lens-node-title">{str(detail?.title)}</span>
+        <button className="spec-lens-close" onClick={onClose} title="Close (Esc)">✕</button>
       </div>
 
-      {/* Legend */}
-      <div className="spec-lens-legend">
-        {(["refines", "depends_on", "relates_to"] as EdgeKind[]).map((k) => (
-          <span key={k} className="spec-lens-legend-item">
-            <svg width="22" height="10">
-              <line
-                x1="2" y1="5" x2="20" y2="5"
-                stroke={EDGE_COLOR[k]}
-                strokeWidth="1.8"
-                strokeDasharray={EDGE_DASH[k] ?? undefined}
-              />
-            </svg>
-            {k}
-          </span>
-        ))}
-      </div>
+      {/* Body */}
+      <div className="spec-lens-body">
+        {loading && <div className="spec-lens-loading">Loading…</div>}
+        {error   && <div className="spec-lens-error">Error: {error}</div>}
 
-      {/* D3 canvas */}
-      <svg ref={svgRef} className="spec-lens-svg" />
+        {detail && !loading && (
+          <>
+            {/* Maturity bar */}
+            {maturity !== null && (
+              <div className="spec-lens-maturity">
+                <span className="spec-lens-maturity-label">
+                  maturity {Math.round(maturity * 100)}%
+                </span>
+                <div className="spec-lens-maturity-track">
+                  <div
+                    className="spec-lens-maturity-fill"
+                    style={{ width: `${Math.min(1, Math.max(0, maturity)) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Objective */}
+            {objective && (
+              <section className="spec-lens-section">
+                <h3 className="spec-lens-section-title">Objective</h3>
+                <p className="spec-lens-prose">{objective}</p>
+              </section>
+            )}
+
+            {/* Acceptance Criteria */}
+            {acceptance.length > 0 && (
+              <section className="spec-lens-section">
+                <h3 className="spec-lens-section-title">
+                  Acceptance Criteria
+                  <span className="spec-lens-count">{acceptance.length}</span>
+                </h3>
+                <ol className="spec-lens-ac-list">
+                  {acceptance.map((ac, i) => {
+                    const met = evidence.has(ac.trim());
+                    return (
+                      <li key={i} className={`spec-lens-ac-item${met ? " met" : ""}`}>
+                        {met && <span className="spec-lens-check">✓</span>}
+                        {ac}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            )}
+
+            {/* Decisions */}
+            {decisions.length > 0 && (
+              <section className="spec-lens-section">
+                <h3 className="spec-lens-section-title">
+                  Decisions
+                  <span className="spec-lens-count">{decisions.length}</span>
+                </h3>
+                <div className="spec-lens-decisions">
+                  {decisions.map((d, i) => (
+                    <div key={i} className="spec-lens-decision">
+                      {d.id && <span className="spec-lens-sub-id">{d.id}</span>}
+                      <p className="spec-lens-decision-statement">{d.statement}</p>
+                      {d.rationale && (
+                        <p className="spec-lens-decision-rationale">{d.rationale}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Invariants */}
+            {invariants.length > 0 && (
+              <section className="spec-lens-section">
+                <h3 className="spec-lens-section-title">
+                  Invariants
+                  <span className="spec-lens-count">{invariants.length}</span>
+                </h3>
+                <ul className="spec-lens-inv-list">
+                  {invariants.map((inv, i) => (
+                    <li key={i} className="spec-lens-inv-item">
+                      {inv.id && <span className="spec-lens-sub-id">{inv.id}</span>}
+                      {inv.statement}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {/* Scope */}
+            {scope && (scope.in.length > 0 || scope.out.length > 0) && (
+              <section className="spec-lens-section">
+                <h3 className="spec-lens-section-title">Scope</h3>
+                {scope.in.length > 0 && (
+                  <>
+                    <p className="spec-lens-scope-label in">In scope</p>
+                    <ul className="spec-lens-scope-list">
+                      {scope.in.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                  </>
+                )}
+                {scope.out.length > 0 && (
+                  <>
+                    <p className="spec-lens-scope-label out">Out of scope</p>
+                    <ul className="spec-lens-scope-list">
+                      {scope.out.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                  </>
+                )}
+              </section>
+            )}
+
+            {/* Links */}
+            {hasLinks && (
+              <section className="spec-lens-section">
+                <h3 className="spec-lens-section-title">Links</h3>
+                {links.refines.length > 0 && (
+                  <div className="spec-lens-link-row">
+                    <span className="spec-lens-link-kind refines">refines</span>
+                    {links.refines.map((id) => (
+                      <span key={id} className="spec-lens-link-chip">{id}</span>
+                    ))}
+                  </div>
+                )}
+                {links.depends_on.length > 0 && (
+                  <div className="spec-lens-link-row">
+                    <span className="spec-lens-link-kind depends_on">depends_on</span>
+                    {links.depends_on.map((id) => (
+                      <span key={id} className="spec-lens-link-chip">{id}</span>
+                    ))}
+                  </div>
+                )}
+                {links.relates_to.length > 0 && (
+                  <div className="spec-lens-link-row">
+                    <span className="spec-lens-link-kind relates_to">relates_to</span>
+                    {links.relates_to.map((id) => (
+                      <span key={id} className="spec-lens-link-chip">{id}</span>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

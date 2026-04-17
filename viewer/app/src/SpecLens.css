@@ -4,12 +4,12 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 640px;
-  height: 500px;
+  width: 560px;
+  max-height: 640px;
   background: var(--color-surface, #faf6ef);
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   z-index: 200;
@@ -23,7 +23,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 12px;
+  padding: 10px 14px;
   background: var(--color-surface-2, #f0e8d8);
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   cursor: move;
@@ -34,43 +34,39 @@
   font-size: 10px;
   font-family: "Courier New", monospace;
   color: #7c3aed;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
+.spec-lens-status-badge {
+  font-size: 9px;
+  font-family: "Courier New", monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+/* Status colours — mirror SpecNode */
+.sl-status-idea      { background: #e8e8e8; color: #666; }
+.sl-status-stub      { background: #fdf0c0; color: #7a5c00; }
+.sl-status-outlined  { background: #daeaf8; color: #1e4d7a; }
+.sl-status-specified { background: #ede8f7; color: #4c1d95; }
+.sl-status-linked    { background: #d4f0dc; color: #14532d; }
+.sl-status-reviewed  { background: #cceee8; color: #0d4038; }
+.sl-status-frozen    { background: #e2e5ec; color: #2d3748; }
+
 .spec-lens-node-title {
-  font-size: 11px;
+  font-size: 12px;
   font-family: Georgia, serif;
-  color: #444;
+  color: #333;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
-}
-
-.spec-lens-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.spec-lens-hop-toggle {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-family: "Courier New", monospace;
-  color: #666;
-  cursor: pointer;
-  user-select: none;
-}
-
-.spec-lens-neighbor-count {
-  font-size: 10px;
-  font-family: "Courier New", monospace;
-  color: #999;
 }
 
 .spec-lens-close {
@@ -82,37 +78,247 @@
   padding: 2px 6px;
   border-radius: 4px;
   line-height: 1;
+  flex-shrink: 0;
   transition: background 120ms, color 120ms;
 }
 .spec-lens-close:hover { background: rgba(0, 0, 0, 0.08); color: #333; }
 
-/* ─── Legend ─────────────────────────────────────────────────────────────── */
+/* ─── Body (scrollable) ──────────────────────────────────────────────────── */
 
-.spec-lens-legend {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 5px 14px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  background: var(--color-surface, #faf6ef);
-  flex-shrink: 0;
+.spec-lens-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0 20px 24px;
+  user-select: text;
 }
 
-.spec-lens-legend-item {
+.spec-lens-loading,
+.spec-lens-error {
+  padding: 24px 0;
+  font-size: 13px;
+  font-family: "Courier New", monospace;
+  color: #999;
+}
+.spec-lens-error { color: #b54131; }
+
+/* ─── Maturity bar ───────────────────────────────────────────────────────── */
+
+.spec-lens-maturity {
   display: flex;
   align-items: center;
+  gap: 10px;
+  padding: 12px 0 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 4px;
+}
+
+.spec-lens-maturity-label {
+  font-size: 10px;
+  font-family: "Courier New", monospace;
+  color: #999;
+  white-space: nowrap;
+}
+
+.spec-lens-maturity-track {
+  flex: 1;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.spec-lens-maturity-fill {
+  height: 100%;
+  background: #3e9a58;
+  border-radius: 2px;
+  transition: width 300ms ease;
+}
+
+/* ─── Sections ───────────────────────────────────────────────────────────── */
+
+.spec-lens-section {
+  margin-top: 18px;
+}
+
+.spec-lens-section-title {
+  font-size: 10px;
+  font-family: "Courier New", monospace;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9b8ec4;
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spec-lens-count {
+  font-size: 9px;
+  background: rgba(155, 142, 196, 0.15);
+  color: #7c6bb0;
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+/* ─── Prose ──────────────────────────────────────────────────────────────── */
+
+.spec-lens-prose {
+  font-size: 13px;
+  font-family: Georgia, serif;
+  line-height: 1.65;
+  color: #333;
+  margin: 0;
+}
+
+/* ─── Acceptance Criteria ────────────────────────────────────────────────── */
+
+.spec-lens-ac-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
   gap: 5px;
+}
+
+.spec-lens-ac-item {
+  font-size: 12.5px;
+  font-family: Georgia, serif;
+  line-height: 1.5;
+  color: #333;
+  position: relative;
+}
+
+.spec-lens-ac-item.met {
+  color: #2d6a3f;
+}
+
+.spec-lens-check {
+  position: absolute;
+  left: -18px;
+  top: 0;
+  font-size: 11px;
+  color: #3e9a58;
+}
+
+/* ─── Decisions ──────────────────────────────────────────────────────────── */
+
+.spec-lens-decisions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.spec-lens-decision {
+  padding: 8px 10px;
+  background: rgba(78, 104, 155, 0.05);
+  border-left: 3px solid rgba(78, 104, 155, 0.3);
+  border-radius: 0 6px 6px 0;
+}
+
+.spec-lens-sub-id {
   font-size: 9px;
   font-family: "Courier New", monospace;
+  font-weight: 700;
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.1);
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-right: 6px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.spec-lens-decision-statement {
+  font-size: 12.5px;
+  font-family: Georgia, serif;
+  line-height: 1.5;
+  color: #333;
+  margin: 0 0 4px;
+}
+
+.spec-lens-decision-rationale {
+  font-size: 11px;
+  font-family: "Courier New", monospace;
+  line-height: 1.5;
   color: #777;
+  margin: 0;
+  font-style: italic;
 }
 
-/* ─── SVG canvas ─────────────────────────────────────────────────────────── */
+/* ─── Invariants ─────────────────────────────────────────────────────────── */
 
-.spec-lens-svg {
-  flex: 1;
-  width: 100%;
-  background: var(--color-surface, #faf6ef);
+.spec-lens-inv-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-/* D3 elements rendered inside SVG — no CSS needed (all inline attrs) */
+.spec-lens-inv-item {
+  font-size: 12.5px;
+  font-family: Georgia, serif;
+  line-height: 1.5;
+  color: #333;
+}
+
+/* ─── Scope ──────────────────────────────────────────────────────────────── */
+
+.spec-lens-scope-label {
+  font-size: 9px;
+  font-family: "Courier New", monospace;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 8px 0 4px;
+}
+.spec-lens-scope-label.in  { color: #3e9a58; }
+.spec-lens-scope-label.out { color: #b54131; }
+
+.spec-lens-scope-list {
+  margin: 0 0 4px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.spec-lens-scope-list li {
+  font-size: 12px;
+  font-family: Georgia, serif;
+  line-height: 1.5;
+  color: #444;
+}
+
+/* ─── Links ──────────────────────────────────────────────────────────────── */
+
+.spec-lens-link-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.spec-lens-link-kind {
+  font-size: 9px;
+  font-family: "Courier New", monospace;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.spec-lens-link-kind.refines    { background: rgba(78, 104, 155, 0.12); color: #2d4a7a; }
+.spec-lens-link-kind.depends_on { background: rgba(220, 38, 38, 0.08);  color: #991b1b; }
+.spec-lens-link-kind.relates_to { background: rgba(124, 58, 237, 0.08); color: #5b21b6; }
+
+.spec-lens-link-chip {
+  font-size: 10px;
+  font-family: "Courier New", monospace;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  padding: 2px 7px;
+  color: #555;
+}
