@@ -109,6 +109,25 @@
   font-weight: 400;
 }
 
+/* ── Created / updated dates ─────────────────────────────────────────────── */
+
+.spec-inspector-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line, #e0d8cc);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--muted, #888);
+}
+
+.spec-inspector-dates-icon {
+  margin-right: 4px;
+  opacity: 0.6;
+}
+
 /* ── Generic section box ─────────────────────────────────────────────────── */
 
 .spec-inspector-box {

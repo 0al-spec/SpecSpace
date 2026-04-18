@@ -225,6 +225,22 @@ export default function SpecInspector({
                 </div>
               </div>
             ) : null}
+            {(detail.created_at != null || detail.updated_at != null) && (
+              <div className="spec-inspector-dates">
+                {detail.created_at != null && (
+                  <span title={str(detail.created_at)}>
+                    <span className="spec-inspector-dates-icon">✦</span>
+                    {fmtDate(detail.created_at)}
+                  </span>
+                )}
+                {detail.updated_at != null && (
+                  <span title={str(detail.updated_at)}>
+                    <span className="spec-inspector-dates-icon">↻</span>
+                    {fmtDate(detail.updated_at)}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 3. Links box */}
@@ -447,6 +463,14 @@ function MalformedBadge({ raw }: { raw: string }) {
 function str(v: unknown): string {
   if (v == null) return "—";
   return String(v);
+}
+
+/** Format an ISO-8601 timestamp to a short human date, e.g. "3 Apr 2026". */
+function fmtDate(v: unknown): string {
+  if (v == null) return "";
+  const d = new Date(String(v));
+  if (isNaN(d.getTime())) return String(v);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 /** Strip path prefix and extension to get bare node ID (e.g. "specs/nodes/SG-SPEC-0002.yaml" → "SG-SPEC-0002") */
