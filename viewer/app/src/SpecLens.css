@@ -90,6 +90,7 @@
   font-size: 13px;
   padding: 2px 5px;
 }
+.spec-lens-nav-btn > * { pointer-events: none; }
 .spec-lens-nav-btn.nav-btn-dim { opacity: 0.25; cursor: default; }
 
 /* ─── Body (scrollable) ──────────────────────────────────────────────────── */

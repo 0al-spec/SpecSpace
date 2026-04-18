@@ -180,14 +180,14 @@ export default function SpecInspector({
           title={canGoBack && backLabel ? `← ${backLabel}` : "История пуста"}
           aria-label="Back"
           aria-disabled={!canGoBack}
-        >←</button>
+        ><span>←</span></button>
         <button
           className={`spec-inspector-nav-btn${canGoForward ? "" : " nav-btn-dim"}`}
           onClick={canGoForward ? onForward : undefined}
           title={canGoForward && forwardLabel ? `→ ${forwardLabel}` : "Нет следующей страницы"}
           aria-label="Forward"
           aria-disabled={!canGoForward}
-        >→</button>
+        ><span>→</span></button>
         {onOpenLens && selectedNodeId && (
           <button
             className="spec-inspector-lens-btn"

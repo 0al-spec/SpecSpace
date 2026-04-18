@@ -70,6 +70,7 @@
 .spec-inspector-close     { font-size: 13px; }
 .spec-inspector-lens-btn  { font-size: 16px; color: #7c3aed; }
 .spec-inspector-nav-btn   { font-size: 14px; font-weight: 600; }
+.spec-inspector-nav-btn > * { pointer-events: none; }
 
 .spec-inspector-close:hover      { background: #fbf3e7; }
 .spec-inspector-lens-btn:hover   { background: rgba(124, 58, 237, 0.08); color: #5b21b6; }

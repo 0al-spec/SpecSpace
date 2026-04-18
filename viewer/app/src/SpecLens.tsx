@@ -564,14 +564,14 @@ export default function SpecLens({
           title={canGoBack && backLabel ? `← ${backLabel}` : "История пуста"}
           aria-label="Back"
           aria-disabled={!canGoBack}
-        >←</button>
+        ><span>←</span></button>
         <button
           className={`spec-lens-nav-btn${canGoForward ? "" : " nav-btn-dim"}`}
           onClick={canGoForward ? onForward : undefined}
           title={canGoForward && forwardLabel ? `→ ${forwardLabel}` : "Нет следующей страницы"}
           aria-label="Forward"
           aria-disabled={!canGoForward}
-        >→</button>
+        ><span>→</span></button>
         <span className="spec-lens-node-id">{nodeId}</span>
         {detail && (
           <span className={`spec-lens-status-badge sl-status-${status}`}>{status}</span>
