@@ -39,6 +39,9 @@ import { useSpecGraphData } from "./useSpecGraphData";
 import { useSessionString } from "./useSessionState";
 import { useNavHistory } from "./useNavHistory";
 import { CompileTargetContext } from "./CompileTargetContext";
+import TimelineFilter, { type TimelineField } from "./TimelineFilter";
+import PanelBtn from "./PanelBtn";
+import "./PanelBtn.css";
 import type { GraphMode, SpecViewOptions } from "./types";
 
 const nodeTypes = {
@@ -183,6 +186,11 @@ function AppInner() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [highlightedEdge, setHighlightedEdge] = useState<{ id: string; source: string; target: string } | null>(null);
   const [searchMatchIds, setSearchMatchIds] = useState<Set<string> | null>(null);
+
+  // ── Timeline filter ───────────────────────────────────────────────────────
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [timelineField, setTimelineField] = useState<TimelineField>("updated_at");
+  const [timelineRange, setTimelineRange] = useState<[number, number] | null>(null);
 
   const [selectedConversationId, setSelectedConversationId] =
     useSessionString("selected_conversation");
@@ -532,27 +540,56 @@ function AppInner() {
   const specNavBackLabel    = specNavLabel(specNav.peek(-1));
   const specNavForwardLabel = specNavLabel(specNav.peek(+1));
 
+  // ── Timeline computed values ──────────────────────────────────────────────
+  const timelineFullRange = useMemo((): [number, number] | null => {
+    if (!specGraph.rawGraph) return null;
+    const timestamps = specGraph.rawGraph.nodes
+      .map((n) => n[timelineField])
+      .filter((v): v is string => typeof v === "string" && v.length > 0)
+      .map((v) => new Date(v).getTime())
+      .filter((t) => !isNaN(t));
+    if (timestamps.length === 0) return null;
+    return [Math.min(...timestamps), Math.max(...timestamps)];
+  }, [specGraph.rawGraph, timelineField]);
+
+  const timelineMatchIds = useMemo((): Set<string> | null => {
+    if (!timelineOpen || !timelineRange || !specGraph.rawGraph) return null;
+    const [minTs, maxTs] = timelineRange;
+    return new Set(
+      specGraph.rawGraph.nodes
+        .filter((n) => {
+          const v = n[timelineField];
+          if (!v) return true; // no date → always shown
+          const ts = new Date(v).getTime();
+          return !isNaN(ts) && ts >= minTs && ts <= maxTs;
+        })
+        .map((n) => n.node_id),
+    );
+  }, [timelineOpen, timelineRange, timelineField, specGraph.rawGraph]);
+
   const displayNodes = useMemo(() => {
     const edgeEndpoints = highlightedEdge
       ? new Set([highlightedEdge.source, highlightedEdge.target])
       : null;
-    if (!edgeEndpoints && !searchMatchIds) return nodes;
+    if (!edgeEndpoints && !searchMatchIds && !timelineMatchIds) return nodes;
     return nodes.map((n) => {
       const edgeHl = edgeEndpoints?.has(n.id);
       // For child nodes (messages), match against parent ID
       const matchKey = n.parentId ?? n.id;
       const searchDim = searchMatchIds ? !searchMatchIds.has(matchKey) : false;
-      if (!edgeHl && !searchDim) return n;
+      const timelineDim = timelineMatchIds ? !timelineMatchIds.has(matchKey) : false;
+      if (!edgeHl && !searchDim && !timelineDim) return n;
       return {
         ...n,
         data: {
           ...n.data,
           ...(edgeHl ? { edgeHighlighted: true } : {}),
           ...(searchDim ? { searchDimmed: true } : {}),
+          ...(timelineDim ? { timelineDimmed: true } : {}),
         },
       };
     });
-  }, [nodes, highlightedEdge, searchMatchIds]);
+  }, [nodes, highlightedEdge, searchMatchIds, timelineMatchIds]);
 
   const displayEdges = useMemo(() => {
     if (!highlightedEdge) return edges;
@@ -562,6 +599,14 @@ function AppInner() {
         : e
     );
   }, [edges, highlightedEdge]);
+
+  const toggleTimeline = useCallback(() => {
+    setTimelineOpen((open) => !open);
+    // Initialise range to full span the first time the filter opens
+    if (!timelineOpen && timelineFullRange && !timelineRange) {
+      setTimelineRange(timelineFullRange);
+    }
+  }, [timelineOpen, timelineFullRange, timelineRange]);
 
   const onEdgeClick: EdgeMouseHandler = useCallback((_event, edge) => {
     setHighlightedEdge((prev) => {
@@ -681,6 +726,39 @@ function AppInner() {
               <FitViewShortcut />
             </ReactFlow>
           </ErrorBoundary>
+
+          {/* ── Timeline filter overlay — spec mode, ReactFlow view only ─── */}
+          {graphMode === "specifications" && specViewOptions.viewMode !== "force" && (
+            <div className="timeline-overlay">
+              <PanelBtn
+                icon="⏱"
+                title={timelineOpen ? "Close timeline filter" : "Open timeline filter"}
+                onClick={toggleTimeline}
+                className={timelineOpen ? "timeline-btn-active" : undefined}
+              />
+              {timelineOpen && timelineFullRange && timelineRange && (
+                <TimelineFilter
+                  nodes={specGraph.rawGraph?.nodes ?? []}
+                  field={timelineField}
+                  onFieldChange={(f) => {
+                    setTimelineField(f);
+                    // Recompute full range for the NEW field and reset selection
+                    const tss = (specGraph.rawGraph?.nodes ?? [])
+                      .map((n) => n[f])
+                      .filter((v): v is string => typeof v === "string" && v.length > 0)
+                      .map((v) => new Date(v).getTime())
+                      .filter((t) => !isNaN(t));
+                    if (tss.length > 0)
+                      setTimelineRange([Math.min(...tss), Math.max(...tss)]);
+                  }}
+                  range={timelineRange}
+                  onRangeChange={setTimelineRange}
+                  fullRange={timelineFullRange}
+                  onClose={() => setTimelineOpen(false)}
+                />
+              )}
+            </div>
+          )}
 
         </main>
         {/* Spec inspector */}

@@ -78,6 +78,8 @@ export interface ApiSpecNode {
   refines: string[];
   relates_to: string[];
   diagnostics: Array<{ message: string; edge_kind?: string }>;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface ApiSpecEdge {

@@ -244,6 +244,8 @@ def build_spec_graph(
                 "refines": _coerce_id_list(raw.get("refines")),
                 "relates_to": _coerce_id_list(raw.get("relates_to")),
                 "diagnostics": node_edge_diags,
+                "created_at": raw.get("created_at"),
+                "updated_at": raw.get("updated_at"),
             }
         )
 

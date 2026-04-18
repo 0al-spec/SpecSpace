@@ -99,6 +99,31 @@ body {
   position: relative;
 }
 
+/* ── Timeline filter overlay ─────────────────────────────────────────────── */
+
+.timeline-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none; /* pass clicks through to canvas where there's no panel */
+}
+
+.timeline-overlay > * {
+  pointer-events: auto;
+}
+
+/* Active state accent on the clock button */
+.panel-btn.timeline-btn-active {
+  background: var(--accent-soft, #f5e0c7);
+  border-color: var(--accent, #915a24);
+  color: var(--accent-strong, #6c4012);
+}
+
 /* ── Edge highlight (click to highlight edge + endpoints) ─────────────────── */
 
 .react-flow__edge.edge-highlight .react-flow__edge-path {

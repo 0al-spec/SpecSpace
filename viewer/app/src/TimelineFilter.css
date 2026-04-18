@@ -1,0 +1,197 @@
+/* ── Panel ─────────────────────────────────────────────────────────────────── */
+
+.tl-panel {
+  background: rgba(255, 250, 242, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 14px;
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 28px rgba(76, 51, 28, 0.14);
+  width: 160px;
+  user-select: none;
+}
+
+/* ── Segmented control ──────────────────────────────────────────────────────── */
+
+.tl-segment {
+  display: flex;
+  width: 100%;
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 999px;
+  overflow: hidden;
+  background: white;
+  flex-shrink: 0;
+}
+
+.tl-seg-btn {
+  flex: 1;
+  padding: 4px 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--muted, #6d6255);
+  transition: background 120ms, color 120ms;
+  line-height: 1;
+}
+
+.tl-seg-btn:hover:not(.active) {
+  background: #fbf3e7;
+}
+
+.tl-seg-btn.active {
+  background: var(--accent-soft, #f5e0c7);
+  color: var(--accent-strong, #6c4012);
+}
+
+.tl-seg-btn + .tl-seg-btn {
+  border-left: 1px solid var(--line, #d4c4ac);
+}
+
+/* ── Track wrap (axis labels + track area) ──────────────────────────────────── */
+
+.tl-track-wrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* extra vertical room for axis labels protruding outside the track area */
+  padding: 16px 0;
+}
+
+/* ── Axis labels ────────────────────────────────────────────────────────────── */
+
+.tl-axis-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  font-family: var(--font-mono);
+  color: var(--muted, #888);
+  white-space: nowrap;
+  pointer-events: none;
+  text-align: center;
+}
+
+.tl-axis-top    { top: 2px; }
+.tl-axis-bottom { bottom: 2px; }
+
+/* ── Track area (the draggable zone) ───────────────────────────────────────── */
+
+.tl-track-area {
+  position: relative;
+  width: 100%;
+}
+
+/* Background rail — thin vertical line through the center */
+.tl-rail {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  top: 0;
+  bottom: 0;
+  background: var(--line, #d4c4ac);
+  border-radius: 2px;
+}
+
+/* Highlighted range between the two handles */
+.tl-range-fill {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  background: var(--accent, #915a24);
+  border-radius: 3px;
+  opacity: 0.7;
+}
+
+/* ── Handles ────────────────────────────────────────────────────────────────── */
+
+.tl-handle {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: white;
+  border: 2.5px solid var(--accent, #915a24);
+  cursor: ns-resize;
+  z-index: 3;
+  transition: background 100ms, border-color 100ms;
+}
+
+.tl-handle:hover,
+.tl-handle:active {
+  background: var(--accent-soft, #f5e0c7);
+  border-color: var(--accent-strong, #6c4012);
+}
+
+/* Date label next to each handle */
+.tl-handle-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  color: var(--text, #231b15);
+  background: rgba(255, 250, 242, 0.95);
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 4px;
+  padding: 1px 5px;
+  pointer-events: none;
+  line-height: 1.4;
+}
+
+.tl-handle-label-right {
+  left: 22px;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────────── */
+
+.tl-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 2px;
+}
+
+.tl-count {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--muted, #888);
+}
+
+.tl-close {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid var(--line, #d4c4ac);
+  background: white;
+  font-size: 9px;
+  cursor: pointer;
+  color: var(--muted, #888);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms, color 120ms;
+  flex-shrink: 0;
+}
+
+.tl-close:hover {
+  background: #fbf3e7;
+  color: var(--text, #231b15);
+}
