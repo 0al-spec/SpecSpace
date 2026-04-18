@@ -128,17 +128,37 @@
   border-radius: 999px;
   border: 1px solid transparent;
   font-weight: 600;
+  font-family: "Courier New", monospace;
+  font-size: 9px;
+  cursor: pointer;
+  transition: opacity 140ms, filter 140ms;
+  white-space: nowrap;
 }
-.sl-leg-ac-met     { color: #1f5c36; border-color: rgba(62,154,88,0.5);  background: rgba(62,154,88,0.1);  }
-.sl-leg-ac-unmet   { color: #7a5c00; border-color: rgba(200,167,42,0.5); background: rgba(200,167,42,0.1); }
-.sl-leg-decision   { color: #2d4a7a; border-color: rgba(78,104,155,0.5); background: rgba(78,104,155,0.1); }
-.sl-leg-invariant  { color: #5b21b6; border-color: rgba(124,58,237,0.5); background: rgba(124,58,237,0.1); }
-.sl-leg-scope-in   { color: #1f5c36; border-color: rgba(62,154,88,0.5);  background: rgba(62,154,88,0.1);  }
-.sl-leg-scope-out  { color: #991b1b; border-color: rgba(181,65,49,0.5);  background: rgba(181,65,49,0.1);  }
+.sl-leg:hover { filter: brightness(0.88); }
+
+/* Active (visible) colours */
+.sl-leg-ac-met    { color: #1f5c36; border-color: rgba(62,154,88,0.5);   background: rgba(62,154,88,0.1);   }
+.sl-leg-ac-unmet  { color: #7a5c00; border-color: rgba(200,167,42,0.5);  background: rgba(200,167,42,0.1);  }
+.sl-leg-decision  { color: #2d4a7a; border-color: rgba(78,104,155,0.5);  background: rgba(78,104,155,0.1);  }
+.sl-leg-invariant { color: #5b21b6; border-color: rgba(124,58,237,0.5);  background: rgba(124,58,237,0.1);  }
+.sl-leg-scope-in  { color: #1f5c36; border-color: rgba(62,154,88,0.5);   background: rgba(62,154,88,0.1);   }
+.sl-leg-scope-out { color: #991b1b; border-color: rgba(181,65,49,0.5);   background: rgba(181,65,49,0.1);   }
+.sl-leg-links     { color: #4a4490; border-color: rgba(74,68,144,0.5);   background: rgba(74,68,144,0.1);   }
+
+/* Inactive (filtered-out) state */
+.sl-leg.sl-leg-off {
+  opacity: 0.35;
+  filter: grayscale(0.7);
+  text-decoration: line-through;
+}
+.sl-leg.sl-leg-off:hover { opacity: 0.55; filter: grayscale(0.4); }
 
 .sl-leg-hint {
   margin-left: auto;
   color: #aaa;
+  font-size: 9px;
+  font-family: "Courier New", monospace;
+  white-space: nowrap;
 }
 
 .spec-lens-loading,

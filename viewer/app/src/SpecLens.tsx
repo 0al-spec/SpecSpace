@@ -9,7 +9,7 @@
  * to the linked spec.  The panel is draggable by its title bar and closes
  * on ✕ / Escape.
  */
-import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as d3 from "d3";
 import "./SpecLens.css";
 
@@ -65,6 +65,28 @@ const KIND_LABEL: Record<SatKind, string> = {
   link_relates_to: "relates",
 };
 
+// Legend entries — each can toggle one or more kinds
+interface LegendEntry {
+  label:  string;
+  kinds:  SatKind[];
+  cssKey: string;  // maps to .sl-leg-{cssKey}
+}
+
+const LEGEND_ENTRIES: LegendEntry[] = [
+  { label: "✓ AC met",  kinds: ["ac_met"],          cssKey: "ac-met"     },
+  { label: "○ AC",      kinds: ["ac_unmet"],         cssKey: "ac-unmet"   },
+  { label: "D decision",kinds: ["decision"],          cssKey: "decision"   },
+  { label: "I invariant",kinds: ["invariant"],        cssKey: "invariant"  },
+  { label: "IN scope",  kinds: ["scope_in"],          cssKey: "scope-in"   },
+  { label: "OUT scope", kinds: ["scope_out"],         cssKey: "scope-out"  },
+  { label: "↗ links",  kinds: ["link_refines","link_depends_on","link_relates_to"], cssKey: "links" },
+];
+
+const ALL_KINDS = new Set<SatKind>([
+  "ac_met","ac_unmet","decision","invariant","scope_in","scope_out",
+  "link_refines","link_depends_on","link_relates_to",
+]);
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export interface SpecLensProps {
@@ -92,9 +114,13 @@ export default function SpecLens({
   nodeId, onClose, onNavigate,
   selectedSubItemId, onSelectSubItem,
 }: SpecLensProps) {
-  const svgRef  = useRef<SVGSVGElement>(null);
+  const svgRef     = useRef<SVGSVGElement>(null);
   const nodeSelRef = useRef<d3.Selection<SVGGElement, SatNode, SVGGElement, unknown> | null>(null);
-  const posRef  = useRef({ x: 60, y: 60 });
+  const linkSelRef = useRef<d3.Selection<SVGLineElement, SatLink, SVGGElement, unknown> | null>(null);
+  const posRef     = useRef({ x: 60, y: 60 });
+
+  // ── Filter state ──────────────────────────────────────────────────────────
+  const [activeKinds, setActiveKinds] = useState<Set<SatKind>>(ALL_KINDS);
   const [pos, setPos] = useState({ x: 60, y: 60 });
   const [detail, setDetail] = useState<SpecDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -358,6 +384,7 @@ export default function SpecLens({
       });
 
     nodeSelRef.current = nodeSel;
+    linkSelRef.current = linkSel;
 
     // Drag for satellites
     nodeSel.filter((d) => !d.isCenter).call(
@@ -459,7 +486,7 @@ export default function SpecLens({
     // Ensure node layer is above link layer (painters order)
     nodeSel.raise();
 
-    return () => { sim.stop(); nodeSelRef.current = null; };
+    return () => { sim.stop(); nodeSelRef.current = null; linkSelRef.current = null; };
   }, [detail, nodeId]);
 
   // ── Highlight selected sub-item without restarting simulation ─────────────
@@ -475,6 +502,41 @@ export default function SpecLens({
       );
     sel.filter((d) => !!d.subItemId && d.subItemId === selectedSubItemId).raise();
   }, [selectedSubItemId, detail]);
+
+  // ── Apply kind filter without restarting simulation ────────────────────────
+  useEffect(() => {
+    const nSel = nodeSelRef.current;
+    const lSel = linkSelRef.current;
+    if (!nSel || !lSel) return;
+
+    nSel.attr("opacity", (d) =>
+      d.isCenter ? 1 : activeKinds.has(d.kind) ? 1 : 0.08,
+    );
+    nSel.attr("pointer-events", (d) =>
+      d.isCenter ? "auto" : activeKinds.has(d.kind) ? "auto" : "none",
+    );
+    lSel.attr("opacity", (d) => {
+      const t = d.target as SatNode;
+      return activeKinds.has(t.kind) ? 1 : 0;
+    });
+  }, [activeKinds, detail]);
+
+  // ── Legend toggle handler ──────────────────────────────────────────────────
+  const toggleKinds = useCallback((kinds: SatKind[]) => {
+    setActiveKinds((prev) => {
+      const next = new Set(prev);
+      // If ALL of this entry's kinds are active → deactivate them; else activate all
+      const allActive = kinds.every((k) => prev.has(k));
+      kinds.forEach((k) => allActive ? next.delete(k) : next.add(k));
+      return next;
+    });
+  }, []);
+
+  // Is a legend entry fully active?
+  const entryActive = useMemo(
+    () => (entry: LegendEntry) => entry.kinds.every((k) => activeKinds.has(k)),
+    [activeKinds],
+  );
 
   // ── Stats for header ───────────────────────────────────────────────────────
   const status = str(detail?.status);
@@ -504,13 +566,20 @@ export default function SpecLens({
           <>
             <svg ref={svgRef} className="spec-lens-svg" />
             <div className="spec-lens-legend">
-              <span className="sl-leg sl-leg-ac-met">✓ AC met</span>
-              <span className="sl-leg sl-leg-ac-unmet">○ AC</span>
-              <span className="sl-leg sl-leg-decision">D decision</span>
-              <span className="sl-leg sl-leg-invariant">I invariant</span>
-              <span className="sl-leg sl-leg-scope-in">IN scope</span>
-              <span className="sl-leg sl-leg-scope-out">OUT scope</span>
-              <span className="sl-leg-hint">drag satellites · click link chip to navigate</span>
+              {LEGEND_ENTRIES.map((entry) => {
+                const active = entryActive(entry);
+                return (
+                  <button
+                    key={entry.cssKey}
+                    className={`sl-leg sl-leg-${entry.cssKey}${active ? "" : " sl-leg-off"}`}
+                    onClick={() => toggleKinds(entry.kinds)}
+                    title={active ? `Hide ${entry.label}` : `Show ${entry.label}`}
+                  >
+                    {entry.label}
+                  </button>
+                );
+              })}
+              <span className="sl-leg-hint">drag · click to filter</span>
             </div>
           </>
         )}
