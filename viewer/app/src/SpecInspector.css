@@ -380,8 +380,8 @@
 
 /* Pre / raw dump */
 .spec-inspector-pre {
-  font-size: 11px;
-  font-family: var(--font-mono);
+  font-size: 12px;
+  font-family: Georgia, "Times New Roman", serif;
   white-space: pre-wrap;
   word-break: break-word;
   background: white;
@@ -389,9 +389,16 @@
   border-radius: 6px;
   padding: 10px 12px;
   color: var(--text, #2c2018);
-  line-height: 1.5;
+  line-height: 1.6;
   max-height: 320px;
   overflow-y: auto;
+}
+
+/* Raw JSON / code dumps keep monospace */
+.spec-inspector-pre.spec-inspector-raw {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  line-height: 1.5;
 }
 
 /* ── Gap highlighting ────────────────────────────────────────────────────── */
