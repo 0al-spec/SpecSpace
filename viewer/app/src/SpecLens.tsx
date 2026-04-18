@@ -579,7 +579,6 @@ export default function SpecLens({
                   </button>
                 );
               })}
-              <span className="sl-leg-hint">drag · click to filter</span>
             </div>
           </>
         )}

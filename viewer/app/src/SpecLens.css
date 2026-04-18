@@ -153,13 +153,6 @@
 }
 .sl-leg.sl-leg-off:hover { opacity: 0.55; filter: grayscale(0.4); }
 
-.sl-leg-hint {
-  margin-left: auto;
-  color: #aaa;
-  font-size: 9px;
-  font-family: "Courier New", monospace;
-  white-space: nowrap;
-}
 
 .spec-lens-loading,
 .spec-lens-error {
