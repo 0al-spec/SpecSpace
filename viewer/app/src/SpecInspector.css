@@ -65,16 +65,21 @@
   align-items: center;
   justify-content: center;
   color: var(--muted, #888);
-  transition: background 120ms, color 120ms, opacity 120ms;
+  transition: background 120ms, color 120ms, border-color 120ms, opacity 120ms;
 }
-.spec-inspector-close     { font-size: 13px; }
-.spec-inspector-lens-btn  { font-size: 16px; color: #7c3aed; }
-.spec-inspector-nav-btn   { font-size: 14px; font-weight: 600; }
+.spec-inspector-close    { font-size: 13px; }
+.spec-inspector-lens-btn { font-size: 16px; color: #7c3aed; }
+.spec-inspector-nav-btn  { font-size: 14px; font-weight: 600; }
 .spec-inspector-nav-btn > * { pointer-events: none; }
 
-.spec-inspector-close:hover      { background: #fbf3e7; }
-.spec-inspector-lens-btn:hover   { background: rgba(124, 58, 237, 0.08); color: #5b21b6; }
-.spec-inspector-nav-btn:hover:not(.nav-btn-dim) { background: #fbf3e7; color: var(--text, #333); }
+/* Единый hover для всех кнопок */
+.spec-inspector-close:hover,
+.spec-inspector-lens-btn:hover,
+.spec-inspector-nav-btn:hover:not(.nav-btn-dim) {
+  background: #fbf3e7;
+  border-color: var(--line-strong, #c8b89a);
+  color: var(--text, #333);
+}
 .nav-btn-dim { opacity: 0.28; cursor: default; }
 
 /* Loading / error */
