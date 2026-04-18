@@ -53,7 +53,8 @@
 }
 
 .spec-inspector-close,
-.spec-inspector-lens-btn {
+.spec-inspector-lens-btn,
+.spec-inspector-nav-btn {
   width: 30px;
   height: 30px;
   border-radius: 999px;
@@ -64,12 +65,16 @@
   align-items: center;
   justify-content: center;
   color: var(--muted, #888);
+  transition: background 120ms, color 120ms, opacity 120ms;
 }
-.spec-inspector-close { font-size: 13px; }
-.spec-inspector-lens-btn { font-size: 16px; color: #7c3aed; }
+.spec-inspector-close     { font-size: 13px; }
+.spec-inspector-lens-btn  { font-size: 16px; color: #7c3aed; }
+.spec-inspector-nav-btn   { font-size: 14px; font-weight: 600; }
 
-.spec-inspector-close:hover  { background: #fbf3e7; }
-.spec-inspector-lens-btn:hover { background: rgba(124, 58, 237, 0.08); color: #5b21b6; }
+.spec-inspector-close:hover      { background: #fbf3e7; }
+.spec-inspector-lens-btn:hover   { background: rgba(124, 58, 237, 0.08); color: #5b21b6; }
+.spec-inspector-nav-btn:hover:not(:disabled) { background: #fbf3e7; color: var(--text, #333); }
+.spec-inspector-nav-btn:disabled { opacity: 0.28; cursor: default; }
 
 /* Loading / error */
 .spec-inspector-loading,

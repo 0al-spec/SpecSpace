@@ -12,12 +12,23 @@ interface SpecInspectorProps {
   onSelectSubItem?: (subItemId: string | null) => void;
   /** Open the force-directed lens for the selected node */
   onOpenLens?: (nodeId: string) => void;
+  /** Navigation history controls */
+  canGoBack?: boolean;
+  canGoForward?: boolean;
+  onBack?: () => void;
+  onForward?: () => void;
+  backLabel?: string;
+  forwardLabel?: string;
 }
 
 // Raw YAML payload from /api/spec-node
 type SpecDetail = Record<string, unknown>;
 
-export default function SpecInspector({ selectedNodeId, selectedSubItemId, onDismiss, onFocusNode, onSelectSubItem, onOpenLens }: SpecInspectorProps) {
+export default function SpecInspector({
+  selectedNodeId, selectedSubItemId,
+  onDismiss, onFocusNode, onSelectSubItem, onOpenLens,
+  canGoBack, canGoForward, onBack, onForward, backLabel, forwardLabel,
+}: SpecInspectorProps) {
   const [detail, setDetail] = useState<SpecDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -163,11 +174,25 @@ export default function SpecInspector({ selectedNodeId, selectedSubItemId, onDis
     <aside className={`spec-inspector ${visible ? "visible" : ""}`} style={{ width: `${width}px` }}>
       <div className="spec-inspector-resize-handle" onMouseDown={onHandleMouseDown} />
       <div className="spec-inspector-actions">
+        <button
+          className="spec-inspector-nav-btn"
+          onClick={onBack}
+          disabled={!canGoBack}
+          title={canGoBack && backLabel ? `← ${backLabel}` : "No history"}
+          aria-label="Back"
+        >←</button>
+        <button
+          className="spec-inspector-nav-btn"
+          onClick={onForward}
+          disabled={!canGoForward}
+          title={canGoForward && forwardLabel ? `→ ${forwardLabel}` : "No forward history"}
+          aria-label="Forward"
+        >→</button>
         {onOpenLens && selectedNodeId && (
           <button
             className="spec-inspector-lens-btn"
             onClick={() => onOpenLens(selectedNodeId)}
-            title="Open force-directed lens view"
+            title="Open spec lens"
           >
             ⊙
           </button>

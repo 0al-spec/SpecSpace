@@ -37,6 +37,7 @@ import InspectorOverlay from "./InspectorOverlay";
 import { useGraphData } from "./useGraphData";
 import { useSpecGraphData } from "./useSpecGraphData";
 import { useSessionString } from "./useSessionState";
+import { useNavHistory } from "./useNavHistory";
 import { CompileTargetContext } from "./CompileTargetContext";
 import type { GraphMode, SpecViewOptions } from "./types";
 
@@ -189,6 +190,11 @@ function AppInner() {
     useSessionString("selected_message");
   const [selectedSubItemId, setSelectedSubItemId] = useState<string | null>(null);
   const [lensNodeId, setLensNodeId] = useState<string | null>(null);
+
+  // ── Spec navigation history ───────────────────────────────────────────────
+  // One shared stack for now; architecture supports multiple independent
+  // stacks (just call useNavHistory() again in a future refactor).
+  const specNav = useNavHistory<string>();
   const [compileTargetConversationId, setCompileTargetConversationId] =
     useSessionString("compile_target_conversation_id");
   const [compileTargetMessageId, setCompileTargetMessageId] =
@@ -285,24 +291,52 @@ function AppInner() {
     [getNode, getZoom, getVisibleCanvas, panToPoint],
   );
 
-  /** Select a node (open inspector) and pan to it. */
-  const onSpecNodeSelect = useCallback(
-    (nodeId: string) => {
+  /**
+   * Navigate to a spec node — the single choke-point for all spec navigation.
+   * Pushes to history by default; pass addToHistory=false when the caller
+   * already moved the history pointer (back / forward).
+   */
+  const navigateToSpec = useCallback(
+    (nodeId: string, { addToHistory = true } = {}) => {
+      if (addToHistory) specNav.push(nodeId);
       setSelectedConversationId(nodeId);
       setSelectedMessageId(null);
-      // Defer until inspector has opened so the offset is correct
+      setSelectedSubItemId(null);
       panToNode(nodeId, 50);
     },
-    [setSelectedConversationId, setSelectedMessageId, panToNode],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [specNav.push, setSelectedConversationId, setSelectedMessageId, setSelectedSubItemId, panToNode],
   );
 
-  /** Pan to a node without selecting it (no inspector change). */
+  /** Kept as alias so existing call-sites in this file don't all need renaming. */
+  const onSpecNodeSelect = navigateToSpec;
+
+  /** Navigate to a spec node from an inspector badge / FieldList chip.
+   *  Previously only panned; now also selects and records history. */
   const onFocusNode = useCallback(
-    (nodeId: string) => {
-      panToNode(nodeId);
-    },
-    [panToNode],
+    (nodeId: string) => { navigateToSpec(nodeId); },
+    [navigateToSpec],
   );
+
+  /** Go back one step in spec history. */
+  const onSpecNavBack = useCallback(() => {
+    const id = specNav.back();
+    if (!id) return;
+    setSelectedConversationId(id);
+    setSelectedMessageId(null);
+    setSelectedSubItemId(null);
+    panToNode(id, 50);
+  }, [specNav, setSelectedConversationId, setSelectedMessageId, setSelectedSubItemId, panToNode]);
+
+  /** Go forward one step in spec history. */
+  const onSpecNavForward = useCallback(() => {
+    const id = specNav.forward();
+    if (!id) return;
+    setSelectedConversationId(id);
+    setSelectedMessageId(null);
+    setSelectedSubItemId(null);
+    panToNode(id, 50);
+  }, [specNav, setSelectedConversationId, setSelectedMessageId, setSelectedSubItemId, panToNode]);
 
   /** Select a conversation node by file name (sidebar FILES click). */
   const onConversationFileSelect = useCallback(
@@ -397,6 +431,17 @@ function AppInner() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Alt+ArrowLeft / Alt+ArrowRight — spec history back / forward
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!e.altKey || graphMode !== "specifications") return;
+      if (e.key === "ArrowLeft")  { e.preventDefault(); onSpecNavBack(); }
+      if (e.key === "ArrowRight") { e.preventDefault(); onSpecNavForward(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [graphMode, onSpecNavBack, onSpecNavForward]);
+
   const onSearchSelectConversation = useCallback(
     (conversationId: string) => {
       setSelectedConversationId(conversationId);
@@ -455,17 +500,14 @@ function AppInner() {
         setSelectedConversationId(convId);
         setSelectedMessageId(msgData.messageId || null);
       } else if (node.type === "spec" || node.type === "expandedSpec") {
-        setSelectedConversationId(node.id);
-        setSelectedMessageId(null);
-        setSelectedSubItemId(null);
-        panToNode(node.id, 50, true);
+        navigateToSpec(node.id);
+        panToNode(node.id, 50, true); // keepZoom=true for canvas clicks
       } else if (node.type === "specSubItem") {
         // Select the parent spec for the inspector and highlight the sub-item
         const parentId = node.parentId ?? null;
         const subData = node.data as { subKind?: string; index?: number };
         if (parentId) {
-          setSelectedConversationId(parentId);
-          setSelectedMessageId(null);
+          navigateToSpec(parentId);
           setSelectedSubItemId(
             subData.subKind != null && subData.index != null
               ? `${subData.subKind}-${subData.index}`
@@ -475,8 +517,20 @@ function AppInner() {
         }
       }
     },
-    [setSelectedConversationId, setSelectedMessageId, setSelectedSubItemId, panToNode],
+    [navigateToSpec, setSelectedConversationId, setSelectedMessageId, setSelectedSubItemId, panToNode],
   );
+
+  // ── Spec nav tooltip labels ───────────────────────────────────────────────
+  const specNavLabel = useCallback(
+    (id: string | null) => {
+      if (!id) return "";
+      const node = specGraph.rawGraph?.nodes.find((n) => n.node_id === id);
+      return node ? `${id} — ${node.title}` : id;
+    },
+    [specGraph.rawGraph],
+  );
+  const specNavBackLabel    = specNavLabel(specNav.peek(-1));
+  const specNavForwardLabel = specNavLabel(specNav.peek(+1));
 
   const displayNodes = useMemo(() => {
     const edgeEndpoints = highlightedEdge
@@ -639,6 +693,12 @@ function AppInner() {
               onFocusNode={onFocusNode}
               onSelectSubItem={setSelectedSubItemId}
               onOpenLens={setLensNodeId}
+              canGoBack={specNav.canGoBack}
+              canGoForward={specNav.canGoForward}
+              onBack={onSpecNavBack}
+              onForward={onSpecNavForward}
+              backLabel={specNavBackLabel}
+              forwardLabel={specNavForwardLabel}
             />
           </ErrorBoundary>
         )}
@@ -666,11 +726,30 @@ function AppInner() {
               onClose={() => setLensNodeId(null)}
               onNavigate={(id) => {
                 setLensNodeId(id);
-                onSpecNodeSelect(id);
-                setSelectedSubItemId(null);
+                navigateToSpec(id);
               }}
               selectedSubItemId={selectedSubItemId}
               onSelectSubItem={setSelectedSubItemId}
+              canGoBack={specNav.canGoBack}
+              canGoForward={specNav.canGoForward}
+              onBack={() => {
+                const id = specNav.back();
+                if (!id) return;
+                setLensNodeId(id);
+                setSelectedConversationId(id);
+                setSelectedMessageId(null);
+                setSelectedSubItemId(null);
+              }}
+              onForward={() => {
+                const id = specNav.forward();
+                if (!id) return;
+                setLensNodeId(id);
+                setSelectedConversationId(id);
+                setSelectedMessageId(null);
+                setSelectedSubItemId(null);
+              }}
+              backLabel={specNavBackLabel}
+              forwardLabel={specNavForwardLabel}
             />
           </ErrorBoundary>
         )}

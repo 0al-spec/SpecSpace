@@ -69,7 +69,8 @@
   flex: 1;
 }
 
-.spec-lens-close {
+.spec-lens-close,
+.spec-lens-nav-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -79,9 +80,17 @@
   border-radius: 4px;
   line-height: 1;
   flex-shrink: 0;
-  transition: background 120ms, color 120ms;
+  transition: background 120ms, color 120ms, opacity 120ms;
 }
-.spec-lens-close:hover { background: rgba(0, 0, 0, 0.08); color: #333; }
+.spec-lens-close:hover,
+.spec-lens-nav-btn:hover:not(:disabled) { background: rgba(0, 0, 0, 0.08); color: #333; }
+
+.spec-lens-nav-btn {
+  font-weight: 700;
+  font-size: 13px;
+  padding: 2px 5px;
+}
+.spec-lens-nav-btn:disabled { opacity: 0.25; cursor: default; }
 
 /* ─── Body (scrollable) ──────────────────────────────────────────────────── */
 

@@ -100,6 +100,13 @@ export interface SpecLensProps {
   /** Called when a content satellite (AC/decision/invariant/scope) is clicked,
    *  with the inspector sub-item id (or null to clear). */
   onSelectSubItem?: (subItemId: string | null) => void;
+  /** Navigation history controls (shared with SpecInspector). */
+  canGoBack?: boolean;
+  canGoForward?: boolean;
+  onBack?: () => void;
+  onForward?: () => void;
+  backLabel?: string;
+  forwardLabel?: string;
 }
 
 const PANEL_W = 560;
@@ -113,6 +120,7 @@ const LINK_R   = 18;
 export default function SpecLens({
   nodeId, onClose, onNavigate,
   selectedSubItemId, onSelectSubItem,
+  canGoBack, canGoForward, onBack, onForward, backLabel, forwardLabel,
 }: SpecLensProps) {
   const svgRef     = useRef<SVGSVGElement>(null);
   const nodeSelRef = useRef<d3.Selection<SVGGElement, SatNode, SVGGElement, unknown> | null>(null);
@@ -550,6 +558,20 @@ export default function SpecLens({
     >
       {/* Title bar */}
       <div className="spec-lens-titlebar" onMouseDown={onTitleBarMouseDown}>
+        <button
+          className="spec-lens-nav-btn"
+          onClick={onBack}
+          disabled={!canGoBack}
+          title={canGoBack && backLabel ? `← ${backLabel}` : "No history"}
+          aria-label="Back"
+        >←</button>
+        <button
+          className="spec-lens-nav-btn"
+          onClick={onForward}
+          disabled={!canGoForward}
+          title={canGoForward && forwardLabel ? `→ ${forwardLabel}` : "No forward history"}
+          aria-label="Forward"
+        >→</button>
         <span className="spec-lens-node-id">{nodeId}</span>
         {detail && (
           <span className={`spec-lens-status-badge sl-status-${status}`}>{status}</span>
