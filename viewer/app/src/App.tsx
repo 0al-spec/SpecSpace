@@ -664,6 +664,13 @@ function AppInner() {
             <SpecLens
               nodeId={lensNodeId}
               onClose={() => setLensNodeId(null)}
+              onNavigate={(id) => {
+                setLensNodeId(id);
+                onSpecNodeSelect(id);
+                setSelectedSubItemId(null);
+              }}
+              selectedSubItemId={selectedSubItemId}
+              onSelectSubItem={setSelectedSubItemId}
             />
           </ErrorBoundary>
         )}
