@@ -8,7 +8,7 @@
   border: 2px dashed var(--spec-border, #9b8ec4);
   background: var(--spec-bg, #f0ecfa);
   box-sizing: border-box;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
   overflow: visible; /* handles can protrude */
 }
 

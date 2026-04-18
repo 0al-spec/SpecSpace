@@ -196,7 +196,7 @@ export default function SpecForceGraph({
       .attr("y",           NODE_R + 11)
       .attr("text-anchor", "middle")
       .attr("font-size",   8)
-      .attr("font-family", "Courier New, monospace")
+      .attr("font-family", "Fira Code, Courier New, monospace")
       .attr("fill",        "#777")
       .attr("pointer-events", "none")
       .text((d) => d.node_id);

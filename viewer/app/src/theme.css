@@ -21,6 +21,9 @@
   --shadow: 0 22px 50px rgba(76, 51, 28, 0.12);
   --user: #e5efff;
   --assistant: #f2e4cf;
+
+  /* Monospace UI font — swap here to change everywhere at once */
+  --font-mono: "Fira Code", "Courier New", monospace;
 }
 
 * {

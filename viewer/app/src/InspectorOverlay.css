@@ -308,7 +308,7 @@
   color: var(--muted);
   word-break: break-all;
   margin-top: 2px;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .inspector-compile-error-msg {
@@ -322,7 +322,7 @@
   color: #7f1d1d;
   margin-bottom: 6px;
   word-break: break-all;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .inspector-compile-stderr {
@@ -336,5 +336,5 @@
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-all;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }

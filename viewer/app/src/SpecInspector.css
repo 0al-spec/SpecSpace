@@ -132,7 +132,7 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted, #888);
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
   margin-bottom: 10px;
 }
 
@@ -149,7 +149,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
   margin-bottom: 6px;
 }
 
@@ -245,7 +245,7 @@
   text-transform: uppercase;
   padding: 3px 9px;
   border-radius: 999px;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
 }
 .spec-inspector-badge.kind         { background: rgba(0,0,0,0.07); color: var(--muted,#888); }
 .spec-inspector-badge.maturity     { background: #e0e7ff; color: #3730a3; }
@@ -280,7 +280,7 @@
 }
 .spec-inspector-tag {
   font-size: 11px;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
   background: white;
   border: 1px solid var(--line, #e0d8cc);
   border-radius: 4px;
@@ -338,7 +338,7 @@
 .spec-inspector-sub-id {
   display: inline-block;
   font-size: 10px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
   color: var(--muted, #8b7355);
   background: var(--panel-muted, #f3ede3);
@@ -381,7 +381,7 @@
 /* Pre / raw dump */
 .spec-inspector-pre {
   font-size: 11px;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
   white-space: pre-wrap;
   word-break: break-word;
   background: white;
@@ -456,7 +456,7 @@ td.gap-null {
   display: block;
   margin-top: 6px;
   font-size: 11px;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
   background: #fef2f2;
   border: 1px solid #fca5a5;
   border-radius: 4px;
@@ -473,7 +473,7 @@ td.gap-null {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
 }
 .spec-inspector-table-key {
   color: var(--muted, #888);

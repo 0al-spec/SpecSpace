@@ -29,7 +29,7 @@
   align-items: center;
   gap: 5px;
   font-size: 9px;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   color: #666;
   user-select: none;
 }
@@ -37,7 +37,7 @@
 .sfg-legend-hint {
   margin-left: auto;
   font-size: 9px;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   color: #aaa;
   user-select: none;
 }

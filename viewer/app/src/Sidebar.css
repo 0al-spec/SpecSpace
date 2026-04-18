@@ -188,7 +188,7 @@
   background: white;
   color: var(--muted);
   cursor: pointer;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
   transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
@@ -239,7 +239,7 @@
   font-size: 12px;
   color: var(--text);
   cursor: pointer;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
 }
 
 .sidebar-toggle-label input[type="checkbox"] {
@@ -261,7 +261,7 @@
   border-radius: 8px;
   margin-bottom: 8px;
   background: #faf8ff;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }

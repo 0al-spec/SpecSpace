@@ -83,7 +83,7 @@
 .agent-chat-title {
   font-size: 13px;
   font-weight: 700;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
   letter-spacing: 0.04em;
   color: var(--text, #231b15);
   display: flex;
@@ -108,7 +108,7 @@
   border-radius: 4px;
   background: rgba(109, 40, 217, 0.1);
   color: #6d28d9;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
   letter-spacing: 0.06em;
 }
 .agent-chat-close {

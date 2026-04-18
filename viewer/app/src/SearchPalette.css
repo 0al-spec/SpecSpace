@@ -58,7 +58,7 @@
   padding: 2px 6px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-mono);
   flex-shrink: 0;
 }
 

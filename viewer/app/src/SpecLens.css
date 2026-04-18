@@ -43,7 +43,7 @@
 
 .spec-lens-node-id {
   font-size: 10px;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   color: #7c3aed;
   font-weight: 700;
   white-space: nowrap;
@@ -52,7 +52,7 @@
 
 .spec-lens-status-badge {
   font-size: 9px;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -116,7 +116,7 @@
   border-top: 1px solid rgba(0, 0, 0, 0.07);
   background: var(--color-surface-2, #f0e8d8);
   flex-shrink: 0;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: #666;
 }
@@ -126,7 +126,7 @@
   border-radius: 999px;
   border: 1px solid transparent;
   font-weight: 600;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   cursor: pointer;
   transition: opacity 140ms, filter 140ms;
@@ -156,7 +156,7 @@
 .spec-lens-error {
   padding: 24px 0;
   font-size: 13px;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   color: #999;
 }
 .spec-lens-error { color: #b54131; }
@@ -174,7 +174,7 @@
 
 .spec-lens-maturity-label {
   font-size: 10px;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   color: #999;
   white-space: nowrap;
 }
@@ -202,7 +202,7 @@
 
 .spec-lens-section-title {
   font-size: 10px;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -278,7 +278,7 @@
 
 .spec-lens-sub-id {
   font-size: 9px;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
   color: #7c3aed;
   background: rgba(124, 58, 237, 0.1);
@@ -299,7 +299,7 @@
 
 .spec-lens-decision-rationale {
   font-size: 11px;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   line-height: 1.5;
   color: #777;
   margin: 0;
@@ -328,7 +328,7 @@
 
 .spec-lens-scope-label {
   font-size: 9px;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -363,7 +363,7 @@
 
 .spec-lens-link-kind {
   font-size: 9px;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
   letter-spacing: 0.05em;
   padding: 2px 6px;
@@ -375,7 +375,7 @@
 
 .spec-lens-link-chip {
   font-size: 10px;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   background: white;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 4px;

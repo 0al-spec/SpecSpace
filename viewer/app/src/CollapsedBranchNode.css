@@ -33,6 +33,6 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--branch-line, #4e689b);
-  font-family: "Courier New", monospace;
+  font-family: var(--font-mono);
   opacity: 0.75;
 }
