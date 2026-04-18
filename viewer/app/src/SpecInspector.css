@@ -101,6 +101,7 @@
 
 .spec-inspector-objective {
   font-size: 13px;
+  font-family: Georgia, "Times New Roman", serif;
   line-height: 1.6;
   color: var(--text, #2c2018);
   margin: 0 0 12px;
