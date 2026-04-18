@@ -23,11 +23,22 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 6px 10px;
   background: var(--color-surface-2, #f0e8d8);
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   cursor: move;
   flex-shrink: 0;
+}
+
+/* PanelActions sits flush in the titlebar; buttons inherit titlebar bg on hover */
+.spec-lens-actions .panel-btn {
+  background: transparent;
+  border-color: rgba(0, 0, 0, 0.14);
+}
+.spec-lens-actions .panel-btn:hover:not(.panel-btn-dim) {
+  background: rgba(0, 0, 0, 0.07);
+  border-color: rgba(0, 0, 0, 0.22);
+  color: #333;
 }
 
 .spec-lens-node-id {
@@ -69,29 +80,6 @@
   flex: 1;
 }
 
-.spec-lens-close,
-.spec-lens-nav-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  color: #888;
-  padding: 2px 6px;
-  border-radius: 4px;
-  line-height: 1;
-  flex-shrink: 0;
-  transition: background 120ms, color 120ms, opacity 120ms;
-}
-.spec-lens-close:hover,
-.spec-lens-nav-btn:hover:not(:disabled) { background: rgba(0, 0, 0, 0.08); color: #333; }
-
-.spec-lens-nav-btn {
-  font-weight: 700;
-  font-size: 13px;
-  padding: 2px 5px;
-}
-.spec-lens-nav-btn > * { pointer-events: none; }
-.spec-lens-nav-btn.nav-btn-dim { opacity: 0.25; cursor: default; }
 
 /* ─── Body (scrollable) ──────────────────────────────────────────────────── */
 

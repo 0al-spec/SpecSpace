@@ -41,46 +41,16 @@
   background: rgba(124, 58, 237, 0.12);
 }
 
-/* Action buttons row (lens + close) */
+/* Action buttons row — positioned top-right; layout comes from .panel-actions */
 .spec-inspector-actions {
   position: absolute;
   top: 12px;
   right: 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
   z-index: 1;
 }
 
-.spec-inspector-close,
-.spec-inspector-lens-btn,
-.spec-inspector-nav-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  border: 1px solid var(--line, #e0d8cc);
-  background: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted, #888);
-  transition: background 120ms, color 120ms, border-color 120ms, opacity 120ms;
-}
-.spec-inspector-close    { font-size: 13px; }
-.spec-inspector-lens-btn { font-size: 16px; color: #7c3aed; }
-.spec-inspector-nav-btn  { font-size: 14px; font-weight: 600; }
-.spec-inspector-nav-btn > * { pointer-events: none; }
-
-/* Единый hover для всех кнопок */
-.spec-inspector-close:hover,
-.spec-inspector-lens-btn:hover,
-.spec-inspector-nav-btn:hover:not(.nav-btn-dim) {
-  background: #fbf3e7;
-  border-color: var(--line-strong, #c8b89a);
-  color: var(--text, #333);
-}
-.nav-btn-dim { opacity: 0.28; cursor: default; }
+/* SpecLens button accent colour */
+.panel-btn-lens { font-size: 16px; color: #7c3aed; }
 
 /* Loading / error */
 .spec-inspector-loading,
@@ -93,9 +63,7 @@
 .spec-inspector-error { color: #b54131; }
 
 /* Content wrapper */
-.spec-inspector-content {
-  margin-top: 8px;
-}
+.spec-inspector-content {}
 
 /* ── Header card ─────────────────────────────────────────────────────────── */
 

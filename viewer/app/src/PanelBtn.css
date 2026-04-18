@@ -1,0 +1,46 @@
+/* ─── Shared panel button ────────────────────────────────────────────────────
+ * Used by PanelActions (SpecInspector, SpecLens, Sidebar).
+ * All interactive panel buttons derive from .panel-btn.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+.panel-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--line, #e0d8cc);
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--muted, #888);
+  flex-shrink: 0;
+  transition: background 120ms, color 120ms, border-color 120ms, opacity 120ms;
+}
+
+/* Icon/glyph inside must not capture pointer events */
+.panel-btn > span {
+  pointer-events: none;
+  line-height: 1;
+}
+
+.panel-btn:hover:not(.panel-btn-dim) {
+  background: #fbf3e7;
+  border-color: var(--line-strong, #c8b89a);
+  color: var(--text, #333);
+}
+
+/* Dimmed = visually disabled but still receives pointer events (tooltip works) */
+.panel-btn-dim {
+  opacity: 0.28;
+  cursor: default;
+}
+
+/* ─── Row container ──────────────────────────────────────────────────────── */
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

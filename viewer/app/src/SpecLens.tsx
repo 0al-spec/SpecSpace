@@ -12,6 +12,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as d3 from "d3";
 import "./SpecLens.css";
+import "./PanelBtn.css";
+import PanelActions from "./PanelActions";
 
 // ─── Raw API shape ────────────────────────────────────────────────────────────
 
@@ -558,26 +560,21 @@ export default function SpecLens({
     >
       {/* Title bar */}
       <div className="spec-lens-titlebar" onMouseDown={onTitleBarMouseDown}>
-        <button
-          className={`spec-lens-nav-btn${canGoBack ? "" : " nav-btn-dim"}`}
-          onClick={canGoBack ? onBack : undefined}
-          title={canGoBack && backLabel ? `← ${backLabel}` : "История пуста"}
-          aria-label="Back"
-          aria-disabled={!canGoBack}
-        ><span>←</span></button>
-        <button
-          className={`spec-lens-nav-btn${canGoForward ? "" : " nav-btn-dim"}`}
-          onClick={canGoForward ? onForward : undefined}
-          title={canGoForward && forwardLabel ? `→ ${forwardLabel}` : "Нет следующей страницы"}
-          aria-label="Forward"
-          aria-disabled={!canGoForward}
-        ><span>→</span></button>
         <span className="spec-lens-node-id">{nodeId}</span>
         {detail && (
           <span className={`spec-lens-status-badge sl-status-${status}`}>{status}</span>
         )}
         <span className="spec-lens-node-title">{title}</span>
-        <button className="spec-lens-close" onClick={onClose} title="Close (Esc)">✕</button>
+        <PanelActions
+          canGoBack={canGoBack}
+          canGoForward={canGoForward}
+          onBack={onBack}
+          onForward={onForward}
+          backLabel={backLabel}
+          forwardLabel={forwardLabel}
+          onClose={onClose}
+          className="spec-lens-actions"
+        />
       </div>
 
       {/* Body */}

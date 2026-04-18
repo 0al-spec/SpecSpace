@@ -17,22 +17,12 @@
   overflow: hidden;
 }
 
+/* sidebar-toggle inherits .panel-btn styles; only positioning overrides here */
 .sidebar-toggle {
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: white;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 2;
-  color: var(--muted);
 }
 
 .sidebar-collapsed .sidebar-toggle {
@@ -40,11 +30,6 @@
   right: auto;
   top: auto;
   margin: 0 auto;
-}
-
-.sidebar-toggle:hover {
-  background: #fbf3e7;
-  border-color: var(--line-strong);
 }
 
 .sidebar-header {

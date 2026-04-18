@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import "./Sidebar.css";
+import "./PanelBtn.css";
+import PanelBtn from "./PanelBtn";
 import type { GraphMode, SpecViewOptions } from "./types";
 
 interface FileEntry {
@@ -160,13 +162,12 @@ export default function Sidebar({
 
   return (
     <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
-      <button
-        className="sidebar-toggle"
+      <PanelBtn
+        icon={collapsed ? "☰" : "✕"}
+        title={collapsed ? "Развернуть панель" : "Свернуть панель"}
         onClick={toggleCollapse}
-        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      >
-        {collapsed ? "\u2630" : "\u2715"}
-      </button>
+        className="sidebar-toggle"
+      />
 
       {!collapsed && (
         <>

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import "./SpecNode.css";
 import "./SpecInspector.css";
+import "./PanelBtn.css";
+import PanelActions from "./PanelActions";
 
 interface SpecInspectorProps {
   selectedNodeId: string | null;
@@ -173,36 +175,22 @@ export default function SpecInspector({
   return (
     <aside className={`spec-inspector ${visible ? "visible" : ""}`} style={{ width: `${width}px` }}>
       <div className="spec-inspector-resize-handle" onMouseDown={onHandleMouseDown} />
-      <div className="spec-inspector-actions">
-        <button
-          className={`spec-inspector-nav-btn${canGoBack ? "" : " nav-btn-dim"}`}
-          onClick={canGoBack ? onBack : undefined}
-          title={canGoBack && backLabel ? `← ${backLabel}` : "История пуста"}
-          aria-label="Back"
-          aria-disabled={!canGoBack}
-        ><span>←</span></button>
-        <button
-          className={`spec-inspector-nav-btn${canGoForward ? "" : " nav-btn-dim"}`}
-          onClick={canGoForward ? onForward : undefined}
-          title={canGoForward && forwardLabel ? `→ ${forwardLabel}` : "Нет следующей страницы"}
-          aria-label="Forward"
-          aria-disabled={!canGoForward}
-        ><span>→</span></button>
-        {onOpenLens && selectedNodeId && (
-          <button
-            className="spec-inspector-lens-btn"
-            onClick={() => onOpenLens(selectedNodeId)}
-            title="Open spec lens"
-          >
-            ⊙
-          </button>
-        )}
-        {onDismiss && (
-          <button className="spec-inspector-close" onClick={onDismiss} aria-label="Close inspector">
-            ✕
-          </button>
-        )}
-      </div>
+      <PanelActions
+        className="spec-inspector-actions"
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
+        onBack={onBack}
+        onForward={onForward}
+        backLabel={backLabel}
+        forwardLabel={forwardLabel}
+        extra={onOpenLens && selectedNodeId ? [{
+          icon: "⊙",
+          title: "Открыть SpecLens",
+          onClick: () => onOpenLens(selectedNodeId),
+          className: "panel-btn-lens",
+        }] : []}
+        onClose={onDismiss}
+      />
 
       {loading && <div className="spec-inspector-loading">Loading…</div>}
       {error && <div className="spec-inspector-error">Error: {error}</div>}
