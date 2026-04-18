@@ -559,18 +559,18 @@ export default function SpecLens({
       {/* Title bar */}
       <div className="spec-lens-titlebar" onMouseDown={onTitleBarMouseDown}>
         <button
-          className="spec-lens-nav-btn"
-          onClick={onBack}
-          disabled={!canGoBack}
-          title={canGoBack && backLabel ? `← ${backLabel}` : "No history"}
+          className={`spec-lens-nav-btn${canGoBack ? "" : " nav-btn-dim"}`}
+          onClick={canGoBack ? onBack : undefined}
+          title={canGoBack && backLabel ? `← ${backLabel}` : "История пуста"}
           aria-label="Back"
+          aria-disabled={!canGoBack}
         >←</button>
         <button
-          className="spec-lens-nav-btn"
-          onClick={onForward}
-          disabled={!canGoForward}
-          title={canGoForward && forwardLabel ? `→ ${forwardLabel}` : "No forward history"}
+          className={`spec-lens-nav-btn${canGoForward ? "" : " nav-btn-dim"}`}
+          onClick={canGoForward ? onForward : undefined}
+          title={canGoForward && forwardLabel ? `→ ${forwardLabel}` : "Нет следующей страницы"}
           aria-label="Forward"
+          aria-disabled={!canGoForward}
         >→</button>
         <span className="spec-lens-node-id">{nodeId}</span>
         {detail && (

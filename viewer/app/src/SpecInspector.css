@@ -73,8 +73,8 @@
 
 .spec-inspector-close:hover      { background: #fbf3e7; }
 .spec-inspector-lens-btn:hover   { background: rgba(124, 58, 237, 0.08); color: #5b21b6; }
-.spec-inspector-nav-btn:hover:not(:disabled) { background: #fbf3e7; color: var(--text, #333); }
-.spec-inspector-nav-btn:disabled { opacity: 0.28; cursor: default; }
+.spec-inspector-nav-btn:hover:not(.nav-btn-dim) { background: #fbf3e7; color: var(--text, #333); }
+.nav-btn-dim { opacity: 0.28; cursor: default; }
 
 /* Loading / error */
 .spec-inspector-loading,

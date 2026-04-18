@@ -175,18 +175,18 @@ export default function SpecInspector({
       <div className="spec-inspector-resize-handle" onMouseDown={onHandleMouseDown} />
       <div className="spec-inspector-actions">
         <button
-          className="spec-inspector-nav-btn"
-          onClick={onBack}
-          disabled={!canGoBack}
-          title={canGoBack && backLabel ? `← ${backLabel}` : "No history"}
+          className={`spec-inspector-nav-btn${canGoBack ? "" : " nav-btn-dim"}`}
+          onClick={canGoBack ? onBack : undefined}
+          title={canGoBack && backLabel ? `← ${backLabel}` : "История пуста"}
           aria-label="Back"
+          aria-disabled={!canGoBack}
         >←</button>
         <button
-          className="spec-inspector-nav-btn"
-          onClick={onForward}
-          disabled={!canGoForward}
-          title={canGoForward && forwardLabel ? `→ ${forwardLabel}` : "No forward history"}
+          className={`spec-inspector-nav-btn${canGoForward ? "" : " nav-btn-dim"}`}
+          onClick={canGoForward ? onForward : undefined}
+          title={canGoForward && forwardLabel ? `→ ${forwardLabel}` : "Нет следующей страницы"}
           aria-label="Forward"
+          aria-disabled={!canGoForward}
         >→</button>
         {onOpenLens && selectedNodeId && (
           <button
