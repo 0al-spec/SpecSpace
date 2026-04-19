@@ -1,0 +1,33 @@
+.kind-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.kind-badge-root {
+  background: var(--root);
+  color: var(--root-line);
+}
+
+.kind-badge-branch {
+  background: var(--branch);
+  color: var(--branch-line);
+}
+
+.kind-badge-merge {
+  background: var(--merge);
+  color: var(--merge-line);
+}
+
+.kind-badge-broken {
+  background: var(--broken);
+  color: var(--broken-line);
+}

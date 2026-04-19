@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import "./Sidebar.css";
 import "./PanelBtn.css";
+import "./SpecNode.css";
 import PanelBtn from "./PanelBtn";
+import { useToast } from "./Toast";
+import KindBadge from "./KindBadge";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowsRotate, faXmark, faGauge } from "@fortawesome/free-solid-svg-icons";
 import type { GraphMode, SpecViewOptions } from "./types";
 
 interface FileEntry {
@@ -15,6 +20,7 @@ interface SpecEntry {
   title: string;
   kind: string;
   status: string;
+  maturity: number | null;
 }
 
 interface SidebarProps {
@@ -24,34 +30,18 @@ interface SidebarProps {
   graphMode: GraphMode;
   onGraphModeChange: (mode: GraphMode) => void;
   specAvailable: boolean;
+  dashboardAvailable?: boolean;
   specViewOptions: SpecViewOptions;
   onSpecViewOptionsChange: (opts: SpecViewOptions) => void;
   onSpecNodeSelect?: (nodeId: string) => void;
   selectedSpecNodeId?: string | null;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 const COLLAPSE_KEY = "ctxb_sidebar_collapsed";
 const MODE_KEY = "ctxb_graph_mode";
 
-const kindColors: Record<string, string> = {
-  "canonical-root": "root",
-  "canonical-branch": "branch",
-  "canonical-merge": "merge",
-  root: "root",
-  branch: "branch",
-  merge: "merge",
-  invalid: "broken",
-};
-
-const kindLabels: Record<string, string> = {
-  "canonical-root": "ROOT",
-  "canonical-branch": "BRANCH",
-  "canonical-merge": "MERGE",
-  root: "ROOT",
-  branch: "BRANCH",
-  merge: "MERGE",
-  invalid: "INVALID",
-};
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -65,14 +55,14 @@ export default function Sidebar({
   graphMode,
   onGraphModeChange,
   specAvailable,
+  dashboardAvailable = false,
   specViewOptions,
   onSpecViewOptionsChange,
   onSpecNodeSelect,
   selectedSpecNodeId,
+  collapsed,
+  onToggleCollapse,
 }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(() => {
-    return sessionStorage.getItem(COLLAPSE_KEY) === "true";
-  });
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [specNodes, setSpecNodes] = useState<SpecEntry[]>([]);
   const [dialogDir, setDialogDir] = useState("");
@@ -108,11 +98,12 @@ export default function Sidebar({
       setSpecDir(data.spec_dir || "");
       const graphNodes = data.graph?.nodes || [];
       setSpecNodes(
-        graphNodes.map((n: { node_id: string; title: string; kind: string; status: string }) => ({
+        graphNodes.map((n: { node_id: string; title: string; kind: string; status: string; maturity: number | null }) => ({
           node_id: n.node_id,
           title: n.title,
           kind: n.kind,
           status: n.status,
+          maturity: typeof n.maturity === "number" ? n.maturity : null,
         })),
       );
     } finally {
@@ -138,14 +129,6 @@ export default function Sidebar({
     }
   }, [graphMode, fetchFiles, fetchSpecNodes, onRefresh]);
 
-  const toggleCollapse = useCallback(() => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      sessionStorage.setItem(COLLAPSE_KEY, String(next));
-      return next;
-    });
-  }, []);
-
   const handleModeChange = useCallback(
     (mode: GraphMode) => {
       sessionStorage.setItem(MODE_KEY, mode);
@@ -154,34 +137,35 @@ export default function Sidebar({
     [onGraphModeChange],
   );
 
+  const { showToast } = useToast();
+
   const workspacePath = graphMode === "conversations" ? dialogDir : specDir;
   const itemCount =
     graphMode === "conversations" ? files.length : specNodes.length;
   const itemLabel =
     graphMode === "conversations" ? "JSON files" : "spec nodes";
 
+  if (collapsed) return null;
+
   return (
-    <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
+    <aside className="sidebar">
       <PanelBtn
-        icon={collapsed ? "☰" : "✕"}
-        title={collapsed ? "Развернуть панель" : "Свернуть панель"}
-        onClick={toggleCollapse}
+        icon={<FontAwesomeIcon icon={faXmark} />}
+        title="Свернуть панель"
+        onClick={onToggleCollapse}
         className="sidebar-toggle"
       />
-
-      {!collapsed && (
-        <>
-          <div className="sidebar-header">
-            <h1 className="sidebar-title">ContextBuilder</h1>
-            <p className="sidebar-description">
-              {graphMode === "conversations"
-                ? "Graph-first navigation for local conversation lineages."
-                : "Specification graph viewer."}
-            </p>
-          </div>
+      <div className="sidebar-header">
+        <h1 className="sidebar-title">ContextBuilder</h1>
+        <p className="sidebar-description">
+          {graphMode === "conversations"
+            ? "Graph-first navigation for local conversation lineages."
+            : "Specification graph viewer."}
+        </p>
+      </div>
 
           {/* Mode switcher — only shown when spec support is available */}
-          {specAvailable && (
+          {(specAvailable || dashboardAvailable) && (
             <div className="sidebar-mode-switcher">
               <button
                 className={`sidebar-mode-btn ${graphMode === "conversations" ? "active" : ""}`}
@@ -190,13 +174,24 @@ export default function Sidebar({
               >
                 Conversations
               </button>
-              <button
-                className={`sidebar-mode-btn spec-mode ${graphMode === "specifications" ? "active" : ""}`}
-                onClick={() => handleModeChange("specifications")}
-                title="Specification dependency graph"
-              >
-                Specs
-              </button>
+              {specAvailable && (
+                <button
+                  className={`sidebar-mode-btn spec-mode ${graphMode === "specifications" ? "active" : ""}`}
+                  onClick={() => handleModeChange("specifications")}
+                  title="Specification dependency graph"
+                >
+                  Specs
+                </button>
+              )}
+              {dashboardAvailable && (
+                <button
+                  className={`sidebar-mode-btn spec-mode ${graphMode === "dashboard" ? "active" : ""}`}
+                  onClick={() => handleModeChange("dashboard")}
+                  title="Graph dashboard — aggregated metrics"
+                >
+                  <FontAwesomeIcon icon={faGauge} />
+                </button>
+              )}
             </div>
           )}
 
@@ -294,13 +289,26 @@ export default function Sidebar({
             </div>
           )}
 
-          <button className="sidebar-refresh" onClick={handleRefresh}>
-            Refresh workspace
-          </button>
-
           <div className="sidebar-workspace">
-            <div className="sidebar-section-label">WORKSPACE</div>
-            <div className="sidebar-workspace-path">{workspacePath}</div>
+            <div className="sidebar-workspace-header">
+              <div className="sidebar-section-label">WORKSPACE</div>
+              <PanelBtn
+                icon={<FontAwesomeIcon icon={faArrowsRotate} />}
+                title="Refresh workspace"
+                onClick={handleRefresh}
+                className="sidebar-workspace-refresh"
+              />
+            </div>
+            <div
+              className="sidebar-workspace-path sidebar-workspace-path-copyable"
+              onClick={() => {
+                showToast("Path copied");
+                navigator.clipboard?.writeText(workspacePath).catch(() => {});
+              }}
+              title="Click to copy path"
+            >
+              {workspacePath}
+            </div>
             <div className="sidebar-workspace-stats">
               {itemCount} {itemLabel}
             </div>
@@ -317,13 +325,9 @@ export default function Sidebar({
                   onClick={() => onSelectFile?.(file.name)}
                 >
                   <div className="sidebar-file-name">{file.name}</div>
-                  <span
-                    className={`sidebar-file-badge ${kindColors[file.kind] || ""}`}
-                  >
-                    {kindLabels[file.kind] || file.kind.toUpperCase()}
-                  </span>
-                  <div className="sidebar-file-size">
-                    {formatSize(file.size)} | {kindLabels[file.kind] || file.kind}
+                  <div className="sidebar-file-meta">
+                    <KindBadge kind={file.kind} />
+                    <span className="sidebar-file-size">{formatSize(file.size)}</span>
                   </div>
                 </div>
               ))}
@@ -337,23 +341,29 @@ export default function Sidebar({
               {specNodes.map((spec) => (
                 <div
                   key={spec.node_id}
-                  className={`sidebar-spec-item${selectedSpecNodeId === spec.node_id ? " selected" : ""}`}
+                  className={`sidebar-spec-item status-${spec.status}${selectedSpecNodeId === spec.node_id ? " selected" : ""}`}
                   onClick={() => onSpecNodeSelect?.(spec.node_id)}
                 >
                   <div className="sidebar-spec-id">{spec.node_id}</div>
                   <div className="sidebar-spec-title">{spec.title}</div>
-                  <span className="sidebar-file-badge spec">
+                  <span className={`spec-node-status-badge status-${spec.status}`}>
                     {spec.status}
                   </span>
+                  {spec.maturity !== null && (
+                    <div className="spec-node-maturity-track sidebar-spec-maturity-track">
+                      <div
+                        className="spec-node-maturity-fill"
+                        style={{ width: `${Math.min(1, Math.max(0, spec.maturity)) * 100}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
-        </>
-      )}
     </aside>
   );
 }
 
-// Export the session storage key so App.tsx can read the persisted mode on boot
-export { MODE_KEY };
+// Export session storage keys so App.tsx can read persisted state on boot
+export { MODE_KEY, COLLAPSE_KEY };

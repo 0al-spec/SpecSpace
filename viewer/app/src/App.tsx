@@ -32,7 +32,7 @@ import SpecForceGraph from "./SpecForceGraph";
 import "./SpecNode.css";
 import AgentChat, { AgentChatTrigger } from "./AgentChat";
 import SearchPalette from "./SearchPalette";
-import Sidebar, { MODE_KEY } from "./Sidebar";
+import Sidebar, { MODE_KEY, COLLAPSE_KEY } from "./Sidebar";
 import InspectorOverlay from "./InspectorOverlay";
 import { useGraphData } from "./useGraphData";
 import { useSpecGraphData } from "./useSpecGraphData";
@@ -42,6 +42,10 @@ import { CompileTargetContext } from "./CompileTargetContext";
 import TimelineFilter, { type TimelineField } from "./TimelineFilter";
 import PanelBtn from "./PanelBtn";
 import "./PanelBtn.css";
+import { ToastProvider } from "./Toast";
+import GraphDashboard from "./GraphDashboard";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faClock, faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
 import type { GraphMode, SpecViewOptions } from "./types";
 
 const nodeTypes = {
@@ -132,20 +136,22 @@ function FitViewShortcut() {
 interface Capabilities {
   specAvailable: boolean;
   compileAvailable: boolean;
+  dashboardAvailable: boolean;
 }
 
 // Check once at startup which optional features are available
 async function checkCapabilities(): Promise<Capabilities> {
   try {
     const res = await fetch("/api/capabilities");
-    if (!res.ok) return { specAvailable: false, compileAvailable: false };
+    if (!res.ok) return { specAvailable: false, compileAvailable: false, dashboardAvailable: false };
     const data = await res.json();
     return {
       specAvailable: Boolean(data.spec_graph),
       compileAvailable: Boolean(data.compile),
+      dashboardAvailable: Boolean(data.graph_dashboard),
     };
   } catch {
-    return { specAvailable: false, compileAvailable: false };
+    return { specAvailable: false, compileAvailable: false, dashboardAvailable: false };
   }
 }
 
@@ -160,13 +166,15 @@ function AppInner() {
   const [graphMode, setGraphMode] = useState<GraphMode>(loadInitialMode);
   const [specAvailable, setSpecAvailable] = useState(false);
   const [compileAvailable, setCompileAvailable] = useState(false);
+  const [dashboardAvailable, setDashboardAvailable] = useState(false);
   const [specViewOptions, setSpecViewOptions] = useState<SpecViewOptions>(DEFAULT_SPEC_VIEW);
 
   // Check capabilities once on mount
   useEffect(() => {
-    checkCapabilities().then(({ specAvailable, compileAvailable }) => {
+    checkCapabilities().then(({ specAvailable, compileAvailable, dashboardAvailable }) => {
       setSpecAvailable(specAvailable);
       setCompileAvailable(compileAvailable);
+      setDashboardAvailable(dashboardAvailable);
     });
   }, []);
 
@@ -186,6 +194,18 @@ function AppInner() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [highlightedEdge, setHighlightedEdge] = useState<{ id: string; source: string; target: string } | null>(null);
   const [searchMatchIds, setSearchMatchIds] = useState<Set<string> | null>(null);
+
+  // ── Sidebar collapse ─────────────────────────────────────────────────────
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return sessionStorage.getItem(COLLAPSE_KEY) === "true";
+  });
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      sessionStorage.setItem(COLLAPSE_KEY, String(next));
+      return next;
+    });
+  }, []);
 
   // ── Timeline filter ───────────────────────────────────────────────────────
   const [timelineOpen, setTimelineOpen] = useState(false);
@@ -600,13 +620,34 @@ function AppInner() {
     );
   }, [edges, highlightedEdge]);
 
+  /** Reset the timeline range to match a specific field's full extent */
+  const resetTimelineRangeForField = useCallback((f: TimelineField) => {
+    const tss = (specGraph.rawGraph?.nodes ?? [])
+      .map((n) => n[f])
+      .filter((v): v is string => typeof v === "string" && v.length > 0)
+      .map((v) => new Date(v).getTime())
+      .filter((t) => !isNaN(t));
+    if (tss.length > 0) setTimelineRange([Math.min(...tss), Math.max(...tss)]);
+  }, [specGraph.rawGraph]);
+
+  const handleTimelineFieldChange = useCallback((f: TimelineField) => {
+    setTimelineField(f);
+    resetTimelineRangeForField(f);
+  }, [resetTimelineRangeForField]);
+
   const toggleTimeline = useCallback(() => {
-    setTimelineOpen((open) => !open);
-    // Initialise range to full span the first time the filter opens
-    if (!timelineOpen && timelineFullRange && !timelineRange) {
-      setTimelineRange(timelineFullRange);
-    }
-  }, [timelineOpen, timelineFullRange, timelineRange]);
+    setTimelineOpen((open) => {
+      if (open) {
+        // closing — reset range so re-opening starts fresh
+        setTimelineRange(null);
+        return false;
+      } else {
+        // opening — initialise to full span
+        if (timelineFullRange) setTimelineRange(timelineFullRange);
+        return true;
+      }
+    });
+  }, [timelineFullRange]);
 
   const onEdgeClick: EdgeMouseHandler = useCallback((_event, edge) => {
     setHighlightedEdge((prev) => {
@@ -654,6 +695,7 @@ function AppInner() {
           graphMode={graphMode}
           onGraphModeChange={setGraphMode}
           specAvailable={specAvailable}
+          dashboardAvailable={dashboardAvailable}
           specViewOptions={specViewOptions}
           onSpecViewOptionsChange={setSpecViewOptions}
           onSpecNodeSelect={onSpecNodeSelect}
@@ -664,6 +706,8 @@ function AppInner() {
               ? (graphNodes.find((n) => n.id === selectedConversationId)?.data as { fileName?: string })?.fileName ?? null
               : null
           }
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
         />
         <main className="app-main">
           {/* Initial load spinner — only when there are no nodes yet */}
@@ -678,6 +722,9 @@ function AppInner() {
               <button onClick={refresh}>Retry</button>
             </div>
           )}
+          {/* Dashboard view */}
+          {graphMode === "dashboard" && <GraphDashboard />}
+
           {/* Force-directed view — replaces ReactFlow when viewMode === "force" */}
           {graphMode === "specifications" && specViewOptions.viewMode === "force" && specGraph.rawGraph && (
             <ErrorBoundary label="SpecForceGraph">
@@ -690,9 +737,10 @@ function AppInner() {
           )}
 
           {/* ReactFlow stays mounted during background refreshes to preserve zoom/pan.
-              Hidden (not unmounted) in force mode so zoom/pan state is preserved. */}
+              Hidden (not unmounted) in force/dashboard mode so zoom/pan state is preserved. */}
           <ErrorBoundary label="Canvas">
             <ReactFlow
+              style={{ display: graphMode === "dashboard" ? "none" : undefined }}
               nodes={displayNodes}
               edges={displayEdges}
               nodeTypes={nodeTypes}
@@ -727,38 +775,50 @@ function AppInner() {
             </ReactFlow>
           </ErrorBoundary>
 
-          {/* ── Timeline filter overlay — spec mode, ReactFlow view only ─── */}
-          {graphMode === "specifications" && specViewOptions.viewMode !== "force" && (
-            <div className="timeline-overlay">
+          {/* ── Top-left canvas overlay: sidebar toggle + timeline filter ─── */}
+          <div className="timeline-overlay">
+            {/* Sidebar show button — visible only when sidebar is collapsed */}
+            {sidebarCollapsed && (
               <PanelBtn
-                icon="⏱"
-                title={timelineOpen ? "Close timeline filter" : "Open timeline filter"}
-                onClick={toggleTimeline}
-                className={timelineOpen ? "timeline-btn-active" : undefined}
+                icon={<FontAwesomeIcon icon={faBars} />}
+                title="Show sidebar"
+                onClick={toggleSidebar}
               />
-              {timelineOpen && timelineFullRange && timelineRange && (
-                <TimelineFilter
-                  nodes={specGraph.rawGraph?.nodes ?? []}
-                  field={timelineField}
-                  onFieldChange={(f) => {
-                    setTimelineField(f);
-                    // Recompute full range for the NEW field and reset selection
-                    const tss = (specGraph.rawGraph?.nodes ?? [])
-                      .map((n) => n[f])
-                      .filter((v): v is string => typeof v === "string" && v.length > 0)
-                      .map((v) => new Date(v).getTime())
-                      .filter((t) => !isNaN(t));
-                    if (tss.length > 0)
-                      setTimelineRange([Math.min(...tss), Math.max(...tss)]);
-                  }}
-                  range={timelineRange}
-                  onRangeChange={setTimelineRange}
-                  fullRange={timelineFullRange}
-                  onClose={() => setTimelineOpen(false)}
-                />
-              )}
-            </div>
-          )}
+            )}
+
+            {/* Timeline filter — spec mode + ReactFlow view only */}
+            {graphMode === "specifications" && specViewOptions.viewMode !== "force" && (
+              <>
+                <div className="timeline-header">
+                  <PanelBtn
+                    icon={<FontAwesomeIcon icon={faClock} />}
+                    title={timelineOpen ? "Close timeline filter" : "Open timeline filter"}
+                    onClick={toggleTimeline}
+                    className={timelineOpen ? "timeline-btn-active" : undefined}
+                  />
+                  {timelineOpen && (
+                    <div className="tl-segment">
+                      <button
+                        className={`tl-seg-btn${timelineField === "created_at" ? " active" : ""}`}
+                        onClick={() => handleTimelineFieldChange("created_at")}
+                      >Created</button>
+                      <button
+                        className={`tl-seg-btn${timelineField === "updated_at" ? " active" : ""}`}
+                        onClick={() => handleTimelineFieldChange("updated_at")}
+                      >Updated</button>
+                    </div>
+                  )}
+                </div>
+                {timelineOpen && timelineFullRange && timelineRange && (
+                  <TimelineFilter
+                    range={timelineRange}
+                    onRangeChange={setTimelineRange}
+                    fullRange={timelineFullRange}
+                  />
+                )}
+              </>
+            )}
+          </div>
 
         </main>
         {/* Spec inspector */}
@@ -855,10 +915,12 @@ function AppInner() {
 
 export default function App() {
   return (
-    <ErrorBoundary label="App">
-      <ReactFlowProvider>
-        <AppInner />
-      </ReactFlowProvider>
-    </ErrorBoundary>
+    <ToastProvider>
+      <ErrorBoundary label="App">
+        <ReactFlowProvider>
+          <AppInner />
+        </ReactFlowProvider>
+      </ErrorBoundary>
+    </ToastProvider>
   );
 }

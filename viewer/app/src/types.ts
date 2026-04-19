@@ -106,7 +106,7 @@ export interface ApiSpecGraph {
   };
 }
 
-export type GraphMode = "conversations" | "specifications";
+export type GraphMode = "conversations" | "specifications" | "dashboard";
 
 /** Spec view mode within the specifications graph mode */
 export type SpecViewMode = "tree" | "linear" | "canonical" | "force";

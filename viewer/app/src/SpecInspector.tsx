@@ -3,6 +3,8 @@ import "./SpecNode.css";
 import "./SpecInspector.css";
 import "./PanelBtn.css";
 import PanelActions from "./PanelActions";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCircleDot, faCalendarPlus, faRotate } from "@fortawesome/free-solid-svg-icons";
 
 interface SpecInspectorProps {
   selectedNodeId: string | null;
@@ -184,7 +186,7 @@ export default function SpecInspector({
         backLabel={backLabel}
         forwardLabel={forwardLabel}
         extra={onOpenLens && selectedNodeId ? [{
-          icon: "⊙",
+          icon: <FontAwesomeIcon icon={faCircleDot} />,
           title: "Открыть SpecLens",
           onClick: () => onOpenLens(selectedNodeId),
           className: "panel-btn-lens",
@@ -229,13 +231,13 @@ export default function SpecInspector({
               <div className="spec-inspector-dates">
                 {detail.created_at != null && (
                   <span title={str(detail.created_at)}>
-                    <span className="spec-inspector-dates-icon">✦</span>
+                    <span className="spec-inspector-dates-icon"><FontAwesomeIcon icon={faCalendarPlus} /></span>
                     {fmtDate(detail.created_at)}
                   </span>
                 )}
                 {detail.updated_at != null && (
                   <span title={str(detail.updated_at)}>
-                    <span className="spec-inspector-dates-icon">↻</span>
+                    <span className="spec-inspector-dates-icon"><FontAwesomeIcon icon={faRotate} /></span>
                     {fmtDate(detail.updated_at)}
                   </span>
                 )}

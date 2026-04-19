@@ -14,6 +14,8 @@
  *   <PanelActions canGoBack={…} … onClose={onClose} />
  */
 import PanelBtn from "./PanelBtn";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faArrowRight, faXmark } from "@fortawesome/free-solid-svg-icons";
 
 export interface PanelExtraAction {
   icon:       React.ReactNode;
@@ -51,13 +53,13 @@ export default function PanelActions({
       {showNav && (
         <>
           <PanelBtn
-            icon="←"
+            icon={<FontAwesomeIcon icon={faArrowLeft} />}
             title={canGoBack && backLabel ? `← ${backLabel}` : "История пуста"}
             onClick={onBack}
             dim={!canGoBack}
           />
           <PanelBtn
-            icon="→"
+            icon={<FontAwesomeIcon icon={faArrowRight} />}
             title={canGoForward && forwardLabel ? `→ ${forwardLabel}` : "Нет следующей страницы"}
             onClick={onForward}
             dim={!canGoForward}
@@ -76,7 +78,7 @@ export default function PanelActions({
       ))}
 
       {onClose && (
-        <PanelBtn icon="✕" title="Закрыть (Esc)" onClick={onClose} />
+        <PanelBtn icon={<FontAwesomeIcon icon={faXmark} />} title="Закрыть (Esc)" onClick={onClose} />
       )}
     </div>
   );

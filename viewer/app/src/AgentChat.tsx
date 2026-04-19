@@ -9,6 +9,8 @@ import {
   type ChatModelRunResult,
 } from "@assistant-ui/react";
 import "./AgentChat.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faXmark, faChevronDown, faPaperPlane, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
 
 // ── Abstract adapter ─────────────────────────────────────────────────────────
 // Swap this implementation for a real /api/agent endpoint later.
@@ -99,7 +101,7 @@ export default function AgentChat({ open, onClose, contextNodeId }: AgentChatPro
             )}
           </span>
           <button className="agent-chat-close" onClick={onClose} title="Close">
-            ✕
+            <FontAwesomeIcon icon={faXmark} />
           </button>
         </div>
 
@@ -119,7 +121,7 @@ export default function AgentChat({ open, onClose, contextNodeId }: AgentChatPro
             />
 
             <ThreadPrimitive.ScrollToBottom className="agent-chat-scroll-btn">
-              ↓
+              <FontAwesomeIcon icon={faChevronDown} />
             </ThreadPrimitive.ScrollToBottom>
           </ThreadPrimitive.Viewport>
 
@@ -132,7 +134,7 @@ export default function AgentChat({ open, onClose, contextNodeId }: AgentChatPro
                 autoFocus
               />
               <ComposerPrimitive.Send className="agent-chat-send">
-                ↑
+                <FontAwesomeIcon icon={faPaperPlane} />
               </ComposerPrimitive.Send>
             </ComposerPrimitive.Root>
           </div>
@@ -175,7 +177,7 @@ export function AgentChatTrigger({ onClick, active }: AgentChatTriggerProps) {
       onClick={onClick}
       title="Open agent chat"
     >
-      ✦
+      <FontAwesomeIcon icon={faWandMagicSparkles} />
     </button>
   );
 }

@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Node } from "@xyflow/react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronRight, faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import "./ExpandedSpecNode.css";
 import type { SpecHandleKind } from "./SpecNode";
 
@@ -154,7 +156,7 @@ export default function ExpandedSpecNode({ data, selected }: NodeProps<ExpandedS
           }}
           title={data.isBranchCollapsed ? "Expand branch" : "Collapse branch"}
         >
-          {data.isBranchCollapsed ? "▶" : "▼"}
+          <FontAwesomeIcon icon={data.isBranchCollapsed ? faChevronRight : faChevronDown} />
         </button>
       )}
     </div>

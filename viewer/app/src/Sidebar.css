@@ -7,29 +7,14 @@
   overflow-y: auto;
   font-family: Georgia, "Times New Roman", serif;
   position: relative;
-  transition: width 220ms ease, min-width 220ms ease, padding 220ms ease;
 }
 
-.sidebar-collapsed {
-  width: 48px;
-  min-width: 48px;
-  padding: 20px 8px;
-  overflow: hidden;
-}
-
-/* sidebar-toggle inherits .panel-btn styles; only positioning overrides here */
+/* sidebar-toggle (close ✕) — absolute in top-right corner of the sidebar panel */
 .sidebar-toggle {
   position: absolute;
   top: 12px;
   right: 12px;
   z-index: 2;
-}
-
-.sidebar-collapsed .sidebar-toggle {
-  position: relative;
-  right: auto;
-  top: auto;
-  margin: 0 auto;
 }
 
 .sidebar-header {
@@ -50,30 +35,30 @@
   margin: 0;
 }
 
-.sidebar-refresh {
-  width: 100%;
-  border: 1px solid var(--line);
-  background: white;
-  color: var(--text);
-  border-radius: 999px;
-  padding: 10px 14px;
-  cursor: pointer;
-  font-size: 14px;
-  font-family: inherit;
-  margin-bottom: 16px;
-}
-
-.sidebar-refresh:hover {
-  background: #fbf3e7;
-  border-color: var(--line-strong);
-}
-
 .sidebar-workspace {
   background: var(--panel-strong);
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 14px;
   margin-bottom: 16px;
+}
+
+.sidebar-workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.sidebar-workspace-header .sidebar-section-label {
+  margin-bottom: 0;
+}
+
+.sidebar-workspace-refresh {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  font-size: 14px;
 }
 
 .sidebar-section-label {
@@ -89,6 +74,14 @@
   color: var(--text);
   word-break: break-all;
   margin-bottom: 4px;
+}
+
+.sidebar-workspace-path-copyable {
+  cursor: pointer;
+}
+
+.sidebar-workspace-path-copyable:hover {
+  color: var(--accent, #b07a3a);
 }
 
 .sidebar-workspace-stats {
@@ -129,39 +122,23 @@
   word-break: break-all;
 }
 
-.sidebar-file-badge {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 2px 8px;
-  border-radius: 999px;
-  margin-bottom: 4px;
+.sidebar-file-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.sidebar-file-badge.root {
-  background: var(--root);
-  color: var(--root-line);
-}
-
-.sidebar-file-badge.branch {
-  background: var(--branch);
-  color: var(--branch-line);
-}
-
-.sidebar-file-badge.merge {
-  background: var(--merge);
-  color: var(--merge-line);
-}
-
-.sidebar-file-badge.broken {
-  background: var(--broken);
-  color: var(--broken-line);
-}
 
 .sidebar-file-size {
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.05);
   color: var(--muted);
+  flex-shrink: 0;
 }
 
 .sidebar-loading {
@@ -250,30 +227,32 @@
   cursor: pointer;
 }
 
-/* Spec node list items in sidebar */
-.sidebar-file-badge.spec {
-  background: #f0ecfa;
-  color: #6e5ab8;
-}
 
 .sidebar-spec-item {
   padding: 10px;
-  border: 1px solid #d8d0f0;
+  border: 1px solid var(--line);
   border-radius: 8px;
   margin-bottom: 8px;
-  background: #faf8ff;
   font-family: var(--font-mono);
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
+  transition: filter 0.12s, border-color 0.12s;
 }
+
+/* Status-based background + border — mirrors graph node colours exactly */
+.sidebar-spec-item.status-idea       { background: #f2f2f2; border-color: #888; }
+.sidebar-spec-item.status-stub       { background: #fef3d0; border-color: #d4910a; }
+.sidebar-spec-item.status-outlined   { background: #e6f0fc; border-color: #2e76cc; }
+.sidebar-spec-item.status-specified  { background: #ede8fc; border-color: #5b3ec8; }
+.sidebar-spec-item.status-linked     { background: #e2f7e9; border-color: #1e9145; }
+.sidebar-spec-item.status-reviewed   { background: #daf4f0; border-color: #0e8a7c; }
+.sidebar-spec-item.status-frozen     { background: #eaeff5; border-color: #3a4f6a; }
+
 .sidebar-spec-item:hover {
-  background: #f0ecfa;
-  border-color: #b8a8e8;
+  filter: brightness(0.96);
 }
 .sidebar-spec-item.selected {
-  background: #ede8fc;
-  border-color: #7c3aed;
-  outline: none;
+  outline: 2px solid #7c3aed;
+  outline-offset: 1px;
 }
 
 .sidebar-spec-id {
@@ -290,4 +269,14 @@
   word-break: break-word;
   font-family: Georgia, serif;
   margin-bottom: 4px;
+}
+
+/* Maturity bar inside sidebar spec items */
+.sidebar-spec-maturity-track {
+  margin-top: 8px;
+}
+
+/* Re-anchor gradient to sidebar item width (~196px = 260px − 32px sidebar padding − 32px item padding) */
+.sidebar-spec-item .spec-node-maturity-fill {
+  background-size: 196px 100%;
 }

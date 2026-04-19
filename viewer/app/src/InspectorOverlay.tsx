@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import "./InspectorOverlay.css";
+import KindBadge from "./KindBadge";
+import ActionBtn from "./ActionBtn";
+import PanelBtn from "./PanelBtn";
+import { useToast } from "./Toast";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCopy } from "@fortawesome/free-regular-svg-icons";
+import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import BranchDialog from "./BranchDialog";
 import MergeDialog from "./MergeDialog";
 import type { CompileTarget, CompileResult } from "./types";
@@ -78,6 +85,7 @@ export default function InspectorOverlay({
   onSetCompileTarget,
   compileAvailable = true,
 }: InspectorOverlayProps) {
+  const { showToast } = useToast();
   const [convDetail, setConvDetail] = useState<ConversationDetail | null>(null);
   const [checkpointDetail, setCheckpointDetail] =
     useState<CheckpointDetail | null>(null);
@@ -192,7 +200,7 @@ export default function InspectorOverlay({
   return (
     <div className={`inspector-overlay ${visible ? "visible" : ""}`}>
       <button className="inspector-close" onClick={onDismiss} title="Close">
-        {"\u2715"}
+        <FontAwesomeIcon icon={faXmark} />
       </button>
 
       {loading && <div className="inspector-loading">Loading…</div>}
@@ -207,25 +215,23 @@ export default function InspectorOverlay({
       {conv && (
         <>
           <div className="inspector-section-label">CONVERSATION INSPECTOR</div>
-          <h2 className="inspector-title">Selection details</h2>
-
-          <div className="inspector-meta">
-            {conv.conversation_id} | {kindLabels[conv.kind] || conv.kind} |{" "}
-            {conv.file_name} | {conv.checkpoint_count} checkpoints
-          </div>
 
           <div className="inspector-section-label">LINEAGE</div>
 
           {/* Current conversation */}
           <div className="inspector-lineage-card">
             <div className="inspector-lineage-title">{conv.title}</div>
-            <span
-              className={`inspector-lineage-badge ${convDetail?.compile_target?.is_lineage_complete ? "complete" : "incomplete"}`}
-            >
-              {convDetail?.compile_target?.is_lineage_complete
-                ? "LINEAGE COMPLETE"
-                : "LINEAGE INCOMPLETE"}
-            </span>
+            <div className="inspector-lineage-card-meta">
+              <KindBadge kind={conv.kind} />
+              <span className="inspector-lineage-badge">{conv.checkpoint_count} checkpoints</span>
+              <span
+                className={`inspector-lineage-badge ${convDetail?.compile_target?.is_lineage_complete ? "complete" : "incomplete"}`}
+              >
+                {convDetail?.compile_target?.is_lineage_complete
+                  ? "LINEAGE COMPLETE"
+                  : "LINEAGE INCOMPLETE"}
+              </span>
+            </div>
             {compileTargetConversationId === selectedConversationId &&
               !compileTargetMessageId && (
                 <span className="inspector-lineage-badge inspector-compile-target-active">
@@ -242,23 +248,20 @@ export default function InspectorOverlay({
             )}
           </div>
 
-          <button
-            className={`inspector-branch-btn inspector-compile-target-btn${compileTargetConversationId === selectedConversationId && !compileTargetMessageId ? " active" : ""}`}
+          <ActionBtn
+            variant="compile"
+            active={compileTargetConversationId === selectedConversationId && !compileTargetMessageId}
             onClick={() => onSetCompileTarget(selectedConversationId, null)}
           >
-            {compileTargetConversationId === selectedConversationId &&
-            !compileTargetMessageId
-              ? "Compile Target \u2713"
+            {compileTargetConversationId === selectedConversationId && !compileTargetMessageId
+              ? "Compile Target ✓"
               : "Set as Compile Target"}
-          </button>
+          </ActionBtn>
 
           {/* Parent edges */}
           {(convDetail?.parent_edges || []).length === 0 && (
             <div className="inspector-lineage-card">
               <div className="inspector-lineage-title">No parent edges</div>
-              <span className="inspector-lineage-badge">
-                {kindLabels[conv.kind] || conv.kind}
-              </span>
               <div className="inspector-lineage-meta">
                 Root conversation in the current graph snapshot
               </div>
@@ -319,6 +322,15 @@ export default function InspectorOverlay({
             {checkpointDetail.checkpoint.message_id}
           </div>
           <div className="inspector-checkpoint-content">
+            <PanelBtn
+              icon={<FontAwesomeIcon icon={faCopy} />}
+              title="Copy message text"
+              onClick={() => {
+                showToast("Message copied");
+                navigator.clipboard?.writeText(checkpointDetail.checkpoint.content).catch(() => {});
+              }}
+              className="inspector-checkpoint-copy"
+            />
             {checkpointDetail.checkpoint.content}
           </div>
           {checkpointDetail.child_edges.length > 0 && (
@@ -347,32 +359,21 @@ export default function InspectorOverlay({
                 )}
             </>
           )}
-          <button
-            className={`inspector-branch-btn inspector-compile-target-btn${compileTargetConversationId === selectedConversationId && compileTargetMessageId === checkpointDetail.checkpoint.message_id ? " active" : ""}`}
-            onClick={() =>
-              onSetCompileTarget(
-                selectedConversationId,
-                checkpointDetail.checkpoint.message_id,
-              )
-            }
+          <ActionBtn
+            variant="compile"
+            active={compileTargetConversationId === selectedConversationId && compileTargetMessageId === checkpointDetail.checkpoint.message_id}
+            onClick={() => onSetCompileTarget(selectedConversationId, checkpointDetail.checkpoint.message_id)}
           >
-            {compileTargetConversationId === selectedConversationId &&
-            compileTargetMessageId === checkpointDetail.checkpoint.message_id
-              ? "Compile Target \u2713"
+            {compileTargetConversationId === selectedConversationId && compileTargetMessageId === checkpointDetail.checkpoint.message_id
+              ? "Compile Target ✓"
               : "Set as Compile Target"}
-          </button>
-          <button
-            className="inspector-branch-btn"
-            onClick={() => setShowBranchDialog(true)}
-          >
+          </ActionBtn>
+          <ActionBtn variant="branch" onClick={() => setShowBranchDialog(true)}>
             Create Branch
-          </button>
-          <button
-            className="inspector-branch-btn inspector-merge-btn"
-            onClick={() => setShowMergeDialog(true)}
-          >
+          </ActionBtn>
+          <ActionBtn variant="merge" onClick={() => setShowMergeDialog(true)}>
             Create Merge
-          </button>
+          </ActionBtn>
         </>
       )}
 
@@ -386,14 +387,13 @@ export default function InspectorOverlay({
               <span className="inspector-compile-target-msg"> @ {compileTargetMessageId}</span>
             )}
           </div>
-          <button
-            className="inspector-branch-btn inspector-compile-btn"
-            onClick={handleCompile}
+          <ActionBtn
+            variant="compile"
             disabled={compiling || !compileAvailable}
-            title={!compileAvailable ? "Hyperprompt binary not configured — set --hyperprompt-binary when starting the server" : undefined}
+            onClick={handleCompile}
           >
-            {compiling ? "Compiling\u2026" : "Compile"}
-          </button>
+            {compiling ? "Compiling…" : "Compile"}
+          </ActionBtn>
           {!compileAvailable && (
             <div className="inspector-compile-unavailable">
               Hyperprompt binary not found. Start the server with{" "}

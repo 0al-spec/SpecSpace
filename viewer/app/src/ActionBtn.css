@@ -1,0 +1,48 @@
+.action-btn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: 0.03em;
+  text-align: center;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 120ms, background 120ms;
+  color: white;
+}
+
+.action-btn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.action-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.action-btn + .action-btn {
+  margin-top: 0;
+}
+
+/* ── Variants ── */
+
+.action-btn-compile {
+  background: #78350f;
+}
+
+.action-btn-compile.action-btn-active {
+  background: #065f46;
+}
+
+.action-btn-branch {
+  background: var(--branch-line, #4e689b);
+}
+
+.action-btn-merge {
+  background: var(--merge-line, #b06924);
+}

@@ -53,7 +53,7 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
-  margin-top: 16px;
+  margin-top: 6px;
   margin-bottom: 8px;
 }
 
@@ -65,9 +65,11 @@
 }
 
 .inspector-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   color: var(--muted);
-  line-height: 1.5;
   margin-bottom: 16px;
 }
 
@@ -82,18 +84,27 @@
 .inspector-lineage-title {
   font-size: 16px;
   font-weight: 700;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   word-break: break-all;
+}
+
+.inspector-lineage-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
 }
 
 .inspector-lineage-badge {
   display: inline-block;
-  font-size: 10px;
-  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
   letter-spacing: 0.08em;
-  padding: 2px 8px;
-  border-radius: 999px;
-  margin-bottom: 6px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
   background: var(--accent-soft);
   color: var(--accent-strong);
 }
@@ -122,7 +133,7 @@
 .inspector-divider {
   height: 1px;
   background: var(--line);
-  margin: 16px 0;
+  margin: 8px 0;
 }
 
 .inspector-checkpoint-header {
@@ -133,6 +144,7 @@
 }
 
 .inspector-checkpoint-content {
+  position: relative;
   font-size: 14px;
   color: var(--text);
   line-height: 1.6;
@@ -144,33 +156,22 @@
   margin-bottom: 12px;
 }
 
+.inspector-checkpoint-copy {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.inspector-checkpoint-content:hover .inspector-checkpoint-copy {
+  opacity: 1;
+}
+
 .inspector-checkpoint-children {
   margin-top: 8px;
 }
 
-.inspector-branch-btn {
-  display: block;
-  width: 100%;
-  margin-top: 12px;
-  padding: 10px 0;
-  font-size: 14px;
-  font-weight: 700;
-  font-family: Georgia, "Times New Roman", serif;
-  background: var(--branch-line);
-  color: white;
-  border: 1px solid var(--branch-line);
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-.inspector-branch-btn:hover {
-  opacity: 0.9;
-}
-
-.inspector-merge-btn {
-  background: var(--merge-line, #7c3aed);
-  border-color: var(--merge-line, #7c3aed);
-}
 
 .inspector-loading {
   font-size: 14px;
@@ -184,16 +185,6 @@
   margin-left: 6px;
 }
 
-.inspector-compile-target-btn {
-  background: #78350f;
-  border-color: #78350f;
-  color: white;
-}
-
-.inspector-compile-target-btn.active {
-  background: #065f46;
-  border-color: #065f46;
-}
 
 /* Compile panel */
 
@@ -213,15 +204,6 @@
   color: var(--muted);
 }
 
-.inspector-compile-btn {
-  background: #1e3a5f;
-  border-color: #1e3a5f;
-}
-
-.inspector-compile-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
 
 .inspector-compile-result {
   margin-top: 12px;

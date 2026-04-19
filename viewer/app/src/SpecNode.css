@@ -98,7 +98,7 @@
 .spec-node-status-badge.status-outlined   { background: #93c5fd; color: #1e3a8a; }
 .spec-node-status-badge.status-specified  { background: #c4b5fd; color: #3b0764; }
 .spec-node-status-badge.status-linked     { background: #6ee7a0; color: #064e24; }
-.spec-node-status-badge.status-reviewed   { background: #5eead4; color: #0a3330; }
+.spec-node-status-badge.status-reviewed   { background: #bae6fd; color: #0c4a6e; }
 .spec-node-status-badge.status-frozen     { background: #94a3b8; color: #0f172a; }
 
 /* "Refined by N" counter badge — replaces hidden refines edges */
@@ -132,7 +132,10 @@
 .spec-node-maturity-fill {
   height: 100%;
   border-radius: 2px;
+  /* gradient spans the full track width (248px = 280px node − 32px padding)
+     so the colour position is always relative to 0–100%, not the fill width */
   background: linear-gradient(90deg, #7c3aed, #059669);
+  background-size: 248px 100%;
   transition: width 0.3s ease;
 }
 

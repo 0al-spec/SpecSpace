@@ -1236,6 +1236,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/capabilities":
             self.handle_capabilities()
             return
+        if parsed.path == "/api/graph-dashboard":
+            self.handle_graph_dashboard()
+            return
         self.handle_static(parsed.path)
 
     def do_POST(self) -> None:
@@ -1265,8 +1268,27 @@ class ViewerHandler(BaseHTTPRequestHandler):
             {
                 "spec_graph": self.server.spec_dir is not None,
                 "compile": self.server.compile_available,
+                "graph_dashboard": self._graph_dashboard_path() is not None,
             },
         )
+
+    def _graph_dashboard_path(self):
+        if self.server.spec_dir is None:
+            return None
+        p = self.server.spec_dir.parent.parent / "runs" / "graph_dashboard.json"
+        return p if p.exists() else None
+
+    def handle_graph_dashboard(self) -> None:
+        path = self._graph_dashboard_path()
+        if path is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "graph_dashboard.json not found. Run --build-graph-dashboard first."},
+            )
+            return
+        import json as _json
+        json_response(self, HTTPStatus.OK, _json.loads(path.read_text()))
 
     def handle_spec_graph(self) -> None:
         if self.server.spec_dir is None:

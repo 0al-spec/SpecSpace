@@ -24,6 +24,31 @@
 
   /* Monospace UI font — swap here to change everywhere at once */
   --font-mono: "Fira Code", "Courier New", monospace;
+
+  /* ── Spacing scale (2 px base) ──────────────────────────────────────────
+     --space-1  2px   micro gap (badge inner, tight separators)
+     --space-2  4px   xs  (icon padding, dense rows)
+     --space-3  6px   sm  (badge row gap, inline gap)
+     --space-4  8px   md  (list item gap, small section gap)
+     --space-5  10px  md+ (card inner top/bottom, button margin)
+     --space-6  12px  lg- (button padding-x, input padding)
+     --space-7  14px  lg  (card padding, section padding)
+     --space-8  16px  xl  (panel inner padding, large button padding-x)
+     --space-9  20px  2xl (panel outer padding)
+     --space-10 24px  3xl (dialog padding, large section gap)
+     --space-11 32px  4xl (page-level outer padding)
+  ──────────────────────────────────────────────────────────────────────── */
+  --space-1:  2px;
+  --space-2:  4px;
+  --space-3:  6px;
+  --space-4:  8px;
+  --space-5:  10px;
+  --space-6:  12px;
+  --space-7:  14px;
+  --space-8:  16px;
+  --space-9:  20px;
+  --space-10: 24px;
+  --space-11: 32px;
 }
 
 * {
@@ -105,15 +130,24 @@ body {
   position: absolute;
   top: 10px;
   left: 10px;
+  bottom: 140px; /* stay above ReactFlow controls */
   z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
   pointer-events: none; /* pass clicks through to canvas where there's no panel */
 }
 
 .timeline-overlay > * {
+  pointer-events: auto;
+}
+
+/* Header row: clock button + segmented control side-by-side */
+.timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   pointer-events: auto;
 }
 
@@ -122,6 +156,48 @@ body {
   background: var(--accent-soft, #f5e0c7);
   border-color: var(--accent, #915a24);
   color: var(--accent-strong, #6c4012);
+}
+
+/* ── Segmented control (Created / Updated) — rendered in App.tsx header ───── */
+
+.tl-segment {
+  display: flex;
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 250, 242, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 2px 8px rgba(76, 51, 28, 0.10);
+  flex-shrink: 0;
+}
+
+.tl-seg-btn {
+  padding: 4px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--muted, #6d6255);
+  transition: background 120ms, color 120ms;
+  line-height: 1;
+}
+
+.tl-seg-btn:hover:not(.active) {
+  background: #fbf3e7;
+}
+
+.tl-seg-btn.active {
+  background: var(--accent-soft, #f5e0c7);
+  color: var(--accent-strong, #6c4012);
+}
+
+.tl-seg-btn + .tl-seg-btn {
+  border-left: 1px solid var(--line, #d4c4ac);
 }
 
 /* ── Edge highlight (click to highlight edge + endpoints) ─────────────────── */

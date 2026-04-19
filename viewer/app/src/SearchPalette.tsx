@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
 import type { Node } from "@xyflow/react";
 import type { ConversationNodeData, GraphMode } from "./types";
 import type { SpecNodeData } from "./SpecNode";
@@ -186,7 +188,7 @@ export default function SearchPalette({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="search-palette-input-wrap">
-          <span className="search-palette-icon">&#x1F50D;</span>
+          <span className="search-palette-icon"><FontAwesomeIcon icon={faMagnifyingGlass} /></span>
           <input
             ref={inputRef}
             className="search-palette-input"

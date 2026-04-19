@@ -3,14 +3,10 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { ConversationNodeData } from "./types";
 import type { Node } from "@xyflow/react";
 import { CompileTargetContext } from "./CompileTargetContext";
+import KindBadge from "./KindBadge";
 
 type ConversationNodeType = Node<ConversationNodeData, "conversation">;
 
-const kindLabels: Record<string, string> = {
-  root: "Root",
-  branch: "Branch",
-  merge: "Merge",
-};
 
 export default function ConversationNode({
   data,
@@ -30,10 +26,7 @@ export default function ConversationNode({
 
       <div className="conversation-node-title">{data.title}</div>
       <div className="conversation-node-meta">
-        {kindLabels[data.kind] || data.kind}
-      </div>
-      <div className="conversation-node-footer">
-        <span className="conversation-node-filename">{data.fileName}</span>
+        <KindBadge kind={data.hasBrokenLineage ? "invalid" : data.kind} />
         <span className="conversation-node-checkpoints">
           {data.checkpointCount} checkpoints
         </span>

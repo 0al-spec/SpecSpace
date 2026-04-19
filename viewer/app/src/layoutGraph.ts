@@ -33,7 +33,7 @@ export function computeBasePositions(
   edgePairs: { source: string; target: string }[],
   options: LayoutOptions = {},
 ): Map<string, { x: number; y: number }> {
-  const { direction = "LR", nodeSep = 60, rankSep = 120 } = options;
+  const { direction = "LR", nodeSep = NODE_HEIGHT / 2, rankSep = 120 } = options;
 
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
@@ -85,7 +85,7 @@ export function computeLinearPositions(
   treeEdges: { source: string; target: string }[],
   options: { colGap?: number; rowGap?: number } = {},
 ): LinearLayoutResult {
-  const { colGap = 300, rowGap = 180 } = options;
+  const { colGap = 300, rowGap = NODE_HEIGHT / 2 } = options;
 
   const idSet = new Set(nodeIds);
 
@@ -230,7 +230,7 @@ export function layoutNodes(
   edges: Edge[],
   options: LayoutOptions = {},
 ): Node[] {
-  const { direction = "LR", nodeSep = 60, rankSep = 120 } = options;
+  const { direction = "LR", nodeSep = NODE_HEIGHT / 2, rankSep = 120 } = options;
 
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));

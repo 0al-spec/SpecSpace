@@ -227,7 +227,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
         .filter((e) => e.status === "resolved")
         .map((e) => ({ source: e.source_id, target: e.target_id }));
       return {
-        positions: computeBasePositions(nodeIds, edgePairs, { direction: "LR", nodeSep: SPEC_NODE_WIDTH, rankSep: SPEC_NODE_WIDTH }),
+        positions: computeBasePositions(nodeIds, edgePairs, { direction: "LR", nodeSep: SPEC_NODE_HEIGHT / 2, rankSep: SPEC_NODE_WIDTH }),
         backEdges: new Set<string>(),
       };
     }
@@ -253,7 +253,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
       .filter((e) => e.status === "resolved" && e.edge_kind === "refines")
       .map((e) => ({ source: e.target_id, target: e.source_id }));
     return {
-      positions: computeBasePositions(nodeIds, edgePairs, { direction: "LR", nodeSep: SPEC_NODE_WIDTH, rankSep: SPEC_NODE_WIDTH }),
+      positions: computeBasePositions(nodeIds, edgePairs, { direction: "LR", nodeSep: SPEC_NODE_HEIGHT / 2, rankSep: SPEC_NODE_WIDTH }),
       backEdges: new Set<string>(),
     };
   }, [apiGraph, viewMode]);

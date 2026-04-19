@@ -64,25 +64,24 @@
 }
 
 .conversation-node-meta {
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 12px;
-}
-
-.conversation-node-footer {
   display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--muted);
+  align-items: center;
+  gap: 6px;
 }
 
-.conversation-node-filename {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 60%;
+.conversation-node .kind-badge {
+  background: rgba(0, 0, 0, 0.10);
+  color: var(--text);
+}
+
+.conversation-node-checkpoints {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--muted);
 }
 
 .conversation-node-warning {

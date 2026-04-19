@@ -1,76 +1,88 @@
 import { useRef, useCallback } from "react";
-import type { ApiSpecNode } from "./types";
 import "./TimelineFilter.css";
 
 export type TimelineField = "created_at" | "updated_at";
 
 interface TimelineFilterProps {
-  nodes: ApiSpecNode[];
-  field: TimelineField;
-  onFieldChange: (f: TimelineField) => void;
   /** Currently selected [minTs, maxTs] in milliseconds */
   range: [number, number];
   onRangeChange: (r: [number, number]) => void;
   /** [absoluteMin, absoluteMax] in milliseconds — full extent of all node dates */
   fullRange: [number, number];
-  onClose: () => void;
 }
 
-const TRACK_H = 300; // px — height of the draggable portion
+/** Minimum gap enforced when dragging — whichever is larger wins */
+const MIN_GAP_MS = 3_600_000; // 1 hour — time floor
+const MIN_GAP_PX = 28;        // px   — visual floor (handle height + margin)
 
-function tsToY(ts: number, [min, max]: [number, number]): number {
-  // top = newest (max), bottom = oldest (min)
-  if (max === min) return TRACK_H / 2;
-  return TRACK_H * (1 - (ts - min) / (max - min));
+/** Fraction in [0,1]: 0 = oldest (min), 1 = newest (max) */
+function tsToFrac(ts: number, [min, max]: [number, number]): number {
+  if (max === min) return 0.5;
+  return (ts - min) / (max - min);
 }
 
-function yToTs(y: number, [min, max]: [number, number]): number {
-  const clamped = Math.max(0, Math.min(TRACK_H, y));
-  return min + (1 - clamped / TRACK_H) * (max - min);
+function fracToTs(frac: number, [min, max]: [number, number]): number {
+  const clamped = Math.max(0, Math.min(1, frac));
+  return min + clamped * (max - min);
 }
 
 function fmtLabel(ts: number): string {
-  return new Date(ts).toLocaleDateString("en-GB", {
+  return new Date(ts).toLocaleString("en-GB", {
     day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
   });
 }
 
 function fmtShort(ts: number): string {
-  return new Date(ts).toLocaleDateString("en-GB", {
-    day: "numeric", month: "short", year: "2-digit",
+  return new Date(ts).toLocaleString("en-GB", {
+    day: "numeric", month: "short",
+    hour: "2-digit", minute: "2-digit",
   });
 }
 
 export default function TimelineFilter({
-  nodes, field, onFieldChange, range, onRangeChange, fullRange, onClose,
+  range, onRangeChange, fullRange,
 }: TimelineFilterProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [selMin, selMax] = range;
-  const [fullMin, fullMax] = fullRange;
 
-  const minY = tsToY(selMin, fullRange); // lower handle — older date, lower on screen
-  const maxY = tsToY(selMax, fullRange); // upper handle — newer date, higher on screen
+  // Fraction: 0 = oldest (bottom of track), 1 = newest (top of track)
+  const minFrac = tsToFrac(selMin, fullRange);
+  const maxFrac = tsToFrac(selMax, fullRange);
 
-  const getTrackY = useCallback((clientY: number): number => {
+  // CSS top%: 0% = top (newest), 100% = bottom (oldest)
+  const minTopPct = (1 - minFrac) * 100; // older handle — sits lower on screen
+  const maxTopPct = (1 - maxFrac) * 100; // newer handle — sits higher on screen
+
+  /** Returns a fraction in [0,1] (0=oldest, 1=newest) for a given clientY */
+  const getTrackFrac = useCallback((clientY: number): number => {
     if (!trackRef.current) return 0;
     const rect = trackRef.current.getBoundingClientRect();
-    return clientY - rect.top;
+    const fracFromTop = (clientY - rect.top) / rect.height;
+    return 1 - fracFromTop; // flip so 0=oldest, 1=newest
   }, []);
 
   const startDrag = useCallback(
     (which: "min" | "max") => (e: React.MouseEvent) => {
       e.preventDefault();
-      // Capture the OTHER handle's value at drag-start so it stays fixed
       const fixedMax = selMax;
       const fixedMin = selMin;
 
+      // Compute effective minimum gap — the larger of time-floor and pixel-floor.
+      // Pixel floor prevents handles from overlapping on tall tracks with narrow
+      // time ranges.
+      const trackH = trackRef.current?.getBoundingClientRect().height ?? 1;
+      const rangeMs = fullRange[1] - fullRange[0];
+      const pxGapMs = (MIN_GAP_PX / trackH) * rangeMs;
+      const minGapMs = Math.max(MIN_GAP_MS, pxGapMs);
+
       const onMove = (ev: MouseEvent) => {
-        const y = getTrackY(ev.clientY);
-        const ts = yToTs(y, fullRange);
+        const frac = getTrackFrac(ev.clientY);
+        const ts = fracToTs(frac, fullRange);
         if (which === "max") {
-          onRangeChange([fixedMin, Math.max(ts, fixedMin + 86_400_000)]);
+          onRangeChange([fixedMin, Math.max(ts, fixedMin + minGapMs)]);
         } else {
-          onRangeChange([Math.min(ts, fixedMax - 86_400_000), fixedMax]);
+          onRangeChange([Math.min(ts, fixedMax - minGapMs), fixedMax]);
         }
       };
       const onUp = () => {
@@ -80,85 +92,48 @@ export default function TimelineFilter({
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     },
-    [fullRange, selMin, selMax, onRangeChange, getTrackY],
+    [fullRange, selMin, selMax, onRangeChange, getTrackFrac],
   );
-
-  const inCount = nodes.filter((n) => {
-    const v = n[field];
-    if (!v) return true; // nodes without date are never dimmed → count as "shown"
-    const ts = new Date(v).getTime();
-    return !isNaN(ts) && ts >= selMin && ts <= selMax;
-  }).length;
-
-  const totalWithDate = nodes.filter((n) => {
-    const v = n[field];
-    if (!v) return false;
-    return !isNaN(new Date(v).getTime());
-  }).length;
 
   return (
     <div className="tl-panel">
-      {/* ── Segmented control: Created / Updated ── */}
-      <div className="tl-segment">
-        <button
-          className={`tl-seg-btn${field === "created_at" ? " active" : ""}`}
-          onClick={() => onFieldChange("created_at")}
-        >Created</button>
-        <button
-          className={`tl-seg-btn${field === "updated_at" ? " active" : ""}`}
-          onClick={() => onFieldChange("updated_at")}
-        >Updated</button>
-      </div>
+      {/* Track area — fills all available flex space */}
+      <div className="tl-track-area" ref={trackRef}>
+        {/* Background rail */}
+        <div className="tl-rail" />
 
-      {/* ── Track ── */}
-      <div className="tl-track-wrap">
-        {/* Axis label top (newest) */}
-        <div className="tl-axis-label tl-axis-top">{fmtShort(fullMax)}</div>
+        {/* Highlighted range between the two handles */}
+        <div
+          className="tl-range-fill"
+          style={{
+            top: `${maxTopPct}%`,
+            height: `${Math.max(0, minTopPct - maxTopPct)}%`,
+          }}
+        />
 
-        {/* Track area — draggable zone */}
-        <div className="tl-track-area" ref={trackRef} style={{ height: TRACK_H }}>
-          {/* Background rail */}
-          <div className="tl-rail" />
-
-          {/* Selected range fill */}
-          <div
-            className="tl-range-fill"
-            style={{ top: maxY, height: Math.max(0, minY - maxY) }}
-          />
-
-          {/* Max handle (upper — newer date) */}
-          <div
-            className="tl-handle tl-handle-max"
-            style={{ top: maxY }}
-            onMouseDown={startDrag("max")}
-            title={fmtLabel(selMax)}
-          >
-            <span className="tl-handle-label tl-handle-label-right">
-              {fmtShort(selMax)}
-            </span>
-          </div>
-
-          {/* Min handle (lower — older date) */}
-          <div
-            className="tl-handle tl-handle-min"
-            style={{ top: minY }}
-            onMouseDown={startDrag("min")}
-            title={fmtLabel(selMin)}
-          >
-            <span className="tl-handle-label tl-handle-label-right">
-              {fmtShort(selMin)}
-            </span>
-          </div>
+        {/* Max handle — newer date, sits near top */}
+        <div
+          className="tl-handle tl-handle-max"
+          style={{ top: `${maxTopPct}%` }}
+          onMouseDown={startDrag("max")}
+          title={fmtLabel(selMax)}
+        >
+          <span className="tl-handle-label tl-handle-label-right">
+            {fmtShort(selMax)}
+          </span>
         </div>
 
-        {/* Axis label bottom (oldest) */}
-        <div className="tl-axis-label tl-axis-bottom">{fmtShort(fullMin)}</div>
-      </div>
-
-      {/* ── Footer: count + close ── */}
-      <div className="tl-footer">
-        <span className="tl-count">{inCount} / {totalWithDate}</span>
-        <button className="tl-close" onClick={onClose} title="Close timeline">✕</button>
+        {/* Min handle — older date, sits near bottom */}
+        <div
+          className="tl-handle tl-handle-min"
+          style={{ top: `${minTopPct}%` }}
+          onMouseDown={startDrag("min")}
+          title={fmtLabel(selMin)}
+        >
+          <span className="tl-handle-label tl-handle-label-right">
+            {fmtShort(selMin)}
+          </span>
+        </div>
       </div>
     </div>
   );
