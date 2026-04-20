@@ -772,7 +772,8 @@ function AppInner() {
               onMoveEnd={onMoveEnd}
               defaultViewport={savedViewport.current}
               fitView={hasFitView}
-              minZoom={0.125}
+              minZoom={0.4}
+              maxZoom={2}
               style={{
                 opacity: loading && nodes.length > 0 ? 0.6 : 1,
                 transition: "opacity 150ms",
