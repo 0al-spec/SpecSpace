@@ -391,9 +391,13 @@ function AppInner() {
     [graphNodes, setSelectedConversationId, setSelectedMessageId, panToNode],
   );
 
-  // Reset local node state when graph mode changes (full reset)
+  // Clear selection when graph mode changes. Do NOT clear `nodes` here:
+  // spec and dashboard share the same underlying specGraph, so graphNodes
+  // keeps the same reference and the repopulation effect below would not
+  // re-fire — leaving the canvas empty after Specs → Dashboard → Specs.
+  // The repopulation effect handles real graph swaps (conv ↔ spec) via its
+  // `graphNodes` dep; node IDs don't overlap so positions won't bleed over.
   useEffect(() => {
-    setNodes([]);
     setSelectedConversationId(null);
     setSelectedMessageId(null);
   }, [graphMode]); // eslint-disable-line react-hooks/exhaustive-deps
