@@ -48,7 +48,7 @@ import { useSpecOverlayData } from "./useSpecOverlayData";
 import { lensStyleFor } from "./specLens";
 import type { SpecLensMode } from "./types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClock, faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faClock, faBars } from "@fortawesome/free-solid-svg-icons";
 import type { GraphMode, SpecViewOptions } from "./types";
 
 const nodeTypes = {

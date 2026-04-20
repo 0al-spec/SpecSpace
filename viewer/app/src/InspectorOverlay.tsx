@@ -66,15 +66,6 @@ interface InspectorOverlayProps {
   compileAvailable?: boolean;
 }
 
-const kindLabels: Record<string, string> = {
-  "canonical-root": "ROOT",
-  "canonical-branch": "BRANCH",
-  "canonical-merge": "MERGE",
-  root: "ROOT",
-  branch: "BRANCH",
-  merge: "MERGE",
-};
-
 export default function InspectorOverlay({
   selectedConversationId,
   selectedMessageId,
