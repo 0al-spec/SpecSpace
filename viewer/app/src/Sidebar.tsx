@@ -7,7 +7,8 @@ import { useToast } from "./Toast";
 import KindBadge from "./KindBadge";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowsRotate, faXmark, faGauge } from "@fortawesome/free-solid-svg-icons";
-import type { GraphMode, SpecViewOptions } from "./types";
+import type { GraphMode, SpecViewOptions, SpecLensMode } from "./types";
+import { LENS_LABELS } from "./specLens";
 
 interface FileEntry {
   name: string;
@@ -31,6 +32,9 @@ interface SidebarProps {
   onGraphModeChange: (mode: GraphMode) => void;
   specAvailable: boolean;
   dashboardAvailable?: boolean;
+  specOverlayAvailable?: boolean;
+  specLens?: SpecLensMode;
+  onSpecLensChange?: (lens: SpecLensMode) => void;
   specViewOptions: SpecViewOptions;
   onSpecViewOptionsChange: (opts: SpecViewOptions) => void;
   onSpecNodeSelect?: (nodeId: string) => void;
@@ -56,6 +60,9 @@ export default function Sidebar({
   onGraphModeChange,
   specAvailable,
   dashboardAvailable = false,
+  specOverlayAvailable = false,
+  specLens = "none",
+  onSpecLensChange,
   specViewOptions,
   onSpecViewOptionsChange,
   onSpecNodeSelect,
@@ -237,6 +244,25 @@ export default function Sidebar({
                   Force
                 </button>
               </div>
+
+              {/* Lens switcher — applies overlay coloring independent of view mode */}
+              {specOverlayAvailable && onSpecLensChange && (
+                <div className="sidebar-lens-switcher">
+                  <div className="sidebar-lens-label">LENS</div>
+                  <div className="sidebar-mode-switcher sidebar-spec-view-switcher">
+                    {(["none", "health", "implementation", "evidence"] as SpecLensMode[]).map((l) => (
+                      <button
+                        key={l}
+                        className={`sidebar-mode-btn spec-mode ${specLens === l ? "active" : ""}`}
+                        onClick={() => onSpecLensChange(l)}
+                        title={LENS_LABELS[l].title}
+                      >
+                        {LENS_LABELS[l].short}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Toggles — meaningful in tree and linear modes */}
               {(specViewOptions.viewMode === "tree" || specViewOptions.viewMode === "linear") && (

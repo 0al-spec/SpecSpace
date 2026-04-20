@@ -40,6 +40,12 @@ export interface SpecNodeData extends Record<string, unknown> {
   isBranchCollapsed?: boolean;
   /** Callback to toggle branch collapsed/expanded */
   onToggleBranch?: (nodeId: string) => void;
+  /** Lens overlay style — injected when a lens is active */
+  lensStyle?: {
+    borderColor?: string;
+    background?: string;
+    badge?: { text: string; color: string; bg: string };
+  };
 }
 
 export type SpecNodeType = Node<SpecNodeData, "spec">;
@@ -87,6 +93,10 @@ export default function SpecNode({
       className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""} ${data.searchDimmed || data.timelineDimmed ? "search-dimmed" : ""}`}
       onMouseEnter={showBtn}
       onMouseLeave={scheduleHide}
+      style={{
+        ...(data.lensStyle?.borderColor ? { borderColor: data.lensStyle.borderColor } : {}),
+        ...(data.lensStyle?.background ? { background: data.lensStyle.background } : {}),
+      }}
     >
       {/* Target handles (left) — one slot per visible kind */}
       {kinds.map((kind, i) => {
@@ -116,6 +126,14 @@ export default function SpecNode({
         <span className={`spec-node-status-badge ${statusClass}`}>
           {statusLabel}
         </span>
+        {data.lensStyle?.badge && (
+          <span
+            className="spec-node-status-badge spec-node-lens-badge"
+            style={{ background: data.lensStyle.badge.bg, color: data.lensStyle.badge.color, border: `1px solid ${data.lensStyle.badge.color === "#fff" ? data.lensStyle.badge.bg : data.lensStyle.badge.color}` }}
+          >
+            {data.lensStyle.badge.text}
+          </span>
+        )}
         {data.hasBrokenEdges && (
           <span className="spec-node-status-badge status-stub" title="Broken edge references">
             ⚠ broken

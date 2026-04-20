@@ -27,7 +27,7 @@ import ExpandedSpecNode from "./ExpandedSpecNode";
 import SpecSubItemNode from "./SpecSubItemNode";
 import CollapsedBranchNode from "./CollapsedBranchNode";
 import SpecInspector from "./SpecInspector";
-import SpecLens from "./SpecLens";
+import SpecLens from "./SpecLens.tsx";
 import SpecForceGraph from "./SpecForceGraph";
 import "./SpecNode.css";
 import AgentChat, { AgentChatTrigger } from "./AgentChat";
@@ -44,6 +44,9 @@ import PanelBtn from "./PanelBtn";
 import "./PanelBtn.css";
 import { ToastProvider } from "./Toast";
 import GraphDashboard from "./GraphDashboard";
+import { useSpecOverlayData } from "./useSpecOverlayData";
+import { lensStyleFor } from "./specLens";
+import type { SpecLensMode } from "./types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClock, faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
 import type { GraphMode, SpecViewOptions } from "./types";
@@ -137,21 +140,23 @@ interface Capabilities {
   specAvailable: boolean;
   compileAvailable: boolean;
   dashboardAvailable: boolean;
+  specOverlayAvailable: boolean;
 }
 
 // Check once at startup which optional features are available
 async function checkCapabilities(): Promise<Capabilities> {
   try {
     const res = await fetch("/api/capabilities");
-    if (!res.ok) return { specAvailable: false, compileAvailable: false, dashboardAvailable: false };
+    if (!res.ok) return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false };
     const data = await res.json();
     return {
       specAvailable: Boolean(data.spec_graph),
       compileAvailable: Boolean(data.compile),
       dashboardAvailable: Boolean(data.graph_dashboard),
+      specOverlayAvailable: Boolean(data.spec_overlay),
     };
   } catch {
-    return { specAvailable: false, compileAvailable: false, dashboardAvailable: false };
+    return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false };
   }
 }
 
@@ -167,14 +172,17 @@ function AppInner() {
   const [specAvailable, setSpecAvailable] = useState(false);
   const [compileAvailable, setCompileAvailable] = useState(false);
   const [dashboardAvailable, setDashboardAvailable] = useState(false);
+  const [specOverlayAvailable, setSpecOverlayAvailable] = useState(false);
+  const [specLens, setSpecLens] = useState<SpecLensMode>("none");
   const [specViewOptions, setSpecViewOptions] = useState<SpecViewOptions>(DEFAULT_SPEC_VIEW);
 
   // Check capabilities once on mount
   useEffect(() => {
-    checkCapabilities().then(({ specAvailable, compileAvailable, dashboardAvailable }) => {
+    checkCapabilities().then(({ specAvailable, compileAvailable, dashboardAvailable, specOverlayAvailable }) => {
       setSpecAvailable(specAvailable);
       setCompileAvailable(compileAvailable);
       setDashboardAvailable(dashboardAvailable);
+      setSpecOverlayAvailable(specOverlayAvailable);
     });
   }, []);
 
@@ -183,6 +191,9 @@ function AppInner() {
 
   // Spec graph data (always fetched so it's ready when mode switches)
   const specGraph = useSpecGraphData(specViewOptions);
+
+  // Fetch spec overlay data (health / implementation / evidence planes)
+  const { overlays: specOverlays } = useSpecOverlayData(specOverlayAvailable);
 
   // Choose active graph data by mode
   const activeGraph = graphMode === "conversations" ? convGraph : specGraph;
@@ -591,14 +602,21 @@ function AppInner() {
     const edgeEndpoints = highlightedEdge
       ? new Set([highlightedEdge.source, highlightedEdge.target])
       : null;
-    if (!edgeEndpoints && !searchMatchIds && !timelineMatchIds) return nodes;
+    const lensActive = graphMode === "specifications" && specLens !== "none";
+    if (!edgeEndpoints && !searchMatchIds && !timelineMatchIds && !lensActive) return nodes;
     return nodes.map((n) => {
       const edgeHl = edgeEndpoints?.has(n.id);
       // For child nodes (messages), match against parent ID
       const matchKey = n.parentId ?? n.id;
       const searchDim = searchMatchIds ? !searchMatchIds.has(matchKey) : false;
       const timelineDim = timelineMatchIds ? !timelineMatchIds.has(matchKey) : false;
-      if (!edgeHl && !searchDim && !timelineDim) return n;
+      // Apply lens style to spec nodes only
+      let lensStyle: ReturnType<typeof lensStyleFor> | undefined;
+      if (lensActive && (n.type === "spec" || n.type === "expandedSpec")) {
+        const ls = lensStyleFor(n.id, specLens, specOverlays);
+        if (Object.keys(ls).length > 0) lensStyle = ls;
+      }
+      if (!edgeHl && !searchDim && !timelineDim && !lensStyle) return n;
       return {
         ...n,
         data: {
@@ -606,10 +624,11 @@ function AppInner() {
           ...(edgeHl ? { edgeHighlighted: true } : {}),
           ...(searchDim ? { searchDimmed: true } : {}),
           ...(timelineDim ? { timelineDimmed: true } : {}),
+          ...(lensStyle ? { lensStyle } : {}),
         },
       };
     });
-  }, [nodes, highlightedEdge, searchMatchIds, timelineMatchIds]);
+  }, [nodes, highlightedEdge, searchMatchIds, timelineMatchIds, graphMode, specLens, specOverlays]);
 
   const displayEdges = useMemo(() => {
     if (!highlightedEdge) return edges;
@@ -696,6 +715,9 @@ function AppInner() {
           onGraphModeChange={setGraphMode}
           specAvailable={specAvailable}
           dashboardAvailable={dashboardAvailable}
+          specOverlayAvailable={specOverlayAvailable}
+          specLens={specLens}
+          onSpecLensChange={setSpecLens}
           specViewOptions={specViewOptions}
           onSpecViewOptionsChange={setSpecViewOptions}
           onSpecNodeSelect={onSpecNodeSelect}
@@ -740,7 +762,6 @@ function AppInner() {
               Hidden (not unmounted) in force/dashboard mode so zoom/pan state is preserved. */}
           <ErrorBoundary label="Canvas">
             <ReactFlow
-              style={{ display: graphMode === "dashboard" ? "none" : undefined }}
               nodes={displayNodes}
               edges={displayEdges}
               nodeTypes={nodeTypes}
@@ -755,7 +776,7 @@ function AppInner() {
               style={{
                 opacity: loading && nodes.length > 0 ? 0.6 : 1,
                 transition: "opacity 150ms",
-                display: graphMode === "specifications" && specViewOptions.viewMode === "force" ? "none" : undefined,
+                display: graphMode === "dashboard" || (graphMode === "specifications" && specViewOptions.viewMode === "force") ? "none" : undefined,
               }}
               multiSelectionKeyCode="Shift"
               selectionKeyCode="Shift"

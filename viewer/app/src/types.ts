@@ -111,6 +111,34 @@ export type GraphMode = "conversations" | "specifications" | "dashboard";
 /** Spec view mode within the specifications graph mode */
 export type SpecViewMode = "tree" | "linear" | "canonical" | "force";
 
+/** Spec lens — overlay applied on top of the view mode */
+export type SpecLensMode = "none" | "health" | "implementation" | "evidence";
+
+export interface SpecOverlayEntry {
+  health?: {
+    gate_state?: string;
+    signals?: string[];
+    recommended_actions?: string[];
+    filters?: string[];
+  };
+  implementation?: {
+    implementation_state?: string;
+    freshness?: string;
+    acceptance_coverage?: string;
+    filters?: string[];
+  };
+  evidence?: {
+    chain_status?: string;
+    artifact_stage?: string;
+    observation_coverage?: string;
+    outcome_coverage?: string;
+    adoption_coverage?: string;
+    filters?: string[];
+  };
+}
+
+export type SpecOverlayMap = Record<string, SpecOverlayEntry>;
+
 /** Options controlling which secondary edges are displayed in tree mode */
 export interface SpecViewOptions {
   viewMode: SpecViewMode;

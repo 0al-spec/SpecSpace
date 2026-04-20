@@ -1239,6 +1239,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/graph-dashboard":
             self.handle_graph_dashboard()
             return
+        if parsed.path == "/api/spec-overlay":
+            self.handle_spec_overlay()
+            return
         self.handle_static(parsed.path)
 
     def do_POST(self) -> None:
@@ -1269,13 +1272,21 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "spec_graph": self.server.spec_dir is not None,
                 "compile": self.server.compile_available,
                 "graph_dashboard": self._graph_dashboard_path() is not None,
+                "spec_overlay": self._runs_dir() is not None,
             },
         )
 
-    def _graph_dashboard_path(self):
+    def _runs_dir(self):
         if self.server.spec_dir is None:
             return None
-        p = self.server.spec_dir.parent.parent / "runs" / "graph_dashboard.json"
+        p = self.server.spec_dir.parent.parent / "runs"
+        return p if p.is_dir() else None
+
+    def _graph_dashboard_path(self):
+        d = self._runs_dir()
+        if d is None:
+            return None
+        p = d / "graph_dashboard.json"
         return p if p.exists() else None
 
     def handle_graph_dashboard(self) -> None:
@@ -1289,6 +1300,89 @@ class ViewerHandler(BaseHTTPRequestHandler):
             return
         import json as _json
         json_response(self, HTTPStatus.OK, _json.loads(path.read_text()))
+
+    def handle_spec_overlay(self) -> None:
+        """Merge the three node-facing overlays into a single per-spec map."""
+        runs = self._runs_dir()
+        if runs is None:
+            json_response(self, HTTPStatus.NOT_FOUND, {"error": "runs/ not available"})
+            return
+        import json as _json
+        out = {}
+
+        # 1. graph_health_overlay.json → entries[].spec_id + { gate_state, signals, recommended_actions, filters }
+        health_p = runs / "graph_health_overlay.json"
+        if health_p.exists():
+            data = _json.loads(health_p.read_text())
+            vp = data.get("viewer_projection", {})
+            nf = vp.get("named_filters", {})
+            # Build reverse map: spec_id → list of active named filters
+            spec_filters = {}
+            for filter_name, spec_ids in nf.items():
+                if not isinstance(spec_ids, list):
+                    continue
+                for sid in spec_ids:
+                    spec_filters.setdefault(sid, []).append(filter_name)
+            for entry in data.get("entries", []):
+                sid = entry.get("spec_id")
+                if not sid:
+                    continue
+                out.setdefault(sid, {})["health"] = {
+                    "gate_state": entry.get("gate_state", "none"),
+                    "signals": entry.get("signals", []),
+                    "recommended_actions": entry.get("recommended_actions", []),
+                    "filters": spec_filters.get(sid, []),
+                }
+
+        # 2. spec_trace_projection.json → viewer_projection.implementation_state[state] = [spec_ids]
+        trace_p = runs / "spec_trace_projection.json"
+        if trace_p.exists():
+            data = _json.loads(trace_p.read_text())
+            vp = data.get("viewer_projection", {})
+            for state_map_key in ("implementation_state", "freshness", "acceptance_coverage"):
+                smap = vp.get(state_map_key, {})
+                for state, spec_ids in smap.items():
+                    if not isinstance(spec_ids, list):
+                        continue
+                    for sid in spec_ids:
+                        node = out.setdefault(sid, {}).setdefault("implementation", {})
+                        node[state_map_key] = state
+            # named filters for implementation
+            nf = vp.get("named_filters", {})
+            impl_filters = {}
+            for filter_name, spec_ids in nf.items():
+                if not isinstance(spec_ids, list):
+                    continue
+                for sid in spec_ids:
+                    impl_filters.setdefault(sid, []).append(filter_name)
+            for sid, filters in impl_filters.items():
+                out.setdefault(sid, {}).setdefault("implementation", {})["filters"] = filters
+
+        # 3. evidence_plane_overlay.json → viewer_projection.chain_status[status] = [spec_ids]
+        ev_p = runs / "evidence_plane_overlay.json"
+        if ev_p.exists():
+            data = _json.loads(ev_p.read_text())
+            vp = data.get("viewer_projection", {})
+            for state_map_key in ("chain_status", "artifact_stage", "observation_coverage",
+                                  "outcome_coverage", "adoption_coverage"):
+                smap = vp.get(state_map_key, {})
+                for state, spec_ids in smap.items():
+                    if not isinstance(spec_ids, list):
+                        continue
+                    for sid in spec_ids:
+                        node = out.setdefault(sid, {}).setdefault("evidence", {})
+                        node[state_map_key] = state
+            nf = vp.get("named_filters", {})
+            ev_filters = {}
+            for filter_name, spec_ids in nf.items():
+                if not isinstance(spec_ids, list):
+                    continue
+                for sid in spec_ids:
+                    ev_filters.setdefault(sid, []).append(filter_name)
+            for sid, filters in ev_filters.items():
+                out.setdefault(sid, {}).setdefault("evidence", {})["filters"] = filters
+
+        json_response(self, HTTPStatus.OK, {"overlays": out})
 
     def handle_spec_graph(self) -> None:
         if self.server.spec_dir is None:

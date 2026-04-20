@@ -59,6 +59,14 @@ export default function ExpandedSpecNode({ data, selected }: NodeProps<ExpandedS
       className={`expanded-spec-node ${statusClass} ${selected ? "selected" : ""}`}
       onMouseEnter={showBtn}
       onMouseLeave={scheduleHide}
+      style={{
+        ...((data as { lensStyle?: { borderColor?: string } }).lensStyle?.borderColor
+          ? { borderColor: (data as { lensStyle?: { borderColor?: string } }).lensStyle!.borderColor }
+          : {}),
+        ...((data as { lensStyle?: { background?: string } }).lensStyle?.background
+          ? { background: (data as { lensStyle?: { background?: string } }).lensStyle!.background }
+          : {}),
+      }}
     >
       {/* Target handles (left) — same IDs as collapsed SpecNode for seamless edge routing */}
       {kinds.map((kind, i) => {
@@ -100,6 +108,17 @@ export default function ExpandedSpecNode({ data, selected }: NodeProps<ExpandedS
         <div className="spec-node-meta">
           <span className="spec-node-kind-badge">{data.kind}</span>
           <span className={`spec-node-status-badge ${statusClass}`}>{statusLabel}</span>
+          {(data as { lensStyle?: { badge?: { text: string; color: string; bg: string } } }).lensStyle?.badge && (
+            <span
+              className="spec-node-status-badge spec-node-lens-badge"
+              style={{
+                background: (data as { lensStyle?: { badge?: { bg: string } } }).lensStyle!.badge!.bg,
+                color: (data as { lensStyle?: { badge?: { color: string } } }).lensStyle!.badge!.color,
+              }}
+            >
+              {(data as { lensStyle?: { badge?: { text: string } } }).lensStyle!.badge!.text}
+            </span>
+          )}
           {data.hasBrokenEdges && (
             <span className="spec-node-status-badge status-stub" title="Broken edge references">⚠ broken</span>
           )}
