@@ -12,6 +12,7 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -1242,6 +1243,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/spec-overlay":
             self.handle_spec_overlay()
             return
+        if parsed.path == "/api/specpm/preview":
+            self.handle_specpm_preview_get()
+            return
         self.handle_static(parsed.path)
 
     def do_POST(self) -> None:
@@ -1254,6 +1258,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/compile":
             self.handle_compile()
+            return
+        if parsed.path == "/api/specpm/preview/build":
+            self.handle_specpm_preview_build()
             return
         self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -1273,6 +1280,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "compile": self.server.compile_available,
                 "graph_dashboard": self._graph_dashboard_path() is not None,
                 "spec_overlay": self._runs_dir() is not None,
+                "specpm_preview": self.server.specgraph_dir is not None,
             },
         )
 
@@ -1383,6 +1391,117 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 out.setdefault(sid, {}).setdefault("evidence", {})["filters"] = filters
 
         json_response(self, HTTPStatus.OK, {"overlays": out})
+
+    def _specpm_preview_path(self) -> Path | None:
+        if self.server.specgraph_dir is None:
+            return None
+        return self.server.specgraph_dir / "runs" / "specpm_export_preview.json"
+
+    def handle_specpm_preview_get(self) -> None:
+        preview_path = self._specpm_preview_path()
+        if preview_path is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecPM preview not configured. Start the server with --specgraph-dir."},
+            )
+            return
+        if not preview_path.exists():
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {
+                    "error": "Preview artifact not built yet",
+                    "hint": "POST /api/specpm/preview/build to create it",
+                    "preview_path": str(preview_path),
+                },
+            )
+            return
+        try:
+            data = json.loads(preview_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": f"Failed to read preview: {exc}", "preview_path": str(preview_path)},
+            )
+            return
+        mtime = preview_path.stat().st_mtime
+        json_response(
+            self,
+            HTTPStatus.OK,
+            {
+                "preview_path": str(preview_path),
+                "mtime": mtime,
+                "mtime_iso": datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
+                "preview": data,
+            },
+        )
+
+    def handle_specpm_preview_build(self) -> None:
+        if self.server.specgraph_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecPM preview not configured. Start the server with --specgraph-dir."},
+            )
+            return
+        supervisor = self.server.specgraph_dir / "tools" / "supervisor.py"
+        if not supervisor.exists():
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": "supervisor.py not found", "expected": str(supervisor)},
+            )
+            return
+        cmd = [sys.executable, str(supervisor), "--build-specpm-export-preview"]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            json_response(
+                self,
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"error": "supervisor.py timed out", "exit_code": None},
+            )
+            return
+        except Exception as exc:
+            json_response(
+                self,
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"error": f"Failed to invoke supervisor.py: {exc}", "exit_code": None},
+            )
+            return
+
+        preview_path = self._specpm_preview_path()
+        stderr_tail = "\n".join((result.stderr or "").splitlines()[-40:])
+        built_at = datetime.now(tz=timezone.utc).isoformat()
+
+        if result.returncode != 0:
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {
+                    "error": "supervisor.py failed",
+                    "exit_code": result.returncode,
+                    "stderr_tail": stderr_tail,
+                    "stdout_tail": "\n".join((result.stdout or "").splitlines()[-40:]),
+                    "preview_path": str(preview_path) if preview_path else None,
+                    "built_at": built_at,
+                },
+            )
+            return
+
+        json_response(
+            self,
+            HTTPStatus.OK,
+            {
+                "exit_code": 0,
+                "stderr_tail": stderr_tail,
+                "preview_path": str(preview_path) if preview_path else None,
+                "preview_exists": bool(preview_path and preview_path.exists()),
+                "built_at": built_at,
+            },
+        )
 
     def handle_spec_graph(self) -> None:
         if self.server.spec_dir is None:
@@ -1716,6 +1835,12 @@ def main() -> None:
         default=None,
         help="Path to a SpecGraph specs/nodes directory (enables /api/spec-graph)",
     )
+    parser.add_argument(
+        "--specgraph-dir",
+        type=Path,
+        default=None,
+        help="Path to the SpecGraph repo root (enables /api/specpm/preview)",
+    )
     args = parser.parse_args()
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), ViewerHandler)
@@ -1726,6 +1851,7 @@ def main() -> None:
     resolved_binary, _, _ = resolve_hyperprompt_binary(args.hyperprompt_binary)
     server.compile_available = resolved_binary is not None
     server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
+    server.specgraph_dir = args.specgraph_dir.expanduser().resolve() if args.specgraph_dir else None
 
     print(f"Serving ContextBuilder at http://localhost:{args.port}/")
     print(f"Dialog folder: {server.dialog_dir}")
