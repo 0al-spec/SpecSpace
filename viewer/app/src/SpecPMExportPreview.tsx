@@ -188,17 +188,17 @@ function PreviewBody({ data }: { data: PreviewResponse }) {
   return (
     <>
       <div className="specpm-meta">
-        <div>
-          <span className="specpm-meta-label">generated_at</span>
-          <span className="specpm-meta-value">{preview.generated_at ?? "—"}</span>
+        <div className="specpm-badges-cell">
+          <span className="specpm-badge-label">generated_at</span>
+          <span className="spec-inspector-tag specpm-tag">{preview.generated_at ?? "—"}</span>
         </div>
-        <div>
-          <span className="specpm-meta-label">file mtime</span>
-          <span className="specpm-meta-value">{data.mtime_iso}</span>
+        <div className="specpm-badges-cell">
+          <span className="specpm-badge-label">file mtime</span>
+          <span className="spec-inspector-tag specpm-tag">{data.mtime_iso}</span>
         </div>
-        <div>
-          <span className="specpm-meta-label">entries</span>
-          <span className="specpm-meta-value">{preview.entry_count ?? entries.length}</span>
+        <div className="specpm-badges-cell">
+          <span className="specpm-badge-label">entries</span>
+          <span className="spec-inspector-tag specpm-tag">{preview.entry_count ?? entries.length}</span>
         </div>
       </div>
 
