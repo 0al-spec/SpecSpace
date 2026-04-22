@@ -220,7 +220,7 @@ function EntryCard({ entry }: { entry: PreviewEntry }) {
       <header className="specpm-entry-head">
         <div className="specpm-entry-title">
           <code>{entry.export_id ?? "(unnamed)"}</code>
-          <span className="specpm-entry-consumer">→ {String(entry.consumer_id ?? "?")}</span>
+          <span className="specpm-entry-consumer"> -&gt; <code>{String(entry.consumer_id ?? "?")}</code></span>
         </div>
         <div className="specpm-badges">
           <Badge label="export" value={entry.export_status} />
