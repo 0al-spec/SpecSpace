@@ -4,7 +4,7 @@ import "./SpecInspector.css";
 import "./PanelBtn.css";
 import PanelActions from "./PanelActions";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleDot, faCalendarPlus, faRotate } from "@fortawesome/free-solid-svg-icons";
+import { faCircleDot, faCalendarPlus, faRotate, faBoxArchive } from "@fortawesome/free-solid-svg-icons";
 
 interface SpecInspectorProps {
   selectedNodeId: string | null;
@@ -16,6 +16,8 @@ interface SpecInspectorProps {
   onSelectSubItem?: (subItemId: string | null) => void;
   /** Open the force-directed lens for the selected node */
   onOpenLens?: (nodeId: string) => void;
+  /** Open the SpecPM export preview overlay. Undefined → button hidden. */
+  onOpenSpecpmPreview?: () => void;
   /** Navigation history controls */
   canGoBack?: boolean;
   canGoForward?: boolean;
@@ -30,7 +32,7 @@ type SpecDetail = Record<string, unknown>;
 
 export default function SpecInspector({
   selectedNodeId, selectedSubItemId,
-  onDismiss, onFocusNode, onSelectSubItem, onOpenLens,
+  onDismiss, onFocusNode, onSelectSubItem, onOpenLens, onOpenSpecpmPreview,
   canGoBack, canGoForward, onBack, onForward, backLabel, forwardLabel,
 }: SpecInspectorProps) {
   const [detail, setDetail] = useState<SpecDetail | null>(null);
@@ -185,12 +187,19 @@ export default function SpecInspector({
         onForward={onForward}
         backLabel={backLabel}
         forwardLabel={forwardLabel}
-        extra={onOpenLens && selectedNodeId ? [{
-          icon: <FontAwesomeIcon icon={faCircleDot} />,
-          title: "Открыть SpecLens",
-          onClick: () => onOpenLens(selectedNodeId),
-          className: "panel-btn-lens",
-        }] : []}
+        extra={[
+          ...(onOpenLens && selectedNodeId ? [{
+            icon: <FontAwesomeIcon icon={faCircleDot} />,
+            title: "Открыть SpecLens",
+            onClick: () => onOpenLens(selectedNodeId),
+            className: "panel-btn-lens",
+          }] : []),
+          ...(onOpenSpecpmPreview ? [{
+            icon: <FontAwesomeIcon icon={faBoxArchive} />,
+            title: "Preview for SpecPM",
+            onClick: onOpenSpecpmPreview,
+          }] : []),
+        ]}
         onClose={onDismiss}
       />
 

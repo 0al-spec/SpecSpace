@@ -28,6 +28,7 @@ import SpecSubItemNode from "./SpecSubItemNode";
 import CollapsedBranchNode from "./CollapsedBranchNode";
 import SpecInspector from "./SpecInspector";
 import SpecLens from "./SpecLens.tsx";
+import SpecPMExportPreview from "./SpecPMExportPreview.tsx";
 import SpecForceGraph from "./SpecForceGraph";
 import "./SpecNode.css";
 import AgentChat, { AgentChatTrigger } from "./AgentChat";
@@ -141,22 +142,24 @@ interface Capabilities {
   compileAvailable: boolean;
   dashboardAvailable: boolean;
   specOverlayAvailable: boolean;
+  specpmPreviewAvailable: boolean;
 }
 
 // Check once at startup which optional features are available
 async function checkCapabilities(): Promise<Capabilities> {
   try {
     const res = await fetch("/api/capabilities");
-    if (!res.ok) return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false };
+    if (!res.ok) return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false };
     const data = await res.json();
     return {
       specAvailable: Boolean(data.spec_graph),
       compileAvailable: Boolean(data.compile),
       dashboardAvailable: Boolean(data.graph_dashboard),
       specOverlayAvailable: Boolean(data.spec_overlay),
+      specpmPreviewAvailable: Boolean(data.specpm_preview),
     };
   } catch {
-    return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false };
+    return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false };
   }
 }
 
@@ -173,16 +176,19 @@ function AppInner() {
   const [compileAvailable, setCompileAvailable] = useState(false);
   const [dashboardAvailable, setDashboardAvailable] = useState(false);
   const [specOverlayAvailable, setSpecOverlayAvailable] = useState(false);
+  const [specpmPreviewAvailable, setSpecpmPreviewAvailable] = useState(false);
+  const [specpmPreviewOpen, setSpecpmPreviewOpen] = useState(false);
   const [specLens, setSpecLens] = useState<SpecLensMode>("none");
   const [specViewOptions, setSpecViewOptions] = useState<SpecViewOptions>(DEFAULT_SPEC_VIEW);
 
   // Check capabilities once on mount
   useEffect(() => {
-    checkCapabilities().then(({ specAvailable, compileAvailable, dashboardAvailable, specOverlayAvailable }) => {
+    checkCapabilities().then(({ specAvailable, compileAvailable, dashboardAvailable, specOverlayAvailable, specpmPreviewAvailable }) => {
       setSpecAvailable(specAvailable);
       setCompileAvailable(compileAvailable);
       setDashboardAvailable(dashboardAvailable);
       setSpecOverlayAvailable(specOverlayAvailable);
+      setSpecpmPreviewAvailable(specpmPreviewAvailable);
     });
   }, []);
 
@@ -857,6 +863,7 @@ function AppInner() {
               onFocusNode={onFocusNode}
               onSelectSubItem={setSelectedSubItemId}
               onOpenLens={setLensNodeId}
+              onOpenSpecpmPreview={specpmPreviewAvailable ? () => setSpecpmPreviewOpen(true) : undefined}
               canGoBack={specNav.canGoBack}
               canGoForward={specNav.canGoForward}
               onBack={onSpecNavBack}
@@ -915,6 +922,13 @@ function AppInner() {
               backLabel={specNavBackLabel}
               forwardLabel={specNavForwardLabel}
             />
+          </ErrorBoundary>
+        )}
+
+        {/* SpecPM export preview overlay */}
+        {specpmPreviewOpen && (
+          <ErrorBoundary label="SpecPMExportPreview">
+            <SpecPMExportPreview onClose={() => setSpecpmPreviewOpen(false)} />
           </ErrorBoundary>
         )}
 
