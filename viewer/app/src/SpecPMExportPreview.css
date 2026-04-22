@@ -145,7 +145,6 @@
 .specpm-entry-consumer {
   color: var(--muted, #6d6255);
   font-size: 13px;
-  margin-left: var(--space-4, 8px);
   font-family: var(--font-mono);
   font-variant-ligatures: none;
   -webkit-font-feature-settings: "liga" 0, "calt" 0;
