@@ -57,20 +57,20 @@ type LoadState =
   | { kind: "error"; message: string; detail?: string }
   | { kind: "ok"; data: PreviewResponse };
 
-// Map SpecPM preview status vocabulary onto the existing
-// `.spec-inspector-badge` palette defined in SpecInspector.css.
-const STATUS_CLASS: Record<string, string> = {
-  draft_preview_only:      "status-stub",
-  draft_visible:           "status-stub",
-  draft_reference:         "status-stub",
-  ready_for_review:        "status-linked",
-  invalid_export_contract: "status-frozen",
-  blocked_by_consumer_gap: "status-frozen",
+// Tint modifier for .specpm-tag — keeps the depends_on pill shape but
+// hints at the export lifecycle with a soft background / border colour.
+const STATUS_TONE: Record<string, string> = {
+  draft_preview_only:      "tone-draft",
+  draft_visible:           "tone-draft",
+  draft_reference:         "tone-draft",
+  ready_for_review:        "tone-ready",
+  invalid_export_contract: "tone-blocked",
+  blocked_by_consumer_gap: "tone-blocked",
 };
 
 function badgeClass(value?: string): string {
-  if (!value) return "kind";
-  return STATUS_CLASS[value] || "kind";
+  if (!value) return "";
+  return STATUS_TONE[value] || "";
 }
 
 export default function SpecPMExportPreview({ onClose }: Props) {
@@ -252,7 +252,7 @@ function Badge({ label, value }: { label: string; value?: string }) {
   return (
     <span className="specpm-badges-cell" title={`${label}: ${value}`}>
       <span className="specpm-badge-label">{label}</span>
-      <span className={`spec-inspector-badge ${badgeClass(value)}`}>{value}</span>
+      <span className={`spec-inspector-tag specpm-tag ${badgeClass(value)}`}>{value}</span>
     </span>
   );
 }
