@@ -57,18 +57,20 @@ type LoadState =
   | { kind: "error"; message: string; detail?: string }
   | { kind: "ok"; data: PreviewResponse };
 
+// Map SpecPM preview status vocabulary onto the existing
+// `.spec-inspector-badge` palette defined in SpecInspector.css.
 const STATUS_CLASS: Record<string, string> = {
-  draft_preview_only: "badge-draft",
-  ready_for_review: "badge-ready",
-  invalid_export_contract: "badge-invalid",
-  blocked_by_consumer_gap: "badge-blocked",
-  draft_visible: "badge-draft",
-  draft_reference: "badge-draft",
+  draft_preview_only:      "status-stub",
+  draft_visible:           "status-stub",
+  draft_reference:         "status-stub",
+  ready_for_review:        "status-linked",
+  invalid_export_contract: "status-frozen",
+  blocked_by_consumer_gap: "status-frozen",
 };
 
 function badgeClass(value?: string): string {
-  if (!value) return "badge-unknown";
-  return STATUS_CLASS[value] || "badge-default";
+  if (!value) return "kind";
+  return STATUS_CLASS[value] || "kind";
 }
 
 export default function SpecPMExportPreview({ onClose }: Props) {
@@ -248,9 +250,9 @@ function EntryCard({ entry }: { entry: PreviewEntry }) {
 function Badge({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
   return (
-    <span className={`specpm-badge ${badgeClass(value)}`} title={`${label}: ${value}`}>
+    <span className="specpm-badges-cell" title={`${label}: ${value}`}>
       <span className="specpm-badge-label">{label}</span>
-      <span className="specpm-badge-value">{value}</span>
+      <span className={`spec-inspector-badge ${badgeClass(value)}`}>{value}</span>
     </span>
   );
 }
