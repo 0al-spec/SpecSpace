@@ -14,6 +14,21 @@
 
 ---
 
+## High priority — SpecGraph retrospective refactor maintenance
+
+- [ ] **Regression guard для `graph_dashboard` retrospective surface** — закрепить тестами и JSON/schema-check, что `--build-graph-dashboard` выводит `retrospective_refactor_candidates`, counts для `refactor_queue`/`proposal_queue` и viewer-ready named filter.
+  - **Контекст:** поддерживает closure pass task 17 из ветки `codex/retrospective-refactor-closure`, commit `fbef367`.
+  - **Метрика:** targeted dashboard/retrospective tests покрывают presence + shape + fixture с непустым retrospective set; standalone `--build-graph-dashboard` проходит JSON validation.
+
+- [ ] **Proposal runtime registry ↔ proposal status consistency** — добавить validation/test, который связывает proposals `0008` и `0017` со статусом `Implemented` с их runtime/tests markers и запрещает новым `Implemented` proposals проходить без registry markers.
+  - **Метрика:** проверка падает на missing marker, stale status или registry entry без существующего proposal.
+  - **Регресс-контроль:** `pytest -q`, targeted retrospective/proposal tests, `ruff`, `ruff format --check`, `compileall`.
+
+- [ ] **Closure audit для переноса active task → archive** — формализовать проверку, что закрытая задача удалена из active `tasks.md`, присутствует в `tasks_archive.md`, содержит commit/proposal/runtime references и не оставляет dangling dashboard/proposal queue references.
+  - **Метрика:** audit-команда или тест на fixture task 17 проходит и документирует expected state после closure pass.
+
+---
+
 ## High priority — быстрые победы
 
 - [ ] **`onlyRenderVisibleElements={true}`** на `<ReactFlow>` в [App.tsx:764](viewer/app/src/App.tsx:764). Ноды/рёбра вне viewport не рендерятся.
