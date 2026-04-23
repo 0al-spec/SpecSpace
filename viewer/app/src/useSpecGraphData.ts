@@ -133,10 +133,37 @@ const BROKEN_EDGE_STYLE: React.CSSProperties = {
 // Hook
 // ---------------------------------------------------------------------------
 
+/** Compute the set of node IDs that differ between two graph snapshots. */
+function diffGraphNodes(prev: ApiSpecGraph, next: ApiSpecGraph): Set<string> {
+  const changed = new Set<string>();
+  const prevMap = new Map(prev.nodes.map((n) => [n.node_id, n]));
+  for (const node of next.nodes) {
+    const p = prevMap.get(node.node_id);
+    if (!p) {
+      changed.add(node.node_id); // added
+    } else if (
+      p.status !== node.status ||
+      p.gap_count !== node.gap_count ||
+      p.updated_at !== node.updated_at ||
+      p.maturity !== node.maturity ||
+      p.title !== node.title ||
+      p.acceptance_count !== node.acceptance_count
+    ) {
+      changed.add(node.node_id); // modified
+    }
+  }
+  return changed;
+}
+
 export function useSpecGraphData(viewOptions: SpecViewOptions) {
   const [apiGraph, setApiGraph] = useState<ApiSpecGraph | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Change highlighting after SSE reload
+  const [changedNodeIds, setChangedNodeIds] = useState<Set<string>>(new Set());
+  const prevApiGraphRef = useRef<ApiSpecGraph | null>(null);
+  const changeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Expansion state
   const [expandedSpecIds, setExpandedSpecIds] = useState<Set<string>>(new Set());
@@ -186,6 +213,20 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       const data: ApiSpecGraph = json.graph ?? json;
+
+      // Detect changes only when we have a previous snapshot (i.e. SSE reload)
+      if (prevApiGraphRef.current) {
+        const changed = diffGraphNodes(prevApiGraphRef.current, data);
+        if (changed.size > 0) {
+          setChangedNodeIds(changed);
+          if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
+          changeTimerRef.current = setTimeout(
+            () => setChangedNodeIds(new Set()),
+            3000,
+          );
+        }
+      }
+      prevApiGraphRef.current = data;
       setApiGraph(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to fetch spec graph");
@@ -533,6 +574,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
           activeTargetKinds: activeTargetKinds.get(apiNode.node_id) ?? new Set(),
           isBranchCollapsed: collapsedBranchIds.has(apiNode.node_id),
           onToggleBranch,
+          isChanged: changedNodeIds.has(apiNode.node_id),
         };
 
         allNodes.push({
@@ -588,6 +630,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
           onToggleExpand,
           isBranchCollapsed: collapsedBranchIds.has(apiNode.node_id),
           onToggleBranch,
+          isChanged: changedNodeIds.has(apiNode.node_id),
         };
 
         allNodes.push({
@@ -690,7 +733,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
       (e) => !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target)
     );
     return { nodes: allNodes, edges: visibleEdges };
-  }, [apiGraph, basePositions, viewMode, showCrossLinks, showBlocking, showDependsOn, expandedSpecIds, specDetails, onToggleExpand, collapsedBranchIds, onToggleBranch]);
+  }, [apiGraph, basePositions, viewMode, showCrossLinks, showBlocking, showDependsOn, expandedSpecIds, specDetails, onToggleExpand, collapsedBranchIds, onToggleBranch, changedNodeIds]);
 
   return {
     nodes,

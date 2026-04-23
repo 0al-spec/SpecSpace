@@ -20,6 +20,7 @@ export interface ExpandedSpecGroupData extends Record<string, unknown> {
   activeTargetKinds: Set<string>;
   isBranchCollapsed?: boolean;
   onToggleBranch?: (nodeId: string) => void;
+  isChanged?: boolean;
 }
 
 export type ExpandedSpecNodeType = Node<ExpandedSpecGroupData, "expandedSpec">;
@@ -56,7 +57,7 @@ export default function ExpandedSpecNode({ data, selected }: NodeProps<ExpandedS
 
   return (
     <div
-      className={`expanded-spec-node ${statusClass} ${selected ? "selected" : ""}`}
+      className={`expanded-spec-node ${statusClass} ${selected ? "selected" : ""} ${data.isChanged ? "spec-node--changed" : ""}`}
       onMouseEnter={showBtn}
       onMouseLeave={scheduleHide}
       style={{

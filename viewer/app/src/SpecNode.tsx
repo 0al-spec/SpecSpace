@@ -46,6 +46,8 @@ export interface SpecNodeData extends Record<string, unknown> {
     background?: string;
     badge?: { text: string; color: string; bg: string };
   };
+  /** Briefly true after an SSE reload detected that this node changed */
+  isChanged?: boolean;
 }
 
 export type SpecNodeType = Node<SpecNodeData, "spec">;
@@ -90,7 +92,7 @@ export default function SpecNode({
 
   return (
     <div
-      className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""} ${data.searchDimmed || data.timelineDimmed ? "search-dimmed" : ""}`}
+      className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""} ${data.searchDimmed || data.timelineDimmed ? "search-dimmed" : ""} ${data.isChanged ? "spec-node--changed" : ""}`}
       onMouseEnter={showBtn}
       onMouseLeave={scheduleHide}
       style={{

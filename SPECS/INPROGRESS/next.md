@@ -3,6 +3,7 @@
 **Current Task:** —
 
 ## Recently Archived
+- `CTXB-P9-T1` — Change highlighting on SSE reload (PASS, 2026-04-23)
 - `CTXB-P8-T1` — Add 5th lifecycle stage (import_handoff) to SpecPMLifecyclePanel (PASS, 2026-04-23)
 - `CTXB-P7-T16` — Hide AgentChat behind a feature flag (PASS, 2026-04-23)
 - `CTXB-P7-T15` — Replace SHA-1 with SHA-256 (PASS, 2026-04-23)
@@ -17,7 +18,6 @@
 - `CTXB-P8-T2` — SpecPM lifecycle badge on SpecNode cards (P3, no deps)
 
 ### Graph UX
-- `CTXB-P9-T1` — Change highlighting on SSE reload (P1, no deps) — наибольшая ежедневная ценность
 - `CTXB-P9-T3` — Command palette ⌘K (P2, no deps)
 - `CTXB-P9-T4` — Filter bar — hide/show nodes by criteria (P2, no deps)
 - `CTXB-P9-T2` — Pin + compare two specs side-by-side (P2, no deps)
