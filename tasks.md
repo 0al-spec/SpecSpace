@@ -29,6 +29,20 @@
 
 ---
 
+## High priority — SpecGraph Metrics delivery/feedback viewer integration
+
+- [ ] **External Consumers section в `GraphDashboard` для Metrics delivery/feedback** — расширить контракт [GraphDashboard.tsx](viewer/app/src/GraphDashboard.tsx), чтобы `sections.external_consumers` показывал `metrics_delivery_status_counts`, `metrics_delivery_review_state_counts`, `metrics_feedback_status_counts`, `metrics_feedback_review_state_counts`, named-filter counts и backlog counters, а не только top-level headline cards.
+  - **Контекст:** поддерживает SpecGraph tasks 89-90 из ветки `codex/metrics-delivery-feedback`, commit `ea2886f`, где `graph_dashboard.json` получил `metrics_delivery_ready`, `metrics_feedback_visible` и Metrics delivery/feedback counts.
+  - **Метрика:** fixture `graph_dashboard.json` с `sections.external_consumers` рендерит отдельную секцию External Consumers; `metrics_delivery_ready` и `metrics_feedback_visible` видны как headline/filter counts; `npm run build` проходит без `any`-обходов для нового section shape.
+
+- [ ] **Read-only drilldown endpoints для Metrics handoff artifacts** — добавить безопасную выдачу allowlisted SpecGraph `runs/metrics_delivery_workflow.json` и `runs/metrics_feedback_index.json` через viewer API, чтобы из dashboard можно было открыть строки workflow/feedback без прямого доступа к файловой системе.
+  - **Метрика:** server tests покрывают happy path, missing artifact, invalid JSON и path traversal; UI показывает delivery/feedback rows с `delivery_status`/`feedback_status`, review state, next gap, checkout diagnostics и source artifact timestamp.
+
+- [ ] **Contract regression fixture для downstream Metrics surfaces** — закрепить минимальный dashboard/artifact fixture, совместимый с SpecGraph `metrics_delivery_policy.json` и `metrics_feedback_policy.json`, чтобы ContextBuilder не ломался при появлении новых delivery/feedback statuses или named filters.
+  - **Метрика:** fixture включает `ready_for_delivery_review`, `blocked_by_repo_state`, `review_activity_observed`, `adoption_observed_locally`, `threshold_driven`; тест проверяет tolerant rendering unknown statuses + сохранение нулевых counts, где они важны для фильтров.
+
+---
+
 ## High priority — быстрые победы
 
 - [ ] **`onlyRenderVisibleElements={true}`** на `<ReactFlow>` в [App.tsx:764](viewer/app/src/App.tsx:764). Ноды/рёбра вне viewport не рендерятся.
