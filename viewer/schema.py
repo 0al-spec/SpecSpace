@@ -455,7 +455,7 @@ def derive_conversation_id(payload: dict[str, Any]) -> str:
         "title": payload.get("title", ""),
         "message_ids": [message.get("message_id", "") for message in payload.get("messages", []) if _is_mapping(message)],
     }
-    digest = hashlib.sha1(
+    digest = hashlib.sha256(
         json.dumps(basis, ensure_ascii=False, sort_keys=True).encode("utf-8")
     ).hexdigest()[:12]
     return f"conv-{digest}"

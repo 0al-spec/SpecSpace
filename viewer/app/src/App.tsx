@@ -143,13 +143,14 @@ interface Capabilities {
   dashboardAvailable: boolean;
   specOverlayAvailable: boolean;
   specpmPreviewAvailable: boolean;
+  agentAvailable: boolean;
 }
 
 // Check once at startup which optional features are available
 async function checkCapabilities(): Promise<Capabilities> {
   try {
     const res = await fetch("/api/capabilities");
-    if (!res.ok) return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false };
+    if (!res.ok) return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, agentAvailable: false };
     const data = await res.json();
     return {
       specAvailable: Boolean(data.spec_graph),
@@ -157,9 +158,10 @@ async function checkCapabilities(): Promise<Capabilities> {
       dashboardAvailable: Boolean(data.graph_dashboard),
       specOverlayAvailable: Boolean(data.spec_overlay),
       specpmPreviewAvailable: Boolean(data.specpm_preview),
+      agentAvailable: Boolean(data.agent),
     };
   } catch {
-    return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false };
+    return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, agentAvailable: false };
   }
 }
 
@@ -177,18 +179,20 @@ function AppInner() {
   const [dashboardAvailable, setDashboardAvailable] = useState(false);
   const [specOverlayAvailable, setSpecOverlayAvailable] = useState(false);
   const [specpmPreviewAvailable, setSpecpmPreviewAvailable] = useState(false);
+  const [agentAvailable, setAgentAvailable] = useState(false);
   const [specpmPreviewOpen, setSpecpmPreviewOpen] = useState(false);
   const [specLens, setSpecLens] = useState<SpecLensMode>("none");
   const [specViewOptions, setSpecViewOptions] = useState<SpecViewOptions>(DEFAULT_SPEC_VIEW);
 
   // Check capabilities once on mount
   useEffect(() => {
-    checkCapabilities().then(({ specAvailable, compileAvailable, dashboardAvailable, specOverlayAvailable, specpmPreviewAvailable }) => {
+    checkCapabilities().then(({ specAvailable, compileAvailable, dashboardAvailable, specOverlayAvailable, specpmPreviewAvailable, agentAvailable }) => {
       setSpecAvailable(specAvailable);
       setCompileAvailable(compileAvailable);
       setDashboardAvailable(dashboardAvailable);
       setSpecOverlayAvailable(specOverlayAvailable);
       setSpecpmPreviewAvailable(specpmPreviewAvailable);
+      setAgentAvailable(agentAvailable);
     });
   }, []);
 
@@ -532,7 +536,7 @@ function AppInner() {
         if (target) {
           setSelectedConversationId(node.id);
           setSelectedMessageId(null);
-          setChatOpen(true);
+          if (agentAvailable) setChatOpen(true);
           return;
         }
       }
@@ -932,13 +936,17 @@ function AppInner() {
           </ErrorBoundary>
         )}
 
-        {/* Agent chat */}
-        <AgentChatTrigger onClick={() => setChatOpen((v) => !v)} active={chatOpen} />
-        <AgentChat
-          open={chatOpen}
-          onClose={() => setChatOpen(false)}
-          contextNodeId={graphMode === "specifications" ? selectedConversationId : null}
-        />
+        {/* Agent chat — hidden until capabilities.agent is true */}
+        {agentAvailable && (
+          <>
+            <AgentChatTrigger onClick={() => setChatOpen((v) => !v)} active={chatOpen} />
+            <AgentChat
+              open={chatOpen}
+              onClose={() => setChatOpen(false)}
+              contextNodeId={graphMode === "specifications" ? selectedConversationId : null}
+            />
+          </>
+        )}
         <SearchPalette
           open={searchOpen}
           onClose={() => setSearchOpen(false)}

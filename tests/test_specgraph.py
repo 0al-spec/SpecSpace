@@ -302,6 +302,7 @@ def start_spec_test_server(
     httpd.hyperprompt_binary = ""
     httpd.compile_available = compile_available
     httpd.spec_dir = spec_dir
+    httpd.specgraph_dir = None
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     return httpd, thread, f"http://127.0.0.1:{httpd.server_port}"

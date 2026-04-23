@@ -1183,6 +1183,125 @@ Intent: address the known architectural and code quality problems identified in 
   - `GET /api/capabilities` returns `"agent": false` (placeholder for future).
   - Existing smoke tests are updated to reflect the hidden button.
 
+## Phase 8: SpecPM Lifecycle Integration
+
+Intent: extend the SpecPM viewer slice built in Phase 6 to cover the full upstream-to-downstream lifecycle, including the import handoff layer produced by SpecGraph.
+
+### ✅ CTXB-P8-T0 — Unified SpecPM lifecycle panel (SpecPMLifecyclePanel)
+- **Status:** DONE (2026-04-23)
+- **Description:** Replace `SpecPMExportPreview` (single-stage overlay) with `SpecPMLifecyclePanel`: a unified panel covering all four lifecycle stages (export → handoff → materialization → import). Backend aggregates the four SpecGraph `runs/` artifacts into a single `GET /api/specpm/lifecycle` read-model. Frontend shows one package card per `package_id` with 4 status columns, an `import_source` summary header, an artifact availability strip, and 3 action buttons (Build Export Preview / Materialize / Build Import Preview). The Materialize button auto-chains `build-import-preview` after completion.
+- **Priority:** P1
+- **Dependencies:** CTXB-P6-T1
+- **Outputs / Artifacts:** `viewer/server.py` (lifecycle aggregator + 8 new routes), `viewer/app/src/SpecPMLifecyclePanel.tsx`, `viewer/app/src/SpecPMLifecyclePanel.css`; `SpecPMExportPreview.tsx` reduced to a compatibility re-export
+- **Acceptance Criteria:**
+  - `GET /api/specpm/lifecycle` returns normalized package cards joining all 4 artifacts; missing artifacts return `available: false` without crashing.
+  - Join uses primary key only (`package_preview.metadata.id` / `package_identity.package_id` / `manifest_summary.package_id`); fallback to `export_id`/`bundle_id` only when primary is absent.
+  - Panel shows artifact availability strip, import_source header, and package lifecycle cards with 4 status columns.
+  - Materialize button chains build-import-preview → reload automatically.
+  - Old `/api/specpm/preview` and `/api/specpm/preview/build` routes remain functional as aliases.
+
+### CTXB-P8-T1 — Add 5th lifecycle stage: import_handoff
+- **Description:** Extend the lifecycle panel and backend aggregator with a 5th stage (`import_handoff`) sourced from `runs/specpm_import_handoff_packets.json`, produced by SpecGraph supervisor flag `--build-specpm-import-handoff-packets`. Join key: `manifest_summary.package_id`. Add `GET /api/specpm/import-handoff` and `POST /api/specpm/build-import-handoff-packets`. Extend the Materialize chain to: materialize → build-import-preview → build-import-handoff-packets → reload. Add `target_route.route_kind` as a routing badge in the 5th column. Add new STATUS_TONE entries: `ready_for_lane` (ready), `draft_visible_only` (draft), `blocked_by_import_gap` (blocked), `invalid_import_contract` (blocked).
+- **Priority:** P2
+- **Dependencies:** CTXB-P8-T0; SpecGraph branch `codex/specpm-import-handoff` merged to main
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** updated `viewer/server.py`, `viewer/app/src/SpecPMLifecyclePanel.tsx`, `viewer/app/src/SpecPMLifecyclePanel.css`
+- **Acceptance Criteria:**
+  - `GET /api/specpm/lifecycle` includes `import_handoff` in each package card.
+  - `POST /api/specpm/build-import-handoff-packets` invokes supervisor and refreshes the stage.
+  - Materialize chain is extended automatically (no extra button click needed).
+  - All 5 stage columns render correctly; missing import_handoff artifact shows `available: false` without error.
+  - New status vocabulary renders with correct tone colours.
+
+### CTXB-P8-T2 — SpecPM lifecycle badge on SpecNode
+- **Description:** Show the current SpecPM lifecycle status directly on spec nodes in the graph canvas. A small pill badge (e.g. `draft_materialized`, `ready_for_review`, `blocked`) appears on the node, sourced from the lifecycle read-model. The badge updates when the lifecycle panel is refreshed. Nodes with no lifecycle entry show no badge.
+- **Priority:** P3
+- **Dependencies:** CTXB-P8-T0, CTXB-P6-T4
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** badge rendering in `viewer/app/src/SpecNode.tsx`; lifecycle data passed via context or props
+- **Acceptance Criteria:**
+  - Spec nodes with a lifecycle entry show the dominant status (export_status or overall worst-case) as a pill.
+  - Badge colours match the STATUS_TONE vocabulary from the lifecycle panel.
+  - Nodes with no lifecycle entry are unchanged.
+  - Badge does not interfere with existing node interactions (click, expand, inspector).
+
+## Phase 9: Graph UX Improvements
+
+Intent: reduce friction in daily spec-authoring and review workflows by improving how the graph communicates change, supports exploration, and responds to user intent.
+
+### CTXB-P9-T1 — Change highlighting on SSE reload
+- **Description:** When the spec-watch SSE stream delivers a `change` event, identify which nodes changed since the previous graph snapshot (by comparing `updated_at` or file mtime). Flash changed nodes with a brief highlight animation and show a top-bar notice ("3 specs updated") with a clickable list that pans to each updated node. The highlight fades after ~3 seconds. A "recently changed" marker remains in the sidebar list until the user clicks the node.
+- **Priority:** P1
+- **Dependencies:** CTXB-P6-T6 (SSE spec-watch already in `useSpecGraphData`)
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** change-detection logic in `useSpecGraphData.ts`; flash animation in `SpecNode.css`; top-bar notice component
+- **Acceptance Criteria:**
+  - Nodes whose file mtime changed since the last load flash visually for ~3 seconds.
+  - A top-bar notice counts updated specs and lists them; clicking a name pans to the node.
+  - No false positives on unchanged nodes.
+  - Works in all view modes (tree, linear, canonical).
+
+### CTXB-P9-T2 — Pin + compare two specs side-by-side
+- **Description:** Add a "Pin" button to the SpecInspector header. Pinning a spec locks it in a secondary inspector panel on the left while the primary inspector tracks the current graph selection. Both panels are visible simultaneously, allowing the user to compare acceptance criteria, edges, and maturity between two specs without losing context. Clicking "Unpin" returns to single-panel mode.
+- **Priority:** P2
+- **Dependencies:** CTXB-P6-T7
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** pin state in `App.tsx`; secondary inspector panel layout in `SpecInspector.tsx` / `App.tsx`
+- **Acceptance Criteria:**
+  - A Pin button in the inspector header locks the current spec into a secondary panel.
+  - The secondary panel persists while the user selects other nodes.
+  - Both panels are scrollable independently.
+  - Unpin removes the secondary panel without affecting the primary selection.
+
+### CTXB-P9-T3 — Command palette (⌘K)
+- **Description:** Add a command palette triggered by ⌘K (or Ctrl+K). The palette provides fuzzy search over all spec node IDs and titles, and exposes quick commands: switch view mode, toggle lens, open SpecPM panel, collapse all branches, fit view, toggle sidebar. Arrow keys navigate; Enter selects. The palette closes on Escape or outside click.
+- **Priority:** P2
+- **Dependencies:** CTXB-P6-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `viewer/app/src/CommandPalette.tsx`; keyboard shortcut registration in `App.tsx`
+- **Acceptance Criteria:**
+  - ⌘K opens the palette from any state; Escape closes it.
+  - Typing filters spec nodes by ID and title with fuzzy matching.
+  - All listed commands execute correctly.
+  - Selecting a spec node pans to it and opens the inspector.
+
+### CTXB-P9-T4 — Filter bar: hide/show nodes by criteria
+- **Description:** Add a filter chip bar below the view mode switcher. Chips include: `kind:<value>`, `status:<value>`, `has_gap`, `has_unmet_ac`, `impl:<state>`. Active chips hide non-matching nodes from the canvas (they are removed from the React Flow node set, not just faded). Filter chips combine with AND logic. A "Clear filters" button resets to the full graph. The active lens overlay continues to colour visible nodes.
+- **Priority:** P2
+- **Dependencies:** CTXB-P6-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** filter chip bar component; filter logic in `useSpecGraphData.ts` or `App.tsx`
+- **Acceptance Criteria:**
+  - Activating a chip removes non-matching nodes from the canvas.
+  - Multiple chips combine (AND): only nodes matching all active chips are shown.
+  - Filtered-out nodes do not appear in the graph; edges to them are suppressed.
+  - Clearing filters restores the full graph without reload.
+  - Lens overlays continue to function on the filtered set.
+
+### CTXB-P9-T5 — Related-items drawer in SpecInspector
+- **Description:** Add a "Related" section near the top of the SpecInspector panel listing: "Refined by (N)", "I refine (1)", "Depends on me (N)", "I depend on (N)", "Relates to (N)". Each entry is a clickable link that pans to the node and selects it. This replaces the need to close the inspector and search the graph manually.
+- **Priority:** P2
+- **Dependencies:** CTXB-P6-T7
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** related-items section in `viewer/app/src/SpecInspector.tsx`
+- **Acceptance Criteria:**
+  - The Related section shows grouped, labelled links for all edge types.
+  - Clicking a link pans to the target node and opens it in the inspector.
+  - Counts are accurate and update when the graph reloads.
+  - The section is collapsible and remembers its state in sessionStorage.
+
+### CTXB-P9-T6 — Hover preview card on spec nodes
+- **Description:** Show a lightweight tooltip when hovering a spec node for more than 300ms. The tooltip shows: title, objective (first 80 chars), status badge, and maturity bar. It disappears on mouse leave or click. The tooltip does not interfere with drag or edge interactions.
+- **Priority:** P3
+- **Dependencies:** CTXB-P6-T4
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** hover tooltip component; `onMouseEnter`/`onMouseLeave` handlers in `SpecNode.tsx`
+- **Acceptance Criteria:**
+  - Hovering a node for 300ms shows the tooltip; moving off hides it immediately.
+  - Tooltip is not shown during drag operations.
+  - Tooltip positioning stays within viewport bounds (flips if near edges).
+  - Clicking through the tooltip selects the node normally.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
@@ -1193,6 +1312,8 @@ Intent: address the known architectural and code quality problems identified in 
 - Phase 5 validates and documents the complete graph-to-context workflow.
 - Phase 6 reuses the React Flow viewer (P2R) and Python server (P1) to render SpecGraph YAML specs as a second graph mode. Independent of Phases 3-5 conversation authoring and compile features.
 - Phase 7 addresses technical debt identified in docs/PROBLEMS.md. Tasks are largely independent of each other and of Phases 3-6, with the exception that T2/T3 (server split + types) depend on T1 (cache layer).
+- Phase 8 extends the SpecPM integration started in Phase 6. T0 (lifecycle panel) is complete. T1 (5th stage) is blocked on an upstream SpecGraph branch merge. T2 (node badge) depends on T0.
+- Phase 9 improves graph UX for daily authoring and review workflows. All tasks are independent of each other. T1 (change highlighting) is the highest-priority item. Tasks have no blocking external dependencies.
 
 ## Task Status Legend
 

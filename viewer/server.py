@@ -1205,6 +1205,128 @@ def compile_graph_nodes(
     return compile_status, combined
 
 
+def _read_specpm_artifact(path: Path | None) -> dict[str, Any]:
+    """Read a SpecPM runs artifact, returning a graceful shell when unavailable."""
+    if path is None or not path.exists():
+        return {"available": False, "entry_count": 0, "entries": [], "generated_at": None}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        mtime = path.stat().st_mtime
+        return {
+            "available": True,
+            "mtime": mtime,
+            "mtime_iso": datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
+            **data,
+        }
+    except Exception as exc:
+        return {"available": False, "error": str(exc), "entry_count": 0, "entries": [], "generated_at": None}
+
+
+def _pkg_key(primary: str | None, fallback: str | None) -> str | None:
+    return primary if primary else fallback
+
+
+def _build_specpm_lifecycle(specgraph_dir: Path) -> dict[str, Any]:
+    """Aggregate the five SpecPM artifacts into a normalized package lifecycle read-model.
+
+    Join policy: use primary key exclusively when present; fall back to the secondary
+    key only when primary is absent.  Never merge by both keys simultaneously.
+    """
+    runs = specgraph_dir / "runs"
+    export = _read_specpm_artifact(runs / "specpm_export_preview.json")
+    handoff = _read_specpm_artifact(runs / "specpm_handoff_packets.json")
+    mat = _read_specpm_artifact(runs / "specpm_materialization_report.json")
+    imp = _read_specpm_artifact(runs / "specpm_import_preview.json")
+    imp_handoff = _read_specpm_artifact(runs / "specpm_import_handoff_packets.json")
+
+    packages: dict[str, dict[str, Any]] = {}
+
+    for entry in export.get("entries") or []:
+        pkg_id = ((entry.get("package_preview") or {}).get("metadata") or {}).get("id")
+        key = _pkg_key(pkg_id, entry.get("export_id"))
+        if not key:
+            continue
+        packages.setdefault(key, {"package_key": key})
+        packages[key]["export"] = {
+            "status": entry.get("export_status"),
+            "review_state": entry.get("review_state"),
+            "next_gap": entry.get("next_gap"),
+        }
+
+    for entry in handoff.get("entries") or []:
+        pkg_id = (entry.get("package_identity") or {}).get("package_id")
+        key = _pkg_key(pkg_id, entry.get("export_id"))
+        if not key:
+            continue
+        packages.setdefault(key, {"package_key": key})
+        packages[key]["handoff"] = {
+            "status": entry.get("handoff_status"),
+            "review_state": entry.get("review_state"),
+            "next_gap": entry.get("next_gap"),
+        }
+
+    for entry in mat.get("entries") or []:
+        pkg_id = (entry.get("package_identity") or {}).get("package_id")
+        key = _pkg_key(pkg_id, entry.get("export_id"))
+        if not key:
+            continue
+        packages.setdefault(key, {"package_key": key})
+        packages[key]["materialization"] = {
+            "status": entry.get("materialization_status"),
+            "review_state": entry.get("review_state"),
+            "next_gap": entry.get("next_gap"),
+            "bundle_root": entry.get("bundle_root"),
+        }
+
+    for entry in imp.get("entries") or []:
+        pkg_id = (entry.get("manifest_summary") or {}).get("package_id")
+        key = _pkg_key(pkg_id, entry.get("bundle_id"))
+        if not key:
+            continue
+        packages.setdefault(key, {"package_key": key})
+        packages[key]["import"] = {
+            "status": entry.get("import_status"),
+            "review_state": entry.get("review_state"),
+            "next_gap": entry.get("next_gap"),
+            "suggested_target_kind": entry.get("suggested_target_kind"),
+        }
+
+    for entry in imp_handoff.get("entries") or []:
+        pkg_id = (entry.get("manifest_summary") or {}).get("package_id")
+        key = _pkg_key(pkg_id, entry.get("bundle_id"))
+        if not key:
+            continue
+        packages.setdefault(key, {"package_key": key})
+        packages[key]["import_handoff"] = {
+            "status": entry.get("handoff_status"),
+            "review_state": entry.get("review_state"),
+            "next_gap": entry.get("next_gap"),
+            "route_kind": (entry.get("target_route") or {}).get("route_kind"),
+        }
+
+    import_source = imp.get("import_source") if imp.get("available") else None
+
+    def artifact_meta(a: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "available": a.get("available", False),
+            "generated_at": a.get("generated_at"),
+            "entry_count": a.get("entry_count", 0),
+        }
+
+    return {
+        "packages": list(packages.values()),
+        "package_count": len(packages),
+        "import_source": import_source,
+        "artifacts": {
+            "export_preview": artifact_meta(export),
+            "handoff_packets": artifact_meta(handoff),
+            "materialization_report": artifact_meta(mat),
+            "import_preview": artifact_meta(imp),
+            "import_handoff_packets": artifact_meta(imp_handoff),
+        },
+    }
+
+
 class ViewerHandler(BaseHTTPRequestHandler):
     server_version = "ContextBuilderViewer/0.1"
 
@@ -1246,6 +1368,24 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/specpm/preview":
             self.handle_specpm_preview_get()
             return
+        if parsed.path == "/api/specpm/export-preview":
+            self._handle_specpm_artifact_get("specpm_export_preview.json")
+            return
+        if parsed.path == "/api/specpm/handoff":
+            self._handle_specpm_artifact_get("specpm_handoff_packets.json")
+            return
+        if parsed.path == "/api/specpm/materialization":
+            self._handle_specpm_artifact_get("specpm_materialization_report.json")
+            return
+        if parsed.path == "/api/specpm/import-preview":
+            self._handle_specpm_artifact_get("specpm_import_preview.json")
+            return
+        if parsed.path == "/api/specpm/import-handoff":
+            self._handle_specpm_artifact_get("specpm_import_handoff_packets.json")
+            return
+        if parsed.path == "/api/specpm/lifecycle":
+            self.handle_specpm_lifecycle()
+            return
         self.handle_static(parsed.path)
 
     def do_POST(self) -> None:
@@ -1261,6 +1401,21 @@ class ViewerHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/specpm/preview/build":
             self.handle_specpm_preview_build()
+            return
+        if parsed.path == "/api/specpm/build-export-preview":
+            self._handle_specpm_build("--build-specpm-export-preview", "specpm_export_preview.json")
+            return
+        if parsed.path == "/api/specpm/materialize":
+            self._handle_specpm_build("--materialize-specpm-export-bundles", "specpm_materialization_report.json")
+            return
+        if parsed.path == "/api/specpm/build-import-preview":
+            self._handle_specpm_build("--build-specpm-import-preview", "specpm_import_preview.json")
+            return
+        if parsed.path == "/api/specpm/build-import-handoff-packets":
+            self._handle_specpm_build("--build-specpm-import-handoff-packets", "specpm_import_handoff_packets.json")
+            return
+        if parsed.path == "/api/reveal":
+            self.handle_reveal()
             return
         self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -1281,6 +1436,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "graph_dashboard": self._graph_dashboard_path() is not None,
                 "spec_overlay": self._runs_dir() is not None,
                 "specpm_preview": self.server.specgraph_dir is not None,
+                "agent": False,
             },
         )
 
@@ -1502,6 +1658,137 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "built_at": built_at,
             },
         )
+
+    def _specpm_runs_path(self, filename: str) -> Path | None:
+        if self.server.specgraph_dir is None:
+            return None
+        return self.server.specgraph_dir / "runs" / filename
+
+    def _handle_specpm_artifact_get(self, filename: str) -> None:
+        if self.server.specgraph_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecPM not configured. Start the server with --specgraph-dir."},
+            )
+            return
+        path = self._specpm_runs_path(filename)
+        if path is None or not path.exists():
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "Artifact not built yet", "path": str(path) if path else None},
+            )
+            return
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": f"Failed to read artifact: {exc}"},
+            )
+            return
+        mtime = path.stat().st_mtime
+        json_response(self, HTTPStatus.OK, {
+            "path": str(path),
+            "mtime": mtime,
+            "mtime_iso": datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
+            "data": data,
+        })
+
+    def _handle_specpm_build(self, flag: str, artifact_filename: str) -> None:
+        if self.server.specgraph_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecPM not configured. Start the server with --specgraph-dir."},
+            )
+            return
+        supervisor = self.server.specgraph_dir / "tools" / "supervisor.py"
+        if not supervisor.exists():
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": "supervisor.py not found", "expected": str(supervisor)},
+            )
+            return
+        cmd = [sys.executable, str(supervisor), flag]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            json_response(
+                self,
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"error": "supervisor.py timed out", "exit_code": None},
+            )
+            return
+        except Exception as exc:
+            json_response(
+                self,
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"error": f"Failed to invoke supervisor.py: {exc}", "exit_code": None},
+            )
+            return
+
+        artifact_path = self._specpm_runs_path(artifact_filename)
+        stderr_tail = "\n".join((result.stderr or "").splitlines()[-40:])
+        built_at = datetime.now(tz=timezone.utc).isoformat()
+
+        if result.returncode != 0:
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {
+                    "error": "supervisor.py failed",
+                    "exit_code": result.returncode,
+                    "stderr_tail": stderr_tail,
+                    "stdout_tail": "\n".join((result.stdout or "").splitlines()[-40:]),
+                    "path": str(artifact_path) if artifact_path else None,
+                    "built_at": built_at,
+                },
+            )
+            return
+
+        json_response(self, HTTPStatus.OK, {
+            "exit_code": 0,
+            "stderr_tail": stderr_tail,
+            "path": str(artifact_path) if artifact_path else None,
+            "artifact_exists": bool(artifact_path and artifact_path.exists()),
+            "built_at": built_at,
+        })
+
+    def handle_specpm_lifecycle(self) -> None:
+        if self.server.specgraph_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecPM not configured. Start the server with --specgraph-dir."},
+            )
+            return
+        json_response(self, HTTPStatus.OK, _build_specpm_lifecycle(self.server.specgraph_dir))
+
+    def handle_reveal(self) -> None:
+        """POST /api/reveal — open a file path in Finder (macOS: open -R <path>)."""
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
+            path_str = body.get("path", "")
+        except Exception:
+            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Invalid request body"})
+            return
+        if not path_str:
+            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing path"})
+            return
+        path = Path(path_str).resolve()
+        if not path.exists():
+            json_response(self, HTTPStatus.NOT_FOUND, {"error": f"Path not found: {path}"})
+            return
+        try:
+            subprocess.Popen(["open", "-R", str(path)])
+            json_response(self, HTTPStatus.OK, {"revealed": str(path)})
+        except Exception as exc:
+            json_response(self, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(exc)})
 
     def handle_spec_graph(self) -> None:
         if self.server.spec_dir is None:

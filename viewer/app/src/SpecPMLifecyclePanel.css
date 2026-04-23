@@ -1,0 +1,176 @@
+.specpm-lifecycle-actions {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--cb-border, #e5e7eb);
+  flex-wrap: wrap;
+}
+
+.specpm-action-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+  border: 1px solid var(--cb-border, #e5e7eb);
+  border-radius: 4px;
+  background: var(--cb-surface, #fff);
+  color: var(--cb-text, #1f2937);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.specpm-action-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.specpm-action-btn:not(:disabled):hover {
+  background: var(--cb-surface-hover, #f9fafb);
+}
+
+.specpm-artifact-strip {
+  display: flex;
+  gap: 16px;
+  /* same 16px horizontal inset as .specpm-lifecycle-actions — no extra layering */
+  padding: 7px 16px;
+  border-bottom: 1px solid var(--cb-border, #e5e7eb);
+}
+
+.specpm-artifact-dot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--cb-text-muted, #6b7280);
+}
+
+.dot-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dot-time {
+  font-size: 9px;
+  color: var(--cb-text-muted, #6b7280);
+  opacity: 0.7;
+  font-family: var(--font-mono, monospace);
+  line-height: 1;
+}
+
+.dot-available .dot-mark { color: var(--cb-text-muted, #6b7280); }
+.dot-missing .dot-mark   { color: #d1d5db; }
+
+.specpm-import-source {
+  padding: 7px 16px;
+  border-bottom: 1px solid var(--cb-border, #e5e7eb);
+  font-size: 12px;
+}
+
+.specpm-stages {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0;
+  padding: 10px 16px 12px;
+  /* stretch makes all columns equal height so margin-top:auto works */
+  align-items: stretch;
+}
+
+.specpm-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 0 12px 0 0;
+  border-right: 1px solid var(--cb-border, #e5e7eb);
+}
+
+.specpm-stage:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.specpm-stage:not(:first-child) {
+  padding-left: 12px;
+}
+
+.specpm-stage-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cb-text-muted, #6b7280);
+  font-weight: 600;
+  /* fixed line height so all labels occupy the same vertical space */
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.specpm-stage-gap {
+  font-size: 10px;
+  color: var(--cb-text-muted, #6b7280);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* push to bottom so all columns align next_gap on the same baseline */
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.specpm-stage-empty {
+  color: var(--cb-text-muted, #6b7280);
+  font-size: 12px;
+  margin-top: auto;
+}
+
+.specpm-lifecycle-card .specpm-entry-head {
+  padding: var(--space-5, 10px) var(--space-6, 12px);
+}
+
+/* route_kind badge — neutral, slightly dimmer than status badges */
+.specpm-tag-route {
+  font-style: italic;
+  opacity: 0.85;
+}
+
+/* success flash after build */
+.specpm-build-success {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 16px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  background: #eafaf1;
+  border: 1px solid #6ee7a0;
+  color: #064e24;
+}
+
+.specpm-build-success-path {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #064e24;
+  opacity: 0.8;
+}
+
+.specpm-build-success-path code {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+.specpm-reveal-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 1px solid #6ee7a0;
+  border-radius: 4px;
+  background: transparent;
+  color: #064e24;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.specpm-reveal-btn:hover {
+  background: rgba(6, 78, 36, 0.08);
+}

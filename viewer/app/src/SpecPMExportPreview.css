@@ -102,13 +102,17 @@
 
 .specpm-meta {
   display: flex;
+  justify-content: flex-start;
+  align-items: center;
   gap: var(--space-10, 24px);
-  padding: var(--space-5, 10px) var(--space-6, 12px);
+  padding: var(--space-4, 8px) var(--space-6, 12px);
   background: var(--panel-muted, rgba(246, 236, 221, 0.88));
   border: 1px solid var(--line, #d4c4ac);
   border-radius: 6px;
   font-size: 11px;
   flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
 }
 .specpm-meta-label {
   opacity: 0.65;
