@@ -39,9 +39,6 @@ export default function FilterBar({ filter, onChange }: FilterBarProps) {
 
   return (
     <div className="filter-bar">
-      {/* Static label */}
-      <span className="filter-bar-label">show</span>
-
       {/* Status chips */}
       {ALL_STATUSES.map((s) => (
         <button

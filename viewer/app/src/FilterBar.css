@@ -18,7 +18,6 @@
 
 /* ── Base token for every element inside the bar ─────────────────────────── */
 
-.filter-bar-label,
 .filter-chip,
 .filter-toggle,
 .filter-bar-clear {
@@ -43,14 +42,6 @@
 .filter-toggle + .filter-bar-clear,
 .filter-sep + .filter-bar-clear {
   border-left: 1px solid var(--line, #d4c4ac);
-}
-
-/* Static "Filter" label — just a muted text marker */
-.filter-bar-label {
-  color: var(--muted, #6d6255);
-  opacity: 0.6;
-  padding-right: 6px;
-  border-right: 1px solid var(--line, #d4c4ac);
 }
 
 /* Thin separator span (between chips group and toggles group) */
