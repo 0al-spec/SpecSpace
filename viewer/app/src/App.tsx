@@ -913,6 +913,7 @@ function AppInner() {
               onSelectSubItem={setSelectedSubItemId}
               onOpenLens={setLensNodeId}
               onOpenSpecpmPreview={specpmPreviewAvailable ? () => setSpecpmPreviewOpen(true) : undefined}
+              rawGraph={specGraph.rawGraph}
               canGoBack={specNav.canGoBack}
               canGoForward={specNav.canGoForward}
               onBack={onSpecNavBack}

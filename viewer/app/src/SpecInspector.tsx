@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import "./SpecNode.css";
 import "./SpecInspector.css";
 import "./PanelBtn.css";
 import PanelActions from "./PanelActions";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleDot, faCalendarPlus, faRotate, faBoxArchive } from "@fortawesome/free-solid-svg-icons";
+import type { ApiSpecGraph, ApiSpecNode } from "./types";
 
 interface SpecInspectorProps {
   selectedNodeId: string | null;
@@ -18,6 +19,8 @@ interface SpecInspectorProps {
   onOpenLens?: (nodeId: string) => void;
   /** Open the SpecPM export preview overlay. Undefined → button hidden. */
   onOpenSpecpmPreview?: () => void;
+  /** Full spec graph — used to resolve peer node titles/statuses in Related section */
+  rawGraph?: ApiSpecGraph | null;
   /** Navigation history controls */
   canGoBack?: boolean;
   canGoForward?: boolean;
@@ -33,6 +36,7 @@ type SpecDetail = Record<string, unknown>;
 export default function SpecInspector({
   selectedNodeId, selectedSubItemId,
   onDismiss, onFocusNode, onSelectSubItem, onOpenLens, onOpenSpecpmPreview,
+  rawGraph,
   canGoBack, canGoForward, onBack, onForward, backLabel, forwardLabel,
 }: SpecInspectorProps) {
   const [detail, setDetail] = useState<SpecDetail | null>(null);
@@ -87,6 +91,13 @@ export default function SpecInspector({
   }, [selectedNodeId]);
 
   const visible = Boolean(selectedNodeId);
+
+  // Build a fast lookup map from rawGraph so RelatedItemsSection can resolve peer metadata
+  const nodeById = useMemo(() => {
+    const map = new Map<string, ApiSpecNode>();
+    for (const n of rawGraph?.nodes ?? []) map.set(n.node_id, n);
+    return map;
+  }, [rawGraph]);
 
   // Keep CSS variable in sync so minimap can anchor to the inspector's left edge
   useEffect(() => {
@@ -254,13 +265,15 @@ export default function SpecInspector({
             )}
           </div>
 
-          {/* 3. Links box */}
+          {/* 3. Related items drawer */}
           {hasLinks && (
-            <div className="spec-inspector-box">
-              <FieldList label="depends_on" value={detail.depends_on} onNodeClick={onFocusNode} inline />
-              <FieldList label="refines" value={detail.refines} onNodeClick={onFocusNode} inline />
-              <FieldList label="relates_to" value={detail.relates_to} onNodeClick={onFocusNode} inline />
-            </div>
+            <RelatedItemsSection
+              dependsOn={arr(detail.depends_on)}
+              refines={arr(detail.refines)}
+              relatesTo={arr(detail.relates_to)}
+              nodeById={nodeById}
+              onFocusNode={onFocusNode}
+            />
           )}
 
           {/* 4. Scope box */}
@@ -487,6 +500,68 @@ function fmtDate(v: unknown): string {
 /** Strip path prefix and extension to get bare node ID (e.g. "specs/nodes/SG-SPEC-0002.yaml" → "SG-SPEC-0002") */
 function extractNodeId(item: string): string {
   return item.replace(/^.*nodes\//, "").replace(/\.[^.]+$/, "");
+}
+
+/** Cast unknown to string[] safely */
+function arr(v: unknown): string[] {
+  return Array.isArray(v) ? (v as unknown[]).filter((x) => typeof x === "string") as string[] : [];
+}
+
+const EDGE_KIND_LABELS: Record<string, string> = {
+  depends_on: "Depends on",
+  refines: "Refines",
+  relates_to: "Relates to",
+};
+
+interface RelatedItemsSectionProps {
+  dependsOn: string[];
+  refines: string[];
+  relatesTo: string[];
+  nodeById: Map<string, ApiSpecNode>;
+  onFocusNode?: (id: string) => void;
+}
+
+function RelatedItemsSection({ dependsOn, refines, relatesTo, nodeById, onFocusNode }: RelatedItemsSectionProps) {
+  const groups: { kind: string; ids: string[] }[] = [
+    { kind: "depends_on", ids: dependsOn },
+    { kind: "refines",    ids: refines },
+    { kind: "relates_to", ids: relatesTo },
+  ].filter((g) => g.ids.length > 0);
+
+  if (groups.length === 0) return null;
+
+  return (
+    <div className="spec-inspector-box related-items-box">
+      <div className="spec-inspector-box-label">Related</div>
+      {groups.map((group, gi) => (
+        <div key={group.kind} className={`related-items-group${gi > 0 ? " related-items-group--sep" : ""}`}>
+          <div className="related-items-kind-label">{EDGE_KIND_LABELS[group.kind]}</div>
+          <ul className="related-items-list">
+            {group.ids.map((raw) => {
+              const nodeId = extractNodeId(raw);
+              const peer = nodeById.get(nodeId);
+              return (
+                <li
+                  key={raw}
+                  className={`related-item${onFocusNode ? " related-item--clickable" : ""}`}
+                  onClick={onFocusNode ? () => onFocusNode(nodeId) : undefined}
+                  title={onFocusNode ? `Focus ${nodeId} on graph` : undefined}
+                >
+                  <span className="related-item-id">{nodeId}</span>
+                  <span className="related-item-title">{peer?.title ?? raw}</span>
+                  {peer && (
+                    <span className={`spec-inspector-badge status-${peer.status}`}>
+                      {peer.status}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function FieldList({ label, value, onNodeClick, inline }: { label: string; value: unknown; onNodeClick?: (id: string) => void; inline?: boolean }) {
