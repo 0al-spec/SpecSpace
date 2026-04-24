@@ -1534,7 +1534,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "graph_dashboard": self._graph_dashboard_path() is not None,
                 "spec_overlay": self._runs_dir() is not None,
                 "specpm_preview": self.server.specgraph_dir is not None,
-                "agent": False,
+                "agent": self.server.agent_available,
             },
         )
 
@@ -2214,6 +2214,12 @@ def main() -> None:
         default=None,
         help="Path to the SpecGraph repo root (enables /api/specpm/preview)",
     )
+    parser.add_argument(
+        "--agent",
+        action="store_true",
+        default=False,
+        help="Enable the AgentChat panel in the UI",
+    )
     args = parser.parse_args()
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), ViewerHandler)
@@ -2226,6 +2232,7 @@ def main() -> None:
     server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
     server.spec_watcher = SpecWatcher(server.spec_dir) if server.spec_dir else None
     server.specgraph_dir = args.specgraph_dir.expanduser().resolve() if args.specgraph_dir else None
+    server.agent_available = args.agent
 
     print(f"Serving ContextBuilder at http://localhost:{args.port}/")
     print(f"Dialog folder: {server.dialog_dir}")
