@@ -340,7 +340,7 @@
   align-items: stretch;
   flex: 1;
   min-height: 0;
-  margin-top: 52px; /* clear the toolbar */
+  margin-top: 44px; /* clear toolbar: actions top(12) + btn height(30) + 2px gap */
   overflow: hidden;
 }
 
