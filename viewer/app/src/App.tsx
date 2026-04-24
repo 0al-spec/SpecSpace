@@ -981,16 +981,14 @@ function AppInner() {
           </ErrorBoundary>
         )}
 
-        {/* Agent chat — hidden until capabilities.agent is true */}
+        {/* Agent chat — trigger always visible; panel requires capabilities.agent */}
+        <AgentChatTrigger onClick={() => setChatOpen((v) => !v)} active={chatOpen} />
         {agentAvailable && (
-          <>
-            <AgentChatTrigger onClick={() => setChatOpen((v) => !v)} active={chatOpen} />
-            <AgentChat
-              open={chatOpen}
-              onClose={() => setChatOpen(false)}
-              contextNodeId={graphMode === "specifications" ? selectedConversationId : null}
-            />
-          </>
+          <AgentChat
+            open={chatOpen}
+            onClose={() => setChatOpen(false)}
+            contextNodeId={graphMode === "specifications" ? selectedConversationId : null}
+          />
         )}
         <SearchPalette
           open={searchOpen}
