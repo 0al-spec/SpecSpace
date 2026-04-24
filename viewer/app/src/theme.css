@@ -219,11 +219,11 @@ body {
   pointer-events: auto;
 }
 
-/* Active state accent — mirror timeline-btn-active but violet */
+/* Active state accent — mirrors .panel-btn.timeline-btn-active (amber) */
 .panel-btn.filter-btn-active {
-  background: #ede9fe;
-  border-color: #6d28d9;
-  color: #4c1d95;
+  background: var(--accent-soft, #f5e0c7);
+  border-color: var(--accent, #915a24);
+  color: var(--accent-strong, #6c4012);
 }
 
 /* ── Edge highlight (click to highlight edge + endpoints) ─────────────────── */

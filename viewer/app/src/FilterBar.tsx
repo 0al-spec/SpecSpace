@@ -27,16 +27,6 @@ interface FilterBarProps {
   onChange: (f: FilterOptions) => void;
 }
 
-const STATUS_LABELS: Record<FilterStatus, string> = {
-  idea: "idea",
-  stub: "stub",
-  outlined: "outlined",
-  specified: "specified",
-  linked: "linked",
-  reviewed: "reviewed",
-  frozen: "frozen",
-};
-
 export default function FilterBar({ filter, onChange }: FilterBarProps) {
   const active = isFilterActive(filter);
 
@@ -47,47 +37,50 @@ export default function FilterBar({ filter, onChange }: FilterBarProps) {
     onChange({ ...filter, statuses: next });
   }
 
-  function clearAll() {
-    onChange(DEFAULT_FILTER);
-  }
-
   return (
-    <div className={`filter-bar${active ? " filter-bar--active" : ""}`}>
-      <span className="filter-bar-label">Filter</span>
+    <div className="filter-bar">
+      {/* Static label */}
+      <span className="filter-bar-label">show</span>
 
-      <div className="filter-bar-chips">
-        {ALL_STATUSES.map((s) => (
-          <button
-            key={s}
-            className={`filter-chip filter-chip--${s}${filter.statuses.has(s) ? " filter-chip--on" : ""}`}
-            onClick={() => toggleStatus(s)}
-            title={`Show only ${s} nodes`}
-          >
-            {STATUS_LABELS[s]}
-          </button>
-        ))}
-      </div>
-
-      <div className="filter-bar-toggles">
+      {/* Status chips */}
+      {ALL_STATUSES.map((s) => (
         <button
-          className={`filter-toggle${filter.hasGaps ? " filter-toggle--on" : ""}`}
-          onClick={() => onChange({ ...filter, hasGaps: !filter.hasGaps })}
-          title="Show only nodes with unmet acceptance criteria"
+          key={s}
+          className={`filter-chip filter-chip--${s}${filter.statuses.has(s) ? " filter-chip--on" : ""}`}
+          onClick={() => toggleStatus(s)}
+          title={filter.statuses.has(s) ? `Remove ${s} filter` : `Show only ${s}`}
         >
-          ⚡ has gaps
+          {s}
         </button>
-        <button
-          className={`filter-toggle${filter.hasBroken ? " filter-toggle--on" : ""}`}
-          onClick={() => onChange({ ...filter, hasBroken: !filter.hasBroken })}
-          title="Show only nodes with broken edge references"
-        >
-          ⚠ broken
-        </button>
-      </div>
+      ))}
 
+      {/* Separator */}
+      <span className="filter-sep" />
+
+      {/* Attribute toggles */}
+      <button
+        className={`filter-toggle${filter.hasGaps ? " filter-toggle--on" : ""}`}
+        onClick={() => onChange({ ...filter, hasGaps: !filter.hasGaps })}
+        title="Show only nodes with unmet acceptance criteria"
+      >
+        gaps
+      </button>
+      <button
+        className={`filter-toggle${filter.hasBroken ? " filter-toggle--on" : ""}`}
+        onClick={() => onChange({ ...filter, hasBroken: !filter.hasBroken })}
+        title="Show only nodes with broken edge references"
+      >
+        broken
+      </button>
+
+      {/* Clear — only when something is active */}
       {active && (
-        <button className="filter-bar-clear" onClick={clearAll} title="Clear all filters">
-          ✕ clear
+        <button
+          className="filter-bar-clear"
+          onClick={() => onChange(DEFAULT_FILTER)}
+          title="Clear all filters"
+        >
+          ✕
         </button>
       )}
     </div>

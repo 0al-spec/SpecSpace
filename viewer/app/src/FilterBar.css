@@ -1,129 +1,115 @@
-/* FilterBar — horizontal chip bar for filtering spec graph nodes */
+/* FilterBar — horizontal pill matching the .tl-segment / .tl-seg-btn system */
+
+/* ── Container: identical to .tl-segment ─────────────────────────────────── */
 
 .filter-bar {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 8px;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  flex-wrap: wrap;
+  align-items: stretch;
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 250, 242, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 2px 8px rgba(76, 51, 28, 0.10);
+  flex-shrink: 0;
   white-space: nowrap;
 }
 
-.filter-bar--active {
-  border-color: rgba(109, 40, 217, 0.3);
-  box-shadow: 0 2px 8px rgba(109, 40, 217, 0.1);
-}
+/* ── Base token for every element inside the bar ─────────────────────────── */
 
-.filter-bar-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+.filter-bar-label,
+.filter-chip,
+.filter-toggle,
+.filter-bar-clear {
+  padding: 4px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: #888;
-  white-space: nowrap;
-  margin-right: 2px;
+  font-family: var(--font-mono);
+  line-height: 1;
+  border: none;
+  background: none;
+  cursor: default;
+  color: var(--muted, #6d6255);
 }
 
-/* ── Status chips ─────────────────────────────────────────── */
-
-.filter-bar-chips {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+/* Separator between adjacent items — same as tl-seg-btn + tl-seg-btn */
+.filter-chip + .filter-chip,
+.filter-chip + .filter-sep,
+.filter-sep + .filter-toggle,
+.filter-toggle + .filter-toggle,
+.filter-toggle + .filter-bar-clear,
+.filter-sep + .filter-bar-clear {
+  border-left: 1px solid var(--line, #d4c4ac);
 }
 
-.filter-chip {
-  font-size: 11px;
-  font-family: var(--font-mono, monospace);
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: 1.5px solid transparent;
+/* Static "Filter" label — just a muted text marker */
+.filter-bar-label {
+  color: var(--muted, #6d6255);
+  opacity: 0.6;
+  padding-right: 6px;
+  border-right: 1px solid var(--line, #d4c4ac);
+}
+
+/* Thin separator span (between chips group and toggles group) */
+.filter-sep {
+  display: block;
+  width: 0;
+  padding: 0;
+}
+
+/* ── Clickable elements ───────────────────────────────────────────────────── */
+
+.filter-chip,
+.filter-toggle,
+.filter-bar-clear {
   cursor: pointer;
-  opacity: 0.55;
-  transition: opacity 120ms, box-shadow 120ms;
-  background: transparent;
+  transition: background 120ms, color 120ms;
 }
 
-.filter-chip:hover {
-  opacity: 0.85;
+.filter-chip:hover,
+.filter-toggle:hover {
+  background: #fbf3e7;
+  color: var(--text, #231b15);
 }
+
+/* ── Status chips — OFF: muted; ON: semantic status colour ───────────────── */
 
 .filter-chip--on {
-  opacity: 1;
-  box-shadow: 0 0 0 1px currentColor;
+  color: var(--text, #231b15);
 }
 
-/* Match SpecNode status colours */
-.filter-chip--idea       { color: #666;    border-color: #888;    background: #f2f2f2; }
-.filter-chip--stub       { color: #9a6000; border-color: #d4910a; background: #fef3d0; }
-.filter-chip--outlined   { color: #1a5499; border-color: #2e76cc; background: #e6f0fc; }
-.filter-chip--specified  { color: #3d2a8a; border-color: #5b3ec8; background: #ede8fc; }
-.filter-chip--linked     { color: #155f30; border-color: #1e9145; background: #e2f7e9; }
-.filter-chip--reviewed   { color: #0a6358; border-color: #0e8a7c; background: #daf4f0; }
-.filter-chip--frozen     { color: #253547; border-color: #3a4f6a; background: #eaeff5; }
+/* Status-specific ON backgrounds — match SpecNode border/bg palette */
+.filter-chip--idea.filter-chip--on      { background: #e8e8e8; }
+.filter-chip--stub.filter-chip--on      { background: #fde8b0; color: #7a4a00; }
+.filter-chip--outlined.filter-chip--on  { background: #cce0fa; color: #1a4f88; }
+.filter-chip--specified.filter-chip--on { background: #ddd6fc; color: #3d2a8a; }
+.filter-chip--linked.filter-chip--on    { background: #c6efd4; color: #0e5c27; }
+.filter-chip--reviewed.filter-chip--on  { background: #b8ede8; color: #095950; }
+.filter-chip--frozen.filter-chip--on    { background: #d8e2ef; color: #1e3248; }
 
-.filter-chip--on.filter-chip--idea      { opacity: 1; }
-.filter-chip--on.filter-chip--stub      { opacity: 1; }
-.filter-chip--on.filter-chip--outlined  { opacity: 1; }
-.filter-chip--on.filter-chip--specified { opacity: 1; }
-.filter-chip--on.filter-chip--linked    { opacity: 1; }
-.filter-chip--on.filter-chip--reviewed  { opacity: 1; }
-.filter-chip--on.filter-chip--frozen    { opacity: 1; }
-
-/* ── Attribute toggles ────────────────────────────────────── */
-
-.filter-bar-toggles {
-  display: flex;
-  gap: 4px;
-  margin-left: 2px;
-}
-
-.filter-toggle {
-  font-size: 11px;
-  font-family: var(--font-mono, monospace);
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: 1.5px solid #ccc;
-  background: #f5f5f5;
-  color: #666;
-  cursor: pointer;
-  opacity: 0.6;
-  transition: opacity 120ms, border-color 120ms, background 120ms;
-}
-
-.filter-toggle:hover {
-  opacity: 0.9;
-}
+/* ── Attribute toggles — ON: project accent (amber) ─────────────────────── */
 
 .filter-toggle--on {
-  opacity: 1;
-  border-color: #6d28d9;
-  background: #ede9fe;
-  color: #4c1d95;
-  box-shadow: 0 0 0 1px #6d28d9;
+  background: var(--accent-soft, #f5e0c7);
+  color: var(--accent-strong, #6c4012);
 }
 
-/* ── Clear button ─────────────────────────────────────────── */
+.filter-toggle--on:hover {
+  background: #f0d4b0;
+}
+
+/* ── Clear button ─────────────────────────────────────────────────────────── */
 
 .filter-bar-clear {
-  font-size: 11px;
-  font-family: var(--font-mono, monospace);
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: 1px solid #e0c0c0;
-  background: #fff4f4;
-  color: #c03030;
-  cursor: pointer;
-  margin-left: auto;
-  transition: background 120ms;
-  white-space: nowrap;
+  color: var(--muted, #6d6255);
+  opacity: 0.7;
 }
 
 .filter-bar-clear:hover {
-  background: #ffe0e0;
+  background: #fbf3e7;
+  color: var(--text, #231b15);
+  opacity: 1;
 }
