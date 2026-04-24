@@ -219,6 +219,14 @@ function AppInner() {
   const [highlightedEdge, setHighlightedEdge] = useState<{ id: string; source: string; target: string } | null>(null);
   const [searchMatchIds, setSearchMatchIds] = useState<Set<string> | null>(null);
 
+  // ── Compare / pin ─────────────────────────────────────────────────────────
+  const [pinnedNodeId, setPinnedNodeId] = useState<string | null>(null);
+
+  // Clear pin when leaving specifications mode
+  useEffect(() => {
+    if (graphMode !== "specifications") setPinnedNodeId(null);
+  }, [graphMode]);
+
   // ── Filter bar ────────────────────────────────────────────────────────────
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>(DEFAULT_FILTER);
@@ -914,6 +922,8 @@ function AppInner() {
               onOpenLens={setLensNodeId}
               onOpenSpecpmPreview={specpmPreviewAvailable ? () => setSpecpmPreviewOpen(true) : undefined}
               rawGraph={specGraph.rawGraph}
+              pinnedNodeId={pinnedNodeId}
+              onPin={setPinnedNodeId}
               canGoBack={specNav.canGoBack}
               canGoForward={specNav.canGoForward}
               onBack={onSpecNavBack}

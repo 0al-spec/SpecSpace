@@ -3,6 +3,7 @@
 **Current Task:** —
 
 ## Recently Archived
+- `CTXB-P9-T2` — Pin + compare two specs side-by-side (PASS, 2026-04-24)
 - `CTXB-P9-T5` — Related-items drawer in SpecInspector (PASS, 2026-04-24)
 - `CTXB-P9-T3` — Command palette ⌘K — already implemented as SearchPalette (PASS, 2026-04-24)
 - `CTXB-P9-T4` — Filter bar — hide/show nodes by criteria (PASS, 2026-04-24)
@@ -23,7 +24,6 @@
 
 ### Graph UX
 - `CTXB-P9-T3` — Command palette ⌘K (P2, no deps)
-- `CTXB-P9-T2` — Pin + compare two specs side-by-side (P2, no deps)
 - `CTXB-P9-T6` — Hover preview card on spec nodes (P3, no deps)
 
 ### Technical Debt (Phase 7, pending)

@@ -4,7 +4,7 @@ import "./SpecInspector.css";
 import "./PanelBtn.css";
 import PanelActions from "./PanelActions";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleDot, faCalendarPlus, faRotate, faBoxArchive } from "@fortawesome/free-solid-svg-icons";
+import { faCircleDot, faCalendarPlus, faRotate, faBoxArchive, faThumbtack } from "@fortawesome/free-solid-svg-icons";
 import type { ApiSpecGraph, ApiSpecNode } from "./types";
 
 interface SpecInspectorProps {
@@ -21,6 +21,10 @@ interface SpecInspectorProps {
   onOpenSpecpmPreview?: () => void;
   /** Full spec graph — used to resolve peer node titles/statuses in Related section */
   rawGraph?: ApiSpecGraph | null;
+  /** Pinned node ID for compare mode */
+  pinnedNodeId?: string | null;
+  /** Set/clear pinned node */
+  onPin?: (id: string | null) => void;
   /** Navigation history controls */
   canGoBack?: boolean;
   canGoForward?: boolean;
@@ -36,13 +40,15 @@ type SpecDetail = Record<string, unknown>;
 export default function SpecInspector({
   selectedNodeId, selectedSubItemId,
   onDismiss, onFocusNode, onSelectSubItem, onOpenLens, onOpenSpecpmPreview,
-  rawGraph,
+  rawGraph, pinnedNodeId, onPin,
   canGoBack, canGoForward, onBack, onForward, backLabel, forwardLabel,
 }: SpecInspectorProps) {
   const [detail, setDetail] = useState<SpecDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [width, setWidth] = useState(440);
+  const [pinnedDetail, setPinnedDetail] = useState<SpecDetail | null>(null);
+  const [pinnedLoading, setPinnedLoading] = useState(false);
   const dragStartRef = useRef<{ x: number; w: number; maxW: number } | null>(null);
   const highlightedItemRef = useRef<HTMLLIElement | null>(null);
 
@@ -89,6 +95,27 @@ export default function SpecInspector({
         setLoading(false);
       });
   }, [selectedNodeId]);
+
+  // Fetch pinned spec detail
+  useEffect(() => {
+    if (!pinnedNodeId) { setPinnedDetail(null); return; }
+    setPinnedLoading(true);
+    fetch(`/api/spec-node?id=${encodeURIComponent(pinnedNodeId)}`)
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((data) => { setPinnedDetail(data.data ?? data.node ?? data); setPinnedLoading(false); })
+      .catch(() => setPinnedLoading(false));
+  }, [pinnedNodeId]);
+
+  const compareMode =
+    Boolean(pinnedNodeId) &&
+    pinnedNodeId !== selectedNodeId &&
+    Boolean(pinnedDetail) &&
+    !pinnedLoading;
+
+  // Auto-expand width when compare mode activates
+  useEffect(() => {
+    if (compareMode) setWidth((w) => Math.max(w, 880));
+  }, [compareMode]);
 
   const visible = Boolean(selectedNodeId);
 
@@ -188,7 +215,7 @@ export default function SpecInspector({
   })();
 
   return (
-    <aside className={`spec-inspector ${visible ? "visible" : ""}`} style={{ width: `${width}px` }}>
+    <aside className={`spec-inspector ${visible ? "visible" : ""} ${compareMode ? "compare-mode" : ""}`} style={{ width: `${width}px` }}>
       <div className="spec-inspector-resize-handle" onMouseDown={onHandleMouseDown} />
       <PanelActions
         className="spec-inspector-actions"
@@ -210,6 +237,12 @@ export default function SpecInspector({
             title: "Preview for SpecPM",
             onClick: onOpenSpecpmPreview,
           }] : []),
+          ...(onPin && selectedNodeId ? [{
+            icon: <FontAwesomeIcon icon={faThumbtack} />,
+            title: compareMode ? "Unpin comparison" : "Pin to compare",
+            onClick: () => onPin(compareMode ? null : selectedNodeId),
+            className: compareMode ? "panel-btn-pin-active" : undefined,
+          }] : []),
         ]}
         onClose={onDismiss}
       />
@@ -217,7 +250,32 @@ export default function SpecInspector({
       {loading && <div className="spec-inspector-loading">Loading…</div>}
       {error && <div className="spec-inspector-error">Error: {error}</div>}
 
-      {detail && !loading && (
+      {compareMode && pinnedDetail && detail && !loading ? (
+        <div className="spec-inspector-panes">
+          <div className="spec-inspector-pane spec-inspector-pane--pinned">
+            <div className="spec-inspector-pane-label">
+              <FontAwesomeIcon icon={faThumbtack} className="spec-inspector-pane-pin-icon" />
+              Pinned
+              <button className="spec-inspector-pane-unpin" onClick={() => onPin?.(null)}>Unpin</button>
+            </div>
+            <SpecDetailPane
+              detail={pinnedDetail}
+              nodeById={nodeById}
+              onFocusNode={onFocusNode}
+            />
+          </div>
+          <div className="spec-inspector-pane spec-inspector-pane--current">
+            <div className="spec-inspector-pane-label">Current</div>
+            <SpecDetailPane
+              detail={detail}
+              nodeById={nodeById}
+              onFocusNode={onFocusNode}
+              selectedSubItemId={selectedSubItemId}
+              onSelectSubItem={onSelectSubItem}
+            />
+          </div>
+        </div>
+      ) : detail && !loading && (
         <div className="spec-inspector-content">
           {/* 1+2. Header card: title + objective + status + maturity */}
           <div className={`spec-inspector-header-card spec-node status-${str(detail.status)}`}>
@@ -465,6 +523,293 @@ export default function SpecInspector({
         </div>
       )}
     </aside>
+  );
+}
+
+// ── SpecDetailPane — full spec content, used in both single and compare mode ──
+
+interface SpecDetailPaneProps {
+  detail: SpecDetail;
+  nodeById: Map<string, ApiSpecNode>;
+  onFocusNode?: (id: string) => void;
+  selectedSubItemId?: string | null;
+  onSelectSubItem?: (id: string | null) => void;
+}
+
+function SpecDetailPane({ detail, nodeById, onFocusNode, selectedSubItemId, onSelectSubItem }: SpecDetailPaneProps) {
+  const hlRef = useRef<HTMLLIElement | null>(null);
+
+  useEffect(() => {
+    if (!selectedSubItemId || !hlRef.current) return;
+    hlRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedSubItemId, detail]);
+
+  const acceptanceRaw = Array.isArray(detail.acceptance) ? (detail.acceptance as unknown[]) : [];
+  const acceptance = acceptanceRaw.map((item) =>
+    typeof item === "string"
+      ? { text: item, malformed: false }
+      : { text: JSON.stringify(item, null, 2), malformed: true }
+  );
+
+  const specSection = (detail.specification as Record<string, unknown>) ?? {};
+  const decisionsRaw = Array.isArray(specSection.decisions) ? (specSection.decisions as unknown[]) : [];
+  const decisions = decisionsRaw.map((item) => {
+    if (typeof item === "string") return { id: null, statement: item, rationale: null };
+    if (typeof item === "object" && item !== null) {
+      const obj = item as Record<string, unknown>;
+      return {
+        id: typeof obj.id === "string" ? obj.id : null,
+        statement: typeof obj.statement === "string" ? obj.statement
+          : typeof obj.decision === "string" ? obj.decision : JSON.stringify(obj),
+        rationale: typeof obj.rationale === "string" ? obj.rationale : null,
+      };
+    }
+    return { id: null, statement: JSON.stringify(item), rationale: null };
+  });
+
+  const invariantsRaw = Array.isArray(specSection.invariants) ? (specSection.invariants as unknown[]) : [];
+  const invariants = invariantsRaw.map((item) => {
+    if (typeof item === "string") return { id: null, statement: item };
+    if (typeof item === "object" && item !== null) {
+      const obj = item as Record<string, unknown>;
+      return {
+        id: typeof obj.id === "string" ? obj.id : null,
+        statement: typeof obj.statement === "string" ? obj.statement : JSON.stringify(obj),
+      };
+    }
+    return { id: null, statement: JSON.stringify(item) };
+  });
+
+  const evidence = Array.isArray(detail.acceptance_evidence)
+    ? (detail.acceptance_evidence as Array<Record<string, unknown>>) : [];
+  const metCriteria = new Set(evidence.map((ev) => String(ev.criterion ?? "").trim()).filter(Boolean));
+  const inputs = Array.isArray(detail.inputs) ? (detail.inputs as unknown[]).map(String) : [];
+  const executionGap = detail.last_outcome == null;
+
+  const hasLinks = [detail.depends_on, detail.refines, detail.relates_to].some(
+    (v) => Array.isArray(v) && (v as unknown[]).length > 0,
+  );
+  const objective = (() => {
+    const spec = detail.specification as Record<string, unknown> | null | undefined;
+    const obj = spec?.objective ?? (detail as Record<string, unknown>).objective;
+    return obj ? String(obj) : null;
+  })();
+  const scope = (() => {
+    const spec = detail.specification as Record<string, unknown> | null | undefined;
+    const raw = (detail.scope ?? spec?.scope) as Record<string, unknown> | null | undefined;
+    if (!raw) return null;
+    return {
+      in: Array.isArray(raw.in) ? (raw.in as unknown[]).map(String) : raw.in ? [String(raw.in)] : [] as string[],
+      out: Array.isArray(raw.out) ? (raw.out as unknown[]).map(String) : raw.out ? [String(raw.out)] : [] as string[],
+    };
+  })();
+
+  return (
+    <div className="spec-inspector-content">
+      {/* Header card */}
+      <div className={`spec-inspector-header-card spec-node status-${str(detail.status)}`}>
+        <div
+          className={`spec-node-id${onFocusNode ? " node-link" : ""}`}
+          onClick={onFocusNode ? () => onFocusNode(str(detail.id)) : undefined}
+          title={onFocusNode ? "Focus node on graph" : undefined}
+        >{str(detail.id)}</div>
+        <h2 className="spec-inspector-main-title">{str(detail.title)}</h2>
+        {objective && <p className="spec-inspector-objective">{objective}</p>}
+        <div className="spec-node-meta">
+          <span className="spec-node-kind-badge">{str(detail.kind)}</span>
+          <span className={`spec-node-status-badge status-${str(detail.status)}`}>{str(detail.status)}</span>
+        </div>
+        {detail.maturity != null ? (
+          <div className="spec-node-maturity">
+            <div className="spec-node-maturity-label">Maturity {Math.round((detail.maturity as number) * 100)}%</div>
+            <div className="spec-node-maturity-track">
+              <div className="spec-node-maturity-fill" style={{ width: `${Math.round((detail.maturity as number) * 100)}%` }} />
+            </div>
+          </div>
+        ) : null}
+        {(detail.created_at != null || detail.updated_at != null) && (
+          <div className="spec-inspector-dates">
+            {detail.created_at != null && (
+              <span title={str(detail.created_at)}>
+                <span className="spec-inspector-dates-icon"><FontAwesomeIcon icon={faCalendarPlus} /></span>
+                {fmtDate(detail.created_at)}
+              </span>
+            )}
+            {detail.updated_at != null && (
+              <span title={str(detail.updated_at)}>
+                <span className="spec-inspector-dates-icon"><FontAwesomeIcon icon={faRotate} /></span>
+                {fmtDate(detail.updated_at)}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Related items */}
+      {hasLinks && (
+        <RelatedItemsSection
+          dependsOn={arr(detail.depends_on)}
+          refines={arr(detail.refines)}
+          relatesTo={arr(detail.relates_to)}
+          nodeById={nodeById}
+          onFocusNode={onFocusNode}
+        />
+      )}
+
+      {/* Scope */}
+      {scope && (scope.in.length > 0 || scope.out.length > 0) ? (
+        <div className="spec-inspector-box">
+          <div className="spec-inspector-box-label">Scope</div>
+          {scope.in.length > 0 && (
+            <div className="spec-inspector-scope-group">
+              <div className="spec-inspector-scope-label scope-in">In scope</div>
+              <ul className="spec-inspector-scope-list">
+                {scope.in.map((item, i) => {
+                  const subId = `scope_in-${i}`;
+                  const isHl = selectedSubItemId === subId;
+                  return <li key={i} ref={isHl ? hlRef : null} className={`selectable${isHl ? " sub-item-highlighted" : ""}`} onClick={() => onSelectSubItem?.(isHl ? null : subId)}>{item}</li>;
+                })}
+              </ul>
+            </div>
+          )}
+          {scope.out.length > 0 && (
+            <div className="spec-inspector-scope-group">
+              <div className="spec-inspector-scope-label scope-out">Out of scope</div>
+              <ul className="spec-inspector-scope-list">
+                {scope.out.map((item, i) => {
+                  const subId = `scope_out-${i}`;
+                  const isHl = selectedSubItemId === subId;
+                  return <li key={i} ref={isHl ? hlRef : null} className={`selectable${isHl ? " sub-item-highlighted" : ""}`} onClick={() => onSelectSubItem?.(isHl ? null : subId)}>{item}</li>;
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* Acceptance */}
+      {acceptance.length > 0 && (
+        <div className="spec-inspector-box">
+          <div className="spec-inspector-box-label">Acceptance</div>
+          <ol className="spec-inspector-list">
+            {acceptance.map(({ text, malformed }, i) => {
+              const unmet = !malformed && evidence.length > 0 && !metCriteria.has(text.trim());
+              const id = `acceptance-${i}`;
+              const isHl = selectedSubItemId === id;
+              return (
+                <li key={i} ref={isHl ? hlRef : null}
+                  className={`spec-inspector-list-item selectable${unmet ? " gap-unmet" : ""}${malformed ? " format-error" : ""}${isHl ? " sub-item-highlighted" : ""}`}
+                  onClick={() => onSelectSubItem?.(isHl ? null : id)}
+                >
+                  {unmet && <span className="gap-dot" title="No evidence">●</span>}
+                  {malformed ? <MalformedBadge raw={text} /> : text}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
+
+      {/* Evidence */}
+      {evidence.length > 0 && <EvidenceSection evidence={evidence} />}
+
+      {/* Decisions */}
+      {decisions.length > 0 && (
+        <div className="spec-inspector-box">
+          <div className="spec-inspector-box-label">Decisions</div>
+          <ol className="spec-inspector-list">
+            {decisions.map(({ id, statement, rationale }, i) => {
+              const subId = `decision-${i}`;
+              const isHl = selectedSubItemId === subId;
+              return (
+                <li key={i} ref={isHl ? hlRef : null}
+                  className={`spec-inspector-list-item selectable${isHl ? " sub-item-highlighted" : ""}`}
+                  onClick={() => onSelectSubItem?.(isHl ? null : subId)}
+                >
+                  {id && <span className="spec-inspector-sub-id">{id}</span>}
+                  {statement}
+                  {rationale && <div className="spec-inspector-sub-rationale">{rationale}</div>}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
+
+      {/* Invariants */}
+      {invariants.length > 0 && (
+        <div className="spec-inspector-box">
+          <div className="spec-inspector-box-label">Invariants</div>
+          <ol className="spec-inspector-list">
+            {invariants.map(({ id, statement }, i) => {
+              const subId = `invariant-${i}`;
+              const isHl = selectedSubItemId === subId;
+              return (
+                <li key={i} ref={isHl ? hlRef : null}
+                  className={`spec-inspector-list-item selectable${isHl ? " sub-item-highlighted" : ""}`}
+                  onClick={() => onSelectSubItem?.(isHl ? null : subId)}
+                >
+                  {id && <span className="spec-inspector-sub-id">{id}</span>}
+                  {statement}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
+
+      {/* Inputs */}
+      {inputs.length > 0 && (
+        <section>
+          <div className="spec-inspector-section">inputs</div>
+          <ul className="spec-inspector-tags">
+            {inputs.map((inp) => {
+              const isRaw = !inp.includes("nodes/");
+              const nodeId = !isRaw ? extractNodeId(inp) : null;
+              return (
+                <li key={inp}
+                  className={`spec-inspector-tag${isRaw ? " gap-input" : ""}${nodeId && onFocusNode ? " node-link" : ""}`}
+                  onClick={nodeId && onFocusNode ? () => onFocusNode(nodeId) : undefined}
+                  title={nodeId ? `Focus ${nodeId} on graph` : undefined}
+                >{inp}</li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      <FieldList label="outputs" value={detail.outputs} onNodeClick={onFocusNode} />
+
+      {detail.prompt ? (
+        <section>
+          <div className="spec-inspector-section">Prompt</div>
+          <pre className="spec-inspector-pre">{str(detail.prompt)}</pre>
+        </section>
+      ) : null}
+
+      <section>
+        <div className="spec-inspector-section">Runtime</div>
+        <table className="spec-inspector-table">
+          <tbody>
+            <Row k="last_outcome" v={detail.last_outcome} gap={executionGap} />
+            <Row k="last_blocker" v={detail.last_blocker} />
+            <Row k="last_run_at" v={detail.last_run_at} />
+            <Row k="gate_state" v={detail.gate_state} />
+            <Row k="proposed_status" v={detail.proposed_status} />
+            <Row k="required_human_action" v={detail.required_human_action} />
+          </tbody>
+        </table>
+      </section>
+
+      {detail.specification ? (
+        <section>
+          <div className="spec-inspector-section">Specification (raw)</div>
+          <pre className="spec-inspector-pre spec-inspector-raw">
+            {JSON.stringify(detail.specification, null, 2)}
+          </pre>
+        </section>
+      ) : null}
+    </div>
   );
 }
 
