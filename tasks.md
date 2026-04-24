@@ -35,11 +35,33 @@
   - **Контекст:** поддерживает SpecGraph tasks 89-90 из ветки `codex/metrics-delivery-feedback`, commit `ea2886f`, где `graph_dashboard.json` получил `metrics_delivery_ready`, `metrics_feedback_visible` и Metrics delivery/feedback counts.
   - **Метрика:** fixture `graph_dashboard.json` с `sections.external_consumers` рендерит отдельную секцию External Consumers; `metrics_delivery_ready` и `metrics_feedback_visible` видны как headline/filter counts; `npm run build` проходит без `any`-обходов для нового section shape.
 
-- [ ] **Read-only drilldown endpoints для Metrics handoff artifacts** — добавить безопасную выдачу allowlisted SpecGraph `runs/metrics_delivery_workflow.json` и `runs/metrics_feedback_index.json` через viewer API, чтобы из dashboard можно было открыть строки workflow/feedback без прямого доступа к файловой системе.
+- [ ] **Metrics Source Promotion panel для `SIB_FULL`** — добавить в dashboard отдельную карточку/панель "Metrics Source Promotion" для `runs/metrics_source_promotion_index.json` и новых полей `sections.external_consumers.metrics_source_promotion_*`.
+  - **Контекст:** `SIB_FULL` должен быть виден как `promotion_candidate`, но не становиться authoritative автоматически; показывать `promotion_status`, `review_state`, `authority_state`, `next_gap`, `guardrails.requires_human_review` и связь `legacy_metric_ids`.
+  - **Метрика:** headline card `metrics_source_promotion_ready` и named filter `viewer_projection.named_filters.metrics_source_promotion_ready` отображаются; `ready_for_promotion_review`/`promotion_candidate` попадают в External Consumers counts; guardrails визуально показывают review-first/no-auto-authority boundary.
+
+- [ ] **Read-only drilldown endpoints для Metrics handoff/promotion artifacts** — добавить безопасную выдачу allowlisted SpecGraph `runs/metrics_delivery_workflow.json`, `runs/metrics_feedback_index.json` и `runs/metrics_source_promotion_index.json` через viewer API, чтобы из dashboard можно было открыть строки workflow/feedback/promotion без прямого доступа к файловой системе.
   - **Метрика:** server tests покрывают happy path, missing artifact, invalid JSON и path traversal; UI показывает delivery/feedback rows с `delivery_status`/`feedback_status`, review state, next gap, checkout diagnostics и source artifact timestamp.
 
-- [ ] **Contract regression fixture для downstream Metrics surfaces** — закрепить минимальный dashboard/artifact fixture, совместимый с SpecGraph `metrics_delivery_policy.json` и `metrics_feedback_policy.json`, чтобы ContextBuilder не ломался при появлении новых delivery/feedback statuses или named filters.
-  - **Метрика:** fixture включает `ready_for_delivery_review`, `blocked_by_repo_state`, `review_activity_observed`, `adoption_observed_locally`, `threshold_driven`; тест проверяет tolerant rendering unknown statuses + сохранение нулевых counts, где они важны для фильтров.
+- [ ] **Canonical Metrics rendering без double-count `sib_proxy`** — обновить Metrics section, чтобы authoritative problem counters брались из `sections.metrics.below_threshold_authoritative_metric_ids`, а `sib_proxy` рендерился как legacy/compatibility alias под canonical `sib`, а не как отдельная проблемная метрика.
+  - **Контекст:** `metric_signal_index.json` теперь различает `sib` с `threshold_authority_state: canonical_threshold_authority` и `sib_proxy` с `alias_of: sib`, `threshold_authority_state: alias_only`, `signal_emitted: false`, `migration_state: compatibility_alias`.
+  - **Метрика:** список метрик сворачивает/задимляет `sib_proxy` под `sib`; `metrics_below_threshold` и warning tables не считают `sib + sib_proxy` дважды; fixture проверяет `legacy_metric_ids`, `alias_of`, `signal_emitted: false`.
+
+- [ ] **Contract regression fixture для downstream Metrics surfaces** — закрепить минимальный dashboard/artifact fixture, совместимый с SpecGraph `metrics_delivery_policy.json`, `metrics_feedback_policy.json`, source-promotion artifact и canonical/alias metric shape, чтобы ContextBuilder не ломался при появлении новых statuses или named filters.
+  - **Метрика:** fixture включает `ready_for_delivery_review`, `blocked_by_repo_state`, `review_activity_observed`, `adoption_observed_locally`, `ready_for_promotion_review`, `promotion_candidate`, `threshold_driven`; тест проверяет tolerant rendering unknown statuses + сохранение нулевых counts, где они важны для фильтров.
+
+---
+
+## High priority — SpecGraph backlog projection viewer integration
+
+- [ ] **Backlog section в `GraphDashboard` для `graph_backlog_projection`** — расширить dashboard-контракт под `sections.backlog` и headline card `graph_backlog_open`, чтобы viewer показывал не только backlog counts, но и reviewable rows.
+  - **Контекст:** поддерживает новый SpecGraph artifact `runs/graph_backlog_projection.json` и CLI `python3 tools/supervisor.py --build-graph-backlog-projection`.
+  - **Метрика:** dashboard fixture с `sections.backlog` рендерит отдельную секцию Backlog; card `graph_backlog_open` видна в headline cards; backlog rows показывают `domain`, `subject_id`, `next_gap`, `priority`, `source_artifact`.
+
+- [ ] **Read-only drilldown endpoint для backlog projection artifact** — добавить безопасную выдачу allowlisted `runs/graph_backlog_projection.json` через viewer API, чтобы Dashboard мог открывать конкретные backlog rows и provenance без прямого доступа к файловой системе.
+  - **Метрика:** server tests покрывают happy path, missing artifact, invalid JSON и path traversal; UI сортирует/группирует rows по `priority` и `domain`, сохраняя `source_artifact` для traceability.
+
+- [ ] **Contract regression fixture для backlog projection** — закрепить минимальный fixture для `graph_dashboard.json` + `graph_backlog_projection.json`, чтобы новые dashboard rows оставались tolerant к новым backlog domains и priorities.
+  - **Метрика:** fixture содержит несколько rows с разными `domain`, `priority`, `next_gap` и `source_artifact`; тест проверяет graceful rendering unknown domain/priority и отсутствие падения при пустом backlog.
 
 ---
 
