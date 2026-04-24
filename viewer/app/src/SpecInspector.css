@@ -365,6 +365,7 @@
   overflow-y: hidden;
   display: flex;
   flex-direction: column;
+  padding: 0; /* panes carry their own padding; outer gaps removed */
 }
 
 /* In compare mode the spec-inspector-content inside panes doesn't need top padding */
