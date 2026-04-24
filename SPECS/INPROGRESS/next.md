@@ -3,6 +3,7 @@
 **Current Task:** —
 
 ## Recently Archived
+- `CTXB-P9-T4` — Filter bar — hide/show nodes by criteria (PASS, 2026-04-24)
 - `CTXB-P7-T7` — Fix SSE spec-watch thread management (PASS, 2026-04-24)
 - `CTXB-P9-T1` — Change highlighting on SSE reload (PASS, 2026-04-23)
 - `CTXB-P8-T1` — Add 5th lifecycle stage (import_handoff) to SpecPMLifecyclePanel (PASS, 2026-04-23)
@@ -20,7 +21,6 @@
 
 ### Graph UX
 - `CTXB-P9-T3` — Command palette ⌘K (P2, no deps)
-- `CTXB-P9-T4` — Filter bar — hide/show nodes by criteria (P2, no deps)
 - `CTXB-P9-T2` — Pin + compare two specs side-by-side (P2, no deps)
 - `CTXB-P9-T5` — Related-items drawer in SpecInspector (P2, no deps)
 - `CTXB-P9-T6` — Hover preview card on spec nodes (P3, no deps)

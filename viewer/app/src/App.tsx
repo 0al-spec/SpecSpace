@@ -41,6 +41,7 @@ import { useSessionString } from "./useSessionState";
 import { useNavHistory } from "./useNavHistory";
 import { CompileTargetContext } from "./CompileTargetContext";
 import TimelineFilter, { type TimelineField } from "./TimelineFilter";
+import FilterBar, { type FilterOptions, type FilterStatus, DEFAULT_FILTER, isFilterActive } from "./FilterBar";
 import PanelBtn from "./PanelBtn";
 import "./PanelBtn.css";
 import { ToastProvider } from "./Toast";
@@ -215,6 +216,9 @@ function AppInner() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [highlightedEdge, setHighlightedEdge] = useState<{ id: string; source: string; target: string } | null>(null);
   const [searchMatchIds, setSearchMatchIds] = useState<Set<string> | null>(null);
+
+  // ── Filter bar ────────────────────────────────────────────────────────────
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>(DEFAULT_FILTER);
 
   // ── Sidebar collapse ─────────────────────────────────────────────────────
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -612,25 +616,40 @@ function AppInner() {
     );
   }, [timelineOpen, timelineRange, timelineField, specGraph.rawGraph]);
 
+  const filterMatchIds = useMemo((): Set<string> | null => {
+    if (!isFilterActive(filterOptions) || !specGraph.rawGraph) return null;
+    return new Set(
+      specGraph.rawGraph.nodes
+        .filter((n) => {
+          const statusOk = filterOptions.statuses.size === 0 || filterOptions.statuses.has(n.status as FilterStatus);
+          const gapsOk = !filterOptions.hasGaps || (n.gap_count ?? 0) > 0;
+          const brokenOk = !filterOptions.hasBroken || n.diagnostics.length > 0;
+          return statusOk && gapsOk && brokenOk;
+        })
+        .map((n) => n.node_id),
+    );
+  }, [filterOptions, specGraph.rawGraph]);
+
   const displayNodes = useMemo(() => {
     const edgeEndpoints = highlightedEdge
       ? new Set([highlightedEdge.source, highlightedEdge.target])
       : null;
     const lensActive = graphMode === "specifications" && specLens !== "none";
-    if (!edgeEndpoints && !searchMatchIds && !timelineMatchIds && !lensActive) return nodes;
+    if (!edgeEndpoints && !searchMatchIds && !timelineMatchIds && !filterMatchIds && !lensActive) return nodes;
     return nodes.map((n) => {
       const edgeHl = edgeEndpoints?.has(n.id);
       // For child nodes (messages), match against parent ID
       const matchKey = n.parentId ?? n.id;
       const searchDim = searchMatchIds ? !searchMatchIds.has(matchKey) : false;
       const timelineDim = timelineMatchIds ? !timelineMatchIds.has(matchKey) : false;
+      const filterDim = filterMatchIds ? !filterMatchIds.has(matchKey) : false;
       // Apply lens style to spec nodes only
       let lensStyle: ReturnType<typeof lensStyleFor> | undefined;
       if (lensActive && (n.type === "spec" || n.type === "expandedSpec")) {
         const ls = lensStyleFor(n.id, specLens, specOverlays);
         if (Object.keys(ls).length > 0) lensStyle = ls;
       }
-      if (!edgeHl && !searchDim && !timelineDim && !lensStyle) return n;
+      if (!edgeHl && !searchDim && !timelineDim && !filterDim && !lensStyle) return n;
       return {
         ...n,
         data: {
@@ -638,11 +657,12 @@ function AppInner() {
           ...(edgeHl ? { edgeHighlighted: true } : {}),
           ...(searchDim ? { searchDimmed: true } : {}),
           ...(timelineDim ? { timelineDimmed: true } : {}),
+          ...(filterDim ? { filterDimmed: true } : {}),
           ...(lensStyle ? { lensStyle } : {}),
         },
       };
     });
-  }, [nodes, highlightedEdge, searchMatchIds, timelineMatchIds, graphMode, specLens, specOverlays]);
+  }, [nodes, highlightedEdge, searchMatchIds, timelineMatchIds, filterMatchIds, graphMode, specLens, specOverlays]);
 
   const displayEdges = useMemo(() => {
     if (!highlightedEdge) return edges;
@@ -852,6 +872,7 @@ function AppInner() {
                     fullRange={timelineFullRange}
                   />
                 )}
+                <FilterBar filter={filterOptions} onChange={setFilterOptions} />
               </>
             )}
           </div>

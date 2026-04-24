@@ -1,0 +1,129 @@
+/* FilterBar — horizontal chip bar for filtering spec graph nodes */
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  flex-wrap: wrap;
+  max-width: 700px;
+}
+
+.filter-bar--active {
+  border-color: rgba(109, 40, 217, 0.3);
+  box-shadow: 0 2px 8px rgba(109, 40, 217, 0.1);
+}
+
+.filter-bar-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #888;
+  white-space: nowrap;
+  margin-right: 2px;
+}
+
+/* ── Status chips ─────────────────────────────────────────── */
+
+.filter-bar-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 120ms, box-shadow 120ms;
+  background: transparent;
+}
+
+.filter-chip:hover {
+  opacity: 0.85;
+}
+
+.filter-chip--on {
+  opacity: 1;
+  box-shadow: 0 0 0 1px currentColor;
+}
+
+/* Match SpecNode status colours */
+.filter-chip--idea       { color: #666;    border-color: #888;    background: #f2f2f2; }
+.filter-chip--stub       { color: #9a6000; border-color: #d4910a; background: #fef3d0; }
+.filter-chip--outlined   { color: #1a5499; border-color: #2e76cc; background: #e6f0fc; }
+.filter-chip--specified  { color: #3d2a8a; border-color: #5b3ec8; background: #ede8fc; }
+.filter-chip--linked     { color: #155f30; border-color: #1e9145; background: #e2f7e9; }
+.filter-chip--reviewed   { color: #0a6358; border-color: #0e8a7c; background: #daf4f0; }
+.filter-chip--frozen     { color: #253547; border-color: #3a4f6a; background: #eaeff5; }
+
+.filter-chip--on.filter-chip--idea      { opacity: 1; }
+.filter-chip--on.filter-chip--stub      { opacity: 1; }
+.filter-chip--on.filter-chip--outlined  { opacity: 1; }
+.filter-chip--on.filter-chip--specified { opacity: 1; }
+.filter-chip--on.filter-chip--linked    { opacity: 1; }
+.filter-chip--on.filter-chip--reviewed  { opacity: 1; }
+.filter-chip--on.filter-chip--frozen    { opacity: 1; }
+
+/* ── Attribute toggles ────────────────────────────────────── */
+
+.filter-bar-toggles {
+  display: flex;
+  gap: 4px;
+  margin-left: 2px;
+}
+
+.filter-toggle {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1.5px solid #ccc;
+  background: #f5f5f5;
+  color: #666;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 120ms, border-color 120ms, background 120ms;
+}
+
+.filter-toggle:hover {
+  opacity: 0.9;
+}
+
+.filter-toggle--on {
+  opacity: 1;
+  border-color: #6d28d9;
+  background: #ede9fe;
+  color: #4c1d95;
+  box-shadow: 0 0 0 1px #6d28d9;
+}
+
+/* ── Clear button ─────────────────────────────────────────── */
+
+.filter-bar-clear {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #e0c0c0;
+  background: #fff4f4;
+  color: #c03030;
+  cursor: pointer;
+  margin-left: auto;
+  transition: background 120ms;
+  white-space: nowrap;
+}
+
+.filter-bar-clear:hover {
+  background: #ffe0e0;
+}

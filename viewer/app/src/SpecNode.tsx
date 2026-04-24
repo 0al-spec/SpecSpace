@@ -32,6 +32,7 @@ export interface SpecNodeData extends Record<string, unknown> {
   edgeHighlighted?: boolean;
   searchDimmed?: boolean;
   timelineDimmed?: boolean;
+  filterDimmed?: boolean;
   /** Whether this spec is currently expanded (sub-items loading or group shown) */
   isExpanded?: boolean;
   /** Callback to toggle expanded/collapsed state */
@@ -92,7 +93,7 @@ export default function SpecNode({
 
   return (
     <div
-      className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""} ${data.searchDimmed || data.timelineDimmed ? "search-dimmed" : ""} ${data.isChanged ? "spec-node--changed" : ""}`}
+      className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed ? "search-dimmed" : ""} ${data.isChanged ? "spec-node--changed" : ""}`}
       onMouseEnter={showBtn}
       onMouseLeave={scheduleHide}
       style={{

@@ -12,6 +12,12 @@
   overflow: visible; /* handles can protrude */
 }
 
+/* Dimmed — filter / search / timeline */
+.expanded-spec-node.search-dimmed {
+  opacity: 0.15;
+  transition: opacity 150ms ease;
+}
+
 /* Selected state */
 .expanded-spec-node.selected {
   outline: 2px solid var(--accent-strong, #6d28d9);

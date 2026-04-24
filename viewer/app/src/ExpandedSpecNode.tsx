@@ -21,6 +21,7 @@ export interface ExpandedSpecGroupData extends Record<string, unknown> {
   isBranchCollapsed?: boolean;
   onToggleBranch?: (nodeId: string) => void;
   isChanged?: boolean;
+  filterDimmed?: boolean;
 }
 
 export type ExpandedSpecNodeType = Node<ExpandedSpecGroupData, "expandedSpec">;
@@ -57,7 +58,7 @@ export default function ExpandedSpecNode({ data, selected }: NodeProps<ExpandedS
 
   return (
     <div
-      className={`expanded-spec-node ${statusClass} ${selected ? "selected" : ""} ${data.isChanged ? "spec-node--changed" : ""}`}
+      className={`expanded-spec-node ${statusClass} ${selected ? "selected" : ""} ${data.filterDimmed ? "search-dimmed" : ""} ${data.isChanged ? "spec-node--changed" : ""}`}
       onMouseEnter={showBtn}
       onMouseLeave={scheduleHide}
       style={{
