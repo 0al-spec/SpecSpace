@@ -340,7 +340,7 @@
   align-items: stretch;
   flex: 1;
   min-height: 0;
-  margin-top: 44px; /* clear toolbar: actions top(12) + btn height(30) + 2px gap */
+  /* no margin-top — toolbar clearance lives inside each pane as padding-top */
   overflow: hidden;
 }
 
@@ -348,7 +348,9 @@
   flex: 1 1 0;
   min-width: 0;
   overflow-y: auto;
-  padding: 12px 14px 32px;
+  /* padding-top clears the absolute toolbar (top:12 + btn:30 + gap:2 = 44px);
+     kept inside the scroll area so scrolling the pane doesn't clip content */
+  padding: 44px 14px 32px;
 }
 
 .spec-inspector-pane--current {
