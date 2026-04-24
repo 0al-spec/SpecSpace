@@ -1327,6 +1327,104 @@ def _build_specpm_lifecycle(specgraph_dir: Path) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# SpecWatcher — shared SSE broadcaster
+# ---------------------------------------------------------------------------
+
+class SpecWatcher:
+    """Single polling thread that broadcasts spec-file changes to all SSE clients.
+
+    One instance lives on the server object.  Its internal thread starts on the
+    first client subscription and stops when the last client unsubscribes — so
+    there is at most one OS thread doing I/O regardless of how many tabs are open.
+
+    SSE handler threads block on a Condition.wait_for() instead of sleeping,
+    which means they use no CPU between events and wake up immediately when a
+    change is detected.
+    """
+
+    POLL_INTERVAL: float = 1.0       # seconds between directory scans
+    KEEPALIVE_TIMEOUT: float = 14.0  # seconds before sending an SSE keepalive comment
+
+    def __init__(self, spec_dir: Path) -> None:
+        self._spec_dir = spec_dir
+        self._condition = threading.Condition()
+        self._seq: int = 0          # bumped on each detected change
+        self._client_count: int = 0
+        self._thread: threading.Thread | None = None
+
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+
+    def _get_mtimes(self) -> dict[str, float]:
+        result: dict[str, float] = {}
+        try:
+            with os.scandir(self._spec_dir) as entries:
+                for entry in entries:
+                    if entry.is_file() and entry.name.endswith((".yaml", ".yml")):
+                        result[entry.name] = entry.stat().st_mtime
+        except OSError:
+            pass
+        return result
+
+    def _poll_loop(self) -> None:
+        last_mtimes = self._get_mtimes()
+        while True:
+            time.sleep(self.POLL_INTERVAL)
+            # Stop when there are no clients — next subscribe() will restart us.
+            with self._condition:
+                if self._client_count == 0:
+                    self._thread = None
+                    return
+            # Do I/O without holding the lock.
+            current = self._get_mtimes()
+            if current != last_mtimes:
+                last_mtimes = current
+                with self._condition:
+                    self._seq += 1
+                    self._condition.notify_all()
+
+    # ------------------------------------------------------------------
+    # Public API (called from SSE handler threads)
+    # ------------------------------------------------------------------
+
+    def subscribe(self) -> int:
+        """Register a new SSE client.  Starts the poll thread if needed.
+
+        Returns the current sequence number so the caller can detect the first
+        change after it connected.
+        """
+        with self._condition:
+            self._client_count += 1
+            if self._thread is None or not self._thread.is_alive():
+                self._thread = threading.Thread(
+                    target=self._poll_loop,
+                    daemon=True,
+                    name="spec-watcher-poll",
+                )
+                self._thread.start()
+            return self._seq
+
+    def unsubscribe(self) -> None:
+        """Deregister an SSE client (call in a finally block)."""
+        with self._condition:
+            self._client_count = max(0, self._client_count - 1)
+
+    def wait_for_change(self, last_seq: int) -> tuple[bool, int]:
+        """Block until the seq changes or the keepalive timeout expires.
+
+        Returns ``(changed, new_seq)``.  When *changed* is False a keepalive
+        comment is due; the caller should re-enter with the same *last_seq*.
+        """
+        with self._condition:
+            fired = self._condition.wait_for(
+                lambda: self._seq != last_seq,
+                timeout=self.KEEPALIVE_TIMEOUT,
+            )
+            return fired, self._seq
+
+
 class ViewerHandler(BaseHTTPRequestHandler):
     server_version = "ContextBuilderViewer/0.1"
 
@@ -2048,8 +2146,12 @@ class ViewerHandler(BaseHTTPRequestHandler):
         return
 
     def handle_spec_watch(self) -> None:
-        """SSE endpoint: streams a 'change' event whenever spec files are modified."""
-        if self.server.spec_dir is None:
+        """SSE endpoint: streams a 'change' event whenever spec files are modified.
+
+        Uses the shared SpecWatcher so a single polling thread serves all clients.
+        """
+        watcher: SpecWatcher | None = getattr(self.server, "spec_watcher", None)
+        if watcher is None:
             json_response(
                 self,
                 HTTPStatus.NOT_FOUND,
@@ -2064,17 +2166,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
 
-        def get_mtimes(directory: Path) -> dict[str, float]:
-            result: dict[str, float] = {}
-            try:
-                with os.scandir(directory) as entries:
-                    for entry in entries:
-                        if entry.is_file() and entry.name.endswith((".yaml", ".yml")):
-                            result[entry.name] = entry.stat().st_mtime
-            except OSError:
-                pass
-            return result
-
         def send(line: bytes) -> bool:
             try:
                 self.wfile.write(line)
@@ -2086,24 +2177,19 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if not send(b": connected\n\n"):
             return
 
-        last_mtimes = get_mtimes(self.server.spec_dir)
-        keepalive_counter = 0
-
-        while True:
-            time.sleep(1)
-            keepalive_counter += 1
-
-            current_mtimes = get_mtimes(self.server.spec_dir)
-            if current_mtimes != last_mtimes:
-                last_mtimes = current_mtimes
-                if not send(b"event: change\ndata: {}\n\n"):
-                    return
-                keepalive_counter = 0
-            elif keepalive_counter >= 15:
-                # Comment-only keepalive to prevent proxy timeouts
-                if not send(b": keepalive\n\n"):
-                    return
-                keepalive_counter = 0
+        last_seq = watcher.subscribe()
+        try:
+            while True:
+                changed, last_seq = watcher.wait_for_change(last_seq)
+                if changed:
+                    if not send(b"event: change\ndata: {}\n\n"):
+                        break
+                else:
+                    # Keepalive comment — prevents proxy / browser timeout
+                    if not send(b": keepalive\n\n"):
+                        break
+        finally:
+            watcher.unsubscribe()
 
 
 def main() -> None:
@@ -2138,6 +2224,7 @@ def main() -> None:
     resolved_binary, _, _ = resolve_hyperprompt_binary(args.hyperprompt_binary)
     server.compile_available = resolved_binary is not None
     server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
+    server.spec_watcher = SpecWatcher(server.spec_dir) if server.spec_dir else None
     server.specgraph_dir = args.specgraph_dir.expanduser().resolve() if args.specgraph_dir else None
 
     print(f"Serving ContextBuilder at http://localhost:{args.port}/")

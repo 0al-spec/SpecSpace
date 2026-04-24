@@ -302,6 +302,7 @@ def start_spec_test_server(
     httpd.hyperprompt_binary = ""
     httpd.compile_available = compile_available
     httpd.spec_dir = spec_dir
+    httpd.spec_watcher = server.SpecWatcher(spec_dir) if spec_dir else None
     httpd.specgraph_dir = None
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
@@ -447,6 +448,217 @@ class SpecNodeEndpointTests(unittest.TestCase):
                 stop_test_server(httpd, thread)
 
         self.assertEqual(ctx.exception.code, 400)
+
+
+class SpecWatcherUnitTests(unittest.TestCase):
+    """Unit tests for SpecWatcher — no HTTP server needed."""
+
+    def test_subscribe_starts_poll_thread(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            watcher = server.SpecWatcher(Path(tmp))
+            self.assertIsNone(watcher._thread)
+            watcher.subscribe()
+            try:
+                self.assertIsNotNone(watcher._thread)
+                self.assertTrue(watcher._thread.is_alive())
+            finally:
+                watcher.unsubscribe()
+
+    def test_subscribe_returns_current_seq(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            watcher = server.SpecWatcher(Path(tmp))
+            seq = watcher.subscribe()
+            try:
+                self.assertIsInstance(seq, int)
+                self.assertEqual(seq, 0)
+            finally:
+                watcher.unsubscribe()
+
+    def test_multiple_subscribes_increment_client_count(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            watcher = server.SpecWatcher(Path(tmp))
+            watcher.subscribe()
+            watcher.subscribe()
+            try:
+                self.assertEqual(watcher._client_count, 2)
+            finally:
+                watcher.unsubscribe()
+                watcher.unsubscribe()
+
+    def test_unsubscribe_decrements_client_count(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            watcher = server.SpecWatcher(Path(tmp))
+            watcher.subscribe()
+            watcher.subscribe()
+            watcher.unsubscribe()
+            self.assertEqual(watcher._client_count, 1)
+            watcher.unsubscribe()
+            self.assertEqual(watcher._client_count, 0)
+
+    def test_unsubscribe_never_goes_negative(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            watcher = server.SpecWatcher(Path(tmp))
+            watcher.unsubscribe()  # without subscribe
+            self.assertEqual(watcher._client_count, 0)
+
+    def test_wait_for_change_detects_new_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            watcher = server.SpecWatcher(tmp_path)
+            last_seq = watcher.subscribe()
+            try:
+                # Write a YAML file after a short delay in a background thread
+                def write_after_delay() -> None:
+                    import time as _time
+                    _time.sleep(watcher.POLL_INTERVAL * 1.5)
+                    (tmp_path / "spec.yaml").write_text("id: test\n")
+
+                writer = threading.Thread(target=write_after_delay, daemon=True)
+                writer.start()
+
+                changed, new_seq = watcher.wait_for_change(last_seq)
+                writer.join(timeout=5)
+
+                self.assertTrue(changed, "Expected change to be detected")
+                self.assertGreater(new_seq, last_seq)
+            finally:
+                watcher.unsubscribe()
+
+    def test_wait_for_change_returns_false_on_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            watcher = server.SpecWatcher(Path(tmp))
+            # Use a very short timeout so the test doesn't block
+            watcher.KEEPALIVE_TIMEOUT = 0.1  # type: ignore[assignment]
+            last_seq = watcher.subscribe()
+            try:
+                changed, new_seq = watcher.wait_for_change(last_seq)
+                self.assertFalse(changed, "No files changed — should return False")
+                self.assertEqual(new_seq, last_seq)
+            finally:
+                watcher.unsubscribe()
+
+    def test_change_notifies_multiple_waiters(self) -> None:
+        """All subscribed clients should see the same change event."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            watcher = server.SpecWatcher(tmp_path)
+            seq_a = watcher.subscribe()
+            seq_b = watcher.subscribe()
+
+            results: list[tuple[bool, int]] = []
+            barrier = threading.Barrier(3)  # 2 waiters + main
+
+            def waiter(last_seq: int) -> None:
+                barrier.wait()
+                results.append(watcher.wait_for_change(last_seq))
+
+            t1 = threading.Thread(target=waiter, args=(seq_a,), daemon=True)
+            t2 = threading.Thread(target=waiter, args=(seq_b,), daemon=True)
+            t1.start()
+            t2.start()
+            barrier.wait()  # all waiters are blocking
+
+            import time as _time
+            _time.sleep(watcher.POLL_INTERVAL * 1.5)
+            (tmp_path / "spec.yaml").write_text("id: x\n")
+
+            t1.join(timeout=5)
+            t2.join(timeout=5)
+            watcher.unsubscribe()
+            watcher.unsubscribe()
+
+            self.assertEqual(len(results), 2)
+            self.assertTrue(results[0][0], "Waiter A should see change")
+            self.assertTrue(results[1][0], "Waiter B should see change")
+            self.assertEqual(results[0][1], results[1][1], "Both see same seq")
+
+
+class SpecWatchEndpointTests(unittest.TestCase):
+    """Integration tests for GET /api/spec-watch SSE endpoint."""
+
+    def test_returns_404_when_not_configured(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            httpd, thread, base = start_spec_test_server(Path(tmp), spec_dir=None)
+            try:
+                with self.assertRaises(HTTPError) as ctx:
+                    urlopen(f"{base}/api/spec-watch")
+            finally:
+                stop_test_server(httpd, thread)
+        self.assertEqual(ctx.exception.code, 404)
+
+    def test_sends_connected_comment_on_open(self) -> None:
+        import socket
+        with tempfile.TemporaryDirectory() as tmp_dialog, tempfile.TemporaryDirectory() as tmp_spec:
+            write_yaml(Path(tmp_spec), "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = start_spec_test_server(Path(tmp_dialog), spec_dir=Path(tmp_spec))
+            try:
+                port = httpd.server_port
+                sock = socket.create_connection(("127.0.0.1", port), timeout=3)
+                try:
+                    sock.sendall(
+                        b"GET /api/spec-watch HTTP/1.1\r\n"
+                        b"Host: localhost\r\n"
+                        b"Accept: text/event-stream\r\n"
+                        b"Connection: close\r\n\r\n"
+                    )
+                    # Read until we see the connected comment
+                    buf = b""
+                    sock.settimeout(3)
+                    while b": connected" not in buf:
+                        chunk = sock.recv(256)
+                        if not chunk:
+                            break
+                        buf += chunk
+                    self.assertIn(b": connected", buf)
+                finally:
+                    sock.close()
+            finally:
+                stop_test_server(httpd, thread)
+
+    def test_client_registered_and_unregistered(self) -> None:
+        """Subscribing via /api/spec-watch increments and then decrements client count.
+
+        The handler unsubscribes only when it next tries to write (keepalive or
+        change event) and gets a BrokenPipeError.  We use a very short keepalive
+        timeout on the watcher so the test does not have to wait 14 seconds.
+        """
+        import socket, time as _time
+        with tempfile.TemporaryDirectory() as tmp_dialog, tempfile.TemporaryDirectory() as tmp_spec:
+            write_yaml(Path(tmp_spec), "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = start_spec_test_server(Path(tmp_dialog), spec_dir=Path(tmp_spec))
+            try:
+                watcher: server.SpecWatcher = httpd.spec_watcher  # type: ignore[attr-defined]
+                # Short keepalive so the handler wakes up and detects disconnect quickly
+                watcher.KEEPALIVE_TIMEOUT = 0.3  # type: ignore[assignment]
+                port = httpd.server_port
+                sock = socket.create_connection(("127.0.0.1", port), timeout=3)
+                try:
+                    sock.sendall(
+                        b"GET /api/spec-watch HTTP/1.1\r\n"
+                        b"Host: localhost\r\n"
+                        b"Accept: text/event-stream\r\n"
+                        b"Connection: close\r\n\r\n"
+                    )
+                    # Wait for the connected comment so we know subscribe() ran
+                    buf = b""
+                    sock.settimeout(3)
+                    while b": connected" not in buf:
+                        chunk = sock.recv(256)
+                        if not chunk:
+                            break
+                        buf += chunk
+                    _time.sleep(0.05)
+                    self.assertEqual(watcher._client_count, 1)
+                finally:
+                    sock.close()
+
+                # Handler detects disconnect when keepalive fires (≤ 0.3 s + write latency)
+                deadline = _time.monotonic() + 3.0
+                while watcher._client_count > 0 and _time.monotonic() < deadline:
+                    _time.sleep(0.05)
+                self.assertEqual(watcher._client_count, 0)
+            finally:
+                stop_test_server(httpd, thread)
 
 
 if __name__ == "__main__":

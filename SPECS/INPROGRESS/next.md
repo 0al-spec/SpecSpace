@@ -3,6 +3,7 @@
 **Current Task:** —
 
 ## Recently Archived
+- `CTXB-P7-T7` — Fix SSE spec-watch thread management (PASS, 2026-04-24)
 - `CTXB-P9-T1` — Change highlighting on SSE reload (PASS, 2026-04-23)
 - `CTXB-P8-T1` — Add 5th lifecycle stage (import_handoff) to SpecPMLifecyclePanel (PASS, 2026-04-23)
 - `CTXB-P7-T16` — Hide AgentChat behind a feature flag (PASS, 2026-04-23)
@@ -26,5 +27,4 @@
 
 ### Technical Debt (Phase 7, pending)
 - `CTXB-P7-T2` — Split server.py into focused modules (P2, depends on T1 ✅)
-- `CTXB-P7-T7` — Fix SSE spec-watch thread management (P2, no deps)
 - `CTXB-P7-T9` — Decompose App.tsx god component (P2, no deps)
