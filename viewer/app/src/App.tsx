@@ -50,7 +50,7 @@ import { useSpecOverlayData } from "./useSpecOverlayData";
 import { lensStyleFor } from "./specLens";
 import type { SpecLensMode } from "./types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClock, faBars } from "@fortawesome/free-solid-svg-icons";
+import { faClock, faBars, faFilter } from "@fortawesome/free-solid-svg-icons";
 import type { GraphMode, SpecViewOptions } from "./types";
 
 const nodeTypes = {
@@ -218,6 +218,7 @@ function AppInner() {
   const [searchMatchIds, setSearchMatchIds] = useState<Set<string> | null>(null);
 
   // ── Filter bar ────────────────────────────────────────────────────────────
+  const [filterOpen, setFilterOpen] = useState(false);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>(DEFAULT_FILTER);
 
   // ── Sidebar collapse ─────────────────────────────────────────────────────
@@ -872,10 +873,31 @@ function AppInner() {
                     fullRange={timelineFullRange}
                   />
                 )}
-                <FilterBar filter={filterOptions} onChange={setFilterOptions} />
               </>
             )}
           </div>
+
+          {/* ── Top-left canvas overlay: filter bar (independent position) ── */}
+          {graphMode === "specifications" && specViewOptions.viewMode !== "force" && (
+            <div className="filter-overlay">
+              <PanelBtn
+                icon={<FontAwesomeIcon icon={faFilter} />}
+                title={filterOpen ? "Close filter" : "Filter nodes"}
+                onClick={() => {
+                  if (filterOpen) {
+                    setFilterOpen(false);
+                    setFilterOptions(DEFAULT_FILTER);
+                  } else {
+                    setFilterOpen(true);
+                  }
+                }}
+                className={isFilterActive(filterOptions) ? "filter-btn-active" : undefined}
+              />
+              {filterOpen && (
+                <FilterBar filter={filterOptions} onChange={setFilterOptions} />
+              )}
+            </div>
+          )}
 
         </main>
         {/* Spec inspector */}
