@@ -100,17 +100,19 @@ const specStatusColorMap: Record<string, string> = {
 };
 
 function minimapNodeColor(node: Node): string {
+  const d = node.data as {
+    kind?: string; status?: string; role?: string;
+    searchDimmed?: boolean; timelineDimmed?: boolean; filterDimmed?: boolean;
+  };
+  if (d.searchDimmed || d.timelineDimmed || d.filterDimmed) return "rgba(180,180,180,0.18)";
   if (node.type === "group" || node.type === "conversation") {
-    const kind = (node.data as { kind?: string }).kind ?? "";
-    return kindColorMap[kind] ?? "#b89f7f";
+    return kindColorMap[d.kind ?? ""] ?? "#b89f7f";
   }
   if (node.type === "message") {
-    const role = (node.data as { role?: string }).role;
-    return role === "user" ? "#8eaed4" : "#c4a67a";
+    return d.role === "user" ? "#8eaed4" : "#c4a67a";
   }
   if (node.type === "spec" || node.type === "expandedSpec") {
-    const status = (node.data as { status?: string }).status ?? "";
-    return specStatusColorMap[status] ?? "#9b8ec4";
+    return specStatusColorMap[d.status ?? ""] ?? "#9b8ec4";
   }
   if (node.type === "specSubItem") return "#9b8ec4";
   if (node.type === "collapsedBranch") return "#4e689b";
