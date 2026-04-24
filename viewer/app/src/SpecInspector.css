@@ -114,10 +114,7 @@
 .spec-inspector-dates {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line, #e0d8cc);
+  gap: 10px;
   font-size: 10px;
   font-family: var(--font-mono);
   color: var(--muted, #888);
@@ -374,56 +371,13 @@
   padding: 12px 14px 32px;
 }
 
-.spec-inspector-pane--pinned {
-  border-right: 1px solid var(--line, #e0d8cc);
-  background: rgba(254, 249, 195, 0.25); /* subtle amber tint */
-}
-
 .spec-inspector-pane--current {
+  border-right: 1px solid var(--line, #e0d8cc);
   background: transparent;
 }
 
-/* Pane label bar */
-.spec-inspector-pane-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  font-family: var(--font-mono);
-  color: var(--muted, #888);
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line, #e0d8cc);
-}
-
-.spec-inspector-pane-pin-icon {
-  color: #ca8a04;
-  font-size: 10px;
-}
-
-.spec-inspector-pane-unpin {
-  margin-left: auto;
-  font-size: 9px;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted, #888);
-  background: none;
-  border: 1px solid var(--line, #e0d8cc);
-  border-radius: 4px;
-  padding: 2px 6px;
-  cursor: pointer;
-  transition: background 120ms, border-color 120ms, color 120ms;
-}
-
-.spec-inspector-pane-unpin:hover {
-  background: #fef9c3;
-  border-color: #ca8a04;
-  color: #713f12;
+.spec-inspector-pane--pinned {
+  background: rgba(254, 249, 195, 0.18); /* subtle amber tint */
 }
 
 /* In compare mode the aside itself is the scroll container for panes */
@@ -436,6 +390,94 @@
 /* In compare mode the spec-inspector-content inside panes doesn't need top padding */
 .spec-inspector-pane .spec-inspector-content {
   padding-top: 0;
+}
+
+/* ── ID row: node-id + role badge + unpin button ─────────────────────────── */
+
+.spec-inspector-id-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+
+/* Role badge shown inline next to the node ID */
+.spec-inspector-role-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.spec-inspector-role-badge--pinned {
+  background: #fef9c3;
+  border-color: #ca8a04;
+  color: #713f12;
+}
+
+.spec-inspector-role-badge--current {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: var(--line, #e0d8cc);
+  color: var(--muted, #888);
+}
+
+.spec-inspector-role-pin-icon {
+  font-size: 8px;
+  margin-right: 2px;
+}
+
+/* Inline unpin button — appears next to the Pinned badge */
+.spec-inspector-unpin-btn {
+  margin-left: auto;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #888);
+  background: none;
+  border: 1px solid var(--line, #e0d8cc);
+  border-radius: 4px;
+  padding: 2px 7px;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+
+.spec-inspector-unpin-btn:hover {
+  background: #fef9c3;
+  border-color: #ca8a04;
+  color: #713f12;
+}
+
+/* ── Card footer: dates (left) + action buttons (right) ──────────────────── */
+
+.spec-inspector-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line, #e0d8cc);
+}
+
+.spec-inspector-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Shrink PanelBtn inside card footer slightly */
+.spec-inspector-card-actions .panel-btn {
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
 }
 
 /* ── Related items drawer ────────────────────────────────────────────────── */
