@@ -668,7 +668,7 @@ function RelatedItemsSection({ dependsOn, refines, relatesTo, nodeById, onFocusN
                   <span className="related-item-id">{nodeId}</span>
                   <span className="related-item-title">{peer?.title ?? raw}</span>
                   {peer && (
-                    <span className={`spec-inspector-badge status-${peer.status}`}>
+                    <span className={`spec-node-status-badge status-${peer.status}`}>
                       {peer.status}
                     </span>
                   )}

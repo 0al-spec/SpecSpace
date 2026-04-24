@@ -246,33 +246,13 @@
   border-bottom: none;
 }
 
-/* Status / kind badges row (legacy) */
+/* Status / kind badges row (legacy — kept for potential external use) */
 .spec-inspector-badges {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 18px;
 }
-
-.spec-inspector-badge {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-}
-.spec-inspector-badge.kind         { background: rgba(0,0,0,0.07); color: var(--muted,#888); }
-.spec-inspector-badge.maturity     { background: #e0e7ff; color: #3730a3; }
-.spec-inspector-badge.status-idea      { background: #d4d4d4; color: #333; }
-.spec-inspector-badge.status-stub      { background: #fcd34d; color: #78350f; }
-.spec-inspector-badge.status-outlined  { background: #93c5fd; color: #1e3a8a; }
-.spec-inspector-badge.status-specified { background: #c4b5fd; color: #3b0764; }
-.spec-inspector-badge.status-linked    { background: #6ee7a0; color: #064e24; }
-.spec-inspector-badge.status-reviewed  { background: #5eead4; color: #0a3330; }
-.spec-inspector-badge.status-frozen    { background: #94a3b8; color: #0f172a; }
 
 /* Section headers */
 .spec-inspector-section {
@@ -399,30 +379,32 @@
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+/* Kill the bottom margin so the ID sits flush in the flex row */
+.spec-inspector-id-row .spec-node-id {
   margin-bottom: 0;
 }
 
-/* Role badge shown inline next to the node ID */
+/* Role badge — matches UI Kit rectangular badge style (same as spec-node-kind-badge) */
 .spec-inspector-role-badge {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-family: var(--font-mono);
-  padding: 2px 7px;
-  border-radius: 999px;
-  border: 1px solid transparent;
+  padding: 2px 6px;
+  border-radius: 3px;          /* rectangular, not capsule */
 }
 
 .spec-inspector-role-badge--pinned {
   background: #fef9c3;
-  border-color: #ca8a04;
   color: #713f12;
 }
 
 .spec-inspector-role-badge--current {
-  background: rgba(0, 0, 0, 0.05);
-  border-color: var(--line, #e0d8cc);
+  background: rgba(0, 0, 0, 0.07);
   color: var(--muted, #888);
 }
 
@@ -442,8 +424,8 @@
   color: var(--muted, #888);
   background: none;
   border: 1px solid var(--line, #e0d8cc);
-  border-radius: 4px;
-  padding: 2px 7px;
+  border-radius: 3px;
+  padding: 2px 6px;
   cursor: pointer;
   transition: background 120ms, border-color 120ms, color 120ms;
 }
@@ -564,11 +546,9 @@
   white-space: nowrap;
 }
 
-/* Status badge inside related item reuses .spec-inspector-badge.status-* */
-.related-item .spec-inspector-badge {
+/* Status badge inside related item — uses shared .spec-node-status-badge from UI Kit */
+.related-item .spec-node-status-badge {
   flex-shrink: 0;
-  font-size: 9px;
-  padding: 2px 6px;
 }
 
 /* Ordered list items use negative margin, so need extra padding to compensate.
