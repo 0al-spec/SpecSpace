@@ -205,14 +205,14 @@ body {
 .filter-overlay {
   position: absolute;
   top: 10px;
-  /* 10px from edge + 30px button + 8px gap */
-  left: 48px;
+  right: calc(10px + var(--spec-inspector-width, 0px));
   z-index: 10;
   display: flex;
-  flex-direction: row;
+  flex-direction: row-reverse; /* button on far right, panel extends left */
   align-items: center;
   gap: 6px;
   pointer-events: none;
+  transition: right 200ms ease;
 }
 
 .filter-overlay > * {
