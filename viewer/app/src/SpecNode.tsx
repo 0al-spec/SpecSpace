@@ -49,6 +49,8 @@ export interface SpecNodeData extends Record<string, unknown> {
   };
   /** Briefly true after an SSE reload detected that this node changed */
   isChanged?: boolean;
+  /** True when presence.state === "historical" — node is a lineage artifact */
+  isHistorical?: boolean;
 }
 
 export type SpecNodeType = Node<SpecNodeData, "spec">;
@@ -94,7 +96,7 @@ export default function SpecNode({
 
   return (
     <div
-      className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed ? "search-dimmed" : ""} ${data.isChanged ? "spec-node--changed" : ""}`}
+      className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed ? "search-dimmed" : ""} ${data.isChanged ? "spec-node--changed" : ""} ${data.isHistorical ? "spec-node--historical" : ""}`}
       onMouseEnter={showBtn}
       onMouseLeave={scheduleHide}
       style={{

@@ -246,6 +246,8 @@ def build_spec_graph(
                 "diagnostics": node_edge_diags,
                 "created_at": raw.get("created_at"),
                 "updated_at": raw.get("updated_at"),
+                "presence_state": (raw.get("presence") or {}).get("state")
+                    if isinstance(raw.get("presence"), dict) else None,
             }
         )
 

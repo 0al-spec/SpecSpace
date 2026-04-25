@@ -272,6 +272,21 @@
   color: #7c3aed;
 }
 
+/* ── Historical (lineage artifact) ───────────────────────────────────────── */
+
+.spec-node--historical {
+  opacity: 0.38;
+  filter: grayscale(0.55) brightness(1.04);
+  border-style: dashed;
+  transition: opacity 200ms ease, filter 200ms ease;
+}
+
+/* Restore on hover so the node is readable when inspected */
+.spec-node--historical:hover {
+  opacity: 0.85;
+  filter: grayscale(0.15) brightness(1.01);
+}
+
 /* ── SSE change highlight ─────────────────────────────────────────────────── */
 @keyframes spec-node-flash {
   0%   { box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.85), 0 0 16px rgba(251, 191, 36, 0.35); }

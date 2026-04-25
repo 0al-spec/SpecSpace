@@ -631,6 +631,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
           isBranchCollapsed: collapsedBranchIds.has(apiNode.node_id),
           onToggleBranch,
           isChanged: changedNodeIds.has(apiNode.node_id),
+          isHistorical: apiNode.presence_state === "historical",
         };
 
         allNodes.push({

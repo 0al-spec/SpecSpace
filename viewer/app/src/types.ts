@@ -80,6 +80,8 @@ export interface ApiSpecNode {
   diagnostics: Array<{ message: string; edge_kind?: string }>;
   created_at?: string | null;
   updated_at?: string | null;
+  /** presence.state from the spec YAML, e.g. "historical" */
+  presence_state?: string | null;
 }
 
 export interface ApiSpecEdge {
