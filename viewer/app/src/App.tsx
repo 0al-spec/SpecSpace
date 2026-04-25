@@ -51,7 +51,8 @@ import { lensStyleFor } from "./specLens";
 import type { SpecLensMode } from "./types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClock, faBars, faFilter } from "@fortawesome/free-solid-svg-icons";
-import type { GraphMode, SpecViewOptions } from "./types";
+import type { GraphMode, SpecViewOptions, ApiSpecNode } from "./types";
+import SpecHoverCard from "./SpecHoverCard";
 
 const nodeTypes = {
   conversation: ConversationNode,
@@ -226,6 +227,26 @@ function AppInner() {
   useEffect(() => {
     if (graphMode !== "specifications") setPinnedNodeId(null);
   }, [graphMode]);
+
+  // ── Hover preview card ───────────────────────────────────────────────────
+  const [hoveredPreview, setHoveredPreview] = useState<{ node: ApiSpecNode; rect: DOMRect } | null>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const onNodeMouseEnter: NodeMouseHandler = useCallback((_event, rfNode) => {
+    if (rfNode.type !== "spec") return;
+    const apiNode = specGraph.rawGraph?.nodes.find((n) => n.node_id === rfNode.id);
+    if (!apiNode) return;
+    const el = (_event.target as HTMLElement).closest<HTMLElement>(".react-flow__node");
+    const rect = el?.getBoundingClientRect();
+    if (!rect) return;
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => setHoveredPreview({ node: apiNode, rect }), 300);
+  }, [specGraph.rawGraph]);
+
+  const onNodeMouseLeave: NodeMouseHandler = useCallback(() => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    setHoveredPreview(null);
+  }, []);
 
   // ── Filter bar ────────────────────────────────────────────────────────────
   const [filterOpen, setFilterOpen] = useState(false);
@@ -812,6 +833,8 @@ function AppInner() {
               nodeTypes={nodeTypes}
               onNodesChange={onNodesChange}
               onNodeClick={onNodeClick}
+              onNodeMouseEnter={onNodeMouseEnter}
+              onNodeMouseLeave={onNodeMouseLeave}
               onEdgeClick={onEdgeClick}
               onPaneClick={onPaneClick}
               onMoveEnd={onMoveEnd}
@@ -1001,6 +1024,11 @@ function AppInner() {
             contextNodeId={graphMode === "specifications" ? selectedConversationId : null}
           />
         )}
+        {/* Spec node hover preview — fixed overlay, above all ReactFlow stacking contexts */}
+        {hoveredPreview && graphMode === "specifications" && (
+          <SpecHoverCard node={hoveredPreview.node} rect={hoveredPreview.rect} />
+        )}
+
         <SearchPalette
           open={searchOpen}
           onClose={() => setSearchOpen(false)}
