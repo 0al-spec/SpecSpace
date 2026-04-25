@@ -272,6 +272,13 @@
   color: #7c3aed;
 }
 
+/* Historical badge */
+.spec-node-historical-badge {
+  background: #e2e0db;
+  color: #6b6358;
+  border: 1px solid #c8c2b8;
+}
+
 /* ── Historical (lineage artifact) ───────────────────────────────────────── */
 
 .spec-node--historical {

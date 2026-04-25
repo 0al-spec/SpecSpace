@@ -140,6 +140,11 @@ export default function SpecNode({
             {data.lensStyle.badge.text}
           </span>
         )}
+        {data.isHistorical && (
+          <span className="spec-node-status-badge spec-node-historical-badge" title="Lineage artifact — superseded">
+            ⌛ historical
+          </span>
+        )}
         {data.hasBrokenEdges && (
           <span className="spec-node-status-badge status-stub" title="Broken edge references">
             ⚠ broken
