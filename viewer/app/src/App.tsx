@@ -240,10 +240,15 @@ function AppInner() {
     const rect = el?.getBoundingClientRect();
     if (!rect) return;
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = setTimeout(() => setHoveredPreview({ node: apiNode, rect }), 300);
+    hoverTimerRef.current = setTimeout(() => setHoveredPreview({ node: apiNode, rect }), 700);
   }, [specGraph.rawGraph]);
 
   const onNodeMouseLeave: NodeMouseHandler = useCallback(() => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    setHoveredPreview(null);
+  }, []);
+
+  const onNodeDragStart: NodeMouseHandler = useCallback(() => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     setHoveredPreview(null);
   }, []);
@@ -835,6 +840,7 @@ function AppInner() {
               onNodeClick={onNodeClick}
               onNodeMouseEnter={onNodeMouseEnter}
               onNodeMouseLeave={onNodeMouseLeave}
+              onNodeDragStart={onNodeDragStart}
               onEdgeClick={onEdgeClick}
               onPaneClick={onPaneClick}
               onMoveEnd={onMoveEnd}
