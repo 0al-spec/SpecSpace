@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Node } from "@xyflow/react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -91,11 +91,28 @@ export default function SpecNode({
     hideTimerRef.current = setTimeout(() => setBtnVisible(false), 2000);
   }, []);
 
+  // Preview card — shown after 300 ms hover delay, hidden immediately on leave
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showPreview = useCallback(() => {
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    previewTimerRef.current = setTimeout(() => setPreviewVisible(true), 300);
+  }, []);
+
+  const hidePreview = useCallback(() => {
+    if (previewTimerRef.current) { clearTimeout(previewTimerRef.current); previewTimerRef.current = null; }
+    setPreviewVisible(false);
+  }, []);
+
+  // Clear preview when node becomes selected (inspector opens)
+  useEffect(() => { if (selected) hidePreview(); }, [selected, hidePreview]);
+
   return (
     <div
       className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed ? "search-dimmed" : ""} ${data.isChanged ? "spec-node--changed" : ""}`}
-      onMouseEnter={showBtn}
-      onMouseLeave={scheduleHide}
+      onMouseEnter={() => { showBtn(); showPreview(); }}
+      onMouseLeave={() => { scheduleHide(); hidePreview(); }}
       style={{
         ...(data.lensStyle?.borderColor ? { borderColor: data.lensStyle.borderColor } : {}),
         ...(data.lensStyle?.background ? { background: data.lensStyle.background } : {}),
@@ -225,6 +242,47 @@ export default function SpecNode({
         >
           <FontAwesomeIcon icon={data.isBranchCollapsed ? faChevronRight : faChevronDown} />
         </button>
+      )}
+
+      {/* Hover preview card — visible after 300 ms, hidden while selected */}
+      {!selected && (
+        <div className={`spec-node-preview${previewVisible ? " spec-node-preview--visible" : ""}`}>
+          <div className="spec-node-preview-id">{data.nodeId}</div>
+          <div className="spec-node-preview-title">{data.title}</div>
+          <div className="spec-node-preview-badges">
+            <span className="spec-node-kind-badge">{data.kind}</span>
+            <span className={`spec-node-status-badge status-${data.status}`}>{data.status}</span>
+          </div>
+          {data.maturity !== null && (
+            <div className="spec-node-maturity spec-node-preview-maturity">
+              <div className="spec-node-maturity-track">
+                <div
+                  className="spec-node-maturity-fill"
+                  style={{ width: `${Math.min(1, Math.max(0, data.maturity)) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+          {(data.acceptanceCount > 0 || data.gapCount > 0 || data.decisionsCount > 0) && (
+            <div className="spec-node-preview-counters">
+              {data.acceptanceCount > 0 && (
+                <span className="spec-node-preview-counter">
+                  {data.acceptanceCount} criterion{data.acceptanceCount !== 1 ? "a" : ""}
+                </span>
+              )}
+              {data.decisionsCount > 0 && (
+                <span className="spec-node-preview-counter">
+                  {data.decisionsCount} decision{data.decisionsCount !== 1 ? "s" : ""}
+                </span>
+              )}
+              {data.gapCount > 0 && (
+                <span className="spec-node-preview-counter spec-node-preview-counter--gap">
+                  ⚠ {data.gapCount} gap{data.gapCount !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
