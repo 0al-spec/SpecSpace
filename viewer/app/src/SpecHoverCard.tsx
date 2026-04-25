@@ -47,7 +47,7 @@ export default function SpecHoverCard({ node, rect }: SpecHoverCardProps) {
         <span className={`spec-node-status-badge status-${node.status}`}>{node.status}</span>
         {node.presence_state === "historical" && (
           <span className="spec-node-status-badge spec-node-historical-badge" title="Lineage artifact — superseded">
-            ⌛ historical
+            historical
           </span>
         )}
       </div>

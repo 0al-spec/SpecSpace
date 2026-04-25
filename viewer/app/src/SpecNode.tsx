@@ -142,7 +142,7 @@ export default function SpecNode({
         )}
         {data.isHistorical && (
           <span className="spec-node-status-badge spec-node-historical-badge" title="Lineage artifact — superseded">
-            ⌛ historical
+            historical
           </span>
         )}
         {data.hasBrokenEdges && (
