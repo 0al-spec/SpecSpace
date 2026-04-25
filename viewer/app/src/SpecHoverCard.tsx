@@ -41,10 +41,15 @@ export default function SpecHoverCard({ node, rect }: SpecHoverCardProps) {
       <div className="spec-hover-card-id">{node.node_id}</div>
       <div className="spec-hover-card-title">{node.title}</div>
 
-      {/* Kind + status badges — UI Kit rectangular */}
+      {/* Kind + status + presence badges — UI Kit rectangular */}
       <div className="spec-hover-card-badges">
         <span className="spec-node-kind-badge">{node.kind}</span>
         <span className={`spec-node-status-badge status-${node.status}`}>{node.status}</span>
+        {node.presence_state === "historical" && (
+          <span className="spec-node-status-badge spec-node-historical-badge" title="Lineage artifact — superseded">
+            ⌛ historical
+          </span>
+        )}
       </div>
 
       {/* Maturity bar */}
