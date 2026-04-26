@@ -1484,6 +1484,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/specpm/lifecycle":
             self.handle_specpm_lifecycle()
             return
+        if parsed.path == "/api/exploration-preview":
+            self.handle_exploration_preview_get()
+            return
         self.handle_static(parsed.path)
 
     def do_POST(self) -> None:
@@ -1512,6 +1515,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/specpm/build-import-handoff-packets":
             self._handle_specpm_build("--build-specpm-import-handoff-packets", "specpm_import_handoff_packets.json")
             return
+        if parsed.path == "/api/exploration-preview/build":
+            self.handle_exploration_preview_build()
+            return
         if parsed.path == "/api/reveal":
             self.handle_reveal()
             return
@@ -1534,6 +1540,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "graph_dashboard": self._graph_dashboard_path() is not None,
                 "spec_overlay": self._runs_dir() is not None,
                 "specpm_preview": self.server.specgraph_dir is not None,
+                "exploration_preview": self.server.specgraph_dir is not None,
+                "exploration_preview_build": self._exploration_build_available(),
                 "agent": self.server.agent_available,
             },
         )
@@ -1865,6 +1873,178 @@ class ViewerHandler(BaseHTTPRequestHandler):
             )
             return
         json_response(self, HTTPStatus.OK, _build_specpm_lifecycle(self.server.specgraph_dir))
+
+    def _exploration_preview_path(self) -> Path | None:
+        if self.server.specgraph_dir is None:
+            return None
+        return self.server.specgraph_dir / "runs" / "exploration_preview.json"
+
+    def _exploration_build_available(self) -> bool:
+        """True only when supervisor.py declares both required flags in its source."""
+        if self.server.specgraph_dir is None:
+            return False
+        supervisor = self.server.specgraph_dir / "tools" / "supervisor.py"
+        if not supervisor.exists():
+            return False
+        try:
+            content = supervisor.read_text(encoding="utf-8", errors="ignore")
+            return "--build-exploration-preview" in content and "--exploration-intent" in content
+        except OSError:
+            return False
+
+    def handle_exploration_preview_get(self) -> None:
+        path = self._exploration_preview_path()
+        if path is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "Exploration preview not configured. Start the server with --specgraph-dir."},
+            )
+            return
+        if not path.exists():
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {
+                    "error": "Exploration preview artifact not built yet",
+                    "hint": "POST /api/exploration-preview/build to create it",
+                    "path": str(path),
+                },
+            )
+            return
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": f"Failed to read exploration preview: {exc}", "path": str(path)},
+            )
+            return
+        if (
+            data.get("artifact_kind") != "exploration_preview"
+            or data.get("canonical_mutations_allowed") is not False
+            or data.get("tracked_artifacts_written") is not False
+        ):
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {
+                    "error": "Artifact failed boundary check",
+                    "artifact_kind": data.get("artifact_kind"),
+                    "canonical_mutations_allowed": data.get("canonical_mutations_allowed"),
+                    "tracked_artifacts_written": data.get("tracked_artifacts_written"),
+                },
+            )
+            return
+        mtime = path.stat().st_mtime
+        json_response(self, HTTPStatus.OK, {
+            "path": str(path),
+            "mtime": mtime,
+            "mtime_iso": datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
+            "data": data,
+        })
+
+    def handle_exploration_preview_build(self) -> None:
+        if self.server.specgraph_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "Exploration preview not configured. Start the server with --specgraph-dir."},
+            )
+            return
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
+        except (ValueError, json.JSONDecodeError):
+            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Invalid JSON body"})
+            return
+        intent = (body.get("intent") or "").strip()
+        if not intent:
+            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "intent is required and must not be blank"})
+            return
+        supervisor = self.server.specgraph_dir / "tools" / "supervisor.py"
+        if not supervisor.exists():
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": "supervisor.py not found", "expected": str(supervisor)},
+            )
+            return
+        cmd = [
+            sys.executable,
+            str(supervisor),
+            "--build-exploration-preview",
+            "--exploration-intent",
+            intent,
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            json_response(
+                self,
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"error": "supervisor.py timed out", "exit_code": None},
+            )
+            return
+        except Exception as exc:
+            json_response(
+                self,
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"error": f"Failed to invoke supervisor.py: {exc}", "exit_code": None},
+            )
+            return
+        artifact_path = self._exploration_preview_path()
+        stderr_tail = "\n".join((result.stderr or "").splitlines()[-40:])
+        built_at = datetime.now(tz=timezone.utc).isoformat()
+        if result.returncode != 0:
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {
+                    "error": "supervisor.py failed",
+                    "exit_code": result.returncode,
+                    "stderr_tail": stderr_tail,
+                    "stdout_tail": "\n".join((result.stdout or "").splitlines()[-40:]),
+                    "path": str(artifact_path) if artifact_path else None,
+                    "built_at": built_at,
+                },
+            )
+            return
+        # Validate the built artifact immediately — same boundary guard as GET.
+        if artifact_path and artifact_path.exists():
+            try:
+                built_data = json.loads(artifact_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                json_response(self, HTTPStatus.UNPROCESSABLE_ENTITY, {
+                    "error": f"Build succeeded but artifact is unreadable: {exc}",
+                    "exit_code": 0,
+                    "path": str(artifact_path),
+                    "built_at": built_at,
+                })
+                return
+            if (
+                built_data.get("artifact_kind") != "exploration_preview"
+                or built_data.get("canonical_mutations_allowed") is not False
+                or built_data.get("tracked_artifacts_written") is not False
+            ):
+                json_response(self, HTTPStatus.UNPROCESSABLE_ENTITY, {
+                    "error": "Built artifact failed boundary check",
+                    "artifact_kind": built_data.get("artifact_kind"),
+                    "canonical_mutations_allowed": built_data.get("canonical_mutations_allowed"),
+                    "tracked_artifacts_written": built_data.get("tracked_artifacts_written"),
+                    "exit_code": 0,
+                    "path": str(artifact_path),
+                    "built_at": built_at,
+                })
+                return
+        json_response(self, HTTPStatus.OK, {
+            "exit_code": 0,
+            "stderr_tail": stderr_tail,
+            "path": str(artifact_path) if artifact_path else None,
+            "artifact_exists": bool(artifact_path and artifact_path.exists()),
+            "built_at": built_at,
+        })
 
     def handle_reveal(self) -> None:
         """POST /api/reveal — open a file path in Finder (macOS: open -R <path>)."""

@@ -5,8 +5,9 @@ import "./PanelBtn.css";
 import PanelActions from "./PanelActions";
 import PanelBtn from "./PanelBtn";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleDot, faCalendarPlus, faRotate, faBoxArchive, faThumbtack } from "@fortawesome/free-solid-svg-icons";
+import { faCircleDot, faCalendarPlus, faRotate, faBoxArchive, faThumbtack, faMagnifyingGlassChart } from "@fortawesome/free-solid-svg-icons";
 import type { ApiSpecGraph, ApiSpecNode } from "./types";
+import { renderInlineText } from "./renderInlineText";
 
 interface SpecInspectorProps {
   selectedNodeId: string | null;
@@ -20,6 +21,8 @@ interface SpecInspectorProps {
   onOpenLens?: (nodeId: string) => void;
   /** Open the SpecPM export preview overlay. Undefined → button hidden. */
   onOpenSpecpmPreview?: () => void;
+  /** Open the exploration preview panel. Undefined → button hidden. */
+  onOpenExplorationPreview?: () => void;
   /** Full spec graph — used to resolve peer node titles/statuses in Related section */
   rawGraph?: ApiSpecGraph | null;
   /** Pinned node ID for compare mode */
@@ -40,7 +43,7 @@ type SpecDetail = Record<string, unknown>;
 
 export default function SpecInspector({
   selectedNodeId, selectedSubItemId,
-  onDismiss, onFocusNode, onSelectSubItem, onOpenLens, onOpenSpecpmPreview,
+  onDismiss, onFocusNode, onSelectSubItem, onOpenLens, onOpenSpecpmPreview, onOpenExplorationPreview,
   rawGraph, pinnedNodeId, onPin,
   canGoBack, canGoForward, onBack, onForward, backLabel, forwardLabel,
 }: SpecInspectorProps) {
@@ -179,6 +182,7 @@ export default function SpecInspector({
               paneRole="current"
               onOpenLens={onOpenLens && selectedNodeId ? () => onOpenLens!(selectedNodeId!) : undefined}
               onOpenSpecpmPreview={onOpenSpecpmPreview}
+              onOpenExplorationPreview={onOpenExplorationPreview}
             />
           </div>
           {/* Pinned spec — RIGHT */}
@@ -202,6 +206,7 @@ export default function SpecInspector({
           onSelectSubItem={onSelectSubItem}
           onOpenLens={onOpenLens && selectedNodeId ? () => onOpenLens!(selectedNodeId!) : undefined}
           onOpenSpecpmPreview={onOpenSpecpmPreview}
+          onOpenExplorationPreview={onOpenExplorationPreview}
         />
       )}
     </aside>
@@ -224,11 +229,13 @@ interface SpecDetailPaneProps {
   onOpenLens?: () => void;
   /** Open SpecPM export preview */
   onOpenSpecpmPreview?: () => void;
+  /** Open exploration preview panel */
+  onOpenExplorationPreview?: () => void;
 }
 
 function SpecDetailPane({
   detail, nodeById, onFocusNode, selectedSubItemId, onSelectSubItem,
-  paneRole, onUnpin, onOpenLens, onOpenSpecpmPreview,
+  paneRole, onUnpin, onOpenLens, onOpenSpecpmPreview, onOpenExplorationPreview,
 }: SpecDetailPaneProps) {
   const hlRef = useRef<HTMLLIElement | null>(null);
 
@@ -303,7 +310,7 @@ function SpecDetailPane({
   })();
 
   const hasDates = detail.created_at != null || detail.updated_at != null;
-  const hasCardActions = Boolean(onOpenLens || onOpenSpecpmPreview);
+  const hasCardActions = Boolean(onOpenLens || onOpenSpecpmPreview || onOpenExplorationPreview);
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -334,7 +341,7 @@ function SpecDetailPane({
         </div>
 
         <h2 className="spec-inspector-main-title">{str(detail.title)}</h2>
-        {objective && <p className="spec-inspector-objective">{objective}</p>}
+        {objective && <p className="spec-inspector-objective">{renderInlineText(objective)}</p>}
         <div className="spec-node-meta">
           <span className="spec-node-kind-badge">{str(detail.kind)}</span>
           <span className={`spec-node-status-badge status-${str(detail.status)}`}>
@@ -389,6 +396,13 @@ function SpecDetailPane({
                     onClick={onOpenSpecpmPreview}
                   />
                 )}
+                {onOpenExplorationPreview && (
+                  <PanelBtn
+                    icon={<FontAwesomeIcon icon={faMagnifyingGlassChart} />}
+                    title="Exploration Preview"
+                    onClick={onOpenExplorationPreview}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -423,7 +437,7 @@ function SpecDetailPane({
                       ref={isHl ? hlRef : null}
                       className={`selectable${isHl ? " sub-item-highlighted" : ""}`}
                       onClick={() => onSelectSubItem?.(isHl ? null : subId)}
-                    >{item}</li>
+                    >{renderInlineText(item)}</li>
                   );
                 })}
               </ul>
@@ -442,7 +456,7 @@ function SpecDetailPane({
                       ref={isHl ? hlRef : null}
                       className={`selectable${isHl ? " sub-item-highlighted" : ""}`}
                       onClick={() => onSelectSubItem?.(isHl ? null : subId)}
-                    >{item}</li>
+                    >{renderInlineText(item)}</li>
                   );
                 })}
               </ul>
@@ -468,7 +482,7 @@ function SpecDetailPane({
                   onClick={() => onSelectSubItem?.(isHl ? null : id)}
                 >
                   {unmet && <span className="gap-dot" title="No evidence">●</span>}
-                  {malformed ? <MalformedBadge raw={text} /> : text}
+                  {malformed ? <MalformedBadge raw={text} /> : renderInlineText(text)}
                 </li>
               );
             })}
@@ -495,8 +509,8 @@ function SpecDetailPane({
                   onClick={() => onSelectSubItem?.(isHl ? null : subId)}
                 >
                   {id && <span className="spec-inspector-sub-id">{id}</span>}
-                  {statement}
-                  {rationale && <div className="spec-inspector-sub-rationale">{rationale}</div>}
+                  {renderInlineText(statement)}
+                  {rationale && <div className="spec-inspector-sub-rationale">{renderInlineText(rationale)}</div>}
                 </li>
               );
             })}
@@ -520,7 +534,7 @@ function SpecDetailPane({
                   onClick={() => onSelectSubItem?.(isHl ? null : subId)}
                 >
                   {id && <span className="spec-inspector-sub-id">{id}</span>}
-                  {statement}
+                  {renderInlineText(statement)}
                 </li>
               );
             })}
