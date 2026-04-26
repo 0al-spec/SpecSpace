@@ -2,7 +2,8 @@ import { useState, useCallback, useRef } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Node } from "@xyflow/react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronRight, faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import { faChevronRight, faChevronDown, faAngleDown } from "@fortawesome/free-solid-svg-icons";
+import { useLODLevel } from "./useLODLevel";
 import "./SpecNode.css";
 
 /** All possible handle kinds — order determines top-to-bottom slot position */
@@ -79,6 +80,7 @@ export default function SpecNode({
 
   const kinds = data.visibleHandleKinds;
   const tops = slotTops(kinds.length);
+  const lod = useLODLevel();
 
   const [btnVisible, setBtnVisible] = useState(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,6 +95,75 @@ export default function SpecNode({
     hideTimerRef.current = setTimeout(() => setBtnVisible(false), 2000);
   }, []);
 
+  // Handles are required by ReactFlow for edge endpoint routing — render at every LOD.
+  const targetHandles = kinds.map((kind, i) => {
+    const active = data.activeTargetKinds.has(kind);
+    return (
+      <Handle
+        key={`tgt-${kind}`}
+        type="target"
+        position={Position.Left}
+        id={`tgt-${kind}`}
+        className={`spec-handle spec-handle-${kind} ${active ? "spec-handle-active" : "spec-handle-potential"}`}
+        style={{ top: `${tops[i]}%` }}
+      />
+    );
+  });
+  const sourceHandles = kinds.map((kind, i) => {
+    const active = data.activeSourceKinds.has(kind);
+    return (
+      <Handle
+        key={`src-${kind}`}
+        type="source"
+        position={Position.Right}
+        id={`src-${kind}`}
+        className={`spec-handle spec-handle-${kind} ${active ? "spec-handle-active" : "spec-handle-potential"}`}
+        style={{ top: `${tops[i]}%` }}
+      />
+    );
+  });
+  const gapHandles = data.gapCount > 0
+    ? slotTops(data.gapCount).map((pct, i) => (
+        <Handle
+          key={`gap-${i}`}
+          type="source"
+          position={Position.Bottom}
+          id={`gap-${i}`}
+          className="spec-handle spec-handle-gap"
+          style={{ left: `${pct}%` }}
+        />
+      ))
+    : null;
+
+  if (lod === "minimal") {
+    return (
+      <div
+        className={`spec-node spec-node--lod-minimal ${statusClass} ${selected ? "selected" : ""} ${data.isHistorical ? "spec-node--historical" : ""}`}
+      >
+        {targetHandles}
+        {sourceHandles}
+        {gapHandles}
+        <div className="spec-node-id">{data.nodeId}</div>
+      </div>
+    );
+  }
+
+  if (lod === "compact") {
+    return (
+      <div
+        className={`spec-node spec-node--lod-compact ${statusClass} ${selected ? "selected" : ""} ${data.isHistorical ? "spec-node--historical" : ""}`}
+      >
+        {targetHandles}
+        {sourceHandles}
+        {gapHandles}
+        <div className="spec-node-id">{data.nodeId}</div>
+        <div className="spec-node-title">{data.title}</div>
+        <div className="spec-node-meta">
+          <span className="spec-node-kind-badge">{data.kind}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -153,9 +224,9 @@ export default function SpecNode({
         {data.refinedByCount > 0 && (
           <span
             className="spec-node-status-badge spec-node-refined-by"
-            title={`Refined by ${data.refinedByCount} child spec${data.refinedByCount > 1 ? "s" : ""}`}
+            title={`${data.refinedByCount} child spec${data.refinedByCount > 1 ? "s" : ""} refine this node`}
           >
-            ↳ {data.refinedByCount}
+            <FontAwesomeIcon icon={faAngleDown} /> {data.refinedByCount}
           </span>
         )}
       </div>

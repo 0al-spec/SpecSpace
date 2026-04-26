@@ -304,3 +304,33 @@
 .spec-node--changed {
   animation: spec-node-flash 2.5s ease-out forwards;
 }
+
+/* ── zoomed-out: suppress Safari composite layers when zoom < 0.5 ─────────── */
+.zoomed-out .react-flow__node .spec-node {
+  box-shadow: none !important;
+  filter: none !important;
+  border-radius: 2px !important;
+}
+.zoomed-out .react-flow__node .spec-node--historical {
+  filter: none !important;
+}
+
+/* ── LOD: larger ID at minimal zoom so it stays legible ─────────────────── */
+.spec-node--lod-minimal .spec-node-id {
+  font-size: 26px;
+  letter-spacing: 0.05em;
+}
+
+/* ── LOD: historical nodes blend into canvas at small zoom ─────────────── */
+.spec-node--lod-minimal.spec-node--historical,
+.spec-node--lod-compact.spec-node--historical {
+  opacity: 0.25;
+  background: rgba(236, 227, 212, 0.4); /* near canvas color */
+}
+
+/* ── zoomed-out: drop edge labels (HTML edgelabel divs + SVG <text>) ───── */
+.zoomed-out .react-flow__edge-textwrapper,
+.zoomed-out .react-flow__edge-text,
+.zoomed-out .react-flow__edge-textbg {
+  display: none !important;
+}

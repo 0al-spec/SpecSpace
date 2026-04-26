@@ -2,9 +2,10 @@ import { useState, useCallback, useRef } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Node } from "@xyflow/react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronRight, faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import { faChevronRight, faChevronDown, faAngleDown } from "@fortawesome/free-solid-svg-icons";
 import "./ExpandedSpecNode.css";
 import type { SpecHandleKind } from "./SpecNode";
+import { useLODLevel } from "./useLODLevel";
 
 export interface ExpandedSpecGroupData extends Record<string, unknown> {
   nodeId: string;
@@ -42,6 +43,7 @@ export default function ExpandedSpecNode({ data, selected }: NodeProps<ExpandedS
   const statusLabel = STATUS_LABELS[data.status] ?? data.status;
   const kinds = data.visibleHandleKinds;
   const tops = handleTops(kinds.length);
+  const lod = useLODLevel();
 
   const [btnVisible, setBtnVisible] = useState(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -55,6 +57,56 @@ export default function ExpandedSpecNode({ data, selected }: NodeProps<ExpandedS
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = setTimeout(() => setBtnVisible(false), 2000);
   }, []);
+
+  // LOD fallback (zoom < 0.6): render compact/minimal view to match auto-collapsed peers.
+  if (lod === "minimal" || lod === "compact") {
+    const targetHandles = kinds.map((kind, i) => {
+      const active = data.activeTargetKinds.has(kind);
+      return (
+        <Handle
+          key={`tgt-${kind}`}
+          type="target"
+          position={Position.Left}
+          id={`tgt-${kind}`}
+          className={`spec-handle spec-handle-${kind} ${active ? "spec-handle-active" : "spec-handle-potential"}`}
+          style={{ top: `${tops[i]}%` }}
+        />
+      );
+    });
+    const sourceHandles = kinds.map((kind, i) => {
+      const active = data.activeSourceKinds.has(kind);
+      return (
+        <Handle
+          key={`src-${kind}`}
+          type="source"
+          position={Position.Right}
+          id={`src-${kind}`}
+          className={`spec-handle spec-handle-${kind} ${active ? "spec-handle-active" : "spec-handle-potential"}`}
+          style={{ top: `${tops[i]}%` }}
+        />
+      );
+    });
+    if (lod === "minimal") {
+      return (
+        <div className={`expanded-spec-node expanded-spec-node--lod-minimal ${statusClass} ${selected ? "selected" : ""}`}>
+          {targetHandles}
+          {sourceHandles}
+          <div className="spec-node-id">{data.nodeId}</div>
+        </div>
+      );
+    }
+    return (
+      <div className={`expanded-spec-node expanded-spec-node--lod-compact ${statusClass} ${selected ? "selected" : ""}`}>
+        {targetHandles}
+        {sourceHandles}
+        <div className="spec-node-id">{data.nodeId}</div>
+        <div className="spec-node-title">{data.title}</div>
+        <div className="spec-node-meta">
+          <span className="spec-node-kind-badge">{data.kind}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -125,8 +177,8 @@ export default function ExpandedSpecNode({ data, selected }: NodeProps<ExpandedS
             <span className="spec-node-status-badge status-stub" title="Broken edge references">⚠ broken</span>
           )}
           {data.refinedByCount > 0 && (
-            <span className="spec-node-status-badge spec-node-refined-by" title={`Refined by ${data.refinedByCount} child spec${data.refinedByCount > 1 ? "s" : ""}`}>
-              ↳ {data.refinedByCount}
+            <span className="spec-node-status-badge spec-node-refined-by" title={`${data.refinedByCount} child spec${data.refinedByCount > 1 ? "s" : ""} refine this node`}>
+              <FontAwesomeIcon icon={faAngleDown} /> {data.refinedByCount}
             </span>
           )}
         </div>

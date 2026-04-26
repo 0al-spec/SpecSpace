@@ -120,6 +120,21 @@
   border-color: var(--line-strong);
 }
 
+/* ── LOD: larger title at minimal zoom so it stays legible ──────────────── */
+.conversation-node--lod-minimal .conversation-node-title {
+  font-size: 26px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0;
+}
+
+/* ── zoomed-out: drop heavy shadows/radius for Safari composite layer perf ─ */
+.zoomed-out .react-flow__node .conversation-node {
+  box-shadow: none !important;
+  border-radius: 4px !important;
+}
+
 /* React Flow handle styling */
 .conversation-node .react-flow__handle {
   width: 8px;

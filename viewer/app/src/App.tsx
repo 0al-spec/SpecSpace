@@ -203,11 +203,16 @@ function AppInner() {
   // Conversation graph data
   const convGraph = useGraphData();
 
-  // Spec graph data (always fetched so it's ready when mode switches)
-  const specGraph = useSpecGraphData(specViewOptions);
-
   // Fetch spec overlay data (health / implementation / evidence planes)
+  // Must come before useSpecGraphData so gate_state is available for edge classification.
   const { overlays: specOverlays } = useSpecOverlayData(specOverlayAvailable);
+
+  // Zoom-driven flags (updated in onMoveEnd) — declared before useSpecGraphData.
+  const [isZoomedOut, setIsZoomedOut] = useState(false);
+  const [autoCollapseExpanded, setAutoCollapseExpanded] = useState(false);
+
+  // Spec graph data (always fetched so it's ready when mode switches)
+  const specGraph = useSpecGraphData(specViewOptions, specOverlays, autoCollapseExpanded);
 
   // Choose active graph data by mode
   const activeGraph = graphMode === "conversations" ? convGraph : specGraph;
@@ -773,7 +778,9 @@ function AppInner() {
     } catch {
       // ignore
     }
-  }, []);
+    setIsZoomedOut(viewport.zoom < 0.5);
+    setAutoCollapseExpanded(viewport.zoom < 0.6);
+  }, [setIsZoomedOut, setAutoCollapseExpanded]);
 
   return (
     <CompileTargetContext.Provider
@@ -846,8 +853,10 @@ function AppInner() {
               onMoveEnd={onMoveEnd}
               defaultViewport={savedViewport.current}
               fitView={hasFitView}
-              minZoom={0.4}
+              minZoom={0.2}
               maxZoom={2}
+              onlyRenderVisibleElements={true}
+              className={isZoomedOut ? "zoomed-out" : undefined}
               style={{
                 opacity: loading && nodes.length > 0 ? 0.6 : 1,
                 transition: "opacity 150ms",

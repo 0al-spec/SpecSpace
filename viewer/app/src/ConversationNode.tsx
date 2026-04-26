@@ -4,6 +4,7 @@ import type { ConversationNodeData } from "./types";
 import type { Node } from "@xyflow/react";
 import { CompileTargetContext } from "./CompileTargetContext";
 import KindBadge from "./KindBadge";
+import { useLODLevel } from "./useLODLevel";
 
 type ConversationNodeType = Node<ConversationNodeData, "conversation">;
 
@@ -17,6 +18,40 @@ export default function ConversationNode({
   const isCompileTarget =
     compileTargetConversationId === data.conversationId && !compileTargetMessageId;
   const kindClass = data.hasBrokenLineage ? "broken" : data.kind;
+  const lod = useLODLevel();
+
+  // Handles required at every LOD for ReactFlow edge routing
+  const handles = (
+    <>
+      <Handle type="target" position={Position.Left} />
+      <Handle type="source" position={Position.Right} />
+    </>
+  );
+
+  if (lod === "minimal") {
+    return (
+      <div
+        className={`conversation-node conversation-node--lod-minimal ${kindClass} ${selected ? "selected" : ""} ${isCompileTarget ? "compile-target" : ""}`}
+      >
+        {handles}
+        <div className="conversation-node-title">{data.title}</div>
+      </div>
+    );
+  }
+
+  if (lod === "compact") {
+    return (
+      <div
+        className={`conversation-node conversation-node--lod-compact ${kindClass} ${selected ? "selected" : ""} ${isCompileTarget ? "compile-target" : ""}`}
+      >
+        {handles}
+        <div className="conversation-node-title">{data.title}</div>
+        <div className="conversation-node-meta">
+          <KindBadge kind={data.hasBrokenLineage ? "invalid" : data.kind} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -48,7 +83,7 @@ export default function ConversationNode({
         }}
         title={data.isExpanded ? "Collapse" : "Expand"}
       >
-        {data.isExpanded ? "\u25BE" : "\u25B8"}
+        {data.isExpanded ? "▾" : "▸"}
       </button>
 
       <Handle type="source" position={Position.Right} />

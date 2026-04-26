@@ -4,6 +4,7 @@ import "./ExpandedConversationNode.css";
 import SubflowHeader from "./SubflowHeader";
 import type { ExpandedConversationGroupData } from "./types";
 import { CompileTargetContext } from "./CompileTargetContext";
+import { useLODLevel } from "./useLODLevel";
 
 type ExpandedConversationNodeType = Node<ExpandedConversationGroupData, "group">;
 
@@ -16,6 +17,38 @@ export default function ExpandedConversationNode({
   const isCompileTarget =
     compileTargetConversationId === data.conversationId && !compileTargetMessageId;
   const kindClass = data.hasBrokenLineage ? "broken" : data.kind;
+  const lod = useLODLevel();
+
+  const handles = (
+    <>
+      <Handle type="target" position={Position.Left} id="left" style={{ top: 18 }} />
+      <Handle type="source" position={Position.Right} id="right" style={{ top: 18 }} />
+    </>
+  );
+
+  if (lod === "minimal") {
+    return (
+      <div
+        className={`expanded-conversation-node expanded-conversation-node--lod-minimal ${kindClass} ${selected ? "selected" : ""} ${isCompileTarget ? "compile-target" : ""}`}
+      >
+        {handles}
+        <div className="subflow-header">
+          <span className="subflow-header-title">{data.title}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (lod === "compact") {
+    return (
+      <div
+        className={`expanded-conversation-node expanded-conversation-node--lod-compact ${kindClass} ${selected ? "selected" : ""} ${isCompileTarget ? "compile-target" : ""}`}
+      >
+        {handles}
+        <SubflowHeader data={data} />
+      </div>
+    );
+  }
 
   return (
     <div

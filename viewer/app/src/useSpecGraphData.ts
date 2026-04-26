@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { Node, Edge } from "@xyflow/react";
-import type { ApiSpecGraph, SpecViewOptions } from "./types";
+import type { ApiSpecGraph, ApiSpecNode, SpecOverlayMap, SpecViewOptions } from "./types";
 import type { SpecNodeData } from "./SpecNode";
 import { SPEC_HANDLE_KINDS, type SpecHandleKind } from "./SpecNode";
 import type { ExpandedSpecGroupData } from "./ExpandedSpecNode";
@@ -87,15 +87,81 @@ function extractSubItems(detail: Record<string, unknown>): SubItemSpec[] {
 }
 
 // ---------------------------------------------------------------------------
-// Edge styles
+// Edge visual state
 // ---------------------------------------------------------------------------
 
-/** Canonical mode: every edge kind is rendered as-is */
-const CANONICAL_EDGE_STYLES: Record<string, React.CSSProperties> = {
-  depends_on: { stroke: "#dc2626", strokeWidth: 2 },
-  refines: { stroke: "#4e689b", strokeWidth: 1.5, strokeDasharray: "6 3" },
-  relates_to: { stroke: "#7c3aed", strokeWidth: 1.5, strokeDasharray: "2 4" },
+/**
+ * UX colour contract for spec graph edges:
+ *
+ *   red          = broken or actively blocked
+ *   amber        = required but pending review / refinement
+ *   muted green  = required and satisfied
+ *   blue         = refinement structure (refines)
+ *   purple/gray  = contextual relation (relates_to)
+ *   gray ↓opacity = historical lineage (either endpoint historical)
+ *
+ * depends_on means "required dependency", NOT "error".
+ * Red is reserved only for broken references and actively blocked targets.
+ */
+type EdgeVisualState =
+  | "refinement"
+  | "context"
+  | "required_satisfied"  // depends_on where target is linked/reviewed/frozen
+  | "required_pending"    // depends_on where target is still in progress
+  | "active_blocker"      // depends_on where target is explicitly blocked
+  | "broken_reference"    // edge.status === "broken" (target missing)
+  | "historical_lineage"; // either endpoint is historical
+
+const EDGE_VISUAL_STYLES: Record<EdgeVisualState, React.CSSProperties> = {
+  refinement:         { stroke: "#4e689b", strokeWidth: 1.5, strokeDasharray: "6 3" },
+  context:            { stroke: "#7c3aed", strokeWidth: 1.5, strokeDasharray: "2 4", opacity: 0.6 },
+  required_satisfied: { stroke: "#5a7a52", strokeWidth: 2 },
+  required_pending:   { stroke: "#c08820", strokeWidth: 2 },
+  active_blocker:     { stroke: "#dc2626", strokeWidth: 2.5 },
+  broken_reference:   { stroke: "#b54131", strokeDasharray: "4 3", strokeWidth: 1.5 },
+  historical_lineage: { stroke: "#9b9b9b", strokeWidth: 1.5, opacity: 0.4 },
 };
+
+/**
+ * Full contract (overlay takes precedence when available):
+ *   broken_reference                                    → red
+ *   historical_lineage                                  → gray
+ *   depends_on + target gate "blocked"                  → red  (active_blocker)
+ *   depends_on + target gate split_required/retry_pending/review_pending → amber (required_pending)
+ *   depends_on + target status linked/reviewed/frozen AND no blocking gate → muted green (required_satisfied)
+ *   depends_on + target status idea/stub/outlined/specified               → amber (required_pending)
+ *   refines                                             → blue
+ *   relates_to                                          → purple/gray
+ *
+ * When overlay is unavailable the gate_state is treated as unknown and only
+ * target.status drives the satisfied/pending split (MVP approximation).
+ */
+function computeEdgeVisualState(
+  edgeKind: string,
+  edgeStatus: string,
+  sourceNode: ApiSpecNode | undefined,
+  targetNode: ApiSpecNode | undefined,
+  targetGateState: string | undefined,
+): EdgeVisualState {
+  if (edgeStatus === "broken") return "broken_reference";
+  if (
+    sourceNode?.presence_state === "historical" ||
+    targetNode?.presence_state === "historical"
+  ) return "historical_lineage";
+  if (edgeKind === "refines") return "refinement";
+  if (edgeKind === "relates_to") return "context";
+
+  // depends_on — gate_state wins when present
+  if (targetGateState === "blocked") return "active_blocker";
+  if (["split_required", "retry_pending", "review_pending"].includes(targetGateState ?? "")) {
+    return "required_pending";
+  }
+
+  // Fall back to status-based classification
+  const targetStatus = targetNode?.status ?? "";
+  if (["linked", "reviewed", "frozen"].includes(targetStatus)) return "required_satisfied";
+  return "required_pending";
+}
 
 /** Tree mode: refinement tree edge */
 const TREE_EDGE_STYLE: React.CSSProperties = {
@@ -103,31 +169,21 @@ const TREE_EDGE_STYLE: React.CSSProperties = {
   strokeWidth: 2,
 };
 
-/** Tree mode: refinement + blocking edge (parent depends_on child) */
-const TREE_BLOCKING_EDGE_STYLE: React.CSSProperties = {
-  stroke: "#dc2626",
-  strokeWidth: 2.5,
-};
-
-/** Tree mode: cross-link overlay (relates_to or cross-branch depends_on) */
+/** Tree mode: cross-link overlay for relates_to */
 const TREE_CROSSLINK_STYLE: React.CSSProperties = {
   stroke: "#7c3aed",
-  strokeWidth: 2.5,
+  strokeWidth: 1.5,
   strokeDasharray: "5 4",
+  opacity: 0.6,
 };
 
 /** Linear mode: backward relates_to (pointing to ancestor / left) */
 const LINEAR_BACKWARD_STYLE: React.CSSProperties = {
   stroke: "#9b8ec4",
   strokeWidth: 2.5,
-  strokeDasharray: "3 6",
+  opacity: 0.45,
 };
 
-const BROKEN_EDGE_STYLE: React.CSSProperties = {
-  stroke: "#b54131",
-  strokeDasharray: "4 3",
-  strokeWidth: 1.5,
-};
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -155,7 +211,7 @@ function diffGraphNodes(prev: ApiSpecGraph, next: ApiSpecGraph): Set<string> {
   return changed;
 }
 
-export function useSpecGraphData(viewOptions: SpecViewOptions) {
+export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: SpecOverlayMap, autoCollapseExpanded: boolean = false) {
   const [apiGraph, setApiGraph] = useState<ApiSpecGraph | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -308,6 +364,15 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
   const { nodes, edges } = useMemo(() => {
     if (!apiGraph) return { nodes: [], edges: [] };
 
+    // Node lookup for visual-state computation
+    const nodeMap = new Map<string, ApiSpecNode>(
+      apiGraph.nodes.map((n) => [n.node_id, n]),
+    );
+
+    // Extract gate_state from overlay when available
+    const gateState = (nodeId: string): string | undefined =>
+      overlayMap?.[nodeId]?.health?.gate_state;
+
     // Determine which handle kinds are visible based on mode + toggles
     let visibleKinds: readonly SpecHandleKind[];
     if (viewMode === "canonical" || viewMode === "linear") {
@@ -381,10 +446,16 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
     if (viewMode === "canonical") {
       // ── Canonical mode: render all edges as-is ──
       for (const apiEdge of apiGraph.edges) {
-        const isBroken = apiEdge.status === "broken";
-        const style = isBroken
-          ? BROKEN_EDGE_STYLE
-          : (CANONICAL_EDGE_STYLES[apiEdge.edge_kind] ?? { stroke: "#9b8ec4", strokeWidth: 1.5 });
+        const vstate = computeEdgeVisualState(
+          apiEdge.edge_kind,
+          apiEdge.status,
+          nodeMap.get(apiEdge.source_id),
+          nodeMap.get(apiEdge.target_id),
+          gateState(apiEdge.target_id),
+        );
+        const isBroken = vstate === "broken_reference";
+        const style = EDGE_VISUAL_STYLES[vstate];
+        const label = apiEdge.edge_kind === "depends_on" ? "requires" : apiEdge.edge_kind;
 
         markActive(apiEdge.source_id, apiEdge.target_id, apiEdge.edge_kind);
 
@@ -394,7 +465,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
           target: apiEdge.target_id,
           sourceHandle: `src-${apiEdge.edge_kind}`,
           targetHandle: `tgt-${apiEdge.edge_kind}`,
-          label: apiEdge.edge_kind,
+          label,
           type: "default",
           animated: isBroken,
           zIndex: 1,
@@ -412,7 +483,12 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
         const parentId = e.target_id;
         const childId = e.source_id;
         const pairKey = `${parentId}::${childId}`;
-        const isBlocking = pairedBlockingSet.has(pairKey);
+        const isRequired = pairedBlockingSet.has(pairKey);
+        let treeStyle = TREE_EDGE_STYLE;
+        if (isRequired && showBlocking) {
+          const vstate = computeEdgeVisualState("depends_on", "resolved", nodeMap.get(parentId), nodeMap.get(childId), gateState(childId));
+          treeStyle = { ...EDGE_VISUAL_STYLES[vstate], strokeWidth: 2.5 };
+        }
         markActive(parentId, childId, "refines");
         allEdges.push({
           id: `tree-${e.edge_id}`,
@@ -420,11 +496,11 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
           target: childId,
           sourceHandle: "src-refines",
           targetHandle: "tgt-refines",
-          label: isBlocking && showBlocking ? "blocking" : undefined,
-          type: "default",
+          label: undefined,
+          type: "smoothstep",
           animated: false,
           zIndex: 2,
-          style: isBlocking && showBlocking ? TREE_BLOCKING_EDGE_STYLE : TREE_EDGE_STYLE,
+          style: treeStyle,
         });
       }
 
@@ -434,6 +510,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
         if (d.status === "broken") continue;
         const pairKey = `${d.source_id}::${d.target_id}`;
         if (pairedBlockingSet.has(pairKey)) continue;
+        const vstate = computeEdgeVisualState("depends_on", "resolved", nodeMap.get(d.source_id), nodeMap.get(d.target_id), gateState(d.target_id));
         markActive(d.source_id, d.target_id, "depends_on");
         allEdges.push({
           id: `lin-dep-${d.edge_id}`,
@@ -441,11 +518,11 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
           target: d.target_id,
           sourceHandle: "src-depends_on",
           targetHandle: "tgt-depends_on",
-          label: "depends_on",
-          type: "default",
+          label: undefined,
+          type: "smoothstep",
           animated: false,
           zIndex: 1,
-          style: CANONICAL_EDGE_STYLES.depends_on,
+          style: EDGE_VISUAL_STYLES[vstate],
         });
       }
 
@@ -460,8 +537,8 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
           target: r.target_id,
           sourceHandle: "src-relates_to",
           targetHandle: "tgt-relates_to",
-          label: "relates_to",
-          type: "default",
+          label: undefined,
+          type: "smoothstep",
           animated: false,
           zIndex: 0,
           style: isBackward ? LINEAR_BACKWARD_STYLE : TREE_CROSSLINK_STYLE,
@@ -480,22 +557,26 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
         const parentId = e.target_id;  // canonical: child→parent, invert: parent→child
         const childId = e.source_id;
         const pairKey = `${parentId}::${childId}`;
-        const isBlocking = pairedBlockingSet.has(pairKey);
+        const isRequired = pairedBlockingSet.has(pairKey);
+        let treeStyle = TREE_EDGE_STYLE;
+        if (isRequired && showBlocking) {
+          const vstate = computeEdgeVisualState("depends_on", "resolved", nodeMap.get(parentId), nodeMap.get(childId), gateState(childId));
+          treeStyle = { ...EDGE_VISUAL_STYLES[vstate], strokeWidth: 2.5 };
+        }
 
-        const treeKind = "refines"; // handle kind for tree edges
-        markActive(parentId, childId, treeKind);
+        markActive(parentId, childId, "refines");
 
         allEdges.push({
           id: `tree-${e.edge_id}`,
           source: parentId,
           target: childId,
-          sourceHandle: `src-${treeKind}`,
-          targetHandle: `tgt-${treeKind}`,
-          label: isBlocking && showBlocking ? "blocking" : undefined,
+          sourceHandle: "src-refines",
+          targetHandle: "tgt-refines",
+          label: isRequired && showBlocking ? "required" : undefined,
           type: "default",
           animated: false,
           zIndex: 2,
-          style: isBlocking && showBlocking ? TREE_BLOCKING_EDGE_STYLE : TREE_EDGE_STYLE,
+          style: treeStyle,
         });
       }
 
@@ -504,7 +585,8 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
         for (const d of dependsOnEdges) {
           if (d.status === "broken") continue;
           const pairKey = `${d.source_id}::${d.target_id}`;
-          if (pairedBlockingSet.has(pairKey)) continue; // already shown as tree blocking
+          if (pairedBlockingSet.has(pairKey)) continue; // already shown as tree required
+          const vstate = computeEdgeVisualState("depends_on", "resolved", nodeMap.get(d.source_id), nodeMap.get(d.target_id), gateState(d.target_id));
           markActive(d.source_id, d.target_id, "depends_on");
           allEdges.push({
             id: `cross-dep-${d.edge_id}`,
@@ -512,11 +594,11 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
             target: d.target_id,
             sourceHandle: "src-depends_on",
             targetHandle: "tgt-depends_on",
-            label: "depends_on",
+            label: "requires",
             type: "default",
             animated: false,
             zIndex: 0,
-            style: TREE_CROSSLINK_STYLE,
+            style: { ...EDGE_VISUAL_STYLES[vstate], strokeDasharray: "5 4" },
           });
         }
       }
@@ -548,7 +630,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
     for (const apiNode of apiGraph.nodes) {
       if (hiddenNodeIds.has(apiNode.node_id)) continue;
       const hasBrokenEdges = apiNode.diagnostics.length > 0;
-      const isExpanded = expandedSpecIds.has(apiNode.node_id);
+      const isExpanded = !autoCollapseExpanded && expandedSpecIds.has(apiNode.node_id);
       const expandedDetail = isExpanded ? specDetails.get(apiNode.node_id) : undefined;
 
       if (isExpanded && expandedDetail) {
@@ -734,7 +816,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions) {
       (e) => !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target)
     );
     return { nodes: allNodes, edges: visibleEdges };
-  }, [apiGraph, basePositions, viewMode, showCrossLinks, showBlocking, showDependsOn, expandedSpecIds, specDetails, onToggleExpand, collapsedBranchIds, onToggleBranch, changedNodeIds]);
+  }, [apiGraph, basePositions, viewMode, showCrossLinks, showBlocking, showDependsOn, overlayMap, expandedSpecIds, specDetails, onToggleExpand, collapsedBranchIds, onToggleBranch, changedNodeIds, autoCollapseExpanded]);
 
   return {
     nodes,
