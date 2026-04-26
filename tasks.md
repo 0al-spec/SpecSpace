@@ -16,7 +16,7 @@
 
 ## High priority — SpecGraph retrospective refactor maintenance
 
-- [ ] **Regression guard для `graph_dashboard` retrospective surface** — закрепить тестами и JSON/schema-check, что `--build-graph-dashboard` выводит `retrospective_refactor_candidates`, counts для `refactor_queue`/`proposal_queue` и viewer-ready named filter.
+- [x] **Regression guard для `graph_dashboard` retrospective surface** — закрепить тестами и JSON/schema-check, что `--build-graph-dashboard` выводит `retrospective_refactor_candidates`, counts для `refactor_queue`/`proposal_queue` и viewer-ready named filter.
   - **Контекст:** поддерживает closure pass task 17 из ветки `codex/retrospective-refactor-closure`, commit `fbef367`.
   - **Метрика:** targeted dashboard/retrospective tests покрывают presence + shape + fixture с непустым retrospective set; standalone `--build-graph-dashboard` проходит JSON validation.
 
@@ -31,7 +31,7 @@
 
 ## High priority — SpecGraph Metrics delivery/feedback viewer integration
 
-- [ ] **External Consumers section в `GraphDashboard` для Metrics delivery/feedback** — расширить контракт [GraphDashboard.tsx](viewer/app/src/GraphDashboard.tsx), чтобы `sections.external_consumers` показывал `metrics_delivery_status_counts`, `metrics_delivery_review_state_counts`, `metrics_feedback_status_counts`, `metrics_feedback_review_state_counts`, named-filter counts и backlog counters, а не только top-level headline cards.
+- [x] **External Consumers section в `GraphDashboard` для Metrics delivery/feedback** — расширить контракт [GraphDashboard.tsx](viewer/app/src/GraphDashboard.tsx), чтобы `sections.external_consumers` показывал `metrics_delivery_status_counts`, `metrics_delivery_review_state_counts`, `metrics_feedback_status_counts`, `metrics_feedback_review_state_counts`, named-filter counts и backlog counters, а не только top-level headline cards.
   - **Контекст:** поддерживает SpecGraph tasks 89-90 из ветки `codex/metrics-delivery-feedback`, commit `ea2886f`, где `graph_dashboard.json` получил `metrics_delivery_ready`, `metrics_feedback_visible` и Metrics delivery/feedback counts.
   - **Метрика:** fixture `graph_dashboard.json` с `sections.external_consumers` рендерит отдельную секцию External Consumers; `metrics_delivery_ready` и `metrics_feedback_visible` видны как headline/filter counts; `npm run build` проходит без `any`-обходов для нового section shape.
 
@@ -53,7 +53,7 @@
 
 ## High priority — SpecGraph backlog projection viewer integration
 
-- [ ] **Backlog section в `GraphDashboard` для `graph_backlog_projection`** — расширить dashboard-контракт под `sections.backlog` и headline card `graph_backlog_open`, чтобы viewer показывал не только backlog counts, но и reviewable rows.
+- [x] **Backlog section в `GraphDashboard` для `graph_backlog_projection`** — расширить dashboard-контракт под `sections.backlog` и headline card `graph_backlog_open`, чтобы viewer показывал не только backlog counts, но и reviewable rows.
   - **Контекст:** поддерживает новый SpecGraph artifact `runs/graph_backlog_projection.json` и CLI `python3 tools/supervisor.py --build-graph-backlog-projection`.
   - **Метрика:** dashboard fixture с `sections.backlog` рендерит отдельную секцию Backlog; card `graph_backlog_open` видна в headline cards; backlog rows показывают `domain`, `subject_id`, `next_gap`, `priority`, `source_artifact`.
 

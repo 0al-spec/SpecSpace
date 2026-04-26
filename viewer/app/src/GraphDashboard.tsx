@@ -63,11 +63,48 @@ interface DashboardData {
       named_filter_counts: Record<string, number>;
       evidence_backlog_count: number;
     };
+    external_consumers?: {
+      entry_count: number;
+      available_count: number;
+      bridge_state_counts: Record<string, number>;
+      metric_pressure_counts: Record<string, number>;
+      named_filter_counts: Record<string, number>;
+      handoff_status_counts: Record<string, number>;
+      handoff_review_state_counts: Record<string, number>;
+      specpm_feedback_status_counts: Record<string, number>;
+      specpm_feedback_review_state_counts: Record<string, number>;
+      specpm_feedback_named_filter_counts: Record<string, number>;
+      metrics_delivery_status_counts: Record<string, number>;
+      metrics_delivery_review_state_counts: Record<string, number>;
+      metrics_delivery_named_filter_counts: Record<string, number>;
+      metrics_feedback_status_counts: Record<string, number>;
+      metrics_feedback_review_state_counts: Record<string, number>;
+      metrics_feedback_named_filter_counts: Record<string, number>;
+      metrics_source_promotion_status_counts: Record<string, number>;
+      metrics_source_promotion_authority_counts: Record<string, number>;
+      metrics_source_promotion_named_filter_counts: Record<string, number>;
+      external_consumer_backlog_count: number;
+      handoff_backlog_count: number;
+      specpm_feedback_entry_count: number;
+      specpm_feedback_backlog_count: number;
+      metrics_delivery_entry_count: number;
+      metrics_delivery_backlog_count: number;
+      metrics_feedback_entry_count: number;
+      metrics_feedback_backlog_count: number;
+      metrics_source_promotion_entry_count: number;
+      metrics_source_promotion_backlog_count: number;
+    };
     metrics?: {
       metric_count: number;
       metric_status_counts: Record<string, number>;
       metric_scores: Record<string, MetricScore>;
       below_threshold_metric_ids: string[];
+    };
+    backlog?: {
+      backlog_entry_count: number;
+      priority_counts: Record<string, number>;
+      domain_counts: Record<string, number>;
+      next_gap_counts: Record<string, number>;
     };
   };
   viewer_projection?: {
@@ -362,6 +399,100 @@ export default function GraphDashboard() {
           </div>
         )}
 
+        {/* External Consumers */}
+        {sections.external_consumers && (
+          <div className="gd-section">
+            <h2 className="gd-section-title">External Consumers</h2>
+            <div className="gd-section-cards">
+              {(cardsBySection["external_consumers"] ?? []).map((c) => (
+                <div key={c.card_id} className={`gd-mini-card ${statusClass(c.status)}`} title={c.basis}>
+                  <span className="gd-mc-val">{c.value}</span>
+                  <span className="gd-mc-lbl">{c.title}</span>
+                </div>
+              ))}
+            </div>
+            <div className="gd-subsection-label">Handoffs</div>
+            <div className="gd-detail-row">
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Status</div>
+                <CountTable counts={sections.external_consumers.handoff_status_counts} emptyMessage="No handoffs" />
+              </div>
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Review State</div>
+                <CountTable counts={sections.external_consumers.handoff_review_state_counts} />
+              </div>
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Bridge States</div>
+                <CountTable counts={sections.external_consumers.bridge_state_counts} />
+              </div>
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Metric Pressure</div>
+                <CountTable counts={sections.external_consumers.metric_pressure_counts} emptyMessage="No pressure" />
+              </div>
+            </div>
+            <div className="gd-subsection-label">Metrics Delivery</div>
+            <div className="gd-detail-row">
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Status</div>
+                <CountTable counts={sections.external_consumers.metrics_delivery_status_counts} emptyMessage="No entries" />
+              </div>
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Review State</div>
+                <CountTable counts={sections.external_consumers.metrics_delivery_review_state_counts} emptyMessage="—" />
+              </div>
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Filters</div>
+                <CountTable counts={sections.external_consumers.metrics_delivery_named_filter_counts} emptyMessage="All clear" />
+              </div>
+            </div>
+            <div className="gd-subsection-label">Metrics Feedback</div>
+            <div className="gd-detail-row">
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Status</div>
+                <CountTable counts={sections.external_consumers.metrics_feedback_status_counts} emptyMessage="No entries" />
+              </div>
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Review State</div>
+                <CountTable counts={sections.external_consumers.metrics_feedback_review_state_counts} emptyMessage="—" />
+              </div>
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Filters</div>
+                <CountTable counts={sections.external_consumers.metrics_feedback_named_filter_counts} emptyMessage="All clear" />
+              </div>
+            </div>
+            <div className="gd-subsection-label">Source Promotion</div>
+            <div className="gd-detail-row">
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Status</div>
+                <CountTable counts={sections.external_consumers.metrics_source_promotion_status_counts} emptyMessage="No candidates" />
+              </div>
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Authority State</div>
+                <CountTable counts={sections.external_consumers.metrics_source_promotion_authority_counts} emptyMessage="—" />
+              </div>
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Filters</div>
+                <CountTable counts={sections.external_consumers.metrics_source_promotion_named_filter_counts} emptyMessage="All clear" />
+              </div>
+            </div>
+            {sections.external_consumers.specpm_feedback_entry_count > 0 && (
+              <>
+                <div className="gd-subsection-label">SpecPM Feedback</div>
+                <div className="gd-detail-row">
+                  <div className="gd-detail-block">
+                    <div className="gd-detail-label">Status</div>
+                    <CountTable counts={sections.external_consumers.specpm_feedback_status_counts} emptyMessage="No entries" />
+                  </div>
+                  <div className="gd-detail-block">
+                    <div className="gd-detail-label">Review State</div>
+                    <CountTable counts={sections.external_consumers.specpm_feedback_review_state_counts} emptyMessage="—" />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Metrics */}
         {sections.metrics && (
           <div className="gd-section">
@@ -378,6 +509,35 @@ export default function GraphDashboard() {
               {Object.entries(sections.metrics.metric_scores).map(([id, m]) => (
                 <MetricBar key={id} id={id} m={m} />
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Backlog */}
+        {sections.backlog && (
+          <div className="gd-section">
+            <h2 className="gd-section-title">Backlog</h2>
+            <div className="gd-section-cards">
+              {(cardsBySection["backlog"] ?? []).map((c) => (
+                <div key={c.card_id} className={`gd-mini-card ${statusClass(c.status)}`} title={c.basis}>
+                  <span className="gd-mc-val">{c.value}</span>
+                  <span className="gd-mc-lbl">{c.title}</span>
+                </div>
+              ))}
+            </div>
+            <div className="gd-detail-row">
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Priority</div>
+                <CountTable counts={sections.backlog.priority_counts} emptyMessage="Backlog clear" />
+              </div>
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Domain</div>
+                <CountTable counts={sections.backlog.domain_counts} emptyMessage="—" />
+              </div>
+              <div className="gd-detail-block">
+                <div className="gd-detail-label">Next Gap</div>
+                <CountTable counts={sections.backlog.next_gap_counts} emptyMessage="—" />
+              </div>
             </div>
           </div>
         )}

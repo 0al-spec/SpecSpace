@@ -140,6 +140,19 @@
 .gd-status-attention .gd-mc-val { color: var(--accent); }
 .gd-status-info .gd-mc-val      { color: var(--text); }
 
+/* Subsection labels (within a section) */
+.gd-subsection-label {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--muted);
+  margin-top: 14px;
+  margin-bottom: 2px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line, #d4c4ac);
+}
+
 /* Detail blocks */
 .gd-detail-row {
   display: flex;
