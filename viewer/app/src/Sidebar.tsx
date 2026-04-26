@@ -278,7 +278,7 @@ export default function Sidebar({
                         })
                       }
                     />
-                    Show Blocking
+                    Highlight Required Dependencies
                   </label>
                   {specViewOptions.viewMode === "tree" && (
                     <label className="sidebar-toggle-label">
@@ -307,7 +307,7 @@ export default function Sidebar({
                           })
                         }
                       />
-                      Show depends_on
+                      Show Required Edges
                     </label>
                   )}
                 </div>

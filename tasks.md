@@ -143,6 +143,15 @@ Safari кэширует dasharray-паттерн отдельной тексту
 
 ---
 
+## Low priority — UX affordance
+
+- [ ] **Tooltip/legend объяснение цветов requires-связей** — добавить в hover-tooltip рёбер и/или legend явное объяснение разницы между `required_satisfied` (зелёный), `required_pending` (янтарный) и `active_blocker` (красный), чтобы пользователь понимал, почему одна `requires`-связь зелёная, другая янтарная, третья красная.
+  - **Контекст:** contract в коде уже правильный (`computeEdgeVisualState` в [useSpecGraphData.ts](viewer/app/src/useSpecGraphData.ts)), нужен только UX affordance поверх него. Текущий legend показывает только цвет линии без объяснения состояния dependency.
+  - **Примеры формулировок:** `requires · satisfied (target reviewed)`, `requires · pending (target in review)`, `requires · blocked`.
+  - **Метрика:** пользователь может объяснить значение цвета requires-связи без обращения к документации.
+
+---
+
 ## Low priority / research
 
 - [ ] **Canvas-based рендер на дальних zoom** — при `zoom < 0.3` переключаться на `<canvas>` с `fillRect`+`fillText`.

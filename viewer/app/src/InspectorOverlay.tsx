@@ -402,7 +402,7 @@ export default function InspectorOverlay({
                     <span className="inspector-compile-artifact-name">compiled.md</span>
                     <button
                       className="inspector-copy-btn"
-                      onClick={() => navigator.clipboard?.writeText(compileResult.compiled_md)}
+                      onClick={() => { showToast("Path copied"); navigator.clipboard?.writeText(compileResult.compiled_md).catch(() => {}); }}
                       title="Copy path"
                     >
                       copy
@@ -413,7 +413,7 @@ export default function InspectorOverlay({
                     <span className="inspector-compile-artifact-name">manifest.json</span>
                     <button
                       className="inspector-copy-btn"
-                      onClick={() => navigator.clipboard?.writeText(compileResult.manifest_json)}
+                      onClick={() => { showToast("Path copied"); navigator.clipboard?.writeText(compileResult.manifest_json).catch(() => {}); }}
                       title="Copy path"
                     >
                       copy
@@ -425,7 +425,7 @@ export default function InspectorOverlay({
                       <span className="inspector-compile-artifact-name">provenance.json</span>
                       <button
                         className="inspector-copy-btn"
-                        onClick={() => navigator.clipboard?.writeText(compileResult.provenance_json ?? "")}
+                        onClick={() => { showToast("Path copied"); navigator.clipboard?.writeText(compileResult.provenance_json ?? "").catch(() => {}); }}
                         title="Copy path"
                       >
                         copy
@@ -438,7 +438,7 @@ export default function InspectorOverlay({
                       <span className="inspector-compile-artifact-name">provenance.md</span>
                       <button
                         className="inspector-copy-btn"
-                        onClick={() => navigator.clipboard?.writeText(compileResult.provenance_md ?? "")}
+                        onClick={() => { showToast("Path copied"); navigator.clipboard?.writeText(compileResult.provenance_md ?? "").catch(() => {}); }}
                         title="Copy path"
                       >
                         copy

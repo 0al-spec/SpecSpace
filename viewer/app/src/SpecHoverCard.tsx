@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCalendarPlus, faRotate } from "@fortawesome/free-solid-svg-icons";
+import { faCalendarPlus, faRotate, faAngleUp } from "@fortawesome/free-solid-svg-icons";
 import type { ApiSpecNode } from "./types";
 import "./SpecHoverCard.css";
 
@@ -98,7 +98,7 @@ export default function SpecHoverCard({ node, rect }: SpecHoverCardProps) {
             <span>→ {node.depends_on.length} dep{node.depends_on.length !== 1 ? "s" : ""}</span>
           )}
           {node.refines.length > 0 && (
-            <span>↳ {node.refines.length} refines</span>
+            <span><FontAwesomeIcon icon={faAngleUp} /> {node.refines.length} refines</span>
           )}
           {node.relates_to.length > 0 && (
             <span>~ {node.relates_to.length} relates</span>

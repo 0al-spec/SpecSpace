@@ -147,6 +147,11 @@
   gap: 16px;
   margin-top: 4px;
 }
+.gd-detail-row + .gd-detail-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line, #d4c4ac);
+}
 
 .gd-detail-block {
   flex: 1 1 160px;
@@ -203,6 +208,11 @@
   border-radius: 4px;
   padding: 2px 7px;
   color: var(--accent-strong);
+}
+.gd-tag--attention {
+  background: rgba(181, 65, 49, 0.08);
+  border-color: var(--broken-line, #b54131);
+  color: var(--broken-line, #b54131);
 }
 
 /* ── Metric bars ────────────────────────────────────────────────── */

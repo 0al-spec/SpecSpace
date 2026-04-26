@@ -21,7 +21,7 @@ const STATUS_FILL: Record<string, string> = {
 
 const EDGE_COLOR: Record<string, string> = {
   refines:    "#4e689b",
-  depends_on: "#dc2626",
+  depends_on: "#c08820",  // amber — depends_on = required dependency, not an error
   relates_to: "#7c3aed",
 };
 
@@ -277,7 +277,7 @@ export default function SpecForceGraph({
                 strokeDasharray={EDGE_DASH[k] ?? undefined}
               />
             </svg>
-            {k}
+            {k === "depends_on" ? "requires" : k}
           </span>
         ))}
         <span className="sfg-legend-hint">scroll to zoom · drag node to pin · click to inspect</span>

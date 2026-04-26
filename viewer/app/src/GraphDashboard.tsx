@@ -37,8 +37,18 @@ interface DashboardData {
       hotspot_region_count: number;
     };
     proposals?: {
+      refactor_queue_entry_count: number;
+      refactor_queue_active_count: number;
+      proposal_queue_entry_count: number;
+      proposal_queue_active_count: number;
+      retrospective_refactor_queue_count: number;
+      retrospective_refactor_proposal_count: number;
+      retrospective_refactor_queue_ids: string[];
+      retrospective_refactor_proposal_ids: string[];
       proposal_runtime_entry_count: number;
       proposal_runtime_backlog_count: number;
+      proposal_runtime_posture_counts?: Record<string, number>;
+      proposal_runtime_next_gap_counts?: Record<string, number>;
       proposal_promotion_traceability_counts: Record<string, number>;
       proposal_lane_active_count: number;
     };
@@ -75,9 +85,9 @@ function formatKey(key: string) {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function CountTable({ counts }: { counts: Record<string, number> }) {
+function CountTable({ counts, emptyMessage }: { counts: Record<string, number>; emptyMessage?: string }) {
   const entries = Object.entries(counts).filter(([, v]) => v > 0);
-  if (!entries.length) return <span className="gd-empty">—</span>;
+  if (!entries.length) return <span className="gd-empty">{emptyMessage ?? "—"}</span>;
   return (
     <table className="gd-count-table">
       <tbody>
@@ -242,9 +252,61 @@ export default function GraphDashboard() {
                 <div className="gd-detail-label">Promotion Traceability</div>
                 <CountTable counts={sections.proposals.proposal_promotion_traceability_counts} />
               </div>
+              {sections.proposals.proposal_runtime_posture_counts && (
+                <div className="gd-detail-block">
+                  <div className="gd-detail-label">Runtime Posture</div>
+                  <CountTable counts={sections.proposals.proposal_runtime_posture_counts} />
+                </div>
+              )}
+              {sections.proposals.proposal_runtime_next_gap_counts && (
+                <div className="gd-detail-block">
+                  <div className="gd-detail-label">Next Gap</div>
+                  <CountTable counts={sections.proposals.proposal_runtime_next_gap_counts} />
+                </div>
+              )}
+            </div>
+            <div className="gd-detail-row">
               <div className="gd-detail-block">
-                <div className="gd-detail-label">Runtime Posture</div>
-                <CountTable counts={(sections.proposals as any).proposal_runtime_posture_counts ?? {}} />
+                <div className="gd-detail-label">Queue Posture</div>
+                <CountTable
+                  counts={{
+                    refactor_queue_active: sections.proposals.refactor_queue_active_count ?? 0,
+                    refactor_queue_total: sections.proposals.refactor_queue_entry_count ?? 0,
+                    proposal_queue_active: sections.proposals.proposal_queue_active_count ?? 0,
+                    proposal_queue_total: sections.proposals.proposal_queue_entry_count ?? 0,
+                  }}
+                  emptyMessage="All queues clear"
+                />
+              </div>
+            </div>
+            <div className="gd-detail-row">
+              <div className="gd-detail-block gd-detail-block--wide">
+                <div className="gd-detail-label">
+                  Retrospective Refactor Queue ({sections.proposals.retrospective_refactor_queue_count ?? 0})
+                </div>
+                {(sections.proposals.retrospective_refactor_queue_ids ?? []).length > 0 ? (
+                  <div className="gd-tag-list">
+                    {sections.proposals.retrospective_refactor_queue_ids.map((id) => (
+                      <span key={id} className="gd-tag gd-tag--attention">{id}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="gd-empty">No retrospective refactor candidates</span>
+                )}
+              </div>
+              <div className="gd-detail-block gd-detail-block--wide">
+                <div className="gd-detail-label">
+                  Retrospective Proposal Queue ({sections.proposals.retrospective_refactor_proposal_count ?? 0})
+                </div>
+                {(sections.proposals.retrospective_refactor_proposal_ids ?? []).length > 0 ? (
+                  <div className="gd-tag-list">
+                    {sections.proposals.retrospective_refactor_proposal_ids.map((id) => (
+                      <span key={id} className="gd-tag gd-tag--attention">{id}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="gd-empty">No retrospective proposals</span>
+                )}
               </div>
             </div>
           </div>
