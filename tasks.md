@@ -60,7 +60,7 @@
 - [x] **Read-only drilldown endpoint для backlog projection artifact** — добавить безопасную выдачу allowlisted `runs/graph_backlog_projection.json` через viewer API, чтобы Dashboard мог открывать конкретные backlog rows и provenance без прямого доступа к файловой системе.
   - **Метрика:** server tests покрывают happy path, missing artifact, invalid JSON и path traversal; UI сортирует/группирует rows по `priority` и `domain`, сохраняя `source_artifact` для traceability.
 
-- [ ] **Contract regression fixture для backlog projection** — закрепить минимальный fixture для `graph_dashboard.json` + `graph_backlog_projection.json`, чтобы новые dashboard rows оставались tolerant к новым backlog domains и priorities.
+- [x] **Contract regression fixture для backlog projection** — закрепить минимальный fixture для `graph_dashboard.json` + `graph_backlog_projection.json`, чтобы новые dashboard rows оставались tolerant к новым backlog domains и priorities.
   - **Метрика:** fixture содержит несколько rows с разными `domain`, `priority`, `next_gap` и `source_artifact`; тест проверяет graceful rendering unknown domain/priority и отсутствие падения при пустом backlog.
 
 ---
