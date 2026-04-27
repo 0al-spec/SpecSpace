@@ -46,7 +46,7 @@
   - **Контекст:** `metric_signal_index.json` теперь различает `sib` с `threshold_authority_state: canonical_threshold_authority` и `sib_proxy` с `alias_of: sib`, `threshold_authority_state: alias_only`, `signal_emitted: false`, `migration_state: compatibility_alias`.
   - **Метрика:** список метрик сворачивает/задимляет `sib_proxy` под `sib`; `metrics_below_threshold` и warning tables не считают `sib + sib_proxy` дважды; fixture проверяет `legacy_metric_ids`, `alias_of`, `signal_emitted: false`.
 
-- [ ] **Contract regression fixture для downstream Metrics surfaces** — закрепить минимальный dashboard/artifact fixture, совместимый с SpecGraph `metrics_delivery_policy.json`, `metrics_feedback_policy.json`, source-promotion artifact и canonical/alias metric shape, чтобы ContextBuilder не ломался при появлении новых statuses или named filters.
+- [x] **Contract regression fixture для downstream Metrics surfaces** — закрепить минимальный dashboard/artifact fixture, совместимый с SpecGraph `metrics_delivery_policy.json`, `metrics_feedback_policy.json`, source-promotion artifact и canonical/alias metric shape, чтобы ContextBuilder не ломался при появлении новых statuses или named filters.
   - **Метрика:** fixture включает `ready_for_delivery_review`, `blocked_by_repo_state`, `review_activity_observed`, `adoption_observed_locally`, `ready_for_promotion_review`, `promotion_candidate`, `threshold_driven`; тест проверяет tolerant rendering unknown statuses + сохранение нулевых counts, где они важны для фильтров.
 
 ---
