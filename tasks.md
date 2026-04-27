@@ -65,6 +65,14 @@
 
 ---
 
+## High priority — Dashboard build trigger
+
+- [ ] **`POST /api/viewer-surfaces/build` + кнопка Rebuild в Dashboard** — добавить endpoint, который запускает `supervisor.py --build-viewer-surfaces` (строит `graph_dashboard.json` + `graph_backlog_projection.json`), и кнопку в шапке дашборда с индикатором прогресса и обновлением данных после завершения.
+  - **Capability detection:** grep supervisor.py на `--build-viewer-surfaces` (как у exploration_preview_build).
+  - **Метрика:** кнопка появляется только когда capability=true; после нажатия показывает spinner, после завершения перечитывает `/api/graph-dashboard` без ручного F5; server tests покрывают happy path, supervisor missing, nonzero exit.
+
+---
+
 ## High priority — быстрые победы
 
 - [ ] **`onlyRenderVisibleElements={true}`** на `<ReactFlow>` в [App.tsx:764](viewer/app/src/App.tsx:764). Ноды/рёбра вне viewport не рендерятся.

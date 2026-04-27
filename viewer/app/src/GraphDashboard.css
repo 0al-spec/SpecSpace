@@ -13,6 +13,37 @@
   align-items: baseline;
   gap: 16px;
   margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.gd-rebuild-btn {
+  margin-left: auto;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-family: inherit;
+  background: var(--accent, #915a24);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.gd-rebuild-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.gd-rebuild-btn:not(:disabled):hover {
+  background: var(--accent-strong, #6c4012);
+}
+
+.gd-build-error {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  background: #fdecea;
+  border: 1px solid var(--broken-line, #b54131);
+  color: var(--broken-line, #b54131);
 }
 
 .gd-title {

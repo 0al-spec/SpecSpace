@@ -150,6 +150,7 @@ interface Capabilities {
   specpmPreviewAvailable: boolean;
   explorationPreviewAvailable: boolean;
   explorationPreviewBuildAvailable: boolean;
+  viewerSurfacesBuildAvailable: boolean;
   agentAvailable: boolean;
 }
 
@@ -157,7 +158,7 @@ interface Capabilities {
 async function checkCapabilities(): Promise<Capabilities> {
   try {
     const res = await fetch("/api/capabilities");
-    if (!res.ok) return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationPreviewAvailable: false, explorationPreviewBuildAvailable: false, agentAvailable: false };
+    if (!res.ok) return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationPreviewAvailable: false, explorationPreviewBuildAvailable: false, viewerSurfacesBuildAvailable: false, agentAvailable: false };
     const data = await res.json();
     return {
       specAvailable: Boolean(data.spec_graph),
@@ -167,10 +168,11 @@ async function checkCapabilities(): Promise<Capabilities> {
       specpmPreviewAvailable: Boolean(data.specpm_preview),
       explorationPreviewAvailable: Boolean(data.exploration_preview),
       explorationPreviewBuildAvailable: Boolean(data.exploration_preview_build),
+      viewerSurfacesBuildAvailable: Boolean(data.viewer_surfaces_build),
       agentAvailable: Boolean(data.agent),
     };
   } catch {
-    return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationPreviewAvailable: false, explorationPreviewBuildAvailable: false, agentAvailable: false };
+    return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationPreviewAvailable: false, explorationPreviewBuildAvailable: false, viewerSurfacesBuildAvailable: false, agentAvailable: false };
   }
 }
 
@@ -190,6 +192,7 @@ function AppInner() {
   const [specpmPreviewAvailable, setSpecpmPreviewAvailable] = useState(false);
   const [explorationPreviewAvailable, setExplorationPreviewAvailable] = useState(false);
   const [explorationPreviewBuildAvailable, setExplorationPreviewBuildAvailable] = useState(false);
+  const [viewerSurfacesBuildAvailable, setViewerSurfacesBuildAvailable] = useState(false);
   const [agentAvailable, setAgentAvailable] = useState(false);
   const [specpmPreviewOpen, setSpecpmPreviewOpen] = useState(false);
   const [explorationPreviewOpen, setExplorationPreviewOpen] = useState(false);
@@ -198,7 +201,7 @@ function AppInner() {
 
   // Check capabilities once on mount
   useEffect(() => {
-    checkCapabilities().then(({ specAvailable, compileAvailable, dashboardAvailable, specOverlayAvailable, specpmPreviewAvailable, explorationPreviewAvailable, explorationPreviewBuildAvailable, agentAvailable }) => {
+    checkCapabilities().then(({ specAvailable, compileAvailable, dashboardAvailable, specOverlayAvailable, specpmPreviewAvailable, explorationPreviewAvailable, explorationPreviewBuildAvailable, viewerSurfacesBuildAvailable, agentAvailable }) => {
       setSpecAvailable(specAvailable);
       setCompileAvailable(compileAvailable);
       setDashboardAvailable(dashboardAvailable);
@@ -206,6 +209,7 @@ function AppInner() {
       setSpecpmPreviewAvailable(specpmPreviewAvailable);
       setExplorationPreviewAvailable(explorationPreviewAvailable);
       setExplorationPreviewBuildAvailable(explorationPreviewBuildAvailable);
+      setViewerSurfacesBuildAvailable(viewerSurfacesBuildAvailable);
       setAgentAvailable(agentAvailable);
     });
   }, []);
@@ -833,7 +837,7 @@ function AppInner() {
             </div>
           )}
           {/* Dashboard view */}
-          {graphMode === "dashboard" && <GraphDashboard />}
+          {graphMode === "dashboard" && <GraphDashboard buildAvailable={viewerSurfacesBuildAvailable} />}
 
           {/* Force-directed view — replaces ReactFlow when viewMode === "force" */}
           {graphMode === "specifications" && specViewOptions.viewMode === "force" && specGraph.rawGraph && (

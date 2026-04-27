@@ -1518,6 +1518,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/exploration-preview/build":
             self.handle_exploration_preview_build()
             return
+        if parsed.path == "/api/viewer-surfaces/build":
+            self.handle_viewer_surfaces_build()
+            return
         if parsed.path == "/api/reveal":
             self.handle_reveal()
             return
@@ -1542,6 +1545,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "specpm_preview": self.server.specgraph_dir is not None,
                 "exploration_preview": self.server.specgraph_dir is not None,
                 "exploration_preview_build": self._exploration_build_available(),
+                "viewer_surfaces_build": self._viewer_surfaces_build_available(),
                 "agent": self.server.agent_available,
             },
         )
@@ -1551,6 +1555,73 @@ class ViewerHandler(BaseHTTPRequestHandler):
             return None
         p = self.server.spec_dir.parent.parent / "runs"
         return p if p.is_dir() else None
+
+    def _viewer_surfaces_build_available(self) -> bool:
+        """True only when supervisor.py declares --build-viewer-surfaces in its source."""
+        if self.server.specgraph_dir is None:
+            return False
+        supervisor = self.server.specgraph_dir / "tools" / "supervisor.py"
+        if not supervisor.exists():
+            return False
+        try:
+            content = supervisor.read_text(encoding="utf-8", errors="ignore")
+            return "--build-viewer-surfaces" in content
+        except OSError:
+            return False
+
+    def handle_viewer_surfaces_build(self) -> None:
+        if self.server.specgraph_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "Viewer surfaces build not configured. Start the server with --specgraph-dir."},
+            )
+            return
+        supervisor = self.server.specgraph_dir / "tools" / "supervisor.py"
+        if not supervisor.exists():
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": "supervisor.py not found", "expected": str(supervisor)},
+            )
+            return
+        cmd = [sys.executable, str(supervisor), "--build-viewer-surfaces"]
+        built_at = datetime.now(tz=timezone.utc).isoformat()
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        except subprocess.TimeoutExpired:
+            json_response(
+                self,
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"error": "supervisor.py --build-viewer-surfaces timed out", "exit_code": None, "built_at": built_at},
+            )
+            return
+        except Exception as exc:
+            json_response(
+                self,
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"error": f"Failed to invoke supervisor.py: {exc}", "exit_code": None, "built_at": built_at},
+            )
+            return
+        stderr_tail = "\n".join((result.stderr or "").splitlines()[-40:])
+        if result.returncode != 0:
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {
+                    "error": "supervisor.py --build-viewer-surfaces failed",
+                    "exit_code": result.returncode,
+                    "stderr_tail": stderr_tail,
+                    "stdout_tail": "\n".join((result.stdout or "").splitlines()[-40:]),
+                    "built_at": built_at,
+                },
+            )
+            return
+        try:
+            report = json.loads(result.stdout) if result.stdout.strip() else {}
+        except json.JSONDecodeError:
+            report = {}
+        json_response(self, HTTPStatus.OK, {"built_at": built_at, "exit_code": 0, "report": report})
 
     def _graph_dashboard_path(self):
         d = self._runs_dir()

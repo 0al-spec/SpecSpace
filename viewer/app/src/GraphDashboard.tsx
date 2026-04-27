@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./GraphDashboard.css";
 
 interface HeadlineCard {
@@ -165,11 +165,13 @@ function MetricBar({ id, m }: { id: string; m: MetricScore }) {
   );
 }
 
-export default function GraphDashboard() {
+export default function GraphDashboard({ buildAvailable = false }: { buildAvailable?: boolean }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [building, setBuilding] = useState(false);
+  const [buildError, setBuildError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadDashboard = useCallback(() => {
     fetch("/api/graph-dashboard")
       .then((r) => {
         if (!r.ok) return r.json().then((e) => Promise.reject(e.error ?? "Failed"));
@@ -178,6 +180,26 @@ export default function GraphDashboard() {
       .then(setData)
       .catch((e) => setError(typeof e === "string" ? e : String(e)));
   }, []);
+
+  useEffect(() => { loadDashboard(); }, [loadDashboard]);
+
+  const handleRebuild = useCallback(async () => {
+    setBuilding(true);
+    setBuildError(null);
+    try {
+      const res = await fetch("/api/viewer-surfaces/build", { method: "POST" });
+      const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+      if (!res.ok) {
+        setBuildError(typeof body.error === "string" ? body.error : `Build failed: HTTP ${res.status}`);
+      } else {
+        loadDashboard();
+      }
+    } catch (err) {
+      setBuildError(String(err));
+    } finally {
+      setBuilding(false);
+    }
+  }, [loadDashboard]);
 
   if (error) return <div className="gd-error">{error}</div>;
   if (!data) return <div className="gd-loading">Loading dashboard…</div>;
@@ -195,7 +217,20 @@ export default function GraphDashboard() {
       <div className="gd-header">
         <h1 className="gd-title">Graph Dashboard</h1>
         <span className="gd-ts">Generated {generatedAt}</span>
+        {buildAvailable && (
+          <button
+            className="gd-rebuild-btn"
+            disabled={building}
+            onClick={handleRebuild}
+            title="Rebuild viewer surfaces (graph_dashboard + graph_backlog_projection)"
+          >
+            {building ? "Rebuilding…" : "Rebuild"}
+          </button>
+        )}
       </div>
+      {buildError && (
+        <div className="gd-build-error"><strong>Build failed:</strong> {buildError}</div>
+      )}
 
       {/* ── Headline cards ─────────────────────────────────────────────── */}
       <div className="gd-cards">
