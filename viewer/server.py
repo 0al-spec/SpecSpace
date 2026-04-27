@@ -1460,6 +1460,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/graph-dashboard":
             self.handle_graph_dashboard()
             return
+        if parsed.path == "/api/graph-backlog-projection":
+            self.handle_graph_backlog_projection()
+            return
         if parsed.path == "/api/spec-overlay":
             self.handle_spec_overlay()
             return
@@ -1641,6 +1644,34 @@ class ViewerHandler(BaseHTTPRequestHandler):
             return
         import json as _json
         json_response(self, HTTPStatus.OK, _json.loads(path.read_text()))
+
+    def handle_graph_backlog_projection(self) -> None:
+        runs = self._runs_dir()
+        if runs is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "graph_backlog_projection.json not found. Run --build-graph-backlog-projection first."},
+            )
+            return
+        path = runs / "graph_backlog_projection.json"
+        if not path.exists():
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "graph_backlog_projection.json not found. Run --build-graph-backlog-projection first."},
+            )
+            return
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": "graph_backlog_projection.json is not valid JSON", "detail": str(exc)},
+            )
+            return
+        json_response(self, HTTPStatus.OK, data)
 
     def handle_spec_overlay(self) -> None:
         """Merge the three node-facing overlays into a single per-spec map."""
