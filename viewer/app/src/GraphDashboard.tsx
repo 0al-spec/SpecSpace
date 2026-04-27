@@ -11,6 +11,24 @@ interface HeadlineCard {
   basis: string;
 }
 
+interface BacklogEntry {
+  subject_id: string;
+  domain: string;
+  priority: string;
+  next_gap: string;
+  source_artifact: string;
+}
+
+interface BacklogProjection {
+  entries: BacklogEntry[];
+  summary: {
+    entry_count: number;
+    priority_counts: Record<string, number>;
+    domain_counts: Record<string, number>;
+    next_gap_counts: Record<string, number>;
+  };
+}
+
 interface MetricScore {
   score: number;
   minimum_score: number;
@@ -177,6 +195,7 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
   const [error, setError] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string | null>(null);
+  const [backlog, setBacklog] = useState<BacklogProjection | null>(null);
 
   const loadDashboard = useCallback(() => {
     fetch("/api/graph-dashboard")
@@ -186,6 +205,10 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
       })
       .then(setData)
       .catch((e) => setError(typeof e === "string" ? e : String(e)));
+    fetch("/api/graph-backlog-projection")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setBacklog(d ?? null))
+      .catch(() => setBacklog(null));
   }, []);
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
@@ -598,6 +621,43 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
                 <CountTable counts={sections.backlog.next_gap_counts} emptyMessage="—" />
               </div>
             </div>
+            {backlog && backlog.entries.length > 0 && (() => {
+              const PRIORITY_ORDER = ["high", "medium", "low"];
+              const sorted = [...backlog.entries].sort((a, b) => {
+                const pa = PRIORITY_ORDER.indexOf(a.priority);
+                const pb = PRIORITY_ORDER.indexOf(b.priority);
+                const po = (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb);
+                if (po !== 0) return po;
+                return a.domain.localeCompare(b.domain);
+              });
+              const groups = sorted.reduce<Record<string, BacklogEntry[]>>((acc, e) => {
+                (acc[e.priority] ??= []).push(e);
+                return acc;
+              }, {});
+              return (
+                <div className="gd-detail-row">
+                  <div className="gd-detail-block gd-detail-block--wide">
+                    {Object.entries(groups).map(([priority, entries]) => (
+                      <div key={priority}>
+                        <div className="gd-subsection-label">{formatKey(priority)}</div>
+                        <table className="gd-count-table gd-backlog-table">
+                          <tbody>
+                            {entries.map((e) => (
+                              <tr key={e.subject_id} className="gd-backlog-row">
+                                <td className="gd-bt-id">{e.subject_id}</td>
+                                <td className="gd-bt-domain">{e.domain}</td>
+                                <td className="gd-bt-gap">{formatKey(e.next_gap)}</td>
+                                <td className="gd-bt-src" title={e.source_artifact}>{e.source_artifact.split("/").pop()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
