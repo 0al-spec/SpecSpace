@@ -325,6 +325,22 @@
   font-family: var(--font-mono);
 }
 
+.gd-metric-alias {
+  opacity: 0.45;
+  border-left: 2px solid var(--line, #d4c4ac);
+  padding-left: 8px;
+}
+.gd-metric-alias-badge {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 3px;
+  padding: 0 5px;
+}
+
 /* ── States ─────────────────────────────────────────────────────── */
 .gd-loading,
 .gd-error {

@@ -42,7 +42,7 @@
 - [ ] **Read-only drilldown endpoints для Metrics handoff/promotion artifacts** — добавить безопасную выдачу allowlisted SpecGraph `runs/metrics_delivery_workflow.json`, `runs/metrics_feedback_index.json` и `runs/metrics_source_promotion_index.json` через viewer API, чтобы из dashboard можно было открыть строки workflow/feedback/promotion без прямого доступа к файловой системе.
   - **Метрика:** server tests покрывают happy path, missing artifact, invalid JSON и path traversal; UI показывает delivery/feedback rows с `delivery_status`/`feedback_status`, review state, next gap, checkout diagnostics и source artifact timestamp.
 
-- [ ] **Canonical Metrics rendering без double-count `sib_proxy`** — обновить Metrics section, чтобы authoritative problem counters брались из `sections.metrics.below_threshold_authoritative_metric_ids`, а `sib_proxy` рендерился как legacy/compatibility alias под canonical `sib`, а не как отдельная проблемная метрика.
+- [x] **Canonical Metrics rendering без double-count `sib_proxy`** — обновить Metrics section, чтобы authoritative problem counters брались из `sections.metrics.below_threshold_authoritative_metric_ids`, а `sib_proxy` рендерился как legacy/compatibility alias под canonical `sib`, а не как отдельная проблемная метрика.
   - **Контекст:** `metric_signal_index.json` теперь различает `sib` с `threshold_authority_state: canonical_threshold_authority` и `sib_proxy` с `alias_of: sib`, `threshold_authority_state: alias_only`, `signal_emitted: false`, `migration_state: compatibility_alias`.
   - **Метрика:** список метрик сворачивает/задимляет `sib_proxy` под `sib`; `metrics_below_threshold` и warning tables не считают `sib + sib_proxy` дважды; fixture проверяет `legacy_metric_ids`, `alias_of`, `signal_emitted: false`.
 
@@ -67,7 +67,7 @@
 
 ## High priority — Dashboard build trigger
 
-- [ ] **`POST /api/viewer-surfaces/build` + кнопка Rebuild в Dashboard** — добавить endpoint, который запускает `supervisor.py --build-viewer-surfaces` (строит `graph_dashboard.json` + `graph_backlog_projection.json`), и кнопку в шапке дашборда с индикатором прогресса и обновлением данных после завершения.
+- [x] **`POST /api/viewer-surfaces/build` + кнопка Rebuild в Dashboard** — добавить endpoint, который запускает `supervisor.py --build-viewer-surfaces` (строит `graph_dashboard.json` + `graph_backlog_projection.json`), и кнопку в шапке дашборда с индикатором прогресса и обновлением данных после завершения.
   - **Capability detection:** grep supervisor.py на `--build-viewer-surfaces` (как у exploration_preview_build).
   - **Метрика:** кнопка появляется только когда capability=true; после нажатия показывает spinner, после завершения перечитывает `/api/graph-dashboard` без ручного F5; server tests покрывают happy path, supervisor missing, nonzero exit.
 

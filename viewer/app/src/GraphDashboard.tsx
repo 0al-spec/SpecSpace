@@ -99,6 +99,10 @@ interface DashboardData {
       metric_status_counts: Record<string, number>;
       metric_scores: Record<string, MetricScore>;
       below_threshold_metric_ids: string[];
+      below_threshold_authoritative_metric_ids?: string[];
+      threshold_proposal_entry_count?: number;
+      threshold_proposal_kind_counts?: Record<string, number>;
+      threshold_proposal_severity_counts?: Record<string, number>;
     };
     backlog?: {
       backlog_entry_count: number;
@@ -139,17 +143,20 @@ function CountTable({ counts, emptyMessage }: { counts: Record<string, number>; 
   );
 }
 
-function MetricBar({ id, m }: { id: string; m: MetricScore }) {
+function MetricBar({ id, m, isAlias = false }: { id: string; m: MetricScore; isAlias?: boolean }) {
   const pct = Math.round(m.score * 100);
   const minPct = Math.round(m.minimum_score * 100);
   const healthy = m.status === "healthy";
   return (
-    <div className="gd-metric-row">
+    <div className={`gd-metric-row${isAlias ? " gd-metric-alias" : ""}`}>
       <div className="gd-metric-label">
         <span className="gd-metric-name">{formatKey(id)}</span>
-        <span className={`gd-metric-badge ${healthy ? "gd-status-healthy" : "gd-status-attention"}`}>
-          {pct}%
-        </span>
+        {isAlias && <span className="gd-metric-alias-badge">alias</span>}
+        {!isAlias && (
+          <span className={`gd-metric-badge ${healthy ? "gd-status-healthy" : "gd-status-attention"}`}>
+            {pct}%
+          </span>
+        )}
       </div>
       <div className="gd-metric-track">
         <div
@@ -159,7 +166,7 @@ function MetricBar({ id, m }: { id: string; m: MetricScore }) {
         <div className="gd-metric-threshold" style={{ left: `${minPct}%` }} />
       </div>
       <div className="gd-metric-sub">
-        min {minPct}% · gap {healthy ? "+" : ""}{Math.round(-m.threshold_gap * 100)}pp
+        {isAlias ? "compatibility alias · not counted in threshold score" : `min ${minPct}% · gap ${healthy ? "+" : ""}${Math.round(-m.threshold_gap * 100)}pp`}
       </div>
     </div>
   );
@@ -541,10 +548,27 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
               ))}
             </div>
             <div className="gd-metrics-bars">
-              {Object.entries(sections.metrics.metric_scores).map(([id, m]) => (
-                <MetricBar key={id} id={id} m={m} />
-              ))}
+              {(() => {
+                const authoritativeIds = new Set(sections.metrics!.below_threshold_authoritative_metric_ids ?? sections.metrics!.below_threshold_metric_ids);
+                const nonAuthoritativeIds = new Set(sections.metrics!.below_threshold_metric_ids.filter(id => !authoritativeIds.has(id)));
+                return Object.entries(sections.metrics!.metric_scores).map(([id, m]) => (
+                  <MetricBar key={id} id={id} m={m} isAlias={nonAuthoritativeIds.has(id)} />
+                ));
+              })()}
             </div>
+            {sections.metrics.threshold_proposal_entry_count !== undefined &&
+             sections.metrics.threshold_proposal_entry_count > 0 && (
+              <div className="gd-detail-row">
+                <div className="gd-detail-block">
+                  <div className="gd-detail-label">Threshold Proposals ({sections.metrics.threshold_proposal_entry_count})</div>
+                  <CountTable counts={sections.metrics.threshold_proposal_severity_counts ?? {}} />
+                </div>
+                <div className="gd-detail-block">
+                  <div className="gd-detail-label">Proposal Kinds</div>
+                  <CountTable counts={sections.metrics.threshold_proposal_kind_counts ?? {}} />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
