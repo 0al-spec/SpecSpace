@@ -399,6 +399,23 @@
   font-family: Georgia, serif;
 }
 
+.gd-overlay-ts {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-weight: 400;
+}
+
+.gd-overlay-warning {
+  padding: 8px 20px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  background: rgba(181, 65, 49, 0.07);
+  border-bottom: 1px solid var(--broken-line, #b54131);
+  color: var(--broken-line, #b54131);
+  flex-shrink: 0;
+}
+
 .gd-overlay-close {
   width: 28px;
   height: 28px;

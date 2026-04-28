@@ -22,9 +22,11 @@ interface BacklogEntry {
 }
 
 interface BacklogProjection {
+  generated_at?: string;
+  entry_count?: number;
   entries: BacklogEntry[];
   summary: {
-    entry_count: number;
+    entry_count?: number;
     priority_counts: Record<string, number>;
     domain_counts: Record<string, number>;
     next_gap_counts: Record<string, number>;
@@ -194,7 +196,12 @@ function MetricBar({ id, m, isAlias = false }: { id: string; m: MetricScore; isA
 
 const PRIORITY_ORDER = ["high", "medium", "low"];
 
-function BacklogOverlay({ entries, onClose }: { entries: BacklogEntry[]; onClose: () => void }) {
+function BacklogOverlay({ entries, summaryCount, generatedAt, onClose }: {
+  entries: BacklogEntry[];
+  summaryCount: number;
+  generatedAt?: string;
+  onClose: () => void;
+}) {
   const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -223,9 +230,21 @@ function BacklogOverlay({ entries, onClose }: { entries: BacklogEntry[]; onClose
     >
       <div className="gd-overlay-panel" role="dialog" aria-modal="true">
         <div className="gd-overlay-header">
-          <span className="gd-overlay-title">Backlog Entries ({entries.length})</span>
+          <div>
+            <span className="gd-overlay-title">Backlog Entries ({entries.length})</span>
+            {generatedAt && (
+              <span className="gd-overlay-ts">
+                {" "}· snapshot {new Date(generatedAt).toLocaleString()}
+              </span>
+            )}
+          </div>
           <button className="gd-overlay-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
+        {summaryCount !== entries.length && (
+          <div className="gd-overlay-warning">
+            Warning: summary.entry_count={summaryCount} but entries.length={entries.length} — artifact may be partially truncated or stale.
+          </div>
+        )}
         <div className="gd-overlay-body">
           <table className="gd-bl-table">
             <thead>
@@ -705,7 +724,12 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
       </div>
     </div>
     {backlogOpen && backlog && (
-      <BacklogOverlay entries={backlog.entries} onClose={() => setBacklogOpen(false)} />
+      <BacklogOverlay
+        entries={backlog.entries}
+        summaryCount={backlog.entry_count ?? backlog.summary.entry_count ?? backlog.entries.length}
+        generatedAt={backlog.generated_at}
+        onClose={() => setBacklogOpen(false)}
+      />
     )}
     </>
   );
