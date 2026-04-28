@@ -129,14 +129,15 @@ class BacklogProjectionEndpointTests(unittest.TestCase):
         self.assertEqual(status, 404)
         self.assertIn("error", body)
 
-    def test_404_when_spec_dir_not_configured(self) -> None:
+    def test_503_when_spec_dir_not_configured(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             httpd, thread, base = _start(Path(tmp), spec_dir=None)
             try:
                 status, body = _get(f"{base}/api/graph-backlog-projection")
             finally:
                 _stop(httpd, thread)
-        self.assertEqual(status, 404)
+        self.assertEqual(status, 503)
+        self.assertIn("error", body)
 
     def test_200_happy_path_minimal(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

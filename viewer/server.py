@@ -1646,6 +1646,13 @@ class ViewerHandler(BaseHTTPRequestHandler):
         json_response(self, HTTPStatus.OK, _json.loads(path.read_text()))
 
     def handle_graph_backlog_projection(self) -> None:
+        if self.server.spec_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecGraph not configured. Start the server with --spec-dir."},
+            )
+            return
         runs = self._runs_dir()
         if runs is None:
             json_response(

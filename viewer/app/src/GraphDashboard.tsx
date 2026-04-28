@@ -194,7 +194,7 @@ function MetricBar({ id, m, isAlias = false }: { id: string; m: MetricScore; isA
   );
 }
 
-const PRIORITY_ORDER = ["high", "medium", "low"];
+const PRIORITY_ORDER = ["high", "medium", "low", "info"];
 
 function BacklogOverlay({ entries, summaryCount, generatedAt, onClose }: {
   entries: BacklogEntry[];
@@ -213,8 +213,14 @@ function BacklogOverlay({ entries, summaryCount, generatedAt, onClose }: {
   const sorted = [...entries].sort((a, b) => {
     const pa = PRIORITY_ORDER.indexOf(a.priority);
     const pb = PRIORITY_ORDER.indexOf(b.priority);
-    const po = (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb);
-    return po !== 0 ? po : a.domain.localeCompare(b.domain);
+    const unknownA = pa === -1, unknownB = pb === -1;
+    if (unknownA !== unknownB) return unknownA ? 1 : -1;
+    if (!unknownA && !unknownB && pa !== pb) return pa - pb;
+    if (unknownA && unknownB) {
+      const pc = a.priority.localeCompare(b.priority);
+      if (pc !== 0) return pc;
+    }
+    return a.domain.localeCompare(b.domain);
   });
 
   const groups = sorted.reduce<Record<string, BacklogEntry[]>>((acc, e) => {
@@ -261,7 +267,7 @@ function BacklogOverlay({ entries, summaryCount, generatedAt, onClose }: {
                   <td colSpan={4} className="gd-bl-group-label">{formatKey(priority)} ({grpEntries.length})</td>
                 </tr>
                 {grpEntries.map((e) => (
-                  <tr key={e.backlog_id ?? e.subject_id} className="gd-bl-row">
+                  <tr key={e.backlog_id ?? `${e.source_artifact}:${e.domain}:${e.subject_id}:${e.next_gap}`} className="gd-bl-row">
                     <td className="gd-bl-td gd-bl-subject">{e.subject_id}</td>
                     <td className="gd-bl-td gd-bl-domain">{e.domain}</td>
                     <td className="gd-bl-td gd-bl-gap">{formatKey(e.next_gap)}</td>
