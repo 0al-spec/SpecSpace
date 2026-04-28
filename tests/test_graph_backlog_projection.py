@@ -148,7 +148,8 @@ class BacklogProjectionEndpointTests(unittest.TestCase):
             finally:
                 _stop(httpd, thread)
         self.assertEqual(status, 200)
-        self.assertEqual(body["artifact_kind"], "graph_backlog_projection")
+        self.assertIn("data", body)
+        self.assertEqual(body["data"]["artifact_kind"], "graph_backlog_projection")
 
     def test_200_happy_path_populated(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -159,7 +160,54 @@ class BacklogProjectionEndpointTests(unittest.TestCase):
             finally:
                 _stop(httpd, thread)
         self.assertEqual(status, 200)
-        self.assertEqual(len(body["entries"]), 3)
+        self.assertEqual(len(body["data"]["entries"]), 3)
+
+    def test_envelope_fields_present(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            spec_dir = _make_spec_dir(Path(tmp), backlog=MINIMAL_BACKLOG)
+            httpd, thread, base = _start(Path(tmp), spec_dir)
+            try:
+                status, body = _get(f"{base}/api/graph-backlog-projection")
+            finally:
+                _stop(httpd, thread)
+        self.assertEqual(status, 200)
+        self.assertIn("path", body)
+        self.assertIn("mtime", body)
+        self.assertIn("mtime_iso", body)
+        self.assertIn("data", body)
+
+    def test_envelope_data_is_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            spec_dir = _make_spec_dir(Path(tmp), backlog=MINIMAL_BACKLOG)
+            httpd, thread, base = _start(Path(tmp), spec_dir)
+            try:
+                status, body = _get(f"{base}/api/graph-backlog-projection")
+            finally:
+                _stop(httpd, thread)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["data"]["artifact_kind"], "graph_backlog_projection")
+        self.assertIsInstance(body["data"]["entries"], list)
+
+    def test_envelope_mtime_is_numeric(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            spec_dir = _make_spec_dir(Path(tmp), backlog=MINIMAL_BACKLOG)
+            httpd, thread, base = _start(Path(tmp), spec_dir)
+            try:
+                status, body = _get(f"{base}/api/graph-backlog-projection")
+            finally:
+                _stop(httpd, thread)
+        self.assertIsInstance(body["mtime"], float)
+
+    def test_envelope_mtime_iso_is_string(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            spec_dir = _make_spec_dir(Path(tmp), backlog=MINIMAL_BACKLOG)
+            httpd, thread, base = _start(Path(tmp), spec_dir)
+            try:
+                status, body = _get(f"{base}/api/graph-backlog-projection")
+            finally:
+                _stop(httpd, thread)
+        self.assertIsInstance(body["mtime_iso"], str)
+        self.assertIn("T", body["mtime_iso"])  # ISO format check
 
     def test_422_when_artifact_is_invalid_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -202,69 +250,87 @@ class BacklogProjectionShapeTests(unittest.TestCase):
         tmp = Path(self._tmp.name)
         spec_dir = _make_spec_dir(tmp, backlog=POPULATED_BACKLOG)
         self._httpd, self._thread, self._base = _start(tmp, spec_dir)
-        _, self._body = _get(f"{self._base}/api/graph-backlog-projection")
+        _, body = _get(f"{self._base}/api/graph-backlog-projection")
+        self._envelope = body
+        self._data = body["data"]
 
     def tearDown(self) -> None:
         _stop(self._httpd, self._thread)
         self._tmp.cleanup()
 
+    # envelope
+    def test_envelope_has_path(self) -> None:
+        self.assertIn("path", self._envelope)
+
+    def test_envelope_has_mtime(self) -> None:
+        self.assertIsInstance(self._envelope["mtime"], float)
+
+    def test_envelope_has_mtime_iso(self) -> None:
+        self.assertIsInstance(self._envelope["mtime_iso"], str)
+
+    def test_envelope_data_not_transformed(self) -> None:
+        """Server must not add extra keys to data — only envelope wraps it."""
+        extra = set(self._envelope["data"].keys()) - set(POPULATED_BACKLOG.keys())
+        self.assertEqual(extra, set())
+
+    # artifact shape
     def test_artifact_kind(self) -> None:
-        self.assertEqual(self._body["artifact_kind"], "graph_backlog_projection")
+        self.assertEqual(self._data["artifact_kind"], "graph_backlog_projection")
 
     def test_schema_version_present(self) -> None:
-        self.assertIn("schema_version", self._body)
+        self.assertIn("schema_version", self._data)
 
     def test_generated_at_present(self) -> None:
-        self.assertIn("generated_at", self._body)
+        self.assertIn("generated_at", self._data)
 
     def test_entries_is_list(self) -> None:
-        self.assertIsInstance(self._body["entries"], list)
+        self.assertIsInstance(self._data["entries"], list)
 
     def test_summary_present(self) -> None:
-        self.assertIn("summary", self._body)
+        self.assertIn("summary", self._data)
 
     def test_summary_entry_count(self) -> None:
-        self.assertEqual(self._body["summary"]["entry_count"], 3)
+        self.assertEqual(self._data["summary"]["entry_count"], 3)
 
     def test_summary_priority_counts_is_dict(self) -> None:
-        self.assertIsInstance(self._body["summary"]["priority_counts"], dict)
+        self.assertIsInstance(self._data["summary"]["priority_counts"], dict)
 
     def test_summary_domain_counts_is_dict(self) -> None:
-        self.assertIsInstance(self._body["summary"]["domain_counts"], dict)
+        self.assertIsInstance(self._data["summary"]["domain_counts"], dict)
 
     def test_summary_next_gap_counts_is_dict(self) -> None:
-        self.assertIsInstance(self._body["summary"]["next_gap_counts"], dict)
+        self.assertIsInstance(self._data["summary"]["next_gap_counts"], dict)
 
     def test_entry_count_consistent_with_entries(self) -> None:
-        self.assertEqual(self._body["summary"]["entry_count"], len(self._body["entries"]))
+        self.assertEqual(self._data["summary"]["entry_count"], len(self._data["entries"]))
 
     def test_each_entry_has_subject_id(self) -> None:
-        for entry in self._body["entries"]:
+        for entry in self._data["entries"]:
             self.assertIn("subject_id", entry)
 
     def test_each_entry_has_domain(self) -> None:
-        for entry in self._body["entries"]:
+        for entry in self._data["entries"]:
             self.assertIn("domain", entry)
 
     def test_each_entry_has_priority(self) -> None:
-        for entry in self._body["entries"]:
+        for entry in self._data["entries"]:
             self.assertIn("priority", entry)
 
     def test_each_entry_has_next_gap(self) -> None:
-        for entry in self._body["entries"]:
+        for entry in self._data["entries"]:
             self.assertIn("next_gap", entry)
 
     def test_each_entry_has_source_artifact(self) -> None:
-        for entry in self._body["entries"]:
+        for entry in self._data["entries"]:
             self.assertIn("source_artifact", entry)
 
     def test_domain_counts_sum_equals_entry_count(self) -> None:
-        total = sum(self._body["summary"]["domain_counts"].values())
-        self.assertEqual(total, self._body["summary"]["entry_count"])
+        total = sum(self._data["summary"]["domain_counts"].values())
+        self.assertEqual(total, self._data["summary"]["entry_count"])
 
     def test_priority_counts_sum_equals_entry_count(self) -> None:
-        total = sum(self._body["summary"]["priority_counts"].values())
-        self.assertEqual(total, self._body["summary"]["entry_count"])
+        total = sum(self._data["summary"]["priority_counts"].values())
+        self.assertEqual(total, self._data["summary"]["entry_count"])
 
 
 # ---------------------------------------------------------------------------
@@ -303,7 +369,7 @@ class BacklogProjectionToleranceTests(unittest.TestCase):
             finally:
                 _stop(httpd, thread)
         self.assertEqual(status, 200)
-        self.assertIn("future_unknown_domain", body["summary"]["domain_counts"])
+        self.assertIn("future_unknown_domain", body["data"]["summary"]["domain_counts"])
 
     def test_unknown_priority_passes_through(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -314,7 +380,7 @@ class BacklogProjectionToleranceTests(unittest.TestCase):
             finally:
                 _stop(httpd, thread)
         self.assertEqual(status, 200)
-        self.assertIn("future_unknown_priority", body["summary"]["priority_counts"])
+        self.assertIn("future_unknown_priority", body["data"]["summary"]["priority_counts"])
 
     def test_empty_entries_serves_successfully(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -325,8 +391,8 @@ class BacklogProjectionToleranceTests(unittest.TestCase):
             finally:
                 _stop(httpd, thread)
         self.assertEqual(status, 200)
-        self.assertEqual(body["entries"], [])
-        self.assertEqual(body["summary"]["entry_count"], 0)
+        self.assertEqual(body["data"]["entries"], [])
+        self.assertEqual(body["data"]["summary"]["entry_count"], 0)
 
 
 if __name__ == "__main__":

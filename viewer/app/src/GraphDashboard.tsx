@@ -33,6 +33,13 @@ interface BacklogProjection {
   };
 }
 
+interface BacklogEnvelope {
+  path: string;
+  mtime: number;
+  mtime_iso: string;
+  data: BacklogProjection;
+}
+
 interface MetricScore {
   score: number;
   minimum_score: number;
@@ -289,7 +296,7 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
   const [error, setError] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string | null>(null);
-  const [backlog, setBacklog] = useState<BacklogProjection | null>(null);
+  const [backlogEnvelope, setBacklogEnvelope] = useState<BacklogEnvelope | null>(null);
   const [backlogOpen, setBacklogOpen] = useState(false);
 
   const loadDashboard = useCallback(() => {
@@ -302,8 +309,8 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
       .catch((e) => setError(typeof e === "string" ? e : String(e)));
     fetch("/api/graph-backlog-projection")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setBacklog(d ?? null))
-      .catch(() => setBacklog(null));
+      .then((d) => setBacklogEnvelope(d ?? null))
+      .catch(() => setBacklogEnvelope(null));
   }, []);
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
@@ -717,10 +724,10 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
                 <CountTable counts={sections.backlog.next_gap_counts} emptyMessage="—" />
               </div>
             </div>
-            {backlog && backlog.entries.length > 0 && (
+            {backlogEnvelope && backlogEnvelope.data.entries.length > 0 && (
               <div className="gd-detail-row">
                 <button className="gd-backlog-browse-btn" onClick={() => setBacklogOpen(true)}>
-                  Browse entries ({backlog.entries.length})
+                  Browse entries ({backlogEnvelope.data.entries.length})
                 </button>
               </div>
             )}
@@ -729,11 +736,15 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
 
       </div>
     </div>
-    {backlogOpen && backlog && (
+    {backlogOpen && backlogEnvelope && (
       <BacklogOverlay
-        entries={backlog.entries}
-        summaryCount={backlog.entry_count ?? backlog.summary.entry_count ?? backlog.entries.length}
-        generatedAt={backlog.generated_at}
+        entries={backlogEnvelope.data.entries}
+        summaryCount={
+          backlogEnvelope.data.entry_count
+          ?? backlogEnvelope.data.summary.entry_count
+          ?? backlogEnvelope.data.entries.length
+        }
+        generatedAt={backlogEnvelope.mtime_iso ?? backlogEnvelope.data.generated_at}
         onClose={() => setBacklogOpen(false)}
       />
     )}

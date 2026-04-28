@@ -1670,7 +1670,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
             )
             return
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            raw = path.read_text(encoding="utf-8")
+            data = json.loads(raw)
         except json.JSONDecodeError as exc:
             json_response(
                 self,
@@ -1678,7 +1679,14 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 {"error": "graph_backlog_projection.json is not valid JSON", "detail": str(exc)},
             )
             return
-        json_response(self, HTTPStatus.OK, data)
+        mtime = path.stat().st_mtime
+        mtime_iso = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+        json_response(self, HTTPStatus.OK, {
+            "path": str(path),
+            "mtime": mtime,
+            "mtime_iso": mtime_iso,
+            "data": data,
+        })
 
     def handle_spec_overlay(self) -> None:
         """Merge the three node-facing overlays into a single per-spec map."""
