@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import "./GraphDashboard.css";
 
 interface HeadlineCard {
@@ -12,6 +13,7 @@ interface HeadlineCard {
 }
 
 interface BacklogEntry {
+  backlog_id?: string;
   subject_id: string;
   domain: string;
   priority: string;
@@ -190,12 +192,80 @@ function MetricBar({ id, m, isAlias = false }: { id: string; m: MetricScore; isA
   );
 }
 
+const PRIORITY_ORDER = ["high", "medium", "low"];
+
+function BacklogOverlay({ entries, onClose }: { entries: BacklogEntry[]; onClose: () => void }) {
+  const backdropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const sorted = [...entries].sort((a, b) => {
+    const pa = PRIORITY_ORDER.indexOf(a.priority);
+    const pb = PRIORITY_ORDER.indexOf(b.priority);
+    const po = (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb);
+    return po !== 0 ? po : a.domain.localeCompare(b.domain);
+  });
+
+  const groups = sorted.reduce<Record<string, BacklogEntry[]>>((acc, e) => {
+    (acc[e.priority] ??= []).push(e);
+    return acc;
+  }, {});
+
+  return createPortal(
+    <div
+      className="gd-overlay-backdrop"
+      ref={backdropRef}
+      onClick={(e) => { if (e.target === backdropRef.current) onClose(); }}
+    >
+      <div className="gd-overlay-panel" role="dialog" aria-modal="true">
+        <div className="gd-overlay-header">
+          <span className="gd-overlay-title">Backlog Entries ({entries.length})</span>
+          <button className="gd-overlay-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="gd-overlay-body">
+          <table className="gd-bl-table">
+            <thead>
+              <tr>
+                <th className="gd-bl-th">Subject</th>
+                <th className="gd-bl-th">Domain</th>
+                <th className="gd-bl-th">Next Gap</th>
+                <th className="gd-bl-th">Source</th>
+              </tr>
+            </thead>
+            {Object.entries(groups).map(([priority, grpEntries]) => (
+              <tbody key={priority}>
+                <tr className="gd-bl-group-row">
+                  <td colSpan={4} className="gd-bl-group-label">{formatKey(priority)} ({grpEntries.length})</td>
+                </tr>
+                {grpEntries.map((e) => (
+                  <tr key={e.backlog_id ?? e.subject_id} className="gd-bl-row">
+                    <td className="gd-bl-td gd-bl-subject">{e.subject_id}</td>
+                    <td className="gd-bl-td gd-bl-domain">{e.domain}</td>
+                    <td className="gd-bl-td gd-bl-gap">{formatKey(e.next_gap)}</td>
+                    <td className="gd-bl-td gd-bl-src">{e.source_artifact}</td>
+                  </tr>
+                ))}
+              </tbody>
+            ))}
+          </table>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export default function GraphDashboard({ buildAvailable = false }: { buildAvailable?: boolean }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string | null>(null);
   const [backlog, setBacklog] = useState<BacklogProjection | null>(null);
+  const [backlogOpen, setBacklogOpen] = useState(false);
 
   const loadDashboard = useCallback(() => {
     fetch("/api/graph-dashboard")
@@ -243,6 +313,7 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
   const generatedAt = new Date(data.generated_at).toLocaleString();
 
   return (
+    <>
     <div className="gd-root">
       <div className="gd-header">
         <h1 className="gd-title">Graph Dashboard</h1>
@@ -621,47 +692,21 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
                 <CountTable counts={sections.backlog.next_gap_counts} emptyMessage="—" />
               </div>
             </div>
-            {backlog && backlog.entries.length > 0 && (() => {
-              const PRIORITY_ORDER = ["high", "medium", "low"];
-              const sorted = [...backlog.entries].sort((a, b) => {
-                const pa = PRIORITY_ORDER.indexOf(a.priority);
-                const pb = PRIORITY_ORDER.indexOf(b.priority);
-                const po = (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb);
-                if (po !== 0) return po;
-                return a.domain.localeCompare(b.domain);
-              });
-              const groups = sorted.reduce<Record<string, BacklogEntry[]>>((acc, e) => {
-                (acc[e.priority] ??= []).push(e);
-                return acc;
-              }, {});
-              return (
-                <div className="gd-detail-row">
-                  <div className="gd-detail-block gd-detail-block--wide">
-                    {Object.entries(groups).map(([priority, entries]) => (
-                      <div key={priority}>
-                        <div className="gd-subsection-label">{formatKey(priority)}</div>
-                        <table className="gd-count-table gd-backlog-table">
-                          <tbody>
-                            {entries.map((e) => (
-                              <tr key={e.subject_id} className="gd-backlog-row">
-                                <td className="gd-bt-id">{e.subject_id}</td>
-                                <td className="gd-bt-domain">{e.domain}</td>
-                                <td className="gd-bt-gap">{formatKey(e.next_gap)}</td>
-                                <td className="gd-bt-src" title={e.source_artifact}>{e.source_artifact.split("/").pop()}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
+            {backlog && backlog.entries.length > 0 && (
+              <div className="gd-detail-row">
+                <button className="gd-backlog-browse-btn" onClick={() => setBacklogOpen(true)}>
+                  Browse entries ({backlog.entries.length})
+                </button>
+              </div>
+            )}
           </div>
         )}
 
       </div>
     </div>
+    {backlogOpen && backlog && (
+      <BacklogOverlay entries={backlog.entries} onClose={() => setBacklogOpen(false)} />
+    )}
+    </>
   );
 }
