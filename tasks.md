@@ -140,13 +140,13 @@ Safari кэширует dasharray-паттерн отдельной тексту
 - [x] **MiniMap — ограничить или скрывать** при экстремальном зуме в [App.tsx:788](viewer/app/src/App.tsx:788). Опционально заменить на статичный SVG-снапшот.
   - **Метрика:** размер SVG MiniMap viewport (`getBoundingClientRect()` в px^2) при разных zoom. Если >1M px² — скрывать.
 
-- [ ] **Мемоизация handles и badges** в [SpecNode.tsx:102-150](viewer/app/src/SpecNode.tsx) — вынести `slotTops()` и генерацию handles из рендера.
+- [x] **Мемоизация handles и badges** в [SpecNode.tsx:102-150](viewer/app/src/SpecNode.tsx) — вынести `slotTops()` и генерацию handles из рендера.
   - **Метрика:** React Profiler → "Why did this render?" для SpecNode при панорамировании. Ожидание: **0** re-renders на pan (сейчас — на каждый zoom-tick).
 
-- [ ] **Виртуальный рендер synthetic collapsed-branch nodes** в [useSpecGraphData.ts:605-687](viewer/app/src/useSpecGraphData.ts:605).
+- [x] **Виртуальный рендер synthetic collapsed-branch nodes** в [useSpecGraphData.ts:605-687](viewer/app/src/useSpecGraphData.ts:605).
   - **Метрика:** кол-во synthetic-нод в DOM vs. в модели — должно быть ≤ visible.
 
-- [ ] **Кэш layout-позиций по `viewMode`** в [useSpecGraphData.ts:216-259](viewer/app/src/useSpecGraphData.ts:216).
+- [x] **Кэш layout-позиций по `viewMode`** в [useSpecGraphData.ts:216-259](viewer/app/src/useSpecGraphData.ts:216).
   - **Метрика:** время переключения Linear ↔ Canonical (`performance.mark`+`measure` вокруг setState). Ожидание: **≥5×** быстрее после первого прохода.
 
 ---

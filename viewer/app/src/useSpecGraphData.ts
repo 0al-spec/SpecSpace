@@ -315,28 +315,39 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
   const { viewMode, showCrossLinks, showBlocking, showDependsOn } = viewOptions;
 
   // -----------------------------------------------------------------------
-  // Layout — topology-dependent, recomputed only when graph or mode changes
+  // Layout — topology-dependent, cached per viewMode so switching back is instant
   // -----------------------------------------------------------------------
-  const layoutResult = useMemo<{
-    positions: Map<string, { x: number; y: number }>;
-    backEdges: Set<string>;
-  }>(() => {
-    const empty = { positions: new Map<string, { x: number; y: number }>(), backEdges: new Set<string>() };
+  type LayoutResult = { positions: Map<string, { x: number; y: number }>; backEdges: Set<string> };
+  const layoutCacheRef = useRef<{ graphKey: ApiSpecGraph | null; cache: Map<string, LayoutResult> }>({
+    graphKey: null,
+    cache: new Map(),
+  });
+
+  const layoutResult = useMemo<LayoutResult>(() => {
+    const empty: LayoutResult = { positions: new Map(), backEdges: new Set<string>() };
     if (!apiGraph) return empty;
 
+    // Invalidate all cached layouts when the graph data object changes
+    if (layoutCacheRef.current.graphKey !== apiGraph) {
+      layoutCacheRef.current.graphKey = apiGraph;
+      layoutCacheRef.current.cache.clear();
+    }
+
+    const cached = layoutCacheRef.current.cache.get(viewMode);
+    if (cached) return cached;
+
     const nodeIds = apiGraph.nodes.map((n) => n.node_id);
+    let result: LayoutResult;
 
     if (viewMode === "canonical") {
       const edgePairs = apiGraph.edges
         .filter((e) => e.status === "resolved")
         .map((e) => ({ source: e.source_id, target: e.target_id }));
-      return {
+      result = {
         positions: computeBasePositions(nodeIds, edgePairs, { direction: "LR", nodeSep: SPEC_NODE_HEIGHT / 2, rankSep: SPEC_NODE_WIDTH }),
         backEdges: new Set<string>(),
       };
-    }
-
-    if (viewMode === "linear") {
+    } else if (viewMode === "linear") {
       // All forward edges: inverted refines + depends_on as-is + relates_to as-is
       const resolved = apiGraph.edges.filter((e) => e.status === "resolved");
       const allForward = [
@@ -349,17 +360,20 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
       ];
       const treeEdges = resolved.filter((e) => e.edge_kind === "refines")
         .map((e) => ({ source: e.target_id, target: e.source_id }));
-      return computeLinearPositions(nodeIds, allForward, treeEdges);
+      result = computeLinearPositions(nodeIds, allForward, treeEdges);
+    } else {
+      // Tree mode
+      const edgePairs = apiGraph.edges
+        .filter((e) => e.status === "resolved" && e.edge_kind === "refines")
+        .map((e) => ({ source: e.target_id, target: e.source_id }));
+      result = {
+        positions: computeBasePositions(nodeIds, edgePairs, { direction: "LR", nodeSep: SPEC_NODE_HEIGHT / 2, rankSep: SPEC_NODE_WIDTH }),
+        backEdges: new Set<string>(),
+      };
     }
 
-    // Tree mode
-    const edgePairs = apiGraph.edges
-      .filter((e) => e.status === "resolved" && e.edge_kind === "refines")
-      .map((e) => ({ source: e.target_id, target: e.source_id }));
-    return {
-      positions: computeBasePositions(nodeIds, edgePairs, { direction: "LR", nodeSep: SPEC_NODE_HEIGHT / 2, rankSep: SPEC_NODE_WIDTH }),
-      backEdges: new Set<string>(),
-    };
+    layoutCacheRef.current.cache.set(viewMode, result);
+    return result;
   }, [apiGraph, viewMode]);
 
   const basePositions = layoutResult.positions;
@@ -405,16 +419,20 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
       parentToChildren.get(e.target_id)!.push(e.source_id);
     }
 
-    // BFS: find all node IDs hidden because their ancestor is collapsed
+    // BFS: find all hidden node IDs and count descendants per collapsed root in one pass
     const hiddenNodeIds = new Set<string>();
+    const descendantCountByRoot = new Map<string, number>();
     for (const rootId of collapsedBranchIds) {
       const queue = [...(parentToChildren.get(rootId) ?? [])];
+      const visited = new Set<string>();
       while (queue.length > 0) {
         const id = queue.shift()!;
-        if (hiddenNodeIds.has(id)) continue;
+        if (visited.has(id)) continue;
+        visited.add(id);
         hiddenNodeIds.add(id);
         queue.push(...(parentToChildren.get(id) ?? []));
       }
+      descendantCountByRoot.set(rootId, visited.size);
     }
 
     // "parent depends_on child" paired with "child refines parent"
@@ -746,17 +764,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
       // Skip if the node doesn't exist in the API graph
       if (!apiGraph.nodes.find((n) => n.node_id === collapsedRootId)) continue;
 
-      // Count all descendants via BFS
-      let descendantCount = 0;
-      const bfsQueue = [...(parentToChildren.get(collapsedRootId) ?? [])];
-      const bfsVisited = new Set<string>();
-      while (bfsQueue.length > 0) {
-        const id = bfsQueue.shift()!;
-        if (bfsVisited.has(id)) continue;
-        bfsVisited.add(id);
-        descendantCount++;
-        bfsQueue.push(...(parentToChildren.get(id) ?? []));
-      }
+      const descendantCount = descendantCountByRoot.get(collapsedRootId) ?? 0;
       if (descendantCount === 0) continue;
 
       // Position: centroid of direct children (their pre-collapse layout positions)
