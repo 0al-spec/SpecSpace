@@ -145,7 +145,7 @@ function SpecNode({
   if (lod === "minimal") {
     return (
       <div
-        className={`spec-node spec-node--lod-minimal ${statusClass} ${selected ? "selected" : ""} ${data.isHistorical ? "spec-node--historical" : ""}`}
+        className={`spec-node spec-node--lod-minimal ${statusClass} ${selected ? "selected" : ""} ${data.isHistorical ? "spec-node--historical" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed ? "search-dimmed" : ""}`}
       >
         {targetHandles}
         {sourceHandles}
@@ -158,7 +158,7 @@ function SpecNode({
   if (lod === "compact") {
     return (
       <div
-        className={`spec-node spec-node--lod-compact ${statusClass} ${selected ? "selected" : ""} ${data.isHistorical ? "spec-node--historical" : ""}`}
+        className={`spec-node spec-node--lod-compact ${statusClass} ${selected ? "selected" : ""} ${data.isHistorical ? "spec-node--historical" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed ? "search-dimmed" : ""}`}
       >
         {targetHandles}
         {sourceHandles}

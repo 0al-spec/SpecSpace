@@ -98,7 +98,7 @@
 - **Сильная метрика:** heap при панорамировании 10 сек Safari. Ожидание: **5–6 GB → ≤2 GB**.
 - **Валидация UX:** пользователь всё ещё различает типы рёбер по стилю (спросить после A/B).
 
-### ✅ H2. `type: "straight"` вместо `"default"` для Linear mode
+### ~~H2. `type: "straight"` вместо `"default"` для Linear mode~~ (отклонено: smoothstep читаемее, возвращён обратно)
 **Файл:** [useSpecGraphData.ts:357,383,404,423](viewer/app/src/useSpecGraphData.ts:357)
 
 В Linear ноды стоят на одной горизонтали — bezier-кривые избыточны. Прямые линии = короче SVG path string, быстрее Safari path rasterization.
