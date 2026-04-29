@@ -221,9 +221,12 @@ function AppInner() {
   // Must come before useSpecGraphData so gate_state is available for edge classification.
   const { overlays: specOverlays } = useSpecOverlayData(specOverlayAvailable);
 
+  const savedViewport = useRef(loadViewport());
+  const hasFitView = !savedViewport.current;
+
   // Zoom-driven flags (updated in onMoveEnd) — declared before useSpecGraphData.
-  const [isZoomedOut, setIsZoomedOut] = useState(false);
-  const [autoCollapseExpanded, setAutoCollapseExpanded] = useState(false);
+  const [isZoomedOut, setIsZoomedOut] = useState(() => (savedViewport.current?.zoom ?? 1) < 0.5);
+  const [autoCollapseExpanded, setAutoCollapseExpanded] = useState(() => (savedViewport.current?.zoom ?? 1) < 0.6);
 
   // Spec graph data (always fetched so it's ready when mode switches)
   const specGraph = useSpecGraphData(specViewOptions, specOverlays, autoCollapseExpanded);
@@ -580,9 +583,6 @@ function AppInner() {
     [],
   );
 
-  const savedViewport = useRef(loadViewport());
-  const hasFitView = !savedViewport.current;
-
   const onNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
       // Shift+click: ReactFlow handles multi-selection visually — skip inspector
@@ -883,13 +883,15 @@ function AppInner() {
             >
               <Background />
               <Controls />
-              <MiniMap
-                nodeColor={minimapNodeColor}
-                maskColor="rgba(236, 227, 212, 0.7)"
-                pannable
-                zoomable
-                onClick={onMiniMapClick}
-              />
+              {!isZoomedOut && (
+                <MiniMap
+                  nodeColor={minimapNodeColor}
+                  maskColor="rgba(236, 227, 212, 0.7)"
+                  pannable
+                  zoomable
+                  onClick={onMiniMapClick}
+                />
+              )}
               <FitViewShortcut />
             </ReactFlow>
           </ErrorBoundary>

@@ -137,7 +137,7 @@ Safari кэширует dasharray-паттерн отдельной тексту
 
 ## Medium priority
 
-- [ ] **MiniMap — ограничить или скрывать** при экстремальном зуме в [App.tsx:788](viewer/app/src/App.tsx:788). Опционально заменить на статичный SVG-снапшот.
+- [x] **MiniMap — ограничить или скрывать** при экстремальном зуме в [App.tsx:788](viewer/app/src/App.tsx:788). Опционально заменить на статичный SVG-снапшот.
   - **Метрика:** размер SVG MiniMap viewport (`getBoundingClientRect()` в px^2) при разных zoom. Если >1M px² — скрывать.
 
 - [ ] **Мемоизация handles и badges** в [SpecNode.tsx:102-150](viewer/app/src/SpecNode.tsx) — вынести `slotTops()` и генерацию handles из рендера.
