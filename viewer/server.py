@@ -1463,6 +1463,15 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/graph-backlog-projection":
             self.handle_graph_backlog_projection()
             return
+        if parsed.path == "/api/metrics-source-promotion":
+            self.handle_metrics_source_promotion()
+            return
+        if parsed.path == "/api/metrics-delivery":
+            self.handle_metrics_delivery()
+            return
+        if parsed.path == "/api/metrics-feedback":
+            self.handle_metrics_feedback()
+            return
         if parsed.path == "/api/spec-overlay":
             self.handle_spec_overlay()
             return
@@ -1687,6 +1696,67 @@ class ViewerHandler(BaseHTTPRequestHandler):
             "mtime_iso": mtime_iso,
             "data": data,
         })
+
+    def _handle_runs_artifact(self, filename: str, build_hint: str) -> None:
+        """Serve a single file from runs/ under the standard envelope, or 503/404/422."""
+        if self.server.spec_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecGraph not configured. Start the server with --spec-dir."},
+            )
+            return
+        runs = self._runs_dir()
+        if runs is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": f"{filename} not found. Run {build_hint} first."},
+            )
+            return
+        path = runs / filename
+        if not path.exists():
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": f"{filename} not found. Run {build_hint} first."},
+            )
+            return
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": f"{filename} is not valid JSON", "detail": str(exc)},
+            )
+            return
+        mtime = path.stat().st_mtime
+        mtime_iso = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+        json_response(self, HTTPStatus.OK, {
+            "path": str(path),
+            "mtime": mtime,
+            "mtime_iso": mtime_iso,
+            "data": data,
+        })
+
+    def handle_metrics_source_promotion(self) -> None:
+        self._handle_runs_artifact(
+            "metrics_source_promotion_index.json",
+            "--build-viewer-surfaces",
+        )
+
+    def handle_metrics_delivery(self) -> None:
+        self._handle_runs_artifact(
+            "metrics_delivery_workflow.json",
+            "--build-viewer-surfaces",
+        )
+
+    def handle_metrics_feedback(self) -> None:
+        self._handle_runs_artifact(
+            "metrics_feedback_index.json",
+            "--build-viewer-surfaces",
+        )
 
     def handle_spec_overlay(self) -> None:
         """Merge the three node-facing overlays into a single per-spec map."""

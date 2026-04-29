@@ -40,6 +40,40 @@ interface BacklogEnvelope {
   data: BacklogProjection;
 }
 
+interface MetricsArtifactEnvelope<T> {
+  path: string;
+  mtime: number;
+  mtime_iso: string;
+  data: T;
+}
+
+interface SourcePromotionEntry {
+  metric_id: string;
+  promotion_status: string;
+  review_state: string;
+  next_gap: string;
+  source_artifact: string;
+  authority_state?: string;
+  legacy_metric_ids?: string[];
+  guardrails?: { requires_human_review?: boolean };
+}
+
+interface DeliveryEntry {
+  consumer_id: string;
+  delivery_status: string;
+  review_state: string;
+  next_gap: string;
+  source_artifact: string;
+}
+
+interface FeedbackEntry {
+  consumer_id: string;
+  feedback_status: string;
+  review_state: string;
+  next_gap: string;
+  source_artifact: string;
+}
+
 interface MetricScore {
   score: number;
   minimum_score: number;
@@ -291,6 +325,145 @@ function BacklogOverlay({ entries, summaryCount, generatedAt, onClose }: {
   );
 }
 
+function SourcePromotionOverlay({ entries, generatedAt, onClose }: {
+  entries: SourcePromotionEntry[];
+  generatedAt?: string;
+  onClose: () => void;
+}) {
+  const backdropRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const hasGuardrail = entries.some((e) => e.guardrails?.requires_human_review);
+
+  return createPortal(
+    <div
+      className="gd-overlay-backdrop"
+      ref={backdropRef}
+      onClick={(e) => { if (e.target === backdropRef.current) onClose(); }}
+    >
+      <div className="gd-overlay-panel" role="dialog" aria-modal="true">
+        <div className="gd-overlay-header">
+          <div>
+            <span className="gd-overlay-title">Source Promotion Candidates ({entries.length})</span>
+            {generatedAt && (
+              <span className="gd-overlay-ts">
+                {" "}· snapshot {new Date(generatedAt).toLocaleString()}
+              </span>
+            )}
+          </div>
+          <button className="gd-overlay-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        {hasGuardrail && (
+          <div className="gd-sp-guardrail-note">
+            Source promotion requires human review — metrics do not become threshold authority automatically.
+          </div>
+        )}
+        <div className="gd-overlay-body">
+          <table className="gd-bl-table">
+            <thead>
+              <tr>
+                <th className="gd-bl-th">Metric</th>
+                <th className="gd-bl-th">Status</th>
+                <th className="gd-bl-th">Authority</th>
+                <th className="gd-bl-th">Review</th>
+                <th className="gd-bl-th">Next Gap</th>
+                <th className="gd-bl-th">Legacy</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e) => (
+                <tr key={e.metric_id} className="gd-bl-row">
+                  <td className="gd-bl-td gd-bl-subject">
+                    {e.metric_id}
+                    {e.guardrails?.requires_human_review && (
+                      <span className="gd-sp-badge">review required</span>
+                    )}
+                  </td>
+                  <td className="gd-bl-td gd-bl-gap">{formatKey(e.promotion_status)}</td>
+                  <td className="gd-bl-td gd-bl-authority">{e.authority_state ? formatKey(e.authority_state) : "—"}</td>
+                  <td className="gd-bl-td gd-bl-domain">{formatKey(e.review_state)}</td>
+                  <td className="gd-bl-td gd-bl-gap">{formatKey(e.next_gap)}</td>
+                  <td className="gd-bl-td gd-bl-legacy">
+                    {e.legacy_metric_ids?.length ? e.legacy_metric_ids.join(", ") : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+interface MetricsRowOverlayProps {
+  title: string;
+  entries: { id: string; status: string; reviewState: string; nextGap: string; source: string; extra?: string }[];
+  generatedAt?: string;
+  onClose: () => void;
+}
+
+function MetricsRowOverlay({ title, entries, generatedAt, onClose }: MetricsRowOverlayProps) {
+  const backdropRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      className="gd-overlay-backdrop"
+      ref={backdropRef}
+      onClick={(e) => { if (e.target === backdropRef.current) onClose(); }}
+    >
+      <div className="gd-overlay-panel" role="dialog" aria-modal="true">
+        <div className="gd-overlay-header">
+          <div>
+            <span className="gd-overlay-title">{title} ({entries.length})</span>
+            {generatedAt && (
+              <span className="gd-overlay-ts">
+                {" "}· snapshot {new Date(generatedAt).toLocaleString()}
+              </span>
+            )}
+          </div>
+          <button className="gd-overlay-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="gd-overlay-body">
+          <table className="gd-bl-table">
+            <thead>
+              <tr>
+                <th className="gd-bl-th">ID</th>
+                <th className="gd-bl-th">Status</th>
+                <th className="gd-bl-th">Review State</th>
+                <th className="gd-bl-th">Next Gap</th>
+                <th className="gd-bl-th">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e) => (
+                <tr key={e.id} className="gd-bl-row">
+                  <td className="gd-bl-td gd-bl-subject">{e.id}</td>
+                  <td className="gd-bl-td gd-bl-gap">{formatKey(e.status)}</td>
+                  <td className="gd-bl-td gd-bl-domain">{formatKey(e.reviewState)}</td>
+                  <td className="gd-bl-td gd-bl-gap">{formatKey(e.nextGap)}</td>
+                  <td className="gd-bl-td gd-bl-src">{e.source}{e.extra ? ` · ${e.extra}` : ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export default function GraphDashboard({ buildAvailable = false }: { buildAvailable?: boolean }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -298,6 +471,12 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
   const [buildError, setBuildError] = useState<string | null>(null);
   const [backlogEnvelope, setBacklogEnvelope] = useState<BacklogEnvelope | null>(null);
   const [backlogOpen, setBacklogOpen] = useState(false);
+  const [sourcePromotionEnvelope, setSourcePromotionEnvelope] = useState<MetricsArtifactEnvelope<{ entries: SourcePromotionEntry[] }> | null>(null);
+  const [sourcePromotionOpen, setSourcePromotionOpen] = useState(false);
+  const [deliveryEnvelope, setDeliveryEnvelope] = useState<MetricsArtifactEnvelope<{ entries: DeliveryEntry[] }> | null>(null);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
+  const [feedbackEnvelope, setFeedbackEnvelope] = useState<MetricsArtifactEnvelope<{ entries: FeedbackEntry[] }> | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const loadDashboard = useCallback(() => {
     fetch("/api/graph-dashboard")
@@ -311,6 +490,18 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setBacklogEnvelope(d ?? null))
       .catch(() => setBacklogEnvelope(null));
+    fetch("/api/metrics-source-promotion")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setSourcePromotionEnvelope(d ?? null))
+      .catch(() => setSourcePromotionEnvelope(null));
+    fetch("/api/metrics-delivery")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setDeliveryEnvelope(d ?? null))
+      .catch(() => setDeliveryEnvelope(null));
+    fetch("/api/metrics-feedback")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setFeedbackEnvelope(d ?? null))
+      .catch(() => setFeedbackEnvelope(null));
   }, []);
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
@@ -613,6 +804,13 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
                 <CountTable counts={sections.external_consumers.metrics_delivery_named_filter_counts} emptyMessage="All clear" />
               </div>
             </div>
+            {deliveryEnvelope && deliveryEnvelope.data.entries.length > 0 && (
+              <div className="gd-detail-row">
+                <button className="gd-backlog-browse-btn" onClick={() => setDeliveryOpen(true)}>
+                  Browse entries ({deliveryEnvelope.data.entries.length})
+                </button>
+              </div>
+            )}
             <div className="gd-subsection-label">Metrics Feedback</div>
             <div className="gd-detail-row">
               <div className="gd-detail-block">
@@ -628,6 +826,13 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
                 <CountTable counts={sections.external_consumers.metrics_feedback_named_filter_counts} emptyMessage="All clear" />
               </div>
             </div>
+            {feedbackEnvelope && feedbackEnvelope.data.entries.length > 0 && (
+              <div className="gd-detail-row">
+                <button className="gd-backlog-browse-btn" onClick={() => setFeedbackOpen(true)}>
+                  Browse entries ({feedbackEnvelope.data.entries.length})
+                </button>
+              </div>
+            )}
             <div className="gd-subsection-label">Source Promotion</div>
             <div className="gd-detail-row">
               <div className="gd-detail-block">
@@ -643,6 +848,13 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
                 <CountTable counts={sections.external_consumers.metrics_source_promotion_named_filter_counts} emptyMessage="All clear" />
               </div>
             </div>
+            {sourcePromotionEnvelope && sourcePromotionEnvelope.data.entries.length > 0 && (
+              <div className="gd-detail-row">
+                <button className="gd-backlog-browse-btn" onClick={() => setSourcePromotionOpen(true)}>
+                  Browse candidates ({sourcePromotionEnvelope.data.entries.length})
+                </button>
+              </div>
+            )}
             {sections.external_consumers.specpm_feedback_entry_count > 0 && (
               <>
                 <div className="gd-subsection-label">SpecPM Feedback</div>
@@ -746,6 +958,41 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
         }
         generatedAt={backlogEnvelope.mtime_iso ?? backlogEnvelope.data.generated_at}
         onClose={() => setBacklogOpen(false)}
+      />
+    )}
+    {deliveryOpen && deliveryEnvelope && (
+      <MetricsRowOverlay
+        title="Metrics Delivery"
+        entries={deliveryEnvelope.data.entries.map((e) => ({
+          id: e.consumer_id,
+          status: e.delivery_status,
+          reviewState: e.review_state,
+          nextGap: e.next_gap,
+          source: e.source_artifact,
+        }))}
+        generatedAt={deliveryEnvelope.mtime_iso}
+        onClose={() => setDeliveryOpen(false)}
+      />
+    )}
+    {feedbackOpen && feedbackEnvelope && (
+      <MetricsRowOverlay
+        title="Metrics Feedback"
+        entries={feedbackEnvelope.data.entries.map((e) => ({
+          id: e.consumer_id,
+          status: e.feedback_status,
+          reviewState: e.review_state,
+          nextGap: e.next_gap,
+          source: e.source_artifact,
+        }))}
+        generatedAt={feedbackEnvelope.mtime_iso}
+        onClose={() => setFeedbackOpen(false)}
+      />
+    )}
+    {sourcePromotionOpen && sourcePromotionEnvelope && (
+      <SourcePromotionOverlay
+        entries={sourcePromotionEnvelope.data.entries}
+        generatedAt={sourcePromotionEnvelope.mtime_iso}
+        onClose={() => setSourcePromotionOpen(false)}
       />
     )}
     </>

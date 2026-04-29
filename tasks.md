@@ -123,14 +123,14 @@ Safari кэширует dasharray-паттерн отдельной тексту
 
 ## High priority — LOD (Level of Detail)
 
-- [ ] **LOD-рендер в `SpecNode`/`ExpandedSpecNode`** через `useStore(s => s.transform[2])`:
+- [x] **LOD-рендер в `SpecNode`/`ExpandedSpecNode`** через `useStore(s => s.transform[2])`:
   - `zoom < 0.3` → минимальный рендер: цветной прямоугольник + 1-2 символа
   - `0.3 ≤ zoom < 0.6` → компактный: title + kind badge, без handles visual, без sub-items
   - `zoom ≥ 0.6` → полный рендер как сейчас
   - **Метрика:** число DOM-элементов внутри одной ноды (`querySelector('.react-flow__node').querySelectorAll('*').length`). Ожидание: **15+ → 3–5** при `zoom<0.3`.
   - **Метрика:** initial render time (React Profiler). Ожидание: **≥2×** ускорения при `zoom<0.3`.
 
-- [ ] **Auto-collapse expanded nodes при zoom < 0.6** — expanded-ноды самые тяжёлые.
+- [x] **Auto-collapse expanded nodes при zoom < 0.6** — expanded-ноды самые тяжёлые.
   - **Метрика:** при `zoom=0.5` ни одна нода не находится в expanded-состоянии (проверка через `querySelectorAll('.expanded-spec-node').length === 0`).
 
 ---
