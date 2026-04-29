@@ -883,15 +883,14 @@ function AppInner() {
             >
               <Background />
               <Controls />
-              {!isZoomedOut && (
-                <MiniMap
-                  nodeColor={minimapNodeColor}
-                  maskColor="rgba(236, 227, 212, 0.7)"
-                  pannable
-                  zoomable
-                  onClick={onMiniMapClick}
-                />
-              )}
+              <MiniMap
+                nodeColor={isZoomedOut ? "transparent" : minimapNodeColor}
+                nodeStrokeColor={isZoomedOut ? "transparent" : undefined}
+                maskColor={isZoomedOut ? "transparent" : "rgba(236, 227, 212, 0.7)"}
+                pannable
+                zoomable
+                onClick={onMiniMapClick}
+              />
               <FitViewShortcut />
             </ReactFlow>
           </ErrorBoundary>
