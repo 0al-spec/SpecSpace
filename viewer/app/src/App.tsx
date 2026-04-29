@@ -867,7 +867,7 @@ function AppInner() {
               onMoveEnd={onMoveEnd}
               defaultViewport={savedViewport.current}
               fitView={hasFitView}
-              minZoom={0.2}
+              minZoom={0.1}
               maxZoom={2}
               onlyRenderVisibleElements={true}
               className={isZoomedOut ? "zoomed-out" : undefined}

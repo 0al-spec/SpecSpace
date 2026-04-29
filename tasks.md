@@ -20,11 +20,11 @@
   - **Контекст:** поддерживает closure pass task 17 из ветки `codex/retrospective-refactor-closure`, commit `fbef367`.
   - **Метрика:** targeted dashboard/retrospective tests покрывают presence + shape + fixture с непустым retrospective set; standalone `--build-graph-dashboard` проходит JSON validation.
 
-- [ ] **Proposal runtime registry ↔ proposal status consistency** — добавить validation/test, который связывает proposals `0008` и `0017` со статусом `Implemented` с их runtime/tests markers и запрещает новым `Implemented` proposals проходить без registry markers.
+- [x] **Proposal runtime registry ↔ proposal status consistency** — добавить validation/test, который связывает proposals `0008` и `0017` со статусом `Implemented` с их runtime/tests markers и запрещает новым `Implemented` proposals проходить без registry markers.
   - **Метрика:** проверка падает на missing marker, stale status или registry entry без существующего proposal.
   - **Регресс-контроль:** `pytest -q`, targeted retrospective/proposal tests, `ruff`, `ruff format --check`, `compileall`.
 
-- [ ] **Closure audit для переноса active task → archive** — формализовать проверку, что закрытая задача удалена из active `tasks.md`, присутствует в `tasks_archive.md`, содержит commit/proposal/runtime references и не оставляет dangling dashboard/proposal queue references.
+- [x] **Closure audit для переноса active task → archive** — формализовать проверку, что закрытая задача удалена из active `tasks.md`, присутствует в `tasks_archive.md`, содержит commit/proposal/runtime references и не оставляет dangling dashboard/proposal queue references.
   - **Метрика:** audit-команда или тест на fixture task 17 проходит и документирует expected state после closure pass.
 
 ---
@@ -35,7 +35,7 @@
   - **Контекст:** поддерживает SpecGraph tasks 89-90 из ветки `codex/metrics-delivery-feedback`, commit `ea2886f`, где `graph_dashboard.json` получил `metrics_delivery_ready`, `metrics_feedback_visible` и Metrics delivery/feedback counts.
   - **Метрика:** fixture `graph_dashboard.json` с `sections.external_consumers` рендерит отдельную секцию External Consumers; `metrics_delivery_ready` и `metrics_feedback_visible` видны как headline/filter counts; `npm run build` проходит без `any`-обходов для нового section shape.
 
-- [ ] **Metrics Source Promotion panel для `SIB_FULL`** — добавить в dashboard отдельную карточку/панель "Metrics Source Promotion" для `runs/metrics_source_promotion_index.json` и новых полей `sections.external_consumers.metrics_source_promotion_*`.
+- [x] **Metrics Source Promotion panel для `SIB_FULL`** — добавить в dashboard отдельную карточку/панель "Metrics Source Promotion" для `runs/metrics_source_promotion_index.json` и новых полей `sections.external_consumers.metrics_source_promotion_*`.
   - **Контекст:** `SIB_FULL` должен быть виден как `promotion_candidate`, но не становиться authoritative автоматически; показывать `promotion_status`, `review_state`, `authority_state`, `next_gap`, `guardrails.requires_human_review` и связь `legacy_metric_ids`.
   - **Метрика:** headline card `metrics_source_promotion_ready` и named filter `viewer_projection.named_filters.metrics_source_promotion_ready` отображаются; `ready_for_promotion_review`/`promotion_candidate` попадают в External Consumers counts; guardrails визуально показывают review-first/no-auto-authority boundary.
 
@@ -75,11 +75,11 @@
 
 ## High priority — быстрые победы
 
-- [ ] **`onlyRenderVisibleElements={true}`** на `<ReactFlow>` в [App.tsx:764](viewer/app/src/App.tsx:764). Ноды/рёбра вне viewport не рендерятся.
+- [x] **`onlyRenderVisibleElements={true}`** на `<ReactFlow>` в [App.tsx:764](viewer/app/src/App.tsx:764). Ноды/рёбра вне viewport не рендерятся.
   - **Метрика:** `performance.memory.usedJSHeapSize` (Chrome) / Safari Web Inspector → Timelines → Memory при панорамировании через 3-4 viewport-а. Ожидаемое снижение: **≥30%** пикового heap.
   - **Доп. метрика:** `document.querySelectorAll('.react-flow__node').length` до/после — в viewport должно остаться ≤ visible нод + небольшой buffer.
 
-- [ ] **CSS-класс `zoomed-out`** на контейнере при `zoom < 0.5`: убрать `box-shadow`, `filter`, `backdrop-filter`, `border-radius` у `.react-flow__node`. Форсируют отдельные GPU-текстуры в Safari.
+- [x] **CSS-класс `zoomed-out`** на контейнере при `zoom < 0.5`: убрать `box-shadow`, `filter`, `backdrop-filter`, `border-radius` у `.react-flow__node`. Форсируют отдельные GPU-текстуры в Safari.
   - **Метрика:** Safari Web Inspector → Timelines → Rendering → "Layer" count при `zoom=0.4`. Ожидание: снижение числа composite layers **≥50%**.
   - **Визуальная валидация:** розовые тайлы не появляются при панорамировании на `zoom=0.4`.
 
@@ -98,7 +98,7 @@
 - **Сильная метрика:** heap при панорамировании 10 сек Safari. Ожидание: **5–6 GB → ≤2 GB**.
 - **Валидация UX:** пользователь всё ещё различает типы рёбер по стилю (спросить после A/B).
 
-### H2. `type: "straight"` вместо `"default"` для Linear mode
+### ✅ H2. `type: "straight"` вместо `"default"` для Linear mode
 **Файл:** [useSpecGraphData.ts:357,383,404,423](viewer/app/src/useSpecGraphData.ts:357)
 
 В Linear ноды стоят на одной горизонтали — bezier-кривые избыточны. Прямые линии = короче SVG path string, быстрее Safari path rasterization.
@@ -106,7 +106,7 @@
 - **Метрика:** FPS при панорамировании (Safari Web Inspector → Timelines → Frames). Ожидание: **≥45 FPS** стабильно (сейчас проседает под 20 FPS).
 - **Доп. метрика:** длина `d` атрибута `<path>` суммарно по всем edges до/после (через `document.querySelectorAll('path.react-flow__edge-path').reduce((s,p)=>s+p.getAttribute('d').length,0)`). Ожидание: **≥40%** сокращения.
 
-### H3. Убрать `strokeDasharray` у Linear backward edges
+### ✅ H3. Убрать `strokeDasharray` у Linear backward edges
 **Файл:** [useSpecGraphData.ts:120-124,113-117](viewer/app/src/useSpecGraphData.ts:120) — `LINEAR_BACKWARD_STYLE`, `TREE_CROSSLINK_STYLE`
 
 Safari кэширует dasharray-паттерн отдельной текстурой на каждую уникальную комбинацию (pattern × color × width × scale). Заменить на solid line другого оттенка.

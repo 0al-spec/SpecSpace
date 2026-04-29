@@ -184,6 +184,13 @@ const LINEAR_BACKWARD_STYLE: React.CSSProperties = {
   opacity: 0.45,
 };
 
+/** Linear mode: forward relates_to cross-link (solid, no dasharray — avoids Safari dasharray texture per-edge) */
+const LINEAR_CROSSLINK_STYLE: React.CSSProperties = {
+  stroke: "#9b6ec4",
+  strokeWidth: 1.5,
+  opacity: 0.5,
+};
+
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -497,7 +504,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
           sourceHandle: "src-refines",
           targetHandle: "tgt-refines",
           label: undefined,
-          type: "smoothstep",
+          type: "straight",
           animated: false,
           zIndex: 2,
           style: treeStyle,
@@ -519,7 +526,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
           sourceHandle: "src-depends_on",
           targetHandle: "tgt-depends_on",
           label: undefined,
-          type: "smoothstep",
+          type: "straight",
           animated: false,
           zIndex: 1,
           style: EDGE_VISUAL_STYLES[vstate],
@@ -538,10 +545,10 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
           sourceHandle: "src-relates_to",
           targetHandle: "tgt-relates_to",
           label: undefined,
-          type: "smoothstep",
+          type: "straight",
           animated: false,
           zIndex: 0,
-          style: isBackward ? LINEAR_BACKWARD_STYLE : TREE_CROSSLINK_STYLE,
+          style: isBackward ? LINEAR_BACKWARD_STYLE : LINEAR_CROSSLINK_STYLE,
         });
       }
     } else {
