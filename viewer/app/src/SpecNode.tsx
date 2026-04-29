@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo, memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Node } from "@xyflow/react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -71,7 +71,7 @@ function slotTops(count: number): number[] {
   return Array.from({ length: count }, (_, i) => ((i + 1) / (count + 1)) * 100);
 }
 
-export default function SpecNode({
+function SpecNode({
   data,
   selected,
 }: NodeProps<SpecNodeType>) {
@@ -79,7 +79,6 @@ export default function SpecNode({
   const statusLabel = STATUS_LABELS[data.status] ?? data.status;
 
   const kinds = data.visibleHandleKinds;
-  const tops = slotTops(kinds.length);
   const lod = useLODLevel();
 
   const [btnVisible, setBtnVisible] = useState(false);
@@ -95,8 +94,11 @@ export default function SpecNode({
     hideTimerRef.current = setTimeout(() => setBtnVisible(false), 2000);
   }, []);
 
+  const tops = useMemo(() => slotTops(kinds.length), [kinds.length]);
+  const gapTops = useMemo(() => slotTops(data.gapCount), [data.gapCount]);
+
   // Handles are required by ReactFlow for edge endpoint routing — render at every LOD.
-  const targetHandles = kinds.map((kind, i) => {
+  const targetHandles = useMemo(() => kinds.map((kind, i) => {
     const active = data.activeTargetKinds.has(kind);
     return (
       <Handle
@@ -106,10 +108,12 @@ export default function SpecNode({
         id={`tgt-${kind}`}
         className={`spec-handle spec-handle-${kind} ${active ? "spec-handle-active" : "spec-handle-potential"}`}
         style={{ top: `${tops[i]}%` }}
+        title={active ? `← ${kind}` : `potential ← ${kind}`}
       />
     );
-  });
-  const sourceHandles = kinds.map((kind, i) => {
+  }), [kinds, tops, data.activeTargetKinds]);
+
+  const sourceHandles = useMemo(() => kinds.map((kind, i) => {
     const active = data.activeSourceKinds.has(kind);
     return (
       <Handle
@@ -119,11 +123,13 @@ export default function SpecNode({
         id={`src-${kind}`}
         className={`spec-handle spec-handle-${kind} ${active ? "spec-handle-active" : "spec-handle-potential"}`}
         style={{ top: `${tops[i]}%` }}
+        title={active ? `${kind} →` : `potential ${kind} →`}
       />
     );
-  });
-  const gapHandles = data.gapCount > 0
-    ? slotTops(data.gapCount).map((pct, i) => (
+  }), [kinds, tops, data.activeSourceKinds]);
+
+  const gapHandles = useMemo(() => data.gapCount > 0
+    ? gapTops.map((pct, i) => (
         <Handle
           key={`gap-${i}`}
           type="source"
@@ -131,9 +137,10 @@ export default function SpecNode({
           id={`gap-${i}`}
           className="spec-handle spec-handle-gap"
           style={{ left: `${pct}%` }}
+          data-tooltip={`gap ${i + 1}/${data.gapCount}`}
         />
       ))
-    : null;
+    : null, [data.gapCount, gapTops]);
 
   if (lod === "minimal") {
     return (
@@ -176,20 +183,7 @@ export default function SpecNode({
       }}
     >
       {/* Target handles (left) — one slot per visible kind */}
-      {kinds.map((kind, i) => {
-        const active = data.activeTargetKinds.has(kind);
-        return (
-          <Handle
-            key={`tgt-${kind}`}
-            type="target"
-            position={Position.Left}
-            id={`tgt-${kind}`}
-            className={`spec-handle spec-handle-${kind} ${active ? "spec-handle-active" : "spec-handle-potential"}`}
-            style={{ top: `${tops[i]}%` }}
-            title={active ? `← ${kind}` : `potential ← ${kind}`}
-          />
-        );
-      })}
+      {targetHandles}
 
       {/* ID badge */}
       <div className="spec-node-id">{data.nodeId}</div>
@@ -247,33 +241,10 @@ export default function SpecNode({
       )}
 
       {/* Source handles (right) — one slot per visible kind */}
-      {kinds.map((kind, i) => {
-        const active = data.activeSourceKinds.has(kind);
-        return (
-          <Handle
-            key={`src-${kind}`}
-            type="source"
-            position={Position.Right}
-            id={`src-${kind}`}
-            className={`spec-handle spec-handle-${kind} ${active ? "spec-handle-active" : "spec-handle-potential"}`}
-            style={{ top: `${tops[i]}%` }}
-            title={active ? `${kind} →` : `potential ${kind} →`}
-          />
-        );
-      })}
+      {sourceHandles}
 
       {/* Gap handles (bottom) — one slot per gap */}
-      {data.gapCount > 0 && slotTops(data.gapCount).map((pct, i) => (
-        <Handle
-          key={`gap-${i}`}
-          type="source"
-          position={Position.Bottom}
-          id={`gap-${i}`}
-          className="spec-handle spec-handle-gap"
-          style={{ left: `${pct}%` }}
-          data-tooltip={`gap ${i + 1}/${data.gapCount}`}
-        />
-      ))}
+      {gapHandles}
 
       {/* Expand/collapse button — shown when node has expandable sub-items */}
       {(data.acceptanceCount > 0 || data.decisionsCount > 0) && data.onToggleExpand && (
@@ -310,3 +281,6 @@ export default function SpecNode({
     </div>
   );
 }
+
+const SpecNodeMemo = memo(SpecNode);
+export default SpecNodeMemo;
