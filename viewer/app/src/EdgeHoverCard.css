@@ -1,0 +1,77 @@
+.edge-hover-card {
+  position: fixed;
+  z-index: 9999;
+  width: 260px;
+  pointer-events: none;
+  background: rgba(255, 250, 242, 0.98);
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(76, 51, 28, 0.18);
+  padding: 10px 14px;
+  font-family: Georgia, "Times New Roman", serif;
+  animation: edge-hover-card-in 100ms ease forwards;
+}
+
+@keyframes edge-hover-card-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Source → Target IDs */
+.edge-hover-card-route {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.edge-hover-card-node-id {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, #888);
+}
+
+.edge-hover-card-arrow {
+  font-size: 10px;
+  color: var(--muted, #aaa);
+  flex-shrink: 0;
+}
+
+/* Optional title row */
+.edge-hover-card-titles {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.edge-hover-card-title-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text, #2c2018);
+  word-break: break-word;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.edge-hover-card-arrow-sm {
+  font-size: 9px;
+  color: var(--muted, #aaa);
+  flex-shrink: 0;
+}
+
+/* Badges row */
+.edge-hover-card-badges {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+/* Visual state badge colours — reuse edge stroke palette */
+.edge-hover-card-state--required_satisfied { background: #d1ead0; color: #2d6b28; border-color: #5a7a52; }
+.edge-hover-card-state--required_pending   { background: #fef3c7; color: #92400e; border-color: #c08820; }
+.edge-hover-card-state--active_blocker     { background: #fee2e2; color: #991b1b; border-color: #dc2626; }
+.edge-hover-card-state--broken_reference   { background: #fde8e4; color: #922b21; border-color: #b54131; }
+.edge-hover-card-state--historical_lineage { background: #f0f0f0; color: #666;    border-color: #9b9b9b; }

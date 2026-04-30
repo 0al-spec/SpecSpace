@@ -54,6 +54,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClock, faBars, faFilter } from "@fortawesome/free-solid-svg-icons";
 import type { GraphMode, SpecViewOptions, ApiSpecNode } from "./types";
 import SpecHoverCard from "./SpecHoverCard";
+import EdgeHoverCard from "./EdgeHoverCard";
+import type { EdgeVisualState } from "./useSpecGraphData";
 
 const nodeTypes = {
   conversation: ConversationNode,
@@ -253,6 +255,13 @@ function AppInner() {
   // ── Hover preview card ───────────────────────────────────────────────────
   const [hoveredPreview, setHoveredPreview] = useState<{ node: ApiSpecNode; rect: DOMRect } | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Edge hover card ───────────────────────────────────────────────────────
+  const [hoveredEdge, setHoveredEdge] = useState<{
+    kind: string; visualState?: EdgeVisualState;
+    sourceId: string; targetId: string; x: number; y: number;
+  } | null>(null);
+  const edgeHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onNodeMouseEnter: NodeMouseHandler = useCallback((_event, rfNode) => {
     if (rfNode.type !== "spec") return;
@@ -758,6 +767,12 @@ function AppInner() {
     });
   }, [timelineFullRange]);
 
+  const specNodeTitleMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const n of specGraph.rawGraph?.nodes ?? []) m.set(n.node_id, n.title);
+    return m;
+  }, [specGraph.rawGraph]);
+
   const onEdgeClick: EdgeMouseHandler = useCallback((_event, edge) => {
     setHighlightedEdge((prev) => {
       if (prev?.id === edge.id) return null;
@@ -765,6 +780,22 @@ function AppInner() {
     });
     fitNodes([edge.source, edge.target]);
   }, [fitNodes]);
+
+  const onEdgeMouseEnter: EdgeMouseHandler = useCallback((event, edge) => {
+    if (edgeHoverTimerRef.current) clearTimeout(edgeHoverTimerRef.current);
+    const d = edge.data as { kind?: string; visualState?: EdgeVisualState } | undefined;
+    if (!d?.kind) return;
+    const x = event.clientX;
+    const y = event.clientY;
+    edgeHoverTimerRef.current = setTimeout(() => {
+      setHoveredEdge({ kind: d.kind!, visualState: d.visualState, sourceId: edge.source, targetId: edge.target, x, y });
+    }, 250);
+  }, []);
+
+  const onEdgeMouseLeave: EdgeMouseHandler = useCallback(() => {
+    if (edgeHoverTimerRef.current) clearTimeout(edgeHoverTimerRef.current);
+    setHoveredEdge(null);
+  }, []);
 
   const onPaneClick = useCallback(() => {
     setSelectedConversationId(null);
@@ -863,6 +894,8 @@ function AppInner() {
               onNodeMouseLeave={onNodeMouseLeave}
               onNodeDragStart={onNodeDragStart}
               onEdgeClick={onEdgeClick}
+              onEdgeMouseEnter={onEdgeMouseEnter}
+              onEdgeMouseLeave={onEdgeMouseLeave}
               onPaneClick={onPaneClick}
               onMoveEnd={onMoveEnd}
               defaultViewport={savedViewport.current}
@@ -1068,6 +1101,19 @@ function AppInner() {
         {/* Spec node hover preview — fixed overlay, above all ReactFlow stacking contexts */}
         {hoveredPreview && graphMode === "specifications" && (
           <SpecHoverCard node={hoveredPreview.node} rect={hoveredPreview.rect} />
+        )}
+        {/* Edge hover card */}
+        {hoveredEdge && graphMode === "specifications" && (
+          <EdgeHoverCard
+            kind={hoveredEdge.kind}
+            visualState={hoveredEdge.visualState}
+            sourceId={hoveredEdge.sourceId}
+            targetId={hoveredEdge.targetId}
+            sourceTitle={specNodeTitleMap.get(hoveredEdge.sourceId)}
+            targetTitle={specNodeTitleMap.get(hoveredEdge.targetId)}
+            x={hoveredEdge.x}
+            y={hoveredEdge.y}
+          />
         )}
 
         <SearchPalette

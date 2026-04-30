@@ -103,7 +103,7 @@ function extractSubItems(detail: Record<string, unknown>): SubItemSpec[] {
  * depends_on means "required dependency", NOT "error".
  * Red is reserved only for broken references and actively blocked targets.
  */
-type EdgeVisualState =
+export type EdgeVisualState =
   | "refinement"
   | "context"
   | "required_satisfied"  // depends_on where target is linked/reviewed/frozen
@@ -495,6 +495,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
           animated: isBroken,
           zIndex: 1,
           style,
+          data: { kind: apiEdge.edge_kind, visualState: vstate },
         });
       }
     } else if (viewMode === "linear") {
@@ -526,6 +527,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
           animated: false,
           zIndex: 2,
           style: treeStyle,
+          data: { kind: "refines" },
         });
       }
 
@@ -548,6 +550,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
           animated: false,
           zIndex: 1,
           style: EDGE_VISUAL_STYLES[vstate],
+          data: { kind: "depends_on", visualState: vstate },
         });
       }
 
@@ -567,6 +570,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
           animated: false,
           zIndex: 0,
           style: isBackward ? LINEAR_BACKWARD_STYLE : LINEAR_CROSSLINK_STYLE,
+          data: { kind: "relates_to" },
         });
       }
     } else {
@@ -602,6 +606,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
           animated: false,
           zIndex: 2,
           style: treeStyle,
+          data: { kind: "refines" },
         });
       }
 
@@ -624,6 +629,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
             animated: false,
             zIndex: 0,
             style: { ...EDGE_VISUAL_STYLES[vstate], strokeDasharray: "5 4" },
+            data: { kind: "depends_on", visualState: vstate },
           });
         }
       }
@@ -644,6 +650,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
             animated: false,
             zIndex: 0,
             style: TREE_CROSSLINK_STYLE,
+            data: { kind: "relates_to" },
           });
         }
       }

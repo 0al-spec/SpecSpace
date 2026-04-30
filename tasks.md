@@ -153,6 +153,10 @@ Safari кэширует dasharray-паттерн отдельной тексту
 
 ## Low priority — UX affordance
 
+- [x] **Hover-карточка на edge** — при наведении курсора на ребро показывать всплывающую карточку с данными: `source → target`, тип (`depends_on` / `refines` / `relates_to`), статус, и для `depends_on` — visual state (`required_satisfied` / `required_pending` / `active_blocker`). Карточка позиционируется рядом с курсором, исчезает при уходе.
+  - **Контекст:** сейчас ReactFlow рендерит `label` текст прямо на ребре; карточка заменит/дополнит это в режиме hover без постоянного шума на холсте.
+  - **Метрика:** пользователь может прочитать все атрибуты ребра без обращения к коду — source, target, kind, visual state.
+
 - [ ] **Tooltip/legend объяснение цветов requires-связей** — добавить в hover-tooltip рёбер и/или legend явное объяснение разницы между `required_satisfied` (зелёный), `required_pending` (янтарный) и `active_blocker` (красный), чтобы пользователь понимал, почему одна `requires`-связь зелёная, другая янтарная, третья красная.
   - **Контекст:** contract в коде уже правильный (`computeEdgeVisualState` в [useSpecGraphData.ts](viewer/app/src/useSpecGraphData.ts)), нужен только UX affordance поверх него. Текущий legend показывает только цвет линии без объяснения состояния dependency.
   - **Примеры формулировок:** `requires · satisfied (target reviewed)`, `requires · pending (target in review)`, `requires · blocked`.
