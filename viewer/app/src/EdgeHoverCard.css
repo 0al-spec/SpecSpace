@@ -5,6 +5,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 420px;
   pointer-events: none;
   transform: translate(-50%, calc(-100% - 14px));
   animation: edge-hover-card-in 100ms ease forwards;
@@ -15,14 +16,15 @@
   to   { opacity: 1; transform: translate(-50%, calc(-100% - 14px)); }
 }
 
-/* Source / target node cards */
+/* Source / target node cards — flex: 2, center — flex: 1 → 2:1 ratio */
 .edge-hover-node-card {
+  flex: 2 1 0;
+  min-width: 0;
   background: rgba(255, 250, 242, 0.98);
   border: 1px solid var(--line, #d4c4ac);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(76, 51, 28, 0.16);
   padding: 8px 12px;
-  max-width: 156px;
 }
 
 .edge-hover-node-id {
@@ -45,11 +47,12 @@
 
 /* Center: badges stacked vertically, no card background */
 .edge-hover-center {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  flex-shrink: 0;
 }
 
 .edge-hover-reason {
