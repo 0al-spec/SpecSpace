@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import "./GraphDashboard.css";
 
@@ -499,8 +499,8 @@ function MetricsRowOverlay({ title, entries, generatedAt, onClose }: MetricsRowO
             </thead>
             <tbody>
               {entries.map((e) => (
-                <>
-                  <tr key={e.id} className="gd-bl-row">
+                <Fragment key={e.id}>
+                  <tr className="gd-bl-row">
                     <td className="gd-bl-td gd-bl-subject">{e.id}</td>
                     <td className="gd-bl-td gd-bl-gap">{formatKey(e.status)}</td>
                     <td className="gd-bl-td gd-bl-domain">{formatKey(e.reviewState)}</td>
@@ -512,8 +512,8 @@ function MetricsRowOverlay({ title, entries, generatedAt, onClose }: MetricsRowO
                       )}
                     </td>
                   </tr>
-                  {e.repoSnapshot && <RepoSnapshotRow key={`${e.id}-snap`} snap={e.repoSnapshot} />}
-                </>
+                  {e.repoSnapshot && <RepoSnapshotRow snap={e.repoSnapshot} />}
+                </Fragment>
               ))}
             </tbody>
           </table>

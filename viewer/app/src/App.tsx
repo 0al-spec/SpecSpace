@@ -47,6 +47,7 @@ import PanelBtn from "./PanelBtn";
 import "./PanelBtn.css";
 import { ToastProvider } from "./Toast";
 import GraphDashboard from "./GraphDashboard";
+import TelemetryOverlay, { useTelemetryToggle } from "./TelemetryOverlay";
 import { useSpecOverlayData } from "./useSpecOverlayData";
 import { lensStyleFor } from "./specLens";
 import type { SpecLensMode } from "./types";
@@ -186,6 +187,7 @@ const DEFAULT_SPEC_VIEW: SpecViewOptions = {
 };
 
 function AppInner() {
+  const telemetryEnabled = useTelemetryToggle();
   const [graphMode, setGraphMode] = useState<GraphMode>(loadInitialMode);
   const [specAvailable, setSpecAvailable] = useState(false);
   const [compileAvailable, setCompileAvailable] = useState(false);
@@ -1125,6 +1127,7 @@ function AppInner() {
           onSelectSpec={onSearchSelectSpec}
           onMatchingIdsChange={setSearchMatchIds}
         />
+        {telemetryEnabled && <TelemetryOverlay />}
       </div>
     </CompileTargetContext.Provider>
   );
