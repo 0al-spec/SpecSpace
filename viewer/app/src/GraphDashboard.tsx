@@ -58,12 +58,26 @@ interface SourcePromotionEntry {
   guardrails?: { requires_human_review?: boolean };
 }
 
+interface RepoSnapshot {
+  current_branch?: string;
+  upstream_branch?: string;
+  ahead_count?: number;
+  behind_count?: number;
+  changed_paths?: string[];
+  unrelated_changed_paths?: string[];
+  handoff_changed_paths?: string[];
+  has_unrelated_checkout_changes?: boolean;
+  has_handoff_checkout_changes?: boolean;
+}
+
 interface DeliveryEntry {
   consumer_id: string;
   delivery_status: string;
   review_state: string;
   next_gap: string;
   source_artifact: string;
+  repo_snapshot?: RepoSnapshot;
+  source_handoff?: { generated_at?: string };
 }
 
 interface FeedbackEntry {
@@ -401,11 +415,49 @@ function SourcePromotionOverlay({ entries, generatedAt, onClose }: {
   );
 }
 
+interface MetricsRowEntry {
+  id: string;
+  status: string;
+  reviewState: string;
+  nextGap: string;
+  source: string;
+  sourceHandoffAt?: string;
+  repoSnapshot?: RepoSnapshot;
+}
+
 interface MetricsRowOverlayProps {
   title: string;
-  entries: { id: string; status: string; reviewState: string; nextGap: string; source: string; extra?: string }[];
+  entries: MetricsRowEntry[];
   generatedAt?: string;
   onClose: () => void;
+}
+
+function RepoSnapshotRow({ snap }: { snap: RepoSnapshot }) {
+  const branch = snap.current_branch ?? "?";
+  const upstream = snap.upstream_branch ?? "?";
+  const ahead = snap.ahead_count ?? 0;
+  const behind = snap.behind_count ?? 0;
+  const changedCount = snap.changed_paths?.length ?? 0;
+  const unrelatedCount = snap.unrelated_changed_paths?.length ?? 0;
+  const handoffCount = snap.handoff_changed_paths?.length ?? 0;
+
+  return (
+    <tr className="gd-checkout-row">
+      <td colSpan={5} className="gd-checkout-td">
+        <span className="gd-checkout-branch">{branch} → {upstream}</span>
+        <span className="gd-checkout-sync"> ↑{ahead} ↓{behind}</span>
+        {changedCount > 0 && (
+          <span className="gd-checkout-changed"> · {changedCount} changed</span>
+        )}
+        {snap.has_unrelated_checkout_changes && (
+          <span className="gd-checkout-chip gd-checkout-chip--warn">⚠ {unrelatedCount} unrelated</span>
+        )}
+        {snap.has_handoff_checkout_changes && (
+          <span className="gd-checkout-chip gd-checkout-chip--info">{handoffCount} handoff</span>
+        )}
+      </td>
+    </tr>
+  );
 }
 
 function MetricsRowOverlay({ title, entries, generatedAt, onClose }: MetricsRowOverlayProps) {
@@ -447,13 +499,21 @@ function MetricsRowOverlay({ title, entries, generatedAt, onClose }: MetricsRowO
             </thead>
             <tbody>
               {entries.map((e) => (
-                <tr key={e.id} className="gd-bl-row">
-                  <td className="gd-bl-td gd-bl-subject">{e.id}</td>
-                  <td className="gd-bl-td gd-bl-gap">{formatKey(e.status)}</td>
-                  <td className="gd-bl-td gd-bl-domain">{formatKey(e.reviewState)}</td>
-                  <td className="gd-bl-td gd-bl-gap">{formatKey(e.nextGap)}</td>
-                  <td className="gd-bl-td gd-bl-src">{e.source}{e.extra ? ` · ${e.extra}` : ""}</td>
-                </tr>
+                <>
+                  <tr key={e.id} className="gd-bl-row">
+                    <td className="gd-bl-td gd-bl-subject">{e.id}</td>
+                    <td className="gd-bl-td gd-bl-gap">{formatKey(e.status)}</td>
+                    <td className="gd-bl-td gd-bl-domain">{formatKey(e.reviewState)}</td>
+                    <td className="gd-bl-td gd-bl-gap">{formatKey(e.nextGap)}</td>
+                    <td className="gd-bl-td gd-bl-src">
+                      {e.source}
+                      {e.sourceHandoffAt && (
+                        <span className="gd-checkout-ts"> · {new Date(e.sourceHandoffAt).toLocaleString()}</span>
+                      )}
+                    </td>
+                  </tr>
+                  {e.repoSnapshot && <RepoSnapshotRow key={`${e.id}-snap`} snap={e.repoSnapshot} />}
+                </>
               ))}
             </tbody>
           </table>
@@ -969,6 +1029,8 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
           reviewState: e.review_state,
           nextGap: e.next_gap,
           source: e.source_artifact,
+          sourceHandoffAt: e.source_handoff?.generated_at,
+          repoSnapshot: e.repo_snapshot,
         }))}
         generatedAt={deliveryEnvelope.mtime_iso}
         onClose={() => setDeliveryOpen(false)}

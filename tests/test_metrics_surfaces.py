@@ -73,8 +73,19 @@ POPULATED_DELIVERY: dict = {
             "consumer_id": "metrics_sib",
             "delivery_status": "blocked_by_repo_state",
             "review_state": "pending",
-            "next_gap": "missing_trace_contract",
+            "next_gap": "isolate_metrics_checkout_changes",
             "source_artifact": "runs/external_consumer_index.json",
+            "repo_snapshot": {
+                "current_branch": "metrics/sib-delivery",
+                "upstream_branch": "main",
+                "ahead_count": 3,
+                "behind_count": 0,
+                "changed_paths": ["sib/impl.py", "sib/tests.py", "unrelated/other.py"],
+                "unrelated_changed_paths": ["unrelated/other.py"],
+                "handoff_changed_paths": ["sib/impl.py", "sib/tests.py"],
+                "has_unrelated_checkout_changes": True,
+                "has_handoff_checkout_changes": True,
+            },
         },
         {
             "consumer_id": "metrics_sib_full",
@@ -82,6 +93,7 @@ POPULATED_DELIVERY: dict = {
             "review_state": "approved",
             "next_gap": "promotion_review_ready",
             "source_artifact": "runs/external_consumer_index.json",
+            "source_handoff": {"generated_at": "2026-04-29T14:00:00+00:00"},
         },
     ],
     "summary": {
@@ -502,6 +514,24 @@ class MetricsDeliveryShapeTests(unittest.TestCase):
     def test_entry_has_next_gap(self) -> None:
         for e in self._data["entries"]:
             self.assertIn("next_gap", e)
+
+    def test_repo_snapshot_passes_through(self) -> None:
+        blocked = self._data["entries"][0]
+        self.assertIn("repo_snapshot", blocked)
+        snap = blocked["repo_snapshot"]
+        self.assertTrue(snap["has_unrelated_checkout_changes"])
+        self.assertEqual(snap["current_branch"], "metrics/sib-delivery")
+        self.assertEqual(snap["ahead_count"], 3)
+        self.assertEqual(len(snap["unrelated_changed_paths"]), 1)
+
+    def test_source_handoff_passes_through(self) -> None:
+        ready = self._data["entries"][1]
+        self.assertIn("source_handoff", ready)
+        self.assertIn("generated_at", ready["source_handoff"])
+
+    def test_entry_without_repo_snapshot_ok(self) -> None:
+        ready = self._data["entries"][1]
+        self.assertNotIn("repo_snapshot", ready)
 
     def test_unknown_delivery_status_passes_through(self) -> None:
         artifact = {
