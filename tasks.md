@@ -173,7 +173,7 @@ Safari кэширует dasharray-паттерн отдельной тексту
 - [ ] **Force-режим: throttle D3 tick → rAF** в [SpecForceGraph.tsx:76-246](viewer/app/src/SpecForceGraph.tsx:76).
   - **Метрика:** FPS во время force-simulation. Ожидание: **60 FPS** стабильно.
 
-- [ ] **Telemetry / diagnostics overlay** — dev-only панель с zoom/visible-nodes/FPS/heap.
+- [x] **Telemetry / diagnostics overlay** — dev-only панель с zoom/visible-nodes/FPS/heap.
   - **Назначение:** регресс-метрика для всех остальных задач этого документа.
 
 ---
