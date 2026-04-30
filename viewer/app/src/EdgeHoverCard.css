@@ -1,84 +1,69 @@
+/* Transparent wrapper — centered on cursor X, sits above cursor Y */
 .edge-hover-card {
   position: fixed;
   z-index: 9999;
-  width: 260px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   pointer-events: none;
-  background: rgba(255, 250, 242, 0.98);
-  border: 1px solid var(--line, #d4c4ac);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(76, 51, 28, 0.18);
-  padding: 10px 14px;
-  font-family: Georgia, "Times New Roman", serif;
+  transform: translate(-50%, calc(-100% - 14px));
   animation: edge-hover-card-in 100ms ease forwards;
 }
 
 @keyframes edge-hover-card-in {
-  from { opacity: 0; transform: translateY(3px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate(-50%, calc(-100% - 10px)); }
+  to   { opacity: 1; transform: translate(-50%, calc(-100% - 14px)); }
 }
 
-/* Source → Target IDs */
-.edge-hover-card-route {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 5px;
+/* Source / target node cards */
+.edge-hover-node-card {
+  background: rgba(255, 250, 242, 0.98);
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(76, 51, 28, 0.16);
+  padding: 8px 12px;
+  max-width: 156px;
 }
 
-.edge-hover-card-node-id {
+.edge-hover-node-id {
   font-size: 9px;
   font-family: var(--font-mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted, #888);
+  margin-bottom: 3px;
 }
 
-.edge-hover-card-arrow {
-  font-size: 10px;
-  color: var(--muted, #aaa);
-  flex-shrink: 0;
-}
-
-/* Optional title row */
-.edge-hover-card-titles {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  margin-bottom: 8px;
-}
-
-.edge-hover-card-title-text {
+.edge-hover-node-title {
   font-size: 11px;
   font-weight: 600;
   color: var(--text, #2c2018);
+  line-height: 1.3;
   word-break: break-word;
-  flex: 1 1 0;
-  min-width: 0;
+  font-family: Georgia, "Times New Roman", serif;
 }
 
-.edge-hover-card-arrow-sm {
-  font-size: 9px;
-  color: var(--muted, #aaa);
+/* Center: badges stacked vertically, no card background */
+.edge-hover-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   flex-shrink: 0;
 }
 
-/* Badges row */
-.edge-hover-card-badges {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-/* Visual state badge colours — reuse edge stroke palette */
-.edge-hover-card-reason {
-  margin-top: 6px;
-  font-size: 10px;
+.edge-hover-reason {
+  font-size: 9px;
   font-family: var(--font-mono);
-  color: var(--muted, #888);
+  color: var(--muted, #aaa);
+  text-align: center;
+  max-width: 96px;
+  line-height: 1.3;
 }
 
-.edge-hover-card-state--required_satisfied { background: #d1ead0; color: #2d6b28; border-color: #5a7a52; }
-.edge-hover-card-state--required_pending   { background: #fef3c7; color: #92400e; border-color: #c08820; }
-.edge-hover-card-state--active_blocker     { background: #fee2e2; color: #991b1b; border-color: #dc2626; }
-.edge-hover-card-state--broken_reference   { background: #fde8e4; color: #922b21; border-color: #b54131; }
-.edge-hover-card-state--historical_lineage { background: #f0f0f0; color: #666;    border-color: #9b9b9b; }
+/* Visual state badge colours */
+.edge-hover-state--required_satisfied { background: #d1ead0; color: #2d6b28; border-color: #5a7a52; }
+.edge-hover-state--required_pending   { background: #fef3c7; color: #92400e; border-color: #c08820; }
+.edge-hover-state--active_blocker     { background: #fee2e2; color: #991b1b; border-color: #dc2626; }
+.edge-hover-state--broken_reference   { background: #fde8e4; color: #922b21; border-color: #b54131; }
+.edge-hover-state--historical_lineage { background: #f0f0f0; color: #666;    border-color: #9b9b9b; }

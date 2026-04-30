@@ -27,13 +27,11 @@ const VISUAL_STATE_LABELS: Partial<Record<EdgeVisualState, string>> = {
 };
 
 const VISUAL_STATE_REASONS: Partial<Record<EdgeVisualState, string>> = {
-  required_satisfied: "target is linked, reviewed, or frozen",
-  required_pending: "target is still in progress",
-  active_blocker: "gate is blocked",
-  broken_reference: "target spec not found",
+  required_satisfied: "target linked / reviewed / frozen",
+  required_pending: "target in progress",
+  active_blocker: "gate blocked",
+  broken_reference: "target not found",
 };
-
-const CARD_W = 260;
 
 export default function EdgeHoverCard({
   kind,
@@ -45,40 +43,33 @@ export default function EdgeHoverCard({
   x,
   y,
 }: EdgeHoverCardProps) {
-  const left = Math.min(Math.max(8, x - CARD_W / 2), window.innerWidth - CARD_W - 8);
-  const rawTop = y + 14;
-  const top = rawTop + 100 > window.innerHeight ? y - 110 : rawTop;
-
   const stateLabel = visualState ? (VISUAL_STATE_LABELS[visualState] ?? visualState) : null;
+  const stateReason = visualState ? VISUAL_STATE_REASONS[visualState] : null;
 
   return (
-    <div className="edge-hover-card" style={{ left, top }}>
-      <div className="edge-hover-card-route">
-        <span className="edge-hover-card-node-id">{sourceId}</span>
-        <span className="edge-hover-card-arrow">→</span>
-        <span className="edge-hover-card-node-id">{targetId}</span>
+    <div className="edge-hover-card" style={{ left: x, top: y }}>
+      {/* Source node card */}
+      <div className="edge-hover-node-card">
+        <div className="edge-hover-node-id">{sourceId}</div>
+        {sourceTitle && <div className="edge-hover-node-title">{sourceTitle}</div>}
       </div>
 
-      {(sourceTitle || targetTitle) && (
-        <div className="edge-hover-card-titles">
-          {sourceTitle && <span className="edge-hover-card-title-text">{sourceTitle}</span>}
-          {sourceTitle && targetTitle && <span className="edge-hover-card-arrow-sm">→</span>}
-          {targetTitle && <span className="edge-hover-card-title-text">{targetTitle}</span>}
-        </div>
-      )}
-
-      <div className="edge-hover-card-badges">
+      {/* Center: kind badge + optional state badge */}
+      <div className="edge-hover-center">
         <span className="spec-node-kind-badge">{KIND_LABELS[kind] ?? kind}</span>
         {stateLabel && (
-          <span className={`spec-node-status-badge edge-hover-card-state edge-hover-card-state--${visualState}`}>
+          <span className={`spec-node-status-badge edge-hover-state edge-hover-state--${visualState}`}>
             {stateLabel}
           </span>
         )}
+        {stateReason && <div className="edge-hover-reason">{stateReason}</div>}
       </div>
 
-      {visualState && VISUAL_STATE_REASONS[visualState] && (
-        <div className="edge-hover-card-reason">{VISUAL_STATE_REASONS[visualState]}</div>
-      )}
+      {/* Target node card */}
+      <div className="edge-hover-node-card">
+        <div className="edge-hover-node-id">{targetId}</div>
+        {targetTitle && <div className="edge-hover-node-title">{targetTitle}</div>}
+      </div>
     </div>
   );
 }
