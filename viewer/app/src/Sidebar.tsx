@@ -280,6 +280,22 @@ export default function Sidebar({
                     />
                     Highlight Required Dependencies
                   </label>
+                  {specViewOptions.showBlocking && (
+                    <div className="sidebar-requires-legend">
+                      <div className="sidebar-requires-legend-item">
+                        <span className="sidebar-requires-dot sidebar-requires-dot--satisfied" />
+                        satisfied · target linked or reviewed
+                      </div>
+                      <div className="sidebar-requires-legend-item">
+                        <span className="sidebar-requires-dot sidebar-requires-dot--pending" />
+                        pending · target in progress
+                      </div>
+                      <div className="sidebar-requires-legend-item">
+                        <span className="sidebar-requires-dot sidebar-requires-dot--blocked" />
+                        blocked · gate blocked
+                      </div>
+                    </div>
+                  )}
                   {specViewOptions.viewMode === "tree" && (
                     <label className="sidebar-toggle-label">
                       <input

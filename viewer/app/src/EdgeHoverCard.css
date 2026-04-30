@@ -70,6 +70,13 @@
 }
 
 /* Visual state badge colours — reuse edge stroke palette */
+.edge-hover-card-reason {
+  margin-top: 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--muted, #888);
+}
+
 .edge-hover-card-state--required_satisfied { background: #d1ead0; color: #2d6b28; border-color: #5a7a52; }
 .edge-hover-card-state--required_pending   { background: #fef3c7; color: #92400e; border-color: #c08820; }
 .edge-hover-card-state--active_blocker     { background: #fee2e2; color: #991b1b; border-color: #dc2626; }

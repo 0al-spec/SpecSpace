@@ -26,6 +26,13 @@ const VISUAL_STATE_LABELS: Partial<Record<EdgeVisualState, string>> = {
   historical_lineage: "historical",
 };
 
+const VISUAL_STATE_REASONS: Partial<Record<EdgeVisualState, string>> = {
+  required_satisfied: "target is linked, reviewed, or frozen",
+  required_pending: "target is still in progress",
+  active_blocker: "gate is blocked",
+  broken_reference: "target spec not found",
+};
+
 const CARD_W = 260;
 
 export default function EdgeHoverCard({
@@ -68,6 +75,10 @@ export default function EdgeHoverCard({
           </span>
         )}
       </div>
+
+      {visualState && VISUAL_STATE_REASONS[visualState] && (
+        <div className="edge-hover-card-reason">{VISUAL_STATE_REASONS[visualState]}</div>
+      )}
     </div>
   );
 }
