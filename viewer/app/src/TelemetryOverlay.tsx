@@ -8,18 +8,20 @@ export function useTelemetryToggle(): boolean {
   const [enabled, setEnabled] = useState(() => sessionStorage.getItem(STORAGE_KEY) === "1");
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.shiftKey && (e.key === "D" || e.key === "d") && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        const target = e.target as HTMLElement | null;
-        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
-        setEnabled((prev) => {
-          const next = !prev;
-          sessionStorage.setItem(STORAGE_KEY, next ? "1" : "0");
-          return next;
-        });
-      }
+      if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.code !== "KeyD") return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setEnabled((prev) => {
+        const next = !prev;
+        sessionStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+        return next;
+      });
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("keydown", handler, { capture: true });
+    return () => window.removeEventListener("keydown", handler, { capture: true });
   }, []);
   return enabled;
 }
