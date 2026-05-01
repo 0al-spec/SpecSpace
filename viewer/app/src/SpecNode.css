@@ -334,3 +334,12 @@
 .zoomed-out .react-flow__edge-textbg {
   display: none !important;
 }
+
+/* ── zoomed-out: flatten edge styles — no dashes, reduced width ─────────── */
+/* Eliminates per-path compositing cost in Safari at low zoom.               */
+/* Color distinction (kind / visual state) is preserved via stroke colour.   */
+.zoomed-out .react-flow__edge-path {
+  stroke-dasharray: none !important;
+  stroke-width: 1px !important;
+  opacity: 1 !important;
+}

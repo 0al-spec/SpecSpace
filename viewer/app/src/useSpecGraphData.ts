@@ -478,7 +478,6 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
           nodeMap.get(apiEdge.target_id),
           gateState(apiEdge.target_id),
         );
-        const isBroken = vstate === "broken_reference";
         const style = EDGE_VISUAL_STYLES[vstate];
         const label = apiEdge.edge_kind === "depends_on" ? "requires" : apiEdge.edge_kind;
 
@@ -492,7 +491,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
           targetHandle: `tgt-${apiEdge.edge_kind}`,
           label,
           type: "default",
-          animated: isBroken,
+          animated: false,
           zIndex: 1,
           style,
           data: { kind: apiEdge.edge_kind, visualState: vstate },
