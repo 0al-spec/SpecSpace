@@ -194,8 +194,8 @@ Safari кэширует dasharray-паттерн отдельной тексту
 
 ## Тест-план
 
-- [ ] Safari: 50 nodes, Linear + оба тоггла, 10s drag — heap ≤ 2 GB.
-- [ ] Safari: 50 nodes, Canonical mode — heap ≤ 1.5 GB.
-- [ ] Chrome: regression — heap, FPS, visual не ухудшились.
+- [~] Safari: 50 nodes, Linear + оба тоггла, 10s drag — heap ≤ 2 GB. _(Safari не поддерживается как primary target; animated edges убраны, stroke-dasharray сброшен на zoom<0.5)_
+- [~] Safari: 50 nodes, Canonical mode — heap ≤ 1.5 GB. _(OOM на Canonical; требует canvas-рефактора или full-DOM audit — отложено)_
+- [x] Chrome: regression — heap, FPS, visual не ухудшились.
 - [ ] Переключения Linear ↔ Canonical ↔ Force не ломают кэш позиций.
 - [ ] Клик по edge label (если H1 откатится) всё ещё селектит ребро.
