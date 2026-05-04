@@ -293,6 +293,7 @@
 }
 .gd-metric-badge.gd-status-healthy   { background: #d6f0e0; color: #2a6b42; }
 .gd-metric-badge.gd-status-attention { background: var(--accent-soft); color: var(--accent-strong); }
+.gd-metric-badge.gd-status-info      { background: rgba(34, 92, 125, 0.10); color: #225c7d; }
 
 .gd-metric-track {
   position: relative;
@@ -341,6 +342,63 @@
   padding: 0 5px;
 }
 
+.gd-metric-value-row {
+  padding: 8px 10px;
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 6px;
+  background: rgba(34, 92, 125, 0.04);
+}
+
+.gd-metric-value-row--muted {
+  background: rgba(145, 90, 36, 0.05);
+  opacity: 0.82;
+}
+
+.gd-metric-value-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gd-metric-value-main {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gd-metric-guardrail {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid rgba(145, 90, 36, 0.35);
+  border-radius: 4px;
+  background: rgba(145, 90, 36, 0.08);
+  color: var(--accent-strong, #6c4012);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gd-metric-proxy-meta,
+.gd-metric-input-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.gd-metric-input-summary span {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.03);
+}
+
 /* ── Backlog browse button ───────────────────────────────────────── */
 .gd-backlog-browse-btn {
   margin-top: 4px;
@@ -381,6 +439,10 @@
   width: min(860px, 100%);
   max-height: 80vh;
   overflow: hidden;
+}
+
+.gd-overlay-panel--wide {
+  width: min(1040px, 100%);
 }
 
 .gd-overlay-header {
@@ -435,7 +497,7 @@
 }
 
 .gd-overlay-body {
-  overflow-y: auto;
+  overflow: auto;
   padding: 0 20px 20px;
 }
 
@@ -477,6 +539,10 @@
   background: var(--panel);
 }
 
+.gd-bl-row--metric-runtime td {
+  background: rgba(34, 92, 125, 0.04);
+}
+
 .gd-bl-td {
   padding: 4px 12px 4px 0;
   vertical-align: top;
@@ -511,6 +577,103 @@
   color: var(--muted);
   opacity: 0.7;
   white-space: nowrap;
+}
+
+.gd-mp-guardrail {
+  margin: 8px 0 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 6px;
+  background: rgba(145, 90, 36, 0.07);
+  color: var(--accent-strong, #6c4012);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.gd-mp-actions {
+  align-items: center;
+}
+
+.gd-mp-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line, #d4c4ac);
+  margin-bottom: 6px;
+}
+
+.gd-mp-subtext {
+  display: block;
+  margin-top: 2px;
+  font-family: Georgia, serif;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted);
+  word-break: normal;
+}
+
+.gd-mp-count {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gd-mp-nested-row td {
+  background: rgba(0, 0, 0, 0.018);
+}
+
+.gd-mp-nested-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
+  gap: 16px;
+  padding: 8px 0 10px;
+}
+
+.gd-mp-nested-panel {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.gd-mp-nested-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.gd-mp-nested-table th {
+  text-align: left;
+  padding: 4px 8px 4px 0;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line, #e8ddd0);
+}
+
+.gd-mp-nested-table td {
+  padding: 5px 8px 5px 0;
+  border-bottom: 1px solid var(--line, #e8ddd0);
+  vertical-align: top;
+}
+
+.gd-mp-summary-chip {
+  display: inline-block;
+  margin: 0 4px 3px 0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(34, 92, 125, 0.08);
+  color: #225c7d;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .gd-mp-nested-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── Checkout diagnostics row ────────────────────────────────────── */

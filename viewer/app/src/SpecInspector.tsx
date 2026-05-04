@@ -21,7 +21,7 @@ interface SpecInspectorProps {
   onOpenLens?: (nodeId: string) => void;
   /** Open the SpecPM export preview overlay. Undefined → button hidden. */
   onOpenSpecpmPreview?: () => void;
-  /** Open the exploration preview panel. Undefined → button hidden. */
+  /** Open the exploration/proposals surface. Undefined → button hidden. */
   onOpenExplorationPreview?: () => void;
   /** Full spec graph — used to resolve peer node titles/statuses in Related section */
   rawGraph?: ApiSpecGraph | null;
@@ -229,7 +229,7 @@ interface SpecDetailPaneProps {
   onOpenLens?: () => void;
   /** Open SpecPM export preview */
   onOpenSpecpmPreview?: () => void;
-  /** Open exploration preview panel */
+  /** Open exploration/proposals surface */
   onOpenExplorationPreview?: () => void;
 }
 
@@ -399,7 +399,7 @@ function SpecDetailPane({
                 {onOpenExplorationPreview && (
                   <PanelBtn
                     icon={<FontAwesomeIcon icon={faMagnifyingGlassChart} />}
-                    title="Exploration Preview"
+                    title="Exploration / Proposals"
                     onClick={onOpenExplorationPreview}
                   />
                 )}

@@ -29,7 +29,7 @@ import CollapsedBranchNode from "./CollapsedBranchNode";
 import SpecInspector from "./SpecInspector";
 import SpecLens from "./SpecLens.tsx";
 import SpecPMExportPreview from "./SpecPMExportPreview.tsx";
-import ExplorationPreviewPanel from "./ExplorationPreviewPanel";
+import ExplorationSurfacesPanel from "./ExplorationSurfacesPanel";
 import SpecForceGraph from "./SpecForceGraph";
 import "./SpecNode.css";
 import AgentChat, { AgentChatTrigger } from "./AgentChat";
@@ -151,8 +151,7 @@ interface Capabilities {
   dashboardAvailable: boolean;
   specOverlayAvailable: boolean;
   specpmPreviewAvailable: boolean;
-  explorationPreviewAvailable: boolean;
-  explorationPreviewBuildAvailable: boolean;
+  explorationSurfacesAvailable: boolean;
   viewerSurfacesBuildAvailable: boolean;
   agentAvailable: boolean;
 }
@@ -161,7 +160,7 @@ interface Capabilities {
 async function checkCapabilities(): Promise<Capabilities> {
   try {
     const res = await fetch("/api/capabilities");
-    if (!res.ok) return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationPreviewAvailable: false, explorationPreviewBuildAvailable: false, viewerSurfacesBuildAvailable: false, agentAvailable: false };
+    if (!res.ok) return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationSurfacesAvailable: false, viewerSurfacesBuildAvailable: false, agentAvailable: false };
     const data = await res.json();
     return {
       specAvailable: Boolean(data.spec_graph),
@@ -169,13 +168,12 @@ async function checkCapabilities(): Promise<Capabilities> {
       dashboardAvailable: Boolean(data.graph_dashboard),
       specOverlayAvailable: Boolean(data.spec_overlay),
       specpmPreviewAvailable: Boolean(data.specpm_preview),
-      explorationPreviewAvailable: Boolean(data.exploration_preview),
-      explorationPreviewBuildAvailable: Boolean(data.exploration_preview_build),
+      explorationSurfacesAvailable: Boolean(data.exploration_surfaces ?? data.exploration_preview),
       viewerSurfacesBuildAvailable: Boolean(data.viewer_surfaces_build),
       agentAvailable: Boolean(data.agent),
     };
   } catch {
-    return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationPreviewAvailable: false, explorationPreviewBuildAvailable: false, viewerSurfacesBuildAvailable: false, agentAvailable: false };
+    return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationSurfacesAvailable: false, viewerSurfacesBuildAvailable: false, agentAvailable: false };
   }
 }
 
@@ -194,25 +192,23 @@ function AppInner() {
   const [dashboardAvailable, setDashboardAvailable] = useState(false);
   const [specOverlayAvailable, setSpecOverlayAvailable] = useState(false);
   const [specpmPreviewAvailable, setSpecpmPreviewAvailable] = useState(false);
-  const [explorationPreviewAvailable, setExplorationPreviewAvailable] = useState(false);
-  const [explorationPreviewBuildAvailable, setExplorationPreviewBuildAvailable] = useState(false);
+  const [explorationSurfacesAvailable, setExplorationSurfacesAvailable] = useState(false);
   const [viewerSurfacesBuildAvailable, setViewerSurfacesBuildAvailable] = useState(false);
   const [agentAvailable, setAgentAvailable] = useState(false);
   const [specpmPreviewOpen, setSpecpmPreviewOpen] = useState(false);
-  const [explorationPreviewOpen, setExplorationPreviewOpen] = useState(false);
+  const [explorationSurfacesOpen, setExplorationSurfacesOpen] = useState(false);
   const [specLens, setSpecLens] = useState<SpecLensMode>("none");
   const [specViewOptions, setSpecViewOptions] = useState<SpecViewOptions>(DEFAULT_SPEC_VIEW);
 
   // Check capabilities once on mount
   useEffect(() => {
-    checkCapabilities().then(({ specAvailable, compileAvailable, dashboardAvailable, specOverlayAvailable, specpmPreviewAvailable, explorationPreviewAvailable, explorationPreviewBuildAvailable, viewerSurfacesBuildAvailable, agentAvailable }) => {
+    checkCapabilities().then(({ specAvailable, compileAvailable, dashboardAvailable, specOverlayAvailable, specpmPreviewAvailable, explorationSurfacesAvailable, viewerSurfacesBuildAvailable, agentAvailable }) => {
       setSpecAvailable(specAvailable);
       setCompileAvailable(compileAvailable);
       setDashboardAvailable(dashboardAvailable);
       setSpecOverlayAvailable(specOverlayAvailable);
       setSpecpmPreviewAvailable(specpmPreviewAvailable);
-      setExplorationPreviewAvailable(explorationPreviewAvailable);
-      setExplorationPreviewBuildAvailable(explorationPreviewBuildAvailable);
+      setExplorationSurfacesAvailable(explorationSurfacesAvailable);
       setViewerSurfacesBuildAvailable(viewerSurfacesBuildAvailable);
       setAgentAvailable(agentAvailable);
     });
@@ -840,6 +836,7 @@ function AppInner() {
           onGraphModeChange={setGraphMode}
           specAvailable={specAvailable}
           dashboardAvailable={dashboardAvailable}
+          onOpenExplorationSurfaces={explorationSurfacesAvailable ? () => setExplorationSurfacesOpen(true) : undefined}
           specOverlayAvailable={specOverlayAvailable}
           specLens={specLens}
           onSpecLensChange={setSpecLens}
@@ -1009,7 +1006,7 @@ function AppInner() {
               onSelectSubItem={setSelectedSubItemId}
               onOpenLens={setLensNodeId}
               onOpenSpecpmPreview={specpmPreviewAvailable ? () => setSpecpmPreviewOpen(true) : undefined}
-              onOpenExplorationPreview={explorationPreviewAvailable ? () => setExplorationPreviewOpen(true) : undefined}
+              onOpenExplorationPreview={explorationSurfacesAvailable ? () => setExplorationSurfacesOpen(true) : undefined}
               rawGraph={specGraph.rawGraph}
               pinnedNodeId={pinnedNodeId}
               onPin={setPinnedNodeId}
@@ -1081,12 +1078,11 @@ function AppInner() {
           </ErrorBoundary>
         )}
 
-        {/* Exploration preview overlay */}
-        {explorationPreviewOpen && (
-          <ErrorBoundary label="ExplorationPreviewPanel">
-            <ExplorationPreviewPanel
-              buildAvailable={explorationPreviewBuildAvailable}
-              onClose={() => setExplorationPreviewOpen(false)}
+        {/* Exploration / proposals overlay */}
+        {explorationSurfacesOpen && (
+          <ErrorBoundary label="ExplorationSurfacesPanel">
+            <ExplorationSurfacesPanel
+              onClose={() => setExplorationSurfacesOpen(false)}
             />
           </ErrorBoundary>
         )}

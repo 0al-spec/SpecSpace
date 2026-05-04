@@ -2,6 +2,11 @@
   GET /api/metrics-source-promotion
   GET /api/metrics-delivery
   GET /api/metrics-feedback
+  GET /api/metric-pack-adapters
+  GET /api/metric-pack-runs
+  GET /api/metric-pricing-provenance
+  GET /api/model-usage-telemetry
+  GET /api/metric-signals
 """
 
 import json
@@ -43,6 +48,205 @@ MINIMAL_FEEDBACK: dict = {
     "generated_at": "2026-04-28T10:00:00+00:00",
     "entries": [],
     "summary": {"entry_count": 0, "feedback_status_counts": {}, "review_state_counts": {}},
+}
+
+MINIMAL_METRIC_PACK_ADAPTERS: dict = {
+    "artifact_kind": "metric_pack_adapter_index",
+    "schema_version": 1,
+    "generated_at": "2026-05-02T10:00:00+00:00",
+    "review_state": "ready_for_review",
+    "next_gap": "review_metric_pack_adapter_index",
+    "summary": {
+        "pack_count": 1,
+        "input_binding_count": 1,
+        "status_counts": {"missing_input_adapters": 1},
+        "computability_counts": {"not_computable": 1},
+        "missing_input_counts": {"intent_atoms": 1},
+    },
+    "entry_count": 1,
+    "entries": [
+        {
+            "metric_pack_id": "sib_full",
+            "title": "SIB Full Metrics",
+            "adapter_status": "missing_input_adapters",
+            "review_state": "ready_for_review",
+            "next_gap": "define_intent_atom_extraction",
+            "input_count": 1,
+            "missing_input_count": 1,
+            "missing_inputs": ["intent_atoms"],
+            "inputs": [
+                {
+                    "input_id": "intent_atoms",
+                    "computability": "not_computable",
+                    "source_artifact": "",
+                    "source_field": "",
+                    "required_by_metric_ids": ["sib_eff_star"],
+                    "required_by_pack": False,
+                    "next_gap": "define_intent_atom_extraction",
+                }
+            ],
+            "adapter_execution": {
+                "status": "deferred",
+                "next_gap": "add_metric_pack_execution_runtime",
+            },
+        }
+    ],
+    "adapter_backlog": {
+        "entry_count": 1,
+        "items": [
+            {
+                "adapter_backlog_id": "metric_pack_adapter::sib_full::intent_atoms",
+                "metric_pack_id": "sib_full",
+                "input_id": "intent_atoms",
+                "computability": "not_computable",
+                "source_artifact": "",
+                "review_state": "ready_for_review",
+                "next_gap": "define_intent_atom_extraction",
+            }
+        ],
+        "grouped_by_next_gap": {"define_intent_atom_extraction": 1},
+    },
+    "canonical_mutations_allowed": False,
+    "tracked_artifacts_written": False,
+}
+
+MINIMAL_METRIC_PACK_RUNS: dict = {
+    "artifact_kind": "metric_pack_runs",
+    "schema_version": 1,
+    "generated_at": "2026-05-02T10:00:00+00:00",
+    "review_state": "ready_for_review",
+    "next_gap": "review_metric_pack_runs",
+    "summary": {
+        "pack_count": 1,
+        "run_status_counts": {"not_computable": 1},
+        "computed_value_count": 0,
+        "gap_count": 1,
+    },
+    "entry_count": 1,
+    "entries": [
+        {
+            "run_id": "metric_pack_run::sib_full::latest",
+            "metric_pack_id": "sib_full",
+            "title": "SIB Full Metrics",
+            "run_status": "not_computable",
+            "review_state": "ready_for_review",
+            "next_gap": "define_intent_atom_extraction",
+            "computed_values": [],
+            "gaps": [{"input_id": "intent_atoms", "next_gap": "define_intent_atom_extraction"}],
+            "finding_projection": {
+                "status": "deferred",
+                "next_gap": "add_metric_pack_finding_index",
+            },
+            "threshold_authority_granted": False,
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+        }
+    ],
+    "canonical_mutations_allowed": False,
+    "tracked_artifacts_written": False,
+}
+
+MINIMAL_METRIC_PRICING: dict = {
+    "artifact_kind": "metric_pricing_provenance",
+    "schema_version": 1,
+    "generated_at": "2026-05-02T10:00:00+00:00",
+    "review_state": "ready_for_review",
+    "next_gap": "connect_model_usage_telemetry",
+    "summary": {
+        "pricing_surface_count": 1,
+        "status_counts": {"missing_price_source": 1},
+        "observed_spend_count": 0,
+        "derived_proxy_count": 0,
+    },
+    "entry_count": 1,
+    "pricing_surfaces": [
+        {
+            "pricing_surface_id": "codex_supervisor_default_model",
+            "provider": "openai",
+            "model": "gpt-5.5",
+            "tool": "codex_supervisor",
+            "price_status": "missing_price_source",
+            "spend_status": "not_observed",
+            "missing_price_behavior": "report_observation_gap",
+            "review_state": "ready_for_review",
+            "next_gap": "connect_model_usage_telemetry",
+        }
+    ],
+    "canonical_mutations_allowed": False,
+    "tracked_artifacts_written": False,
+}
+
+MINIMAL_MODEL_USAGE_TELEMETRY: dict = {
+    "artifact_kind": "model_usage_telemetry_index",
+    "schema_version": 1,
+    "generated_at": "2026-05-02T10:00:00+00:00",
+    "review_state": "ready_for_review",
+    "next_gap": "connect_token_usage_capture",
+    "summary": {
+        "model_usage_surface_count": 1,
+        "run_count": 0,
+        "telemetry_status_counts": {"configured_not_observed": 1},
+        "token_usage_status_counts": {"not_observed": 1},
+    },
+    "entry_count": 1,
+    "model_usage_surfaces": [
+        {
+            "model_usage_surface_id": "codex_supervisor_default_model",
+            "provider": "openai",
+            "model": "gpt-5.5",
+            "tool": "codex_supervisor",
+            "execution_profile": "standard",
+            "reasoning_effort": "medium",
+            "telemetry_status": "configured_not_observed",
+            "run_count": 0,
+            "usage_proxy": {
+                "status": "not_observed",
+                "unit": "supervisor_run",
+                "value": 0,
+            },
+            "token_usage": {
+                "status": "not_observed",
+                "observed_record_count": 0,
+                "input_tokens": None,
+                "output_tokens": None,
+                "total_tokens": None,
+                "missing_behavior": "report_observation_gap",
+            },
+            "review_state": "ready_for_review",
+            "next_gap": "connect_token_usage_capture",
+        }
+    ],
+    "canonical_mutations_allowed": False,
+    "tracked_artifacts_written": False,
+}
+
+MINIMAL_METRIC_SIGNALS: dict = {
+    "artifact_kind": "metric_signal_index",
+    "schema_version": 1,
+    "generated_at": "2026-05-02T10:00:00+00:00",
+    "metrics": [
+        {
+            "metric_id": "node_inference_cost",
+            "title": "Node Inference Cost",
+            "score": None,
+            "minimum_score": None,
+            "threshold_gap": None,
+            "status": "observed_proxy",
+            "signal_emitted": False,
+            "derivation_mode": "proxy_from_existing_observation",
+            "threshold_authority_state": "not_threshold_authority",
+            "value": 5,
+            "unit": "supervisor_run_proxy",
+            "value_kind": "usage_proxy_not_monetary_cost",
+            "price_status": "active_price_source",
+            "input_summary": {
+                "usage_surface_count": 4,
+                "observed_run_count": 5,
+            },
+        }
+    ],
+    "canonical_mutations_allowed": False,
+    "tracked_artifacts_written": False,
 }
 
 POPULATED_SOURCE_PROMOTION: dict = {
@@ -194,7 +398,80 @@ ENDPOINT_CONFIGS = [
         "populated": POPULATED_FEEDBACK,
         "artifact_kind": "metrics_feedback_index",
     },
+    {
+        "route": "/api/metric-pack-adapters",
+        "filename": "metric_pack_adapter_index.json",
+        "minimal": MINIMAL_METRIC_PACK_ADAPTERS,
+        "populated": MINIMAL_METRIC_PACK_ADAPTERS,
+        "artifact_kind": "metric_pack_adapter_index",
+    },
+    {
+        "route": "/api/metric-pack-runs",
+        "filename": "metric_pack_runs.json",
+        "minimal": MINIMAL_METRIC_PACK_RUNS,
+        "populated": MINIMAL_METRIC_PACK_RUNS,
+        "artifact_kind": "metric_pack_runs",
+    },
+    {
+        "route": "/api/metric-pricing-provenance",
+        "filename": "metric_pricing_provenance.json",
+        "minimal": MINIMAL_METRIC_PRICING,
+        "populated": MINIMAL_METRIC_PRICING,
+        "artifact_kind": "metric_pricing_provenance",
+    },
+    {
+        "route": "/api/model-usage-telemetry",
+        "filename": "model_usage_telemetry_index.json",
+        "minimal": MINIMAL_MODEL_USAGE_TELEMETRY,
+        "populated": MINIMAL_MODEL_USAGE_TELEMETRY,
+        "artifact_kind": "model_usage_telemetry_index",
+    },
+    {
+        "route": "/api/metric-signals",
+        "filename": "metric_signal_index.json",
+        "minimal": MINIMAL_METRIC_SIGNALS,
+        "populated": MINIMAL_METRIC_SIGNALS,
+        "artifact_kind": "metric_signal_index",
+    },
 ]
+
+
+# ---------------------------------------------------------------------------
+# Tests: endpoint availability for all metrics drilldown artifacts
+# ---------------------------------------------------------------------------
+
+
+class MetricsSurfaceEndpointMatrixTests(unittest.TestCase):
+    def test_all_configured_endpoints_return_standard_envelope(self) -> None:
+        for config in ENDPOINT_CONFIGS:
+            with self.subTest(route=config["route"]):
+                with tempfile.TemporaryDirectory() as tmp:
+                    spec_dir = _make_spec_dir(Path(tmp))
+                    _write_artifact(Path(tmp), config["filename"], config["minimal"])
+                    httpd, thread, base = _start(Path(tmp), spec_dir)
+                    try:
+                        status, body = _get(f"{base}{config['route']}")
+                    finally:
+                        _stop(httpd, thread)
+
+                self.assertEqual(status, 200)
+                for field in ("path", "mtime", "mtime_iso", "data"):
+                    self.assertIn(field, body)
+                self.assertEqual(body["data"]["artifact_kind"], config["artifact_kind"])
+
+    def test_all_configured_endpoints_report_missing_artifact(self) -> None:
+        for config in ENDPOINT_CONFIGS:
+            with self.subTest(route=config["route"]):
+                with tempfile.TemporaryDirectory() as tmp:
+                    spec_dir = _make_spec_dir(Path(tmp))
+                    httpd, thread, base = _start(Path(tmp), spec_dir)
+                    try:
+                        status, body = _get(f"{base}{config['route']}")
+                    finally:
+                        _stop(httpd, thread)
+
+                self.assertEqual(status, 404)
+                self.assertIn(config["filename"], body["error"])
 
 
 # ---------------------------------------------------------------------------

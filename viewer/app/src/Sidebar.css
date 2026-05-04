@@ -194,6 +194,30 @@
   letter-spacing: 0.04em;
 }
 
+.sidebar-wide-action {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: -4px 0 12px;
+  padding: 8px 10px;
+  border: 1px solid #7aa7c7;
+  border-radius: 8px;
+  background: #eef7fb;
+  color: #225c7d;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.sidebar-wide-action:hover {
+  background: #dceff7;
+}
+
 /* Spec view controls */
 .sidebar-spec-controls {
   margin-bottom: 12px;

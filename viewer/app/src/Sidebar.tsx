@@ -6,7 +6,7 @@ import PanelBtn from "./PanelBtn";
 import { useToast } from "./Toast";
 import KindBadge from "./KindBadge";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowsRotate, faXmark, faGauge } from "@fortawesome/free-solid-svg-icons";
+import { faArrowsRotate, faXmark, faGauge, faMagnifyingGlassChart } from "@fortawesome/free-solid-svg-icons";
 import type { GraphMode, SpecViewOptions, SpecLensMode } from "./types";
 import { LENS_LABELS } from "./specLens";
 
@@ -32,6 +32,7 @@ interface SidebarProps {
   onGraphModeChange: (mode: GraphMode) => void;
   specAvailable: boolean;
   dashboardAvailable?: boolean;
+  onOpenExplorationSurfaces?: () => void;
   specOverlayAvailable?: boolean;
   specLens?: SpecLensMode;
   onSpecLensChange?: (lens: SpecLensMode) => void;
@@ -60,6 +61,7 @@ export default function Sidebar({
   onGraphModeChange,
   specAvailable,
   dashboardAvailable = false,
+  onOpenExplorationSurfaces,
   specOverlayAvailable = false,
   specLens = "none",
   onSpecLensChange,
@@ -200,6 +202,17 @@ export default function Sidebar({
                 </button>
               )}
             </div>
+          )}
+
+          {onOpenExplorationSurfaces && (
+            <button
+              className="sidebar-wide-action"
+              title="Open read-only exploration and proposal surfaces"
+              onClick={onOpenExplorationSurfaces}
+            >
+              <FontAwesomeIcon icon={faMagnifyingGlassChart} />
+              <span>Exploration / Proposals</span>
+            </button>
           )}
 
           {/* Spec view controls — only in specifications mode */}
