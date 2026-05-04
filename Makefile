@@ -2,13 +2,19 @@ PYTHON ?= python3
 PORT ?= 8000
 API_PORT ?= 8001
 UI_PORT ?= 5173
+CLAUDE_DIALOG_DIR ?= /Users/egor/Development/GitHub/ChatGPTDialogs/canonical_json
+CLAUDE_SPEC_DIR ?= /Users/egor/Development/GitHub/0AL/SpecGraph/specs/nodes
+CLAUDE_SPECGRAPH_DIR ?= /Users/egor/Development/GitHub/0AL/SpecGraph
+CLAUDE_HYPERPROMPT_BINARY ?= /Users/egor/Development/GitHub/0AL/Hyperprompt/.build/arm64-apple-macosx/release/hyperprompt
 DIALOG_DIR ?=
 OUTPUT_DIR ?=
-CANONICAL_DIR ?=
-SPEC_DIR ?=
-HYPERPROMPT_BINARY ?=
+CANONICAL_DIR ?= $(CLAUDE_DIALOG_DIR)
+SPEC_DIR ?= $(CLAUDE_SPEC_DIR)
+SPECGRAPH_DIR ?= $(CLAUDE_SPECGRAPH_DIR)
+HYPERPROMPT_BINARY ?= $(CLAUDE_HYPERPROMPT_BINARY)
+AGENT ?= 1
 
-.PHONY: help serve api ui dev stop test lint canonicalize canon quickstart
+.PHONY: help serve api ui dev start stop test lint canonicalize canon quickstart
 
 help:
 	@echo "Targets:"
@@ -18,6 +24,7 @@ help:
 	@echo "  make canon DIALOG_DIR=/path/to/import_json [OUTPUT_DIR=/tmp/canonical_json]"
 	@echo "  make api [DIALOG_DIR=/tmp/canonical_json] [API_PORT=8001]"
 	@echo "  make ui [UI_PORT=5173]"
+	@echo "  make start                  Run API + UI using .claude launch defaults"
 	@echo "  make dev [DIALOG_DIR=...] [API_PORT=8001] [UI_PORT=5173]"
 	@echo "  make stop [API_PORT=8001] [UI_PORT=5173]"
 	@echo "  make test"
@@ -29,7 +36,7 @@ serve:
 		echo "Example: make serve DIALOG_DIR=/absolute/path/to/ChatGPTDialogs/import_json"; \
 		exit 1; \
 	fi
-	@$(PYTHON) viewer/server.py --port $(PORT) --dialog-dir "$(DIALOG_DIR)" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",) $(if $(strip $(HYPERPROMPT_BINARY)),--hyperprompt-binary "$(HYPERPROMPT_BINARY)",)
+	@$(PYTHON) viewer/server.py --port $(PORT) --dialog-dir "$(DIALOG_DIR)" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",) $(if $(strip $(SPECGRAPH_DIR)),--specgraph-dir "$(SPECGRAPH_DIR)",) $(if $(strip $(HYPERPROMPT_BINARY)),--hyperprompt-binary "$(HYPERPROMPT_BINARY)",) $(if $(filter 1 true yes,$(AGENT)),--agent,)
 
 canonicalize:
 	@if [ -z "$(DIALOG_DIR)" ] || [ -z "$(OUTPUT_DIR)" ]; then \
@@ -50,10 +57,18 @@ ui:
 
 dev:
 	@npm install --prefix viewer/app
-	@$(PYTHON) viewer/server.py --port "$(API_PORT)" --dialog-dir "$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",) $(if $(strip $(HYPERPROMPT_BINARY)),--hyperprompt-binary "$(HYPERPROMPT_BINARY)",) & \
+	@$(PYTHON) viewer/server.py --port "$(API_PORT)" --dialog-dir "$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",) $(if $(strip $(SPECGRAPH_DIR)),--specgraph-dir "$(SPECGRAPH_DIR)",) $(if $(strip $(HYPERPROMPT_BINARY)),--hyperprompt-binary "$(HYPERPROMPT_BINARY)",) $(if $(filter 1 true yes,$(AGENT)),--agent,) & \
 	api_pid=$$!; \
 	trap 'kill $$api_pid 2>/dev/null || true' EXIT INT TERM; \
 	npm run dev --prefix viewer/app -- --host 127.0.0.1 --port "$(UI_PORT)"
+
+start:
+	@npm install --prefix viewer/app
+	@$(MAKE) stop API_PORT="$(API_PORT)" UI_PORT="$(UI_PORT)" >/dev/null
+	@$(PYTHON) viewer/server.py --port "$(API_PORT)" --dialog-dir "$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",) $(if $(strip $(SPECGRAPH_DIR)),--specgraph-dir "$(SPECGRAPH_DIR)",) $(if $(strip $(HYPERPROMPT_BINARY)),--hyperprompt-binary "$(HYPERPROMPT_BINARY)",) $(if $(filter 1 true yes,$(AGENT)),--agent,) & \
+	api_pid=$$!; \
+	trap 'kill $$api_pid 2>/dev/null || true' EXIT INT TERM; \
+	npm run dev --prefix viewer/app -- --port "$(UI_PORT)"
 
 stop:
 	@lsof -ti:$(API_PORT) | xargs kill 2>/dev/null || true
