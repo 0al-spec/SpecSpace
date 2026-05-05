@@ -414,6 +414,16 @@ export default function ExplorationSurfacesPanel({ onClose }: Props) {
   );
 }
 
+function proposalMatchesQuery(proposal: ProposalEntry, query: string): boolean {
+  const q = query.toLowerCase();
+  return (
+    proposal.proposal_id.toLowerCase().includes(q) ||
+    proposal.title.toLowerCase().includes(q) ||
+    proposal.status.toLowerCase().includes(q) ||
+    proposal.file_name.toLowerCase().includes(q)
+  );
+}
+
 function ProposalsBrowser({
   proposals,
   selectedId,
@@ -424,9 +434,16 @@ function ProposalsBrowser({
   onSelect: (id: string) => void;
 }) {
   const listRef = useRef<HTMLDivElement | null>(null);
-  const entries = proposals.entries;
-  const selectedIndex = entries.findIndex((proposal) => proposal.proposal_id === selectedId);
-  const tabbableId = selectedId ?? entries[0]?.proposal_id ?? null;
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!searchQuery.trim()) return proposals.entries;
+    return proposals.entries.filter((p) => proposalMatchesQuery(p, searchQuery.trim()));
+  }, [proposals.entries, searchQuery]);
+
+  const selectedIndex = filtered.findIndex((p) => p.proposal_id === selectedId);
+  const tabbableId = selectedId ?? filtered[0]?.proposal_id ?? null;
 
   const focusProposalRow = useCallback((proposalId: string) => {
     const rows = Array.from(listRef.current?.querySelectorAll<HTMLButtonElement>("[data-proposal-id]") ?? []);
@@ -436,15 +453,15 @@ function ProposalsBrowser({
   }, []);
 
   const selectByIndex = useCallback((index: number) => {
-    const proposal = entries[index];
+    const proposal = filtered[index];
     if (!proposal) return;
     onSelect(proposal.proposal_id);
     window.requestAnimationFrame(() => focusProposalRow(proposal.proposal_id));
-  }, [entries, focusProposalRow, onSelect]);
+  }, [filtered, focusProposalRow, onSelect]);
 
   const handleListKeyDown = useCallback((e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp"].includes(e.key)) return;
-    if (entries.length === 0) return;
+    if (filtered.length === 0) return;
 
     e.preventDefault();
     const currentIndex = selectedIndex >= 0 ? selectedIndex : 0;
@@ -453,11 +470,11 @@ function ProposalsBrowser({
       return;
     }
     if (e.key === "End") {
-      selectByIndex(entries.length - 1);
+      selectByIndex(filtered.length - 1);
       return;
     }
     if (e.key === "PageDown") {
-      selectByIndex(Math.min(entries.length - 1, currentIndex + 6));
+      selectByIndex(Math.min(filtered.length - 1, currentIndex + 6));
       return;
     }
     if (e.key === "PageUp") {
@@ -466,10 +483,25 @@ function ProposalsBrowser({
     }
     selectByIndex(
       e.key === "ArrowDown"
-        ? Math.min(entries.length - 1, currentIndex + 1)
+        ? Math.min(filtered.length - 1, currentIndex + 1)
         : Math.max(0, currentIndex - 1),
     );
-  }, [entries, selectByIndex, selectedIndex]);
+  }, [filtered, selectByIndex, selectedIndex]);
+
+  const handleSearchKeyDown = useCallback((e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown" && filtered.length > 0) {
+      e.preventDefault();
+      const target = selectedId && filtered.some((p) => p.proposal_id === selectedId)
+        ? selectedId
+        : filtered[0].proposal_id;
+      focusProposalRow(target);
+    }
+    if (e.key === "Escape" && searchQuery) {
+      e.preventDefault();
+      e.stopPropagation();
+      setSearchQuery("");
+    }
+  }, [filtered, selectedId, searchQuery, focusProposalRow]);
 
   return (
     <section className="exploration-surface-section exploration-proposals-browser">
@@ -479,10 +511,31 @@ function ProposalsBrowser({
           <p>{proposals.available ? `${proposals.count} markdown proposals` : "docs/proposals not available"}</p>
         </div>
       </div>
+      {proposals.available && proposals.entries.length > 0 && (
+        <div className="exploration-search-wrap">
+          <input
+            ref={searchRef}
+            type="text"
+            className="exploration-search-input"
+            placeholder="Search proposals…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            aria-label="Search proposals"
+          />
+          {searchQuery && (
+            <span className="exploration-search-count">
+              {filtered.length}/{proposals.entries.length}
+            </span>
+          )}
+        </div>
+      )}
       {!proposals.available ? (
         <ArtifactEmpty label={proposals.error ?? "docs/proposals not found"} />
       ) : proposals.entries.length === 0 ? (
         <ArtifactEmpty label="No proposal markdown files found" />
+      ) : filtered.length === 0 ? (
+        <ArtifactEmpty label={`No proposals matching "${searchQuery}"`} />
       ) : (
         <div
           ref={listRef}
@@ -490,7 +543,7 @@ function ProposalsBrowser({
           aria-label="Proposal markdown files"
           onKeyDown={handleListKeyDown}
         >
-          {entries.map((proposal) => (
+          {filtered.map((proposal) => (
             <button
               type="button"
               key={proposal.file_name}

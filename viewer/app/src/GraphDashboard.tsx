@@ -27,8 +27,20 @@ interface BacklogEntry {
   details?: Record<string, unknown>;
 }
 
+interface BacklogViewerProjection {
+  priorities?: Record<string, string[]>;
+  domains?: Record<string, string[]>;
+  next_gap?: Record<string, string[]>;
+  source_artifacts?: Record<string, string[]>;
+  subject_kinds?: Record<string, string[]>;
+  named_filters?: Record<string, string[]>;
+}
+
 interface BacklogProjection {
+  artifact_kind?: string;
+  schema_version?: number;
   generated_at?: string;
+  source_artifacts?: Record<string, unknown>;
   entry_count?: number;
   entries: BacklogEntry[];
   summary: {
@@ -36,7 +48,10 @@ interface BacklogProjection {
     priority_counts: Record<string, number>;
     domain_counts: Record<string, number>;
     next_gap_counts: Record<string, number>;
+    source_artifact_counts?: Record<string, number>;
+    subject_kind_counts?: Record<string, number>;
   };
+  viewer_projection?: BacklogViewerProjection;
 }
 
 interface BacklogEnvelope {
@@ -660,13 +675,41 @@ function MetricRow({ id, m, isAlias = false }: { id: string; m: MetricScore; isA
 
 const PRIORITY_ORDER = ["high", "medium", "low", "info"];
 
-function BacklogOverlay({ entries, summaryCount, generatedAt, onClose }: {
-  entries: BacklogEntry[];
-  summaryCount: number;
-  generatedAt?: string;
+function backlogCountMismatch(
+  topLevel: number | undefined,
+  summaryLevel: number | undefined,
+  entriesLength: number,
+): string | null {
+  const top = topLevel ?? entriesLength;
+  const sum = summaryLevel ?? entriesLength;
+  if (top === entriesLength && sum === entriesLength) return null;
+  const parts: string[] = [];
+  if (top !== entriesLength) parts.push(`entry_count=${top}`);
+  if (sum !== entriesLength) parts.push(`summary.entry_count=${sum}`);
+  parts.push(`entries.length=${entriesLength}`);
+  return parts.join(", ");
+}
+
+function backlogStalenessWarning(
+  backlogGeneratedAt: string | undefined,
+  dashboardGeneratedAt: string | undefined,
+): string | null {
+  if (!backlogGeneratedAt || !dashboardGeneratedAt) return null;
+  try {
+    const bt = new Date(backlogGeneratedAt).getTime();
+    const dt = new Date(dashboardGeneratedAt).getTime();
+    if (bt < dt) return `Backlog projection (${new Date(backlogGeneratedAt).toLocaleString()}) is older than the dashboard (${new Date(dashboardGeneratedAt).toLocaleString()}). Consider rebuilding.`;
+  } catch { /* ignore parse errors */ }
+  return null;
+}
+
+function BacklogOverlay({ projection, dashboardGeneratedAt, onClose }: {
+  projection: BacklogProjection;
+  dashboardGeneratedAt?: string;
   onClose: () => void;
 }) {
   const backdropRef = useRef<HTMLDivElement>(null);
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -674,7 +717,15 @@ function BacklogOverlay({ entries, summaryCount, generatedAt, onClose }: {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const sorted = [...entries].sort((a, b) => {
+  const namedFilters = projection.viewer_projection?.named_filters ?? {};
+  const filterIds = activeFilter ? new Set(namedFilters[activeFilter] ?? []) : null;
+  const allEntries = projection.entries;
+
+  const visibleEntries = filterIds
+    ? allEntries.filter((e) => filterIds.has(e.backlog_id ?? ""))
+    : allEntries;
+
+  const sorted = [...visibleEntries].sort((a, b) => {
     const pa = PRIORITY_ORDER.indexOf(a.priority);
     const pb = PRIORITY_ORDER.indexOf(b.priority);
     const unknownA = pa === -1, unknownB = pb === -1;
@@ -691,7 +742,16 @@ function BacklogOverlay({ entries, summaryCount, generatedAt, onClose }: {
     (acc[e.priority] ??= []).push(e);
     return acc;
   }, {});
-  const hasMetricRuntimeRows = entries.some(isMetricPackRunsSource);
+  const hasMetricRuntimeRows = visibleEntries.some(isMetricPackRunsSource);
+
+  const mismatch = backlogCountMismatch(
+    projection.entry_count,
+    projection.summary.entry_count,
+    allEntries.length,
+  );
+  const staleWarning = backlogStalenessWarning(projection.generated_at, dashboardGeneratedAt);
+
+  const filterEntries = Object.entries(namedFilters).filter(([, ids]) => ids.length > 0);
 
   return createPortal(
     <div
@@ -702,18 +762,38 @@ function BacklogOverlay({ entries, summaryCount, generatedAt, onClose }: {
       <div className="gd-overlay-panel" role="dialog" aria-modal="true">
         <div className="gd-overlay-header">
           <div>
-            <span className="gd-overlay-title">Backlog Entries ({entries.length})</span>
-            {generatedAt && (
+            <span className="gd-overlay-title">
+              Backlog Entries ({visibleEntries.length}{activeFilter ? ` / ${allEntries.length}` : ""})
+            </span>
+            {projection.generated_at && (
               <span className="gd-overlay-ts">
-                {" "}· snapshot {new Date(generatedAt).toLocaleString()}
+                {" "}· snapshot {new Date(projection.generated_at).toLocaleString()}
               </span>
             )}
           </div>
           <button className="gd-overlay-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
-        {summaryCount !== entries.length && (
+        {mismatch && (
           <div className="gd-overlay-warning">
-            Warning: summary.entry_count={summaryCount} but entries.length={entries.length} — artifact may be partially truncated or stale.
+            Count mismatch: {mismatch} — artifact may be partially truncated or stale.
+          </div>
+        )}
+        {staleWarning && (
+          <div className="gd-overlay-warning">{staleWarning}</div>
+        )}
+        {filterEntries.length > 0 && (
+          <div className="gd-bl-filters">
+            <button
+              className={`gd-bl-filter-chip${activeFilter === null ? " active" : ""}`}
+              onClick={() => setActiveFilter(null)}
+            >All ({allEntries.length})</button>
+            {filterEntries.map(([name, ids]) => (
+              <button
+                key={name}
+                className={`gd-bl-filter-chip${activeFilter === name ? " active" : ""}`}
+                onClick={() => setActiveFilter(activeFilter === name ? null : name)}
+              >{formatKey(name)} ({ids.length})</button>
+            ))}
           </div>
         )}
         {hasMetricRuntimeRows && (
@@ -1983,13 +2063,8 @@ export default function GraphDashboard({ buildAvailable = false }: { buildAvaila
     </div>
     {backlogOpen && backlogEnvelope && (
       <BacklogOverlay
-        entries={backlogEnvelope.data.entries}
-        summaryCount={
-          backlogEnvelope.data.entry_count
-          ?? backlogEnvelope.data.summary.entry_count
-          ?? backlogEnvelope.data.entries.length
-        }
-        generatedAt={backlogEnvelope.mtime_iso ?? backlogEnvelope.data.generated_at}
+        projection={backlogEnvelope.data}
+        dashboardGeneratedAt={data?.generated_at}
         onClose={() => setBacklogOpen(false)}
       />
     )}
