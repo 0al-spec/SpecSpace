@@ -15,7 +15,7 @@ Browse by area: [[ui-features]], [[performance-features]], [[dev-tooling-feature
 
 ## Shipped (Recent)
 
-{Add recently shipped features here — move to shipped/ when the list exceeds ~15 entries}
+- [[spec tree compiled to markdown from root node]] — modal overlay compiles any spec subtree into numbered Markdown; isolated pure-Python backend, configurable depth/sections, copy + download actions
 
 ## Reverted / Deprecated
 
