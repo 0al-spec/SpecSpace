@@ -22,6 +22,7 @@ const VISUAL_STATE_LABELS: Partial<Record<EdgeVisualState, string>> = {
   required_satisfied: "satisfied",
   required_pending: "pending",
   active_blocker: "blocked",
+  not_available: "not available",
   broken_reference: "broken",
   historical_lineage: "historical",
 };
@@ -30,6 +31,7 @@ const VISUAL_STATE_REASONS: Partial<Record<EdgeVisualState, string>> = {
   required_satisfied: "target linked / reviewed / frozen",
   required_pending: "target in progress",
   active_blocker: "gate blocked",
+  not_available: "availability contract says not satisfied",
   broken_reference: "target not found",
 };
 

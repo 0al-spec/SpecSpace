@@ -82,6 +82,15 @@ export interface ApiSpecNode {
   updated_at?: string | null;
   /** presence.state from the spec YAML, e.g. "historical" */
   presence_state?: string | null;
+  /**
+   * authority_class from the canonical act (SG-SPEC-0043 / PR #204).
+   * Values: "imported" | "distilled" | ...
+   * When rendering authority badges: trust this canonical field directly.
+   * Do NOT infer "distilled" from presence of a summary field —
+   * distilled applies only when the canonical act performs source_bounded_compression;
+   * unchanged external summaries remain "imported".
+   */
+  authority_class?: string | null;
 }
 
 export interface ApiSpecEdge {

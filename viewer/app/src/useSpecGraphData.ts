@@ -95,6 +95,7 @@ function extractSubItems(detail: Record<string, unknown>): SubItemSpec[] {
  *
  *   red          = broken or actively blocked
  *   amber        = required but pending review / refinement
+ *   amber dashed = not_available — contract says availability not satisfied (SG-SPEC-0043)
  *   muted green  = required and satisfied
  *   blue         = refinement structure (refines)
  *   purple/gray  = contextual relation (relates_to)
@@ -109,6 +110,7 @@ export type EdgeVisualState =
   | "required_satisfied"  // depends_on where target is linked/reviewed/frozen
   | "required_pending"    // depends_on where target is still in progress
   | "active_blocker"      // depends_on where target is explicitly blocked
+  | "not_available"       // depends_on where availability contract exists and says not available (SG-SPEC-0043)
   | "broken_reference"    // edge.status === "broken" (target missing)
   | "historical_lineage"; // either endpoint is historical
 
@@ -118,6 +120,7 @@ const EDGE_VISUAL_STYLES: Record<EdgeVisualState, React.CSSProperties> = {
   required_satisfied: { stroke: "#5a7a52", strokeWidth: 2 },
   required_pending:   { stroke: "#c08820", strokeWidth: 2 },
   active_blocker:     { stroke: "#dc2626", strokeWidth: 2.5 },
+  not_available:      { stroke: "#b06924", strokeWidth: 2.5, strokeDasharray: "5 3" },
   broken_reference:   { stroke: "#b54131", strokeDasharray: "4 3", strokeWidth: 1.5 },
   historical_lineage: { stroke: "#9b9b9b", strokeWidth: 1.5, opacity: 0.4 },
 };
@@ -151,8 +154,12 @@ function computeEdgeVisualState(
   if (edgeKind === "refines") return "refinement";
   if (edgeKind === "relates_to") return "context";
 
-  // depends_on — gate_state wins when present
+  // depends_on — gate_state wins when present.
+  // Three-valued readiness (SG-SPEC-0043): satisfied / not_available / unresolved.
+  // not_available = availability contract exists and explicitly says not satisfied.
+  // Do NOT collapse not_available into required_pending — they have different semantics.
   if (targetGateState === "blocked") return "active_blocker";
+  if (targetGateState === "not_available") return "not_available";
   if (["split_required", "retry_pending", "review_pending"].includes(targetGateState ?? "")) {
     return "required_pending";
   }
