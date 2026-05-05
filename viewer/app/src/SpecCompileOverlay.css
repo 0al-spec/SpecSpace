@@ -1,0 +1,89 @@
+/* spec-compile-panel — wider than the default specpm-panel */
+.spec-compile-panel {
+  width: min(840px, 100%);
+}
+
+/* Options bar */
+.spec-compile-options {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line, #d4c4ac);
+  background: var(--panel-muted, rgba(246, 236, 221, 0.88));
+  flex-wrap: wrap;
+}
+
+.spec-compile-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text, #231b15);
+  cursor: pointer;
+  user-select: none;
+}
+
+.spec-compile-option span {
+  white-space: nowrap;
+}
+
+.spec-compile-option select {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 4px;
+  background: var(--panel-strong, #fff7ec);
+  color: var(--text, #231b15);
+  cursor: pointer;
+}
+
+.spec-compile-option select:focus {
+  outline: none;
+  border-color: var(--accent, #915a24);
+}
+
+.spec-compile-option input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--accent, #915a24);
+}
+
+/* Warnings bar */
+.spec-compile-warnings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 16px;
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  font-size: 11px;
+  color: #92400e;
+  font-family: var(--font-mono);
+}
+
+.spec-compile-warnings span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Body — takes remaining space, scrollable */
+.spec-compile-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0;
+}
+
+/* Markdown output — monospace pre */
+.spec-compile-output {
+  margin: 0;
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text, #231b15);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

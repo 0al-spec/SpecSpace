@@ -25,6 +25,7 @@ if __package__ in {None, ""}:  # pragma: no cover - allows running `python viewe
 
 from viewer import schema  # noqa: E402
 from viewer import specgraph  # noqa: E402
+from viewer import spec_compile  # noqa: E402
 
 EXPORT_SENTINEL = ".ctxb_export"
 
@@ -1788,6 +1789,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/spec-node":
             self.handle_spec_node(parsed)
             return
+        if parsed.path == "/api/spec-compile":
+            self.handle_spec_compile(parsed)
+            return
         if parsed.path == "/api/capabilities":
             self.handle_capabilities()
             return
@@ -1909,6 +1913,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
             HTTPStatus.OK,
             {
                 "spec_graph": self.server.spec_dir is not None,
+                "spec_compile": self.server.spec_dir is not None,
                 "compile": self.server.compile_available,
                 "graph_dashboard": self._graph_dashboard_path() is not None,
                 "spec_overlay": self._runs_dir() is not None,
@@ -2713,6 +2718,70 @@ class ViewerHandler(BaseHTTPRequestHandler):
             json_response(self, HTTPStatus.NOT_FOUND, {"error": f"Spec node '{node_id}' not found"})
             return
         json_response(self, HTTPStatus.OK, {"node_id": node_id, "data": detail})
+
+    def handle_spec_compile(self, parsed) -> None:
+        """GET /api/spec-compile?root=<node_id>[&depth=<1-6>][&objective=0][&acceptance=0][&deps=0][&prompt=1]
+
+        Compiles the spec subtree rooted at *root* into a Markdown document.
+        Query params map directly to spec_compile.CompileOptions; all optional.
+        Returns JSON with 'markdown' (string) and 'manifest' (dict).
+        """
+        if self.server.spec_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "Spec graph not configured. Start the server with --spec-dir."},
+            )
+            return
+
+        params = parse_qs(parsed.query)
+        root_id = params.get("root", [""])[0].strip()
+        if not root_id:
+            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing required query parameter: root"})
+            return
+
+        def _bool_param(name: str, default: bool) -> bool:
+            val = params.get(name, [""])[0]
+            if val == "1" or val.lower() == "true":
+                return True
+            if val == "0" or val.lower() == "false":
+                return False
+            return default
+
+        def _int_param(name: str, default: int, lo: int, hi: int) -> int:
+            try:
+                v = int(params.get(name, [""])[0])
+                return max(lo, min(hi, v))
+            except (ValueError, IndexError):
+                return default
+
+        options = spec_compile.CompileOptions(
+            max_depth=_int_param("depth", 6, 1, 6),
+            include_objective=_bool_param("objective", True),
+            include_acceptance=_bool_param("acceptance", True),
+            include_depends_on_refs=_bool_param("deps", True),
+            include_prompt=_bool_param("prompt", False),
+        )
+
+        nodes, load_errors = specgraph.load_spec_nodes(self.server.spec_dir)
+        nodes_by_id = spec_compile.index_nodes(nodes)
+
+        if root_id not in nodes_by_id:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": f"Spec node '{root_id}' not found in spec directory."},
+            )
+            return
+
+        result = spec_compile.compile_spec_tree(nodes_by_id, root_id, options)
+
+        json_response(self, HTTPStatus.OK, {
+            "root_id": root_id,
+            "markdown": result.markdown,
+            "manifest": result.manifest(),
+            "load_errors": load_errors,
+        })
 
     def handle_list_files(self) -> None:
         json_response(self, HTTPStatus.OK, collect_workspace_listing(self.server.dialog_dir))

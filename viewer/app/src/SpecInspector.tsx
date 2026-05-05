@@ -5,7 +5,7 @@ import "./PanelBtn.css";
 import PanelActions from "./PanelActions";
 import PanelBtn from "./PanelBtn";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleDot, faCalendarPlus, faRotate, faBoxArchive, faThumbtack, faMagnifyingGlassChart } from "@fortawesome/free-solid-svg-icons";
+import { faCircleDot, faCalendarPlus, faRotate, faBoxArchive, faThumbtack, faMagnifyingGlassChart, faFileLines } from "@fortawesome/free-solid-svg-icons";
 import type { ApiSpecGraph, ApiSpecNode } from "./types";
 import { renderInlineText } from "./renderInlineText";
 
@@ -23,6 +23,8 @@ interface SpecInspectorProps {
   onOpenSpecpmPreview?: () => void;
   /** Open the exploration/proposals surface. Undefined → button hidden. */
   onOpenExplorationPreview?: () => void;
+  /** Open the spec compile overlay for the given node id. Undefined → button hidden. */
+  onOpenSpecCompile?: (nodeId: string) => void;
   /** Full spec graph — used to resolve peer node titles/statuses in Related section */
   rawGraph?: ApiSpecGraph | null;
   /** Pinned node ID for compare mode */
@@ -43,7 +45,7 @@ type SpecDetail = Record<string, unknown>;
 
 export default function SpecInspector({
   selectedNodeId, selectedSubItemId,
-  onDismiss, onFocusNode, onSelectSubItem, onOpenLens, onOpenSpecpmPreview, onOpenExplorationPreview,
+  onDismiss, onFocusNode, onSelectSubItem, onOpenLens, onOpenSpecpmPreview, onOpenExplorationPreview, onOpenSpecCompile,
   rawGraph, pinnedNodeId, onPin,
   canGoBack, canGoForward, onBack, onForward, backLabel, forwardLabel,
 }: SpecInspectorProps) {
@@ -183,6 +185,7 @@ export default function SpecInspector({
               onOpenLens={onOpenLens && selectedNodeId ? () => onOpenLens!(selectedNodeId!) : undefined}
               onOpenSpecpmPreview={onOpenSpecpmPreview}
               onOpenExplorationPreview={onOpenExplorationPreview}
+              onOpenSpecCompile={onOpenSpecCompile && selectedNodeId ? () => onOpenSpecCompile!(selectedNodeId!) : undefined}
             />
           </div>
           {/* Pinned spec — RIGHT */}
@@ -207,6 +210,7 @@ export default function SpecInspector({
           onOpenLens={onOpenLens && selectedNodeId ? () => onOpenLens!(selectedNodeId!) : undefined}
           onOpenSpecpmPreview={onOpenSpecpmPreview}
           onOpenExplorationPreview={onOpenExplorationPreview}
+          onOpenSpecCompile={onOpenSpecCompile && selectedNodeId ? () => onOpenSpecCompile!(selectedNodeId!) : undefined}
         />
       )}
     </aside>
@@ -231,11 +235,13 @@ interface SpecDetailPaneProps {
   onOpenSpecpmPreview?: () => void;
   /** Open exploration/proposals surface */
   onOpenExplorationPreview?: () => void;
+  /** Open spec compile overlay for this node */
+  onOpenSpecCompile?: () => void;
 }
 
 function SpecDetailPane({
   detail, nodeById, onFocusNode, selectedSubItemId, onSelectSubItem,
-  paneRole, onUnpin, onOpenLens, onOpenSpecpmPreview, onOpenExplorationPreview,
+  paneRole, onUnpin, onOpenLens, onOpenSpecpmPreview, onOpenExplorationPreview, onOpenSpecCompile,
 }: SpecDetailPaneProps) {
   const hlRef = useRef<HTMLLIElement | null>(null);
 
@@ -310,7 +316,7 @@ function SpecDetailPane({
   })();
 
   const hasDates = detail.created_at != null || detail.updated_at != null;
-  const hasCardActions = Boolean(onOpenLens || onOpenSpecpmPreview || onOpenExplorationPreview);
+  const hasCardActions = Boolean(onOpenLens || onOpenSpecpmPreview || onOpenExplorationPreview || onOpenSpecCompile);
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -401,6 +407,13 @@ function SpecDetailPane({
                     icon={<FontAwesomeIcon icon={faMagnifyingGlassChart} />}
                     title="Exploration / Proposals"
                     onClick={onOpenExplorationPreview}
+                  />
+                )}
+                {onOpenSpecCompile && (
+                  <PanelBtn
+                    icon={<FontAwesomeIcon icon={faFileLines} />}
+                    title="Compile spec tree to Markdown"
+                    onClick={onOpenSpecCompile}
                   />
                 )}
               </div>

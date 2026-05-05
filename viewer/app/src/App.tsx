@@ -29,6 +29,7 @@ import CollapsedBranchNode from "./CollapsedBranchNode";
 import SpecInspector from "./SpecInspector";
 import SpecLens from "./SpecLens.tsx";
 import SpecPMExportPreview from "./SpecPMExportPreview.tsx";
+import SpecCompileOverlay from "./SpecCompileOverlay";
 import ExplorationSurfacesPanel from "./ExplorationSurfacesPanel";
 import SpecForceGraph from "./SpecForceGraph";
 import "./SpecNode.css";
@@ -148,6 +149,7 @@ function FitViewShortcut() {
 interface Capabilities {
   specAvailable: boolean;
   compileAvailable: boolean;
+  specCompileAvailable: boolean;
   dashboardAvailable: boolean;
   specOverlayAvailable: boolean;
   specpmPreviewAvailable: boolean;
@@ -160,11 +162,12 @@ interface Capabilities {
 async function checkCapabilities(): Promise<Capabilities> {
   try {
     const res = await fetch("/api/capabilities");
-    if (!res.ok) return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationSurfacesAvailable: false, viewerSurfacesBuildAvailable: false, agentAvailable: false };
+    if (!res.ok) return { specAvailable: false, compileAvailable: false, specCompileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationSurfacesAvailable: false, viewerSurfacesBuildAvailable: false, agentAvailable: false };
     const data = await res.json();
     return {
       specAvailable: Boolean(data.spec_graph),
       compileAvailable: Boolean(data.compile),
+      specCompileAvailable: Boolean(data.spec_compile),
       dashboardAvailable: Boolean(data.graph_dashboard),
       specOverlayAvailable: Boolean(data.spec_overlay),
       specpmPreviewAvailable: Boolean(data.specpm_preview),
@@ -173,7 +176,7 @@ async function checkCapabilities(): Promise<Capabilities> {
       agentAvailable: Boolean(data.agent),
     };
   } catch {
-    return { specAvailable: false, compileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationSurfacesAvailable: false, viewerSurfacesBuildAvailable: false, agentAvailable: false };
+    return { specAvailable: false, compileAvailable: false, specCompileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationSurfacesAvailable: false, viewerSurfacesBuildAvailable: false, agentAvailable: false };
   }
 }
 
@@ -189,6 +192,7 @@ function AppInner() {
   const [graphMode, setGraphMode] = useState<GraphMode>(loadInitialMode);
   const [specAvailable, setSpecAvailable] = useState(false);
   const [compileAvailable, setCompileAvailable] = useState(false);
+  const [specCompileAvailable, setSpecCompileAvailable] = useState(false);
   const [dashboardAvailable, setDashboardAvailable] = useState(false);
   const [specOverlayAvailable, setSpecOverlayAvailable] = useState(false);
   const [specpmPreviewAvailable, setSpecpmPreviewAvailable] = useState(false);
@@ -197,14 +201,16 @@ function AppInner() {
   const [agentAvailable, setAgentAvailable] = useState(false);
   const [specpmPreviewOpen, setSpecpmPreviewOpen] = useState(false);
   const [explorationSurfacesOpen, setExplorationSurfacesOpen] = useState(false);
+  const [specCompileRootId, setSpecCompileRootId] = useState<string | null>(null);
   const [specLens, setSpecLens] = useState<SpecLensMode>("none");
   const [specViewOptions, setSpecViewOptions] = useState<SpecViewOptions>(DEFAULT_SPEC_VIEW);
 
   // Check capabilities once on mount
   useEffect(() => {
-    checkCapabilities().then(({ specAvailable, compileAvailable, dashboardAvailable, specOverlayAvailable, specpmPreviewAvailable, explorationSurfacesAvailable, viewerSurfacesBuildAvailable, agentAvailable }) => {
+    checkCapabilities().then(({ specAvailable, compileAvailable, specCompileAvailable, dashboardAvailable, specOverlayAvailable, specpmPreviewAvailable, explorationSurfacesAvailable, viewerSurfacesBuildAvailable, agentAvailable }) => {
       setSpecAvailable(specAvailable);
       setCompileAvailable(compileAvailable);
+      setSpecCompileAvailable(specCompileAvailable);
       setDashboardAvailable(dashboardAvailable);
       setSpecOverlayAvailable(specOverlayAvailable);
       setSpecpmPreviewAvailable(specpmPreviewAvailable);
@@ -1007,6 +1013,7 @@ function AppInner() {
               onOpenLens={setLensNodeId}
               onOpenSpecpmPreview={specpmPreviewAvailable ? () => setSpecpmPreviewOpen(true) : undefined}
               onOpenExplorationPreview={explorationSurfacesAvailable ? () => setExplorationSurfacesOpen(true) : undefined}
+              onOpenSpecCompile={specCompileAvailable ? (nodeId) => setSpecCompileRootId(nodeId) : undefined}
               rawGraph={specGraph.rawGraph}
               pinnedNodeId={pinnedNodeId}
               onPin={setPinnedNodeId}
@@ -1075,6 +1082,16 @@ function AppInner() {
         {specpmPreviewOpen && (
           <ErrorBoundary label="SpecPMExportPreview">
             <SpecPMExportPreview onClose={() => setSpecpmPreviewOpen(false)} />
+          </ErrorBoundary>
+        )}
+
+        {/* Spec compile overlay */}
+        {specCompileRootId && (
+          <ErrorBoundary label="SpecCompileOverlay">
+            <SpecCompileOverlay
+              rootId={specCompileRootId}
+              onClose={() => setSpecCompileRootId(null)}
+            />
           </ErrorBoundary>
         )}
 
