@@ -26,6 +26,7 @@ import SpecNode from "./SpecNode";
 import ExpandedSpecNode from "./ExpandedSpecNode";
 import SpecSubItemNode from "./SpecSubItemNode";
 import CollapsedBranchNode from "./CollapsedBranchNode";
+import { LODSmoothStepEdgeMemo, LODBezierEdgeMemo } from "./LODSmoothStepEdge";
 import SpecInspector from "./SpecInspector";
 import SpecLens from "./SpecLens.tsx";
 import SpecPMExportPreview from "./SpecPMExportPreview.tsx";
@@ -43,6 +44,7 @@ import { useSessionString } from "./useSessionState";
 import { useNavHistory } from "./useNavHistory";
 import { CompileTargetContext } from "./CompileTargetContext";
 import TimelineFilter, { type TimelineField } from "./TimelineFilter";
+import RecentChangesOverlay from "./RecentChangesOverlay";
 import FilterBar, { type FilterOptions, type FilterStatus, DEFAULT_FILTER, isFilterActive } from "./FilterBar";
 import PanelBtn from "./PanelBtn";
 import "./PanelBtn.css";
@@ -53,11 +55,16 @@ import { useSpecOverlayData } from "./useSpecOverlayData";
 import { lensStyleFor } from "./specLens";
 import type { SpecLensMode } from "./types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClock, faBars, faFilter } from "@fortawesome/free-solid-svg-icons";
+import { faClock, faBars, faFilter, faClockRotateLeft } from "@fortawesome/free-solid-svg-icons";
 import type { GraphMode, SpecViewOptions, ApiSpecNode } from "./types";
 import SpecHoverCard from "./SpecHoverCard";
 import EdgeHoverCard from "./EdgeHoverCard";
 import type { EdgeVisualState } from "./useSpecGraphData";
+
+const edgeTypes = {
+  default: LODBezierEdgeMemo,
+  smoothstep: LODSmoothStepEdgeMemo,
+};
 
 const nodeTypes = {
   conversation: ConversationNode,
@@ -104,6 +111,9 @@ const specStatusColorMap: Record<string, string> = {
   reviewed: "#2a7c7c",
   frozen: "#4a5568",
 };
+
+// Set to true to hide the minimap when zoomed out past 0.5 (the old behaviour)
+const MINIMAP_HIDE_WHEN_ZOOMED_OUT = false;
 
 function minimapNodeColor(node: Node): string {
   const d = node.data as {
@@ -303,6 +313,9 @@ function AppInner() {
       return next;
     });
   }, []);
+
+  // ── Recent changes overlay ────────────────────────────────────────────────
+  const [recentOpen, setRecentOpen] = useState(false);
 
   // ── Timeline filter ───────────────────────────────────────────────────────
   const [timelineOpen, setTimelineOpen] = useState(false);
@@ -893,6 +906,7 @@ function AppInner() {
               nodes={displayNodes}
               edges={displayEdges}
               nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
               onNodesChange={onNodesChange}
               onNodeClick={onNodeClick}
               onNodeMouseEnter={onNodeMouseEnter}
@@ -922,9 +936,9 @@ function AppInner() {
               <Background />
               <Controls />
               <MiniMap
-                nodeColor={isZoomedOut ? "transparent" : minimapNodeColor}
-                nodeStrokeColor={isZoomedOut ? "transparent" : undefined}
-                maskColor={isZoomedOut ? "transparent" : "rgba(236, 227, 212, 0.7)"}
+                nodeColor={MINIMAP_HIDE_WHEN_ZOOMED_OUT && isZoomedOut ? "transparent" : minimapNodeColor}
+                nodeStrokeColor={MINIMAP_HIDE_WHEN_ZOOMED_OUT && isZoomedOut ? "transparent" : undefined}
+                maskColor={MINIMAP_HIDE_WHEN_ZOOMED_OUT && isZoomedOut ? "transparent" : "rgba(236, 227, 212, 0.7)"}
                 pannable
                 zoomable
                 onClick={onMiniMapClick}
@@ -954,6 +968,12 @@ function AppInner() {
                     onClick={toggleTimeline}
                     className={timelineOpen ? "timeline-btn-active" : undefined}
                   />
+                  <PanelBtn
+                    icon={<FontAwesomeIcon icon={faClockRotateLeft} />}
+                    title={recentOpen ? "Close recent changes" : "Show recently updated nodes"}
+                    onClick={() => setRecentOpen((v) => !v)}
+                    className={recentOpen ? "timeline-btn-active" : undefined}
+                  />
                   {timelineOpen && (
                     <div className="tl-segment">
                       <button
@@ -972,6 +992,16 @@ function AppInner() {
                     range={timelineRange}
                     onRangeChange={setTimelineRange}
                     fullRange={timelineFullRange}
+                  />
+                )}
+                {recentOpen && specGraph.rawGraph && (
+                  <RecentChangesOverlay
+                    nodes={specGraph.rawGraph.nodes}
+                    onSelect={(id) => {
+                      setRecentOpen(false);
+                      navigateToSpec(id);
+                    }}
+                    selectedNodeId={selectedConversationId}
                   />
                 )}
               </>
@@ -1014,6 +1044,8 @@ function AppInner() {
               onOpenSpecpmPreview={specpmPreviewAvailable ? () => setSpecpmPreviewOpen(true) : undefined}
               onOpenExplorationPreview={explorationSurfacesAvailable ? () => setExplorationSurfacesOpen(true) : undefined}
               onOpenSpecCompile={specCompileAvailable ? (nodeId) => setSpecCompileRootId(nodeId) : undefined}
+              specOverlays={specOverlays}
+              specLens={specLens}
               rawGraph={specGraph.rawGraph}
               pinnedNodeId={pinnedNodeId}
               onPin={setPinnedNodeId}
