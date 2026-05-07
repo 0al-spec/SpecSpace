@@ -355,6 +355,17 @@ export default function RecentChangesOverlay({
     <div className="rc-panel">
       <div className="rc-header">
         <span className="rc-title">Recently Updated</span>
+        <span
+          className="rc-scope-hint"
+          title={
+            "Shows canonical spec YAML updates (Nodes) and supervisor refine events (Runs).\n\n" +
+            "Activity that does NOT touch the canonical YAML — trace/evidence baselines, " +
+            "proposals, review feedback, etc. — will surface once SpecGraph publishes " +
+            "runs/spec_activity_feed.json."
+          }
+        >
+          ⓘ
+        </span>
         <span className="rc-count">
           {showingCount === total
             ? `${total} ${source === "runs" ? "runs" : "nodes"}`

@@ -34,6 +34,24 @@
   font-family: var(--font-mono, monospace);
 }
 
+.rc-scope-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-size: 11px;
+  color: var(--muted, #6d6255);
+  cursor: help;
+  margin-left: var(--space-2, 4px);
+  user-select: none;
+  transition: color 100ms;
+}
+
+.rc-scope-hint:hover {
+  color: var(--accent-strong, #6c4012);
+}
+
 .rc-count {
   font-size: 10px;
   color: var(--muted, #6d6255);
