@@ -241,7 +241,7 @@ Safari кэширует dasharray-паттерн отдельной тексту
 
 ## P3 — Cross-tool integration
 
-- [ ] **T-30 · Timeline ↔ Recent connector** — клик по записи выставляет `timelineRange` в `[ts - 1h, ts + 1h]` и открывает Timeline. Hover → транзиентный highlight ноды на графе. Сложность: нужно скоординировать состояния двух overlay без UI-конфликтов.
+- [x] **T-30 · Timeline ↔ Recent connector** — клик по записи выставляет `timelineRange` в `[ts - 1h, ts + 1h]`, переключает Recent → Timeline (mutex закрывает Recent), пан + select ноды. `timelineField` форсируется в `updated_at` для согласованности с тем, что показывал Recent. Hover-highlight на графе отложен (модерат-польза vs пропс-дриллинг через `displayNodes`).
 
 ## Pending SpecGraph contract — `spec_activity_feed.json` (T-40)
 
