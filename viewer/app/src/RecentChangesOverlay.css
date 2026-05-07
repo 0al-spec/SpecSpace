@@ -118,6 +118,7 @@
   border-radius: 999px;
   padding: 0 5px;
   line-height: 1.5;
+  order: 1; /* push past the flex-1 ::after divider so it docks at the right */
 }
 
 /* First group header sits flush with panel header */
