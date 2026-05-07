@@ -4,7 +4,7 @@
   border-radius: 10px;
   box-shadow: var(--shadow, 0 22px 50px rgba(76, 51, 28, 0.12));
   width: 340px;
-  max-height: 480px;
+  max-height: min(640px, calc(100vh - 200px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -128,4 +128,67 @@
   font-size: 12px;
   color: var(--muted, #6d6255);
   text-align: center;
+}
+
+/* ── Footer (limit control) ────────────────────────────────────────────── */
+
+.rc-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 6px);
+  padding: var(--space-3, 6px) var(--space-6, 12px);
+  border-top: 1px solid var(--line, #d4c4ac);
+  flex-shrink: 0;
+  background: var(--panel-muted, rgba(246, 236, 221, 0.88));
+}
+
+.rc-footer-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #6d6255);
+  font-family: var(--font-mono, monospace);
+}
+
+.rc-limit-group {
+  display: flex;
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 250, 242, 0.94);
+  margin-left: auto;
+}
+
+.rc-limit-btn {
+  padding: 3px 9px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono, monospace);
+  color: var(--muted, #6d6255);
+  transition: background 100ms, color 100ms;
+  line-height: 1;
+}
+
+.rc-limit-btn:hover:not(:disabled):not(.active) {
+  background: #fbf3e7;
+  color: var(--text, #231b15);
+}
+
+.rc-limit-btn.active {
+  background: var(--accent-soft, #f5e0c7);
+  color: var(--accent-strong, #6c4012);
+}
+
+.rc-limit-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.rc-limit-btn + .rc-limit-btn {
+  border-left: 1px solid var(--line, #d4c4ac);
 }
