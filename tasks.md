@@ -226,9 +226,9 @@ Safari кэширует dasharray-паттерн отдельной тексту
   - Response: `[{run_id, ts, spec_id, title, run_kind, completion_status, duration_sec}]`
   - Query: `?limit=50&since=ISO8601`
 
-- [ ] **T-11 · Переключатель источника `Nodes` / `Runs`** — toggle в шапке панели. View `Runs` показывает per-event записи (одна нода может встречаться многократно). Тот же layout строки.
+- [x] **T-11 · Переключатель источника `Nodes` / `Runs`** — toggle в шапке панели. View `Runs` показывает per-event записи (одна нода может встречаться многократно). Тот же layout строки.
 
-- [ ] **T-12 · Run status icon + failed-row tint** — ✓ зелёный для `ok`, ✗ красный для `failed`. Слабый красный фон (`rgba(181,65,49,0.08)`) на failed-строках. Тултип с `run_kind` + длительностью.
+- [x] **T-12 · Run status icon + failed-row tint** — ✓ зелёный для `ok`, ✗ красный для `failed`. Слабый красный фон (`rgba(181,65,49,0.08)`) на failed-строках. Тултип с `run_kind` + длительностью.
 
 ## P2 — Visualization & live
 
