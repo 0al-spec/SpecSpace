@@ -24,7 +24,7 @@ type LimitOption = 25 | 50 | 100 | null;
 const LIMIT_OPTIONS: LimitOption[] = [25, 50, 100, null];
 const DEFAULT_LIMIT: LimitOption = 25;
 
-type SourceMode = "nodes" | "runs";
+type SourceMode = "activity" | "nodes" | "runs";
 
 interface RunEvent {
   run_id: string;
@@ -35,6 +35,31 @@ interface RunEvent {
   completion_status: string | null;
   duration_sec: number | null;
 }
+
+/** One entry from runs/spec_activity_feed.json — see SpecGraph
+ *  docs/spec_activity_feed_viewer_contract.md for the canonical schema. */
+interface ActivityEntry {
+  event_id: string;
+  event_type: string;
+  spec_id: string;
+  title: string;
+  occurred_at: string;
+  summary: string;
+  source_kind: string;
+  source_ref?: { sha?: string; short_sha?: string; subject?: string };
+  source_paths?: string[];
+  viewer?: { tone?: string; label?: string };
+}
+
+/** event_type → display tone color. Unknown types render neutral grey. */
+const ACTIVITY_TONE_COLORS: Record<string, string> = {
+  canonical_spec_updated: "#4a7fa5",        // node/spec accent
+  trace_baseline_attached: "#6c4012",       // trace/evidence accent
+  evidence_baseline_attached: "#6c4012",    // trace/evidence accent
+  proposal_emitted: "#915a24",              // proposal accent
+  implementation_work_emitted: "#4a8c5c",   // implementation/work accent
+  review_feedback_applied: "#a06c5c",       // process/review accent
+};
 
 /** Common shape for rendering — both Nodes & Runs sources collapse to this. */
 interface DisplayItem {
@@ -88,6 +113,32 @@ function sharedRunsFetch(force = false): Promise<RunEvent[]> {
       throw err;
     });
   return runsFetchPromise;
+}
+
+/** Activity feed fetcher — same singleton pattern as runs. Returns null when
+ *  the artifact is not built (HTTP 404), distinguishing "not available" from
+ *  "request failed". */
+type ActivityResult = { entries: ActivityEntry[]; mtime_iso?: string } | null;
+let activityFetchPromise: Promise<ActivityResult> | null = null;
+function sharedActivityFetch(force = false): Promise<ActivityResult> {
+  if (force) activityFetchPromise = null;
+  if (activityFetchPromise) return activityFetchPromise;
+  activityFetchPromise = fetch("/api/spec-activity?limit=500")
+    .then(async (r) => {
+      if (r.status === 404) return null; // feed not built — Activity unavailable
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const env = await r.json();
+      const entries = env?.data?.entries;
+      return {
+        entries: Array.isArray(entries) ? (entries as ActivityEntry[]) : [],
+        mtime_iso: typeof env?.mtime_iso === "string" ? env.mtime_iso : undefined,
+      };
+    })
+    .catch((err) => {
+      activityFetchPromise = null;
+      throw err;
+    });
+  return activityFetchPromise;
 }
 
 /** Status priority for sparkline cell color: failed beats progressed beats ok. */
@@ -182,7 +233,15 @@ export default function RecentChangesOverlay({
   selectedNodeId,
 }: RecentChangesOverlayProps) {
   const [limit, setLimit] = useState<LimitOption>(DEFAULT_LIMIT);
+  // Default starts as "nodes"; auto-switches to "activity" once we confirm the
+  // SpecGraph activity feed is available. Once the user picks a mode manually,
+  // we stop auto-switching (tracked via sourcePinnedRef).
   const [source, setSource] = useState<SourceMode>("nodes");
+  const sourcePinnedRef = useRef(false);
+  const setSourceManual = useCallback((s: SourceMode) => {
+    sourcePinnedRef.current = true;
+    setSource(s);
+  }, []);
   const [copied, setCopied] = useState(false);
   const [live, setLive] = useState(false);
 
@@ -195,6 +254,15 @@ export default function RecentChangesOverlay({
   const [runs, setRuns] = useState<RunEvent[] | null>(null);
   const [runsError, setRunsError] = useState<string | null>(null);
   const [runsLoading, setRunsLoading] = useState(false);
+
+  // Activity feed state. `null` = feed not built (artifact missing); the
+  // Activity toggle stays disabled in that case and the panel falls back to
+  // the existing Nodes/Runs modes.
+  const [activity, setActivity] = useState<ActivityEntry[] | null>(null);
+  const [activityAvailable, setActivityAvailable] = useState<boolean | null>(null);
+  const [activityError, setActivityError] = useState<string | null>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityMtime, setActivityMtime] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -214,6 +282,35 @@ export default function RecentChangesOverlay({
     return () => { cancelled = true; };
   }, []);
 
+  // Activity feed: fetch once on mount, then auto-switch source to "activity"
+  // if the feed is available AND the user hasn't manually picked a source yet.
+  useEffect(() => {
+    let cancelled = false;
+    setActivityLoading(true);
+    setActivityError(null);
+    sharedActivityFetch()
+      .then((res) => {
+        if (cancelled) return;
+        if (res === null) {
+          setActivityAvailable(false);
+          return;
+        }
+        setActivity(res.entries);
+        setActivityMtime(res.mtime_iso ?? null);
+        setActivityAvailable(true);
+        if (!sourcePinnedRef.current) setSource("activity");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setActivityError(String(err?.message ?? err));
+        setActivityAvailable(false);
+      })
+      .finally(() => {
+        if (!cancelled) setActivityLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   // Live mode — subscribe to /api/runs-watch SSE; on each `change` event
   // schedule a debounced refetch of /api/recent-runs.
   useEffect(() => {
@@ -227,6 +324,17 @@ export default function RecentChangesOverlay({
           if (!cancelled) setRuns(evts);
         })
         .catch(() => { /* swallow — error state already covered by initial fetch */ });
+      // The runs/ watch also fires when spec_activity_feed.json is rebuilt,
+      // since it lives in runs/. Refetch the activity feed too.
+      if (activityAvailable !== false) {
+        sharedActivityFetch(true)
+          .then((res) => {
+            if (cancelled || res === null) return;
+            setActivity(res.entries);
+            setActivityMtime(res.mtime_iso ?? null);
+          })
+          .catch(() => { /* swallow */ });
+      }
     };
 
     const es = new EventSource("/api/runs-watch");
@@ -243,7 +351,7 @@ export default function RecentChangesOverlay({
       if (debounceTimer) clearTimeout(debounceTimer);
       es.close();
     };
-  }, [live]);
+  }, [live, activityAvailable]);
 
   // Index runs by spec_id for sparkline rendering. Each value is the
   // (already sorted desc) list of events touching that spec.
@@ -298,7 +406,36 @@ export default function RecentChangesOverlay({
       });
   }, [runs]);
 
-  const allItems = source === "nodes" ? nodesItems : runsItems;
+  // Activity branch: map ActivityEntry → DisplayItem, sorted by occurred_at desc.
+  // Entries without a spec_id (e.g. graph-level review_feedback events) are
+  // kept and shown with a synthesized id so they remain navigable in the list.
+  const activityItems = useMemo<DisplayItem[]>(() => {
+    if (!activity) return [];
+    return [...activity]
+      .filter((e) => typeof e.occurred_at === "string" && e.occurred_at)
+      .sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1))
+      .map((e) => {
+        const tone = ACTIVITY_TONE_COLORS[e.event_type] ?? "#6d6255";
+        const label = e.viewer?.label ?? e.event_type.replace(/_/g, " ");
+        return {
+          key: e.event_id,
+          primaryId: e.spec_id || "—",
+          kind: e.event_type,
+          status: label,
+          statusColor: tone,
+          title: e.title || e.summary || "(no title)",
+          ts: e.occurred_at,
+          // Empty spec_id means graph-level event — clicking still focuses
+          // Recent close, but parent's navigateToSpec("") becomes a no-op.
+          navigateId: e.spec_id || "",
+        };
+      });
+  }, [activity]);
+
+  const allItems =
+    source === "activity" ? activityItems
+    : source === "nodes" ? nodesItems
+    : runsItems;
   const visible = limit === null ? allItems : allItems.slice(0, limit);
   const total = allItems.length;
   const showingCount = visible.length;
@@ -360,17 +497,23 @@ export default function RecentChangesOverlay({
         <span
           className="rc-scope-hint"
           title={
-            "Shows canonical spec YAML updates (Nodes) and supervisor refine events (Runs).\n\n" +
-            "Activity that does NOT touch the canonical YAML — trace/evidence baselines, " +
-            "proposals, review feedback, etc. — will surface once SpecGraph publishes " +
-            "runs/spec_activity_feed.json."
+            activityAvailable
+              ? "Activity: SpecGraph normalized event feed " +
+                "(canonical updates, trace/evidence baselines, proposals, " +
+                "implementation work, review feedback).\n\n" +
+                "Nodes: canonical YAML updated_at per spec.\n" +
+                "Runs: supervisor refine events from runs/*.json."
+              : "Shows canonical spec YAML updates (Nodes) and supervisor refine events (Runs).\n\n" +
+                "Activity that does NOT touch the canonical YAML — trace/evidence baselines, " +
+                "proposals, review feedback, etc. — will surface once SpecGraph publishes " +
+                "runs/spec_activity_feed.json."
           }
         >
           ⓘ
         </span>
         <span className="rc-count">
           {showingCount === total
-            ? `${total} ${source === "runs" ? "runs" : "nodes"}`
+            ? `${total} ${source === "runs" ? "runs" : source === "activity" ? "events" : "nodes"}`
             : `${showingCount} of ${total}`}
         </span>
         <button
@@ -393,29 +536,49 @@ export default function RecentChangesOverlay({
       <div className="rc-source-row">
         <div className="rc-source-group">
           <button
+            className={`rc-source-btn${source === "activity" ? " active" : ""}`}
+            onClick={() => setSourceManual("activity")}
+            disabled={activityAvailable === false}
+            title={
+              activityAvailable === false
+                ? "Activity feed not built. Run `make spec-activity` in SpecGraph."
+                : activityMtime
+                  ? `SpecGraph activity feed — generated ${fmtRelative(activityMtime)}`
+                  : "SpecGraph activity feed (canonical normalized events)"
+            }
+          >
+            Activity
+          </button>
+          <button
             className={`rc-source-btn${source === "nodes" ? " active" : ""}`}
-            onClick={() => setSource("nodes")}
+            onClick={() => setSourceManual("nodes")}
           >
             Nodes
           </button>
           <button
             className={`rc-source-btn${source === "runs" ? " active" : ""}`}
-            onClick={() => setSource("runs")}
+            onClick={() => setSourceManual("runs")}
           >
             Runs
           </button>
         </div>
       </div>
 
-      {source === "runs" && runsLoading && runs === null ? (
+      {source === "activity" && activityLoading && activity === null ? (
+        <div className="rc-empty">Loading activity feed…</div>
+      ) : source === "activity" && activityError ? (
+        <div className="rc-empty">Failed to load activity feed: {activityError}</div>
+      ) : source === "runs" && runsLoading && runs === null ? (
         <div className="rc-empty">Loading runs…</div>
       ) : source === "runs" && runsError ? (
         <div className="rc-empty">Failed to load runs: {runsError}</div>
       ) : allItems.length === 0 ? (
         <div className="rc-empty">
-          {source === "runs"
-            ? "No run events found."
-            : "No updated_at timestamps available."}
+          {source === "activity"
+            ? "No activity events found."
+            : source === "runs"
+              ? "No run events found."
+              : "No updated_at timestamps available."}
         </div>
       ) : (
         <>

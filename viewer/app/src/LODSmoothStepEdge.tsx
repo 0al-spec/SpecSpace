@@ -29,13 +29,15 @@ function LODSmoothStepEdge({
 
 function LODBezierEdge({
   id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition,
-  style = {}, markerEnd, markerStart, curvature,
+  style = {}, markerEnd, markerStart,
   label, labelStyle, labelShowBg, labelBgStyle, labelBgPadding, labelBgBorderRadius,
+  ...rest
 }: EdgeProps) {
   const minimal = useLODLevel() === "minimal";
+  const curvature = (rest as { curvature?: number }).curvature;
   const [path, lx, ly] = getBezierPath({
     sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition,
-    curvature: curvature as number | undefined,
+    curvature,
   });
   return (
     <BaseEdge id={id} path={path} style={scaledStyle(style, minimal)}

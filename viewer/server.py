@@ -1894,6 +1894,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/recent-runs":
             self.handle_recent_runs(parsed)
             return
+        if parsed.path == "/api/spec-activity":
+            self.handle_spec_activity(parsed)
+            return
         if parsed.path == "/api/metric-pricing-provenance":
             self.handle_metric_pricing_provenance()
             return
@@ -2304,6 +2307,82 @@ class ViewerHandler(BaseHTTPRequestHandler):
         events.sort(key=lambda e: e["ts"], reverse=True)
         events = events[:limit]
         json_response(self, HTTPStatus.OK, {"events": events, "total": len(events)})
+
+    def handle_spec_activity(self, parsed) -> None:
+        """Serve runs/spec_activity_feed.json with optional limit/since filtering.
+
+        Contract: docs/spec_activity_feed_viewer_contract.md (SpecGraph PR #243).
+        Returns the artifact data inside the standard runs envelope. limit/since
+        are applied to data.entries[] after loading. since accepts an ISO
+        timestamp string and is compared against entry.occurred_at.
+        """
+        if self.server.spec_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecGraph not configured. Start the server with --spec-dir."},
+            )
+            return
+        runs = self._runs_dir()
+        if runs is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "spec_activity_feed.json not found. Run `make spec-activity` in SpecGraph first."},
+            )
+            return
+        path = runs / "spec_activity_feed.json"
+        if not path.exists():
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "spec_activity_feed.json not found. Run `make spec-activity` in SpecGraph first."},
+            )
+            return
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": "spec_activity_feed.json is not valid JSON", "detail": str(exc)},
+            )
+            return
+
+        # Optional filtering on entries[] (preserve top-level metadata otherwise).
+        qs = parse_qs(parsed.query or "")
+        try:
+            limit_raw = qs.get("limit", [None])[0]
+            limit = int(limit_raw) if limit_raw is not None else None
+        except (TypeError, ValueError):
+            limit = None
+        if limit is not None:
+            limit = max(1, min(limit, 1000))
+        since = qs.get("since", [None])[0]
+        since_iso = since if isinstance(since, str) and since else None
+
+        if (limit is not None or since_iso is not None) and isinstance(data, dict):
+            entries = data.get("entries") or []
+            if isinstance(entries, list):
+                if since_iso is not None:
+                    entries = [
+                        e for e in entries
+                        if isinstance(e, dict)
+                        and isinstance(e.get("occurred_at"), str)
+                        and e["occurred_at"] > since_iso
+                    ]
+                if limit is not None:
+                    entries = entries[:limit]
+                data = {**data, "entries": entries, "entry_count": len(entries)}
+
+        mtime = path.stat().st_mtime
+        mtime_iso = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+        json_response(self, HTTPStatus.OK, {
+            "path": str(path),
+            "mtime": mtime,
+            "mtime_iso": mtime_iso,
+            "data": data,
+        })
 
     def handle_metric_pricing_provenance(self) -> None:
         self._handle_runs_artifact(

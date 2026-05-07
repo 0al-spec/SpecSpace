@@ -255,27 +255,25 @@ ContextBuilder только читает и рендерит.
   текущий охват: "Shows YAML updates (Nodes) and refine runs (Runs); broader activity
   arrives once SpecGraph publishes spec_activity_feed.json."
 
-- [ ] **T-40b · Activity feed reader** *(блок: SpecGraph PR с artifact)*
-  - **Контракт от viewer (на согласование с SpecGraph):**
-    - Path: `<specgraph>/runs/spec_activity_feed.json`
-    - Shape: `{ events: [{ event_id, ts, spec_id, event_type, summary?, source_ref? }] }`
-    - `event_type` (расширяемый enum):
-      - `canonical_spec_updated`
-      - `trace_baseline_attached`
-      - `evidence_baseline_attached`
-      - `proposal_emitted`
-      - `implementation_work_emitted`
-      - `review_feedback_applied`
-    - Backend: `GET /api/spec-activity?limit=N&since=ISO`, парсинг по аналогии с
-      `/api/recent-runs`
-    - Frontend: третий source-toggle "Activity" (или замещение Nodes/Runs если SpecGraph
-      признает feed каноничным). Цвет/иконка → таблица per-event_type. Sparkline
-      переезжает с `runs/` на этот feed для полной истории.
-    - SSE live: расширить `RunsWatcher` или добавить отдельный watcher на файл feed'а.
+- [x] **T-40b · Activity feed reader** *(SpecGraph PR #243 — `runs/spec_activity_feed.json`)*
+  - Backend: `GET /api/spec-activity?limit=N&since=ISO` поверх
+    `runs/spec_activity_feed.json`, фильтрация на `data.entries[]` по
+    `occurred_at`, стандартный envelope `{ path, mtime, mtime_iso, data }`,
+    503/404/422 по контракту.
+  - Frontend: третий source-toggle "Activity" (по умолчанию активен, если feed
+    есть; недоступен с tooltip-объяснением, если артефакт не построен).
+    `ACTIVITY_TONE_COLORS` map: per-event_type статусные цвета согласно
+    `viewer.tone` guidance в контракте.
+  - Live mode: при каждом change-event на `runs/` рефетчит и activity feed
+    (он же лежит в `runs/`). Дебаунс 500ms сохраняется.
+  - Scope hint обновляется: когда feed доступен, объясняется три source mode
+    (Activity/Nodes/Runs), а не статус "feed pending".
+  - Контракт: `/Users/egor/Development/GitHub/0AL/SpecGraph/docs/spec_activity_feed_viewer_contract.md`.
 
-- [ ] **T-40c · Deprecate Runs source** *(только после стабильной T-40b)* — если
-  Activity feed покрывает refine events, Runs toggle снять; иначе оставить как
-  низкоуровневую диагностику.
+- [ ] **T-40c · Deprecate Runs source** *(после accumulating evidence что Activity
+  покрывает все use-cases)* — Runs toggle оставлен как низкоуровневая диагностика
+  (видны completion_status, duration_sec, child_model — поля, которых нет в
+  нормализованном activity feed). Удалять преждевременно.
 
 **Что НЕ делаем сейчас:**
 - ❌ "Commits" source mode в viewer (git log по специфическим путям). Решает symptom,
