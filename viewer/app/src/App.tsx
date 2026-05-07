@@ -816,21 +816,21 @@ function AppInner() {
     });
   }, []);
 
-  // Hotkey R toggles the Recent Changes overlay (Specs mode only)
+  // Hotkeys (Specs mode only): R toggles Recent Changes, T toggles Timeline
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (graphMode !== "specifications") return;
-      if (e.key !== "r" && e.key !== "R") return;
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
       const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
       const editable = (e.target as HTMLElement | null)?.isContentEditable;
       if (tag === "input" || tag === "textarea" || tag === "select" || editable) return;
-      e.preventDefault();
-      toggleRecent();
+      const k = e.key.toLowerCase();
+      if (k === "r") { e.preventDefault(); toggleRecent(); return; }
+      if (k === "t") { e.preventDefault(); toggleTimeline(); return; }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [graphMode, toggleRecent]);
+  }, [graphMode, toggleRecent, toggleTimeline]);
 
   const specNodeTitleMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -1012,7 +1012,7 @@ function AppInner() {
                 <div className="timeline-header">
                   <PanelBtn
                     icon={<FontAwesomeIcon icon={faClock} />}
-                    title={timelineOpen ? "Close timeline filter" : "Open timeline filter"}
+                    title={timelineOpen ? "Close timeline filter (T)" : "Open timeline filter (T)"}
                     onClick={toggleTimeline}
                     className={timelineOpen ? "timeline-btn-active" : undefined}
                   />
