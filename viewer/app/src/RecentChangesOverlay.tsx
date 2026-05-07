@@ -69,6 +69,87 @@ function fmtRelative(iso: string | null | undefined): string {
   return `${days}d ago`;
 }
 
+/** Shared singleton fetch — kept at module scope so StrictMode's double-mount
+ *  triggers exactly one network request and both invocations get the same
+ *  result. Reset to null on next call after a failure. */
+let runsFetchPromise: Promise<RunEvent[]> | null = null;
+function sharedRunsFetch(): Promise<RunEvent[]> {
+  if (runsFetchPromise) return runsFetchPromise;
+  runsFetchPromise = fetch("/api/recent-runs?limit=500")
+    .then(async (r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      return Array.isArray(data?.events) ? (data.events as RunEvent[]) : [];
+    })
+    .catch((err) => {
+      runsFetchPromise = null; // allow retry on next mount
+      throw err;
+    });
+  return runsFetchPromise;
+}
+
+/** Status priority for sparkline cell color: failed beats progressed beats ok. */
+const SPARK_PRIORITY: Record<string, number> = { failed: 3, progressed: 2, ok: 1 };
+const SPARK_DAYS = 7;
+
+interface SparklineProps {
+  events: RunEvent[];
+  /** Today's local-midnight timestamp (ms); passed in to avoid recomputing per row. */
+  todayMs: number;
+}
+
+/** 7-day per-spec activity sparkline. Each cell = one calendar day; right = today. */
+function Sparkline({ events, todayMs }: SparklineProps) {
+  // Pick the worst-status event for each day, then render 7 cells.
+  const cells: (string | null)[] = Array(SPARK_DAYS).fill(null);
+  for (const ev of events) {
+    if (!ev.completion_status) continue;
+    const ts = new Date(ev.ts).getTime();
+    const diffDays = Math.floor((todayMs - ts) / 86_400_000);
+    if (diffDays < 0 || diffDays >= SPARK_DAYS) continue;
+    const idx = SPARK_DAYS - 1 - diffDays;
+    const cur = cells[idx];
+    if (
+      cur === null ||
+      (SPARK_PRIORITY[ev.completion_status] ?? 0) > (SPARK_PRIORITY[cur] ?? 0)
+    ) {
+      cells[idx] = ev.completion_status;
+    }
+  }
+  // Don't render if there's no activity in the window.
+  if (cells.every((c) => c === null)) return null;
+
+  const w = 56, h = 10, gap = 1;
+  const cellW = (w - gap * (SPARK_DAYS - 1)) / SPARK_DAYS;
+  return (
+    <svg
+      className="rc-sparkline"
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      aria-hidden="true"
+    >
+      {cells.map((status, i) => {
+        const x = i * (cellW + gap);
+        const filled = status !== null;
+        return (
+          <rect
+            key={i}
+            x={x}
+            y={1}
+            width={cellW}
+            height={h - 2}
+            rx={1}
+            fill={filled ? `var(--rc-spark-${status})` : "transparent"}
+            stroke={filled ? "none" : "var(--line, #d4c4ac)"}
+            strokeWidth={0.5}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
 type Bucket = "Today" | "Yesterday" | "This week" | "Older";
 
 /** Bucket relative to local-day boundaries (handles DST/midnight cleanly). */
@@ -100,37 +181,46 @@ export default function RecentChangesOverlay({
   const [source, setSource] = useState<SourceMode>("nodes");
   const [copied, setCopied] = useState(false);
 
-  // Runs feed state — fetched lazily when source flips to "runs".
+  // Runs feed state. Fetched once on mount: powers both the Runs source
+  // view and the per-row sparklines in Nodes view, so a single round-trip
+  // serves the whole panel.
+  // Note: StrictMode-safe — guard via a module-level promise so React 18's
+  // double-invocation of effects doesn't fire two requests, and the second
+  // mount still gets the same data once it resolves.
   const [runs, setRuns] = useState<RunEvent[] | null>(null);
   const [runsError, setRunsError] = useState<string | null>(null);
   const [runsLoading, setRunsLoading] = useState(false);
-  const runsFetchedRef = useRef(false);
 
   useEffect(() => {
-    if (source !== "runs" || runsFetchedRef.current) return;
-    runsFetchedRef.current = true;
     let cancelled = false;
     setRunsLoading(true);
     setRunsError(null);
-    fetch("/api/recent-runs?limit=500")
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setRuns(Array.isArray(data?.events) ? data.events : []);
+    sharedRunsFetch()
+      .then((evts) => {
+        if (!cancelled) setRuns(evts);
       })
       .catch((err) => {
         if (cancelled) return;
         setRunsError(String(err?.message ?? err));
-        runsFetchedRef.current = false; // allow retry after a transient failure
       })
       .finally(() => {
         if (!cancelled) setRunsLoading(false);
       });
     return () => { cancelled = true; };
-  }, [source]);
+  }, []);
+
+  // Index runs by spec_id for sparkline rendering. Each value is the
+  // (already sorted desc) list of events touching that spec.
+  const runsBySpec = useMemo(() => {
+    const m = new Map<string, RunEvent[]>();
+    if (!runs) return m;
+    for (const r of runs) {
+      const arr = m.get(r.spec_id);
+      if (arr) arr.push(r);
+      else m.set(r.spec_id, [r]);
+    }
+    return m;
+  }, [runs]);
 
   // Nodes branch: map ApiSpecNode → DisplayItem (skip nodes without updated_at)
   const nodesItems = useMemo<DisplayItem[]>(
@@ -176,6 +266,14 @@ export default function RecentChangesOverlay({
   const visible = limit === null ? allItems : allItems.slice(0, limit);
   const total = allItems.length;
   const showingCount = visible.length;
+
+  // Local midnight as a single epoch — passed into every Sparkline so each
+  // row doesn't recompute it.
+  const todayMs = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, []);
 
   const handleCopy = useCallback(() => {
     const md = visible
@@ -309,6 +407,9 @@ export default function RecentChangesOverlay({
                       <span className="rc-item-id">{it.primaryId}</span>
                       <span className="rc-item-kind">{it.kind}</span>
                       <span className="rc-item-status" style={{ color: it.statusColor }}>{it.status}</span>
+                      {source === "nodes" && (
+                        <Sparkline events={runsBySpec.get(it.primaryId) ?? []} todayMs={todayMs} />
+                      )}
                       <span className="rc-item-time">{fmtRelative(it.ts)}</span>
                     </div>
                     <div className="rc-item-title">{it.title || "(no title)"}</div>

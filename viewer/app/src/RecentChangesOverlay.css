@@ -10,6 +10,10 @@
   overflow: hidden;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  /* Sparkline cell colors — referenced by inline rect fill */
+  --rc-spark-ok:         #4a8c5c;
+  --rc-spark-progressed: #4a7fa5;
+  --rc-spark-failed:     #b54131;
 }
 
 .rc-header {
@@ -266,12 +270,30 @@
   font-family: var(--font-mono, monospace);
 }
 
+.rc-sparkline {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: block;
+  opacity: 0.85;
+}
+
+.rc-item:hover .rc-sparkline,
+.rc-item--selected .rc-sparkline {
+  opacity: 1;
+}
+
 .rc-item-time {
   font-size: 9px;
   color: var(--muted, #6d6255);
-  margin-left: auto;
   flex-shrink: 0;
   font-family: var(--font-mono, monospace);
+  /* Default: when there is no preceding sparkline, push time fully right. */
+  margin-left: auto;
+}
+
+/* Sparkline already pushes right; sit time next to it with a tiny gap. */
+.rc-sparkline + .rc-item-time {
+  margin-left: var(--space-3, 6px);
 }
 
 .rc-item-title {
