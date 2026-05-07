@@ -12,10 +12,42 @@ const STATUS_COLORS: Record<string, string> = {
   frozen: "#4a8c5c",
 };
 
+/** Run completion_status → display color */
+const RUN_STATUS_COLORS: Record<string, string> = {
+  ok: "#4a8c5c",
+  progressed: "#4a7fa5",
+  failed: "#b54131",
+};
+
 /** `null` = show all */
 type LimitOption = 25 | 50 | 100 | null;
 const LIMIT_OPTIONS: LimitOption[] = [25, 50, 100, null];
 const DEFAULT_LIMIT: LimitOption = 25;
+
+type SourceMode = "nodes" | "runs";
+
+interface RunEvent {
+  run_id: string;
+  ts: string;
+  spec_id: string;
+  title: string | null;
+  run_kind: string | null;
+  completion_status: string | null;
+  duration_sec: number | null;
+}
+
+/** Common shape for rendering — both Nodes & Runs sources collapse to this. */
+interface DisplayItem {
+  key: string;
+  primaryId: string;
+  kind: string;
+  status: string;
+  statusColor: string;
+  title: string;
+  ts: string;
+  navigateId: string;
+  isFailed?: boolean;
+}
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -65,7 +97,95 @@ export default function RecentChangesOverlay({
   selectedNodeId,
 }: RecentChangesOverlayProps) {
   const [limit, setLimit] = useState<LimitOption>(DEFAULT_LIMIT);
+  const [source, setSource] = useState<SourceMode>("nodes");
   const [copied, setCopied] = useState(false);
+
+  // Runs feed state — fetched lazily when source flips to "runs".
+  const [runs, setRuns] = useState<RunEvent[] | null>(null);
+  const [runsError, setRunsError] = useState<string | null>(null);
+  const [runsLoading, setRunsLoading] = useState(false);
+  const runsFetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (source !== "runs" || runsFetchedRef.current) return;
+    runsFetchedRef.current = true;
+    let cancelled = false;
+    setRunsLoading(true);
+    setRunsError(null);
+    fetch("/api/recent-runs?limit=500")
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setRuns(Array.isArray(data?.events) ? data.events : []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setRunsError(String(err?.message ?? err));
+        runsFetchedRef.current = false; // allow retry after a transient failure
+      })
+      .finally(() => {
+        if (!cancelled) setRunsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [source]);
+
+  // Nodes branch: map ApiSpecNode → DisplayItem (skip nodes without updated_at)
+  const nodesItems = useMemo<DisplayItem[]>(
+    () =>
+      [...nodes]
+        .filter((n) => !!n.updated_at)
+        .sort((a, b) => new Date(b.updated_at!).getTime() - new Date(a.updated_at!).getTime())
+        .map((n) => ({
+          key: n.node_id,
+          primaryId: n.node_id,
+          kind: n.kind,
+          status: n.status,
+          statusColor: STATUS_COLORS[n.status] ?? "#888",
+          title: n.title,
+          ts: n.updated_at!,
+          navigateId: n.node_id,
+        })),
+    [nodes],
+  );
+
+  // Runs branch: map RunEvent → DisplayItem; one node may appear multiple times.
+  const runsItems = useMemo<DisplayItem[]>(() => {
+    if (!runs) return [];
+    return [...runs]
+      .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+      .map((r) => {
+        const status = r.completion_status ?? "unknown";
+        return {
+          key: r.run_id,
+          primaryId: r.spec_id,
+          kind: r.run_kind ?? "run",
+          status,
+          statusColor: RUN_STATUS_COLORS[status] ?? "#888",
+          title: r.title ?? "",
+          ts: r.ts,
+          navigateId: r.spec_id,
+          isFailed: status === "failed",
+        };
+      });
+  }, [runs]);
+
+  const allItems = source === "nodes" ? nodesItems : runsItems;
+  const visible = limit === null ? allItems : allItems.slice(0, limit);
+  const total = allItems.length;
+  const showingCount = visible.length;
+
+  const handleCopy = useCallback(() => {
+    const md = visible
+      .map((it) => `- **${it.primaryId}** *${it.kind}* — ${it.title || "(no title)"} (${fmtRelative(it.ts)})`)
+      .join("\n");
+    navigator.clipboard.writeText(md).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  }, [visible]);
 
   // Custom overlay scrollbar — track {top, height, visible} as percentages
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -82,44 +202,15 @@ export default function RecentChangesOverlay({
       return;
     }
     const ratio = clientHeight / scrollHeight;
-    const heightPct = Math.max(8, ratio * 100);                  // floor 8% so thumb is grabbable
+    const heightPct = Math.max(8, ratio * 100);
     const topPct = (scrollTop / scrollHeight) * 100;
     setThumb({ top: topPct, height: heightPct, visible: true });
   }, []);
 
-  // Sort once per nodes change; slicing is cheap and depends on `limit`.
-  const sortedAll = useMemo(
-    () =>
-      [...nodes]
-        .filter((n) => !!n.updated_at)
-        .sort((a, b) => {
-          const ta = new Date(a.updated_at!).getTime();
-          const tb = new Date(b.updated_at!).getTime();
-          return tb - ta;
-        }),
-    [nodes],
-  );
-
-  const visible = limit === null ? sortedAll : sortedAll.slice(0, limit);
-  const total = sortedAll.length;
-  const showingCount = visible.length;
-
-  const handleCopy = useCallback(() => {
-    const md = visible
-      .map((n) => `- **${n.node_id}** *${n.kind}* — ${n.title} (${fmtRelative(n.updated_at)})`)
-      .join("\n");
-    navigator.clipboard.writeText(md).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    }).catch(() => {});
-  }, [visible]);
-
-  // Recompute thumb when content size changes (limit toggle, nodes update).
   useEffect(() => {
     recomputeThumb();
-  }, [recomputeThumb, visible.length]);
+  }, [recomputeThumb, visible.length, source]);
 
-  // Track viewport resize (panel max-height responds to window height).
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
@@ -134,7 +225,7 @@ export default function RecentChangesOverlay({
         <span className="rc-title">Recently Updated</span>
         <span className="rc-count">
           {showingCount === total
-            ? `${total} nodes`
+            ? `${total} ${source === "runs" ? "runs" : "nodes"}`
             : `${showingCount} of ${total}`}
         </span>
         <button
@@ -147,8 +238,33 @@ export default function RecentChangesOverlay({
         </button>
       </div>
 
-      {sortedAll.length === 0 ? (
-        <div className="rc-empty">No updated_at timestamps available.</div>
+      <div className="rc-source-row">
+        <div className="rc-source-group">
+          <button
+            className={`rc-source-btn${source === "nodes" ? " active" : ""}`}
+            onClick={() => setSource("nodes")}
+          >
+            Nodes
+          </button>
+          <button
+            className={`rc-source-btn${source === "runs" ? " active" : ""}`}
+            onClick={() => setSource("runs")}
+          >
+            Runs
+          </button>
+        </div>
+      </div>
+
+      {source === "runs" && runsLoading && runs === null ? (
+        <div className="rc-empty">Loading runs…</div>
+      ) : source === "runs" && runsError ? (
+        <div className="rc-empty">Failed to load runs: {runsError}</div>
+      ) : allItems.length === 0 ? (
+        <div className="rc-empty">
+          {source === "runs"
+            ? "No run events found."
+            : "No updated_at timestamps available."}
+        </div>
       ) : (
         <>
           <div className="rc-list-wrap">
@@ -160,18 +276,17 @@ export default function RecentChangesOverlay({
           )}
           <div className="rc-list" ref={listRef} onScroll={recomputeThumb}>
             {(() => {
-              // Group consecutive entries (already sorted desc) by bucket; emit
-              // a single header before each contiguous run.
+              // Group consecutive entries by date bucket; emit a single header
+              // before each run.
               const out: React.ReactNode[] = [];
               let prevBucket: Bucket | null = null;
               const counts: Record<Bucket, number> = {
                 Today: 0, Yesterday: 0, "This week": 0, Older: 0,
               };
-              // Pre-count for the header right-side counter.
-              for (const n of visible) counts[bucketFor(n.updated_at!)]++;
+              for (const it of visible) counts[bucketFor(it.ts)]++;
 
-              for (const node of visible) {
-                const bucket = bucketFor(node.updated_at!);
+              for (const it of visible) {
+                const bucket = bucketFor(it.ts);
                 if (bucket !== prevBucket) {
                   out.push(
                     <div key={`hdr-${bucket}`} className="rc-group">
@@ -181,22 +296,22 @@ export default function RecentChangesOverlay({
                   );
                   prevBucket = bucket;
                 }
-                const color = STATUS_COLORS[node.status] ?? "#888";
-                const isSelected = node.node_id === selectedNodeId;
+                const isSelected = it.navigateId === selectedNodeId;
+                const cls = `rc-item${isSelected ? " rc-item--selected" : ""}${it.isFailed ? " rc-item--failed" : ""}`;
                 out.push(
                   <button
-                    key={node.node_id}
-                    className={`rc-item${isSelected ? " rc-item--selected" : ""}`}
-                    onClick={() => onSelect(node.node_id)}
-                    title={fmtDate(node.updated_at)}
+                    key={it.key}
+                    className={cls}
+                    onClick={() => onSelect(it.navigateId)}
+                    title={fmtDate(it.ts)}
                   >
                     <div className="rc-item-row">
-                      <span className="rc-item-id">{node.node_id}</span>
-                      <span className="rc-item-kind">{node.kind}</span>
-                      <span className="rc-item-status" style={{ color }}>{node.status}</span>
-                      <span className="rc-item-time">{fmtRelative(node.updated_at)}</span>
+                      <span className="rc-item-id">{it.primaryId}</span>
+                      <span className="rc-item-kind">{it.kind}</span>
+                      <span className="rc-item-status" style={{ color: it.statusColor }}>{it.status}</span>
+                      <span className="rc-item-time">{fmtRelative(it.ts)}</span>
                     </div>
-                    <div className="rc-item-title">{node.title}</div>
+                    <div className="rc-item-title">{it.title || "(no title)"}</div>
                   </button>,
                 );
               }
@@ -211,7 +326,6 @@ export default function RecentChangesOverlay({
               {LIMIT_OPTIONS.map((opt) => {
                 const active = opt === limit;
                 const label = opt === null ? "All" : String(opt);
-                // Disable values that exceed total — no point offering "100" if there are 30 entries.
                 const disabled = opt !== null && opt > total && limit !== opt;
                 return (
                   <button

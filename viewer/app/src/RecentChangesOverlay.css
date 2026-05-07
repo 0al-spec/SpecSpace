@@ -64,6 +64,66 @@
   cursor: not-allowed;
 }
 
+/* ── Source toggle (Nodes / Runs) ───────────────────────────────────────── */
+
+.rc-source-row {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3, 6px) var(--space-6, 12px);
+  border-bottom: 1px solid var(--line, #d4c4ac);
+  background: var(--panel-muted, rgba(246, 236, 221, 0.88));
+  flex-shrink: 0;
+}
+
+.rc-source-group {
+  display: flex;
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 250, 242, 0.94);
+}
+
+.rc-source-btn {
+  padding: 3px 14px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono, monospace);
+  color: var(--muted, #6d6255);
+  transition: background 100ms, color 100ms;
+  line-height: 1;
+}
+
+.rc-source-btn:hover:not(.active) {
+  background: #fbf3e7;
+  color: var(--text, #231b15);
+}
+
+.rc-source-btn.active {
+  background: var(--accent-soft, #f5e0c7);
+  color: var(--accent-strong, #6c4012);
+}
+
+.rc-source-btn + .rc-source-btn {
+  border-left: 1px solid var(--line, #d4c4ac);
+}
+
+/* ── Failed-run row tint ──────────────────────────────────────────────────
+   Selector specificity bumped (.rc-item.rc-item--failed) so it beats the
+   default .rc-item { background: none } rule. */
+
+.rc-item.rc-item--failed {
+  background-color: rgba(181, 65, 49, 0.08);
+}
+
+.rc-item.rc-item--failed:hover {
+  background-color: rgba(181, 65, 49, 0.18);
+}
+
 /* Wrap is the positioning context for the custom overlay scrollbar thumb.
    The native scrollbar is hidden (rows go edge-to-edge); a JS-driven
    .rc-scrollbar-thumb floats over the right edge as visual feedback. */
