@@ -139,10 +139,10 @@
 }
 
 .rc-source-btn {
-  padding: 3px 14px;
+  padding: 3px 11px;
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   background: none;
   border: none;
@@ -293,6 +293,7 @@
   align-items: center;
   gap: var(--space-2, 4px);
   margin-bottom: 2px;
+  min-width: 0; /* allow flex children to shrink + ellipsis inside */
 }
 
 .rc-item-id {
@@ -317,7 +318,13 @@
 .rc-item-status {
   font-size: 9px;
   font-weight: 600;
-  flex-shrink: 0;
+  /* Allow shrinking with ellipsis when the label is long (Activity events
+     like "implementation work emitted" otherwise overflow the 340px panel). */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-mono, monospace);
 }
 

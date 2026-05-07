@@ -415,14 +415,18 @@ export default function RecentChangesOverlay({
       .filter((e) => typeof e.occurred_at === "string" && e.occurred_at)
       .sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1))
       .map((e) => {
-        const tone = ACTIVITY_TONE_COLORS[e.event_type] ?? "#6d6255";
+        const toneColor = ACTIVITY_TONE_COLORS[e.event_type] ?? "#6d6255";
         const label = e.viewer?.label ?? e.event_type.replace(/_/g, " ");
+        // Use viewer.tone as the short `kind` tag (4–8 chars: "trace",
+        // "proposal", "impl", "review", "spec") — event_type itself is too
+        // long to fit alongside the spec id + label + time on a 340px panel.
+        const shortTag = e.viewer?.tone ?? e.event_type.split("_")[0];
         return {
           key: e.event_id,
           primaryId: e.spec_id || "—",
-          kind: e.event_type,
+          kind: shortTag,
           status: label,
-          statusColor: tone,
+          statusColor: toneColor,
           title: e.title || e.summary || "(no title)",
           ts: e.occurred_at,
           // Empty spec_id means graph-level event — clicking still focuses
