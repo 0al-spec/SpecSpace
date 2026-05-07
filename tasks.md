@@ -210,9 +210,9 @@ Safari кэширует dasharray-паттерн отдельной тексту
 ## P0 — Quick wins (только фронт, ship одним PR)
 
 - [x] **T-01 · Limit control** — футер с кнопками `25 / 50 / 100 / All`. Заменить хардкод `limit = 25` на state. ~15 строк.
-- [ ] **T-03 · Hotkey `R`** — toggle панели по клавише `R` (без модификаторов). Добавить в существующий keydown handler в `App.tsx`. Skip когда фокус в input/textarea. Тултип: `"Show recently updated nodes (R)"`.
-- [ ] **T-04 · Export as Markdown** — кнопка `📋 Copy MD` в шапке. Формат: `- [[SG-SPEC-NNNN]] *kind* — title (Xh ago)`. `navigator.clipboard.writeText()` + визуальное подтверждение.
-- [ ] **T-05 · Unread badge на кнопке** — `lastSeenAt` в `localStorage` при закрытии панели; счётчик нод с `updated_at > lastSeenAt`. Расширить `PanelBtn` через `badge?: number`. Сбрасывается при открытии.
+- [x] **T-03 · Hotkey `R`** — toggle панели по клавише `R` (без модификаторов). Добавить в существующий keydown handler в `App.tsx`. Skip когда фокус в input/textarea. Тултип: `"Show recently updated nodes (R)"`.
+- [x] **T-04 · Export as Markdown** — кнопка `📋 Copy MD` в шапке. Формат: `- **SG-SPEC-NNNN** *kind* — title (Xh ago)`. `navigator.clipboard.writeText()` + визуальное подтверждение.
+- [x] **T-05 · Unread badge на кнопке** — `lastSeenAt` в `localStorage` при открытии панели; счётчик нод с `updated_at > lastSeenAt`. Расширить `PanelBtn` через `badge?: number`. Сбрасывается при открытии.
 
 ## P0+ — Группировка
 
