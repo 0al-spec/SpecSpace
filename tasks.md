@@ -220,7 +220,7 @@ Safari кэширует dasharray-паттерн отдельной тексту
 
 ## P1 — Backend-зависимые (нужен runs/ endpoint)
 
-- [ ] **T-10 · `/api/recent-runs` endpoint** *(prereq для T-11/T-12/T-20)*
+- [x] **T-10 · `/api/recent-runs` endpoint** *(prereq для T-11/T-12/T-20)*
   - Новый endpoint в `viewer/server.py`, возвращает последние N run-events
   - Источник: `SpecGraph/runs/*.json` — парсинг имени файла (`YYYYMMDDTHHMMSSZ-SG-SPEC-NNNN-hash.json`) + чтение первого ~1KB для `completion_status`/`run_kind`
   - Response: `[{run_id, ts, spec_id, title, run_kind, completion_status, duration_sec}]`
