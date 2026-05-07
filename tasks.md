@@ -234,9 +234,10 @@ Safari кэширует dasharray-паттерн отдельной тексту
 
 - [x] **T-20 · Inline sparkline** — мини-SVG (~60×12px) с историей прогонов ноды за 7 дней, точки крашены по `completion_status`. Зависит от T-10 + per-spec агрегация.
 
-- [ ] **T-21 · Live feed via SSE** — подписка на `/api/events`. Prepend новых записей с анимацией, инкремент unread badge.
-  - **Perf-guard:** дебаунс 500ms, batched rerenders, cap по текущему limit, drop oldest
-  - Toggle `🔴 Live / ⏸ Paused` в шапке (default: paused — opt-in)
+- [x] **T-21 · Live feed via SSE** — подписка на `/api/runs-watch`. На каждый `change` дебаунс 500ms → refetch `/api/recent-runs`.
+  - **Perf-guard:** дебаунс 500ms, sharedRunsFetch(force=true) обходит cache, EventSource закрывается на toggle-off
+  - Toggle `🔴 live / ⏸ live` в шапке (default: paused — opt-in)
+  - Backend: RunsWatcher polls runs/ every 2s; one thread for all clients; exits when last subscriber leaves
 
 ## P3 — Cross-tool integration
 
