@@ -786,8 +786,9 @@ function AppInner() {
         setTimelineRange(null);
         return false;
       } else {
-        // opening — initialise to full span
+        // opening — initialise to full span; close Recent (mutually exclusive)
         if (timelineFullRange) setTimelineRange(timelineFullRange);
+        setRecentOpen(false);
         return true;
       }
     });
@@ -807,10 +808,12 @@ function AppInner() {
   const toggleRecent = useCallback(() => {
     setRecentOpen((open) => {
       if (!open) {
-        // opening — mark everything as seen
+        // opening — mark everything as seen; close Timeline (mutually exclusive)
         const now = new Date().toISOString();
         localStorage.setItem("contextbuilder.recentLastSeen", now);
         setRecentLastSeen(now);
+        setTimelineOpen(false);
+        setTimelineRange(null);
       }
       return !open;
     });
