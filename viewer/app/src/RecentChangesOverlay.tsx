@@ -221,9 +221,13 @@ function bucketFor(iso: string): Bucket {
 
 interface RecentChangesOverlayProps {
   nodes: ApiSpecNode[];
-  /** Called when a row is clicked. `ts` is the event/update ISO timestamp,
-   *  enabling the parent to focus a Timeline window around that moment. */
-  onSelect: (nodeId: string, ts: string) => void;
+  /** Called when a row is clicked. `ts` is the row's ISO timestamp; `source`
+   *  identifies which feed the row came from. Parent uses `source` to decide
+   *  whether to open a Timeline window around `ts` — it only makes sense in
+   *  `"nodes"` mode where ts === node.updated_at. In `"activity"`/`"runs"`
+   *  ts is `occurred_at`/run timestamp, NOT the node's updated_at, so a
+   *  Timeline jump would dim the node and push knobs out of range. */
+  onSelect: (nodeId: string, ts: string, source: SourceMode) => void;
   selectedNodeId?: string | null;
 }
 
@@ -621,7 +625,7 @@ export default function RecentChangesOverlay({
                   <button
                     key={it.key}
                     className={cls}
-                    onClick={() => onSelect(it.navigateId, it.ts)}
+                    onClick={() => onSelect(it.navigateId, it.ts, source)}
                     title={fmtDate(it.ts)}
                   >
                     <div className="rc-item-row">

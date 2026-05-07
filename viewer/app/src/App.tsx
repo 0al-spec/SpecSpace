@@ -1049,23 +1049,41 @@ function AppInner() {
                 {recentOpen && specGraph.rawGraph && (
                   <RecentChangesOverlay
                     nodes={specGraph.rawGraph.nodes}
-                    onSelect={(id, ts) => {
+                    onSelect={(id, ts, source) => {
                       // T-30: clicking a row focuses a ±1h timeline window
                       // around the event and switches Recent → Timeline (mutex
                       // closes Recent automatically). Then pan/select the node
                       // so the inspector opens on the same target.
+                      //
+                      // The Timeline jump ONLY makes sense for Nodes source,
+                      // where ts === node.updated_at exactly. For Activity/Runs
+                      // ts is occurred_at / run timestamp, which has no
+                      // semantic alignment with the timelineField axis — it
+                      // would dim the clicked node (because its updated_at
+                      // falls outside the window) and push knobs past the
+                      // data-bounded scale. So for non-nodes sources we just
+                      // navigate and close Recent.
                       const tsMs = new Date(ts).getTime();
-                      if (Number.isFinite(tsMs)) {
+                      if (source === "nodes" && Number.isFinite(tsMs)) {
                         const HOUR = 60 * 60 * 1000;
-                        // Switch field to "updated_at" for consistency with what
-                        // Recent shows, then open Timeline with the focused range.
                         if (timelineField !== "updated_at") {
                           setTimelineField("updated_at");
                         }
-                        setTimelineRange([tsMs - HOUR, tsMs + HOUR]);
+                        // Clamp the window to the data's actual range so the
+                        // knobs can never fly out of the timeline track even
+                        // if some future caller hands us an out-of-range ts.
+                        if (timelineFullRange) {
+                          const [fullMin, fullMax] = timelineFullRange;
+                          const lo = Math.max(fullMin, tsMs - HOUR);
+                          const hi = Math.min(fullMax, tsMs + HOUR);
+                          setTimelineRange([Math.min(lo, hi), Math.max(lo, hi)]);
+                        } else {
+                          setTimelineRange([tsMs - HOUR, tsMs + HOUR]);
+                        }
                         setTimelineOpen(true);
                         setRecentOpen(false);
                       } else {
+                        // Activity / Runs: just navigate; leave Timeline alone.
                         setRecentOpen(false);
                       }
                       navigateToSpec(id);
