@@ -66,16 +66,23 @@
 
 .rc-list {
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
   padding: var(--space-2, 4px) 0;
 }
 
 .rc-list::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
+}
+.rc-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 .rc-list::-webkit-scrollbar-thumb {
+  background: rgba(184, 159, 127, 0.5);
+  border-radius: 3px;
+}
+.rc-list::-webkit-scrollbar-thumb:hover {
   background: var(--line-strong, #b89f7f);
-  border-radius: 2px;
 }
 
 /* ── Date group headers ─────────────────────────────────────────────────── */
@@ -84,7 +91,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3, 6px);
-  padding: var(--space-3, 6px) var(--space-6, 12px) 2px;
+  width: calc(100% + 6px);
+  padding: var(--space-3, 6px) calc(var(--space-6, 12px) + 6px) 2px var(--space-6, 12px);
   position: sticky;
   top: 0;
   z-index: 1;
@@ -126,13 +134,18 @@
   padding-top: var(--space-2, 4px);
 }
 
+/* Items + group headers extend past the list's content box into the
+   scrollbar gutter (6px) so hover backgrounds reach the panel's right
+   edge. Their inner padding-right is bumped by the same amount to keep
+   text clear of the scrollbar thumb. .rc-list has overflow-x: hidden,
+   which clips the bleed. */
 .rc-item {
   display: block;
-  width: 100%;
+  width: calc(100% + 6px);
   text-align: left;
   background: none;
   border: none;
-  padding: var(--space-3, 6px) var(--space-6, 12px);
+  padding: var(--space-3, 6px) calc(var(--space-6, 12px) + 6px) var(--space-3, 6px) var(--space-6, 12px);
   cursor: pointer;
   border-left: 2px solid transparent;
   transition: background 100ms, border-color 100ms;
