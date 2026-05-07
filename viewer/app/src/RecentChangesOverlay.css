@@ -34,6 +34,34 @@
   font-size: 10px;
   color: var(--muted, #6d6255);
   font-family: var(--font-mono, monospace);
+  margin-right: auto;
+  margin-left: var(--space-3, 6px);
+}
+
+.rc-copy-btn {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-family: var(--font-mono, monospace);
+  padding: 3px 8px;
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 999px;
+  background: rgba(255, 250, 242, 0.94);
+  color: var(--muted, #6d6255);
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms;
+  flex-shrink: 0;
+}
+
+.rc-copy-btn:hover:not(:disabled) {
+  background: var(--accent-soft, #f5e0c7);
+  color: var(--accent-strong, #6c4012);
+  border-color: var(--accent, #915a24);
+}
+
+.rc-copy-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .rc-list {

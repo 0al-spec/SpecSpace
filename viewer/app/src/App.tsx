@@ -316,6 +316,15 @@ function AppInner() {
 
   // ── Recent changes overlay ────────────────────────────────────────────────
   const [recentOpen, setRecentOpen] = useState(false);
+  // lastSeenAt: ISO string in localStorage; init to "now" on first run so
+  // we don't show 60 unread on a fresh session.
+  const [recentLastSeen, setRecentLastSeen] = useState<string>(() => {
+    const saved = localStorage.getItem("contextbuilder.recentLastSeen");
+    if (saved) return saved;
+    const now = new Date().toISOString();
+    localStorage.setItem("contextbuilder.recentLastSeen", now);
+    return now;
+  });
 
   // ── Timeline filter ───────────────────────────────────────────────────────
   const [timelineOpen, setTimelineOpen] = useState(false);
@@ -784,6 +793,45 @@ function AppInner() {
     });
   }, [timelineFullRange]);
 
+  // ── Recent changes — unread count + open handler ──────────────────────────
+  const recentUnreadCount = useMemo(() => {
+    if (!specGraph.rawGraph) return 0;
+    const lastMs = new Date(recentLastSeen).getTime();
+    if (!Number.isFinite(lastMs)) return 0;
+    return specGraph.rawGraph.nodes.reduce((n, node) => {
+      if (!node.updated_at) return n;
+      return new Date(node.updated_at).getTime() > lastMs ? n + 1 : n;
+    }, 0);
+  }, [specGraph.rawGraph, recentLastSeen]);
+
+  const toggleRecent = useCallback(() => {
+    setRecentOpen((open) => {
+      if (!open) {
+        // opening — mark everything as seen
+        const now = new Date().toISOString();
+        localStorage.setItem("contextbuilder.recentLastSeen", now);
+        setRecentLastSeen(now);
+      }
+      return !open;
+    });
+  }, []);
+
+  // Hotkey R toggles the Recent Changes overlay (Specs mode only)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (graphMode !== "specifications") return;
+      if (e.key !== "r" && e.key !== "R") return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
+      const editable = (e.target as HTMLElement | null)?.isContentEditable;
+      if (tag === "input" || tag === "textarea" || tag === "select" || editable) return;
+      e.preventDefault();
+      toggleRecent();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [graphMode, toggleRecent]);
+
   const specNodeTitleMap = useMemo(() => {
     const m = new Map<string, string>();
     for (const n of specGraph.rawGraph?.nodes ?? []) m.set(n.node_id, n.title);
@@ -970,9 +1018,10 @@ function AppInner() {
                   />
                   <PanelBtn
                     icon={<FontAwesomeIcon icon={faClockRotateLeft} />}
-                    title={recentOpen ? "Close recent changes" : "Show recently updated nodes"}
-                    onClick={() => setRecentOpen((v) => !v)}
+                    title={recentOpen ? "Close recent changes (R)" : "Show recently updated nodes (R)"}
+                    onClick={toggleRecent}
                     className={recentOpen ? "timeline-btn-active" : undefined}
+                    badge={recentOpen ? 0 : recentUnreadCount}
                   />
                   {timelineOpen && (
                     <div className="tl-segment">

@@ -8,6 +8,7 @@
  * • `dim` replaces the HTML `disabled` attribute so pointer events (and
  *   therefore the native title tooltip) still fire on the element itself
  * • Inner <span> has pointer-events: none so the glyph never intercepts hover
+ * • Optional `badge` renders a small accent-colored counter at top-right
  */
 import "./PanelBtn.css";
 
@@ -21,9 +22,13 @@ export interface PanelBtnProps {
   dim?:       boolean;
   /** Extra classes — use for per-button colour overrides, sizing, etc. */
   className?: string;
+  /** Numeric badge at top-right; `0`/`undefined` = hidden. Values >99 shown as "99+". */
+  badge?:     number;
 }
 
-export default function PanelBtn({ icon, title, onClick, dim, className }: PanelBtnProps) {
+export default function PanelBtn({ icon, title, onClick, dim, className, badge }: PanelBtnProps) {
+  const showBadge = typeof badge === "number" && badge > 0;
+  const badgeText = showBadge ? (badge! > 99 ? "99+" : String(badge)) : null;
   return (
     <button
       className={`panel-btn${dim ? " panel-btn-dim" : ""}${className ? ` ${className}` : ""}`}
@@ -32,6 +37,7 @@ export default function PanelBtn({ icon, title, onClick, dim, className }: Panel
       aria-disabled={dim}
     >
       <span>{icon}</span>
+      {showBadge && <span className="panel-btn-badge">{badgeText}</span>}
     </button>
   );
 }

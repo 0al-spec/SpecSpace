@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { ApiSpecNode } from "./types";
 import "./RecentChangesOverlay.css";
 
@@ -49,6 +49,7 @@ export default function RecentChangesOverlay({
   selectedNodeId,
 }: RecentChangesOverlayProps) {
   const [limit, setLimit] = useState<LimitOption>(DEFAULT_LIMIT);
+  const [copied, setCopied] = useState(false);
 
   // Sort once per nodes change; slicing is cheap and depends on `limit`.
   const sortedAll = useMemo(
@@ -67,6 +68,16 @@ export default function RecentChangesOverlay({
   const total = sortedAll.length;
   const showingCount = visible.length;
 
+  const handleCopy = useCallback(() => {
+    const md = visible
+      .map((n) => `- **${n.node_id}** *${n.kind}* — ${n.title} (${fmtRelative(n.updated_at)})`)
+      .join("\n");
+    navigator.clipboard.writeText(md).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  }, [visible]);
+
   return (
     <div className="rc-panel">
       <div className="rc-header">
@@ -76,6 +87,14 @@ export default function RecentChangesOverlay({
             ? `${total} nodes`
             : `${showingCount} of ${total}`}
         </span>
+        <button
+          className="rc-copy-btn"
+          onClick={handleCopy}
+          disabled={visible.length === 0}
+          title="Copy as Markdown"
+        >
+          {copied ? "✓ copied" : "📋 MD"}
+        </button>
       </div>
 
       {sortedAll.length === 0 ? (
