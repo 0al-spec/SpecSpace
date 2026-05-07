@@ -78,6 +78,53 @@
   border-radius: 2px;
 }
 
+/* ── Date group headers ─────────────────────────────────────────────────── */
+
+.rc-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 6px);
+  padding: var(--space-3, 6px) var(--space-6, 12px) 2px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel-strong, rgba(255, 247, 236, 0.98));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.rc-group::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line, #d4c4ac);
+}
+
+.rc-group-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent-strong, #6c4012);
+  font-family: var(--font-mono, monospace);
+}
+
+.rc-group-count {
+  font-size: 9px;
+  color: var(--muted, #6d6255);
+  font-family: var(--font-mono, monospace);
+  background: var(--panel-muted, rgba(246, 236, 221, 0.88));
+  border: 1px solid var(--line, #d4c4ac);
+  border-radius: 999px;
+  padding: 0 5px;
+  line-height: 1.5;
+}
+
+/* First group header sits flush with panel header */
+.rc-list .rc-group:first-child {
+  padding-top: var(--space-2, 4px);
+}
+
 .rc-item {
   display: block;
   width: 100%;

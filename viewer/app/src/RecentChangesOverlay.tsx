@@ -37,6 +37,22 @@ function fmtRelative(iso: string | null | undefined): string {
   return `${days}d ago`;
 }
 
+type Bucket = "Today" | "Yesterday" | "This week" | "Older";
+
+/** Bucket relative to local-day boundaries (handles DST/midnight cleanly). */
+function bucketFor(iso: string): Bucket {
+  const ts = new Date(iso);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfYesterday = startOfToday - 86_400_000;
+  const startOfWeek = startOfToday - 6 * 86_400_000; // 7-day window incl. today
+  const t = ts.getTime();
+  if (t >= startOfToday) return "Today";
+  if (t >= startOfYesterday) return "Yesterday";
+  if (t >= startOfWeek) return "This week";
+  return "Older";
+}
+
 interface RecentChangesOverlayProps {
   nodes: ApiSpecNode[];
   onSelect: (nodeId: string) => void;
@@ -102,26 +118,49 @@ export default function RecentChangesOverlay({
       ) : (
         <>
           <div className="rc-list">
-            {visible.map((node) => {
-              const color = STATUS_COLORS[node.status] ?? "#888";
-              const isSelected = node.node_id === selectedNodeId;
-              return (
-                <button
-                  key={node.node_id}
-                  className={`rc-item${isSelected ? " rc-item--selected" : ""}`}
-                  onClick={() => onSelect(node.node_id)}
-                  title={fmtDate(node.updated_at)}
-                >
-                  <div className="rc-item-row">
-                    <span className="rc-item-id">{node.node_id}</span>
-                    <span className="rc-item-kind">{node.kind}</span>
-                    <span className="rc-item-status" style={{ color }}>{node.status}</span>
-                    <span className="rc-item-time">{fmtRelative(node.updated_at)}</span>
-                  </div>
-                  <div className="rc-item-title">{node.title}</div>
-                </button>
-              );
-            })}
+            {(() => {
+              // Group consecutive entries (already sorted desc) by bucket; emit
+              // a single header before each contiguous run.
+              const out: React.ReactNode[] = [];
+              let prevBucket: Bucket | null = null;
+              const counts: Record<Bucket, number> = {
+                Today: 0, Yesterday: 0, "This week": 0, Older: 0,
+              };
+              // Pre-count for the header right-side counter.
+              for (const n of visible) counts[bucketFor(n.updated_at!)]++;
+
+              for (const node of visible) {
+                const bucket = bucketFor(node.updated_at!);
+                if (bucket !== prevBucket) {
+                  out.push(
+                    <div key={`hdr-${bucket}`} className="rc-group">
+                      <span className="rc-group-label">{bucket}</span>
+                      <span className="rc-group-count">{counts[bucket]}</span>
+                    </div>,
+                  );
+                  prevBucket = bucket;
+                }
+                const color = STATUS_COLORS[node.status] ?? "#888";
+                const isSelected = node.node_id === selectedNodeId;
+                out.push(
+                  <button
+                    key={node.node_id}
+                    className={`rc-item${isSelected ? " rc-item--selected" : ""}`}
+                    onClick={() => onSelect(node.node_id)}
+                    title={fmtDate(node.updated_at)}
+                  >
+                    <div className="rc-item-row">
+                      <span className="rc-item-id">{node.node_id}</span>
+                      <span className="rc-item-kind">{node.kind}</span>
+                      <span className="rc-item-status" style={{ color }}>{node.status}</span>
+                      <span className="rc-item-time">{fmtRelative(node.updated_at)}</span>
+                    </div>
+                    <div className="rc-item-title">{node.title}</div>
+                  </button>,
+                );
+              }
+              return out;
+            })()}
           </div>
 
           <div className="rc-footer">
