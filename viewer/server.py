@@ -1761,6 +1761,77 @@ class SpecWatcher:
             return fired, self._seq
 
 
+class RunsWatcher:
+    """Polling watcher for SpecGraph runs/ — broadcasts when new run files
+    appear (or any timestamped run file changes mtime). Mirrors SpecWatcher's
+    one-thread-many-clients design, but scoped to the runs/ directory and
+    filtered to filenames matching the run-event pattern. Used by the
+    /api/runs-watch SSE endpoint to drive live updates in the Recent Changes
+    overlay.
+    """
+
+    POLL_INTERVAL: float = 2.0
+    KEEPALIVE_TIMEOUT: float = 14.0
+    _RUN_FILENAME_RE = re.compile(r"^\d{8}T\d{6}Z-SG-[A-Z]+-\d+-[0-9a-f]+\.json$")
+
+    def __init__(self, runs_dir: Path) -> None:
+        self._runs_dir = runs_dir
+        self._condition = threading.Condition()
+        self._seq: int = 0
+        self._client_count: int = 0
+        self._thread: threading.Thread | None = None
+
+    def _get_mtimes(self) -> dict[str, float]:
+        result: dict[str, float] = {}
+        try:
+            with os.scandir(self._runs_dir) as entries:
+                for entry in entries:
+                    if entry.is_file() and self._RUN_FILENAME_RE.match(entry.name):
+                        result[entry.name] = entry.stat().st_mtime
+        except OSError:
+            pass
+        return result
+
+    def _poll_loop(self) -> None:
+        last_mtimes = self._get_mtimes()
+        while True:
+            time.sleep(self.POLL_INTERVAL)
+            with self._condition:
+                if self._client_count == 0:
+                    self._thread = None
+                    return
+            current = self._get_mtimes()
+            if current != last_mtimes:
+                last_mtimes = current
+                with self._condition:
+                    self._seq += 1
+                    self._condition.notify_all()
+
+    def subscribe(self) -> int:
+        with self._condition:
+            self._client_count += 1
+            if self._thread is None or not self._thread.is_alive():
+                self._thread = threading.Thread(
+                    target=self._poll_loop,
+                    daemon=True,
+                    name="runs-watcher-poll",
+                )
+                self._thread.start()
+            return self._seq
+
+    def unsubscribe(self) -> None:
+        with self._condition:
+            self._client_count = max(0, self._client_count - 1)
+
+    def wait_for_change(self, last_seq: int) -> tuple[bool, int]:
+        with self._condition:
+            fired = self._condition.wait_for(
+                lambda: self._seq != last_seq,
+                timeout=self.KEEPALIVE_TIMEOUT,
+            )
+            return fired, self._seq
+
+
 class ViewerHandler(BaseHTTPRequestHandler):
     server_version = "ContextBuilderViewer/0.1"
 
@@ -1786,6 +1857,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/spec-watch":
             self.handle_spec_watch()
+            return
+        if parsed.path == "/api/runs-watch":
+            self.handle_runs_watch()
             return
         if parsed.path == "/api/spec-node":
             self.handle_spec_node(parsed)
@@ -3153,6 +3227,52 @@ class ViewerHandler(BaseHTTPRequestHandler):
         finally:
             watcher.unsubscribe()
 
+    def handle_runs_watch(self) -> None:
+        """SSE endpoint: streams a 'change' event when files in runs/ change.
+
+        Same shape as handle_spec_watch but backed by RunsWatcher; powers the
+        live-feed mode of the Recent Changes overlay.
+        """
+        watcher: RunsWatcher | None = getattr(self.server, "runs_watcher", None)
+        if watcher is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "runs/ not configured. Start the server with --specgraph-dir."},
+            )
+            return
+
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Accel-Buffering", "no")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+
+        def send(line: bytes) -> bool:
+            try:
+                self.wfile.write(line)
+                self.wfile.flush()
+                return True
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                return False
+
+        if not send(b": connected\n\n"):
+            return
+
+        last_seq = watcher.subscribe()
+        try:
+            while True:
+                changed, last_seq = watcher.wait_for_change(last_seq)
+                if changed:
+                    if not send(b"event: change\ndata: {}\n\n"):
+                        break
+                else:
+                    if not send(b": keepalive\n\n"):
+                        break
+        finally:
+            watcher.unsubscribe()
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -3194,6 +3314,9 @@ def main() -> None:
     server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
     server.spec_watcher = SpecWatcher(server.spec_dir) if server.spec_dir else None
     server.specgraph_dir = args.specgraph_dir.expanduser().resolve() if args.specgraph_dir else None
+    # Runs watcher: enabled only when --specgraph-dir is configured AND runs/ exists.
+    runs_path = server.specgraph_dir / "runs" if server.specgraph_dir else None
+    server.runs_watcher = RunsWatcher(runs_path) if runs_path and runs_path.is_dir() else None
     server.agent_available = args.agent
 
     print(f"Serving ContextBuilder at http://localhost:{args.port}/")

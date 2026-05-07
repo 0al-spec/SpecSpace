@@ -71,9 +71,11 @@ function fmtRelative(iso: string | null | undefined): string {
 
 /** Shared singleton fetch — kept at module scope so StrictMode's double-mount
  *  triggers exactly one network request and both invocations get the same
- *  result. Reset to null on next call after a failure. */
+ *  result. Reset to null after a failure or when `force` is set (live-mode
+ *  refetches). */
 let runsFetchPromise: Promise<RunEvent[]> | null = null;
-function sharedRunsFetch(): Promise<RunEvent[]> {
+function sharedRunsFetch(force = false): Promise<RunEvent[]> {
+  if (force) runsFetchPromise = null;
   if (runsFetchPromise) return runsFetchPromise;
   runsFetchPromise = fetch("/api/recent-runs?limit=500")
     .then(async (r) => {
@@ -82,7 +84,7 @@ function sharedRunsFetch(): Promise<RunEvent[]> {
       return Array.isArray(data?.events) ? (data.events as RunEvent[]) : [];
     })
     .catch((err) => {
-      runsFetchPromise = null; // allow retry on next mount
+      runsFetchPromise = null;
       throw err;
     });
   return runsFetchPromise;
@@ -180,6 +182,7 @@ export default function RecentChangesOverlay({
   const [limit, setLimit] = useState<LimitOption>(DEFAULT_LIMIT);
   const [source, setSource] = useState<SourceMode>("nodes");
   const [copied, setCopied] = useState(false);
+  const [live, setLive] = useState(false);
 
   // Runs feed state. Fetched once on mount: powers both the Runs source
   // view and the per-row sparklines in Nodes view, so a single round-trip
@@ -208,6 +211,37 @@ export default function RecentChangesOverlay({
       });
     return () => { cancelled = true; };
   }, []);
+
+  // Live mode — subscribe to /api/runs-watch SSE; on each `change` event
+  // schedule a debounced refetch of /api/recent-runs.
+  useEffect(() => {
+    if (!live) return;
+    let cancelled = false;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const refetch = () => {
+      sharedRunsFetch(true)
+        .then((evts) => {
+          if (!cancelled) setRuns(evts);
+        })
+        .catch(() => { /* swallow — error state already covered by initial fetch */ });
+    };
+
+    const es = new EventSource("/api/runs-watch");
+    es.addEventListener("change", () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(refetch, 500);
+    });
+    es.onerror = () => {
+      // Browser will reconnect automatically; nothing to do.
+    };
+
+    return () => {
+      cancelled = true;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      es.close();
+    };
+  }, [live]);
 
   // Index runs by spec_id for sparkline rendering. Each value is the
   // (already sorted desc) list of events touching that spec.
@@ -326,6 +360,13 @@ export default function RecentChangesOverlay({
             ? `${total} ${source === "runs" ? "runs" : "nodes"}`
             : `${showingCount} of ${total}`}
         </span>
+        <button
+          className={`rc-live-btn${live ? " active" : ""}`}
+          onClick={() => setLive((v) => !v)}
+          title={live ? "Pause live updates" : "Stream live updates from runs/"}
+        >
+          {live ? "🔴 live" : "⏸ live"}
+        </button>
         <button
           className="rc-copy-btn"
           onClick={handleCopy}
