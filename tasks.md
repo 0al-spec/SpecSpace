@@ -216,7 +216,7 @@ Safari кэширует dasharray-паттерн отдельной тексту
 
 ## P0+ — Группировка
 
-- [ ] **T-02 · Date group headers** — разделители `Today` · `Yesterday` · `This week` · `Older`. Bucket-функция при сортировке + `<div class="rc-group">`. ~40 строк (CSS + JSX).
+- [x] **T-02 · Date group headers** — разделители `Today` · `Yesterday` · `This week` · `Older`. Bucket-функция при сортировке + `<div class="rc-group">`. ~40 строк (CSS + JSX).
 
 ## P1 — Backend-зависимые (нужен runs/ endpoint)
 
