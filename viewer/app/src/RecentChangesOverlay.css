@@ -64,20 +64,43 @@
   cursor: not-allowed;
 }
 
+/* Wrap is the positioning context for the custom overlay scrollbar thumb.
+   The native scrollbar is hidden (rows go edge-to-edge); a JS-driven
+   .rc-scrollbar-thumb floats over the right edge as visual feedback. */
+.rc-list-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
 .rc-list {
   overflow-y: auto;
   overflow-x: hidden;
   flex: 1;
   padding: var(--space-2, 4px) 0;
-  /* Hide the native scrollbar entirely so rows can extend edge-to-edge
-     regardless of OS scrollbar settings. Scroll still works via wheel,
-     trackpad, keyboard, and click-drag on items. */
   scrollbar-width: none;          /* Firefox */
   -ms-overflow-style: none;       /* IE / legacy Edge */
 }
 
 .rc-list::-webkit-scrollbar {
   display: none;                  /* WebKit / Blink */
+}
+
+.rc-scrollbar-thumb {
+  position: absolute;
+  right: 3px;
+  width: 5px;
+  border-radius: 999px;
+  background: var(--line-strong, #b89f7f);
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 150ms;
+}
+
+.rc-list-wrap:hover .rc-scrollbar-thumb {
+  opacity: 1;
 }
 
 /* ── Date group headers ─────────────────────────────────────────────────── */

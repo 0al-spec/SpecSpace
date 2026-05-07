@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import type { ApiSpecNode } from "./types";
 import "./RecentChangesOverlay.css";
 
@@ -67,6 +67,26 @@ export default function RecentChangesOverlay({
   const [limit, setLimit] = useState<LimitOption>(DEFAULT_LIMIT);
   const [copied, setCopied] = useState(false);
 
+  // Custom overlay scrollbar — track {top, height, visible} as percentages
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const [thumb, setThumb] = useState<{ top: number; height: number; visible: boolean }>({
+    top: 0, height: 0, visible: false,
+  });
+
+  const recomputeThumb = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    if (scrollHeight <= clientHeight) {
+      setThumb((t) => (t.visible ? { ...t, visible: false } : t));
+      return;
+    }
+    const ratio = clientHeight / scrollHeight;
+    const heightPct = Math.max(8, ratio * 100);                  // floor 8% so thumb is grabbable
+    const topPct = (scrollTop / scrollHeight) * 100;
+    setThumb({ top: topPct, height: heightPct, visible: true });
+  }, []);
+
   // Sort once per nodes change; slicing is cheap and depends on `limit`.
   const sortedAll = useMemo(
     () =>
@@ -94,6 +114,20 @@ export default function RecentChangesOverlay({
     }).catch(() => {});
   }, [visible]);
 
+  // Recompute thumb when content size changes (limit toggle, nodes update).
+  useEffect(() => {
+    recomputeThumb();
+  }, [recomputeThumb, visible.length]);
+
+  // Track viewport resize (panel max-height responds to window height).
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(recomputeThumb);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [recomputeThumb]);
+
   return (
     <div className="rc-panel">
       <div className="rc-header">
@@ -117,7 +151,14 @@ export default function RecentChangesOverlay({
         <div className="rc-empty">No updated_at timestamps available.</div>
       ) : (
         <>
-          <div className="rc-list">
+          <div className="rc-list-wrap">
+          {thumb.visible && (
+            <div
+              className="rc-scrollbar-thumb"
+              style={{ top: `${thumb.top}%`, height: `${thumb.height}%` }}
+            />
+          )}
+          <div className="rc-list" ref={listRef} onScroll={recomputeThumb}>
             {(() => {
               // Group consecutive entries (already sorted desc) by bucket; emit
               // a single header before each contiguous run.
@@ -161,6 +202,7 @@ export default function RecentChangesOverlay({
               }
               return out;
             })()}
+          </div>
           </div>
 
           <div className="rc-footer">
