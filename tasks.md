@@ -232,7 +232,7 @@ Safari кэширует dasharray-паттерн отдельной тексту
 
 ## P2 — Visualization & live
 
-- [ ] **T-20 · Inline sparkline** — мини-SVG (~60×12px) с историей прогонов ноды за 7 дней, точки крашены по `completion_status`. Зависит от T-10 + per-spec агрегация.
+- [x] **T-20 · Inline sparkline** — мини-SVG (~60×12px) с историей прогонов ноды за 7 дней, точки крашены по `completion_status`. Зависит от T-10 + per-spec агрегация.
 
 - [ ] **T-21 · Live feed via SSE** — подписка на `/api/events`. Prepend новых записей с анимацией, инкремент unread badge.
   - **Perf-guard:** дебаунс 500ms, batched rerenders, cap по текущему limit, drop oldest
