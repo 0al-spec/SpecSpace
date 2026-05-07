@@ -170,7 +170,9 @@ function bucketFor(iso: string): Bucket {
 
 interface RecentChangesOverlayProps {
   nodes: ApiSpecNode[];
-  onSelect: (nodeId: string) => void;
+  /** Called when a row is clicked. `ts` is the event/update ISO timestamp,
+   *  enabling the parent to focus a Timeline window around that moment. */
+  onSelect: (nodeId: string, ts: string) => void;
   selectedNodeId?: string | null;
 }
 
@@ -452,7 +454,7 @@ export default function RecentChangesOverlay({
                   <button
                     key={it.key}
                     className={cls}
-                    onClick={() => onSelect(it.navigateId)}
+                    onClick={() => onSelect(it.navigateId, it.ts)}
                     title={fmtDate(it.ts)}
                   >
                     <div className="rc-item-row">

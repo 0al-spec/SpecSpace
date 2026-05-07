@@ -1049,8 +1049,25 @@ function AppInner() {
                 {recentOpen && specGraph.rawGraph && (
                   <RecentChangesOverlay
                     nodes={specGraph.rawGraph.nodes}
-                    onSelect={(id) => {
-                      setRecentOpen(false);
+                    onSelect={(id, ts) => {
+                      // T-30: clicking a row focuses a ±1h timeline window
+                      // around the event and switches Recent → Timeline (mutex
+                      // closes Recent automatically). Then pan/select the node
+                      // so the inspector opens on the same target.
+                      const tsMs = new Date(ts).getTime();
+                      if (Number.isFinite(tsMs)) {
+                        const HOUR = 60 * 60 * 1000;
+                        // Switch field to "updated_at" for consistency with what
+                        // Recent shows, then open Timeline with the focused range.
+                        if (timelineField !== "updated_at") {
+                          setTimelineField("updated_at");
+                        }
+                        setTimelineRange([tsMs - HOUR, tsMs + HOUR]);
+                        setTimelineOpen(true);
+                        setRecentOpen(false);
+                      } else {
+                        setRecentOpen(false);
+                      }
                       navigateToSpec(id);
                     }}
                     selectedNodeId={selectedConversationId}
