@@ -7,6 +7,7 @@ import argparse
 import json
 import mimetypes
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -1816,6 +1817,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/metric-pack-runs":
             self.handle_metric_pack_runs()
             return
+        if parsed.path == "/api/recent-runs":
+            self.handle_recent_runs(parsed)
+            return
         if parsed.path == "/api/metric-pricing-provenance":
             self.handle_metric_pricing_provenance()
             return
@@ -2133,6 +2137,99 @@ class ViewerHandler(BaseHTTPRequestHandler):
             "metric_pack_runs.json",
             "--build-viewer-surfaces",
         )
+
+    # ── Recent SpecGraph refine runs ────────────────────────────────────────
+    # Lists per-spec run events from runs/<timestamp>-<spec_id>-<hash>.json.
+    # Each event: { run_id, ts, spec_id, title, run_kind, completion_status,
+    #               duration_sec }. Filename gives ts/spec_id/run_id without
+    # any IO; the file is opened only to harvest a few small fields from its
+    # head (~4KB max).
+    _RUN_FILENAME_RE = re.compile(
+        r"^(?P<ts>\d{8}T\d{6}Z)-(?P<spec_id>SG-[A-Z]+-\d+)-(?P<hash>[0-9a-f]+)\.json$",
+    )
+
+    @staticmethod
+    def _parse_iso_compact(stamp: str) -> str:
+        """Convert `20260427T204723Z` → ISO 8601 (`2026-04-27T20:47:23Z`)."""
+        return f"{stamp[0:4]}-{stamp[4:6]}-{stamp[6:8]}T{stamp[9:11]}:{stamp[11:13]}:{stamp[13:15]}Z"
+
+    @staticmethod
+    def _harvest_run_meta(path: Path) -> dict[str, Any]:
+        """Read the head of a run file and extract a few cheap fields.
+
+        We avoid parsing the (potentially 100s of KB) full payload — the
+        fields we need live near the top of the JSON object as written by
+        SpecGraph supervisor. Keys absent from the head still return None.
+        """
+        # Read just enough to cover the documented head fields.
+        head_bytes = 4096
+        try:
+            with path.open("rb") as fh:
+                head = fh.read(head_bytes).decode("utf-8", errors="ignore")
+        except OSError:
+            return {}
+        # Try to parse a partial JSON object: append `}` candidates until
+        # something parses, then drop unrelated trailing keys. Simpler:
+        # regex-extract the specific fields we want. The producer is stable.
+        out: dict[str, Any] = {}
+        for key in ("title", "run_kind", "completion_status", "execution_profile", "child_model"):
+            m = re.search(rf'"{key}"\s*:\s*"([^"]*)"', head)
+            if m:
+                out[key] = m.group(1)
+        m = re.search(r'"run_duration_sec"\s*:\s*([0-9.]+)', head)
+        if m:
+            try:
+                out["duration_sec"] = float(m.group(1))
+            except ValueError:
+                pass
+        return out
+
+    def handle_recent_runs(self, parsed) -> None:
+        runs_dir = self._runs_dir()
+        if runs_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "runs/ directory not configured. Start the server with --specgraph-dir."},
+            )
+            return
+
+        qs = parse_qs(parsed.query or "")
+        try:
+            limit = int(qs.get("limit", ["50"])[0])
+        except (TypeError, ValueError):
+            limit = 50
+        limit = max(1, min(limit, 500))
+        since = qs.get("since", [None])[0]
+        since_iso = since if isinstance(since, str) and since else None
+
+        events: list[dict[str, Any]] = []
+        for entry in runs_dir.iterdir():
+            if not entry.is_file() or entry.suffix != ".json":
+                continue
+            m = self._RUN_FILENAME_RE.match(entry.name)
+            if not m:
+                continue
+            ts_iso = self._parse_iso_compact(m.group("ts"))
+            if since_iso is not None and ts_iso <= since_iso:
+                continue
+            meta = self._harvest_run_meta(entry)
+            events.append({
+                "run_id": entry.stem,
+                "ts": ts_iso,
+                "spec_id": m.group("spec_id"),
+                "title": meta.get("title"),
+                "run_kind": meta.get("run_kind"),
+                "completion_status": meta.get("completion_status"),
+                "duration_sec": meta.get("duration_sec"),
+                "execution_profile": meta.get("execution_profile"),
+                "child_model": meta.get("child_model"),
+            })
+
+        # Sort descending by timestamp string (ISO 8601 sorts lexicographically).
+        events.sort(key=lambda e: e["ts"], reverse=True)
+        events = events[:limit]
+        json_response(self, HTTPStatus.OK, {"events": events, "total": len(events)})
 
     def handle_metric_pricing_provenance(self) -> None:
         self._handle_runs_artifact(
