@@ -1,0 +1,10 @@
+# features/ — FSD layer
+
+User actions with business value (verbs).
+Examples (planned):
+  select-node/
+  multi-select-recent/
+  jump-to-timeline/
+  branch-spec/
+  merge-spec/
+  search-palette/

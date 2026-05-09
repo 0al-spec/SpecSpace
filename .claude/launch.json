@@ -8,6 +8,12 @@
       "port": 5173
     },
     {
+      "name": "GraphSpace",
+      "runtimeExecutable": "/opt/homebrew/bin/node",
+      "runtimeArgs": ["graphspace/node_modules/.bin/vite", "--config", "graphspace/vite.config.ts"],
+      "port": 5175
+    },
+    {
       "name": "Python API",
       "runtimeExecutable": "python3",
       "runtimeArgs": ["viewer/server.py", "--port", "8001", "--dialog-dir", "/Users/egor/Development/GitHub/ChatGPTDialogs/canonical_json", "--spec-dir", "/Users/egor/Development/GitHub/0AL/SpecGraph/specs/nodes", "--specgraph-dir", "/Users/egor/Development/GitHub/0AL/SpecGraph", "--hyperprompt-binary", "/Users/egor/Development/GitHub/0AL/Hyperprompt/.build/arm64-apple-macosx/release/hyperprompt", "--agent"],
