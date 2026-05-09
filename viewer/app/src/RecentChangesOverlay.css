@@ -288,6 +288,48 @@
   border-left-color: var(--accent-strong, #6c4012);
 }
 
+/* Multi-selected (Cmd/Shift click) — distinct from single-selected so users
+   can tell the two states apart when both apply. Slightly cooler tint and a
+   thicker accent stripe to read as "part of a group". */
+.rc-item.rc-item--multi-selected {
+  background: rgba(74, 127, 165, 0.12);
+  border-left-color: #4a7fa5;
+  border-left-width: 3px;
+  padding-left: calc(var(--space-6, 12px) - 1px); /* offset to keep text aligned */
+}
+
+.rc-item.rc-item--multi-selected:hover {
+  background: rgba(74, 127, 165, 0.20);
+}
+
+/* Combined: single + multi → keep accent border (single-selected wins on
+   color), but retain the multi tint as background. */
+.rc-item.rc-item--selected.rc-item--multi-selected {
+  background: rgba(108, 64, 18, 0.14);
+  border-left-color: var(--accent-strong, #6c4012);
+}
+
+/* Header pill showing N selected with clear (✕) action. */
+.rc-multi-pill {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-family: var(--font-mono, monospace);
+  padding: 3px 8px;
+  border: 1px solid #4a7fa5;
+  border-radius: 999px;
+  background: rgba(74, 127, 165, 0.12);
+  color: #4a7fa5;
+  cursor: pointer;
+  transition: background 100ms, color 100ms;
+  flex-shrink: 0;
+  margin-right: var(--space-2, 4px);
+}
+
+.rc-multi-pill:hover {
+  background: rgba(74, 127, 165, 0.22);
+}
+
 .rc-item-row {
   display: flex;
   align-items: center;

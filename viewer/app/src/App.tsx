@@ -118,9 +118,9 @@ const MINIMAP_HIDE_WHEN_ZOOMED_OUT = false;
 function minimapNodeColor(node: Node): string {
   const d = node.data as {
     kind?: string; status?: string; role?: string;
-    searchDimmed?: boolean; timelineDimmed?: boolean; filterDimmed?: boolean;
+    searchDimmed?: boolean; timelineDimmed?: boolean; filterDimmed?: boolean; recentDimmed?: boolean;
   };
-  if (d.searchDimmed || d.timelineDimmed || d.filterDimmed) return "rgba(180,180,180,0.18)";
+  if (d.searchDimmed || d.timelineDimmed || d.filterDimmed || d.recentDimmed) return "rgba(180,180,180,0.18)";
   if (node.type === "group" || node.type === "conversation") {
     return kindColorMap[d.kind ?? ""] ?? "#b89f7f";
   }
@@ -316,6 +316,13 @@ function AppInner() {
 
   // ── Recent changes overlay ────────────────────────────────────────────────
   const [recentOpen, setRecentOpen] = useState(false);
+  // Multi-select set from Recent Changes panel (Shift = range, Cmd/Ctrl =
+  // toggle). Non-null and non-empty when active; nodes outside the set get
+  // dimmed on the graph alongside the existing search/timeline/filter dims.
+  // Persists when the panel closes — closing the panel to focus on the graph
+  // shouldn't drop the highlight. Cleared via Esc inside the panel or by
+  // plain-clicking any row.
+  const [recentMultiSelectIds, setRecentMultiSelectIds] = useState<Set<string> | null>(null);
   // lastSeenAt: ISO string in localStorage; init to "now" on first run so
   // we don't show 60 unread on a fresh session.
   const [recentLastSeen, setRecentLastSeen] = useState<string>(() => {
@@ -582,6 +589,22 @@ function AppInner() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Esc clears any active Recent Changes multi-selection. Lives at App scope
+   // (not inside the overlay) so the user can clear it without first reopening
+   // the panel — multi-select persists across panel close to keep the graph
+   // dimmed while exploring, but shouldn't trap the user.
+  useEffect(() => {
+    if (!recentMultiSelectIds || recentMultiSelectIds.size === 0) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      setRecentMultiSelectIds(null);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [recentMultiSelectIds]);
+
   // Alt+ArrowLeft / Alt+ArrowRight — spec history back / forward
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -726,7 +749,9 @@ function AppInner() {
       ? new Set([highlightedEdge.source, highlightedEdge.target])
       : null;
     const lensActive = graphMode === "specifications" && specLens !== "none";
-    if (!edgeEndpoints && !searchMatchIds && !timelineMatchIds && !filterMatchIds && !lensActive) return nodes;
+    // Treat empty multi-select set as "no filter" so we don't dim everything.
+    const recentActive = recentMultiSelectIds !== null && recentMultiSelectIds.size > 0;
+    if (!edgeEndpoints && !searchMatchIds && !timelineMatchIds && !filterMatchIds && !recentActive && !lensActive) return nodes;
     return nodes.map((n) => {
       const edgeHl = edgeEndpoints?.has(n.id);
       // For child nodes (messages), match against parent ID
@@ -734,13 +759,14 @@ function AppInner() {
       const searchDim = searchMatchIds ? !searchMatchIds.has(matchKey) : false;
       const timelineDim = timelineMatchIds ? !timelineMatchIds.has(matchKey) : false;
       const filterDim = filterMatchIds ? !filterMatchIds.has(matchKey) : false;
+      const recentDim = recentActive ? !recentMultiSelectIds!.has(matchKey) : false;
       // Apply lens style to spec nodes only
       let lensStyle: ReturnType<typeof lensStyleFor> | undefined;
       if (lensActive && (n.type === "spec" || n.type === "expandedSpec")) {
         const ls = lensStyleFor(n.id, specLens, specOverlays);
         if (Object.keys(ls).length > 0) lensStyle = ls;
       }
-      if (!edgeHl && !searchDim && !timelineDim && !filterDim && !lensStyle) return n;
+      if (!edgeHl && !searchDim && !timelineDim && !filterDim && !recentDim && !lensStyle) return n;
       return {
         ...n,
         data: {
@@ -749,11 +775,12 @@ function AppInner() {
           ...(searchDim ? { searchDimmed: true } : {}),
           ...(timelineDim ? { timelineDimmed: true } : {}),
           ...(filterDim ? { filterDimmed: true } : {}),
+          ...(recentDim ? { recentDimmed: true } : {}),
           ...(lensStyle ? { lensStyle } : {}),
         },
       };
     });
-  }, [nodes, highlightedEdge, searchMatchIds, timelineMatchIds, filterMatchIds, graphMode, specLens, specOverlays]);
+  }, [nodes, highlightedEdge, searchMatchIds, timelineMatchIds, filterMatchIds, recentMultiSelectIds, graphMode, specLens, specOverlays]);
 
   const displayEdges = useMemo(() => {
     if (!highlightedEdge) return edges;
@@ -1049,6 +1076,8 @@ function AppInner() {
                 {recentOpen && specGraph.rawGraph && (
                   <RecentChangesOverlay
                     nodes={specGraph.rawGraph.nodes}
+                    multiSelectIds={recentMultiSelectIds}
+                    onMultiSelectChange={setRecentMultiSelectIds}
                     onSelect={(id, ts, source) => {
                       // T-30: clicking a row focuses a ±1h timeline window
                       // around the event and switches Recent → Timeline (mutex

@@ -221,21 +221,34 @@ function bucketFor(iso: string): Bucket {
 
 interface RecentChangesOverlayProps {
   nodes: ApiSpecNode[];
-  /** Called when a row is clicked. `ts` is the row's ISO timestamp; `source`
+  /** Plain-click handler — `ts` is the row's ISO timestamp; `source`
    *  identifies which feed the row came from. Parent uses `source` to decide
    *  whether to open a Timeline window around `ts` — it only makes sense in
    *  `"nodes"` mode where ts === node.updated_at. In `"activity"`/`"runs"`
    *  ts is `occurred_at`/run timestamp, NOT the node's updated_at, so a
-   *  Timeline jump would dim the node and push knobs out of range. */
+   *  Timeline jump would dim the node and push knobs out of range.
+   *
+   *  Plain click also clears any active multi-selection. */
   onSelect: (nodeId: string, ts: string, source: SourceMode) => void;
   selectedNodeId?: string | null;
+  /** Cmd/Ctrl-click and Shift-click build up a multi-selection of node IDs
+   *  that the parent uses to dim non-matching nodes on the graph (and keep
+   *  the matching ones highlighted). Empty set means no active selection. */
+  multiSelectIds?: Set<string> | null;
+  onMultiSelectChange?: (ids: Set<string> | null) => void;
 }
 
 export default function RecentChangesOverlay({
   nodes,
   onSelect,
   selectedNodeId,
+  multiSelectIds,
+  onMultiSelectChange,
 }: RecentChangesOverlayProps) {
+  // Anchor for Shift-range selection. Uses item.key (unique per row even when
+  // a spec_id appears multiple times across runs/activity events).
+  const anchorKeyRef = useRef<string | null>(null);
+  const multiCount = multiSelectIds?.size ?? 0;
   const [limit, setLimit] = useState<LimitOption>(DEFAULT_LIMIT);
   // Default starts as "nodes"; auto-switches to "activity" once we confirm the
   // SpecGraph activity feed is available. Once the user picks a mode manually,
@@ -456,6 +469,58 @@ export default function RecentChangesOverlay({
     return d.getTime();
   }, []);
 
+  // Multi-select click dispatcher. Plain click → onSelect (and clear any
+   // multi-selection). Cmd/Ctrl click → toggle this row's spec_id in the set.
+   // Shift click → range from anchor to clicked, replacing the set with that
+   // range (additive Shift+Cmd is intentionally not supported — keeps the
+   // mental model simple). Rows with empty navigateId (graph-level Activity
+   // events) cannot be multi-selected since they have no spec to highlight.
+  const handleRowClick = useCallback((
+    e: React.MouseEvent<HTMLButtonElement>,
+    item: DisplayItem,
+    indexInVisible: number,
+  ) => {
+    const cmd = e.metaKey || e.ctrlKey;
+    const shift = e.shiftKey;
+    const id = item.navigateId;
+
+    if ((cmd || shift) && id && onMultiSelectChange) {
+      e.preventDefault();
+      const current = new Set(multiSelectIds ?? []);
+
+      if (shift && anchorKeyRef.current) {
+        const anchorIdx = visible.findIndex((v) => v.key === anchorKeyRef.current);
+        if (anchorIdx >= 0) {
+          const [lo, hi] = anchorIdx <= indexInVisible
+            ? [anchorIdx, indexInVisible]
+            : [indexInVisible, anchorIdx];
+          const next = new Set<string>();
+          for (let i = lo; i <= hi; i++) {
+            const nid = visible[i].navigateId;
+            if (nid) next.add(nid);
+          }
+          onMultiSelectChange(next.size > 0 ? next : null);
+          return;
+        }
+      }
+
+      // Cmd/Ctrl click (or Shift fallback when no anchor) — toggle.
+      if (current.has(id)) current.delete(id);
+      else current.add(id);
+      anchorKeyRef.current = item.key;
+      onMultiSelectChange(current.size > 0 ? current : null);
+      return;
+    }
+
+    // Plain click — clear multi-selection and run the navigate path.
+    if (multiCount > 0 && onMultiSelectChange) onMultiSelectChange(null);
+    anchorKeyRef.current = item.key;
+    onSelect(id, item.ts, source);
+  }, [multiSelectIds, multiCount, onMultiSelectChange, onSelect, source, visible]);
+
+  // Esc-to-clear lives at App scope (works even when the panel is closed)
+   // so it isn't duplicated here.
+
   const handleCopy = useCallback(() => {
     const md = visible
       .map((it) => `- **${it.primaryId}** *${it.kind}* — ${it.title || "(no title)"} (${fmtRelative(it.ts)})`)
@@ -524,6 +589,15 @@ export default function RecentChangesOverlay({
             ? `${total} ${source === "runs" ? "runs" : source === "activity" ? "events" : "nodes"}`
             : `${showingCount} of ${total}`}
         </span>
+        {multiCount > 0 && onMultiSelectChange && (
+          <button
+            className="rc-multi-pill"
+            onClick={() => onMultiSelectChange(null)}
+            title="Clear multi-selection (Esc)"
+          >
+            {multiCount} selected · ✕
+          </button>
+        )}
         <button
           className={`rc-live-btn${live ? " active" : ""}`}
           onClick={() => setLive((v) => !v)}
@@ -608,7 +682,8 @@ export default function RecentChangesOverlay({
               };
               for (const it of visible) counts[bucketFor(it.ts)]++;
 
-              for (const it of visible) {
+              for (let idx = 0; idx < visible.length; idx++) {
+                const it = visible[idx];
                 const bucket = bucketFor(it.ts);
                 if (bucket !== prevBucket) {
                   out.push(
@@ -620,13 +695,14 @@ export default function RecentChangesOverlay({
                   prevBucket = bucket;
                 }
                 const isSelected = it.navigateId === selectedNodeId;
-                const cls = `rc-item${isSelected ? " rc-item--selected" : ""}${it.isFailed ? " rc-item--failed" : ""}`;
+                const isMulti = !!(it.navigateId && multiSelectIds?.has(it.navigateId));
+                const cls = `rc-item${isSelected ? " rc-item--selected" : ""}${isMulti ? " rc-item--multi-selected" : ""}${it.isFailed ? " rc-item--failed" : ""}`;
                 out.push(
                   <button
                     key={it.key}
                     className={cls}
-                    onClick={() => onSelect(it.navigateId, it.ts, source)}
-                    title={fmtDate(it.ts)}
+                    onClick={(e) => handleRowClick(e, it, idx)}
+                    title={`${fmtDate(it.ts)}${it.navigateId ? "\n\nClick: navigate · Cmd-click: toggle · Shift-click: range" : ""}`}
                   >
                     <div className="rc-item-row">
                       <span className="rc-item-id">{it.primaryId}</span>

@@ -1,6 +1,6 @@
 .sidebar {
-  width: 260px;
-  min-width: 260px;
+  width: 320px;
+  min-width: 320px;
   background: var(--panel);
   border-right: 1px solid var(--line);
   padding: 20px 16px;
@@ -89,11 +89,14 @@
   color: var(--muted);
 }
 
+/* Files / Spec Nodes list container — no card chrome, items align flush
+   with the sidebar's own padding. The section label remains the only
+   visual anchor for the group. */
 .sidebar-files {
-  background: var(--panel-strong);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
 }
 
 .sidebar-file-item {
@@ -341,7 +344,8 @@
   margin-top: 8px;
 }
 
-/* Re-anchor gradient to sidebar item width (~196px = 260px − 32px sidebar padding − 32px item padding) */
+/* Re-anchor gradient to sidebar item width. Use 100% so the bar follows
+   the actual item box regardless of future sidebar/padding changes. */
 .sidebar-spec-item .spec-node-maturity-fill {
-  background-size: 196px 100%;
+  background-size: 100% 100%;
 }

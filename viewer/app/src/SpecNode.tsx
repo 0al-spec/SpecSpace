@@ -34,6 +34,9 @@ export interface SpecNodeData extends Record<string, unknown> {
   searchDimmed?: boolean;
   timelineDimmed?: boolean;
   filterDimmed?: boolean;
+  /** Set when Recent Changes panel has an active multi-selection that
+   *  doesn't include this node — see App.recentMultiSelectIds. */
+  recentDimmed?: boolean;
   /** Whether this spec is currently expanded (sub-items loading or group shown) */
   isExpanded?: boolean;
   /** Callback to toggle expanded/collapsed state */
@@ -149,7 +152,7 @@ function SpecNode({
   if (lod === "minimal") {
     return (
       <div
-        className={`spec-node spec-node--lod-minimal ${statusClass} ${selected ? "selected" : ""} ${data.isHistorical ? "spec-node--historical" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed ? "search-dimmed" : ""}`}
+        className={`spec-node spec-node--lod-minimal ${statusClass} ${selected ? "selected" : ""} ${data.isHistorical ? "spec-node--historical" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed || data.recentDimmed ? "search-dimmed" : ""}`}
         style={lensStyle}
       >
         {targetHandles}
@@ -163,7 +166,7 @@ function SpecNode({
   if (lod === "compact") {
     return (
       <div
-        className={`spec-node spec-node--lod-compact ${statusClass} ${selected ? "selected" : ""} ${data.isHistorical ? "spec-node--historical" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed ? "search-dimmed" : ""}`}
+        className={`spec-node spec-node--lod-compact ${statusClass} ${selected ? "selected" : ""} ${data.isHistorical ? "spec-node--historical" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed || data.recentDimmed ? "search-dimmed" : ""}`}
         style={lensStyle}
       >
         {targetHandles}
@@ -180,7 +183,7 @@ function SpecNode({
 
   return (
     <div
-      className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed ? "search-dimmed" : ""} ${data.isChanged ? "spec-node--changed" : ""} ${data.isHistorical ? "spec-node--historical" : ""}`}
+      className={`spec-node ${statusClass} ${selected ? "selected" : ""} ${data.edgeHighlighted ? "edge-endpoint-highlight" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed || data.recentDimmed ? "search-dimmed" : ""} ${data.isChanged ? "spec-node--changed" : ""} ${data.isHistorical ? "spec-node--historical" : ""}`}
       onMouseEnter={showBtn}
       onMouseLeave={scheduleHide}
       style={{
