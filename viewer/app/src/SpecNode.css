@@ -127,15 +127,25 @@
   background: rgba(0, 0, 0, 0.08);
   border-radius: 2px;
   overflow: hidden;
+  /* Make the track a CSS inline-size container so the fill's gradient can
+     size itself relative to the track width (100cqi), not the fill width.
+     This keeps the colour position correct regardless of where the track
+     is rendered — sidebar, compact LOD node, hover card, inspector, lens.
+     Without this, .maturity-fill at 20% would compress the entire purple→
+     green gradient into 20% of the track and never show green at 100%. */
+  container-type: inline-size;
 }
 
 .spec-node-maturity-fill {
   height: 100%;
   border-radius: 2px;
-  /* gradient spans the full track width (248px = 280px node − 32px padding)
-     so the colour position is always relative to 0–100%, not the fill width */
+  /* Gradient spans the full TRACK width (100cqi = 100% of the container's
+     inline size). The fill clips to its own width via the track's
+     overflow:hidden, so colour position stays anchored to 0–100% of the
+     track regardless of the fill's actual width. */
   background: linear-gradient(90deg, #7c3aed, #059669);
-  background-size: 248px 100%;
+  background-size: 100cqi 100%;
+  background-repeat: no-repeat;
   transition: width 0.3s ease;
 }
 

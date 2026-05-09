@@ -60,6 +60,14 @@
   margin-left: var(--space-3, 6px);
 }
 
+/* Empty filler that pushes the rest of the header (live, copy, multi pill)
+   to the right edge — replaces the removed .rc-count label which used to
+   carry the same flex-fill role. */
+.rc-count-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
 .rc-copy-btn {
   font-size: 9px;
   font-weight: 700;
@@ -139,10 +147,10 @@
 }
 
 .rc-source-btn {
-  padding: 3px 14px;
+  padding: 3px 11px;
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   background: none;
   border: none;
@@ -288,11 +296,54 @@
   border-left-color: var(--accent-strong, #6c4012);
 }
 
+/* Multi-selected (Cmd/Shift click) — distinct from single-selected so users
+   can tell the two states apart when both apply. Slightly cooler tint and a
+   thicker accent stripe to read as "part of a group". */
+.rc-item.rc-item--multi-selected {
+  background: rgba(74, 127, 165, 0.12);
+  border-left-color: #4a7fa5;
+  border-left-width: 3px;
+  padding-left: calc(var(--space-6, 12px) - 1px); /* offset to keep text aligned */
+}
+
+.rc-item.rc-item--multi-selected:hover {
+  background: rgba(74, 127, 165, 0.20);
+}
+
+/* Combined: single + multi → keep accent border (single-selected wins on
+   color), but retain the multi tint as background. */
+.rc-item.rc-item--selected.rc-item--multi-selected {
+  background: rgba(108, 64, 18, 0.14);
+  border-left-color: var(--accent-strong, #6c4012);
+}
+
+/* Header pill showing N selected with clear (✕) action. */
+.rc-multi-pill {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-family: var(--font-mono, monospace);
+  padding: 3px 8px;
+  border: 1px solid #4a7fa5;
+  border-radius: 999px;
+  background: rgba(74, 127, 165, 0.12);
+  color: #4a7fa5;
+  cursor: pointer;
+  transition: background 100ms, color 100ms;
+  flex-shrink: 0;
+  margin-right: var(--space-2, 4px);
+}
+
+.rc-multi-pill:hover {
+  background: rgba(74, 127, 165, 0.22);
+}
+
 .rc-item-row {
   display: flex;
   align-items: center;
   gap: var(--space-2, 4px);
   margin-bottom: 2px;
+  min-width: 0; /* allow flex children to shrink + ellipsis inside */
 }
 
 .rc-item-id {
@@ -317,7 +368,13 @@
 .rc-item-status {
   font-size: 9px;
   font-weight: 600;
-  flex-shrink: 0;
+  /* Allow shrinking with ellipsis when the label is long (Activity events
+     like "implementation work emitted" otherwise overflow the 340px panel). */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-mono, monospace);
 }
 

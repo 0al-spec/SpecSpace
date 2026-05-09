@@ -24,7 +24,7 @@ type LimitOption = 25 | 50 | 100 | null;
 const LIMIT_OPTIONS: LimitOption[] = [25, 50, 100, null];
 const DEFAULT_LIMIT: LimitOption = 25;
 
-type SourceMode = "nodes" | "runs";
+type SourceMode = "activity" | "nodes" | "runs";
 
 interface RunEvent {
   run_id: string;
@@ -35,6 +35,31 @@ interface RunEvent {
   completion_status: string | null;
   duration_sec: number | null;
 }
+
+/** One entry from runs/spec_activity_feed.json — see SpecGraph
+ *  docs/spec_activity_feed_viewer_contract.md for the canonical schema. */
+interface ActivityEntry {
+  event_id: string;
+  event_type: string;
+  spec_id: string;
+  title: string;
+  occurred_at: string;
+  summary: string;
+  source_kind: string;
+  source_ref?: { sha?: string; short_sha?: string; subject?: string };
+  source_paths?: string[];
+  viewer?: { tone?: string; label?: string };
+}
+
+/** event_type → display tone color. Unknown types render neutral grey. */
+const ACTIVITY_TONE_COLORS: Record<string, string> = {
+  canonical_spec_updated: "#4a7fa5",        // node/spec accent
+  trace_baseline_attached: "#6c4012",       // trace/evidence accent
+  evidence_baseline_attached: "#6c4012",    // trace/evidence accent
+  proposal_emitted: "#915a24",              // proposal accent
+  implementation_work_emitted: "#4a8c5c",   // implementation/work accent
+  review_feedback_applied: "#a06c5c",       // process/review accent
+};
 
 /** Common shape for rendering — both Nodes & Runs sources collapse to this. */
 interface DisplayItem {
@@ -88,6 +113,32 @@ function sharedRunsFetch(force = false): Promise<RunEvent[]> {
       throw err;
     });
   return runsFetchPromise;
+}
+
+/** Activity feed fetcher — same singleton pattern as runs. Returns null when
+ *  the artifact is not built (HTTP 404), distinguishing "not available" from
+ *  "request failed". */
+type ActivityResult = { entries: ActivityEntry[]; mtime_iso?: string } | null;
+let activityFetchPromise: Promise<ActivityResult> | null = null;
+function sharedActivityFetch(force = false): Promise<ActivityResult> {
+  if (force) activityFetchPromise = null;
+  if (activityFetchPromise) return activityFetchPromise;
+  activityFetchPromise = fetch("/api/spec-activity?limit=500")
+    .then(async (r) => {
+      if (r.status === 404) return null; // feed not built — Activity unavailable
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const env = await r.json();
+      const entries = env?.data?.entries;
+      return {
+        entries: Array.isArray(entries) ? (entries as ActivityEntry[]) : [],
+        mtime_iso: typeof env?.mtime_iso === "string" ? env.mtime_iso : undefined,
+      };
+    })
+    .catch((err) => {
+      activityFetchPromise = null;
+      throw err;
+    });
+  return activityFetchPromise;
 }
 
 /** Status priority for sparkline cell color: failed beats progressed beats ok. */
@@ -170,19 +221,44 @@ function bucketFor(iso: string): Bucket {
 
 interface RecentChangesOverlayProps {
   nodes: ApiSpecNode[];
-  /** Called when a row is clicked. `ts` is the event/update ISO timestamp,
-   *  enabling the parent to focus a Timeline window around that moment. */
-  onSelect: (nodeId: string, ts: string) => void;
+  /** Plain-click handler — `ts` is the row's ISO timestamp; `source`
+   *  identifies which feed the row came from. Parent uses `source` to decide
+   *  whether to open a Timeline window around `ts` — it only makes sense in
+   *  `"nodes"` mode where ts === node.updated_at. In `"activity"`/`"runs"`
+   *  ts is `occurred_at`/run timestamp, NOT the node's updated_at, so a
+   *  Timeline jump would dim the node and push knobs out of range.
+   *
+   *  Plain click also clears any active multi-selection. */
+  onSelect: (nodeId: string, ts: string, source: SourceMode) => void;
   selectedNodeId?: string | null;
+  /** Cmd/Ctrl-click and Shift-click build up a multi-selection of node IDs
+   *  that the parent uses to dim non-matching nodes on the graph (and keep
+   *  the matching ones highlighted). Empty set means no active selection. */
+  multiSelectIds?: Set<string> | null;
+  onMultiSelectChange?: (ids: Set<string> | null) => void;
 }
 
 export default function RecentChangesOverlay({
   nodes,
   onSelect,
   selectedNodeId,
+  multiSelectIds,
+  onMultiSelectChange,
 }: RecentChangesOverlayProps) {
+  // Anchor for Shift-range selection. Uses item.key (unique per row even when
+  // a spec_id appears multiple times across runs/activity events).
+  const anchorKeyRef = useRef<string | null>(null);
+  const multiCount = multiSelectIds?.size ?? 0;
   const [limit, setLimit] = useState<LimitOption>(DEFAULT_LIMIT);
+  // Default starts as "nodes"; auto-switches to "activity" once we confirm the
+  // SpecGraph activity feed is available. Once the user picks a mode manually,
+  // we stop auto-switching (tracked via sourcePinnedRef).
   const [source, setSource] = useState<SourceMode>("nodes");
+  const sourcePinnedRef = useRef(false);
+  const setSourceManual = useCallback((s: SourceMode) => {
+    sourcePinnedRef.current = true;
+    setSource(s);
+  }, []);
   const [copied, setCopied] = useState(false);
   const [live, setLive] = useState(false);
 
@@ -195,6 +271,15 @@ export default function RecentChangesOverlay({
   const [runs, setRuns] = useState<RunEvent[] | null>(null);
   const [runsError, setRunsError] = useState<string | null>(null);
   const [runsLoading, setRunsLoading] = useState(false);
+
+  // Activity feed state. `null` = feed not built (artifact missing); the
+  // Activity toggle stays disabled in that case and the panel falls back to
+  // the existing Nodes/Runs modes.
+  const [activity, setActivity] = useState<ActivityEntry[] | null>(null);
+  const [activityAvailable, setActivityAvailable] = useState<boolean | null>(null);
+  const [activityError, setActivityError] = useState<string | null>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityMtime, setActivityMtime] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -218,6 +303,37 @@ export default function RecentChangesOverlay({
     };
   }, []);
 
+  // Activity feed: fetch once on mount, then auto-switch source to "activity"
+  // if the feed is available AND the user hasn't manually picked a source yet.
+  useEffect(() => {
+    let cancelled = false;
+    setActivityLoading(true);
+    setActivityError(null);
+    sharedActivityFetch()
+      .then((res) => {
+        if (cancelled) return;
+        if (res === null) {
+          setActivityAvailable(false);
+          return;
+        }
+        setActivity(res.entries);
+        setActivityMtime(res.mtime_iso ?? null);
+        setActivityAvailable(true);
+        if (!sourcePinnedRef.current) setSource("activity");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setActivityError(String(err?.message ?? err));
+        // Leave activityAvailable as null (unknown) — only a 404 means the
+        // feed is definitively absent. Transient errors keep the toggle
+        // available so live-mode can recover.
+      })
+      .finally(() => {
+        if (!cancelled) setActivityLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   // Live mode — subscribe to /api/runs-watch SSE; on each `change` event
   // schedule a debounced refetch of /api/recent-runs.
   useEffect(() => {
@@ -231,6 +347,22 @@ export default function RecentChangesOverlay({
           if (!cancelled) setRuns(evts);
         })
         .catch(() => { /* swallow — error state already covered by initial fetch */ });
+      // The runs/ watch also fires when spec_activity_feed.json is rebuilt,
+      // since it lives in runs/. Always refetch — handles recovery after a
+      // previous 404 (feed built while viewer was open).
+      sharedActivityFetch(true)
+        .then((res) => {
+          if (cancelled) return;
+          if (res === null) {
+            setActivityAvailable(false);
+            return;
+          }
+          setActivity(res.entries);
+          setActivityMtime(res.mtime_iso ?? null);
+          setActivityAvailable(true);
+          if (!sourcePinnedRef.current) setSource("activity");
+        })
+        .catch(() => { /* swallow — transient error, will retry on next change */ });
     };
 
     const es = new EventSource("/api/runs-watch");
@@ -302,10 +434,42 @@ export default function RecentChangesOverlay({
       });
   }, [runs]);
 
-  const allItems = source === "nodes" ? nodesItems : runsItems;
+  // Activity branch: map ActivityEntry → DisplayItem, sorted by occurred_at desc.
+  // Entries without a spec_id (e.g. graph-level review_feedback events) are
+  // kept and shown with a synthesized id so they remain navigable in the list.
+  const activityItems = useMemo<DisplayItem[]>(() => {
+    if (!activity) return [];
+    return [...activity]
+      .filter((e) => typeof e.occurred_at === "string" && e.occurred_at)
+      .sort((a, b) => a.occurred_at > b.occurred_at ? -1 : a.occurred_at < b.occurred_at ? 1 : 0)
+      .map((e) => {
+        const toneColor = ACTIVITY_TONE_COLORS[e.event_type] ?? "#6d6255";
+        const label = e.viewer?.label ?? e.event_type.replace(/_/g, " ");
+        // Use viewer.tone as the short `kind` tag (4–8 chars: "trace",
+        // "proposal", "impl", "review", "spec") — event_type itself is too
+        // long to fit alongside the spec id + label + time on a 340px panel.
+        const shortTag = e.viewer?.tone ?? e.event_type.split("_")[0];
+        return {
+          key: e.event_id,
+          primaryId: e.spec_id || "—",
+          kind: shortTag,
+          status: label,
+          statusColor: toneColor,
+          title: e.title || e.summary || "(no title)",
+          ts: e.occurred_at,
+          // Empty spec_id means graph-level event — clicking still focuses
+          // Recent close, but parent's navigateToSpec("") becomes a no-op.
+          navigateId: e.spec_id || "",
+        };
+      });
+  }, [activity]);
+
+  const allItems =
+    source === "activity" ? activityItems
+    : source === "nodes" ? nodesItems
+    : runsItems;
   const visible = limit === null ? allItems : allItems.slice(0, limit);
   const total = allItems.length;
-  const showingCount = visible.length;
 
   // Local midnight as a single epoch — passed into every Sparkline so each
   // row doesn't recompute it.
@@ -314,6 +478,60 @@ export default function RecentChangesOverlay({
     d.setHours(0, 0, 0, 0);
     return d.getTime();
   }, []);
+
+  // Multi-select click dispatcher. Plain click → onSelect (and clear any
+   // multi-selection). Cmd/Ctrl click → toggle this row's spec_id in the set.
+   // Shift click → range from anchor to clicked, replacing the set with that
+   // range (additive Shift+Cmd is intentionally not supported — keeps the
+   // mental model simple). Rows with empty navigateId (graph-level Activity
+   // events) cannot be multi-selected since they have no spec to highlight.
+  const handleRowClick = useCallback((
+    e: React.MouseEvent<HTMLButtonElement>,
+    item: DisplayItem,
+    indexInVisible: number,
+  ) => {
+    const cmd = e.metaKey || e.ctrlKey;
+    const shift = e.shiftKey;
+    const id = item.navigateId;
+
+    if ((cmd || shift) && id && onMultiSelectChange) {
+      e.preventDefault();
+      const current = new Set(multiSelectIds ?? []);
+
+      if (shift && anchorKeyRef.current) {
+        const anchorIdx = visible.findIndex((v) => v.key === anchorKeyRef.current);
+        if (anchorIdx >= 0) {
+          const [lo, hi] = anchorIdx <= indexInVisible
+            ? [anchorIdx, indexInVisible]
+            : [indexInVisible, anchorIdx];
+          const next = new Set<string>();
+          for (let i = lo; i <= hi; i++) {
+            const nid = visible[i].navigateId;
+            if (nid) next.add(nid);
+          }
+          onMultiSelectChange(next.size > 0 ? next : null);
+          return;
+        }
+      }
+
+      // Cmd/Ctrl click (or Shift fallback when no anchor) — toggle.
+      if (current.has(id)) current.delete(id);
+      else current.add(id);
+      anchorKeyRef.current = item.key;
+      onMultiSelectChange(current.size > 0 ? current : null);
+      return;
+    }
+
+    // Plain click — clear multi-selection and run the navigate path.
+    if (multiCount > 0 && onMultiSelectChange) onMultiSelectChange(null);
+    anchorKeyRef.current = item.key;
+    // Graph-level activity events have no spec_id; skip navigation to avoid
+    // pushing an empty string into spec history / clearing selection state.
+    if (id) onSelect(id, item.ts, source);
+  }, [multiSelectIds, multiCount, onMultiSelectChange, onSelect, source, visible]);
+
+  // Esc-to-clear lives at App scope (works even when the panel is closed)
+   // so it isn't duplicated here.
 
   const handleCopy = useCallback(() => {
     const md = visible
@@ -365,19 +583,33 @@ export default function RecentChangesOverlay({
         <span
           className="rc-scope-hint"
           title={
-            "Shows canonical spec YAML updates (Nodes) and supervisor refine events (Runs).\n\n" +
-            "Activity that does NOT touch the canonical YAML — trace/evidence baselines, " +
-            "proposals, review feedback, etc. — will surface once SpecGraph publishes " +
-            "runs/spec_activity_feed.json."
+            activityAvailable
+              ? "Activity: SpecGraph normalized event feed " +
+                "(canonical updates, trace/evidence baselines, proposals, " +
+                "implementation work, review feedback).\n\n" +
+                "Nodes: canonical YAML updated_at per spec.\n" +
+                "Runs: supervisor refine events from runs/*.json."
+              : "Shows canonical spec YAML updates (Nodes) and supervisor refine events (Runs).\n\n" +
+                "Activity that does NOT touch the canonical YAML — trace/evidence baselines, " +
+                "proposals, review feedback, etc. — will surface once SpecGraph publishes " +
+                "runs/spec_activity_feed.json."
           }
         >
           ⓘ
         </span>
-        <span className="rc-count">
-          {showingCount === total
-            ? `${total} ${source === "runs" ? "runs" : "nodes"}`
-            : `${showingCount} of ${total}`}
-        </span>
+        {/* Removed `{showingCount} of {total}` count label — header space is
+            scarce and the footer Show: 25/50/100/All controls already convey
+            the same information. */}
+        <span className="rc-count-spacer" aria-hidden="true" />
+        {multiCount > 0 && onMultiSelectChange && (
+          <button
+            className="rc-multi-pill"
+            onClick={() => onMultiSelectChange(null)}
+            title="Clear multi-selection (Esc)"
+          >
+            {multiCount} selected · ✕
+          </button>
+        )}
         <button
           className={`rc-live-btn${live ? " active" : ""}`}
           onClick={() => setLive((v) => !v)}
@@ -398,29 +630,51 @@ export default function RecentChangesOverlay({
       <div className="rc-source-row">
         <div className="rc-source-group">
           <button
+            className={`rc-source-btn${source === "activity" ? " active" : ""}`}
+            onClick={() => setSourceManual("activity")}
+            disabled={activityAvailable === false}
+            title={
+              activityAvailable === false
+                ? "Activity feed not built. Run `make spec-activity` in SpecGraph."
+                : activityMtime
+                  ? `SpecGraph activity feed — generated ${fmtRelative(activityMtime)}`
+                  : "SpecGraph activity feed (canonical normalized events)"
+            }
+          >
+            Activity
+          </button>
+          <button
             className={`rc-source-btn${source === "nodes" ? " active" : ""}`}
-            onClick={() => setSource("nodes")}
+            onClick={() => setSourceManual("nodes")}
           >
             Nodes
           </button>
           <button
             className={`rc-source-btn${source === "runs" ? " active" : ""}`}
-            onClick={() => setSource("runs")}
+            onClick={() => setSourceManual("runs")}
           >
             Runs
           </button>
         </div>
       </div>
 
-      {source === "runs" && runsLoading && runs === null ? (
+      {source === "activity" && activityLoading && activity === null ? (
+        <div className="rc-empty">Loading activity feed…</div>
+      ) : source === "activity" && activityError ? (
+        <div className="rc-empty">Failed to load activity feed: {activityError}</div>
+      ) : source === "activity" && activityAvailable === false ? (
+        <div className="rc-empty">Activity feed not built. Run <code>make spec-activity</code> in SpecGraph.</div>
+      ) : source === "runs" && runsLoading && runs === null ? (
         <div className="rc-empty">Loading runs…</div>
       ) : source === "runs" && runsError ? (
         <div className="rc-empty">Failed to load runs: {runsError}</div>
       ) : allItems.length === 0 ? (
         <div className="rc-empty">
-          {source === "runs"
-            ? "No run events found."
-            : "No updated_at timestamps available."}
+          {source === "activity"
+            ? "No activity events found."
+            : source === "runs"
+              ? "No run events found."
+              : "No updated_at timestamps available."}
         </div>
       ) : (
         <>
@@ -442,7 +696,8 @@ export default function RecentChangesOverlay({
               };
               for (const it of visible) counts[bucketFor(it.ts)]++;
 
-              for (const it of visible) {
+              for (let idx = 0; idx < visible.length; idx++) {
+                const it = visible[idx];
                 const bucket = bucketFor(it.ts);
                 if (bucket !== prevBucket) {
                   out.push(
@@ -454,13 +709,14 @@ export default function RecentChangesOverlay({
                   prevBucket = bucket;
                 }
                 const isSelected = it.navigateId === selectedNodeId;
-                const cls = `rc-item${isSelected ? " rc-item--selected" : ""}${it.isFailed ? " rc-item--failed" : ""}`;
+                const isMulti = !!(it.navigateId && multiSelectIds?.has(it.navigateId));
+                const cls = `rc-item${isSelected ? " rc-item--selected" : ""}${isMulti ? " rc-item--multi-selected" : ""}${it.isFailed ? " rc-item--failed" : ""}`;
                 out.push(
                   <button
                     key={it.key}
                     className={cls}
-                    onClick={() => onSelect(it.navigateId, it.ts)}
-                    title={fmtDate(it.ts)}
+                    onClick={(e) => handleRowClick(e, it, idx)}
+                    title={`${fmtDate(it.ts)}${it.navigateId ? "\n\nClick: navigate · Cmd-click: toggle · Shift-click: range" : ""}`}
                   >
                     <div className="rc-item-row">
                       <span className="rc-item-id">{it.primaryId}</span>
