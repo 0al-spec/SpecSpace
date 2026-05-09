@@ -320,7 +320,9 @@ export default function RecentChangesOverlay({
       .catch((err) => {
         if (cancelled) return;
         setActivityError(String(err?.message ?? err));
-        setActivityAvailable(false);
+        // Leave activityAvailable as null (unknown) — only a 404 means the
+        // feed is definitively absent. Transient errors keep the toggle
+        // available so live-mode can recover.
       })
       .finally(() => {
         if (!cancelled) setActivityLoading(false);
@@ -342,16 +344,21 @@ export default function RecentChangesOverlay({
         })
         .catch(() => { /* swallow — error state already covered by initial fetch */ });
       // The runs/ watch also fires when spec_activity_feed.json is rebuilt,
-      // since it lives in runs/. Refetch the activity feed too.
-      if (activityAvailable !== false) {
-        sharedActivityFetch(true)
-          .then((res) => {
-            if (cancelled || res === null) return;
-            setActivity(res.entries);
-            setActivityMtime(res.mtime_iso ?? null);
-          })
-          .catch(() => { /* swallow */ });
-      }
+      // since it lives in runs/. Always refetch — handles recovery after a
+      // previous 404 (feed built while viewer was open).
+      sharedActivityFetch(true)
+        .then((res) => {
+          if (cancelled) return;
+          if (res === null) {
+            setActivityAvailable(false);
+            return;
+          }
+          setActivity(res.entries);
+          setActivityMtime(res.mtime_iso ?? null);
+          setActivityAvailable(true);
+          if (!sourcePinnedRef.current) setSource("activity");
+        })
+        .catch(() => { /* swallow — transient error, will retry on next change */ });
     };
 
     const es = new EventSource("/api/runs-watch");
@@ -368,7 +375,7 @@ export default function RecentChangesOverlay({
       if (debounceTimer) clearTimeout(debounceTimer);
       es.close();
     };
-  }, [live, activityAvailable]);
+  }, [live]);
 
   // Index runs by spec_id for sparkline rendering. Each value is the
   // (already sorted desc) list of events touching that spec.
@@ -430,7 +437,7 @@ export default function RecentChangesOverlay({
     if (!activity) return [];
     return [...activity]
       .filter((e) => typeof e.occurred_at === "string" && e.occurred_at)
-      .sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1))
+      .sort((a, b) => a.occurred_at > b.occurred_at ? -1 : a.occurred_at < b.occurred_at ? 1 : 0)
       .map((e) => {
         const toneColor = ACTIVITY_TONE_COLORS[e.event_type] ?? "#6d6255";
         const label = e.viewer?.label ?? e.event_type.replace(/_/g, " ");
@@ -514,7 +521,9 @@ export default function RecentChangesOverlay({
     // Plain click — clear multi-selection and run the navigate path.
     if (multiCount > 0 && onMultiSelectChange) onMultiSelectChange(null);
     anchorKeyRef.current = item.key;
-    onSelect(id, item.ts, source);
+    // Graph-level activity events have no spec_id; skip navigation to avoid
+    // pushing an empty string into spec history / clearing selection state.
+    if (id) onSelect(id, item.ts, source);
   }, [multiSelectIds, multiCount, onMultiSelectChange, onSelect, source, visible]);
 
   // Esc-to-clear lives at App scope (works even when the panel is closed)
@@ -648,6 +657,8 @@ export default function RecentChangesOverlay({
         <div className="rc-empty">Loading activity feed…</div>
       ) : source === "activity" && activityError ? (
         <div className="rc-empty">Failed to load activity feed: {activityError}</div>
+      ) : source === "activity" && activityAvailable === false ? (
+        <div className="rc-empty">Activity feed not built. Run <code>make spec-activity</code> in SpecGraph.</div>
       ) : source === "runs" && runsLoading && runs === null ? (
         <div className="rc-empty">Loading runs…</div>
       ) : source === "runs" && runsError ? (

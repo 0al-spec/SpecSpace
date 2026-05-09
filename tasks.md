@@ -268,7 +268,7 @@ ContextBuilder только читает и рендерит.
     (он же лежит в `runs/`). Дебаунс 500ms сохраняется.
   - Scope hint обновляется: когда feed доступен, объясняется три source mode
     (Activity/Nodes/Runs), а не статус "feed pending".
-  - Контракт: `/Users/egor/Development/GitHub/0AL/SpecGraph/docs/spec_activity_feed_viewer_contract.md`.
+  - Контракт: `SpecGraph/docs/spec_activity_feed_viewer_contract.md` (см. также [SpecGraph PR #243](https://github.com/0al-spec/SpecGraph/pull/243)).
 
 - [ ] **T-40c · Deprecate Runs source** *(после accumulating evidence что Activity
   покрывает все use-cases)* — Runs toggle оставлен как низкоуровневая диагностика
