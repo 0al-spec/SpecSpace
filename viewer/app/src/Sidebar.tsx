@@ -399,11 +399,13 @@ export default function Sidebar({
                   className={`sidebar-spec-item status-${spec.status}${selectedSpecNodeId === spec.node_id ? " selected" : ""}`}
                   onClick={() => onSpecNodeSelect?.(spec.node_id)}
                 >
-                  <div className="sidebar-spec-id">{spec.node_id}</div>
+                  <div className="sidebar-spec-header">
+                    <div className="sidebar-spec-id">{spec.node_id}</div>
+                    <span className={`spec-node-status-badge status-${spec.status}`}>
+                      {spec.status}
+                    </span>
+                  </div>
                   <div className="sidebar-spec-title">{spec.title}</div>
-                  <span className={`spec-node-status-badge status-${spec.status}`}>
-                    {spec.status}
-                  </span>
                   {spec.maturity !== null && (
                     <div className="spec-node-maturity-track sidebar-spec-maturity-track">
                       <div

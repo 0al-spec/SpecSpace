@@ -323,6 +323,23 @@
   outline-offset: 1px;
 }
 
+/* ID + status badge on a single top row; badge pushed to the right edge. */
+.sidebar-spec-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.sidebar-spec-header .sidebar-spec-id {
+  margin-bottom: 0;
+}
+
+.sidebar-spec-header .spec-node-status-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .sidebar-spec-id {
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -344,8 +361,6 @@
   margin-top: 8px;
 }
 
-/* Re-anchor gradient to sidebar item width. Use 100% so the bar follows
-   the actual item box regardless of future sidebar/padding changes. */
-.sidebar-spec-item .spec-node-maturity-fill {
-  background-size: 100% 100%;
-}
+/* Sidebar override removed — .spec-node-maturity-fill now uses 100cqi
+   (container-query inline size) keyed off the track, so the gradient
+   automatically tracks whatever width the sidebar item gives it. */
