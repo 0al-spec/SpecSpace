@@ -60,6 +60,14 @@
   margin-left: var(--space-3, 6px);
 }
 
+/* Empty filler that pushes the rest of the header (live, copy, multi pill)
+   to the right edge — replaces the removed .rc-count label which used to
+   carry the same flex-fill role. */
+.rc-count-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
 .rc-copy-btn {
   font-size: 9px;
   font-weight: 700;

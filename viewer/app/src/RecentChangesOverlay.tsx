@@ -584,11 +584,10 @@ export default function RecentChangesOverlay({
         >
           ⓘ
         </span>
-        <span className="rc-count">
-          {showingCount === total
-            ? `${total} ${source === "runs" ? "runs" : source === "activity" ? "events" : "nodes"}`
-            : `${showingCount} of ${total}`}
-        </span>
+        {/* Removed `{showingCount} of {total}` count label — header space is
+            scarce and the footer Show: 25/50/100/All controls already convey
+            the same information. */}
+        <span className="rc-count-spacer" aria-hidden="true" />
         {multiCount > 0 && onMultiSelectChange && (
           <button
             className="rc-multi-pill"
