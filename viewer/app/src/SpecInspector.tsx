@@ -6,8 +6,9 @@ import PanelActions from "./PanelActions";
 import PanelBtn from "./PanelBtn";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleDot, faCalendarPlus, faRotate, faBoxArchive, faThumbtack, faMagnifyingGlassChart, faFileLines } from "@fortawesome/free-solid-svg-icons";
-import type { ApiSpecGraph, ApiSpecNode } from "./types";
+import type { ApiSpecGraph, ApiSpecNode, SpecOverlayMap, SpecLensMode } from "./types";
 import { renderInlineText } from "./renderInlineText";
+import { lensStyleFor, type LensStyle } from "./specLens";
 
 interface SpecInspectorProps {
   selectedNodeId: string | null;
@@ -25,6 +26,10 @@ interface SpecInspectorProps {
   onOpenExplorationPreview?: () => void;
   /** Open the spec compile overlay for the given node id. Undefined → button hidden. */
   onOpenSpecCompile?: (nodeId: string) => void;
+  /** Overlay data — used for gate_state badges and lens coloring */
+  specOverlays?: SpecOverlayMap;
+  /** Active lens mode — drives inspector card color sync */
+  specLens?: SpecLensMode;
   /** Full spec graph — used to resolve peer node titles/statuses in Related section */
   rawGraph?: ApiSpecGraph | null;
   /** Pinned node ID for compare mode */
@@ -46,7 +51,7 @@ type SpecDetail = Record<string, unknown>;
 export default function SpecInspector({
   selectedNodeId, selectedSubItemId,
   onDismiss, onFocusNode, onSelectSubItem, onOpenLens, onOpenSpecpmPreview, onOpenExplorationPreview, onOpenSpecCompile,
-  rawGraph, pinnedNodeId, onPin,
+  specOverlays, specLens, rawGraph, pinnedNodeId, onPin,
   canGoBack, canGoForward, onBack, onForward, backLabel, forwardLabel,
 }: SpecInspectorProps) {
   const [detail, setDetail] = useState<SpecDetail | null>(null);
@@ -182,6 +187,7 @@ export default function SpecInspector({
               selectedSubItemId={selectedSubItemId}
               onSelectSubItem={onSelectSubItem}
               paneRole="current"
+              lensStyle={selectedNodeId && specLens && specOverlays ? lensStyleFor(selectedNodeId, specLens, specOverlays) : undefined}
               onOpenLens={onOpenLens && selectedNodeId ? () => onOpenLens!(selectedNodeId!) : undefined}
               onOpenSpecpmPreview={onOpenSpecpmPreview}
               onOpenExplorationPreview={onOpenExplorationPreview}
@@ -195,6 +201,7 @@ export default function SpecInspector({
               nodeById={nodeById}
               onFocusNode={onFocusNode}
               paneRole="pinned"
+              lensStyle={pinnedNodeId && specLens && specOverlays ? lensStyleFor(pinnedNodeId, specLens, specOverlays) : undefined}
               onUnpin={() => onPin?.(null)}
               onOpenLens={onOpenLens && pinnedNodeId ? () => onOpenLens!(pinnedNodeId!) : undefined}
             />
@@ -207,6 +214,7 @@ export default function SpecInspector({
           onFocusNode={onFocusNode}
           selectedSubItemId={selectedSubItemId}
           onSelectSubItem={onSelectSubItem}
+          lensStyle={selectedNodeId && specLens && specOverlays ? lensStyleFor(selectedNodeId, specLens, specOverlays) : undefined}
           onOpenLens={onOpenLens && selectedNodeId ? () => onOpenLens!(selectedNodeId!) : undefined}
           onOpenSpecpmPreview={onOpenSpecpmPreview}
           onOpenExplorationPreview={onOpenExplorationPreview}
@@ -237,11 +245,14 @@ interface SpecDetailPaneProps {
   onOpenExplorationPreview?: () => void;
   /** Open spec compile overlay for this node */
   onOpenSpecCompile?: () => void;
+  /** Lens-derived border/background — syncs card color with graph node */
+  lensStyle?: LensStyle;
 }
 
 function SpecDetailPane({
   detail, nodeById, onFocusNode, selectedSubItemId, onSelectSubItem,
   paneRole, onUnpin, onOpenLens, onOpenSpecpmPreview, onOpenExplorationPreview, onOpenSpecCompile,
+  lensStyle,
 }: SpecDetailPaneProps) {
   const hlRef = useRef<HTMLLIElement | null>(null);
 
@@ -323,7 +334,13 @@ function SpecDetailPane({
   return (
     <div className="spec-inspector-content">
       {/* 1. Header card */}
-      <div className={`spec-inspector-header-card spec-node status-${str(detail.status)}`}>
+      <div
+        className={`spec-inspector-header-card spec-node status-${str(detail.status)}`}
+        style={{
+          ...(lensStyle?.borderColor ? { borderColor: lensStyle.borderColor } : {}),
+          ...(lensStyle?.background ? { background: lensStyle.background } : {}),
+        }}
+      >
 
         {/* ID row: node ID + role badge + unpin button */}
         <div className="spec-inspector-id-row">
@@ -353,6 +370,18 @@ function SpecDetailPane({
           <span className={`spec-node-status-badge status-${str(detail.status)}`}>
             {str(detail.status)}
           </span>
+          {lensStyle?.badge && (
+            <span
+              className="spec-node-status-badge spec-node-lens-badge"
+              style={{
+                background: lensStyle.badge.bg,
+                color: lensStyle.badge.color,
+                border: `1px solid ${lensStyle.badge.color === "#fff" ? lensStyle.badge.bg : lensStyle.badge.color}`,
+              }}
+            >
+              {lensStyle.badge.text}
+            </span>
+          )}
         </div>
         {detail.maturity != null ? (
           <div className="spec-node-maturity">

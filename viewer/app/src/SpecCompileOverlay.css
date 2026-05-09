@@ -1,6 +1,7 @@
 /* spec-compile-panel — wider than the default specpm-panel */
 .spec-compile-panel {
   width: min(840px, 100%);
+  contain: layout style paint;
 }
 
 /* Options bar */
@@ -76,7 +77,7 @@
   padding: 0;
 }
 
-/* Markdown output — monospace pre */
+/* Markdown output — line-per-div renderer */
 .spec-compile-output {
   margin: 0;
   padding: 16px;
@@ -84,6 +85,10 @@
   font-size: 12px;
   line-height: 1.6;
   color: var(--text, #231b15);
+}
+
+.spec-compile-line {
   white-space: pre-wrap;
   word-break: break-word;
+  min-height: 1em;
 }

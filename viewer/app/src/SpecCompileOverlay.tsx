@@ -124,7 +124,7 @@ export default function SpecCompileOverlay({ rootId, onClose }: Props) {
   const manifest = state.kind === "ok" ? state.result.manifest : null;
 
   return (
-    <div className="specpm-overlay" onClick={onClose}>
+    <div className="specpm-overlay spec-compile-overlay" onClick={onClose}>
       <div
         ref={panelRef}
         className="specpm-panel spec-compile-panel"
@@ -222,7 +222,11 @@ export default function SpecCompileOverlay({ rootId, onClose }: Props) {
             </div>
           )}
           {state.kind === "ok" && (
-            <pre className="spec-compile-output">{state.result.markdown}</pre>
+            <div className="spec-compile-output">
+              {state.result.markdown.split("\n").map((line, i) => (
+                <div key={i} className="spec-compile-line">{line}</div>
+              ))}
+            </div>
           )}
         </div>
       </div>

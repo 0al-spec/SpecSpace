@@ -199,3 +199,102 @@ Safari кэширует dasharray-паттерн отдельной тексту
 - [x] Chrome: regression — heap, FPS, visual не ухудшились.
 - [ ] Переключения Linear ↔ Canonical ↔ Force не ломают кэш позиций.
 - [ ] Клик по edge label (если H1 откатится) всё ещё селектит ребро.
+
+---
+
+# Recent Changes Overlay — Tasks
+
+Бэклог развития панели "Recently Updated" (ветка `feature/recent-changes-overlay`).
+Приоритеты: **P0** ship-now · **P1** next · **P2** infra-зависимые · **P3** позже · **Backlog** отложено.
+
+## P0 — Quick wins (только фронт, ship одним PR)
+
+- [x] **T-01 · Limit control** — футер с кнопками `25 / 50 / 100 / All`. Заменить хардкод `limit = 25` на state. ~15 строк.
+- [x] **T-03 · Hotkey `R`** — toggle панели по клавише `R` (без модификаторов). Добавить в существующий keydown handler в `App.tsx`. Skip когда фокус в input/textarea. Тултип: `"Show recently updated nodes (R)"`.
+- [x] **T-04 · Export as Markdown** — кнопка `📋 Copy MD` в шапке. Формат: `- **SG-SPEC-NNNN** *kind* — title (Xh ago)`. `navigator.clipboard.writeText()` + визуальное подтверждение.
+- [x] **T-05 · Unread badge на кнопке** — `lastSeenAt` в `localStorage` при открытии панели; счётчик нод с `updated_at > lastSeenAt`. Расширить `PanelBtn` через `badge?: number`. Сбрасывается при открытии.
+
+## P0+ — Группировка
+
+- [x] **T-02 · Date group headers** — разделители `Today` · `Yesterday` · `This week` · `Older`. Bucket-функция при сортировке + `<div class="rc-group">`. ~40 строк (CSS + JSX).
+
+## P1 — Backend-зависимые (нужен runs/ endpoint)
+
+- [x] **T-10 · `/api/recent-runs` endpoint** *(prereq для T-11/T-12/T-20)*
+  - Новый endpoint в `viewer/server.py`, возвращает последние N run-events
+  - Источник: `SpecGraph/runs/*.json` — парсинг имени файла (`YYYYMMDDTHHMMSSZ-SG-SPEC-NNNN-hash.json`) + чтение первого ~1KB для `completion_status`/`run_kind`
+  - Response: `[{run_id, ts, spec_id, title, run_kind, completion_status, duration_sec}]`
+  - Query: `?limit=50&since=ISO8601`
+
+- [x] **T-11 · Переключатель источника `Nodes` / `Runs`** — toggle в шапке панели. View `Runs` показывает per-event записи (одна нода может встречаться многократно). Тот же layout строки.
+
+- [x] **T-12 · Run status icon + failed-row tint** — ✓ зелёный для `ok`, ✗ красный для `failed`. Слабый красный фон (`rgba(181,65,49,0.08)`) на failed-строках. Тултип с `run_kind` + длительностью.
+
+## P2 — Visualization & live
+
+- [x] **T-20 · Inline sparkline** — мини-SVG (~60×12px) с историей прогонов ноды за 7 дней, точки крашены по `completion_status`. Зависит от T-10 + per-spec агрегация.
+
+- [x] **T-21 · Live feed via SSE** — подписка на `/api/runs-watch`. На каждый `change` дебаунс 500ms → refetch `/api/recent-runs`.
+  - **Perf-guard:** дебаунс 500ms, sharedRunsFetch(force=true) обходит cache, EventSource закрывается на toggle-off
+  - Toggle `🔴 live / ⏸ live` в шапке (default: paused — opt-in)
+  - Backend: RunsWatcher polls runs/ every 2s; one thread for all clients; exits when last subscriber leaves
+
+## P3 — Cross-tool integration
+
+- [x] **T-30 · Timeline ↔ Recent connector** — клик по записи выставляет `timelineRange` в `[ts - 1h, ts + 1h]`, переключает Recent → Timeline (mutex закрывает Recent), пан + select ноды. `timelineField` форсируется в `updated_at` для согласованности с тем, что показывал Recent. Hover-highlight на графе отложен (модерат-польза vs пропс-дриллинг через `displayNodes`).
+
+## Pending SpecGraph contract — `spec_activity_feed.json` (T-40)
+
+**Контекст.** Текущие источники Recent Changes (`Nodes` и `Runs`) концептуально слепы к
+trace/evidence baseline PR'ам и другой активности, которая не трогает каноническую
+YAML-ноду. SpecGraph — канонический владелец семантики "что такое значимое обновление
+spec node", не viewer. Договорённость: SpecGraph публикует нормализованный artifact;
+ContextBuilder только читает и рендерит.
+
+- [x] **T-40a · Inline scope hint** — `ⓘ` индикатор в шапке с tooltip, объясняющим
+  текущий охват: "Shows YAML updates (Nodes) and refine runs (Runs); broader activity
+  arrives once SpecGraph publishes spec_activity_feed.json."
+
+- [ ] **T-40b · Activity feed reader** *(блок: SpecGraph PR с artifact)*
+  - **Контракт от viewer (на согласование с SpecGraph):**
+    - Path: `<specgraph>/runs/spec_activity_feed.json`
+    - Shape: `{ events: [{ event_id, ts, spec_id, event_type, summary?, source_ref? }] }`
+    - `event_type` (расширяемый enum):
+      - `canonical_spec_updated`
+      - `trace_baseline_attached`
+      - `evidence_baseline_attached`
+      - `proposal_emitted`
+      - `implementation_work_emitted`
+      - `review_feedback_applied`
+    - Backend: `GET /api/spec-activity?limit=N&since=ISO`, парсинг по аналогии с
+      `/api/recent-runs`
+    - Frontend: третий source-toggle "Activity" (или замещение Nodes/Runs если SpecGraph
+      признает feed каноничным). Цвет/иконка → таблица per-event_type. Sparkline
+      переезжает с `runs/` на этот feed для полной истории.
+    - SSE live: расширить `RunsWatcher` или добавить отдельный watcher на файл feed'а.
+
+- [ ] **T-40c · Deprecate Runs source** *(только после стабильной T-40b)* — если
+  Activity feed покрывает refine events, Runs toggle снять; иначе оставить как
+  низкоуровневую диагностику.
+
+**Что НЕ делаем сейчас:**
+- ❌ "Commits" source mode в viewer (git log по специфическим путям). Решает symptom,
+  но дублирует логику, которая должна жить в SpecGraph; стало бы permanent fallback'ом.
+- ❌ Параллельный git-builder в viewer.
+
+## Backlog (отложено)
+
+- **Delta-сравнение** между двумя runs (`status: outlined → specified`, `maturity 60% → 100%`). Требует чтения и diff двух run-файлов. Подобрать после стабилизации T-11.
+
+---
+
+## Порядок исполнения
+
+1. **T-01, T-03, T-04, T-05** — pure-frontend, один PR
+2. **T-02** — group headers, второй мелкий PR
+3. **T-10** — backend endpoint (foundation)
+4. **T-11, T-12** — runs feed + status visuals
+5. **T-20** — sparkline (после стабилизации формы T-11)
+6. **T-21** — SSE live (последним, после perf-теста)
+7. **T-30** — Timeline integration (полировка)
+

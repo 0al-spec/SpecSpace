@@ -7,6 +7,7 @@ import argparse
 import json
 import mimetypes
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -1760,6 +1761,77 @@ class SpecWatcher:
             return fired, self._seq
 
 
+class RunsWatcher:
+    """Polling watcher for SpecGraph runs/ — broadcasts when new run files
+    appear (or any timestamped run file changes mtime). Mirrors SpecWatcher's
+    one-thread-many-clients design, but scoped to the runs/ directory and
+    filtered to filenames matching the run-event pattern. Used by the
+    /api/runs-watch SSE endpoint to drive live updates in the Recent Changes
+    overlay.
+    """
+
+    POLL_INTERVAL: float = 2.0
+    KEEPALIVE_TIMEOUT: float = 14.0
+    _RUN_FILENAME_RE = re.compile(r"^\d{8}T\d{6}Z-SG-[A-Z]+-\d+-[0-9a-f]+\.json$")
+
+    def __init__(self, runs_dir: Path) -> None:
+        self._runs_dir = runs_dir
+        self._condition = threading.Condition()
+        self._seq: int = 0
+        self._client_count: int = 0
+        self._thread: threading.Thread | None = None
+
+    def _get_mtimes(self) -> dict[str, float]:
+        result: dict[str, float] = {}
+        try:
+            with os.scandir(self._runs_dir) as entries:
+                for entry in entries:
+                    if entry.is_file() and self._RUN_FILENAME_RE.match(entry.name):
+                        result[entry.name] = entry.stat().st_mtime
+        except OSError:
+            pass
+        return result
+
+    def _poll_loop(self) -> None:
+        last_mtimes = self._get_mtimes()
+        while True:
+            time.sleep(self.POLL_INTERVAL)
+            with self._condition:
+                if self._client_count == 0:
+                    self._thread = None
+                    return
+            current = self._get_mtimes()
+            if current != last_mtimes:
+                last_mtimes = current
+                with self._condition:
+                    self._seq += 1
+                    self._condition.notify_all()
+
+    def subscribe(self) -> int:
+        with self._condition:
+            self._client_count += 1
+            if self._thread is None or not self._thread.is_alive():
+                self._thread = threading.Thread(
+                    target=self._poll_loop,
+                    daemon=True,
+                    name="runs-watcher-poll",
+                )
+                self._thread.start()
+            return self._seq
+
+    def unsubscribe(self) -> None:
+        with self._condition:
+            self._client_count = max(0, self._client_count - 1)
+
+    def wait_for_change(self, last_seq: int) -> tuple[bool, int]:
+        with self._condition:
+            fired = self._condition.wait_for(
+                lambda: self._seq != last_seq,
+                timeout=self.KEEPALIVE_TIMEOUT,
+            )
+            return fired, self._seq
+
+
 class ViewerHandler(BaseHTTPRequestHandler):
     server_version = "ContextBuilderViewer/0.1"
 
@@ -1785,6 +1857,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/spec-watch":
             self.handle_spec_watch()
+            return
+        if parsed.path == "/api/runs-watch":
+            self.handle_runs_watch()
             return
         if parsed.path == "/api/spec-node":
             self.handle_spec_node(parsed)
@@ -1815,6 +1890,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/metric-pack-runs":
             self.handle_metric_pack_runs()
+            return
+        if parsed.path == "/api/recent-runs":
+            self.handle_recent_runs(parsed)
             return
         if parsed.path == "/api/metric-pricing-provenance":
             self.handle_metric_pricing_provenance()
@@ -1927,10 +2005,17 @@ class ViewerHandler(BaseHTTPRequestHandler):
         )
 
     def _runs_dir(self):
-        if self.server.spec_dir is None:
-            return None
-        p = self.server.spec_dir.parent.parent / "runs"
-        return p if p.is_dir() else None
+        # Prefer --specgraph-dir/runs (same source as runs_watcher); fall back to
+        # the legacy derivation from --spec-dir so single-arg invocations still work.
+        if self.server.specgraph_dir is not None:
+            p = self.server.specgraph_dir / "runs"
+            if p.is_dir():
+                return p
+        if self.server.spec_dir is not None:
+            p = self.server.spec_dir.parent.parent / "runs"
+            if p.is_dir():
+                return p
+        return None
 
     def _viewer_surfaces_build_available(self) -> bool:
         """True only when supervisor.py declares --build-viewer-surfaces in its source."""
@@ -2133,6 +2218,106 @@ class ViewerHandler(BaseHTTPRequestHandler):
             "metric_pack_runs.json",
             "--build-viewer-surfaces",
         )
+
+    # ── Recent SpecGraph refine runs ────────────────────────────────────────
+    # Lists per-spec run events from runs/<timestamp>-<spec_id>-<hash>.json.
+    # Each event: { run_id, ts, spec_id, title, run_kind, completion_status,
+    #               duration_sec }. Filename gives ts/spec_id/run_id without
+    # any IO; the file is opened only to harvest a few small fields from its
+    # head (~4KB max).
+    _RUN_FILENAME_RE = re.compile(
+        r"^(?P<ts>\d{8}T\d{6}Z)-(?P<spec_id>SG-[A-Z]+-\d+)-(?P<hash>[0-9a-f]+)\.json$",
+    )
+
+    @staticmethod
+    def _parse_iso_compact(stamp: str) -> str:
+        """Convert `20260427T204723Z` → ISO 8601 (`2026-04-27T20:47:23Z`)."""
+        return f"{stamp[0:4]}-{stamp[4:6]}-{stamp[6:8]}T{stamp[9:11]}:{stamp[11:13]}:{stamp[13:15]}Z"
+
+    @staticmethod
+    def _harvest_run_meta(path: Path) -> dict[str, Any]:
+        """Read the head of a run file and extract a few cheap fields.
+
+        We avoid parsing the (potentially 100s of KB) full payload — the
+        fields we need live near the top of the JSON object as written by
+        SpecGraph supervisor. Keys absent from the head still return None.
+        """
+        # Read just enough to cover the documented head fields.
+        head_bytes = 4096
+        try:
+            with path.open("rb") as fh:
+                head = fh.read(head_bytes).decode("utf-8", errors="ignore")
+        except OSError:
+            return {}
+        # Try to parse a partial JSON object: append `}` candidates until
+        # something parses, then drop unrelated trailing keys. Simpler:
+        # regex-extract the specific fields we want. The producer is stable.
+        out: dict[str, Any] = {}
+        for key in ("title", "run_kind", "completion_status", "execution_profile", "child_model"):
+            m = re.search(rf'"{key}"\s*:\s*"([^"]*)"', head)
+            if m:
+                out[key] = m.group(1)
+        m = re.search(r'"run_duration_sec"\s*:\s*([0-9.]+)', head)
+        if m:
+            try:
+                out["duration_sec"] = float(m.group(1))
+            except ValueError:
+                pass
+        return out
+
+    def handle_recent_runs(self, parsed) -> None:
+        runs_dir = self._runs_dir()
+        if runs_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "runs/ directory not configured. Start the server with --spec-dir (or --specgraph-dir)."},
+            )
+            return
+
+        qs = parse_qs(parsed.query or "")
+        try:
+            limit = int(qs.get("limit", ["50"])[0])
+        except (TypeError, ValueError):
+            limit = 50
+        limit = max(1, min(limit, 500))
+        since = qs.get("since", [None])[0]
+        since_iso = since if isinstance(since, str) and since else None
+
+        # Filenames start with an ISO-compact timestamp so we can sort/filter without
+        # opening any files, then harvest metadata only for the top-N candidates.
+        candidates: list[tuple[str, Path, re.Match]] = []
+        for entry in runs_dir.iterdir():
+            if not entry.is_file() or entry.suffix != ".json":
+                continue
+            m = self._RUN_FILENAME_RE.match(entry.name)
+            if not m:
+                continue
+            ts_iso = self._parse_iso_compact(m.group("ts"))
+            if since_iso is not None and ts_iso <= since_iso:
+                continue
+            candidates.append((ts_iso, entry, m))
+
+        candidates.sort(key=lambda c: c[0], reverse=True)
+        total = len(candidates)
+        candidates = candidates[:limit]
+
+        events: list[dict[str, Any]] = []
+        for ts_iso, entry, m in candidates:
+            meta = self._harvest_run_meta(entry)
+            events.append({
+                "run_id": entry.stem,
+                "ts": ts_iso,
+                "spec_id": m.group("spec_id"),
+                "title": meta.get("title"),
+                "run_kind": meta.get("run_kind"),
+                "completion_status": meta.get("completion_status"),
+                "duration_sec": meta.get("duration_sec"),
+                "execution_profile": meta.get("execution_profile"),
+                "child_model": meta.get("child_model"),
+            })
+
+        json_response(self, HTTPStatus.OK, {"events": events, "total": total})
 
     def handle_metric_pricing_provenance(self) -> None:
         self._handle_runs_artifact(
@@ -3056,6 +3241,52 @@ class ViewerHandler(BaseHTTPRequestHandler):
         finally:
             watcher.unsubscribe()
 
+    def handle_runs_watch(self) -> None:
+        """SSE endpoint: streams a 'change' event when files in runs/ change.
+
+        Same shape as handle_spec_watch but backed by RunsWatcher; powers the
+        live-feed mode of the Recent Changes overlay.
+        """
+        watcher: RunsWatcher | None = getattr(self.server, "runs_watcher", None)
+        if watcher is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "runs/ not configured. Start the server with --specgraph-dir."},
+            )
+            return
+
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Accel-Buffering", "no")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+
+        def send(line: bytes) -> bool:
+            try:
+                self.wfile.write(line)
+                self.wfile.flush()
+                return True
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                return False
+
+        if not send(b": connected\n\n"):
+            return
+
+        last_seq = watcher.subscribe()
+        try:
+            while True:
+                changed, last_seq = watcher.wait_for_change(last_seq)
+                if changed:
+                    if not send(b"event: change\ndata: {}\n\n"):
+                        break
+                else:
+                    if not send(b": keepalive\n\n"):
+                        break
+        finally:
+            watcher.unsubscribe()
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -3097,6 +3328,15 @@ def main() -> None:
     server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
     server.spec_watcher = SpecWatcher(server.spec_dir) if server.spec_dir else None
     server.specgraph_dir = args.specgraph_dir.expanduser().resolve() if args.specgraph_dir else None
+    # Runs watcher: same priority as _runs_dir() — prefer --specgraph-dir/runs,
+    # fall back to --spec-dir derivation, so the SSE source matches the REST endpoint.
+    if server.specgraph_dir is not None:
+        runs_path = server.specgraph_dir / "runs"
+    elif server.spec_dir is not None:
+        runs_path = server.spec_dir.parent.parent / "runs"
+    else:
+        runs_path = None
+    server.runs_watcher = RunsWatcher(runs_path) if runs_path and runs_path.is_dir() else None
     server.agent_available = args.agent
 
     print(f"Serving ContextBuilder at http://localhost:{args.port}/")

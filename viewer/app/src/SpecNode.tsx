@@ -142,10 +142,15 @@ function SpecNode({
       ))
     : null, [data.gapCount, gapTops]);
 
+  const lensStyle = data.lensStyle?.borderColor
+    ? { borderColor: data.lensStyle.borderColor, ...(data.lensStyle.background ? { background: data.lensStyle.background } : {}) }
+    : undefined;
+
   if (lod === "minimal") {
     return (
       <div
         className={`spec-node spec-node--lod-minimal ${statusClass} ${selected ? "selected" : ""} ${data.isHistorical ? "spec-node--historical" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed ? "search-dimmed" : ""}`}
+        style={lensStyle}
       >
         {targetHandles}
         {sourceHandles}
@@ -159,6 +164,7 @@ function SpecNode({
     return (
       <div
         className={`spec-node spec-node--lod-compact ${statusClass} ${selected ? "selected" : ""} ${data.isHistorical ? "spec-node--historical" : ""} ${data.searchDimmed || data.timelineDimmed || data.filterDimmed ? "search-dimmed" : ""}`}
+        style={lensStyle}
       >
         {targetHandles}
         {sourceHandles}

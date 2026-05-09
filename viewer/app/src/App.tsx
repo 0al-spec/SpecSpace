@@ -26,6 +26,7 @@ import SpecNode from "./SpecNode";
 import ExpandedSpecNode from "./ExpandedSpecNode";
 import SpecSubItemNode from "./SpecSubItemNode";
 import CollapsedBranchNode from "./CollapsedBranchNode";
+import { LODSmoothStepEdgeMemo, LODBezierEdgeMemo } from "./LODSmoothStepEdge";
 import SpecInspector from "./SpecInspector";
 import SpecLens from "./SpecLens.tsx";
 import SpecPMExportPreview from "./SpecPMExportPreview.tsx";
@@ -43,6 +44,7 @@ import { useSessionString } from "./useSessionState";
 import { useNavHistory } from "./useNavHistory";
 import { CompileTargetContext } from "./CompileTargetContext";
 import TimelineFilter, { type TimelineField } from "./TimelineFilter";
+import RecentChangesOverlay from "./RecentChangesOverlay";
 import FilterBar, { type FilterOptions, type FilterStatus, DEFAULT_FILTER, isFilterActive } from "./FilterBar";
 import PanelBtn from "./PanelBtn";
 import "./PanelBtn.css";
@@ -53,11 +55,16 @@ import { useSpecOverlayData } from "./useSpecOverlayData";
 import { lensStyleFor } from "./specLens";
 import type { SpecLensMode } from "./types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClock, faBars, faFilter } from "@fortawesome/free-solid-svg-icons";
+import { faClock, faBars, faFilter, faClockRotateLeft } from "@fortawesome/free-solid-svg-icons";
 import type { GraphMode, SpecViewOptions, ApiSpecNode } from "./types";
 import SpecHoverCard from "./SpecHoverCard";
 import EdgeHoverCard from "./EdgeHoverCard";
 import type { EdgeVisualState } from "./useSpecGraphData";
+
+const edgeTypes = {
+  default: LODBezierEdgeMemo,
+  smoothstep: LODSmoothStepEdgeMemo,
+};
 
 const nodeTypes = {
   conversation: ConversationNode,
@@ -104,6 +111,9 @@ const specStatusColorMap: Record<string, string> = {
   reviewed: "#2a7c7c",
   frozen: "#4a5568",
 };
+
+// Set to true to hide the minimap when zoomed out past 0.5 (the old behaviour)
+const MINIMAP_HIDE_WHEN_ZOOMED_OUT = false;
 
 function minimapNodeColor(node: Node): string {
   const d = node.data as {
@@ -303,6 +313,18 @@ function AppInner() {
       return next;
     });
   }, []);
+
+  // ── Recent changes overlay ────────────────────────────────────────────────
+  const [recentOpen, setRecentOpen] = useState(false);
+  // lastSeenAt: ISO string in localStorage; init to "now" on first run so
+  // we don't show 60 unread on a fresh session.
+  const [recentLastSeen, setRecentLastSeen] = useState<string>(() => {
+    const saved = localStorage.getItem("contextbuilder.recentLastSeen");
+    if (saved) return saved;
+    const now = new Date().toISOString();
+    localStorage.setItem("contextbuilder.recentLastSeen", now);
+    return now;
+  });
 
   // ── Timeline filter ───────────────────────────────────────────────────────
   const [timelineOpen, setTimelineOpen] = useState(false);
@@ -764,12 +786,54 @@ function AppInner() {
         setTimelineRange(null);
         return false;
       } else {
-        // opening — initialise to full span
+        // opening — initialise to full span; close Recent (mutually exclusive)
         if (timelineFullRange) setTimelineRange(timelineFullRange);
+        setRecentOpen(false);
         return true;
       }
     });
   }, [timelineFullRange]);
+
+  // ── Recent changes — unread count + open handler ──────────────────────────
+  const recentUnreadCount = useMemo(() => {
+    if (!specGraph.rawGraph) return 0;
+    const lastMs = new Date(recentLastSeen).getTime();
+    if (!Number.isFinite(lastMs)) return 0;
+    return specGraph.rawGraph.nodes.reduce((n, node) => {
+      if (!node.updated_at) return n;
+      return new Date(node.updated_at).getTime() > lastMs ? n + 1 : n;
+    }, 0);
+  }, [specGraph.rawGraph, recentLastSeen]);
+
+  const toggleRecent = useCallback(() => {
+    setRecentOpen((open) => {
+      if (!open) {
+        // opening — mark everything as seen; close Timeline (mutually exclusive)
+        const now = new Date().toISOString();
+        localStorage.setItem("contextbuilder.recentLastSeen", now);
+        setRecentLastSeen(now);
+        setTimelineOpen(false);
+        setTimelineRange(null);
+      }
+      return !open;
+    });
+  }, []);
+
+  // Hotkeys (Specs mode only): R toggles Recent Changes, T toggles Timeline
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (graphMode !== "specifications") return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
+      const editable = (e.target as HTMLElement | null)?.isContentEditable;
+      if (tag === "input" || tag === "textarea" || tag === "select" || editable) return;
+      const k = e.key.toLowerCase();
+      if (k === "r") { e.preventDefault(); toggleRecent(); return; }
+      if (k === "t") { e.preventDefault(); toggleTimeline(); return; }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [graphMode, toggleRecent, toggleTimeline]);
 
   const specNodeTitleMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -893,6 +957,7 @@ function AppInner() {
               nodes={displayNodes}
               edges={displayEdges}
               nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
               onNodesChange={onNodesChange}
               onNodeClick={onNodeClick}
               onNodeMouseEnter={onNodeMouseEnter}
@@ -922,9 +987,9 @@ function AppInner() {
               <Background />
               <Controls />
               <MiniMap
-                nodeColor={isZoomedOut ? "transparent" : minimapNodeColor}
-                nodeStrokeColor={isZoomedOut ? "transparent" : undefined}
-                maskColor={isZoomedOut ? "transparent" : "rgba(236, 227, 212, 0.7)"}
+                nodeColor={MINIMAP_HIDE_WHEN_ZOOMED_OUT && isZoomedOut ? "transparent" : minimapNodeColor}
+                nodeStrokeColor={MINIMAP_HIDE_WHEN_ZOOMED_OUT && isZoomedOut ? "transparent" : undefined}
+                maskColor={MINIMAP_HIDE_WHEN_ZOOMED_OUT && isZoomedOut ? "transparent" : "rgba(236, 227, 212, 0.7)"}
                 pannable
                 zoomable
                 onClick={onMiniMapClick}
@@ -950,9 +1015,16 @@ function AppInner() {
                 <div className="timeline-header">
                   <PanelBtn
                     icon={<FontAwesomeIcon icon={faClock} />}
-                    title={timelineOpen ? "Close timeline filter" : "Open timeline filter"}
+                    title={timelineOpen ? "Close timeline filter (T)" : "Open timeline filter (T)"}
                     onClick={toggleTimeline}
                     className={timelineOpen ? "timeline-btn-active" : undefined}
+                  />
+                  <PanelBtn
+                    icon={<FontAwesomeIcon icon={faClockRotateLeft} />}
+                    title={recentOpen ? "Close recent changes (R)" : "Show recently updated nodes (R)"}
+                    onClick={toggleRecent}
+                    className={recentOpen ? "timeline-btn-active" : undefined}
+                    badge={recentOpen ? 0 : recentUnreadCount}
                   />
                   {timelineOpen && (
                     <div className="tl-segment">
@@ -972,6 +1044,33 @@ function AppInner() {
                     range={timelineRange}
                     onRangeChange={setTimelineRange}
                     fullRange={timelineFullRange}
+                  />
+                )}
+                {recentOpen && specGraph.rawGraph && (
+                  <RecentChangesOverlay
+                    nodes={specGraph.rawGraph.nodes}
+                    onSelect={(id, ts) => {
+                      // T-30: clicking a row focuses a ±1h timeline window
+                      // around the event and switches Recent → Timeline (mutex
+                      // closes Recent automatically). Then pan/select the node
+                      // so the inspector opens on the same target.
+                      const tsMs = new Date(ts).getTime();
+                      if (Number.isFinite(tsMs)) {
+                        const HOUR = 60 * 60 * 1000;
+                        // Switch field to "updated_at" for consistency with what
+                        // Recent shows, then open Timeline with the focused range.
+                        if (timelineField !== "updated_at") {
+                          setTimelineField("updated_at");
+                        }
+                        setTimelineRange([tsMs - HOUR, tsMs + HOUR]);
+                        setTimelineOpen(true);
+                        setRecentOpen(false);
+                      } else {
+                        setRecentOpen(false);
+                      }
+                      navigateToSpec(id);
+                    }}
+                    selectedNodeId={selectedConversationId}
                   />
                 )}
               </>
@@ -1014,6 +1113,8 @@ function AppInner() {
               onOpenSpecpmPreview={specpmPreviewAvailable ? () => setSpecpmPreviewOpen(true) : undefined}
               onOpenExplorationPreview={explorationSurfacesAvailable ? () => setExplorationSurfacesOpen(true) : undefined}
               onOpenSpecCompile={specCompileAvailable ? (nodeId) => setSpecCompileRootId(nodeId) : undefined}
+              specOverlays={specOverlays}
+              specLens={specLens}
               rawGraph={specGraph.rawGraph}
               pinnedNodeId={pinnedNodeId}
               onPin={setPinnedNodeId}
