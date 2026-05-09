@@ -459,7 +459,6 @@ export default function RecentChangesOverlay({
     : runsItems;
   const visible = limit === null ? allItems : allItems.slice(0, limit);
   const total = allItems.length;
-  const showingCount = visible.length;
 
   // Local midnight as a single epoch — passed into every Sparkline so each
   // row doesn't recompute it.
