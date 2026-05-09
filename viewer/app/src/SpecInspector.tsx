@@ -8,7 +8,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleDot, faCalendarPlus, faRotate, faBoxArchive, faThumbtack, faMagnifyingGlassChart, faFileLines } from "@fortawesome/free-solid-svg-icons";
 import type { ApiSpecGraph, ApiSpecNode, SpecOverlayMap, SpecLensMode } from "./types";
 import { renderInlineText } from "./renderInlineText";
-import { lensStyleFor } from "./specLens";
+import { lensStyleFor, type LensStyle } from "./specLens";
 
 interface SpecInspectorProps {
   selectedNodeId: string | null;
@@ -246,7 +246,7 @@ interface SpecDetailPaneProps {
   /** Open spec compile overlay for this node */
   onOpenSpecCompile?: () => void;
   /** Lens-derived border/background — syncs card color with graph node */
-  lensStyle?: { borderColor?: string; background?: string };
+  lensStyle?: LensStyle;
 }
 
 function SpecDetailPane({

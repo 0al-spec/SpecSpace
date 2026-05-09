@@ -2005,10 +2005,17 @@ class ViewerHandler(BaseHTTPRequestHandler):
         )
 
     def _runs_dir(self):
-        if self.server.spec_dir is None:
-            return None
-        p = self.server.spec_dir.parent.parent / "runs"
-        return p if p.is_dir() else None
+        # Prefer --specgraph-dir/runs (same source as runs_watcher); fall back to
+        # the legacy derivation from --spec-dir so single-arg invocations still work.
+        if self.server.specgraph_dir is not None:
+            p = self.server.specgraph_dir / "runs"
+            if p.is_dir():
+                return p
+        if self.server.spec_dir is not None:
+            p = self.server.spec_dir.parent.parent / "runs"
+            if p.is_dir():
+                return p
+        return None
 
     def _viewer_surfaces_build_available(self) -> bool:
         """True only when supervisor.py declares --build-viewer-surfaces in its source."""
@@ -2264,7 +2271,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
             json_response(
                 self,
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "runs/ directory not configured. Start the server with --specgraph-dir."},
+                {"error": "runs/ directory not configured. Start the server with --spec-dir (or --specgraph-dir)."},
             )
             return
 
@@ -2277,7 +2284,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         since = qs.get("since", [None])[0]
         since_iso = since if isinstance(since, str) and since else None
 
-        events: list[dict[str, Any]] = []
+        # Filenames start with an ISO-compact timestamp so we can sort/filter without
+        # opening any files, then harvest metadata only for the top-N candidates.
+        candidates: list[tuple[str, Path, re.Match]] = []
         for entry in runs_dir.iterdir():
             if not entry.is_file() or entry.suffix != ".json":
                 continue
@@ -2287,6 +2296,14 @@ class ViewerHandler(BaseHTTPRequestHandler):
             ts_iso = self._parse_iso_compact(m.group("ts"))
             if since_iso is not None and ts_iso <= since_iso:
                 continue
+            candidates.append((ts_iso, entry, m))
+
+        candidates.sort(key=lambda c: c[0], reverse=True)
+        total = len(candidates)
+        candidates = candidates[:limit]
+
+        events: list[dict[str, Any]] = []
+        for ts_iso, entry, m in candidates:
             meta = self._harvest_run_meta(entry)
             events.append({
                 "run_id": entry.stem,
@@ -2300,10 +2317,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "child_model": meta.get("child_model"),
             })
 
-        # Sort descending by timestamp string (ISO 8601 sorts lexicographically).
-        events.sort(key=lambda e: e["ts"], reverse=True)
-        events = events[:limit]
-        json_response(self, HTTPStatus.OK, {"events": events, "total": len(events)})
+        json_response(self, HTTPStatus.OK, {"events": events, "total": total})
 
     def handle_metric_pricing_provenance(self) -> None:
         self._handle_runs_artifact(
@@ -3314,8 +3328,14 @@ def main() -> None:
     server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
     server.spec_watcher = SpecWatcher(server.spec_dir) if server.spec_dir else None
     server.specgraph_dir = args.specgraph_dir.expanduser().resolve() if args.specgraph_dir else None
-    # Runs watcher: enabled only when --specgraph-dir is configured AND runs/ exists.
-    runs_path = server.specgraph_dir / "runs" if server.specgraph_dir else None
+    # Runs watcher: same priority as _runs_dir() — prefer --specgraph-dir/runs,
+    # fall back to --spec-dir derivation, so the SSE source matches the REST endpoint.
+    if server.specgraph_dir is not None:
+        runs_path = server.specgraph_dir / "runs"
+    elif server.spec_dir is not None:
+        runs_path = server.spec_dir.parent.parent / "runs"
+    else:
+        runs_path = None
     server.runs_watcher = RunsWatcher(runs_path) if runs_path and runs_path.is_dir() else None
     server.agent_available = args.agent
 

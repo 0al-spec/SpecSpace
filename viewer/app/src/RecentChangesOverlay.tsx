@@ -211,7 +211,11 @@ export default function RecentChangesOverlay({
       .finally(() => {
         if (!cancelled) setRunsLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      // Clear the module-level cache so the next genuine open re-fetches fresh data.
+      runsFetchPromise = null;
+    };
   }, []);
 
   // Live mode — subscribe to /api/runs-watch SSE; on each `change` event
@@ -337,7 +341,8 @@ export default function RecentChangesOverlay({
     }
     const ratio = clientHeight / scrollHeight;
     const heightPct = Math.max(8, ratio * 100);
-    const topPct = (scrollTop / scrollHeight) * 100;
+    const scrollable = scrollHeight - clientHeight;
+    const topPct = scrollable > 0 ? (scrollTop / scrollable) * (100 - heightPct) : 0;
     setThumb({ top: topPct, height: heightPct, visible: true });
   }, []);
 
