@@ -1,0 +1,87 @@
+/* Mirrors RecentChangesPanel structure so the two surfaces sit side-by-side
+ * cleanly. CSS is duplicated rather than shared via a parent slice because:
+ * a) FSD widgets shouldn't import from sibling widgets;
+ * b) we only have two consumers; promoting to shared/ui/feed-card is a
+ *    refactor for when a third panel appears. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--gs-paper);
+  border: 1px solid var(--gs-rule-mid);
+  color: var(--gs-ink);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gs-space-5);
+  padding: var(--gs-space-6) var(--gs-space-7);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+}
+
+.title {
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--gs-muted);
+}
+
+.meta {
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  color: var(--gs-muted-2);
+  white-space: nowrap;
+}
+
+.scroll {
+  overflow-y: auto;
+  min-height: 0;
+}
+.scroll::-webkit-scrollbar { width: 8px; }
+.scroll::-webkit-scrollbar-track { background: transparent; }
+.scroll::-webkit-scrollbar-thumb { background: var(--gs-rule-soft); }
+.scroll::-webkit-scrollbar-thumb:hover { background: var(--gs-rule-mid); }
+
+.empty {
+  padding: var(--gs-space-10) var(--gs-space-7);
+  text-align: center;
+  color: var(--gs-muted);
+}
+
+.empty-eyebrow {
+  margin: 0 0 var(--gs-space-3);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--gs-muted-2);
+}
+
+.empty-msg {
+  margin: 0;
+  font-family: var(--gs-serif);
+  font-size: 17px;
+  line-height: 1.35;
+  color: var(--gs-muted);
+  font-style: italic;
+}
+
+.boundary {
+  /* Contract §8 requires we surface the planning-only boundary clearly. */
+  padding: var(--gs-space-4) var(--gs-space-7);
+  border-top: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--gs-muted);
+  text-align: center;
+}

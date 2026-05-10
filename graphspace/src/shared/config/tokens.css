@@ -32,6 +32,7 @@
   /* ── Semantic ──────────────────────────────────────────────────────── */
   --gs-ok:               #1f7a4c;
   --gs-warn:             #a06016;
+  --gs-danger:           #b54131;   /* blocked_by_spec_quality, invalid_target_scope */
 
   /* ── Typography ────────────────────────────────────────────────────── */
   --gs-serif:            "Instrument Serif", Georgia, serif;
