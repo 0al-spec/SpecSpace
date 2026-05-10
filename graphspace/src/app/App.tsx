@@ -3,14 +3,18 @@ import { Panel } from "@/shared/ui/panel";
 import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { Overlay } from "@/shared/ui/overlay";
 import { type RecentChange } from "@/entities/recent-change";
-import { RecentChangesPanel } from "@/widgets/recent-changes-panel";
+import {
+  RecentChangesPanel,
+  useRecentChanges,
+  type UseRecentChangesState,
+} from "@/widgets/recent-changes-panel";
 
 /**
- * Day-2 demo: same scaffold + a stack of RecentChangeRow components fed by
- * hand-crafted sample entries that cover every tone path. Stable timestamps
- * so screenshots don't drift between runs.
+ * Day-6 demo: live data via useRecentChanges + sample fallback when the
+ * backend is offline / not configured / parse fails. The caption surfaces
+ * which state we're in so screenshots are self-documenting.
  *
- * Will be replaced by pages/viewer once a real fetch wiring lands.
+ * Will be replaced by pages/viewer once layout lands.
  */
 const NOW = new Date("2026-05-10T12:00:00Z");
 
@@ -72,10 +76,65 @@ const SAMPLE_ENTRIES: RecentChange[] = [
   },
 ];
 
+type FeedView = {
+  entries: readonly RecentChange[];
+  caption: string;
+  emptyMessage: string;
+};
+
+function describeFeed(state: UseRecentChangesState): FeedView {
+  switch (state.kind) {
+    case "idle":
+    case "loading":
+      return { entries: SAMPLE_ENTRIES, caption: "loading… · sample fallback", emptyMessage: "loading" };
+    case "ok":
+      return {
+        entries: state.data.entries,
+        caption: `${state.data.entries.length} events · live`,
+        emptyMessage: "No activity recorded yet",
+      };
+    case "http-error":
+      return {
+        entries: SAMPLE_ENTRIES,
+        caption: `live · HTTP ${state.status} · sample fallback`,
+        emptyMessage: state.statusText || "endpoint failed",
+      };
+    case "network-error":
+      return {
+        entries: SAMPLE_ENTRIES,
+        caption: "live · backend unreachable · sample fallback",
+        emptyMessage: "network error",
+      };
+    case "envelope-error":
+      return { entries: SAMPLE_ENTRIES, caption: "live · bad envelope · sample fallback", emptyMessage: state.reason };
+    case "version-not-supported":
+      return {
+        entries: SAMPLE_ENTRIES,
+        caption: `live · schema_version ${state.schema_version} unsupported · sample fallback`,
+        emptyMessage: `schema_version ${state.schema_version} > max ${state.max_supported}`,
+      };
+    case "wrong-artifact-kind":
+      return {
+        entries: SAMPLE_ENTRIES,
+        caption: "live · wrong artifact_kind · sample fallback",
+        emptyMessage: `expected ${state.expected}`,
+      };
+    case "parse-error":
+      return { entries: SAMPLE_ENTRIES, caption: "live · parse error · sample fallback", emptyMessage: "schema validation failed" };
+    case "invariant-violation":
+      return { entries: SAMPLE_ENTRIES, caption: "live · invariant violation · sample fallback", emptyMessage: state.message };
+  }
+}
+
 export function App() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [timelineOn, setTimelineOn] = useState(true);
-  const [count] = useState(SAMPLE_ENTRIES.length);
+  const feedState = useRecentChanges();
+  const view = describeFeed(feedState);
+  // For "ok" with live entries, drop the static demo timestamps so relative
+  // time reflects the real artifact mtime story.
+  const now = feedState.kind === "ok" ? undefined : NOW;
+  const count = view.entries.length;
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", overflowY: "auto" }}>
@@ -117,7 +176,7 @@ export function App() {
                 boxShadow: "0 0 0 3px var(--gs-accent-soft)",
               }}
             />
-            GraphSpace · Day 5
+            GraphSpace · Day 6
           </p>
 
           <h1 style={{ margin: "16px 0 0", fontSize: 50, lineHeight: 1 }}>
@@ -128,20 +187,21 @@ export function App() {
           </h1>
 
           <p style={{ margin: "20px 0 0", color: "var(--gs-muted)", fontSize: 16, lineHeight: 1.62 }}>
-            First vertical slice fully composed.{" "}
-            <code>shared/api/spec-graph-contract</code> validates the artifact;{" "}
-            <code>entities/recent-change</code> turns one entry into a row;{" "}
-            <code>widgets/recent-changes-panel</code> wraps the list with a
-            header, count, scroll, and empty state. Live data wiring is the next
-            step.
+            Live wiring landed. <code>shared/api/client</code> fetches the
+            envelope and runs it through{" "}
+            <code>parseSpecActivityFeed</code>; the result is a discriminated
+            union the widget renders directly. The caption above the feed
+            reports which state we're in — when the backend is offline, the
+            sample data takes over without the page going blank.
           </p>
         </div>
 
         {/* Right: feed of rows */}
         <RecentChangesPanel
-          entries={SAMPLE_ENTRIES}
-          now={NOW}
-          caption={`${SAMPLE_ENTRIES.length} events · sample data`}
+          entries={view.entries}
+          now={now}
+          caption={view.caption}
+          emptyMessage={view.emptyMessage}
           style={{ alignSelf: "start", maxHeight: "calc(100vh - 200px)" }}
         />
       </div>
@@ -176,7 +236,7 @@ export function App() {
               color: "var(--gs-muted)",
             }}
           >
-            v0.0.1 · entities/recent-change · {SAMPLE_ENTRIES.length} sample events
+            v0.0.1 · {feedState.kind} · {count} events
           </span>
         </Panel>
       </Overlay>
