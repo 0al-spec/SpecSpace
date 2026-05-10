@@ -84,6 +84,11 @@ export async function fetchEnvelope<T>({
   try {
     payload = await response.json();
   } catch (error) {
+    // response.json() can reject with AbortError too if cancellation happens
+    // after headers arrive but before the body finishes streaming. Treat that
+    // identically to fetch()-time aborts — re-throw so callers ignoring
+    // unmount events don't surface a phantom envelope-error.
+    if (error instanceof Error && error.name === "AbortError") throw error;
     return { kind: "envelope-error", reason: "response was not valid JSON", raw: error };
   }
 

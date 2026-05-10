@@ -72,6 +72,19 @@ describe("fetchEnvelope", () => {
     await expect(fetchEnvelope({ url: "/api/x", parse: okParse, fetcher })).rejects.toBe(abort);
   });
 
+  it("re-throws AbortError thrown by response.json() too (Codex P2 #8)", async () => {
+    // Cancellation can happen after headers arrive but before the body is
+    // fully read — fetch resolves, json() rejects with AbortError. Must
+    // not become envelope-error.
+    const abort = Object.assign(new Error("aborted body"), { name: "AbortError" });
+    const fakeResponse = {
+      ok: true,
+      json: () => Promise.reject(abort),
+    } as unknown as Response;
+    const fetcher = vi.fn().mockResolvedValue(fakeResponse);
+    await expect(fetchEnvelope({ url: "/api/x", parse: okParse, fetcher })).rejects.toBe(abort);
+  });
+
   it("rejects payloads that don't look like the runs envelope", async () => {
     const fetcher = vi.fn().mockResolvedValue(buildResponse({ entries: [] }));
     const result = await fetchEnvelope({ url: "/api/x", parse: okParse, fetcher });
