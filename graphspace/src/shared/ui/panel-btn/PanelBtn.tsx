@@ -27,7 +27,7 @@ export function PanelBtn({
   return (
     <button type={type} className={cls} {...rest}>
       <span>{children}</span>
-      {badge !== undefined && badge !== 0 && (
+      {badge !== undefined && badge !== 0 && badge !== "0" && (
         <span className={styles.badge}>{badge}</span>
       )}
     </button>
