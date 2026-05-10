@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Panel } from "@/shared/ui/panel";
 import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { Overlay } from "@/shared/ui/overlay";
-import { RecentChangeRow, type RecentChange } from "@/entities/recent-change";
+import { type RecentChange } from "@/entities/recent-change";
+import { RecentChangesPanel } from "@/widgets/recent-changes-panel";
 
 /**
  * Day-2 demo: same scaffold + a stack of RecentChangeRow components fed by
@@ -116,7 +117,7 @@ export function App() {
                 boxShadow: "0 0 0 3px var(--gs-accent-soft)",
               }}
             />
-            GraphSpace · Day 2
+            GraphSpace · Day 5
           </p>
 
           <h1 style={{ margin: "16px 0 0", fontSize: 50, lineHeight: 1 }}>
@@ -127,52 +128,22 @@ export function App() {
           </h1>
 
           <p style={{ margin: "20px 0 0", color: "var(--gs-muted)", fontSize: 16, lineHeight: 1.62 }}>
-            <code>shared/api/spec-graph-contract</code> is in. The first entity that
-            consumes it — <code>entities/recent-change</code> — renders one row per
-            normalised activity event. Tone is derived from{" "}
-            <code>event_type</code> per contract §5; unknown types fall through as
-            neutral.
+            First vertical slice fully composed.{" "}
+            <code>shared/api/spec-graph-contract</code> validates the artifact;{" "}
+            <code>entities/recent-change</code> turns one entry into a row;{" "}
+            <code>widgets/recent-changes-panel</code> wraps the list with a
+            header, count, scroll, and empty state. Live data wiring is the next
+            step.
           </p>
         </div>
 
         {/* Right: feed of rows */}
-        <Panel tone="strong" padding="sm" style={{ alignSelf: "start", padding: 0, overflow: "hidden" }}>
-          <header
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              padding: "12px 14px",
-              borderBottom: "1px solid var(--gs-rule-soft)",
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "var(--gs-mono)",
-                fontSize: 11,
-                fontWeight: 600,
-                textTransform: "uppercase",
-                color: "var(--gs-muted)",
-              }}
-            >
-              Recent changes
-            </span>
-            <span
-              style={{
-                fontFamily: "var(--gs-mono)",
-                fontSize: 10,
-                color: "var(--gs-muted-2)",
-              }}
-            >
-              {SAMPLE_ENTRIES.length} events · sample data
-            </span>
-          </header>
-          <div>
-            {SAMPLE_ENTRIES.map((e) => (
-              <RecentChangeRow key={e.event_id} entry={e} now={NOW} />
-            ))}
-          </div>
-        </Panel>
+        <RecentChangesPanel
+          entries={SAMPLE_ENTRIES}
+          now={NOW}
+          caption={`${SAMPLE_ENTRIES.length} events · sample data`}
+          style={{ alignSelf: "start", maxHeight: "calc(100vh - 200px)" }}
+        />
       </div>
 
       <Overlay anchor="top-left" direction="row">
