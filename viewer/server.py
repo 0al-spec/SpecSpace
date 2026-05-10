@@ -3393,9 +3393,17 @@ def main() -> None:
     server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
     server.spec_watcher = SpecWatcher(server.spec_dir) if server.spec_dir else None
     server.specgraph_dir = args.specgraph_dir.expanduser().resolve() if args.specgraph_dir else None
-    # Runs watcher: enabled only when --specgraph-dir is configured AND runs/ exists.
-    runs_path = server.specgraph_dir / "runs" if server.specgraph_dir else None
-    server.runs_watcher = RunsWatcher(runs_path) if runs_path and runs_path.is_dir() else None
+    # Runs watcher: derive runs/ the same way /api/recent-runs does (via
+    # ViewerHandler._runs_dir(): spec_dir.parent.parent / "runs"), falling back
+    # to --specgraph-dir for deployments that only set that flag. RunsWatcher
+    # tolerates a missing directory at boot — it'll start emitting events once
+    # runs/ appears, so first-run setups don't lose live updates.
+    runs_path: Path | None = None
+    if server.spec_dir is not None:
+        runs_path = server.spec_dir.parent.parent / "runs"
+    elif server.specgraph_dir is not None:
+        runs_path = server.specgraph_dir / "runs"
+    server.runs_watcher = RunsWatcher(runs_path) if runs_path is not None else None
     server.agent_available = args.agent
 
     print(f"Serving ContextBuilder at http://localhost:{args.port}/")
