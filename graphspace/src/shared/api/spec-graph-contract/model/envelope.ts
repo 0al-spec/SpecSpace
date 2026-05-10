@@ -6,10 +6,18 @@ import { z } from "zod";
  * `schema_version` checks per kind. Top-level shape derives directly from the
  * viewer contracts under SpecGraph/docs/*viewer_contract.md.
  */
+/**
+ * ISO 8601 timestamp with offset — e.g. `"2026-05-09T19:45:46.108441+00:00"`.
+ * SpecGraph emits offsets like `+00:00` / `+03:00`, so we allow `offset: true`
+ * instead of forcing a `Z` suffix. Strict parsing catches `"soon"`-style
+ * garbage at parse time before downstream timeline/sort code sees it.
+ */
+export const isoDatetimeWithOffset = z.string().datetime({ offset: true });
+
 export const baseArtifactShape = {
   artifact_kind: z.string(),
   schema_version: z.number().int().nonnegative(),
-  generated_at: z.string(),
+  generated_at: isoDatetimeWithOffset,
 } as const;
 
 export type BaseArtifact = z.infer<z.ZodObject<typeof baseArtifactShape>>;

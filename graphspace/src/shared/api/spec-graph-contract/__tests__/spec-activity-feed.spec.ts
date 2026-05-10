@@ -89,6 +89,45 @@ describe("parseSpecActivityFeed", () => {
     expect(r.kind).toBe("parse-error");
   });
 
+  it("rejects non-ISO occurred_at like \"soon\" (Codex P2 #5)", () => {
+    const broken = cloneGolden();
+    broken.entries[0].occurred_at = "soon";
+    expect(parseSpecActivityFeed(broken).kind).toBe("parse-error");
+  });
+
+  it("rejects non-ISO generated_at as parse-error (Codex P2 #5)", () => {
+    const broken = cloneGolden();
+    broken.generated_at = "yesterday";
+    expect(parseSpecActivityFeed(broken).kind).toBe("parse-error");
+  });
+
+  it("accepts ISO 8601 with timezone offset (+00:00 / +03:00)", () => {
+    const variant = cloneGolden();
+    variant.entries[0].occurred_at = "2026-05-10T08:30:00+03:00";
+    variant.generated_at = "2026-05-10T08:30:00+00:00";
+    expect(parseSpecActivityFeed(variant).kind).toBe("ok");
+  });
+
+  it("rejects non-array named_filters values (Codex P2 #5)", () => {
+    const broken = cloneGolden();
+    broken.viewer_projection.named_filters = { "trace_or_evidence_baselines": 42 };
+    expect(parseSpecActivityFeed(broken).kind).toBe("parse-error");
+  });
+
+  it("rejects named_filters entries containing non-string ids", () => {
+    const broken = cloneGolden();
+    broken.viewer_projection.named_filters = { "trace_or_evidence_baselines": [123, "spec_activity::abc"] };
+    expect(parseSpecActivityFeed(broken).kind).toBe("parse-error");
+  });
+
+  it("accepts the normal shape: named_filters as Record<string, string[]>", () => {
+    const variant = cloneGolden();
+    variant.viewer_projection.named_filters = {
+      "trace_or_evidence_baselines": ["spec_activity::abc", "spec_activity::def"],
+    };
+    expect(parseSpecActivityFeed(variant).kind).toBe("ok");
+  });
+
   it("known event-type vocabulary stays in sync with the contract", () => {
     // Lock against accidental drift. Contract §5 lists exactly these types.
     expect([...KNOWN_EVENT_TYPES].sort()).toEqual([

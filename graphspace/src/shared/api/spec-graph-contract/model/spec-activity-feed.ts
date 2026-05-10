@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { baseArtifactShape } from "./envelope";
+import { baseArtifactShape, isoDatetimeWithOffset } from "./envelope";
 
 /**
  * Source: docs/spec_activity_feed_viewer_contract.md (SpecGraph repo).
@@ -52,7 +52,7 @@ export const specActivityEntrySchema = z.object({
   event_type: z.string(),
   spec_id: z.string(),
   title: z.string(),
-  occurred_at: z.string(),
+  occurred_at: isoDatetimeWithOffset,
   summary: z.string(),
   source_kind: z.string(),
   source_ref: sourceRefSchema.optional(),
@@ -69,10 +69,19 @@ const summarySchema = z.object({
   spec_event_counts: z.record(z.string(), z.number().int().nonnegative()),
 }).passthrough();
 
+/**
+ * Every projection bucket maps a key (event_type id, spec id, named filter
+ * label) to a list of `event_id`s the UI uses for filtering. Previously
+ * `named_filters` was modelled as `Record<string, unknown>` which let
+ * numbers / nested objects pass as `kind: "ok"` and broke downstream
+ * filtering. All three fields are now tightened to `Record<string, string[]>`.
+ */
+const projectionBucket = z.record(z.string(), z.array(z.string()));
+
 const viewerProjectionSchema = z.object({
-  event_type: z.record(z.string(), z.array(z.string())),
-  spec_id: z.record(z.string(), z.array(z.string())),
-  named_filters: z.record(z.string(), z.unknown()),
+  event_type: projectionBucket,
+  spec_id: projectionBucket,
+  named_filters: projectionBucket,
 }).passthrough();
 
 const viewerContractSchema = z.object({
