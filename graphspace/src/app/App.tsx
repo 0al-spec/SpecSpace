@@ -77,14 +77,16 @@ export function App() {
   const [count] = useState(SAMPLE_ENTRIES.length);
 
   return (
-    <div style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
+    <div style={{ position: "relative", minHeight: "100vh", overflowY: "auto" }}>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(360px, 1fr) minmax(420px, 540px)",
+          // auto-fit + minmax collapses to a single column below ~712 px so
+          // narrow viewports (laptop split, mobile) stack instead of clipping.
+          // The outer container scrolls vertically; nothing gets cut off.
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 360px), 1fr))",
           gap: 32,
-          padding: "120px 80px 80px",
-          height: "100%",
+          padding: "clamp(60px, 8vw, 120px) clamp(20px, 5vw, 80px) 80px",
           alignContent: "start",
         }}
       >
