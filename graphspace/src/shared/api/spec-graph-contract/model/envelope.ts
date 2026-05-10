@@ -30,6 +30,7 @@ export type BaseArtifact = z.infer<z.ZodObject<typeof baseArtifactShape>>;
  */
 export const MAX_SUPPORTED_VERSION = {
   spec_activity_feed: 1,
+  implementation_work_index: 1,
 } as const satisfies Record<string, number>;
 
 export type KnownArtifactKind = keyof typeof MAX_SUPPORTED_VERSION;

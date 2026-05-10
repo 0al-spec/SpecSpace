@@ -3,11 +3,13 @@ import { Panel } from "@/shared/ui/panel";
 import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { Overlay } from "@/shared/ui/overlay";
 import { type RecentChange } from "@/entities/recent-change";
+import { type WorkItem } from "@/entities/implementation-work";
 import {
   RecentChangesPanel,
   useRecentChanges,
   type UseRecentChangesState,
 } from "@/widgets/recent-changes-panel";
+import { ImplementationWorkPanel } from "@/widgets/implementation-work-panel";
 
 /**
  * Day-6 demo: live data via useRecentChanges + sample fallback when the
@@ -73,6 +75,72 @@ const SAMPLE_ENTRIES: RecentChange[] = [
     source_kind: "git_commit",
     source_paths: ["viewer/server.py"],
     viewer: { tone: "review", label: "review applied" },
+  },
+];
+
+// Day 7A: sample WorkItems hitting every readiness tone so the visual story
+// matches contract §7. Live wiring lands in Day 7B once the backend endpoint
+// exists.
+const SAMPLE_WORK_ITEMS: WorkItem[] = [
+  {
+    work_item_id: "implementation_work::SG-SPEC-0042::changed_acceptance",
+    affected_spec_ids: ["SG-SPEC-0042"],
+    implementation_reason: "changed_acceptance",
+    delta_refs: ["changed_acceptance_refs::SG-SPEC-0042"],
+    required_tests: [],
+    expected_evidence: [],
+    likely_code_refs: [],
+    readiness: "ready_for_planning",
+    blockers: [],
+    next_gap: "review_implementation_delta",
+  },
+  {
+    work_item_id: "implementation_work::SG-SPEC-0028::ready_to_code",
+    affected_spec_ids: ["SG-SPEC-0028"],
+    implementation_reason: "new_contract",
+    delta_refs: ["new_spec_ids::SG-SPEC-0028"],
+    required_tests: ["tests/test_readiness_gate.py"],
+    expected_evidence: [],
+    likely_code_refs: ["tools/readiness.py"],
+    readiness: "ready_for_coding_agent",
+    blockers: [],
+    next_gap: "hand_to_coding_agent",
+  },
+  {
+    work_item_id: "implementation_work::SG-SPEC-0057::blocked_trace",
+    affected_spec_ids: ["SG-SPEC-0057"],
+    implementation_reason: "missing_trace",
+    delta_refs: ["missing_trace_refs::SG-SPEC-0057"],
+    required_tests: [],
+    expected_evidence: [],
+    likely_code_refs: [],
+    readiness: "blocked_by_trace_gap",
+    blockers: ["trace baseline not attached for SG-SPEC-0057"],
+    next_gap: "attach_trace_baseline",
+  },
+  {
+    work_item_id: "implementation_work::SG-SPEC-0060::quality_block",
+    affected_spec_ids: ["SG-SPEC-0060"],
+    implementation_reason: "spec_quality_check",
+    delta_refs: [],
+    required_tests: [],
+    expected_evidence: [],
+    likely_code_refs: [],
+    readiness: "blocked_by_spec_quality",
+    blockers: ["acceptance criteria reference removed contract", "readiness gate inconsistent"],
+    next_gap: "repair_spec",
+  },
+  {
+    work_item_id: "implementation_work::SG-SPEC-0030::done",
+    affected_spec_ids: ["SG-SPEC-0030"],
+    implementation_reason: "changed_acceptance",
+    delta_refs: [],
+    required_tests: [],
+    expected_evidence: ["runs/test_results/SG-SPEC-0030.json"],
+    likely_code_refs: ["tools/spec_trace_registry.json"],
+    readiness: "implemented",
+    blockers: [],
+    next_gap: "—",
   },
 ];
 
@@ -176,7 +244,7 @@ export function App() {
                 boxShadow: "0 0 0 3px var(--gs-accent-soft)",
               }}
             />
-            GraphSpace · Day 6
+            GraphSpace · Day 7A
           </p>
 
           <h1 style={{ margin: "16px 0 0", fontSize: 50, lineHeight: 1 }}>
@@ -187,13 +255,19 @@ export function App() {
           </h1>
 
           <p style={{ margin: "20px 0 0", color: "var(--gs-muted)", fontSize: 16, lineHeight: 1.62 }}>
-            Live wiring landed. <code>shared/api/client</code> fetches the
-            envelope and runs it through{" "}
-            <code>parseSpecActivityFeed</code>; the result is a discriminated
-            union the widget renders directly. The caption above the feed
-            reports which state we're in — when the backend is offline, the
-            sample data takes over without the page going blank.
+            Second contract on board: <code>implementation_work_index</code>{" "}
+            adds a new <code>entities/implementation-work</code> and{" "}
+            <code>widgets/implementation-work-panel</code>. The generic
+            parser, version guard, and FSD boundaries proved out across a
+            second domain — only the row markup and readiness palette
+            differ. Backend endpoint wiring lands next (Day 7B).
           </p>
+
+          <ImplementationWorkPanel
+            items={SAMPLE_WORK_ITEMS}
+            caption={`${SAMPLE_WORK_ITEMS.length} items · static · golden fixture`}
+            style={{ marginTop: 28, maxHeight: "calc(100vh - 540px)" }}
+          />
         </div>
 
         {/* Right: feed of rows */}
@@ -236,7 +310,7 @@ export function App() {
               color: "var(--gs-muted)",
             }}
           >
-            v0.0.1 · {feedState.kind} · {count} events
+            v0.0.1 · recent {feedState.kind} · {count} events · work {SAMPLE_WORK_ITEMS.length} items
           </span>
         </Panel>
       </Overlay>
