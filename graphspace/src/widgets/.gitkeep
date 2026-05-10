@@ -1,0 +1,8 @@
+# widgets/ — FSD layer
+
+Large self-contained UI blocks composed from features/entities/shared.
+Examples (planned):
+  recent-changes-overlay/
+  timeline-filter/
+  exploration-preview-panel/
+  telemetry-overlay/

@@ -1,0 +1,63 @@
+/* GraphSpace design tokens.
+ * Source: SpecPM landing (../SpecPM/landing_page/assets/specpm-design.css).
+ * Aesthetic: editorial / newsprint — paper backgrounds, dark ink text,
+ * sharp corners, blue accent, three-font typographic system.
+ *
+ * Convention: every token is prefixed --gs- to keep the namespace clean
+ * if the legacy viewer ever runs in the same document. */
+
+:root {
+  /* ── Surfaces (warm paper) ─────────────────────────────────────────── */
+  --gs-paper:            #f4f2ed;   /* page background */
+  --gs-paper-2:          #e8e4dc;   /* secondary surface */
+  --gs-paper-3:          #dad5ca;   /* tertiary surface */
+  --gs-panel:            #fbfaf7;   /* cards, panels */
+
+  /* ── Ink (text + borders) ──────────────────────────────────────────── */
+  --gs-ink:              #0b0c0d;
+  --gs-ink-2:            #151719;
+  --gs-muted:            #625f58;
+  --gs-muted-2:          #858078;
+
+  /* ── Rules ─────────────────────────────────────────────────────────── */
+  --gs-rule:             #191a1c;
+  --gs-rule-soft:        rgba(25, 26, 28, 0.14);
+  --gs-rule-mid:         rgba(25, 26, 28, 0.24);
+  --gs-rule-on-dark:     rgba(244, 242, 237, 0.16);
+
+  /* ── Accent (link / focus / live) ──────────────────────────────────── */
+  --gs-accent:           #2c74ad;
+  --gs-accent-soft:      rgba(44, 116, 173, 0.12);
+
+  /* ── Semantic ──────────────────────────────────────────────────────── */
+  --gs-ok:               #1f7a4c;
+  --gs-warn:             #a06016;
+
+  /* ── Typography ────────────────────────────────────────────────────── */
+  --gs-serif:            "Instrument Serif", Georgia, serif;
+  --gs-sans:             "Inter", "Helvetica Neue", Arial, sans-serif;
+  --gs-mono:             "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ── Radii (sharp by default) ──────────────────────────────────────── */
+  --gs-radius-sm:        0;
+  --gs-radius-md:        0;
+  --gs-radius-pill:      0;        /* Editorial style is intentionally squared */
+
+  /* ── Spacing scale (2 px base) ─────────────────────────────────────── */
+  --gs-space-1:           2px;
+  --gs-space-2:           4px;
+  --gs-space-3:           6px;
+  --gs-space-4:           8px;
+  --gs-space-5:          10px;
+  --gs-space-6:          12px;
+  --gs-space-7:          14px;
+  --gs-space-8:          16px;
+  --gs-space-9:          20px;
+  --gs-space-10:         24px;
+  --gs-space-11:         32px;
+
+  /* ── Motion ────────────────────────────────────────────────────────── */
+  --gs-dur-fast:         160ms;
+  --gs-dur-med:          220ms;
+  --gs-ease:             ease;
+}

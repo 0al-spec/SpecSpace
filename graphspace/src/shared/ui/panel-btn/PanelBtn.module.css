@@ -1,0 +1,82 @@
+/* Icon-only overlay button in SpecPM editorial style.
+ * Square 32x32 with 1px ink border; hover lifts and inverts to ink-on-paper.
+ * Active state uses the accent (mirrors .status-pill.live). */
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--gs-rule);
+  background: transparent;
+  color: var(--gs-ink);
+  font-family: var(--gs-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color var(--gs-dur-fast) var(--gs-ease),
+    color var(--gs-dur-fast) var(--gs-ease),
+    border-color var(--gs-dur-fast) var(--gs-ease),
+    transform var(--gs-dur-fast) var(--gs-ease),
+    opacity var(--gs-dur-fast) var(--gs-ease);
+}
+
+.btn > span {
+  pointer-events: none;
+  line-height: 1;
+}
+
+.btn:hover:not(.dim) {
+  transform: translateY(-1px);
+  background: var(--gs-ink);
+  color: var(--gs-paper);
+}
+
+.dim {
+  border-color: var(--gs-rule-soft);
+  color: var(--gs-muted-2);
+  cursor: default;
+  opacity: 0.55;
+}
+
+.active {
+  border-color: color-mix(in oklab, var(--gs-accent) 42%, var(--gs-rule-soft));
+  background: var(--gs-accent-soft);
+  color: var(--gs-accent);
+}
+
+.active:hover:not(.dim) {
+  background: var(--gs-accent);
+  color: var(--gs-paper);
+  border-color: var(--gs-accent);
+}
+
+.badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--gs-space-2);
+  border: 1px solid var(--gs-paper);
+  background: var(--gs-ink);
+  color: var(--gs-paper);
+  font-family: var(--gs-mono);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--gs-space-3);
+}
