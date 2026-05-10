@@ -1,0 +1,2 @@
+# shared/api — HTTP client and SpecGraph contract.
+# spec-graph-contract/ slice (Zod schemas, version guard, golden-fixture types) lands here next.

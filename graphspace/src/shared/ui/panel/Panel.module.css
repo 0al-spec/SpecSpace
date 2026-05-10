@@ -1,0 +1,17 @@
+/* Editorial-style surface: 1 px ink-soft border, sharp corners, no shadow.
+ * Tone selects which paper layer to sit on. */
+
+.panel {
+  border: 1px solid var(--gs-rule-soft);
+  border-radius: var(--gs-radius-md);
+  color: var(--gs-ink);
+  padding: var(--gs-space-7);
+}
+
+.tone-default { background: var(--gs-panel); }
+.tone-strong  { background: var(--gs-paper); border-color: var(--gs-rule-mid); }
+.tone-muted   { background: var(--gs-paper-2); }
+
+.padding-sm { padding: var(--gs-space-4); }
+.padding-md { padding: var(--gs-space-7); }
+.padding-lg { padding: var(--gs-space-9); }

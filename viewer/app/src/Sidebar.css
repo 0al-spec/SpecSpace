@@ -1,6 +1,6 @@
 .sidebar {
-  width: 260px;
-  min-width: 260px;
+  width: 320px;
+  min-width: 320px;
   background: var(--panel);
   border-right: 1px solid var(--line);
   padding: 20px 16px;
@@ -89,11 +89,14 @@
   color: var(--muted);
 }
 
+/* Files / Spec Nodes list container — no card chrome, items align flush
+   with the sidebar's own padding. The section label remains the only
+   visual anchor for the group. */
 .sidebar-files {
-  background: var(--panel-strong);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
 }
 
 .sidebar-file-item {
@@ -320,6 +323,23 @@
   outline-offset: 1px;
 }
 
+/* ID + status badge on a single top row; badge pushed to the right edge. */
+.sidebar-spec-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.sidebar-spec-header .sidebar-spec-id {
+  margin-bottom: 0;
+}
+
+.sidebar-spec-header .spec-node-status-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .sidebar-spec-id {
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -341,7 +361,6 @@
   margin-top: 8px;
 }
 
-/* Re-anchor gradient to sidebar item width (~196px = 260px − 32px sidebar padding − 32px item padding) */
-.sidebar-spec-item .spec-node-maturity-fill {
-  background-size: 196px 100%;
-}
+/* Sidebar override removed — .spec-node-maturity-fill now uses 100cqi
+   (container-query inline size) keyed off the track, so the gradient
+   automatically tracks whatever width the sidebar item gives it. */

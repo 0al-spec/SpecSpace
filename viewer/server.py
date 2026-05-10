@@ -1894,6 +1894,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/recent-runs":
             self.handle_recent_runs(parsed)
             return
+        if parsed.path == "/api/spec-activity":
+            self.handle_spec_activity(parsed)
+            return
         if parsed.path == "/api/metric-pricing-provenance":
             self.handle_metric_pricing_provenance()
             return
@@ -2005,17 +2008,10 @@ class ViewerHandler(BaseHTTPRequestHandler):
         )
 
     def _runs_dir(self):
-        # Prefer --specgraph-dir/runs (same source as runs_watcher); fall back to
-        # the legacy derivation from --spec-dir so single-arg invocations still work.
-        if self.server.specgraph_dir is not None:
-            p = self.server.specgraph_dir / "runs"
-            if p.is_dir():
-                return p
-        if self.server.spec_dir is not None:
-            p = self.server.spec_dir.parent.parent / "runs"
-            if p.is_dir():
-                return p
-        return None
+        if self.server.spec_dir is None:
+            return None
+        p = self.server.spec_dir.parent.parent / "runs"
+        return p if p.is_dir() else None
 
     def _viewer_surfaces_build_available(self) -> bool:
         """True only when supervisor.py declares --build-viewer-surfaces in its source."""
@@ -2271,7 +2267,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
             json_response(
                 self,
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "runs/ directory not configured. Start the server with --spec-dir (or --specgraph-dir)."},
+                {"error": "runs/ directory not configured. Start the server with --specgraph-dir."},
             )
             return
 
@@ -2284,9 +2280,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
         since = qs.get("since", [None])[0]
         since_iso = since if isinstance(since, str) and since else None
 
-        # Filenames start with an ISO-compact timestamp so we can sort/filter without
-        # opening any files, then harvest metadata only for the top-N candidates.
-        candidates: list[tuple[str, Path, re.Match]] = []
+        events: list[dict[str, Any]] = []
         for entry in runs_dir.iterdir():
             if not entry.is_file() or entry.suffix != ".json":
                 continue
@@ -2296,14 +2290,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
             ts_iso = self._parse_iso_compact(m.group("ts"))
             if since_iso is not None and ts_iso <= since_iso:
                 continue
-            candidates.append((ts_iso, entry, m))
-
-        candidates.sort(key=lambda c: c[0], reverse=True)
-        total = len(candidates)
-        candidates = candidates[:limit]
-
-        events: list[dict[str, Any]] = []
-        for ts_iso, entry, m in candidates:
             meta = self._harvest_run_meta(entry)
             events.append({
                 "run_id": entry.stem,
@@ -2317,7 +2303,86 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "child_model": meta.get("child_model"),
             })
 
-        json_response(self, HTTPStatus.OK, {"events": events, "total": total})
+        # Sort descending by timestamp string (ISO 8601 sorts lexicographically).
+        events.sort(key=lambda e: e["ts"], reverse=True)
+        events = events[:limit]
+        json_response(self, HTTPStatus.OK, {"events": events, "total": len(events)})
+
+    def handle_spec_activity(self, parsed) -> None:
+        """Serve runs/spec_activity_feed.json with optional limit/since filtering.
+
+        Contract: docs/spec_activity_feed_viewer_contract.md (SpecGraph PR #243).
+        Returns the artifact data inside the standard runs envelope. limit/since
+        are applied to data.entries[] after loading. since accepts an ISO
+        timestamp string and is compared against entry.occurred_at.
+        """
+        if self.server.spec_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecGraph not configured. Start the server with --spec-dir."},
+            )
+            return
+        runs = self._runs_dir()
+        if runs is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "spec_activity_feed.json not found. Run `make spec-activity` in SpecGraph first."},
+            )
+            return
+        path = runs / "spec_activity_feed.json"
+        if not path.exists():
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "spec_activity_feed.json not found. Run `make spec-activity` in SpecGraph first."},
+            )
+            return
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": "spec_activity_feed.json is not valid JSON", "detail": str(exc)},
+            )
+            return
+
+        # Optional filtering on entries[] (preserve top-level metadata otherwise).
+        qs = parse_qs(parsed.query or "")
+        try:
+            limit_raw = qs.get("limit", [None])[0]
+            limit: int | None = int(limit_raw) if limit_raw is not None else None
+        except (TypeError, ValueError):
+            limit = 50  # safe default instead of unbounded
+        if limit is not None:
+            limit = max(1, min(limit, 1000))
+        since = qs.get("since", [None])[0]
+        since_iso = since if isinstance(since, str) and since else None
+
+        if (limit is not None or since_iso is not None) and isinstance(data, dict):
+            entries = data.get("entries") or []
+            if isinstance(entries, list):
+                if since_iso is not None:
+                    entries = [
+                        e for e in entries
+                        if isinstance(e, dict)
+                        and isinstance(e.get("occurred_at"), str)
+                        and e["occurred_at"] > since_iso
+                    ]
+                if limit is not None:
+                    entries = entries[:limit]
+                data = {**data, "entries": entries, "entry_count": len(entries)}
+
+        mtime = path.stat().st_mtime
+        mtime_iso = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+        json_response(self, HTTPStatus.OK, {
+            "path": str(path),
+            "mtime": mtime,
+            "mtime_iso": mtime_iso,
+            "data": data,
+        })
 
     def handle_metric_pricing_provenance(self) -> None:
         self._handle_runs_artifact(
@@ -3328,15 +3393,17 @@ def main() -> None:
     server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
     server.spec_watcher = SpecWatcher(server.spec_dir) if server.spec_dir else None
     server.specgraph_dir = args.specgraph_dir.expanduser().resolve() if args.specgraph_dir else None
-    # Runs watcher: same priority as _runs_dir() — prefer --specgraph-dir/runs,
-    # fall back to --spec-dir derivation, so the SSE source matches the REST endpoint.
-    if server.specgraph_dir is not None:
-        runs_path = server.specgraph_dir / "runs"
-    elif server.spec_dir is not None:
+    # Runs watcher: derive runs/ the same way /api/recent-runs does (via
+    # ViewerHandler._runs_dir(): spec_dir.parent.parent / "runs"), falling back
+    # to --specgraph-dir for deployments that only set that flag. RunsWatcher
+    # tolerates a missing directory at boot — it'll start emitting events once
+    # runs/ appears, so first-run setups don't lose live updates.
+    runs_path: Path | None = None
+    if server.spec_dir is not None:
         runs_path = server.spec_dir.parent.parent / "runs"
-    else:
-        runs_path = None
-    server.runs_watcher = RunsWatcher(runs_path) if runs_path and runs_path.is_dir() else None
+    elif server.specgraph_dir is not None:
+        runs_path = server.specgraph_dir / "runs"
+    server.runs_watcher = RunsWatcher(runs_path) if runs_path is not None else None
     server.agent_available = args.agent
 
     print(f"Serving ContextBuilder at http://localhost:{args.port}/")
