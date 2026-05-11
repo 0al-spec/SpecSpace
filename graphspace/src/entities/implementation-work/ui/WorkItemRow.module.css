@@ -64,6 +64,16 @@
   font-family: var(--gs-mono);
 }
 
+/* Right-hand status column: readiness pill stacked over the next_gap hint.
+ * align-items: flex-end so the pill hugs the card's right edge even when the
+ * next_gap line below it is longer (was sitting left-of-column before). */
+.right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--gs-space-2);
+}
+
 /* Readiness pill — sharp rectangle, mono uppercase, tone-coloured.
  * 1px border so it reads as a tag even on the neutral state. */
 .pill {
@@ -90,11 +100,9 @@
 .tone-neutral  { /* defaults */ }
 
 .next-gap {
-  display: block;
-  margin-top: var(--gs-space-2);
   font-family: var(--gs-mono);
   font-size: 10px;
   color: var(--gs-muted-2);
-  text-align: right;
   text-transform: lowercase;
+  /* gap + align-items on .right handle the rest. */
 }

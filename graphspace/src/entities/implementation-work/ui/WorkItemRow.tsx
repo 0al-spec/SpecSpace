@@ -33,7 +33,7 @@ export function WorkItemRow({ item, className, ...rest }: Props) {
           </ul>
         )}
       </div>
-      <div>
+      <div className={styles.right}>
         <span className={pillCls} title={`readiness: ${item.readiness}`}>
           {item.readiness.replace(/_/g, " ")}
         </span>
