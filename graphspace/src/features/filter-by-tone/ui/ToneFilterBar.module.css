@@ -1,0 +1,86 @@
+/* Horizontal chip row used above Recent Changes. Editorial-style: sharp
+ * rectangles, 1px border, mono uppercase label + small count.
+ * Active chip picks up the tone colour (mirrors RecentChangeRow tone-bar). */
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gs-space-3);
+  padding: var(--gs-space-5) var(--gs-space-7);
+  background: var(--gs-panel);
+  border: 1px solid var(--gs-rule-mid);
+  border-bottom: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gs-space-3);
+  padding: 4px 8px;
+  border: 1px solid var(--gs-rule-soft);
+  background: transparent;
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background-color var(--gs-dur-fast) var(--gs-ease),
+    color var(--gs-dur-fast) var(--gs-ease),
+    border-color var(--gs-dur-fast) var(--gs-ease);
+}
+
+.chip:hover {
+  border-color: var(--gs-rule-mid);
+  color: var(--gs-ink);
+}
+
+.chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+  border-color: var(--gs-rule-soft);
+}
+
+.count {
+  font-weight: 500;
+  color: var(--gs-muted-2);
+}
+
+.chip.active .count,
+.chip.active {
+  color: inherit;
+}
+
+/* Active states — one per tone, mirroring RecentChangeRow tone-bar colour. */
+.active.tone-spec           { border-color: var(--gs-ink);          color: var(--gs-ink);          background: color-mix(in oklab, var(--gs-ink) 8%, white); }
+.active.tone-trace          { border-color: var(--gs-accent);       color: var(--gs-accent);       background: var(--gs-accent-soft); }
+.active.tone-proposal       { border-color: var(--gs-warn);         color: var(--gs-warn);         background: color-mix(in oklab, var(--gs-warn) 12%, white); }
+.active.tone-implementation { border-color: var(--gs-ok);           color: var(--gs-ok);           background: color-mix(in oklab, var(--gs-ok) 12%, white); }
+.active.tone-review         { border-color: var(--gs-muted-2);      color: var(--gs-muted);        background: color-mix(in oklab, var(--gs-muted-2) 12%, white); }
+.active.tone-neutral        { border-color: var(--gs-rule-mid);     color: var(--gs-muted);        background: color-mix(in oklab, var(--gs-muted-2) 8%, white); }
+
+.clear {
+  margin-left: auto;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.clear:hover {
+  color: var(--gs-ink);
+}
+
+.clear:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
