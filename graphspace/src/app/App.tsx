@@ -9,7 +9,11 @@ import {
   useRecentChanges,
   type UseRecentChangesState,
 } from "@/widgets/recent-changes-panel";
-import { ImplementationWorkPanel } from "@/widgets/implementation-work-panel";
+import {
+  ImplementationWorkPanel,
+  useImplementationWorkIndex,
+  type UseImplementationWorkState,
+} from "@/widgets/implementation-work-panel";
 
 /**
  * Day-6 demo: live data via useRecentChanges + sample fallback when the
@@ -144,65 +148,96 @@ const SAMPLE_WORK_ITEMS: WorkItem[] = [
   },
 ];
 
-type FeedView = {
-  entries: readonly RecentChange[];
-  caption: string;
-  emptyMessage: string;
-};
+/**
+ * Both hooks expose the same discriminated union (idle/loading + every
+ * EnvelopeResult variant). Map any state to (caption, emptyMessage); the
+ * caller picks live data on "ok" and falls back to sample otherwise.
+ *
+ * Kept as a single helper rather than per-panel describeFeed/describeWork
+ * because the failure-mode mapping is verbatim across the two domains —
+ * any new artifact will get the same treatment for free.
+ */
+type LiveStatus = { caption: string; emptyMessage: string };
 
-function describeFeed(state: UseRecentChangesState): FeedView {
+function describeLive(
+  state: UseRecentChangesState | UseImplementationWorkState,
+  noun: { items: string; itemSingular: string; emptyLive: string },
+): LiveStatus {
   switch (state.kind) {
     case "idle":
     case "loading":
-      return { entries: SAMPLE_ENTRIES, caption: "loading… · sample fallback", emptyMessage: "loading" };
+      return { caption: `loading… · sample fallback`, emptyMessage: "loading" };
     case "ok":
-      return {
-        entries: state.data.entries,
-        caption: `${state.data.entries.length} events · live`,
-        emptyMessage: "No activity recorded yet",
-      };
+      return { caption: `live`, emptyMessage: noun.emptyLive };
     case "http-error":
       return {
-        entries: SAMPLE_ENTRIES,
         caption: `live · HTTP ${state.status} · sample fallback`,
         emptyMessage: state.statusText || "endpoint failed",
       };
     case "network-error":
       return {
-        entries: SAMPLE_ENTRIES,
         caption: "live · backend unreachable · sample fallback",
         emptyMessage: "network error",
       };
     case "envelope-error":
-      return { entries: SAMPLE_ENTRIES, caption: "live · bad envelope · sample fallback", emptyMessage: state.reason };
+      return { caption: "live · bad envelope · sample fallback", emptyMessage: state.reason };
     case "version-not-supported":
       return {
-        entries: SAMPLE_ENTRIES,
         caption: `live · schema_version ${state.schema_version} unsupported · sample fallback`,
         emptyMessage: `schema_version ${state.schema_version} > max ${state.max_supported}`,
       };
     case "wrong-artifact-kind":
       return {
-        entries: SAMPLE_ENTRIES,
         caption: "live · wrong artifact_kind · sample fallback",
         emptyMessage: `expected ${state.expected}`,
       };
     case "parse-error":
-      return { entries: SAMPLE_ENTRIES, caption: "live · parse error · sample fallback", emptyMessage: "schema validation failed" };
+      return { caption: "live · parse error · sample fallback", emptyMessage: "schema validation failed" };
     case "invariant-violation":
-      return { entries: SAMPLE_ENTRIES, caption: "live · invariant violation · sample fallback", emptyMessage: state.message };
+      return { caption: "live · invariant violation · sample fallback", emptyMessage: state.message };
   }
+  // Exhaustive — narrow noun usage avoids "unused" warnings in cases without
+  // a count prefix (kept here as a typed escape hatch for future tones).
+  void noun.items;
+  void noun.itemSingular;
 }
 
 export function App() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [timelineOn, setTimelineOn] = useState(true);
   const feedState = useRecentChanges();
-  const view = describeFeed(feedState);
-  // For "ok" with live entries, drop the static demo timestamps so relative
-  // time reflects the real artifact mtime story.
+  const workState = useImplementationWorkIndex();
+
+  const feedStatus = describeLive(feedState, {
+    items: "events",
+    itemSingular: "event",
+    emptyLive: "No activity recorded yet",
+  });
+  const workStatus = describeLive(workState, {
+    items: "items",
+    itemSingular: "item",
+    emptyLive: "No work items emitted yet",
+  });
+
+  const liveEntries =
+    feedState.kind === "ok" ? feedState.data.entries : SAMPLE_ENTRIES;
+  const liveWorkItems =
+    workState.kind === "ok" ? workState.data.entries : SAMPLE_WORK_ITEMS;
+
+  // For "ok" with live data, drop the static demo timestamps so relative time
+  // reflects the real artifact mtime story.
   const now = feedState.kind === "ok" ? undefined : NOW;
-  const count = view.entries.length;
+
+  const feedCaption =
+    feedState.kind === "ok"
+      ? `${liveEntries.length} events · live`
+      : feedStatus.caption;
+  const workCaption =
+    workState.kind === "ok"
+      ? `${liveWorkItems.length} items · live`
+      : workStatus.caption;
+
+  const count = liveEntries.length;
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", overflowY: "auto" }}>
@@ -244,7 +279,7 @@ export function App() {
                 boxShadow: "0 0 0 3px var(--gs-accent-soft)",
               }}
             />
-            GraphSpace · Day 7A
+            GraphSpace · Day 7B
           </p>
 
           <h1 style={{ margin: "16px 0 0", fontSize: 50, lineHeight: 1 }}>
@@ -255,27 +290,27 @@ export function App() {
           </h1>
 
           <p style={{ margin: "20px 0 0", color: "var(--gs-muted)", fontSize: 16, lineHeight: 1.62 }}>
-            Second contract on board: <code>implementation_work_index</code>{" "}
-            adds a new <code>entities/implementation-work</code> and{" "}
-            <code>widgets/implementation-work-panel</code>. The generic
-            parser, version guard, and FSD boundaries proved out across a
-            second domain — only the row markup and readiness palette
-            differ. Backend endpoint wiring lands next (Day 7B).
+            Both feeds are now live.{" "}
+            <code>/api/implementation-work-index</code> serves the same
+            envelope shape as <code>/api/spec-activity</code>, so the
+            second widget uses the same hook pattern as the first. Sample
+            data fills in for either panel when its backend is offline.
           </p>
 
           <ImplementationWorkPanel
-            items={SAMPLE_WORK_ITEMS}
-            caption={`${SAMPLE_WORK_ITEMS.length} items · static · golden fixture`}
+            items={liveWorkItems}
+            caption={workCaption}
+            emptyMessage={workStatus.emptyMessage}
             style={{ marginTop: 28, maxHeight: "calc(100vh - 540px)" }}
           />
         </div>
 
         {/* Right: feed of rows */}
         <RecentChangesPanel
-          entries={view.entries}
+          entries={liveEntries}
           now={now}
-          caption={view.caption}
-          emptyMessage={view.emptyMessage}
+          caption={feedCaption}
+          emptyMessage={feedStatus.emptyMessage}
           style={{ alignSelf: "start", maxHeight: "calc(100vh - 200px)" }}
         />
       </div>
@@ -310,7 +345,7 @@ export function App() {
               color: "var(--gs-muted)",
             }}
           >
-            v0.0.1 · recent {feedState.kind} · {count} events · work {SAMPLE_WORK_ITEMS.length} items
+            v0.0.1 · recent {feedState.kind} · {count} events · work {workState.kind} · {liveWorkItems.length} items
           </span>
         </Panel>
       </Overlay>
