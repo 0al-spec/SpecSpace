@@ -1,0 +1,128 @@
+.panel {
+  margin-top: var(--gs-space-7);
+  border: 1px solid var(--gs-rule-mid);
+  background: var(--gs-panel);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gs-space-5);
+  padding: var(--gs-space-5) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+}
+
+.title {
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--gs-muted);
+}
+
+.meta {
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  color: var(--gs-muted-2);
+  white-space: nowrap;
+}
+
+.list {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto;
+  gap: var(--gs-space-5);
+  padding: var(--gs-space-5) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.name {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gs-space-2);
+  min-width: 0;
+}
+
+.label {
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--gs-ink);
+}
+
+.endpoint,
+.detail {
+  overflow-wrap: anywhere;
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.status {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: var(--gs-space-2);
+  white-space: nowrap;
+}
+
+.pill {
+  padding: 3px 7px;
+  border: 1px solid var(--gs-rule-soft);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.count {
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+}
+
+.tone-live .pill {
+  border-color: var(--gs-ok);
+  color: var(--gs-ok);
+  background: color-mix(in oklab, var(--gs-ok) 10%, white);
+}
+
+.tone-empty .pill {
+  border-color: var(--gs-warn);
+  color: var(--gs-warn);
+  background: color-mix(in oklab, var(--gs-warn) 10%, white);
+}
+
+.tone-fallback .pill {
+  border-color: var(--gs-muted-2);
+  color: var(--gs-muted);
+  background: color-mix(in oklab, var(--gs-muted-2) 10%, white);
+}
+
+.tone-loading .pill {
+  border-color: var(--gs-accent);
+  color: var(--gs-accent);
+  background: var(--gs-accent-soft);
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+
+  .status {
+    align-items: flex-start;
+  }
+}
