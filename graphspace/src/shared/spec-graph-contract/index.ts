@@ -3,6 +3,7 @@
 
 export { parseSpecActivityFeed } from "./parsers/parse-spec-activity-feed";
 export { parseImplementationWorkIndex } from "./parsers/parse-implementation-work-index";
+export { parseProposalSpecTraceIndex } from "./parsers/parse-proposal-spec-trace-index";
 export type { ParseResult } from "./parsers/parse";
 
 export {
@@ -25,3 +26,8 @@ export {
   MAX_SUPPORTED_VERSION,
   type KnownArtifactKind,
 } from "./schemas/envelope";
+
+export type {
+  ProposalTraceEntry,
+  ProposalSpecTraceIndex,
+} from "./schemas/proposal-spec-trace-index";
