@@ -1,20 +1,23 @@
 import { useState } from "react";
-import { useRunsWatchVersion } from "@/shared/api";
+import { useRunsWatchVersion, type EnvelopeResult } from "@/shared/api";
 import { Panel } from "@/shared/ui/panel";
 import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { Overlay } from "@/shared/ui/overlay";
 import { type RecentChange } from "@/entities/recent-change";
 import { type WorkItem } from "@/entities/implementation-work";
+import { type ProposalTraceEntry } from "@/entities/proposal-trace";
 import {
   RecentChangesPanel,
   useRecentChanges,
-  type UseRecentChangesState,
 } from "@/widgets/recent-changes-panel";
 import {
   ImplementationWorkPanel,
   useImplementationWorkIndex,
-  type UseImplementationWorkState,
 } from "@/widgets/implementation-work-panel";
+import {
+  ProposalTracePanel,
+  useProposalSpecTraceIndex,
+} from "@/widgets/proposal-trace";
 import {
   ToneFilterBar,
   useToneFilter,
@@ -154,6 +157,25 @@ const SAMPLE_WORK_ITEMS: WorkItem[] = [
   },
 ];
 
+const SAMPLE_PROPOSAL_TRACES: ProposalTraceEntry[] = [
+  {
+    trace_entry_id: "proposal::0048",
+    proposal_id: "0048",
+    proposal_path: "docs/proposals/0048_continuation_candidate_selection.md",
+    title: "Deterministic continuation candidate selector",
+    status: "Draft proposal",
+    spec_refs: [],
+    mentioned_spec_ids: ["SG-SPEC-0033"],
+    promotion_trace: {
+      status: "missing_trace",
+      trace_status: "missing_trace",
+      next_gap: "attach_promotion_trace",
+      source_refs: [],
+    },
+    next_gap: "attach_promotion_trace",
+  },
+];
+
 /**
  * Both hooks expose the same discriminated union (idle/loading + every
  * EnvelopeResult variant). Map any state to (caption, emptyMessage); the
@@ -164,9 +186,10 @@ const SAMPLE_WORK_ITEMS: WorkItem[] = [
  * any new artifact will get the same treatment for free.
  */
 type LiveStatus = { caption: string; emptyMessage: string };
+type LiveArtifactState = { kind: "idle" } | { kind: "loading" } | EnvelopeResult<unknown>;
 
 function describeLive(
-  state: UseRecentChangesState | UseImplementationWorkState,
+  state: LiveArtifactState,
   noun: { items: string; itemSingular: string; emptyLive: string },
 ): LiveStatus {
   switch (state.kind) {
@@ -214,6 +237,7 @@ export function App() {
   const runsWatchVersion = useRunsWatchVersion();
   const feedState = useRecentChanges({ refreshKey: runsWatchVersion });
   const workState = useImplementationWorkIndex({ refreshKey: runsWatchVersion });
+  const proposalTraceState = useProposalSpecTraceIndex({ refreshKey: runsWatchVersion });
 
   const feedStatus = describeLive(feedState, {
     items: "events",
@@ -225,11 +249,22 @@ export function App() {
     itemSingular: "item",
     emptyLive: "No work items emitted yet",
   });
+  const proposalTraceStatus = describeLive(proposalTraceState, {
+    items: "entries",
+    itemSingular: "entry",
+    emptyLive: "No proposal trace entries yet",
+  });
 
   const liveEntries =
     feedState.kind === "ok" ? feedState.data.entries : SAMPLE_ENTRIES;
   const liveWorkItems =
     workState.kind === "ok" ? workState.data.entries : SAMPLE_WORK_ITEMS;
+  const liveProposalTraceIndex =
+    proposalTraceState.kind === "ok" ? proposalTraceState.data : null;
+  const liveProposalTraceEntries =
+    proposalTraceState.kind === "ok"
+      ? proposalTraceState.data.entries.slice(0, 8)
+      : SAMPLE_PROPOSAL_TRACES;
 
   // Tone filter is local UI state — lifted from inside the panel because the
   // chip bar lives above the panel header. Empty selection = no filter.
@@ -250,6 +285,10 @@ export function App() {
     workState.kind === "ok"
       ? `${liveWorkItems.length} items · live`
       : workStatus.caption;
+  const proposalTraceCaption =
+    proposalTraceState.kind === "ok"
+      ? `${proposalTraceState.data.entry_count} entries · live`
+      : proposalTraceStatus.caption;
 
   const count = filteredEntries.length;
 
@@ -293,7 +332,7 @@ export function App() {
                 boxShadow: "0 0 0 3px var(--gs-accent-soft)",
               }}
             />
-            GraphSpace · Day 10
+            GraphSpace · Day 11
           </p>
 
           <h1 style={{ margin: "16px 0 0", fontSize: 50, lineHeight: 1 }}>
@@ -304,10 +343,10 @@ export function App() {
           </h1>
 
           <p style={{ margin: "20px 0 0", color: "var(--gs-muted)", fontSize: 16, lineHeight: 1.62 }}>
-            Live artifact panels now subscribe to <code>/api/runs-watch</code>{" "}
-            once and refetch their own envelopes when SpecGraph rebuilds
-            watched runs artifacts. The tone filter stays local to Recent
-            Changes while both panels share the same refresh signal.
+            Third live contract: <code>proposal_spec_trace_index</code>{" "}
+            joins Recent Changes and Implementation Work. Proposal mentions
+            render as read-only trace posture, keeping pre-canonical proposal
+            signals separate from canonical graph edges.
           </p>
 
           <ImplementationWorkPanel
@@ -315,6 +354,14 @@ export function App() {
             caption={workCaption}
             emptyMessage={workStatus.emptyMessage}
             style={{ marginTop: 28, maxHeight: "calc(100vh - 540px)" }}
+          />
+
+          <ProposalTracePanel
+            index={liveProposalTraceIndex}
+            entries={liveProposalTraceEntries}
+            caption={proposalTraceCaption}
+            emptyMessage={proposalTraceStatus.emptyMessage}
+            style={{ marginTop: 16, maxHeight: "calc(100vh - 540px)" }}
           />
         </div>
 
@@ -370,7 +417,7 @@ export function App() {
               color: "var(--gs-muted)",
             }}
           >
-            v0.0.1 · runs tick {runsWatchVersion} · recent {feedState.kind} · {count} events · work {workState.kind} · {liveWorkItems.length} items
+            v0.0.1 · runs tick {runsWatchVersion} · recent {feedState.kind} · {count} events · work {workState.kind} · {liveWorkItems.length} items · trace {proposalTraceState.kind}
           </span>
         </Panel>
       </Overlay>
