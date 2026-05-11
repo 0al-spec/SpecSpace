@@ -1,4 +1,4 @@
-import { specActivityFeedSchema, type SpecActivityFeed } from "../model/spec-activity-feed";
+import { specActivityFeedSchema, type SpecActivityFeed } from "../schemas/spec-activity-feed";
 import { makeParser } from "./parse";
 
 /**

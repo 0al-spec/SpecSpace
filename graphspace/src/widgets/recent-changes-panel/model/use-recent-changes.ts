@@ -3,7 +3,7 @@ import { fetchEnvelope, type EnvelopeResult } from "@/shared/api";
 import {
   parseSpecActivityFeed,
   type SpecActivityFeed,
-} from "@/shared/api/spec-graph-contract";
+} from "@/shared/spec-graph-contract";
 
 /**
  * State machine the widget can render directly.

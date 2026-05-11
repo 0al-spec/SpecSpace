@@ -2,4 +2,4 @@
 // re-export the contract type rather than wrap it — the entity's job is
 // rendering + readiness tone selection, not remodelling the contract shape.
 
-export type { WorkItem } from "@/shared/api/spec-graph-contract";
+export type { WorkItem } from "@/shared/spec-graph-contract";

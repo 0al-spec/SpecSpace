@@ -2,4 +2,4 @@
 // the contract type rather than wrap it — the entity's job is to organise
 // rendering and selection, not to remodel the source-of-truth shape.
 
-export type { SpecActivityEntry as RecentChange } from "@/shared/api/spec-graph-contract";
+export type { SpecActivityEntry as RecentChange } from "@/shared/spec-graph-contract";

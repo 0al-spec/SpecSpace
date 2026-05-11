@@ -1,7 +1,7 @@
 import {
   implementationWorkIndexSchema,
   type ImplementationWorkIndex,
-} from "../model/implementation-work-index";
+} from "../schemas/implementation-work-index";
 import { makeParser } from "./parse";
 
 /**

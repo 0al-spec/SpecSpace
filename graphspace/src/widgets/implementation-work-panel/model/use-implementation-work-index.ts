@@ -3,7 +3,7 @@ import { fetchEnvelope, type EnvelopeResult } from "@/shared/api";
 import {
   parseImplementationWorkIndex,
   type ImplementationWorkIndex,
-} from "@/shared/api/spec-graph-contract";
+} from "@/shared/spec-graph-contract";
 
 /**
  * Same state machine shape as useRecentChanges — both widgets pattern-match
