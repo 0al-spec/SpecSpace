@@ -1897,6 +1897,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/spec-activity":
             self.handle_spec_activity(parsed)
             return
+        if parsed.path == "/api/implementation-work-index":
+            self.handle_implementation_work_index(parsed)
+            return
         if parsed.path == "/api/metric-pricing-provenance":
             self.handle_metric_pricing_provenance()
             return
@@ -2373,6 +2376,72 @@ class ViewerHandler(BaseHTTPRequestHandler):
                     ]
                 if limit is not None:
                     entries = entries[:limit]
+                data = {**data, "entries": entries, "entry_count": len(entries)}
+
+        mtime = path.stat().st_mtime
+        mtime_iso = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+        json_response(self, HTTPStatus.OK, {
+            "path": str(path),
+            "mtime": mtime,
+            "mtime_iso": mtime_iso,
+            "data": data,
+        })
+
+    def handle_implementation_work_index(self, parsed) -> None:
+        """Serve runs/implementation_work_index.json inside the standard envelope.
+
+        Contract: SpecGraph/docs/implementation_work_viewer_contract.md.
+        Optional ?limit=N caps data.entries[] (default 50, max 1000). No
+        ?since here — work items don't carry their own timestamps; the
+        artifact's `generated_at` is the only time signal and is preserved
+        in the envelope unchanged.
+        """
+        if self.server.spec_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecGraph not configured. Start the server with --spec-dir."},
+            )
+            return
+        runs = self._runs_dir()
+        if runs is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "implementation_work_index.json not found. Run `make viewer-surfaces` in SpecGraph first."},
+            )
+            return
+        path = runs / "implementation_work_index.json"
+        if not path.exists():
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "implementation_work_index.json not found. Run `make viewer-surfaces` in SpecGraph first."},
+            )
+            return
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            json_response(
+                self,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": "implementation_work_index.json is not valid JSON", "detail": str(exc)},
+            )
+            return
+
+        qs = parse_qs(parsed.query or "")
+        try:
+            limit_raw = qs.get("limit", [None])[0]
+            limit: int | None = int(limit_raw) if limit_raw is not None else None
+        except (TypeError, ValueError):
+            limit = 50
+        if limit is not None:
+            limit = max(1, min(limit, 1000))
+
+        if limit is not None and isinstance(data, dict):
+            entries = data.get("entries") or []
+            if isinstance(entries, list):
+                entries = entries[:limit]
                 data = {**data, "entries": entries, "entry_count": len(entries)}
 
         mtime = path.stat().st_mtime
