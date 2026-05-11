@@ -1763,16 +1763,23 @@ class SpecWatcher:
 
 class RunsWatcher:
     """Polling watcher for SpecGraph runs/ — broadcasts when new run files
-    appear (or any timestamped run file changes mtime). Mirrors SpecWatcher's
-    one-thread-many-clients design, but scoped to the runs/ directory and
-    filtered to filenames matching the run-event pattern. Used by the
-    /api/runs-watch SSE endpoint to drive live updates in the Recent Changes
-    overlay.
+    appear (or any watched run artifact changes mtime). Mirrors SpecWatcher's
+    one-thread-many-clients design, but scoped to the runs/ directory. Used by
+    the /api/runs-watch SSE endpoint to drive live updates in the Recent
+    Changes overlay and GraphSpace artifact panels.
     """
 
     POLL_INTERVAL: float = 2.0
     KEEPALIVE_TIMEOUT: float = 14.0
     _RUN_FILENAME_RE = re.compile(r"^\d{8}T\d{6}Z-SG-[A-Z]+-\d+-[0-9a-f]+\.json$")
+    _WATCHED_ARTIFACT_NAMES = frozenset(
+        {
+            "spec_activity_feed.json",
+            "implementation_work_index.json",
+            "proposal_spec_trace_index.json",
+            "exploration_preview.json",
+        }
+    )
 
     def __init__(self, runs_dir: Path) -> None:
         self._runs_dir = runs_dir
@@ -1786,7 +1793,12 @@ class RunsWatcher:
         try:
             with os.scandir(self._runs_dir) as entries:
                 for entry in entries:
-                    if entry.is_file() and self._RUN_FILENAME_RE.match(entry.name):
+                    if not entry.is_file():
+                        continue
+                    if (
+                        self._RUN_FILENAME_RE.match(entry.name)
+                        or entry.name in self._WATCHED_ARTIFACT_NAMES
+                    ):
                         result[entry.name] = entry.stat().st_mtime
         except OSError:
             pass

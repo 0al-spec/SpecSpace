@@ -17,23 +17,24 @@ export type UseImplementationWorkState =
 type Options = {
   url?: string;
   fetcher?: typeof fetch;
+  /** Increment to refetch, e.g. from /api/runs-watch SSE. */
+  refreshKey?: number;
 };
 
 /**
- * One-shot fetch on mount, mirroring useRecentChanges. Shared the fetchEnvelope
- * + parseArtifact pipeline so adding a third artifact next time is more wiring
- * and less new code.
+ * Fetch on mount and whenever the shared runs-watch tick changes. Mirrors
+ * useRecentChanges so all live artifact panels share one refresh contract.
  */
 export function useImplementationWorkIndex(
   options: Options = {},
 ): UseImplementationWorkState {
-  const { url = "/api/implementation-work-index", fetcher } = options;
+  const { url = "/api/implementation-work-index", fetcher, refreshKey = 0 } = options;
   const [state, setState] = useState<UseImplementationWorkState>({ kind: "idle" });
 
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
-    setState({ kind: "loading" });
+    setState((current) => (current.kind === "idle" ? { kind: "loading" } : current));
 
     fetchEnvelope({
       url,
@@ -53,7 +54,7 @@ export function useImplementationWorkIndex(
       cancelled = true;
       controller.abort();
     };
-  }, [url, fetcher]);
+  }, [url, fetcher, refreshKey]);
 
   return state;
 }

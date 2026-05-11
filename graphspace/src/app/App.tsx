@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRunsWatchVersion } from "@/shared/api";
 import { Panel } from "@/shared/ui/panel";
 import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { Overlay } from "@/shared/ui/overlay";
@@ -210,8 +211,9 @@ function describeLive(
 export function App() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [timelineOn, setTimelineOn] = useState(true);
-  const feedState = useRecentChanges();
-  const workState = useImplementationWorkIndex();
+  const runsWatchVersion = useRunsWatchVersion();
+  const feedState = useRecentChanges({ refreshKey: runsWatchVersion });
+  const workState = useImplementationWorkIndex({ refreshKey: runsWatchVersion });
 
   const feedStatus = describeLive(feedState, {
     items: "events",
@@ -291,7 +293,7 @@ export function App() {
                 boxShadow: "0 0 0 3px var(--gs-accent-soft)",
               }}
             />
-            GraphSpace · Day 9
+            GraphSpace · Day 10
           </p>
 
           <h1 style={{ margin: "16px 0 0", fontSize: 50, lineHeight: 1 }}>
@@ -302,12 +304,10 @@ export function App() {
           </h1>
 
           <p style={{ margin: "20px 0 0", color: "var(--gs-muted)", fontSize: 16, lineHeight: 1.62 }}>
-            First <code>features/</code> slice. <code>filter-by-tone</code>{" "}
-            adds a chip bar above Recent Changes — click any tone to keep
-            only matching events, click again to release. State and the
-            pure filter live inside the feature; the panel stays
-            presentational. Counts above each chip come from the same
-            mapping the row uses.
+            Live artifact panels now subscribe to <code>/api/runs-watch</code>{" "}
+            once and refetch their own envelopes when SpecGraph rebuilds
+            watched runs artifacts. The tone filter stays local to Recent
+            Changes while both panels share the same refresh signal.
           </p>
 
           <ImplementationWorkPanel
@@ -370,7 +370,7 @@ export function App() {
               color: "var(--gs-muted)",
             }}
           >
-            v0.0.1 · recent {feedState.kind} · {count} events · work {workState.kind} · {liveWorkItems.length} items
+            v0.0.1 · runs tick {runsWatchVersion} · recent {feedState.kind} · {count} events · work {workState.kind} · {liveWorkItems.length} items
           </span>
         </Panel>
       </Overlay>
