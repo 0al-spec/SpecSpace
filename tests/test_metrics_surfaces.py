@@ -372,6 +372,31 @@ def _get(url: str) -> tuple[int, dict]:
         return e.code, json.loads(e.read())
 
 
+def _implementation_work_artifact(entry_count: int) -> dict:
+    entries = [
+        {
+            "work_item_id": f"implementation_work::SG-SPEC-{idx:04d}::changed_spec",
+            "affected_spec_ids": [f"SG-SPEC-{idx:04d}"],
+            "implementation_reason": "changed_spec",
+            "delta_refs": [f"changed_spec_ids::SG-SPEC-{idx:04d}"],
+            "required_tests": [],
+            "expected_evidence": [f"implementation_evidence::SG-SPEC-{idx:04d}"],
+            "likely_code_refs": [],
+            "readiness": "ready_for_planning",
+            "blockers": [],
+            "next_gap": "review_implementation_delta",
+        }
+        for idx in range(entry_count)
+    ]
+    return {
+        "artifact_kind": "implementation_work_index",
+        "schema_version": 1,
+        "generated_at": "2026-05-11T10:00:00+00:00",
+        "entry_count": len(entries),
+        "entries": entries,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Parametric test factory
 # ---------------------------------------------------------------------------
@@ -472,6 +497,39 @@ class MetricsSurfaceEndpointMatrixTests(unittest.TestCase):
 
                 self.assertEqual(status, 404)
                 self.assertIn(config["filename"], body["error"])
+
+
+class ImplementationWorkIndexEndpointTests(unittest.TestCase):
+    ROUTE = "/api/implementation-work-index"
+    FILENAME = "implementation_work_index.json"
+
+    def test_default_limit_caps_entries_at_50(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            spec_dir = _make_spec_dir(Path(tmp))
+            _write_artifact(Path(tmp), self.FILENAME, _implementation_work_artifact(60))
+            httpd, thread, base = _start(Path(tmp), spec_dir)
+            try:
+                status, body = _get(f"{base}{self.ROUTE}")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(len(body["data"]["entries"]), 50)
+        self.assertEqual(body["data"]["entry_count"], 50)
+
+    def test_limit_query_caps_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            spec_dir = _make_spec_dir(Path(tmp))
+            _write_artifact(Path(tmp), self.FILENAME, _implementation_work_artifact(60))
+            httpd, thread, base = _start(Path(tmp), spec_dir)
+            try:
+                status, body = _get(f"{base}{self.ROUTE}?limit=3")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(len(body["data"]["entries"]), 3)
+        self.assertEqual(body["data"]["entry_count"], 3)
 
 
 # ---------------------------------------------------------------------------

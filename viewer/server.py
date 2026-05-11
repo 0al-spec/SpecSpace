@@ -2431,8 +2431,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
 
         qs = parse_qs(parsed.query or "")
         try:
-            limit_raw = qs.get("limit", [None])[0]
-            limit: int | None = int(limit_raw) if limit_raw is not None else None
+            limit_raw = qs.get("limit", ["50"])[0]
+            limit: int | None = int(limit_raw)
         except (TypeError, ValueError):
             limit = 50
         if limit is not None:
