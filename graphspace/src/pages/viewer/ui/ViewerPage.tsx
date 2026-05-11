@@ -23,6 +23,11 @@ import {
   useToneFilter,
   filterByTone,
 } from "@/features/filter-by-tone";
+import {
+  SpecSearchBox,
+  useSpecSearch,
+  filterBySpecQuery,
+} from "@/features/search-by-spec";
 
 /**
  * Viewer page shell: live data via graph contract hooks with sample fallback
@@ -263,10 +268,15 @@ export function ViewerPage() {
       ? proposalTraceState.data.entries.slice(0, 8)
       : SAMPLE_PROPOSAL_TRACES;
 
+  // Spec search narrows the feed before tone bucketing, so chip counts show
+  // the tone distribution inside the active spec/path query.
+  const specSearch = useSpecSearch();
+  const specMatchedEntries = filterBySpecQuery(liveEntries, specSearch.query);
+
   // Tone filter is local UI state — lifted from inside the panel because the
   // chip bar lives above the panel header. Empty selection = no filter.
   const toneFilter = useToneFilter();
-  const filteredEntries = filterByTone(liveEntries, toneFilter.selected);
+  const filteredEntries = filterByTone(specMatchedEntries, toneFilter.selected);
 
   // For "ok" with live data, drop the static demo timestamps so relative time
   // reflects the real artifact mtime story.
@@ -274,10 +284,16 @@ export function ViewerPage() {
 
   const feedCaption =
     feedState.kind === "ok"
-      ? toneFilter.hasAny
+      ? toneFilter.hasAny || specSearch.hasQuery
         ? `${filteredEntries.length} of ${liveEntries.length} events · live · filtered`
         : `${liveEntries.length} events · live`
       : feedStatus.caption;
+  const feedEmptyMessage =
+    specSearch.hasQuery && specMatchedEntries.length === 0
+      ? "No events match that spec search"
+      : toneFilter.hasAny && filteredEntries.length === 0
+        ? "No events match the current filter"
+        : feedStatus.emptyMessage;
   const workCaption =
     workState.kind === "ok"
       ? `${liveWorkItems.length} items · live`
@@ -329,7 +345,7 @@ export function ViewerPage() {
                 boxShadow: "0 0 0 3px var(--gs-accent-soft)",
               }}
             />
-            GraphSpace · Day 12
+            GraphSpace · Day 13
           </p>
 
           <h1 style={{ margin: "16px 0 0", fontSize: 50, lineHeight: 1 }}>
@@ -340,10 +356,9 @@ export function ViewerPage() {
           </h1>
 
           <p style={{ margin: "20px 0 0", color: "var(--gs-muted)", fontSize: 16, lineHeight: 1.62 }}>
-            Viewer shell now lives in <code>pages/viewer</code> while live
-            contracts stay isolated in widgets and shared parsers. The page
-            composes Recent Changes, Implementation Work, and Proposal Trace
-            without leaking screen concerns back into the app entrypoint.
+            Focused filter UX: search Recent Changes by spec id or source
+            path, then refine the result with tone chips. The search remains
+            UI-local and preserves the live contract boundary.
           </p>
 
           <ImplementationWorkPanel
@@ -364,8 +379,15 @@ export function ViewerPage() {
 
         {/* Right: filter chips + feed of rows */}
         <div style={{ display: "flex", flexDirection: "column", alignSelf: "start", maxHeight: "calc(100vh - 200px)", minHeight: 0 }}>
+          <SpecSearchBox
+            query={specSearch.query}
+            onQueryChange={specSearch.setQuery}
+            onClear={specSearch.clear}
+            resultCount={specMatchedEntries.length}
+            totalCount={liveEntries.length}
+          />
           <ToneFilterBar
-            entries={liveEntries}
+            entries={specMatchedEntries}
             selected={toneFilter.selected}
             onToggle={toneFilter.toggle}
             onClear={toneFilter.clear}
@@ -374,11 +396,7 @@ export function ViewerPage() {
             entries={filteredEntries}
             now={now}
             caption={feedCaption}
-            emptyMessage={
-              toneFilter.hasAny && filteredEntries.length === 0
-                ? "No events match the current filter"
-                : feedStatus.emptyMessage
-            }
+            emptyMessage={feedEmptyMessage}
             style={{ minHeight: 0 }}
           />
         </div>
