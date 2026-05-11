@@ -19,26 +19,28 @@ export function WorkItemRow({ item, className, ...rest }: Props) {
 
   return (
     <div className={cls} {...rest}>
-      <div className={styles.body}>
+      <header className={styles.header}>
         <p className={styles.eyebrow}>
           <span className={styles.reason}>{item.implementation_reason.replace(/_/g, " ")}</span>
           {specList && <span className={styles["spec-id"]}>{specList}</span>}
         </p>
-        <h3 className={styles.title}>{shortenWorkId(item.work_item_id)}</h3>
-        {item.blockers.length > 0 && (
-          <ul className={styles.blockers}>
-            {item.blockers.map((b) => (
-              <li key={b}>{b}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <div className={styles.right}>
-        <span className={pillCls} title={`readiness: ${item.readiness}`}>
-          {item.readiness.replace(/_/g, " ")}
-        </span>
-        {item.next_gap && <span className={styles["next-gap"]}>next: {item.next_gap.replace(/_/g, " ")}</span>}
-      </div>
+        <div className={styles.right}>
+          <span className={pillCls} title={`readiness: ${item.readiness}`}>
+            {item.readiness.replace(/_/g, " ")}
+          </span>
+          {item.next_gap && (
+            <span className={styles["next-gap"]}>next: {item.next_gap.replace(/_/g, " ")}</span>
+          )}
+        </div>
+      </header>
+      <h3 className={styles.title}>{shortenWorkId(item.work_item_id)}</h3>
+      {item.blockers.length > 0 && (
+        <ul className={styles.blockers}>
+          {item.blockers.map((b) => (
+            <li key={b}>{b}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

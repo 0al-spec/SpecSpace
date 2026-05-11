@@ -3,16 +3,25 @@
  * the left — different surface needs surface readiness more loudly. */
 
 .row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: baseline;
-  gap: var(--gs-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gs-space-3);
   padding: var(--gs-space-6) var(--gs-space-7);
   border-bottom: 1px solid var(--gs-rule-soft);
 }
 
 .row:last-child {
   border-bottom: 0;
+}
+
+/* Top row: eyebrow on the left, readiness column on the right.
+ * Title + blockers live underneath so the work_item_id can use the
+ * full card width — easier to read for long ::reason suffixes. */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gs-space-5);
 }
 
 .body {
@@ -47,10 +56,13 @@
   font-size: 17px;
   line-height: 1.25;
   color: var(--gs-ink);
+  /* word-break so long unbroken work_item_ids wrap inside the card
+   * instead of overflowing the right edge. */
+  overflow-wrap: anywhere;
 }
 
 .blockers {
-  margin: var(--gs-space-2) 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
   font-size: 13px;
