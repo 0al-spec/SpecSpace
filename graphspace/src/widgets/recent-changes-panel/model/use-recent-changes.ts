@@ -25,21 +25,23 @@ type Options = {
   url?: string;
   /** Test injection point; defaults to global fetch. */
   fetcher?: typeof fetch;
+  /** Increment to refetch, e.g. from /api/runs-watch SSE. */
+  refreshKey?: number;
 };
 
 /**
- * One-shot fetch on mount. Live updates (SSE on /api/runs-watch) are deferred
- * to a follow-up — keeping this PR focused on the envelope -> parse -> render
- * pipeline before adding a watcher to it.
+ * Fetch on mount and whenever the shared runs-watch tick changes. The previous
+ * ok/error state is kept during refetch so the panel does not flash back to
+ * sample data between SSE changes and response arrival.
  */
 export function useRecentChanges(options: Options = {}): UseRecentChangesState {
-  const { url = "/api/spec-activity", fetcher } = options;
+  const { url = "/api/spec-activity", fetcher, refreshKey = 0 } = options;
   const [state, setState] = useState<UseRecentChangesState>({ kind: "idle" });
 
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
-    setState({ kind: "loading" });
+    setState((current) => (current.kind === "idle" ? { kind: "loading" } : current));
 
     fetchEnvelope({
       url,
@@ -63,7 +65,7 @@ export function useRecentChanges(options: Options = {}): UseRecentChangesState {
       cancelled = true;
       controller.abort();
     };
-  }, [url, fetcher]);
+  }, [url, fetcher, refreshKey]);
 
   return state;
 }
