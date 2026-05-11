@@ -14,6 +14,11 @@ import {
   useImplementationWorkIndex,
   type UseImplementationWorkState,
 } from "@/widgets/implementation-work-panel";
+import {
+  ToneFilterBar,
+  useToneFilter,
+  filterByTone,
+} from "@/features/filter-by-tone";
 
 /**
  * Day-6 demo: live data via useRecentChanges + sample fallback when the
@@ -224,20 +229,27 @@ export function App() {
   const liveWorkItems =
     workState.kind === "ok" ? workState.data.entries : SAMPLE_WORK_ITEMS;
 
+  // Tone filter is local UI state — lifted from inside the panel because the
+  // chip bar lives above the panel header. Empty selection = no filter.
+  const toneFilter = useToneFilter();
+  const filteredEntries = filterByTone(liveEntries, toneFilter.selected);
+
   // For "ok" with live data, drop the static demo timestamps so relative time
   // reflects the real artifact mtime story.
   const now = feedState.kind === "ok" ? undefined : NOW;
 
   const feedCaption =
     feedState.kind === "ok"
-      ? `${liveEntries.length} events · live`
+      ? toneFilter.hasAny
+        ? `${filteredEntries.length} of ${liveEntries.length} events · live · filtered`
+        : `${liveEntries.length} events · live`
       : feedStatus.caption;
   const workCaption =
     workState.kind === "ok"
       ? `${liveWorkItems.length} items · live`
       : workStatus.caption;
 
-  const count = liveEntries.length;
+  const count = filteredEntries.length;
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", overflowY: "auto" }}>
@@ -279,7 +291,7 @@ export function App() {
                 boxShadow: "0 0 0 3px var(--gs-accent-soft)",
               }}
             />
-            GraphSpace · Day 7B
+            GraphSpace · Day 9
           </p>
 
           <h1 style={{ margin: "16px 0 0", fontSize: 50, lineHeight: 1 }}>
@@ -290,11 +302,12 @@ export function App() {
           </h1>
 
           <p style={{ margin: "20px 0 0", color: "var(--gs-muted)", fontSize: 16, lineHeight: 1.62 }}>
-            Both feeds are now live.{" "}
-            <code>/api/implementation-work-index</code> serves the same
-            envelope shape as <code>/api/spec-activity</code>, so the
-            second widget uses the same hook pattern as the first. Sample
-            data fills in for either panel when its backend is offline.
+            First <code>features/</code> slice. <code>filter-by-tone</code>{" "}
+            adds a chip bar above Recent Changes — click any tone to keep
+            only matching events, click again to release. State and the
+            pure filter live inside the feature; the panel stays
+            presentational. Counts above each chip come from the same
+            mapping the row uses.
           </p>
 
           <ImplementationWorkPanel
@@ -305,14 +318,26 @@ export function App() {
           />
         </div>
 
-        {/* Right: feed of rows */}
-        <RecentChangesPanel
-          entries={liveEntries}
-          now={now}
-          caption={feedCaption}
-          emptyMessage={feedStatus.emptyMessage}
-          style={{ alignSelf: "start", maxHeight: "calc(100vh - 200px)" }}
-        />
+        {/* Right: filter chips + feed of rows */}
+        <div style={{ display: "flex", flexDirection: "column", alignSelf: "start", maxHeight: "calc(100vh - 200px)", minHeight: 0 }}>
+          <ToneFilterBar
+            entries={liveEntries}
+            selected={toneFilter.selected}
+            onToggle={toneFilter.toggle}
+            onClear={toneFilter.clear}
+          />
+          <RecentChangesPanel
+            entries={filteredEntries}
+            now={now}
+            caption={feedCaption}
+            emptyMessage={
+              toneFilter.hasAny && filteredEntries.length === 0
+                ? "No events match the current filter"
+                : feedStatus.emptyMessage
+            }
+            style={{ minHeight: 0 }}
+          />
+        </div>
       </div>
 
       <Overlay anchor="top-left" direction="row">
