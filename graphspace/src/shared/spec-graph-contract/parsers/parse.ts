@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_SUPPORTED_VERSION, type KnownArtifactKind } from "../model/envelope";
+import { MAX_SUPPORTED_VERSION, type KnownArtifactKind } from "../schemas/envelope";
 
 /**
  * Discriminated union returned by every parser. The UI is required by

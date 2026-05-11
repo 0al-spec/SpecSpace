@@ -1,2 +1,2 @@
-# shared/api — HTTP client and SpecGraph contract.
-# spec-graph-contract/ slice (Zod schemas, version guard, golden-fixture types) lands here next.
+# shared/api — generic HTTP client only.
+# Domain-specific contracts live in sibling segments (e.g. shared/spec-graph-contract).

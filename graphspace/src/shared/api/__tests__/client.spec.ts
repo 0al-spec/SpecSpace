@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { fetchEnvelope } from "../client";
-import type { ParseResult } from "../spec-graph-contract";
+import type { ParseResult } from "../../spec-graph-contract";
 
 type Stub = { x: number };
 

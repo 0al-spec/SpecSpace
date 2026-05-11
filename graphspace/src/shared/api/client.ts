@@ -1,4 +1,4 @@
-import type { ParseResult } from "./spec-graph-contract";
+import type { ParseResult } from "../spec-graph-contract";
 
 /**
  * Standard ContextBuilder runs envelope. The Python backend wraps every

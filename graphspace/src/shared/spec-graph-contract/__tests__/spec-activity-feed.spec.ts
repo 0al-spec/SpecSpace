@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { describe, it, expect } from "vitest";
-import { parseSpecActivityFeed } from "../lib/parse-spec-activity-feed";
-import { isKnownEventType, KNOWN_EVENT_TYPES } from "../model/spec-activity-feed";
+import { parseSpecActivityFeed } from "../parsers/parse-spec-activity-feed";
+import { isKnownEventType, KNOWN_EVENT_TYPES } from "../schemas/spec-activity-feed";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const goldenPath = resolve(here, "../fixtures/spec_activity_feed.golden.json");

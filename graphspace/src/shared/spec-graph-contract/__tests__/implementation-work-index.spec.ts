@@ -2,11 +2,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { describe, it, expect } from "vitest";
-import { parseImplementationWorkIndex } from "../lib/parse-implementation-work-index";
+import { parseImplementationWorkIndex } from "../parsers/parse-implementation-work-index";
 import {
   isKnownReadiness,
   KNOWN_READINESS,
-} from "../model/implementation-work-index";
+} from "../schemas/implementation-work-index";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const goldenPath = resolve(here, "../fixtures/implementation_work_index.golden.json");

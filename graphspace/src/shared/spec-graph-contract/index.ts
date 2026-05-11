@@ -1,9 +1,9 @@
 // Public API for the SpecGraph contract slice.
 // Internals (model/, lib/, fixtures/, __tests__/) are not exported.
 
-export { parseSpecActivityFeed } from "./lib/parse-spec-activity-feed";
-export { parseImplementationWorkIndex } from "./lib/parse-implementation-work-index";
-export type { ParseResult } from "./lib/parse";
+export { parseSpecActivityFeed } from "./parsers/parse-spec-activity-feed";
+export { parseImplementationWorkIndex } from "./parsers/parse-implementation-work-index";
+export type { ParseResult } from "./parsers/parse";
 
 export {
   KNOWN_EVENT_TYPES,
@@ -11,7 +11,7 @@ export {
   type KnownEventType,
   type SpecActivityEntry,
   type SpecActivityFeed,
-} from "./model/spec-activity-feed";
+} from "./schemas/spec-activity-feed";
 
 export {
   KNOWN_READINESS,
@@ -19,9 +19,9 @@ export {
   type KnownReadiness,
   type WorkItem,
   type ImplementationWorkIndex,
-} from "./model/implementation-work-index";
+} from "./schemas/implementation-work-index";
 
 export {
   MAX_SUPPORTED_VERSION,
   type KnownArtifactKind,
-} from "./model/envelope";
+} from "./schemas/envelope";
