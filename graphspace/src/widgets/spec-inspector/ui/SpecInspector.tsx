@@ -290,7 +290,7 @@ function ScopeSection({ scope }: { scope: NonNullable<SpecInspectorDetailModel["
             <ul className={styles.contentList}>
               {scope.in.map((item) => (
                 <li key={item} className={styles.contentItem}>
-                  <span className={styles.contentText}>{item}</span>
+                  <span className={styles.contentText}>{renderRichInlineText(item)}</span>
                 </li>
               ))}
             </ul>
@@ -302,7 +302,7 @@ function ScopeSection({ scope }: { scope: NonNullable<SpecInspectorDetailModel["
             <ul className={styles.contentList}>
               {scope.out.map((item) => (
                 <li key={item} className={styles.contentItem}>
-                  <span className={styles.contentText}>{item}</span>
+                  <span className={styles.contentText}>{renderRichInlineText(item)}</span>
                 </li>
               ))}
             </ul>
