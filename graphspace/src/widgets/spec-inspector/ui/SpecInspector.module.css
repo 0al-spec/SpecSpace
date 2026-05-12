@@ -1,0 +1,232 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border: 1px solid var(--gs-rule-mid);
+  background: color-mix(in srgb, var(--gs-panel) 96%, white);
+  color: var(--gs-ink);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gs-space-6);
+  padding: var(--gs-space-6) var(--gs-space-7);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--gs-space-4);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.id {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--gs-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  flex: 0 0 auto;
+  color: var(--gs-accent);
+}
+
+.closeButton {
+  flex: 0 0 auto;
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  color: var(--gs-muted);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: var(--gs-space-3) var(--gs-space-5);
+  text-transform: uppercase;
+}
+
+.closeButton:hover {
+  border-color: var(--gs-rule-mid);
+  color: var(--gs-ink);
+}
+
+.scroll {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--gs-space-7);
+}
+
+.scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  background: var(--gs-rule-soft);
+}
+
+.title {
+  color: var(--gs-ink);
+  font-family: var(--gs-sans);
+  font-size: 20px;
+  font-weight: 680;
+  line-height: 1.18;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: var(--gs-space-7) 0 0;
+  background: var(--gs-rule-soft);
+}
+
+.field {
+  min-width: 0;
+  padding: var(--gs-space-5);
+  background: var(--gs-panel);
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.field dt,
+.relationLabel,
+.metricLabel,
+.sectionTitle {
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.field dd {
+  margin: var(--gs-space-2) 0 0;
+  overflow-wrap: anywhere;
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+}
+
+.section {
+  margin-top: var(--gs-space-8);
+}
+
+.sectionTitle {
+  display: block;
+  margin: 0 0 var(--gs-space-4);
+}
+
+.metricRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+}
+
+.metric {
+  padding: var(--gs-space-5);
+  border-right: 1px solid var(--gs-rule-soft);
+}
+
+.metric:last-child {
+  border-right: 0;
+}
+
+.metricValue {
+  display: block;
+  color: var(--gs-ink);
+  font-family: var(--gs-serif);
+  font-size: 22px;
+}
+
+.metricLabel {
+  display: block;
+  margin-top: var(--gs-space-1);
+}
+
+.relationGroup {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: var(--gs-space-4);
+  padding: var(--gs-space-4) 0;
+  border-top: 1px solid var(--gs-rule-soft);
+}
+
+.relationGroup:last-child {
+  border-bottom: 1px solid var(--gs-rule-soft);
+}
+
+.relationList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-3);
+  min-width: 0;
+}
+
+.relationButton {
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  color: var(--gs-accent);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: var(--gs-space-2) var(--gs-space-4);
+}
+
+.relationButton:hover:not(:disabled) {
+  border-color: var(--gs-accent);
+  background: var(--gs-accent-soft);
+}
+
+.relationButton:disabled {
+  cursor: default;
+}
+
+.brokenRelation {
+  color: var(--gs-danger);
+  text-decoration: line-through;
+}
+
+.empty {
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-style: italic;
+}
+
+.diagnostics {
+  margin: 0;
+  padding-left: var(--gs-space-8);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+}
+
+@media (max-width: 520px) {
+  .metaGrid,
+  .metricRow {
+    grid-template-columns: 1fr;
+  }
+
+  .relationGroup {
+    grid-template-columns: 1fr;
+  }
+}

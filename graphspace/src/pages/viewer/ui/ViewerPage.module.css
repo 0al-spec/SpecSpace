@@ -57,6 +57,21 @@
   max-height: 42vh;
 }
 
+.rightRailHidden {
+  display: none;
+}
+
+.inspectorRail {
+  position: fixed;
+  right: var(--gs-space-6);
+  top: 82px;
+  bottom: 72px;
+  z-index: 4;
+  width: min(430px, calc(100vw - 2 * var(--gs-space-6)));
+  height: auto;
+  pointer-events: auto;
+}
+
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -194,5 +209,14 @@
 
   .statusOverlay {
     max-width: calc(100vw - 120px);
+  }
+
+  .inspectorRail {
+    top: auto;
+    right: var(--gs-space-4);
+    bottom: 86px;
+    left: var(--gs-space-4);
+    width: auto;
+    max-height: min(75vh, calc(100vh - 128px));
   }
 }

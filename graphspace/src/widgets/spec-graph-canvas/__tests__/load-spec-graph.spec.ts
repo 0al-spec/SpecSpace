@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   fetchSpecGraph,
+  buildSpecGraphSelection,
   loadSpecGraph,
   SAMPLE_SPEC_GRAPH,
   toSpecGraphFlowElements,
@@ -199,5 +200,23 @@ describe("toSpecGraphFlowElements", () => {
 
     const { edges } = toSpecGraphFlowElements(response);
     expect(edges.map((edge) => edge.id)).not.toContain("missing");
+  });
+});
+
+describe("buildSpecGraphSelection", () => {
+  it("returns the selected node with graph context for inspector surfaces", () => {
+    const selection = buildSpecGraphSelection(
+      SAMPLE_SPEC_GRAPH,
+      "SG-SPEC-SAMPLE-ROOT",
+    );
+
+    expect(selection?.node.node_id).toBe("SG-SPEC-SAMPLE-ROOT");
+    expect(selection?.nodes).toHaveLength(3);
+    expect(selection?.edges).toHaveLength(3);
+  });
+
+  it("returns null when the selected node no longer exists", () => {
+    expect(buildSpecGraphSelection(SAMPLE_SPEC_GRAPH, "SG-SPEC-MISSING")).toBeNull();
+    expect(buildSpecGraphSelection(SAMPLE_SPEC_GRAPH, null)).toBeNull();
   });
 });
