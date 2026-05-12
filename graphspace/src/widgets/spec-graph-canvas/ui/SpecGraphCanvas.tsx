@@ -3,6 +3,7 @@ import {
   Background,
   Controls,
   Handle,
+  MiniMap,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -61,6 +62,20 @@ export function SpecGraphCanvas({ className, refreshKey = 0 }: Props) {
           nodesDraggable={false}
         >
           <Background gap={28} size={1} />
+          <MiniMap
+            ariaLabel="SpecGraph minimap"
+            className={styles.miniMap}
+            position="bottom-left"
+            pannable
+            zoomable
+            nodeBorderRadius={0}
+            nodeColor="var(--gs-paper-3)"
+            nodeStrokeColor="var(--gs-muted-2)"
+            nodeStrokeWidth={1}
+            maskColor="rgba(244, 242, 237, 0.68)"
+            maskStrokeColor="var(--gs-accent)"
+            maskStrokeWidth={1}
+          />
           <Controls showInteractive={false} />
         </ReactFlow>
       </ReactFlowProvider>
