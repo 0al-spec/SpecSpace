@@ -1319,13 +1319,14 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - No UI rendering changes are included in this task.
 
 ### CTXB-P10-T2 — Add GraphSpace spec node and edge data model
-- **Description:** Introduce FSD entity models for SpecGraph nodes and edges plus a canvas data hook that fetches `/api/spec-graph`, validates it through the shared contract, and exposes live/error/sample states using the same conventions as the recent activity, work index, and proposal trace surfaces.
+- **Description:** Introduce FSD entity models for SpecGraph nodes and edges plus a canvas data hook that fetches `/api/spec-graph`, validates it through the shared contract, and exposes the current live-artifact state convention: `{ kind: "idle" }`, `{ kind: "loading" }`, or `EnvelopeResult<SpecGraph>`. Sample fallback remains a UI/model decision derived from non-`ok` states, matching the recent activity, work index, and proposal trace surfaces.
 - **Priority:** P1
 - **Dependencies:** CTXB-P10-T1
 - **Parallelizable:** no
 - **Outputs / Artifacts:** `graphspace/src/entities/spec-node/*`; `graphspace/src/entities/spec-edge/*`; `graphspace/src/widgets/spec-graph-canvas/model/use-spec-graph.ts`; sample data
 - **Acceptance Criteria:**
-  - The hook returns explicit live states (`ok`, `loading`, `error`, fallback/sample) without leaking raw fetch errors into UI code.
+  - The hook returns `{ kind: "idle" }`, `{ kind: "loading" }`, or `EnvelopeResult<SpecGraph>`; it does not introduce generic `error` or `fallback` variants.
+  - Sample fallback is derived by consumers when the validated state is not `ok`, preserving the existing GraphSpace live-artifact pattern.
   - Node and edge domain types are exported through entity public APIs.
   - Sample fallback data can render at least three nodes and two edge kinds without a backend.
   - Tests cover successful parse, offline fallback, and invalid payload handling.
