@@ -1,0 +1,26 @@
+{
+  "spec_dir": "/tmp/specgraph/specs/nodes",
+  "graph": {
+    "nodes": [],
+    "edges": [],
+    "roots": [],
+    "blocked_files": [],
+    "diagnostics": [],
+    "summary": {
+      "node_count": 0,
+      "edge_count": 0,
+      "root_count": 0,
+      "blocked_file_count": 0,
+      "diagnostic_count": 0,
+      "broken_edge_count": 0
+    }
+  },
+  "summary": {
+    "node_count": 0,
+    "edge_count": 0,
+    "root_count": 0,
+    "blocked_file_count": 0,
+    "diagnostic_count": 0,
+    "broken_edge_count": 0
+  }
+}

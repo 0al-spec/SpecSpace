@@ -4,6 +4,7 @@
 export { parseSpecActivityFeed } from "./parsers/parse-spec-activity-feed";
 export { parseImplementationWorkIndex } from "./parsers/parse-implementation-work-index";
 export { parseProposalSpecTraceIndex } from "./parsers/parse-proposal-spec-trace-index";
+export { parseSpecGraph } from "./parsers/parse-spec-graph";
 export type { ParseResult } from "./parsers/parse";
 
 export {
@@ -31,3 +32,17 @@ export type {
   ProposalTraceEntry,
   ProposalSpecTraceIndex,
 } from "./schemas/proposal-spec-trace-index";
+
+export {
+  SPEC_GRAPH_EDGE_KINDS,
+  SPEC_GRAPH_EDGE_STATUSES,
+  type SpecGraph,
+  type SpecGraphDiagnostic,
+  type SpecGraphEdge,
+  type SpecGraphEdgeKind,
+  type SpecGraphEdgeStatus,
+  type SpecGraphNode,
+  type SpecGraphNodeDiagnostic,
+  type SpecGraphResponse,
+  type SpecGraphSummary,
+} from "./schemas/spec-graph";
