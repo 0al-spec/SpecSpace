@@ -1,8 +1,5 @@
 import { useState } from "react";
 import { useRunsWatchVersion } from "@/shared/api";
-import { Panel } from "@/shared/ui/panel";
-import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
-import { Overlay } from "@/shared/ui/overlay";
 import { useRecentChanges } from "@/widgets/recent-changes-panel";
 import {
   ImplementationWorkPanel,
@@ -27,6 +24,7 @@ import {
 } from "../model/sample-data";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
+import { ViewerChrome } from "./ViewerChrome";
 import { ViewerHero } from "./ViewerHero";
 import styles from "./ViewerPage.module.css";
 
@@ -198,35 +196,23 @@ export function ViewerPage() {
           />
       </div>
 
-      <Overlay anchor="top-left" direction="row">
-        <PanelBtnRow>
-          <PanelBtn title="Toggle timeline" active={timelineOn} onClick={() => setTimelineOn((v) => !v)}>
-            ⏱
-          </PanelBtn>
-          <PanelBtn
-            title="Open filter"
-            active={filterOpen}
-            badge={count}
-            onClick={() => setFilterOpen((v) => !v)}
-          >
-            ⚲
-          </PanelBtn>
-          <PanelBtn dim title="Disabled action">
-            ✕
-          </PanelBtn>
-        </PanelBtnRow>
-      </Overlay>
-
-      <Overlay
-        anchor="bottom-right"
-        className={styles.statusOverlay}
-      >
-        <Panel tone="muted" padding="sm">
-          <span className={styles.statusText}>
-            v0.0.1 · runs tick {runsWatchVersion} · recent {feedState.kind} · {count} events · work {workState.kind} · {liveWorkItems.length} items · trace {proposalTraceState.kind}
-          </span>
-        </Panel>
-      </Overlay>
+      <ViewerChrome
+        controls={{
+          timelineOn,
+          filterOpen,
+          badgeCount: count,
+          onTimelineToggle: () => setTimelineOn((v) => !v),
+          onFilterToggle: () => setFilterOpen((v) => !v),
+        }}
+        status={{
+          runsWatchVersion,
+          recentKind: feedState.kind,
+          eventCount: count,
+          workKind: workState.kind,
+          workItemCount: liveWorkItems.length,
+          traceKind: proposalTraceState.kind,
+        }}
+      />
     </div>
   );
 }
