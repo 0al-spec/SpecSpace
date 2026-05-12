@@ -19,6 +19,13 @@
 
 ## Suggested Next Tasks
 
+### GraphSpace SpecGraph Canvas Migration
+- `CTXB-P10-T1` — Add GraphSpace SpecGraph graph contract (P1, first step)
+- `CTXB-P10-T2` — Add GraphSpace spec node and edge data model (P1, depends on P10-T1)
+- `CTXB-P10-T3` — Render a minimal primary SpecGraph canvas in GraphSpace (P1, depends on P10-T2)
+- `CTXB-P10-T4` — Add deterministic layout and edge semantics for GraphSpace canvas (P1, depends on P10-T3)
+- `CTXB-P10-T5` — Recompose GraphSpace viewer around canvas and secondary panels (P1, depends on P10-T3)
+
 ### SpecPM Integration
 - `CTXB-P8-T2` — SpecPM lifecycle badge on SpecNode cards (P3, no deps)
 
