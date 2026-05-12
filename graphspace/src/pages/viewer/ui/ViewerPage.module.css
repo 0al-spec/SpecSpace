@@ -1,0 +1,94 @@
+.root {
+  position: relative;
+  min-height: 100vh;
+  overflow-y: auto;
+}
+
+.grid {
+  display: grid;
+  /* auto-fit + minmax collapses to a single column below ~712 px so
+   * narrow viewports stack instead of clipping. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 32px;
+  padding: clamp(60px, 8vw, 120px) clamp(20px, 5vw, 80px) 80px;
+  align-content: start;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.eyebrowLine {
+  width: 26px;
+  height: 1px;
+  background: currentColor;
+}
+
+.eyebrowDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gs-accent);
+  box-shadow: 0 0 0 3px var(--gs-accent-soft);
+}
+
+.title {
+  margin: 16px 0 0;
+  font-size: 50px;
+  line-height: 1;
+}
+
+.titleEmphasis {
+  color: var(--gs-muted-2);
+  font-style: italic;
+}
+
+.intro {
+  margin: 20px 0 0;
+  color: var(--gs-muted);
+  font-size: 16px;
+  line-height: 1.62;
+}
+
+.workPanel {
+  margin-top: 28px;
+  max-height: calc(100vh - 540px);
+}
+
+.proposalTracePanel {
+  margin-top: 16px;
+  max-height: calc(100vh - 540px);
+}
+
+.feedColumn {
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  min-height: 0;
+  max-height: calc(100vh - 200px);
+}
+
+.recentPanel {
+  min-height: 0;
+}
+
+.statusOverlay {
+  position: fixed;
+  max-width: calc(100vw - 40px);
+}
+
+.statusText {
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
