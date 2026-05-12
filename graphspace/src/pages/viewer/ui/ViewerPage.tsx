@@ -146,7 +146,10 @@ export function ViewerPage() {
 
   return (
     <div className={styles.root}>
-      <SpecGraphCanvas className={styles.canvasLayer} />
+      <SpecGraphCanvas
+        className={styles.canvasLayer}
+        refreshKey={runsWatchVersion}
+      />
 
       <div className={styles.grid}>
         {/* Left: hero headline */}

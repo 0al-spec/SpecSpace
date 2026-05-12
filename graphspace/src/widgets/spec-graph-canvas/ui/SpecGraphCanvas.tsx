@@ -16,6 +16,7 @@ import styles from "./SpecGraphCanvas.module.css";
 
 type Props = {
   className?: string;
+  refreshKey?: number;
 };
 
 function SpecFlowNodeView({ data, selected }: NodeProps<SpecFlowNode>) {
@@ -32,8 +33,8 @@ const nodeTypes = {
   specNode: SpecFlowNodeView,
 };
 
-export function SpecGraphCanvas({ className }: Props) {
-  const state = useSpecGraph();
+export function SpecGraphCanvas({ className, refreshKey = 0 }: Props) {
+  const state = useSpecGraph({ refreshKey });
   const { nodes, edges } = useMemo(
     () => toSpecGraphFlowElements(state.data),
     [state.data],

@@ -25,12 +25,16 @@ function positionForIndex(index: number): { x: number; y: number } {
   };
 }
 
+const byNodeId = (a: SpecNode, b: SpecNode) => a.node_id.localeCompare(b.node_id);
+const byEdgeId = (a: SpecEdge, b: SpecEdge) => a.edge_id.localeCompare(b.edge_id);
+
 export function toSpecGraphFlowElements(response: SpecGraphResponse): {
   nodes: SpecFlowNode[];
   edges: SpecFlowEdge[];
 } {
-  const nodeIds = new Set(response.graph.nodes.map((node) => node.node_id));
-  const nodes: SpecFlowNode[] = response.graph.nodes.map((spec, index) => ({
+  const sortedNodes = [...response.graph.nodes].sort(byNodeId);
+  const nodeIds = new Set(sortedNodes.map((node) => node.node_id));
+  const nodes: SpecFlowNode[] = sortedNodes.map((spec, index) => ({
     id: spec.node_id,
     type: "specNode",
     position: positionForIndex(index),
@@ -39,6 +43,7 @@ export function toSpecGraphFlowElements(response: SpecGraphResponse): {
 
   const edges: SpecFlowEdge[] = response.graph.edges
     .filter((edge) => nodeIds.has(edge.source_id) && nodeIds.has(edge.target_id))
+    .sort(byEdgeId)
     .map((specEdge) => ({
       id: specEdge.edge_id,
       source: specEdge.source_id,

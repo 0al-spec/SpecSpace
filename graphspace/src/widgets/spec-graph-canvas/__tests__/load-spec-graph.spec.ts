@@ -95,9 +95,42 @@ describe("toSpecGraphFlowElements", () => {
   it("maps sample graph nodes into deterministic flow positions", () => {
     const { nodes, edges } = toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH);
     expect(nodes).toHaveLength(3);
-    expect(nodes[0].position).toEqual({ x: 0, y: 0 });
-    expect(nodes[1].position).toEqual({ x: 320, y: 0 });
+    expect(nodes.map((node) => node.id)).toEqual([
+      "SG-SPEC-SAMPLE-EVIDENCE",
+      "SG-SPEC-SAMPLE-ROOT",
+      "SG-SPEC-SAMPLE-RUNTIME",
+    ]);
+    expect(nodes.find((node) => node.id === "SG-SPEC-SAMPLE-EVIDENCE")?.position).toEqual({
+      x: 0,
+      y: 0,
+    });
+    expect(nodes.find((node) => node.id === "SG-SPEC-SAMPLE-ROOT")?.position).toEqual({
+      x: 320,
+      y: 0,
+    });
+    expect(nodes.find((node) => node.id === "SG-SPEC-SAMPLE-RUNTIME")?.position).toEqual({
+      x: 640,
+      y: 0,
+    });
     expect(edges).toHaveLength(3);
+  });
+
+  it("keeps node positions and edge order stable when payload order changes", () => {
+    const response = cloneSample();
+    response.graph.nodes = [...response.graph.nodes].reverse();
+    response.graph.edges = [...response.graph.edges].reverse();
+
+    const { nodes, edges } = toSpecGraphFlowElements(response);
+    expect(nodes.map((node) => node.id)).toEqual([
+      "SG-SPEC-SAMPLE-EVIDENCE",
+      "SG-SPEC-SAMPLE-ROOT",
+      "SG-SPEC-SAMPLE-RUNTIME",
+    ]);
+    expect(edges.map((edge) => edge.id)).toEqual([
+      "SG-SPEC-SAMPLE-ROOT__depends_on__SG-SPEC-SAMPLE-RUNTIME",
+      "SG-SPEC-SAMPLE-ROOT__relates_to__SG-SPEC-SAMPLE-EVIDENCE",
+      "SG-SPEC-SAMPLE-RUNTIME__refines__SG-SPEC-SAMPLE-ROOT",
+    ]);
   });
 
   it("filters edges whose endpoints are missing from the node set", () => {
