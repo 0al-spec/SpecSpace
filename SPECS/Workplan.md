@@ -1421,6 +1421,19 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - Canvas and navigator use the same SpecGraph response state instead of issuing competing graph reads.
   - Empty and no-match states are explicit and compact.
 
+### CTXB-P10-T10 — Add Sidebar navigator signal filters
+- **Description:** Extend the Sidebar spec node navigator with compact signal filters so graph review can quickly narrow the node list to nodes with gaps or diagnostics while preserving the existing text search.
+- **Priority:** P1
+- **Dependencies:** CTXB-P10-T9
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** navigator filter model update; Sidebar filter controls; filter tests; validation report
+- **Acceptance Criteria:**
+  - Navigator offers compact filters for all nodes, nodes with gaps, and nodes with diagnostics.
+  - Text search composes with the active signal filter.
+  - Filter counts are visible without opening another panel.
+  - Empty/no-match state remains compact and accurate under filters.
+  - Existing row selection and Spec Inspector opening continue to work.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
