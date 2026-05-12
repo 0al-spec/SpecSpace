@@ -3,6 +3,7 @@ import {
   fetchSpecGraph,
   loadSpecGraph,
   SAMPLE_SPEC_GRAPH,
+  toSpecGraphFlowElements,
 } from "../index";
 
 const buildResponse = (body: unknown, init?: ResponseInit): Response =>
@@ -87,5 +88,33 @@ describe("loadSpecGraph", () => {
     expect(state.kind).toBe("sample");
     if (state.kind !== "sample") return;
     expect(state.failure.kind).toBe("invariant-violation");
+  });
+});
+
+describe("toSpecGraphFlowElements", () => {
+  it("maps sample graph nodes into deterministic flow positions", () => {
+    const { nodes, edges } = toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH);
+    expect(nodes).toHaveLength(3);
+    expect(nodes[0].position).toEqual({ x: 0, y: 0 });
+    expect(nodes[1].position).toEqual({ x: 320, y: 0 });
+    expect(edges).toHaveLength(3);
+  });
+
+  it("filters edges whose endpoints are missing from the node set", () => {
+    const response = cloneSample();
+    response.graph.edges.push({
+      edge_id: "missing",
+      edge_kind: "relates_to",
+      source_id: "SG-SPEC-SAMPLE-ROOT",
+      target_id: "SG-SPEC-MISSING",
+      status: "broken",
+    });
+    response.graph.summary.edge_count += 1;
+    response.summary.edge_count += 1;
+    response.graph.summary.broken_edge_count += 1;
+    response.summary.broken_edge_count += 1;
+
+    const { edges } = toSpecGraphFlowElements(response);
+    expect(edges.map((edge) => edge.id)).not.toContain("missing");
   });
 });
