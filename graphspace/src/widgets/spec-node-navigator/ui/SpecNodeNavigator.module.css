@@ -77,10 +77,13 @@
 }
 
 .list {
+  --navigator-scrollbar-width: 8px;
+
   display: flex;
   flex-direction: column;
   min-height: 0;
   max-height: min(34vh, 340px);
+  overflow-x: hidden;
   overflow-y: auto;
   border-top: 1px solid var(--gs-rule-soft);
 }
@@ -101,9 +104,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--gs-space-2);
-  width: 100%;
+  width: calc(100% + var(--navigator-scrollbar-width));
   min-width: 0;
-  padding: var(--gs-space-4) 0;
+  margin-right: calc(-1 * var(--navigator-scrollbar-width));
+  padding: var(--gs-space-4)
+    calc(var(--gs-space-4) + var(--navigator-scrollbar-width))
+    var(--gs-space-4)
+    var(--gs-space-4);
   border: 0;
   border-bottom: 1px solid var(--gs-rule-soft);
   background: transparent;
