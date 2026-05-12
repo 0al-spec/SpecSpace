@@ -9,6 +9,7 @@ import {
   ProposalTracePanel,
   useProposalSpecTraceIndex,
 } from "@/widgets/proposal-trace";
+import { SpecGraphCanvas } from "@/widgets/spec-graph-canvas";
 import { useToneFilter, filterByTone } from "@/features/filter-by-tone";
 import {
   useSpecSearch,
@@ -145,6 +146,11 @@ export function ViewerPage() {
 
   return (
     <div className={styles.root}>
+      <SpecGraphCanvas
+        className={styles.canvasLayer}
+        refreshKey={runsWatchVersion}
+      />
+
       <div className={styles.grid}>
         {/* Left: hero headline */}
         <div>

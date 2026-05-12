@@ -4,7 +4,13 @@
   overflow-y: auto;
 }
 
+.canvasLayer {
+  pointer-events: auto;
+}
+
 .grid {
+  position: relative;
+  z-index: 2;
   display: grid;
   /* auto-fit + minmax collapses to a single column below ~712 px so
    * narrow viewports stack instead of clipping. */
@@ -12,6 +18,11 @@
   gap: 32px;
   padding: clamp(60px, 8vw, 120px) clamp(20px, 5vw, 80px) 80px;
   align-content: start;
+  pointer-events: none;
+}
+
+.grid > * {
+  pointer-events: auto;
 }
 
 .eyebrow {
@@ -82,6 +93,7 @@
 
 .statusOverlay {
   position: fixed;
+  z-index: 3;
   max-width: calc(100vw - 40px);
 }
 
