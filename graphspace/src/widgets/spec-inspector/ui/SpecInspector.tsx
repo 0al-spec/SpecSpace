@@ -1,9 +1,12 @@
 import { useState, type HTMLAttributes } from "react";
 import {
   buildSpecInspectorModel,
+  useSpecNodeDetail,
+  type SpecInspectorDetailModel,
   type SpecInspectorSelection,
   type SpecRelationGroup,
   type SpecRelation,
+  type UseSpecNodeDetailState,
 } from "../model";
 import styles from "./SpecInspector.module.css";
 
@@ -21,7 +24,10 @@ export function SpecInspector({
   ...rest
 }: Props) {
   const [copied, setCopied] = useState(false);
-  const model = buildSpecInspectorModel(selection);
+  const detailState = useSpecNodeDetail({ nodeId: selection.node.node_id });
+  const detail =
+    detailState.kind === "ok" ? detailState.data.data : null;
+  const model = buildSpecInspectorModel(selection, detail);
   const { node } = model;
   const cls = [styles.panel, className].filter(Boolean).join(" ");
   const copyFilePath = () => {
@@ -45,6 +51,9 @@ export function SpecInspector({
 
       <div className={styles.scroll}>
         <h2 className={styles.title}>{node.title}</h2>
+        {model.detail?.objective ? (
+          <p className={styles.objective}>{model.detail.objective}</p>
+        ) : null}
 
         <dl className={styles.metaGrid}>
           <Field label="Kind" value={node.kind} />
@@ -68,6 +77,10 @@ export function SpecInspector({
             </dd>
           </div>
         </dl>
+
+        <DetailLoadStatus state={detailState} />
+
+        {model.detail ? <RichSpecDetail detail={model.detail} /> : null}
 
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Gap profile</h3>
@@ -105,6 +118,36 @@ export function SpecInspector({
   );
 }
 
+function DetailLoadStatus({ state }: { state: UseSpecNodeDetailState }) {
+  const message = describeDetailState(state);
+  return message ? <div className={styles.detailStatus}>{message}</div> : null;
+}
+
+function describeDetailState(state: UseSpecNodeDetailState): string | null {
+  switch (state.kind) {
+    case "idle":
+    case "loading":
+      return "Loading detailed spec content...";
+    case "ok":
+      return null;
+    case "http-error":
+      return `Detailed spec content unavailable: HTTP ${state.status}`;
+    case "network-error":
+      return `Detailed spec content unavailable: ${state.message}`;
+    case "response-error":
+      return `Detailed spec content unavailable: ${state.reason}`;
+    case "parse-error":
+      return "Detailed spec content unavailable: response did not match the contract";
+    case "invariant-violation":
+      return `Detailed spec content unavailable: ${state.message}`;
+    case "version-not-supported":
+      return `Detailed spec content unavailable: schema v${state.schema_version} is not supported`;
+    case "wrong-artifact-kind":
+      return "Detailed spec content unavailable: wrong artifact kind";
+  }
+  return null;
+}
+
 function Field({
   label,
   value,
@@ -120,6 +163,217 @@ function Field({
       <dd>{value}</dd>
     </div>
   );
+}
+
+function RichSpecDetail({ detail }: { detail: SpecInspectorDetailModel }) {
+  const hasScope = Boolean(detail.scope);
+  const hasFlow =
+    detail.inputs.length > 0 ||
+    detail.outputs.length > 0 ||
+    detail.allowedPaths.length > 0;
+  const hasLifecycle = Boolean(detail.createdAt || detail.updatedAt);
+  const hasRuntime = hasLifecycle || detail.runtime.length > 0;
+
+  return (
+    <>
+      {hasScope ? <ScopeSection scope={detail.scope!} /> : null}
+
+      {detail.acceptance.length > 0 ? (
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Acceptance</h3>
+          <ol className={styles.contentList}>
+            {detail.acceptance.map((item, index) => (
+              <li key={`${item.text}-${index}`} className={styles.contentItem}>
+                <span
+                  className={
+                    item.hasEvidence ? styles.evidenceBadge : styles.gapBadge
+                  }
+                >
+                  {item.hasEvidence ? "evidence" : "gap"}
+                </span>
+                <span className={styles.contentText}>{item.text}</span>
+                {item.malformed ? (
+                  <span className={styles.formatBadge}>format</span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
+
+      {detail.evidence.length > 0 ? (
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Acceptance evidence</h3>
+          <div className={styles.evidenceList}>
+            {detail.evidence.map((item, index) => (
+              <article key={`${item.criterion}-${index}`} className={styles.evidenceItem}>
+                <div className={styles.evidenceCriterion}>{item.criterion}</div>
+                {item.evidence ? (
+                  <p className={styles.evidenceText}>{item.evidence}</p>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {detail.terminology.length > 0 ? (
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Terminology</h3>
+          <dl className={styles.termList}>
+            {detail.terminology.map((entry) => (
+              <div key={entry.term} className={styles.termItem}>
+                <dt>{entry.term}</dt>
+                <dd>{entry.definition}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
+
+      <DecisionSection title="Decisions" items={detail.decisions} />
+      <DecisionSection title="Invariants" items={detail.invariants} />
+
+      {hasFlow ? (
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Files and paths</h3>
+          <TagList label="Inputs" items={detail.inputs} />
+          <TagList label="Outputs" items={detail.outputs} />
+          <TagList label="Allowed paths" items={detail.allowedPaths} />
+        </section>
+      ) : null}
+
+      {hasRuntime ? (
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Lifecycle and runtime</h3>
+          <div className={styles.fieldRows}>
+            {detail.createdAt ? (
+              <KeyValue label="Created" value={formatDate(detail.createdAt)} />
+            ) : null}
+            {detail.updatedAt ? (
+              <KeyValue label="Updated" value={formatDate(detail.updatedAt)} />
+            ) : null}
+            {detail.runtime.map((field) => (
+              <KeyValue key={field.label} label={field.label} value={field.value} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {detail.prompt ? (
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Prompt</h3>
+          <pre className={styles.pre}>{detail.prompt}</pre>
+        </section>
+      ) : null}
+
+      {detail.rawSpecification ? (
+        <details className={styles.rawDisclosure}>
+          <summary>Specification raw</summary>
+          <pre className={`${styles.pre} ${styles.rawPre}`}>
+            {JSON.stringify(detail.rawSpecification, null, 2)}
+          </pre>
+        </details>
+      ) : null}
+    </>
+  );
+}
+
+function ScopeSection({ scope }: { scope: NonNullable<SpecInspectorDetailModel["scope"]> }) {
+  return (
+    <section className={styles.section}>
+      <h3 className={styles.sectionTitle}>Scope</h3>
+      <div className={styles.scopeGrid}>
+        {scope.in.length > 0 ? (
+          <div className={styles.scopeBlock}>
+            <h4>In scope</h4>
+            <ul className={styles.contentList}>
+              {scope.in.map((item) => (
+                <li key={item} className={styles.contentItem}>
+                  <span className={styles.contentText}>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {scope.out.length > 0 ? (
+          <div className={styles.scopeBlock}>
+            <h4>Out of scope</h4>
+            <ul className={styles.contentList}>
+              {scope.out.map((item) => (
+                <li key={item} className={styles.contentItem}>
+                  <span className={styles.contentText}>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function DecisionSection({
+  title,
+  items,
+}: {
+  title: string;
+  items: SpecInspectorDetailModel["decisions"];
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <section className={styles.section}>
+      <h3 className={styles.sectionTitle}>{title}</h3>
+      <ol className={styles.contentList}>
+        {items.map((item, index) => (
+          <li key={`${item.id ?? item.statement}-${index}`} className={styles.contentItem}>
+            {item.id ? <span className={styles.idBadge}>{item.id}</span> : null}
+            <span className={styles.contentText}>{item.statement}</span>
+            {item.rationale ? (
+              <p className={styles.rationale}>{item.rationale}</p>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function TagList({ label, items }: { label: string; items: readonly string[] }) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className={styles.tagGroup}>
+      <span className={styles.tagLabel}>{label}</span>
+      <ul className={styles.tagList}>
+        {items.map((item) => (
+          <li key={item} className={styles.tag}>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function KeyValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div className={styles.fieldRow}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
