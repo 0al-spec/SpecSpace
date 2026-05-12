@@ -5,16 +5,35 @@ The new viewer for SpecGraph artifacts. Successor to `viewer/app/`, organised by
 
 ## Status
 
-Day 1 scaffold. Currently contains:
+Early rewrite. Currently contains:
 
 - FSD layer skeleton (`app / pages / widgets / features / entities / shared`).
 - Design tokens extracted from the legacy `theme.css`.
 - Three baseline `shared/ui` components used everywhere in the legacy viewer:
   `Panel`, `PanelBtn`, `Overlay`.
-- A demo page that renders the three components together.
+- Live artifact panels for recent activity, implementation work, proposal
+  traces, and artifact diagnostics.
+- A primary SpecGraph canvas rendered with React Flow.
 
 The legacy viewer at `viewer/app/` is untouched and remains the production
 target until GraphSpace reaches parity.
+
+## Canvas layout
+
+The default SpecGraph canvas layout is **Refinement Ladder Layout**.
+
+- Primary axis: resolved `refines` relationships define depth. Parent specs are
+  placed to the left; specs that refine them move one rank to the right.
+- Stable rows: nodes inside the same rank are sorted by `node_id`, so unchanged
+  data keeps the same visual positions across refreshes.
+- Visual direction: `refines` edges are drawn parent -> child for readability,
+  while the raw SpecGraph edge data still preserves the semantic
+  `child refines parent` direction.
+- Overlay links: `depends_on`, `relates_to`, and broken references are styled as
+  cross-links. They do not change placement in this layout.
+
+Future layout experiments should be introduced as explicit alternate modes
+instead of silently replacing this default.
 
 ## Run
 

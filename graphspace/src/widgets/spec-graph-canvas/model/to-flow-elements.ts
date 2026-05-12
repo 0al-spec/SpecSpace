@@ -23,6 +23,14 @@ const byNodeId = (a: SpecNode, b: SpecNode) =>
 const byEdgeId = (a: SpecEdge, b: SpecEdge) =>
   a.edge_id.localeCompare(b.edge_id);
 
+/**
+ * Refinement Ladder Layout
+ *
+ * The default GraphSpace SpecGraph layout ranks nodes by resolved `refines`
+ * depth. Parents stay on the left, refining specs move right, and rows inside
+ * each rank are sorted by stable node id. Non-hierarchy links remain visual
+ * overlays and do not affect placement.
+ */
 const EDGE_STYLE: Record<SpecEdge["edge_kind"] | "broken", CSSProperties> = {
   depends_on: {
     stroke: "#b06924",
@@ -66,7 +74,10 @@ function wouldCreateCycle(
   return false;
 }
 
-function acyclicRefines(nodes: readonly SpecNode[], edges: readonly SpecEdge[]): SpecEdge[] {
+function acyclicRefines(
+  nodes: readonly SpecNode[],
+  edges: readonly SpecEdge[],
+): SpecEdge[] {
   const nodeIds = new Set(nodes.map((node) => node.node_id));
   const adjacency = new Map<string, string[]>();
   const accepted: SpecEdge[] = [];
