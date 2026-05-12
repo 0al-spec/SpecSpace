@@ -28,7 +28,7 @@ const stringListSchema = z.array(z.string());
 
 export const specGraphDiagnosticSchema = z
   .object({
-    scope: z.string().optional(),
+    scope: z.string(),
     message: z.string(),
   })
   .passthrough();

@@ -101,6 +101,12 @@ describe("parseSpecGraph", () => {
     expect(parseSpecGraph(broken).kind).toBe("parse-error");
   });
 
+  it("rejects graph diagnostics without scope", () => {
+    const broken = cloneGolden();
+    delete broken.graph.diagnostics[0].scope;
+    expect(parseSpecGraph(broken).kind).toBe("parse-error");
+  });
+
   it("returns parse-error for arbitrary non-object input", () => {
     expect(parseSpecGraph(null).kind).toBe("parse-error");
     expect(parseSpecGraph("not json").kind).toBe("parse-error");
