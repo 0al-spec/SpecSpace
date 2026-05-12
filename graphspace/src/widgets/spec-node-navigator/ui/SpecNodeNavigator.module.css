@@ -76,37 +76,35 @@
   color: var(--gs-ink);
 }
 
-.list {
+.listFrame {
   --navigator-scrollbar-width: 8px;
 
+  position: relative;
+  min-height: 0;
+  border-top: 1px solid var(--gs-rule-soft);
+}
+
+.list {
   display: flex;
   flex-direction: column;
   min-height: 0;
   max-height: min(34vh, 340px);
   overflow-x: hidden;
   overflow-y: auto;
-  border-top: 1px solid var(--gs-rule-soft);
+  scrollbar-width: none;
 }
 
 .list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.list::-webkit-scrollbar-thumb {
-  background: var(--gs-rule-soft);
+  width: 0;
+  height: 0;
 }
 
 .row {
   display: flex;
   flex-direction: column;
   gap: var(--gs-space-2);
-  width: calc(100% + var(--navigator-scrollbar-width));
+  width: 100%;
   min-width: 0;
-  margin-right: calc(-1 * var(--navigator-scrollbar-width));
   padding: var(--gs-space-4)
     calc(var(--gs-space-4) + var(--navigator-scrollbar-width))
     var(--gs-space-4)
@@ -117,6 +115,22 @@
   color: inherit;
   cursor: pointer;
   text-align: left;
+}
+
+.scrollbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  width: var(--navigator-scrollbar-width);
+  pointer-events: none;
+}
+
+.scrollbarThumb {
+  display: block;
+  width: var(--navigator-scrollbar-width);
+  background: color-mix(in oklab, var(--gs-muted) 24%, transparent);
 }
 
 .row:hover,
