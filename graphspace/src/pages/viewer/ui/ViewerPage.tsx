@@ -1,11 +1,8 @@
 import { useState } from "react";
-import { useRunsWatchVersion, type EnvelopeResult } from "@/shared/api";
+import { useRunsWatchVersion } from "@/shared/api";
 import { Panel } from "@/shared/ui/panel";
 import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { Overlay } from "@/shared/ui/overlay";
-import { type RecentChange } from "@/entities/recent-change";
-import { type WorkItem } from "@/entities/implementation-work";
-import { type ProposalTraceEntry } from "@/entities/proposal-trace";
 import {
   RecentChangesPanel,
   useRecentChanges,
@@ -29,212 +26,19 @@ import {
   filterBySpecQuery,
 } from "@/features/search-by-spec";
 import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-artifacts";
+import { describeLive } from "../model/live-status";
+import {
+  SAMPLE_ENTRIES,
+  SAMPLE_NOW,
+  SAMPLE_PROPOSAL_TRACES,
+  SAMPLE_WORK_ITEMS,
+} from "../model/sample-data";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 
 /**
  * Viewer page shell: live data via graph contract hooks with sample fallback
  * when the backend is offline, not configured, or emits invalid artifacts.
  */
-const NOW = new Date("2026-05-10T12:00:00Z");
-
-const SAMPLE_ENTRIES: RecentChange[] = [
-  {
-    event_id: "demo-1",
-    event_type: "canonical_spec_updated",
-    spec_id: "SG-SPEC-0028",
-    title: "Reflective Mechanics Integration",
-    occurred_at: "2026-05-10T11:45:00Z",
-    summary: "Updated readiness gate to honor three-valued authority_class.",
-    source_kind: "git_commit",
-    source_paths: ["specs/nodes/SG-SPEC-0028.yaml"],
-    viewer: { tone: "spec", label: "spec updated" },
-  },
-  {
-    event_id: "demo-2",
-    event_type: "trace_baseline_attached",
-    spec_id: "SG-SPEC-0030",
-    title: "Trace baseline attached",
-    occurred_at: "2026-05-10T10:12:00Z",
-    summary: "Wired runtime evidence registry into the trace overlay.",
-    source_kind: "git_commit",
-    source_paths: ["tools/spec_trace_registry.json"],
-    viewer: { tone: "trace", label: "trace baseline attached" },
-  },
-  {
-    event_id: "demo-3",
-    event_type: "proposal_emitted",
-    spec_id: "SG-SPEC-0045",
-    title: "Proposal: viewer surfaces build budget",
-    occurred_at: "2026-05-09T22:30:00Z",
-    summary: "New proposal lane entry — promote when CI cost trends settle.",
-    source_kind: "git_commit",
-    source_paths: ["runs/proposal_lane_overlay.json"],
-    viewer: { tone: "proposal", label: "proposal emitted" },
-  },
-  {
-    event_id: "demo-4",
-    event_type: "implementation_work_emitted",
-    spec_id: "SG-SPEC-0057",
-    title: "Implementation work logged",
-    occurred_at: "2026-05-08T18:00:00Z",
-    summary: "First iteration of the viewer-surfaces builder lands.",
-    source_kind: "git_commit",
-    source_paths: ["tools/supervisor.py"],
-    viewer: { tone: "implementation", label: "work emitted" },
-  },
-  {
-    event_id: "demo-5",
-    event_type: "review_feedback_applied",
-    spec_id: "",
-    title: "Codex review applied across activity feed",
-    occurred_at: "2026-05-08T09:00:00Z",
-    summary: "Empty navigation state, limit handling, sort fix.",
-    source_kind: "git_commit",
-    source_paths: ["viewer/server.py"],
-    viewer: { tone: "review", label: "review applied" },
-  },
-];
-
-// Day 7A: sample WorkItems hitting every readiness tone so the visual story
-// matches contract §7. Live wiring lands in Day 7B once the backend endpoint
-// exists.
-const SAMPLE_WORK_ITEMS: WorkItem[] = [
-  {
-    work_item_id: "implementation_work::SG-SPEC-0042::changed_acceptance",
-    affected_spec_ids: ["SG-SPEC-0042"],
-    implementation_reason: "changed_acceptance",
-    delta_refs: ["changed_acceptance_refs::SG-SPEC-0042"],
-    required_tests: [],
-    expected_evidence: [],
-    likely_code_refs: [],
-    readiness: "ready_for_planning",
-    blockers: [],
-    next_gap: "review_implementation_delta",
-  },
-  {
-    work_item_id: "implementation_work::SG-SPEC-0028::ready_to_code",
-    affected_spec_ids: ["SG-SPEC-0028"],
-    implementation_reason: "new_contract",
-    delta_refs: ["new_spec_ids::SG-SPEC-0028"],
-    required_tests: ["tests/test_readiness_gate.py"],
-    expected_evidence: [],
-    likely_code_refs: ["tools/readiness.py"],
-    readiness: "ready_for_coding_agent",
-    blockers: [],
-    next_gap: "hand_to_coding_agent",
-  },
-  {
-    work_item_id: "implementation_work::SG-SPEC-0057::blocked_trace",
-    affected_spec_ids: ["SG-SPEC-0057"],
-    implementation_reason: "missing_trace",
-    delta_refs: ["missing_trace_refs::SG-SPEC-0057"],
-    required_tests: [],
-    expected_evidence: [],
-    likely_code_refs: [],
-    readiness: "blocked_by_trace_gap",
-    blockers: ["trace baseline not attached for SG-SPEC-0057"],
-    next_gap: "attach_trace_baseline",
-  },
-  {
-    work_item_id: "implementation_work::SG-SPEC-0060::quality_block",
-    affected_spec_ids: ["SG-SPEC-0060"],
-    implementation_reason: "spec_quality_check",
-    delta_refs: [],
-    required_tests: [],
-    expected_evidence: [],
-    likely_code_refs: [],
-    readiness: "blocked_by_spec_quality",
-    blockers: ["acceptance criteria reference removed contract", "readiness gate inconsistent"],
-    next_gap: "repair_spec",
-  },
-  {
-    work_item_id: "implementation_work::SG-SPEC-0030::done",
-    affected_spec_ids: ["SG-SPEC-0030"],
-    implementation_reason: "changed_acceptance",
-    delta_refs: [],
-    required_tests: [],
-    expected_evidence: ["runs/test_results/SG-SPEC-0030.json"],
-    likely_code_refs: ["tools/spec_trace_registry.json"],
-    readiness: "implemented",
-    blockers: [],
-    next_gap: "—",
-  },
-];
-
-const SAMPLE_PROPOSAL_TRACES: ProposalTraceEntry[] = [
-  {
-    trace_entry_id: "proposal::0048",
-    proposal_id: "0048",
-    proposal_path: "docs/proposals/0048_continuation_candidate_selection.md",
-    title: "Deterministic continuation candidate selector",
-    status: "Draft proposal",
-    spec_refs: [],
-    mentioned_spec_ids: ["SG-SPEC-0033"],
-    promotion_trace: {
-      status: "missing_trace",
-      trace_status: "missing_trace",
-      next_gap: "attach_promotion_trace",
-      source_refs: [],
-    },
-    next_gap: "attach_promotion_trace",
-  },
-];
-
-/**
- * Both hooks expose the same discriminated union (idle/loading + every
- * EnvelopeResult variant). Map any state to (caption, emptyMessage); the
- * caller picks live data on "ok" and falls back to sample otherwise.
- *
- * Kept as a single helper rather than per-panel describeFeed/describeWork
- * because the failure-mode mapping is verbatim across the two domains —
- * any new artifact will get the same treatment for free.
- */
-type LiveStatus = { caption: string; emptyMessage: string };
-type LiveArtifactState = { kind: "idle" } | { kind: "loading" } | EnvelopeResult<unknown>;
-
-function describeLive(
-  state: LiveArtifactState,
-  noun: { items: string; itemSingular: string; emptyLive: string },
-): LiveStatus {
-  switch (state.kind) {
-    case "idle":
-    case "loading":
-      return { caption: `loading… · sample fallback`, emptyMessage: "loading" };
-    case "ok":
-      return { caption: `live`, emptyMessage: noun.emptyLive };
-    case "http-error":
-      return {
-        caption: `live · HTTP ${state.status} · sample fallback`,
-        emptyMessage: state.statusText || "endpoint failed",
-      };
-    case "network-error":
-      return {
-        caption: "live · backend unreachable · sample fallback",
-        emptyMessage: "network error",
-      };
-    case "envelope-error":
-      return { caption: "live · bad envelope · sample fallback", emptyMessage: state.reason };
-    case "version-not-supported":
-      return {
-        caption: `live · schema_version ${state.schema_version} unsupported · sample fallback`,
-        emptyMessage: `schema_version ${state.schema_version} > max ${state.max_supported}`,
-      };
-    case "wrong-artifact-kind":
-      return {
-        caption: "live · wrong artifact_kind · sample fallback",
-        emptyMessage: `expected ${state.expected}`,
-      };
-    case "parse-error":
-      return { caption: "live · parse error · sample fallback", emptyMessage: "schema validation failed" };
-    case "invariant-violation":
-      return { caption: "live · invariant violation · sample fallback", emptyMessage: state.message };
-  }
-  // Exhaustive — narrow noun usage avoids "unused" warnings in cases without
-  // a count prefix (kept here as a typed escape hatch for future tones).
-  void noun.items;
-  void noun.itemSingular;
-}
-
 export function ViewerPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [timelineOn, setTimelineOn] = useState(true);
@@ -321,7 +125,7 @@ export function ViewerPage() {
 
   // For "ok" with live data, drop the static demo timestamps so relative time
   // reflects the real artifact mtime story.
-  const now = feedState.kind === "ok" ? undefined : NOW;
+  const now = feedState.kind === "ok" ? undefined : SAMPLE_NOW;
 
   const feedCaption =
     feedState.kind === "ok"
@@ -472,7 +276,10 @@ export function ViewerPage() {
         </PanelBtnRow>
       </Overlay>
 
-      <Overlay anchor="bottom-right">
+      <Overlay
+        anchor="bottom-right"
+        style={{ position: "fixed", maxWidth: "calc(100vw - 40px)" }}
+      >
         <Panel tone="muted" padding="sm">
           <span
             style={{
