@@ -51,7 +51,7 @@ export function SpecInspector({
           <Field label="Maturity" value={model.maturityLabel} />
           <Field label="Acceptance" value={String(node.acceptance_count)} />
           <Field label="Decisions" value={String(node.decisions_count)} />
-          <Field label="Gaps" value={String(node.gap_count)} />
+          <Field label="Gaps" value={String(node.gap_count)} wide />
           <div className={`${styles.field} ${styles.wide}`}>
             <div className={styles.fieldHeader}>
               <dt>File</dt>
