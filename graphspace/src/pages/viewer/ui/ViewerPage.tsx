@@ -34,6 +34,7 @@ import {
   SAMPLE_WORK_ITEMS,
 } from "../model/sample-data";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
+import styles from "./ViewerPage.module.css";
 
 /**
  * Viewer page shell: live data via graph contract hooks with sample fallback
@@ -151,56 +152,22 @@ export function ViewerPage() {
   const count = filteredEntries.length;
 
   return (
-    <div style={{ position: "relative", minHeight: "100vh", overflowY: "auto" }}>
-      <div
-        style={{
-          display: "grid",
-          // auto-fit + minmax collapses to a single column below ~712 px so
-          // narrow viewports (laptop split, mobile) stack instead of clipping.
-          // The outer container scrolls vertically; nothing gets cut off.
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 360px), 1fr))",
-          gap: 32,
-          padding: "clamp(60px, 8vw, 120px) clamp(20px, 5vw, 80px) 80px",
-          alignContent: "start",
-        }}
-      >
+    <div className={styles.root}>
+      <div className={styles.grid}>
         {/* Left: hero headline */}
         <div>
-          <p
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 12,
-              margin: 0,
-              fontFamily: "var(--gs-mono)",
-              fontSize: 11,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              color: "var(--gs-muted)",
-            }}
-          >
-            <span aria-hidden style={{ width: 26, height: 1, background: "currentColor" }} />
-            <span
-              aria-hidden
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: "50%",
-                background: "var(--gs-accent)",
-                boxShadow: "0 0 0 3px var(--gs-accent-soft)",
-              }}
-            />
+          <p className={styles.eyebrow}>
+            <span aria-hidden className={styles.eyebrowLine} />
+            <span aria-hidden className={styles.eyebrowDot} />
             GraphSpace · Day 14
           </p>
 
-          <h1 style={{ margin: "16px 0 0", fontSize: 50, lineHeight: 1 }}>
+          <h1 className={styles.title}>
             A new viewer for{" "}
-            <em style={{ color: "var(--gs-muted-2)", fontStyle: "italic" }}>
-              SpecGraph artifacts
-            </em>
+            <em className={styles.titleEmphasis}>SpecGraph artifacts</em>
           </h1>
 
-          <p style={{ margin: "20px 0 0", color: "var(--gs-muted)", fontSize: 16, lineHeight: 1.62 }}>
+          <p className={styles.intro}>
             Live artifact diagnostics now distinguish real empty artifacts
             from sample fallback. Empty Implementation Work means the
             producer emitted a valid zero-item handoff, not that the panel is
@@ -220,7 +187,7 @@ export function ViewerPage() {
                 ? workEmptyDetail
                 : workStatus.emptyMessage
             }
-            style={{ marginTop: 28, maxHeight: "calc(100vh - 540px)" }}
+            className={styles.workPanel}
           />
 
           <ProposalTracePanel
@@ -228,12 +195,12 @@ export function ViewerPage() {
             entries={liveProposalTraceEntries}
             caption={proposalTraceCaption}
             emptyMessage={proposalTraceStatus.emptyMessage}
-            style={{ marginTop: 16, maxHeight: "calc(100vh - 540px)" }}
+            className={styles.proposalTracePanel}
           />
         </div>
 
         {/* Right: filter chips + feed of rows */}
-        <div style={{ display: "flex", flexDirection: "column", alignSelf: "start", maxHeight: "calc(100vh - 200px)", minHeight: 0 }}>
+        <div className={styles.feedColumn}>
           <SpecSearchBox
             query={specSearch.query}
             onQueryChange={specSearch.setQuery}
@@ -252,7 +219,7 @@ export function ViewerPage() {
             now={now}
             caption={feedCaption}
             emptyMessage={feedEmptyMessage}
-            style={{ minHeight: 0 }}
+            className={styles.recentPanel}
           />
         </div>
       </div>
@@ -278,18 +245,10 @@ export function ViewerPage() {
 
       <Overlay
         anchor="bottom-right"
-        style={{ position: "fixed", maxWidth: "calc(100vw - 40px)" }}
+        className={styles.statusOverlay}
       >
         <Panel tone="muted" padding="sm">
-          <span
-            style={{
-              fontFamily: "var(--gs-mono)",
-              fontSize: 11,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              color: "var(--gs-muted)",
-            }}
-          >
+          <span className={styles.statusText}>
             v0.0.1 · runs tick {runsWatchVersion} · recent {feedState.kind} · {count} events · work {workState.kind} · {liveWorkItems.length} items · trace {proposalTraceState.kind}
           </span>
         </Panel>
