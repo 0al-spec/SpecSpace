@@ -3,10 +3,7 @@ import { useRunsWatchVersion } from "@/shared/api";
 import { Panel } from "@/shared/ui/panel";
 import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { Overlay } from "@/shared/ui/overlay";
-import {
-  RecentChangesPanel,
-  useRecentChanges,
-} from "@/widgets/recent-changes-panel";
+import { useRecentChanges } from "@/widgets/recent-changes-panel";
 import {
   ImplementationWorkPanel,
   useImplementationWorkIndex,
@@ -15,13 +12,8 @@ import {
   ProposalTracePanel,
   useProposalSpecTraceIndex,
 } from "@/widgets/proposal-trace";
+import { useToneFilter, filterByTone } from "@/features/filter-by-tone";
 import {
-  ToneFilterBar,
-  useToneFilter,
-  filterByTone,
-} from "@/features/filter-by-tone";
-import {
-  SpecSearchBox,
   useSpecSearch,
   filterBySpecQuery,
 } from "@/features/search-by-spec";
@@ -34,6 +26,7 @@ import {
   SAMPLE_WORK_ITEMS,
 } from "../model/sample-data";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
+import { RecentActivitySurface } from "./RecentActivitySurface";
 import { ViewerHero } from "./ViewerHero";
 import styles from "./ViewerPage.module.css";
 
@@ -184,29 +177,25 @@ export function ViewerPage() {
           />
         </div>
 
-        {/* Right: filter chips + feed of rows */}
-        <div className={styles.feedColumn}>
-          <SpecSearchBox
-            query={specSearch.query}
-            onQueryChange={specSearch.setQuery}
-            onClear={specSearch.clear}
-            resultCount={specMatchedEntries.length}
-            totalCount={liveEntries.length}
+        <RecentActivitySurface
+          entries={filteredEntries}
+          now={now}
+          caption={feedCaption}
+          emptyMessage={feedEmptyMessage}
+          search={{
+            query: specSearch.query,
+            onQueryChange: specSearch.setQuery,
+            onClear: specSearch.clear,
+            resultCount: specMatchedEntries.length,
+            totalCount: liveEntries.length,
+          }}
+          tone={{
+            entries: specMatchedEntries,
+            selected: toneFilter.selected,
+            onToggle: toneFilter.toggle,
+            onClear: toneFilter.clear,
+          }}
           />
-          <ToneFilterBar
-            entries={specMatchedEntries}
-            selected={toneFilter.selected}
-            onToggle={toneFilter.toggle}
-            onClear={toneFilter.clear}
-          />
-          <RecentChangesPanel
-            entries={filteredEntries}
-            now={now}
-            caption={feedCaption}
-            emptyMessage={feedEmptyMessage}
-            className={styles.recentPanel}
-          />
-        </div>
       </div>
 
       <Overlay anchor="top-left" direction="row">
