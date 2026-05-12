@@ -1434,6 +1434,19 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - Empty/no-match state remains compact and accurate under filters.
   - Existing row selection and Spec Inspector opening continue to work.
 
+### CTXB-P10-T11 — Focus canvas on selected SpecGraph node
+- **Description:** Keep the canvas spatially synchronized with Sidebar and Inspector selection by centering the React Flow viewport on the selected SpecGraph node.
+- **Priority:** P1
+- **Dependencies:** CTXB-P10-T10
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** canvas viewport focus behavior; focus point tests; validation report
+- **Acceptance Criteria:**
+  - Selecting a node outside the canvas pans/zooms the canvas toward that node.
+  - Selecting a node on the canvas keeps the existing Inspector selection flow.
+  - Clearing selection from the canvas pane or Inspector close still clears selected state.
+  - Missing or stale selected node ids are ignored without runtime errors.
+  - Focus point calculation has deterministic unit coverage.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
