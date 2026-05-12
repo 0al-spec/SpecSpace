@@ -40,6 +40,8 @@ Target: `http://localhost:5173/`
 - Canvas-level chrome exposes only `Toggle Sidebar`.
 - Opening Sidebar removes canvas-level dock buttons; utility buttons live inside
   Sidebar only.
+- Sidebar header shows `SpecSpace`; the old `GraphSpace · Day 14` hero copy is
+  no longer rendered.
 - Sidebar and Utility panel close controls use text `Close` buttons.
 - Automated checks were re-run after removing the duplicate canvas-level utility
   button.

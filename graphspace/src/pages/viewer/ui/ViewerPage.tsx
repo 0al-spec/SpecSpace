@@ -28,7 +28,6 @@ import {
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
 import { ViewerChrome, type ViewerUtilityPanelId } from "./ViewerChrome";
-import { ViewerHero } from "./ViewerHero";
 import styles from "./ViewerPage.module.css";
 
 /**
@@ -182,7 +181,7 @@ export function ViewerPage() {
       {sidebarOpen ? (
         <aside className={styles.sidebarRail} aria-label="GraphSpace Sidebar">
           <div className={styles.sidebarHeader}>
-            <span className={styles.sidebarTitle}>Sidebar</span>
+            <span className={styles.sidebarBrand}>SpecSpace</span>
             <button
               title="Close Sidebar"
               aria-label="Close Sidebar"
@@ -227,8 +226,6 @@ export function ViewerPage() {
               ◇
             </PanelBtn>
           </PanelBtnRow>
-
-          <ViewerHero />
 
           <LiveArtifactStatusPanel
             diagnostics={artifactDiagnostics}

@@ -59,7 +59,6 @@
   gap: var(--gs-space-4);
 }
 
-.sidebarTitle,
 .utilityKicker {
   color: var(--gs-muted);
   font-family: var(--gs-mono);
@@ -67,6 +66,14 @@
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.sidebarBrand {
+  color: var(--gs-ink);
+  font-family: var(--gs-serif);
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1;
 }
 
 .sidebarDock {
@@ -143,50 +150,6 @@
 .closeButton:hover {
   border-color: var(--gs-rule-mid);
   color: var(--gs-ink);
-}
-
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0;
-  color: var(--gs-muted);
-  font-family: var(--gs-mono);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.eyebrowLine {
-  width: 26px;
-  height: 1px;
-  background: currentColor;
-}
-
-.eyebrowDot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--gs-accent);
-  box-shadow: 0 0 0 3px var(--gs-accent-soft);
-}
-
-.title {
-  margin: 16px 0 0;
-  font-size: clamp(28px, 7vw, 36px);
-  line-height: 1.04;
-}
-
-.titleEmphasis {
-  color: var(--gs-muted-2);
-  font-style: italic;
-}
-
-.intro {
-  margin: var(--gs-space-4) 0 0;
-  color: var(--gs-muted);
-  font-size: 13px;
-  line-height: 1.5;
 }
 
 .workPanel {
