@@ -6,13 +6,15 @@ import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { Overlay } from "@/shared/ui/overlay";
 import styles from "./ViewerPage.module.css";
 
+export type ViewerUtilityPanelId = "recent" | "work" | "proposal-trace";
+
 type Props = {
   controls: {
-    timelineOn: boolean;
-    filterOpen: boolean;
-    badgeCount: number;
-    onTimelineToggle: () => void;
-    onFilterToggle: () => void;
+    sidebarOpen: boolean;
+    activeUtilityPanel: ViewerUtilityPanelId | null;
+    recentCount: number;
+    onSidebarToggle: () => void;
+    onRecentToggle: () => void;
   };
   status: {
     runsWatchVersion: number;
@@ -30,22 +32,21 @@ export function ViewerChrome({ controls, status }: Props) {
       <Overlay anchor="top-left" direction="row">
         <PanelBtnRow>
           <PanelBtn
-            title="Toggle timeline"
-            active={controls.timelineOn}
-            onClick={controls.onTimelineToggle}
+            title="Toggle Sidebar"
+            aria-label="Toggle Sidebar"
+            active={controls.sidebarOpen}
+            onClick={controls.onSidebarToggle}
           >
-            ⏱
+            ☰
           </PanelBtn>
           <PanelBtn
-            title="Open filter"
-            active={controls.filterOpen}
-            badge={controls.badgeCount}
-            onClick={controls.onFilterToggle}
+            title="Toggle Recent changes"
+            aria-label="Toggle Recent changes"
+            active={controls.activeUtilityPanel === "recent"}
+            badge={controls.recentCount}
+            onClick={controls.onRecentToggle}
           >
-            ⚲
-          </PanelBtn>
-          <PanelBtn dim title="Disabled action">
-            ✕
+            ◷
           </PanelBtn>
         </PanelBtnRow>
       </Overlay>

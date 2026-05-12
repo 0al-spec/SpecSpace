@@ -8,57 +8,97 @@
   pointer-events: auto;
 }
 
-.layoutLayer {
+.sidebarRail,
+.utilityRail {
   position: fixed;
-  inset: 0;
+  pointer-events: auto;
   z-index: 2;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: var(--gs-space-5);
-  padding: 72px var(--gs-space-5) 64px;
-  pointer-events: none;
-}
-
-.leftRail,
-.rightRail {
-  pointer-events: auto;
   min-width: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+  border: 1px solid var(--gs-rule-soft);
+  border-radius: var(--gs-radius-md);
+  background: var(--gs-paper);
 }
 
-.leftRail::-webkit-scrollbar,
-.rightRail::-webkit-scrollbar {
+.sidebarRail::-webkit-scrollbar,
+.utilityRail::-webkit-scrollbar {
   width: 8px;
 }
 
-.leftRail::-webkit-scrollbar-track,
-.rightRail::-webkit-scrollbar-track {
+.sidebarRail::-webkit-scrollbar-track,
+.utilityRail::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.leftRail::-webkit-scrollbar-thumb,
-.rightRail::-webkit-scrollbar-thumb {
+.sidebarRail::-webkit-scrollbar-thumb,
+.utilityRail::-webkit-scrollbar-thumb {
   background: var(--gs-rule-soft);
 }
 
-.leftRail {
-  width: min(420px, 100%);
-  max-height: 32vh;
+.sidebarRail {
+  top: 72px;
+  left: var(--gs-space-5);
+  width: min(380px, calc(100vw - 2 * var(--gs-space-5)));
+  max-height: calc(100vh - 144px);
+  gap: var(--gs-space-5);
+  padding: var(--gs-space-5);
 }
 
-.rightRail {
-  align-self: stretch;
+.sidebarHeader,
+.utilityHeader {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: var(--gs-space-4);
-  max-height: 42vh;
 }
 
-.rightRailHidden {
-  display: none;
+.sidebarTitle,
+.utilityKicker {
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.sidebarDock {
+  padding-bottom: var(--gs-space-4);
+  border-bottom: 1px solid var(--gs-rule-soft);
+}
+
+.utilityRail {
+  top: 72px;
+  right: var(--gs-space-5);
+  width: min(430px, calc(100vw - 2 * var(--gs-space-5)));
+  max-height: calc(100vh - 144px);
+  gap: var(--gs-space-4);
+  padding: var(--gs-space-5);
+}
+
+.utilityRailWithInspector {
+  right: calc(var(--gs-space-5) + min(430px, calc(100vw - 2 * var(--gs-space-5))) + var(--gs-space-4));
+  width: min(380px, calc(100vw - 2 * var(--gs-space-5)));
+}
+
+.utilityTitle {
+  margin: var(--gs-space-2) 0 0;
+  color: var(--gs-ink);
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.utilityCaption {
+  margin: var(--gs-space-2) 0 0;
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .inspectorRail {
@@ -117,11 +157,11 @@
 }
 
 .workPanel {
-  max-height: 260px;
+  max-height: none;
 }
 
 .proposalTracePanel {
-  max-height: 280px;
+  max-height: none;
 }
 
 .feedColumn {
@@ -130,7 +170,7 @@
   align-self: start;
   width: 100%;
   min-height: 0;
-  max-height: 42vh;
+  max-height: none;
 }
 
 .recentPanel {
@@ -154,57 +194,46 @@
 }
 
 @media (min-width: 980px) {
-  .layoutLayer {
-    display: grid;
-    grid-template-columns:
-      minmax(280px, 340px)
-      minmax(260px, 1fr)
-      minmax(340px, 420px);
-    gap: var(--gs-space-6);
-    padding: 82px var(--gs-space-6) 72px;
-  }
-
-  .leftRail {
-    grid-column: 1;
-    align-self: start;
-    width: 100%;
-    max-height: calc(100vh - 154px);
-  }
-
-  .rightRail {
-    grid-column: 3;
-    align-self: start;
-    width: 100%;
-    max-height: calc(100vh - 154px);
-  }
-
   .feedColumn {
-    max-height: min(46vh, 520px);
+    max-height: none;
   }
 }
 
 @media (min-width: 1360px) {
-  .layoutLayer {
-    grid-template-columns:
-      minmax(320px, 360px)
-      minmax(360px, 1fr)
-      minmax(380px, 460px);
-    padding-inline: var(--gs-space-7);
+  .sidebarRail {
+    left: var(--gs-space-7);
+  }
+
+  .utilityRail {
+    right: var(--gs-space-7);
+  }
+
+  .utilityRailWithInspector {
+    right: calc(var(--gs-space-7) + min(430px, calc(100vw - 2 * var(--gs-space-7))) + var(--gs-space-5));
   }
 }
 
 @media (max-width: 640px) {
-  .layoutLayer {
-    padding-inline: var(--gs-space-4);
-    padding-bottom: 118px;
+  .sidebarRail,
+  .utilityRail {
+    left: var(--gs-space-4);
+    right: var(--gs-space-4);
+    width: auto;
   }
 
-  .leftRail {
-    max-height: 28vh;
+  .sidebarRail {
+    top: 62px;
+    max-height: 42vh;
   }
 
-  .rightRail {
-    max-height: 34vh;
+  .utilityRail {
+    top: 62px;
+    max-height: 42vh;
+  }
+
+  .utilityRailWithInspector {
+    right: var(--gs-space-4);
+    max-height: 24vh;
   }
 
   .statusOverlay {

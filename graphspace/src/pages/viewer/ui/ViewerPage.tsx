@@ -16,6 +16,7 @@ import {
   useSpecSearch,
   filterBySpecQuery,
 } from "@/features/search-by-spec";
+import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-artifacts";
 import { describeLive } from "../model/live-status";
 import {
@@ -26,7 +27,7 @@ import {
 } from "../model/sample-data";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
-import { ViewerChrome } from "./ViewerChrome";
+import { ViewerChrome, type ViewerUtilityPanelId } from "./ViewerChrome";
 import { ViewerHero } from "./ViewerHero";
 import styles from "./ViewerPage.module.css";
 
@@ -35,8 +36,9 @@ import styles from "./ViewerPage.module.css";
  * when the backend is offline, not configured, or emits invalid artifacts.
  */
 export function ViewerPage() {
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [timelineOn, setTimelineOn] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeUtilityPanel, setActiveUtilityPanel] =
+    useState<ViewerUtilityPanelId | null>(null);
   const [selectedSpecNodeId, setSelectedSpecNodeId] = useState<string | null>(null);
   const [selectedSpec, setSelectedSpec] = useState<SpecInspectorSelection | null>(null);
   const runsWatchVersion = useRunsWatchVersion();
@@ -150,6 +152,22 @@ export function ViewerPage() {
     setSelectedSpecNodeId(null);
     setSelectedSpec(null);
   };
+  const toggleUtilityPanel = (panel: ViewerUtilityPanelId) => {
+    setActiveUtilityPanel((current) => (current === panel ? null : panel));
+  };
+  const closeUtilityPanel = () => setActiveUtilityPanel(null);
+  const utilityPanelTitle =
+    activeUtilityPanel === "recent"
+      ? "Recent changes"
+      : activeUtilityPanel === "work"
+        ? "Implementation work"
+        : "Proposal trace";
+  const utilityPanelCaption =
+    activeUtilityPanel === "recent"
+      ? feedCaption
+      : activeUtilityPanel === "work"
+        ? workCaption
+        : proposalTraceCaption;
 
   return (
     <div className={styles.root}>
@@ -161,8 +179,53 @@ export function ViewerPage() {
         onSelectionChange={setSelectedSpec}
       />
 
-      <div className={styles.layoutLayer}>
-        <aside className={styles.leftRail} aria-label="GraphSpace context">
+      {sidebarOpen ? (
+        <aside className={styles.sidebarRail} aria-label="GraphSpace Sidebar">
+          <div className={styles.sidebarHeader}>
+            <span className={styles.sidebarTitle}>Sidebar</span>
+            <PanelBtn
+              title="Close Sidebar"
+              aria-label="Close Sidebar"
+              onClick={() => setSidebarOpen(false)}
+            >
+              ×
+            </PanelBtn>
+          </div>
+
+          <PanelBtnRow className={styles.sidebarDock} aria-label="Utility panels">
+            <PanelBtn
+              title="Open Recent changes"
+              aria-label="Open Recent changes"
+              active={activeUtilityPanel === "recent"}
+              badge={count}
+              onClick={() => toggleUtilityPanel("recent")}
+            >
+              ◷
+            </PanelBtn>
+            <PanelBtn
+              title="Open Implementation work"
+              aria-label="Open Implementation work"
+              active={activeUtilityPanel === "work"}
+              badge={liveWorkItems.length}
+              onClick={() => toggleUtilityPanel("work")}
+            >
+              ▤
+            </PanelBtn>
+            <PanelBtn
+              title="Open Proposal trace"
+              aria-label="Open Proposal trace"
+              active={activeUtilityPanel === "proposal-trace"}
+              badge={
+                proposalTraceState.kind === "ok"
+                  ? proposalTraceState.data.entry_count
+                  : liveProposalTraceEntries.length
+              }
+              onClick={() => toggleUtilityPanel("proposal-trace")}
+            >
+              ◇
+            </PanelBtn>
+          </PanelBtnRow>
+
           <ViewerHero />
 
           <LiveArtifactStatusPanel
@@ -170,55 +233,79 @@ export function ViewerPage() {
             runsWatchVersion={runsWatchVersion}
           />
         </aside>
+      ) : null}
 
+      {activeUtilityPanel ? (
         <aside
-          className={
-            selectedSpec
-              ? `${styles.rightRail} ${styles.rightRailHidden}`
-              : styles.rightRail
-          }
-          aria-label="Live artifact panels"
+          className={[
+            styles.utilityRail,
+            selectedSpec ? styles.utilityRailWithInspector : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          aria-label={utilityPanelTitle}
         >
-          <RecentActivitySurface
-            entries={filteredEntries}
-            now={now}
-            caption={feedCaption}
-            emptyMessage={feedEmptyMessage}
-            search={{
-              query: specSearch.query,
-              onQueryChange: specSearch.setQuery,
-              onClear: specSearch.clear,
-              resultCount: specMatchedEntries.length,
-              totalCount: liveEntries.length,
-            }}
-            tone={{
-              entries: specMatchedEntries,
-              selected: toneFilter.selected,
-              onToggle: toneFilter.toggle,
-              onClear: toneFilter.clear,
-            }}
-          />
+          <div className={styles.utilityHeader}>
+            <div>
+              <span className={styles.utilityKicker}>Utility panel</span>
+              <h2 className={styles.utilityTitle}>{utilityPanelTitle}</h2>
+              <p className={styles.utilityCaption}>{utilityPanelCaption}</p>
+            </div>
+            <PanelBtn
+              title={`Close ${utilityPanelTitle}`}
+              aria-label={`Close ${utilityPanelTitle}`}
+              onClick={closeUtilityPanel}
+            >
+              ×
+            </PanelBtn>
+          </div>
 
-          <ImplementationWorkPanel
-            items={liveWorkItems}
-            caption={workCaption}
-            emptyMessage={
-              workState.kind === "ok" && liveWorkItems.length === 0
-                ? workEmptyDetail
-                : workStatus.emptyMessage
-            }
-            className={styles.workPanel}
-          />
+          {activeUtilityPanel === "recent" ? (
+            <RecentActivitySurface
+              entries={filteredEntries}
+              now={now}
+              caption={feedCaption}
+              emptyMessage={feedEmptyMessage}
+              search={{
+                query: specSearch.query,
+                onQueryChange: specSearch.setQuery,
+                onClear: specSearch.clear,
+                resultCount: specMatchedEntries.length,
+                totalCount: liveEntries.length,
+              }}
+              tone={{
+                entries: specMatchedEntries,
+                selected: toneFilter.selected,
+                onToggle: toneFilter.toggle,
+                onClear: toneFilter.clear,
+              }}
+            />
+          ) : null}
 
-          <ProposalTracePanel
-            index={liveProposalTraceIndex}
-            entries={liveProposalTraceEntries}
-            caption={proposalTraceCaption}
-            emptyMessage={proposalTraceStatus.emptyMessage}
-            className={styles.proposalTracePanel}
-          />
+          {activeUtilityPanel === "work" ? (
+            <ImplementationWorkPanel
+              items={liveWorkItems}
+              caption={workCaption}
+              emptyMessage={
+                workState.kind === "ok" && liveWorkItems.length === 0
+                  ? workEmptyDetail
+                  : workStatus.emptyMessage
+              }
+              className={styles.workPanel}
+            />
+          ) : null}
+
+          {activeUtilityPanel === "proposal-trace" ? (
+            <ProposalTracePanel
+              index={liveProposalTraceIndex}
+              entries={liveProposalTraceEntries}
+              caption={proposalTraceCaption}
+              emptyMessage={proposalTraceStatus.emptyMessage}
+              className={styles.proposalTracePanel}
+            />
+          ) : null}
         </aside>
-      </div>
+      ) : null}
 
       {selectedSpec ? (
         <SpecInspector
@@ -231,11 +318,11 @@ export function ViewerPage() {
 
       <ViewerChrome
         controls={{
-          timelineOn,
-          filterOpen,
-          badgeCount: count,
-          onTimelineToggle: () => setTimelineOn((v) => !v),
-          onFilterToggle: () => setFilterOpen((v) => !v),
+          sidebarOpen,
+          activeUtilityPanel,
+          recentCount: count,
+          onSidebarToggle: () => setSidebarOpen((v) => !v),
+          onRecentToggle: () => toggleUtilityPanel("recent"),
         }}
         status={{
           runsWatchVersion,
