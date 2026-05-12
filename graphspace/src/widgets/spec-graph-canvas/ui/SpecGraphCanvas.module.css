@@ -52,6 +52,19 @@
   color: var(--gs-ink);
 }
 
+.miniMap {
+  width: 178px;
+  height: 108px;
+  margin-left: 54px;
+  border: 1px solid var(--gs-rule-soft);
+  background: color-mix(in srgb, var(--gs-panel) 92%, transparent);
+  box-shadow: none;
+}
+
+.miniMap :global(.react-flow__minimap-mask) {
+  stroke-dasharray: 4 3;
+}
+
 .flow :global(.react-flow__attribution) {
   background: color-mix(in srgb, var(--gs-panel) 82%, transparent);
   color: var(--gs-muted-2);
@@ -68,4 +81,10 @@
   height: 8px;
   border: 1px solid var(--gs-panel);
   background: var(--gs-accent);
+}
+
+@media (max-width: 760px) {
+  .miniMap {
+    display: none;
+  }
 }
