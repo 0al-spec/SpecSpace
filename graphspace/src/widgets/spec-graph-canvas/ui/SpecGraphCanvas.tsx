@@ -13,12 +13,12 @@ import "@xyflow/react/dist/style.css";
 import { SpecNodeCard } from "@/entities/spec-node";
 import { buildSpecGraphSelection, type SpecGraphSelection } from "../model/selection";
 import { toSpecGraphFlowElements, type SpecFlowNode } from "../model/to-flow-elements";
-import { useSpecGraph } from "../model/use-spec-graph";
+import type { UseSpecGraphState } from "../model/use-spec-graph";
 import styles from "./SpecGraphCanvas.module.css";
 
 type Props = {
+  state: UseSpecGraphState;
   className?: string;
-  refreshKey?: number;
   selectedNodeId?: string | null;
   onSelectedNodeIdChange?: (nodeId: string | null) => void;
   onSelectionChange?: (selection: SpecGraphSelection | null) => void;
@@ -39,14 +39,13 @@ const nodeTypes = {
 };
 
 export function SpecGraphCanvas({
+  state,
   className,
-  refreshKey = 0,
   selectedNodeId,
   onSelectedNodeIdChange,
   onSelectionChange,
 }: Props) {
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
-  const state = useSpecGraph({ refreshKey });
   const activeSelectedNodeId = selectedNodeId === undefined ? internalSelectedNodeId : selectedNodeId;
   const { nodes: baseNodes, edges } = useMemo(
     () => toSpecGraphFlowElements(state.data),
