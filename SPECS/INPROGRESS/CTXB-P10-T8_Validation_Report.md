@@ -34,3 +34,13 @@ Target: `http://localhost:5173/`
 - Recent changes replaces Implementation work as the active utility panel.
 - Selecting the first graph node opens Spec Inspector while keeping the utility
   panel state independent.
+
+## Follow-up Layout Smoke
+
+- Initial load exposes one `Toggle Sidebar` button and one `Toggle Recent changes`
+  button, with no Sidebar or Inspector open.
+- Opening Sidebar removes `Toggle Sidebar` from the dock while keeping
+  `Toggle Recent changes` available beside the Sidebar.
+- Sidebar and Utility panel close controls use text `Close` buttons.
+- Opening Recent changes and selecting a graph node keeps both the Utility panel
+  and Spec Inspector mounted independently.

@@ -29,16 +29,24 @@ type Props = {
 export function ViewerChrome({ controls, status }: Props) {
   return (
     <>
-      <Overlay anchor="top-left" direction="row">
+      <div
+        className={[
+          styles.canvasControlDock,
+          controls.sidebarOpen ? styles.canvasControlDockWithSidebar : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <PanelBtnRow>
-          <PanelBtn
-            title="Toggle Sidebar"
-            aria-label="Toggle Sidebar"
-            active={controls.sidebarOpen}
-            onClick={controls.onSidebarToggle}
-          >
-            ☰
-          </PanelBtn>
+          {!controls.sidebarOpen ? (
+            <PanelBtn
+              title="Toggle Sidebar"
+              aria-label="Toggle Sidebar"
+              onClick={controls.onSidebarToggle}
+            >
+              ☰
+            </PanelBtn>
+          ) : null}
           <PanelBtn
             title="Toggle Recent changes"
             aria-label="Toggle Recent changes"
@@ -49,7 +57,7 @@ export function ViewerChrome({ controls, status }: Props) {
             ◷
           </PanelBtn>
         </PanelBtnRow>
-      </Overlay>
+      </div>
 
       <Overlay anchor="bottom-right" className={styles.statusOverlay}>
         <Panel tone="muted" padding="sm">

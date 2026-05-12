@@ -183,13 +183,15 @@ export function ViewerPage() {
         <aside className={styles.sidebarRail} aria-label="GraphSpace Sidebar">
           <div className={styles.sidebarHeader}>
             <span className={styles.sidebarTitle}>Sidebar</span>
-            <PanelBtn
+            <button
               title="Close Sidebar"
               aria-label="Close Sidebar"
+              className={styles.closeButton}
+              type="button"
               onClick={() => setSidebarOpen(false)}
             >
-              ×
-            </PanelBtn>
+              Close
+            </button>
           </div>
 
           <PanelBtnRow className={styles.sidebarDock} aria-label="Utility panels">
@@ -251,13 +253,15 @@ export function ViewerPage() {
               <h2 className={styles.utilityTitle}>{utilityPanelTitle}</h2>
               <p className={styles.utilityCaption}>{utilityPanelCaption}</p>
             </div>
-            <PanelBtn
+            <button
               title={`Close ${utilityPanelTitle}`}
               aria-label={`Close ${utilityPanelTitle}`}
+              className={styles.closeButton}
+              type="button"
               onClick={closeUtilityPanel}
             >
-              ×
-            </PanelBtn>
+              Close
+            </button>
           </div>
 
           {activeUtilityPanel === "recent" ? (
