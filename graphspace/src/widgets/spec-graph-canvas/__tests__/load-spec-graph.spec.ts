@@ -211,6 +211,7 @@ describe("buildSpecGraphSelection", () => {
     );
 
     expect(selection?.node.node_id).toBe("SG-SPEC-SAMPLE-ROOT");
+    expect(selection?.specDir).toBe("sample://graphspace/specs/nodes");
     expect(selection?.nodes).toHaveLength(3);
     expect(selection?.edges).toHaveLength(3);
   });

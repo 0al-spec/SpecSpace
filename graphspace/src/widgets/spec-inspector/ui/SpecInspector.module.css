@@ -92,7 +92,8 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1px;
   margin: var(--gs-space-7) 0 0;
-  background: var(--gs-rule-soft);
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
 }
 
 .field {
@@ -103,6 +104,13 @@
 
 .wide {
   grid-column: 1 / -1;
+}
+
+.fieldHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gs-space-5);
 }
 
 .field dt,
@@ -122,6 +130,28 @@
   color: var(--gs-ink);
   font-family: var(--gs-mono);
   font-size: 11px;
+}
+
+.fileValue {
+  padding-right: var(--gs-space-4);
+}
+
+.copyButton {
+  flex: 0 0 auto;
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  color: var(--gs-muted);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 9px;
+  font-weight: 600;
+  padding: var(--gs-space-2) var(--gs-space-4);
+  text-transform: uppercase;
+}
+
+.copyButton:hover {
+  border-color: var(--gs-accent);
+  color: var(--gs-accent);
 }
 
 .section {

@@ -42,10 +42,17 @@ function uniqueSorted(ids: Iterable<string>): string[] {
   return [...new Set(ids)].sort((a, b) => a.localeCompare(b));
 }
 
+function joinSpecPath(specDir: string, fileName: string): string {
+  if (!specDir) return fileName;
+  if (!fileName) return specDir;
+  if (fileName.startsWith("/")) return fileName;
+  return `${specDir.replace(/\/$/, "")}/${fileName}`;
+}
+
 export function buildSpecInspectorModel(
   selection: SpecInspectorSelection,
 ): SpecInspectorModel {
-  const { node, nodes, edges } = selection;
+  const { specDir, node, nodes, edges } = selection;
   const nodesById = new Map(nodes.map((candidate) => [candidate.node_id, candidate]));
 
   const dependsOn = uniqueSorted(node.depends_on).map((targetId) =>
@@ -90,6 +97,7 @@ export function buildSpecInspectorModel(
 
   return {
     node,
+    filePath: joinSpecPath(specDir, node.file_name),
     maturityLabel:
       typeof node.maturity === "number" ? `${Math.round(node.maturity * 100)}%` : "n/a",
     relationGroups,

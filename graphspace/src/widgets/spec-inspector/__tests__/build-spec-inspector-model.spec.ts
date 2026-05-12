@@ -63,12 +63,14 @@ describe("buildSpecInspectorModel", () => {
     ];
 
     const model = buildSpecInspectorModel({
+      specDir: "/tmp/specs/nodes",
       node: nodes[0],
       nodes,
       edges,
     });
 
     expect(model.maturityLabel).toBe("50%");
+    expect(model.filePath).toBe("/tmp/specs/nodes/SG-SPEC-ROOT.yaml");
     expect(model.relationGroups.map((group) => group.id)).toEqual([
       "depends_on",
       "refines",
@@ -94,6 +96,7 @@ describe("buildSpecInspectorModel", () => {
     });
 
     const model = buildSpecInspectorModel({
+      specDir: "/tmp/specs/nodes/",
       node: selected,
       nodes: [selected],
       edges: [],

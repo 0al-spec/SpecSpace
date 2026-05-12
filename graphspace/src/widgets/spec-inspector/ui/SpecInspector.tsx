@@ -1,4 +1,4 @@
-import type { HTMLAttributes } from "react";
+import { useState, type HTMLAttributes } from "react";
 import {
   buildSpecInspectorModel,
   type SpecInspectorSelection,
@@ -20,9 +20,16 @@ export function SpecInspector({
   className,
   ...rest
 }: Props) {
+  const [copied, setCopied] = useState(false);
   const model = buildSpecInspectorModel(selection);
   const { node } = model;
   const cls = [styles.panel, className].filter(Boolean).join(" ");
+  const copyFilePath = () => {
+    void navigator.clipboard.writeText(model.filePath).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
+    });
+  };
 
   return (
     <aside className={cls} aria-label="Spec inspector" {...rest}>
@@ -45,7 +52,19 @@ export function SpecInspector({
           <Field label="Acceptance" value={String(node.acceptance_count)} />
           <Field label="Decisions" value={String(node.decisions_count)} />
           <Field label="Gaps" value={String(node.gap_count)} />
-          <Field label="File" value={node.file_name} wide />
+          <div className={`${styles.field} ${styles.wide}`}>
+            <div className={styles.fieldHeader}>
+              <dt>File</dt>
+              <button
+                type="button"
+                className={styles.copyButton}
+                onClick={copyFilePath}
+              >
+                {copied ? "Copied" : "Copy Path"}
+              </button>
+            </div>
+            <dd className={styles.fileValue}>{model.filePath}</dd>
+          </div>
         </dl>
 
         <section className={styles.section}>

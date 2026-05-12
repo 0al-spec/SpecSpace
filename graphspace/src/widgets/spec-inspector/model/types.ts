@@ -2,6 +2,7 @@ import type { SpecEdge } from "@/entities/spec-edge";
 import type { SpecNode } from "@/entities/spec-node";
 
 export type SpecInspectorSelection = {
+  specDir: string;
   node: SpecNode;
   nodes: readonly SpecNode[];
   edges: readonly SpecEdge[];
@@ -24,6 +25,7 @@ export type SpecRelationGroup = {
 
 export type SpecInspectorModel = {
   node: SpecNode;
+  filePath: string;
   maturityLabel: string;
   relationGroups: readonly SpecRelationGroup[];
 };
