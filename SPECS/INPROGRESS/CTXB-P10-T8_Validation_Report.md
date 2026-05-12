@@ -35,12 +35,11 @@ Target: `http://localhost:5173/`
 - Selecting the first graph node opens Spec Inspector while keeping the utility
   panel state independent.
 
-## Follow-up Layout Smoke
+## Follow-up Layout Contract
 
-- Initial load exposes one `Toggle Sidebar` button and one `Toggle Recent changes`
-  button, with no Sidebar or Inspector open.
-- Opening Sidebar removes `Toggle Sidebar` from the dock while keeping
-  `Toggle Recent changes` available beside the Sidebar.
+- Canvas-level chrome exposes only `Toggle Sidebar`.
+- Opening Sidebar removes canvas-level dock buttons; utility buttons live inside
+  Sidebar only.
 - Sidebar and Utility panel close controls use text `Close` buttons.
-- Opening Recent changes and selecting a graph node keeps both the Utility panel
-  and Spec Inspector mounted independently.
+- Automated checks were re-run after removing the duplicate canvas-level utility
+  button.

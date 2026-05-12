@@ -127,10 +127,6 @@
   pointer-events: auto;
 }
 
-.canvasControlDockWithSidebar {
-  left: calc(var(--gs-space-5) + var(--viewer-sidebar-width) + var(--gs-space-3));
-}
-
 .closeButton {
   flex: 0 0 auto;
   border: 1px solid var(--gs-rule-soft);
@@ -249,10 +245,6 @@
     left: var(--gs-space-7);
   }
 
-  .canvasControlDockWithSidebar {
-    left: calc(var(--gs-space-7) + var(--viewer-sidebar-width) + var(--gs-space-3));
-  }
-
   .utilityRail {
     right: var(--gs-space-7);
   }
@@ -285,11 +277,6 @@
 
   .canvasControlDock {
     left: var(--gs-space-4);
-  }
-
-  .canvasControlDockWithSidebar {
-    right: var(--gs-space-4);
-    left: auto;
   }
 
   .utilityRailWithInspector {

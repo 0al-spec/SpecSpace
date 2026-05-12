@@ -11,10 +11,7 @@ export type ViewerUtilityPanelId = "recent" | "work" | "proposal-trace";
 type Props = {
   controls: {
     sidebarOpen: boolean;
-    activeUtilityPanel: ViewerUtilityPanelId | null;
-    recentCount: number;
     onSidebarToggle: () => void;
-    onRecentToggle: () => void;
   };
   status: {
     runsWatchVersion: number;
@@ -29,16 +26,9 @@ type Props = {
 export function ViewerChrome({ controls, status }: Props) {
   return (
     <>
-      <div
-        className={[
-          styles.canvasControlDock,
-          controls.sidebarOpen ? styles.canvasControlDockWithSidebar : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        <PanelBtnRow>
-          {!controls.sidebarOpen ? (
+      {!controls.sidebarOpen ? (
+        <div className={styles.canvasControlDock}>
+          <PanelBtnRow>
             <PanelBtn
               title="Toggle Sidebar"
               aria-label="Toggle Sidebar"
@@ -46,18 +36,9 @@ export function ViewerChrome({ controls, status }: Props) {
             >
               ☰
             </PanelBtn>
-          ) : null}
-          <PanelBtn
-            title="Toggle Recent changes"
-            aria-label="Toggle Recent changes"
-            active={controls.activeUtilityPanel === "recent"}
-            badge={controls.recentCount}
-            onClick={controls.onRecentToggle}
-          >
-            ◷
-          </PanelBtn>
-        </PanelBtnRow>
-      </div>
+          </PanelBtnRow>
+        </div>
+      ) : null}
 
       <Overlay anchor="bottom-right" className={styles.statusOverlay}>
         <Panel tone="muted" padding="sm">

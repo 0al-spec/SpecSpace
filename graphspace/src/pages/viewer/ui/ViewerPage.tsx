@@ -323,10 +323,7 @@ export function ViewerPage() {
       <ViewerChrome
         controls={{
           sidebarOpen,
-          activeUtilityPanel,
-          recentCount: count,
           onSidebarToggle: () => setSidebarOpen((v) => !v),
-          onRecentToggle: () => toggleUtilityPanel("recent"),
         }}
         status={{
           runsWatchVersion,
