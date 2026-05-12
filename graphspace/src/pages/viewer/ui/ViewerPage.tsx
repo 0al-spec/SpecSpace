@@ -276,7 +276,10 @@ export function ViewerPage() {
         </PanelBtnRow>
       </Overlay>
 
-      <Overlay anchor="bottom-right">
+      <Overlay
+        anchor="bottom-right"
+        style={{ position: "fixed", maxWidth: "calc(100vw - 40px)" }}
+      >
         <Panel tone="muted" padding="sm">
           <span
             style={{
