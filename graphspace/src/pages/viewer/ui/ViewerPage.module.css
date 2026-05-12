@@ -1,28 +1,60 @@
 .root {
   position: relative;
-  min-height: 100vh;
-  overflow-y: auto;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .canvasLayer {
   pointer-events: auto;
 }
 
-.grid {
-  position: relative;
+.layoutLayer {
+  position: fixed;
+  inset: 0;
   z-index: 2;
-  display: grid;
-  /* auto-fit + minmax collapses to a single column below ~712 px so
-   * narrow viewports stack instead of clipping. */
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
-  gap: 32px;
-  padding: clamp(60px, 8vw, 120px) clamp(20px, 5vw, 80px) 80px;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--gs-space-5);
+  padding: 72px var(--gs-space-5) 64px;
   pointer-events: none;
 }
 
-.grid > * {
+.leftRail,
+.rightRail {
   pointer-events: auto;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.leftRail::-webkit-scrollbar,
+.rightRail::-webkit-scrollbar {
+  width: 8px;
+}
+
+.leftRail::-webkit-scrollbar-track,
+.rightRail::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.leftRail::-webkit-scrollbar-thumb,
+.rightRail::-webkit-scrollbar-thumb {
+  background: var(--gs-rule-soft);
+}
+
+.leftRail {
+  width: min(420px, 100%);
+  max-height: 32vh;
+}
+
+.rightRail {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gs-space-4);
+  max-height: 42vh;
 }
 
 .eyebrow {
@@ -53,8 +85,8 @@
 
 .title {
   margin: 16px 0 0;
-  font-size: 50px;
-  line-height: 1;
+  font-size: clamp(28px, 7vw, 36px);
+  line-height: 1.04;
 }
 
 .titleEmphasis {
@@ -63,28 +95,27 @@
 }
 
 .intro {
-  margin: 20px 0 0;
+  margin: var(--gs-space-4) 0 0;
   color: var(--gs-muted);
-  font-size: 16px;
-  line-height: 1.62;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .workPanel {
-  margin-top: 28px;
-  max-height: calc(100vh - 540px);
+  max-height: 260px;
 }
 
 .proposalTracePanel {
-  margin-top: 16px;
-  max-height: calc(100vh - 540px);
+  max-height: 280px;
 }
 
 .feedColumn {
   display: flex;
   flex-direction: column;
   align-self: start;
+  width: 100%;
   min-height: 0;
-  max-height: calc(100vh - 200px);
+  max-height: 42vh;
 }
 
 .recentPanel {
@@ -98,9 +129,70 @@
 }
 
 .statusText {
+  display: block;
   color: var(--gs-muted);
   font-family: var(--gs-mono);
   font-size: 11px;
   font-weight: 600;
+  line-height: 1.35;
   text-transform: uppercase;
+}
+
+@media (min-width: 980px) {
+  .layoutLayer {
+    display: grid;
+    grid-template-columns:
+      minmax(280px, 340px)
+      minmax(260px, 1fr)
+      minmax(340px, 420px);
+    gap: var(--gs-space-6);
+    padding: 82px var(--gs-space-6) 72px;
+  }
+
+  .leftRail {
+    grid-column: 1;
+    align-self: start;
+    width: 100%;
+    max-height: calc(100vh - 154px);
+  }
+
+  .rightRail {
+    grid-column: 3;
+    align-self: start;
+    width: 100%;
+    max-height: calc(100vh - 154px);
+  }
+
+  .feedColumn {
+    max-height: min(46vh, 520px);
+  }
+}
+
+@media (min-width: 1360px) {
+  .layoutLayer {
+    grid-template-columns:
+      minmax(320px, 360px)
+      minmax(360px, 1fr)
+      minmax(380px, 460px);
+    padding-inline: var(--gs-space-7);
+  }
+}
+
+@media (max-width: 640px) {
+  .layoutLayer {
+    padding-inline: var(--gs-space-4);
+    padding-bottom: 118px;
+  }
+
+  .leftRail {
+    max-height: 28vh;
+  }
+
+  .rightRail {
+    max-height: 34vh;
+  }
+
+  .statusOverlay {
+    max-width: calc(100vw - 120px);
+  }
 }

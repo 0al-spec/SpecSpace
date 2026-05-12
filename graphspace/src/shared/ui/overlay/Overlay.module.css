@@ -6,7 +6,7 @@
  * the empty space; direct children opt back in. */
 
 .overlay {
-  position: absolute;
+  position: fixed;
   z-index: 10;
   display: flex;
   gap: var(--gs-space-3);

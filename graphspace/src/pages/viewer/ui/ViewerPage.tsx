@@ -151,14 +151,35 @@ export function ViewerPage() {
         refreshKey={runsWatchVersion}
       />
 
-      <div className={styles.grid}>
-        {/* Left: hero headline */}
-        <div>
+      <div className={styles.layoutLayer}>
+        <aside className={styles.leftRail} aria-label="GraphSpace context">
           <ViewerHero />
 
           <LiveArtifactStatusPanel
             diagnostics={artifactDiagnostics}
             runsWatchVersion={runsWatchVersion}
+          />
+        </aside>
+
+        <aside className={styles.rightRail} aria-label="Live artifact panels">
+          <RecentActivitySurface
+            entries={filteredEntries}
+            now={now}
+            caption={feedCaption}
+            emptyMessage={feedEmptyMessage}
+            search={{
+              query: specSearch.query,
+              onQueryChange: specSearch.setQuery,
+              onClear: specSearch.clear,
+              resultCount: specMatchedEntries.length,
+              totalCount: liveEntries.length,
+            }}
+            tone={{
+              entries: specMatchedEntries,
+              selected: toneFilter.selected,
+              onToggle: toneFilter.toggle,
+              onClear: toneFilter.clear,
+            }}
           />
 
           <ImplementationWorkPanel
@@ -179,27 +200,7 @@ export function ViewerPage() {
             emptyMessage={proposalTraceStatus.emptyMessage}
             className={styles.proposalTracePanel}
           />
-        </div>
-
-        <RecentActivitySurface
-          entries={filteredEntries}
-          now={now}
-          caption={feedCaption}
-          emptyMessage={feedEmptyMessage}
-          search={{
-            query: specSearch.query,
-            onQueryChange: specSearch.setQuery,
-            onClear: specSearch.clear,
-            resultCount: specMatchedEntries.length,
-            totalCount: liveEntries.length,
-          }}
-          tone={{
-            entries: specMatchedEntries,
-            selected: toneFilter.selected,
-            onToggle: toneFilter.toggle,
-            onClear: toneFilter.clear,
-          }}
-          />
+        </aside>
       </div>
 
       <ViewerChrome
