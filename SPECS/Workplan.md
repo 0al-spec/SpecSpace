@@ -1369,7 +1369,7 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - No UI text overlaps at common desktop and mobile viewport sizes.
 
 ### CTXB-P10-T6 — Add first-pass GraphSpace node selection and inspector
-- **Description:** Add selection state for spec nodes and a minimal inspector surface showing id, title, kind, status, maturity, direct dependencies, refinements, and related links. This is the first interaction pass after the canvas exists; deeper legacy features such as expanded spec nodes, lenses, minimap, and command palette remain follow-up work.
+- **Description:** Add selection state for spec nodes and a minimal inspector surface showing id, title, kind, status, maturity, direct dependencies, refinements, related links, and copyable source path. This is the first interaction pass after the canvas exists; deeper legacy inspector content remains follow-up work.
 - **Priority:** P2
 - **Dependencies:** CTXB-P10-T4, CTXB-P10-T5
 - **Parallelizable:** yes
@@ -1378,7 +1378,20 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - Clicking a spec node selects it and opens the inspector.
   - Clicking empty canvas clears selection.
   - Related node references are shown as clickable IDs when present.
+  - Source file path is visible and can be copied.
   - Inspector state does not break pan/zoom or artifact overlays.
+
+### CTXB-P10-T7 — Expand GraphSpace spec inspector content
+- **Description:** Bring the GraphSpace inspector closer to the legacy ContextBuilder inspector by loading and rendering richer spec content for the selected node: objective, acceptance criteria, scope in/out, terminology, decisions, evidence/input/execution details, and diagnostics. Extend the `/api/spec-graph` contract or add a focused detail endpoint only as needed; keep the compact T6 metadata view usable when detailed content is absent.
+- **Priority:** P2
+- **Dependencies:** CTXB-P10-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** enriched inspector read model; expanded `widgets/spec-inspector` sections; parser/schema tests; visual smoke coverage
+- **Acceptance Criteria:**
+  - Selecting a node can show objective, acceptance criteria, scope, terminology, and decisions when the backend provides them.
+  - Missing detailed content degrades to the compact T6 inspector without empty heavy sections.
+  - Long inspector content scrolls inside the inspector surface without moving the canvas.
+  - Copy path and relation navigation continue to work.
 
 ## Dependency Summary
 

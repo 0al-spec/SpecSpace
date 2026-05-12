@@ -10,6 +10,7 @@ import {
   useProposalSpecTraceIndex,
 } from "@/widgets/proposal-trace";
 import { SpecGraphCanvas } from "@/widgets/spec-graph-canvas";
+import { SpecInspector, type SpecInspectorSelection } from "@/widgets/spec-inspector";
 import { useToneFilter, filterByTone } from "@/features/filter-by-tone";
 import {
   useSpecSearch,
@@ -36,6 +37,8 @@ import styles from "./ViewerPage.module.css";
 export function ViewerPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [timelineOn, setTimelineOn] = useState(true);
+  const [selectedSpecNodeId, setSelectedSpecNodeId] = useState<string | null>(null);
+  const [selectedSpec, setSelectedSpec] = useState<SpecInspectorSelection | null>(null);
   const runsWatchVersion = useRunsWatchVersion();
   const feedState = useRecentChanges({ refreshKey: runsWatchVersion });
   const workState = useImplementationWorkIndex({ refreshKey: runsWatchVersion });
@@ -143,12 +146,19 @@ export function ViewerPage() {
       : proposalTraceStatus.caption;
 
   const count = filteredEntries.length;
+  const clearSpecSelection = () => {
+    setSelectedSpecNodeId(null);
+    setSelectedSpec(null);
+  };
 
   return (
     <div className={styles.root}>
       <SpecGraphCanvas
         className={styles.canvasLayer}
         refreshKey={runsWatchVersion}
+        selectedNodeId={selectedSpecNodeId}
+        onSelectedNodeIdChange={setSelectedSpecNodeId}
+        onSelectionChange={setSelectedSpec}
       />
 
       <div className={styles.layoutLayer}>
@@ -161,7 +171,14 @@ export function ViewerPage() {
           />
         </aside>
 
-        <aside className={styles.rightRail} aria-label="Live artifact panels">
+        <aside
+          className={
+            selectedSpec
+              ? `${styles.rightRail} ${styles.rightRailHidden}`
+              : styles.rightRail
+          }
+          aria-label="Live artifact panels"
+        >
           <RecentActivitySurface
             entries={filteredEntries}
             now={now}
@@ -202,6 +219,15 @@ export function ViewerPage() {
           />
         </aside>
       </div>
+
+      {selectedSpec ? (
+        <SpecInspector
+          className={styles.inspectorRail}
+          selection={selectedSpec}
+          onClose={clearSpecSelection}
+          onSelectNodeId={setSelectedSpecNodeId}
+        />
+      ) : null}
 
       <ViewerChrome
         controls={{

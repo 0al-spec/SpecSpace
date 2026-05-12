@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Background,
   Controls,
@@ -11,6 +11,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { SpecNodeCard } from "@/entities/spec-node";
+import { buildSpecGraphSelection, type SpecGraphSelection } from "../model/selection";
 import { toSpecGraphFlowElements, type SpecFlowNode } from "../model/to-flow-elements";
 import { useSpecGraph } from "../model/use-spec-graph";
 import styles from "./SpecGraphCanvas.module.css";
@@ -18,6 +19,9 @@ import styles from "./SpecGraphCanvas.module.css";
 type Props = {
   className?: string;
   refreshKey?: number;
+  selectedNodeId?: string | null;
+  onSelectedNodeIdChange?: (nodeId: string | null) => void;
+  onSelectionChange?: (selection: SpecGraphSelection | null) => void;
 };
 
 function SpecFlowNodeView({ data, selected }: NodeProps<SpecFlowNode>) {
@@ -34,13 +38,48 @@ const nodeTypes = {
   specNode: SpecFlowNodeView,
 };
 
-export function SpecGraphCanvas({ className, refreshKey = 0 }: Props) {
+export function SpecGraphCanvas({
+  className,
+  refreshKey = 0,
+  selectedNodeId,
+  onSelectedNodeIdChange,
+  onSelectionChange,
+}: Props) {
+  const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
   const state = useSpecGraph({ refreshKey });
-  const { nodes, edges } = useMemo(
+  const activeSelectedNodeId = selectedNodeId === undefined ? internalSelectedNodeId : selectedNodeId;
+  const { nodes: baseNodes, edges } = useMemo(
     () => toSpecGraphFlowElements(state.data),
     [state.data],
   );
+  const nodes = useMemo(
+    () =>
+      baseNodes.map((node) => ({
+        ...node,
+        selected: node.id === activeSelectedNodeId,
+      })),
+    [baseNodes, activeSelectedNodeId],
+  );
+  const selection = useMemo(
+    () => buildSpecGraphSelection(state.data, activeSelectedNodeId ?? null),
+    [state.data, activeSelectedNodeId],
+  );
   const classNames = className ? `${styles.root} ${className}` : styles.root;
+  const updateSelectedNodeId = useCallback(
+    (nodeId: string | null) => {
+      if (selectedNodeId === undefined) setInternalSelectedNodeId(nodeId);
+      onSelectedNodeIdChange?.(nodeId);
+    },
+    [onSelectedNodeIdChange, selectedNodeId],
+  );
+
+  useEffect(() => {
+    onSelectionChange?.(selection);
+  }, [onSelectionChange, selection]);
+
+  useEffect(() => {
+    if (activeSelectedNodeId && !selection) updateSelectedNodeId(null);
+  }, [activeSelectedNodeId, selection, updateSelectedNodeId]);
 
   return (
     <section
@@ -60,6 +99,8 @@ export function SpecGraphCanvas({ className, refreshKey = 0 }: Props) {
           minZoom={0.08}
           maxZoom={1.6}
           nodesDraggable={false}
+          onNodeClick={(_, node) => updateSelectedNodeId(node.id)}
+          onPaneClick={() => updateSelectedNodeId(null)}
         >
           <Background gap={28} size={1} />
           <MiniMap
