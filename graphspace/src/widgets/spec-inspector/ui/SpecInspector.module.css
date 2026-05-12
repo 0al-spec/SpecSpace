@@ -214,17 +214,15 @@
 
 .scopeGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-top: 1px solid var(--gs-rule-soft);
-  border-left: 1px solid var(--gs-rule-soft);
+  grid-template-columns: 1fr;
+  gap: var(--gs-space-4);
   background: var(--gs-panel);
 }
 
 .scopeBlock {
   min-width: 0;
   padding: var(--gs-space-5);
-  border-right: 1px solid var(--gs-rule-soft);
-  border-bottom: 1px solid var(--gs-rule-soft);
+  border: 1px solid var(--gs-rule-soft);
 }
 
 .scopeBlock h4 {
@@ -263,6 +261,7 @@ ol.contentList > .contentItem::before {
 
 .contentItem {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--gs-space-3);
   min-width: 0;
@@ -323,7 +322,6 @@ ol.contentList > .contentItem::before {
   padding: var(--gs-space-4);
 }
 
-.evidenceCriterion,
 .termItem dt,
 .tagLabel,
 .fieldRow span {
@@ -332,6 +330,14 @@ ol.contentList > .contentItem::before {
   font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
+}
+
+.evidenceCriterion {
+  overflow-wrap: anywhere;
+  color: var(--gs-ink);
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.35;
 }
 
 .evidenceText,
@@ -345,6 +351,21 @@ ol.contentList > .contentItem::before {
   white-space: pre-wrap;
 }
 
+.inlineCode,
+.inlineSpecRef {
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 0.94em;
+  font-weight: 600;
+  padding: 0 0.25em;
+}
+
+.inlineSpecRef {
+  color: var(--gs-accent);
+}
+
 .termItem dt {
   color: var(--gs-ink);
 }
@@ -356,6 +377,32 @@ ol.contentList > .contentItem::before {
 .rationale {
   flex-basis: 100%;
   padding-left: var(--gs-space-8);
+}
+
+.decisionList {
+  list-style: none;
+}
+
+.decisionItem::before {
+  display: none;
+}
+
+.decisionItem {
+  display: block;
+}
+
+.decisionItem .idBadge {
+  display: inline-block;
+  margin-right: var(--gs-space-3);
+  vertical-align: 0.08em;
+}
+
+.decisionItem .contentText {
+  display: inline;
+}
+
+.decisionItem .rationale {
+  padding-left: 0;
 }
 
 .tagGroup {
@@ -443,10 +490,6 @@ ol.contentList > .contentItem::before {
 }
 
 .relationGroup {
-  display: grid;
-  grid-template-columns: 86px minmax(0, 1fr);
-  gap: var(--gs-space-4);
-  padding: var(--gs-space-4) 0;
   border-top: 1px solid var(--gs-rule-soft);
 }
 
@@ -454,11 +497,45 @@ ol.contentList > .contentItem::before {
   border-bottom: 1px solid var(--gs-rule-soft);
 }
 
+.relationSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gs-space-4);
+  cursor: pointer;
+  padding: var(--gs-space-4) 0;
+  list-style: none;
+}
+
+.relationSummary::-webkit-details-marker {
+  display: none;
+}
+
+.relationSummary::after {
+  flex: 0 0 auto;
+  content: "+";
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+}
+
+.relationGroup[open] .relationSummary::after {
+  content: "-";
+}
+
+.relationCount {
+  margin-left: auto;
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+}
+
 .relationList {
   display: flex;
   flex-wrap: wrap;
   gap: var(--gs-space-3);
   min-width: 0;
+  padding: 0 0 var(--gs-space-4);
 }
 
 .relationButton {
@@ -487,6 +564,8 @@ ol.contentList > .contentItem::before {
 }
 
 .empty {
+  display: block;
+  padding: 0 0 var(--gs-space-4);
   color: var(--gs-muted-2);
   font-family: var(--gs-mono);
   font-size: 10px;

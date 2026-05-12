@@ -1,4 +1,4 @@
-import { useState, type HTMLAttributes } from "react";
+import { useState, type HTMLAttributes, type ReactNode } from "react";
 import {
   buildSpecInspectorModel,
   useSpecNodeDetail,
@@ -78,10 +78,6 @@ export function SpecInspector({
           </div>
         </dl>
 
-        <DetailLoadStatus state={detailState} />
-
-        {model.detail ? <RichSpecDetail detail={model.detail} /> : null}
-
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Gap profile</h3>
           <div className={styles.metricRow}>
@@ -102,6 +98,10 @@ export function SpecInspector({
             />
           ))}
         </section>
+
+        <DetailLoadStatus state={detailState} />
+
+        {model.detail ? <RichSpecDetail detail={model.detail} /> : null}
 
         {node.diagnostics.length > 0 ? (
           <section className={styles.section}>
@@ -209,7 +209,7 @@ function RichSpecDetail({ detail }: { detail: SpecInspectorDetailModel }) {
               <article key={`${item.criterion}-${index}`} className={styles.evidenceItem}>
                 <div className={styles.evidenceCriterion}>{item.criterion}</div>
                 {item.evidence ? (
-                  <p className={styles.evidenceText}>{item.evidence}</p>
+                  <p className={styles.evidenceText}>{renderRichInlineText(item.evidence)}</p>
                 ) : null}
               </article>
             ))}
@@ -325,17 +325,22 @@ function DecisionSection({
   return (
     <section className={styles.section}>
       <h3 className={styles.sectionTitle}>{title}</h3>
-      <ol className={styles.contentList}>
+      <ul className={`${styles.contentList} ${styles.decisionList}`}>
         {items.map((item, index) => (
-          <li key={`${item.id ?? item.statement}-${index}`} className={styles.contentItem}>
+          <li
+            key={`${item.id ?? item.statement}-${index}`}
+            className={`${styles.contentItem} ${styles.decisionItem}`}
+          >
             {item.id ? <span className={styles.idBadge}>{item.id}</span> : null}
-            <span className={styles.contentText}>{item.statement}</span>
+            <span className={styles.contentText}>
+              {renderRichInlineText(item.statement)}
+            </span>
             {item.rationale ? (
-              <p className={styles.rationale}>{item.rationale}</p>
+              <p className={styles.rationale}>{renderRichInlineText(item.rationale)}</p>
             ) : null}
           </li>
         ))}
-      </ol>
+      </ul>
     </section>
   );
 }
@@ -364,6 +369,36 @@ function KeyValue({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+const inlineTokenPattern =
+  /(`[^`]+`|\b(?:SG-)?SPEC-\d{4}\b|\b[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+\b)/g;
+
+function renderRichInlineText(text: string): ReactNode {
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(inlineTokenPattern)) {
+    const token = match[0];
+    const index = match.index ?? 0;
+    if (index > lastIndex) parts.push(text.slice(lastIndex, index));
+
+    const isSpecRef = /\b(?:SG-)?SPEC-\d{4}\b/.test(token);
+    const label =
+      token.startsWith("`") && token.endsWith("`") ? token.slice(1, -1) : token;
+    parts.push(
+      <span
+        key={`${token}-${index}`}
+        className={isSpecRef ? styles.inlineSpecRef : styles.inlineCode}
+      >
+        {label}
+      </span>,
+    );
+    lastIndex = index + token.length;
+  }
+
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts.length > 0 ? parts : text;
 }
 
 function formatDate(value: string): string {
@@ -395,8 +430,11 @@ function RelationGroup({
   onSelectNodeId?: (nodeId: string) => void;
 }) {
   return (
-    <div className={styles.relationGroup}>
-      <span className={styles.relationLabel}>{group.label}</span>
+    <details className={styles.relationGroup}>
+      <summary className={styles.relationSummary}>
+        <span className={styles.relationLabel}>{group.label}</span>
+        <span className={styles.relationCount}>{group.items.length}</span>
+      </summary>
       {group.items.length === 0 ? (
         <span className={styles.empty}>None declared</span>
       ) : (
@@ -411,7 +449,7 @@ function RelationGroup({
           ))}
         </div>
       )}
-    </div>
+    </details>
   );
 }
 
