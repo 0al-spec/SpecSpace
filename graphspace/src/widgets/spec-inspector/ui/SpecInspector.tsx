@@ -63,7 +63,9 @@ export function SpecInspector({
                 {copied ? "Copied" : "Copy Path"}
               </button>
             </div>
-            <dd className={styles.fileValue}>{model.filePath}</dd>
+            <dd className={styles.fileValue} title={model.filePath}>
+              {node.file_name}
+            </dd>
           </div>
         </dl>
 
