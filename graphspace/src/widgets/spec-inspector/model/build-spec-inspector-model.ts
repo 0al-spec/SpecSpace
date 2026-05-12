@@ -68,11 +68,6 @@ const asString = (value: unknown): string | null => {
   return text.length > 0 ? text : null;
 };
 
-const stringArray = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.map((item) => String(item).trim()).filter((item) => item.length > 0)
-    : [];
-
 const stringifyUnknown = (value: unknown): string => {
   if (typeof value === "string") return value;
   if (value == null) return "";
@@ -83,6 +78,16 @@ const stringifyUnknown = (value: unknown): string => {
     return String(value);
   }
 };
+
+const unknownArray = (value: unknown): unknown[] => {
+  if (Array.isArray(value)) return value;
+  return value == null ? [] : [value];
+};
+
+const stringArray = (value: unknown): string[] =>
+  unknownArray(value)
+    .map((item) => stringifyUnknown(item).trim())
+    .filter((item) => item.length > 0);
 
 const textItem = (value: unknown): SpecTextItem => ({
   text: stringifyUnknown(value),
@@ -138,10 +143,15 @@ function decisionFromUnknown(item: unknown): SpecDecisionItem {
 }
 
 function buildEvidence(detail: SpecNodeDetail): SpecEvidenceItem[] {
-  return (detail.acceptance_evidence ?? []).map((item) => ({
-    criterion: asString(item.criterion) ?? stringifyUnknown(item.criterion),
-    evidence: asString(item.evidence),
-  }));
+  return unknownArray(detail.acceptance_evidence).map((item) => {
+    const record = asRecord(item);
+    return {
+      criterion: record
+        ? asString(record.criterion) ?? stringifyUnknown(record.criterion)
+        : stringifyUnknown(item),
+      evidence: record ? asString(record.evidence) : null,
+    };
+  });
 }
 
 function buildRuntime(detail: SpecNodeDetail): SpecRuntimeField[] {
@@ -169,7 +179,7 @@ function buildDetailModel(detail: SpecNodeDetail | null): SpecInspectorDetailMod
       .map((item) => item.criterion.trim())
       .filter(Boolean),
   );
-  const acceptance = (detail.acceptance ?? []).map((item) => {
+  const acceptance = unknownArray(detail.acceptance).map((item) => {
     const model = textItem(item);
     return {
       ...model,

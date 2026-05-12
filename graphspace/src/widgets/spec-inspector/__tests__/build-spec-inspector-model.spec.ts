@@ -192,4 +192,39 @@ describe("buildSpecInspectorModel", () => {
       { label: "Gate state", value: "review_pending" },
     ]);
   });
+
+  it("normalizes loose raw detail fields after permissive parsing", () => {
+    const selected = node({ node_id: "SG-SPEC-ROOT" });
+
+    const model = buildSpecInspectorModel(
+      {
+        specDir: "/tmp/specs/nodes",
+        node: selected,
+        nodes: [selected],
+        edges: [],
+      },
+      {
+        id: "SG-SPEC-ROOT",
+        acceptance: "Scalar acceptance criterion",
+        acceptance_evidence: "Manual evidence note",
+        inputs: "README.md",
+        outputs: [{ path: "dist/spec.md" }],
+        specification: null,
+      },
+    );
+
+    expect(model.detail?.acceptance).toEqual([
+      {
+        text: "Scalar acceptance criterion",
+        malformed: false,
+        hasEvidence: false,
+      },
+    ]);
+    expect(model.detail?.evidence).toEqual([
+      { criterion: "Manual evidence note", evidence: null },
+    ]);
+    expect(model.detail?.inputs).toEqual(["README.md"]);
+    expect(model.detail?.outputs).toEqual(['{\n  "path": "dist/spec.md"\n}']);
+    expect(model.detail?.rawSpecification).toBeNull();
+  });
 });

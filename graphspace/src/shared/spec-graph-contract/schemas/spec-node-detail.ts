@@ -8,28 +8,25 @@ import { z } from "zod";
  * individual specs evolve their own nested vocabulary over time.
  */
 
-const stringListSchema = z.array(z.string());
-const unknownRecordSchema = z.record(z.string(), z.unknown());
-
 export const specNodeDetailSchema = z
   .object({
     id: z.string(),
-    title: z.string().optional(),
-    kind: z.string().optional(),
-    status: z.string().optional(),
-    maturity: z.number().nullable().optional(),
-    created_at: z.string().nullable().optional(),
-    updated_at: z.string().nullable().optional(),
-    depends_on: stringListSchema.optional(),
-    refines: stringListSchema.optional(),
-    relates_to: stringListSchema.optional(),
-    inputs: stringListSchema.optional(),
-    outputs: stringListSchema.optional(),
-    allowed_paths: stringListSchema.optional(),
-    acceptance: z.array(z.unknown()).optional(),
-    acceptance_evidence: z.array(unknownRecordSchema).optional(),
-    prompt: z.string().optional(),
-    specification: unknownRecordSchema.optional(),
+    title: z.unknown().nullable().optional(),
+    kind: z.unknown().nullable().optional(),
+    status: z.unknown().nullable().optional(),
+    maturity: z.unknown().nullable().optional(),
+    created_at: z.unknown().nullable().optional(),
+    updated_at: z.unknown().nullable().optional(),
+    depends_on: z.unknown().nullable().optional(),
+    refines: z.unknown().nullable().optional(),
+    relates_to: z.unknown().nullable().optional(),
+    inputs: z.unknown().nullable().optional(),
+    outputs: z.unknown().nullable().optional(),
+    allowed_paths: z.unknown().nullable().optional(),
+    acceptance: z.unknown().nullable().optional(),
+    acceptance_evidence: z.unknown().nullable().optional(),
+    prompt: z.unknown().nullable().optional(),
+    specification: z.unknown().nullable().optional(),
     last_outcome: z.unknown().optional(),
     last_blocker: z.unknown().optional(),
     last_run_at: z.unknown().optional(),

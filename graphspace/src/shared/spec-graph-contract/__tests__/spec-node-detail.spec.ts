@@ -30,7 +30,8 @@ describe("parseSpecNodeDetail", () => {
 
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
-    expect(result.data.data.specification?.objective).toBe(
+    const specification = result.data.data.specification as Record<string, unknown>;
+    expect(specification.objective).toBe(
       "Define the graph contract.",
     );
     expect((result.data.data as Record<string, unknown>).future_field).toEqual({
@@ -51,5 +52,24 @@ describe("parseSpecNodeDetail", () => {
     expect(parseSpecNodeDetail({ node_id: "SG-SPEC-0001" }).kind).toBe(
       "parse-error",
     );
+  });
+
+  it("accepts loose raw YAML fields for client-side normalization", () => {
+    const result = parseSpecNodeDetail({
+      node_id: "SG-SPEC-0001",
+      data: {
+        id: "SG-SPEC-0001",
+        depends_on: null,
+        inputs: "README.md",
+        acceptance: "Defines the contract",
+        acceptance_evidence: ["manual evidence note"],
+        specification: "draft text",
+      },
+    });
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+    expect(result.data.data.inputs).toBe("README.md");
+    expect(result.data.data.acceptance_evidence).toEqual(["manual evidence note"]);
   });
 });

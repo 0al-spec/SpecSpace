@@ -30,7 +30,8 @@ describe("fetchSpecNodeDetail", () => {
     );
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
-    expect(result.data.data.specification?.objective).toBe(
+    const specification = result.data.data.specification as Record<string, unknown>;
+    expect(specification.objective).toBe(
       "Define the root ontology.",
     );
   });

@@ -587,7 +587,6 @@ ol.contentList > .contentItem::before {
     grid-template-columns: 1fr;
   }
 
-  .relationGroup,
   .tagGroup,
   .fieldRow {
     grid-template-columns: 1fr;

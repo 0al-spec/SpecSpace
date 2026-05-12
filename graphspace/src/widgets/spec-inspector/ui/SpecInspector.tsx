@@ -401,14 +401,17 @@ function renderRichInlineText(text: string): ReactNode {
   return parts.length > 0 ? parts : text;
 }
 
+const utcDateFormatter = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
 function formatDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return utcDateFormatter.format(date);
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
