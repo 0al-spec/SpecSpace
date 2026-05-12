@@ -28,7 +28,7 @@ import {
   useSpecSearch,
   filterBySpecQuery,
 } from "@/features/search-by-spec";
-import { describeArtifact } from "../model/live-artifacts";
+import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-artifacts";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 
 /**
@@ -271,11 +271,10 @@ export function ViewerPage() {
       : SAMPLE_PROPOSAL_TRACES;
   const sourceDelta =
     workState.kind === "ok" ? workState.data.source_delta_snapshot : null;
-  const sourceDeltaStatus = sourceDelta?.status ?? "empty";
-  const sourceDeltaNextGap = sourceDelta?.next_gap ? ` (${sourceDelta.next_gap})` : "";
+  const sourceDeltaDescription = describeSourceDeltaSnapshot(sourceDelta);
   const workEmptyDetail =
     workState.kind === "ok"
-      ? `Artifact is live; source delta is ${sourceDeltaStatus}${sourceDeltaNextGap}. No coding handoff has been emitted.`
+      ? `Artifact is live; ${sourceDeltaDescription}. No coding handoff has been emitted.`
       : workStatus.emptyMessage;
   const artifactDiagnostics = [
     describeArtifact({

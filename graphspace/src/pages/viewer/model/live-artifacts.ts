@@ -17,6 +17,11 @@ export type ArtifactDiagnostic = {
   detail: string;
 };
 
+type SourceDeltaSnapshot = {
+  next_gap?: string;
+  status?: string;
+} | null | undefined;
+
 type ArtifactInput = {
   id: string;
   label: string;
@@ -30,6 +35,14 @@ type ArtifactInput = {
 
 function countLabel(count: number, noun: ArtifactInput["noun"]): string {
   return `${count} ${count === 1 ? noun.singular : noun.plural}`;
+}
+
+export function describeSourceDeltaSnapshot(snapshot: SourceDeltaSnapshot): string {
+  const nextGap = snapshot?.next_gap ? ` (${snapshot.next_gap})` : "";
+  if (!snapshot || !snapshot.status) {
+    return `source delta status is missing${nextGap}`;
+  }
+  return `source delta is ${snapshot.status}${nextGap}`;
 }
 
 function fallbackDetail(state: Exclude<LiveArtifactState, { kind: "ok" }>): string {

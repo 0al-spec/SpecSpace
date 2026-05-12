@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeArtifact } from "./live-artifacts";
+import { describeArtifact, describeSourceDeltaSnapshot } from "./live-artifacts";
 
 const base = {
   id: "work",
@@ -50,5 +50,20 @@ describe("describeArtifact", () => {
       countLabel: "5 items",
     });
     expect(result.detail).toContain("HTTP 404");
+  });
+});
+
+describe("describeSourceDeltaSnapshot", () => {
+  it("uses the explicit source delta status when present", () => {
+    expect(describeSourceDeltaSnapshot({
+      status: "empty_delta",
+      next_gap: "no_implementation_delta",
+    })).toBe("source delta is empty_delta (no_implementation_delta)");
+  });
+
+  it("does not present a missing status as empty", () => {
+    expect(describeSourceDeltaSnapshot({
+      next_gap: "no_implementation_delta",
+    })).toBe("source delta status is missing (no_implementation_delta)");
   });
 });
