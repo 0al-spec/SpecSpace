@@ -1344,13 +1344,14 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - Browser smoke verifies that at least one spec node label and the canvas root are visible at `http://127.0.0.1:5173/`.
 
 ### CTXB-P10-T4 — Add deterministic layout and edge semantics for GraphSpace canvas
-- **Description:** Replace placeholder positions with a deterministic layout and render edge kinds with meaningful visual states. Start with a small local layout primitive if that keeps the PR reviewable; port Dagre or legacy `layoutGraph` only when needed for graph size and readability.
+- **Description:** Replace placeholder positions with **Refinement Ladder Layout**, a deterministic layout that ranks nodes by resolved `refines` depth: parent specs stay left, refining specs move right, and rows inside each rank remain stable by `node_id`. Render edge kinds with meaningful visual states. Start with this small local layout primitive; port Dagre or legacy `layoutGraph` only when needed for graph size and readability.
 - **Priority:** P1
 - **Dependencies:** CTXB-P10-T3
 - **Parallelizable:** yes
-- **Outputs / Artifacts:** canvas layout helper; edge style mapping for `depends_on`, `refines`, `relates_to`, and broken references; layout tests
+- **Outputs / Artifacts:** Refinement Ladder layout helper; edge style mapping for `depends_on`, `refines`, `relates_to`, and broken references; layout tests
 - **Acceptance Criteria:**
   - Node positions are stable across refreshes for unchanged data.
+  - The default layout name and semantics are documented in `graphspace/README.md`.
   - `depends_on`, `refines`, `relates_to`, and broken references are visually distinguishable.
   - Edges to hidden or missing nodes do not crash rendering.
   - The layout remains usable for the current SpecGraph node count.

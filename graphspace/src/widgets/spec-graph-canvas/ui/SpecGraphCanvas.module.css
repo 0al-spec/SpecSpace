@@ -21,17 +21,20 @@
   cursor: grabbing;
 }
 
-.flow :global(.react-flow__edge-path) {
-  stroke: color-mix(in srgb, var(--gs-muted-2) 65%, var(--gs-accent));
-  stroke-width: 1.4;
-}
-
 .flow :global(.react-flow__edge-text) {
   fill: var(--gs-muted);
   font-family: var(--gs-mono);
   font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
+}
+
+.flow :global(.react-flow__edge) {
+  transition: opacity 120ms ease;
+}
+
+.flow :global(.react-flow__edge:hover) {
+  opacity: 1;
 }
 
 .flow :global(.react-flow__controls) {

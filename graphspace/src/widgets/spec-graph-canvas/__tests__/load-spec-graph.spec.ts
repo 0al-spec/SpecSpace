@@ -94,22 +94,20 @@ describe("loadSpecGraph", () => {
 describe("toSpecGraphFlowElements", () => {
   it("maps sample graph nodes into deterministic flow positions", () => {
     const { nodes, edges } = toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH);
+    const byId = new Map(nodes.map((node) => [node.id, node]));
     expect(nodes).toHaveLength(3);
     expect(nodes.map((node) => node.id)).toEqual([
       "SG-SPEC-SAMPLE-EVIDENCE",
       "SG-SPEC-SAMPLE-ROOT",
       "SG-SPEC-SAMPLE-RUNTIME",
     ]);
-    expect(nodes.find((node) => node.id === "SG-SPEC-SAMPLE-EVIDENCE")?.position).toEqual({
+    expect(byId.get("SG-SPEC-SAMPLE-EVIDENCE")?.position).toEqual({
       x: 0,
       y: 0,
     });
-    expect(nodes.find((node) => node.id === "SG-SPEC-SAMPLE-ROOT")?.position).toEqual({
-      x: 320,
-      y: 0,
-    });
-    expect(nodes.find((node) => node.id === "SG-SPEC-SAMPLE-RUNTIME")?.position).toEqual({
-      x: 640,
+    expect(byId.get("SG-SPEC-SAMPLE-ROOT")?.position).toEqual({ x: 0, y: 172 });
+    expect(byId.get("SG-SPEC-SAMPLE-RUNTIME")?.position).toEqual({
+      x: 360,
       y: 0,
     });
     expect(edges).toHaveLength(3);
@@ -121,16 +119,68 @@ describe("toSpecGraphFlowElements", () => {
     response.graph.edges = [...response.graph.edges].reverse();
 
     const { nodes, edges } = toSpecGraphFlowElements(response);
+    const byId = new Map(nodes.map((node) => [node.id, node]));
     expect(nodes.map((node) => node.id)).toEqual([
       "SG-SPEC-SAMPLE-EVIDENCE",
       "SG-SPEC-SAMPLE-ROOT",
       "SG-SPEC-SAMPLE-RUNTIME",
     ]);
+    expect(byId.get("SG-SPEC-SAMPLE-EVIDENCE")?.position).toEqual({
+      x: 0,
+      y: 0,
+    });
+    expect(byId.get("SG-SPEC-SAMPLE-ROOT")?.position).toEqual({ x: 0, y: 172 });
+    expect(byId.get("SG-SPEC-SAMPLE-RUNTIME")?.position).toEqual({
+      x: 360,
+      y: 0,
+    });
     expect(edges.map((edge) => edge.id)).toEqual([
       "SG-SPEC-SAMPLE-ROOT__depends_on__SG-SPEC-SAMPLE-RUNTIME",
       "SG-SPEC-SAMPLE-ROOT__relates_to__SG-SPEC-SAMPLE-EVIDENCE",
       "SG-SPEC-SAMPLE-RUNTIME__refines__SG-SPEC-SAMPLE-ROOT",
     ]);
+  });
+
+  it("renders refines edges in hierarchy direction while preserving raw edge data", () => {
+    const { edges } = toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH);
+    const refines = edges.find(
+      (edge) => edge.id === "SG-SPEC-SAMPLE-RUNTIME__refines__SG-SPEC-SAMPLE-ROOT",
+    );
+    expect(refines?.source).toBe("SG-SPEC-SAMPLE-ROOT");
+    expect(refines?.target).toBe("SG-SPEC-SAMPLE-RUNTIME");
+    expect(refines?.data?.specEdge.source_id).toBe("SG-SPEC-SAMPLE-RUNTIME");
+    expect(refines?.data?.specEdge.target_id).toBe("SG-SPEC-SAMPLE-ROOT");
+  });
+
+  it("styles edge kinds distinctly", () => {
+    const { edges } = toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH);
+    const styles = new Map(
+      edges.map((edge) => [edge.data?.specEdge.edge_kind, edge.style]),
+    );
+    expect(styles.get("depends_on")).toMatchObject({ stroke: "#b06924" });
+    expect(styles.get("refines")).toMatchObject({
+      stroke: "#4e689b",
+      strokeDasharray: "6 4",
+    });
+    expect(styles.get("relates_to")).toMatchObject({
+      stroke: "#7c3aed",
+      strokeDasharray: "2 6",
+    });
+  });
+
+  it("keeps cyclic refines ranks bounded", () => {
+    const response = cloneSample();
+    response.graph.edges.push({
+      edge_id: "SG-SPEC-SAMPLE-ROOT__refines__SG-SPEC-SAMPLE-RUNTIME",
+      edge_kind: "refines",
+      source_id: "SG-SPEC-SAMPLE-ROOT",
+      target_id: "SG-SPEC-SAMPLE-RUNTIME",
+      status: "resolved",
+    });
+
+    const { nodes } = toSpecGraphFlowElements(response);
+    const maxX = Math.max(...nodes.map((node) => node.position.x));
+    expect(maxX).toBeLessThanOrEqual(360);
   });
 
   it("filters edges whose endpoints are missing from the node set", () => {

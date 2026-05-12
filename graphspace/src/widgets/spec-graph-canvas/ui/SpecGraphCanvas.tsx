@@ -55,7 +55,8 @@ export function SpecGraphCanvas({ className, refreshKey = 0 }: Props) {
           edges={edges}
           nodeTypes={nodeTypes}
           fitView
-          minZoom={0.18}
+          defaultEdgeOptions={{ type: "smoothstep" }}
+          minZoom={0.08}
           maxZoom={1.6}
           nodesDraggable={false}
         >
