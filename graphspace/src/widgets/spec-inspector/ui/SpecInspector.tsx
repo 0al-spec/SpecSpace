@@ -224,7 +224,7 @@ function RichSpecDetail({ detail }: { detail: SpecInspectorDetailModel }) {
             {detail.terminology.map((entry) => (
               <div key={entry.term} className={styles.termItem}>
                 <dt>{entry.term}</dt>
-                <dd>{entry.definition}</dd>
+                <dd>{renderRichInlineText(entry.definition)}</dd>
               </div>
             ))}
           </dl>
