@@ -1,3 +1,6 @@
+import type { UseImplementationWorkState } from "@/widgets/implementation-work-panel";
+import type { UseProposalTraceState } from "@/widgets/proposal-trace";
+import type { UseRecentChangesState } from "@/widgets/recent-changes-panel";
 import { Panel } from "@/shared/ui/panel";
 import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { Overlay } from "@/shared/ui/overlay";
@@ -13,11 +16,11 @@ type Props = {
   };
   status: {
     runsWatchVersion: number;
-    recentKind: string;
+    recentKind: UseRecentChangesState["kind"];
     eventCount: number;
-    workKind: string;
+    workKind: UseImplementationWorkState["kind"];
     workItemCount: number;
-    traceKind: string;
+    traceKind: UseProposalTraceState["kind"];
   };
 };
 
