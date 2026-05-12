@@ -1302,6 +1302,82 @@ Intent: reduce friction in daily spec-authoring and review workflows by improvin
   - Tooltip positioning stays within viewport bounds (flips if near edges).
   - Clicking through the tooltip selects the node normally.
 
+## Phase 10: GraphSpace SpecGraph Canvas Migration
+
+Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph nodes and edges on a primary canvas, while keeping the current live artifact panels as secondary surfaces. This phase ports the useful behaviour from legacy `viewer/app` in small FSD-aligned slices instead of copying the legacy app wholesale.
+
+### CTXB-P10-T1 — Add GraphSpace SpecGraph graph contract
+- **Description:** Extend `graphspace/src/shared/spec-graph-contract` with a validated contract for the `/api/spec-graph` payload used by the legacy viewer. Cover nodes, edges, roots, diagnostics, optional metadata, and broken-reference states. Keep the existing artifact contracts (`spec_activity_feed`, `implementation_work_index`, `proposal_spec_trace_index`) independent.
+- **Priority:** P1
+- **Dependencies:** current GraphSpace shared contract slice
+- **Parallelizable:** no
+- **Outputs / Artifacts:** `graphspace/src/shared/spec-graph-contract/schemas/spec-graph.ts`; `graphspace/src/shared/spec-graph-contract/parsers/parse-spec-graph.ts`; golden fixtures; parser tests
+- **Acceptance Criteria:**
+  - `parseSpecGraph()` accepts the legacy `/api/spec-graph` shape produced by `viewer/server.py`.
+  - Empty graph, broken references, missing optional fields, and unknown extra fields are covered by tests.
+  - Public imports go through `@/shared/spec-graph-contract`.
+  - No UI rendering changes are included in this task.
+
+### CTXB-P10-T2 — Add GraphSpace spec node and edge data model
+- **Description:** Introduce FSD entity models for SpecGraph nodes and edges plus a canvas data hook that fetches `/api/spec-graph`, validates it through the shared contract, and exposes live/error/sample states using the same conventions as the recent activity, work index, and proposal trace surfaces.
+- **Priority:** P1
+- **Dependencies:** CTXB-P10-T1
+- **Parallelizable:** no
+- **Outputs / Artifacts:** `graphspace/src/entities/spec-node/*`; `graphspace/src/entities/spec-edge/*`; `graphspace/src/widgets/spec-graph-canvas/model/use-spec-graph.ts`; sample data
+- **Acceptance Criteria:**
+  - The hook returns explicit live states (`ok`, `loading`, `error`, fallback/sample) without leaking raw fetch errors into UI code.
+  - Node and edge domain types are exported through entity public APIs.
+  - Sample fallback data can render at least three nodes and two edge kinds without a backend.
+  - Tests cover successful parse, offline fallback, and invalid payload handling.
+
+### CTXB-P10-T3 — Render a minimal primary SpecGraph canvas in GraphSpace
+- **Description:** Add `@xyflow/react` to `graphspace` and create `widgets/spec-graph-canvas` that renders SpecGraph nodes as a primary viewport surface. The first pass should prove the canvas pipeline end-to-end with deterministic placeholder positions and simple edge rendering; it should not yet port every legacy interaction.
+- **Priority:** P1
+- **Dependencies:** CTXB-P10-T2
+- **Parallelizable:** no
+- **Outputs / Artifacts:** `graphspace/src/widgets/spec-graph-canvas/ui/SpecGraphCanvas.tsx`; canvas CSS module; basic `SpecNodeCard` UI; updated `ViewerPage` composition
+- **Acceptance Criteria:**
+  - The GraphSpace first screen includes a visible canvas with rendered node labels.
+  - The canvas is the primary surface and is not pushed below the artifact panels.
+  - Pan/zoom controls work through React Flow defaults.
+  - Browser smoke verifies that at least one spec node label and the canvas root are visible at `http://127.0.0.1:5173/`.
+
+### CTXB-P10-T4 — Add deterministic layout and edge semantics for GraphSpace canvas
+- **Description:** Replace placeholder positions with a deterministic layout and render edge kinds with meaningful visual states. Start with a small local layout primitive if that keeps the PR reviewable; port Dagre or legacy `layoutGraph` only when needed for graph size and readability.
+- **Priority:** P1
+- **Dependencies:** CTXB-P10-T3
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** canvas layout helper; edge style mapping for `depends_on`, `refines`, `relates_to`, and broken references; layout tests
+- **Acceptance Criteria:**
+  - Node positions are stable across refreshes for unchanged data.
+  - `depends_on`, `refines`, `relates_to`, and broken references are visually distinguishable.
+  - Edges to hidden or missing nodes do not crash rendering.
+  - The layout remains usable for the current SpecGraph node count.
+
+### CTXB-P10-T5 — Recompose GraphSpace viewer around canvas and secondary panels
+- **Description:** Move the current live artifact surfaces into secondary overlay/side-panel roles around the primary SpecGraph canvas. `ViewerChrome` remains fixed; recent activity, implementation work, proposal trace, and artifact diagnostics remain available but no longer define the page's main grid.
+- **Priority:** P1
+- **Dependencies:** CTXB-P10-T3
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** updated `ViewerPage` layout; panel overlay/sidebar composition; responsive CSS
+- **Acceptance Criteria:**
+  - Canvas remains visible as the primary surface on desktop and mobile.
+  - The fixed status line does not participate in layout flow or push content.
+  - Existing artifact panels remain reachable and keep their current live/sample behaviours.
+  - No UI text overlaps at common desktop and mobile viewport sizes.
+
+### CTXB-P10-T6 — Add first-pass GraphSpace node selection and inspector
+- **Description:** Add selection state for spec nodes and a minimal inspector surface showing id, title, kind, status, maturity, direct dependencies, refinements, and related links. This is the first interaction pass after the canvas exists; deeper legacy features such as expanded spec nodes, lenses, minimap, and command palette remain follow-up work.
+- **Priority:** P2
+- **Dependencies:** CTXB-P10-T4, CTXB-P10-T5
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `graphspace/src/widgets/spec-inspector/*` or equivalent page-local inspector; selection wiring in `SpecGraphCanvas`; tests
+- **Acceptance Criteria:**
+  - Clicking a spec node selects it and opens the inspector.
+  - Clicking empty canvas clears selection.
+  - Related node references are shown as clickable IDs when present.
+  - Inspector state does not break pan/zoom or artifact overlays.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
@@ -1314,6 +1390,7 @@ Intent: reduce friction in daily spec-authoring and review workflows by improvin
 - Phase 7 addresses technical debt identified in docs/PROBLEMS.md. Tasks are largely independent of each other and of Phases 3-6, with the exception that T2/T3 (server split + types) depend on T1 (cache layer).
 - Phase 8 extends the SpecPM integration started in Phase 6. T0 (lifecycle panel) is complete. T1 (5th stage) is blocked on an upstream SpecGraph branch merge. T2 (node badge) depends on T0.
 - Phase 9 improves graph UX for daily authoring and review workflows. All tasks are independent of each other. T1 (change highlighting) is the highest-priority item. Tasks have no blocking external dependencies.
+- Phase 10 migrates the graph-first SpecGraph experience into the new `graphspace/` rewrite. It depends on the GraphSpace FSD shell and current artifact panels, and should proceed in contract -> hook/model -> minimal canvas -> layout/composition -> inspector order.
 
 ## Task Status Legend
 
