@@ -28,6 +28,8 @@ import {
   useSpecSearch,
   filterBySpecQuery,
 } from "@/features/search-by-spec";
+import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-artifacts";
+import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 
 /**
  * Viewer page shell: live data via graph contract hooks with sample fallback
@@ -267,6 +269,45 @@ export function ViewerPage() {
     proposalTraceState.kind === "ok"
       ? proposalTraceState.data.entries.slice(0, 8)
       : SAMPLE_PROPOSAL_TRACES;
+  const sourceDelta =
+    workState.kind === "ok" ? workState.data.source_delta_snapshot : null;
+  const sourceDeltaDescription = describeSourceDeltaSnapshot(sourceDelta);
+  const workEmptyDetail =
+    workState.kind === "ok"
+      ? `Artifact is live; ${sourceDeltaDescription}. No coding handoff has been emitted.`
+      : workStatus.emptyMessage;
+  const artifactDiagnostics = [
+    describeArtifact({
+      id: "recent",
+      label: "Recent changes",
+      endpoint: "/api/spec-activity",
+      state: feedState,
+      liveCount: feedState.kind === "ok" ? feedState.data.entry_count : 0,
+      sampleCount: SAMPLE_ENTRIES.length,
+      noun: { singular: "event", plural: "events" },
+      emptyDetail: "Artifact is live but contains no activity events.",
+    }),
+    describeArtifact({
+      id: "work",
+      label: "Implementation work",
+      endpoint: "/api/implementation-work-index",
+      state: workState,
+      liveCount: workState.kind === "ok" ? workState.data.entry_count : 0,
+      sampleCount: SAMPLE_WORK_ITEMS.length,
+      noun: { singular: "item", plural: "items" },
+      emptyDetail: workEmptyDetail,
+    }),
+    describeArtifact({
+      id: "proposal-trace",
+      label: "Proposal trace",
+      endpoint: "/api/proposal-spec-trace-index",
+      state: proposalTraceState,
+      liveCount: proposalTraceState.kind === "ok" ? proposalTraceState.data.entry_count : 0,
+      sampleCount: SAMPLE_PROPOSAL_TRACES.length,
+      noun: { singular: "entry", plural: "entries" },
+      emptyDetail: "Artifact is live but contains no proposal trace entries.",
+    }),
+  ] as const;
 
   // Spec search narrows the feed before tone bucketing, so chip counts show
   // the tone distribution inside the active spec/path query.
@@ -345,7 +386,7 @@ export function ViewerPage() {
                 boxShadow: "0 0 0 3px var(--gs-accent-soft)",
               }}
             />
-            GraphSpace · Day 13
+            GraphSpace · Day 14
           </p>
 
           <h1 style={{ margin: "16px 0 0", fontSize: 50, lineHeight: 1 }}>
@@ -356,15 +397,25 @@ export function ViewerPage() {
           </h1>
 
           <p style={{ margin: "20px 0 0", color: "var(--gs-muted)", fontSize: 16, lineHeight: 1.62 }}>
-            Focused filter UX: search Recent Changes by spec id or source
-            path, then refine the result with tone chips. The search remains
-            UI-local and preserves the live contract boundary.
+            Live artifact diagnostics now distinguish real empty artifacts
+            from sample fallback. Empty Implementation Work means the
+            producer emitted a valid zero-item handoff, not that the panel is
+            disconnected.
           </p>
+
+          <LiveArtifactStatusPanel
+            diagnostics={artifactDiagnostics}
+            runsWatchVersion={runsWatchVersion}
+          />
 
           <ImplementationWorkPanel
             items={liveWorkItems}
             caption={workCaption}
-            emptyMessage={workStatus.emptyMessage}
+            emptyMessage={
+              workState.kind === "ok" && liveWorkItems.length === 0
+                ? workEmptyDetail
+                : workStatus.emptyMessage
+            }
             style={{ marginTop: 28, maxHeight: "calc(100vh - 540px)" }}
           />
 
