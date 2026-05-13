@@ -22,7 +22,7 @@
 | AC1 | `viewer.server.generate_hc_root`, `_render_node_markdown`, and provenance helpers remain import-compatible | ✅ Verified by `tests/test_export.py` |
 | AC2 | `viewer.server.export_graph_nodes` keeps its public signature | ✅ Wrapper preserves the existing call shape |
 | AC3 | Export determinism and sentinel protection remain unchanged | ✅ Verified by focused export tests and API contract tests |
-| AC4 | Compile integration still receives export provenance paths | ✅ Verified by `tests/test_compile.py` and `tests/test_export.py` |
+| AC4 | Export paths are constrained to the dialog export root before mkdir/rmtree/write operations | ✅ Verified by path traversal regression tests |
 | AC5 | Backend lint and full test suite pass after extraction | ✅ `make lint` and `python -m pytest tests/` passed |
 
 ---
@@ -31,9 +31,9 @@
 
 | Gate | Command | Result |
 |------|---------|--------|
-| Focused tests | `python -m pytest tests/test_export.py tests/test_compile.py tests/test_api_contracts.py::ExportApiTests` | ✅ 76 passed |
+| Focused tests | `python -m pytest tests/test_export.py tests/test_compile.py tests/test_api_contracts.py::ExportApiTests` | ✅ 78 passed |
 | Python lint | `make lint` | ✅ Passed |
-| Full backend tests | `python -m pytest tests/` | ✅ 478 passed |
+| Full backend tests | `python -m pytest tests/` | ✅ 480 passed |
 
 ---
 
@@ -42,6 +42,7 @@
 - Added `viewer/export.py` for export pipeline behavior that does not need HTTP routing state.
 - Kept `viewer.server.export_graph_nodes(dialog_dir, conversation_id, message_id=None)` as a compatibility wrapper.
 - Passed `collect_workspace_listing`, `build_graph_indexes`, `build_compile_target`, and `EXPORT_SENTINEL` into the extracted implementation explicitly to avoid a `viewer.export` → `viewer.server` import cycle.
+- Added export path containment checks so generated export directories must resolve under `<dialog_dir>/export`.
 - Reduced `viewer/server.py` from 3062 lines to 2827 lines in this slice.
 
 ## Residual Work

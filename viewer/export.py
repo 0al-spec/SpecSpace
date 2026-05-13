@@ -136,6 +136,34 @@ def render_compile_provenance_markdown(provenance: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
+def _resolve_export_dir(dialog_dir: Path, export_dir_value: Any) -> tuple[Path | None, dict[str, Any] | None]:
+    export_root = (dialog_dir / "export").resolve()
+    export_dir = Path(str(export_dir_value)).expanduser()
+    if not export_dir.is_absolute():
+        export_dir = dialog_dir / export_dir
+    resolved = export_dir.resolve()
+
+    try:
+        resolved.relative_to(export_root)
+    except ValueError:
+        return None, {
+            "error": "Export directory resolves outside dialog export root",
+            "export_dir": str(export_dir),
+            "resolved_export_dir": str(resolved),
+            "export_root": str(export_root),
+        }
+
+    if resolved == export_root:
+        return None, {
+            "error": "Export directory must be a child of dialog export root",
+            "export_dir": str(export_dir),
+            "resolved_export_dir": str(resolved),
+            "export_root": str(export_root),
+        }
+
+    return resolved, None
+
+
 def export_graph_nodes(
     dialog_dir: Path,
     conversation_id: str,
@@ -155,7 +183,7 @@ def export_graph_nodes(
 
     workspace = collect_workspace_listing(dialog_dir)
     graph = workspace["graph"]
-    nodes_by_conversation, edges_by_id, _ = build_graph_indexes(graph)
+    nodes_by_conversation, _, _ = build_graph_indexes(graph)
 
     node = nodes_by_conversation.get(conversation_id)
     if node is None:
@@ -181,7 +209,9 @@ def export_graph_nodes(
         checkpoint=checkpoint,
     )
 
-    export_dir = Path(compile_target["export_dir"])
+    export_dir, export_dir_error = _resolve_export_dir(dialog_dir, compile_target["export_dir"])
+    if export_dir_error is not None or export_dir is None:
+        return HTTPStatus.BAD_REQUEST, export_dir_error or {"error": "Invalid export directory"}
     nodes_dir = export_dir / "nodes"
 
     # Clean export dir to guarantee determinism on re-export.
