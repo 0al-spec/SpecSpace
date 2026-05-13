@@ -29,6 +29,7 @@ from viewer import export as graph_export  # noqa: E402
 from viewer import hyperprompt_compile  # noqa: E402
 from viewer import specgraph  # noqa: E402
 from viewer import spec_compile  # noqa: E402
+from viewer import specgraph_surfaces  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
 from viewer.export import (  # noqa: E402
     _render_node_markdown,
@@ -706,23 +707,11 @@ class ViewerHandler(BaseHTTPRequestHandler):
         )
 
     def _runs_dir(self):
-        if self.server.spec_dir is None:
-            return None
-        p = self.server.spec_dir.parent.parent / "runs"
-        return p if p.is_dir() else None
+        return specgraph_surfaces.runs_dir_from_context(self.server.spec_dir, self.server.specgraph_dir)
 
     def _viewer_surfaces_build_available(self) -> bool:
         """True only when supervisor.py declares --build-viewer-surfaces in its source."""
-        if self.server.specgraph_dir is None:
-            return False
-        supervisor = self.server.specgraph_dir / "tools" / "supervisor.py"
-        if not supervisor.exists():
-            return False
-        try:
-            content = supervisor.read_text(encoding="utf-8", errors="ignore")
-            return "--build-viewer-surfaces" in content
-        except OSError:
-            return False
+        return specgraph_surfaces.supervisor_has_flags(self.server.specgraph_dir, "--build-viewer-surfaces")
 
     def handle_viewer_surfaces_build(self) -> None:
         if self.server.specgraph_dir is None:
@@ -779,109 +768,42 @@ class ViewerHandler(BaseHTTPRequestHandler):
         json_response(self, HTTPStatus.OK, {"built_at": built_at, "exit_code": 0, "report": report})
 
     def _graph_dashboard_path(self):
-        d = self._runs_dir()
-        if d is None:
-            return None
-        p = d / "graph_dashboard.json"
-        return p if p.exists() else None
+        return specgraph_surfaces.graph_dashboard_path(self._runs_dir())
 
     def handle_graph_dashboard(self) -> None:
-        path = self._graph_dashboard_path()
-        if path is None:
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": "graph_dashboard.json not found. Run --build-graph-dashboard first."},
-            )
-            return
-        import json as _json
-        json_response(self, HTTPStatus.OK, _json.loads(path.read_text()))
+        status, payload = specgraph_surfaces.read_graph_dashboard(self._runs_dir())
+        json_response(self, status, payload)
 
     def handle_graph_backlog_projection(self) -> None:
-        if self.server.spec_dir is None:
+        if self.server.spec_dir is None and self.server.specgraph_dir is None:
             json_response(
                 self,
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecGraph not configured. Start the server with --spec-dir."},
+                {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
             )
             return
-        runs = self._runs_dir()
-        if runs is None:
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": "graph_backlog_projection.json not found. Run --build-graph-backlog-projection first."},
-            )
-            return
-        path = runs / "graph_backlog_projection.json"
-        if not path.exists():
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": "graph_backlog_projection.json not found. Run --build-graph-backlog-projection first."},
-            )
-            return
-        try:
-            raw = path.read_text(encoding="utf-8")
-            data = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": "graph_backlog_projection.json is not valid JSON", "detail": str(exc)},
-            )
-            return
-        mtime = path.stat().st_mtime
-        mtime_iso = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
-        json_response(self, HTTPStatus.OK, {
-            "path": str(path),
-            "mtime": mtime,
-            "mtime_iso": mtime_iso,
-            "data": data,
-        })
+        status, payload = specgraph_surfaces.read_graph_backlog_projection(
+            self.server.spec_dir,
+            self._runs_dir(),
+        )
+        json_response(self, status, payload)
 
     def _handle_runs_artifact(self, filename: str, build_hint: str) -> None:
         """Serve a single file from runs/ under the standard envelope, or 503/404/422."""
-        if self.server.spec_dir is None:
+        if self.server.spec_dir is None and self.server.specgraph_dir is None:
             json_response(
                 self,
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecGraph not configured. Start the server with --spec-dir."},
+                {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
             )
             return
-        runs = self._runs_dir()
-        if runs is None:
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": f"{filename} not found. Run {build_hint} first."},
-            )
-            return
-        path = runs / filename
-        if not path.exists():
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": f"{filename} not found. Run {build_hint} first."},
-            )
-            return
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": f"{filename} is not valid JSON", "detail": str(exc)},
-            )
-            return
-        mtime = path.stat().st_mtime
-        mtime_iso = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
-        json_response(self, HTTPStatus.OK, {
-            "path": str(path),
-            "mtime": mtime,
-            "mtime_iso": mtime_iso,
-            "data": data,
-        })
+        status, payload = specgraph_surfaces.read_runs_artifact(
+            spec_dir=self.server.spec_dir,
+            runs_dir=self._runs_dir(),
+            filename=filename,
+            build_hint=build_hint,
+        )
+        json_response(self, status, payload)
 
     def handle_metrics_source_promotion(self) -> None:
         self._handle_runs_artifact(
@@ -913,52 +835,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
             "--build-viewer-surfaces",
         )
 
-    # ── Recent SpecGraph refine runs ────────────────────────────────────────
-    # Lists per-spec run events from runs/<timestamp>-<spec_id>-<hash>.json.
-    # Each event: { run_id, ts, spec_id, title, run_kind, completion_status,
-    #               duration_sec }. Filename gives ts/spec_id/run_id without
-    # any IO; the file is opened only to harvest a few small fields from its
-    # head (~4KB max).
-    _RUN_FILENAME_RE = re.compile(
-        r"^(?P<ts>\d{8}T\d{6}Z)-(?P<spec_id>SG-[A-Z]+-\d+)-(?P<hash>[0-9a-f]+)\.json$",
-    )
-
-    @staticmethod
-    def _parse_iso_compact(stamp: str) -> str:
-        """Convert `20260427T204723Z` → ISO 8601 (`2026-04-27T20:47:23Z`)."""
-        return f"{stamp[0:4]}-{stamp[4:6]}-{stamp[6:8]}T{stamp[9:11]}:{stamp[11:13]}:{stamp[13:15]}Z"
-
-    @staticmethod
-    def _harvest_run_meta(path: Path) -> dict[str, Any]:
-        """Read the head of a run file and extract a few cheap fields.
-
-        We avoid parsing the (potentially 100s of KB) full payload — the
-        fields we need live near the top of the JSON object as written by
-        SpecGraph supervisor. Keys absent from the head still return None.
-        """
-        # Read just enough to cover the documented head fields.
-        head_bytes = 4096
-        try:
-            with path.open("rb") as fh:
-                head = fh.read(head_bytes).decode("utf-8", errors="ignore")
-        except OSError:
-            return {}
-        # Try to parse a partial JSON object: append `}` candidates until
-        # something parses, then drop unrelated trailing keys. Simpler:
-        # regex-extract the specific fields we want. The producer is stable.
-        out: dict[str, Any] = {}
-        for key in ("title", "run_kind", "completion_status", "execution_profile", "child_model"):
-            m = re.search(rf'"{key}"\s*:\s*"([^"]*)"', head)
-            if m:
-                out[key] = m.group(1)
-        m = re.search(r'"run_duration_sec"\s*:\s*([0-9.]+)', head)
-        if m:
-            try:
-                out["duration_sec"] = float(m.group(1))
-            except ValueError:
-                pass
-        return out
-
     def handle_recent_runs(self, parsed) -> None:
         runs_dir = self._runs_dir()
         if runs_dir is None:
@@ -978,33 +854,11 @@ class ViewerHandler(BaseHTTPRequestHandler):
         since = qs.get("since", [None])[0]
         since_iso = since if isinstance(since, str) and since else None
 
-        events: list[dict[str, Any]] = []
-        for entry in runs_dir.iterdir():
-            if not entry.is_file() or entry.suffix != ".json":
-                continue
-            m = self._RUN_FILENAME_RE.match(entry.name)
-            if not m:
-                continue
-            ts_iso = self._parse_iso_compact(m.group("ts"))
-            if since_iso is not None and ts_iso <= since_iso:
-                continue
-            meta = self._harvest_run_meta(entry)
-            events.append({
-                "run_id": entry.stem,
-                "ts": ts_iso,
-                "spec_id": m.group("spec_id"),
-                "title": meta.get("title"),
-                "run_kind": meta.get("run_kind"),
-                "completion_status": meta.get("completion_status"),
-                "duration_sec": meta.get("duration_sec"),
-                "execution_profile": meta.get("execution_profile"),
-                "child_model": meta.get("child_model"),
-            })
-
-        # Sort descending by timestamp string (ISO 8601 sorts lexicographically).
-        events.sort(key=lambda e: e["ts"], reverse=True)
-        events = events[:limit]
-        json_response(self, HTTPStatus.OK, {"events": events, "total": len(events)})
+        json_response(
+            self,
+            HTTPStatus.OK,
+            specgraph_surfaces.collect_recent_runs(runs_dir, limit=limit, since_iso=since_iso),
+        )
 
     def handle_spec_activity(self, parsed) -> None:
         """Serve runs/spec_activity_feed.json with optional limit/since filtering.
@@ -1014,73 +868,21 @@ class ViewerHandler(BaseHTTPRequestHandler):
         are applied to data.entries[] after loading. since accepts an ISO
         timestamp string and is compared against entry.occurred_at.
         """
-        if self.server.spec_dir is None:
+        if self.server.spec_dir is None and self.server.specgraph_dir is None:
             json_response(
                 self,
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecGraph not configured. Start the server with --spec-dir."},
+                {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
             )
             return
-        runs = self._runs_dir()
-        if runs is None:
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": "spec_activity_feed.json not found. Run `make spec-activity` in SpecGraph first."},
-            )
-            return
-        path = runs / "spec_activity_feed.json"
-        if not path.exists():
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": "spec_activity_feed.json not found. Run `make spec-activity` in SpecGraph first."},
-            )
-            return
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": "spec_activity_feed.json is not valid JSON", "detail": str(exc)},
-            )
-            return
-
-        # Optional filtering on entries[] (preserve top-level metadata otherwise).
         qs = parse_qs(parsed.query or "")
-        try:
-            limit_raw = qs.get("limit", [None])[0]
-            limit: int | None = int(limit_raw) if limit_raw is not None else None
-        except (TypeError, ValueError):
-            limit = 50  # safe default instead of unbounded
-        if limit is not None:
-            limit = max(1, min(limit, 1000))
-        since = qs.get("since", [None])[0]
-        since_iso = since if isinstance(since, str) and since else None
-
-        if (limit is not None or since_iso is not None) and isinstance(data, dict):
-            entries = data.get("entries") or []
-            if isinstance(entries, list):
-                if since_iso is not None:
-                    entries = [
-                        e for e in entries
-                        if isinstance(e, dict)
-                        and isinstance(e.get("occurred_at"), str)
-                        and e["occurred_at"] > since_iso
-                    ]
-                if limit is not None:
-                    entries = entries[:limit]
-                data = {**data, "entries": entries, "entry_count": len(entries)}
-
-        mtime = path.stat().st_mtime
-        mtime_iso = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
-        json_response(self, HTTPStatus.OK, {
-            "path": str(path),
-            "mtime": mtime,
-            "mtime_iso": mtime_iso,
-            "data": data,
-        })
+        status, payload = specgraph_surfaces.read_spec_activity(
+            spec_dir=self.server.spec_dir,
+            runs_dir=self._runs_dir(),
+            limit_raw=qs.get("limit", [None])[0],
+            since_raw=qs.get("since", [None])[0],
+        )
+        json_response(self, status, payload)
 
     def handle_implementation_work_index(self, parsed) -> None:
         """Serve runs/implementation_work_index.json inside the standard envelope.
@@ -1091,62 +893,20 @@ class ViewerHandler(BaseHTTPRequestHandler):
         artifact's `generated_at` is the only time signal and is preserved
         in the envelope unchanged.
         """
-        if self.server.spec_dir is None:
+        if self.server.spec_dir is None and self.server.specgraph_dir is None:
             json_response(
                 self,
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecGraph not configured. Start the server with --spec-dir."},
+                {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
             )
             return
-        runs = self._runs_dir()
-        if runs is None:
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": "implementation_work_index.json not found. Run `make viewer-surfaces` in SpecGraph first."},
-            )
-            return
-        path = runs / "implementation_work_index.json"
-        if not path.exists():
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": "implementation_work_index.json not found. Run `make viewer-surfaces` in SpecGraph first."},
-            )
-            return
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": "implementation_work_index.json is not valid JSON", "detail": str(exc)},
-            )
-            return
-
         qs = parse_qs(parsed.query or "")
-        try:
-            limit_raw = qs.get("limit", ["50"])[0]
-            limit: int | None = int(limit_raw)
-        except (TypeError, ValueError):
-            limit = 50
-        if limit is not None:
-            limit = max(1, min(limit, 1000))
-
-        if limit is not None and isinstance(data, dict):
-            entries = data.get("entries") or []
-            if isinstance(entries, list):
-                entries = entries[:limit]
-                data = {**data, "entries": entries, "entry_count": len(entries)}
-
-        mtime = path.stat().st_mtime
-        mtime_iso = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
-        json_response(self, HTTPStatus.OK, {
-            "path": str(path),
-            "mtime": mtime,
-            "mtime_iso": mtime_iso,
-            "data": data,
-        })
+        status, payload = specgraph_surfaces.read_implementation_work_index(
+            spec_dir=self.server.spec_dir,
+            runs_dir=self._runs_dir(),
+            limit_raw=qs.get("limit", ["50"])[0],
+        )
+        json_response(self, status, payload)
 
     def handle_metric_pricing_provenance(self) -> None:
         self._handle_runs_artifact(
@@ -1172,82 +932,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if runs is None:
             json_response(self, HTTPStatus.NOT_FOUND, {"error": "runs/ not available"})
             return
-        import json as _json
-        out = {}
-
-        # 1. graph_health_overlay.json → entries[].spec_id + { gate_state, signals, recommended_actions, filters }
-        health_p = runs / "graph_health_overlay.json"
-        if health_p.exists():
-            data = _json.loads(health_p.read_text())
-            vp = data.get("viewer_projection", {})
-            nf = vp.get("named_filters", {})
-            # Build reverse map: spec_id → list of active named filters
-            spec_filters = {}
-            for filter_name, spec_ids in nf.items():
-                if not isinstance(spec_ids, list):
-                    continue
-                for sid in spec_ids:
-                    spec_filters.setdefault(sid, []).append(filter_name)
-            for entry in data.get("entries", []):
-                sid = entry.get("spec_id")
-                if not sid:
-                    continue
-                out.setdefault(sid, {})["health"] = {
-                    "gate_state": entry.get("gate_state", "none"),
-                    "signals": entry.get("signals", []),
-                    "recommended_actions": entry.get("recommended_actions", []),
-                    "filters": spec_filters.get(sid, []),
-                }
-
-        # 2. spec_trace_projection.json → viewer_projection.implementation_state[state] = [spec_ids]
-        trace_p = runs / "spec_trace_projection.json"
-        if trace_p.exists():
-            data = _json.loads(trace_p.read_text())
-            vp = data.get("viewer_projection", {})
-            for state_map_key in ("implementation_state", "freshness", "acceptance_coverage"):
-                smap = vp.get(state_map_key, {})
-                for state, spec_ids in smap.items():
-                    if not isinstance(spec_ids, list):
-                        continue
-                    for sid in spec_ids:
-                        node = out.setdefault(sid, {}).setdefault("implementation", {})
-                        node[state_map_key] = state
-            # named filters for implementation
-            nf = vp.get("named_filters", {})
-            impl_filters = {}
-            for filter_name, spec_ids in nf.items():
-                if not isinstance(spec_ids, list):
-                    continue
-                for sid in spec_ids:
-                    impl_filters.setdefault(sid, []).append(filter_name)
-            for sid, filters in impl_filters.items():
-                out.setdefault(sid, {}).setdefault("implementation", {})["filters"] = filters
-
-        # 3. evidence_plane_overlay.json → viewer_projection.chain_status[status] = [spec_ids]
-        ev_p = runs / "evidence_plane_overlay.json"
-        if ev_p.exists():
-            data = _json.loads(ev_p.read_text())
-            vp = data.get("viewer_projection", {})
-            for state_map_key in ("chain_status", "artifact_stage", "observation_coverage",
-                                  "outcome_coverage", "adoption_coverage"):
-                smap = vp.get(state_map_key, {})
-                for state, spec_ids in smap.items():
-                    if not isinstance(spec_ids, list):
-                        continue
-                    for sid in spec_ids:
-                        node = out.setdefault(sid, {}).setdefault("evidence", {})
-                        node[state_map_key] = state
-            nf = vp.get("named_filters", {})
-            ev_filters = {}
-            for filter_name, spec_ids in nf.items():
-                if not isinstance(spec_ids, list):
-                    continue
-                for sid in spec_ids:
-                    ev_filters.setdefault(sid, []).append(filter_name)
-            for sid, filters in ev_filters.items():
-                out.setdefault(sid, {}).setdefault("evidence", {})["filters"] = filters
-
-        json_response(self, HTTPStatus.OK, {"overlays": out})
+        status, payload = specgraph_surfaces.collect_spec_overlay(runs)
+        json_response(self, status, payload)
 
     def _specpm_preview_path(self) -> Path | None:
         if self.server.specgraph_dir is None:
