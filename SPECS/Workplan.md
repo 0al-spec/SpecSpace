@@ -1447,6 +1447,19 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - Missing or stale selected node ids are ignored without runtime errors.
   - Focus point calculation has deterministic unit coverage.
 
+### CTXB-P10-T12 — Keep selected navigator row visible
+- **Description:** Keep Sidebar navigator selection visible when selection changes from canvas, Inspector links, or other non-list surfaces.
+- **Priority:** P1
+- **Dependencies:** CTXB-P10-T11
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** navigator selected-row visibility behavior; validation report
+- **Acceptance Criteria:**
+  - When a visible filtered row becomes selected externally, the navigator scrolls it into view.
+  - The custom overlay scrollbar metrics update after selection-driven scroll.
+  - Current search and signal filters remain unchanged while selection is revealed.
+  - If the selected node is hidden by the current filter/search, the navigator does not force filter state.
+  - Existing row click selection behavior is unchanged.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.

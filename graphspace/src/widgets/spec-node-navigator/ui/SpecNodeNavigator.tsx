@@ -49,6 +49,9 @@ export function SpecNodeNavigator({
     visible: false,
   });
   const listRef = useRef<HTMLUListElement | null>(null);
+  const selectedRowRef = useRef<HTMLButtonElement | null>(null);
+  const lastScrolledSelectionRef = useRef<string | null>(null);
+  const selectedWasVisibleRef = useRef(false);
   const filterCounts = useMemo(
     () => ({
       all: nodes.length,
@@ -60,6 +63,12 @@ export function SpecNodeNavigator({
   const visibleNodes = useMemo(
     () => filterSpecNodeNavigatorNodes(nodes, query, signalFilter),
     [nodes, query, signalFilter],
+  );
+  const selectedNodeIsVisible = useMemo(
+    () =>
+      selectedNodeId !== null &&
+      visibleNodes.some((node) => node.node_id === selectedNodeId),
+    [selectedNodeId, visibleNodes],
   );
   const caption = `${visibleNodes.length} of ${nodes.length} nodes · ${source}`;
   const updateScrollMetrics = useCallback(() => {
@@ -102,6 +111,26 @@ export function SpecNodeNavigator({
     observer.observe(list);
     return () => observer.disconnect();
   }, [updateScrollMetrics, visibleNodes.length]);
+
+  useEffect(() => {
+    const becameVisible = selectedNodeIsVisible && !selectedWasVisibleRef.current;
+    selectedWasVisibleRef.current = selectedNodeIsVisible;
+
+    if (!selectedNodeId || !selectedNodeIsVisible) {
+      if (!selectedNodeId) lastScrolledSelectionRef.current = null;
+      return;
+    }
+
+    if (lastScrolledSelectionRef.current === selectedNodeId && !becameVisible) return;
+
+    const selectedRow = selectedRowRef.current;
+    if (!selectedRow) return;
+
+    selectedRow.scrollIntoView({ block: "nearest" });
+    lastScrolledSelectionRef.current = selectedNodeId;
+    const frame = window.requestAnimationFrame(updateScrollMetrics);
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedNodeId, selectedNodeIsVisible, updateScrollMetrics]);
 
   return (
     <section className={styles.root} aria-label="Spec node navigator">
@@ -162,36 +191,39 @@ export function SpecNodeNavigator({
             className={styles.list}
             onScroll={updateScrollMetrics}
           >
-            {visibleNodes.map((node) => (
-              <li key={node.node_id} className={styles.listItem}>
-                <button
-                  type="button"
-                  aria-label={`Select ${node.node_id}`}
-                  className={[
-                    styles.row,
-                    selectedNodeId === node.node_id ? styles.rowSelected : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() => onSelectNodeId(node.node_id)}
-                >
-                  <span className={styles.rowTop}>
-                    <span className={styles.nodeId}>{node.node_id}</span>
-                    <span className={styles.status}>{node.status}</span>
-                  </span>
-                  <span className={styles.nodeTitle}>{node.title}</span>
-                  <span className={styles.rowMeta}>
-                    <span>{node.kind}</span>
-                    <span>{formatCountLabel(node.gap_count, "gap")}</span>
-                    {node.diagnostics.length > 0 ? (
-                      <span>
-                        {formatCountLabel(node.diagnostics.length, "diagnostic")}
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
-              </li>
-            ))}
+            {visibleNodes.map((node) => {
+              const isSelected = selectedNodeId === node.node_id;
+
+              return (
+                <li key={node.node_id} className={styles.listItem}>
+                  <button
+                    ref={isSelected ? selectedRowRef : undefined}
+                    type="button"
+                    aria-current={isSelected ? "true" : undefined}
+                    aria-label={`Select ${node.node_id}`}
+                    className={[styles.row, isSelected ? styles.rowSelected : ""]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={() => onSelectNodeId(node.node_id)}
+                  >
+                    <span className={styles.rowTop}>
+                      <span className={styles.nodeId}>{node.node_id}</span>
+                      <span className={styles.status}>{node.status}</span>
+                    </span>
+                    <span className={styles.nodeTitle}>{node.title}</span>
+                    <span className={styles.rowMeta}>
+                      <span>{node.kind}</span>
+                      <span>{formatCountLabel(node.gap_count, "gap")}</span>
+                      {node.diagnostics.length > 0 ? (
+                        <span>
+                          {formatCountLabel(node.diagnostics.length, "diagnostic")}
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
           {scrollMetrics.visible ? (
             <div className={styles.scrollbar} aria-hidden="true">
