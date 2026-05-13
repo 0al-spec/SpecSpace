@@ -18,6 +18,7 @@ from typing import Any
 from unittest.mock import patch
 import tempfile
 
+from viewer import workspace_cache
 from viewer.server import (
     WorkspaceCache,
     _build_workspace_listing,
@@ -202,6 +203,15 @@ class TestWorkspaceCacheRegistry(unittest.TestCase):
             c1 = _get_workspace_cache(Path(t1))
             c2 = _get_workspace_cache(Path(t2))
             self.assertIsNot(c1, c2)
+
+    def test_server_registry_is_isolated_from_extracted_registry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            base_cache = workspace_cache.get_workspace_cache(d)
+            server_cache = _get_workspace_cache(d)
+            self.assertIsNot(server_cache, base_cache)
+            self.assertIsInstance(server_cache, WorkspaceCache)
+            server_cache.get(d)
 
 
 class TestWorkspaceCacheThreadSafety(unittest.TestCase):

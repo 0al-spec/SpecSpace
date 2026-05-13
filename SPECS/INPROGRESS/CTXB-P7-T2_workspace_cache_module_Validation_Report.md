@@ -39,8 +39,9 @@
 
 ## Implementation Summary
 
-- Added `viewer/workspace_cache.py` for the workspace cache scanner, cache object, and registry.
+- Added `viewer/workspace_cache.py` for the workspace cache scanner, cache object, and standalone registry.
 - Kept `viewer.server.WorkspaceCache` as a subclass wrapper whose `get(dialog_dir)` method passes the current `viewer.server._build_workspace_listing` into the extracted implementation.
+- Kept a separate `viewer.server` compatibility registry so direct `viewer.workspace_cache` usage cannot store base cache instances in the server registry.
 - Preserved monkeypatch behavior for cache tests that patch `viewer.server._build_workspace_listing`.
 - Reduced `viewer/server.py` from 2204 lines to 2176 lines in this slice.
 

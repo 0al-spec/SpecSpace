@@ -106,12 +106,15 @@ class WorkspaceCache(workspace_cache.WorkspaceCache):
 
 
 # Registry: one WorkspaceCache per dialog_dir path used in the process.
-_WORKSPACE_CACHES = workspace_cache.WORKSPACE_CACHES
-_REGISTRY_LOCK = workspace_cache.REGISTRY_LOCK
+_WORKSPACE_CACHES: dict[Path, WorkspaceCache] = {}
+_REGISTRY_LOCK = threading.Lock()
 
 
 def _get_workspace_cache(dialog_dir: Path) -> WorkspaceCache:
-    return workspace_cache.get_workspace_cache(dialog_dir, cache_factory=WorkspaceCache)
+    with _REGISTRY_LOCK:
+        if dialog_dir not in _WORKSPACE_CACHES:
+            _WORKSPACE_CACHES[dialog_dir] = WorkspaceCache()
+        return _WORKSPACE_CACHES[dialog_dir]
 
 
 def json_response(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> None:
