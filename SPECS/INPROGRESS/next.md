@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P10-T9` — Add Sidebar spec node navigator
+**Current Task:** `CTXB-P10-T10` — Add Sidebar navigator signal filters
 
 ## Recently Archived
 - `CTXB-P9-T2` — Pin + compare two specs side-by-side (PASS, 2026-04-24)
@@ -21,7 +21,7 @@
 
 ### GraphSpace SpecGraph Canvas Migration
 - Completed context: `CTXB-P10-T1` graph contract, `CTXB-P10-T2` data model, `CTXB-P10-T3` minimal canvas, `CTXB-P10-T4` deterministic layout, `CTXB-P10-T5` viewer recomposition, `CTXB-P10-T6` node selection, `CTXB-P10-T7` rich inspector.
-- `CTXB-P10-T9` — Add Sidebar spec node navigator (P1, current)
+- `CTXB-P10-T10` — Add Sidebar navigator signal filters (P1, current)
 
 ### SpecPM Integration
 - `CTXB-P8-T2` — SpecPM lifecycle badge on SpecNode cards (P3, no deps)

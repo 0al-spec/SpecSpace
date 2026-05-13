@@ -76,6 +76,36 @@
   color: var(--gs-ink);
 }
 
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-2);
+}
+
+.filterButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gs-space-2);
+  height: 28px;
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+  color: var(--gs-muted);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0 var(--gs-space-3);
+  text-transform: uppercase;
+}
+
+.filterButton:hover,
+.filterButtonActive {
+  border-color: color-mix(in oklab, var(--gs-accent) 42%, var(--gs-rule-soft));
+  background: var(--gs-accent-soft);
+  color: var(--gs-accent);
+}
+
 .listFrame {
   --navigator-scrollbar-width: 8px;
 

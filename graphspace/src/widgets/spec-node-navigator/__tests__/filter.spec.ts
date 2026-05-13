@@ -63,4 +63,53 @@ describe("filterSpecNodeNavigatorNodes", () => {
       "SG-SPEC-0003",
     ]);
   });
+
+  it("filters by gap and diagnostic signals", () => {
+    const signalledNodes = [
+      makeNode({
+        node_id: "SG-SPEC-0001",
+        title: "Clean",
+        file_name: "clean.yaml",
+      }),
+      makeNode({
+        node_id: "SG-SPEC-0002",
+        title: "Gappy",
+        file_name: "gappy.yaml",
+        gap_count: 2,
+      }),
+      makeNode({
+        node_id: "SG-SPEC-0003",
+        title: "Diagnostic",
+        file_name: "diagnostic.yaml",
+        diagnostics: [{ message: "Missing target" }],
+      }),
+    ];
+
+    expect(filterSpecNodeNavigatorNodes(signalledNodes, "", "gaps").map((node) => node.node_id)).toEqual([
+      "SG-SPEC-0002",
+    ]);
+    expect(filterSpecNodeNavigatorNodes(signalledNodes, "", "diagnostics").map((node) => node.node_id)).toEqual([
+      "SG-SPEC-0003",
+    ]);
+  });
+
+  it("composes text search with signal filters", () => {
+    const signalledNodes = [
+      makeNode({
+        node_id: "SG-SPEC-0001",
+        title: "Runtime gap",
+        file_name: "runtime-gap.yaml",
+        gap_count: 1,
+      }),
+      makeNode({
+        node_id: "SG-SPEC-0002",
+        title: "Runtime clean",
+        file_name: "runtime-clean.yaml",
+      }),
+    ];
+
+    expect(filterSpecNodeNavigatorNodes(signalledNodes, "runtime", "gaps").map((node) => node.node_id)).toEqual([
+      "SG-SPEC-0001",
+    ]);
+  });
 });

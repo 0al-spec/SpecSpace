@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SpecNode } from "@/entities/spec-node";
-import { filterSpecNodeNavigatorNodes } from "../model/filter";
+import {
+  filterSpecNodeNavigatorNodes,
+  type SpecNodeNavigatorSignalFilter,
+} from "../model/filter";
 import styles from "./SpecNodeNavigator.module.css";
 
 type Props = {
@@ -19,6 +22,18 @@ type ScrollMetrics = {
 const formatCountLabel = (count: number, singular: string, plural = `${singular}s`) =>
   `${count} ${count === 1 ? singular : plural}`;
 
+const FILTER_LABELS: Record<SpecNodeNavigatorSignalFilter, string> = {
+  all: "All",
+  gaps: "Gaps",
+  diagnostics: "Diagnostics",
+};
+
+const FILTER_ORDER: SpecNodeNavigatorSignalFilter[] = [
+  "all",
+  "gaps",
+  "diagnostics",
+];
+
 export function SpecNodeNavigator({
   nodes,
   selectedNodeId,
@@ -26,15 +41,25 @@ export function SpecNodeNavigator({
   onSelectNodeId,
 }: Props) {
   const [query, setQuery] = useState("");
+  const [signalFilter, setSignalFilter] =
+    useState<SpecNodeNavigatorSignalFilter>("all");
   const [scrollMetrics, setScrollMetrics] = useState<ScrollMetrics>({
     thumbHeight: 0,
     thumbTop: 0,
     visible: false,
   });
   const listRef = useRef<HTMLUListElement | null>(null);
+  const filterCounts = useMemo(
+    () => ({
+      all: nodes.length,
+      gaps: nodes.filter((node) => node.gap_count > 0).length,
+      diagnostics: nodes.filter((node) => node.diagnostics.length > 0).length,
+    }),
+    [nodes],
+  );
   const visibleNodes = useMemo(
-    () => filterSpecNodeNavigatorNodes(nodes, query),
-    [nodes, query],
+    () => filterSpecNodeNavigatorNodes(nodes, query, signalFilter),
+    [nodes, query, signalFilter],
   );
   const caption = `${visibleNodes.length} of ${nodes.length} nodes · ${source}`;
   const updateScrollMetrics = useCallback(() => {
@@ -104,6 +129,26 @@ export function SpecNodeNavigator({
             Clear
           </button>
         ) : null}
+      </div>
+
+      <div className={styles.filterRow} aria-label="Spec node signal filters">
+        {FILTER_ORDER.map((filter) => (
+          <button
+            key={filter}
+            type="button"
+            className={[
+              styles.filterButton,
+              signalFilter === filter ? styles.filterButtonActive : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            aria-pressed={signalFilter === filter}
+            onClick={() => setSignalFilter(filter)}
+          >
+            <span>{FILTER_LABELS[filter]}</span>
+            <span>{filterCounts[filter]}</span>
+          </button>
+        ))}
       </div>
 
       {nodes.length === 0 ? (
