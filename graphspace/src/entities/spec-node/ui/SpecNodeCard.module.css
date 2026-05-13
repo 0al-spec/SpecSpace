@@ -72,9 +72,21 @@
 }
 
 .meta {
-  justify-content: flex-start;
+  justify-content: space-between;
   margin-top: 12px;
   color: var(--gs-muted-2);
+}
+
+.metaGroup {
+  display: flex;
+  min-width: 0;
+  gap: 10px;
+}
+
+.maturityValue {
+  flex: 0 0 42px;
+  margin-left: auto;
+  text-align: right;
 }
 
 .maturityTrack {
