@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { SpecPMLifecycleBadge } from "@/entities/specpm-lifecycle";
 import { useRunsWatchVersion } from "@/shared/api";
 import { useRecentChanges } from "@/widgets/recent-changes-panel";
 import {
@@ -9,7 +10,11 @@ import {
   ProposalTracePanel,
   useProposalSpecTraceIndex,
 } from "@/widgets/proposal-trace";
-import { SpecGraphCanvas, useSpecGraph } from "@/widgets/spec-graph-canvas";
+import {
+  SpecGraphCanvas,
+  useSpecGraph,
+  useSpecPMLifecycleBadges,
+} from "@/widgets/spec-graph-canvas";
 import { SpecInspector, type SpecInspectorSelection } from "@/widgets/spec-inspector";
 import { SpecNodeNavigator } from "@/widgets/spec-node-navigator";
 import { useToneFilter, filterByTone } from "@/features/filter-by-tone";
@@ -46,6 +51,9 @@ export function ViewerPage() {
   const workState = useImplementationWorkIndex({ refreshKey: runsWatchVersion });
   const proposalTraceState = useProposalSpecTraceIndex({ refreshKey: runsWatchVersion });
   const specGraphState = useSpecGraph({ refreshKey: runsWatchVersion });
+  const specpmLifecycleState = useSpecPMLifecycleBadges({
+    refreshKey: runsWatchVersion,
+  });
 
   const feedStatus = describeLive(feedState, {
     items: "events",
@@ -151,6 +159,10 @@ export function ViewerPage() {
     (artifact) => artifact.tone !== "live",
   ).length;
   const artifactCaption = `runs tick ${runsWatchVersion}`;
+  const lifecycleBadgesByNode: ReadonlyMap<string, SpecPMLifecycleBadge> | undefined =
+    specpmLifecycleState.kind === "ok"
+      ? specpmLifecycleState.badgesByNode
+      : undefined;
 
   const count = filteredEntries.length;
   const clearSpecSelection = () => {
@@ -183,6 +195,7 @@ export function ViewerPage() {
           .filter(Boolean)
           .join(" ")}
         selectedNodeId={selectedSpecNodeId}
+        lifecycleBadgesByNode={lifecycleBadgesByNode}
         onSelectedNodeIdChange={setSelectedSpecNodeId}
         onSelectionChange={setSelectedSpec}
       />
