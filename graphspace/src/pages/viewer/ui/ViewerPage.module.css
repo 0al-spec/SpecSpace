@@ -64,9 +64,9 @@
 
 .sidebarRail {
   top: var(--viewer-panel-top);
+  bottom: var(--viewer-panel-edge);
   left: var(--viewer-panel-edge);
   width: var(--viewer-sidebar-width);
-  max-height: calc(100vh - var(--viewer-panel-top) - 72px);
   gap: var(--gs-space-5);
   padding: var(--gs-space-5);
 }
@@ -266,6 +266,7 @@
   }
 
   .sidebarRail {
+    bottom: auto;
     max-height: 42vh;
   }
 
