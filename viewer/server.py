@@ -10,7 +10,6 @@ import os
 import subprocess
 import sys
 import threading
-from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -77,6 +76,7 @@ from viewer.specpm import (  # noqa: E402
     _read_specgraph_runs_artifact,
     _read_specpm_artifact,
     _string_list,
+    read_exploration_preview_response,
     read_specpm_artifact_response,
     read_specpm_preview_response,
 )
@@ -812,11 +812,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
             ),
         )
 
-    def _exploration_preview_path(self) -> Path | None:
-        if self.server.specgraph_dir is None:
-            return None
-        return self.server.specgraph_dir / "runs" / "exploration_preview.json"
-
     def _exploration_build_available(self) -> bool:
         """True only when supervisor.py declares both required flags in its source."""
         return specgraph_surfaces.supervisor_has_flags(
@@ -826,57 +821,15 @@ class ViewerHandler(BaseHTTPRequestHandler):
         )
 
     def handle_exploration_preview_get(self) -> None:
-        path = self._exploration_preview_path()
-        if path is None:
+        if self.server.specgraph_dir is None:
             json_response(
                 self,
                 HTTPStatus.SERVICE_UNAVAILABLE,
                 {"error": "Exploration preview not configured. Start the server with --specgraph-dir."},
             )
             return
-        if not path.exists():
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {
-                    "error": "Exploration preview artifact not built yet",
-                    "hint": "POST /api/exploration-preview/build to create it",
-                    "path": str(path),
-                },
-            )
-            return
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": f"Failed to read exploration preview: {exc}", "path": str(path)},
-            )
-            return
-        if (
-            data.get("artifact_kind") != "exploration_preview"
-            or data.get("canonical_mutations_allowed") is not False
-            or data.get("tracked_artifacts_written") is not False
-        ):
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {
-                    "error": "Artifact failed boundary check",
-                    "artifact_kind": data.get("artifact_kind"),
-                    "canonical_mutations_allowed": data.get("canonical_mutations_allowed"),
-                    "tracked_artifacts_written": data.get("tracked_artifacts_written"),
-                },
-            )
-            return
-        mtime = path.stat().st_mtime
-        json_response(self, HTTPStatus.OK, {
-            "path": str(path),
-            "mtime": mtime,
-            "mtime_iso": datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
-            "data": data,
-        })
+        status, payload = read_exploration_preview_response(self.server.specgraph_dir)
+        json_response(self, status, payload)
 
     def handle_exploration_preview_build(self) -> None:
         if self.server.specgraph_dir is None:

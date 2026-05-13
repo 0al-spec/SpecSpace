@@ -85,6 +85,51 @@ def read_specpm_artifact_response(specgraph_dir: Path, filename: str) -> tuple[H
     )
 
 
+def exploration_preview_path(specgraph_dir: Path) -> Path:
+    return specgraph_dir / "runs" / "exploration_preview.json"
+
+
+def read_exploration_preview_response(specgraph_dir: Path) -> tuple[HTTPStatus, dict[str, Any]]:
+    path = exploration_preview_path(specgraph_dir)
+    if not path.exists():
+        return (
+            HTTPStatus.NOT_FOUND,
+            {
+                "error": "Exploration preview artifact not built yet",
+                "hint": "POST /api/exploration-preview/build to create it",
+                "path": str(path),
+            },
+        )
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": f"Failed to read exploration preview: {exc}", "path": str(path)}
+    if (
+        data.get("artifact_kind") != "exploration_preview"
+        or data.get("canonical_mutations_allowed") is not False
+        or data.get("tracked_artifacts_written") is not False
+    ):
+        return (
+            HTTPStatus.UNPROCESSABLE_ENTITY,
+            {
+                "error": "Artifact failed boundary check",
+                "artifact_kind": data.get("artifact_kind"),
+                "canonical_mutations_allowed": data.get("canonical_mutations_allowed"),
+                "tracked_artifacts_written": data.get("tracked_artifacts_written"),
+            },
+        )
+    mtime = path.stat().st_mtime
+    return (
+        HTTPStatus.OK,
+        {
+            "path": str(path),
+            "mtime": mtime,
+            "mtime_iso": datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
+            "data": data,
+        },
+    )
+
+
 def _extract_proposal_title(content: str, fallback: str) -> str:
     for line in content.splitlines():
         stripped = line.strip()

@@ -42,10 +42,6 @@ def supervisor_path(specgraph_dir: Path) -> Path:
     return specgraph_dir / "tools" / "supervisor.py"
 
 
-def exploration_preview_path(specgraph_dir: Path) -> Path:
-    return specgraph_dir / "runs" / "exploration_preview.json"
-
-
 def invoke_supervisor(
     specgraph_dir: Path,
     args: list[str],
@@ -197,7 +193,7 @@ def build_exploration_preview(specgraph_dir: Path, intent: str) -> tuple[HTTPSta
     if isinstance(invocation, SupervisorInvocationError):
         return invocation.status, invocation.payload
 
-    artifact_path = exploration_preview_path(specgraph_dir)
+    artifact_path = specpm.exploration_preview_path(specgraph_dir)
     built_at = utc_now_iso()
     result = invocation.result
     if result.returncode != 0:
