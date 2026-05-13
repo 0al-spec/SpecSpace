@@ -24,6 +24,7 @@ if __package__ in {None, ""}:  # pragma: no cover - allows running `python viewe
     sys.path.insert(0, str(REPO_ROOT))
 
 from viewer import schema  # noqa: E402
+from viewer import compile as hyper_compile  # noqa: E402
 from viewer import export as graph_export  # noqa: E402
 from viewer import specgraph  # noqa: E402
 from viewer import spec_compile  # noqa: E402
@@ -848,127 +849,35 @@ def export_graph_nodes(
     )
 
 
-_EXIT_CODE_DESCRIPTIONS: dict[int, str] = {
-    1: "IO error",
-    2: "Syntax error",
-    3: "Resolution/circular dependency error",
-    4: "Internal compiler error",
-}
-
+_EXIT_CODE_DESCRIPTIONS = hyper_compile._EXIT_CODE_DESCRIPTIONS
 DEFAULT_HYPERPROMPT_BINARY = str(REPO_ROOT / "deps" / "hyperprompt")
 
 
 def _default_hyperprompt_fallbacks(default_binary: Path) -> list[tuple[str, Path]]:
-    """Return additional candidate paths when the configured binary is not found.
-
-    Searches for the binary in sibling architecture directories relative to the
-    configured path (e.g. Swift multi-arch build output under a ``.build`` tree)
-    and falls back to ``deps/hyperprompt`` at the repository root.
-    """
-    build_dir = default_binary.parent.parent
-    candidates: list[tuple[str, Path]] = []
-    for candidate in sorted(build_dir.glob("*/release/hyperprompt")):
-        candidates.append(("fallback_glob", candidate))
-    candidates.append(("fallback_deps", REPO_ROOT / "deps" / "hyperprompt"))
-    return candidates
+    """Compatibility wrapper for Hyperprompt fallback candidate discovery."""
+    return hyper_compile._default_hyperprompt_fallbacks(default_binary, repo_root=REPO_ROOT)
 
 
 def resolve_hyperprompt_binary(configured_binary: str) -> tuple[str | None, list[str], str]:
-    requested = Path(configured_binary).expanduser()
-    default_binary = Path(DEFAULT_HYPERPROMPT_BINARY).expanduser()
-
-    candidates: list[tuple[str, Path]] = [("configured", requested)]
-    if requested == default_binary:
-        candidates.extend(_default_hyperprompt_fallbacks(default_binary))
-
-    checked_paths: list[str] = []
-    seen_paths: set[str] = set()
-    for source, candidate in candidates:
-        candidate_path = candidate.expanduser()
-        candidate_text = str(candidate_path)
-        if candidate_text in seen_paths:
-            continue
-        seen_paths.add(candidate_text)
-        checked_paths.append(candidate_text)
-        if candidate_path.exists() and candidate_path.is_file():
-            return candidate_text, checked_paths, source
-
-    return None, checked_paths, "missing"
+    """Compatibility wrapper that uses the current mutable default binary path."""
+    return hyper_compile.resolve_hyperprompt_binary(
+        configured_binary,
+        default_hyperprompt_binary=DEFAULT_HYPERPROMPT_BINARY,
+        repo_root=REPO_ROOT,
+    )
 
 
 def invoke_hyperprompt(
     export_dir: Path,
     binary_path: str,
 ) -> tuple[int, dict[str, Any]]:
-    """Invoke the Hyperprompt compiler on the exported root.hc.
-
-    Returns (http_status, payload). On success the payload contains
-    compiled_md and manifest_json paths. On failure it contains error,
-    exit_code, stderr, and stdout.
-    """
-    resolved_binary, checked_paths, resolution_source = resolve_hyperprompt_binary(binary_path)
-    if resolved_binary is None:
-        checked_lines = "\n".join(f"- {path}" for path in checked_paths)
-        return HTTPStatus.UNPROCESSABLE_ENTITY, {
-            "error": "Hyperprompt not found",
-            "details": f"Binary not found at: {binary_path}\nChecked paths:\n{checked_lines}",
-            "exit_code": None,
-            "checked_paths": checked_paths,
-            "requested_binary": binary_path,
-        }
-    binary = Path(resolved_binary)
-
-    hc_file = export_dir / "root.hc"
-    if not hc_file.exists():
-        return HTTPStatus.BAD_REQUEST, {
-            "error": "root.hc not found in export directory",
-            "details": f"Expected: {hc_file}",
-            "exit_code": None,
-        }
-
-    compiled_md = export_dir / "compiled.md"
-    manifest_json = export_dir / "manifest.json"
-
-    cmd = [
-        str(binary),
-        str(hc_file),
-        "--root", str(export_dir),
-        "--output", str(compiled_md),
-        "--manifest", str(manifest_json),
-        "--stats",
-    ]
-
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-    except subprocess.TimeoutExpired:
-        return HTTPStatus.INTERNAL_SERVER_ERROR, {
-            "error": "Hyperprompt compiler timed out",
-            "exit_code": None,
-        }
-    except Exception as exc:
-        return HTTPStatus.INTERNAL_SERVER_ERROR, {
-            "error": f"Failed to invoke Hyperprompt: {exc}",
-            "exit_code": None,
-        }
-
-    if result.returncode != 0:
-        description = _EXIT_CODE_DESCRIPTIONS.get(result.returncode, "Unknown error")
-        return HTTPStatus.UNPROCESSABLE_ENTITY, {
-            "error": f"Hyperprompt compiler failed: {description}",
-            "exit_code": result.returncode,
-            "stderr": result.stderr,
-            "stdout": result.stdout,
-        }
-
-    return HTTPStatus.OK, {
-        "compiled_md": str(compiled_md),
-        "manifest_json": str(manifest_json),
-        "exit_code": 0,
-        "stdout": result.stdout,
-        "stderr": result.stderr,
-        "binary_path": resolved_binary,
-        "binary_resolution": resolution_source,
-    }
+    """Compatibility wrapper that preserves server.DEFAULT_HYPERPROMPT_BINARY mutation."""
+    return hyper_compile.invoke_hyperprompt(
+        export_dir,
+        binary_path,
+        default_hyperprompt_binary=DEFAULT_HYPERPROMPT_BINARY,
+        repo_root=REPO_ROOT,
+    )
 
 
 def compile_graph_nodes(
@@ -977,21 +886,15 @@ def compile_graph_nodes(
     message_id: str | None,
     hyperprompt_binary: str,
 ) -> tuple[int, dict[str, Any]]:
-    """Export lineage nodes and invoke the Hyperprompt compiler in one step."""
-    export_status, export_response = export_graph_nodes(dialog_dir, conversation_id, message_id)
-    if export_status != HTTPStatus.OK:
-        return export_status, export_response
-
-    export_dir = Path(export_response["export_dir"])
-    compile_status, compile_response = invoke_hyperprompt(export_dir, hyperprompt_binary)
-    if "provenance_json" in export_response:
-        compile_response["provenance_json"] = export_response["provenance_json"]
-    if "provenance_md" in export_response:
-        compile_response["provenance_md"] = export_response["provenance_md"]
-
-    combined = dict(export_response)
-    combined["compile"] = compile_response
-    return compile_status, combined
+    """Compatibility wrapper for the extracted compile pipeline."""
+    return hyper_compile.compile_graph_nodes(
+        dialog_dir,
+        conversation_id,
+        message_id,
+        hyperprompt_binary,
+        export_graph_nodes=export_graph_nodes,
+        invoke_hyperprompt=invoke_hyperprompt,
+    )
 
 
 # ---------------------------------------------------------------------------
