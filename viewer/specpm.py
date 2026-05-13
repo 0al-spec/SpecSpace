@@ -27,6 +27,64 @@ def _read_specpm_artifact(path: Path | None) -> dict[str, Any]:
         return {"available": False, "error": str(exc), "entry_count": 0, "entries": [], "generated_at": None}
 
 
+def specpm_runs_path(specgraph_dir: Path, filename: str) -> Path:
+    return specgraph_dir / "runs" / filename
+
+
+def specpm_preview_path(specgraph_dir: Path) -> Path:
+    return specpm_runs_path(specgraph_dir, "specpm_export_preview.json")
+
+
+def read_specpm_preview_response(specgraph_dir: Path) -> tuple[HTTPStatus, dict[str, Any]]:
+    preview_path = specpm_preview_path(specgraph_dir)
+    if not preview_path.exists():
+        return (
+            HTTPStatus.NOT_FOUND,
+            {
+                "error": "Preview artifact not built yet",
+                "hint": "POST /api/specpm/preview/build to create it",
+                "preview_path": str(preview_path),
+            },
+        )
+    try:
+        data = json.loads(preview_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return (
+            HTTPStatus.UNPROCESSABLE_ENTITY,
+            {"error": f"Failed to read preview: {exc}", "preview_path": str(preview_path)},
+        )
+    mtime = preview_path.stat().st_mtime
+    return (
+        HTTPStatus.OK,
+        {
+            "preview_path": str(preview_path),
+            "mtime": mtime,
+            "mtime_iso": datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
+            "preview": data,
+        },
+    )
+
+
+def read_specpm_artifact_response(specgraph_dir: Path, filename: str) -> tuple[HTTPStatus, dict[str, Any]]:
+    path = specpm_runs_path(specgraph_dir, filename)
+    if not path.exists():
+        return HTTPStatus.NOT_FOUND, {"error": "Artifact not built yet", "path": str(path)}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": f"Failed to read artifact: {exc}"}
+    mtime = path.stat().st_mtime
+    return (
+        HTTPStatus.OK,
+        {
+            "path": str(path),
+            "mtime": mtime,
+            "mtime_iso": datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
+            "data": data,
+        },
+    )
+
+
 def _extract_proposal_title(content: str, fallback: str) -> str:
     for line in content.splitlines():
         stripped = line.strip()
