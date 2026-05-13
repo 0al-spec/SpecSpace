@@ -1562,6 +1562,36 @@ def _pkg_key(primary: str | None, fallback: str | None) -> str | None:
     return primary if primary else fallback
 
 
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str) and item]
+
+
+def _dict_value(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _merge_specpm_source_refs(
+    package: dict[str, Any],
+    *,
+    root_spec_id: Any = None,
+    source_spec_ids: Any = None,
+) -> None:
+    if isinstance(root_spec_id, str) and root_spec_id:
+        package.setdefault("root_spec_id", root_spec_id)
+
+    merged = [
+        *(_string_list(package.get("source_spec_ids"))),
+        *_string_list(source_spec_ids),
+    ]
+    if isinstance(root_spec_id, str) and root_spec_id:
+        merged.append(root_spec_id)
+
+    if merged:
+        package["source_spec_ids"] = sorted(set(merged))
+
+
 def _build_specpm_lifecycle(specgraph_dir: Path) -> dict[str, Any]:
     """Aggregate the five SpecPM artifacts into a normalized package lifecycle read-model.
 
@@ -1578,11 +1608,29 @@ def _build_specpm_lifecycle(specgraph_dir: Path) -> dict[str, Any]:
     packages: dict[str, dict[str, Any]] = {}
 
     for entry in export.get("entries") or []:
-        pkg_id = ((entry.get("package_preview") or {}).get("metadata") or {}).get("id")
+        if not isinstance(entry, dict):
+            continue
+        package_preview = _dict_value(entry.get("package_preview"))
+        pkg_id = _dict_value(package_preview.get("metadata")).get("id")
         key = _pkg_key(pkg_id, entry.get("export_id"))
         if not key:
             continue
         packages.setdefault(key, {"package_key": key})
+        contract_summary = _dict_value(entry.get("contract_summary"))
+        boundary_source = _dict_value(entry.get("boundary_source_preview"))
+        boundary_source_ids = [
+            item.get("spec_id")
+            for item in boundary_source.get("source_specs") or []
+            if isinstance(item, dict)
+        ]
+        _merge_specpm_source_refs(
+            packages[key],
+            root_spec_id=contract_summary.get("root_spec_id") or boundary_source.get("root_spec_id"),
+            source_spec_ids=[
+                *_string_list(contract_summary.get("source_spec_ids")),
+                *_string_list(boundary_source_ids),
+            ],
+        )
         packages[key]["export"] = {
             "status": entry.get("export_status"),
             "review_state": entry.get("review_state"),
