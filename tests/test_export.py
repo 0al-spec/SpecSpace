@@ -400,6 +400,36 @@ class ExportGraphNodesTests(unittest.TestCase):
             # The directory must NOT have been deleted.
             self.assertTrue(export_dir.exists())
 
+    def test_export_rejects_conversation_id_that_escapes_export_root(self) -> None:
+        with tempfile.TemporaryDirectory() as isolated_tmp:
+            isolated_dir = Path(isolated_tmp)
+            root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+            root_payload["conversation_id"] = "../escape"
+            write_workspace(isolated_dir, {"root.json": root_payload})
+
+            status, payload = server.export_graph_nodes(isolated_dir, "../escape")
+
+            self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+            self.assertIn("outside", payload["error"].lower())
+            self.assertFalse((isolated_dir / "escape").exists())
+
+    def test_export_rejects_message_id_that_escapes_export_root(self) -> None:
+        with tempfile.TemporaryDirectory() as isolated_tmp:
+            isolated_dir = Path(isolated_tmp)
+            root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")
+            root_payload["messages"][0]["message_id"] = "../../../escape"
+            write_workspace(isolated_dir, {"root.json": root_payload})
+
+            status, payload = server.export_graph_nodes(
+                isolated_dir,
+                ROOT_ID,
+                "../../../escape",
+            )
+
+            self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+            self.assertIn("outside", payload["error"].lower())
+            self.assertFalse((isolated_dir.parent / "escape").exists())
+
     def test_empty_conversation_id_returns_400(self) -> None:
         status, payload = server.export_graph_nodes(self._dialog_dir, "")
         self.assertEqual(status, HTTPStatus.BAD_REQUEST)
