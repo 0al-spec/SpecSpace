@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getSpecNodeStatusTone, type SpecNode } from "@/entities/spec-node";
+import { SpecNodeStatusBadge, type SpecNode } from "@/entities/spec-node";
 import {
   filterSpecNodeNavigatorNodes,
   type SpecNodeNavigatorSignalFilter,
@@ -193,7 +193,6 @@ export function SpecNodeNavigator({
           >
             {visibleNodes.map((node) => {
               const isSelected = selectedNodeId === node.node_id;
-              const statusTone = getSpecNodeStatusTone(node.status);
 
               return (
                 <li key={node.node_id} className={styles.listItem}>
@@ -209,11 +208,7 @@ export function SpecNodeNavigator({
                   >
                     <span className={styles.rowTop}>
                       <span className={styles.nodeId}>{node.node_id}</span>
-                      <span
-                        className={`${styles.status} ${styles[`status-${statusTone}`]}`}
-                      >
-                        {node.status}
-                      </span>
+                      <SpecNodeStatusBadge status={node.status} compact />
                     </span>
                     <span className={styles.nodeTitle}>{node.title}</span>
                     <span className={styles.rowMeta}>

@@ -9,3 +9,4 @@ export {
   type SpecNodeStatusTone,
 } from "./lib/visual-signals";
 export { SpecNodeCard } from "./ui/SpecNodeCard";
+export { SpecNodeStatusBadge } from "./ui/SpecNodeStatusBadge";
