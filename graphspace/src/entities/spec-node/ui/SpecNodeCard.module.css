@@ -86,9 +86,9 @@
 }
 
 .lifecycleBadge-ready {
-  border-color: color-mix(in srgb, var(--gs-success) 35%, var(--gs-rule-soft));
-  color: var(--gs-success);
-  background: color-mix(in srgb, var(--gs-success) 10%, var(--gs-panel));
+  border-color: color-mix(in srgb, var(--gs-ok) 35%, var(--gs-rule-soft));
+  color: var(--gs-ok);
+  background: color-mix(in srgb, var(--gs-ok) 10%, var(--gs-panel));
 }
 
 .lifecycleBadge-blocked {
