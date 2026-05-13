@@ -16,6 +16,7 @@ import {
   useSpecSearch,
   filterBySpecQuery,
 } from "@/features/search-by-spec";
+import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-artifacts";
 import { describeLive } from "../model/live-status";
 import {
@@ -26,8 +27,7 @@ import {
 } from "../model/sample-data";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
-import { ViewerChrome } from "./ViewerChrome";
-import { ViewerHero } from "./ViewerHero";
+import { ViewerChrome, type ViewerUtilityPanelId } from "./ViewerChrome";
 import styles from "./ViewerPage.module.css";
 
 /**
@@ -35,8 +35,9 @@ import styles from "./ViewerPage.module.css";
  * when the backend is offline, not configured, or emits invalid artifacts.
  */
 export function ViewerPage() {
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [timelineOn, setTimelineOn] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeUtilityPanel, setActiveUtilityPanel] =
+    useState<ViewerUtilityPanelId | null>(null);
   const [selectedSpecNodeId, setSelectedSpecNodeId] = useState<string | null>(null);
   const [selectedSpec, setSelectedSpec] = useState<SpecInspectorSelection | null>(null);
   const runsWatchVersion = useRunsWatchVersion();
@@ -150,6 +151,18 @@ export function ViewerPage() {
     setSelectedSpecNodeId(null);
     setSelectedSpec(null);
   };
+  const toggleUtilityPanel = (panel: ViewerUtilityPanelId) => {
+    setActiveUtilityPanel((current) => (current === panel ? null : panel));
+  };
+  const closeUtilityPanel = () => setActiveUtilityPanel(null);
+  const utilityPanelDetails =
+    activeUtilityPanel === "recent"
+      ? { title: "Recent changes", caption: feedCaption }
+      : activeUtilityPanel === "work"
+        ? { title: "Implementation work", caption: workCaption }
+        : activeUtilityPanel === "proposal-trace"
+          ? { title: "Proposal trace", caption: proposalTraceCaption }
+          : null;
 
   return (
     <div className={styles.root}>
@@ -161,64 +174,142 @@ export function ViewerPage() {
         onSelectionChange={setSelectedSpec}
       />
 
-      <div className={styles.layoutLayer}>
-        <aside className={styles.leftRail} aria-label="GraphSpace context">
-          <ViewerHero />
+      {sidebarOpen ? (
+        <aside className={styles.sidebarRail} aria-label="GraphSpace Sidebar">
+          <div className={styles.sidebarHeader}>
+            <span className={styles.sidebarBrandMark}>
+              <SidebarLogo />
+              <span className={styles.sidebarBrand}>SpecSpace</span>
+            </span>
+            <button
+              title="Close Sidebar"
+              aria-label="Close Sidebar"
+              className={styles.closeButton}
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+
+          <PanelBtnRow
+            className={styles.sidebarDock}
+            role="toolbar"
+            aria-label="Utility panels"
+          >
+            <PanelBtn
+              title="Open Recent changes"
+              aria-label="Open Recent changes"
+              active={activeUtilityPanel === "recent"}
+              badge={count}
+              onClick={() => toggleUtilityPanel("recent")}
+            >
+              ◷
+            </PanelBtn>
+            <PanelBtn
+              title="Open Implementation work"
+              aria-label="Open Implementation work"
+              active={activeUtilityPanel === "work"}
+              badge={liveWorkItems.length}
+              onClick={() => toggleUtilityPanel("work")}
+            >
+              ▤
+            </PanelBtn>
+            <PanelBtn
+              title="Open Proposal trace"
+              aria-label="Open Proposal trace"
+              active={activeUtilityPanel === "proposal-trace"}
+              badge={
+                proposalTraceState.kind === "ok"
+                  ? proposalTraceState.data.entry_count
+                  : liveProposalTraceEntries.length
+              }
+              onClick={() => toggleUtilityPanel("proposal-trace")}
+            >
+              ◇
+            </PanelBtn>
+          </PanelBtnRow>
 
           <LiveArtifactStatusPanel
             diagnostics={artifactDiagnostics}
             runsWatchVersion={runsWatchVersion}
           />
         </aside>
+      ) : null}
 
+      {utilityPanelDetails ? (
         <aside
-          className={
-            selectedSpec
-              ? `${styles.rightRail} ${styles.rightRailHidden}`
-              : styles.rightRail
-          }
-          aria-label="Live artifact panels"
+          className={[
+            styles.utilityRail,
+            selectedSpec ? styles.utilityRailWithInspector : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          aria-label={utilityPanelDetails.title}
         >
-          <RecentActivitySurface
-            entries={filteredEntries}
-            now={now}
-            caption={feedCaption}
-            emptyMessage={feedEmptyMessage}
-            search={{
-              query: specSearch.query,
-              onQueryChange: specSearch.setQuery,
-              onClear: specSearch.clear,
-              resultCount: specMatchedEntries.length,
-              totalCount: liveEntries.length,
-            }}
-            tone={{
-              entries: specMatchedEntries,
-              selected: toneFilter.selected,
-              onToggle: toneFilter.toggle,
-              onClear: toneFilter.clear,
-            }}
-          />
+          <div className={styles.utilityHeader}>
+            <div>
+              <span className={styles.utilityKicker}>Utility panel</span>
+              <h2 className={styles.utilityTitle}>{utilityPanelDetails.title}</h2>
+              <p className={styles.utilityCaption}>{utilityPanelDetails.caption}</p>
+            </div>
+            <button
+              title={`Close ${utilityPanelDetails.title}`}
+              aria-label={`Close ${utilityPanelDetails.title}`}
+              className={styles.closeButton}
+              type="button"
+              onClick={closeUtilityPanel}
+            >
+              Close
+            </button>
+          </div>
 
-          <ImplementationWorkPanel
-            items={liveWorkItems}
-            caption={workCaption}
-            emptyMessage={
-              workState.kind === "ok" && liveWorkItems.length === 0
-                ? workEmptyDetail
-                : workStatus.emptyMessage
-            }
-            className={styles.workPanel}
-          />
+          {activeUtilityPanel === "recent" ? (
+            <RecentActivitySurface
+              entries={filteredEntries}
+              now={now}
+              caption={feedCaption}
+              emptyMessage={feedEmptyMessage}
+              search={{
+                query: specSearch.query,
+                onQueryChange: specSearch.setQuery,
+                onClear: specSearch.clear,
+                resultCount: specMatchedEntries.length,
+                totalCount: liveEntries.length,
+              }}
+              tone={{
+                entries: specMatchedEntries,
+                selected: toneFilter.selected,
+                onToggle: toneFilter.toggle,
+                onClear: toneFilter.clear,
+              }}
+            />
+          ) : null}
 
-          <ProposalTracePanel
-            index={liveProposalTraceIndex}
-            entries={liveProposalTraceEntries}
-            caption={proposalTraceCaption}
-            emptyMessage={proposalTraceStatus.emptyMessage}
-            className={styles.proposalTracePanel}
-          />
+          {activeUtilityPanel === "work" ? (
+            <ImplementationWorkPanel
+              items={liveWorkItems}
+              caption={workCaption}
+              emptyMessage={
+                workState.kind === "ok" && liveWorkItems.length === 0
+                  ? workEmptyDetail
+                  : workStatus.emptyMessage
+              }
+              className={styles.workPanel}
+            />
+          ) : null}
+
+          {activeUtilityPanel === "proposal-trace" ? (
+            <ProposalTracePanel
+              index={liveProposalTraceIndex}
+              entries={liveProposalTraceEntries}
+              caption={proposalTraceCaption}
+              emptyMessage={proposalTraceStatus.emptyMessage}
+              className={styles.proposalTracePanel}
+            />
+          ) : null}
         </aside>
-      </div>
+      ) : null}
 
       {selectedSpec ? (
         <SpecInspector
@@ -231,11 +322,8 @@ export function ViewerPage() {
 
       <ViewerChrome
         controls={{
-          timelineOn,
-          filterOpen,
-          badgeCount: count,
-          onTimelineToggle: () => setTimelineOn((v) => !v),
-          onFilterToggle: () => setFilterOpen((v) => !v),
+          sidebarOpen,
+          onSidebarToggle: () => setSidebarOpen((v) => !v),
         }}
         status={{
           runsWatchVersion,
@@ -247,5 +335,36 @@ export function ViewerPage() {
         }}
       />
     </div>
+  );
+}
+
+function SidebarLogo() {
+  return (
+    <span className={styles.sidebarGlyph} aria-hidden="true">
+      <svg
+        width="1091"
+        height="1091"
+        viewBox="0 0 1091 1091"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M374 534.5C374 488.384 336.616 451 290.5 451C244.384 451 207 488.384 207 534.5C207 580.616 244.384 618 290.5 618V642C231.129 642 183 593.871 183 534.5C183 475.129 231.129 427 290.5 427C349.871 427 398 475.129 398 534.5C398 593.871 349.871 642 290.5 642V618C336.616 618 374 580.616 374 534.5Z"
+          fill="currentColor"
+        />
+        <path
+          d="M881 291.5C881 245.384 843.616 208 797.5 208C751.384 208 714 245.384 714 291.5C714 337.616 751.384 375 797.5 375V399C738.129 399 690 350.871 690 291.5C690 232.129 738.129 184 797.5 184C856.871 184 905 232.129 905 291.5C905 350.871 856.871 399 797.5 399V375C843.616 375 881 337.616 881 291.5Z"
+          fill="currentColor"
+        />
+        <path
+          d="M881 777.5C881 731.384 843.616 694 797.5 694C751.384 694 714 731.384 714 777.5C714 823.616 751.384 861 797.5 861V885C738.129 885 690 836.871 690 777.5C690 718.129 738.129 670 797.5 670C856.871 670 905 718.129 905 777.5C905 836.871 856.871 885 797.5 885V861C843.616 861 881 823.616 881 777.5Z"
+          fill="currentColor"
+        />
+        <path
+          d="M606.6 785.6C556.2 785.6 531 758.4 531 704V618.8C531 590.4 527.6 570.6 520.8 559.4C514.4 547.8 504.2 542 490.2 542C485.4 542 483 539.6 483 534.8C483 530 485.4 527.6 490.2 527.6C504.2 527.6 514.4 521.8 520.8 510.2C527.6 498.6 531 478.8 531 450.8V365.6C531 311.2 556.2 284 606.6 284C611.4 284 613.8 286.4 613.8 291.2C613.8 296 611.4 298.4 606.6 298.4C579.4 298.4 565.8 320 565.8 363.2V448.4C565.8 475.2 562.2 494.8 555 507.2C548.2 519.6 537 528.8 521.4 534.8C537 540.8 548.2 550 555 562.4C562.2 574.8 565.8 594.4 565.8 621.2V706.4C565.8 749.6 579.4 771.2 606.6 771.2C611.4 771.2 613.8 773.6 613.8 778.4C613.8 783.2 611.4 785.6 606.6 785.6Z"
+          fill="currentColor"
+        />
+      </svg>
+    </span>
   );
 }

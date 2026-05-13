@@ -1393,6 +1393,20 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - Long inspector content scrolls inside the inspector surface without moving the canvas.
   - Copy path and relation navigation continue to work.
 
+### CTXB-P10-T8 — Add canvas-first panel dock for GraphSpace
+- **Description:** Reduce GraphSpace visual noise by moving secondary live-artifact surfaces behind explicit canvas controls. The Sidebar should be a closable surface for graph context and utility entry points, while Recent changes, Implementation work, and Proposal trace should open as one active utility panel instead of three always-visible columns. The Spec Inspector remains the dedicated selected-spec surface.
+- **Priority:** P1
+- **Dependencies:** CTXB-P10-T5, CTXB-P10-T7
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** updated `ViewerPage` state/composition; canvas panel launcher; Sidebar utility controls; desktop/mobile overlay CSS
+- **Acceptance Criteria:**
+  - Sidebar is hidden by default and can be opened from a canvas-level button.
+  - Recent changes, Implementation work, and Proposal trace are reachable but render as one active utility panel at a time.
+  - Closing all utility surfaces leaves the canvas as the clear primary viewport.
+  - Selecting a spec keeps the inspector independent from secondary utility panels.
+  - The minimap and canvas controls remain visible and usable at common desktop sizes.
+  - Mobile keeps bounded overlays, with the inspector behaving as a bottom modal-style surface.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
