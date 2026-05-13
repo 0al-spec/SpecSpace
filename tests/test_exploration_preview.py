@@ -88,6 +88,15 @@ def post_json(url: str, payload: dict) -> tuple[int, dict]:
         return e.code, json.loads(e.read())
 
 
+def post_raw(url: str, body: bytes) -> tuple[int, dict]:
+    req = Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        resp = urlopen(req)
+        return resp.status, json.loads(resp.read())
+    except HTTPError as e:
+        return e.code, json.loads(e.read())
+
+
 def get_json(url: str) -> tuple[int, dict]:
     try:
         resp = urlopen(url)
@@ -200,6 +209,19 @@ class ExplorationPreviewBuildTests(unittest.TestCase):
         self.assertEqual(status_empty, 400)
         self.assertEqual(status_missing, 400)
         self.assertEqual(status_whitespace, 400)
+
+    def test_400_on_non_object_body(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sg_dir = Path(tmp) / "specgraph"
+            sg_dir.mkdir()
+            httpd, thread, base = start_server(Path(tmp), specgraph_dir=sg_dir)
+            try:
+                status, body = post_raw(f"{base}/api/exploration-preview/build", b"[]")
+            finally:
+                stop_server(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "Invalid JSON body")
 
     def test_422_when_supervisor_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

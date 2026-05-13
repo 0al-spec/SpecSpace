@@ -29,6 +29,7 @@ from viewer import spec_compile  # noqa: E402
 from viewer import specgraph_surfaces  # noqa: E402
 from viewer import supervisor_build  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
+from viewer.request_body import read_json_object_request_body  # noqa: E402
 from viewer.routes import route_for  # noqa: E402
 from viewer.sse import send_sse_headers, stream_change_events  # noqa: E402
 from viewer.watchers import RunsWatcher, SpecWatcher  # noqa: E402
@@ -712,9 +713,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
             )
             return
         try:
-            length = int(self.headers.get("Content-Length", 0))
-            body = json.loads(self.rfile.read(length)) if length else {}
-        except (ValueError, json.JSONDecodeError):
+            body = read_json_object_request_body(self.headers, self.rfile, allow_empty=True)
+        except ValueError:
             json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Invalid JSON body"})
             return
         intent = (body.get("intent") or "").strip()
@@ -727,8 +727,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
     def handle_reveal(self) -> None:
         """POST /api/reveal — open a file path in Finder (macOS: open -R <path>)."""
         try:
-            length = int(self.headers.get("Content-Length", 0))
-            body = json.loads(self.rfile.read(length)) if length else {}
+            body = read_json_object_request_body(self.headers, self.rfile, allow_empty=True)
             path_str = body.get("path", "")
         except Exception:
             json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Invalid request body"})
@@ -1039,22 +1038,10 @@ class ViewerHandler(BaseHTTPRequestHandler):
 
     def read_json_body(self) -> dict | None:
         try:
-            length = int(self.headers.get("Content-Length", "0"))
-            payload = self.rfile.read(length)
-            decoded = json.loads(payload.decode("utf-8"))
+            return read_json_object_request_body(self.headers, self.rfile)
         except Exception as exc:
             json_response(self, HTTPStatus.BAD_REQUEST, {"error": f"Invalid JSON body: {exc}"})
             return None
-
-        if not isinstance(decoded, dict):
-            json_response(
-                self,
-                HTTPStatus.BAD_REQUEST,
-                {"error": "Invalid JSON body: top-level value must be an object."},
-            )
-            return None
-
-        return decoded
 
     def safe_dialog_path(self, name: str) -> Path | None:
         if schema.validate_file_name(name):

@@ -777,6 +777,10 @@ class FileApiHttpTests(unittest.TestCase):
                 self.assertEqual(status, HTTPStatus.NOT_FOUND)
                 self.assertIn("Not Found", payload)
 
+                status, payload = request_text(base_url, "/api/reveal", method="POST", data=b"[]")
+                self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+                self.assertIn("Invalid request body", payload)
+
                 status, payload = request_text(base_url, "/")
                 self.assertEqual(status, HTTPStatus.OK)
                 self.assertIn("<!DOCTYPE html>", payload)
