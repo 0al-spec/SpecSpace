@@ -25,6 +25,12 @@
   pointer-events: auto;
 }
 
+.canvasLayerWithSidebar {
+  --spec-graph-canvas-left-dock: calc(
+    var(--viewer-panel-edge) + var(--viewer-sidebar-width) + var(--viewer-panel-gap)
+  );
+}
+
 .sidebarRail,
 .utilityRail {
   position: fixed;
@@ -58,9 +64,9 @@
 
 .sidebarRail {
   top: var(--viewer-panel-top);
+  bottom: var(--viewer-panel-edge);
   left: var(--viewer-panel-edge);
   width: var(--viewer-sidebar-width);
-  max-height: calc(100vh - var(--viewer-panel-top) - 72px);
   gap: var(--gs-space-5);
   padding: var(--gs-space-5);
 }
@@ -163,7 +169,7 @@
 .canvasControlDock {
   position: fixed;
   top: var(--viewer-panel-top);
-  left: var(--gs-space-5);
+  left: var(--viewer-panel-edge);
   z-index: 10;
   pointer-events: none;
 }
@@ -236,6 +242,7 @@
 @media (min-width: 1360px) {
   .root {
     --viewer-panel-edge: var(--gs-space-7);
+    --viewer-panel-gap: var(--gs-space-5);
     --viewer-sidebar-width: min(380px, calc(100vw - 2 * var(--viewer-panel-edge)));
   }
 
@@ -259,6 +266,7 @@
   }
 
   .sidebarRail {
+    bottom: auto;
     max-height: 42vh;
   }
 
@@ -268,6 +276,10 @@
 
   .canvasControlDock {
     left: var(--viewer-panel-edge);
+  }
+
+  .canvasLayerWithSidebar {
+    --spec-graph-canvas-left-dock: var(--viewer-panel-edge);
   }
 
   .utilityRailWithInspector {

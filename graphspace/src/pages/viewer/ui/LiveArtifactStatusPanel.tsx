@@ -4,15 +4,22 @@ import styles from "./LiveArtifactStatusPanel.module.css";
 type Props = {
   diagnostics: readonly ArtifactDiagnostic[];
   runsWatchVersion: number;
+  showHeader?: boolean;
 };
 
-export function LiveArtifactStatusPanel({ diagnostics, runsWatchVersion }: Props) {
+export function LiveArtifactStatusPanel({
+  diagnostics,
+  runsWatchVersion,
+  showHeader = true,
+}: Props) {
   return (
     <section className={styles.panel} aria-label="Live artifact status">
-      <header className={styles.header}>
-        <span className={styles.title}>Live artifacts</span>
-        <span className={styles.meta}>runs tick {runsWatchVersion}</span>
-      </header>
+      {showHeader ? (
+        <header className={styles.header}>
+          <span className={styles.title}>Live artifacts</span>
+          <span className={styles.meta}>runs tick {runsWatchVersion}</span>
+        </header>
+      ) : null}
       <div className={styles.list}>
         {diagnostics.map((artifact) => (
           <div

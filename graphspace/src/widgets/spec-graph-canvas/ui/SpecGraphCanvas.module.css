@@ -1,4 +1,6 @@
 .root {
+  --spec-graph-canvas-left-dock: 10px;
+
   position: fixed;
   inset: 0;
   z-index: 0;
@@ -38,10 +40,12 @@
 }
 
 .flow :global(.react-flow__controls) {
+  left: var(--spec-graph-canvas-left-dock);
   border: 1px solid var(--gs-rule-soft);
   border-radius: var(--gs-radius-md);
   box-shadow: none;
   overflow: hidden;
+  transition: left 160ms ease;
 }
 
 .flow :global(.react-flow__controls-button) {
@@ -50,6 +54,11 @@
   border-bottom-color: var(--gs-rule-soft);
   background: var(--gs-panel);
   color: var(--gs-ink);
+}
+
+.flow :global(.react-flow__minimap) {
+  left: var(--spec-graph-canvas-left-dock);
+  transition: left 160ms ease;
 }
 
 .miniMap {

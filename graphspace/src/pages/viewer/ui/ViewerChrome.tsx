@@ -6,7 +6,11 @@ import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { Overlay } from "@/shared/ui/overlay";
 import styles from "./ViewerPage.module.css";
 
-export type ViewerUtilityPanelId = "recent" | "work" | "proposal-trace";
+export type ViewerUtilityPanelId =
+  | "recent"
+  | "work"
+  | "proposal-trace"
+  | "artifacts";
 
 type Props = {
   controls: {

@@ -147,6 +147,10 @@ export function ViewerPage() {
     proposalTraceState.kind === "ok"
       ? `${proposalTraceState.data.entry_count} entries · live`
       : proposalTraceStatus.caption;
+  const artifactAttentionCount = artifactDiagnostics.filter(
+    (artifact) => artifact.tone !== "live",
+  ).length;
+  const artifactCaption = `runs tick ${runsWatchVersion}`;
 
   const count = filteredEntries.length;
   const clearSpecSelection = () => {
@@ -164,13 +168,20 @@ export function ViewerPage() {
         ? { title: "Implementation work", caption: workCaption }
         : activeUtilityPanel === "proposal-trace"
           ? { title: "Proposal trace", caption: proposalTraceCaption }
-          : null;
+          : activeUtilityPanel === "artifacts"
+            ? { title: "Live artifacts", caption: artifactCaption }
+            : null;
 
   return (
     <div className={styles.root}>
       <SpecGraphCanvas
         state={specGraphState}
-        className={styles.canvasLayer}
+        className={[
+          styles.canvasLayer,
+          sidebarOpen ? styles.canvasLayerWithSidebar : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         selectedNodeId={selectedSpecNodeId}
         onSelectedNodeIdChange={setSelectedSpecNodeId}
         onSelectionChange={setSelectedSpec}
@@ -230,6 +241,15 @@ export function ViewerPage() {
             >
               ◇
             </PanelBtn>
+            <PanelBtn
+              title="Open Live artifacts"
+              aria-label="Open Live artifacts"
+              active={activeUtilityPanel === "artifacts"}
+              badge={artifactAttentionCount}
+              onClick={() => toggleUtilityPanel("artifacts")}
+            >
+              ◎
+            </PanelBtn>
           </PanelBtnRow>
 
           <SpecNodeNavigator
@@ -237,11 +257,6 @@ export function ViewerPage() {
             selectedNodeId={selectedSpecNodeId}
             source={specGraphState.source}
             onSelectNodeId={setSelectedSpecNodeId}
-          />
-
-          <LiveArtifactStatusPanel
-            diagnostics={artifactDiagnostics}
-            runsWatchVersion={runsWatchVersion}
           />
         </aside>
       ) : null}
@@ -315,6 +330,14 @@ export function ViewerPage() {
               caption={proposalTraceCaption}
               emptyMessage={proposalTraceStatus.emptyMessage}
               className={styles.proposalTracePanel}
+            />
+          ) : null}
+
+          {activeUtilityPanel === "artifacts" ? (
+            <LiveArtifactStatusPanel
+              diagnostics={artifactDiagnostics}
+              runsWatchVersion={runsWatchVersion}
+              showHeader={false}
             />
           ) : null}
         </aside>
