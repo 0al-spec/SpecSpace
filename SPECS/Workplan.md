@@ -1407,6 +1407,20 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - The minimap and canvas controls remain visible and usable at common desktop sizes.
   - Mobile keeps bounded overlays, with the inspector behaving as a bottom modal-style surface.
 
+### CTXB-P10-T9 — Add Sidebar spec node navigator
+- **Description:** Make the GraphSpace Sidebar useful as a graph navigation surface by adding a compact searchable list of SpecGraph nodes. The navigator should select canvas nodes and open the existing Spec Inspector, without duplicating inspector content inside the Sidebar.
+- **Priority:** P1
+- **Dependencies:** CTXB-P10-T8
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `widgets/spec-node-navigator/*`; lifted SpecGraph state in `ViewerPage`; Sidebar composition updates; focused filter tests
+- **Acceptance Criteria:**
+  - Sidebar shows a searchable list of SpecGraph nodes with stable ordering.
+  - Searching matches node id, title, and file name.
+  - Selecting a list row selects the matching canvas node and opens the Spec Inspector.
+  - The navigator exposes enough per-node signal for scanning: id, title, kind/status, and gap or diagnostic count.
+  - Canvas and navigator use the same SpecGraph response state instead of issuing competing graph reads.
+  - Empty and no-match states are explicit and compact.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.

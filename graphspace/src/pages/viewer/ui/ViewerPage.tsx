@@ -9,8 +9,9 @@ import {
   ProposalTracePanel,
   useProposalSpecTraceIndex,
 } from "@/widgets/proposal-trace";
-import { SpecGraphCanvas } from "@/widgets/spec-graph-canvas";
+import { SpecGraphCanvas, useSpecGraph } from "@/widgets/spec-graph-canvas";
 import { SpecInspector, type SpecInspectorSelection } from "@/widgets/spec-inspector";
+import { SpecNodeNavigator } from "@/widgets/spec-node-navigator";
 import { useToneFilter, filterByTone } from "@/features/filter-by-tone";
 import {
   useSpecSearch,
@@ -44,6 +45,7 @@ export function ViewerPage() {
   const feedState = useRecentChanges({ refreshKey: runsWatchVersion });
   const workState = useImplementationWorkIndex({ refreshKey: runsWatchVersion });
   const proposalTraceState = useProposalSpecTraceIndex({ refreshKey: runsWatchVersion });
+  const specGraphState = useSpecGraph({ refreshKey: runsWatchVersion });
 
   const feedStatus = describeLive(feedState, {
     items: "events",
@@ -167,8 +169,8 @@ export function ViewerPage() {
   return (
     <div className={styles.root}>
       <SpecGraphCanvas
+        state={specGraphState}
         className={styles.canvasLayer}
-        refreshKey={runsWatchVersion}
         selectedNodeId={selectedSpecNodeId}
         onSelectedNodeIdChange={setSelectedSpecNodeId}
         onSelectionChange={setSelectedSpec}
@@ -229,6 +231,13 @@ export function ViewerPage() {
               ◇
             </PanelBtn>
           </PanelBtnRow>
+
+          <SpecNodeNavigator
+            nodes={specGraphState.data.graph.nodes}
+            selectedNodeId={selectedSpecNodeId}
+            source={specGraphState.source}
+            onSelectNodeId={setSelectedSpecNodeId}
+          />
 
           <LiveArtifactStatusPanel
             diagnostics={artifactDiagnostics}
