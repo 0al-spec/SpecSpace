@@ -16,6 +16,9 @@ type ScrollMetrics = {
   visible: boolean;
 };
 
+const formatCountLabel = (count: number, singular: string, plural = `${singular}s`) =>
+  `${count} ${count === 1 ? singular : plural}`;
+
 export function SpecNodeNavigator({
   nodes,
   selectedNodeId,
@@ -28,7 +31,7 @@ export function SpecNodeNavigator({
     thumbTop: 0,
     visible: false,
   });
-  const listRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
   const visibleNodes = useMemo(
     () => filterSpecNodeNavigatorNodes(nodes, query),
     [nodes, query],
@@ -109,40 +112,42 @@ export function SpecNodeNavigator({
         <p className={styles.empty}>No spec nodes match this search.</p>
       ) : (
         <div className={styles.listFrame}>
-          <div
+          <ul
             ref={listRef}
             className={styles.list}
-            role="list"
             onScroll={updateScrollMetrics}
           >
             {visibleNodes.map((node) => (
-              <button
-                key={node.node_id}
-                type="button"
-                aria-label={`Select ${node.node_id}`}
-                className={[
-                  styles.row,
-                  selectedNodeId === node.node_id ? styles.rowSelected : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                onClick={() => onSelectNodeId(node.node_id)}
-              >
-                <span className={styles.rowTop}>
-                  <span className={styles.nodeId}>{node.node_id}</span>
-                  <span className={styles.status}>{node.status}</span>
-                </span>
-                <span className={styles.nodeTitle}>{node.title}</span>
-                <span className={styles.rowMeta}>
-                  <span>{node.kind}</span>
-                  <span>{node.gap_count} gaps</span>
-                  {node.diagnostics.length > 0 ? (
-                    <span>{node.diagnostics.length} diagnostics</span>
-                  ) : null}
-                </span>
-              </button>
+              <li key={node.node_id} className={styles.listItem}>
+                <button
+                  type="button"
+                  aria-label={`Select ${node.node_id}`}
+                  className={[
+                    styles.row,
+                    selectedNodeId === node.node_id ? styles.rowSelected : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => onSelectNodeId(node.node_id)}
+                >
+                  <span className={styles.rowTop}>
+                    <span className={styles.nodeId}>{node.node_id}</span>
+                    <span className={styles.status}>{node.status}</span>
+                  </span>
+                  <span className={styles.nodeTitle}>{node.title}</span>
+                  <span className={styles.rowMeta}>
+                    <span>{node.kind}</span>
+                    <span>{formatCountLabel(node.gap_count, "gap")}</span>
+                    {node.diagnostics.length > 0 ? (
+                      <span>
+                        {formatCountLabel(node.diagnostics.length, "diagnostic")}
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              </li>
             ))}
-          </div>
+          </ul>
           {scrollMetrics.visible ? (
             <div className={styles.scrollbar} aria-hidden="true">
               <span

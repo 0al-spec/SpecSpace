@@ -1,6 +1,6 @@
 import type { SpecNode } from "@/entities/spec-node";
 
-const normalize = (value: string) => value.trim().toLocaleLowerCase();
+const normalize = (value: string) => value.trim().toLowerCase();
 
 export function filterSpecNodeNavigatorNodes(
   nodes: readonly SpecNode[],
