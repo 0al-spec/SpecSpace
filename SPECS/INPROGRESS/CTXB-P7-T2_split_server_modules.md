@@ -86,7 +86,7 @@ with explicit wrappers because `_build_workspace_listing` is monkeypatched in ca
 | 1 | `SPECS/INPROGRESS/CTXB-P7-T2_split_server_modules.md` | Extraction plan and compatibility contract |
 | 2 | `viewer/specpm.py` or equivalent | SpecPM / exploration helper module |
 | 3 | `viewer/export.py` | Export pipeline module |
-| 4 | `viewer/compile.py` | Hyperprompt invocation module |
+| 4 | `viewer/hyperprompt_compile.py` | Hyperprompt invocation module |
 | 5 | `viewer/graph.py` | Conversation graph read-model module |
 | 6 | `viewer/server.py` | Thin routing and compatibility facade |
 
@@ -114,9 +114,10 @@ python -m pytest tests/
 When frontend contracts or generated artifacts are affected, also run:
 
 ```bash
-npm test
-npm run build
-npm run lint:fsd
+npm test --prefix graphspace
+npm run build --prefix graphspace
+npm run lint:fsd --prefix graphspace
+npm run build --prefix viewer/app
 ```
 
 ## Risks
