@@ -14,7 +14,7 @@ SpecNode visual signal unification for GraphSpace:
 
 - `npm test` - pass
   - 24 files / 155 tests
-- `npm run lint:fsd` - pass
+- `npm run lint:fsd` - pass with known warnings
   - existing 8 `insignificant-slice` warnings remain
 - `npm run build` - pass
   - existing Vite chunk-size warning remains
