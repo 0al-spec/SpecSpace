@@ -16,6 +16,6 @@ describe("getSpecGraphNodeFocusPoint", () => {
       getSpecGraphNodeFocusPoint({
         position: { x: 720, y: 344 },
       }),
-    ).toEqual({ x: 880, y: 416 });
+    ).toEqual({ x: 830, y: 400 });
   });
 });

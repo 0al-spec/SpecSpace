@@ -7,8 +7,8 @@ type FocusableNode = Pick<SpecFlowNode, "position" | "width" | "height"> & {
   };
 };
 
-const FALLBACK_NODE_WIDTH = 320;
-const FALLBACK_NODE_HEIGHT = 144;
+const FALLBACK_NODE_WIDTH = 220;
+const FALLBACK_NODE_HEIGHT = 112;
 
 export function getSpecGraphNodeFocusPoint(node: FocusableNode): {
   x: number;

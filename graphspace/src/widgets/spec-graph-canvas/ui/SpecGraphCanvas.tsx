@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   Controls,
@@ -74,6 +74,7 @@ function SpecGraphCanvasInner({
     viewportInitialized,
   } = useReactFlow<SpecFlowNode>();
   const activeSelectedNodeId = selectedNodeId === undefined ? internalSelectedNodeId : selectedNodeId;
+  const focusedNodeIdRef = useRef<string | null>(null);
   const { nodes: baseNodes, edges } = useMemo(
     () => toSpecGraphFlowElements(state.data),
     [state.data],
@@ -108,7 +109,11 @@ function SpecGraphCanvasInner({
   }, [activeSelectedNodeId, selection, updateSelectedNodeId]);
 
   useEffect(() => {
-    if (!activeSelectedNodeId || !viewportInitialized) return;
+    if (!activeSelectedNodeId) {
+      focusedNodeIdRef.current = null;
+      return;
+    }
+    if (!viewportInitialized || focusedNodeIdRef.current === activeSelectedNodeId) return;
 
     const selectedNode =
       getNode(activeSelectedNodeId) ??
@@ -116,9 +121,9 @@ function SpecGraphCanvasInner({
     if (!selectedNode) return;
 
     const focusPoint = getSpecGraphNodeFocusPoint(selectedNode);
+    focusedNodeIdRef.current = activeSelectedNodeId;
     void setCenter(focusPoint.x, focusPoint.y, {
       duration: 360,
-      zoom: 0.78,
     });
   }, [activeSelectedNodeId, baseNodes, getNode, setCenter, viewportInitialized]);
 
