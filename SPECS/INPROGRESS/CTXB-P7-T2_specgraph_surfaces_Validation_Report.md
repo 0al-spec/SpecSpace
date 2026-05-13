@@ -31,9 +31,9 @@
 
 | Gate | Command | Result |
 |------|---------|--------|
-| Focused tests | `python -m pytest tests/test_graph_dashboard.py tests/test_graph_backlog_projection.py tests/test_metrics_surfaces.py tests/test_runs_watcher.py tests/test_specgraph.py tests/test_exploration_preview.py` | ✅ 225 passed |
+| Review-focused tests | `python -m pytest tests/test_specgraph_surfaces.py tests/test_graph_dashboard.py tests/test_graph_backlog_projection.py tests/test_metrics_surfaces.py` | ✅ 166 passed |
 | Python lint | `make lint` | ✅ Passed |
-| Full backend tests | `python -m pytest tests/` | ✅ 481 passed |
+| Full backend tests | `python -m pytest tests/` | ✅ 488 passed |
 
 ---
 
@@ -42,7 +42,8 @@
 - Added `viewer/specgraph_surfaces.py` for read-only SpecGraph viewer surfaces backed by `runs/`.
 - Moved graph dashboard, graph backlog projection, generic metrics artifacts, recent runs, spec activity, implementation work index, and spec overlay read-model logic out of `viewer/server.py`.
 - Kept `ViewerHandler` methods as route wrappers so HTTP routing remains local to `server.py`.
-- Reduced `viewer/server.py` from 2176 lines to 1835 lines in this slice.
+- Added regression coverage for `--specgraph-dir`-only runs surfaces, recent-runs ordering/metadata parsing, and malformed optional overlay artifacts.
+- Reduced `viewer/server.py` from 2176 lines to 1865 lines in this slice after review hardening.
 
 ## Residual Work
 

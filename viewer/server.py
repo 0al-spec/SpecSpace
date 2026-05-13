@@ -707,7 +707,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
         )
 
     def _runs_dir(self):
-        return specgraph_surfaces.runs_dir_from_spec_dir(self.server.spec_dir)
+        return specgraph_surfaces.runs_dir_from_context(self.server.spec_dir, self.server.specgraph_dir)
 
     def _viewer_surfaces_build_available(self) -> bool:
         """True only when supervisor.py declares --build-viewer-surfaces in its source."""
@@ -768,13 +768,20 @@ class ViewerHandler(BaseHTTPRequestHandler):
         json_response(self, HTTPStatus.OK, {"built_at": built_at, "exit_code": 0, "report": report})
 
     def _graph_dashboard_path(self):
-        return specgraph_surfaces.graph_dashboard_path(self.server.spec_dir)
+        return specgraph_surfaces.graph_dashboard_path(self._runs_dir())
 
     def handle_graph_dashboard(self) -> None:
-        status, payload = specgraph_surfaces.read_graph_dashboard(self.server.spec_dir)
+        status, payload = specgraph_surfaces.read_graph_dashboard(self._runs_dir())
         json_response(self, status, payload)
 
     def handle_graph_backlog_projection(self) -> None:
+        if self.server.spec_dir is None and self.server.specgraph_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
+            )
+            return
         status, payload = specgraph_surfaces.read_graph_backlog_projection(
             self.server.spec_dir,
             self._runs_dir(),
@@ -783,6 +790,13 @@ class ViewerHandler(BaseHTTPRequestHandler):
 
     def _handle_runs_artifact(self, filename: str, build_hint: str) -> None:
         """Serve a single file from runs/ under the standard envelope, or 503/404/422."""
+        if self.server.spec_dir is None and self.server.specgraph_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
+            )
+            return
         status, payload = specgraph_surfaces.read_runs_artifact(
             spec_dir=self.server.spec_dir,
             runs_dir=self._runs_dir(),
@@ -854,6 +868,13 @@ class ViewerHandler(BaseHTTPRequestHandler):
         are applied to data.entries[] after loading. since accepts an ISO
         timestamp string and is compared against entry.occurred_at.
         """
+        if self.server.spec_dir is None and self.server.specgraph_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
+            )
+            return
         qs = parse_qs(parsed.query or "")
         status, payload = specgraph_surfaces.read_spec_activity(
             spec_dir=self.server.spec_dir,
@@ -872,6 +893,13 @@ class ViewerHandler(BaseHTTPRequestHandler):
         artifact's `generated_at` is the only time signal and is preserved
         in the envelope unchanged.
         """
+        if self.server.spec_dir is None and self.server.specgraph_dir is None:
+            json_response(
+                self,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
+            )
+            return
         qs = parse_qs(parsed.query or "")
         status, payload = specgraph_surfaces.read_implementation_work_index(
             spec_dir=self.server.spec_dir,
@@ -904,7 +932,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if runs is None:
             json_response(self, HTTPStatus.NOT_FOUND, {"error": "runs/ not available"})
             return
-        json_response(self, HTTPStatus.OK, specgraph_surfaces.collect_spec_overlay(runs))
+        status, payload = specgraph_surfaces.collect_spec_overlay(runs)
+        json_response(self, status, payload)
 
     def _specpm_preview_path(self) -> Path | None:
         if self.server.specgraph_dir is None:

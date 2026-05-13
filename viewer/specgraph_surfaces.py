@@ -12,12 +12,23 @@ from typing import Any
 RUN_FILENAME_RE = re.compile(
     r"^(?P<ts>\d{8}T\d{6}Z)-(?P<spec_id>SG-[A-Z]+-\d+)-(?P<hash>[0-9a-f]+)\.json$",
 )
+JSON_STRING_RE = r'"(?:\\.|[^"\\])*"'
 
 
 def runs_dir_from_spec_dir(spec_dir: Path | None) -> Path | None:
     if spec_dir is None:
         return None
     runs = spec_dir.parent.parent / "runs"
+    return runs if runs.is_dir() else None
+
+
+def runs_dir_from_context(spec_dir: Path | None, specgraph_dir: Path | None) -> Path | None:
+    runs = runs_dir_from_spec_dir(spec_dir)
+    if runs is not None:
+        return runs
+    if specgraph_dir is None:
+        return None
+    runs = specgraph_dir / "runs"
     return runs if runs.is_dir() else None
 
 
@@ -52,20 +63,19 @@ def read_json_artifact(path: Path, *, invalid_message: str) -> tuple[int, dict[s
     return HTTPStatus.OK, envelope(path, data)
 
 
-def graph_dashboard_path(spec_dir: Path | None) -> Path | None:
-    runs = runs_dir_from_spec_dir(spec_dir)
-    if runs is None:
+def graph_dashboard_path(runs_dir: Path | None) -> Path | None:
+    if runs_dir is None:
         return None
-    path = runs / "graph_dashboard.json"
+    path = runs_dir / "graph_dashboard.json"
     return path if path.exists() else None
 
 
-def read_graph_dashboard(spec_dir: Path | None) -> tuple[int, dict[str, Any]]:
-    path = graph_dashboard_path(spec_dir)
+def read_graph_dashboard(runs_dir: Path | None) -> tuple[int, dict[str, Any]]:
+    path = graph_dashboard_path(runs_dir)
     if path is None:
         return HTTPStatus.NOT_FOUND, {"error": "graph_dashboard.json not found. Run --build-graph-dashboard first."}
     try:
-        return HTTPStatus.OK, json.loads(path.read_text())
+        return HTTPStatus.OK, json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         return HTTPStatus.UNPROCESSABLE_ENTITY, {
             "error": "graph_dashboard.json is not valid JSON",
@@ -74,8 +84,6 @@ def read_graph_dashboard(spec_dir: Path | None) -> tuple[int, dict[str, Any]]:
 
 
 def read_graph_backlog_projection(spec_dir: Path | None, runs_dir: Path | None) -> tuple[int, dict[str, Any]]:
-    if spec_dir is None:
-        return HTTPStatus.SERVICE_UNAVAILABLE, {"error": "SpecGraph not configured. Start the server with --spec-dir."}
     if runs_dir is None:
         return HTTPStatus.NOT_FOUND, {
             "error": "graph_backlog_projection.json not found. Run --build-graph-backlog-projection first."
@@ -98,8 +106,6 @@ def read_runs_artifact(
     filename: str,
     build_hint: str,
 ) -> tuple[int, dict[str, Any]]:
-    if spec_dir is None:
-        return HTTPStatus.SERVICE_UNAVAILABLE, {"error": "SpecGraph not configured. Start the server with --spec-dir."}
     if runs_dir is None:
         return HTTPStatus.NOT_FOUND, {"error": f"{filename} not found. Run {build_hint} first."}
     path = runs_dir / filename
@@ -124,9 +130,12 @@ def harvest_run_meta(path: Path) -> dict[str, Any]:
 
     out: dict[str, Any] = {}
     for key in ("title", "run_kind", "completion_status", "execution_profile", "child_model"):
-        match = re.search(rf'"{key}"\s*:\s*"([^"]*)"', head)
+        match = re.search(rf'"{re.escape(key)}"\s*:\s*(?P<value>{JSON_STRING_RE})', head)
         if match:
-            out[key] = match.group(1)
+            try:
+                out[key] = json.loads(match.group("value"))
+            except json.JSONDecodeError:
+                pass
     match = re.search(r'"run_duration_sec"\s*:\s*([0-9.]+)', head)
     if match:
         try:
@@ -137,7 +146,7 @@ def harvest_run_meta(path: Path) -> dict[str, Any]:
 
 
 def collect_recent_runs(runs_dir: Path, *, limit: int, since_iso: str | None) -> dict[str, Any]:
-    events: list[dict[str, Any]] = []
+    candidates: list[tuple[str, str, str, Path]] = []
     for entry in runs_dir.iterdir():
         if not entry.is_file() or entry.suffix != ".json":
             continue
@@ -147,11 +156,17 @@ def collect_recent_runs(runs_dir: Path, *, limit: int, since_iso: str | None) ->
         ts_iso = parse_iso_compact(match.group("ts"))
         if since_iso is not None and ts_iso <= since_iso:
             continue
+        candidates.append((ts_iso, entry.stem, match.group("spec_id"), entry))
+
+    candidates.sort(key=lambda candidate: (candidate[0], candidate[1]), reverse=True)
+
+    events: list[dict[str, Any]] = []
+    for ts_iso, run_id, spec_id, entry in candidates[:limit]:
         meta = harvest_run_meta(entry)
         events.append({
-            "run_id": entry.stem,
+            "run_id": run_id,
             "ts": ts_iso,
-            "spec_id": match.group("spec_id"),
+            "spec_id": spec_id,
             "title": meta.get("title"),
             "run_kind": meta.get("run_kind"),
             "completion_status": meta.get("completion_status"),
@@ -160,8 +175,6 @@ def collect_recent_runs(runs_dir: Path, *, limit: int, since_iso: str | None) ->
             "child_model": meta.get("child_model"),
         })
 
-    events.sort(key=lambda event: event["ts"], reverse=True)
-    events = events[:limit]
     return {"events": events, "total": len(events)}
 
 
@@ -172,8 +185,6 @@ def read_spec_activity(
     limit_raw: str | None,
     since_raw: str | None,
 ) -> tuple[int, dict[str, Any]]:
-    if spec_dir is None:
-        return HTTPStatus.SERVICE_UNAVAILABLE, {"error": "SpecGraph not configured. Start the server with --spec-dir."}
     if runs_dir is None:
         return HTTPStatus.NOT_FOUND, {
             "error": "spec_activity_feed.json not found. Run `make spec-activity` in SpecGraph first."
@@ -223,8 +234,6 @@ def read_implementation_work_index(
     runs_dir: Path | None,
     limit_raw: str | None,
 ) -> tuple[int, dict[str, Any]]:
-    if spec_dir is None:
-        return HTTPStatus.SERVICE_UNAVAILABLE, {"error": "SpecGraph not configured. Start the server with --spec-dir."}
     if runs_dir is None:
         return HTTPStatus.NOT_FOUND, {
             "error": "implementation_work_index.json not found. Run `make viewer-surfaces` in SpecGraph first."
@@ -258,12 +267,33 @@ def read_implementation_work_index(
     return HTTPStatus.OK, envelope(path, data)
 
 
-def collect_spec_overlay(runs_dir: Path) -> dict[str, Any]:
+def read_optional_overlay(path: Path) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    if not path.exists():
+        return None, None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return None, {
+            "error": f"{path.name} is not valid JSON",
+            "detail": str(exc),
+            "path": str(path),
+        }
+    if not isinstance(data, dict):
+        return None, {
+            "error": f"{path.name} must contain a JSON object",
+            "path": str(path),
+        }
+    return data, None
+
+
+def collect_spec_overlay(runs_dir: Path) -> tuple[int, dict[str, Any]]:
     out: dict[str, Any] = {}
 
     health_path = runs_dir / "graph_health_overlay.json"
-    if health_path.exists():
-        data = json.loads(health_path.read_text())
+    data, error = read_optional_overlay(health_path)
+    if error is not None:
+        return HTTPStatus.UNPROCESSABLE_ENTITY, error
+    if data is not None:
         projection = data.get("viewer_projection", {})
         named_filters = projection.get("named_filters", {})
         spec_filters: dict[str, list[str]] = {}
@@ -284,8 +314,10 @@ def collect_spec_overlay(runs_dir: Path) -> dict[str, Any]:
             }
 
     trace_path = runs_dir / "spec_trace_projection.json"
-    if trace_path.exists():
-        data = json.loads(trace_path.read_text())
+    data, error = read_optional_overlay(trace_path)
+    if error is not None:
+        return HTTPStatus.UNPROCESSABLE_ENTITY, error
+    if data is not None:
         projection = data.get("viewer_projection", {})
         for state_map_key in ("implementation_state", "freshness", "acceptance_coverage"):
             state_map = projection.get(state_map_key, {})
@@ -306,8 +338,10 @@ def collect_spec_overlay(runs_dir: Path) -> dict[str, Any]:
             out.setdefault(spec_id, {}).setdefault("implementation", {})["filters"] = filters
 
     evidence_path = runs_dir / "evidence_plane_overlay.json"
-    if evidence_path.exists():
-        data = json.loads(evidence_path.read_text())
+    data, error = read_optional_overlay(evidence_path)
+    if error is not None:
+        return HTTPStatus.UNPROCESSABLE_ENTITY, error
+    if data is not None:
         projection = data.get("viewer_projection", {})
         for state_map_key in (
             "chain_status",
@@ -333,4 +367,4 @@ def collect_spec_overlay(runs_dir: Path) -> dict[str, Any]:
         for spec_id, filters in evidence_filters.items():
             out.setdefault(spec_id, {}).setdefault("evidence", {})["filters"] = filters
 
-    return {"overlays": out}
+    return HTTPStatus.OK, {"overlays": out}
