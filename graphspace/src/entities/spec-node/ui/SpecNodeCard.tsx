@@ -1,12 +1,19 @@
 import type { SpecNode } from "../model/types";
 import styles from "./SpecNodeCard.module.css";
 
+type LifecycleBadge = {
+  packageKey: string;
+  status: string;
+  tone: "draft" | "ready" | "blocked" | "unknown";
+};
+
 type Props = {
   node: SpecNode;
   selected?: boolean;
+  lifecycleBadge?: LifecycleBadge | null;
 };
 
-export function SpecNodeCard({ node, selected = false }: Props) {
+export function SpecNodeCard({ node, selected = false, lifecycleBadge = null }: Props) {
   const maturity = typeof node.maturity === "number" ? Math.round(node.maturity * 100) : null;
   const gapLabel = node.gap_count === 1 ? "1 gap" : `${node.gap_count} gaps`;
 
@@ -25,6 +32,16 @@ export function SpecNodeCard({ node, selected = false }: Props) {
         <span>{gapLabel}</span>
         {maturity !== null ? <span>{maturity}%</span> : null}
       </div>
+      {lifecycleBadge ? (
+        <div className={styles.lifecycle}>
+          <span
+            className={`${styles.lifecycleBadge} ${styles[`lifecycleBadge-${lifecycleBadge.tone}`]}`}
+            title={lifecycleBadge.packageKey}
+          >
+            {lifecycleBadge.status}
+          </span>
+        </div>
+      ) : null}
     </article>
   );
 }

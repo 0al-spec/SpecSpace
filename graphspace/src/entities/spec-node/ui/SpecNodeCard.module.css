@@ -57,3 +57,48 @@
   margin-top: 14px;
   color: var(--gs-muted-2);
 }
+
+.lifecycle {
+  display: flex;
+  margin-top: 10px;
+}
+
+.lifecycleBadge {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 3px 6px;
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper-2);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lifecycleBadge-draft {
+  border-color: color-mix(in srgb, var(--gs-warn) 35%, var(--gs-rule-soft));
+  color: var(--gs-warn);
+  background: color-mix(in srgb, var(--gs-warn) 11%, var(--gs-panel));
+}
+
+.lifecycleBadge-ready {
+  border-color: color-mix(in srgb, var(--gs-ok) 35%, var(--gs-rule-soft));
+  color: var(--gs-ok);
+  background: color-mix(in srgb, var(--gs-ok) 10%, var(--gs-panel));
+}
+
+.lifecycleBadge-blocked {
+  border-color: color-mix(in srgb, var(--gs-danger) 38%, var(--gs-rule-soft));
+  color: var(--gs-danger);
+  background: color-mix(in srgb, var(--gs-danger) 10%, var(--gs-panel));
+}
+
+.lifecycleBadge-unknown {
+  border-color: var(--gs-rule-soft);
+  color: var(--gs-muted);
+  background: var(--gs-paper-2);
+}
