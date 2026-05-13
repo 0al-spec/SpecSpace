@@ -1,4 +1,5 @@
 import { useState, type HTMLAttributes, type ReactNode } from "react";
+import { SpecNodeStatusBadge } from "@/entities/spec-node";
 import {
   buildSpecInspectorModel,
   useSpecNodeDetail,
@@ -42,7 +43,7 @@ export function SpecInspector({
       <header className={styles.header}>
         <div className={styles.identity}>
           <span className={styles.id}>{node.node_id}</span>
-          <span className={styles.status}>{node.status}</span>
+          <SpecNodeStatusBadge status={node.status} />
         </div>
         <button type="button" className={styles.closeButton} onClick={onClose}>
           Close
