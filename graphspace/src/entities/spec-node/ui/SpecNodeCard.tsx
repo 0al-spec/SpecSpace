@@ -51,7 +51,7 @@ export function SpecNodeCard({
   };
   const cardClassName = [
     styles.card,
-    styles[variant],
+    variant === "preview" ? styles.preview : "",
     selected ? styles.selected : "",
     className ?? "",
   ]
