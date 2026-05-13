@@ -1,5 +1,5 @@
 import { useState, type HTMLAttributes, type ReactNode } from "react";
-import { getSpecNodeStatusTone } from "@/entities/spec-node";
+import { SpecNodeStatusBadge } from "@/entities/spec-node";
 import {
   buildSpecInspectorModel,
   useSpecNodeDetail,
@@ -30,7 +30,6 @@ export function SpecInspector({
     detailState.kind === "ok" ? detailState.data.data : null;
   const model = buildSpecInspectorModel(selection, detail);
   const { node } = model;
-  const statusTone = getSpecNodeStatusTone(node.status);
   const cls = [styles.panel, className].filter(Boolean).join(" ");
   const copyFilePath = () => {
     void navigator.clipboard.writeText(model.filePath).then(() => {
@@ -44,9 +43,7 @@ export function SpecInspector({
       <header className={styles.header}>
         <div className={styles.identity}>
           <span className={styles.id}>{node.node_id}</span>
-          <span className={`${styles.status} ${styles[`status-${statusTone}`]}`}>
-            {node.status}
-          </span>
+          <SpecNodeStatusBadge status={node.status} />
         </div>
         <button type="button" className={styles.closeButton} onClick={onClose}>
           Close
