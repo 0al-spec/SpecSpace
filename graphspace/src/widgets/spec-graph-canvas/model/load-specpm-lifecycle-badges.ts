@@ -4,12 +4,12 @@ import {
 } from "@/entities/specpm-lifecycle";
 import {
   parseSpecPMLifecycle,
-  type ParseResult,
+  type SpecPMLifecycleParseResult,
   type SpecPMLifecycle,
 } from "@/shared/specpm-lifecycle-contract";
 
 type SpecPMLifecycleParseFailure = Exclude<
-  ParseResult<SpecPMLifecycle>,
+  SpecPMLifecycleParseResult<SpecPMLifecycle>,
   { kind: "ok" }
 >;
 
