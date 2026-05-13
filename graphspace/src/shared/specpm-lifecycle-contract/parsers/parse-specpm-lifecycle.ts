@@ -3,13 +3,13 @@ import {
   specpmLifecycleSchema,
   type SpecPMLifecycle,
 } from "../schemas/specpm-lifecycle";
-import type { ParseResult } from "./parse";
+import type { SpecPMLifecycleParseResult } from "./parse";
 
 const parseIssues = (error: z.ZodError): z.ZodIssue[] => error.issues;
 
 export const parseSpecPMLifecycle = (
   raw: unknown,
-): ParseResult<SpecPMLifecycle> => {
+): SpecPMLifecycleParseResult<SpecPMLifecycle> => {
   const result = specpmLifecycleSchema.safeParse(raw);
   if (!result.success) {
     return { kind: "parse-error", issues: parseIssues(result.error), raw };
