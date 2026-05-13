@@ -13,6 +13,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import type { SpecNode } from "@/entities/spec-node";
 import { SpecNodeCard } from "@/entities/spec-node";
+import type { SpecPMLifecycleBadge } from "@/entities/specpm-lifecycle";
 import { getSpecGraphNodeFocusPoint } from "../model/focus-point";
 import {
   buildSpecNodeHoverPreview,
@@ -30,6 +31,7 @@ type Props = {
   state: UseSpecGraphState;
   className?: string;
   selectedNodeId?: string | null;
+  lifecycleBadgesByNode?: ReadonlyMap<string, SpecPMLifecycleBadge>;
   onSelectedNodeIdChange?: (nodeId: string | null) => void;
   onSelectionChange?: (selection: SpecGraphSelection | null) => void;
 };
@@ -66,7 +68,11 @@ function SpecFlowNodeView({ data, selected }: NodeProps<SpecFlowNode>) {
       onClick={data.onHoverPreviewClear}
     >
       <Handle type="target" position={Position.Left} className={styles.handle} />
-      <SpecNodeCard node={data.spec} selected={selected} />
+      <SpecNodeCard
+        node={data.spec}
+        selected={selected}
+        lifecycleBadge={data.lifecycleBadge}
+      />
       <Handle type="source" position={Position.Right} className={styles.handle} />
     </div>
   );
@@ -80,6 +86,7 @@ export function SpecGraphCanvas({
   state,
   className,
   selectedNodeId,
+  lifecycleBadgesByNode,
   onSelectedNodeIdChange,
   onSelectionChange,
 }: Props) {
@@ -89,6 +96,7 @@ export function SpecGraphCanvas({
         state={state}
         className={className}
         selectedNodeId={selectedNodeId}
+        lifecycleBadgesByNode={lifecycleBadgesByNode}
         onSelectedNodeIdChange={onSelectedNodeIdChange}
         onSelectionChange={onSelectionChange}
       />
@@ -100,6 +108,7 @@ function SpecGraphCanvasInner({
   state,
   className,
   selectedNodeId,
+  lifecycleBadgesByNode,
   onSelectedNodeIdChange,
   onSelectionChange,
 }: Props) {
@@ -150,11 +159,18 @@ function SpecGraphCanvasInner({
         selected: node.id === activeSelectedNodeId,
         data: {
           ...node.data,
+          lifecycleBadge: lifecycleBadgesByNode?.get(node.id) ?? null,
           onHoverPreviewIntent: showHoverPreviewAfterDelay,
           onHoverPreviewClear: clearHoverPreview,
         },
       })),
-    [baseNodes, activeSelectedNodeId, clearHoverPreview, showHoverPreviewAfterDelay],
+    [
+      activeSelectedNodeId,
+      baseNodes,
+      clearHoverPreview,
+      lifecycleBadgesByNode,
+      showHoverPreviewAfterDelay,
+    ],
   );
   const selection = useMemo(
     () => buildSpecGraphSelection(state.data, activeSelectedNodeId ?? null),
