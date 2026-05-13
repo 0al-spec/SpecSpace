@@ -68,7 +68,13 @@ describe("buildSpecNodeHoverPreview", () => {
 
   it("normalizes empty objective values and gap labels", () => {
     expect(extractSpecNodeObjective({ id: "SG-SPEC-0001", specification: {} })).toBeNull();
-    expect(buildSpecNodeHoverPreview(node({ gap_count: 0 })).gapLabel).toBe("No gaps");
+    expect(
+      extractSpecNodeObjective({
+        id: "SG-SPEC-0001",
+        specification: { objective: { text: "not a string" } },
+      }),
+    ).toBeNull();
+    expect(buildSpecNodeHoverPreview(node({ gap_count: 0 })).gapLabel).toBe("0 gaps");
     expect(buildSpecNodeHoverPreview(node({ gap_count: 1 })).gapLabel).toBe("1 gap");
   });
 });
@@ -113,5 +119,15 @@ describe("placeSpecNodeHoverPreview", () => {
         size,
       ),
     ).toEqual({ left: 108, top: 260, placement: "top" });
+  });
+
+  it("keeps coordinates non-negative when the viewport is smaller than the card", () => {
+    expect(
+      placeSpecNodeHoverPreview(
+        { left: 20, right: 240, top: 18, bottom: 130, width: 220, height: 112 },
+        { width: 240, height: 120 },
+        size,
+      ),
+    ).toEqual({ left: 12, top: 12, placement: "top" });
   });
 });

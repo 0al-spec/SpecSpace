@@ -55,13 +55,15 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
     : null;
 
 const asNonEmptyString = (value: unknown): string | null => {
-  if (value == null) return null;
-  const text = String(value).trim();
+  if (typeof value !== "string") return null;
+  const text = value.trim();
   return text.length > 0 ? text : null;
 };
 
-const clamp = (value: number, min: number, max: number): number =>
-  Math.min(Math.max(value, min), max);
+const clamp = (value: number, min: number, max: number): number => {
+  const boundedMax = Math.max(min, max);
+  return Math.min(Math.max(value, min), boundedMax);
+};
 
 function truncateObjective(value: string): string {
   if (value.length <= OBJECTIVE_PREVIEW_LIMIT) return value;
@@ -74,7 +76,6 @@ function maturityPercent(value: SpecNode["maturity"]): number | null {
 }
 
 function gapLabel(count: number): string {
-  if (count === 0) return "No gaps";
   if (count === 1) return "1 gap";
   return `${count} gaps`;
 }
