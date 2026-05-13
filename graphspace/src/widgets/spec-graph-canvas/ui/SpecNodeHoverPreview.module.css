@@ -1,8 +1,8 @@
 .card {
   position: fixed;
   z-index: 40;
-  width: 286px;
-  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  width: min(286px, calc(100vw - 24px));
   padding: 12px 14px 13px;
   pointer-events: none;
   border: 1px solid var(--gs-rule);
