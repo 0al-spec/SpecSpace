@@ -1213,7 +1213,8 @@ Intent: extend the SpecPM viewer slice built in Phase 6 to cover the full upstre
   - All 5 stage columns render correctly; missing import_handoff artifact shows `available: false` without error.
   - New status vocabulary renders with correct tone colours.
 
-### CTXB-P8-T2 — SpecPM lifecycle badge on SpecNode
+### ✅ CTXB-P8-T2 — SpecPM lifecycle badge on SpecNode
+- **Status:** DONE (2026-05-13, PASS)
 - **Description:** Show the current SpecPM lifecycle status directly on spec nodes in the graph canvas. A small pill badge (e.g. `draft_materialized`, `ready_for_review`, `blocked`) appears on the node, sourced from the lifecycle read-model. The badge updates when the lifecycle panel is refreshed. Nodes with no lifecycle entry show no badge.
 - **Priority:** P3
 - **Dependencies:** CTXB-P8-T0, CTXB-P6-T4
@@ -1302,6 +1303,18 @@ Intent: reduce friction in daily spec-authoring and review workflows by improvin
   - Tooltip is not shown during drag operations.
   - Tooltip positioning stays within viewport bounds (flips if near edges).
   - Clicking through the tooltip selects the node normally.
+
+### ✅ CTXB-P9-T7 — SpecNode visual signal unification
+- **Status:** DONE (2026-05-13, PASS)
+- **Description:** Unify SpecNode status and maturity visual signals across GraphSpace canvas nodes, hover previews, Sidebar navigator rows, and Spec Inspector. The hover preview should read as a richer version of the node card, reserve space for asynchronously loaded objective text, and avoid layout jumps.
+- **Priority:** P3
+- **Dependencies:** CTXB-P9-T6, CTXB-P8-T2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** shared SpecNode status/maturity tone model; updated `SpecNodeCard`; hover preview, navigator, and inspector status tone wiring
+- **Acceptance Criteria:**
+  - Canvas nodes, hover previews, navigator rows, and Spec Inspector use the same status tone vocabulary for `linked`, `reviewed`, and `frozen`.
+  - Maturity bars indicate weak, medium, and strong specs while keeping percentage labels right-aligned.
+  - Hover preview uses the SpecNode card visual language and keeps stable height while objective text loads.
 
 ## Phase 10: GraphSpace SpecGraph Canvas Migration
 
