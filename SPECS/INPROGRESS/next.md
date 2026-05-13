@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P9-T6` — Hover preview card on spec nodes
+**Current Task:** `CTXB-P8-T2` — SpecPM lifecycle badge on SpecNode
 
 ## Recently Archived
+- `CTXB-P9-T6` — Hover preview card on spec nodes (PASS, 2026-05-13)
 - `CTXB-P10-T12` — Keep selected navigator row visible (PASS, 2026-05-13)
 - `CTXB-P10-T11` — Focus canvas on selected SpecGraph node (PASS, 2026-05-13)
 - `CTXB-P10-T10` — Add Sidebar navigator signal filters (PASS, 2026-05-13)
@@ -30,10 +31,12 @@
 - Phase 10 is complete through the current Sidebar/canvas utility layout stack.
 
 ### SpecPM Integration
-- `CTXB-P8-T2` — SpecPM lifecycle badge on SpecNode cards (P3, no deps)
+- `CTXB-P8-T2` — SpecPM lifecycle badge on SpecNode cards (P3, current)
+- Implementation target is the GraphSpace rewrite (`graphspace/`); legacy `viewer/app`
+  paths in the original Workplan entry are historical.
 
 ### Graph UX
-- `CTXB-P9-T6` — Hover preview card on spec nodes (P3, current)
+- `CTXB-P9-T6` — Hover preview card on spec nodes (PASS, 2026-05-13)
 
 ### Technical Debt (Phase 7, pending)
 - `CTXB-P7-T2` — Split server.py into focused modules (P2, depends on T1 ✅)

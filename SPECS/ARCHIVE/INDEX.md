@@ -1,6 +1,6 @@
 # Tasks Archive
 
-**Last Updated:** 2026-04-12 (CTXB-P7-T14)
+**Last Updated:** 2026-05-13 (CTXB-P9-T6)
 
 ## Archived Tasks
 
@@ -73,6 +73,7 @@
 | CTXB-P7-T8 | [CTXB-P7-T8_Add_rmtree_Safety_Marker/](CTXB-P7-T8_Add_rmtree_Safety_Marker/) | 2026-04-12 | PASS |
 | CTXB-P7-T10 | [CTXB-P7-T10_Add_React_Error_Boundaries/](CTXB-P7-T10_Add_React_Error_Boundaries/) | 2026-04-12 | PASS |
 | CTXB-P7-T14 | [CTXB-P7-T14_Expose_compile_capability/](CTXB-P7-T14_Expose_compile_capability/) | 2026-04-12 | PASS |
+| CTXB-P9-T6 | [CTXB-P9-T6_Hover_preview_card_on_spec_nodes/](CTXB-P9-T6_Hover_preview_card_on_spec_nodes/) | 2026-05-13 | PASS |
 
 ## Historical Artifacts
 
@@ -105,6 +106,7 @@
 
 | Date | Task ID | Action |
 |------|---------|--------|
+| 2026-05-13 | CTXB-P9-T6 | Archived Hover_preview_card_on_spec_nodes (PASS) |
 | 2026-03-22 | CTXB-P1-T1 | Archived Define_Canonical_Conversation_And_Lineage_Schema (PASS) |
 | 2026-03-22 | CTXB-P1-T1 | Archived REVIEW_canonical_schema report |
 | 2026-03-22 | CTXB-P1-T2 | Archived Normalize_Imported_Conversations_Into_Graph_Roots_Or_Linked_Nodes (PASS) |

@@ -7,7 +7,7 @@ Hover preview card for GraphSpace SpecGraph canvas nodes.
 ## Automated Checks
 
 - `npm test -- src/widgets/spec-graph-canvas/__tests__/hover-preview.spec.ts` - pass
-- `npm test` - pass, 20 files / 143 tests
+- `npm test` - pass, 20 files / 144 tests
 - `npm run build` - pass
 - `npm run lint:fsd` - pass with the existing 8 `insignificant-slice` warnings
 

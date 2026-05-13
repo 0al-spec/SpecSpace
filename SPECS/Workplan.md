@@ -1290,7 +1290,8 @@ Intent: reduce friction in daily spec-authoring and review workflows by improvin
   - Counts are accurate and update when the graph reloads.
   - The section is collapsible and remembers its state in sessionStorage.
 
-### CTXB-P9-T6 — Hover preview card on spec nodes
+### ✅ CTXB-P9-T6 — Hover preview card on spec nodes
+- **Status:** DONE (2026-05-13, PASS)
 - **Description:** Show a lightweight tooltip when hovering a spec node for more than 300ms. The tooltip shows: title, objective (first 80 chars), status badge, and maturity bar. It disappears on mouse leave or click. The tooltip does not interfere with drag or edge interactions.
 - **Priority:** P3
 - **Dependencies:** CTXB-P6-T4
