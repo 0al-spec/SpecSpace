@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   Controls,
@@ -8,9 +8,11 @@ import {
   ReactFlow,
   ReactFlowProvider,
   type NodeProps,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { SpecNodeCard } from "@/entities/spec-node";
+import { getSpecGraphNodeFocusPoint } from "../model/focus-point";
 import { buildSpecGraphSelection, type SpecGraphSelection } from "../model/selection";
 import { toSpecGraphFlowElements, type SpecFlowNode } from "../model/to-flow-elements";
 import type { UseSpecGraphState } from "../model/use-spec-graph";
@@ -45,8 +47,34 @@ export function SpecGraphCanvas({
   onSelectedNodeIdChange,
   onSelectionChange,
 }: Props) {
+  return (
+    <ReactFlowProvider>
+      <SpecGraphCanvasInner
+        state={state}
+        className={className}
+        selectedNodeId={selectedNodeId}
+        onSelectedNodeIdChange={onSelectedNodeIdChange}
+        onSelectionChange={onSelectionChange}
+      />
+    </ReactFlowProvider>
+  );
+}
+
+function SpecGraphCanvasInner({
+  state,
+  className,
+  selectedNodeId,
+  onSelectedNodeIdChange,
+  onSelectionChange,
+}: Props) {
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
+  const {
+    getNode,
+    setCenter,
+    viewportInitialized,
+  } = useReactFlow<SpecFlowNode>();
   const activeSelectedNodeId = selectedNodeId === undefined ? internalSelectedNodeId : selectedNodeId;
+  const focusedNodeIdRef = useRef<string | null>(null);
   const { nodes: baseNodes, edges } = useMemo(
     () => toSpecGraphFlowElements(state.data),
     [state.data],
@@ -80,6 +108,25 @@ export function SpecGraphCanvas({
     if (activeSelectedNodeId && !selection) updateSelectedNodeId(null);
   }, [activeSelectedNodeId, selection, updateSelectedNodeId]);
 
+  useEffect(() => {
+    if (!activeSelectedNodeId) {
+      focusedNodeIdRef.current = null;
+      return;
+    }
+    if (!viewportInitialized || focusedNodeIdRef.current === activeSelectedNodeId) return;
+
+    const selectedNode =
+      getNode(activeSelectedNodeId) ??
+      baseNodes.find((node) => node.id === activeSelectedNodeId);
+    if (!selectedNode) return;
+
+    const focusPoint = getSpecGraphNodeFocusPoint(selectedNode);
+    focusedNodeIdRef.current = activeSelectedNodeId;
+    void setCenter(focusPoint.x, focusPoint.y, {
+      duration: 360,
+    });
+  }, [activeSelectedNodeId, baseNodes, getNode, setCenter, viewportInitialized]);
+
   return (
     <section
       className={classNames}
@@ -87,38 +134,36 @@ export function SpecGraphCanvas({
       data-testid="spec-graph-canvas"
       data-source={state.source}
     >
-      <ReactFlowProvider>
-        <ReactFlow<SpecFlowNode>
-          className={styles.flow}
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          fitView
-          defaultEdgeOptions={{ type: "smoothstep" }}
-          minZoom={0.08}
-          maxZoom={1.6}
-          nodesDraggable={false}
-          onNodeClick={(_, node) => updateSelectedNodeId(node.id)}
-          onPaneClick={() => updateSelectedNodeId(null)}
-        >
-          <Background gap={28} size={1} />
-          <MiniMap
-            ariaLabel="SpecGraph minimap"
-            className={styles.miniMap}
-            position="bottom-left"
-            pannable
-            zoomable
-            nodeBorderRadius={0}
-            nodeColor="var(--gs-paper-3)"
-            nodeStrokeColor="var(--gs-muted-2)"
-            nodeStrokeWidth={1}
-            maskColor="rgba(244, 242, 237, 0.68)"
-            maskStrokeColor="var(--gs-accent)"
-            maskStrokeWidth={1}
-          />
-          <Controls showInteractive={false} />
-        </ReactFlow>
-      </ReactFlowProvider>
+      <ReactFlow<SpecFlowNode>
+        className={styles.flow}
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        fitView
+        defaultEdgeOptions={{ type: "smoothstep" }}
+        minZoom={0.08}
+        maxZoom={1.6}
+        nodesDraggable={false}
+        onNodeClick={(_, node) => updateSelectedNodeId(node.id)}
+        onPaneClick={() => updateSelectedNodeId(null)}
+      >
+        <Background gap={28} size={1} />
+        <MiniMap
+          ariaLabel="SpecGraph minimap"
+          className={styles.miniMap}
+          position="bottom-left"
+          pannable
+          zoomable
+          nodeBorderRadius={0}
+          nodeColor="var(--gs-paper-3)"
+          nodeStrokeColor="var(--gs-muted-2)"
+          nodeStrokeWidth={1}
+          maskColor="rgba(244, 242, 237, 0.68)"
+          maskStrokeColor="var(--gs-accent)"
+          maskStrokeWidth={1}
+        />
+        <Controls showInteractive={false} />
+      </ReactFlow>
     </section>
   );
 }
