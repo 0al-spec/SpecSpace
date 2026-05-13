@@ -170,7 +170,12 @@ export function ViewerPage() {
     <div className={styles.root}>
       <SpecGraphCanvas
         state={specGraphState}
-        className={styles.canvasLayer}
+        className={[
+          styles.canvasLayer,
+          sidebarOpen ? styles.canvasLayerWithSidebar : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         selectedNodeId={selectedSpecNodeId}
         onSelectedNodeIdChange={setSelectedSpecNodeId}
         onSelectionChange={setSelectedSpec}
