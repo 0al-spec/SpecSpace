@@ -35,7 +35,7 @@
 | Focused watcher tests | `python -m pytest tests/test_specgraph.py::SpecWatcherUnitTests tests/test_specgraph.py::SpecWatchEndpointTests tests/test_runs_watcher.py` | 12 passed |
 | Broader SpecGraph tests | `python -m pytest tests/test_specgraph.py tests/test_runs_watcher.py tests/test_exploration_preview.py` | 66 passed |
 | Python lint | `make lint` | Passed |
-| Full backend tests | `python -m pytest tests/` | 481 passed |
+| Full backend tests | `python -m pytest tests/` | 488 passed |
 
 ---
 
@@ -44,7 +44,7 @@
 - Added `viewer/sse.py` for shared SSE response headers, frame writes, and standard change-event streaming.
 - Replaced duplicated `handle_spec_watch` and `handle_runs_watch` streaming loops with `send_sse_headers()` and `stream_change_events()`.
 - Kept route-level configuration checks and HTTP error responses in `ViewerHandler`.
-- Reduced `viewer/server.py` from 1654 lines to 1598 lines in this slice.
+- Reduced `viewer/server.py` from 1683 lines to 1627 lines in this slice after rebasing onto the watcher module base.
 
 ## Residual Work
 
