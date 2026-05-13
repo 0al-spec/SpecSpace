@@ -14,7 +14,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if __package__ in {None, ""}:  # pragma: no cover - allows running `python viewer/server.py`
@@ -30,6 +30,7 @@ from viewer import specgraph_surfaces  # noqa: E402
 from viewer import supervisor_build  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
 from viewer.request_body import read_json_object_request_body  # noqa: E402
+from viewer.request_query import query_bool, query_int, query_params, query_value  # noqa: E402
 from viewer.routes import route_for  # noqa: E402
 from viewer.sse import send_sse_headers, stream_change_events  # noqa: E402
 from viewer.watchers import RunsWatcher, SpecWatcher  # noqa: E402
@@ -497,13 +498,13 @@ class ViewerHandler(BaseHTTPRequestHandler):
             )
             return
 
-        qs = parse_qs(parsed.query or "")
+        qs = query_params(parsed)
         try:
-            limit = int(qs.get("limit", ["50"])[0])
+            limit = int(query_value(qs, "limit", "50"))
         except (TypeError, ValueError):
             limit = 50
         limit = max(1, min(limit, 500))
-        since = qs.get("since", [None])[0]
+        since = query_value(qs, "since", None)
         since_iso = since if isinstance(since, str) and since else None
 
         json_response(
@@ -527,12 +528,12 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
             )
             return
-        qs = parse_qs(parsed.query or "")
+        qs = query_params(parsed)
         status, payload = specgraph_surfaces.read_spec_activity(
             spec_dir=self.server.spec_dir,
             runs_dir=self._runs_dir(),
-            limit_raw=qs.get("limit", [None])[0],
-            since_raw=qs.get("since", [None])[0],
+            limit_raw=query_value(qs, "limit", None),
+            since_raw=query_value(qs, "since", None),
         )
         json_response(self, status, payload)
 
@@ -552,11 +553,11 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
             )
             return
-        qs = parse_qs(parsed.query or "")
+        qs = query_params(parsed)
         status, payload = specgraph_surfaces.read_implementation_work_index(
             spec_dir=self.server.spec_dir,
             runs_dir=self._runs_dir(),
-            limit_raw=qs.get("limit", ["50"])[0],
+            limit_raw=query_value(qs, "limit", "50"),
         )
         json_response(self, status, payload)
 
@@ -663,8 +664,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 {"error": "Exploration surfaces not configured. Start the server with --specgraph-dir."},
             )
             return
-        params = parse_qs(parsed.query)
-        status, payload = _read_proposal_markdown(self.server.specgraph_dir, params.get("file", [""])[0])
+        params = query_params(parsed)
+        status, payload = _read_proposal_markdown(self.server.specgraph_dir, query_value(params, "file", ""))
         json_response(self, status, payload)
 
     def handle_proposal_spec_trace_index_get(self) -> None:
@@ -763,8 +764,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 {"error": "Spec graph not configured. Start the server with --spec-dir."},
             )
             return
-        params = parse_qs(parsed.query)
-        node_id = params.get("id", [""])[0]
+        params = query_params(parsed)
+        node_id = query_value(params, "id", "")
         if not node_id:
             json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing required query parameter: id"})
             return
@@ -790,33 +791,18 @@ class ViewerHandler(BaseHTTPRequestHandler):
             )
             return
 
-        params = parse_qs(parsed.query)
-        root_id = params.get("root", [""])[0].strip()
+        params = query_params(parsed)
+        root_id = query_value(params, "root", "").strip()
         if not root_id:
             json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing required query parameter: root"})
             return
 
-        def _bool_param(name: str, default: bool) -> bool:
-            val = params.get(name, [""])[0]
-            if val == "1" or val.lower() == "true":
-                return True
-            if val == "0" or val.lower() == "false":
-                return False
-            return default
-
-        def _int_param(name: str, default: int, lo: int, hi: int) -> int:
-            try:
-                v = int(params.get(name, [""])[0])
-                return max(lo, min(hi, v))
-            except (ValueError, IndexError):
-                return default
-
         options = spec_compile.CompileOptions(
-            max_depth=_int_param("depth", 6, 1, 6),
-            include_objective=_bool_param("objective", True),
-            include_acceptance=_bool_param("acceptance", True),
-            include_depends_on_refs=_bool_param("deps", True),
-            include_prompt=_bool_param("prompt", False),
+            max_depth=query_int(params, "depth", 6, 1, 6),
+            include_objective=query_bool(params, "objective", True),
+            include_acceptance=query_bool(params, "acceptance", True),
+            include_depends_on_refs=query_bool(params, "deps", True),
+            include_prompt=query_bool(params, "prompt", False),
         )
 
         nodes, load_errors = specgraph.load_spec_nodes(self.server.spec_dir)
@@ -846,21 +832,21 @@ class ViewerHandler(BaseHTTPRequestHandler):
         json_response(self, HTTPStatus.OK, collect_graph_api(self.server.dialog_dir))
 
     def handle_get_conversation(self, parsed) -> None:
-        params = parse_qs(parsed.query)
-        conversation_id = params.get("conversation_id", [""])[0]
+        params = query_params(parsed)
+        conversation_id = query_value(params, "conversation_id", "")
         status, payload = collect_conversation_api(self.server.dialog_dir, conversation_id)
         json_response(self, status, payload)
 
     def handle_get_checkpoint(self, parsed) -> None:
-        params = parse_qs(parsed.query)
-        conversation_id = params.get("conversation_id", [""])[0]
-        message_id = params.get("message_id", [""])[0]
+        params = query_params(parsed)
+        conversation_id = query_value(params, "conversation_id", "")
+        message_id = query_value(params, "message_id", "")
         status, payload = collect_checkpoint_api(self.server.dialog_dir, conversation_id, message_id)
         json_response(self, status, payload)
 
     def handle_get_file(self, parsed) -> None:
-        params = parse_qs(parsed.query)
-        name = params.get("name", [""])[0]
+        params = query_params(parsed)
+        name = query_value(params, "name", "")
         filename_errors = schema.validate_file_name(name)
         if filename_errors:
             json_response(
@@ -979,8 +965,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
         )
 
     def handle_delete_file(self, parsed) -> None:
-        params = parse_qs(parsed.query)
-        name = params.get("name", [""])[0]
+        params = query_params(parsed)
+        name = query_value(params, "name", "")
         filename_errors = schema.validate_file_name(name)
         if filename_errors:
             json_response(
