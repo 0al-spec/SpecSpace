@@ -86,7 +86,7 @@ def read_specpm_artifact_response(specgraph_dir: Path, filename: str) -> tuple[H
 
 
 def exploration_preview_path(specgraph_dir: Path) -> Path:
-    return specgraph_dir / "runs" / "exploration_preview.json"
+    return specpm_runs_path(specgraph_dir, "exploration_preview.json")
 
 
 def read_exploration_preview_response(specgraph_dir: Path) -> tuple[HTTPStatus, dict[str, Any]]:
@@ -104,6 +104,15 @@ def read_exploration_preview_response(specgraph_dir: Path) -> tuple[HTTPStatus, 
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": f"Failed to read exploration preview: {exc}", "path": str(path)}
+    if not isinstance(data, dict):
+        return (
+            HTTPStatus.UNPROCESSABLE_ENTITY,
+            {
+                "error": "Exploration preview artifact must be a JSON object",
+                "path": str(path),
+                "artifact_type": type(data).__name__,
+            },
+        )
     if (
         data.get("artifact_kind") != "exploration_preview"
         or data.get("canonical_mutations_allowed") is not False

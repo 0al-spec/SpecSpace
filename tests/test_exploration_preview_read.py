@@ -41,6 +41,19 @@ class ExplorationPreviewReadTests(unittest.TestCase):
         self.assertEqual(status, HTTPStatus.UNPROCESSABLE_ENTITY)
         self.assertIn("Failed to read exploration preview", payload["error"])
 
+    def test_non_object_json_returns_422(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            specgraph_dir = Path(tmp) / "specgraph"
+            runs = specgraph_dir / "runs"
+            runs.mkdir(parents=True)
+            (runs / "exploration_preview.json").write_text(json.dumps([]), encoding="utf-8")
+
+            status, payload = specpm.read_exploration_preview_response(specgraph_dir)
+
+        self.assertEqual(status, HTTPStatus.UNPROCESSABLE_ENTITY)
+        self.assertEqual(payload["error"], "Exploration preview artifact must be a JSON object")
+        self.assertEqual(payload["artifact_type"], "list")
+
     def test_boundary_failure_returns_structured_fields(self) -> None:
         bad_artifact = dict(VALID_ARTIFACT, tracked_artifacts_written=True)
         with tempfile.TemporaryDirectory() as tmp:
