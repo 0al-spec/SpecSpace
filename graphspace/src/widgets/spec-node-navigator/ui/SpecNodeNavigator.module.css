@@ -208,6 +208,36 @@
   color: var(--gs-muted);
 }
 
+.status {
+  padding: 2px 5px;
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper-2);
+}
+
+.status-linked {
+  border-color: color-mix(in oklab, var(--gs-accent) 48%, var(--gs-rule-soft));
+  background: var(--gs-accent-soft);
+  color: var(--gs-accent);
+}
+
+.status-reviewed {
+  border-color: color-mix(in oklab, var(--gs-ok) 48%, var(--gs-rule-soft));
+  background: color-mix(in oklab, var(--gs-ok) 10%, white);
+  color: var(--gs-ok);
+}
+
+.status-frozen {
+  border-color: color-mix(in oklab, var(--gs-muted-2) 42%, var(--gs-rule-soft));
+  background: color-mix(in oklab, var(--gs-muted-2) 11%, white);
+  color: var(--gs-muted);
+}
+
+.status-unknown {
+  border-color: var(--gs-rule-soft);
+  background: var(--gs-paper-2);
+  color: var(--gs-muted);
+}
+
 .nodeTitle {
   min-width: 0;
   overflow: hidden;
