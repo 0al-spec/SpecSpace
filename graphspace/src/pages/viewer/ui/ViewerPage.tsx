@@ -155,18 +155,14 @@ export function ViewerPage() {
     setActiveUtilityPanel((current) => (current === panel ? null : panel));
   };
   const closeUtilityPanel = () => setActiveUtilityPanel(null);
-  const utilityPanelTitle =
+  const utilityPanelDetails =
     activeUtilityPanel === "recent"
-      ? "Recent changes"
+      ? { title: "Recent changes", caption: feedCaption }
       : activeUtilityPanel === "work"
-        ? "Implementation work"
-        : "Proposal trace";
-  const utilityPanelCaption =
-    activeUtilityPanel === "recent"
-      ? feedCaption
-      : activeUtilityPanel === "work"
-        ? workCaption
-        : proposalTraceCaption;
+        ? { title: "Implementation work", caption: workCaption }
+        : activeUtilityPanel === "proposal-trace"
+          ? { title: "Proposal trace", caption: proposalTraceCaption }
+          : null;
 
   return (
     <div className={styles.root}>
@@ -196,7 +192,11 @@ export function ViewerPage() {
             </button>
           </div>
 
-          <PanelBtnRow className={styles.sidebarDock} aria-label="Utility panels">
+          <PanelBtnRow
+            className={styles.sidebarDock}
+            role="toolbar"
+            aria-label="Utility panels"
+          >
             <PanelBtn
               title="Open Recent changes"
               aria-label="Open Recent changes"
@@ -237,7 +237,7 @@ export function ViewerPage() {
         </aside>
       ) : null}
 
-      {activeUtilityPanel ? (
+      {utilityPanelDetails ? (
         <aside
           className={[
             styles.utilityRail,
@@ -245,17 +245,17 @@ export function ViewerPage() {
           ]
             .filter(Boolean)
             .join(" ")}
-          aria-label={utilityPanelTitle}
+          aria-label={utilityPanelDetails.title}
         >
           <div className={styles.utilityHeader}>
             <div>
               <span className={styles.utilityKicker}>Utility panel</span>
-              <h2 className={styles.utilityTitle}>{utilityPanelTitle}</h2>
-              <p className={styles.utilityCaption}>{utilityPanelCaption}</p>
+              <h2 className={styles.utilityTitle}>{utilityPanelDetails.title}</h2>
+              <p className={styles.utilityCaption}>{utilityPanelDetails.caption}</p>
             </div>
             <button
-              title={`Close ${utilityPanelTitle}`}
-              aria-label={`Close ${utilityPanelTitle}`}
+              title={`Close ${utilityPanelDetails.title}`}
+              aria-label={`Close ${utilityPanelDetails.title}`}
               className={styles.closeButton}
               type="button"
               onClick={closeUtilityPanel}

@@ -20,6 +20,7 @@
 ## Suggested Next Tasks
 
 ### GraphSpace SpecGraph Canvas Migration
+- Completed context: `CTXB-P10-T1` graph contract, `CTXB-P10-T2` data model, `CTXB-P10-T3` minimal canvas, `CTXB-P10-T4` deterministic layout, `CTXB-P10-T5` viewer recomposition, `CTXB-P10-T6` node selection, `CTXB-P10-T7` rich inspector.
 - `CTXB-P10-T8` — Add canvas-first panel dock for GraphSpace (P1, current)
 
 ### SpecPM Integration

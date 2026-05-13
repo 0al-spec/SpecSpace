@@ -1,6 +1,20 @@
 .root {
   --viewer-panel-top: var(--gs-space-5);
-  --viewer-sidebar-width: min(380px, calc(100vw - 2 * var(--gs-space-5)));
+  --viewer-panel-edge: var(--gs-space-5);
+  --viewer-panel-gap: var(--gs-space-4);
+  --viewer-sidebar-width: min(380px, calc(100vw - 2 * var(--viewer-panel-edge)));
+  --viewer-inspector-width: min(430px, calc(100vw - 2 * var(--viewer-panel-edge)));
+  --viewer-utility-width: min(430px, calc(100vw - 2 * var(--viewer-panel-edge)));
+  --viewer-utility-with-inspector-width: min(
+    380px,
+    max(
+      0px,
+      calc(
+        100vw - 2 * var(--viewer-panel-edge) - var(--viewer-inspector-width) -
+          var(--viewer-panel-gap)
+      )
+    )
+  );
 
   position: relative;
   height: 100vh;
@@ -44,7 +58,7 @@
 
 .sidebarRail {
   top: var(--viewer-panel-top);
-  left: var(--gs-space-5);
+  left: var(--viewer-panel-edge);
   width: var(--viewer-sidebar-width);
   max-height: calc(100vh - var(--viewer-panel-top) - 72px);
   gap: var(--gs-space-5);
@@ -104,16 +118,19 @@
 
 .utilityRail {
   top: var(--viewer-panel-top);
-  right: var(--gs-space-5);
-  width: min(430px, calc(100vw - 2 * var(--gs-space-5)));
+  right: var(--viewer-panel-edge);
+  width: var(--viewer-utility-width);
   max-height: calc(100vh - var(--viewer-panel-top) - 72px);
   gap: var(--gs-space-4);
   padding: var(--gs-space-5);
 }
 
 .utilityRailWithInspector {
-  right: calc(var(--gs-space-5) + min(430px, calc(100vw - 2 * var(--gs-space-5))) + var(--gs-space-4));
-  width: min(380px, calc(100vw - 2 * var(--gs-space-5)));
+  right: calc(
+    var(--viewer-panel-edge) + var(--viewer-inspector-width) +
+      var(--viewer-panel-gap)
+  );
+  width: var(--viewer-utility-with-inspector-width);
 }
 
 .utilityTitle {
@@ -134,11 +151,11 @@
 
 .inspectorRail {
   position: fixed;
-  right: var(--gs-space-6);
+  right: var(--viewer-panel-edge);
   top: var(--viewer-panel-top);
   bottom: 72px;
   z-index: 4;
-  width: min(430px, calc(100vw - 2 * var(--gs-space-6)));
+  width: var(--viewer-inspector-width);
   height: auto;
   pointer-events: auto;
 }
@@ -218,36 +235,26 @@
 
 @media (min-width: 1360px) {
   .root {
-    --viewer-sidebar-width: min(380px, calc(100vw - 2 * var(--gs-space-7)));
-  }
-
-  .sidebarRail {
-    left: var(--gs-space-7);
+    --viewer-panel-edge: var(--gs-space-7);
+    --viewer-sidebar-width: min(380px, calc(100vw - 2 * var(--viewer-panel-edge)));
   }
 
   .canvasControlDock {
-    left: var(--gs-space-7);
-  }
-
-  .utilityRail {
-    right: var(--gs-space-7);
-  }
-
-  .utilityRailWithInspector {
-    right: calc(var(--gs-space-7) + min(430px, calc(100vw - 2 * var(--gs-space-7))) + var(--gs-space-5));
+    left: var(--viewer-panel-edge);
   }
 }
 
 @media (max-width: 640px) {
   .root {
     --viewer-panel-top: var(--gs-space-4);
-    --viewer-sidebar-width: calc(100vw - 2 * var(--gs-space-4));
+    --viewer-panel-edge: var(--gs-space-4);
+    --viewer-sidebar-width: calc(100vw - 2 * var(--viewer-panel-edge));
   }
 
   .sidebarRail,
   .utilityRail {
-    left: var(--gs-space-4);
-    right: var(--gs-space-4);
+    left: var(--viewer-panel-edge);
+    right: var(--viewer-panel-edge);
     width: auto;
   }
 
@@ -260,11 +267,11 @@
   }
 
   .canvasControlDock {
-    left: var(--gs-space-4);
+    left: var(--viewer-panel-edge);
   }
 
   .utilityRailWithInspector {
-    right: var(--gs-space-4);
+    right: var(--viewer-panel-edge);
     max-height: 24vh;
   }
 
@@ -274,9 +281,9 @@
 
   .inspectorRail {
     top: auto;
-    right: var(--gs-space-4);
+    right: var(--viewer-panel-edge);
     bottom: 86px;
-    left: var(--gs-space-4);
+    left: var(--viewer-panel-edge);
     width: auto;
     max-height: min(75vh, calc(100vh - 128px));
   }
