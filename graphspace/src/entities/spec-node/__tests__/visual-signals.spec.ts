@@ -25,6 +25,7 @@ describe("SpecNode visual signals", () => {
 
     expect(getSpecNodeMaturityTone(0.49)).toBe("weak");
     expect(getSpecNodeMaturityTone(0.5)).toBe("medium");
+    expect(getSpecNodeMaturityTone(0.795)).toBe("medium");
     expect(getSpecNodeMaturityTone(0.8)).toBe("strong");
     expect(getSpecNodeMaturityTone(null)).toBe("unknown");
 

@@ -9,6 +9,11 @@ const STATUS_TONES: Record<string, SpecNodeStatusTone> = {
   frozen: "frozen",
 };
 
+function normalizedMaturityRatio(maturity: SpecNode["maturity"]): number | null {
+  if (typeof maturity !== "number" || !Number.isFinite(maturity)) return null;
+  return Math.min(Math.max(maturity, 0), 1);
+}
+
 export function getSpecNodeStatusTone(
   status: SpecNode["status"] | null | undefined,
 ): SpecNodeStatusTone {
@@ -19,17 +24,17 @@ export function getSpecNodeStatusTone(
 export function getSpecNodeMaturityPercent(
   maturity: SpecNode["maturity"],
 ): number | null {
-  if (typeof maturity !== "number" || !Number.isFinite(maturity)) return null;
-  return Math.min(Math.max(Math.round(maturity * 100), 0), 100);
+  const ratio = normalizedMaturityRatio(maturity);
+  return ratio === null ? null : Math.round(ratio * 100);
 }
 
 export function getSpecNodeMaturityTone(
   maturity: SpecNode["maturity"],
 ): SpecNodeMaturityTone {
-  const percent = getSpecNodeMaturityPercent(maturity);
-  if (percent === null) return "unknown";
-  if (percent < 50) return "weak";
-  if (percent < 80) return "medium";
+  const ratio = normalizedMaturityRatio(maturity);
+  if (ratio === null) return "unknown";
+  if (ratio < 0.5) return "weak";
+  if (ratio < 0.8) return "medium";
   return "strong";
 }
 
