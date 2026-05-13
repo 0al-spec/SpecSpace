@@ -29,6 +29,7 @@ from viewer import export as graph_export  # noqa: E402
 from viewer import hyperprompt_compile  # noqa: E402
 from viewer import specgraph  # noqa: E402
 from viewer import spec_compile  # noqa: E402
+from viewer import workspace_cache  # noqa: E402
 from viewer.export import (  # noqa: E402
     _render_node_markdown,
     build_compile_provenance,
@@ -85,21 +86,13 @@ NON_BLOCKING_GRAPH_ERROR_CODES = conversation_graph.NON_BLOCKING_GRAPH_ERROR_COD
 # Workspace cache — avoids re-reading unchanged JSON files on every request
 # ---------------------------------------------------------------------------
 
+
 def _scan_dir_key(dialog_dir: Path) -> frozenset[tuple[str, float, int]]:
-    """Return a fingerprint of all *.json files in dialog_dir using stat only (no reads)."""
-    try:
-        with os.scandir(dialog_dir) as entries:
-            result: list[tuple[str, float, int]] = []
-            for entry in entries:
-                if entry.is_file() and entry.name.endswith(".json"):
-                    st = entry.stat()
-                    result.append((entry.name, st.st_mtime, st.st_size))
-            return frozenset(result)
-    except OSError:
-        return frozenset()
+    """Compatibility wrapper for the extracted workspace cache key scanner."""
+    return workspace_cache.scan_dir_key(dialog_dir)
 
 
-class WorkspaceCache:
+class WorkspaceCache(workspace_cache.WorkspaceCache):
     """Thread-safe cache for collect_workspace_listing results.
 
     A cache miss occurs when any file is added, removed, or has its mtime/size
@@ -108,26 +101,8 @@ class WorkspaceCache:
     the lock — exactly one rebuilds, others wait and then get the fresh result.
     """
 
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._key: frozenset[tuple[str, float, int]] | None = None
-        self._result: dict[str, Any] | None = None
-
     def get(self, dialog_dir: Path) -> dict[str, Any]:
-        new_key = _scan_dir_key(dialog_dir)
-        with self._lock:
-            if self._key == new_key and self._result is not None:
-                return self._result
-            result = _build_workspace_listing(dialog_dir)
-            self._key = new_key
-            self._result = result
-            return result
-
-    def invalidate(self) -> None:
-        """Force cache miss on the next request (e.g. after a write operation)."""
-        with self._lock:
-            self._key = None
-            self._result = None
+        return super().get(dialog_dir, _build_workspace_listing)
 
 
 # Registry: one WorkspaceCache per dialog_dir path used in the process.
