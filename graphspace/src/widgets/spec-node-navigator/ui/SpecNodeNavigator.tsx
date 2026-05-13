@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { SpecNode } from "@/entities/spec-node";
+import { SpecNodeStatusBadge, type SpecNode } from "@/entities/spec-node";
 import {
   filterSpecNodeNavigatorNodes,
   type SpecNodeNavigatorSignalFilter,
@@ -208,7 +208,7 @@ export function SpecNodeNavigator({
                   >
                     <span className={styles.rowTop}>
                       <span className={styles.nodeId}>{node.node_id}</span>
-                      <span className={styles.status}>{node.status}</span>
+                      <SpecNodeStatusBadge status={node.status} compact />
                     </span>
                     <span className={styles.nodeTitle}>{node.title}</span>
                     <span className={styles.rowMeta}>

@@ -5,9 +5,9 @@ import {
   formatSpecNodeMaturity,
   getSpecNodeMaturityPercent,
   getSpecNodeMaturityTone,
-  getSpecNodeStatusTone,
 } from "../lib/visual-signals";
 import styles from "./SpecNodeCard.module.css";
+import { SpecNodeStatusBadge } from "./SpecNodeStatusBadge";
 
 type LifecycleBadge = {
   packageKey: string;
@@ -45,7 +45,6 @@ export function SpecNodeCard({
   const maturityPercent = getSpecNodeMaturityPercent(node.maturity);
   const maturityLabel = formatSpecNodeMaturity(node.maturity);
   const maturityTone = getSpecNodeMaturityTone(node.maturity);
-  const statusTone = getSpecNodeStatusTone(node.status);
   const gapLabel = formatSpecNodeGapLabel(node.gap_count);
   const showMaturity = variant === "preview" || maturityPercent !== null;
   const maturityStyle: MaturityStyle = {
@@ -69,9 +68,7 @@ export function SpecNodeCard({
     >
       <div className={styles.header}>
         <span className={styles.id}>{node.node_id}</span>
-        <span className={`${styles.status} ${styles[`status-${statusTone}`]}`}>
-          {node.status}
-        </span>
+        <SpecNodeStatusBadge status={node.status} />
       </div>
       <h3 className={styles.title}>{node.title}</h3>
       {objectivePreview ? (

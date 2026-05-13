@@ -190,7 +190,6 @@
 }
 
 .nodeId,
-.status,
 .rowMeta {
   font-family: var(--gs-mono);
   font-size: 9px;
@@ -203,7 +202,6 @@
   color: var(--gs-accent);
 }
 
-.status,
 .rowMeta {
   color: var(--gs-muted);
 }
