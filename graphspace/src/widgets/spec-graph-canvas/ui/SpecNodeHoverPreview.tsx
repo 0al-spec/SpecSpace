@@ -1,8 +1,10 @@
-import type { CSSProperties } from "react";
+import { SpecNodeCard } from "@/entities/spec-node";
+import type { SpecPMLifecycleBadge } from "@/entities/specpm-lifecycle";
 import {
   placeSpecNodeHoverPreview,
   SPEC_NODE_HOVER_PREVIEW_SIZE,
   type HoverPreviewAnchor,
+  type HoverPreviewPosition,
   type HoverPreviewViewport,
   type SpecNodeHoverPreview as SpecNodeHoverPreviewModel,
 } from "../model/hover-preview";
@@ -11,14 +13,17 @@ import styles from "./SpecNodeHoverPreview.module.css";
 type Props = {
   preview: SpecNodeHoverPreviewModel;
   anchor: HoverPreviewAnchor;
+  lifecycleBadge?: SpecPMLifecycleBadge | null;
   viewport?: HoverPreviewViewport;
 };
 
-type MaturityStyle = CSSProperties & {
-  "--spec-node-preview-maturity": string;
-};
-
 const VIEWPORT_SAFE_GUTTER = 24;
+const PLACEMENT_CLASS: Record<HoverPreviewPosition["placement"], string> = {
+  right: styles.placementRight,
+  left: styles.placementLeft,
+  bottom: styles.placementBottom,
+  top: styles.placementTop,
+};
 
 const readViewport = (): HoverPreviewViewport => {
   if (typeof window === "undefined") {
@@ -42,50 +47,35 @@ const previewSizeForViewport = (viewport: HoverPreviewViewport) => ({
   height: SPEC_NODE_HOVER_PREVIEW_SIZE.height,
 });
 
-export function SpecNodeHoverPreview({ preview, anchor, viewport }: Props) {
+export function SpecNodeHoverPreview({
+  preview,
+  anchor,
+  lifecycleBadge = null,
+  viewport,
+}: Props) {
   const currentViewport = viewport ?? readViewport();
   const position = placeSpecNodeHoverPreview(
     anchor,
     currentViewport,
     previewSizeForViewport(currentViewport),
   );
-  const maturityStyle: MaturityStyle = {
-    "--spec-node-preview-maturity": `${preview.maturityPercent ?? 0}%`,
-  };
+  const className = [
+    styles.previewCard,
+    PLACEMENT_CLASS[position.placement],
+  ].join(" ");
 
   return (
-    <aside
-      className={styles.card}
-      data-placement={position.placement}
-      aria-hidden="true"
+    <SpecNodeCard
+      node={preview.node}
+      variant="preview"
+      objectivePreview={preview.objectivePreview}
+      lifecycleBadge={lifecycleBadge}
+      ariaHidden
+      className={className}
       style={{
         left: position.left,
         top: position.top,
       }}
-    >
-      <div className={styles.header}>
-        <span className={styles.id}>{preview.nodeId}</span>
-        <span className={styles.status}>{preview.status}</span>
-      </div>
-
-      <h3 className={styles.title}>{preview.title}</h3>
-
-      {preview.objectivePreview ? (
-        <p className={styles.objective}>{preview.objectivePreview}</p>
-      ) : null}
-
-      <div className={styles.footer}>
-        <div className={styles.maturity}>
-          <span className={styles.maturityLabel}>Maturity</span>
-          <span className={styles.maturityValue}>
-            {preview.maturityLabel ?? "n/a"}
-          </span>
-          <span className={styles.maturityTrack} aria-hidden="true">
-            <span className={styles.maturityFill} style={maturityStyle} />
-          </span>
-        </div>
-        <span className={styles.gaps}>{preview.gapLabel}</span>
-      </div>
-    </aside>
+    />
   );
 }

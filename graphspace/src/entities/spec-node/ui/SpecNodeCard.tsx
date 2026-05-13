@@ -25,6 +25,7 @@ type Props = {
   variant?: SpecNodeCardVariant;
   className?: string;
   style?: CSSProperties;
+  ariaHidden?: boolean;
 };
 
 type MaturityStyle = CSSProperties & {
@@ -39,6 +40,7 @@ export function SpecNodeCard({
   variant = "canvas",
   className,
   style,
+  ariaHidden = false,
 }: Props) {
   const maturityPercent = getSpecNodeMaturityPercent(node.maturity);
   const maturityLabel = formatSpecNodeMaturity(node.maturity);
@@ -63,6 +65,7 @@ export function SpecNodeCard({
       className={cardClassName}
       data-spec-node-id={node.node_id}
       style={style}
+      aria-hidden={ariaHidden ? "true" : undefined}
     >
       <div className={styles.header}>
         <span className={styles.id}>{node.node_id}</span>

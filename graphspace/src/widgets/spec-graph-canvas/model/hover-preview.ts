@@ -4,8 +4,8 @@ import type { SpecNodeDetail } from "@/shared/spec-graph-contract";
 export const SPEC_NODE_HOVER_PREVIEW_DELAY_MS = 300;
 
 export const SPEC_NODE_HOVER_PREVIEW_SIZE = {
-  width: 286,
-  height: 154,
+  width: 320,
+  height: 190,
 } as const;
 
 const VIEWPORT_MARGIN = 12;
@@ -13,13 +13,8 @@ const ANCHOR_GAP = 10;
 const OBJECTIVE_PREVIEW_LIMIT = 80;
 
 export type SpecNodeHoverPreview = {
-  nodeId: string;
-  title: string;
+  node: SpecNode;
   objectivePreview: string | null;
-  status: string;
-  maturityPercent: number | null;
-  maturityLabel: string | null;
-  gapLabel: string;
 };
 
 export type HoverPreviewAnchor = {
@@ -70,16 +65,6 @@ function truncateObjective(value: string): string {
   return `${value.slice(0, OBJECTIVE_PREVIEW_LIMIT - 3).trimEnd()}...`;
 }
 
-function maturityPercent(value: SpecNode["maturity"]): number | null {
-  if (typeof value !== "number" || !Number.isFinite(value)) return null;
-  return clamp(Math.round(value * 100), 0, 100);
-}
-
-function gapLabel(count: number): string {
-  if (count === 1) return "1 gap";
-  return `${count} gaps`;
-}
-
 export function extractSpecNodeObjective(
   detail: SpecNodeDetail | null | undefined,
 ): string | null {
@@ -92,17 +77,11 @@ export function buildSpecNodeHoverPreview(
   node: SpecNode,
   detail: SpecNodeDetail | null = null,
 ): SpecNodeHoverPreview {
-  const percent = maturityPercent(node.maturity);
   const objective = extractSpecNodeObjective(detail);
 
   return {
-    nodeId: node.node_id,
-    title: node.title,
+    node,
     objectivePreview: objective ? truncateObjective(objective) : null,
-    status: node.status,
-    maturityPercent: percent,
-    maturityLabel: percent === null ? null : `${percent}%`,
-    gapLabel: gapLabel(node.gap_count),
   };
 }
 

@@ -29,6 +29,7 @@ const node = (overrides: Partial<SpecNode> = {}): SpecNode => ({
 
 describe("buildSpecNodeHoverPreview", () => {
   it("uses specification.objective as the preview body", () => {
+    const specNode = node();
     const detail = {
       id: "SG-SPEC-0001",
       specification: {
@@ -37,15 +38,10 @@ describe("buildSpecNodeHoverPreview", () => {
       },
     } satisfies SpecNodeDetail;
 
-    expect(buildSpecNodeHoverPreview(node(), detail)).toEqual({
-      nodeId: "SG-SPEC-0001",
-      title: "SpecGraph - The Executable Product Ontology",
+    expect(buildSpecNodeHoverPreview(specNode, detail)).toEqual({
+      node: specNode,
       objectivePreview:
         "Define the SpecGraph node model and the rules that make graph traversal stable.",
-      status: "linked",
-      maturityPercent: 73,
-      maturityLabel: "73%",
-      gapLabel: "2 gaps",
     });
   });
 
@@ -62,11 +58,9 @@ describe("buildSpecNodeHoverPreview", () => {
       "Keep hover previews lightweight enough for dense graph inspection without ope...",
     );
     expect(preview.objectivePreview).toHaveLength(80);
-    expect(preview.maturityPercent).toBeNull();
-    expect(preview.maturityLabel).toBeNull();
   });
 
-  it("normalizes empty objective values and gap labels", () => {
+  it("normalizes empty objective values", () => {
     expect(extractSpecNodeObjective({ id: "SG-SPEC-0001", specification: {} })).toBeNull();
     expect(
       extractSpecNodeObjective({
@@ -74,8 +68,6 @@ describe("buildSpecNodeHoverPreview", () => {
         specification: { objective: { text: "not a string" } },
       }),
     ).toBeNull();
-    expect(buildSpecNodeHoverPreview(node({ gap_count: 0 })).gapLabel).toBe("0 gaps");
-    expect(buildSpecNodeHoverPreview(node({ gap_count: 1 })).gapLabel).toBe("1 gap");
   });
 });
 
