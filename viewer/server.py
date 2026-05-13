@@ -1568,6 +1568,10 @@ def _string_list(value: Any) -> list[str]:
     return [item for item in value if isinstance(item, str) and item]
 
 
+def _dict_value(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
 def _merge_specpm_source_refs(
     package: dict[str, Any],
     *,
@@ -1604,13 +1608,16 @@ def _build_specpm_lifecycle(specgraph_dir: Path) -> dict[str, Any]:
     packages: dict[str, dict[str, Any]] = {}
 
     for entry in export.get("entries") or []:
-        pkg_id = ((entry.get("package_preview") or {}).get("metadata") or {}).get("id")
+        if not isinstance(entry, dict):
+            continue
+        package_preview = _dict_value(entry.get("package_preview"))
+        pkg_id = _dict_value(package_preview.get("metadata")).get("id")
         key = _pkg_key(pkg_id, entry.get("export_id"))
         if not key:
             continue
         packages.setdefault(key, {"package_key": key})
-        contract_summary = entry.get("contract_summary") or {}
-        boundary_source = entry.get("boundary_source_preview") or {}
+        contract_summary = _dict_value(entry.get("contract_summary"))
+        boundary_source = _dict_value(entry.get("boundary_source_preview"))
         boundary_source_ids = [
             item.get("spec_id")
             for item in boundary_source.get("source_specs") or []
