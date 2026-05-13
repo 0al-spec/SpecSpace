@@ -75,9 +75,13 @@ export function SpecNodeCard({
         <p className={styles.objective}>{objectivePreview}</p>
       ) : null}
       <div className={styles.meta}>
-        <span>{node.kind}</span>
-        <span>{gapLabel}</span>
-        {showMaturity ? <span>{maturityLabel ?? "n/a"}</span> : null}
+        <span className={styles.metaGroup}>
+          <span>{node.kind}</span>
+          <span>{gapLabel}</span>
+        </span>
+        {showMaturity ? (
+          <span className={styles.maturityValue}>{maturityLabel ?? "n/a"}</span>
+        ) : null}
       </div>
       {showMaturity ? (
         <span className={styles.maturityTrack} aria-hidden="true">
