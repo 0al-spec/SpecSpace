@@ -36,16 +36,17 @@
 | Focused watcher tests | `python -m pytest tests/test_specgraph.py::SpecWatcherUnitTests tests/test_specgraph.py::SpecWatchEndpointTests tests/test_runs_watcher.py` | 12 passed |
 | Broader SpecGraph tests | `python -m pytest tests/test_specgraph.py tests/test_runs_watcher.py tests/test_exploration_preview.py` | 66 passed |
 | Python lint | `make lint` | Passed |
-| Full backend tests | `python -m pytest tests/` | 481 passed |
+| Full backend tests | `python -m pytest tests/` | 488 passed |
 
 ---
 
 ## Implementation Summary
 
 - Added `viewer/watchers.py` as the focused home for polling watcher state and background threads.
+- Factored shared subscribe/unsubscribe, polling thread, sequence, and wait lifecycle into `PollingWatcher`.
 - Moved `SpecWatcher` and `RunsWatcher` out of `viewer/server.py` without changing public class names through the server compatibility imports.
 - Kept HTTP/SSE route handling in `ViewerHandler`, so this slice only changes module ownership for the polling machinery.
-- Reduced `viewer/server.py` from 1835 lines to 1654 lines in this slice.
+- Reduced `viewer/server.py` from 1865 lines to 1683 lines in this slice after rebasing onto the hardened SpecGraph surfaces base.
 
 ## Residual Work
 

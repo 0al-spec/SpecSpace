@@ -9,29 +9,21 @@ import time
 from pathlib import Path
 
 
-class SpecWatcher:
-    """Single polling thread that broadcasts spec-file changes to SSE clients."""
+class PollingWatcher:
+    """Shared one-polling-thread/many-clients watcher lifecycle."""
 
     POLL_INTERVAL: float = 1.0
     KEEPALIVE_TIMEOUT: float = 14.0
+    THREAD_NAME: str = "watcher-poll"
 
-    def __init__(self, spec_dir: Path) -> None:
-        self._spec_dir = spec_dir
+    def __init__(self) -> None:
         self._condition = threading.Condition()
         self._seq: int = 0
         self._client_count: int = 0
         self._thread: threading.Thread | None = None
 
     def _get_mtimes(self) -> dict[str, float]:
-        result: dict[str, float] = {}
-        try:
-            with os.scandir(self._spec_dir) as entries:
-                for entry in entries:
-                    if entry.is_file() and entry.name.endswith((".yaml", ".yml")):
-                        result[entry.name] = entry.stat().st_mtime
-        except OSError:
-            pass
-        return result
+        raise NotImplementedError
 
     def _poll_loop(self) -> None:
         last_mtimes = self._get_mtimes()
@@ -56,7 +48,7 @@ class SpecWatcher:
                 self._thread = threading.Thread(
                     target=self._poll_loop,
                     daemon=True,
-                    name="spec-watcher-poll",
+                    name=self.THREAD_NAME,
                 )
                 self._thread.start()
             return self._seq
@@ -76,11 +68,35 @@ class SpecWatcher:
             return fired, self._seq
 
 
-class RunsWatcher:
+class SpecWatcher(PollingWatcher):
+    """Single polling thread that broadcasts spec-file changes to SSE clients."""
+
+    POLL_INTERVAL: float = 1.0
+    KEEPALIVE_TIMEOUT: float = 14.0
+    THREAD_NAME: str = "spec-watcher-poll"
+
+    def __init__(self, spec_dir: Path) -> None:
+        super().__init__()
+        self._spec_dir = spec_dir
+
+    def _get_mtimes(self) -> dict[str, float]:
+        result: dict[str, float] = {}
+        try:
+            with os.scandir(self._spec_dir) as entries:
+                for entry in entries:
+                    if entry.is_file() and entry.name.endswith((".yaml", ".yml")):
+                        result[entry.name] = entry.stat().st_mtime
+        except OSError:
+            pass
+        return result
+
+
+class RunsWatcher(PollingWatcher):
     """Polling watcher for SpecGraph runs/ artifacts."""
 
     POLL_INTERVAL: float = 2.0
     KEEPALIVE_TIMEOUT: float = 14.0
+    THREAD_NAME: str = "runs-watcher-poll"
     _RUN_FILENAME_RE = re.compile(r"^\d{8}T\d{6}Z-SG-[A-Z]+-\d+-[0-9a-f]+\.json$")
     _WATCHED_ARTIFACT_NAMES = frozenset(
         {
@@ -92,11 +108,8 @@ class RunsWatcher:
     )
 
     def __init__(self, runs_dir: Path) -> None:
+        super().__init__()
         self._runs_dir = runs_dir
-        self._condition = threading.Condition()
-        self._seq: int = 0
-        self._client_count: int = 0
-        self._thread: threading.Thread | None = None
 
     def _get_mtimes(self) -> dict[str, float]:
         result: dict[str, float] = {}
@@ -113,42 +126,3 @@ class RunsWatcher:
         except OSError:
             pass
         return result
-
-    def _poll_loop(self) -> None:
-        last_mtimes = self._get_mtimes()
-        while True:
-            time.sleep(self.POLL_INTERVAL)
-            with self._condition:
-                if self._client_count == 0:
-                    self._thread = None
-                    return
-            current = self._get_mtimes()
-            if current != last_mtimes:
-                last_mtimes = current
-                with self._condition:
-                    self._seq += 1
-                    self._condition.notify_all()
-
-    def subscribe(self) -> int:
-        with self._condition:
-            self._client_count += 1
-            if self._thread is None or not self._thread.is_alive():
-                self._thread = threading.Thread(
-                    target=self._poll_loop,
-                    daemon=True,
-                    name="runs-watcher-poll",
-                )
-                self._thread.start()
-            return self._seq
-
-    def unsubscribe(self) -> None:
-        with self._condition:
-            self._client_count = max(0, self._client_count - 1)
-
-    def wait_for_change(self, last_seq: int) -> tuple[bool, int]:
-        with self._condition:
-            fired = self._condition.wait_for(
-                lambda: self._seq != last_seq,
-                timeout=self.KEEPALIVE_TIMEOUT,
-            )
-            return fired, self._seq
