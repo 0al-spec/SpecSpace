@@ -28,6 +28,7 @@ from viewer import hyperprompt_compile  # noqa: E402
 from viewer import specgraph  # noqa: E402
 from viewer import spec_compile  # noqa: E402
 from viewer import specgraph_surfaces  # noqa: E402
+from viewer import supervisor_build  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
 from viewer.sse import send_sse_headers, stream_change_events  # noqa: E402
 from viewer.watchers import RunsWatcher, SpecWatcher  # noqa: E402
@@ -540,51 +541,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 {"error": "Viewer surfaces build not configured. Start the server with --specgraph-dir."},
             )
             return
-        supervisor = self.server.specgraph_dir / "tools" / "supervisor.py"
-        if not supervisor.exists():
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": "supervisor.py not found", "expected": str(supervisor)},
-            )
-            return
-        cmd = [sys.executable, str(supervisor), "--build-viewer-surfaces"]
-        built_at = datetime.now(tz=timezone.utc).isoformat()
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-        except subprocess.TimeoutExpired:
-            json_response(
-                self,
-                HTTPStatus.INTERNAL_SERVER_ERROR,
-                {"error": "supervisor.py --build-viewer-surfaces timed out", "exit_code": None, "built_at": built_at},
-            )
-            return
-        except Exception as exc:
-            json_response(
-                self,
-                HTTPStatus.INTERNAL_SERVER_ERROR,
-                {"error": f"Failed to invoke supervisor.py: {exc}", "exit_code": None, "built_at": built_at},
-            )
-            return
-        stderr_tail = "\n".join((result.stderr or "").splitlines()[-40:])
-        if result.returncode != 0:
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {
-                    "error": "supervisor.py --build-viewer-surfaces failed",
-                    "exit_code": result.returncode,
-                    "stderr_tail": stderr_tail,
-                    "stdout_tail": "\n".join((result.stdout or "").splitlines()[-40:]),
-                    "built_at": built_at,
-                },
-            )
-            return
-        try:
-            report = json.loads(result.stdout) if result.stdout.strip() else {}
-        except json.JSONDecodeError:
-            report = {}
-        json_response(self, HTTPStatus.OK, {"built_at": built_at, "exit_code": 0, "report": report})
+        status, payload = supervisor_build.build_viewer_surfaces(self.server.specgraph_dir)
+        json_response(self, status, payload)
 
     def _graph_dashboard_path(self):
         return specgraph_surfaces.graph_dashboard_path(self._runs_dir())
@@ -808,62 +766,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 {"error": "SpecPM preview not configured. Start the server with --specgraph-dir."},
             )
             return
-        supervisor = self.server.specgraph_dir / "tools" / "supervisor.py"
-        if not supervisor.exists():
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": "supervisor.py not found", "expected": str(supervisor)},
-            )
-            return
-        cmd = [sys.executable, str(supervisor), "--build-specpm-export-preview"]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        except subprocess.TimeoutExpired:
-            json_response(
-                self,
-                HTTPStatus.INTERNAL_SERVER_ERROR,
-                {"error": "supervisor.py timed out", "exit_code": None},
-            )
-            return
-        except Exception as exc:
-            json_response(
-                self,
-                HTTPStatus.INTERNAL_SERVER_ERROR,
-                {"error": f"Failed to invoke supervisor.py: {exc}", "exit_code": None},
-            )
-            return
-
-        preview_path = self._specpm_preview_path()
-        stderr_tail = "\n".join((result.stderr or "").splitlines()[-40:])
-        built_at = datetime.now(tz=timezone.utc).isoformat()
-
-        if result.returncode != 0:
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {
-                    "error": "supervisor.py failed",
-                    "exit_code": result.returncode,
-                    "stderr_tail": stderr_tail,
-                    "stdout_tail": "\n".join((result.stdout or "").splitlines()[-40:]),
-                    "preview_path": str(preview_path) if preview_path else None,
-                    "built_at": built_at,
-                },
-            )
-            return
-
-        json_response(
-            self,
-            HTTPStatus.OK,
-            {
-                "exit_code": 0,
-                "stderr_tail": stderr_tail,
-                "preview_path": str(preview_path) if preview_path else None,
-                "preview_exists": bool(preview_path and preview_path.exists()),
-                "built_at": built_at,
-            },
-        )
+        status, payload = supervisor_build.build_specpm_preview(self.server.specgraph_dir)
+        json_response(self, status, payload)
 
     def _specpm_runs_path(self, filename: str) -> Path | None:
         if self.server.specgraph_dir is None:
@@ -911,58 +815,12 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 {"error": "SpecPM not configured. Start the server with --specgraph-dir."},
             )
             return
-        supervisor = self.server.specgraph_dir / "tools" / "supervisor.py"
-        if not supervisor.exists():
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": "supervisor.py not found", "expected": str(supervisor)},
-            )
-            return
-        cmd = [sys.executable, str(supervisor), flag]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        except subprocess.TimeoutExpired:
-            json_response(
-                self,
-                HTTPStatus.INTERNAL_SERVER_ERROR,
-                {"error": "supervisor.py timed out", "exit_code": None},
-            )
-            return
-        except Exception as exc:
-            json_response(
-                self,
-                HTTPStatus.INTERNAL_SERVER_ERROR,
-                {"error": f"Failed to invoke supervisor.py: {exc}", "exit_code": None},
-            )
-            return
-
-        artifact_path = self._specpm_runs_path(artifact_filename)
-        stderr_tail = "\n".join((result.stderr or "").splitlines()[-40:])
-        built_at = datetime.now(tz=timezone.utc).isoformat()
-
-        if result.returncode != 0:
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {
-                    "error": "supervisor.py failed",
-                    "exit_code": result.returncode,
-                    "stderr_tail": stderr_tail,
-                    "stdout_tail": "\n".join((result.stdout or "").splitlines()[-40:]),
-                    "path": str(artifact_path) if artifact_path else None,
-                    "built_at": built_at,
-                },
-            )
-            return
-
-        json_response(self, HTTPStatus.OK, {
-            "exit_code": 0,
-            "stderr_tail": stderr_tail,
-            "path": str(artifact_path) if artifact_path else None,
-            "artifact_exists": bool(artifact_path and artifact_path.exists()),
-            "built_at": built_at,
-        })
+        status, payload = supervisor_build.build_specpm_artifact(
+            self.server.specgraph_dir,
+            flag,
+            artifact_filename,
+        )
+        json_response(self, status, payload)
 
     def handle_specpm_lifecycle(self) -> None:
         if self.server.specgraph_dir is None:
@@ -1021,16 +879,11 @@ class ViewerHandler(BaseHTTPRequestHandler):
 
     def _exploration_build_available(self) -> bool:
         """True only when supervisor.py declares both required flags in its source."""
-        if self.server.specgraph_dir is None:
-            return False
-        supervisor = self.server.specgraph_dir / "tools" / "supervisor.py"
-        if not supervisor.exists():
-            return False
-        try:
-            content = supervisor.read_text(encoding="utf-8", errors="ignore")
-            return "--build-exploration-preview" in content and "--exploration-intent" in content
-        except OSError:
-            return False
+        return specgraph_surfaces.supervisor_has_flags(
+            self.server.specgraph_dir,
+            "--build-exploration-preview",
+            "--exploration-intent",
+        )
 
     def handle_exploration_preview_get(self) -> None:
         path = self._exploration_preview_path()
@@ -1103,88 +956,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if not intent:
             json_response(self, HTTPStatus.BAD_REQUEST, {"error": "intent is required and must not be blank"})
             return
-        supervisor = self.server.specgraph_dir / "tools" / "supervisor.py"
-        if not supervisor.exists():
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": "supervisor.py not found", "expected": str(supervisor)},
-            )
-            return
-        cmd = [
-            sys.executable,
-            str(supervisor),
-            "--build-exploration-preview",
-            "--exploration-intent",
-            intent,
-        ]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        except subprocess.TimeoutExpired:
-            json_response(
-                self,
-                HTTPStatus.INTERNAL_SERVER_ERROR,
-                {"error": "supervisor.py timed out", "exit_code": None},
-            )
-            return
-        except Exception as exc:
-            json_response(
-                self,
-                HTTPStatus.INTERNAL_SERVER_ERROR,
-                {"error": f"Failed to invoke supervisor.py: {exc}", "exit_code": None},
-            )
-            return
-        artifact_path = self._exploration_preview_path()
-        stderr_tail = "\n".join((result.stderr or "").splitlines()[-40:])
-        built_at = datetime.now(tz=timezone.utc).isoformat()
-        if result.returncode != 0:
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {
-                    "error": "supervisor.py failed",
-                    "exit_code": result.returncode,
-                    "stderr_tail": stderr_tail,
-                    "stdout_tail": "\n".join((result.stdout or "").splitlines()[-40:]),
-                    "path": str(artifact_path) if artifact_path else None,
-                    "built_at": built_at,
-                },
-            )
-            return
-        # Validate the built artifact immediately — same boundary guard as GET.
-        if artifact_path and artifact_path.exists():
-            try:
-                built_data = json.loads(artifact_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError) as exc:
-                json_response(self, HTTPStatus.UNPROCESSABLE_ENTITY, {
-                    "error": f"Build succeeded but artifact is unreadable: {exc}",
-                    "exit_code": 0,
-                    "path": str(artifact_path),
-                    "built_at": built_at,
-                })
-                return
-            if (
-                built_data.get("artifact_kind") != "exploration_preview"
-                or built_data.get("canonical_mutations_allowed") is not False
-                or built_data.get("tracked_artifacts_written") is not False
-            ):
-                json_response(self, HTTPStatus.UNPROCESSABLE_ENTITY, {
-                    "error": "Built artifact failed boundary check",
-                    "artifact_kind": built_data.get("artifact_kind"),
-                    "canonical_mutations_allowed": built_data.get("canonical_mutations_allowed"),
-                    "tracked_artifacts_written": built_data.get("tracked_artifacts_written"),
-                    "exit_code": 0,
-                    "path": str(artifact_path),
-                    "built_at": built_at,
-                })
-                return
-        json_response(self, HTTPStatus.OK, {
-            "exit_code": 0,
-            "stderr_tail": stderr_tail,
-            "path": str(artifact_path) if artifact_path else None,
-            "artifact_exists": bool(artifact_path and artifact_path.exists()),
-            "built_at": built_at,
-        })
+        status, payload = supervisor_build.build_exploration_preview(self.server.specgraph_dir, intent)
+        json_response(self, status, payload)
 
     def handle_reveal(self) -> None:
         """POST /api/reveal — open a file path in Finder (macOS: open -R <path>)."""
