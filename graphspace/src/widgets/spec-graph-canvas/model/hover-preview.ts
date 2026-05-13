@@ -1,9 +1,4 @@
-import {
-  formatSpecNodeGapLabel,
-  formatSpecNodeMaturity,
-  getSpecNodeMaturityPercent,
-  type SpecNode,
-} from "@/entities/spec-node";
+import type { SpecNode } from "@/entities/spec-node";
 import type { SpecNodeDetail } from "@/shared/spec-graph-contract";
 
 export const SPEC_NODE_HOVER_PREVIEW_DELAY_MS = 300;
@@ -19,13 +14,7 @@ const OBJECTIVE_PREVIEW_LIMIT = 80;
 
 export type SpecNodeHoverPreview = {
   node: SpecNode;
-  nodeId: string;
-  title: string;
   objectivePreview: string | null;
-  status: string;
-  maturityPercent: number | null;
-  maturityLabel: string | null;
-  gapLabel: string;
 };
 
 export type HoverPreviewAnchor = {
@@ -88,18 +77,11 @@ export function buildSpecNodeHoverPreview(
   node: SpecNode,
   detail: SpecNodeDetail | null = null,
 ): SpecNodeHoverPreview {
-  const percent = getSpecNodeMaturityPercent(node.maturity);
   const objective = extractSpecNodeObjective(detail);
 
   return {
     node,
-    nodeId: node.node_id,
-    title: node.title,
     objectivePreview: objective ? truncateObjective(objective) : null,
-    status: node.status,
-    maturityPercent: percent,
-    maturityLabel: formatSpecNodeMaturity(node.maturity),
-    gapLabel: formatSpecNodeGapLabel(node.gap_count),
   };
 }
 
