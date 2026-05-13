@@ -29,6 +29,7 @@ from viewer import specgraph  # noqa: E402
 from viewer import spec_compile  # noqa: E402
 from viewer import specgraph_surfaces  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
+from viewer.sse import send_sse_headers, stream_change_events  # noqa: E402
 from viewer.watchers import RunsWatcher, SpecWatcher  # noqa: E402
 from viewer.export import (  # noqa: E402
     _render_node_markdown,
@@ -1542,37 +1543,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
             )
             return
 
-        self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
-        self.send_header("Cache-Control", "no-cache")
-        self.send_header("X-Accel-Buffering", "no")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-
-        def send(line: bytes) -> bool:
-            try:
-                self.wfile.write(line)
-                self.wfile.flush()
-                return True
-            except (BrokenPipeError, ConnectionResetError, OSError):
-                return False
-
-        if not send(b": connected\n\n"):
-            return
-
-        last_seq = watcher.subscribe()
-        try:
-            while True:
-                changed, last_seq = watcher.wait_for_change(last_seq)
-                if changed:
-                    if not send(b"event: change\ndata: {}\n\n"):
-                        break
-                else:
-                    # Keepalive comment — prevents proxy / browser timeout
-                    if not send(b": keepalive\n\n"):
-                        break
-        finally:
-            watcher.unsubscribe()
+        send_sse_headers(self)
+        stream_change_events(self, watcher)
 
     def handle_runs_watch(self) -> None:
         """SSE endpoint: streams a 'change' event when files in runs/ change.
@@ -1589,36 +1561,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
             )
             return
 
-        self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
-        self.send_header("Cache-Control", "no-cache")
-        self.send_header("X-Accel-Buffering", "no")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-
-        def send(line: bytes) -> bool:
-            try:
-                self.wfile.write(line)
-                self.wfile.flush()
-                return True
-            except (BrokenPipeError, ConnectionResetError, OSError):
-                return False
-
-        if not send(b": connected\n\n"):
-            return
-
-        last_seq = watcher.subscribe()
-        try:
-            while True:
-                changed, last_seq = watcher.wait_for_change(last_seq)
-                if changed:
-                    if not send(b"event: change\ndata: {}\n\n"):
-                        break
-                else:
-                    if not send(b": keepalive\n\n"):
-                        break
-        finally:
-            watcher.unsubscribe()
+        send_sse_headers(self)
+        stream_change_events(self, watcher)
 
 
 def main() -> None:
