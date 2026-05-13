@@ -7,11 +7,9 @@ import argparse
 import json
 import mimetypes
 import os
-import re
 import subprocess
 import sys
 import threading
-import time
 from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -31,6 +29,7 @@ from viewer import specgraph  # noqa: E402
 from viewer import spec_compile  # noqa: E402
 from viewer import specgraph_surfaces  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
+from viewer.watchers import RunsWatcher, SpecWatcher  # noqa: E402
 from viewer.export import (  # noqa: E402
     _render_node_markdown,
     build_compile_provenance,
@@ -345,187 +344,6 @@ def compile_graph_nodes(
         export_graph_nodes=export_graph_nodes,
         invoke_hyperprompt=invoke_hyperprompt,
     )
-
-
-# ---------------------------------------------------------------------------
-# SpecWatcher — shared SSE broadcaster
-# ---------------------------------------------------------------------------
-
-class SpecWatcher:
-    """Single polling thread that broadcasts spec-file changes to all SSE clients.
-
-    One instance lives on the server object.  Its internal thread starts on the
-    first client subscription and stops when the last client unsubscribes — so
-    there is at most one OS thread doing I/O regardless of how many tabs are open.
-
-    SSE handler threads block on a Condition.wait_for() instead of sleeping,
-    which means they use no CPU between events and wake up immediately when a
-    change is detected.
-    """
-
-    POLL_INTERVAL: float = 1.0       # seconds between directory scans
-    KEEPALIVE_TIMEOUT: float = 14.0  # seconds before sending an SSE keepalive comment
-
-    def __init__(self, spec_dir: Path) -> None:
-        self._spec_dir = spec_dir
-        self._condition = threading.Condition()
-        self._seq: int = 0          # bumped on each detected change
-        self._client_count: int = 0
-        self._thread: threading.Thread | None = None
-
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
-
-    def _get_mtimes(self) -> dict[str, float]:
-        result: dict[str, float] = {}
-        try:
-            with os.scandir(self._spec_dir) as entries:
-                for entry in entries:
-                    if entry.is_file() and entry.name.endswith((".yaml", ".yml")):
-                        result[entry.name] = entry.stat().st_mtime
-        except OSError:
-            pass
-        return result
-
-    def _poll_loop(self) -> None:
-        last_mtimes = self._get_mtimes()
-        while True:
-            time.sleep(self.POLL_INTERVAL)
-            # Stop when there are no clients — next subscribe() will restart us.
-            with self._condition:
-                if self._client_count == 0:
-                    self._thread = None
-                    return
-            # Do I/O without holding the lock.
-            current = self._get_mtimes()
-            if current != last_mtimes:
-                last_mtimes = current
-                with self._condition:
-                    self._seq += 1
-                    self._condition.notify_all()
-
-    # ------------------------------------------------------------------
-    # Public API (called from SSE handler threads)
-    # ------------------------------------------------------------------
-
-    def subscribe(self) -> int:
-        """Register a new SSE client.  Starts the poll thread if needed.
-
-        Returns the current sequence number so the caller can detect the first
-        change after it connected.
-        """
-        with self._condition:
-            self._client_count += 1
-            if self._thread is None or not self._thread.is_alive():
-                self._thread = threading.Thread(
-                    target=self._poll_loop,
-                    daemon=True,
-                    name="spec-watcher-poll",
-                )
-                self._thread.start()
-            return self._seq
-
-    def unsubscribe(self) -> None:
-        """Deregister an SSE client (call in a finally block)."""
-        with self._condition:
-            self._client_count = max(0, self._client_count - 1)
-
-    def wait_for_change(self, last_seq: int) -> tuple[bool, int]:
-        """Block until the seq changes or the keepalive timeout expires.
-
-        Returns ``(changed, new_seq)``.  When *changed* is False a keepalive
-        comment is due; the caller should re-enter with the same *last_seq*.
-        """
-        with self._condition:
-            fired = self._condition.wait_for(
-                lambda: self._seq != last_seq,
-                timeout=self.KEEPALIVE_TIMEOUT,
-            )
-            return fired, self._seq
-
-
-class RunsWatcher:
-    """Polling watcher for SpecGraph runs/ — broadcasts when new run files
-    appear (or any watched run artifact changes mtime). Mirrors SpecWatcher's
-    one-thread-many-clients design, but scoped to the runs/ directory. Used by
-    the /api/runs-watch SSE endpoint to drive live updates in the Recent
-    Changes overlay and GraphSpace artifact panels.
-    """
-
-    POLL_INTERVAL: float = 2.0
-    KEEPALIVE_TIMEOUT: float = 14.0
-    _RUN_FILENAME_RE = re.compile(r"^\d{8}T\d{6}Z-SG-[A-Z]+-\d+-[0-9a-f]+\.json$")
-    _WATCHED_ARTIFACT_NAMES = frozenset(
-        {
-            "spec_activity_feed.json",
-            "implementation_work_index.json",
-            "proposal_spec_trace_index.json",
-            "exploration_preview.json",
-        }
-    )
-
-    def __init__(self, runs_dir: Path) -> None:
-        self._runs_dir = runs_dir
-        self._condition = threading.Condition()
-        self._seq: int = 0
-        self._client_count: int = 0
-        self._thread: threading.Thread | None = None
-
-    def _get_mtimes(self) -> dict[str, float]:
-        result: dict[str, float] = {}
-        try:
-            with os.scandir(self._runs_dir) as entries:
-                for entry in entries:
-                    if not entry.is_file():
-                        continue
-                    if (
-                        self._RUN_FILENAME_RE.match(entry.name)
-                        or entry.name in self._WATCHED_ARTIFACT_NAMES
-                    ):
-                        result[entry.name] = entry.stat().st_mtime
-        except OSError:
-            pass
-        return result
-
-    def _poll_loop(self) -> None:
-        last_mtimes = self._get_mtimes()
-        while True:
-            time.sleep(self.POLL_INTERVAL)
-            with self._condition:
-                if self._client_count == 0:
-                    self._thread = None
-                    return
-            current = self._get_mtimes()
-            if current != last_mtimes:
-                last_mtimes = current
-                with self._condition:
-                    self._seq += 1
-                    self._condition.notify_all()
-
-    def subscribe(self) -> int:
-        with self._condition:
-            self._client_count += 1
-            if self._thread is None or not self._thread.is_alive():
-                self._thread = threading.Thread(
-                    target=self._poll_loop,
-                    daemon=True,
-                    name="runs-watcher-poll",
-                )
-                self._thread.start()
-            return self._seq
-
-    def unsubscribe(self) -> None:
-        with self._condition:
-            self._client_count = max(0, self._client_count - 1)
-
-    def wait_for_change(self, last_seq: int) -> tuple[bool, int]:
-        with self._condition:
-            fired = self._condition.wait_for(
-                lambda: self._seq != last_seq,
-                timeout=self.KEEPALIVE_TIMEOUT,
-            )
-            return fired, self._seq
 
 
 class ViewerHandler(BaseHTTPRequestHandler):
