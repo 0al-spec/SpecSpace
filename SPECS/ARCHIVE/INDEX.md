@@ -73,8 +73,8 @@
 | CTXB-P7-T8 | [CTXB-P7-T8_Add_rmtree_Safety_Marker/](CTXB-P7-T8_Add_rmtree_Safety_Marker/) | 2026-04-12 | PASS |
 | CTXB-P7-T10 | [CTXB-P7-T10_Add_React_Error_Boundaries/](CTXB-P7-T10_Add_React_Error_Boundaries/) | 2026-04-12 | PASS |
 | CTXB-P7-T14 | [CTXB-P7-T14_Expose_compile_capability/](CTXB-P7-T14_Expose_compile_capability/) | 2026-04-12 | PASS |
-| CTXB-P9-T6 | [CTXB-P9-T6_Hover_preview_card_on_spec_nodes/](CTXB-P9-T6_Hover_preview_card_on_spec_nodes/) | 2026-05-13 | PASS |
 | CTXB-P8-T2 | [CTXB-P8-T2_SpecPM_lifecycle_badge_on_SpecNode/](CTXB-P8-T2_SpecPM_lifecycle_badge_on_SpecNode/) | 2026-05-13 | PASS |
+| CTXB-P9-T6 | [CTXB-P9-T6_Hover_preview_card_on_spec_nodes/](CTXB-P9-T6_Hover_preview_card_on_spec_nodes/) | 2026-05-13 | PASS |
 | CTXB-P9-T7 | [CTXB-P9-T7_SpecNode_visual_signal_unification/](CTXB-P9-T7_SpecNode_visual_signal_unification/) | 2026-05-13 | PASS |
 
 ## Historical Artifacts

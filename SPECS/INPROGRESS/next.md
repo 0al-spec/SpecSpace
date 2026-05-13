@@ -13,6 +13,18 @@
 - `CTXB-P10-T8` — Add canvas-first panel dock for GraphSpace (PASS, 2026-05-13)
 - `CTXB-P10` follow-up — Tune Sidebar and canvas utility layout (PASS, 2026-05-13)
 - `CTXB-P9-T2` — Pin + compare two specs side-by-side (PASS, 2026-04-24)
+- `CTXB-P9-T5` — Related-items drawer in SpecInspector (PASS, 2026-04-24)
+- `CTXB-P9-T3` — Command palette ⌘K — already implemented as SearchPalette (PASS, 2026-04-24)
+- `CTXB-P9-T4` — Filter bar — hide/show nodes by criteria (PASS, 2026-04-24)
+- `CTXB-P7-T7` — Fix SSE spec-watch thread management (PASS, 2026-04-24)
+- `CTXB-P9-T1` — Change highlighting on SSE reload (PASS, 2026-04-23)
+- `CTXB-P8-T1` — Add 5th lifecycle stage (import_handoff) to SpecPMLifecyclePanel (PASS, 2026-04-23)
+- `CTXB-P7-T16` — Hide AgentChat behind a feature flag (PASS, 2026-04-23)
+- `CTXB-P7-T15` — Replace SHA-1 with SHA-256 (PASS, 2026-04-23)
+- `CTXB-P7-T14` — Expose compile capability in /api/capabilities (PASS, 2026-04-12)
+- `CTXB-P7-T10` — Add React Error Boundaries (PASS, 2026-04-12)
+- `CTXB-P7-T8` — Add rmtree safety marker to export directory (PASS, 2026-04-12)
+- `CTXB-P7-T6` — Consolidate path traversal protection (PASS, 2026-04-12)
 
 ## Suggested Next Tasks
 
