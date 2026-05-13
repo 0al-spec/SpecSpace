@@ -29,6 +29,7 @@ from viewer import spec_compile  # noqa: E402
 from viewer import specgraph_surfaces  # noqa: E402
 from viewer import supervisor_build  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
+from viewer.routes import route_for  # noqa: E402
 from viewer.sse import send_sse_headers, stream_change_events  # noqa: E402
 from viewer.watchers import RunsWatcher, SpecWatcher  # noqa: E402
 from viewer.export import (  # noqa: E402
@@ -353,159 +354,30 @@ def compile_graph_nodes(
 class ViewerHandler(BaseHTTPRequestHandler):
     server_version = "ContextBuilderViewer/0.1"
 
+    def _dispatch_route(self, method: str, parsed) -> bool:
+        route = route_for(method, parsed.path)
+        if route is None:
+            return False
+        handler = getattr(self, route.handler)
+        args = (parsed, *route.args) if route.pass_parsed else route.args
+        handler(*args)
+        return True
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path == "/api/files":
-            self.handle_list_files()
-            return
-        if parsed.path == "/api/graph":
-            self.handle_graph()
-            return
-        if parsed.path == "/api/conversation":
-            self.handle_get_conversation(parsed)
-            return
-        if parsed.path == "/api/checkpoint":
-            self.handle_get_checkpoint(parsed)
-            return
-        if parsed.path == "/api/file":
-            self.handle_get_file(parsed)
-            return
-        if parsed.path == "/api/spec-graph":
-            self.handle_spec_graph()
-            return
-        if parsed.path == "/api/spec-watch":
-            self.handle_spec_watch()
-            return
-        if parsed.path == "/api/runs-watch":
-            self.handle_runs_watch()
-            return
-        if parsed.path == "/api/spec-node":
-            self.handle_spec_node(parsed)
-            return
-        if parsed.path == "/api/spec-compile":
-            self.handle_spec_compile(parsed)
-            return
-        if parsed.path == "/api/capabilities":
-            self.handle_capabilities()
-            return
-        if parsed.path == "/api/graph-dashboard":
-            self.handle_graph_dashboard()
-            return
-        if parsed.path == "/api/graph-backlog-projection":
-            self.handle_graph_backlog_projection()
-            return
-        if parsed.path == "/api/metrics-source-promotion":
-            self.handle_metrics_source_promotion()
-            return
-        if parsed.path == "/api/metrics-delivery":
-            self.handle_metrics_delivery()
-            return
-        if parsed.path == "/api/metrics-feedback":
-            self.handle_metrics_feedback()
-            return
-        if parsed.path == "/api/metric-pack-adapters":
-            self.handle_metric_pack_adapters()
-            return
-        if parsed.path == "/api/metric-pack-runs":
-            self.handle_metric_pack_runs()
-            return
-        if parsed.path == "/api/recent-runs":
-            self.handle_recent_runs(parsed)
-            return
-        if parsed.path == "/api/spec-activity":
-            self.handle_spec_activity(parsed)
-            return
-        if parsed.path == "/api/implementation-work-index":
-            self.handle_implementation_work_index(parsed)
-            return
-        if parsed.path == "/api/metric-pricing-provenance":
-            self.handle_metric_pricing_provenance()
-            return
-        if parsed.path == "/api/model-usage-telemetry":
-            self.handle_model_usage_telemetry()
-            return
-        if parsed.path == "/api/metric-signals":
-            self.handle_metric_signals()
-            return
-        if parsed.path == "/api/spec-overlay":
-            self.handle_spec_overlay()
-            return
-        if parsed.path == "/api/specpm/preview":
-            self.handle_specpm_preview_get()
-            return
-        if parsed.path == "/api/specpm/export-preview":
-            self._handle_specpm_artifact_get("specpm_export_preview.json")
-            return
-        if parsed.path == "/api/specpm/handoff":
-            self._handle_specpm_artifact_get("specpm_handoff_packets.json")
-            return
-        if parsed.path == "/api/specpm/materialization":
-            self._handle_specpm_artifact_get("specpm_materialization_report.json")
-            return
-        if parsed.path == "/api/specpm/import-preview":
-            self._handle_specpm_artifact_get("specpm_import_preview.json")
-            return
-        if parsed.path == "/api/specpm/import-handoff":
-            self._handle_specpm_artifact_get("specpm_import_handoff_packets.json")
-            return
-        if parsed.path == "/api/specpm/lifecycle":
-            self.handle_specpm_lifecycle()
-            return
-        if parsed.path == "/api/exploration-preview":
-            self.handle_exploration_preview_get()
-            return
-        if parsed.path == "/api/exploration-surfaces":
-            self.handle_exploration_surfaces_get()
-            return
-        if parsed.path == "/api/exploration-proposal":
-            self.handle_exploration_proposal_get(parsed)
-            return
-        if parsed.path == "/api/proposal-spec-trace-index":
-            self.handle_proposal_spec_trace_index_get()
+        if self._dispatch_route("GET", parsed):
             return
         self.handle_static(parsed.path)
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path == "/api/file":
-            self.handle_write_file()
-            return
-        if parsed.path == "/api/export":
-            self.handle_export()
-            return
-        if parsed.path == "/api/compile":
-            self.handle_compile()
-            return
-        if parsed.path == "/api/specpm/preview/build":
-            self.handle_specpm_preview_build()
-            return
-        if parsed.path == "/api/specpm/build-export-preview":
-            self._handle_specpm_build("--build-specpm-export-preview", "specpm_export_preview.json")
-            return
-        if parsed.path == "/api/specpm/materialize":
-            self._handle_specpm_build("--materialize-specpm-export-bundles", "specpm_materialization_report.json")
-            return
-        if parsed.path == "/api/specpm/build-import-preview":
-            self._handle_specpm_build("--build-specpm-import-preview", "specpm_import_preview.json")
-            return
-        if parsed.path == "/api/specpm/build-import-handoff-packets":
-            self._handle_specpm_build("--build-specpm-import-handoff-packets", "specpm_import_handoff_packets.json")
-            return
-        if parsed.path == "/api/exploration-preview/build":
-            self.handle_exploration_preview_build()
-            return
-        if parsed.path == "/api/viewer-surfaces/build":
-            self.handle_viewer_surfaces_build()
-            return
-        if parsed.path == "/api/reveal":
-            self.handle_reveal()
+        if self._dispatch_route("POST", parsed):
             return
         self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_DELETE(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path == "/api/file":
-            self.handle_delete_file(parsed)
+        if self._dispatch_route("DELETE", parsed):
             return
         self.send_error(HTTPStatus.NOT_FOUND)
 
