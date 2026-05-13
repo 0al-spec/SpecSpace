@@ -10,7 +10,7 @@
 
 | Artifact | Status |
 |----------|--------|
-| `viewer/compile.py` — Hyperprompt binary resolution, invocation, exit-code mapping, and export+compile composition | ✅ Done |
+| `viewer/hyperprompt_compile.py` — Hyperprompt binary resolution, invocation, exit-code mapping, and export+compile composition | ✅ Done |
 | `viewer/server.py` — thin compile compatibility wrappers preserving mutable default-binary behavior | ✅ Done |
 
 ---
@@ -31,15 +31,16 @@
 
 | Gate | Command | Result |
 |------|---------|--------|
-| Focused tests | `python -m pytest tests/test_compile.py tests/test_export.py` | ✅ 56 passed |
+| Focused tests | `python -m pytest tests/test_compile.py tests/test_export.py` | ✅ 58 passed |
 | Python lint | `make lint` | ✅ Passed |
-| Full backend tests | `python -m pytest tests/` | ✅ 478 passed |
+| Full backend tests | `python -m pytest tests/` | ✅ 480 passed |
 
 ---
 
 ## Implementation Summary
 
-- Added `viewer/compile.py` for Hyperprompt binary resolution, invocation, exit-code mapping, and compile composition.
+- Added `viewer/hyperprompt_compile.py` for Hyperprompt binary resolution, invocation, exit-code mapping, and compile composition.
+- Exposed `EXIT_CODE_DESCRIPTIONS` and `default_hyperprompt_fallbacks` as public cross-module compatibility names.
 - Kept `DEFAULT_HYPERPROMPT_BINARY` in `viewer/server.py` because tests and CLI defaults treat it as the mutable compatibility point.
 - Kept `server.resolve_hyperprompt_binary`, `server.invoke_hyperprompt`, and `server.compile_graph_nodes` as wrappers that pass the current default binary path into the extracted module.
 - Reduced `viewer/server.py` from 2827 lines to 2730 lines in this slice.

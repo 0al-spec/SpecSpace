@@ -24,8 +24,8 @@ if __package__ in {None, ""}:  # pragma: no cover - allows running `python viewe
     sys.path.insert(0, str(REPO_ROOT))
 
 from viewer import schema  # noqa: E402
-from viewer import compile as hyper_compile  # noqa: E402
 from viewer import export as graph_export  # noqa: E402
+from viewer import hyperprompt_compile  # noqa: E402
 from viewer import specgraph  # noqa: E402
 from viewer import spec_compile  # noqa: E402
 from viewer.export import (  # noqa: E402
@@ -849,18 +849,18 @@ def export_graph_nodes(
     )
 
 
-_EXIT_CODE_DESCRIPTIONS = hyper_compile._EXIT_CODE_DESCRIPTIONS
+_EXIT_CODE_DESCRIPTIONS = hyperprompt_compile.EXIT_CODE_DESCRIPTIONS
 DEFAULT_HYPERPROMPT_BINARY = str(REPO_ROOT / "deps" / "hyperprompt")
 
 
 def _default_hyperprompt_fallbacks(default_binary: Path) -> list[tuple[str, Path]]:
     """Compatibility wrapper for Hyperprompt fallback candidate discovery."""
-    return hyper_compile._default_hyperprompt_fallbacks(default_binary, repo_root=REPO_ROOT)
+    return hyperprompt_compile.default_hyperprompt_fallbacks(default_binary, repo_root=REPO_ROOT)
 
 
 def resolve_hyperprompt_binary(configured_binary: str) -> tuple[str | None, list[str], str]:
     """Compatibility wrapper that uses the current mutable default binary path."""
-    return hyper_compile.resolve_hyperprompt_binary(
+    return hyperprompt_compile.resolve_hyperprompt_binary(
         configured_binary,
         default_hyperprompt_binary=DEFAULT_HYPERPROMPT_BINARY,
         repo_root=REPO_ROOT,
@@ -872,7 +872,7 @@ def invoke_hyperprompt(
     binary_path: str,
 ) -> tuple[int, dict[str, Any]]:
     """Compatibility wrapper that preserves server.DEFAULT_HYPERPROMPT_BINARY mutation."""
-    return hyper_compile.invoke_hyperprompt(
+    return hyperprompt_compile.invoke_hyperprompt(
         export_dir,
         binary_path,
         default_hyperprompt_binary=DEFAULT_HYPERPROMPT_BINARY,
@@ -887,7 +887,7 @@ def compile_graph_nodes(
     hyperprompt_binary: str,
 ) -> tuple[int, dict[str, Any]]:
     """Compatibility wrapper for the extracted compile pipeline."""
-    return hyper_compile.compile_graph_nodes(
+    return hyperprompt_compile.compile_graph_nodes(
         dialog_dir,
         conversation_id,
         message_id,

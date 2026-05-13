@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 
-_EXIT_CODE_DESCRIPTIONS: dict[int, str] = {
+EXIT_CODE_DESCRIPTIONS: dict[int, str] = {
     1: "IO error",
     2: "Syntax error",
     3: "Resolution/circular dependency error",
@@ -17,7 +17,7 @@ _EXIT_CODE_DESCRIPTIONS: dict[int, str] = {
 }
 
 
-def _default_hyperprompt_fallbacks(default_binary: Path, *, repo_root: Path) -> list[tuple[str, Path]]:
+def default_hyperprompt_fallbacks(default_binary: Path, *, repo_root: Path) -> list[tuple[str, Path]]:
     """Return additional candidate paths when the configured binary is not found.
 
     Searches for the binary in sibling architecture directories relative to the
@@ -43,7 +43,7 @@ def resolve_hyperprompt_binary(
 
     candidates: list[tuple[str, Path]] = [("configured", requested)]
     if requested == default_binary:
-        candidates.extend(_default_hyperprompt_fallbacks(default_binary, repo_root=repo_root))
+        candidates.extend(default_hyperprompt_fallbacks(default_binary, repo_root=repo_root))
 
     checked_paths: list[str] = []
     seen_paths: set[str] = set()
@@ -123,7 +123,7 @@ def invoke_hyperprompt(
         }
 
     if result.returncode != 0:
-        description = _EXIT_CODE_DESCRIPTIONS.get(result.returncode, "Unknown error")
+        description = EXIT_CODE_DESCRIPTIONS.get(result.returncode, "Unknown error")
         return HTTPStatus.UNPROCESSABLE_ENTITY, {
             "error": f"Hyperprompt compiler failed: {description}",
             "exit_code": result.returncode,
