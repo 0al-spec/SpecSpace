@@ -29,6 +29,7 @@ const node = (overrides: Partial<SpecNode> = {}): SpecNode => ({
 
 describe("buildSpecNodeHoverPreview", () => {
   it("uses specification.objective as the preview body", () => {
+    const specNode = node();
     const detail = {
       id: "SG-SPEC-0001",
       specification: {
@@ -37,7 +38,8 @@ describe("buildSpecNodeHoverPreview", () => {
       },
     } satisfies SpecNodeDetail;
 
-    expect(buildSpecNodeHoverPreview(node(), detail)).toEqual({
+    expect(buildSpecNodeHoverPreview(specNode, detail)).toEqual({
+      node: specNode,
       nodeId: "SG-SPEC-0001",
       title: "SpecGraph - The Executable Product Ontology",
       objectivePreview:

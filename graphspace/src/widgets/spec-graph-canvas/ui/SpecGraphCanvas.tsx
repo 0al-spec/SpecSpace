@@ -193,6 +193,9 @@ function SpecGraphCanvasInner({
   const hoverPreviewModel = hoverPreview
     ? buildSpecNodeHoverPreview(hoverPreview.node, hoverPreviewDetail)
     : null;
+  const hoverPreviewLifecycleBadge = hoverPreview
+    ? lifecycleBadgesByNode?.get(hoverPreview.node.node_id) ?? null
+    : null;
 
   useEffect(() => {
     onSelectionChange?.(selection);
@@ -271,6 +274,7 @@ function SpecGraphCanvasInner({
         <SpecNodeHoverPreview
           preview={hoverPreviewModel}
           anchor={hoverPreview.anchor}
+          lifecycleBadge={hoverPreviewLifecycleBadge}
         />
       ) : null}
     </section>
