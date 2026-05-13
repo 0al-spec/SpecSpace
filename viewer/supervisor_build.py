@@ -11,6 +11,8 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
+from viewer import specpm
+
 
 TAIL_LINES = 40
 
@@ -38,14 +40,6 @@ def tail_lines(text: str | None, limit: int = TAIL_LINES) -> str:
 
 def supervisor_path(specgraph_dir: Path) -> Path:
     return specgraph_dir / "tools" / "supervisor.py"
-
-
-def specpm_runs_path(specgraph_dir: Path, filename: str) -> Path:
-    return specgraph_dir / "runs" / filename
-
-
-def specpm_preview_path(specgraph_dir: Path) -> Path:
-    return specpm_runs_path(specgraph_dir, "specpm_export_preview.json")
 
 
 def exploration_preview_path(specgraph_dir: Path) -> Path:
@@ -129,7 +123,7 @@ def build_specpm_preview(specgraph_dir: Path) -> tuple[HTTPStatus, dict[str, Any
     if isinstance(invocation, SupervisorInvocationError):
         return invocation.status, invocation.payload
 
-    preview_path = specpm_preview_path(specgraph_dir)
+    preview_path = specpm.specpm_preview_path(specgraph_dir)
     built_at = utc_now_iso()
     result = invocation.result
     if result.returncode != 0:
@@ -166,7 +160,7 @@ def build_specpm_artifact(specgraph_dir: Path, flag: str, artifact_filename: str
     if isinstance(invocation, SupervisorInvocationError):
         return invocation.status, invocation.payload
 
-    artifact_path = specpm_runs_path(specgraph_dir, artifact_filename)
+    artifact_path = specpm.specpm_runs_path(specgraph_dir, artifact_filename)
     built_at = utc_now_iso()
     result = invocation.result
     if result.returncode != 0:

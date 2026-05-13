@@ -77,6 +77,8 @@ from viewer.specpm import (  # noqa: E402
     _read_specgraph_runs_artifact,
     _read_specpm_artifact,
     _string_list,
+    read_specpm_artifact_response,
+    read_specpm_preview_response,
 )
 
 EXPORT_SENTINEL = ".ctxb_export"
@@ -712,51 +714,16 @@ class ViewerHandler(BaseHTTPRequestHandler):
         status, payload = specgraph_surfaces.collect_spec_overlay(runs)
         json_response(self, status, payload)
 
-    def _specpm_preview_path(self) -> Path | None:
-        if self.server.specgraph_dir is None:
-            return None
-        return self.server.specgraph_dir / "runs" / "specpm_export_preview.json"
-
     def handle_specpm_preview_get(self) -> None:
-        preview_path = self._specpm_preview_path()
-        if preview_path is None:
+        if self.server.specgraph_dir is None:
             json_response(
                 self,
                 HTTPStatus.SERVICE_UNAVAILABLE,
                 {"error": "SpecPM preview not configured. Start the server with --specgraph-dir."},
             )
             return
-        if not preview_path.exists():
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {
-                    "error": "Preview artifact not built yet",
-                    "hint": "POST /api/specpm/preview/build to create it",
-                    "preview_path": str(preview_path),
-                },
-            )
-            return
-        try:
-            data = json.loads(preview_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": f"Failed to read preview: {exc}", "preview_path": str(preview_path)},
-            )
-            return
-        mtime = preview_path.stat().st_mtime
-        json_response(
-            self,
-            HTTPStatus.OK,
-            {
-                "preview_path": str(preview_path),
-                "mtime": mtime,
-                "mtime_iso": datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
-                "preview": data,
-            },
-        )
+        status, payload = read_specpm_preview_response(self.server.specgraph_dir)
+        json_response(self, status, payload)
 
     def handle_specpm_preview_build(self) -> None:
         if self.server.specgraph_dir is None:
@@ -769,11 +736,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
         status, payload = supervisor_build.build_specpm_preview(self.server.specgraph_dir)
         json_response(self, status, payload)
 
-    def _specpm_runs_path(self, filename: str) -> Path | None:
-        if self.server.specgraph_dir is None:
-            return None
-        return self.server.specgraph_dir / "runs" / filename
-
     def _handle_specpm_artifact_get(self, filename: str) -> None:
         if self.server.specgraph_dir is None:
             json_response(
@@ -782,30 +744,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 {"error": "SpecPM not configured. Start the server with --specgraph-dir."},
             )
             return
-        path = self._specpm_runs_path(filename)
-        if path is None or not path.exists():
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": "Artifact not built yet", "path": str(path) if path else None},
-            )
-            return
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except Exception as exc:
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": f"Failed to read artifact: {exc}"},
-            )
-            return
-        mtime = path.stat().st_mtime
-        json_response(self, HTTPStatus.OK, {
-            "path": str(path),
-            "mtime": mtime,
-            "mtime_iso": datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
-            "data": data,
-        })
+        status, payload = read_specpm_artifact_response(self.server.specgraph_dir, filename)
+        json_response(self, status, payload)
 
     def _handle_specpm_build(self, flag: str, artifact_filename: str) -> None:
         if self.server.specgraph_dir is None:
