@@ -11,12 +11,20 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import type { SpecNode } from "@/entities/spec-node";
 import { SpecNodeCard } from "@/entities/spec-node";
 import { getSpecGraphNodeFocusPoint } from "../model/focus-point";
+import {
+  buildSpecNodeHoverPreview,
+  SPEC_NODE_HOVER_PREVIEW_DELAY_MS,
+  type HoverPreviewAnchor,
+} from "../model/hover-preview";
 import { buildSpecGraphSelection, type SpecGraphSelection } from "../model/selection";
 import { toSpecGraphFlowElements, type SpecFlowNode } from "../model/to-flow-elements";
+import { useSpecNodePreviewDetail } from "../model/use-spec-node-preview-detail";
 import type { UseSpecGraphState } from "../model/use-spec-graph";
 import styles from "./SpecGraphCanvas.module.css";
+import { SpecNodeHoverPreview } from "./SpecNodeHoverPreview";
 
 type Props = {
   state: UseSpecGraphState;
@@ -26,9 +34,37 @@ type Props = {
   onSelectionChange?: (selection: SpecGraphSelection | null) => void;
 };
 
+type HoverPreviewState = {
+  node: SpecNode;
+  anchor: HoverPreviewAnchor;
+};
+
+function hoverPreviewAnchorFromElement(element: HTMLElement): HoverPreviewAnchor {
+  const rect = element.getBoundingClientRect();
+  return {
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+    left: rect.left,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
 function SpecFlowNodeView({ data, selected }: NodeProps<SpecFlowNode>) {
   return (
-    <div className={styles.nodeShell}>
+    <div
+      className={styles.nodeShell}
+      onMouseEnter={(event) =>
+        data.onHoverPreviewIntent?.(
+          data.spec,
+          hoverPreviewAnchorFromElement(event.currentTarget),
+        )
+      }
+      onMouseLeave={data.onHoverPreviewClear}
+      onMouseDown={data.onHoverPreviewClear}
+      onClick={data.onHoverPreviewClear}
+    >
       <Handle type="target" position={Position.Left} className={styles.handle} />
       <SpecNodeCard node={data.spec} selected={selected} />
       <Handle type="source" position={Position.Right} className={styles.handle} />
@@ -68,6 +104,9 @@ function SpecGraphCanvasInner({
   onSelectionChange,
 }: Props) {
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
+  const [hoverCandidate, setHoverCandidate] = useState<HoverPreviewState | null>(null);
+  const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null);
+  const hoverPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
     getNode,
     setCenter,
@@ -75,17 +114,47 @@ function SpecGraphCanvasInner({
   } = useReactFlow<SpecFlowNode>();
   const activeSelectedNodeId = selectedNodeId === undefined ? internalSelectedNodeId : selectedNodeId;
   const focusedNodeIdRef = useRef<string | null>(null);
+  const previewDetailState = useSpecNodePreviewDetail({
+    nodeId: hoverCandidate?.node.node_id ?? null,
+  });
   const { nodes: baseNodes, edges } = useMemo(
     () => toSpecGraphFlowElements(state.data),
     [state.data],
+  );
+  const clearHoverPreviewTimer = useCallback(() => {
+    if (!hoverPreviewTimerRef.current) return;
+    clearTimeout(hoverPreviewTimerRef.current);
+    hoverPreviewTimerRef.current = null;
+  }, []);
+  const clearHoverPreview = useCallback(() => {
+    clearHoverPreviewTimer();
+    setHoverCandidate(null);
+    setHoverPreview(null);
+  }, [clearHoverPreviewTimer]);
+  const showHoverPreviewAfterDelay = useCallback(
+    (node: SpecNode, anchor: HoverPreviewAnchor) => {
+      clearHoverPreviewTimer();
+      const nextPreview = { node, anchor };
+      setHoverCandidate(nextPreview);
+      hoverPreviewTimerRef.current = setTimeout(() => {
+        setHoverPreview(nextPreview);
+        hoverPreviewTimerRef.current = null;
+      }, SPEC_NODE_HOVER_PREVIEW_DELAY_MS);
+    },
+    [clearHoverPreviewTimer],
   );
   const nodes = useMemo(
     () =>
       baseNodes.map((node) => ({
         ...node,
         selected: node.id === activeSelectedNodeId,
+        data: {
+          ...node.data,
+          onHoverPreviewIntent: showHoverPreviewAfterDelay,
+          onHoverPreviewClear: clearHoverPreview,
+        },
       })),
-    [baseNodes, activeSelectedNodeId],
+    [baseNodes, activeSelectedNodeId, clearHoverPreview, showHoverPreviewAfterDelay],
   );
   const selection = useMemo(
     () => buildSpecGraphSelection(state.data, activeSelectedNodeId ?? null),
@@ -99,6 +168,15 @@ function SpecGraphCanvasInner({
     },
     [onSelectedNodeIdChange, selectedNodeId],
   );
+  const hoverPreviewDetail =
+    previewDetailState.kind === "ok" &&
+    hoverPreview &&
+    previewDetailState.nodeId === hoverPreview.node.node_id
+      ? previewDetailState.data
+      : null;
+  const hoverPreviewModel = hoverPreview
+    ? buildSpecNodeHoverPreview(hoverPreview.node, hoverPreviewDetail)
+    : null;
 
   useEffect(() => {
     onSelectionChange?.(selection);
@@ -127,6 +205,8 @@ function SpecGraphCanvasInner({
     });
   }, [activeSelectedNodeId, baseNodes, getNode, setCenter, viewportInitialized]);
 
+  useEffect(() => clearHoverPreview, [clearHoverPreview]);
+
   return (
     <section
       className={classNames}
@@ -144,8 +224,15 @@ function SpecGraphCanvasInner({
         minZoom={0.08}
         maxZoom={1.6}
         nodesDraggable={false}
-        onNodeClick={(_, node) => updateSelectedNodeId(node.id)}
-        onPaneClick={() => updateSelectedNodeId(null)}
+        onNodeClick={(_, node) => {
+          clearHoverPreview();
+          updateSelectedNodeId(node.id);
+        }}
+        onPaneClick={() => {
+          clearHoverPreview();
+          updateSelectedNodeId(null);
+        }}
+        onMoveStart={clearHoverPreview}
       >
         <Background gap={28} size={1} />
         <MiniMap
@@ -164,6 +251,12 @@ function SpecGraphCanvasInner({
         />
         <Controls showInteractive={false} />
       </ReactFlow>
+      {hoverPreview && hoverPreviewModel ? (
+        <SpecNodeHoverPreview
+          preview={hoverPreviewModel}
+          anchor={hoverPreview.anchor}
+        />
+      ) : null}
     </section>
   );
 }

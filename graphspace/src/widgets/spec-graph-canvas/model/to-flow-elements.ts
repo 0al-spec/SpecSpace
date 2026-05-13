@@ -3,9 +3,12 @@ import type { CSSProperties } from "react";
 import type { SpecEdge } from "@/entities/spec-edge";
 import type { SpecNode } from "@/entities/spec-node";
 import type { SpecGraphResponse } from "@/shared/spec-graph-contract";
+import type { HoverPreviewAnchor } from "./hover-preview";
 
 export type SpecFlowNodeData = Record<string, unknown> & {
   spec: SpecNode;
+  onHoverPreviewIntent?: (node: SpecNode, anchor: HoverPreviewAnchor) => void;
+  onHoverPreviewClear?: () => void;
 };
 
 export type SpecFlowEdgeData = Record<string, unknown> & {
