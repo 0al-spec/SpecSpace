@@ -47,6 +47,7 @@ export function SpecNodeCard({
   const maturityTone = getSpecNodeMaturityTone(node.maturity);
   const gapLabel = formatSpecNodeGapLabel(node.gap_count);
   const showMaturity = variant === "preview" || maturityPercent !== null;
+  const showObjective = variant === "preview" || Boolean(objectivePreview);
   const maturityStyle: MaturityStyle = {
     "--spec-node-maturity": `${maturityPercent ?? 0}%`,
   };
@@ -71,8 +72,13 @@ export function SpecNodeCard({
         <SpecNodeStatusBadge status={node.status} />
       </div>
       <h3 className={styles.title}>{node.title}</h3>
-      {objectivePreview ? (
-        <p className={styles.objective}>{objectivePreview}</p>
+      {showObjective ? (
+        <p
+          className={styles.objective}
+          data-placeholder={objectivePreview ? undefined : "true"}
+        >
+          {objectivePreview ?? ""}
+        </p>
       ) : null}
       <div className={styles.meta}>
         <span className={styles.metaGroup}>
