@@ -92,12 +92,7 @@ export function SpecInspector({
               </button>
             </div>
             <dd className={styles.fileValue} title={model.filePath}>
-              <SpecIdText
-                text={node.file_name}
-                resolveSpecRef={resolveSpecRef}
-                onSpecIdClick={onSelectNodeId}
-                variant="bare"
-              />
+              {node.file_name}
             </dd>
           </div>
         </dl>
