@@ -10,11 +10,11 @@ from typing import Any, Protocol
 
 from viewer import schema
 from viewer.graph import serialize_errors, serialize_validation
-from viewer.http_response import json_response
+from viewer.http_response import JsonResponseHandler, json_response
 from viewer.request_query import query_params, query_value
 
 
-class FileApiHandler(Protocol):
+class FileApiHandler(JsonResponseHandler, Protocol):
     server: Any
     collect_workspace_listing: Callable[[Path], dict[str, Any]]
     load_json_file: Callable[[Path], tuple[dict[str, Any] | None, tuple[schema.NormalizationError, ...]]]

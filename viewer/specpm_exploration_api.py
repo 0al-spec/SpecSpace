@@ -6,7 +6,7 @@ from http import HTTPStatus
 from typing import Any, Protocol
 
 from viewer import specgraph_surfaces, supervisor_build
-from viewer.http_response import json_response
+from viewer.http_response import JsonResponseHandler, json_response
 from viewer.request_body import read_json_object_request_body
 from viewer.request_query import query_params, query_value
 from viewer.specpm import (
@@ -20,7 +20,7 @@ from viewer.specpm import (
 )
 
 
-class SpecPmExplorationApiHandler(Protocol):
+class SpecPmExplorationApiHandler(JsonResponseHandler, Protocol):
     server: Any
     headers: Any
     rfile: Any

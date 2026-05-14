@@ -5,10 +5,10 @@ from __future__ import annotations
 from http import HTTPStatus
 from typing import Any, Protocol
 
-from viewer.http_response import json_response
+from viewer.http_response import JsonResponseHandler, json_response
 
 
-class CapabilitiesHandler(Protocol):
+class CapabilitiesHandler(JsonResponseHandler, Protocol):
     server: Any
 
     def _exploration_build_available(self) -> bool: ...

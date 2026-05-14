@@ -7,11 +7,11 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Protocol
 
-from viewer.http_response import json_response
+from viewer.http_response import JsonResponseHandler, json_response
 from viewer.request_query import query_params, query_value
 
 
-class ConversationApiHandler(Protocol):
+class ConversationApiHandler(JsonResponseHandler, Protocol):
     server: Any
     collect_checkpoint_api: Callable[[Path, str, str], tuple[int, dict[str, Any]]]
     collect_conversation_api: Callable[[Path, str], tuple[int, dict[str, Any]]]
