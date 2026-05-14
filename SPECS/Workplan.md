@@ -1490,6 +1490,37 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - `npm run lint:fsd --prefix graphspace` still passes, with zero `insignificant-slice` warnings or only explicitly documented intentional exceptions.
   - Import direction and public API rules remain intact.
 
+## Phase 11: SpecSpace Deployment Boundary
+
+Intent: make SpecSpace deployable as a standalone viewer/API surface that can read the current SpecGraph workspace without owning it. The deployment boundary should keep SpecGraph readonly, expose stable versioned SpecSpace contracts, and let the UI depend on SpecSpace API v1 rather than raw upstream file layouts or producer internals.
+
+### CTXB-P11-T1 — Versioned readonly SpecGraph provider for SpecSpace API
+- **Description:** Introduce a deploy-oriented SpecSpace API boundary: SpecSpace API reads readonly SpecGraph files and artifacts, exposes versioned `/api/v1/*` endpoints, and the UI consumes only those versioned contracts. SpecGraph remains the producer/owner of `specs/nodes` and `runs/`; SpecSpace is a readonly consumer. Start with file-backed providers over readonly mounted paths, with an interface that can later support an HTTP-backed SpecGraph provider.
+- **Priority:** P1
+- **Dependencies:** CTXB-P7-T13
+- **Parallelizable:** yes
+- **Source:** deployment planning note: prefer `SpecSpace API reads readonly SpecGraph files -> exposes versioned /api/v1 -> UI consumes only /api/v1`
+- **Outputs / Artifacts:** SpecGraph provider interface; file-backed readonly provider; `/api/v1/spec-graph`, `/api/v1/spec-nodes/{id}`, `/api/v1/runs/recent`, `/api/v1/specpm/lifecycle`, `/api/v1/capabilities`, `/api/v1/health`; contract docs; validation report
+- **Acceptance Criteria:**
+  - UI data reads can be routed through `/api/v1/*` without depending on raw legacy endpoint names.
+  - The file-backed provider takes explicit `specs/nodes` and `runs` paths and never writes to either tree.
+  - Provider construction and health reporting distinguish missing, unreadable, and empty SpecGraph sources.
+  - API v1 responses are documented as contracts and have regression tests with representative SpecGraph fixtures.
+  - Existing legacy endpoints remain available during migration.
+
+### CTXB-P11-T2 — Dockerized SpecSpace deployment smoke
+- **Description:** Add a minimal Docker/Compose deployment for SpecSpace using readonly mounted SpecGraph `specs/nodes` and `runs` directories. The smoke environment should validate the real deployment shape without requiring SpecSpace to own or mutate SpecGraph. SpecPM remains optional and is represented by readonly `runs` artifacts when available.
+- **Priority:** P1
+- **Dependencies:** CTXB-P11-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** Dockerfile(s), compose file, `.dockerignore`, smoke script, operator notes
+- **Acceptance Criteria:**
+  - Compose starts SpecSpace API and UI with documented ports.
+  - SpecGraph mounts are readonly in the container definition.
+  - Smoke checks cover `/api/v1/health`, `/api/v1/spec-graph`, and UI availability.
+  - Missing optional SpecPM artifacts degrade through capabilities/status rather than failing the deployment.
+  - The setup documents how to pin or mount current SpecGraph and SpecSpace versions for integration diagnosis.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
@@ -1503,6 +1534,7 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
 - Phase 8 extends the SpecPM integration started in Phase 6. T0 (lifecycle panel) is complete. T1 (5th stage) is blocked on an upstream SpecGraph branch merge. T2 (node badge) depends on T0.
 - Phase 9 improves graph UX for daily authoring and review workflows. All tasks are independent of each other. T1 (change highlighting) is the highest-priority item. Tasks have no blocking external dependencies.
 - Phase 10 migrates the graph-first SpecGraph experience into the new `graphspace/` rewrite. It depends on the GraphSpace FSD shell and current artifact panels, and should proceed in contract -> hook/model -> minimal canvas -> layout/composition -> inspector order.
+- Phase 11 makes SpecSpace deployable around a readonly SpecGraph boundary. It should establish versioned API contracts before Dockerizing the deployment shape.
 
 ## Task Status Legend
 

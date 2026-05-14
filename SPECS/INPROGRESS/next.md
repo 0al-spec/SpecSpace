@@ -40,6 +40,10 @@
 ### Phase 7 Follow-ups
 - No remaining Phase 7 follow-up selected after CI; next queue item is the GraphSpace FSD cleanup below.
 
+### Deployment Follow-ups
+- `CTXB-P11-T1` — Versioned readonly SpecGraph provider for SpecSpace API (P1, depends on P7-T13)
+- Rationale: establish `SpecSpace API reads readonly SpecGraph files -> exposes versioned /api/v1 -> UI consumes only /api/v1` before Dockerizing the deployment shape.
+
 ### GraphSpace Follow-ups
 - `CTXB-P10-T13` — Resolve GraphSpace FSD `insignificant-slice` warnings (P3, depends on T12)
 - Initial implementation target: run `npm run lint:fsd --prefix graphspace`, review each remaining warning, then either merge page-local slices into `pages/viewer` or document a concrete retained-slice rationale.
