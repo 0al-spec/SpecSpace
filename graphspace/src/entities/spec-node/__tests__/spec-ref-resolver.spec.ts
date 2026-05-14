@@ -35,4 +35,13 @@ describe("createSpecNodeRefResolver", () => {
 
     expect(resolve("SPEC-9999")).toBeNull();
   });
+
+  it("does not resolve arbitrary unique hyphenated suffixes", () => {
+    const resolve = createSpecNodeRefResolver([
+      { node_id: "FOO-INTERNAL-DETAILS" },
+    ]);
+
+    expect(resolve("FOO-INTERNAL-DETAILS")).toBe("FOO-INTERNAL-DETAILS");
+    expect(resolve("INTERNAL-DETAILS")).toBeNull();
+  });
 });

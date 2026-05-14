@@ -526,6 +526,12 @@ function KeyValue({
 
 const inlineTokenPattern =
   /(`[^`]+`|\b[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)+\b|\b[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+\b)/g;
+const specReferenceTokenPattern =
+  /^(?:[A-Za-z0-9_]+-)*SPEC-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*$/i;
+
+function isSpecReferenceToken(token: string): boolean {
+  return specReferenceTokenPattern.test(token);
+}
 
 function renderRichInlineText(
   text: string,
@@ -557,7 +563,18 @@ function renderRichInlineText(
     }
 
     if (token.includes("-") && !token.startsWith("`")) {
-      parts.push(token);
+      parts.push(
+        isSpecReferenceToken(label) ? (
+          <span
+            key={`${token}-${index}`}
+            className={styles.inlineCode}
+          >
+            {label}
+          </span>
+        ) : (
+          token
+        ),
+      );
       lastIndex = index + token.length;
       continue;
     }
