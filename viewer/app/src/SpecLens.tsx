@@ -41,7 +41,7 @@ interface SatNode extends d3.SimulationNodeDatum {
   isCenter?:  boolean;
 }
 
-interface SatLink extends d3.SimulationLinkDatum<SatNode> {}
+type SatLink = d3.SimulationLinkDatum<SatNode>;
 
 const KIND_FILL: Record<SatKind, string> = {
   ac_met:          "#3e9a58",
