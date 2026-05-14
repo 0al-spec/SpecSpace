@@ -1,5 +1,6 @@
 import type { HTMLAttributes } from "react";
 import { ProposalTraceRow, type ProposalTraceEntry } from "@/entities/proposal-trace";
+import type { SpecRefResolver } from "@/shared/ui/spec-id-text";
 import type { ProposalSpecTraceIndex } from "@/shared/spec-graph-contract";
 import styles from "./ProposalTracePanel.module.css";
 
@@ -9,6 +10,7 @@ type Props = Omit<HTMLAttributes<HTMLElement>, "children" | "title"> & {
   title?: string;
   caption?: string;
   emptyMessage?: string;
+  resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 };
 
@@ -18,6 +20,7 @@ export function ProposalTracePanel({
   title = "Proposal trace",
   caption,
   emptyMessage = "No proposal trace entries yet",
+  resolveSpecRef,
   onSpecIdClick,
   className,
   ...rest
@@ -49,6 +52,7 @@ export function ProposalTracePanel({
             <ProposalTraceRow
               key={entry.trace_entry_id}
               entry={entry}
+              resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
             />
           ))

@@ -1,5 +1,6 @@
 import type { HTMLAttributes } from "react";
 import { RecentChangeRow, type RecentChange } from "@/entities/recent-change";
+import type { SpecRefResolver } from "@/shared/ui/spec-id-text";
 import styles from "./RecentChangesPanel.module.css";
 
 type Props = Omit<HTMLAttributes<HTMLElement>, "children" | "title"> & {
@@ -16,6 +17,7 @@ type Props = Omit<HTMLAttributes<HTMLElement>, "children" | "title"> & {
   emptyMessage?: string;
   /** Optional small text on the right of the header (source, status). */
   caption?: string;
+  resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 };
 
@@ -25,6 +27,7 @@ export function RecentChangesPanel({
   now,
   emptyMessage = "No activity recorded yet",
   caption,
+  resolveSpecRef,
   onSpecIdClick,
   className,
   ...rest
@@ -50,6 +53,7 @@ export function RecentChangesPanel({
               key={e.event_id}
               entry={e}
               now={now}
+              resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
             />
           ))

@@ -1,5 +1,6 @@
 import type { HTMLAttributes } from "react";
 import { WorkItemRow, type WorkItem } from "@/entities/implementation-work";
+import type { SpecRefResolver } from "@/shared/ui/spec-id-text";
 import styles from "./ImplementationWorkPanel.module.css";
 
 type Props = Omit<HTMLAttributes<HTMLElement>, "children" | "title"> & {
@@ -7,6 +8,7 @@ type Props = Omit<HTMLAttributes<HTMLElement>, "children" | "title"> & {
   title?: string;
   caption?: string;
   emptyMessage?: string;
+  resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 };
 
@@ -15,6 +17,7 @@ export function ImplementationWorkPanel({
   title = "Implementation work",
   caption,
   emptyMessage = "No work items emitted yet",
+  resolveSpecRef,
   onSpecIdClick,
   className,
   ...rest
@@ -39,6 +42,7 @@ export function ImplementationWorkPanel({
             <WorkItemRow
               key={it.work_item_id}
               item={it}
+              resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
             />
           ))

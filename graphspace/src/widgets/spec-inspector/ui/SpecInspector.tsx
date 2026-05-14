@@ -1,6 +1,9 @@
 import { useState, type HTMLAttributes, type ReactNode } from "react";
 import { SpecNodeStatusBadge } from "@/entities/spec-node";
-import { SpecIdText, isSpecIdToken } from "@/shared/ui/spec-id-text";
+import {
+  SpecIdText,
+  type SpecRefResolver,
+} from "@/shared/ui/spec-id-text";
 import {
   buildSpecInspectorModel,
   useSpecNodeDetail,
@@ -15,12 +18,14 @@ import styles from "./SpecInspector.module.css";
 type Props = Omit<HTMLAttributes<HTMLElement>, "children"> & {
   selection: SpecInspectorSelection;
   onClose: () => void;
+  resolveSpecRef?: SpecRefResolver;
   onSelectNodeId?: (nodeId: string) => void;
 };
 
 export function SpecInspector({
   selection,
   onClose,
+  resolveSpecRef,
   onSelectNodeId,
   className,
   ...rest
@@ -45,6 +50,7 @@ export function SpecInspector({
         <div className={styles.identity}>
           <SpecIdText
             text={node.node_id}
+            resolveSpecRef={resolveSpecRef}
             onSpecIdClick={onSelectNodeId}
             variant="bare"
             specClassName={styles.id}
@@ -60,7 +66,11 @@ export function SpecInspector({
         <h2 className={styles.title}>{node.title}</h2>
         {model.detail?.objective ? (
           <p className={styles.objective}>
-            {renderRichInlineText(model.detail.objective, onSelectNodeId)}
+            {renderRichInlineText(
+              model.detail.objective,
+              resolveSpecRef,
+              onSelectNodeId,
+            )}
           </p>
         ) : null}
 
@@ -84,6 +94,7 @@ export function SpecInspector({
             <dd className={styles.fileValue} title={model.filePath}>
               <SpecIdText
                 text={node.file_name}
+                resolveSpecRef={resolveSpecRef}
                 onSpecIdClick={onSelectNodeId}
                 variant="bare"
               />
@@ -117,6 +128,7 @@ export function SpecInspector({
         {model.detail ? (
           <RichSpecDetail
             detail={model.detail}
+            resolveSpecRef={resolveSpecRef}
             onSpecIdClick={onSelectNodeId}
           />
         ) : null}
@@ -127,7 +139,11 @@ export function SpecInspector({
             <ul className={styles.diagnostics}>
               {node.diagnostics.map((diagnostic, index) => (
                 <li key={`${diagnostic.message}-${index}`}>
-                  {renderRichInlineText(diagnostic.message, onSelectNodeId)}
+                  {renderRichInlineText(
+                    diagnostic.message,
+                    resolveSpecRef,
+                    onSelectNodeId,
+                  )}
                 </li>
               ))}
             </ul>
@@ -187,9 +203,11 @@ function Field({
 
 function RichSpecDetail({
   detail,
+  resolveSpecRef,
   onSpecIdClick,
 }: {
   detail: SpecInspectorDetailModel;
+  resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 }) {
   const hasScope = Boolean(detail.scope);
@@ -203,7 +221,11 @@ function RichSpecDetail({
   return (
     <>
       {hasScope ? (
-        <ScopeSection scope={detail.scope!} onSpecIdClick={onSpecIdClick} />
+        <ScopeSection
+          scope={detail.scope!}
+          resolveSpecRef={resolveSpecRef}
+          onSpecIdClick={onSpecIdClick}
+        />
       ) : null}
 
       {detail.acceptance.length > 0 ? (
@@ -220,7 +242,7 @@ function RichSpecDetail({
                   {item.hasEvidence ? "evidence" : "gap"}
                 </span>
                 <span className={styles.contentText}>
-                  {renderRichInlineText(item.text, onSpecIdClick)}
+                  {renderRichInlineText(item.text, resolveSpecRef, onSpecIdClick)}
                 </span>
                 {item.malformed ? (
                   <span className={styles.formatBadge}>format</span>
@@ -240,7 +262,11 @@ function RichSpecDetail({
                 <div className={styles.evidenceCriterion}>{item.criterion}</div>
                 {item.evidence ? (
                   <p className={styles.evidenceText}>
-                    {renderRichInlineText(item.evidence, onSpecIdClick)}
+                    {renderRichInlineText(
+                      item.evidence,
+                      resolveSpecRef,
+                      onSpecIdClick,
+                    )}
                   </p>
                 ) : null}
               </article>
@@ -256,7 +282,13 @@ function RichSpecDetail({
             {detail.terminology.map((entry) => (
               <div key={entry.term} className={styles.termItem}>
                 <dt>{entry.term}</dt>
-                <dd>{renderRichInlineText(entry.definition, onSpecIdClick)}</dd>
+                <dd>
+                  {renderRichInlineText(
+                    entry.definition,
+                    resolveSpecRef,
+                    onSpecIdClick,
+                  )}
+                </dd>
               </div>
             ))}
           </dl>
@@ -266,11 +298,13 @@ function RichSpecDetail({
       <DecisionSection
         title="Decisions"
         items={detail.decisions}
+        resolveSpecRef={resolveSpecRef}
         onSpecIdClick={onSpecIdClick}
       />
       <DecisionSection
         title="Invariants"
         items={detail.invariants}
+        resolveSpecRef={resolveSpecRef}
         onSpecIdClick={onSpecIdClick}
       />
 
@@ -280,16 +314,19 @@ function RichSpecDetail({
           <TagList
             label="Inputs"
             items={detail.inputs}
+            resolveSpecRef={resolveSpecRef}
             onSpecIdClick={onSpecIdClick}
           />
           <TagList
             label="Outputs"
             items={detail.outputs}
+            resolveSpecRef={resolveSpecRef}
             onSpecIdClick={onSpecIdClick}
           />
           <TagList
             label="Allowed paths"
             items={detail.allowedPaths}
+            resolveSpecRef={resolveSpecRef}
             onSpecIdClick={onSpecIdClick}
           />
         </section>
@@ -310,6 +347,7 @@ function RichSpecDetail({
                 key={field.label}
                 label={field.label}
                 value={field.value}
+                resolveSpecRef={resolveSpecRef}
                 onSpecIdClick={onSpecIdClick}
               />
             ))}
@@ -338,9 +376,11 @@ function RichSpecDetail({
 
 function ScopeSection({
   scope,
+  resolveSpecRef,
   onSpecIdClick,
 }: {
   scope: NonNullable<SpecInspectorDetailModel["scope"]>;
+  resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 }) {
   return (
@@ -354,7 +394,7 @@ function ScopeSection({
               {scope.in.map((item) => (
                 <li key={item} className={styles.contentItem}>
                   <span className={styles.contentText}>
-                    {renderRichInlineText(item, onSpecIdClick)}
+                    {renderRichInlineText(item, resolveSpecRef, onSpecIdClick)}
                   </span>
                 </li>
               ))}
@@ -368,7 +408,7 @@ function ScopeSection({
               {scope.out.map((item) => (
                 <li key={item} className={styles.contentItem}>
                   <span className={styles.contentText}>
-                    {renderRichInlineText(item, onSpecIdClick)}
+                    {renderRichInlineText(item, resolveSpecRef, onSpecIdClick)}
                   </span>
                 </li>
               ))}
@@ -383,10 +423,12 @@ function ScopeSection({
 function DecisionSection({
   title,
   items,
+  resolveSpecRef,
   onSpecIdClick,
 }: {
   title: string;
   items: SpecInspectorDetailModel["decisions"];
+  resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 }) {
   if (items.length === 0) return null;
@@ -402,11 +444,19 @@ function DecisionSection({
           >
             {item.id ? <span className={styles.idBadge}>{item.id}</span> : null}
             <span className={styles.contentText}>
-              {renderRichInlineText(item.statement, onSpecIdClick)}
+              {renderRichInlineText(
+                item.statement,
+                resolveSpecRef,
+                onSpecIdClick,
+              )}
             </span>
             {item.rationale ? (
               <p className={styles.rationale}>
-                {renderRichInlineText(item.rationale, onSpecIdClick)}
+                {renderRichInlineText(
+                  item.rationale,
+                  resolveSpecRef,
+                  onSpecIdClick,
+                )}
               </p>
             ) : null}
           </li>
@@ -419,10 +469,12 @@ function DecisionSection({
 function TagList({
   label,
   items,
+  resolveSpecRef,
   onSpecIdClick,
 }: {
   label: string;
   items: readonly string[];
+  resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 }) {
   if (items.length === 0) return null;
@@ -435,6 +487,7 @@ function TagList({
           <li key={item} className={styles.tag}>
             <SpecIdText
               text={item}
+              resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
               variant="bare"
             />
@@ -448,10 +501,12 @@ function TagList({
 function KeyValue({
   label,
   value,
+  resolveSpecRef,
   onSpecIdClick,
 }: {
   label: string;
   value: string;
+  resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 }) {
   return (
@@ -460,6 +515,7 @@ function KeyValue({
       <strong>
         <SpecIdText
           text={value}
+          resolveSpecRef={resolveSpecRef}
           onSpecIdClick={onSpecIdClick}
           variant="bare"
         />
@@ -469,10 +525,17 @@ function KeyValue({
 }
 
 const inlineTokenPattern =
-  /(`[^`]+`|\b(?:SG-)?SPEC-[A-Z0-9]+(?:-[A-Z0-9]+)*\b|\b[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+\b)/g;
+  /(`[^`]+`|\b[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)+\b|\b[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+\b)/g;
+const specReferenceTokenPattern =
+  /^(?:[A-Za-z0-9_]+-)*SPEC-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*$/i;
+
+function isSpecReferenceToken(token: string): boolean {
+  return specReferenceTokenPattern.test(token);
+}
 
 function renderRichInlineText(
   text: string,
+  resolveSpecRef?: SpecRefResolver,
   onSpecIdClick?: (nodeId: string) => void,
 ): ReactNode {
   const parts: ReactNode[] = [];
@@ -485,14 +548,32 @@ function renderRichInlineText(
 
     const label =
       token.startsWith("`") && token.endsWith("`") ? token.slice(1, -1) : token;
-    if (isSpecIdToken(label)) {
+    if (resolveSpecRef?.(label)) {
       parts.push(
         <SpecIdText
           key={`${token}-${index}`}
           text={label}
+          resolveSpecRef={resolveSpecRef}
           onSpecIdClick={onSpecIdClick}
           variant="inline"
         />,
+      );
+      lastIndex = index + token.length;
+      continue;
+    }
+
+    if (token.includes("-") && !token.startsWith("`")) {
+      parts.push(
+        isSpecReferenceToken(label) ? (
+          <span
+            key={`${token}-${index}`}
+            className={styles.inlineCode}
+          >
+            {label}
+          </span>
+        ) : (
+          token
+        ),
       );
       lastIndex = index + token.length;
       continue;
