@@ -29,6 +29,7 @@ from viewer import spec_compile  # noqa: E402
 from viewer import specgraph_surfaces  # noqa: E402
 from viewer import supervisor_build  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
+from viewer import conversation_api  # noqa: E402
 from viewer import file_api  # noqa: E402
 from viewer.http_response import json_response  # noqa: E402
 from viewer.request_body import read_json_object_request_body  # noqa: E402
@@ -350,12 +351,22 @@ class ViewerHandler(BaseHTTPRequestHandler):
     server_version = "ContextBuilderViewer/0.1"
 
     collect_workspace_listing = staticmethod(collect_workspace_listing)
+    collect_checkpoint_api = staticmethod(collect_checkpoint_api)
+    collect_conversation_api = staticmethod(collect_conversation_api)
+    collect_graph_api = staticmethod(collect_graph_api)
+    compile_graph_nodes = staticmethod(compile_graph_nodes)
+    export_graph_nodes = staticmethod(export_graph_nodes)
     get_workspace_cache = staticmethod(_get_workspace_cache)
     load_json_file = staticmethod(load_json_file)
     validate_write_request = staticmethod(validate_write_request)
 
+    handle_compile = conversation_api.handle_compile
     handle_delete_file = file_api.handle_delete_file
+    handle_export = conversation_api.handle_export
     handle_get_file = file_api.handle_get_file
+    handle_get_checkpoint = conversation_api.handle_get_checkpoint
+    handle_get_conversation = conversation_api.handle_get_conversation
+    handle_graph = conversation_api.handle_graph
     handle_list_files = file_api.handle_list_files
     handle_write_file = file_api.handle_write_file
 
@@ -827,45 +838,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
             "manifest": result.manifest(),
             "load_errors": load_errors,
         })
-
-    def handle_graph(self) -> None:
-        json_response(self, HTTPStatus.OK, collect_graph_api(self.server.dialog_dir))
-
-    def handle_get_conversation(self, parsed) -> None:
-        params = query_params(parsed)
-        conversation_id = query_value(params, "conversation_id", "")
-        status, payload = collect_conversation_api(self.server.dialog_dir, conversation_id)
-        json_response(self, status, payload)
-
-    def handle_get_checkpoint(self, parsed) -> None:
-        params = query_params(parsed)
-        conversation_id = query_value(params, "conversation_id", "")
-        message_id = query_value(params, "message_id", "")
-        status, payload = collect_checkpoint_api(self.server.dialog_dir, conversation_id, message_id)
-        json_response(self, status, payload)
-
-    def handle_export(self) -> None:
-        payload = self.read_json_body()
-        if payload is None:
-            return
-        conversation_id = payload.get("conversation_id", "")
-        message_id = payload.get("message_id") or None
-        status, response = export_graph_nodes(self.server.dialog_dir, conversation_id, message_id)
-        json_response(self, status, response)
-
-    def handle_compile(self) -> None:
-        payload = self.read_json_body()
-        if payload is None:
-            return
-        conversation_id = payload.get("conversation_id", "")
-        message_id = payload.get("message_id") or None
-        status, response = compile_graph_nodes(
-            self.server.dialog_dir,
-            conversation_id,
-            message_id,
-            self.server.hyperprompt_binary,
-        )
-        json_response(self, status, response)
 
     def handle_static(self, request_path: str) -> None:
         dist_dir = self.server.repo_root / "viewer" / "app" / "dist"
