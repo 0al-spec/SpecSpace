@@ -44,7 +44,7 @@
 - Added `RouteSpec` and method-specific route maps in `viewer/routes.py`.
 - Replaced the long `do_GET`, `do_POST`, and `do_DELETE` `if parsed.path == ...` chains with `ViewerHandler._dispatch_route()`.
 - Kept all handler methods, request parsing, response payloads, static fallback, and 404 behavior in `ViewerHandler`.
-- Reduced `viewer/server.py` from 1293 lines to 1165 lines in this slice.
+- Reduced `viewer/server.py` by moving the route declarations into `viewer/routes.py`.
 
 ## Residual Work
 
