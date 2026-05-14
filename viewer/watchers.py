@@ -91,6 +91,30 @@ class SpecWatcher(PollingWatcher):
         return result
 
 
+class WorkspaceWatcher(PollingWatcher):
+    """Polling watcher for conversation JSON files in the dialog workspace."""
+
+    POLL_INTERVAL: float = 1.0
+    KEEPALIVE_TIMEOUT: float = 14.0
+    THREAD_NAME: str = "workspace-watcher-poll"
+
+    def __init__(self, dialog_dir: Path) -> None:
+        super().__init__()
+        self._dialog_dir = dialog_dir
+
+    def _get_mtimes(self) -> dict[str, float]:
+        result: dict[str, float] = {}
+        try:
+            with os.scandir(self._dialog_dir) as entries:
+                for entry in entries:
+                    if entry.is_file() and entry.name.endswith(".json"):
+                        stat = entry.stat()
+                        result[f"{entry.name}\0{stat.st_size}"] = stat.st_mtime
+        except OSError:
+            pass
+        return result
+
+
 class RunsWatcher(PollingWatcher):
     """Polling watcher for SpecGraph runs/ artifacts."""
 

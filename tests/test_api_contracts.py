@@ -30,6 +30,7 @@ def start_test_server(dialog_dir: Path) -> tuple[ThreadingHTTPServer, threading.
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.ViewerHandler)
     httpd.repo_root = REPO_ROOT
     httpd.dialog_dir = dialog_dir
+    httpd.workspace_watcher = server.WorkspaceWatcher(dialog_dir)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     return httpd, thread, f"http://127.0.0.1:{httpd.server_port}"
@@ -303,6 +304,36 @@ class GraphApiHttpTests(unittest.TestCase):
         self.assertEqual(graph_payload["summary"]["root_count"], 1)
         self.assertEqual(checkpoint_payload["checkpoint"]["message_id"], "msg-root-2")
         self.assertEqual(checkpoint_payload["compile_target"]["target_message_id"], "msg-root-2")
+
+    def test_workspace_watch_endpoint_sends_connected_comment(self) -> None:
+        import socket
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dialog_dir = Path(tmp_dir)
+            write_workspace(dialog_dir, {"root.json": load_json(CANONICAL_FIXTURES / "root_conversation.json")})
+            httpd, thread, _ = start_test_server(dialog_dir)
+
+            try:
+                sock = socket.create_connection(("127.0.0.1", httpd.server_port), timeout=3)
+                try:
+                    sock.sendall(
+                        b"GET /api/watch HTTP/1.1\r\n"
+                        b"Host: localhost\r\n"
+                        b"Accept: text/event-stream\r\n"
+                        b"Connection: close\r\n\r\n"
+                    )
+                    buf = b""
+                    sock.settimeout(3)
+                    while b": connected" not in buf:
+                        chunk = sock.recv(256)
+                        if not chunk:
+                            break
+                        buf += chunk
+                    self.assertIn(b": connected", buf)
+                finally:
+                    sock.close()
+            finally:
+                stop_test_server(httpd, thread)
 
     def test_conversation_endpoint_returns_404_for_unknown_identity(self) -> None:
         root_payload = load_json(CANONICAL_FIXTURES / "root_conversation.json")

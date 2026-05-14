@@ -34,7 +34,7 @@ from viewer.http_response import json_response  # noqa: E402
 from viewer.request_body import read_json_object_request_body  # noqa: E402
 from viewer.routes import route_for  # noqa: E402
 from viewer.sse import send_sse_headers, stream_change_events  # noqa: E402
-from viewer.watchers import RunsWatcher, SpecWatcher  # noqa: E402
+from viewer.watchers import RunsWatcher, SpecWatcher, WorkspaceWatcher  # noqa: E402
 from viewer.export import (  # noqa: E402
     _render_node_markdown,
     build_compile_provenance,
@@ -374,6 +374,20 @@ class ViewerHandler(BaseHTTPRequestHandler):
         send_sse_headers(self)
         stream_change_events(self, watcher)
 
+    def handle_watch(self) -> None:
+        """SSE endpoint: streams a 'change' event whenever dialog JSON files change."""
+        watcher: WorkspaceWatcher | None = getattr(self.server, "workspace_watcher", None)
+        if watcher is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "Workspace watch not configured. Start the server with --dialog-dir."},
+            )
+            return
+
+        send_sse_headers(self)
+        stream_change_events(self, watcher)
+
     def handle_runs_watch(self) -> None:
         """SSE endpoint: streams a 'change' event when files in runs/ change.
 
@@ -400,6 +414,7 @@ def main() -> None:
         repo_root=REPO_ROOT,
         default_hyperprompt_binary=DEFAULT_HYPERPROMPT_BINARY,
         resolve_hyperprompt_binary=resolve_hyperprompt_binary,
+        workspace_watcher_factory=WorkspaceWatcher,
         spec_watcher_factory=SpecWatcher,
         runs_watcher_factory=RunsWatcher,
     )

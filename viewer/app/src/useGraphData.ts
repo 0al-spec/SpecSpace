@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import type {
   ConversationNodeData,
   ExpandedConversationGroupData,
 } from "./types";
 import { computeBasePositions, expandedNodeHeight, NODE_WIDTH, NODE_HEIGHT } from "./layoutGraph";
+import { useFetchedData } from "./useFetchedData";
 import { useSessionSet } from "./useSessionState";
 
 const HEADER_HEIGHT = 40;
@@ -55,30 +56,32 @@ interface ApiGraph {
   diagnostics: ApiDiagnostic[];
 }
 
+function readGraphResponse(json: unknown): ApiGraph {
+  if (typeof json === "object" && json !== null && "graph" in json) {
+    const payload = json as { graph?: unknown };
+    return (payload.graph ?? json) as ApiGraph;
+  }
+  return json as ApiGraph;
+}
+
 export function useGraphData() {
-  const [apiGraph, setApiGraph] = useState<ApiGraph | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: apiGraph,
+    loading,
+    error,
+    refresh: fetchGraph,
+  } = useFetchedData<ApiGraph>("/api/graph", readGraphResponse, {
+    failureMessage: "Failed to fetch graph",
+  });
   const [expandedNodes, setExpandedNodes] = useSessionSet("expanded_nodes");
 
-  const fetchGraph = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/graph");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      const data: ApiGraph = json.graph ?? json;
-      setApiGraph(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to fetch graph");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchGraph();
+    const es = new EventSource("/api/watch");
+    es.addEventListener("change", () => fetchGraph());
+    es.onerror = () => {
+      // EventSource auto-reconnects; nothing to do here.
+    };
+    return () => es.close();
   }, [fetchGraph]);
 
   const onToggleExpand = useCallback((conversationId: string) => {
