@@ -19,6 +19,7 @@ selection from `viewer/server.py` into `viewer/server_runtime.py`.
 ```bash
 python -m py_compile viewer/server.py viewer/server_runtime.py
 python -m pytest tests/test_server_runtime.py tests/test_runs_watcher.py tests/test_specgraph.py::CapabilitiesEndpointTests tests/test_exploration_preview.py::ExplorationCapabilityTests tests/test_routes.py
+python -m pytest tests/test_smoke.py::ContextBuilderSmokeTests::test_server_serves_from_dist tests/test_server_runtime.py tests/test_routes.py
 ```
 
 Result: passed.
