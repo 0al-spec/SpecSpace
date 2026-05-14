@@ -5,9 +5,80 @@ from __future__ import annotations
 from collections.abc import Callable
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, TypedDict
 
 from viewer import schema
+
+
+class GraphDiagnosticOptional(TypedDict, total=False):
+    conversation_id: str
+    edge_id: str
+
+
+class GraphDiagnostic(GraphDiagnosticOptional):
+    scope: str
+    file_name: str
+    code: str
+    message: str
+
+
+class GraphCheckpointOptional(TypedDict, total=False):
+    turn_id: str
+    source: str
+
+
+class GraphCheckpoint(GraphCheckpointOptional):
+    message_id: str
+    index: int
+    role: str
+    content: str
+    child_edge_ids: list[str]
+
+
+class GraphNode(TypedDict):
+    conversation_id: str
+    file_name: str
+    kind: str
+    title: str
+    source_file: str | None
+    message_count: int
+    checkpoint_count: int
+    checkpoints: list[GraphCheckpoint]
+    parent_edge_ids: list[str]
+    child_edge_ids: list[str]
+    diagnostics: list[GraphDiagnostic]
+
+
+class GraphEdge(TypedDict):
+    edge_id: str
+    link_type: str
+    parent_conversation_id: str
+    parent_file_name: str | None
+    parent_message_id: str
+    child_conversation_id: str
+    child_file_name: str
+    status: Literal["resolved", "broken"]
+    diagnostics: list[GraphDiagnostic]
+
+
+class BlockedGraphFile(TypedDict):
+    file_name: str
+    conversation_id: str | None
+    kind: str
+    diagnostics: list[GraphDiagnostic]
+
+
+class GraphSnapshot(TypedDict):
+    nodes: list[GraphNode]
+    edges: list[GraphEdge]
+    roots: list[str]
+    blocked_files: list[BlockedGraphFile]
+    diagnostics: list[GraphDiagnostic]
+
+
+GraphNodeIndex = dict[str, GraphNode]
+GraphEdgeIndex = dict[str, GraphEdge]
+BlockedConversationIndex = dict[str, list[BlockedGraphFile]]
 
 NON_BLOCKING_GRAPH_ERROR_CODES = frozenset(
     {
@@ -58,10 +129,10 @@ def serialize_graph_diagnostics(
     errors: tuple[schema.NormalizationError, ...] | list[schema.NormalizationError],
     scope: str,
     edge_id: str | None = None,
-) -> list[dict[str, Any]]:
-    diagnostics: list[dict[str, Any]] = []
+) -> list[GraphDiagnostic]:
+    diagnostics: list[GraphDiagnostic] = []
     for error in errors:
-        item: dict[str, Any] = {
+        item: GraphDiagnostic = {
             "scope": scope,
             "file_name": file_name,
             "code": error.code,
@@ -75,22 +146,24 @@ def serialize_graph_diagnostics(
     return diagnostics
 
 
-def build_checkpoint(message: dict[str, Any], index: int) -> dict[str, Any]:
-    checkpoint = {
+def build_checkpoint(message: dict[str, Any], index: int) -> GraphCheckpoint:
+    checkpoint: GraphCheckpoint = {
         "message_id": message["message_id"],
         "index": index,
         "role": message["role"],
         "content": message["content"],
         "child_edge_ids": [],
     }
-    for field in ("turn_id", "source"):
-        value = message.get(field)
-        if isinstance(value, str) and value:
-            checkpoint[field] = value
+    turn_id = message.get("turn_id")
+    if isinstance(turn_id, str) and turn_id:
+        checkpoint["turn_id"] = turn_id
+    source = message.get("source")
+    if isinstance(source, str) and source:
+        checkpoint["source"] = source
     return checkpoint
 
 
-def sort_graph_diagnostics(diagnostics: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def sort_graph_diagnostics(diagnostics: list[GraphDiagnostic]) -> list[GraphDiagnostic]:
     return sorted(
         diagnostics,
         key=lambda item: (
@@ -107,13 +180,13 @@ def sort_graph_diagnostics(diagnostics: list[dict[str, Any]]) -> list[dict[str, 
 def build_graph_snapshot(
     discovered: list[tuple[dict[str, Any], dict[str, Any] | None, tuple[schema.NormalizationError, ...]]],
     reports: dict[str, schema.FileValidationReport],
-) -> dict[str, Any]:
-    diagnostics: list[dict[str, Any]] = []
-    blocked_files: list[dict[str, Any]] = []
-    nodes_by_conversation: dict[str, dict[str, Any]] = {}
+) -> GraphSnapshot:
+    diagnostics: list[GraphDiagnostic] = []
+    blocked_files: list[BlockedGraphFile] = []
+    nodes_by_conversation: dict[str, GraphNode] = {}
     reports_by_file_name: dict[str, schema.FileValidationReport] = {}
     normalized_reports_by_conversation: dict[str, list[schema.FileValidationReport]] = {}
-    checkpoints_by_conversation: dict[str, dict[str, dict[str, Any]]] = {}
+    checkpoints_by_conversation: dict[str, dict[str, GraphCheckpoint]] = {}
 
     for meta, payload, load_errors in discovered:
         file_name = meta["name"]
@@ -165,6 +238,7 @@ def build_graph_snapshot(
             diagnostics.extend(file_diagnostics)
             continue
 
+        assert conversation_id is not None
         node_diagnostics = serialize_graph_diagnostics(
             file_name=file_name,
             conversation_id=conversation_id,
@@ -172,12 +246,13 @@ def build_graph_snapshot(
             scope="node",
         )
         checkpoints = [build_checkpoint(message, index) for index, message in enumerate(normalized["messages"])]
-        node = {
+        source_file = normalized.get("source_file")
+        node: GraphNode = {
             "conversation_id": conversation_id,
             "file_name": file_name,
             "kind": kind,
             "title": normalized.get("title", ""),
-            "source_file": normalized.get("source_file"),
+            "source_file": source_file if isinstance(source_file, str) else None,
             "message_count": len(normalized["messages"]),
             "checkpoint_count": len(checkpoints),
             "checkpoints": checkpoints,
@@ -191,7 +266,7 @@ def build_graph_snapshot(
         }
         diagnostics.extend(node_diagnostics)
 
-    edges: list[dict[str, Any]] = []
+    edges: list[GraphEdge] = []
     for file_name, report in sorted(reports_by_file_name.items()):
         normalized = report.normalized
         if normalized is None:
@@ -258,6 +333,7 @@ def build_graph_snapshot(
                 edge_id=edge_id,
             )
             node["parent_edge_ids"].append(edge_id)
+            status: Literal["resolved", "broken"] = "broken" if edge_errors else "resolved"
             edges.append(
                 {
                     "edge_id": edge_id,
@@ -267,7 +343,7 @@ def build_graph_snapshot(
                     "parent_message_id": parent["message_id"],
                     "child_conversation_id": conversation_id,
                     "child_file_name": file_name,
-                    "status": "broken" if edge_errors else "resolved",
+                    "status": status,
                     "diagnostics": edge_diagnostics,
                 }
             )
@@ -305,12 +381,12 @@ def build_graph_snapshot(
     }
 
 
-def graph_diagnostic_is_blocking(diagnostic: dict[str, Any]) -> bool:
+def graph_diagnostic_is_blocking(diagnostic: GraphDiagnostic) -> bool:
     code = diagnostic.get("code")
     return not isinstance(code, str) or code not in NON_BLOCKING_GRAPH_ERROR_CODES
 
 
-def split_graph_diagnostics(diagnostics: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def split_graph_diagnostics(diagnostics: list[GraphDiagnostic]) -> dict[str, list[GraphDiagnostic]]:
     blocking = [item for item in diagnostics if graph_diagnostic_is_blocking(item)]
     non_blocking = [item for item in diagnostics if not graph_diagnostic_is_blocking(item)]
     return {
@@ -319,7 +395,7 @@ def split_graph_diagnostics(diagnostics: list[dict[str, Any]]) -> dict[str, list
     }
 
 
-def build_graph_summary(graph: dict[str, Any]) -> dict[str, Any]:
+def build_graph_summary(graph: GraphSnapshot) -> dict[str, Any]:
     integrity = split_graph_diagnostics(graph["diagnostics"])
     return {
         "node_count": len(graph["nodes"]),
@@ -349,12 +425,8 @@ def collect_graph_api(
 
 
 def build_graph_indexes(
-    graph: dict[str, Any],
-) -> tuple[
-    dict[str, dict[str, Any]],
-    dict[str, dict[str, Any]],
-    dict[str, list[dict[str, Any]]],
-]:
+    graph: GraphSnapshot,
+) -> tuple[GraphNodeIndex, GraphEdgeIndex, BlockedConversationIndex]:
     nodes_by_conversation = {
         node["conversation_id"]: node
         for node in graph["nodes"]
@@ -365,7 +437,7 @@ def build_graph_indexes(
         for edge in graph["edges"]
         if isinstance(edge.get("edge_id"), str)
     }
-    blocked_by_conversation: dict[str, list[dict[str, Any]]] = {}
+    blocked_by_conversation: BlockedConversationIndex = {}
     for blocked in graph["blocked_files"]:
         conversation_id = blocked.get("conversation_id")
         if isinstance(conversation_id, str):
@@ -380,8 +452,8 @@ def sort_lineage_paths(paths: list[list[str]]) -> list[list[str]]:
 
 def build_lineage_paths(
     conversation_id: str,
-    nodes_by_conversation: dict[str, dict[str, Any]],
-    edges_by_id: dict[str, dict[str, Any]],
+    nodes_by_conversation: GraphNodeIndex,
+    edges_by_id: GraphEdgeIndex,
     active_stack: tuple[str, ...] = (),
 ) -> list[list[str]]:
     if conversation_id in active_stack:
@@ -413,14 +485,14 @@ def build_lineage_paths(
 
 
 def build_compile_target(
-    graph: dict[str, Any],
+    graph: GraphSnapshot,
     conversation_id: str,
     *,
     scope: str,
     dialog_dir: Path,
     target_message_id: str | None = None,
-    checkpoint: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+    checkpoint: GraphCheckpoint | None = None,
+) -> schema.CompileTargetPayload:
     nodes_by_conversation, edges_by_id, _ = build_graph_indexes(graph)
     node = nodes_by_conversation[conversation_id]
     visited_conversations: set[str] = set()
@@ -464,7 +536,7 @@ def build_compile_target(
         export_subdir = conversation_id
     export_dir = str(dialog_dir / "export" / export_subdir)
 
-    payload = {
+    payload: schema.CompileTargetPayload = {
         "scope": scope,
         "target_conversation_id": conversation_id,
         "target_message_id": target_message_id,
@@ -485,10 +557,10 @@ def build_compile_target(
 
 
 def collect_related_diagnostics(
-    node: dict[str, Any],
-    parent_edges: list[dict[str, Any]],
-    child_edges: list[dict[str, Any]],
-) -> dict[str, list[dict[str, Any]]]:
+    node: GraphNode,
+    parent_edges: list[GraphEdge],
+    child_edges: list[GraphEdge],
+) -> dict[str, list[GraphDiagnostic]]:
     diagnostics = list(node["diagnostics"])
     for edge in parent_edges + child_edges:
         diagnostics.extend(edge["diagnostics"])

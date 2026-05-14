@@ -6,7 +6,7 @@ import copy
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Any, TypedDict
+from typing import Any, TypeGuard, TypedDict
 
 
 IMPORTED_ROOT_REQUIRED_FIELDS = (
@@ -93,7 +93,7 @@ class CompileTargetPayload(TypedDict, total=False):
     target_checkpoint_role: str                  # present for checkpoint scope
 
 
-def _is_mapping(value: Any) -> bool:
+def _is_mapping(value: Any) -> TypeGuard[dict[str, Any]]:
     return isinstance(value, dict)
 
 
@@ -481,11 +481,11 @@ def normalize_conversation(payload: dict[str, Any]) -> NormalizationResult:
 
 def validate_conversation(payload: dict[str, Any]) -> ValidationResult:
     if looks_like_canonical_conversation(payload):
-        normalized = copy.deepcopy(payload)
-        errors = collect_canonical_validation_errors(normalized)
+        normalized_payload = copy.deepcopy(payload)
+        errors = collect_canonical_validation_errors(normalized_payload)
         if errors:
-            return ValidationResult(kind="invalid", normalized=normalized, errors=errors)
-        return ValidationResult(kind=classify_conversation(normalized), normalized=normalized)
+            return ValidationResult(kind="invalid", normalized=normalized_payload, errors=errors)
+        return ValidationResult(kind=classify_conversation(normalized_payload), normalized=normalized_payload)
 
     normalized_result = normalize_conversation(payload)
     if normalized_result.errors:
@@ -566,9 +566,13 @@ def validate_workspace(entries: list[tuple[str, dict[str, Any]]]) -> tuple[FileV
                 )
                 continue
 
+            parent_normalized = parent_reports[0].normalized
+            if parent_normalized is None:
+                continue
+
             parent_messages = {
                 message["message_id"]
-                for message in parent_reports[0].normalized["messages"]
+                for message in parent_normalized["messages"]
                 if _is_mapping(message) and _is_non_empty_string(message.get("message_id"))
             }
             if parent["message_id"] not in parent_messages:
