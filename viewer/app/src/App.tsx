@@ -1,13 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ErrorBoundary from "./ErrorBoundary";
-import {
-  ReactFlowProvider,
-  applyNodeChanges,
-  type NodeMouseHandler,
-  type EdgeMouseHandler,
-  type NodeChange,
-  type Node,
-} from "@xyflow/react";
+import { ReactFlowProvider } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./theme.css";
 import "./ConversationNode.css";
@@ -28,6 +21,7 @@ import { useCapabilities } from "./useCapabilities";
 import { useSelectionState } from "./useSelectionState";
 import { useViewportSync } from "./useViewportSync";
 import { useCanvasOverlayState } from "./useCanvasOverlayState";
+import { useGraphInteractionState } from "./useGraphInteractionState";
 import { CompileTargetContext } from "./CompileTargetContext";
 import { ToastProvider } from "./Toast";
 import GraphCanvas from "./GraphCanvas";
@@ -35,10 +29,9 @@ import CanvasOverlays from "./CanvasOverlays";
 import TelemetryOverlay, { useTelemetryToggle } from "./TelemetryOverlay";
 import { useSpecOverlayData } from "./useSpecOverlayData";
 import type { SpecLensMode } from "./types";
-import type { GraphMode, SpecViewOptions, ApiSpecNode } from "./types";
+import type { GraphMode, SpecViewOptions } from "./types";
 import SpecHoverCard from "./SpecHoverCard";
 import EdgeHoverCard from "./EdgeHoverCard";
-import type { EdgeVisualState } from "./useSpecGraphData";
 
 function loadInitialMode(): GraphMode {
   try {
@@ -102,14 +95,10 @@ function AppInner() {
 
   // Choose active graph data by mode
   const activeGraph = graphMode === "conversations" ? convGraph : specGraph;
-  const { nodes: graphNodes, edges, loading, error, refresh } = activeGraph;
-
-  const [nodes, setNodes] = useState<Node[]>([]);
+  const { nodes: graphNodes, edges: graphEdges, loading, error, refresh } = activeGraph;
 
   const [chatOpen, setChatOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [highlightedEdge, setHighlightedEdge] = useState<{ id: string; source: string; target: string } | null>(null);
-  const [searchMatchIds, setSearchMatchIds] = useState<Set<string> | null>(null);
 
   // ── Compare / pin ─────────────────────────────────────────────────────────
   const [pinnedNodeId, setPinnedNodeId] = useState<string | null>(null);
@@ -118,38 +107,6 @@ function AppInner() {
   useEffect(() => {
     if (graphMode !== "specifications") setPinnedNodeId(null);
   }, [graphMode]);
-
-  // ── Hover preview card ───────────────────────────────────────────────────
-  const [hoveredPreview, setHoveredPreview] = useState<{ node: ApiSpecNode; rect: DOMRect } | null>(null);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ── Edge hover card ───────────────────────────────────────────────────────
-  const [hoveredEdge, setHoveredEdge] = useState<{
-    kind: string; visualState?: EdgeVisualState;
-    sourceId: string; targetId: string; x: number; y: number;
-  } | null>(null);
-  const edgeHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const onNodeMouseEnter: NodeMouseHandler = useCallback((_event, rfNode) => {
-    if (rfNode.type !== "spec") return;
-    const apiNode = specGraph.rawGraph?.nodes.find((n) => n.node_id === rfNode.id);
-    if (!apiNode) return;
-    const el = (_event.target as HTMLElement).closest<HTMLElement>(".react-flow__node");
-    const rect = el?.getBoundingClientRect();
-    if (!rect) return;
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = setTimeout(() => setHoveredPreview({ node: apiNode, rect }), 700);
-  }, [specGraph.rawGraph]);
-
-  const onNodeMouseLeave: NodeMouseHandler = useCallback(() => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    setHoveredPreview(null);
-  }, []);
-
-  const onNodeDragStart: NodeMouseHandler = useCallback(() => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    setHoveredPreview(null);
-  }, []);
 
   // ── Sidebar collapse ─────────────────────────────────────────────────────
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -191,151 +148,46 @@ function AppInner() {
     panToNode,
   });
 
-  // Clear selection when graph mode changes. Do NOT clear `nodes` here:
-  // spec and dashboard share the same underlying specGraph, so graphNodes
-  // keeps the same reference and the repopulation effect below would not
-  // re-fire — leaving the canvas empty after Specs → Dashboard → Specs.
-  // The repopulation effect handles real graph swaps (conv ↔ spec) via its
-  // `graphNodes` dep; node IDs don't overlap so positions won't bleed over.
-  useEffect(() => {
-    setSelectedConversationId(null);
-    setSelectedMessageId(null);
-  }, [graphMode]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reset node positions (but keep selection) when spec view mode changes
-  const prevViewMode = useRef(specViewOptions.viewMode);
-  const pendingLayoutSwitch = useRef(false);
-  useEffect(() => {
-    if (prevViewMode.current !== specViewOptions.viewMode) {
-      prevViewMode.current = specViewOptions.viewMode;
-      pendingLayoutSwitch.current = true;
-      setNodes([]);
-    }
-  }, [specViewOptions.viewMode]);
-
-  useEffect(() => {
-    setNodes((prev) => {
-      const applySelection = (n: Node) =>
-        selectedConversationId && n.id === selectedConversationId
-          ? { ...n, selected: true }
-          : n;
-
-      if (prev.length === 0) return graphNodes.map(applySelection);
-      const prevPositions = new Map<string, { x: number; y: number }>();
-      for (const n of prev) {
-        if (!n.parentId) {
-          prevPositions.set(n.id, n.position);
-        }
-      }
-      return graphNodes.map((n) => {
-        if (n.parentId) return applySelection(n);
-        const existing = prevPositions.get(n.id);
-        const patched = existing ? { ...n, position: existing } : n;
-        return applySelection(patched);
-      });
-    });
-  }, [graphNodes, selectedConversationId]);
-
-  // Clear stale selection
-  useEffect(() => {
-    if (!selectedConversationId || graphNodes.length === 0) return;
-    const ids = new Set(
-      graphNodes.filter((n) => !n.parentId).map((n) => n.id),
-    );
-    if (!ids.has(selectedConversationId)) {
-      setSelectedConversationId(null);
-      setSelectedMessageId(null);
-    }
-  }, [graphNodes, selectedConversationId, setSelectedConversationId, setSelectedMessageId]);
-
-  // After layout switch: pan to the previously selected node once new nodes render
-  useEffect(() => {
-    if (!pendingLayoutSwitch.current) return;
-    if (nodes.length === 0 || !selectedConversationId) return;
-    pendingLayoutSwitch.current = false;
-    const target = graphNodes.find((n) => n.id === selectedConversationId);
-    if (!target) return;
-    const nodeW = 220;
-    const nodeH = 110;
-    const cx = target.position.x + nodeW / 2;
-    const cy = target.position.y + nodeH / 2;
-    panToPoint(cx, cy, getZoom() || 1, 100);
-  }, [nodes, selectedConversationId, graphNodes, getZoom, panToPoint]);
-
-  const onSearchSelectConversation = useCallback(
-    (conversationId: string) => {
-      setSelectedConversationId(conversationId);
-      setSelectedMessageId(null);
-      panToNode(conversationId, 50);
-      setSearchOpen(false);
-    },
-    [setSelectedConversationId, setSelectedMessageId, panToNode],
-  );
-
-  const onSearchSelectSpec = useCallback(
-    (nodeId: string) => {
-      onSpecNodeSelect(nodeId);
-      setSearchOpen(false);
-    },
-    [onSpecNodeSelect],
-  );
-
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      setNodes((nds) => applyNodeChanges(changes, nds));
-    },
-    [],
-  );
-
-  const onNodeClick: NodeMouseHandler = useCallback(
-    (_event, node) => {
-      // Shift+click: ReactFlow handles multi-selection visually — skip inspector
-      if (_event.shiftKey) return;
-
-      // Clicking a free (potential/gap) handle on a spec node → open agent chat
-      if (node.type === "spec" || node.type === "expandedSpec") {
-        const target = (_event.target as HTMLElement).closest?.(
-          ".spec-handle-potential, .spec-handle-gap",
-        );
-        if (target) {
-          setSelectedConversationId(node.id);
-          setSelectedMessageId(null);
-          if (agentAvailable) setChatOpen(true);
-          return;
-        }
-      }
-
-      if (node.type === "conversation" || node.type === "group") {
-        const convId =
-          (node.data as { conversationId?: string }).conversationId || node.id;
-        setSelectedConversationId(convId);
-        setSelectedMessageId(null);
-        panToNode(convId, 50, true);
-      } else if (node.type === "message") {
-        const msgData = node.data as { messageId?: string };
-        const convId = node.parentId || null;
-        setSelectedConversationId(convId);
-        setSelectedMessageId(msgData.messageId || null);
-      } else if (node.type === "spec" || node.type === "expandedSpec") {
-        navigateToSpec(node.id);
-        panToNode(node.id, 50, true); // keepZoom=true for canvas clicks
-      } else if (node.type === "specSubItem") {
-        // Select the parent spec for the inspector and highlight the sub-item
-        const parentId = node.parentId ?? null;
-        const subData = node.data as { subKind?: string; index?: number };
-        if (parentId) {
-          navigateToSpec(parentId);
-          setSelectedSubItemId(
-            subData.subKind != null && subData.index != null
-              ? `${subData.subKind}-${subData.index}`
-              : null,
-          );
-          panToNode(parentId, 50, true);
-        }
-      }
-    },
-    [navigateToSpec, setSelectedConversationId, setSelectedMessageId, setSelectedSubItemId, panToNode],
-  );
+  const {
+    nodes,
+    edges,
+    highlightedEdge,
+    searchMatchIds,
+    setSearchMatchIds,
+    hoveredPreview,
+    hoveredEdge,
+    specNodeTitleMap,
+    onSearchSelectConversation,
+    onSearchSelectSpec,
+    onNodesChange,
+    onNodeClick,
+    onNodeMouseEnter,
+    onNodeMouseLeave,
+    onNodeDragStart,
+    onEdgeClick,
+    onEdgeMouseEnter,
+    onEdgeMouseLeave,
+    onPaneClick,
+  } = useGraphInteractionState({
+    graphMode,
+    specViewMode: specViewOptions.viewMode,
+    graphNodes,
+    graphEdges,
+    selectedConversationId,
+    setSelectedConversationId,
+    setSelectedMessageId,
+    setSelectedSubItemId,
+    setSearchOpen,
+    navigateToSpec,
+    onSpecNodeSelect,
+    panToNode,
+    panToPoint,
+    getZoom,
+    fitNodes,
+    agentAvailable,
+    setChatOpen,
+    specNodes: specGraph.rawGraph?.nodes,
+  });
 
   const {
     displayNodes,
@@ -371,42 +223,6 @@ function AppInner() {
     onSpecNavBack,
     onSpecNavForward,
   });
-
-  const specNodeTitleMap = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const n of specGraph.rawGraph?.nodes ?? []) m.set(n.node_id, n.title);
-    return m;
-  }, [specGraph.rawGraph]);
-
-  const onEdgeClick: EdgeMouseHandler = useCallback((_event, edge) => {
-    setHighlightedEdge((prev) => {
-      if (prev?.id === edge.id) return null;
-      return { id: edge.id, source: edge.source, target: edge.target };
-    });
-    fitNodes([edge.source, edge.target]);
-  }, [fitNodes]);
-
-  const onEdgeMouseEnter: EdgeMouseHandler = useCallback((event, edge) => {
-    if (edgeHoverTimerRef.current) clearTimeout(edgeHoverTimerRef.current);
-    const d = edge.data as { kind?: string; visualState?: EdgeVisualState } | undefined;
-    if (!d?.kind) return;
-    const x = event.clientX;
-    const y = event.clientY;
-    edgeHoverTimerRef.current = setTimeout(() => {
-      setHoveredEdge({ kind: d.kind!, visualState: d.visualState, sourceId: edge.source, targetId: edge.target, x, y });
-    }, 250);
-  }, []);
-
-  const onEdgeMouseLeave: EdgeMouseHandler = useCallback(() => {
-    if (edgeHoverTimerRef.current) clearTimeout(edgeHoverTimerRef.current);
-    setHoveredEdge(null);
-  }, []);
-
-  const onPaneClick = useCallback(() => {
-    setSelectedConversationId(null);
-    setSelectedMessageId(null);
-    setHighlightedEdge(null);
-  }, [setSelectedConversationId, setSelectedMessageId]);
 
   return (
     <CompileTargetContext.Provider
