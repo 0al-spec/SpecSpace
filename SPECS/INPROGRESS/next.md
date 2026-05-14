@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P7-T2` — Split server.py into focused modules
+**Current Task:** `CTXB-P7-T3` — Introduce typed dataclasses for graph objects
 
 ## Recently Archived
+- `CTXB-P7-T2` — Split server.py into focused modules (PASS, 2026-05-14)
 - `CTXB-P9-T7` — SpecNode visual signal unification (PASS, 2026-05-13)
 - `CTXB-P8-T2` — SpecPM lifecycle badge on SpecNode (PASS, 2026-05-13)
 - `CTXB-P9-T6` — Hover preview card on spec nodes (PASS, 2026-05-13)
@@ -29,11 +30,10 @@
 ## Suggested Next Tasks
 
 ### Technical Debt (Phase 7, current)
-- `CTXB-P7-T2` — Split server.py into focused modules (P2, current, depends on T1 ✅)
-- Initial implementation target: extract backend graph/spec-graph read-model helpers first, then split export/compile helpers in follow-up slices if the full ≤400-line target is too large for one reviewable PR.
+- `CTXB-P7-T3` — Introduce typed dataclasses for graph objects (P2, current, depends on T2 ✅)
+- Initial implementation target: add typed internal models around the most-used graph objects first (`GraphNode`, `GraphEdge`, `Checkpoint`), then enforce the existing compile-target shape without changing HTTP payloads.
 
 ### Phase 7 Follow-ups
-- `CTXB-P7-T3` — Introduce typed dataclasses for graph objects (P2, depends on T2)
 - `CTXB-P7-T9` — Decompose App.tsx god component (P2, no deps)
 
 ### GraphSpace Follow-ups

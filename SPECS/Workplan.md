@@ -999,7 +999,8 @@ Intent: address the known architectural and code quality problems identified in 
   - Any file change (new file, modified file, deleted file) is reflected within one subsequent request.
   - All existing API contract tests continue to pass.
 
-### CTXB-P7-T2 — Split server.py into focused modules
+### ✅ CTXB-P7-T2 — Split server.py into focused modules
+- **Status:** DONE (2026-05-14, PASS)
 - **Description:** `viewer/server.py` (~1500 lines) bundles HTTP routing, graph indexing, export pipeline, compile invocation, provenance rendering, static file serving, and SSE watching into one file. Extract at least: `graph.py` (graph building, lineage traversal, compile-target construction), `export.py` (export_graph_nodes, generate_hc_root, render_markdown, provenance), `compile.py` (hyperprompt resolution, invocation). Keep `server.py` as thin routing + request/response handling only.
 - **Priority:** P2
 - **Dependencies:** CTXB-P7-T1
