@@ -24,16 +24,15 @@ from viewer import schema  # noqa: E402
 from viewer import graph as conversation_graph  # noqa: E402
 from viewer import export as graph_export  # noqa: E402
 from viewer import hyperprompt_compile  # noqa: E402
-from viewer import specgraph  # noqa: E402
-from viewer import spec_compile  # noqa: E402
 from viewer import specgraph_surfaces  # noqa: E402
 from viewer import supervisor_build  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
 from viewer import conversation_api  # noqa: E402
 from viewer import file_api  # noqa: E402
+from viewer import specgraph_api  # noqa: E402
 from viewer.http_response import json_response  # noqa: E402
 from viewer.request_body import read_json_object_request_body  # noqa: E402
-from viewer.request_query import query_bool, query_int, query_params, query_value  # noqa: E402
+from viewer.request_query import query_params, query_value  # noqa: E402
 from viewer.routes import route_for  # noqa: E402
 from viewer.sse import send_sse_headers, stream_change_events  # noqa: E402
 from viewer.watchers import RunsWatcher, SpecWatcher  # noqa: E402
@@ -368,6 +367,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_get_conversation = conversation_api.handle_get_conversation
     handle_graph = conversation_api.handle_graph
     handle_list_files = file_api.handle_list_files
+    handle_spec_compile = specgraph_api.handle_spec_compile
+    handle_spec_graph = specgraph_api.handle_spec_graph
+    handle_spec_node = specgraph_api.handle_spec_node
     handle_write_file = file_api.handle_write_file
 
     def _dispatch_route(self, method: str, parsed) -> bool:
@@ -759,85 +761,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
             json_response(self, HTTPStatus.OK, {"revealed": str(path)})
         except Exception as exc:
             json_response(self, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(exc)})
-
-    def handle_spec_graph(self) -> None:
-        if self.server.spec_dir is None:
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": "Spec graph not configured. Start the server with --spec-dir."},
-            )
-            return
-        json_response(self, HTTPStatus.OK, specgraph.collect_spec_graph_api(self.server.spec_dir))
-
-    def handle_spec_node(self, parsed) -> None:
-        if self.server.spec_dir is None:
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": "Spec graph not configured. Start the server with --spec-dir."},
-            )
-            return
-        params = query_params(parsed)
-        node_id = query_value(params, "id", "")
-        if not node_id:
-            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing required query parameter: id"})
-            return
-        nodes, _ = specgraph.load_spec_nodes(self.server.spec_dir)
-        detail = specgraph.get_spec_node_detail(nodes, node_id)
-        if detail is None:
-            json_response(self, HTTPStatus.NOT_FOUND, {"error": f"Spec node '{node_id}' not found"})
-            return
-        json_response(self, HTTPStatus.OK, {"node_id": node_id, "data": detail})
-
-    def handle_spec_compile(self, parsed) -> None:
-        """GET /api/spec-compile?root=<node_id>[&depth=<1-6>][&objective=0][&acceptance=0][&deps=0][&prompt=1]
-
-        Compiles the spec subtree rooted at *root* into a Markdown document.
-        Query params map directly to spec_compile.CompileOptions; all optional.
-        Returns JSON with 'markdown' (string) and 'manifest' (dict).
-        """
-        if self.server.spec_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "Spec graph not configured. Start the server with --spec-dir."},
-            )
-            return
-
-        params = query_params(parsed)
-        root_id = query_value(params, "root", "").strip()
-        if not root_id:
-            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing required query parameter: root"})
-            return
-
-        options = spec_compile.CompileOptions(
-            max_depth=query_int(params, "depth", 6, 1, 6),
-            include_objective=query_bool(params, "objective", True),
-            include_acceptance=query_bool(params, "acceptance", True),
-            include_depends_on_refs=query_bool(params, "deps", True),
-            include_prompt=query_bool(params, "prompt", False),
-        )
-
-        nodes, load_errors = specgraph.load_spec_nodes(self.server.spec_dir)
-        nodes_by_id = spec_compile.index_nodes(nodes)
-
-        if root_id not in nodes_by_id:
-            json_response(
-                self,
-                HTTPStatus.NOT_FOUND,
-                {"error": f"Spec node '{root_id}' not found in spec directory."},
-            )
-            return
-
-        result = spec_compile.compile_spec_tree(nodes_by_id, root_id, options)
-
-        json_response(self, HTTPStatus.OK, {
-            "root_id": root_id,
-            "markdown": result.markdown,
-            "manifest": result.manifest(),
-            "load_errors": load_errors,
-        })
 
     def handle_static(self, request_path: str) -> None:
         dist_dir = self.server.repo_root / "viewer" / "app" / "dist"
