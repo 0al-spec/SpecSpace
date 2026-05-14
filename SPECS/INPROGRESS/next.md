@@ -3,7 +3,7 @@
 **Current Task:** `CTXB-P7-T9` — Decompose App.tsx god component
 
 ## Recently Archived
-- `CTXB-P7-T3` — Introduce typed graph payload contracts and mypy baseline (PASS, 2026-05-14)
+- `CTXB-P7-T3` — Introduce typed dataclasses for graph objects (PASS, 2026-05-14)
 - `CTXB-P7-T2` — Split server.py into focused modules (PASS, 2026-05-14)
 - `CTXB-P9-T7` — SpecNode visual signal unification (PASS, 2026-05-13)
 - `CTXB-P8-T2` — SpecPM lifecycle badge on SpecNode (PASS, 2026-05-13)
