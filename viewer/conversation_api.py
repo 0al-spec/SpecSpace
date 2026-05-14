@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -22,7 +23,7 @@ class ConversationApiHandler(Protocol):
 
 
 def handle_graph(handler: ConversationApiHandler) -> None:
-    json_response(handler, 200, handler.collect_graph_api(handler.server.dialog_dir))
+    json_response(handler, HTTPStatus.OK, handler.collect_graph_api(handler.server.dialog_dir))
 
 
 def handle_get_conversation(handler: ConversationApiHandler, parsed: Any) -> None:
