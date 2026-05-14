@@ -1012,7 +1012,8 @@ Intent: address the known architectural and code quality problems identified in 
   - All existing tests pass without modification.
   - Public function signatures are unchanged from the test perspective.
 
-### CTXB-P7-T3 — Introduce typed dataclasses for graph objects
+### ✅ CTXB-P7-T3 — Introduce typed dataclasses for graph objects
+- **Status:** DONE (2026-05-14, PASS)
 - **Description:** Graph nodes, edges, checkpoints, and compile targets are currently all `dict[str, Any]`. Replace the most-accessed internal types with `@dataclass` or `TypedDict` definitions. Minimum scope: `GraphNode`, `GraphEdge`, `Checkpoint`. `CompileTargetPayload` is already defined as a TypedDict in `schema.py` but is not enforced — start enforcing it.
 - **Priority:** P2
 - **Dependencies:** CTXB-P7-T2
