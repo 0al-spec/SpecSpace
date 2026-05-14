@@ -34,4 +34,5 @@ class HttpResponseTests(unittest.TestCase):
         self.assertTrue(handler.ended)
         self.assertIn(("Content-Type", "application/json; charset=utf-8"), handler.headers)
         self.assertIn(("Content-Length", str(len(body))), handler.headers)
+        self.assertEqual(body, '{\n  "message": "Привет"\n}'.encode("utf-8"))
         self.assertEqual(json.loads(body), {"message": "Привет"})
