@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P7-T3` — Introduce typed dataclasses for graph objects
+**Current Task:** `CTXB-P7-T9` — Decompose App.tsx god component
 
 ## Recently Archived
+- `CTXB-P7-T3` — Introduce typed graph payload contracts and mypy baseline (PASS, 2026-05-14)
 - `CTXB-P7-T2` — Split server.py into focused modules (PASS, 2026-05-14)
 - `CTXB-P9-T7` — SpecNode visual signal unification (PASS, 2026-05-13)
 - `CTXB-P8-T2` — SpecPM lifecycle badge on SpecNode (PASS, 2026-05-13)
@@ -30,11 +31,12 @@
 ## Suggested Next Tasks
 
 ### Technical Debt (Phase 7, current)
-- `CTXB-P7-T3` — Introduce typed dataclasses for graph objects (P2, current, depends on T2 ✅)
-- Initial implementation target: add typed internal models around the most-used graph objects first (`GraphNode`, `GraphEdge`, `Checkpoint`), then enforce the existing compile-target shape without changing HTTP payloads.
+- `CTXB-P7-T9` — Decompose App.tsx god component (P2, current, no deps)
+- Initial implementation target: extract one concern at a time from `viewer/app/src/App.tsx`, starting with selection state or keyboard shortcuts before larger viewport orchestration.
 
 ### Phase 7 Follow-ups
-- `CTXB-P7-T9` — Decompose App.tsx god component (P2, no deps)
+- `CTXB-P7-T11` — Enable TypeScript strict mode and add ESLint (P2, depends on T9)
+- `CTXB-P7-T12` — Extract shared data-fetching base hook (P2, no deps)
 
 ### GraphSpace Follow-ups
 - `CTXB-P10-T13` — Resolve GraphSpace FSD `insignificant-slice` warnings (P3, depends on T12)
