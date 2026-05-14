@@ -1137,7 +1137,7 @@ Intent: address the known architectural and code quality problems identified in 
   - `useGraphData` reacts to conversation file changes without a manual refresh (requires a new `GET /api/watch` or polling, or reusing the existing SSE pattern).
   - No behaviour regressions.
 
-### CTXB-P7-T13 — Add CI pipeline (GitHub Actions)
+### ✅ CTXB-P7-T13 — Add CI pipeline (GitHub Actions) — DONE (PASS, 2026-05-15)
 - **Description:** Add a GitHub Actions workflow that runs on every push and PR. Minimum checks: (1) `make test` (Python unit tests), (2) `make lint` (py_compile), (3) `npm run typecheck` (TypeScript), (4) `npm run build` (Vite production build). Run Python checks with Python 3.11.
 - **Priority:** P1
 - **Dependencies:** CTXB-P7-T11
