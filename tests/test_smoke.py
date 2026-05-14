@@ -70,9 +70,11 @@ class ContextBuilderSmokeTests(unittest.TestCase):
 
     def test_server_serves_from_dist(self) -> None:
         server_py = (REPO_ROOT / "viewer" / "server.py").read_text()
-        self.assertIn("viewer", server_py)
-        self.assertIn("app", server_py)
-        self.assertIn("dist", server_py)
+        static_api_py = (REPO_ROOT / "viewer" / "static_api.py").read_text()
+        self.assertIn("static_api", server_py)
+        self.assertIn("viewer", static_api_py)
+        self.assertIn("app", static_api_py)
+        self.assertIn("dist", static_api_py)
 
     def test_server_module_loads(self) -> None:
         module_path = REPO_ROOT / "viewer" / "server.py"
