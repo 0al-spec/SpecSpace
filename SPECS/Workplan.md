@@ -1476,7 +1476,7 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - If the selected node is hidden by the current filter/search, the navigator does not force filter state.
   - Existing row click selection behavior is unchanged.
 
-### CTXB-P10-T13 — Resolve GraphSpace FSD insignificant-slice warnings
+### ✅ CTXB-P10-T13 — Resolve GraphSpace FSD insignificant-slice warnings — DONE (PASS, 2026-05-15)
 - **Description:** `npm run lint:fsd --prefix graphspace` currently passes but reports the known `fsd/insignificant-slice` warnings for single-reference GraphSpace feature/widget slices. Review each warning after the canvas, Sidebar, utility panels, and Inspector stabilize; either keep the slice with an explicit architectural rationale, merge it back into `pages/viewer` when it is page-local, or introduce a legitimate second consumer. Do not silence Steiger globally just to hide useful architecture feedback.
 - **Priority:** P3
 - **Dependencies:** CTXB-P10-T12

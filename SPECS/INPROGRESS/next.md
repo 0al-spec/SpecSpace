@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P10-T13` — Resolve GraphSpace FSD insignificant-slice warnings
+**Current Task:** `CTXB-P11-T1` — Versioned readonly SpecGraph provider for SpecSpace API
 
 ## Recently Archived
+- `CTXB-P10-T13` — Resolve GraphSpace FSD insignificant-slice warnings (PASS, 2026-05-15)
 - `CTXB-P7-T13` — Add CI pipeline (PASS, 2026-05-15)
 - `CTXB-P7-T12` — Extract shared data-fetching base hook (PASS, 2026-05-14)
 - `CTXB-P7-T11` — Enable TypeScript strict mode and add ESLint (PASS, 2026-05-14)
@@ -43,10 +44,10 @@
 ### Deployment Follow-ups
 - `CTXB-P11-T1` — Versioned readonly SpecGraph provider for SpecSpace API (P1, depends on P7-T13)
 - Rationale: establish `SpecSpace API reads readonly SpecGraph files -> exposes versioned /api/v1 -> UI consumes only /api/v1` before Dockerizing the deployment shape.
+- Initial implementation target: add a readonly file-backed SpecGraph provider, document `/api/v1/*` contracts, keep legacy endpoints available, and migrate UI data reads to versioned endpoints.
 
 ### GraphSpace Follow-ups
-- `CTXB-P10-T13` — Resolve GraphSpace FSD `insignificant-slice` warnings (P3, depends on T12)
-- Initial implementation target: run `npm run lint:fsd --prefix graphspace`, review each remaining warning, then either merge page-local slices into `pages/viewer` or document a concrete retained-slice rationale.
+- Phase 10 follow-ups are complete through `CTXB-P10-T13`.
 
 ### Completed GraphSpace Context
 - Completed context: `CTXB-P10-T1` through `CTXB-P10-T12`, plus `CTXB-P8-T2`, `CTXB-P9-T6`, and `CTXB-P9-T7`.
