@@ -309,6 +309,7 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
   // SSE: re-fetch whenever spec files change on disk
   useEffect(() => {
     const es = new EventSource("/api/spec-watch");
+    es.addEventListener("open", () => fetchGraph());
     es.addEventListener("change", () => fetchGraph());
     es.onerror = () => {
       // EventSource auto-reconnects; nothing to do here

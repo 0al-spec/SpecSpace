@@ -8,7 +8,9 @@
 
 ## Acceptance
 - Both graph hooks use the shared fetch state machine.
+- Concurrent refreshes cannot commit stale older responses over newer data.
 - SpecGraph SSE refresh behavior remains on `/api/spec-watch`.
+- SpecGraph and conversation graph both refresh when their SSE stream opens or reconnects.
 - Conversation graph now listens to `/api/watch`.
 - Workspace watcher tracks `.json` file mtime and size changes.
 

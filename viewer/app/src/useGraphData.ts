@@ -77,6 +77,7 @@ export function useGraphData() {
 
   useEffect(() => {
     const es = new EventSource("/api/watch");
+    es.addEventListener("open", () => fetchGraph());
     es.addEventListener("change", () => fetchGraph());
     es.onerror = () => {
       // EventSource auto-reconnects; nothing to do here.
