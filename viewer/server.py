@@ -24,16 +24,14 @@ from viewer import schema  # noqa: E402
 from viewer import graph as conversation_graph  # noqa: E402
 from viewer import export as graph_export  # noqa: E402
 from viewer import hyperprompt_compile  # noqa: E402
-from viewer import specgraph_surfaces  # noqa: E402
-from viewer import supervisor_build  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
 from viewer import conversation_api  # noqa: E402
 from viewer import file_api  # noqa: E402
 from viewer import specgraph_api  # noqa: E402
 from viewer import specgraph_surfaces_api  # noqa: E402
+from viewer import specpm_exploration_api  # noqa: E402
 from viewer.http_response import json_response  # noqa: E402
 from viewer.request_body import read_json_object_request_body  # noqa: E402
-from viewer.request_query import query_params, query_value  # noqa: E402
 from viewer.routes import route_for  # noqa: E402
 from viewer.sse import send_sse_headers, stream_change_events  # noqa: E402
 from viewer.watchers import RunsWatcher, SpecWatcher  # noqa: E402
@@ -61,31 +59,7 @@ from viewer.graph import (  # noqa: E402
     sort_lineage_paths,
     split_graph_diagnostics,
 )
-from viewer.specpm import (  # noqa: E402
-    _artifact_available_meta,
-    _build_proposal_pressure_summary,
-    _build_specpm_lifecycle,
-    _collect_exploration_surfaces,
-    _collect_proposals,
-    _count_field,
-    _count_nested,
-    _dict_value,
-    _entries_from_artifact,
-    _entry_count,
-    _extract_proposal_status,
-    _extract_proposal_title,
-    _merge_specpm_source_refs,
-    _nested_value,
-    _pkg_key,
-    _proposal_entry,
-    _read_proposal_markdown,
-    _read_specgraph_runs_artifact,
-    _read_specpm_artifact,
-    _string_list,
-    read_exploration_preview_response,
-    read_specpm_artifact_response,
-    read_specpm_preview_response,
-)
+from viewer.specpm import _build_specpm_lifecycle  # noqa: E402
 
 EXPORT_SENTINEL = ".ctxb_export"
 
@@ -391,6 +365,17 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_spec_activity = specgraph_surfaces_api.handle_spec_activity
     handle_spec_overlay = specgraph_surfaces_api.handle_spec_overlay
     handle_viewer_surfaces_build = specgraph_surfaces_api.handle_viewer_surfaces_build
+    _exploration_build_available = specpm_exploration_api.exploration_build_available
+    _handle_specpm_artifact_get = specpm_exploration_api.handle_specpm_artifact_get
+    _handle_specpm_build = specpm_exploration_api.handle_specpm_build
+    handle_exploration_preview_build = specpm_exploration_api.handle_exploration_preview_build
+    handle_exploration_preview_get = specpm_exploration_api.handle_exploration_preview_get
+    handle_exploration_proposal_get = specpm_exploration_api.handle_exploration_proposal_get
+    handle_exploration_surfaces_get = specpm_exploration_api.handle_exploration_surfaces_get
+    handle_proposal_spec_trace_index_get = specpm_exploration_api.handle_proposal_spec_trace_index_get
+    handle_specpm_lifecycle = specpm_exploration_api.handle_specpm_lifecycle
+    handle_specpm_preview_build = specpm_exploration_api.handle_specpm_preview_build
+    handle_specpm_preview_get = specpm_exploration_api.handle_specpm_preview_get
 
     def _dispatch_route(self, method: str, parsed) -> bool:
         route = route_for(method, parsed.path)
@@ -437,143 +422,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "agent": bool(getattr(self.server, "agent_available", False)),
             },
         )
-
-    def handle_specpm_preview_get(self) -> None:
-        if self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecPM preview not configured. Start the server with --specgraph-dir."},
-            )
-            return
-        status, payload = read_specpm_preview_response(self.server.specgraph_dir)
-        json_response(self, status, payload)
-
-    def handle_specpm_preview_build(self) -> None:
-        if self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecPM preview not configured. Start the server with --specgraph-dir."},
-            )
-            return
-        status, payload = supervisor_build.build_specpm_preview(self.server.specgraph_dir)
-        json_response(self, status, payload)
-
-    def _handle_specpm_artifact_get(self, filename: str) -> None:
-        if self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecPM not configured. Start the server with --specgraph-dir."},
-            )
-            return
-        status, payload = read_specpm_artifact_response(self.server.specgraph_dir, filename)
-        json_response(self, status, payload)
-
-    def _handle_specpm_build(self, flag: str, artifact_filename: str) -> None:
-        if self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecPM not configured. Start the server with --specgraph-dir."},
-            )
-            return
-        status, payload = supervisor_build.build_specpm_artifact(
-            self.server.specgraph_dir,
-            flag,
-            artifact_filename,
-        )
-        json_response(self, status, payload)
-
-    def handle_specpm_lifecycle(self) -> None:
-        if self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecPM not configured. Start the server with --specgraph-dir."},
-            )
-            return
-        json_response(self, HTTPStatus.OK, _build_specpm_lifecycle(self.server.specgraph_dir))
-
-    def handle_exploration_surfaces_get(self) -> None:
-        if self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "Exploration surfaces not configured. Start the server with --specgraph-dir."},
-            )
-            return
-        json_response(self, HTTPStatus.OK, _collect_exploration_surfaces(self.server.specgraph_dir))
-
-    def handle_exploration_proposal_get(self, parsed) -> None:
-        if self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "Exploration surfaces not configured. Start the server with --specgraph-dir."},
-            )
-            return
-        params = query_params(parsed)
-        status, payload = _read_proposal_markdown(self.server.specgraph_dir, query_value(params, "file", ""))
-        json_response(self, status, payload)
-
-    def handle_proposal_spec_trace_index_get(self) -> None:
-        if self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "Proposal spec trace is not configured. Start the server with --specgraph-dir."},
-            )
-            return
-        json_response(
-            self,
-            HTTPStatus.OK,
-            _read_specgraph_runs_artifact(
-                self.server.specgraph_dir,
-                "proposal_spec_trace_index.json",
-                expected_kind="proposal_spec_trace_index",
-            ),
-        )
-
-    def _exploration_build_available(self) -> bool:
-        """True only when supervisor.py declares both required flags in its source."""
-        return specgraph_surfaces.supervisor_has_flags(
-            self.server.specgraph_dir,
-            "--build-exploration-preview",
-            "--exploration-intent",
-        )
-
-    def handle_exploration_preview_get(self) -> None:
-        if self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "Exploration preview not configured. Start the server with --specgraph-dir."},
-            )
-            return
-        status, payload = read_exploration_preview_response(self.server.specgraph_dir)
-        json_response(self, status, payload)
-
-    def handle_exploration_preview_build(self) -> None:
-        if self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "Exploration preview not configured. Start the server with --specgraph-dir."},
-            )
-            return
-        try:
-            body = read_json_object_request_body(self.headers, self.rfile, allow_empty=True)
-        except ValueError:
-            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Invalid JSON body"})
-            return
-        intent = (body.get("intent") or "").strip()
-        if not intent:
-            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "intent is required and must not be blank"})
-            return
-        status, payload = supervisor_build.build_exploration_preview(self.server.specgraph_dir, intent)
-        json_response(self, status, payload)
 
     def handle_reveal(self) -> None:
         """POST /api/reveal — open a file path in Finder (macOS: open -R <path>)."""
