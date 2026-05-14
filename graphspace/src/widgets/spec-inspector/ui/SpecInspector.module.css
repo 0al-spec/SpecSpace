@@ -346,8 +346,7 @@ ol.contentList > .contentItem::before {
   white-space: pre-wrap;
 }
 
-.inlineCode,
-.inlineSpecRef {
+.inlineCode {
   border: 1px solid var(--gs-rule-soft);
   background: var(--gs-paper);
   color: var(--gs-ink);
@@ -355,10 +354,6 @@ ol.contentList > .contentItem::before {
   font-size: 0.94em;
   font-weight: 600;
   padding: 0 0.25em;
-}
-
-.inlineSpecRef {
-  color: var(--gs-accent);
 }
 
 .termItem dt {

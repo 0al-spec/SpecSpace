@@ -36,6 +36,9 @@
 - `CTXB-P7-T3` — Introduce typed dataclasses for graph objects (P2, depends on T2)
 - `CTXB-P7-T9` — Decompose App.tsx god component (P2, no deps)
 
+### GraphSpace Follow-ups
+- `CTXB-P10-T13` — Resolve GraphSpace FSD `insignificant-slice` warnings (P3, depends on T12)
+
 ### Completed GraphSpace Context
 - Completed context: `CTXB-P10-T1` through `CTXB-P10-T12`, plus `CTXB-P8-T2`, `CTXB-P9-T6`, and `CTXB-P9-T7`.
 - GraphSpace currently has the primary SpecGraph canvas, Sidebar navigator, rich Spec Inspector, hover previews, SpecPM lifecycle badges, and unified SpecNode visual signals.

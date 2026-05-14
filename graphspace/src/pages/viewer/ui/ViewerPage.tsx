@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { SpecPMLifecycleBadge } from "@/entities/specpm-lifecycle";
 import { useRunsWatchVersion } from "@/shared/api";
 import { useRecentChanges } from "@/widgets/recent-changes-panel";
@@ -165,10 +165,21 @@ export function ViewerPage() {
       : undefined;
 
   const count = filteredEntries.length;
+  const selectableSpecNodeIds = useMemo(
+    () => new Set(specGraphState.data.graph.nodes.map((node) => node.node_id)),
+    [specGraphState.data.graph.nodes],
+  );
   const clearSpecSelection = () => {
     setSelectedSpecNodeId(null);
     setSelectedSpec(null);
   };
+  const selectSpecNodeId = useCallback(
+    (nodeId: string) => {
+      if (!selectableSpecNodeIds.has(nodeId)) return;
+      setSelectedSpecNodeId(nodeId);
+    },
+    [selectableSpecNodeIds],
+  );
   const toggleUtilityPanel = (panel: ViewerUtilityPanelId) => {
     setActiveUtilityPanel((current) => (current === panel ? null : panel));
   };
@@ -269,7 +280,7 @@ export function ViewerPage() {
             nodes={specGraphState.data.graph.nodes}
             selectedNodeId={selectedSpecNodeId}
             source={specGraphState.source}
-            onSelectNodeId={setSelectedSpecNodeId}
+            onSelectNodeId={selectSpecNodeId}
           />
         </aside>
       ) : null}
@@ -314,6 +325,7 @@ export function ViewerPage() {
                 resultCount: specMatchedEntries.length,
                 totalCount: liveEntries.length,
               }}
+              onSpecIdClick={selectSpecNodeId}
               tone={{
                 entries: specMatchedEntries,
                 selected: toneFilter.selected,
@@ -333,6 +345,7 @@ export function ViewerPage() {
                   : workStatus.emptyMessage
               }
               className={styles.workPanel}
+              onSpecIdClick={selectSpecNodeId}
             />
           ) : null}
 
@@ -343,6 +356,7 @@ export function ViewerPage() {
               caption={proposalTraceCaption}
               emptyMessage={proposalTraceStatus.emptyMessage}
               className={styles.proposalTracePanel}
+              onSpecIdClick={selectSpecNodeId}
             />
           ) : null}
 
@@ -361,7 +375,7 @@ export function ViewerPage() {
           className={styles.inspectorRail}
           selection={selectedSpec}
           onClose={clearSpecSelection}
-          onSelectNodeId={setSelectedSpecNodeId}
+          onSelectNodeId={selectSpecNodeId}
         />
       ) : null}
 

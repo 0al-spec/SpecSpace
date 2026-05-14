@@ -1,0 +1,61 @@
+.specId {
+  display: inline;
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  color: var(--gs-accent);
+  font-family: var(--gs-mono);
+  font-size: 0.94em;
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 0 0.25em;
+  vertical-align: baseline;
+}
+
+.button {
+  appearance: none;
+  margin: 0;
+  text-align: inherit;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  border-color: var(--gs-accent);
+  background: var(--gs-accent-soft);
+}
+
+.clickable:focus-visible {
+  outline: 2px solid var(--gs-accent);
+  outline-offset: 1px;
+}
+
+.bare {
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  padding: 0;
+}
+
+.bare.clickable {
+  color: var(--gs-accent);
+}
+
+.bare.clickable:hover {
+  border-color: transparent;
+  background: transparent;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 10px;
+  line-height: 1.2;
+}

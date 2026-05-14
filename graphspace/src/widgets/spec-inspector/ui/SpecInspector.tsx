@@ -1,5 +1,6 @@
 import { useState, type HTMLAttributes, type ReactNode } from "react";
 import { SpecNodeStatusBadge } from "@/entities/spec-node";
+import { SpecIdText, isSpecIdToken } from "@/shared/ui/spec-id-text";
 import {
   buildSpecInspectorModel,
   useSpecNodeDetail,
@@ -42,7 +43,12 @@ export function SpecInspector({
     <aside className={cls} aria-label="Spec inspector" {...rest}>
       <header className={styles.header}>
         <div className={styles.identity}>
-          <span className={styles.id}>{node.node_id}</span>
+          <SpecIdText
+            text={node.node_id}
+            onSpecIdClick={onSelectNodeId}
+            variant="bare"
+            specClassName={styles.id}
+          />
           <SpecNodeStatusBadge status={node.status} />
         </div>
         <button type="button" className={styles.closeButton} onClick={onClose}>
@@ -53,7 +59,9 @@ export function SpecInspector({
       <div className={styles.scroll}>
         <h2 className={styles.title}>{node.title}</h2>
         {model.detail?.objective ? (
-          <p className={styles.objective}>{model.detail.objective}</p>
+          <p className={styles.objective}>
+            {renderRichInlineText(model.detail.objective, onSelectNodeId)}
+          </p>
         ) : null}
 
         <dl className={styles.metaGrid}>
@@ -74,7 +82,11 @@ export function SpecInspector({
               </button>
             </div>
             <dd className={styles.fileValue} title={model.filePath}>
-              {node.file_name}
+              <SpecIdText
+                text={node.file_name}
+                onSpecIdClick={onSelectNodeId}
+                variant="bare"
+              />
             </dd>
           </div>
         </dl>
@@ -102,14 +114,21 @@ export function SpecInspector({
 
         <DetailLoadStatus state={detailState} />
 
-        {model.detail ? <RichSpecDetail detail={model.detail} /> : null}
+        {model.detail ? (
+          <RichSpecDetail
+            detail={model.detail}
+            onSpecIdClick={onSelectNodeId}
+          />
+        ) : null}
 
         {node.diagnostics.length > 0 ? (
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Diagnostics</h3>
             <ul className={styles.diagnostics}>
               {node.diagnostics.map((diagnostic, index) => (
-                <li key={`${diagnostic.message}-${index}`}>{diagnostic.message}</li>
+                <li key={`${diagnostic.message}-${index}`}>
+                  {renderRichInlineText(diagnostic.message, onSelectNodeId)}
+                </li>
               ))}
             </ul>
           </section>
@@ -166,7 +185,13 @@ function Field({
   );
 }
 
-function RichSpecDetail({ detail }: { detail: SpecInspectorDetailModel }) {
+function RichSpecDetail({
+  detail,
+  onSpecIdClick,
+}: {
+  detail: SpecInspectorDetailModel;
+  onSpecIdClick?: (nodeId: string) => void;
+}) {
   const hasScope = Boolean(detail.scope);
   const hasFlow =
     detail.inputs.length > 0 ||
@@ -177,7 +202,9 @@ function RichSpecDetail({ detail }: { detail: SpecInspectorDetailModel }) {
 
   return (
     <>
-      {hasScope ? <ScopeSection scope={detail.scope!} /> : null}
+      {hasScope ? (
+        <ScopeSection scope={detail.scope!} onSpecIdClick={onSpecIdClick} />
+      ) : null}
 
       {detail.acceptance.length > 0 ? (
         <section className={styles.section}>
@@ -192,7 +219,9 @@ function RichSpecDetail({ detail }: { detail: SpecInspectorDetailModel }) {
                 >
                   {item.hasEvidence ? "evidence" : "gap"}
                 </span>
-                <span className={styles.contentText}>{item.text}</span>
+                <span className={styles.contentText}>
+                  {renderRichInlineText(item.text, onSpecIdClick)}
+                </span>
                 {item.malformed ? (
                   <span className={styles.formatBadge}>format</span>
                 ) : null}
@@ -210,7 +239,9 @@ function RichSpecDetail({ detail }: { detail: SpecInspectorDetailModel }) {
               <article key={`${item.criterion}-${index}`} className={styles.evidenceItem}>
                 <div className={styles.evidenceCriterion}>{item.criterion}</div>
                 {item.evidence ? (
-                  <p className={styles.evidenceText}>{renderRichInlineText(item.evidence)}</p>
+                  <p className={styles.evidenceText}>
+                    {renderRichInlineText(item.evidence, onSpecIdClick)}
+                  </p>
                 ) : null}
               </article>
             ))}
@@ -225,22 +256,42 @@ function RichSpecDetail({ detail }: { detail: SpecInspectorDetailModel }) {
             {detail.terminology.map((entry) => (
               <div key={entry.term} className={styles.termItem}>
                 <dt>{entry.term}</dt>
-                <dd>{renderRichInlineText(entry.definition)}</dd>
+                <dd>{renderRichInlineText(entry.definition, onSpecIdClick)}</dd>
               </div>
             ))}
           </dl>
         </section>
       ) : null}
 
-      <DecisionSection title="Decisions" items={detail.decisions} />
-      <DecisionSection title="Invariants" items={detail.invariants} />
+      <DecisionSection
+        title="Decisions"
+        items={detail.decisions}
+        onSpecIdClick={onSpecIdClick}
+      />
+      <DecisionSection
+        title="Invariants"
+        items={detail.invariants}
+        onSpecIdClick={onSpecIdClick}
+      />
 
       {hasFlow ? (
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Files and paths</h3>
-          <TagList label="Inputs" items={detail.inputs} />
-          <TagList label="Outputs" items={detail.outputs} />
-          <TagList label="Allowed paths" items={detail.allowedPaths} />
+          <TagList
+            label="Inputs"
+            items={detail.inputs}
+            onSpecIdClick={onSpecIdClick}
+          />
+          <TagList
+            label="Outputs"
+            items={detail.outputs}
+            onSpecIdClick={onSpecIdClick}
+          />
+          <TagList
+            label="Allowed paths"
+            items={detail.allowedPaths}
+            onSpecIdClick={onSpecIdClick}
+          />
         </section>
       ) : null}
 
@@ -255,7 +306,12 @@ function RichSpecDetail({ detail }: { detail: SpecInspectorDetailModel }) {
               <KeyValue label="Updated" value={formatDate(detail.updatedAt)} />
             ) : null}
             {detail.runtime.map((field) => (
-              <KeyValue key={field.label} label={field.label} value={field.value} />
+              <KeyValue
+                key={field.label}
+                label={field.label}
+                value={field.value}
+                onSpecIdClick={onSpecIdClick}
+              />
             ))}
           </div>
         </section>
@@ -280,7 +336,13 @@ function RichSpecDetail({ detail }: { detail: SpecInspectorDetailModel }) {
   );
 }
 
-function ScopeSection({ scope }: { scope: NonNullable<SpecInspectorDetailModel["scope"]> }) {
+function ScopeSection({
+  scope,
+  onSpecIdClick,
+}: {
+  scope: NonNullable<SpecInspectorDetailModel["scope"]>;
+  onSpecIdClick?: (nodeId: string) => void;
+}) {
   return (
     <section className={styles.section}>
       <h3 className={styles.sectionTitle}>Scope</h3>
@@ -291,7 +353,9 @@ function ScopeSection({ scope }: { scope: NonNullable<SpecInspectorDetailModel["
             <ul className={styles.contentList}>
               {scope.in.map((item) => (
                 <li key={item} className={styles.contentItem}>
-                  <span className={styles.contentText}>{renderRichInlineText(item)}</span>
+                  <span className={styles.contentText}>
+                    {renderRichInlineText(item, onSpecIdClick)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -303,7 +367,9 @@ function ScopeSection({ scope }: { scope: NonNullable<SpecInspectorDetailModel["
             <ul className={styles.contentList}>
               {scope.out.map((item) => (
                 <li key={item} className={styles.contentItem}>
-                  <span className={styles.contentText}>{renderRichInlineText(item)}</span>
+                  <span className={styles.contentText}>
+                    {renderRichInlineText(item, onSpecIdClick)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -317,9 +383,11 @@ function ScopeSection({ scope }: { scope: NonNullable<SpecInspectorDetailModel["
 function DecisionSection({
   title,
   items,
+  onSpecIdClick,
 }: {
   title: string;
   items: SpecInspectorDetailModel["decisions"];
+  onSpecIdClick?: (nodeId: string) => void;
 }) {
   if (items.length === 0) return null;
 
@@ -334,10 +402,12 @@ function DecisionSection({
           >
             {item.id ? <span className={styles.idBadge}>{item.id}</span> : null}
             <span className={styles.contentText}>
-              {renderRichInlineText(item.statement)}
+              {renderRichInlineText(item.statement, onSpecIdClick)}
             </span>
             {item.rationale ? (
-              <p className={styles.rationale}>{renderRichInlineText(item.rationale)}</p>
+              <p className={styles.rationale}>
+                {renderRichInlineText(item.rationale, onSpecIdClick)}
+              </p>
             ) : null}
           </li>
         ))}
@@ -346,7 +416,15 @@ function DecisionSection({
   );
 }
 
-function TagList({ label, items }: { label: string; items: readonly string[] }) {
+function TagList({
+  label,
+  items,
+  onSpecIdClick,
+}: {
+  label: string;
+  items: readonly string[];
+  onSpecIdClick?: (nodeId: string) => void;
+}) {
   if (items.length === 0) return null;
 
   return (
@@ -355,7 +433,11 @@ function TagList({ label, items }: { label: string; items: readonly string[] }) 
       <ul className={styles.tagList}>
         {items.map((item) => (
           <li key={item} className={styles.tag}>
-            {item}
+            <SpecIdText
+              text={item}
+              onSpecIdClick={onSpecIdClick}
+              variant="bare"
+            />
           </li>
         ))}
       </ul>
@@ -363,19 +445,36 @@ function TagList({ label, items }: { label: string; items: readonly string[] }) 
   );
 }
 
-function KeyValue({ label, value }: { label: string; value: string }) {
+function KeyValue({
+  label,
+  value,
+  onSpecIdClick,
+}: {
+  label: string;
+  value: string;
+  onSpecIdClick?: (nodeId: string) => void;
+}) {
   return (
     <div className={styles.fieldRow}>
       <span>{label}</span>
-      <strong>{value}</strong>
+      <strong>
+        <SpecIdText
+          text={value}
+          onSpecIdClick={onSpecIdClick}
+          variant="bare"
+        />
+      </strong>
     </div>
   );
 }
 
 const inlineTokenPattern =
-  /(`[^`]+`|\b(?:SG-)?SPEC-\d{4}\b|\b[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+\b)/g;
+  /(`[^`]+`|\b(?:SG-)?SPEC-[A-Z0-9]+(?:-[A-Z0-9]+)*\b|\b[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+\b)/g;
 
-function renderRichInlineText(text: string): ReactNode {
+function renderRichInlineText(
+  text: string,
+  onSpecIdClick?: (nodeId: string) => void,
+): ReactNode {
   const parts: ReactNode[] = [];
   let lastIndex = 0;
 
@@ -384,13 +483,25 @@ function renderRichInlineText(text: string): ReactNode {
     const index = match.index ?? 0;
     if (index > lastIndex) parts.push(text.slice(lastIndex, index));
 
-    const isSpecRef = /\b(?:SG-)?SPEC-\d{4}\b/.test(token);
     const label =
       token.startsWith("`") && token.endsWith("`") ? token.slice(1, -1) : token;
+    if (isSpecIdToken(label)) {
+      parts.push(
+        <SpecIdText
+          key={`${token}-${index}`}
+          text={label}
+          onSpecIdClick={onSpecIdClick}
+          variant="inline"
+        />,
+      );
+      lastIndex = index + token.length;
+      continue;
+    }
+
     parts.push(
       <span
         key={`${token}-${index}`}
-        className={isSpecRef ? styles.inlineSpecRef : styles.inlineCode}
+        className={styles.inlineCode}
       >
         {label}
       </span>,
