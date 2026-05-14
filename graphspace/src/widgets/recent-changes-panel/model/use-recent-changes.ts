@@ -21,7 +21,7 @@ export type UseRecentChangesState =
   | EnvelopeResult<SpecActivityFeed>;
 
 type Options = {
-  /** Default `/api/spec-activity`. Override for tests or alternate deployments. */
+  /** Default `/api/v1/spec-activity`. Override for tests or alternate deployments. */
   url?: string;
   /** Test injection point; defaults to global fetch. */
   fetcher?: typeof fetch;
@@ -35,7 +35,7 @@ type Options = {
  * sample data between SSE changes and response arrival.
  */
 export function useRecentChanges(options: Options = {}): UseRecentChangesState {
-  const { url = "/api/spec-activity", fetcher, refreshKey = 0 } = options;
+  const { url = "/api/v1/spec-activity", fetcher, refreshKey = 0 } = options;
   const [state, setState] = useState<UseRecentChangesState>({ kind: "idle" });
 
   useEffect(() => {

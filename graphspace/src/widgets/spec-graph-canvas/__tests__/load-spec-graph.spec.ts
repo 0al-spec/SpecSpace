@@ -16,15 +16,15 @@ const buildResponse = (body: unknown, init?: ResponseInit): Response =>
 const cloneSample = () => JSON.parse(JSON.stringify(SAMPLE_SPEC_GRAPH));
 
 describe("fetchSpecGraph", () => {
-  it("returns live ok data from a valid /api/spec-graph response", async () => {
+  it("returns live ok data from a valid /api/v1/spec-graph response", async () => {
     const payload = cloneSample();
     const fetcher = vi.fn().mockResolvedValue(buildResponse(payload));
-    const result = await fetchSpecGraph({ url: "/api/spec-graph", fetcher });
+    const result = await fetchSpecGraph({ fetcher });
 
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
     expect(result.data.graph.nodes).toHaveLength(3);
-    expect(fetcher).toHaveBeenCalledWith("/api/spec-graph", { signal: undefined });
+    expect(fetcher).toHaveBeenCalledWith("/api/v1/spec-graph", { signal: undefined });
   });
 
   it("returns response-error when the body is not JSON", async () => {

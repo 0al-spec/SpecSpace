@@ -25,7 +25,7 @@ describe("fetchSpecNodeDetail", () => {
     });
 
     expect(fetcher).toHaveBeenCalledWith(
-      "/api/spec-node?id=SG-SPEC-ROOT",
+      "/api/v1/spec-nodes/SG-SPEC-ROOT",
       { signal: undefined },
     );
     expect(result.kind).toBe("ok");
@@ -55,5 +55,25 @@ describe("fetchSpecNodeDetail", () => {
     const fetcher = vi.fn().mockResolvedValue(buildResponse({ node_id: "SG" }));
     const result = await fetchSpecNodeDetail({ nodeId: "SG", fetcher });
     expect(result.kind).toBe("parse-error");
+  });
+
+  it("keeps query-param URL shape for explicit legacy overrides", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      buildResponse({
+        node_id: "SG-SPEC-ROOT",
+        data: { id: "SG-SPEC-ROOT" },
+      }),
+    );
+
+    await fetchSpecNodeDetail({
+      nodeId: "SG-SPEC-ROOT",
+      url: "/api/spec-node",
+      fetcher,
+    });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/spec-node?id=SG-SPEC-ROOT",
+      { signal: undefined },
+    );
   });
 });

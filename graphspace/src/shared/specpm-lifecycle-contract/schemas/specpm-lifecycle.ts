@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Source: ContextBuilder `viewer/server.py` `/api/specpm/lifecycle`.
+ * Source: ContextBuilder `viewer/server.py` `/api/v1/specpm/lifecycle`.
  *
  * This is a server read-model, not a versioned runs artifact envelope. It joins
  * SpecPM export, handoff, materialization, import, and import_handoff artifacts

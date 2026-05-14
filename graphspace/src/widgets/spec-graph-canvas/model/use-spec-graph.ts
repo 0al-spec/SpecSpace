@@ -12,7 +12,7 @@ export type UseSpecGraphState =
   | SpecGraphResolvedState;
 
 type Options = {
-  /** Default `/api/spec-graph`. Override for tests or alternate deployments. */
+  /** Default `/api/v1/spec-graph`. Override for tests or alternate deployments. */
   url?: string;
   /** Test injection point; defaults to global fetch. */
   fetcher?: typeof fetch;
@@ -24,7 +24,7 @@ type Options = {
 
 export function useSpecGraph(options: Options = {}): UseSpecGraphState {
   const {
-    url = "/api/spec-graph",
+    url = "/api/v1/spec-graph",
     fetcher,
     refreshKey = 0,
     sample = SAMPLE_SPEC_GRAPH,

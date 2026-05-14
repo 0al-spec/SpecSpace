@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 /**
- * Source: ContextBuilder `viewer/server.py` `/api/spec-graph`.
+ * Source: ContextBuilder `viewer/server.py` `/api/v1/spec-graph`.
  *
- * Unlike the runs artifacts in this slice, `/api/spec-graph` is not a
+ * Unlike the runs artifacts in this slice, `/api/v1/spec-graph` is not a
  * versioned artifact envelope. It is a server API response shaped as
  * `{ spec_dir, graph, summary }`, where `summary` mirrors `graph.summary`.
  *

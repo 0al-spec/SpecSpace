@@ -17,7 +17,7 @@ type Options = {
 };
 
 export function useProposalSpecTraceIndex(options: Options = {}): UseProposalTraceState {
-  const { url = "/api/proposal-spec-trace-index", fetcher, refreshKey = 0 } = options;
+  const { url = "/api/v1/proposal-spec-trace-index", fetcher, refreshKey = 0 } = options;
   const [state, setState] = useState<UseProposalTraceState>({ kind: "idle" });
 
   useEffect(() => {
