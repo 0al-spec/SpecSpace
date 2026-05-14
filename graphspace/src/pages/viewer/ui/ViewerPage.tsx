@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { SpecPMLifecycleBadge } from "@/entities/specpm-lifecycle";
 import { useRunsWatchVersion } from "@/shared/api";
 import { useRecentChanges } from "@/widgets/recent-changes-panel";
@@ -165,13 +165,21 @@ export function ViewerPage() {
       : undefined;
 
   const count = filteredEntries.length;
+  const selectableSpecNodeIds = useMemo(
+    () => new Set(specGraphState.data.graph.nodes.map((node) => node.node_id)),
+    [specGraphState.data.graph.nodes],
+  );
   const clearSpecSelection = () => {
     setSelectedSpecNodeId(null);
     setSelectedSpec(null);
   };
-  const selectSpecNodeId = useCallback((nodeId: string) => {
-    setSelectedSpecNodeId(nodeId);
-  }, []);
+  const selectSpecNodeId = useCallback(
+    (nodeId: string) => {
+      if (!selectableSpecNodeIds.has(nodeId)) return;
+      setSelectedSpecNodeId(nodeId);
+    },
+    [selectableSpecNodeIds],
+  );
   const toggleUtilityPanel = (panel: ViewerUtilityPanelId) => {
     setActiveUtilityPanel((current) => (current === panel ? null : panel));
   };
