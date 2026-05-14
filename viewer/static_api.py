@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import mimetypes
+import shutil
 import subprocess
+import sys
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Protocol
@@ -42,22 +44,25 @@ def handle_reveal(handler: StaticApiHandler) -> None:
     if not path.exists():
         json_response(handler, HTTPStatus.NOT_FOUND, {"error": f"Path not found: {path}"})
         return
+    if sys.platform != "darwin" or shutil.which("open") is None:
+        json_response(handler, HTTPStatus.NOT_IMPLEMENTED, {"error": "Reveal is only available on macOS."})
+        return
     try:
         subprocess.Popen(["open", "-R", str(path)])
         json_response(handler, HTTPStatus.OK, {"revealed": str(path)})
-    except Exception as exc:
-        json_response(handler, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(exc)})
+    except Exception:
+        json_response(handler, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Failed to reveal path."})
 
 
 def handle_static(handler: StaticApiHandler, request_path: str) -> None:
-    dist_dir = handler.server.repo_root / "viewer" / "app" / "dist"
+    dist_dir = (handler.server.repo_root / "viewer" / "app" / "dist").resolve()
     relative = request_path.lstrip("/")
 
     if not relative:
         path = dist_dir / "index.html"
     else:
         candidate = (dist_dir / relative).resolve()
-        if str(candidate).startswith(str(dist_dir.resolve())) and candidate.exists() and not candidate.is_dir():
+        if candidate.is_relative_to(dist_dir) and candidate.exists() and not candidate.is_dir():
             path = candidate
         elif "." in relative.split("/")[-1]:
             handler.send_error(HTTPStatus.NOT_FOUND)
