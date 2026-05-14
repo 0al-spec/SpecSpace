@@ -18,6 +18,12 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return tag === "input" || tag === "textarea" || tag === "select" || Boolean(element?.isContentEditable);
 }
 
+function isEscapeProtectedTarget(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  const tag = element?.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || Boolean(element?.isContentEditable);
+}
+
 export function useKeyboardShortcuts({
   graphMode,
   recentMultiSelectIds,
@@ -43,7 +49,7 @@ export function useKeyboardShortcuts({
     if (!recentMultiSelectIds || recentMultiSelectIds.size === 0) return;
     const handler = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (isEditableTarget(event.target)) return;
+      if (isEscapeProtectedTarget(event.target)) return;
       setRecentMultiSelectIds(null);
     };
     window.addEventListener("keydown", handler);

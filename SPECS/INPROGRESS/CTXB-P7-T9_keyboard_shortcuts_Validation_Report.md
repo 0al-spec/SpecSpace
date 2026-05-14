@@ -4,7 +4,7 @@
 
 Extract global viewer keyboard shortcuts from `viewer/app/src/App.tsx`:
 
-- `Cmd/Ctrl+K` opens the search palette
+- `Cmd/Ctrl+K` toggles the search palette
 - `Escape` clears active Recent Changes multi-select
 - `Alt+ArrowLeft` and `Alt+ArrowRight` navigate Spec history
 - `R` and `T` toggle Recent Changes and Timeline in Spec mode
