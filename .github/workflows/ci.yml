@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install PyYAML pytest
+
+      - name: Lint Python sources
+        run: make lint
+
+      - name: Run Python tests
+        run: make test
+
+  viewer-app:
+    name: Viewer App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: npm
+          cache-dependency-path: viewer/app/package-lock.json
+
+      - name: Install viewer dependencies
+        run: npm ci --prefix viewer/app
+
+      - name: Typecheck viewer app
+        run: npm run typecheck --prefix viewer/app
+
+      - name: Lint viewer app
+        run: npm run lint --prefix viewer/app
+
+      - name: Build viewer app
+        run: npm run build --prefix viewer/app
