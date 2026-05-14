@@ -29,19 +29,15 @@ import { useSelectionState } from "./useSelectionState";
 import { useViewportSync } from "./useViewportSync";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts";
 import { CompileTargetContext } from "./CompileTargetContext";
-import TimelineFilter, { type TimelineField } from "./TimelineFilter";
-import RecentChangesOverlay from "./RecentChangesOverlay";
-import FilterBar, { type FilterOptions, type FilterStatus, DEFAULT_FILTER, isFilterActive } from "./FilterBar";
-import PanelBtn from "./PanelBtn";
-import "./PanelBtn.css";
+import { type TimelineField } from "./TimelineFilter";
+import { type FilterOptions, type FilterStatus, DEFAULT_FILTER, isFilterActive } from "./FilterBar";
 import { ToastProvider } from "./Toast";
 import GraphCanvas from "./GraphCanvas";
+import CanvasOverlays from "./CanvasOverlays";
 import TelemetryOverlay, { useTelemetryToggle } from "./TelemetryOverlay";
 import { useSpecOverlayData } from "./useSpecOverlayData";
 import { lensStyleFor } from "./specLens";
 import type { SpecLensMode } from "./types";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClock, faBars, faFilter, faClockRotateLeft } from "@fortawesome/free-solid-svg-icons";
 import type { GraphMode, SpecViewOptions, ApiSpecNode } from "./types";
 import SpecHoverCard from "./SpecHoverCard";
 import EdgeHoverCard from "./EdgeHoverCard";
@@ -515,6 +511,32 @@ function AppInner() {
     });
   }, []);
 
+  const onRecentSelect = useCallback(
+    (id: string, ts: string, source: "activity" | "nodes" | "runs") => {
+      const tsMs = new Date(ts).getTime();
+      if (source === "nodes" && Number.isFinite(tsMs)) {
+        const HOUR = 60 * 60 * 1000;
+        if (timelineField !== "updated_at") {
+          setTimelineField("updated_at");
+        }
+        if (timelineFullRange) {
+          const [fullMin, fullMax] = timelineFullRange;
+          const lo = Math.max(fullMin, tsMs - HOUR);
+          const hi = Math.min(fullMax, tsMs + HOUR);
+          setTimelineRange([Math.min(lo, hi), Math.max(lo, hi)]);
+        } else {
+          setTimelineRange([tsMs - HOUR, tsMs + HOUR]);
+        }
+        setTimelineOpen(true);
+        setRecentOpen(false);
+      } else {
+        setRecentOpen(false);
+      }
+      navigateToSpec(id);
+    },
+    [navigateToSpec, timelineField, timelineFullRange],
+  );
+
   useKeyboardShortcuts({
     graphMode,
     recentMultiSelectIds,
@@ -629,126 +651,31 @@ function AppInner() {
             onMiniMapClick={onMiniMapClick}
           />
 
-          {/* ── Top-left canvas overlay: sidebar toggle + timeline filter ─── */}
-          <div className="timeline-overlay">
-            {/* Sidebar show button — visible only when sidebar is collapsed */}
-            {sidebarCollapsed && (
-              <PanelBtn
-                icon={<FontAwesomeIcon icon={faBars} />}
-                title="Show sidebar"
-                onClick={toggleSidebar}
-              />
-            )}
-
-            {/* Timeline filter — spec mode + ReactFlow view only */}
-            {graphMode === "specifications" && specViewOptions.viewMode !== "force" && (
-              <>
-                <div className="timeline-header">
-                  <PanelBtn
-                    icon={<FontAwesomeIcon icon={faClock} />}
-                    title={timelineOpen ? "Close timeline filter (T)" : "Open timeline filter (T)"}
-                    onClick={toggleTimeline}
-                    className={timelineOpen ? "timeline-btn-active" : undefined}
-                  />
-                  <PanelBtn
-                    icon={<FontAwesomeIcon icon={faClockRotateLeft} />}
-                    title={recentOpen ? "Close recent changes (R)" : "Show recently updated nodes (R)"}
-                    onClick={toggleRecent}
-                    className={recentOpen ? "timeline-btn-active" : undefined}
-                    badge={recentOpen ? 0 : recentUnreadCount}
-                  />
-                  {timelineOpen && (
-                    <div className="tl-segment">
-                      <button
-                        className={`tl-seg-btn${timelineField === "created_at" ? " active" : ""}`}
-                        onClick={() => handleTimelineFieldChange("created_at")}
-                      >Created</button>
-                      <button
-                        className={`tl-seg-btn${timelineField === "updated_at" ? " active" : ""}`}
-                        onClick={() => handleTimelineFieldChange("updated_at")}
-                      >Updated</button>
-                    </div>
-                  )}
-                </div>
-                {timelineOpen && timelineFullRange && timelineRange && (
-                  <TimelineFilter
-                    range={timelineRange}
-                    onRangeChange={setTimelineRange}
-                    fullRange={timelineFullRange}
-                  />
-                )}
-                {recentOpen && specGraph.rawGraph && (
-                  <RecentChangesOverlay
-                    nodes={specGraph.rawGraph.nodes}
-                    multiSelectIds={recentMultiSelectIds}
-                    onMultiSelectChange={setRecentMultiSelectIds}
-                    onSelect={(id, ts, source) => {
-                      // T-30: clicking a row focuses a ±1h timeline window
-                      // around the event and switches Recent → Timeline (mutex
-                      // closes Recent automatically). Then pan/select the node
-                      // so the inspector opens on the same target.
-                      //
-                      // The Timeline jump ONLY makes sense for Nodes source,
-                      // where ts === node.updated_at exactly. For Activity/Runs
-                      // ts is occurred_at / run timestamp, which has no
-                      // semantic alignment with the timelineField axis — it
-                      // would dim the clicked node (because its updated_at
-                      // falls outside the window) and push knobs past the
-                      // data-bounded scale. So for non-nodes sources we just
-                      // navigate and close Recent.
-                      const tsMs = new Date(ts).getTime();
-                      if (source === "nodes" && Number.isFinite(tsMs)) {
-                        const HOUR = 60 * 60 * 1000;
-                        if (timelineField !== "updated_at") {
-                          setTimelineField("updated_at");
-                        }
-                        // Clamp the window to the data's actual range so the
-                        // knobs can never fly out of the timeline track even
-                        // if some future caller hands us an out-of-range ts.
-                        if (timelineFullRange) {
-                          const [fullMin, fullMax] = timelineFullRange;
-                          const lo = Math.max(fullMin, tsMs - HOUR);
-                          const hi = Math.min(fullMax, tsMs + HOUR);
-                          setTimelineRange([Math.min(lo, hi), Math.max(lo, hi)]);
-                        } else {
-                          setTimelineRange([tsMs - HOUR, tsMs + HOUR]);
-                        }
-                        setTimelineOpen(true);
-                        setRecentOpen(false);
-                      } else {
-                        // Activity / Runs: just navigate; leave Timeline alone.
-                        setRecentOpen(false);
-                      }
-                      navigateToSpec(id);
-                    }}
-                    selectedNodeId={selectedConversationId}
-                  />
-                )}
-              </>
-            )}
-          </div>
-
-          {/* ── Top-left canvas overlay: filter bar (independent position) ── */}
-          {graphMode === "specifications" && specViewOptions.viewMode !== "force" && (
-            <div className="filter-overlay">
-              <PanelBtn
-                icon={<FontAwesomeIcon icon={faFilter} />}
-                title={filterOpen ? "Close filter" : "Filter nodes"}
-                onClick={() => {
-                  if (filterOpen) {
-                    setFilterOpen(false);
-                    setFilterOptions(DEFAULT_FILTER);
-                  } else {
-                    setFilterOpen(true);
-                  }
-                }}
-                className={isFilterActive(filterOptions) ? "filter-btn-active" : undefined}
-              />
-              {filterOpen && (
-                <FilterBar filter={filterOptions} onChange={setFilterOptions} />
-              )}
-            </div>
-          )}
+          <CanvasOverlays
+            graphMode={graphMode}
+            specViewOptions={specViewOptions}
+            sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={toggleSidebar}
+            timelineOpen={timelineOpen}
+            timelineField={timelineField}
+            timelineFullRange={timelineFullRange}
+            timelineRange={timelineRange}
+            onTimelineFieldChange={handleTimelineFieldChange}
+            onTimelineRangeChange={setTimelineRange}
+            onToggleTimeline={toggleTimeline}
+            recentOpen={recentOpen}
+            recentUnreadCount={recentUnreadCount}
+            recentMultiSelectIds={recentMultiSelectIds}
+            onRecentMultiSelectChange={setRecentMultiSelectIds}
+            onToggleRecent={toggleRecent}
+            onRecentSelect={onRecentSelect}
+            specNodes={specGraph.rawGraph?.nodes}
+            selectedNodeId={selectedConversationId}
+            filterOpen={filterOpen}
+            setFilterOpen={setFilterOpen}
+            filterOptions={filterOptions}
+            setFilterOptions={setFilterOptions}
+          />
 
         </main>
         {/* Spec inspector */}
