@@ -1474,6 +1474,20 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - If the selected node is hidden by the current filter/search, the navigator does not force filter state.
   - Existing row click selection behavior is unchanged.
 
+### CTXB-P10-T13 — Resolve GraphSpace FSD insignificant-slice warnings
+- **Description:** `npm run lint:fsd --prefix graphspace` currently passes but reports the known `fsd/insignificant-slice` warnings for single-reference GraphSpace feature/widget slices. Review each warning after the canvas, Sidebar, utility panels, and Inspector stabilize; either keep the slice with an explicit architectural rationale, merge it back into `pages/viewer` when it is page-local, or introduce a legitimate second consumer. Do not silence Steiger globally just to hide useful architecture feedback.
+- **Priority:** P3
+- **Dependencies:** CTXB-P10-T12
+- **Parallelizable:** yes
+- **Source:** repeated GraphSpace validation note: `npm run lint:fsd` passes with known `fsd/insignificant-slice` warnings.
+- **Outputs / Artifacts:** updated GraphSpace FSD slice layout and/or documented Steiger rationale; validation report
+- **Acceptance Criteria:**
+  - All current `fsd/insignificant-slice` warnings are reviewed with a decision per slice.
+  - Page-local slices are merged into `pages/viewer` when no independent business boundary remains.
+  - Retained slices have a concrete reuse/composition rationale instead of being kept only for technical neatness.
+  - `npm run lint:fsd --prefix graphspace` still passes, with zero `insignificant-slice` warnings or only explicitly documented intentional exceptions.
+  - Import direction and public API rules remain intact.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
