@@ -1113,7 +1113,7 @@ Intent: address the known architectural and code quality problems identified in 
   - The Retry button resets the error boundary state.
   - The top-level boundary catches errors from any unprotected component.
 
-### CTXB-P7-T11 — Enable TypeScript strict mode and add ESLint
+### ✅ CTXB-P7-T11 — Enable TypeScript strict mode and add ESLint — DONE (PASS, 2026-05-14)
 - **Description:** Add `"strict": true` to `tsconfig.json`. Add ESLint with `@typescript-eslint/recommended` rules. Fix all resulting type errors (primarily `as` casts and implicit `any`). Add `npm run typecheck` (`tsc --noEmit`) and `npm run lint` scripts to `package.json`.
 - **Priority:** P2
 - **Dependencies:** CTXB-P7-T9

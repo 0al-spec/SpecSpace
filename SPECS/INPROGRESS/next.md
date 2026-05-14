@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P7-T11` — Enable TypeScript strict mode and add ESLint
+**Current Task:** `CTXB-P7-T12` — Extract shared data-fetching base hook
 
 ## Recently Archived
+- `CTXB-P7-T11` — Enable TypeScript strict mode and add ESLint (PASS, 2026-05-14)
 - `CTXB-P7-T9` — Decompose App.tsx god component (PASS, 2026-05-14)
 - `CTXB-P7-T3` — Introduce typed dataclasses for graph objects (PASS, 2026-05-14)
 - `CTXB-P7-T2` — Split server.py into focused modules (PASS, 2026-05-14)
@@ -32,11 +33,11 @@
 ## Suggested Next Tasks
 
 ### Technical Debt (Phase 7, current)
-- `CTXB-P7-T11` — Enable TypeScript strict mode and add ESLint (P2, depends on T9)
-- Initial implementation target: preserve the existing strict TypeScript baseline, add explicit `typecheck` and `lint` scripts for `viewer/app`, then make ESLint pass without changing runtime behavior.
+- `CTXB-P7-T12` — Extract shared data-fetching base hook (P2, no deps)
+- Initial implementation target: share the fetch/loading/error/refresh state machine between `useGraphData` and `useSpecGraphData`, then add conversation graph auto-refresh when dialog JSON files change.
 
 ### Phase 7 Follow-ups
-- `CTXB-P7-T12` — Extract shared data-fetching base hook (P2, no deps)
+- `CTXB-P7-T13` — Add CI pipeline (P1, depends on T11)
 
 ### GraphSpace Follow-ups
 - `CTXB-P10-T13` — Resolve GraphSpace FSD `insignificant-slice` warnings (P3, depends on T12)
