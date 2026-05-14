@@ -16,6 +16,7 @@ class RouteSpec:
 GET_ROUTES: dict[str, RouteSpec] = {
     "/api/files": RouteSpec("handle_list_files"),
     "/api/graph": RouteSpec("handle_graph"),
+    "/api/watch": RouteSpec("handle_watch"),
     "/api/conversation": RouteSpec("handle_get_conversation", pass_parsed=True),
     "/api/checkpoint": RouteSpec("handle_get_checkpoint", pass_parsed=True),
     "/api/file": RouteSpec("handle_get_file", pass_parsed=True),

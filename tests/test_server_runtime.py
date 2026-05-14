@@ -20,11 +20,16 @@ def test_runs_watch_path_falls_back_to_specgraph_dir() -> None:
 
 
 def test_configure_server_sets_runtime_capabilities() -> None:
+    workspace_watchers: list[Path] = []
     spec_watchers: list[Path] = []
     runs_watchers: list[Path] = []
 
     def resolve_hyperprompt_binary(binary: str):
         return binary, [], ""
+
+    def workspace_watcher_factory(path: Path):
+        workspace_watchers.append(path)
+        return ("workspace", path)
 
     def spec_watcher_factory(path: Path):
         spec_watchers.append(path)
@@ -50,6 +55,7 @@ def test_configure_server_sets_runtime_capabilities() -> None:
             args,
             repo_root=root,
             resolve_hyperprompt_binary=resolve_hyperprompt_binary,
+            workspace_watcher_factory=workspace_watcher_factory,
             spec_watcher_factory=spec_watcher_factory,
             runs_watcher_factory=runs_watcher_factory,
         )
@@ -57,6 +63,7 @@ def test_configure_server_sets_runtime_capabilities() -> None:
         assert server.repo_root == root
         assert server.dialog_dir == (root / "dialogs").resolve()
         assert server.dialog_dir.exists()
+        assert workspace_watchers == [server.dialog_dir]
         assert server.hyperprompt_binary == "/bin/hyperprompt"
         assert server.compile_available is True
         assert server.spec_dir == (root / "specgraph" / "specs" / "nodes").resolve()

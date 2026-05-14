@@ -15,6 +15,7 @@ ResolveHyperpromptBinary = Callable[[str], tuple[str | None, list[str], str]]
 class ViewerRuntimeServer(Protocol):
     repo_root: Path
     dialog_dir: Path
+    workspace_watcher: Any
     hyperprompt_binary: str
     compile_available: bool
     spec_dir: Path | None
@@ -75,12 +76,14 @@ def configure_server(
     *,
     repo_root: Path,
     resolve_hyperprompt_binary: ResolveHyperpromptBinary,
+    workspace_watcher_factory: Callable[[Path], Any],
     spec_watcher_factory: Callable[[Path], Any],
     runs_watcher_factory: Callable[[Path], Any],
 ) -> None:
     server.repo_root = repo_root
     server.dialog_dir = args.dialog_dir.expanduser().resolve()
     server.dialog_dir.mkdir(parents=True, exist_ok=True)
+    server.workspace_watcher = workspace_watcher_factory(server.dialog_dir)
     server.hyperprompt_binary = args.hyperprompt_binary
     resolved_binary, _, _ = resolve_hyperprompt_binary(args.hyperprompt_binary)
     server.compile_available = resolved_binary is not None
@@ -99,6 +102,7 @@ def serve(
     repo_root: Path,
     default_hyperprompt_binary: str,
     resolve_hyperprompt_binary: ResolveHyperpromptBinary,
+    workspace_watcher_factory: Callable[[Path], Any],
     spec_watcher_factory: Callable[[Path], Any],
     runs_watcher_factory: Callable[[Path], Any],
 ) -> None:
@@ -114,6 +118,7 @@ def serve(
         args,
         repo_root=repo_root,
         resolve_hyperprompt_binary=resolve_hyperprompt_binary,
+        workspace_watcher_factory=workspace_watcher_factory,
         spec_watcher_factory=spec_watcher_factory,
         runs_watcher_factory=runs_watcher_factory,
     )
