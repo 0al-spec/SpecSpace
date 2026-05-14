@@ -69,10 +69,29 @@ export function useGraphInteractionState({
   const [hoveredEdge, setHoveredEdge] = useState<HoveredEdge>(null);
   const edgeHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const clearHoverTimers = useCallback(() => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    if (edgeHoverTimerRef.current) {
+      clearTimeout(edgeHoverTimerRef.current);
+      edgeHoverTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => clearHoverTimers();
+  }, [clearHoverTimers]);
+
   useEffect(() => {
     setSelectedConversationId(null);
     setSelectedMessageId(null);
-  }, [graphMode, setSelectedConversationId, setSelectedMessageId]);
+    setHoveredPreview(null);
+    setHoveredEdge(null);
+    setHighlightedEdge(null);
+    clearHoverTimers();
+  }, [graphMode, setSelectedConversationId, setSelectedMessageId, clearHoverTimers]);
 
   const prevViewMode = useRef(specViewMode);
   const pendingLayoutSwitch = useRef(false);
@@ -81,8 +100,12 @@ export function useGraphInteractionState({
       prevViewMode.current = specViewMode;
       pendingLayoutSwitch.current = true;
       setNodes([]);
+      setHoveredPreview(null);
+      setHoveredEdge(null);
+      setHighlightedEdge(null);
+      clearHoverTimers();
     }
-  }, [specViewMode]);
+  }, [specViewMode, clearHoverTimers]);
 
   useEffect(() => {
     setNodes((prev) => {
@@ -143,14 +166,14 @@ export function useGraphInteractionState({
   }, [specNodes]);
 
   const onNodeMouseLeave: NodeMouseHandler = useCallback(() => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    clearHoverTimers();
     setHoveredPreview(null);
-  }, []);
+  }, [clearHoverTimers]);
 
   const onNodeDragStart: NodeMouseHandler = useCallback(() => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    clearHoverTimers();
     setHoveredPreview(null);
-  }, []);
+  }, [clearHoverTimers]);
 
   const onSearchSelectConversation = useCallback(
     (conversationId: string) => {
@@ -258,9 +281,9 @@ export function useGraphInteractionState({
   }, []);
 
   const onEdgeMouseLeave: EdgeMouseHandler = useCallback(() => {
-    if (edgeHoverTimerRef.current) clearTimeout(edgeHoverTimerRef.current);
+    clearHoverTimers();
     setHoveredEdge(null);
-  }, []);
+  }, [clearHoverTimers]);
 
   const onPaneClick = useCallback(() => {
     setSelectedConversationId(null);
