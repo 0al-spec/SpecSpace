@@ -5,7 +5,6 @@ import {
   Background,
   Controls,
   MiniMap,
-  useReactFlow,
   ReactFlowProvider,
   applyNodeChanges,
   SelectionMode,
@@ -42,6 +41,7 @@ import { useSpecGraphData } from "./useSpecGraphData";
 import { useCapabilities } from "./useCapabilities";
 import { useSelectionState } from "./useSelectionState";
 import { useViewportSync } from "./useViewportSync";
+import { useKeyboardShortcuts } from "./useKeyboardShortcuts";
 import { CompileTargetContext } from "./CompileTargetContext";
 import TimelineFilter, { type TimelineField } from "./TimelineFilter";
 import RecentChangesOverlay from "./RecentChangesOverlay";
@@ -59,6 +59,7 @@ import { faClock, faBars, faFilter, faClockRotateLeft } from "@fortawesome/free-
 import type { GraphMode, SpecViewOptions, ApiSpecNode } from "./types";
 import SpecHoverCard from "./SpecHoverCard";
 import EdgeHoverCard from "./EdgeHoverCard";
+import FitViewShortcut from "./FitViewShortcut";
 import type { EdgeVisualState } from "./useSpecGraphData";
 
 const edgeTypes = {
@@ -123,27 +124,6 @@ function minimapNodeColor(node: Node): string {
   if (node.type === "specSubItem") return "#9b8ec4";
   if (node.type === "collapsedBranch") return "#4e689b";
   return "#b89f7f";
-}
-
-function FitViewShortcut() {
-  const { fitView } = useReactFlow();
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (
-        e.key === "f" &&
-        !e.metaKey &&
-        !e.ctrlKey &&
-        !e.altKey &&
-        !(e.target instanceof HTMLInputElement) &&
-        !(e.target instanceof HTMLTextAreaElement)
-      ) {
-        fitView({ duration: 300 });
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [fitView]);
-  return null;
 }
 
 const DEFAULT_SPEC_VIEW: SpecViewOptions = {
@@ -386,45 +366,6 @@ function AppInner() {
     panToPoint(cx, cy, getZoom() || 1, 100);
   }, [nodes, selectedConversationId, graphNodes, getZoom, panToPoint]);
 
-  // Cmd+K / Ctrl+K toggles search palette
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setSearchOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  // Esc clears any active Recent Changes multi-selection. Lives at App scope
-   // (not inside the overlay) so the user can clear it without first reopening
-   // the panel — multi-select persists across panel close to keep the graph
-   // dimmed while exploring, but shouldn't trap the user.
-  useEffect(() => {
-    if (!recentMultiSelectIds || recentMultiSelectIds.size === 0) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-      setRecentMultiSelectIds(null);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [recentMultiSelectIds]);
-
-  // Alt+ArrowLeft / Alt+ArrowRight — spec history back / forward
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (!e.altKey || graphMode !== "specifications") return;
-      if (e.key === "ArrowLeft")  { e.preventDefault(); onSpecNavBack(); }
-      if (e.key === "ArrowRight") { e.preventDefault(); onSpecNavForward(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [graphMode, onSpecNavBack, onSpecNavForward]);
-
   const onSearchSelectConversation = useCallback(
     (conversationId: string) => {
       setSelectedConversationId(conversationId);
@@ -643,21 +584,16 @@ function AppInner() {
     });
   }, []);
 
-  // Hotkeys (Specs mode only): R toggles Recent Changes, T toggles Timeline
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (graphMode !== "specifications") return;
-      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
-      const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
-      const editable = (e.target as HTMLElement | null)?.isContentEditable;
-      if (tag === "input" || tag === "textarea" || tag === "select" || editable) return;
-      const k = e.key.toLowerCase();
-      if (k === "r") { e.preventDefault(); toggleRecent(); return; }
-      if (k === "t") { e.preventDefault(); toggleTimeline(); return; }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [graphMode, toggleRecent, toggleTimeline]);
+  useKeyboardShortcuts({
+    graphMode,
+    recentMultiSelectIds,
+    setSearchOpen,
+    setRecentMultiSelectIds,
+    onSpecNavBack,
+    onSpecNavForward,
+    toggleRecent,
+    toggleTimeline,
+  });
 
   const specNodeTitleMap = useMemo(() => {
     const m = new Map<string, string>();
