@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P11-T1` — Versioned readonly SpecGraph provider for SpecSpace API
+**Current Task:** `CTXB-P11-T2` — Dockerized SpecSpace deployment smoke
 
 ## Recently Archived
+- `CTXB-P11-T1` — Versioned readonly SpecGraph provider for SpecSpace API (PASS, 2026-05-15)
 - `CTXB-P10-T13` — Resolve GraphSpace FSD insignificant-slice warnings (PASS, 2026-05-15)
 - `CTXB-P7-T13` — Add CI pipeline (PASS, 2026-05-15)
 - `CTXB-P7-T12` — Extract shared data-fetching base hook (PASS, 2026-05-14)
@@ -42,9 +43,9 @@
 - No remaining Phase 7 follow-up selected after CI; next queue item is the GraphSpace FSD cleanup below.
 
 ### Deployment Follow-ups
-- `CTXB-P11-T1` — Versioned readonly SpecGraph provider for SpecSpace API (P1, depends on P7-T13)
-- Rationale: establish `SpecSpace API reads readonly SpecGraph files -> exposes versioned /api/v1 -> UI consumes only /api/v1` before Dockerizing the deployment shape.
-- Initial implementation target: add a readonly file-backed SpecGraph provider, document `/api/v1/*` contracts, keep legacy endpoints available, and migrate UI data reads to versioned endpoints.
+- `CTXB-P11-T2` — Dockerized SpecSpace deployment smoke (P1, depends on P11-T1)
+- Rationale: with `/api/v1/*` now acting as the SpecSpace boundary, validate the real deployment shape with readonly mounted SpecGraph `specs/nodes` and `runs` directories.
+- Initial implementation target: add Docker/Compose smoke wiring, readonly mounts, `/api/v1/health` + `/api/v1/spec-graph` smoke checks, and operator notes.
 
 ### GraphSpace Follow-ups
 - Phase 10 follow-ups are complete through `CTXB-P10-T13`.

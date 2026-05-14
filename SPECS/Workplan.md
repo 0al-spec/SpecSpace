@@ -1494,7 +1494,7 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
 
 Intent: make SpecSpace deployable as a standalone viewer/API surface that can read the current SpecGraph workspace without owning it. The deployment boundary should keep SpecGraph readonly, expose stable versioned SpecSpace contracts, and let the UI depend on SpecSpace API v1 rather than raw upstream file layouts or producer internals.
 
-### CTXB-P11-T1 — Versioned readonly SpecGraph provider for SpecSpace API
+### ✅ CTXB-P11-T1 — Versioned readonly SpecGraph provider for SpecSpace API — DONE (PASS, 2026-05-15)
 - **Description:** Introduce a deploy-oriented SpecSpace API boundary: SpecSpace API reads readonly SpecGraph files and artifacts, exposes versioned `/api/v1/*` endpoints, and the UI consumes only those versioned contracts. SpecGraph remains the producer/owner of `specs/nodes` and `runs/`; SpecSpace is a readonly consumer. Start with file-backed providers over readonly mounted paths, with an interface that can later support an HTTP-backed SpecGraph provider.
 - **Priority:** P1
 - **Dependencies:** CTXB-P7-T13
