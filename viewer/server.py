@@ -30,6 +30,7 @@ from viewer import workspace_cache  # noqa: E402
 from viewer import conversation_api  # noqa: E402
 from viewer import file_api  # noqa: E402
 from viewer import specgraph_api  # noqa: E402
+from viewer import specgraph_surfaces_api  # noqa: E402
 from viewer.http_response import json_response  # noqa: E402
 from viewer.request_body import read_json_object_request_body  # noqa: E402
 from viewer.request_query import query_params, query_value  # noqa: E402
@@ -371,6 +372,25 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_spec_graph = specgraph_api.handle_spec_graph
     handle_spec_node = specgraph_api.handle_spec_node
     handle_write_file = file_api.handle_write_file
+    _graph_dashboard_path = specgraph_surfaces_api.graph_dashboard_path
+    _handle_runs_artifact = specgraph_surfaces_api.handle_runs_artifact
+    _runs_dir = specgraph_surfaces_api.runs_dir
+    _viewer_surfaces_build_available = specgraph_surfaces_api.viewer_surfaces_build_available
+    handle_graph_backlog_projection = specgraph_surfaces_api.handle_graph_backlog_projection
+    handle_graph_dashboard = specgraph_surfaces_api.handle_graph_dashboard
+    handle_implementation_work_index = specgraph_surfaces_api.handle_implementation_work_index
+    handle_metric_pack_adapters = specgraph_surfaces_api.handle_metric_pack_adapters
+    handle_metric_pack_runs = specgraph_surfaces_api.handle_metric_pack_runs
+    handle_metric_pricing_provenance = specgraph_surfaces_api.handle_metric_pricing_provenance
+    handle_metric_signals = specgraph_surfaces_api.handle_metric_signals
+    handle_metrics_delivery = specgraph_surfaces_api.handle_metrics_delivery
+    handle_metrics_feedback = specgraph_surfaces_api.handle_metrics_feedback
+    handle_metrics_source_promotion = specgraph_surfaces_api.handle_metrics_source_promotion
+    handle_model_usage_telemetry = specgraph_surfaces_api.handle_model_usage_telemetry
+    handle_recent_runs = specgraph_surfaces_api.handle_recent_runs
+    handle_spec_activity = specgraph_surfaces_api.handle_spec_activity
+    handle_spec_overlay = specgraph_surfaces_api.handle_spec_overlay
+    handle_viewer_surfaces_build = specgraph_surfaces_api.handle_viewer_surfaces_build
 
     def _dispatch_route(self, method: str, parsed) -> bool:
         route = route_for(method, parsed.path)
@@ -417,192 +437,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "agent": bool(getattr(self.server, "agent_available", False)),
             },
         )
-
-    def _runs_dir(self):
-        return specgraph_surfaces.runs_dir_from_context(self.server.spec_dir, self.server.specgraph_dir)
-
-    def _viewer_surfaces_build_available(self) -> bool:
-        """True only when supervisor.py declares --build-viewer-surfaces in its source."""
-        return specgraph_surfaces.supervisor_has_flags(self.server.specgraph_dir, "--build-viewer-surfaces")
-
-    def handle_viewer_surfaces_build(self) -> None:
-        if self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "Viewer surfaces build not configured. Start the server with --specgraph-dir."},
-            )
-            return
-        status, payload = supervisor_build.build_viewer_surfaces(self.server.specgraph_dir)
-        json_response(self, status, payload)
-
-    def _graph_dashboard_path(self):
-        return specgraph_surfaces.graph_dashboard_path(self._runs_dir())
-
-    def handle_graph_dashboard(self) -> None:
-        status, payload = specgraph_surfaces.read_graph_dashboard(self._runs_dir())
-        json_response(self, status, payload)
-
-    def handle_graph_backlog_projection(self) -> None:
-        if self.server.spec_dir is None and self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
-            )
-            return
-        status, payload = specgraph_surfaces.read_graph_backlog_projection(
-            self.server.spec_dir,
-            self._runs_dir(),
-        )
-        json_response(self, status, payload)
-
-    def _handle_runs_artifact(self, filename: str, build_hint: str) -> None:
-        """Serve a single file from runs/ under the standard envelope, or 503/404/422."""
-        if self.server.spec_dir is None and self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
-            )
-            return
-        status, payload = specgraph_surfaces.read_runs_artifact(
-            spec_dir=self.server.spec_dir,
-            runs_dir=self._runs_dir(),
-            filename=filename,
-            build_hint=build_hint,
-        )
-        json_response(self, status, payload)
-
-    def handle_metrics_source_promotion(self) -> None:
-        self._handle_runs_artifact(
-            "metrics_source_promotion_index.json",
-            "--build-viewer-surfaces",
-        )
-
-    def handle_metrics_delivery(self) -> None:
-        self._handle_runs_artifact(
-            "metrics_delivery_workflow.json",
-            "--build-viewer-surfaces",
-        )
-
-    def handle_metrics_feedback(self) -> None:
-        self._handle_runs_artifact(
-            "metrics_feedback_index.json",
-            "--build-viewer-surfaces",
-        )
-
-    def handle_metric_pack_adapters(self) -> None:
-        self._handle_runs_artifact(
-            "metric_pack_adapter_index.json",
-            "--build-viewer-surfaces",
-        )
-
-    def handle_metric_pack_runs(self) -> None:
-        self._handle_runs_artifact(
-            "metric_pack_runs.json",
-            "--build-viewer-surfaces",
-        )
-
-    def handle_recent_runs(self, parsed) -> None:
-        runs_dir = self._runs_dir()
-        if runs_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "runs/ directory not configured. Start the server with --specgraph-dir."},
-            )
-            return
-
-        qs = query_params(parsed)
-        try:
-            limit = int(query_value(qs, "limit", "50"))
-        except (TypeError, ValueError):
-            limit = 50
-        limit = max(1, min(limit, 500))
-        since = query_value(qs, "since", None)
-        since_iso = since if isinstance(since, str) and since else None
-
-        json_response(
-            self,
-            HTTPStatus.OK,
-            specgraph_surfaces.collect_recent_runs(runs_dir, limit=limit, since_iso=since_iso),
-        )
-
-    def handle_spec_activity(self, parsed) -> None:
-        """Serve runs/spec_activity_feed.json with optional limit/since filtering.
-
-        Contract: docs/spec_activity_feed_viewer_contract.md (SpecGraph PR #243).
-        Returns the artifact data inside the standard runs envelope. limit/since
-        are applied to data.entries[] after loading. since accepts an ISO
-        timestamp string and is compared against entry.occurred_at.
-        """
-        if self.server.spec_dir is None and self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
-            )
-            return
-        qs = query_params(parsed)
-        status, payload = specgraph_surfaces.read_spec_activity(
-            spec_dir=self.server.spec_dir,
-            runs_dir=self._runs_dir(),
-            limit_raw=query_value(qs, "limit", None),
-            since_raw=query_value(qs, "since", None),
-        )
-        json_response(self, status, payload)
-
-    def handle_implementation_work_index(self, parsed) -> None:
-        """Serve runs/implementation_work_index.json inside the standard envelope.
-
-        Contract: SpecGraph/docs/implementation_work_viewer_contract.md.
-        Optional ?limit=N caps data.entries[] (default 50, max 1000). No
-        ?since here — work items don't carry their own timestamps; the
-        artifact's `generated_at` is the only time signal and is preserved
-        in the envelope unchanged.
-        """
-        if self.server.spec_dir is None and self.server.specgraph_dir is None:
-            json_response(
-                self,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "SpecGraph not configured. Start the server with --spec-dir or --specgraph-dir."},
-            )
-            return
-        qs = query_params(parsed)
-        status, payload = specgraph_surfaces.read_implementation_work_index(
-            spec_dir=self.server.spec_dir,
-            runs_dir=self._runs_dir(),
-            limit_raw=query_value(qs, "limit", "50"),
-        )
-        json_response(self, status, payload)
-
-    def handle_metric_pricing_provenance(self) -> None:
-        self._handle_runs_artifact(
-            "metric_pricing_provenance.json",
-            "--build-viewer-surfaces",
-        )
-
-    def handle_model_usage_telemetry(self) -> None:
-        self._handle_runs_artifact(
-            "model_usage_telemetry_index.json",
-            "--build-viewer-surfaces",
-        )
-
-    def handle_metric_signals(self) -> None:
-        self._handle_runs_artifact(
-            "metric_signal_index.json",
-            "--build-viewer-surfaces",
-        )
-
-    def handle_spec_overlay(self) -> None:
-        """Merge the three node-facing overlays into a single per-spec map."""
-        runs = self._runs_dir()
-        if runs is None:
-            json_response(self, HTTPStatus.NOT_FOUND, {"error": "runs/ not available"})
-            return
-        status, payload = specgraph_surfaces.collect_spec_overlay(runs)
-        json_response(self, status, payload)
 
     def handle_specpm_preview_get(self) -> None:
         if self.server.specgraph_dir is None:
