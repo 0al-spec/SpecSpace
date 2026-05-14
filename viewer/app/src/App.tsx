@@ -27,16 +27,13 @@ import { useSpecGraphData } from "./useSpecGraphData";
 import { useCapabilities } from "./useCapabilities";
 import { useSelectionState } from "./useSelectionState";
 import { useViewportSync } from "./useViewportSync";
-import { useKeyboardShortcuts } from "./useKeyboardShortcuts";
+import { useCanvasOverlayState } from "./useCanvasOverlayState";
 import { CompileTargetContext } from "./CompileTargetContext";
-import { type TimelineField } from "./TimelineFilter";
-import { type FilterOptions, type FilterStatus, DEFAULT_FILTER, isFilterActive } from "./FilterBar";
 import { ToastProvider } from "./Toast";
 import GraphCanvas from "./GraphCanvas";
 import CanvasOverlays from "./CanvasOverlays";
 import TelemetryOverlay, { useTelemetryToggle } from "./TelemetryOverlay";
 import { useSpecOverlayData } from "./useSpecOverlayData";
-import { lensStyleFor } from "./specLens";
 import type { SpecLensMode } from "./types";
 import type { GraphMode, SpecViewOptions, ApiSpecNode } from "./types";
 import SpecHoverCard from "./SpecHoverCard";
@@ -154,10 +151,6 @@ function AppInner() {
     setHoveredPreview(null);
   }, []);
 
-  // ── Filter bar ────────────────────────────────────────────────────────────
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [filterOptions, setFilterOptions] = useState<FilterOptions>(DEFAULT_FILTER);
-
   // ── Sidebar collapse ─────────────────────────────────────────────────────
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return sessionStorage.getItem(COLLAPSE_KEY) === "true";
@@ -169,30 +162,6 @@ function AppInner() {
       return next;
     });
   }, []);
-
-  // ── Recent changes overlay ────────────────────────────────────────────────
-  const [recentOpen, setRecentOpen] = useState(false);
-  // Multi-select set from Recent Changes panel (Shift = range, Cmd/Ctrl =
-  // toggle). Non-null and non-empty when active; nodes outside the set get
-  // dimmed on the graph alongside the existing search/timeline/filter dims.
-  // Persists when the panel closes — closing the panel to focus on the graph
-  // shouldn't drop the highlight. Cleared via Esc inside the panel or by
-  // plain-clicking any row.
-  const [recentMultiSelectIds, setRecentMultiSelectIds] = useState<Set<string> | null>(null);
-  // lastSeenAt: ISO string in localStorage; init to "now" on first run so
-  // we don't show 60 unread on a fresh session.
-  const [recentLastSeen, setRecentLastSeen] = useState<string>(() => {
-    const saved = localStorage.getItem("contextbuilder.recentLastSeen");
-    if (saved) return saved;
-    const now = new Date().toISOString();
-    localStorage.setItem("contextbuilder.recentLastSeen", now);
-    return now;
-  });
-
-  // ── Timeline filter ───────────────────────────────────────────────────────
-  const [timelineOpen, setTimelineOpen] = useState(false);
-  const [timelineField, setTimelineField] = useState<TimelineField>("updated_at");
-  const [timelineRange, setTimelineRange] = useState<[number, number] | null>(null);
 
   const {
     selectedConversationId,
@@ -368,184 +337,39 @@ function AppInner() {
     [navigateToSpec, setSelectedConversationId, setSelectedMessageId, setSelectedSubItemId, panToNode],
   );
 
-  // ── Timeline computed values ──────────────────────────────────────────────
-  const timelineFullRange = useMemo((): [number, number] | null => {
-    if (!specGraph.rawGraph) return null;
-    const timestamps = specGraph.rawGraph.nodes
-      .map((n) => n[timelineField])
-      .filter((v): v is string => typeof v === "string" && v.length > 0)
-      .map((v) => new Date(v).getTime())
-      .filter((t) => !isNaN(t));
-    if (timestamps.length === 0) return null;
-    return [Math.min(...timestamps), Math.max(...timestamps)];
-  }, [specGraph.rawGraph, timelineField]);
-
-  const timelineMatchIds = useMemo((): Set<string> | null => {
-    if (!timelineOpen || !timelineRange || !specGraph.rawGraph) return null;
-    const [minTs, maxTs] = timelineRange;
-    return new Set(
-      specGraph.rawGraph.nodes
-        .filter((n) => {
-          const v = n[timelineField];
-          if (!v) return true; // no date → always shown
-          const ts = new Date(v).getTime();
-          return !isNaN(ts) && ts >= minTs && ts <= maxTs;
-        })
-        .map((n) => n.node_id),
-    );
-  }, [timelineOpen, timelineRange, timelineField, specGraph.rawGraph]);
-
-  const filterMatchIds = useMemo((): Set<string> | null => {
-    if (!isFilterActive(filterOptions) || !specGraph.rawGraph) return null;
-    return new Set(
-      specGraph.rawGraph.nodes
-        .filter((n) => {
-          const statusOk = filterOptions.statuses.size === 0 || filterOptions.statuses.has(n.status as FilterStatus);
-          const gapsOk = !filterOptions.hasGaps || (n.gap_count ?? 0) > 0;
-          const brokenOk = !filterOptions.hasBroken || n.diagnostics.length > 0;
-          return statusOk && gapsOk && brokenOk;
-        })
-        .map((n) => n.node_id),
-    );
-  }, [filterOptions, specGraph.rawGraph]);
-
-  const displayNodes = useMemo(() => {
-    const edgeEndpoints = highlightedEdge
-      ? new Set([highlightedEdge.source, highlightedEdge.target])
-      : null;
-    const lensActive = graphMode === "specifications" && specLens !== "none";
-    // Treat empty multi-select set as "no filter" so we don't dim everything.
-    const recentActive = recentMultiSelectIds !== null && recentMultiSelectIds.size > 0;
-    if (!edgeEndpoints && !searchMatchIds && !timelineMatchIds && !filterMatchIds && !recentActive && !lensActive) return nodes;
-    return nodes.map((n) => {
-      const edgeHl = edgeEndpoints?.has(n.id);
-      // For child nodes (messages), match against parent ID
-      const matchKey = n.parentId ?? n.id;
-      const searchDim = searchMatchIds ? !searchMatchIds.has(matchKey) : false;
-      const timelineDim = timelineMatchIds ? !timelineMatchIds.has(matchKey) : false;
-      const filterDim = filterMatchIds ? !filterMatchIds.has(matchKey) : false;
-      const recentDim = recentActive ? !recentMultiSelectIds!.has(matchKey) : false;
-      // Apply lens style to spec nodes only
-      let lensStyle: ReturnType<typeof lensStyleFor> | undefined;
-      if (lensActive && (n.type === "spec" || n.type === "expandedSpec")) {
-        const ls = lensStyleFor(n.id, specLens, specOverlays);
-        if (Object.keys(ls).length > 0) lensStyle = ls;
-      }
-      if (!edgeHl && !searchDim && !timelineDim && !filterDim && !recentDim && !lensStyle) return n;
-      return {
-        ...n,
-        data: {
-          ...n.data,
-          ...(edgeHl ? { edgeHighlighted: true } : {}),
-          ...(searchDim ? { searchDimmed: true } : {}),
-          ...(timelineDim ? { timelineDimmed: true } : {}),
-          ...(filterDim ? { filterDimmed: true } : {}),
-          ...(recentDim ? { recentDimmed: true } : {}),
-          ...(lensStyle ? { lensStyle } : {}),
-        },
-      };
-    });
-  }, [nodes, highlightedEdge, searchMatchIds, timelineMatchIds, filterMatchIds, recentMultiSelectIds, graphMode, specLens, specOverlays]);
-
-  const displayEdges = useMemo(() => {
-    if (!highlightedEdge) return edges;
-    return edges.map((e) =>
-      e.id === highlightedEdge.id
-        ? { ...e, className: ((e.className ?? "") + " edge-highlight").trim() }
-        : e
-    );
-  }, [edges, highlightedEdge]);
-
-  /** Reset the timeline range to match a specific field's full extent */
-  const resetTimelineRangeForField = useCallback((f: TimelineField) => {
-    const tss = (specGraph.rawGraph?.nodes ?? [])
-      .map((n) => n[f])
-      .filter((v): v is string => typeof v === "string" && v.length > 0)
-      .map((v) => new Date(v).getTime())
-      .filter((t) => !isNaN(t));
-    if (tss.length > 0) setTimelineRange([Math.min(...tss), Math.max(...tss)]);
-  }, [specGraph.rawGraph]);
-
-  const handleTimelineFieldChange = useCallback((f: TimelineField) => {
-    setTimelineField(f);
-    resetTimelineRangeForField(f);
-  }, [resetTimelineRangeForField]);
-
-  const toggleTimeline = useCallback(() => {
-    setTimelineOpen((open) => {
-      if (open) {
-        // closing — reset range so re-opening starts fresh
-        setTimelineRange(null);
-        return false;
-      } else {
-        // opening — initialise to full span; close Recent (mutually exclusive)
-        if (timelineFullRange) setTimelineRange(timelineFullRange);
-        setRecentOpen(false);
-        return true;
-      }
-    });
-  }, [timelineFullRange]);
-
-  // ── Recent changes — unread count + open handler ──────────────────────────
-  const recentUnreadCount = useMemo(() => {
-    if (!specGraph.rawGraph) return 0;
-    const lastMs = new Date(recentLastSeen).getTime();
-    if (!Number.isFinite(lastMs)) return 0;
-    return specGraph.rawGraph.nodes.reduce((n, node) => {
-      if (!node.updated_at) return n;
-      return new Date(node.updated_at).getTime() > lastMs ? n + 1 : n;
-    }, 0);
-  }, [specGraph.rawGraph, recentLastSeen]);
-
-  const toggleRecent = useCallback(() => {
-    setRecentOpen((open) => {
-      if (!open) {
-        // opening — mark everything as seen; close Timeline (mutually exclusive)
-        const now = new Date().toISOString();
-        localStorage.setItem("contextbuilder.recentLastSeen", now);
-        setRecentLastSeen(now);
-        setTimelineOpen(false);
-        setTimelineRange(null);
-      }
-      return !open;
-    });
-  }, []);
-
-  const onRecentSelect = useCallback(
-    (id: string, ts: string, source: "activity" | "nodes" | "runs") => {
-      const tsMs = new Date(ts).getTime();
-      if (source === "nodes" && Number.isFinite(tsMs)) {
-        const HOUR = 60 * 60 * 1000;
-        if (timelineField !== "updated_at") {
-          setTimelineField("updated_at");
-        }
-        if (timelineFullRange) {
-          const [fullMin, fullMax] = timelineFullRange;
-          const lo = Math.max(fullMin, tsMs - HOUR);
-          const hi = Math.min(fullMax, tsMs + HOUR);
-          setTimelineRange([Math.min(lo, hi), Math.max(lo, hi)]);
-        } else {
-          setTimelineRange([tsMs - HOUR, tsMs + HOUR]);
-        }
-        setTimelineOpen(true);
-        setRecentOpen(false);
-      } else {
-        setRecentOpen(false);
-      }
-      navigateToSpec(id);
-    },
-    [navigateToSpec, timelineField, timelineFullRange],
-  );
-
-  useKeyboardShortcuts({
-    graphMode,
+  const {
+    displayNodes,
+    displayEdges,
+    timelineOpen,
+    timelineField,
+    timelineFullRange,
+    timelineRange,
+    setTimelineRange,
+    handleTimelineFieldChange,
+    toggleTimeline,
+    recentOpen,
+    recentUnreadCount,
     recentMultiSelectIds,
-    setSearchOpen,
     setRecentMultiSelectIds,
+    toggleRecent,
+    onRecentSelect,
+    filterOpen,
+    setFilterOpen,
+    filterOptions,
+    setFilterOptions,
+  } = useCanvasOverlayState({
+    graphMode,
+    specLens,
+    specNodes: specGraph.rawGraph?.nodes,
+    specOverlays,
+    nodes,
+    edges,
+    highlightedEdge,
+    searchMatchIds,
+    setSearchOpen,
+    navigateToSpec,
     onSpecNavBack,
     onSpecNavForward,
-    toggleRecent,
-    toggleTimeline,
   });
 
   const specNodeTitleMap = useMemo(() => {
