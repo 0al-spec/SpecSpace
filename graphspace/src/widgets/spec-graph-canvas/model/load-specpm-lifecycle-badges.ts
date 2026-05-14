@@ -37,7 +37,7 @@ const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Network error";
 
 export async function fetchSpecPMLifecycleBadges({
-  url = "/api/specpm/lifecycle",
+  url = "/api/v1/specpm/lifecycle",
   fetcher = fetch,
   signal,
 }: FetchSpecPMLifecycleBadgesArgs = {}): Promise<SpecPMLifecycleBadgesResult> {

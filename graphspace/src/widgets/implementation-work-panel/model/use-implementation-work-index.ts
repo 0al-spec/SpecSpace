@@ -28,7 +28,7 @@ type Options = {
 export function useImplementationWorkIndex(
   options: Options = {},
 ): UseImplementationWorkState {
-  const { url = "/api/implementation-work-index", fetcher, refreshKey = 0 } = options;
+  const { url = "/api/v1/implementation-work-index", fetcher, refreshKey = 0 } = options;
   const [state, setState] = useState<UseImplementationWorkState>({ kind: "idle" });
 
   useEffect(() => {

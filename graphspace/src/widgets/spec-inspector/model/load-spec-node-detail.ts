@@ -30,13 +30,17 @@ const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Network error";
 
 const detailUrl = (baseUrl: string, nodeId: string): string => {
+  const encodedNodeId = encodeURIComponent(nodeId);
+  if (!baseUrl.includes("?") && !baseUrl.endsWith("/api/spec-node")) {
+    return `${baseUrl.replace(/\/$/, "")}/${encodedNodeId}`;
+  }
   const separator = baseUrl.includes("?") ? "&" : "?";
-  return `${baseUrl}${separator}id=${encodeURIComponent(nodeId)}`;
+  return `${baseUrl}${separator}id=${encodedNodeId}`;
 };
 
 export async function fetchSpecNodeDetail({
   nodeId,
-  url = "/api/spec-node",
+  url = "/api/v1/spec-nodes",
   fetcher = fetch,
   signal,
 }: FetchSpecNodeDetailArgs): Promise<SpecNodeDetailFetchResult> {

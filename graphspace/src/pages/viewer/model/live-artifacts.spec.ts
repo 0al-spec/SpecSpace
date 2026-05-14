@@ -4,7 +4,7 @@ import { describeArtifact, describeSourceDeltaSnapshot } from "./live-artifacts"
 const base = {
   id: "work",
   label: "Implementation work",
-  endpoint: "/api/implementation-work-index",
+  endpoint: "/api/v1/implementation-work-index",
   sampleCount: 5,
   noun: { singular: "item", plural: "items" },
   emptyDetail: "No implementation delta.",

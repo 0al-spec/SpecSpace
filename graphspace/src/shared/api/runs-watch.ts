@@ -8,7 +8,7 @@ type RunsWatchEventSource = Pick<
 type RunsWatchEventSourceCtor = new (url: string) => RunsWatchEventSource;
 
 type Options = {
-  /** Default `/api/runs-watch`. Override for tests or alternate deployments. */
+  /** Default `/api/v1/runs-watch`. Override for tests or alternate deployments. */
   url?: string;
   /** Test injection point; defaults to `globalThis.EventSource`. */
   eventSourceCtor?: RunsWatchEventSourceCtor;
@@ -25,7 +25,7 @@ type Options = {
  */
 export function useRunsWatchVersion(options: Options = {}): number {
   const {
-    url = "/api/runs-watch",
+    url = "/api/v1/runs-watch",
     eventSourceCtor,
     enabled = true,
   } = options;

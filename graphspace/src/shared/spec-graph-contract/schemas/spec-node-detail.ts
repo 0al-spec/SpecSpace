@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Source: ContextBuilder `viewer/server.py` `/api/spec-node`.
+ * Source: ContextBuilder `viewer/server.py` `/api/v1/spec-nodes/{id}`.
  *
  * The endpoint returns the raw YAML payload for one SpecGraph node in
  * `{ node_id, data }`. The raw payload is intentionally permissive because
