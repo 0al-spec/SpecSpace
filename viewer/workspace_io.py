@@ -6,7 +6,7 @@ import json
 import os
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from viewer import schema
 from viewer.graph import build_graph_snapshot, serialize_validation
@@ -79,8 +79,9 @@ def build_workspace_listing(
 
     for path in sorted(dialog_dir.glob("*.json")):
         stat = path.stat()
+        file_name = path.name
         meta: dict[str, Any] = {
-            "name": path.name,
+            "name": file_name,
             "size": stat.st_size,
             "modified_at": stat.st_mtime,
         }
@@ -91,7 +92,7 @@ def build_workspace_listing(
 
     reports = {report.file_name: report for report in schema.validate_workspace(payloads)}
     files: list[dict[str, Any]] = []
-    diagnostics: list[dict[str, Any]] = []
+    diagnostics: list[dict[str, str]] = []
 
     for meta, payload, errors in discovered:
         if errors or payload is None:
@@ -107,8 +108,10 @@ def build_workspace_listing(
                 "validation": validation,
             }
         )
-        for error in validation["errors"]:
-            diagnostics.append({"file": meta["name"], **error})
+        file_name = str(meta["name"])
+        validation_errors = cast(list[dict[str, str]], validation["errors"])
+        for error in validation_errors:
+            diagnostics.append({"file": file_name, **error})
 
     return {
         "files": files,

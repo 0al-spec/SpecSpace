@@ -31,3 +31,12 @@ python -m pytest tests/test_server_runtime.py tests/test_workspace_io.py tests/t
 ```
 
 Result: passed.
+
+## Review Follow-up
+
+- Kept workspace diagnostics typed as `list[dict[str, str]]` while preserving
+  the graph snapshot metadata shape.
+- Replaced truthiness fallback for the server workspace listing builder with an
+  explicit `is not None` check.
+- Narrowed server boundary casts from `Any` to `Mapping[str, str]`, `BinaryIO`,
+  and `ViewerRuntimeServer`.

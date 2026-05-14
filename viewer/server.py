@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import sys
 import threading
+from collections.abc import Mapping
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
-from typing import Any, Callable, cast
+from typing import Any, BinaryIO, Callable, cast
 from urllib.parse import urlparse
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -89,7 +90,8 @@ class WorkspaceCache(workspace_cache.WorkspaceCache):
         dialog_dir: Path,
         build_workspace_listing: Callable[[Path], dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        return super().get(dialog_dir, build_workspace_listing or _build_workspace_listing)
+        builder = build_workspace_listing if build_workspace_listing is not None else _build_workspace_listing
+        return super().get(dialog_dir, builder)
 
 
 # Registry: one WorkspaceCache per dialog_dir path used in the process.
@@ -335,7 +337,10 @@ class ViewerHandler(BaseHTTPRequestHandler):
 
     def read_json_body(self) -> dict | None:
         try:
-            return read_json_object_request_body(cast(Any, self.headers), cast(Any, self.rfile))
+            return read_json_object_request_body(
+                cast(Mapping[str, str], self.headers),
+                cast(BinaryIO, self.rfile),
+            )
         except Exception as exc:
             json_response(self, HTTPStatus.BAD_REQUEST, {"error": f"Invalid JSON body: {exc}"})
             return None
@@ -344,7 +349,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if schema.validate_file_name(name):
             return None
         try:
-            server = cast(Any, self.server)
+            server = cast(server_runtime.ViewerRuntimeServer, self.server)
             return dialog_path_for_name(server.dialog_dir.resolve(), name)
         except ValueError:
             return None
