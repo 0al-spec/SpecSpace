@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from viewer.server import RunsWatcher
+from viewer.server import RunsWatcher, WorkspaceWatcher
 
 
 class RunsWatcherTests(unittest.TestCase):
@@ -26,6 +26,19 @@ class RunsWatcherTests(unittest.TestCase):
         self.assertIn("exploration_preview.json", mtimes)
         self.assertNotIn("unrelated_notes.json", mtimes)
         self.assertNotIn("README.md", mtimes)
+
+
+class WorkspaceWatcherTests(unittest.TestCase):
+    def test_tracks_workspace_json_files_with_size_in_snapshot_key(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dialog_dir = Path(tmp)
+            (dialog_dir / "root.json").write_text("{}", encoding="utf-8")
+            (dialog_dir / "notes.md").write_text("ignored", encoding="utf-8")
+
+            mtimes = WorkspaceWatcher(dialog_dir)._get_mtimes()
+
+        self.assertTrue(any(key.startswith("root.json\0") for key in mtimes))
+        self.assertFalse(any(key.startswith("notes.md\0") for key in mtimes))
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ import type { ExpandedSpecGroupData } from "./ExpandedSpecNode";
 import type { SpecSubItemNodeData } from "./SpecSubItemNode";
 import type { CollapsedBranchNodeData } from "./CollapsedBranchNode";
 import { computeBasePositions, computeLinearPositions } from "./layoutGraph";
+import { useFetchedData } from "./useFetchedData";
 import { useSessionSet } from "./useSessionState";
 
 // Spec node dimensions
@@ -225,14 +226,17 @@ function diffGraphNodes(prev: ApiSpecGraph, next: ApiSpecGraph): Set<string> {
   return changed;
 }
 
-export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: SpecOverlayMap, autoCollapseExpanded: boolean = false) {
-  const [apiGraph, setApiGraph] = useState<ApiSpecGraph | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+function readSpecGraphResponse(json: unknown): ApiSpecGraph {
+  if (typeof json === "object" && json !== null && "graph" in json) {
+    const payload = json as { graph?: unknown };
+    return (payload.graph ?? json) as ApiSpecGraph;
+  }
+  return json as ApiSpecGraph;
+}
 
+export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: SpecOverlayMap, autoCollapseExpanded: boolean = false) {
   // Change highlighting after SSE reload
   const [changedNodeIds, setChangedNodeIds] = useState<Set<string>>(new Set());
-  const prevApiGraphRef = useRef<ApiSpecGraph | null>(null);
   const changeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Expansion state
@@ -275,43 +279,37 @@ export function useSpecGraphData(viewOptions: SpecViewOptions, overlayMap?: Spec
     }
   }, []);
 
-  const fetchGraph = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/spec-graph");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      const data: ApiSpecGraph = json.graph ?? json;
-
-      // Detect changes only when we have a previous snapshot (i.e. SSE reload)
-      if (prevApiGraphRef.current) {
-        const changed = diffGraphNodes(prevApiGraphRef.current, data);
-        if (changed.size > 0) {
-          setChangedNodeIds(changed);
-          if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
-          changeTimerRef.current = setTimeout(
-            () => setChangedNodeIds(new Set()),
-            3000,
-          );
-        }
-      }
-      prevApiGraphRef.current = data;
-      setApiGraph(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to fetch spec graph");
-    } finally {
-      setLoading(false);
+  const onGraphData = useCallback((data: ApiSpecGraph, previousData: ApiSpecGraph | null) => {
+    if (!previousData) return;
+    const changed = diffGraphNodes(previousData, data);
+    if (changed.size > 0) {
+      setChangedNodeIds(changed);
+      if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
+      changeTimerRef.current = setTimeout(
+        () => setChangedNodeIds(new Set()),
+        3000,
+      );
     }
   }, []);
 
-  useEffect(() => {
-    fetchGraph();
-  }, [fetchGraph]);
+  const {
+    data: apiGraph,
+    loading,
+    error,
+    refresh: fetchGraph,
+  } = useFetchedData<ApiSpecGraph>("/api/spec-graph", readSpecGraphResponse, {
+    failureMessage: "Failed to fetch spec graph",
+    onData: onGraphData,
+  });
+
+  useEffect(() => () => {
+    if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
+  }, []);
 
   // SSE: re-fetch whenever spec files change on disk
   useEffect(() => {
     const es = new EventSource("/api/spec-watch");
+    es.addEventListener("open", () => fetchGraph());
     es.addEventListener("change", () => fetchGraph());
     es.onerror = () => {
       // EventSource auto-reconnects; nothing to do here

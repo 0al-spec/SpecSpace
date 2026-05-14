@@ -1,8 +1,14 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P7-T2` — Split server.py into focused modules
+**Current Task:** `CTXB-P10-T13` — Resolve GraphSpace FSD insignificant-slice warnings
 
 ## Recently Archived
+- `CTXB-P7-T13` — Add CI pipeline (PASS, 2026-05-15)
+- `CTXB-P7-T12` — Extract shared data-fetching base hook (PASS, 2026-05-14)
+- `CTXB-P7-T11` — Enable TypeScript strict mode and add ESLint (PASS, 2026-05-14)
+- `CTXB-P7-T9` — Decompose App.tsx god component (PASS, 2026-05-14)
+- `CTXB-P7-T3` — Introduce typed dataclasses for graph objects (PASS, 2026-05-14)
+- `CTXB-P7-T2` — Split server.py into focused modules (PASS, 2026-05-14)
 - `CTXB-P9-T7` — SpecNode visual signal unification (PASS, 2026-05-13)
 - `CTXB-P8-T2` — SpecPM lifecycle badge on SpecNode (PASS, 2026-05-13)
 - `CTXB-P9-T6` — Hover preview card on spec nodes (PASS, 2026-05-13)
@@ -29,15 +35,18 @@
 ## Suggested Next Tasks
 
 ### Technical Debt (Phase 7, current)
-- `CTXB-P7-T2` — Split server.py into focused modules (P2, current, depends on T1 ✅)
-- Initial implementation target: extract backend graph/spec-graph read-model helpers first, then split export/compile helpers in follow-up slices if the full ≤400-line target is too large for one reviewable PR.
+- Phase 7 core technical-debt queue is complete through `CTXB-P7-T13`.
 
 ### Phase 7 Follow-ups
-- `CTXB-P7-T3` — Introduce typed dataclasses for graph objects (P2, depends on T2)
-- `CTXB-P7-T9` — Decompose App.tsx god component (P2, no deps)
+- No remaining Phase 7 follow-up selected after CI; next queue item is the GraphSpace FSD cleanup below.
+
+### Deployment Follow-ups
+- `CTXB-P11-T1` — Versioned readonly SpecGraph provider for SpecSpace API (P1, depends on P7-T13)
+- Rationale: establish `SpecSpace API reads readonly SpecGraph files -> exposes versioned /api/v1 -> UI consumes only /api/v1` before Dockerizing the deployment shape.
 
 ### GraphSpace Follow-ups
 - `CTXB-P10-T13` — Resolve GraphSpace FSD `insignificant-slice` warnings (P3, depends on T12)
+- Initial implementation target: run `npm run lint:fsd --prefix graphspace`, review each remaining warning, then either merge page-local slices into `pages/viewer` or document a concrete retained-slice rationale.
 
 ### Completed GraphSpace Context
 - Completed context: `CTXB-P10-T1` through `CTXB-P10-T12`, plus `CTXB-P8-T2`, `CTXB-P9-T6`, and `CTXB-P9-T7`.

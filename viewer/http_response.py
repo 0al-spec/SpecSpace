@@ -3,11 +3,20 @@
 from __future__ import annotations
 
 import json
-from http.server import BaseHTTPRequestHandler
-from typing import Any
+from typing import Any, Protocol
 
 
-def json_response(handler: BaseHTTPRequestHandler, status: int, payload: dict[str, Any]) -> None:
+class JsonResponseHandler(Protocol):
+    wfile: Any
+
+    def send_response(self, code: int, message: str | None = None) -> None: ...
+
+    def send_header(self, keyword: str, value: str) -> None: ...
+
+    def end_headers(self) -> None: ...
+
+
+def json_response(handler: JsonResponseHandler, status: int, payload: dict[str, Any]) -> None:
     body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")

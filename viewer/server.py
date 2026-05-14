@@ -3,17 +3,13 @@
 
 from __future__ import annotations
 
-import argparse
-import json
-import mimetypes
-import os
-import subprocess
 import sys
 import threading
+from collections.abc import Mapping
 from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO, Callable, cast
 from urllib.parse import urlparse
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -22,19 +18,23 @@ if __package__ in {None, ""}:  # pragma: no cover - allows running `python viewe
 
 from viewer import schema  # noqa: E402
 from viewer import graph as conversation_graph  # noqa: E402
+from viewer import capabilities_api  # noqa: E402
 from viewer import export as graph_export  # noqa: E402
 from viewer import hyperprompt_compile  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
+from viewer import workspace_io  # noqa: E402
 from viewer import conversation_api  # noqa: E402
 from viewer import file_api  # noqa: E402
 from viewer import specgraph_api  # noqa: E402
 from viewer import specgraph_surfaces_api  # noqa: E402
 from viewer import specpm_exploration_api  # noqa: E402
+from viewer import server_runtime  # noqa: E402
+from viewer import static_api  # noqa: E402
 from viewer.http_response import json_response  # noqa: E402
 from viewer.request_body import read_json_object_request_body  # noqa: E402
 from viewer.routes import route_for  # noqa: E402
 from viewer.sse import send_sse_headers, stream_change_events  # noqa: E402
-from viewer.watchers import RunsWatcher, SpecWatcher  # noqa: E402
+from viewer.watchers import RunsWatcher, SpecWatcher, WorkspaceWatcher  # noqa: E402
 from viewer.export import (  # noqa: E402
     _render_node_markdown,
     build_compile_provenance,
@@ -85,8 +85,13 @@ class WorkspaceCache(workspace_cache.WorkspaceCache):
     the lock — exactly one rebuilds, others wait and then get the fresh result.
     """
 
-    def get(self, dialog_dir: Path) -> dict[str, Any]:
-        return super().get(dialog_dir, _build_workspace_listing)
+    def get(
+        self,
+        dialog_dir: Path,
+        build_workspace_listing: Callable[[Path], dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        builder = build_workspace_listing if build_workspace_listing is not None else _build_workspace_listing
+        return super().get(dialog_dir, builder)
 
 
 # Registry: one WorkspaceCache per dialog_dir path used in the process.
@@ -129,93 +134,27 @@ def collect_checkpoint_api(dialog_dir: Path, conversation_id: str, message_id: s
 
 
 def dialog_path_for_name(dialog_dir: Path, name: str) -> Path:
-    """Resolve *name* relative to *dialog_dir* and enforce containment.
-
-    Raises ``ValueError`` if the resolved path escapes *dialog_dir* (directory
-    traversal attempt).  *dialog_dir* must already be an absolute resolved path.
-    """
-    resolved = (dialog_dir / name).resolve()
-    dir_str = str(dialog_dir.resolve())
-    # Use os.sep suffix to avoid false matches (e.g. /tmp/foo vs /tmp/foobar).
-    if not (str(resolved).startswith(dir_str + os.sep) or str(resolved) == dir_str):
-        raise ValueError(
-            f"Path '{name}' resolves outside dialog_dir '{dialog_dir}': {resolved}"
-        )
-    return resolved
+    """Compatibility wrapper for workspace path containment."""
+    return workspace_io.dialog_path_for_name(dialog_dir, name)
 
 
 def load_json_file(path: Path) -> tuple[dict[str, Any] | None, tuple[schema.NormalizationError, ...]]:
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        return None, (schema.NormalizationError("invalid_json", f"Failed to read JSON: {exc}"),)
-
-    if not isinstance(data, dict):
-        return None, (schema.NormalizationError("invalid_payload", "Payload must be a JSON object."),)
-
-    return data, ()
+    """Compatibility wrapper for workspace JSON loading."""
+    return workspace_io.load_json_file(path)
 
 
 def load_workspace_payloads(dialog_dir: Path, exclude_name: str | None = None) -> list[tuple[str, dict[str, Any]]]:
-    payloads: list[tuple[str, dict[str, Any]]] = []
-    for path in sorted(dialog_dir.glob("*.json")):
-        if exclude_name and path.name == exclude_name:
-            continue
-        payload, errors = load_json_file(path)
-        if errors or payload is None:
-            continue
-        payloads.append((path.name, payload))
-    return payloads
+    """Compatibility wrapper preserving server.load_json_file monkeypatch hooks."""
+    return workspace_io.load_workspace_payloads(
+        dialog_dir,
+        exclude_name,
+        load_json_file=load_json_file,
+    )
 
 
 def _build_workspace_listing(dialog_dir: Path) -> dict[str, Any]:
-    """Build the full workspace listing by reading and validating all JSON files.
-
-    This is the uncached implementation.  Call ``collect_workspace_listing``
-    instead, which adds mtime-based caching.
-    """
-    discovered: list[tuple[dict[str, Any], dict[str, Any] | None, tuple[schema.NormalizationError, ...]]] = []
-    payloads: list[tuple[str, dict[str, Any]]] = []
-
-    for path in sorted(dialog_dir.glob("*.json")):
-        stat = path.stat()
-        meta = {
-            "name": path.name,
-            "size": stat.st_size,
-            "modified_at": stat.st_mtime,
-        }
-        payload, errors = load_json_file(path)
-        discovered.append((meta, payload, errors))
-        if payload is not None and not errors:
-            payloads.append((path.name, payload))
-
-    reports = {report.file_name: report for report in schema.validate_workspace(payloads)}
-    files: list[dict[str, Any]] = []
-    diagnostics: list[dict[str, str]] = []
-
-    for meta, payload, errors in discovered:
-        if errors or payload is None:
-            validation = serialize_validation("invalid", None, errors)
-        else:
-            report = reports[meta["name"]]
-            validation = serialize_validation(report.kind, report.normalized, report.errors)
-
-        files.append(
-            {
-                **meta,
-                "kind": validation["kind"],
-                "validation": validation,
-            }
-        )
-        for error in validation["errors"]:
-            diagnostics.append({"file": meta["name"], **error})
-
-    return {
-        "files": files,
-        "diagnostics": diagnostics,
-        "graph": build_graph_snapshot(discovered, reports),
-        "dialog_dir": str(dialog_dir),
-    }
+    """Compatibility wrapper preserving server.load_json_file monkeypatch hooks."""
+    return workspace_io.build_workspace_listing(dialog_dir, load_json_file=load_json_file)
 
 
 def collect_workspace_listing(dialog_dir: Path) -> dict[str, Any]:
@@ -234,26 +173,15 @@ def validate_write_request(
     data: Any,
     overwrite: bool,
 ) -> tuple[dict[str, Any] | None, tuple[schema.NormalizationError, ...]]:
-    filename_errors = schema.validate_file_name(name)
-    if filename_errors:
-        return None, filename_errors
-
-    if not isinstance(data, dict):
-        return None, (schema.NormalizationError("invalid_payload", "`data` must be a JSON object."),)
-
-    path = dialog_path_for_name(dialog_dir.resolve(), name)
-    if path.exists() and not overwrite:
-        return None, (schema.NormalizationError("file_exists", "File already exists."),)
-
-    payloads = load_workspace_payloads(dialog_dir, exclude_name=name if overwrite else None)
-    payloads.append((name, data))
-    reports = {report.file_name: report for report in schema.validate_workspace(payloads)}
-    candidate = reports[name]
-
-    if candidate.errors:
-        return None, candidate.errors
-
-    return candidate.normalized, ()
+    """Compatibility wrapper preserving server path and payload loader hooks."""
+    return workspace_io.validate_write_request(
+        dialog_dir,
+        name,
+        data,
+        overwrite,
+        dialog_path_for_name=dialog_path_for_name,
+        load_workspace_payloads=load_workspace_payloads,
+    )
 
 
 def export_graph_nodes(
@@ -376,6 +304,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_specpm_lifecycle = specpm_exploration_api.handle_specpm_lifecycle
     handle_specpm_preview_build = specpm_exploration_api.handle_specpm_preview_build
     handle_specpm_preview_get = specpm_exploration_api.handle_specpm_preview_get
+    handle_capabilities = capabilities_api.handle_capabilities
+    handle_reveal = static_api.handle_reveal
+    handle_static = static_api.handle_static
 
     def _dispatch_route(self, method: str, parsed) -> bool:
         route = route_for(method, parsed.path)
@@ -404,79 +335,12 @@ class ViewerHandler(BaseHTTPRequestHandler):
             return
         self.send_error(HTTPStatus.NOT_FOUND)
 
-    def handle_capabilities(self) -> None:
-        json_response(
-            self,
-            HTTPStatus.OK,
-            {
-                "spec_graph": self.server.spec_dir is not None,
-                "spec_compile": self.server.spec_dir is not None,
-                "compile": self.server.compile_available,
-                "graph_dashboard": self._graph_dashboard_path() is not None,
-                "spec_overlay": self._runs_dir() is not None,
-                "specpm_preview": self.server.specgraph_dir is not None,
-                "exploration_preview": self.server.specgraph_dir is not None,
-                "exploration_surfaces": self.server.specgraph_dir is not None,
-                "exploration_preview_build": self._exploration_build_available(),
-                "viewer_surfaces_build": self._viewer_surfaces_build_available(),
-                "agent": bool(getattr(self.server, "agent_available", False)),
-            },
-        )
-
-    def handle_reveal(self) -> None:
-        """POST /api/reveal — open a file path in Finder (macOS: open -R <path>)."""
-        try:
-            body = read_json_object_request_body(self.headers, self.rfile, allow_empty=True)
-            path_str = body.get("path", "")
-        except Exception:
-            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Invalid request body"})
-            return
-        if not path_str:
-            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing path"})
-            return
-        path = Path(path_str).resolve()
-        if not path.exists():
-            json_response(self, HTTPStatus.NOT_FOUND, {"error": f"Path not found: {path}"})
-            return
-        try:
-            subprocess.Popen(["open", "-R", str(path)])
-            json_response(self, HTTPStatus.OK, {"revealed": str(path)})
-        except Exception as exc:
-            json_response(self, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(exc)})
-
-    def handle_static(self, request_path: str) -> None:
-        dist_dir = self.server.repo_root / "viewer" / "app" / "dist"
-        relative = request_path.lstrip("/")
-
-        if not relative:
-            path = dist_dir / "index.html"
-        else:
-            candidate = (dist_dir / relative).resolve()
-            if str(candidate).startswith(str(dist_dir.resolve())) and candidate.exists() and not candidate.is_dir():
-                path = candidate
-            elif "." in relative.split("/")[-1]:
-                # Request has a file extension but file not found — 404
-                self.send_error(HTTPStatus.NOT_FOUND)
-                return
-            else:
-                # SPA fallback: serve index.html for non-file routes
-                path = dist_dir / "index.html"
-
-        if not path.exists():
-            self.send_error(HTTPStatus.NOT_FOUND)
-            return
-
-        content_type, _ = mimetypes.guess_type(str(path))
-        body = path.read_bytes()
-        self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", content_type or "application/octet-stream")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
     def read_json_body(self) -> dict | None:
         try:
-            return read_json_object_request_body(self.headers, self.rfile)
+            return read_json_object_request_body(
+                cast(Mapping[str, str], self.headers),
+                cast(BinaryIO, self.rfile),
+            )
         except Exception as exc:
             json_response(self, HTTPStatus.BAD_REQUEST, {"error": f"Invalid JSON body: {exc}"})
             return None
@@ -485,7 +349,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if schema.validate_file_name(name):
             return None
         try:
-            return dialog_path_for_name(self.server.dialog_dir.resolve(), name)
+            server = cast(server_runtime.ViewerRuntimeServer, self.server)
+            return dialog_path_for_name(server.dialog_dir.resolve(), name)
         except ValueError:
             return None
 
@@ -503,6 +368,20 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 self,
                 HTTPStatus.NOT_FOUND,
                 {"error": "Spec graph not configured. Start the server with --spec-dir."},
+            )
+            return
+
+        send_sse_headers(self)
+        stream_change_events(self, watcher)
+
+    def handle_watch(self) -> None:
+        """SSE endpoint: streams a 'change' event whenever dialog JSON files change."""
+        watcher: WorkspaceWatcher | None = getattr(self.server, "workspace_watcher", None)
+        if watcher is None:
+            json_response(
+                self,
+                HTTPStatus.NOT_FOUND,
+                {"error": "Workspace watch not configured. Start the server with --dialog-dir."},
             )
             return
 
@@ -529,61 +408,16 @@ class ViewerHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--dialog-dir", type=Path, required=True)
-    parser.add_argument(
-        "--hyperprompt-binary",
-        type=str,
-        default=DEFAULT_HYPERPROMPT_BINARY,
-        help="Path to the Hyperprompt compiler binary",
+    server_runtime.serve(
+        ViewerHandler,
+        description=__doc__,
+        repo_root=REPO_ROOT,
+        default_hyperprompt_binary=DEFAULT_HYPERPROMPT_BINARY,
+        resolve_hyperprompt_binary=resolve_hyperprompt_binary,
+        workspace_watcher_factory=WorkspaceWatcher,
+        spec_watcher_factory=SpecWatcher,
+        runs_watcher_factory=RunsWatcher,
     )
-    parser.add_argument(
-        "--spec-dir",
-        type=Path,
-        default=None,
-        help="Path to a SpecGraph specs/nodes directory (enables /api/spec-graph)",
-    )
-    parser.add_argument(
-        "--specgraph-dir",
-        type=Path,
-        default=None,
-        help="Path to the SpecGraph repo root (enables /api/specpm/preview)",
-    )
-    parser.add_argument(
-        "--agent",
-        action="store_true",
-        default=False,
-        help="Enable the AgentChat panel in the UI",
-    )
-    args = parser.parse_args()
-
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), ViewerHandler)
-    server.repo_root = REPO_ROOT
-    server.dialog_dir = args.dialog_dir.expanduser().resolve()
-    server.dialog_dir.mkdir(parents=True, exist_ok=True)
-    server.hyperprompt_binary = args.hyperprompt_binary
-    resolved_binary, _, _ = resolve_hyperprompt_binary(args.hyperprompt_binary)
-    server.compile_available = resolved_binary is not None
-    server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
-    server.spec_watcher = SpecWatcher(server.spec_dir) if server.spec_dir else None
-    server.specgraph_dir = args.specgraph_dir.expanduser().resolve() if args.specgraph_dir else None
-    # Runs watcher: derive runs/ the same way /api/recent-runs does (via
-    # ViewerHandler._runs_dir(): spec_dir.parent.parent / "runs"), falling back
-    # to --specgraph-dir for deployments that only set that flag. RunsWatcher
-    # tolerates a missing directory at boot — it'll start emitting events once
-    # runs/ appears, so first-run setups don't lose live updates.
-    runs_path: Path | None = None
-    if server.spec_dir is not None:
-        runs_path = server.spec_dir.parent.parent / "runs"
-    elif server.specgraph_dir is not None:
-        runs_path = server.specgraph_dir / "runs"
-    server.runs_watcher = RunsWatcher(runs_path) if runs_path is not None else None
-    server.agent_available = args.agent
-
-    print(f"Serving ContextBuilder at http://localhost:{args.port}/")
-    print(f"Dialog folder: {server.dialog_dir}")
-    server.serve_forever()
 
 
 if __name__ == "__main__":

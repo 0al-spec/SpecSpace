@@ -28,13 +28,13 @@ class ContextBuilderSmokeTests(unittest.TestCase):
 
     def test_expanded_subflow_title_is_decorative_not_a_node(self) -> None:
         app_src = REPO_ROOT / "viewer" / "app" / "src"
-        app_tsx = (app_src / "App.tsx").read_text()
+        graph_canvas = (app_src / "GraphCanvas.tsx").read_text()
         use_graph_data = (app_src / "useGraphData.ts").read_text()
         subflow_header = (app_src / "SubflowHeader.tsx").read_text()
         subflow_header_css = (app_src / "SubflowHeader.css").read_text()
 
-        self.assertIn("group:", app_tsx)
-        self.assertNotIn("subflowHeader:", app_tsx)
+        self.assertIn("group:", graph_canvas)
+        self.assertNotIn("subflowHeader:", graph_canvas)
         self.assertNotIn('type: "subflowHeader"', use_graph_data)
         self.assertNotIn("Handle", subflow_header)
         self.assertNotIn(".react-flow__handle", subflow_header_css)
@@ -46,11 +46,11 @@ class ContextBuilderSmokeTests(unittest.TestCase):
         self.assertTrue((app_src / "InspectorOverlay.tsx").is_file())
 
     def test_react_app_uses_react_flow(self) -> None:
-        app_tsx = (REPO_ROOT / "viewer" / "app" / "src" / "App.tsx").read_text()
-        self.assertIn("ReactFlow", app_tsx)
-        self.assertIn("MiniMap", app_tsx)
-        self.assertIn("Background", app_tsx)
-        self.assertIn("Controls", app_tsx)
+        graph_canvas = (REPO_ROOT / "viewer" / "app" / "src" / "GraphCanvas.tsx").read_text()
+        self.assertIn("ReactFlow", graph_canvas)
+        self.assertIn("MiniMap", graph_canvas)
+        self.assertIn("Background", graph_canvas)
+        self.assertIn("Controls", graph_canvas)
 
     def test_react_app_has_session_persistence(self) -> None:
         session_state = (REPO_ROOT / "viewer" / "app" / "src" / "useSessionState.ts").read_text()
@@ -70,9 +70,11 @@ class ContextBuilderSmokeTests(unittest.TestCase):
 
     def test_server_serves_from_dist(self) -> None:
         server_py = (REPO_ROOT / "viewer" / "server.py").read_text()
-        self.assertIn("viewer", server_py)
-        self.assertIn("app", server_py)
-        self.assertIn("dist", server_py)
+        static_api_py = (REPO_ROOT / "viewer" / "static_api.py").read_text()
+        self.assertIn("static_api", server_py)
+        self.assertIn("viewer", static_api_py)
+        self.assertIn("app", static_api_py)
+        self.assertIn("dist", static_api_py)
 
     def test_server_module_loads(self) -> None:
         module_path = REPO_ROOT / "viewer" / "server.py"

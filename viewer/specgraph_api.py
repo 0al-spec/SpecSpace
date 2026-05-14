@@ -6,11 +6,11 @@ from http import HTTPStatus
 from typing import Any, Protocol
 
 from viewer import spec_compile, specgraph
-from viewer.http_response import json_response
+from viewer.http_response import JsonResponseHandler, json_response
 from viewer.request_query import query_bool, query_int, query_params, query_value
 
 
-class SpecGraphApiHandler(Protocol):
+class SpecGraphApiHandler(JsonResponseHandler, Protocol):
     server: Any
 
 
