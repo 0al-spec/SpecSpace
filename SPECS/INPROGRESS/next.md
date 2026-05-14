@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P7-T9` — Decompose App.tsx god component
+**Current Task:** `CTXB-P7-T11` — Enable TypeScript strict mode and add ESLint
 
 ## Recently Archived
+- `CTXB-P7-T9` — Decompose App.tsx god component (PASS, 2026-05-14)
 - `CTXB-P7-T3` — Introduce typed dataclasses for graph objects (PASS, 2026-05-14)
 - `CTXB-P7-T2` — Split server.py into focused modules (PASS, 2026-05-14)
 - `CTXB-P9-T7` — SpecNode visual signal unification (PASS, 2026-05-13)
@@ -31,11 +32,10 @@
 ## Suggested Next Tasks
 
 ### Technical Debt (Phase 7, current)
-- `CTXB-P7-T9` — Decompose App.tsx god component (P2, current, no deps)
-- Initial implementation target: extract one concern at a time from `viewer/app/src/App.tsx`, starting with selection state or keyboard shortcuts before larger viewport orchestration.
+- `CTXB-P7-T11` — Enable TypeScript strict mode and add ESLint (P2, depends on T9)
+- Initial implementation target: preserve the existing strict TypeScript baseline, add explicit `typecheck` and `lint` scripts for `viewer/app`, then make ESLint pass without changing runtime behavior.
 
 ### Phase 7 Follow-ups
-- `CTXB-P7-T11` — Enable TypeScript strict mode and add ESLint (P2, depends on T9)
 - `CTXB-P7-T12` — Extract shared data-fetching base hook (P2, no deps)
 
 ### GraphSpace Follow-ups

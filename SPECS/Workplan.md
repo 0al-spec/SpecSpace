@@ -1089,7 +1089,7 @@ Intent: address the known architectural and code quality problems identified in 
   - Export to a fresh path creates the sentinel before writing node files.
   - Re-export to an existing path verifies the sentinel before `rmtree`.
 
-### CTXB-P7-T9 — Decompose App.tsx god component
+### ✅ CTXB-P7-T9 — Decompose App.tsx god component — DONE (PASS, 2026-05-14)
 - **Description:** `App.tsx` (590 lines) owns 15+ concerns including selection state, compile target, viewport, search, chat, edge highlighting, and keyboard shortcuts. Extract at minimum: (1) `useSelectionState` hook (selectedConversationId, selectedMessageId, compileTarget), (2) `useViewportSync` hook (panToNode, fitNodes, panToPoint, onMoveEnd), (3) `useKeyboardShortcuts` hook. The component itself should orchestrate these hooks and delegate to the inspector/search/chat subcomponents it already mounts.
 - **Priority:** P2
 - **Dependencies:** none
