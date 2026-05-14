@@ -3,11 +3,10 @@
 
 from __future__ import annotations
 
-import argparse
 import sys
 import threading
 from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -28,6 +27,7 @@ from viewer import file_api  # noqa: E402
 from viewer import specgraph_api  # noqa: E402
 from viewer import specgraph_surfaces_api  # noqa: E402
 from viewer import specpm_exploration_api  # noqa: E402
+from viewer import server_runtime  # noqa: E402
 from viewer import static_api  # noqa: E402
 from viewer.http_response import json_response  # noqa: E402
 from viewer.request_body import read_json_object_request_body  # noqa: E402
@@ -384,61 +384,15 @@ class ViewerHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--dialog-dir", type=Path, required=True)
-    parser.add_argument(
-        "--hyperprompt-binary",
-        type=str,
-        default=DEFAULT_HYPERPROMPT_BINARY,
-        help="Path to the Hyperprompt compiler binary",
+    server_runtime.serve(
+        ViewerHandler,
+        description=__doc__,
+        repo_root=REPO_ROOT,
+        default_hyperprompt_binary=DEFAULT_HYPERPROMPT_BINARY,
+        resolve_hyperprompt_binary=resolve_hyperprompt_binary,
+        spec_watcher_factory=SpecWatcher,
+        runs_watcher_factory=RunsWatcher,
     )
-    parser.add_argument(
-        "--spec-dir",
-        type=Path,
-        default=None,
-        help="Path to a SpecGraph specs/nodes directory (enables /api/spec-graph)",
-    )
-    parser.add_argument(
-        "--specgraph-dir",
-        type=Path,
-        default=None,
-        help="Path to the SpecGraph repo root (enables /api/specpm/preview)",
-    )
-    parser.add_argument(
-        "--agent",
-        action="store_true",
-        default=False,
-        help="Enable the AgentChat panel in the UI",
-    )
-    args = parser.parse_args()
-
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), ViewerHandler)
-    server.repo_root = REPO_ROOT
-    server.dialog_dir = args.dialog_dir.expanduser().resolve()
-    server.dialog_dir.mkdir(parents=True, exist_ok=True)
-    server.hyperprompt_binary = args.hyperprompt_binary
-    resolved_binary, _, _ = resolve_hyperprompt_binary(args.hyperprompt_binary)
-    server.compile_available = resolved_binary is not None
-    server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
-    server.spec_watcher = SpecWatcher(server.spec_dir) if server.spec_dir else None
-    server.specgraph_dir = args.specgraph_dir.expanduser().resolve() if args.specgraph_dir else None
-    # Runs watcher: derive runs/ the same way /api/recent-runs does (via
-    # ViewerHandler._runs_dir(): spec_dir.parent.parent / "runs"), falling back
-    # to --specgraph-dir for deployments that only set that flag. RunsWatcher
-    # tolerates a missing directory at boot — it'll start emitting events once
-    # runs/ appears, so first-run setups don't lose live updates.
-    runs_path: Path | None = None
-    if server.spec_dir is not None:
-        runs_path = server.spec_dir.parent.parent / "runs"
-    elif server.specgraph_dir is not None:
-        runs_path = server.specgraph_dir / "runs"
-    server.runs_watcher = RunsWatcher(runs_path) if runs_path is not None else None
-    server.agent_available = args.agent
-
-    print(f"Serving ContextBuilder at http://localhost:{args.port}/")
-    print(f"Dialog folder: {server.dialog_dir}")
-    server.serve_forever()
 
 
 if __name__ == "__main__":
