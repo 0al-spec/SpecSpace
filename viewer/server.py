@@ -28,6 +28,7 @@ from viewer import file_api  # noqa: E402
 from viewer import specgraph_api  # noqa: E402
 from viewer import specgraph_surfaces_api  # noqa: E402
 from viewer import specpm_exploration_api  # noqa: E402
+from viewer import specspace_v1_api  # noqa: E402
 from viewer import server_runtime  # noqa: E402
 from viewer import static_api  # noqa: E402
 from viewer.http_response import json_response  # noqa: E402
@@ -304,6 +305,16 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_specpm_lifecycle = specpm_exploration_api.handle_specpm_lifecycle
     handle_specpm_preview_build = specpm_exploration_api.handle_specpm_preview_build
     handle_specpm_preview_get = specpm_exploration_api.handle_specpm_preview_get
+    handle_v1_capabilities = specspace_v1_api.handle_v1_capabilities
+    handle_v1_health = specspace_v1_api.handle_v1_health
+    handle_v1_implementation_work_index = specspace_v1_api.handle_v1_implementation_work_index
+    handle_v1_proposal_spec_trace_index = specspace_v1_api.handle_v1_proposal_spec_trace_index
+    handle_v1_recent_runs = specspace_v1_api.handle_v1_recent_runs
+    handle_v1_runs_watch = specspace_v1_api.handle_v1_runs_watch
+    handle_v1_spec_activity = specspace_v1_api.handle_v1_spec_activity
+    handle_v1_spec_graph = specspace_v1_api.handle_v1_spec_graph
+    handle_v1_spec_node = specspace_v1_api.handle_v1_spec_node
+    handle_v1_specpm_lifecycle = specspace_v1_api.handle_v1_specpm_lifecycle
     handle_capabilities = capabilities_api.handle_capabilities
     handle_reveal = static_api.handle_reveal
     handle_static = static_api.handle_static

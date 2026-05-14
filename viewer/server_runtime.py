@@ -21,6 +21,7 @@ class ViewerRuntimeServer(Protocol):
     spec_dir: Path | None
     spec_watcher: Any
     specgraph_dir: Path | None
+    runs_dir: Path | None
     runs_watcher: Any
     agent_available: bool
 
@@ -52,6 +53,12 @@ def build_arg_parser(
         type=Path,
         default=None,
         help="Path to the SpecGraph repo root (enables /api/specpm/preview)",
+    )
+    parser.add_argument(
+        "--runs-dir",
+        type=Path,
+        default=None,
+        help="Path to a SpecGraph runs directory. Defaults to a path derived from --spec-dir or --specgraph-dir.",
     )
     parser.add_argument(
         "--agent",
@@ -90,8 +97,11 @@ def configure_server(
     server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
     server.spec_watcher = spec_watcher_factory(server.spec_dir) if server.spec_dir else None
     server.specgraph_dir = args.specgraph_dir.expanduser().resolve() if args.specgraph_dir else None
-    runs_path = runs_watch_path(server.spec_dir, server.specgraph_dir)
-    server.runs_watcher = runs_watcher_factory(runs_path) if runs_path is not None else None
+    server.runs_dir = args.runs_dir.expanduser().resolve() if args.runs_dir else runs_watch_path(
+        server.spec_dir,
+        server.specgraph_dir,
+    )
+    server.runs_watcher = runs_watcher_factory(server.runs_dir) if server.runs_dir is not None else None
     server.agent_available = args.agent
 
 

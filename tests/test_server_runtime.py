@@ -46,6 +46,7 @@ def test_configure_server_sets_runtime_capabilities() -> None:
             hyperprompt_binary="/bin/hyperprompt",
             spec_dir=root / "specgraph" / "specs" / "nodes",
             specgraph_dir=None,
+            runs_dir=None,
             agent=True,
         )
         server = SimpleNamespace()
@@ -68,5 +69,38 @@ def test_configure_server_sets_runtime_capabilities() -> None:
         assert server.compile_available is True
         assert server.spec_dir == (root / "specgraph" / "specs" / "nodes").resolve()
         assert spec_watchers == [server.spec_dir]
+        assert server.runs_dir == (root / "specgraph" / "runs").resolve()
         assert runs_watchers == [(root / "specgraph" / "runs").resolve()]
         assert server.agent_available is True
+
+
+def test_configure_server_accepts_explicit_runs_dir() -> None:
+    runs_watchers: list[Path] = []
+
+    def resolve_hyperprompt_binary(binary: str):
+        return binary, [], ""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        args = argparse.Namespace(
+            dialog_dir=root / "dialogs",
+            hyperprompt_binary="/bin/hyperprompt",
+            spec_dir=root / "specgraph" / "specs" / "nodes",
+            specgraph_dir=root / "specgraph",
+            runs_dir=root / "mounted-runs",
+            agent=False,
+        )
+        server = SimpleNamespace()
+
+        server_runtime.configure_server(
+            server,
+            args,
+            repo_root=root,
+            resolve_hyperprompt_binary=resolve_hyperprompt_binary,
+            workspace_watcher_factory=lambda path: ("workspace", path),
+            spec_watcher_factory=lambda path: ("spec", path),
+            runs_watcher_factory=lambda path: runs_watchers.append(path) or ("runs", path),
+        )
+
+        assert server.runs_dir == (root / "mounted-runs").resolve()
+        assert runs_watchers == [server.runs_dir]
