@@ -16,6 +16,7 @@ type Props = Omit<HTMLAttributes<HTMLElement>, "children" | "title"> & {
   emptyMessage?: string;
   /** Optional small text on the right of the header (source, status). */
   caption?: string;
+  onSpecIdClick?: (nodeId: string) => void;
 };
 
 export function RecentChangesPanel({
@@ -24,6 +25,7 @@ export function RecentChangesPanel({
   now,
   emptyMessage = "No activity recorded yet",
   caption,
+  onSpecIdClick,
   className,
   ...rest
 }: Props) {
@@ -43,7 +45,14 @@ export function RecentChangesPanel({
             <p className={styles["empty-msg"]}>{emptyMessage}</p>
           </div>
         ) : (
-          entries.map((e) => <RecentChangeRow key={e.event_id} entry={e} now={now} />)
+          entries.map((e) => (
+            <RecentChangeRow
+              key={e.event_id}
+              entry={e}
+              now={now}
+              onSpecIdClick={onSpecIdClick}
+            />
+          ))
         )}
       </div>
     </section>

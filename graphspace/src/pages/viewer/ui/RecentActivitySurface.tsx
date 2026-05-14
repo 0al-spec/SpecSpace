@@ -9,6 +9,7 @@ type Props = {
   now?: Date;
   caption: string;
   emptyMessage: string;
+  onSpecIdClick?: (nodeId: string) => void;
   search: {
     query: string;
     onQueryChange: (query: string) => void;
@@ -29,6 +30,7 @@ export function RecentActivitySurface({
   now,
   caption,
   emptyMessage,
+  onSpecIdClick,
   search,
   tone,
 }: Props) {
@@ -52,6 +54,7 @@ export function RecentActivitySurface({
         now={now}
         caption={caption}
         emptyMessage={emptyMessage}
+        onSpecIdClick={onSpecIdClick}
         className={styles.recentPanel}
       />
     </div>

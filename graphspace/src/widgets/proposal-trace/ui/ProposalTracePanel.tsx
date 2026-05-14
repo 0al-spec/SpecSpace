@@ -9,6 +9,7 @@ type Props = Omit<HTMLAttributes<HTMLElement>, "children" | "title"> & {
   title?: string;
   caption?: string;
   emptyMessage?: string;
+  onSpecIdClick?: (nodeId: string) => void;
 };
 
 export function ProposalTracePanel({
@@ -17,6 +18,7 @@ export function ProposalTracePanel({
   title = "Proposal trace",
   caption,
   emptyMessage = "No proposal trace entries yet",
+  onSpecIdClick,
   className,
   ...rest
 }: Props) {
@@ -44,7 +46,11 @@ export function ProposalTracePanel({
           </div>
         ) : (
           entries.map((entry) => (
-            <ProposalTraceRow key={entry.trace_entry_id} entry={entry} />
+            <ProposalTraceRow
+              key={entry.trace_entry_id}
+              entry={entry}
+              onSpecIdClick={onSpecIdClick}
+            />
           ))
         )}
       </div>

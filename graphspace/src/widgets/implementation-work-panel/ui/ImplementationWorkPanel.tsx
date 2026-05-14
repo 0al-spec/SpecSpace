@@ -7,6 +7,7 @@ type Props = Omit<HTMLAttributes<HTMLElement>, "children" | "title"> & {
   title?: string;
   caption?: string;
   emptyMessage?: string;
+  onSpecIdClick?: (nodeId: string) => void;
 };
 
 export function ImplementationWorkPanel({
@@ -14,6 +15,7 @@ export function ImplementationWorkPanel({
   title = "Implementation work",
   caption,
   emptyMessage = "No work items emitted yet",
+  onSpecIdClick,
   className,
   ...rest
 }: Props) {
@@ -33,7 +35,13 @@ export function ImplementationWorkPanel({
             <p className={styles["empty-msg"]}>{emptyMessage}</p>
           </div>
         ) : (
-          items.map((it) => <WorkItemRow key={it.work_item_id} item={it} />)
+          items.map((it) => (
+            <WorkItemRow
+              key={it.work_item_id}
+              item={it}
+              onSpecIdClick={onSpecIdClick}
+            />
+          ))
         )}
       </div>
       <footer className={styles.boundary}>
