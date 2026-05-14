@@ -144,7 +144,7 @@ export function useCanvasOverlayState({
   const handleTimelineFieldChange = useCallback((field: TimelineField) => {
     setTimelineField(field);
     const range = dateRangeForNodes(specNodes, field);
-    if (range) setTimelineRange(range);
+    setTimelineRange(range);
   }, [specNodes]);
 
   const toggleTimeline = useCallback(() => {
@@ -190,8 +190,9 @@ export function useCanvasOverlayState({
         if (timelineField !== "updated_at") {
           setTimelineField("updated_at");
         }
-        if (timelineFullRange) {
-          const [fullMin, fullMax] = timelineFullRange;
+        const updatedRange = dateRangeForNodes(specNodes, "updated_at");
+        if (updatedRange) {
+          const [fullMin, fullMax] = updatedRange;
           const lo = Math.max(fullMin, tsMs - hour);
           const hi = Math.min(fullMax, tsMs + hour);
           setTimelineRange([Math.min(lo, hi), Math.max(lo, hi)]);
@@ -205,7 +206,7 @@ export function useCanvasOverlayState({
       }
       navigateToSpec(id);
     },
-    [navigateToSpec, timelineField, timelineFullRange],
+    [navigateToSpec, specNodes, timelineField],
   );
 
   useKeyboardShortcuts({
