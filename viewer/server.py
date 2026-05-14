@@ -5,9 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import mimetypes
 import os
-import subprocess
 import sys
 import threading
 from http import HTTPStatus
@@ -30,6 +28,7 @@ from viewer import file_api  # noqa: E402
 from viewer import specgraph_api  # noqa: E402
 from viewer import specgraph_surfaces_api  # noqa: E402
 from viewer import specpm_exploration_api  # noqa: E402
+from viewer import static_api  # noqa: E402
 from viewer.http_response import json_response  # noqa: E402
 from viewer.request_body import read_json_object_request_body  # noqa: E402
 from viewer.routes import route_for  # noqa: E402
@@ -376,6 +375,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_specpm_lifecycle = specpm_exploration_api.handle_specpm_lifecycle
     handle_specpm_preview_build = specpm_exploration_api.handle_specpm_preview_build
     handle_specpm_preview_get = specpm_exploration_api.handle_specpm_preview_get
+    handle_reveal = static_api.handle_reveal
+    handle_static = static_api.handle_static
 
     def _dispatch_route(self, method: str, parsed) -> bool:
         route = route_for(method, parsed.path)
@@ -422,57 +423,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
                 "agent": bool(getattr(self.server, "agent_available", False)),
             },
         )
-
-    def handle_reveal(self) -> None:
-        """POST /api/reveal — open a file path in Finder (macOS: open -R <path>)."""
-        try:
-            body = read_json_object_request_body(self.headers, self.rfile, allow_empty=True)
-            path_str = body.get("path", "")
-        except Exception:
-            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Invalid request body"})
-            return
-        if not path_str:
-            json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing path"})
-            return
-        path = Path(path_str).resolve()
-        if not path.exists():
-            json_response(self, HTTPStatus.NOT_FOUND, {"error": f"Path not found: {path}"})
-            return
-        try:
-            subprocess.Popen(["open", "-R", str(path)])
-            json_response(self, HTTPStatus.OK, {"revealed": str(path)})
-        except Exception as exc:
-            json_response(self, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(exc)})
-
-    def handle_static(self, request_path: str) -> None:
-        dist_dir = self.server.repo_root / "viewer" / "app" / "dist"
-        relative = request_path.lstrip("/")
-
-        if not relative:
-            path = dist_dir / "index.html"
-        else:
-            candidate = (dist_dir / relative).resolve()
-            if str(candidate).startswith(str(dist_dir.resolve())) and candidate.exists() and not candidate.is_dir():
-                path = candidate
-            elif "." in relative.split("/")[-1]:
-                # Request has a file extension but file not found — 404
-                self.send_error(HTTPStatus.NOT_FOUND)
-                return
-            else:
-                # SPA fallback: serve index.html for non-file routes
-                path = dist_dir / "index.html"
-
-        if not path.exists():
-            self.send_error(HTTPStatus.NOT_FOUND)
-            return
-
-        content_type, _ = mimetypes.guess_type(str(path))
-        body = path.read_bytes()
-        self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", content_type or "application/octet-stream")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
 
     def read_json_body(self) -> dict | None:
         try:
