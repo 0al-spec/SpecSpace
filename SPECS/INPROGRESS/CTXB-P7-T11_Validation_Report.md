@@ -12,6 +12,8 @@ Enable explicit frontend quality gates for `viewer/app`:
   rule coverage
 - fix the one local type-lint issue in `SpecLens`
 - apply non-forced `npm audit fix` after installing lint dependencies
+- pin ESLint toolchain packages to Node 18-compatible versions, matching the
+  documented React UI prerequisite
 
 ## Acceptance
 
