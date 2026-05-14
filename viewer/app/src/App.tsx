@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ErrorBoundary from "./ErrorBoundary";
 import {
-  ReactFlow,
-  Background,
-  Controls,
-  MiniMap,
   ReactFlowProvider,
   applyNodeChanges,
-  SelectionMode,
   type NodeMouseHandler,
   type EdgeMouseHandler,
   type NodeChange,
@@ -17,20 +12,11 @@ import "@xyflow/react/dist/style.css";
 import "./theme.css";
 import "./ConversationNode.css";
 import "./MessageNode.css";
-import ConversationNode from "./ConversationNode";
-import ExpandedConversationNode from "./ExpandedConversationNode";
-import MessageNode from "./MessageNode";
-import SpecNode from "./SpecNode";
-import ExpandedSpecNode from "./ExpandedSpecNode";
-import SpecSubItemNode from "./SpecSubItemNode";
-import CollapsedBranchNode from "./CollapsedBranchNode";
-import { LODSmoothStepEdgeMemo, LODBezierEdgeMemo } from "./LODSmoothStepEdge";
 import SpecInspector from "./SpecInspector";
 import SpecLens from "./SpecLens.tsx";
 import SpecPMExportPreview from "./SpecPMExportPreview.tsx";
 import SpecCompileOverlay from "./SpecCompileOverlay";
 import ExplorationSurfacesPanel from "./ExplorationSurfacesPanel";
-import SpecForceGraph from "./SpecForceGraph";
 import "./SpecNode.css";
 import AgentChat, { AgentChatTrigger } from "./AgentChat";
 import SearchPalette from "./SearchPalette";
@@ -49,7 +35,7 @@ import FilterBar, { type FilterOptions, type FilterStatus, DEFAULT_FILTER, isFil
 import PanelBtn from "./PanelBtn";
 import "./PanelBtn.css";
 import { ToastProvider } from "./Toast";
-import GraphDashboard from "./GraphDashboard";
+import GraphCanvas from "./GraphCanvas";
 import TelemetryOverlay, { useTelemetryToggle } from "./TelemetryOverlay";
 import { useSpecOverlayData } from "./useSpecOverlayData";
 import { lensStyleFor } from "./specLens";
@@ -59,23 +45,7 @@ import { faClock, faBars, faFilter, faClockRotateLeft } from "@fortawesome/free-
 import type { GraphMode, SpecViewOptions, ApiSpecNode } from "./types";
 import SpecHoverCard from "./SpecHoverCard";
 import EdgeHoverCard from "./EdgeHoverCard";
-import FitViewShortcut from "./FitViewShortcut";
 import type { EdgeVisualState } from "./useSpecGraphData";
-
-const edgeTypes = {
-  default: LODBezierEdgeMemo,
-  smoothstep: LODSmoothStepEdgeMemo,
-};
-
-const nodeTypes = {
-  conversation: ConversationNode,
-  group: ExpandedConversationNode,
-  message: MessageNode,
-  spec: SpecNode,
-  expandedSpec: ExpandedSpecNode,
-  specSubItem: SpecSubItemNode,
-  collapsedBranch: CollapsedBranchNode,
-};
 
 function loadInitialMode(): GraphMode {
   try {
@@ -85,45 +55,6 @@ function loadInitialMode(): GraphMode {
     // ignore
   }
   return "conversations";
-}
-
-const kindColorMap: Record<string, string> = {
-  root: "#5d8b58",
-  branch: "#4e689b",
-  merge: "#b06924",
-};
-
-const specStatusColorMap: Record<string, string> = {
-  idea: "#b0b0b0",
-  stub: "#c8a72a",
-  outlined: "#4e82b8",
-  specified: "#6e5ab8",
-  linked: "#3e9a58",
-  reviewed: "#2a7c7c",
-  frozen: "#4a5568",
-};
-
-// Set to true to hide the minimap when zoomed out past 0.5 (the old behaviour)
-const MINIMAP_HIDE_WHEN_ZOOMED_OUT = false;
-
-function minimapNodeColor(node: Node): string {
-  const d = node.data as {
-    kind?: string; status?: string; role?: string;
-    searchDimmed?: boolean; timelineDimmed?: boolean; filterDimmed?: boolean; recentDimmed?: boolean;
-  };
-  if (d.searchDimmed || d.timelineDimmed || d.filterDimmed || d.recentDimmed) return "rgba(180,180,180,0.18)";
-  if (node.type === "group" || node.type === "conversation") {
-    return kindColorMap[d.kind ?? ""] ?? "#b89f7f";
-  }
-  if (node.type === "message") {
-    return d.role === "user" ? "#8eaed4" : "#c4a67a";
-  }
-  if (node.type === "spec" || node.type === "expandedSpec") {
-    return specStatusColorMap[d.status ?? ""] ?? "#9b8ec4";
-  }
-  if (node.type === "specSubItem") return "#9b8ec4";
-  if (node.type === "collapsedBranch") return "#4e689b";
-  return "#b89f7f";
 }
 
 const DEFAULT_SPEC_VIEW: SpecViewOptions = {
@@ -672,67 +603,31 @@ function AppInner() {
               <button onClick={refresh}>Retry</button>
             </div>
           )}
-          {/* Dashboard view */}
-          {graphMode === "dashboard" && <GraphDashboard buildAvailable={viewerSurfacesBuildAvailable} />}
-
-          {/* Force-directed view — replaces ReactFlow when viewMode === "force" */}
-          {graphMode === "specifications" && specViewOptions.viewMode === "force" && specGraph.rawGraph && (
-            <ErrorBoundary label="SpecForceGraph">
-              <SpecForceGraph
-                apiGraph={specGraph.rawGraph}
-                selectedNodeId={selectedConversationId}
-                onSelectNode={onSpecNodeSelect}
-              />
-            </ErrorBoundary>
-          )}
-
-          {/* ReactFlow stays mounted during background refreshes to preserve zoom/pan.
-              Hidden (not unmounted) in force/dashboard mode so zoom/pan state is preserved. */}
-          <ErrorBoundary label="Canvas">
-            <ReactFlow
-              nodes={displayNodes}
-              edges={displayEdges}
-              nodeTypes={nodeTypes}
-              edgeTypes={edgeTypes}
-              onNodesChange={onNodesChange}
-              onNodeClick={onNodeClick}
-              onNodeMouseEnter={onNodeMouseEnter}
-              onNodeMouseLeave={onNodeMouseLeave}
-              onNodeDragStart={onNodeDragStart}
-              onEdgeClick={onEdgeClick}
-              onEdgeMouseEnter={onEdgeMouseEnter}
-              onEdgeMouseLeave={onEdgeMouseLeave}
-              onPaneClick={onPaneClick}
-              onMoveEnd={onMoveEnd}
-              defaultViewport={savedViewport.current}
-              fitView={hasFitView}
-              minZoom={0.1}
-              maxZoom={2}
-              onlyRenderVisibleElements={true}
-              className={isZoomedOut ? "zoomed-out" : undefined}
-              style={{
-                opacity: loading && nodes.length > 0 ? 0.6 : 1,
-                transition: "opacity 150ms",
-                display: graphMode === "dashboard" || (graphMode === "specifications" && specViewOptions.viewMode === "force") ? "none" : undefined,
-              }}
-              multiSelectionKeyCode="Shift"
-              selectionKeyCode="Shift"
-              selectionMode={SelectionMode.Partial}
-              edgesFocusable={false}
-            >
-              <Background />
-              <Controls />
-              <MiniMap
-                nodeColor={MINIMAP_HIDE_WHEN_ZOOMED_OUT && isZoomedOut ? "transparent" : minimapNodeColor}
-                nodeStrokeColor={MINIMAP_HIDE_WHEN_ZOOMED_OUT && isZoomedOut ? "transparent" : undefined}
-                maskColor={MINIMAP_HIDE_WHEN_ZOOMED_OUT && isZoomedOut ? "transparent" : "rgba(236, 227, 212, 0.7)"}
-                pannable
-                zoomable
-                onClick={onMiniMapClick}
-              />
-              <FitViewShortcut />
-            </ReactFlow>
-          </ErrorBoundary>
+          <GraphCanvas
+            graphMode={graphMode}
+            specViewOptions={specViewOptions}
+            specGraph={specGraph.rawGraph}
+            selectedNodeId={selectedConversationId}
+            onSpecNodeSelect={onSpecNodeSelect}
+            viewerSurfacesBuildAvailable={viewerSurfacesBuildAvailable}
+            nodes={displayNodes}
+            edges={displayEdges}
+            loading={loading}
+            isZoomedOut={isZoomedOut}
+            defaultViewport={savedViewport.current}
+            fitView={hasFitView}
+            onNodesChange={onNodesChange}
+            onNodeClick={onNodeClick}
+            onNodeMouseEnter={onNodeMouseEnter}
+            onNodeMouseLeave={onNodeMouseLeave}
+            onNodeDragStart={onNodeDragStart}
+            onEdgeClick={onEdgeClick}
+            onEdgeMouseEnter={onEdgeMouseEnter}
+            onEdgeMouseLeave={onEdgeMouseLeave}
+            onPaneClick={onPaneClick}
+            onMoveEnd={onMoveEnd}
+            onMiniMapClick={onMiniMapClick}
+          />
 
           {/* ── Top-left canvas overlay: sidebar toggle + timeline filter ─── */}
           <div className="timeline-overlay">
