@@ -29,6 +29,7 @@ from viewer import spec_compile  # noqa: E402
 from viewer import specgraph_surfaces  # noqa: E402
 from viewer import supervisor_build  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
+from viewer.http_response import json_response  # noqa: E402
 from viewer.request_body import read_json_object_request_body  # noqa: E402
 from viewer.request_query import query_bool, query_int, query_params, query_value  # noqa: E402
 from viewer.routes import route_for  # noqa: E402
@@ -122,15 +123,6 @@ def _get_workspace_cache(dialog_dir: Path) -> WorkspaceCache:
         if dialog_dir not in _WORKSPACE_CACHES:
             _WORKSPACE_CACHES[dialog_dir] = WorkspaceCache()
         return _WORKSPACE_CACHES[dialog_dir]
-
-
-def json_response(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> None:
-    body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
-    handler.send_response(status)
-    handler.send_header("Content-Type", "application/json; charset=utf-8")
-    handler.send_header("Content-Length", str(len(body)))
-    handler.end_headers()
-    handler.wfile.write(body)
 
 
 def collect_graph_api(dialog_dir: Path) -> dict[str, Any]:
