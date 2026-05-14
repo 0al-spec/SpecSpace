@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import overload
 from urllib.parse import ParseResult, parse_qs
 
 QueryParams = Mapping[str, list[str]]
@@ -10,6 +11,14 @@ QueryParams = Mapping[str, list[str]]
 
 def query_params(parsed: ParseResult) -> dict[str, list[str]]:
     return parse_qs(parsed.query or "")
+
+
+@overload
+def query_value(params: QueryParams, name: str, default: str = "") -> str: ...
+
+
+@overload
+def query_value(params: QueryParams, name: str, default: None) -> str | None: ...
 
 
 def query_value(params: QueryParams, name: str, default: str | None = "") -> str | None:

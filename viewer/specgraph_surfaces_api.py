@@ -7,11 +7,11 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from viewer import specgraph_surfaces, supervisor_build
-from viewer.http_response import json_response
+from viewer.http_response import JsonResponseHandler, json_response
 from viewer.request_query import query_params, query_value
 
 
-class SpecGraphSurfacesApiHandler(Protocol):
+class SpecGraphSurfacesApiHandler(JsonResponseHandler, Protocol):
     server: Any
 
     def _runs_dir(self) -> Path | None: ...
