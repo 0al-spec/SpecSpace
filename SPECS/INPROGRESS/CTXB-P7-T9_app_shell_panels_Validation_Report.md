@@ -14,7 +14,7 @@ Extract the remaining application shell from `viewer/app/src/App.tsx`:
 
 | Check | Result |
 | --- | --- |
-| `App.tsx` reduced to 250 lines or fewer | Passed: 27 lines |
+| `App.tsx` reduced to 250 lines or fewer | Passed |
 | App delegates UI surfaces to shell/panel subcomponents | Passed |
 | Existing viewer app build succeeds | Passed |
 
@@ -30,4 +30,4 @@ Browser smoke: opened `http://127.0.0.1:5174/`, page title is
 `ContextBuilder`, the main Sidebar rendered, and captured console errors were
 `0`.
 
-Result: build passed with the existing Vite chunk-size warning; `App.tsx` is 27 lines.
+Result: build passed with the existing Vite chunk-size warning; `App.tsx` is below the 250-line limit.
