@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P7-T12` — Extract shared data-fetching base hook
+**Current Task:** `CTXB-P7-T13` — Add CI pipeline
 
 ## Recently Archived
+- `CTXB-P7-T12` — Extract shared data-fetching base hook (PASS, 2026-05-14)
 - `CTXB-P7-T11` — Enable TypeScript strict mode and add ESLint (PASS, 2026-05-14)
 - `CTXB-P7-T9` — Decompose App.tsx god component (PASS, 2026-05-14)
 - `CTXB-P7-T3` — Introduce typed dataclasses for graph objects (PASS, 2026-05-14)
@@ -33,11 +34,11 @@
 ## Suggested Next Tasks
 
 ### Technical Debt (Phase 7, current)
-- `CTXB-P7-T12` — Extract shared data-fetching base hook (P2, no deps)
-- Initial implementation target: share the fetch/loading/error/refresh state machine between `useGraphData` and `useSpecGraphData`, then add conversation graph auto-refresh when dialog JSON files change.
+- `CTXB-P7-T13` — Add CI pipeline (P1, depends on T11)
+- Initial implementation target: add a GitHub Actions workflow for backend tests/lint and viewer/app typecheck/build using Python 3.11 and the documented Node.js 18+ baseline.
 
 ### Phase 7 Follow-ups
-- `CTXB-P7-T13` — Add CI pipeline (P1, depends on T11)
+- No remaining Phase 7 follow-up selected after CI; next queue item is the GraphSpace FSD cleanup below.
 
 ### GraphSpace Follow-ups
 - `CTXB-P10-T13` — Resolve GraphSpace FSD `insignificant-slice` warnings (P3, depends on T12)

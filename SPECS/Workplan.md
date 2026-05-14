@@ -1125,7 +1125,7 @@ Intent: address the known architectural and code quality problems identified in 
   - `npm run lint` passes with zero errors.
   - No `as` casts for data fields that could be replaced with proper generics.
 
-### CTXB-P7-T12 — Extract shared data-fetching base hook
+### ✅ CTXB-P7-T12 — Extract shared data-fetching base hook — DONE (PASS, 2026-05-14)
 - **Description:** `useGraphData` and `useSpecGraphData` independently implement fetch + loading/error state + refresh. Extract a shared `useFetchedData<T>(url, transform)` base hook to deduplicate the pattern. Additionally, add SSE auto-refresh to `useGraphData` (analogous to the existing `spec-watch` listener in `useSpecGraphData`) so conversation graph users don't need to manually refresh after external file changes.
 - **Priority:** P2
 - **Dependencies:** none
