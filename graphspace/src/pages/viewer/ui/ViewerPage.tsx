@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { createSpecNodeRefResolver } from "@/entities/spec-node";
 import type { SpecPMLifecycleBadge } from "@/entities/specpm-lifecycle";
 import { useRunsWatchVersion } from "@/shared/api";
 import { useRecentChanges } from "@/widgets/recent-changes-panel";
@@ -163,6 +164,10 @@ export function ViewerPage() {
     specpmLifecycleState.kind === "ok"
       ? specpmLifecycleState.badgesByNode
       : undefined;
+  const resolveSpecRef = useMemo(
+    () => createSpecNodeRefResolver(specGraphState.data.graph.nodes),
+    [specGraphState.data.graph.nodes],
+  );
 
   const count = filteredEntries.length;
   const selectableSpecNodeIds = useMemo(
@@ -325,6 +330,7 @@ export function ViewerPage() {
                 resultCount: specMatchedEntries.length,
                 totalCount: liveEntries.length,
               }}
+              resolveSpecRef={resolveSpecRef}
               onSpecIdClick={selectSpecNodeId}
               tone={{
                 entries: specMatchedEntries,
@@ -345,6 +351,7 @@ export function ViewerPage() {
                   : workStatus.emptyMessage
               }
               className={styles.workPanel}
+              resolveSpecRef={resolveSpecRef}
               onSpecIdClick={selectSpecNodeId}
             />
           ) : null}
@@ -356,6 +363,7 @@ export function ViewerPage() {
               caption={proposalTraceCaption}
               emptyMessage={proposalTraceStatus.emptyMessage}
               className={styles.proposalTracePanel}
+              resolveSpecRef={resolveSpecRef}
               onSpecIdClick={selectSpecNodeId}
             />
           ) : null}
@@ -375,6 +383,7 @@ export function ViewerPage() {
           className={styles.inspectorRail}
           selection={selectedSpec}
           onClose={clearSpecSelection}
+          resolveSpecRef={resolveSpecRef}
           onSelectNodeId={selectSpecNodeId}
         />
       ) : null}

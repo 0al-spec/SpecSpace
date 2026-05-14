@@ -1,5 +1,6 @@
 import type { RecentChange, RecentChangeTone } from "@/entities/recent-change";
 import { RecentChangesPanel } from "@/widgets/recent-changes-panel";
+import type { SpecRefResolver } from "@/shared/ui/spec-id-text";
 import { ToneFilterBar } from "@/features/filter-by-tone";
 import { SpecSearchBox } from "@/features/search-by-spec";
 import styles from "./ViewerPage.module.css";
@@ -9,6 +10,7 @@ type Props = {
   now?: Date;
   caption: string;
   emptyMessage: string;
+  resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
   search: {
     query: string;
@@ -30,6 +32,7 @@ export function RecentActivitySurface({
   now,
   caption,
   emptyMessage,
+  resolveSpecRef,
   onSpecIdClick,
   search,
   tone,
@@ -54,6 +57,7 @@ export function RecentActivitySurface({
         now={now}
         caption={caption}
         emptyMessage={emptyMessage}
+        resolveSpecRef={resolveSpecRef}
         onSpecIdClick={onSpecIdClick}
         className={styles.recentPanel}
       />

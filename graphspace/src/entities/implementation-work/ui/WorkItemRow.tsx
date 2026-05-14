@@ -1,11 +1,12 @@
 import type { HTMLAttributes } from "react";
-import { SpecIdText } from "@/shared/ui/spec-id-text";
+import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
 import type { WorkItem } from "../model/types";
 import { toneFor } from "../lib/readiness";
 import styles from "./WorkItemRow.module.css";
 
 type Props = Omit<HTMLAttributes<HTMLDivElement>, "children"> & {
   item: WorkItem;
+  resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 };
 
@@ -15,6 +16,7 @@ const shortenWorkId = (id: string): string => id.replace(/^implementation_work::
 
 export function WorkItemRow({
   item,
+  resolveSpecRef,
   onSpecIdClick,
   className,
   ...rest
@@ -32,6 +34,7 @@ export function WorkItemRow({
           {specList && (
             <SpecIdText
               text={specList}
+              resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
               variant="bare"
               specClassName={styles["spec-id"]}
@@ -50,6 +53,7 @@ export function WorkItemRow({
       <h3 className={styles.title}>
         <SpecIdText
           text={shortenWorkId(item.work_item_id)}
+          resolveSpecRef={resolveSpecRef}
           onSpecIdClick={onSpecIdClick}
           variant="bare"
         />
@@ -60,6 +64,7 @@ export function WorkItemRow({
             <li key={b}>
               <SpecIdText
                 text={b}
+                resolveSpecRef={resolveSpecRef}
                 onSpecIdClick={onSpecIdClick}
                 variant="bare"
               />

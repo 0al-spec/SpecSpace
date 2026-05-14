@@ -1,4 +1,4 @@
-import { SpecIdText } from "@/shared/ui/spec-id-text";
+import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
 import { toneFor, type ProposalTraceTone } from "../lib/tone";
 import type { ProposalTraceEntry } from "../model/types";
 import styles from "./ProposalTraceRow.module.css";
@@ -12,10 +12,15 @@ const toneClass: Record<ProposalTraceTone, string> = {
 
 type Props = {
   entry: ProposalTraceEntry;
+  resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 };
 
-export function ProposalTraceRow({ entry, onSpecIdClick }: Props) {
+export function ProposalTraceRow({
+  entry,
+  resolveSpecRef,
+  onSpecIdClick,
+}: Props) {
   const cls = [styles.row, toneClass[toneFor(entry)]].join(" ");
   const traceStatus = entry.promotion_trace.trace_status ?? entry.promotion_trace.status;
   const specIds = entry.mentioned_spec_ids.slice(0, 4);
@@ -31,6 +36,7 @@ export function ProposalTraceRow({ entry, onSpecIdClick }: Props) {
         <div className={styles.title}>
           <SpecIdText
             text={entry.title}
+            resolveSpecRef={resolveSpecRef}
             onSpecIdClick={onSpecIdClick}
             variant="bare"
           />
@@ -41,6 +47,7 @@ export function ProposalTraceRow({ entry, onSpecIdClick }: Props) {
             <SpecIdText
               key={specId}
               text={specId}
+              resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
               variant="chip"
             />
@@ -53,6 +60,7 @@ export function ProposalTraceRow({ entry, onSpecIdClick }: Props) {
           next:{" "}
           <SpecIdText
             text={entry.next_gap}
+            resolveSpecRef={resolveSpecRef}
             onSpecIdClick={onSpecIdClick}
             variant="bare"
           />

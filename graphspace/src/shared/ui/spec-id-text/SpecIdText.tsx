@@ -2,46 +2,55 @@ import type { MouseEvent, ReactNode } from "react";
 import styles from "./SpecIdText.module.css";
 
 export type SpecIdTextVariant = "inline" | "bare" | "chip";
+export type SpecRefResolver = (token: string) => string | null;
 
 export type SpecIdTextPart =
   | { kind: "text"; value: string }
-  | { kind: "spec-id"; value: string; nodeId: string };
+  | { kind: "spec-ref"; value: string; nodeId: string };
 
-const SPEC_ID_PATTERN = /\b(?:SG-)?SPEC-[A-Z0-9]+(?:-[A-Z0-9]+)*\b/g;
-const SPEC_ID_EXACT_PATTERN = /^(?:SG-)?SPEC-[A-Z0-9]+(?:-[A-Z0-9]+)*$/;
+const REF_TOKEN_PATTERN = /[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)+/g;
 
-export function isSpecIdToken(value: string): boolean {
-  return SPEC_ID_EXACT_PATTERN.test(value);
+function pushText(parts: SpecIdTextPart[], value: string) {
+  if (!value) return;
+  const previous = parts.at(-1);
+  if (previous?.kind === "text") {
+    previous.value += value;
+    return;
+  }
+  parts.push({ kind: "text", value });
 }
 
-export function normalizeSpecId(value: string): string {
-  return value.startsWith("SG-") ? value : `SG-${value}`;
-}
-
-export function splitSpecIdText(text: string): SpecIdTextPart[] {
+export function splitSpecIdText(
+  text: string,
+  resolveSpecRef?: SpecRefResolver,
+): SpecIdTextPart[] {
   const parts: SpecIdTextPart[] = [];
   let lastIndex = 0;
 
-  for (const match of text.matchAll(SPEC_ID_PATTERN)) {
+  if (!resolveSpecRef) return [{ kind: "text", value: text }];
+
+  for (const match of text.matchAll(REF_TOKEN_PATTERN)) {
     const value = match[0];
     const index = match.index ?? 0;
-    if (index > lastIndex) {
-      parts.push({ kind: "text", value: text.slice(lastIndex, index) });
+    const nodeId = resolveSpecRef(value);
+
+    if (!nodeId) {
+      continue;
     }
 
-    parts.push({ kind: "spec-id", value, nodeId: normalizeSpecId(value) });
+    pushText(parts, text.slice(lastIndex, index));
+    parts.push({ kind: "spec-ref", value, nodeId });
     lastIndex = index + value.length;
   }
 
-  if (lastIndex < text.length) {
-    parts.push({ kind: "text", value: text.slice(lastIndex) });
-  }
+  pushText(parts, text.slice(lastIndex));
 
   return parts.length > 0 ? parts : [{ kind: "text", value: text }];
 }
 
 type Props = {
   text: string;
+  resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
   variant?: SpecIdTextVariant;
   specClassName?: string;
@@ -49,16 +58,17 @@ type Props = {
 
 export function SpecIdText({
   text,
+  resolveSpecRef,
   onSpecIdClick,
   variant = "inline",
   specClassName,
 }: Props) {
-  const parts = splitSpecIdText(text);
+  const parts = splitSpecIdText(text, resolveSpecRef);
 
   return (
     <>
       {parts.map((part, index) =>
-        part.kind === "spec-id" ? (
+        part.kind === "spec-ref" ? (
           <SpecIdToken
             key={`${part.value}-${index}`}
             value={part.value}
@@ -122,12 +132,14 @@ function SpecIdToken({
 
 export function renderSpecIdText(
   text: string,
+  resolveSpecRef?: SpecRefResolver,
   onSpecIdClick?: (nodeId: string) => void,
   variant?: SpecIdTextVariant,
 ): ReactNode {
   return (
     <SpecIdText
       text={text}
+      resolveSpecRef={resolveSpecRef}
       onSpecIdClick={onSpecIdClick}
       variant={variant}
     />
