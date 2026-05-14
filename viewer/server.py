@@ -29,6 +29,7 @@ from viewer import spec_compile  # noqa: E402
 from viewer import specgraph_surfaces  # noqa: E402
 from viewer import supervisor_build  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
+from viewer import file_api  # noqa: E402
 from viewer.http_response import json_response  # noqa: E402
 from viewer.request_body import read_json_object_request_body  # noqa: E402
 from viewer.request_query import query_bool, query_int, query_params, query_value  # noqa: E402
@@ -347,6 +348,16 @@ def compile_graph_nodes(
 
 class ViewerHandler(BaseHTTPRequestHandler):
     server_version = "ContextBuilderViewer/0.1"
+
+    collect_workspace_listing = staticmethod(collect_workspace_listing)
+    get_workspace_cache = staticmethod(_get_workspace_cache)
+    load_json_file = staticmethod(load_json_file)
+    validate_write_request = staticmethod(validate_write_request)
+
+    handle_delete_file = file_api.handle_delete_file
+    handle_get_file = file_api.handle_get_file
+    handle_list_files = file_api.handle_list_files
+    handle_write_file = file_api.handle_write_file
 
     def _dispatch_route(self, method: str, parsed) -> bool:
         route = route_for(method, parsed.path)
@@ -817,9 +828,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
             "load_errors": load_errors,
         })
 
-    def handle_list_files(self) -> None:
-        json_response(self, HTTPStatus.OK, collect_workspace_listing(self.server.dialog_dir))
-
     def handle_graph(self) -> None:
         json_response(self, HTTPStatus.OK, collect_graph_api(self.server.dialog_dir))
 
@@ -835,46 +843,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
         message_id = query_value(params, "message_id", "")
         status, payload = collect_checkpoint_api(self.server.dialog_dir, conversation_id, message_id)
         json_response(self, status, payload)
-
-    def handle_get_file(self, parsed) -> None:
-        params = query_params(parsed)
-        name = query_value(params, "name", "")
-        filename_errors = schema.validate_file_name(name)
-        if filename_errors:
-            json_response(
-                self,
-                HTTPStatus.BAD_REQUEST,
-                {"error": "Invalid file name", "errors": serialize_errors(filename_errors)},
-            )
-            return
-
-        path = self.safe_dialog_path(name)
-        if not path or not path.exists():
-            json_response(self, HTTPStatus.NOT_FOUND, {"error": "File not found"})
-            return
-
-        data, errors = load_json_file(path)
-        if errors or data is None:
-            json_response(
-                self,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": "File contains invalid JSON", "errors": serialize_errors(errors), "name": path.name},
-            )
-            return
-
-        workspace = collect_workspace_listing(self.server.dialog_dir)
-        file_entry = next((file for file in workspace["files"] if file["name"] == path.name), None)
-
-        json_response(
-            self,
-            HTTPStatus.OK,
-            {
-                "name": path.name,
-                "data": data,
-                "validation": file_entry["validation"] if file_entry else serialize_validation("invalid", None, ()),
-                "workspace_diagnostics": workspace["diagnostics"],
-            },
-        )
 
     def handle_export(self) -> None:
         payload = self.read_json_body()
@@ -898,91 +866,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
             self.server.hyperprompt_binary,
         )
         json_response(self, status, response)
-
-    def handle_write_file(self) -> None:
-        payload = self.read_json_body()
-        if payload is None:
-            return
-
-        name = payload.get("name", "")
-        data = payload.get("data")
-        overwrite = bool(payload.get("overwrite", False))
-        normalized, errors = validate_write_request(self.server.dialog_dir, name, data, overwrite)
-        if errors or normalized is None:
-            status = HTTPStatus.CONFLICT if errors and errors[0].code == "file_exists" else HTTPStatus.BAD_REQUEST
-            message = "File already exists" if status == HTTPStatus.CONFLICT else "Validation failed"
-            json_response(
-                self,
-                status,
-                {
-                    "error": message,
-                    "name": name,
-                    "errors": serialize_errors(errors),
-                },
-            )
-            return
-
-        path = self.safe_dialog_path(name)
-        if path is None:
-            json_response(
-                self,
-                HTTPStatus.BAD_REQUEST,
-                {
-                    "error": "Invalid file name",
-                    "errors": serialize_errors(schema.validate_file_name(name)),
-                },
-            )
-            return
-
-        try:
-            path.write_text(json.dumps(normalized, ensure_ascii=False, indent=2), encoding="utf-8")
-        except Exception as exc:
-            json_response(self, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"Failed to write file: {exc}"})
-            return
-
-        # Invalidate cache so the next read sees the updated file immediately,
-        # even if mtime resolution hasn't advanced (e.g. HFS+ 1-second granularity).
-        _get_workspace_cache(self.server.dialog_dir).invalidate()
-
-        validation = schema.validate_conversation(normalized)
-        json_response(
-            self,
-            HTTPStatus.OK,
-            {
-                "ok": True,
-                "name": path.name,
-                "data": normalized,
-                "validation": serialize_validation(validation.kind, validation.normalized, validation.errors),
-            },
-        )
-
-    def handle_delete_file(self, parsed) -> None:
-        params = query_params(parsed)
-        name = query_value(params, "name", "")
-        filename_errors = schema.validate_file_name(name)
-        if filename_errors:
-            json_response(
-                self,
-                HTTPStatus.BAD_REQUEST,
-                {"error": "Invalid file name", "errors": serialize_errors(filename_errors)},
-            )
-            return
-
-        path = self.safe_dialog_path(name)
-        if not path or not path.exists():
-            json_response(self, HTTPStatus.NOT_FOUND, {"error": "File not found"})
-            return
-
-        try:
-            path.unlink()
-        except Exception as exc:
-            json_response(self, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"Failed to delete file: {exc}"})
-            return
-
-        # Invalidate cache so the next read sees the deletion immediately.
-        _get_workspace_cache(self.server.dialog_dir).invalidate()
-
-        json_response(self, HTTPStatus.OK, {"ok": True, "name": name})
 
     def handle_static(self, request_path: str) -> None:
         dist_dir = self.server.repo_root / "viewer" / "app" / "dist"
