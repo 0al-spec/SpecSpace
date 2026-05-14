@@ -20,6 +20,7 @@ if __package__ in {None, ""}:  # pragma: no cover - allows running `python viewe
 
 from viewer import schema  # noqa: E402
 from viewer import graph as conversation_graph  # noqa: E402
+from viewer import capabilities_api  # noqa: E402
 from viewer import export as graph_export  # noqa: E402
 from viewer import hyperprompt_compile  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
@@ -375,6 +376,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_specpm_lifecycle = specpm_exploration_api.handle_specpm_lifecycle
     handle_specpm_preview_build = specpm_exploration_api.handle_specpm_preview_build
     handle_specpm_preview_get = specpm_exploration_api.handle_specpm_preview_get
+    handle_capabilities = capabilities_api.handle_capabilities
     handle_reveal = static_api.handle_reveal
     handle_static = static_api.handle_static
 
@@ -404,25 +406,6 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if self._dispatch_route("DELETE", parsed):
             return
         self.send_error(HTTPStatus.NOT_FOUND)
-
-    def handle_capabilities(self) -> None:
-        json_response(
-            self,
-            HTTPStatus.OK,
-            {
-                "spec_graph": self.server.spec_dir is not None,
-                "spec_compile": self.server.spec_dir is not None,
-                "compile": self.server.compile_available,
-                "graph_dashboard": self._graph_dashboard_path() is not None,
-                "spec_overlay": self._runs_dir() is not None,
-                "specpm_preview": self.server.specgraph_dir is not None,
-                "exploration_preview": self.server.specgraph_dir is not None,
-                "exploration_surfaces": self.server.specgraph_dir is not None,
-                "exploration_preview_build": self._exploration_build_available(),
-                "viewer_surfaces_build": self._viewer_surfaces_build_available(),
-                "agent": bool(getattr(self.server, "agent_available", False)),
-            },
-        )
 
     def read_json_body(self) -> dict | None:
         try:
