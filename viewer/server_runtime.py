@@ -6,10 +6,24 @@ import argparse
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 
 
 ResolveHyperpromptBinary = Callable[[str], tuple[str | None, list[str], str]]
+
+
+class ViewerRuntimeServer(Protocol):
+    repo_root: Path
+    dialog_dir: Path
+    hyperprompt_binary: str
+    compile_available: bool
+    spec_dir: Path | None
+    spec_watcher: Any
+    specgraph_dir: Path | None
+    runs_watcher: Any
+    agent_available: bool
+
+    def serve_forever(self) -> None: ...
 
 
 def build_arg_parser(
@@ -56,7 +70,7 @@ def runs_watch_path(spec_dir: Path | None, specgraph_dir: Path | None) -> Path |
 
 
 def configure_server(
-    server: ThreadingHTTPServer,
+    server: ViewerRuntimeServer,
     args: argparse.Namespace,
     *,
     repo_root: Path,
@@ -94,7 +108,7 @@ def serve(
     )
     args = parser.parse_args()
 
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), handler_class)
+    server = cast(ViewerRuntimeServer, ThreadingHTTPServer(("127.0.0.1", args.port), handler_class))
     configure_server(
         server,
         args,

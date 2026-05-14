@@ -6,14 +6,21 @@ import json
 import os
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 
 from viewer import schema
 from viewer.graph import build_graph_snapshot, serialize_validation
 
 LoadJsonFile = Callable[[Path], tuple[dict[str, Any] | None, tuple[schema.NormalizationError, ...]]]
 DialogPathForName = Callable[[Path, str], Path]
-LoadWorkspacePayloads = Callable[[Path, str | None], list[tuple[str, dict[str, Any]]]]
+
+
+class LoadWorkspacePayloads(Protocol):
+    def __call__(
+        self,
+        dialog_dir: Path,
+        exclude_name: str | None = None,
+    ) -> list[tuple[str, dict[str, Any]]]: ...
 
 
 def dialog_path_for_name(dialog_dir: Path, name: str) -> Path:
@@ -72,8 +79,9 @@ def build_workspace_listing(
 
     for path in sorted(dialog_dir.glob("*.json")):
         stat = path.stat()
-        meta = {
-            "name": path.name,
+        file_name = path.name
+        meta: dict[str, Any] = {
+            "name": file_name,
             "size": stat.st_size,
             "modified_at": stat.st_mtime,
         }
@@ -100,8 +108,10 @@ def build_workspace_listing(
                 "validation": validation,
             }
         )
-        for error in validation["errors"]:
-            diagnostics.append({"file": meta["name"], **error})
+        file_name = str(meta["name"])
+        validation_errors = cast(list[dict[str, str]], validation["errors"])
+        for error in validation_errors:
+            diagnostics.append({"file": file_name, **error})
 
     return {
         "files": files,

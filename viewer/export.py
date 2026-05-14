@@ -9,6 +9,15 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
+from viewer import schema
+from viewer.graph import (
+    BlockedConversationIndex,
+    GraphCheckpoint,
+    GraphEdgeIndex,
+    GraphNodeIndex,
+    GraphSnapshot,
+)
+
 
 def generate_hc_root(
     conversations: list[dict[str, Any]],
@@ -31,7 +40,7 @@ def generate_hc_root(
     return "\n".join(lines) + "\n"
 
 
-def _render_node_markdown(conversation_id: str, checkpoint: dict[str, Any]) -> str:
+def _render_node_markdown(conversation_id: str, checkpoint: GraphCheckpoint) -> str:
     """Render one checkpoint as a Markdown node file with a provenance comment."""
     parts = [
         f"conversation_id: {conversation_id}",
@@ -48,20 +57,20 @@ def _render_node_markdown(conversation_id: str, checkpoint: dict[str, Any]) -> s
 
 def build_compile_provenance(
     *,
-    compile_target: dict[str, Any],
+    compile_target: schema.CompileTargetPayload,
     conversations_written: list[dict[str, Any]],
-    nodes_by_conversation: dict[str, dict[str, Any]],
+    nodes_by_conversation: GraphNodeIndex,
 ) -> dict[str, Any]:
     """Build deterministic provenance metadata for export + compiled artifacts."""
     source_conversations: list[dict[str, Any]] = []
     for conversation in conversations_written:
         conv_id = conversation["conversation_id"]
-        node = nodes_by_conversation.get(conv_id, {})
+        node = nodes_by_conversation.get(conv_id)
         source_conversations.append(
             {
                 "conversation_id": conv_id,
-                "file_name": node.get("file_name"),
-                "title": node.get("title", ""),
+                "file_name": node["file_name"] if node is not None else None,
+                "title": node["title"] if node is not None else "",
                 "node_dir": conversation["node_dir"],
                 "node_files": list(conversation["files"]),
             }
@@ -170,11 +179,8 @@ def export_graph_nodes(
     message_id: str | None = None,
     *,
     collect_workspace_listing: Callable[[Path], dict[str, Any]],
-    build_graph_indexes: Callable[
-        [dict[str, Any]],
-        tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]], dict[str, list[dict[str, Any]]]],
-    ],
-    build_compile_target: Callable[..., dict[str, Any]],
+    build_graph_indexes: Callable[[GraphSnapshot], tuple[GraphNodeIndex, GraphEdgeIndex, BlockedConversationIndex]],
+    build_compile_target: Callable[..., schema.CompileTargetPayload],
     export_sentinel: str,
 ) -> tuple[int, dict[str, Any]]:
     """Export lineage nodes for the given compile target as deterministic Markdown files."""
@@ -189,7 +195,7 @@ def export_graph_nodes(
     if node is None:
         return HTTPStatus.NOT_FOUND, {"error": "Conversation not found", "conversation_id": conversation_id}
 
-    checkpoint: dict[str, Any] | None = None
+    checkpoint: GraphCheckpoint | None = None
     if message_id is not None:
         checkpoint = next((cp for cp in node["checkpoints"] if cp["message_id"] == message_id), None)
         if checkpoint is None:
@@ -249,7 +255,7 @@ def export_graph_nodes(
         if conv_node is None:
             continue
 
-        checkpoints: list[dict[str, Any]] = conv_node["checkpoints"]
+        checkpoints: list[GraphCheckpoint] = conv_node["checkpoints"]
         if scope == "checkpoint" and conv_id == target_conv_id and target_checkpoint_index is not None:
             checkpoints = checkpoints[: target_checkpoint_index + 1]
 
