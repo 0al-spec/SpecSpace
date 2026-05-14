@@ -40,8 +40,8 @@ import Sidebar, { MODE_KEY, COLLAPSE_KEY } from "./Sidebar";
 import InspectorOverlay from "./InspectorOverlay";
 import { useGraphData } from "./useGraphData";
 import { useSpecGraphData } from "./useSpecGraphData";
-import { useSessionString } from "./useSessionState";
-import { useNavHistory } from "./useNavHistory";
+import { useCapabilities } from "./useCapabilities";
+import { useSelectionState } from "./useSelectionState";
 import { CompileTargetContext } from "./CompileTargetContext";
 import TimelineFilter, { type TimelineField } from "./TimelineFilter";
 import RecentChangesOverlay from "./RecentChangesOverlay";
@@ -156,40 +156,6 @@ function FitViewShortcut() {
   return null;
 }
 
-interface Capabilities {
-  specAvailable: boolean;
-  compileAvailable: boolean;
-  specCompileAvailable: boolean;
-  dashboardAvailable: boolean;
-  specOverlayAvailable: boolean;
-  specpmPreviewAvailable: boolean;
-  explorationSurfacesAvailable: boolean;
-  viewerSurfacesBuildAvailable: boolean;
-  agentAvailable: boolean;
-}
-
-// Check once at startup which optional features are available
-async function checkCapabilities(): Promise<Capabilities> {
-  try {
-    const res = await fetch("/api/capabilities");
-    if (!res.ok) return { specAvailable: false, compileAvailable: false, specCompileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationSurfacesAvailable: false, viewerSurfacesBuildAvailable: false, agentAvailable: false };
-    const data = await res.json();
-    return {
-      specAvailable: Boolean(data.spec_graph),
-      compileAvailable: Boolean(data.compile),
-      specCompileAvailable: Boolean(data.spec_compile),
-      dashboardAvailable: Boolean(data.graph_dashboard),
-      specOverlayAvailable: Boolean(data.spec_overlay),
-      specpmPreviewAvailable: Boolean(data.specpm_preview),
-      explorationSurfacesAvailable: Boolean(data.exploration_surfaces ?? data.exploration_preview),
-      viewerSurfacesBuildAvailable: Boolean(data.viewer_surfaces_build),
-      agentAvailable: Boolean(data.agent),
-    };
-  } catch {
-    return { specAvailable: false, compileAvailable: false, specCompileAvailable: false, dashboardAvailable: false, specOverlayAvailable: false, specpmPreviewAvailable: false, explorationSurfacesAvailable: false, viewerSurfacesBuildAvailable: false, agentAvailable: false };
-  }
-}
-
 const DEFAULT_SPEC_VIEW: SpecViewOptions = {
   viewMode: "tree",
   showCrossLinks: false,
@@ -200,35 +166,22 @@ const DEFAULT_SPEC_VIEW: SpecViewOptions = {
 function AppInner() {
   const telemetryEnabled = useTelemetryToggle();
   const [graphMode, setGraphMode] = useState<GraphMode>(loadInitialMode);
-  const [specAvailable, setSpecAvailable] = useState(false);
-  const [compileAvailable, setCompileAvailable] = useState(false);
-  const [specCompileAvailable, setSpecCompileAvailable] = useState(false);
-  const [dashboardAvailable, setDashboardAvailable] = useState(false);
-  const [specOverlayAvailable, setSpecOverlayAvailable] = useState(false);
-  const [specpmPreviewAvailable, setSpecpmPreviewAvailable] = useState(false);
-  const [explorationSurfacesAvailable, setExplorationSurfacesAvailable] = useState(false);
-  const [viewerSurfacesBuildAvailable, setViewerSurfacesBuildAvailable] = useState(false);
-  const [agentAvailable, setAgentAvailable] = useState(false);
+  const {
+    specAvailable,
+    compileAvailable,
+    specCompileAvailable,
+    dashboardAvailable,
+    specOverlayAvailable,
+    specpmPreviewAvailable,
+    explorationSurfacesAvailable,
+    viewerSurfacesBuildAvailable,
+    agentAvailable,
+  } = useCapabilities();
   const [specpmPreviewOpen, setSpecpmPreviewOpen] = useState(false);
   const [explorationSurfacesOpen, setExplorationSurfacesOpen] = useState(false);
   const [specCompileRootId, setSpecCompileRootId] = useState<string | null>(null);
   const [specLens, setSpecLens] = useState<SpecLensMode>("none");
   const [specViewOptions, setSpecViewOptions] = useState<SpecViewOptions>(DEFAULT_SPEC_VIEW);
-
-  // Check capabilities once on mount
-  useEffect(() => {
-    checkCapabilities().then(({ specAvailable, compileAvailable, specCompileAvailable, dashboardAvailable, specOverlayAvailable, specpmPreviewAvailable, explorationSurfacesAvailable, viewerSurfacesBuildAvailable, agentAvailable }) => {
-      setSpecAvailable(specAvailable);
-      setCompileAvailable(compileAvailable);
-      setSpecCompileAvailable(specCompileAvailable);
-      setDashboardAvailable(dashboardAvailable);
-      setSpecOverlayAvailable(specOverlayAvailable);
-      setSpecpmPreviewAvailable(specpmPreviewAvailable);
-      setExplorationSurfacesAvailable(explorationSurfacesAvailable);
-      setViewerSurfacesBuildAvailable(viewerSurfacesBuildAvailable);
-      setAgentAvailable(agentAvailable);
-    });
-  }, []);
 
   // Conversation graph data
   const convGraph = useGraphData();
@@ -338,30 +291,6 @@ function AppInner() {
   const [timelineField, setTimelineField] = useState<TimelineField>("updated_at");
   const [timelineRange, setTimelineRange] = useState<[number, number] | null>(null);
 
-  const [selectedConversationId, setSelectedConversationId] =
-    useSessionString("selected_conversation");
-  const [selectedMessageId, setSelectedMessageId] =
-    useSessionString("selected_message");
-  const [selectedSubItemId, setSelectedSubItemId] = useState<string | null>(null);
-  const [lensNodeId, setLensNodeId] = useState<string | null>(null);
-
-  // ── Spec navigation history ───────────────────────────────────────────────
-  // One shared stack for now; architecture supports multiple independent
-  // stacks (just call useNavHistory() again in a future refactor).
-  const specNav = useNavHistory<string>();
-  const [compileTargetConversationId, setCompileTargetConversationId] =
-    useSessionString("compile_target_conversation_id");
-  const [compileTargetMessageId, setCompileTargetMessageId] =
-    useSessionString("compile_target_message_id");
-
-  const setCompileTarget = useCallback(
-    (convId: string | null, msgId: string | null) => {
-      setCompileTargetConversationId(convId);
-      setCompileTargetMessageId(msgId);
-    },
-    [setCompileTargetConversationId, setCompileTargetMessageId],
-  );
-
   const { getNode, setCenter, getZoom } = useReactFlow();
 
   // Inspector panel width in px (matches SpecInspector.css)
@@ -445,66 +374,33 @@ function AppInner() {
     [getNode, getZoom, getVisibleCanvas, panToPoint],
   );
 
-  /**
-   * Navigate to a spec node — the single choke-point for all spec navigation.
-   * Pushes to history by default; pass addToHistory=false when the caller
-   * already moved the history pointer (back / forward).
-   */
-  const navigateToSpec = useCallback(
-    (nodeId: string, { addToHistory = true } = {}) => {
-      if (addToHistory) specNav.push(nodeId);
-      setSelectedConversationId(nodeId);
-      setSelectedMessageId(null);
-      setSelectedSubItemId(null);
-      panToNode(nodeId, 50);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [specNav.push, setSelectedConversationId, setSelectedMessageId, setSelectedSubItemId, panToNode],
-  );
-
-  /** Kept as alias so existing call-sites in this file don't all need renaming. */
-  const onSpecNodeSelect = navigateToSpec;
-
-  /** Navigate to a spec node from an inspector badge / FieldList chip.
-   *  Previously only panned; now also selects and records history. */
-  const onFocusNode = useCallback(
-    (nodeId: string) => { navigateToSpec(nodeId); },
-    [navigateToSpec],
-  );
-
-  /** Go back one step in spec history. */
-  const onSpecNavBack = useCallback(() => {
-    const id = specNav.back();
-    if (!id) return;
-    setSelectedConversationId(id);
-    setSelectedMessageId(null);
-    setSelectedSubItemId(null);
-    panToNode(id, 50);
-  }, [specNav, setSelectedConversationId, setSelectedMessageId, setSelectedSubItemId, panToNode]);
-
-  /** Go forward one step in spec history. */
-  const onSpecNavForward = useCallback(() => {
-    const id = specNav.forward();
-    if (!id) return;
-    setSelectedConversationId(id);
-    setSelectedMessageId(null);
-    setSelectedSubItemId(null);
-    panToNode(id, 50);
-  }, [specNav, setSelectedConversationId, setSelectedMessageId, setSelectedSubItemId, panToNode]);
-
-  /** Select a conversation node by file name (sidebar FILES click). */
-  const onConversationFileSelect = useCallback(
-    (fileName: string) => {
-      const node = graphNodes.find(
-        (n) => !n.parentId && (n.data as { fileName?: string }).fileName === fileName,
-      );
-      if (!node) return;
-      setSelectedConversationId(node.id);
-      setSelectedMessageId(null);
-      panToNode(node.id, 50);
-    },
-    [graphNodes, setSelectedConversationId, setSelectedMessageId, panToNode],
-  );
+  const {
+    selectedConversationId,
+    setSelectedConversationId,
+    selectedMessageId,
+    setSelectedMessageId,
+    selectedSubItemId,
+    setSelectedSubItemId,
+    lensNodeId,
+    setLensNodeId,
+    compileTargetConversationId,
+    compileTargetMessageId,
+    setCompileTarget,
+    specNav,
+    navigateToSpec,
+    onSpecNodeSelect,
+    onFocusNode,
+    onSpecNavBack,
+    onSpecNavForward,
+    onConversationFileSelect,
+    dismissInspector,
+    specNavBackLabel,
+    specNavForwardLabel,
+  } = useSelectionState({
+    graphNodes,
+    specNodes: specGraph.rawGraph?.nodes,
+    panToNode,
+  });
 
   // Clear selection when graph mode changes. Do NOT clear `nodes` here:
   // spec and dashboard share the same underlying specGraph, so graphNodes
@@ -690,18 +586,6 @@ function AppInner() {
     },
     [navigateToSpec, setSelectedConversationId, setSelectedMessageId, setSelectedSubItemId, panToNode],
   );
-
-  // ── Spec nav tooltip labels ───────────────────────────────────────────────
-  const specNavLabel = useCallback(
-    (id: string | null) => {
-      if (!id) return "";
-      const node = specGraph.rawGraph?.nodes.find((n) => n.node_id === id);
-      return node ? `${id} — ${node.title}` : id;
-    },
-    [specGraph.rawGraph],
-  );
-  const specNavBackLabel    = specNavLabel(specNav.peek(-1));
-  const specNavForwardLabel = specNavLabel(specNav.peek(+1));
 
   // ── Timeline computed values ──────────────────────────────────────────────
   const timelineFullRange = useMemo((): [number, number] | null => {
@@ -905,12 +789,6 @@ function AppInner() {
     },
     [setCenter, getZoom],
   );
-
-  const dismissInspector = useCallback(() => {
-    setSelectedConversationId(null);
-    setSelectedMessageId(null);
-    setSelectedSubItemId(null);
-  }, [setSelectedConversationId, setSelectedMessageId]);
 
   const onMoveEnd = useCallback((_event: unknown, viewport: Viewport) => {
     try {
