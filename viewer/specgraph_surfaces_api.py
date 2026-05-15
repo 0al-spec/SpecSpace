@@ -20,6 +20,9 @@ class SpecGraphSurfacesApiHandler(JsonResponseHandler, Protocol):
 
 
 def runs_dir(handler: SpecGraphSurfacesApiHandler) -> Path | None:
+    configured_runs_dir = getattr(handler.server, "runs_dir", None)
+    if isinstance(configured_runs_dir, Path) and configured_runs_dir.is_dir():
+        return configured_runs_dir
     return specgraph_surfaces.runs_dir_from_context(handler.server.spec_dir, handler.server.specgraph_dir)
 
 

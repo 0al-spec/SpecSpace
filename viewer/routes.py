@@ -57,6 +57,20 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/exploration-surfaces": RouteSpec("handle_exploration_surfaces_get"),
     "/api/exploration-proposal": RouteSpec("handle_exploration_proposal_get", pass_parsed=True),
     "/api/proposal-spec-trace-index": RouteSpec("handle_proposal_spec_trace_index_get"),
+    "/api/v1/health": RouteSpec("handle_v1_health"),
+    "/api/v1/capabilities": RouteSpec("handle_v1_capabilities"),
+    "/api/v1/spec-graph": RouteSpec("handle_v1_spec_graph"),
+    "/api/v1/runs/recent": RouteSpec("handle_v1_recent_runs", pass_parsed=True),
+    "/api/v1/spec-activity": RouteSpec("handle_v1_spec_activity", pass_parsed=True),
+    "/api/v1/implementation-work-index": RouteSpec("handle_v1_implementation_work_index", pass_parsed=True),
+    "/api/v1/proposal-spec-trace-index": RouteSpec("handle_v1_proposal_spec_trace_index"),
+    "/api/v1/specpm/lifecycle": RouteSpec("handle_v1_specpm_lifecycle"),
+    "/api/v1/runs-watch": RouteSpec("handle_v1_runs_watch"),
+}
+
+
+GET_PREFIX_ROUTES: dict[str, RouteSpec] = {
+    "/api/v1/spec-nodes/": RouteSpec("handle_v1_spec_node", pass_parsed=True),
 }
 
 
@@ -100,4 +114,11 @@ ROUTES_BY_METHOD: dict[str, dict[str, RouteSpec]] = {
 
 
 def route_for(method: str, path: str) -> RouteSpec | None:
-    return ROUTES_BY_METHOD.get(method, {}).get(path)
+    route = ROUTES_BY_METHOD.get(method, {}).get(path)
+    if route is not None:
+        return route
+    if method == "GET":
+        for prefix, prefix_route in GET_PREFIX_ROUTES.items():
+            if path.startswith(prefix):
+                return prefix_route
+    return None
