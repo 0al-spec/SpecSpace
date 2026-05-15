@@ -31,7 +31,8 @@ const errorMessage = (error: unknown): string =>
 
 const detailUrl = (baseUrl: string, nodeId: string): string => {
   const encodedNodeId = encodeURIComponent(nodeId);
-  if (!baseUrl.includes("?") && !baseUrl.endsWith("/api/spec-node")) {
+  const isV1Endpoint = baseUrl.includes("/api/v1/spec-nodes");
+  if (!baseUrl.includes("?") && isV1Endpoint) {
     return `${baseUrl.replace(/\/$/, "")}/${encodedNodeId}`;
   }
   const separator = baseUrl.includes("?") ? "&" : "?";

@@ -76,6 +76,10 @@ def source_is_readable(source: SourceHealth) -> bool:
     return source.status in {"ok", "empty"}
 
 
+def optional_source_is_available(source: SourceHealth) -> bool:
+    return source.status == "not_configured" or source_is_readable(source)
+
+
 @dataclass(frozen=True)
 class FileSpecGraphProvider:
     """Readonly file-backed provider over SpecGraph nodes and runs artifacts."""
@@ -107,7 +111,7 @@ class FileSpecGraphProvider:
         specgraph_root = self.specgraph_health()
         if not source_is_readable(spec_nodes):
             status = "unavailable"
-        elif source_is_readable(runs) or runs.status == "not_configured":
+        elif optional_source_is_available(runs) and optional_source_is_available(specgraph_root):
             status = "ok"
         else:
             status = "degraded"
