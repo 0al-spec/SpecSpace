@@ -147,20 +147,18 @@ probes health, graph, runs, UI HTML, and UI-proxied API surfaces.
 Probe an already-running deployment:
 
 ```bash
-export SPECSPACE_SPECGRAPH_DIR=/absolute/path/to/SpecGraph
-export SPECSPACE_SPEC_NODES_DIR="$SPECSPACE_SPECGRAPH_DIR/specs/nodes"
-export SPECSPACE_RUNS_DIR="$SPECSPACE_SPECGRAPH_DIR/runs"
-export SPECSPACE_DIALOG_DIR=/absolute/path/to/existing/dialogs
+export SPECGRAPH_ROOT=/absolute/path/to/SpecGraph
+export SPECSPACE_SPEC_NODES_DIR="$SPECGRAPH_ROOT/specs/nodes"
+export SPECSPACE_RUNS_DIR="$SPECGRAPH_ROOT/runs"
 SPECSPACE_SMOKE_MODE=probe scripts/smoke-specspace-deploy.sh
 ```
 
 Build, start, smoke, and tear down through Compose:
 
 ```bash
-export SPECSPACE_SPECGRAPH_DIR=/absolute/path/to/SpecGraph
-export SPECSPACE_SPEC_NODES_DIR="$SPECSPACE_SPECGRAPH_DIR/specs/nodes"
-export SPECSPACE_RUNS_DIR="$SPECSPACE_SPECGRAPH_DIR/runs"
-export SPECSPACE_DIALOG_DIR=/absolute/path/to/existing/dialogs
+export SPECGRAPH_ROOT=/absolute/path/to/SpecGraph
+export SPECSPACE_SPEC_NODES_DIR="$SPECGRAPH_ROOT/specs/nodes"
+export SPECSPACE_RUNS_DIR="$SPECGRAPH_ROOT/runs"
 SPECSPACE_SMOKE_MODE=compose scripts/smoke-specspace-deploy.sh
 ```
 
@@ -170,6 +168,7 @@ Optional overrides:
 - `SPECSPACE_UI_PORT`, default `5173`
 - `SPECSPACE_API_BASE_URL`, default `http://127.0.0.1:${SPECSPACE_API_PORT}`
 - `SPECSPACE_UI_BASE_URL`, default `http://127.0.0.1:${SPECSPACE_UI_PORT}`
+- `PYTHON`, default `python3`
 
 ## Operator Notes
 

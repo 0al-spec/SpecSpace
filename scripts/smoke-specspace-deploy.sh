@@ -7,23 +7,22 @@ API_PORT="${SPECSPACE_API_PORT:-8001}"
 UI_PORT="${SPECSPACE_UI_PORT:-5173}"
 API_BASE_URL="${SPECSPACE_API_BASE_URL:-http://127.0.0.1:${API_PORT}}"
 UI_BASE_URL="${SPECSPACE_UI_BASE_URL:-http://127.0.0.1:${UI_PORT}}"
+PYTHON_BIN="${PYTHON:-python3}"
 
 compose() {
   docker compose -f "$COMPOSE_FILE" "$@"
 }
 
 require_compose_env() {
-  : "${SPECSPACE_SPECGRAPH_DIR:?Set SPECSPACE_SPECGRAPH_DIR to the SpecGraph repository root}"
   : "${SPECSPACE_SPEC_NODES_DIR:?Set SPECSPACE_SPEC_NODES_DIR to the SpecGraph specs/nodes directory}"
   : "${SPECSPACE_RUNS_DIR:?Set SPECSPACE_RUNS_DIR to the SpecGraph runs directory}"
-  : "${SPECSPACE_DIALOG_DIR:?Set SPECSPACE_DIALOG_DIR to an existing dialog directory}"
 }
 
 check_compose_readonly_boundary() {
   require_compose_env
   local config_json
   config_json="$(compose config --format json)"
-  CONFIG_JSON="$config_json" python - <<'PY'
+  CONFIG_JSON="$config_json" "$PYTHON_BIN" - <<'PY'
 import json
 import os
 
@@ -46,7 +45,6 @@ volumes = {
 for target in (
     "/mnt/specgraph/specs/nodes",
     "/mnt/specgraph/runs",
-    "/mnt/specgraph-root",
 ):
     volume = volumes.get(target)
     if volume is None:
@@ -61,7 +59,7 @@ PY
 }
 
 run_http_smoke() {
-  python - "$API_BASE_URL" "$UI_BASE_URL" <<'PY'
+  "$PYTHON_BIN" - "$API_BASE_URL" "$UI_BASE_URL" <<'PY'
 import json
 import sys
 import time
