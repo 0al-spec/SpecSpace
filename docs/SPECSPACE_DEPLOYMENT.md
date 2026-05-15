@@ -20,6 +20,7 @@ SpecSpace UI container
   v
 SpecSpace API container
   - viewer/server.py
+  - binds 0.0.0.0:8001 inside Compose
   - readonly file-backed SpecGraph provider
   |
   +-- /specgraph/specs/nodes  readonly mount
@@ -55,6 +56,7 @@ The API container starts:
 
 ```bash
 python viewer/server.py \
+  --host 0.0.0.0 \
   --port 8001 \
   --dialog-dir /data/dialogs \
   --spec-dir /specgraph/specs/nodes \
@@ -100,6 +102,7 @@ Deployment smoke should verify:
 
 - `GET /api/v1/health` returns JSON `200`.
 - `GET /api/v1/spec-graph` returns JSON `200` and a graph summary.
+- `GET /api/v1/runs/recent` returns JSON `200`.
 - The UI entrypoint returns HTML `200`.
 - `/api` is reachable through the UI container proxy.
 - SpecGraph mounts are readonly in the compose definition.
