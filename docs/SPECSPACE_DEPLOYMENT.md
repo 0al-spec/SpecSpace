@@ -115,16 +115,61 @@ belongs in SpecGraph producer validation, not SpecSpace deployment validation.
 
 The local deployment file is `compose.specspace.yml`.
 
-Minimal local run:
+## Docker Deployment Guide
+
+### Prerequisites
+
+- Docker Desktop or a Docker Engine with Compose support.
+- A checked-out SpecGraph workspace.
+- Read access to SpecGraph `specs/nodes` and `runs`.
+
+The default Compose deployment is intentionally readonly. SpecSpace reads
+SpecGraph artifacts but does not own or mutate them.
+
+### Configure Mounts
+
+Set the required SpecGraph mount paths:
 
 ```bash
 export SPECGRAPH_ROOT=/absolute/path/to/SpecGraph
 export SPECSPACE_SPEC_NODES_DIR="$SPECGRAPH_ROOT/specs/nodes"
 export SPECSPACE_RUNS_DIR="$SPECGRAPH_ROOT/runs"
+```
+
+Optional settings:
+
+```bash
+export SPECSPACE_API_PORT=8001
+export SPECSPACE_UI_PORT=5173
+export SPECSPACE_DIALOG_DIR=./runs/dialogs
+```
+
+`SPECSPACE_DIALOG_DIR` defaults to `./runs/dialogs` and is only kept for
+legacy ContextBuilder routes. The SpecSpace API v1 graph surfaces do not require
+dialog JSON.
+
+### Start SpecSpace
+
+For foreground logs:
+
+```bash
 docker compose -f compose.specspace.yml up --build
 ```
 
-`SPECSPACE_DIALOG_DIR` is optional and defaults to `./runs/dialogs`.
+For manual browser testing, detached mode is usually more convenient:
+
+```bash
+docker compose -p specspace_manual -f compose.specspace.yml up -d --build
+```
+
+To run beside a local dev server that already uses `5173` and `8001`, pick
+alternate host ports:
+
+```bash
+SPECSPACE_UI_PORT=5183 \
+SPECSPACE_API_PORT=8011 \
+docker compose -p specspace_manual -f compose.specspace.yml up -d --build
+```
 
 Then open:
 
@@ -137,6 +182,63 @@ The API is also exposed on:
 ```text
 http://127.0.0.1:8001
 ```
+
+When using custom ports, open `http://127.0.0.1:${SPECSPACE_UI_PORT}` and
+`http://127.0.0.1:${SPECSPACE_API_PORT}` instead.
+
+### Verify The Deployment
+
+Check API health:
+
+```bash
+curl http://127.0.0.1:${SPECSPACE_API_PORT:-8001}/api/v1/health
+```
+
+Check the UI proxy to the runs surface:
+
+```bash
+curl "http://127.0.0.1:${SPECSPACE_UI_PORT:-5173}/api/v1/runs/recent?limit=1"
+```
+
+Run the deployment smoke against an already-running stack:
+
+```bash
+SPECSPACE_SMOKE_MODE=probe scripts/smoke-specspace-deploy.sh
+```
+
+Or let the smoke script build, start, test, and tear down its own stack:
+
+```bash
+SPECSPACE_SMOKE_MODE=compose scripts/smoke-specspace-deploy.sh
+```
+
+### Stop SpecSpace
+
+For the default foreground command, press `Ctrl-C`.
+
+For the detached manual stack:
+
+```bash
+docker compose -p specspace_manual -f compose.specspace.yml down --remove-orphans
+```
+
+For a default detached stack without `-p specspace_manual`:
+
+```bash
+docker compose -f compose.specspace.yml down --remove-orphans
+```
+
+### Optional SpecPM Lifecycle Surface
+
+The default Compose file mounts only the required `specs/nodes` and `runs`
+directories. In that mode `/api/v1/specpm/lifecycle` can return `503` with
+`specgraph_root.status: "not_configured"`. This is expected: graph, runs,
+recent changes, and canvas surfaces remain available.
+
+Deployments that need SpecPM lifecycle diagnostics can add a readonly SpecGraph
+root mount and start the API with `--specgraph-dir /specgraph`. Keep that mount
+readonly; lifecycle diagnostics should not turn SpecSpace into a SpecGraph
+producer.
 
 ## Smoke Script
 
