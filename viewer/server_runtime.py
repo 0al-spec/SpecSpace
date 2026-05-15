@@ -34,6 +34,12 @@ def build_arg_parser(
     default_hyperprompt_binary: str,
 ) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=description)
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="127.0.0.1",
+        help="Host interface to bind. Use 0.0.0.0 inside container deployments.",
+    )
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--dialog-dir", type=Path, required=True)
     parser.add_argument(
@@ -122,7 +128,7 @@ def serve(
     )
     args = parser.parse_args()
 
-    server = cast(ViewerRuntimeServer, ThreadingHTTPServer(("127.0.0.1", args.port), handler_class))
+    server = cast(ViewerRuntimeServer, ThreadingHTTPServer((args.host, args.port), handler_class))
     configure_server(
         server,
         args,
@@ -133,6 +139,6 @@ def serve(
         runs_watcher_factory=runs_watcher_factory,
     )
 
-    print(f"Serving ContextBuilder at http://localhost:{args.port}/")
+    print(f"Serving ContextBuilder at http://{args.host}:{args.port}/")
     print(f"Dialog folder: {server.dialog_dir}")
     server.serve_forever()

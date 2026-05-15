@@ -5,6 +5,9 @@ readonly SpecGraph workspace. SpecGraph remains the producer and owner of
 `specs/nodes/` and `runs/`; SpecSpace reads those trees and exposes stable
 versioned HTTP contracts for the UI.
 
+Deployment topology and mount expectations are documented in
+[SPECSPACE_DEPLOYMENT.md](SPECSPACE_DEPLOYMENT.md).
+
 ## Provider
 
 The initial provider is file-backed and readonly:
