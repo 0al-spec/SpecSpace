@@ -172,6 +172,65 @@
   margin-top: 8px;
 }
 
+.inspector-authoring-card {
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.inspector-authoring-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.inspector-authoring-select,
+.inspector-authoring-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--text);
+  font: 13px/1.45 var(--font-mono);
+}
+
+.inspector-authoring-select {
+  height: 34px;
+  padding: 0 10px;
+}
+
+.inspector-authoring-textarea {
+  min-height: 112px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.inspector-authoring-select:disabled,
+.inspector-authoring-textarea:disabled {
+  color: var(--muted);
+  background: var(--panel-muted);
+}
+
+.inspector-authoring-error {
+  margin-bottom: 10px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 
 .inspector-loading {
   font-size: 14px;

@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P11-T3` — Docker Compose CI smoke
+**Current Task:** `CTXB-P3-T6` — Add message authoring to conversations
 
 ## Recently Archived
+- `CTXB-P11-T3` — Docker Compose CI smoke (PASS, 2026-05-15)
 - `CTXB-P11-T2` — Dockerized SpecSpace deployment smoke (PASS, 2026-05-15)
 - `CTXB-P11-T1` — Versioned readonly SpecGraph provider for SpecSpace API (PASS, 2026-05-15)
 - `CTXB-P10-T13` — Resolve GraphSpace FSD insignificant-slice warnings (PASS, 2026-05-15)
@@ -37,16 +38,19 @@
 
 ## Suggested Next Tasks
 
-### Technical Debt (Phase 7, current)
+### Product Authoring (Phase 3, current)
+- `CTXB-P3-T6` — Add message authoring to conversations (P1, depends on P3-T1)
+- Rationale: the graph can create/select branches and compile targets, but day-to-day continuation still needs direct message append from the inspector.
+- Initial implementation target: add a compact inspector authoring form, persist via the existing file API with `overwrite: true`, generate stable message IDs, refresh graph data, and surface validation errors inline.
+
+### Technical Debt (Phase 7)
 - Phase 7 core technical-debt queue is complete through `CTXB-P7-T13`.
 
 ### Phase 7 Follow-ups
 - No remaining Phase 7 follow-up selected after CI; next queue item is the GraphSpace FSD cleanup below.
 
 ### Deployment Follow-ups
-- `CTXB-P11-T3` — Docker Compose CI smoke (P1, depends on P11-T2)
-- Rationale: Docker/Compose now works locally and manually, but the deployment boundary can regress unless CI builds the images and runs the smoke path in a clean environment.
-- Initial implementation target: add a CI job that prepares fixture-backed readonly SpecGraph mounts, runs `docker compose -f compose.specspace.yml build`, starts the stack on isolated ports, and executes `scripts/smoke-specspace-deploy.sh`.
+- Phase 11 deployment boundary is complete through `CTXB-P11-T3`.
 
 ### GraphSpace Follow-ups
 - Phase 10 follow-ups are complete through `CTXB-P10-T13`.
