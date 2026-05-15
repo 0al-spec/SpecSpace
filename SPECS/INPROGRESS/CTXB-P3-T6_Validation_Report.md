@@ -44,3 +44,7 @@ Conversation inspector message authoring through the existing file API.
 - Browser console showed expected 404s for optional spec endpoints and favicon
   when the smoke server was started without `--spec-dir`; conversation mode
   authoring was unaffected.
+- Review fix: guarded post-write conversation refresh against stale selection.
+  Re-ran `npm run typecheck --prefix viewer/app`, `npm run lint --prefix
+  viewer/app`, and `npm run build --prefix viewer/app`; all passed with the
+  same Vite chunk-size warning.

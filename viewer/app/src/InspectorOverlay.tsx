@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import "./InspectorOverlay.css";
 import KindBadge from "./KindBadge";
 import ActionBtn from "./ActionBtn";
@@ -96,24 +96,36 @@ export default function InspectorOverlay({
   const [authorContent, setAuthorContent] = useState("");
   const [authoring, setAuthoring] = useState(false);
   const [authoringError, setAuthoringError] = useState<string | null>(null);
+  const selectedConversationIdRef = useRef<string | null>(selectedConversationId);
+  selectedConversationIdRef.current = selectedConversationId;
 
   const loadConversation = useCallback((conversationId: string) => {
+    if (selectedConversationIdRef.current !== conversationId) {
+      return Promise.resolve(null);
+    }
+
     setLoading(true);
     setConvError(null);
     return fetch(`/api/conversation?conversation_id=${encodeURIComponent(conversationId)}`)
       .then((r) => {
         if (r.ok) return r.json() as Promise<ConversationDetail>;
-        setConvError(`Conversation not found (${r.status})`);
+        if (selectedConversationIdRef.current === conversationId) {
+          setConvError(`Conversation not found (${r.status})`);
+        }
         return null;
       })
       .then((data) => {
-        setConvDetail(data);
-        setLoading(false);
+        if (selectedConversationIdRef.current === conversationId) {
+          setConvDetail(data);
+          setLoading(false);
+        }
         return data;
       })
       .catch((err) => {
-        setConvError(`Failed to load conversation: ${err.message ?? err}`);
-        setLoading(false);
+        if (selectedConversationIdRef.current === conversationId) {
+          setConvError(`Failed to load conversation: ${err.message ?? err}`);
+          setLoading(false);
+        }
         return null;
       });
   }, []);
@@ -123,6 +135,7 @@ export default function InspectorOverlay({
       setConvDetail(null);
       setCheckpointDetail(null);
       setConvError(null);
+      setLoading(false);
       setAuthorContent("");
       setAuthoringError(null);
       return;
@@ -203,6 +216,8 @@ export default function InspectorOverlay({
   const handleAppendMessage = useCallback(async () => {
     if (!selectedConversationId || !conv || authoring) return;
 
+    const submittedConversationId = selectedConversationId;
+    const submittedFileName = conv.file_name;
     const role = normalizeMessageAuthoringRole(authorRole);
     const content = authorContent.trim();
     if (!role) {
@@ -217,16 +232,18 @@ export default function InspectorOverlay({
     setAuthoring(true);
     setAuthoringError(null);
     try {
-      const fileResponse = await fetch(`/api/file?name=${encodeURIComponent(conv.file_name)}`);
+      const fileResponse = await fetch(`/api/file?name=${encodeURIComponent(submittedFileName)}`);
       const filePayload = await fileResponse.json();
       if (!fileResponse.ok) {
-        setAuthoringError(filePayload.error ?? `Failed to load source file (${fileResponse.status}).`);
+        if (selectedConversationIdRef.current === submittedConversationId) {
+          setAuthoringError(filePayload.error ?? `Failed to load source file (${fileResponse.status}).`);
+        }
         return;
       }
 
       const nextPayload = appendMessageToConversationData({
         data: filePayload.data,
-        conversationId: selectedConversationId,
+        conversationId: submittedConversationId,
         role,
         content,
       });
@@ -235,7 +252,7 @@ export default function InspectorOverlay({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: conv.file_name,
+          name: submittedFileName,
           data: nextPayload.data,
           overwrite: true,
         }),
@@ -245,16 +262,22 @@ export default function InspectorOverlay({
         const messages = (writePayload.errors || []).map(
           (error: { message?: string }) => error.message,
         ).filter(Boolean);
-        setAuthoringError(messages.join("; ") || writePayload.error || "Message append failed.");
+        if (selectedConversationIdRef.current === submittedConversationId) {
+          setAuthoringError(messages.join("; ") || writePayload.error || "Message append failed.");
+        }
         return;
       }
 
-      setAuthorContent("");
-      showToast(`Added ${nextPayload.message.message_id}`);
-      await loadConversation(selectedConversationId);
+      if (selectedConversationIdRef.current === submittedConversationId) {
+        setAuthorContent("");
+        showToast(`Added ${nextPayload.message.message_id}`);
+        await loadConversation(submittedConversationId);
+      }
       onGraphRefresh();
     } catch (err) {
-      setAuthoringError(err instanceof Error ? err.message : "Message append failed.");
+      if (selectedConversationIdRef.current === submittedConversationId) {
+        setAuthoringError(err instanceof Error ? err.message : "Message append failed.");
+      }
     } finally {
       setAuthoring(false);
     }
