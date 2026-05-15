@@ -107,6 +107,8 @@ class FileSpecGraphProvider:
         specgraph_root = self.specgraph_health()
         if not source_is_readable(spec_nodes):
             status = "unavailable"
+        elif not source_is_readable(specgraph_root) and specgraph_root.status != "not_configured":
+            status = "degraded"
         elif source_is_readable(runs) or runs.status == "not_configured":
             status = "ok"
         else:
