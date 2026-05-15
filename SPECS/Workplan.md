@@ -572,7 +572,7 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - Deleted or modified files update the graph and current selection safely.
   - The implementation satisfies PRD FR-10 and NFR-8.
 
-### CTXB-P3-T6 — Add message authoring to conversations
+### CTXB-P3-T6 — Add message authoring to conversations — INPROGRESS
 - **Description:** Let the user add messages to an existing conversation via the inspector. The user provides role and content (paste or type). Messages are appended and persisted via `POST /api/file` with `overwrite: true`. Each new message gets a deterministic `message_id`.
 - **Priority:** P1
 - **Dependencies:** CTXB-P3-T1
@@ -1521,7 +1521,7 @@ Intent: make SpecSpace deployable as a standalone viewer/API surface that can re
   - Missing optional SpecPM artifacts degrade through capabilities/status rather than failing the deployment.
   - The setup documents how to pin or mount current SpecGraph and SpecSpace versions for integration diagnosis.
 
-### CTXB-P11-T3 — Docker Compose CI smoke
+### ✅ CTXB-P11-T3 — Docker Compose CI smoke — DONE (PASS, 2026-05-15)
 - **Description:** Add a CI job that builds the SpecSpace Docker/Compose deployment and runs a bounded smoke check against fixture-backed readonly SpecGraph mounts. The job should validate that the deployment artifacts stay buildable in a clean GitHub Actions runner, without requiring a real external SpecGraph checkout or mutating producer state.
 - **Priority:** P1
 - **Dependencies:** CTXB-P11-T2
