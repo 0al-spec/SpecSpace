@@ -2,6 +2,7 @@
 set -euo pipefail
 
 COMPOSE_FILE="${SPECSPACE_COMPOSE_FILE:-compose.specspace.yml}"
+COMPOSE_PROJECT_NAME="${SPECSPACE_COMPOSE_PROJECT_NAME:-specspace_smoke}"
 SMOKE_MODE="${SPECSPACE_SMOKE_MODE:-probe}"
 API_PORT="${SPECSPACE_API_PORT:-8001}"
 UI_PORT="${SPECSPACE_UI_PORT:-5173}"
@@ -10,7 +11,7 @@ UI_BASE_URL="${SPECSPACE_UI_BASE_URL:-http://127.0.0.1:${UI_PORT}}"
 PYTHON_BIN="${PYTHON:-python3}"
 
 compose() {
-  docker compose -f "$COMPOSE_FILE" "$@"
+  docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" "$@"
 }
 
 require_compose_env() {
@@ -146,8 +147,8 @@ case "$SMOKE_MODE" in
   compose)
     require_compose_env
     check_compose_readonly_boundary
-    compose up --build -d
     trap 'compose down --remove-orphans' EXIT
+    compose up --build -d
     run_http_smoke
     ;;
   *)
