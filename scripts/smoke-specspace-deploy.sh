@@ -61,6 +61,7 @@ PY
 run_http_smoke() {
   "$PYTHON_BIN" - "$API_BASE_URL" "$UI_BASE_URL" <<'PY'
 import json
+import http.client
 import sys
 import time
 import urllib.error
@@ -84,7 +85,13 @@ def wait_read(url: str, *, expect_json: bool) -> tuple[int, str | dict]:
     while time.time() < deadline:
         try:
             return read(url, expect_json=expect_json)
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        except (
+            ConnectionError,
+            TimeoutError,
+            http.client.HTTPException,
+            urllib.error.URLError,
+            json.JSONDecodeError,
+        ) as exc:
             last_error = exc
             time.sleep(2)
     raise SystemExit(f"timed out waiting for {url}: {last_error}")

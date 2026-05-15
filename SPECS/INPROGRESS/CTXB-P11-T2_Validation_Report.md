@@ -5,8 +5,9 @@
 IN PROGRESS — deployment contract, Docker/Compose wiring, and smoke script are
 implemented. Local Compose config validates readonly SpecGraph mounts. The
 smoke script verifies health, graph, runs, UI, and UI-proxied API surfaces.
-Full image build was attempted but stopped after Docker stalled while pulling
-base image metadata from Docker Hub in the local environment.
+Full image build and Compose smoke now pass after bypassing a local
+`docker-credential-desktop` hang with a temporary Docker config for base image
+pulls.
 
 ## Validation
 
@@ -20,7 +21,8 @@ base image metadata from Docker Hub in the local environment.
 | `npm run build --prefix graphspace` | Passed; retained existing Vite chunk-size warning |
 | `bash -n scripts/smoke-specspace-deploy.sh` | Passed |
 | `SPECSPACE_SMOKE_MODE=probe scripts/smoke-specspace-deploy.sh` against local services | Passed; covered `/api/v1/runs/recent` |
-| `docker compose -f compose.specspace.yml build` | Attempted; stopped after base image metadata pull stalled locally |
+| `docker-compose -f compose.specspace.yml build` with temporary Docker config | Passed |
+| `SPECSPACE_SMOKE_MODE=compose scripts/smoke-specspace-deploy.sh` on ports `8011`/`5183` | Passed |
 
 ## Local Smoke Inputs
 
