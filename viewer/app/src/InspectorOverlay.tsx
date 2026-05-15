@@ -10,6 +10,12 @@ import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import BranchDialog from "./BranchDialog";
 import MergeDialog from "./MergeDialog";
 import type { CompileTarget, CompileResult } from "./types";
+import {
+  MESSAGE_AUTHORING_ROLES,
+  appendMessageToConversationData,
+  normalizeMessageAuthoringRole,
+  type MessageAuthoringRole,
+} from "./messageAuthoring";
 
 interface ConversationDetail {
   conversation: {
@@ -86,32 +92,45 @@ export default function InspectorOverlay({
   const [showMergeDialog, setShowMergeDialog] = useState(false);
   const [compiling, setCompiling] = useState(false);
   const [compileResult, setCompileResult] = useState<CompileResult | null>(null);
+  const [authorRole, setAuthorRole] = useState<MessageAuthoringRole>("user");
+  const [authorContent, setAuthorContent] = useState("");
+  const [authoring, setAuthoring] = useState(false);
+  const [authoringError, setAuthoringError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!selectedConversationId) {
-      setConvDetail(null);
-      setCheckpointDetail(null);
-      setConvError(null);
-      return;
-    }
-
+  const loadConversation = useCallback((conversationId: string) => {
     setLoading(true);
     setConvError(null);
-    fetch(`/api/conversation?conversation_id=${encodeURIComponent(selectedConversationId)}`)
+    return fetch(`/api/conversation?conversation_id=${encodeURIComponent(conversationId)}`)
       .then((r) => {
-        if (r.ok) return r.json();
+        if (r.ok) return r.json() as Promise<ConversationDetail>;
         setConvError(`Conversation not found (${r.status})`);
         return null;
       })
       .then((data) => {
         setConvDetail(data);
         setLoading(false);
+        return data;
       })
       .catch((err) => {
         setConvError(`Failed to load conversation: ${err.message ?? err}`);
         setLoading(false);
+        return null;
       });
-  }, [selectedConversationId]);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedConversationId) {
+      setConvDetail(null);
+      setCheckpointDetail(null);
+      setConvError(null);
+      setAuthorContent("");
+      setAuthoringError(null);
+      return;
+    }
+
+    setAuthoringError(null);
+    void loadConversation(selectedConversationId);
+  }, [loadConversation, selectedConversationId]);
 
   useEffect(() => {
     if (!selectedConversationId || !selectedMessageId) {
@@ -181,6 +200,75 @@ export default function InspectorOverlay({
   const visible = Boolean(selectedConversationId);
   const conv = convDetail?.conversation;
 
+  const handleAppendMessage = useCallback(async () => {
+    if (!selectedConversationId || !conv || authoring) return;
+
+    const role = normalizeMessageAuthoringRole(authorRole);
+    const content = authorContent.trim();
+    if (!role) {
+      setAuthoringError("Unsupported message role.");
+      return;
+    }
+    if (!content) {
+      setAuthoringError("Message content is required.");
+      return;
+    }
+
+    setAuthoring(true);
+    setAuthoringError(null);
+    try {
+      const fileResponse = await fetch(`/api/file?name=${encodeURIComponent(conv.file_name)}`);
+      const filePayload = await fileResponse.json();
+      if (!fileResponse.ok) {
+        setAuthoringError(filePayload.error ?? `Failed to load source file (${fileResponse.status}).`);
+        return;
+      }
+
+      const nextPayload = appendMessageToConversationData({
+        data: filePayload.data,
+        conversationId: selectedConversationId,
+        role,
+        content,
+      });
+
+      const writeResponse = await fetch("/api/file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: conv.file_name,
+          data: nextPayload.data,
+          overwrite: true,
+        }),
+      });
+      const writePayload = await writeResponse.json();
+      if (!writeResponse.ok) {
+        const messages = (writePayload.errors || []).map(
+          (error: { message?: string }) => error.message,
+        ).filter(Boolean);
+        setAuthoringError(messages.join("; ") || writePayload.error || "Message append failed.");
+        return;
+      }
+
+      setAuthorContent("");
+      showToast(`Added ${nextPayload.message.message_id}`);
+      await loadConversation(selectedConversationId);
+      onGraphRefresh();
+    } catch (err) {
+      setAuthoringError(err instanceof Error ? err.message : "Message append failed.");
+    } finally {
+      setAuthoring(false);
+    }
+  }, [
+    authorContent,
+    authorRole,
+    authoring,
+    conv,
+    loadConversation,
+    onGraphRefresh,
+    selectedConversationId,
+    showToast,
+  ]);
+
   // Keep CSS variable in sync so minimap can anchor to the inspector's left edge
   useEffect(() => {
     const root = document.documentElement;
@@ -248,6 +336,50 @@ export default function InspectorOverlay({
               ? "Compile Target ✓"
               : "Set as Compile Target"}
           </ActionBtn>
+
+          <div className="inspector-divider" />
+          <div className="inspector-section-label">ADD MESSAGE</div>
+          <div className="inspector-authoring-card">
+            <label className="inspector-authoring-label">
+              Role
+              <select
+                className="inspector-authoring-select"
+                value={authorRole}
+                onChange={(event) => {
+                  const role = normalizeMessageAuthoringRole(event.target.value);
+                  if (role) setAuthorRole(role);
+                }}
+                disabled={authoring}
+              >
+                {MESSAGE_AUTHORING_ROLES.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="inspector-authoring-label">
+              Content
+              <textarea
+                className="inspector-authoring-textarea"
+                value={authorContent}
+                onChange={(event) => setAuthorContent(event.target.value)}
+                disabled={authoring}
+                rows={5}
+                placeholder="Paste or type the next message…"
+              />
+            </label>
+            {authoringError && (
+              <div className="inspector-authoring-error">{authoringError}</div>
+            )}
+            <ActionBtn
+              variant="branch"
+              disabled={authoring || authorContent.trim().length === 0}
+              onClick={handleAppendMessage}
+            >
+              {authoring ? "Adding…" : "Add Message"}
+            </ActionBtn>
+          </div>
 
           {/* Parent edges */}
           {(convDetail?.parent_edges || []).length === 0 && (
