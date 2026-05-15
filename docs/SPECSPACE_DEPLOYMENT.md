@@ -132,3 +132,48 @@ The API is also exposed on:
 ```text
 http://127.0.0.1:8001
 ```
+
+## Smoke Script
+
+Use `scripts/smoke-specspace-deploy.sh` to validate the deployment boundary.
+The script always checks the compose config for readonly SpecGraph mounts.
+
+Probe an already-running deployment:
+
+```bash
+export SPECSPACE_SPECGRAPH_DIR=/absolute/path/to/SpecGraph
+export SPECSPACE_SPEC_NODES_DIR="$SPECSPACE_SPECGRAPH_DIR/specs/nodes"
+export SPECSPACE_RUNS_DIR="$SPECSPACE_SPECGRAPH_DIR/runs"
+export SPECSPACE_DIALOG_DIR=/absolute/path/to/existing/dialogs
+SPECSPACE_SMOKE_MODE=probe scripts/smoke-specspace-deploy.sh
+```
+
+Build, start, smoke, and tear down through Compose:
+
+```bash
+export SPECSPACE_SPECGRAPH_DIR=/absolute/path/to/SpecGraph
+export SPECSPACE_SPEC_NODES_DIR="$SPECSPACE_SPECGRAPH_DIR/specs/nodes"
+export SPECSPACE_RUNS_DIR="$SPECSPACE_SPECGRAPH_DIR/runs"
+export SPECSPACE_DIALOG_DIR=/absolute/path/to/existing/dialogs
+SPECSPACE_SMOKE_MODE=compose scripts/smoke-specspace-deploy.sh
+```
+
+Optional overrides:
+
+- `SPECSPACE_API_PORT`, default `8001`
+- `SPECSPACE_UI_PORT`, default `5173`
+- `SPECSPACE_API_BASE_URL`, default `http://127.0.0.1:${SPECSPACE_API_PORT}`
+- `SPECSPACE_UI_BASE_URL`, default `http://127.0.0.1:${SPECSPACE_UI_PORT}`
+
+## Operator Notes
+
+- If `/api/v1/health` reports `unavailable`, first inspect
+  `sources.spec_nodes`; this is the required source for the graph.
+- If health reports `degraded`, inspect optional configured sources such as
+  `sources.specgraph_root`. The graph can still load while optional SpecPM
+  lifecycle surfaces are unavailable.
+- If the UI loads but panels fall back to samples, check the UI proxy with
+  `curl http://127.0.0.1:5173/api/v1/health`.
+- Keep SpecGraph and SpecSpace revisions explicit in deployment notes. The
+  current smoke validates runtime compatibility; it does not prove producer and
+  consumer commits were intentionally paired.

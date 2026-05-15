@@ -1,0 +1,31 @@
+# CTXB-P11-T2 Validation Report
+
+## Result
+
+IN PROGRESS — deployment contract, Docker/Compose wiring, and smoke script are
+implemented. Local Compose config validates readonly SpecGraph mounts. Full
+image build was attempted but stopped after Docker stalled while pulling base
+image metadata from Docker Hub in the local environment.
+
+## Validation
+
+| Check | Result |
+| --- | --- |
+| `docker compose -f compose.specspace.yml config` with local SpecGraph env | Passed |
+| `python -m pip install -r requirements-dev.txt` | Passed |
+| `make lint` | Passed |
+| `python -m pytest tests/test_specspace_api_v1.py tests/test_server_runtime.py -q` | 14 passed |
+| `npm test --prefix graphspace` | 26 files / 166 tests passed |
+| `npm run build --prefix graphspace` | Passed; retained existing Vite chunk-size warning |
+| `bash -n scripts/smoke-specspace-deploy.sh` | Passed |
+| `SPECSPACE_SMOKE_MODE=probe scripts/smoke-specspace-deploy.sh` against local services | Passed |
+| `docker compose -f compose.specspace.yml build` | Attempted; stopped after base image metadata pull stalled locally |
+
+## Local Smoke Inputs
+
+- `SPECSPACE_SPECGRAPH_DIR=/Users/egor/Development/GitHub/0AL/SpecGraph`
+- `SPECSPACE_SPEC_NODES_DIR=/Users/egor/Development/GitHub/0AL/SpecGraph/specs/nodes`
+- `SPECSPACE_RUNS_DIR=/Users/egor/Development/GitHub/0AL/SpecGraph/runs`
+- `SPECSPACE_DIALOG_DIR=/Users/egor/Development/GitHub/ChatGPTDialogs/canonical_json`
+- API base: `http://127.0.0.1:8001`
+- UI base: `http://127.0.0.1:5173`
