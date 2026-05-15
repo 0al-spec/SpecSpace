@@ -1,11 +1,11 @@
 # GraphSpace
 
-The new viewer for SpecGraph artifacts. Successor to `viewer/app/`, organised by
-[Feature-Sliced Design v2.1](https://feature-sliced.design/).
+The SpecSpace UI for readonly SpecGraph and SpecPM artifact inspection,
+organised by [Feature-Sliced Design v2.1](https://feature-sliced.design/).
 
 ## Status
 
-Early rewrite. Currently contains:
+Currently contains:
 
 - FSD layer skeleton (`app / pages / widgets / features / entities / shared`).
 - Design tokens extracted from the legacy `theme.css`.
@@ -15,8 +15,13 @@ Early rewrite. Currently contains:
   traces, and artifact diagnostics.
 - A primary SpecGraph canvas rendered with React Flow.
 
-The legacy viewer at `viewer/app/` is untouched and remains the production
-target until GraphSpace reaches parity.
+`graphspace/` is not the conversation-authoring UI. Legacy ContextBuilder
+conversation flows stay in `viewer/app` and legacy routes. Runtime GraphSpace
+data reads should use the versioned SpecSpace API boundary, `/api/v1/*`.
+
+See [`docs/SPECSPACE_BOUNDARY.md`](../docs/SPECSPACE_BOUNDARY.md) for the
+product boundary and [`docs/SPECSPACE_API_V1.md`](../docs/SPECSPACE_API_V1.md)
+for the HTTP contract.
 
 ## Canvas layout
 
