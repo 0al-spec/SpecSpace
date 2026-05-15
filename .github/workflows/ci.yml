@@ -72,3 +72,22 @@ jobs:
           name: viewer-app-dist
           path: viewer/app/dist
           if-no-files-found: error
+
+  docker-compose-smoke:
+    name: Docker Compose Smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Prepare SpecSpace smoke fixtures
+        run: scripts/prepare-specspace-smoke-fixtures.sh "$RUNNER_TEMP/specspace-smoke-fixtures"
+
+      - name: Run SpecSpace Docker Compose smoke
+        env:
+          SPECSPACE_COMPOSE_PROJECT_NAME: specspace-ci-smoke
+          SPECSPACE_API_PORT: "18021"
+          SPECSPACE_UI_PORT: "15193"
+          SPECSPACE_SMOKE_MODE: compose
+        run: scripts/smoke-specspace-deploy.sh

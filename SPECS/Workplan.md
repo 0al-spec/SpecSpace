@@ -1508,7 +1508,7 @@ Intent: make SpecSpace deployable as a standalone viewer/API surface that can re
   - API v1 responses are documented as contracts and have regression tests with representative SpecGraph fixtures.
   - Existing legacy endpoints remain available during migration.
 
-### CTXB-P11-T2 — Dockerized SpecSpace deployment smoke
+### ✅ CTXB-P11-T2 — Dockerized SpecSpace deployment smoke — DONE (PASS, 2026-05-15)
 - **Description:** Add a minimal Docker/Compose deployment for SpecSpace using readonly mounted SpecGraph `specs/nodes` and `runs` directories. The smoke environment should validate the real deployment shape without requiring SpecSpace to own or mutate SpecGraph. SpecPM remains optional and is represented by readonly `runs` artifacts when available.
 - **Priority:** P1
 - **Dependencies:** CTXB-P11-T1
@@ -1520,6 +1520,19 @@ Intent: make SpecSpace deployable as a standalone viewer/API surface that can re
   - Smoke checks cover `/api/v1/health`, `/api/v1/spec-graph`, and UI availability.
   - Missing optional SpecPM artifacts degrade through capabilities/status rather than failing the deployment.
   - The setup documents how to pin or mount current SpecGraph and SpecSpace versions for integration diagnosis.
+
+### CTXB-P11-T3 — Docker Compose CI smoke
+- **Description:** Add a CI job that builds the SpecSpace Docker/Compose deployment and runs a bounded smoke check against fixture-backed readonly SpecGraph mounts. The job should validate that the deployment artifacts stay buildable in a clean GitHub Actions runner, without requiring a real external SpecGraph checkout or mutating producer state.
+- **Priority:** P1
+- **Dependencies:** CTXB-P11-T2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** CI workflow job, smoke fixture setup, validation report
+- **Acceptance Criteria:**
+  - CI builds `specspace-api:local` and `specspace-ui:local` through `compose.specspace.yml`.
+  - CI starts API and UI containers on non-conflicting ports and runs `scripts/smoke-specspace-deploy.sh`.
+  - Smoke inputs are generated from repository fixtures or temporary readonly directories; no private operator paths are required.
+  - The smoke job validates `/api/v1/health`, `/api/v1/spec-graph`, `/api/v1/runs/recent`, UI HTML, and UI-proxied API.
+  - Docker CI failures are isolated from ordinary unit-test output enough for operators to identify deployment-boundary regressions quickly.
 
 ## Dependency Summary
 
