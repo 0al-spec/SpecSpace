@@ -73,6 +73,36 @@ jobs:
           path: viewer/app/dist
           if-no-files-found: error
 
+  graphspace:
+    name: GraphSpace
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: npm
+          cache-dependency-path: graphspace/package-lock.json
+
+      - name: Install GraphSpace dependencies
+        run: npm ci --prefix graphspace
+
+      - name: Check GraphSpace API boundary
+        run: python scripts/check-graphspace-api-boundary.py
+
+      - name: Test GraphSpace
+        run: npm test --prefix graphspace
+
+      - name: Lint GraphSpace FSD
+        run: npm run lint:fsd --prefix graphspace
+
+      - name: Build GraphSpace
+        run: npm run build --prefix graphspace
+
   docker-compose-smoke:
     name: Docker Compose Smoke
     runs-on: ubuntu-latest

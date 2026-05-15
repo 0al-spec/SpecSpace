@@ -57,27 +57,7 @@ describe("fetchSpecNodeDetail", () => {
     expect(result.kind).toBe("parse-error");
   });
 
-  it("keeps query-param URL shape for explicit legacy overrides", async () => {
-    const fetcher = vi.fn().mockResolvedValue(
-      buildResponse({
-        node_id: "SG-SPEC-ROOT",
-        data: { id: "SG-SPEC-ROOT" },
-      }),
-    );
-
-    await fetchSpecNodeDetail({
-      nodeId: "SG-SPEC-ROOT",
-      url: "/api/spec-node",
-      fetcher,
-    });
-
-    expect(fetcher).toHaveBeenCalledWith(
-      "/api/spec-node?id=SG-SPEC-ROOT",
-      { signal: undefined },
-    );
-  });
-
-  it("keeps query-param URL shape for custom non-v1 overrides", async () => {
+  it("keeps path URL shape for custom overrides", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       buildResponse({
         node_id: "SG-SPEC-ROOT",
@@ -92,7 +72,7 @@ describe("fetchSpecNodeDetail", () => {
     });
 
     expect(fetcher).toHaveBeenCalledWith(
-      "/proxy/spec-node?id=SG-SPEC-ROOT",
+      "/proxy/spec-node/SG-SPEC-ROOT",
       { signal: undefined },
     );
   });

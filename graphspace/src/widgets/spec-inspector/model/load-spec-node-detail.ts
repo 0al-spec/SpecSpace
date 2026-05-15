@@ -31,12 +31,7 @@ const errorMessage = (error: unknown): string =>
 
 const detailUrl = (baseUrl: string, nodeId: string): string => {
   const encodedNodeId = encodeURIComponent(nodeId);
-  const isV1Endpoint = baseUrl.includes("/api/v1/spec-nodes");
-  if (!baseUrl.includes("?") && isV1Endpoint) {
-    return `${baseUrl.replace(/\/$/, "")}/${encodedNodeId}`;
-  }
-  const separator = baseUrl.includes("?") ? "&" : "?";
-  return `${baseUrl}${separator}id=${encodedNodeId}`;
+  return `${baseUrl.replace(/\/$/, "")}/${encodedNodeId}`;
 };
 
 export async function fetchSpecNodeDetail({
