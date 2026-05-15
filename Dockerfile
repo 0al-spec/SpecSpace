@@ -14,4 +14,4 @@ RUN mkdir -p /data/dialogs
 
 EXPOSE 8001
 
-CMD ["python", "viewer/server.py", "--host", "0.0.0.0", "--port", "8001", "--dialog-dir", "/data/dialogs", "--spec-dir", "/mnt/specgraph/specs/nodes", "--runs-dir", "/mnt/specgraph/runs", "--specgraph-dir", "/mnt/specgraph-root"]
+CMD ["python", "viewer/server.py", "--host", "0.0.0.0", "--port", "8001", "--dialog-dir", "/data/dialogs", "--spec-dir", "/mnt/specgraph/specs/nodes", "--runs-dir", "/mnt/specgraph/runs"]

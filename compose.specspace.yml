@@ -19,8 +19,6 @@ services:
       - /mnt/specgraph/specs/nodes
       - --runs-dir
       - /mnt/specgraph/runs
-      - --specgraph-dir
-      - /mnt/specgraph-root
     ports:
       - "${SPECSPACE_API_PORT:-8001}:8001"
     volumes:
@@ -35,10 +33,6 @@ services:
       - type: bind
         source: ${SPECSPACE_RUNS_DIR:?Set SPECSPACE_RUNS_DIR to the SpecGraph runs directory}
         target: /mnt/specgraph/runs
-        read_only: true
-      - type: bind
-        source: ${SPECSPACE_SPECGRAPH_DIR:?Set SPECSPACE_SPECGRAPH_DIR to the SpecGraph repository root}
-        target: /mnt/specgraph-root
         read_only: true
     read_only: true
     tmpfs:

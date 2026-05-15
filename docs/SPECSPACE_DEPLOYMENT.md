@@ -52,7 +52,7 @@ requires `--dialog-dir`.
 
 ## API Startup Contract
 
-The API container starts:
+The default API container starts with the required graph and runs surfaces:
 
 ```bash
 python viewer/server.py \
@@ -60,13 +60,14 @@ python viewer/server.py \
   --port 8001 \
   --dialog-dir /data/dialogs \
   --spec-dir /specgraph/specs/nodes \
-  --runs-dir /specgraph/runs \
-  --specgraph-dir /specgraph
+  --runs-dir /specgraph/runs
 ```
 
 `--specgraph-dir` is optional for deployments that only need graph and runs
 surfaces. When it is omitted, `/api/v1/specpm/lifecycle` reports a degraded or
-unconfigured source instead of making the graph viewer unavailable.
+unconfigured source instead of making the graph viewer unavailable. Operators
+that need SpecPM lifecycle surfaces can add a readonly SpecGraph root mount and
+start the API with `--specgraph-dir /specgraph`.
 
 ## Health Expectations
 
@@ -117,12 +118,13 @@ The local deployment file is `compose.specspace.yml`.
 Minimal local run:
 
 ```bash
-export SPECSPACE_SPECGRAPH_DIR=/absolute/path/to/SpecGraph
-export SPECSPACE_SPEC_NODES_DIR="$SPECSPACE_SPECGRAPH_DIR/specs/nodes"
-export SPECSPACE_RUNS_DIR="$SPECSPACE_SPECGRAPH_DIR/runs"
-export SPECSPACE_DIALOG_DIR=/absolute/path/to/existing/dialogs
+export SPECGRAPH_ROOT=/absolute/path/to/SpecGraph
+export SPECSPACE_SPEC_NODES_DIR="$SPECGRAPH_ROOT/specs/nodes"
+export SPECSPACE_RUNS_DIR="$SPECGRAPH_ROOT/runs"
 docker compose -f compose.specspace.yml up --build
 ```
+
+`SPECSPACE_DIALOG_DIR` is optional and defaults to `./runs/dialogs`.
 
 Then open:
 
