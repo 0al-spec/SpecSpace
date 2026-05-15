@@ -29,3 +29,10 @@ after the local Docker Desktop credential prompt was approved.
 - `SPECSPACE_RUNS_DIR=/Users/egor/Development/GitHub/0AL/SpecGraph/runs`
 - API base: `http://127.0.0.1:8001`
 - UI base: `http://127.0.0.1:5173`
+
+## Adjacent Runtime Observation
+
+- Local adjacent SpecPM image was present as
+  `specpm@sha256:e6f0bc45f4a1bdfedb522dbd501f561f1df67e656ffccc0d57ebf91ea4528226`.
+- No running SpecPM container was required for this smoke; SpecSpace consumed
+  readonly SpecGraph `specs/nodes` and `runs` mounts.

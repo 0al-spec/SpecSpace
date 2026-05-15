@@ -240,6 +240,26 @@ root mount and start the API with `--specgraph-dir /specgraph`. Keep that mount
 readonly; lifecycle diagnostics should not turn SpecSpace into a SpecGraph
 producer.
 
+### Adjacent SpecPM Runtime
+
+SpecSpace does not require a running SpecPM service in this Compose stack. The
+current deployment boundary is file-backed: SpecPM and SpecGraph can produce
+artifacts, and SpecSpace reads the mounted `specs/nodes` and `runs` trees.
+
+When an operator does run SpecPM beside SpecSpace, record the SpecPM image
+digest together with the SpecSpace commit and SpecGraph workspace revision:
+
+```text
+SpecPM image: specpm@sha256:<digest>
+SpecSpace commit: <git-sha>
+SpecGraph workspace: <git-sha-or-path>
+```
+
+This pin is diagnostic metadata, not a runtime dependency. If a future
+deployment switches SpecSpace from file-backed reads to an HTTP-backed SpecPM or
+SpecGraph provider, that provider contract should be documented separately from
+this readonly Compose boundary.
+
 ## Smoke Script
 
 Use `scripts/smoke-specspace-deploy.sh` to validate the deployment boundary.
