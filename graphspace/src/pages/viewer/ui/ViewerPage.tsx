@@ -93,7 +93,7 @@ export function ViewerPage() {
     describeArtifact({
       id: "recent",
       label: "Recent changes",
-      endpoint: "/api/spec-activity",
+      endpoint: "/api/v1/spec-activity",
       state: feedState,
       liveCount: feedState.kind === "ok" ? feedState.data.entry_count : 0,
       sampleCount: SAMPLE_ENTRIES.length,
@@ -103,7 +103,7 @@ export function ViewerPage() {
     describeArtifact({
       id: "work",
       label: "Implementation work",
-      endpoint: "/api/implementation-work-index",
+      endpoint: "/api/v1/implementation-work-index",
       state: workState,
       liveCount: workState.kind === "ok" ? workState.data.entry_count : 0,
       sampleCount: SAMPLE_WORK_ITEMS.length,
@@ -113,7 +113,7 @@ export function ViewerPage() {
     describeArtifact({
       id: "proposal-trace",
       label: "Proposal trace",
-      endpoint: "/api/proposal-spec-trace-index",
+      endpoint: "/api/v1/proposal-spec-trace-index",
       state: proposalTraceState,
       liveCount: proposalTraceState.kind === "ok" ? proposalTraceState.data.entry_count : 0,
       sampleCount: SAMPLE_PROPOSAL_TRACES.length,

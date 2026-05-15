@@ -45,7 +45,7 @@ describe("fetchSpecPMLifecycleBadges", () => {
 
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
-    expect(fetcher).toHaveBeenCalledWith("/api/specpm/lifecycle", { signal: undefined });
+    expect(fetcher).toHaveBeenCalledWith("/api/v1/specpm/lifecycle", { signal: undefined });
     expect(result.badgesByNode.get("SG-SPEC-0001")).toEqual({
       packageKey: "specgraph.core_repository_facade",
       status: "draft_preview_only",

@@ -44,7 +44,7 @@ async function readJson(response: Response): Promise<unknown> {
 }
 
 export async function fetchSpecGraph({
-  url = "/api/spec-graph",
+  url = "/api/v1/spec-graph",
   fetcher = fetch,
   signal,
 }: FetchSpecGraphArgs = {}): Promise<SpecGraphFetchResult> {

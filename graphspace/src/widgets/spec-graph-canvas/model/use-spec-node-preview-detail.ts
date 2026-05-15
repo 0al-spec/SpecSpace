@@ -17,8 +17,13 @@ type Options = {
 };
 
 const detailUrl = (baseUrl: string, nodeId: string): string => {
+  const encodedNodeId = encodeURIComponent(nodeId);
+  const isV1Endpoint = baseUrl.includes("/api/v1/spec-nodes");
+  if (!baseUrl.includes("?") && isV1Endpoint) {
+    return `${baseUrl.replace(/\/$/, "")}/${encodedNodeId}`;
+  }
   const separator = baseUrl.includes("?") ? "&" : "?";
-  return `${baseUrl}${separator}id=${encodeURIComponent(nodeId)}`;
+  return `${baseUrl}${separator}id=${encodedNodeId}`;
 };
 
 const errorMessage = (error: unknown): string =>
@@ -26,7 +31,7 @@ const errorMessage = (error: unknown): string =>
 
 export function useSpecNodePreviewDetail({
   nodeId,
-  url = "/api/spec-node",
+  url = "/api/v1/spec-nodes",
   fetcher = fetch,
 }: Options): UseSpecNodePreviewDetailState {
   const [state, setState] = useState<UseSpecNodePreviewDetailState>({ kind: "idle" });

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseSpecNodeDetail } from "../parsers/parse-spec-node-detail";
 
 describe("parseSpecNodeDetail", () => {
-  it("parses the focused /api/spec-node response shape", () => {
+  it("parses the focused /api/v1/spec-nodes response shape", () => {
     const result = parseSpecNodeDetail({
       node_id: "SG-SPEC-0001",
       data: {
