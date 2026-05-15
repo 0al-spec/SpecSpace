@@ -106,3 +106,29 @@ Deployment smoke should verify:
 
 Smoke should not mutate SpecGraph. Any future test that needs write behavior
 belongs in SpecGraph producer validation, not SpecSpace deployment validation.
+
+## Compose Entrypoint
+
+The local deployment file is `compose.specspace.yml`.
+
+Minimal local run:
+
+```bash
+export SPECSPACE_SPECGRAPH_DIR=/absolute/path/to/SpecGraph
+export SPECSPACE_SPEC_NODES_DIR="$SPECSPACE_SPECGRAPH_DIR/specs/nodes"
+export SPECSPACE_RUNS_DIR="$SPECSPACE_SPECGRAPH_DIR/runs"
+export SPECSPACE_DIALOG_DIR=/absolute/path/to/existing/dialogs
+docker compose -f compose.specspace.yml up --build
+```
+
+Then open:
+
+```text
+http://127.0.0.1:5173
+```
+
+The API is also exposed on:
+
+```text
+http://127.0.0.1:8001
+```
