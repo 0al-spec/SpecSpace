@@ -125,6 +125,26 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
         self.assertEqual(source.status, "unreadable")
         self.assertIn("permission denied", source.detail or "")
 
+    def test_provider_health_degrades_when_configured_specgraph_root_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            runs_dir = root / "runs"
+            spec_dir.mkdir(parents=True)
+            runs_dir.mkdir()
+            (spec_dir / "SG-SPEC-0001.yaml").write_text("id: SG-SPEC-0001\n", encoding="utf-8")
+            (runs_dir / "artifact.json").write_text("{}", encoding="utf-8")
+            provider = specspace_provider.FileSpecGraphProvider(
+                spec_nodes_dir=spec_dir,
+                runs_dir=runs_dir,
+                specgraph_dir=root / "missing-specgraph",
+            )
+
+            health = provider.health()
+
+        self.assertEqual(health["status"], "degraded")
+        self.assertEqual(health["sources"]["specgraph_root"]["status"], "missing")
+
 
 class SpecSpaceApiV1Tests(unittest.TestCase):
     def test_health_reports_versioned_readonly_provider(self) -> None:
