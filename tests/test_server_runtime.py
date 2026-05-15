@@ -6,6 +6,26 @@ from types import SimpleNamespace
 from viewer import server_runtime
 
 
+def test_build_arg_parser_defaults_to_loopback_host() -> None:
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+    args = parser.parse_args(["--dialog-dir", "/tmp/dialogs"])
+
+    assert args.host == "127.0.0.1"
+
+
+def test_build_arg_parser_accepts_container_host() -> None:
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+    args = parser.parse_args(["--host", "0.0.0.0", "--dialog-dir", "/tmp/dialogs"])
+
+    assert args.host == "0.0.0.0"
+
+
 def test_runs_watch_path_prefers_spec_dir_layout() -> None:
     spec_dir = Path("/repo/specs/nodes")
     specgraph_dir = Path("/other")
