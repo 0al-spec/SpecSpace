@@ -108,6 +108,12 @@ assert isinstance(graph, dict), graph
 assert graph.get("api_version") == "v1", graph
 assert isinstance((graph.get("summary") or {}).get("node_count"), int), graph
 
+status, runs = wait_read(f"{api_base}/api/v1/runs/recent?limit=1", expect_json=True)
+assert status == 200, status
+assert isinstance(runs, dict), runs
+assert runs.get("api_version") == "v1", runs
+assert isinstance(runs.get("events"), list), runs
+
 status, html = wait_read(ui_base, expect_json=False)
 assert status == 200, status
 assert isinstance(html, str) and "<html" in html.lower(), html[:120]
@@ -116,6 +122,12 @@ status, proxied_health = wait_read(f"{ui_base}/api/v1/health", expect_json=True)
 assert status == 200, status
 assert isinstance(proxied_health, dict), proxied_health
 assert proxied_health.get("api_version") == "v1", proxied_health
+
+status, proxied_runs = wait_read(f"{ui_base}/api/v1/runs/recent?limit=1", expect_json=True)
+assert status == 200, status
+assert isinstance(proxied_runs, dict), proxied_runs
+assert proxied_runs.get("api_version") == "v1", proxied_runs
+assert isinstance(proxied_runs.get("events"), list), proxied_runs
 
 print("http smoke: ok")
 PY

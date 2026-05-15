@@ -139,7 +139,8 @@ http://127.0.0.1:8001
 ## Smoke Script
 
 Use `scripts/smoke-specspace-deploy.sh` to validate the deployment boundary.
-The script always checks the compose config for readonly SpecGraph mounts.
+The script always checks the compose config for readonly SpecGraph mounts and
+probes health, graph, runs, UI HTML, and UI-proxied API surfaces.
 
 Probe an already-running deployment:
 
