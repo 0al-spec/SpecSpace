@@ -572,7 +572,7 @@ Intent: implement the workflows that mutate graph structure safely and let the u
   - Deleted or modified files update the graph and current selection safely.
   - The implementation satisfies PRD FR-10 and NFR-8.
 
-### CTXB-P3-T6 — Add message authoring to conversations — INPROGRESS
+### ✅ CTXB-P3-T6 — Add message authoring to conversations — DONE (PASS, 2026-05-16)
 - **Description:** Let the user add messages to an existing conversation via the inspector. The user provides role and content (paste or type). Messages are appended and persisted via `POST /api/file` with `overwrite: true`. Each new message gets a deterministic `message_id`.
 - **Priority:** P1
 - **Dependencies:** CTXB-P3-T1
@@ -1534,6 +1534,46 @@ Intent: make SpecSpace deployable as a standalone viewer/API surface that can re
   - The smoke job validates `/api/v1/health`, `/api/v1/spec-graph`, `/api/v1/runs/recent`, UI HTML, and UI-proxied API.
   - Docker CI failures are isolated from ordinary unit-test output enough for operators to identify deployment-boundary regressions quickly.
 
+## Phase 12: SpecSpace Product Boundary
+
+Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer and API, while legacy ContextBuilder conversation authoring remains in the legacy `viewer/app` surface. This phase prevents Phase 3 authoring tasks from leaking into SpecSpace and gives the new product its own follow-up queue.
+
+### CTXB-P12-T1 — Define SpecSpace product boundary and next queue — INPROGRESS
+- **Description:** Record the SpecSpace product boundary in the workplan and select follow-up tasks that keep SpecSpace separate from legacy conversation authoring. This is a planning/checkpoint task after completing the deployment boundary and legacy message authoring work.
+- **Priority:** P1
+- **Dependencies:** CTXB-P11-T3, CTXB-P3-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** Phase 12 workplan section, updated `SPECS/INPROGRESS/next.md`, validation report
+- **Acceptance Criteria:**
+  - `CTXB-P3-T6` is archived as legacy ContextBuilder authoring work.
+  - Phase 12 explicitly states that SpecSpace is a readonly SpecGraph/SpecPM viewer/API.
+  - The next queue separates SpecSpace product-boundary work from Phase 3 conversation authoring.
+  - Follow-up tasks exist for documentation and automated guardrails.
+
+### CTXB-P12-T2 — Document SpecSpace product and deployment boundary
+- **Description:** Add operator/product documentation that explains what SpecSpace owns, what remains legacy ContextBuilder, and which API routes belong to the SpecSpace deployment contract.
+- **Priority:** P1
+- **Dependencies:** CTXB-P12-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** SpecSpace boundary documentation, deployment doc update, GraphSpace README clarification, validation report
+- **Acceptance Criteria:**
+  - Documentation states that conversation mode, checkpoint editing, branch/merge authoring, and compile flows are outside SpecSpace core.
+  - Documentation states that `graphspace/` consumes `/api/v1/*` as the SpecSpace runtime contract.
+  - Legacy `viewer/app` is described as a ContextBuilder surface, not the SpecSpace product UI.
+  - Docker/deployment docs point operators to the same boundary.
+
+### CTXB-P12-T3 — Add GraphSpace API boundary guardrail
+- **Description:** Add an automated check that prevents runtime `graphspace/` code from depending on legacy ContextBuilder conversation/write endpoints. The guard should allow explicit compatibility tests/fixtures while keeping product code on `/api/v1/*`.
+- **Priority:** P1
+- **Dependencies:** CTXB-P12-T2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** boundary check script, CI integration, GraphSpace endpoint cleanup if required, validation report
+- **Acceptance Criteria:**
+  - Runtime `graphspace/` source fails validation when it references forbidden legacy endpoints such as `/api/file`, `/api/conversation`, `/api/checkpoint`, `/api/compile`, or non-versioned SpecGraph routes.
+  - Existing compatibility fixtures/tests remain possible when they are explicitly isolated from runtime source.
+  - CI runs the guardrail alongside GraphSpace validation.
+  - GraphSpace runtime data reads remain on `/api/v1/*`.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
@@ -1548,6 +1588,7 @@ Intent: make SpecSpace deployable as a standalone viewer/API surface that can re
 - Phase 9 improves graph UX for daily authoring and review workflows. All tasks are independent of each other. T1 (change highlighting) is the highest-priority item. Tasks have no blocking external dependencies.
 - Phase 10 migrates the graph-first SpecGraph experience into the new `graphspace/` rewrite. It depends on the GraphSpace FSD shell and current artifact panels, and should proceed in contract -> hook/model -> minimal canvas -> layout/composition -> inspector order.
 - Phase 11 makes SpecSpace deployable around a readonly SpecGraph boundary. It should establish versioned API contracts before Dockerizing the deployment shape.
+- Phase 12 protects the SpecSpace product boundary after deployment: readonly `/api/v1/*` SpecGraph/SpecPM viewing stays in `graphspace/`, while conversation authoring remains legacy ContextBuilder work.
 
 ## Task Status Legend
 
