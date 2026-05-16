@@ -37,11 +37,11 @@ missing. Therefore the Timeweb compose file is intentionally different from
 
 - no `volumes`;
 - no required `SPECSPACE_*` artifact path variables;
-- API reads bundled demo artifacts from `/app/deploy/specspace-demo`;
-- real SpecGraph artifacts wait for the HTTP/static artifact provider work.
+- API reads published SpecGraph artifacts from `https://specgraph.tech` through
+  the HTTP/static artifact provider.
 
-This lets Timeweb boot SpecSpace now, but it displays demo data until external
-SpecGraph artifact publishing is implemented.
+This keeps Timeweb zero-config while avoiding bundled demo data. SpecGraph owns
+artifact publishing; SpecSpace only consumes the static manifest and files.
 
 ## Guardrails
 
@@ -73,7 +73,8 @@ The guard checks:
 - the first service is the GraphSpace UI service named `app`;
 - the Timeweb compose has no `volumes`;
 - the Timeweb compose has no required `${VAR:?message}` interpolation;
-- the Timeweb API command points at bundled demo artifact paths.
+- the Timeweb API command configures `--artifact-base-url https://specgraph.tech`;
+- the Timeweb API command no longer points at bundled demo artifact paths.
 
 ## Current Deployment Shape
 
@@ -95,10 +96,8 @@ services:
     command:
       - python
       - viewer/server.py
-      - --spec-dir
-      - /app/deploy/specspace-demo/specs/nodes
-      - --runs-dir
-      - /app/deploy/specspace-demo/runs
+      - --artifact-base-url
+      - https://specgraph.tech
 ```
 
 Because the compose file uses `build.context: .`, the `timeweb-deploy` branch
@@ -111,8 +110,8 @@ domain root would hit the backend and return `404`.
 
 ## Required Environment
 
-No SpecGraph artifact path variables are required for the current Timeweb demo
-deployment.
+No SpecGraph artifact path variables are required for the current Timeweb
+deployment. The API reads published artifacts from `https://specgraph.tech`.
 
 Optional:
 
@@ -128,49 +127,37 @@ generated URL.
 
 When `compose.specspace.yml` changes, do not blindly copy it to
 `timeweb-deploy`; Timeweb does not allow its `volumes` section. Update
-`timeweb-deploy:docker-compose.yml` by preserving the no-volume demo shape and
-then run:
+`timeweb-deploy:docker-compose.yml` by preserving the no-volume HTTP artifact
+provider shape and then run:
 
 ```bash
 TIMEWEB_DEPLOY_REMOTE=specspace scripts/check-timeweb-deploy-branch.sh
 TIMEWEB_DEPLOY_REMOTE=specspace scripts/validate-timeweb-deploy-branch.sh
 ```
 
-## Future Real Artifact Deployment
+## Artifact Source
 
-Publishing SpecGraph artifacts from the SpecGraph repository to an FTP-backed
-site such as:
+SpecGraph publishes its static artifacts to:
 
 ```text
 https://specgraph.tech/specs/
 https://specgraph.tech/runs/
+https://specgraph.tech/artifact_manifest.json
 ```
 
-is the right direction for Timeweb. The producer-side CI could:
+The manifest is the server-side discovery contract for SpecSpace. Each entry
+contains a relative `path`, `sha256`, and `size_bytes`; SpecSpace rejects
+absolute paths and parent traversal before fetching artifacts.
+
+The producer-side CI should continue to:
 
 1. validate canonical specs and runs;
 2. publish `specs/nodes/*.yaml`;
 3. publish `runs/*.json`;
-4. publish index manifests with checksums, for example
-   `specs/index.json` and `runs/index.json`;
-5. upload through FTP, SFTP, WebDAV, or object storage.
+4. publish `artifact_manifest.json` last, after files are in place.
 
-SpecSpace does not yet have an HTTP-backed SpecGraph provider. Today local
-deployment reads mounted files; Timeweb reads bundled demo files. To consume
-`https://specgraph.tech/specs` directly, add a provider that fetches server-side
-over HTTP and exposes the same `/api/v1/*` contracts to GraphSpace.
-
-Preferred HTTP artifact contract:
-
-```text
-/specs/index.json
-/specs/nodes/<spec-id>.yaml
-/runs/index.json
-/runs/<run-id>.json
-```
-
-Each index entry should include at least path, size, updated time, and SHA-256.
-For reproducible deployments, prefer versioned prefixes:
+For stronger reproducible deployments, a future producer flow can add versioned
+prefixes:
 
 ```text
 https://specgraph.tech/releases/<specgraph-sha>/specs/
