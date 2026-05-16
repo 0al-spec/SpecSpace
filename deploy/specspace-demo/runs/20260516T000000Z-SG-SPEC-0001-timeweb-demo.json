@@ -1,0 +1,8 @@
+{
+  "title": "SpecSpace Timeweb Demo Fixture",
+  "run_kind": "deployment_demo",
+  "completion_status": "ok",
+  "run_duration_sec": 1.0,
+  "execution_profile": "timeweb",
+  "child_model": ""
+}
