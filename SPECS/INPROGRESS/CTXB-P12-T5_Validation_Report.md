@@ -5,23 +5,26 @@ Date: 2026-05-16
 
 ## Scope
 
-Timeweb Docker Compose entrypoint and sync guard.
+Timeweb deploy branch sync guard.
 
 ## Checks
 
-- `scripts/check-timeweb-compose-sync.sh`
+- `TIMEWEB_DEPLOY_REMOTE=specspace scripts/check-timeweb-deploy-branch.sh`
+  - PASS
+- `TIMEWEB_DEPLOY_REMOTE=specspace scripts/validate-timeweb-deploy-branch.sh`
   - PASS
 - `python3 -c "import pathlib, yaml; yaml.safe_load(pathlib.Path('.github/workflows/ci.yml').read_text())"`
   - PASS
-- `docker compose -f docker-compose.yml config`
-  - PASS, with temporary SpecSpace mount env vars
 - `make lint`
   - PASS
 
 ## Notes
 
-- `docker-compose.yml` is intentionally byte-for-byte identical to
+- `docker-compose.yml` is intentionally not present in the main PR stack.
+- The dedicated `timeweb-deploy` branch owns the Timeweb root
+  `docker-compose.yml`.
+- `timeweb-deploy:docker-compose.yml` must stay byte-for-byte identical to
   `compose.specspace.yml` so Timeweb sees the same compose stack.
 - `.githooks/pre-push` runs the sync guard for developers who opt in with
   `git config core.hooksPath .githooks`.
-- CI runs the same sync guard in the `Timeweb Docker Support` job.
+- CI validates the deploy branch in the `Timeweb Docker Support` job.
