@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches-ignore:
+      - timeweb-deploy
   pull_request:
     branches:
       - main
@@ -103,6 +105,66 @@ jobs:
       - name: Build GraphSpace
         run: npm run build --prefix graphspace
 
+  specspace-images:
+    name: SpecSpace Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      api-image: ${{ steps.image-refs.outputs.api-image }}
+      ui-image: ${{ steps.image-refs.outputs.ui-image }}
+      api-digest: ${{ steps.build-api.outputs.digest }}
+      ui-digest: ${{ steps.build-ui.outputs.digest }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Resolve image refs
+        id: image-refs
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "api-image=ghcr.io/${owner}/specspace-api" >> "$GITHUB_OUTPUT"
+          echo "ui-image=ghcr.io/${owner}/specspace-ui" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build API image
+        id: build-api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.image-refs.outputs.api-image }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build UI image
+        id: build-ui
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: graphspace/Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.image-refs.outputs.ui-image }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
   timeweb-docker-support:
     name: Timeweb Docker Support
     runs-on: ubuntu-latest
@@ -112,6 +174,54 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate Timeweb deploy branch
+        run: scripts/validate-timeweb-deploy-branch.sh
+
+      - name: Validate generated manifest-only deploy tree
+        env:
+          SPECSPACE_API_IMAGE_REF: ghcr.io/0al-spec/specspace-api@sha256:1111111111111111111111111111111111111111111111111111111111111111
+          SPECSPACE_UI_IMAGE_REF: ghcr.io/0al-spec/specspace-ui@sha256:2222222222222222222222222222222222222222222222222222222222222222
+          SPECSPACE_RELEASE_COMMIT: ${{ github.sha }}
+          SPECSPACE_RELEASE_CREATED_AT: "1970-01-01T00:00:00Z"
+        run: |
+          scripts/render-timeweb-deploy-branch.sh "$RUNNER_TEMP/timeweb-deploy"
+          scripts/validate-timeweb-deploy-tree.sh "$RUNNER_TEMP/timeweb-deploy"
+
+  publish-timeweb-deploy:
+    name: Publish Timeweb Deploy Branch
+    runs-on: ubuntu-latest
+    needs:
+      - specspace-images
+      - timeweb-docker-support
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Render Timeweb deploy branch
+        env:
+          SPECSPACE_API_IMAGE_REF: ${{ needs.specspace-images.outputs.api-image }}@${{ needs.specspace-images.outputs.api-digest }}
+          SPECSPACE_UI_IMAGE_REF: ${{ needs.specspace-images.outputs.ui-image }}@${{ needs.specspace-images.outputs.ui-digest }}
+          SPECSPACE_RELEASE_COMMIT: ${{ github.sha }}
+        run: scripts/render-timeweb-deploy-branch.sh "$RUNNER_TEMP/timeweb-deploy"
+
+      - name: Publish Timeweb deploy branch
+        env:
+          SPECSPACE_RELEASE_COMMIT: ${{ github.sha }}
+        run: scripts/publish-timeweb-deploy-branch.sh "$RUNNER_TEMP/timeweb-deploy"
+
+      - name: Validate published manifest-only branch
+        env:
+          TIMEWEB_REQUIRE_MANIFEST_ONLY: "1"
         run: scripts/validate-timeweb-deploy-branch.sh
 
   docker-compose-smoke:

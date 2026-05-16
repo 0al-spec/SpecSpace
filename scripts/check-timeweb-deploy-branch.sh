@@ -8,6 +8,7 @@ deploy_branch="${TIMEWEB_DEPLOY_BRANCH:-timeweb-deploy}"
 target_file="${TIMEWEB_TARGET_COMPOSE:-docker-compose.yml}"
 remote="${TIMEWEB_DEPLOY_REMOTE:-}"
 artifact_base_url="${TIMEWEB_REQUIRED_ARTIFACT_BASE_URL:-https://specgraph.tech}"
+require_manifest_only="${TIMEWEB_REQUIRE_MANIFEST_ONLY:-0}"
 
 if [[ -z "$remote" ]]; then
   if git remote get-url origin >/dev/null 2>&1; then
@@ -93,4 +94,14 @@ if grep -Fq -- "/app/deploy/specspace-demo" <<<"$compose_text"; then
   exit 1
 fi
 
-echo "Timeweb deploy branch OK: $deploy_ref:$target_file is no-volume and uses HTTP artifacts from $artifact_base_url."
+if [[ "$require_manifest_only" == "1" ]]; then
+  tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/specspace-timeweb-check.XXXXXX")"
+  trap 'rm -rf "$tmp_dir"' EXIT
+  git archive "$deploy_ref" | tar -x -C "$tmp_dir"
+  TIMEWEB_TARGET_COMPOSE="$target_file" \
+    TIMEWEB_REQUIRED_ARTIFACT_BASE_URL="$artifact_base_url" \
+    scripts/check-timeweb-deploy-tree.sh "$tmp_dir"
+  echo "Timeweb deploy branch OK: $deploy_ref is manifest-only and uses HTTP artifacts from $artifact_base_url."
+else
+  echo "Timeweb deploy branch OK: $deploy_ref:$target_file is no-volume and uses HTTP artifacts from $artifact_base_url."
+fi
