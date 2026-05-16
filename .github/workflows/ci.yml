@@ -103,6 +103,26 @@ jobs:
       - name: Build GraphSpace
         run: npm run build --prefix graphspace
 
+  timeweb-docker-support:
+    name: Timeweb Docker Support
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check Timeweb compose sync
+        run: scripts/check-timeweb-compose-sync.sh
+
+      - name: Validate Timeweb compose config
+        env:
+          SPECSPACE_SPEC_NODES_DIR: ${{ runner.temp }}/specspace/specs/nodes
+          SPECSPACE_RUNS_DIR: ${{ runner.temp }}/specspace/runs
+          SPECSPACE_DIALOG_DIR: ${{ runner.temp }}/specspace/dialogs
+        run: |
+          mkdir -p "$SPECSPACE_SPEC_NODES_DIR" "$SPECSPACE_RUNS_DIR" "$SPECSPACE_DIALOG_DIR"
+          docker compose -f docker-compose.yml config
+
   docker-compose-smoke:
     name: Docker Compose Smoke
     runs-on: ubuntu-latest
