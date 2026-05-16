@@ -9,6 +9,7 @@ COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 
 COPY viewer /app/viewer
+COPY deploy/specspace-demo /app/deploy/specspace-demo
 
 RUN mkdir -p /data/dialogs
 
