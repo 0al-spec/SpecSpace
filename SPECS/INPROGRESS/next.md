@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P3-T6` — Add message authoring to conversations
+**Current Task:** `CTXB-P12-T1` — Define SpecSpace product boundary and next queue
 
 ## Recently Archived
+- `CTXB-P3-T6` — Add message authoring to conversations (PASS, 2026-05-16)
 - `CTXB-P11-T3` — Docker Compose CI smoke (PASS, 2026-05-15)
 - `CTXB-P11-T2` — Dockerized SpecSpace deployment smoke (PASS, 2026-05-15)
 - `CTXB-P11-T1` — Versioned readonly SpecGraph provider for SpecSpace API (PASS, 2026-05-15)
@@ -38,10 +39,15 @@
 
 ## Suggested Next Tasks
 
-### Product Authoring (Phase 3, current)
-- `CTXB-P3-T6` — Add message authoring to conversations (P1, depends on P3-T1)
-- Rationale: the graph can create/select branches and compile targets, but day-to-day continuation still needs direct message append from the inspector.
-- Initial implementation target: add a compact inspector authoring form, persist via the existing file API with `overwrite: true`, generate stable message IDs, refresh graph data, and surface validation errors inline.
+### SpecSpace Product Boundary (Phase 12, current)
+- `CTXB-P12-T1` — Define SpecSpace product boundary and next queue (P1, depends on P11-T3 and P3-T6)
+- `CTXB-P12-T2` — Document SpecSpace product and deployment boundary (P1, depends on P12-T1)
+- `CTXB-P12-T3` — Add GraphSpace API boundary guardrail (P1, depends on P12-T2)
+- Rationale: SpecSpace should stay a readonly SpecGraph/SpecPM viewer/API product. Legacy ContextBuilder conversation authoring stays in `viewer/app` and Phase 3, not in the SpecSpace core UI.
+
+### Legacy ContextBuilder Product Authoring (Phase 3)
+- `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.
+- Next legacy candidates: `CTXB-P3-T7` delete conversation action, `CTXB-P3-T8` reorder messages, and later message move/duplicate/copy flows.
 
 ### Technical Debt (Phase 7)
 - Phase 7 core technical-debt queue is complete through `CTXB-P7-T13`.
