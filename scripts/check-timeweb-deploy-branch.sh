@@ -7,6 +7,7 @@ cd "$repo_root"
 deploy_branch="${TIMEWEB_DEPLOY_BRANCH:-timeweb-deploy}"
 target_file="${TIMEWEB_TARGET_COMPOSE:-docker-compose.yml}"
 remote="${TIMEWEB_DEPLOY_REMOTE:-}"
+artifact_base_url="${TIMEWEB_REQUIRED_ARTIFACT_BASE_URL:-https://specgraph.tech}"
 
 if [[ -z "$remote" ]]; then
   if git remote get-url origin >/dev/null 2>&1; then
@@ -77,16 +78,19 @@ if grep -Eq '\$\{[^}]*\?' <<<"$compose_text"; then
   exit 1
 fi
 
-required_paths=(
-  "/app/deploy/specspace-demo/specs/nodes"
-  "/app/deploy/specspace-demo/runs"
-)
+if ! grep -Fq -- "--artifact-base-url" <<<"$compose_text"; then
+  echo "$deploy_ref:$target_file must configure the HTTP artifact provider with --artifact-base-url." >&2
+  exit 1
+fi
 
-for required_path in "${required_paths[@]}"; do
-  if ! grep -Fq -- "$required_path" <<<"$compose_text"; then
-    echo "$deploy_ref:$target_file does not reference bundled demo path: $required_path" >&2
-    exit 1
-  fi
-done
+if ! grep -Fq -- "$artifact_base_url" <<<"$compose_text"; then
+  echo "$deploy_ref:$target_file must point at the configured artifact base URL: $artifact_base_url" >&2
+  exit 1
+fi
 
-echo "Timeweb deploy branch OK: $deploy_ref:$target_file is no-volume and uses bundled demo artifacts."
+if grep -Fq -- "/app/deploy/specspace-demo" <<<"$compose_text"; then
+  echo "$deploy_ref:$target_file still references bundled demo artifacts." >&2
+  exit 1
+fi
+
+echo "Timeweb deploy branch OK: $deploy_ref:$target_file is no-volume and uses HTTP artifacts from $artifact_base_url."
