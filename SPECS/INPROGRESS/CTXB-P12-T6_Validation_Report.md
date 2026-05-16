@@ -31,6 +31,7 @@ permissions.
 | `python -m py_compile viewer/specspace_provider.py viewer/specspace_v1_api.py viewer/server_runtime.py` | PASS |
 | `python -m pytest tests/test_specspace_api_v1.py -q` | PASS, 13 passed |
 | `python -m pytest tests/test_specspace_api_v1.py tests/test_capabilities_api.py -q` | PASS, 15 passed |
+| `python -m pytest tests/ -q` | PASS, 545 passed, 41 subtests passed |
 | `python -m mypy viewer/` | PASS |
 | `make lint` | PASS |
 | `TIMEWEB_DEPLOY_REMOTE=specspace scripts/check-timeweb-deploy-branch.sh` | PASS |
@@ -50,7 +51,7 @@ Against `https://specgraph.tech`:
 Updated and pushed:
 
 ```text
-specspace/timeweb-deploy -> 8c05749
+specspace/timeweb-deploy -> e129878
 ```
 
 The root Timeweb compose keeps `app` as the first service and starts

@@ -1,8 +1,10 @@
 import json
 import tempfile
 import threading
+import time
 import unittest
 from functools import partial
+from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
@@ -192,6 +194,71 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
             specspace_provider.safe_manifest_path("specs/nodes/SG-SPEC-0001.yaml"),
             "specs/nodes/SG-SPEC-0001.yaml",
         )
+
+    def test_http_provider_recent_runs_reads_only_artifact_prefix(self) -> None:
+        manifest = {
+            "artifact_kind": "specgraph_static_artifact_manifest",
+            "files": [
+                {
+                    "path": "runs/20260513T100001Z-SG-SPEC-0001-abcdef1.json",
+                    "root": "runs",
+                    "sha256": "0" * 64,
+                    "size_bytes": 100_000,
+                }
+            ],
+        }
+        cache = specspace_provider.HttpArtifactCache(
+            manifest=manifest,
+            manifest_loaded_at=time.time(),
+        )
+        provider = specspace_provider.HttpSpecGraphProvider(
+            base_url="https://artifact.test",
+            cache=cache,
+        )
+
+        with mock.patch.object(
+            specspace_provider,
+            "http_get_text",
+            return_value=(HTTPStatus.PARTIAL_CONTENT, '{"title":"Recent run"}', None),
+        ) as get_text:
+            status, body = provider.read_recent_runs(limit=1, since_iso=None)
+
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(body["events"][0]["title"], "Recent run")
+        self.assertEqual(cache.text_by_path, {})
+        get_text.assert_called_once_with(
+            "https://artifact.test/runs/20260513T100001Z-SG-SPEC-0001-abcdef1.json",
+            max_bytes=specspace_provider.HTTP_ARTIFACT_PREFIX_BYTES,
+            range_bytes=specspace_provider.HTTP_ARTIFACT_PREFIX_BYTES,
+            allow_truncated=True,
+        )
+
+    def test_http_artifact_text_cache_evicts_expired_entries(self) -> None:
+        cache = specspace_provider.HttpArtifactCache(
+            text_by_path={
+                "runs/old.json": (0.0, "{}"),
+                "runs/fresh.json": (time.time(), "{}"),
+            },
+        )
+        provider = specspace_provider.HttpSpecGraphProvider(
+            base_url="https://artifact.test",
+            cache=cache,
+            cache_ttl_seconds=30,
+        )
+
+        with mock.patch.object(
+            specspace_provider,
+            "http_get_text",
+            return_value=(HTTPStatus.OK, '{"ok":true}', None),
+        ):
+            status, text, error = provider._read_artifact_text("runs/new.json")
+
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(text, '{"ok":true}')
+        self.assertIsNone(error)
+        self.assertNotIn("runs/old.json", cache.text_by_path or {})
+        self.assertIn("runs/fresh.json", cache.text_by_path or {})
+        self.assertIn("runs/new.json", cache.text_by_path or {})
 
 
 class SpecSpaceApiV1Tests(unittest.TestCase):
