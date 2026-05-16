@@ -25,7 +25,7 @@ class SpecSpaceV1Handler(JsonResponseHandler, Protocol):
     def handle_runs_watch(self) -> None: ...
 
 
-def _provider(handler: SpecSpaceV1Handler) -> specspace_provider.FileSpecGraphProvider:
+def _provider(handler: SpecSpaceV1Handler) -> specspace_provider.SpecSpaceProvider:
     return specspace_provider.provider_from_server(handler.server)
 
 
