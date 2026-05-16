@@ -131,6 +131,9 @@ belongs in SpecGraph producer validation, not SpecSpace deployment validation.
 
 The local deployment file is `compose.specspace.yml`.
 
+For Timeweb Cloud Apps, use the root `docker-compose.yml` entrypoint and the
+Timeweb-specific notes in [`TIMEWEB_DEPLOYMENT.md`](TIMEWEB_DEPLOYMENT.md).
+
 ## Docker Deployment Guide
 
 ### Prerequisites
