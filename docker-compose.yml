@@ -25,9 +25,7 @@ services:
       - "8001"
       - --dialog-dir
       - /data/dialogs
-      - --spec-dir
-      - /app/deploy/specspace-demo/specs/nodes
-      - --runs-dir
-      - /app/deploy/specspace-demo/runs
+      - --artifact-base-url
+      - https://specgraph.tech
     ports:
       - "${SPECSPACE_API_PORT:-8001}:8001"
