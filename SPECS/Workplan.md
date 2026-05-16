@@ -1600,17 +1600,30 @@ Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer 
   - A local pre-push hook can run the sync guard when `core.hooksPath` is configured.
   - CI runs a `Timeweb Docker Support` job that checks deploy-branch sync and validates compose config from the deploy branch.
 
-### CTXB-P12-T6 — Plan registry-backed Timeweb deploy branch and HTTP artifacts
+### ✅ CTXB-P12-T6 — Plan registry-backed Timeweb deploy branch and HTTP artifacts — DONE (PASS, 2026-05-16)
 - **Description:** Design the long-term Timeweb deployment branch where the branch can contain only deployment manifests because API/UI images are prebuilt and pinned. Include the companion plan for replacing bundled demo artifacts with HTTP/static SpecGraph artifacts from hosting such as `https://specgraph.tech/specs` and `/runs`.
 - **Priority:** P2
 - **Dependencies:** CTXB-P12-T5
 - **Parallelizable:** yes
 - **Outputs / Artifacts:** deployment-branch plan, registry image naming/versioning plan, HTTP artifact provider task split
 - **Acceptance Criteria:**
-  - The plan explains how CI builds and publishes SpecSpace API/UI images.
-  - The plan explains how a `timeweb-deploy` branch is generated or maintained.
-  - The plan defines the minimal static SpecGraph artifact index contract.
-  - Follow-up implementation tasks are small enough to PR independently.
+  - The plan explains how CI builds and publishes SpecSpace API/UI images. ✅ Captured in the future manifest-only branch section of `docs/TIMEWEB_DEPLOYMENT.md`.
+  - The plan explains how a `timeweb-deploy` branch is generated or maintained. ✅ Documented in the Timeweb deployment guide and guarded by `scripts/check-timeweb-deploy-branch.sh`.
+  - The plan defines the minimal static SpecGraph artifact index contract. ✅ The HTTP provider consumes `artifact_manifest.json` with relative paths, checksums, and sizes.
+  - Follow-up implementation tasks are small enough to PR independently. ✅ Registry-backed image publishing remains split into `CTXB-P12-T7`; HTTP artifact consumption was implemented as the first independent slice.
+
+### CTXB-P12-T7 — Publish pinned SpecSpace images and generate manifest-only Timeweb branch
+- **Description:** Replace the current source-build `timeweb-deploy` branch with a generated deployment branch that contains only Timeweb deployment manifests and references pinned API/UI images built by CI.
+- **Priority:** P2
+- **Dependencies:** CTXB-P12-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** image publishing workflow, registry naming policy, generated `timeweb-deploy` branch update, rollback notes
+- **Acceptance Criteria:**
+  - CI builds the SpecSpace API and GraphSpace UI images and tags them by commit SHA.
+  - The generated `timeweb-deploy` branch contains no application source requirement for Timeweb, only deployment manifests and minimal docs.
+  - The Timeweb compose references pinned images, not mutable `latest` tags.
+  - Guardrails verify that the deploy branch still uses the HTTP artifact provider and keeps the UI service first.
+  - Documentation explains rollback by selecting a previous pinned image pair.
 
 ## Dependency Summary
 
