@@ -1,8 +1,11 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P12-T1` — Define SpecSpace product boundary and next queue
+**Current Task:** `CTXB-P12-T4` — Separate legacy ContextBuilder docs from SpecSpace docs
 
 ## Recently Archived
+- `CTXB-P12-T3` — Add GraphSpace API boundary guardrail (PASS, 2026-05-16)
+- `CTXB-P12-T2` — Document SpecSpace product and deployment boundary (PASS, 2026-05-16)
+- `CTXB-P12-T1` — Define SpecSpace product boundary and next queue (PASS, 2026-05-16)
 - `CTXB-P3-T6` — Add message authoring to conversations (PASS, 2026-05-16)
 - `CTXB-P11-T3` — Docker Compose CI smoke (PASS, 2026-05-15)
 - `CTXB-P11-T2` — Dockerized SpecSpace deployment smoke (PASS, 2026-05-15)
@@ -40,10 +43,8 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Product Boundary (Phase 12, current)
-- `CTXB-P12-T1` — Define SpecSpace product boundary and next queue (P1, depends on P11-T3 and P3-T6)
-- `CTXB-P12-T2` — Document SpecSpace product and deployment boundary (P1, depends on P12-T1)
-- `CTXB-P12-T3` — Add GraphSpace API boundary guardrail (P1, depends on P12-T2)
-- Rationale: SpecSpace should stay a readonly SpecGraph/SpecPM viewer/API product. Legacy ContextBuilder conversation authoring stays in `viewer/app` and Phase 3, not in the SpecSpace core UI.
+- `CTXB-P12-T4` — Separate legacy ContextBuilder docs from SpecSpace docs (P2, depends on P12-T3)
+- Rationale: the product/API boundary is now documented and guarded. The remaining cleanup is mostly operator documentation hygiene so local run docs do not blur `viewer/app` and `graphspace/`.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.

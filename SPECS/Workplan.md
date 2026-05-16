@@ -1538,7 +1538,7 @@ Intent: make SpecSpace deployable as a standalone viewer/API surface that can re
 
 Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer and API, while legacy ContextBuilder conversation authoring remains in the legacy `viewer/app` surface. This phase prevents Phase 3 authoring tasks from leaking into SpecSpace and gives the new product its own follow-up queue.
 
-### CTXB-P12-T1 — Define SpecSpace product boundary and next queue — INPROGRESS
+### ✅ CTXB-P12-T1 — Define SpecSpace product boundary and next queue — DONE (PASS, 2026-05-16)
 - **Description:** Record the SpecSpace product boundary in the workplan and select follow-up tasks that keep SpecSpace separate from legacy conversation authoring. This is a planning/checkpoint task after completing the deployment boundary and legacy message authoring work.
 - **Priority:** P1
 - **Dependencies:** CTXB-P11-T3, CTXB-P3-T6
@@ -1550,7 +1550,7 @@ Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer 
   - The next queue separates SpecSpace product-boundary work from Phase 3 conversation authoring.
   - Follow-up tasks exist for documentation and automated guardrails.
 
-### CTXB-P12-T2 — Document SpecSpace product and deployment boundary
+### ✅ CTXB-P12-T2 — Document SpecSpace product and deployment boundary — DONE (PASS, 2026-05-16)
 - **Description:** Add operator/product documentation that explains what SpecSpace owns, what remains legacy ContextBuilder, and which API routes belong to the SpecSpace deployment contract.
 - **Priority:** P1
 - **Dependencies:** CTXB-P12-T1
@@ -1562,7 +1562,7 @@ Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer 
   - Legacy `viewer/app` is described as a ContextBuilder surface, not the SpecSpace product UI.
   - Docker/deployment docs point operators to the same boundary.
 
-### CTXB-P12-T3 — Add GraphSpace API boundary guardrail
+### ✅ CTXB-P12-T3 — Add GraphSpace API boundary guardrail — DONE (PASS, 2026-05-16)
 - **Description:** Add an automated check that prevents runtime `graphspace/` code from depending on legacy ContextBuilder conversation/write endpoints. The guard should allow explicit compatibility tests/fixtures while keeping product code on `/api/v1/*`.
 - **Priority:** P1
 - **Dependencies:** CTXB-P12-T2
@@ -1573,6 +1573,18 @@ Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer 
   - Existing compatibility fixtures/tests remain possible when they are explicitly isolated from runtime source.
   - CI runs the guardrail alongside GraphSpace validation.
   - GraphSpace runtime data reads remain on `/api/v1/*`.
+
+### CTXB-P12-T4 — Separate legacy ContextBuilder docs from SpecSpace docs
+- **Description:** Review top-level operator/developer docs and label or split legacy ContextBuilder conversation guidance from SpecSpace runtime guidance. The goal is to reduce local-run confusion now that `viewer/app` and `graphspace/` serve different products.
+- **Priority:** P2
+- **Dependencies:** CTXB-P12-T3
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** updated quickstart/architecture docs or a short doc index that points operators to the correct app
+- **Acceptance Criteria:**
+  - Top-level docs distinguish legacy ContextBuilder conversation mode from SpecSpace graph inspection.
+  - Local run commands identify whether they launch `viewer/app` or `graphspace/`.
+  - SpecSpace docs point to `/api/v1/*` and Docker smoke guidance.
+  - Legacy conversation authoring docs do not present themselves as SpecSpace instructions.
 
 ## Dependency Summary
 

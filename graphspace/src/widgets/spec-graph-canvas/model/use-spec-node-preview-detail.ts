@@ -18,12 +18,10 @@ type Options = {
 
 const detailUrl = (baseUrl: string, nodeId: string): string => {
   const encodedNodeId = encodeURIComponent(nodeId);
-  const isV1Endpoint = baseUrl.includes("/api/v1/spec-nodes");
-  if (!baseUrl.includes("?") && isV1Endpoint) {
-    return `${baseUrl.replace(/\/$/, "")}/${encodedNodeId}`;
-  }
-  const separator = baseUrl.includes("?") ? "&" : "?";
-  return `${baseUrl}${separator}id=${encodedNodeId}`;
+  const queryStart = baseUrl.indexOf("?");
+  const path = queryStart === -1 ? baseUrl : baseUrl.slice(0, queryStart);
+  const query = queryStart === -1 ? "" : baseUrl.slice(queryStart);
+  return `${path.replace(/\/$/, "")}/${encodedNodeId}${query}`;
 };
 
 const errorMessage = (error: unknown): string =>

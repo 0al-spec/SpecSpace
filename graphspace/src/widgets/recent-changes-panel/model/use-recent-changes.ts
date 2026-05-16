@@ -25,7 +25,7 @@ type Options = {
   url?: string;
   /** Test injection point; defaults to global fetch. */
   fetcher?: typeof fetch;
-  /** Increment to refetch, e.g. from /api/runs-watch SSE. */
+  /** Increment to refetch, e.g. from /api/v1/runs-watch SSE. */
   refreshKey?: number;
 };
 
