@@ -411,10 +411,18 @@ class HttpSpecGraphProvider:
         assert manifest is not None
         path = f"runs/{filename}"
         if not self._has_artifact(manifest, path):
-            return HTTPStatus.NOT_FOUND, {"error": f"{filename} not found. Run {build_hint} first."}
+            return HTTPStatus.NOT_FOUND, {
+                "error": f"{filename} not found. Run {build_hint} first.",
+                "reason": "missing_artifact",
+                "artifact": path,
+                "artifact_base_url": self.normalized_base_url,
+                "manifest": self.manifest_url,
+            }
 
         status, text, error = self._read_artifact_text(path)
         if error is not None:
+            error.setdefault("reason", "artifact_fetch_failed")
+            error.setdefault("artifact", path)
             return status, error
         assert text is not None
         try:
@@ -422,6 +430,9 @@ class HttpSpecGraphProvider:
         except json.JSONDecodeError as exc:
             return HTTPStatus.UNPROCESSABLE_ENTITY, {
                 "error": f"{filename} is not valid JSON",
+                "reason": "invalid_json",
+                "artifact": path,
+                "path": self._artifact_url(path),
                 "detail": str(exc),
             }
         return HTTPStatus.OK, http_envelope(self._artifact_url(path), manifest, data)

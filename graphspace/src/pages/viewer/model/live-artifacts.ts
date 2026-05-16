@@ -33,6 +33,34 @@ type ArtifactInput = {
   emptyDetail: string;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function stringField(record: Record<string, unknown> | null, key: string): string | null {
+  const value = record?.[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+export function describeHttpErrorDetail(state: {
+  status: number;
+  statusText: string;
+  body?: unknown;
+}): string {
+  const base = `HTTP ${state.status}${state.statusText ? ` ${state.statusText}` : ""}`;
+  const body = isRecord(state.body) ? state.body : null;
+  const source = isRecord(body?.source) ? body.source : null;
+  const parts = [
+    stringField(body, "error"),
+    stringField(body, "detail"),
+    stringField(source, "detail"),
+    stringField(body, "artifact") ? `artifact ${stringField(body, "artifact")}` : null,
+    stringField(body, "reason") ? `reason ${stringField(body, "reason")}` : null,
+    stringField(body, "path") ?? stringField(source, "path"),
+  ].filter((part): part is string => !!part);
+  return parts.length > 0 ? `${base}: ${parts.join("; ")}` : base;
+}
+
 function countLabel(count: number, noun: ArtifactInput["noun"]): string {
   return `${count} ${count === 1 ? noun.singular : noun.plural}`;
 }
@@ -51,7 +79,7 @@ function fallbackDetail(state: Exclude<LiveArtifactState, { kind: "ok" }>): stri
     case "loading":
       return "Loading live artifact; sample data is displayed until the first response.";
     case "http-error":
-      return `HTTP ${state.status}${state.statusText ? ` ${state.statusText}` : ""}; sample data is displayed.`;
+      return `${describeHttpErrorDetail(state)}; sample data is displayed.`;
     case "network-error":
       return "Backend is unreachable; sample data is displayed.";
     case "envelope-error":

@@ -28,6 +28,7 @@ type Props = {
     workKind: UseImplementationWorkState["kind"];
     workItemCount: number;
     traceKind: UseProposalTraceState["kind"];
+    tooltip: string;
   };
 };
 
@@ -50,7 +51,7 @@ export function ViewerChrome({ controls, status }: Props) {
 
       <Overlay anchor="bottom-right" className={styles.statusOverlay}>
         <Panel tone="muted" padding="sm">
-          <span className={styles.statusText} title={status.deployment.title}>
+          <span className={styles.statusText} title={status.tooltip}>
             {status.deployment.label} · runs tick {status.runsWatchVersion} · recent{" "}
             {status.recentKind} · {status.eventCount} events · work {status.workKind} ·{" "}
             {status.workItemCount} items · trace {status.traceKind}

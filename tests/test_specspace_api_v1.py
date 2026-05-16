@@ -500,6 +500,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 404)
         self.assertIn("implementation_work_index.json not found", body["error"])
+        self.assertEqual(body["reason"], "missing_artifact")
+        self.assertEqual(body["artifact"], "runs/implementation_work_index.json")
+        self.assertEqual(body["artifact_base_url"], artifact_base_url)
 
 
 if __name__ == "__main__":

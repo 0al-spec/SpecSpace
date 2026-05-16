@@ -1,4 +1,4 @@
-import type { LiveArtifactState } from "./live-artifacts";
+import { describeHttpErrorDetail, type LiveArtifactState } from "./live-artifacts";
 
 export type LiveStatus = { caption: string; emptyMessage: string };
 
@@ -15,7 +15,7 @@ export function describeLive(
     case "http-error":
       return {
         caption: `live · HTTP ${state.status} · sample fallback`,
-        emptyMessage: state.statusText || "endpoint failed",
+        emptyMessage: describeHttpErrorDetail(state),
       };
     case "network-error":
       return {

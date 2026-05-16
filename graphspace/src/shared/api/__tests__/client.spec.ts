@@ -58,6 +58,7 @@ describe("fetchEnvelope", () => {
     if (result.kind !== "http-error") return;
     expect(result.status).toBe(404);
     expect(result.statusText).toBe("Not Found");
+    expect(result.body).toEqual({ error: "not built" });
   });
 
   it("captures network errors as network-error", async () => {

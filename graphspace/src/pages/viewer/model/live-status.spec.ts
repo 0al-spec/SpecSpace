@@ -32,4 +32,20 @@ describe("describeLive", () => {
     expect(status.caption).toBe("live · schema_version 99 unsupported · sample fallback");
     expect(status.emptyMessage).toBe("schema_version 99 > max 1");
   });
+
+  it("keeps backend error bodies visible in compact status details", () => {
+    const status = describeLive({
+      kind: "http-error",
+      status: 404,
+      statusText: "Not Found",
+      body: {
+        error: "implementation_work_index.json not found",
+        reason: "missing_artifact",
+        artifact: "runs/implementation_work_index.json",
+      },
+    }, noun);
+
+    expect(status.emptyMessage).toContain("implementation_work_index.json not found");
+    expect(status.emptyMessage).toContain("runs/implementation_work_index.json");
+  });
 });
