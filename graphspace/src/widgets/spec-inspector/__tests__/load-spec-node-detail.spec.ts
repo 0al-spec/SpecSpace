@@ -76,4 +76,24 @@ describe("fetchSpecNodeDetail", () => {
       { signal: undefined },
     );
   });
+
+  it("preserves query params for custom path-style overrides", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      buildResponse({
+        node_id: "SG-SPEC-ROOT",
+        data: { id: "SG-SPEC-ROOT" },
+      }),
+    );
+
+    await fetchSpecNodeDetail({
+      nodeId: "SG-SPEC-ROOT",
+      url: "/proxy/spec-node?token=abc",
+      fetcher,
+    });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "/proxy/spec-node/SG-SPEC-ROOT?token=abc",
+      { signal: undefined },
+    );
+  });
 });
