@@ -23,6 +23,11 @@ class FakeHandler:
         self.ended = True
 
 
+class BrokenPipeWriter:
+    def write(self, _body: bytes) -> int:
+        raise BrokenPipeError
+
+
 class HttpResponseTests(unittest.TestCase):
     def test_json_response_writes_utf8_json_with_content_length(self) -> None:
         handler = FakeHandler()
@@ -36,3 +41,12 @@ class HttpResponseTests(unittest.TestCase):
         self.assertIn(("Content-Length", str(len(body))), handler.headers)
         self.assertEqual(body, '{\n  "message": "Привет"\n}'.encode("utf-8"))
         self.assertEqual(json.loads(body), {"message": "Привет"})
+
+    def test_json_response_ignores_client_disconnect_during_write(self) -> None:
+        handler = FakeHandler()
+        handler.wfile = BrokenPipeWriter()
+
+        json_response(handler, HTTPStatus.OK, {"message": "gone"})
+
+        self.assertEqual(handler.status, HTTPStatus.OK)
+        self.assertTrue(handler.ended)
