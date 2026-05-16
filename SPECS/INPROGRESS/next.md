@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P12-T6` — Plan registry-backed Timeweb deploy branch and HTTP artifacts
+**Current Task:** `CTXB-P12-T7` — Publish pinned SpecSpace images and generate manifest-only Timeweb branch
 
 ## Recently Archived
+- `CTXB-P12-T6` — Plan registry-backed Timeweb deploy branch and HTTP artifacts (PASS, 2026-05-16)
 - `CTXB-P12-T5` — Add Timeweb no-volume demo deployment guard (PASS, 2026-05-16)
 - `CTXB-P12-T4` — Separate legacy ContextBuilder docs from SpecSpace docs (PASS, 2026-05-16)
 - `CTXB-P12-T3` — Add GraphSpace API boundary guardrail (PASS, 2026-05-16)
@@ -45,8 +46,8 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Product Boundary (Phase 12, current)
-- `CTXB-P12-T6` — Plan registry-backed Timeweb deploy branch and HTTP artifacts (P2, depends on P12-T5)
-- Rationale: `timeweb-deploy` now owns the Timeweb-only root `docker-compose.yml`, while main stays free of Timeweb-only files. Timeweb currently boots against bundled demo artifacts because it rejects compose volumes. HTTP/static SpecGraph artifacts need a provider contract before Timeweb can consume `https://specgraph.tech/specs` and `/runs` directly.
+- `CTXB-P12-T7` — Publish pinned SpecSpace images and generate manifest-only Timeweb branch (P2, depends on P12-T6)
+- Rationale: Timeweb can now consume real SpecGraph artifacts through the HTTP/static provider, and the `timeweb-deploy` branch has been switched away from bundled demo data. The remaining deployment hardening is release-shape work: build pinned API/UI images in CI and make the Timeweb branch manifest-only instead of source-build based.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.
