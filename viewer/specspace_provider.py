@@ -24,6 +24,7 @@ SPECSPACE_API_VERSION = "v1"
 HTTP_ARTIFACT_TIMEOUT_SECONDS = 10
 HTTP_ARTIFACT_CACHE_TTL_SECONDS = 30
 HTTP_ARTIFACT_MAX_BYTES = 10_000_000
+HTTP_ARTIFACT_PREFIX_BYTES = 4096
 
 
 class CapabilityContext(capabilities_api.CapabilitiesHandler, Protocol):
@@ -355,6 +356,7 @@ class HttpSpecGraphProvider:
             return HTTPStatus.BAD_REQUEST, None, {"error": "Invalid artifact path.", "path": path}
 
         now = time.time()
+        prune_expired_text_cache(self.cache, now=now, ttl_seconds=self.cache_ttl_seconds)
         cached = self.cache.text_by_path.get(path) if self.cache.text_by_path is not None else None
         if cached is not None and now - cached[0] <= self.cache_ttl_seconds:
             return HTTPStatus.OK, cached[1], None
@@ -367,6 +369,21 @@ class HttpSpecGraphProvider:
             return status, None, {"error": f"{path} could not be read.", "path": url}
         if self.cache.text_by_path is not None:
             self.cache.text_by_path[path] = (now, text)
+        return status, text, None
+
+    def _read_artifact_prefix(self, path: str) -> tuple[int, str | None, dict[str, Any] | None]:
+        if safe_manifest_path(path) is None:
+            return HTTPStatus.BAD_REQUEST, None, {"error": "Invalid artifact path.", "path": path}
+
+        url = self._artifact_url(path)
+        status, text, error = http_get_text(
+            url,
+            max_bytes=HTTP_ARTIFACT_PREFIX_BYTES,
+            range_bytes=HTTP_ARTIFACT_PREFIX_BYTES,
+            allow_truncated=True,
+        )
+        if error is not None:
+            return status, None, {"error": f"{path} could not be read.", "detail": error["detail"], "path": url}
         return status, text, None
 
     def _read_json_artifact(self, filename: str, *, build_hint: str) -> tuple[int, dict[str, Any]]:
@@ -572,7 +589,7 @@ class HttpSpecGraphProvider:
 
         events: list[dict[str, Any]] = []
         for ts_iso, run_id, spec_id, path in candidates[:limit]:
-            _, text, _ = self._read_artifact_text(path)
+            _, text, _ = self._read_artifact_prefix(path)
             meta = harvest_run_meta_text(text or "")
             events.append(
                 {
@@ -669,15 +686,37 @@ def safe_manifest_path(value: Any) -> str | None:
     return path.as_posix()
 
 
-def http_get_text(url: str) -> tuple[int, str | None, dict[str, str] | None]:
-    request = Request(url, headers={"User-Agent": "SpecSpace/0.1"})
+def prune_expired_text_cache(cache: HttpArtifactCache, *, now: float, ttl_seconds: int) -> None:
+    if cache.text_by_path is None:
+        return
+    expired = [
+        path
+        for path, (loaded_at, _) in cache.text_by_path.items()
+        if now - loaded_at > ttl_seconds
+    ]
+    for path in expired:
+        del cache.text_by_path[path]
+
+
+def http_get_text(
+    url: str,
+    *,
+    max_bytes: int = HTTP_ARTIFACT_MAX_BYTES,
+    range_bytes: int | None = None,
+    allow_truncated: bool = False,
+) -> tuple[int, str | None, dict[str, str] | None]:
+    headers = {"User-Agent": "SpecSpace/0.1"}
+    if range_bytes is not None:
+        headers["Range"] = f"bytes=0-{max(0, range_bytes - 1)}"
+    request = Request(url, headers=headers)
     try:
         with urlopen(request, timeout=HTTP_ARTIFACT_TIMEOUT_SECONDS) as response:
-            raw = response.read(HTTP_ARTIFACT_MAX_BYTES + 1)
-            if len(raw) > HTTP_ARTIFACT_MAX_BYTES:
+            raw = response.read(max_bytes + 1)
+            if len(raw) > max_bytes and not allow_truncated:
                 return HTTPStatus.REQUEST_ENTITY_TOO_LARGE, None, {
-                    "detail": f"artifact exceeds {HTTP_ARTIFACT_MAX_BYTES} bytes"
+                    "detail": f"artifact exceeds {max_bytes} bytes"
                 }
+            raw = raw[:max_bytes]
             charset = response.headers.get_content_charset() or "utf-8"
             return HTTPStatus(response.status), raw.decode(charset), None
     except HTTPError as exc:
