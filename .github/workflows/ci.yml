@@ -128,8 +128,16 @@ jobs:
         id: image-refs
         run: |
           owner="${GITHUB_REPOSITORY_OWNER,,}"
+          version="$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+          print(json.loads(Path("graphspace/package.json").read_text())["version"])
+          PY
+          )"
           echo "api-image=ghcr.io/${owner}/specspace-api" >> "$GITHUB_OUTPUT"
           echo "ui-image=ghcr.io/${owner}/specspace-ui" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "created-at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -148,9 +156,14 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: ${{ steps.image-refs.outputs.api-image }}:${{ github.sha }}
+          build-args: |
+            SPECSPACE_RELEASE_COMMIT=${{ github.sha }}
+            SPECSPACE_RELEASE_CREATED_AT=${{ steps.image-refs.outputs.created-at }}
+            SPECSPACE_VERSION=${{ steps.image-refs.outputs.version }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.image-refs.outputs.version }}
 
       - name: Build UI image
         id: build-ui
@@ -161,9 +174,14 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: ${{ steps.image-refs.outputs.ui-image }}:${{ github.sha }}
+          build-args: |
+            SPECSPACE_RELEASE_COMMIT=${{ github.sha }}
+            SPECSPACE_RELEASE_CREATED_AT=${{ steps.image-refs.outputs.created-at }}
+            SPECSPACE_VERSION=${{ steps.image-refs.outputs.version }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.image-refs.outputs.version }}
 
   timeweb-docker-support:
     name: Timeweb Docker Support

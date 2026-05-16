@@ -215,6 +215,19 @@ Each generated commit contains a matched API/UI image pair and the source commit
 that produced it. Do not mix only one image from a newer release with the other
 image from an older release unless you are intentionally testing compatibility.
 
+## Identifying The Deployed Build
+
+GraphSpace shows the deployed build in the bottom-right status line:
+
+```text
+UI 0.0.1+<commit> · API 0.0.1+<commit> · runs tick ...
+```
+
+Hover the status line to inspect the full UI/API source commits, build
+timestamps, and Timeweb image refs. The API side comes from `/api/v1/health`;
+if that endpoint is unavailable, the UI still shows its own embedded build and
+marks the API build as `API network-error` or `API HTTP <status>`.
+
 ## Smoke Checks
 
 After deployment, verify:

@@ -18,6 +18,10 @@ type Props = {
     onSidebarToggle: () => void;
   };
   status: {
+    deployment: {
+      label: string;
+      title: string;
+    };
     runsWatchVersion: number;
     recentKind: UseRecentChangesState["kind"];
     eventCount: number;
@@ -46,8 +50,10 @@ export function ViewerChrome({ controls, status }: Props) {
 
       <Overlay anchor="bottom-right" className={styles.statusOverlay}>
         <Panel tone="muted" padding="sm">
-          <span className={styles.statusText}>
-            v0.0.1 · runs tick {status.runsWatchVersion} · recent {status.recentKind} · {status.eventCount} events · work {status.workKind} · {status.workItemCount} items · trace {status.traceKind}
+          <span className={styles.statusText} title={status.deployment.title}>
+            {status.deployment.label} · runs tick {status.runsWatchVersion} · recent{" "}
+            {status.recentKind} · {status.eventCount} events · work {status.workKind} ·{" "}
+            {status.workItemCount} items · trace {status.traceKind}
           </span>
         </Panel>
       </Overlay>
