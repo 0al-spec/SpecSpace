@@ -8,14 +8,63 @@ versioned HTTP contracts for the UI.
 Deployment topology and mount expectations are documented in
 [SPECSPACE_DEPLOYMENT.md](SPECSPACE_DEPLOYMENT.md).
 
-## Provider
+## Providers
 
-The initial provider is file-backed and readonly:
+SpecSpace API v1 can read SpecGraph through either readonly provider.
+
+### File Provider
+
+The local/operator provider is file-backed and readonly:
 
 - `specs/nodes/` is the canonical SpecGraph node source.
 - `runs/` is the artifact source for recent runs and viewer surfaces.
 - `specgraph_dir` is optional and only needed for SpecPM lifecycle aggregation.
 - The provider never writes to any of these paths.
+
+Start it with:
+
+```bash
+python viewer/server.py \
+  --dialog-dir /data/dialogs \
+  --spec-dir /repo/SpecGraph/specs/nodes \
+  --runs-dir /repo/SpecGraph/runs
+```
+
+### HTTP Artifact Provider
+
+The Timeweb/cloud provider is HTTP-backed and readonly. It reads a static
+SpecGraph artifact site published by the producer repository:
+
+```text
+https://specgraph.tech/artifact_manifest.json
+https://specgraph.tech/specs/nodes/*.yaml
+https://specgraph.tech/runs/*.json
+```
+
+Start it with either:
+
+```bash
+python viewer/server.py \
+  --dialog-dir /data/dialogs \
+  --artifact-base-url https://specgraph.tech
+```
+
+or:
+
+```bash
+SPECSPACE_ARTIFACT_BASE_URL=https://specgraph.tech \
+python viewer/server.py --dialog-dir /data/dialogs
+```
+
+The manifest must have `artifact_kind:
+specgraph_static_artifact_manifest`, a `files[]` array, and relative artifact
+paths. Absolute paths, parent-directory traversal, and external URLs inside the
+manifest are ignored.
+
+HTTP artifact envelopes use the artifact URL in `path` and the manifest
+`generated_at` timestamp as `mtime`/`mtime_iso`. `specpm/lifecycle` is not
+available from this provider unless a future producer-side static lifecycle
+artifact is added.
 
 `GET /api/v1/health` reports provider state:
 
@@ -42,6 +91,38 @@ The initial provider is file-backed and readonly:
       "name": "specgraph_root",
       "path": "/repo/SpecGraph",
       "status": "ok"
+    }
+  }
+}
+```
+
+For the HTTP provider, `provider` is `"http"` and sources point at URLs:
+
+```json
+{
+  "api_version": "v1",
+  "provider": "http",
+  "read_only": true,
+  "status": "ok",
+  "artifact_base_url": "https://specgraph.tech",
+  "sources": {
+    "artifact_manifest": {
+      "name": "artifact_manifest",
+      "path": "https://specgraph.tech/artifact_manifest.json",
+      "status": "ok",
+      "item_count": 101
+    },
+    "spec_nodes": {
+      "name": "spec_nodes",
+      "path": "https://specgraph.tech/specs/nodes",
+      "status": "ok",
+      "item_count": 65
+    },
+    "runs": {
+      "name": "runs",
+      "path": "https://specgraph.tech/runs",
+      "status": "ok",
+      "item_count": 36
     }
   }
 }
