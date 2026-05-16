@@ -25,11 +25,23 @@ SpecSpace UI container
 SpecSpace API container
   - viewer/server.py
   - binds 0.0.0.0:8001 inside Compose
-  - readonly file-backed SpecGraph provider
+  - readonly SpecGraph provider
   |
   +-- /specgraph/specs/nodes  readonly mount
   +-- /specgraph/runs         readonly mount
   +-- /specgraph              optional readonly mount
+```
+
+Cloud deployments that cannot mount files can use the HTTP/static provider
+instead:
+
+```text
+SpecSpace API container
+  - viewer/server.py --artifact-base-url https://specgraph.tech
+  |
+  +-- https://specgraph.tech/artifact_manifest.json
+  +-- https://specgraph.tech/specs/nodes/*.yaml
+  +-- https://specgraph.tech/runs/*.json
 ```
 
 ## Ports
@@ -85,12 +97,24 @@ unconfigured source instead of making the graph viewer unavailable. Operators
 that need SpecPM lifecycle surfaces can add a readonly SpecGraph root mount and
 start the API with `--specgraph-dir /specgraph`.
 
+For static HTTP artifacts, omit `--spec-dir` and `--runs-dir` and use:
+
+```bash
+python viewer/server.py \
+  --host 0.0.0.0 \
+  --port 8001 \
+  --dialog-dir /data/dialogs \
+  --artifact-base-url https://specgraph.tech
+```
+
+The same value can be supplied through `SPECSPACE_ARTIFACT_BASE_URL`.
+
 ## Health Expectations
 
 `GET /api/v1/health` is the deployment boundary check. It must report:
 
 - `api_version: "v1"`
-- `provider: "file"`
+- `provider: "file"` or `provider: "http"`
 - `read_only: true`
 - `sources.spec_nodes.status`
 - `sources.runs.status`
@@ -113,6 +137,9 @@ The aggregate health is:
   sources are missing, unreadable, or otherwise invalid.
 - `unavailable` when required spec nodes are missing or unreadable.
 
+For the HTTP provider, `sources.artifact_manifest.status` must be `ok`, and
+`sources.spec_nodes.item_count` should match the published SpecGraph node count.
+
 ## Smoke Scope
 
 Deployment smoke should verify:
@@ -130,6 +157,9 @@ belongs in SpecGraph producer validation, not SpecSpace deployment validation.
 ## Compose Entrypoint
 
 The local deployment file is `compose.specspace.yml`.
+
+For Timeweb Cloud Apps, use the root `docker-compose.yml` entrypoint and the
+Timeweb-specific notes in [`TIMEWEB_DEPLOYMENT.md`](TIMEWEB_DEPLOYMENT.md).
 
 ## Docker Deployment Guide
 

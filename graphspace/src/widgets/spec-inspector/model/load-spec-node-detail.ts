@@ -31,7 +31,10 @@ const errorMessage = (error: unknown): string =>
 
 const detailUrl = (baseUrl: string, nodeId: string): string => {
   const encodedNodeId = encodeURIComponent(nodeId);
-  return `${baseUrl.replace(/\/$/, "")}/${encodedNodeId}`;
+  const queryStart = baseUrl.indexOf("?");
+  const path = queryStart === -1 ? baseUrl : baseUrl.slice(0, queryStart);
+  const query = queryStart === -1 ? "" : baseUrl.slice(queryStart);
+  return `${path.replace(/\/$/, "")}/${encodedNodeId}${query}`;
 };
 
 export async function fetchSpecNodeDetail({
