@@ -190,8 +190,12 @@ jobs:
     name: Publish Timeweb Deploy Branch
     runs-on: ubuntu-latest
     needs:
+      - backend
+      - docker-compose-smoke
+      - graphspace
       - specspace-images
       - timeweb-docker-support
+      - viewer-app
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
