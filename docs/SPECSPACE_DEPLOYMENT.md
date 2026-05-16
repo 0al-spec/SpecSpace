@@ -5,6 +5,10 @@ SpecGraph workspace. SpecGraph remains the producer and owner of canonical
 specs and run artifacts; SpecSpace is a consumer that exposes stable
 `/api/v1/*` contracts and serves the GraphSpace UI.
 
+The product boundary is documented in
+[`SPECSPACE_BOUNDARY.md`](SPECSPACE_BOUNDARY.md). In short: SpecSpace owns
+readonly SpecGraph/SpecPM inspection, not ContextBuilder conversation authoring.
+
 ## Runtime Shape
 
 ```text
@@ -48,7 +52,19 @@ same-origin.
 
 For SpecSpace deployment smoke, the `specs/nodes` and `runs` mounts are the
 important boundary. Dialog JSON is kept only because `viewer/server.py` still
-requires `--dialog-dir`.
+requires `--dialog-dir`; it is not part of the SpecSpace product contract.
+
+## Out Of Scope
+
+SpecSpace deployment does not include conversation authoring, checkpoint
+editing, branch/merge/delete flows, or Hyperprompt compile authoring. Those are
+legacy ContextBuilder workflows exposed through `viewer/app` and legacy routes
+such as `/api/file`, `/api/conversation`, `/api/checkpoint`, and
+`/api/compile`.
+
+The GraphSpace UI should consume `/api/v1/*` for runtime data. Non-versioned
+legacy routes may remain in the backend for compatibility, but they are not
+SpecSpace deployment contracts.
 
 ## API Startup Contract
 
