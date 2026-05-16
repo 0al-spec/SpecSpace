@@ -31,3 +31,5 @@ Timeweb deploy branch guard for no-volume hosting.
 - `.githooks/pre-push` runs the sync guard for developers who opt in with
   `git config core.hooksPath .githooks`.
 - CI validates the deploy branch in the `Timeweb Docker Support` job.
+- The deploy branch names the UI service `app` and keeps it first so Timeweb's
+  primary domain proxies to GraphSpace rather than the API.
