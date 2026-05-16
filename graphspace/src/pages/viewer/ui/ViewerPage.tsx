@@ -27,6 +27,11 @@ import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-artifacts";
 import { describeLive } from "../model/live-status";
 import {
+  describeDeploymentStatus,
+  uiDeploymentInfo,
+  useApiDeploymentStatus,
+} from "../model/deployment-status";
+import {
   SAMPLE_ENTRIES,
   SAMPLE_NOW,
   SAMPLE_PROPOSAL_TRACES,
@@ -55,6 +60,8 @@ export function ViewerPage() {
   const specpmLifecycleState = useSpecPMLifecycleBadges({
     refreshKey: runsWatchVersion,
   });
+  const apiDeploymentState = useApiDeploymentStatus();
+  const deploymentStatus = describeDeploymentStatus(uiDeploymentInfo, apiDeploymentState);
 
   const feedStatus = describeLive(feedState, {
     items: "events",
@@ -394,6 +401,7 @@ export function ViewerPage() {
           onSidebarToggle: () => setSidebarOpen((v) => !v),
         }}
         status={{
+          deployment: deploymentStatus,
           runsWatchVersion,
           recentKind: feedState.kind,
           eventCount: count,

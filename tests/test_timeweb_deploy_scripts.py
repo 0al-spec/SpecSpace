@@ -41,6 +41,17 @@ def test_render_timeweb_deploy_branch_creates_manifest_only_tree(tmp_path: Path)
         "README.md",
         "docker-compose.yml",
     ]
+    compose = (tmp_path / "docker-compose.yml").read_text(encoding="utf-8")
+    assert (
+        f'SPECSPACE_API_IMAGE_REF: "ghcr.io/0al-spec/specspace-api@sha256:{API_DIGEST}"'
+        in compose
+    )
+    assert (
+        f'SPECSPACE_UI_IMAGE_REF: "ghcr.io/0al-spec/specspace-ui@sha256:{UI_DIGEST}"'
+        in compose
+    )
+    assert 'SPECSPACE_RELEASE_COMMIT: "test-release"' in compose
+    assert "SPECSPACE_RELEASE_CREATED_AT" not in compose
 
     check = run_script("scripts/check-timeweb-deploy-tree.sh", str(tmp_path))
     assert check.returncode == 0, check.stderr

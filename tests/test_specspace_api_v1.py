@@ -284,6 +284,38 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["sources"]["spec_nodes"]["status"], "ok")
         self.assertEqual(body["sources"]["runs"]["status"], "ok")
 
+    def test_health_reports_deployment_metadata(self) -> None:
+        env = {
+            "SPECSPACE_VERSION": "0.0.7",
+            "SPECSPACE_RELEASE_COMMIT": "c05f17df6bd3ae338f98a4694561d640bcfda6d1",
+            "SPECSPACE_RELEASE_CREATED_AT": "2026-05-16T16:16:38Z",
+            "SPECSPACE_API_IMAGE_REF": "ghcr.io/0al-spec/specspace-api@sha256:" + "1" * 64,
+            "SPECSPACE_UI_IMAGE_REF": "ghcr.io/0al-spec/specspace-ui@sha256:" + "2" * 64,
+        }
+        with mock.patch.dict("os.environ", env, clear=False):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                spec_dir = root / "specs" / "nodes"
+                runs_dir = root / "runs"
+                spec_dir.mkdir(parents=True)
+                runs_dir.mkdir()
+                _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+                _write_json(runs_dir / "artifact.json", {"ok": True})
+                httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir, runs_dir=runs_dir)
+                try:
+                    status, body = _get(f"{base}/api/v1/health")
+                finally:
+                    _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["deployment"], {
+            "version": "0.0.7",
+            "commit": "c05f17df6bd3ae338f98a4694561d640bcfda6d1",
+            "created_at": "2026-05-16T16:16:38Z",
+            "api_image_ref": "ghcr.io/0al-spec/specspace-api@sha256:" + "1" * 64,
+            "ui_image_ref": "ghcr.io/0al-spec/specspace-ui@sha256:" + "2" * 64,
+        })
+
     def test_spec_graph_v1_returns_existing_graph_contract_with_version_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

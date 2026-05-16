@@ -77,6 +77,10 @@ services:
 
   specspace-api:
     image: "$api_image_ref"
+    environment:
+      SPECSPACE_API_IMAGE_REF: "$api_image_ref"
+      SPECSPACE_UI_IMAGE_REF: "$ui_image_ref"
+      SPECSPACE_RELEASE_COMMIT: "$release_commit"
     command:
       - python
       - viewer/server.py

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -25,6 +26,7 @@ HTTP_ARTIFACT_TIMEOUT_SECONDS = 10
 HTTP_ARTIFACT_CACHE_TTL_SECONDS = 30
 HTTP_ARTIFACT_MAX_BYTES = 10_000_000
 HTTP_ARTIFACT_PREFIX_BYTES = 4096
+SPECSPACE_APP_VERSION = "0.0.1"
 
 
 class CapabilityContext(capabilities_api.CapabilitiesHandler, Protocol):
@@ -116,6 +118,21 @@ def optional_source_is_available(source: SourceHealth) -> bool:
     return source.status == "not_configured" or source_is_readable(source)
 
 
+def _optional_env(name: str) -> str | None:
+    value = os.environ.get(name, "").strip()
+    return value or None
+
+
+def deployment_metadata() -> dict[str, Any]:
+    return {
+        "version": _optional_env("SPECSPACE_VERSION") or SPECSPACE_APP_VERSION,
+        "commit": _optional_env("SPECSPACE_RELEASE_COMMIT"),
+        "created_at": _optional_env("SPECSPACE_RELEASE_CREATED_AT"),
+        "api_image_ref": _optional_env("SPECSPACE_API_IMAGE_REF"),
+        "ui_image_ref": _optional_env("SPECSPACE_UI_IMAGE_REF"),
+    }
+
+
 @dataclass(frozen=True)
 class FileSpecGraphProvider:
     """Readonly file-backed provider over SpecGraph nodes and runs artifacts."""
@@ -154,6 +171,7 @@ class FileSpecGraphProvider:
             status = "degraded"
         return {
             "api_version": SPECSPACE_API_VERSION,
+            "deployment": deployment_metadata(),
             "provider": "file",
             "read_only": True,
             "status": status,
@@ -413,6 +431,7 @@ class HttpSpecGraphProvider:
         if error is not None:
             return {
                 "api_version": SPECSPACE_API_VERSION,
+                "deployment": deployment_metadata(),
                 "provider": self.kind,
                 "read_only": True,
                 "status": "unavailable",
@@ -428,6 +447,7 @@ class HttpSpecGraphProvider:
         status = "ok" if spec_paths else "unavailable"
         return {
             "api_version": SPECSPACE_API_VERSION,
+            "deployment": deployment_metadata(),
             "provider": self.kind,
             "read_only": True,
             "status": status,
