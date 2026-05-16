@@ -1,6 +1,16 @@
 name: specspace
 
 services:
+  app:
+    build:
+      context: .
+      dockerfile: graphspace/Dockerfile
+    image: specspace-ui:local
+    ports:
+      - "${SPECSPACE_UI_PORT:-5173}:80"
+    depends_on:
+      - specspace-api
+
   specspace-api:
     build:
       context: .
@@ -21,13 +31,3 @@ services:
       - /app/deploy/specspace-demo/runs
     ports:
       - "${SPECSPACE_API_PORT:-8001}:8001"
-
-  specspace-ui:
-    build:
-      context: .
-      dockerfile: graphspace/Dockerfile
-    image: specspace-ui:local
-    ports:
-      - "${SPECSPACE_UI_PORT:-5173}:80"
-    depends_on:
-      - specspace-api
