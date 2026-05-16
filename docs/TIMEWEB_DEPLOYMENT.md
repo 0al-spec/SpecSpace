@@ -70,6 +70,7 @@ The guard checks:
 
 - normal PR/main branches do not accidentally contain root `docker-compose.yml`;
 - `timeweb-deploy:docker-compose.yml` exists;
+- the first service is the GraphSpace UI service named `app`;
 - the Timeweb compose has no `volumes`;
 - the Timeweb compose has no required `${VAR:?message}` interpolation;
 - the Timeweb API command points at bundled demo artifact paths.
@@ -80,6 +81,13 @@ The current Timeweb compose file builds images from the repository:
 
 ```yaml
 services:
+  app:
+    build:
+      context: .
+      dockerfile: graphspace/Dockerfile
+    image: specspace-ui:local
+    depends_on:
+      - specspace-api
   specspace-api:
     build:
       context: .
@@ -91,15 +99,15 @@ services:
       - /app/deploy/specspace-demo/specs/nodes
       - --runs-dir
       - /app/deploy/specspace-demo/runs
-  specspace-ui:
-    build:
-      context: .
-      dockerfile: graphspace/Dockerfile
 ```
 
 Because the compose file uses `build.context: .`, the `timeweb-deploy` branch
 must contain the full repository build context. The Timeweb-specific file is
 only in that branch, but the branch itself is not manifest-only.
+
+Timeweb proxies the primary domain to the first compose service. The UI service
+is therefore named `app` and declared before `specspace-api`; otherwise the
+domain root would hit the backend and return `404`.
 
 ## Required Environment
 
