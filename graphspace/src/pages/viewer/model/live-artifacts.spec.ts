@@ -71,6 +71,28 @@ describe("describeArtifact", () => {
     expect(result.detail).toContain("artifact runs/implementation_work_index.json");
     expect(result.detail).toContain("reason missing_artifact");
   });
+
+  it("surfaces nested source details for manifest failures", () => {
+    const result = describeArtifact({
+      ...base,
+      state: {
+        kind: "http-error",
+        status: 503,
+        statusText: "Service Unavailable",
+        body: {
+          error: "SpecGraph artifact manifest is not readable.",
+          source: {
+            path: "https://specgraph.tech/artifact_manifest.json",
+            detail: "manifest returned HTTP 404",
+          },
+        },
+      },
+      liveCount: 0,
+    });
+    expect(result.detail).toContain("SpecGraph artifact manifest is not readable");
+    expect(result.detail).toContain("manifest returned HTTP 404");
+    expect(result.detail).toContain("https://specgraph.tech/artifact_manifest.json");
+  });
 });
 
 describe("describeSourceDeltaSnapshot", () => {

@@ -53,6 +53,7 @@ export function describeHttpErrorDetail(state: {
   const parts = [
     stringField(body, "error"),
     stringField(body, "detail"),
+    stringField(source, "detail"),
     stringField(body, "artifact") ? `artifact ${stringField(body, "artifact")}` : null,
     stringField(body, "reason") ? `reason ${stringField(body, "reason")}` : null,
     stringField(body, "path") ?? stringField(source, "path"),
