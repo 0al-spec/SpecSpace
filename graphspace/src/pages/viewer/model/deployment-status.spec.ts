@@ -75,6 +75,22 @@ describe("shouldUseRunsWatch", () => {
   it("waits for health before opening the SSE endpoint", () => {
     expect(shouldUseRunsWatch({ kind: "loading" })).toBe(false);
   });
+
+  it("keeps runs-watch available when health fails transiently", () => {
+    expect(shouldUseRunsWatch({
+      kind: "http-error",
+      status: 502,
+      statusText: "Bad Gateway",
+    })).toBe(true);
+    expect(shouldUseRunsWatch({
+      kind: "network-error",
+      error: new TypeError("Failed to fetch"),
+    })).toBe(true);
+    expect(shouldUseRunsWatch({
+      kind: "invalid",
+      reason: "bad health envelope",
+    })).toBe(true);
+  });
 });
 
 function ui(): DeploymentInfo {

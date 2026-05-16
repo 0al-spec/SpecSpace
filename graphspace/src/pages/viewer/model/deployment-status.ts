@@ -167,5 +167,7 @@ export function describeDeploymentStatus(
 }
 
 export function shouldUseRunsWatch(api: ApiDeploymentState): boolean {
-  return api.kind === "ok" && api.provider !== "http";
+  if (api.kind === "ok") return api.provider !== "http";
+  if (api.kind === "loading") return false;
+  return true;
 }
