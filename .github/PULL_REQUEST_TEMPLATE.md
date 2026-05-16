@@ -11,8 +11,8 @@
 - What is intentionally out of scope?
 
 ## Changes
-- 
-- 
+- Describe the first notable change.
+- Describe the second notable change.
 
 ## Validation
 - [ ] Tests added/updated for changed behavior
@@ -26,7 +26,7 @@ Commands run:
 ```
 
 Results:
-- 
+- Describe command results or manual validation outcome.
 
 ## Risks / Notes
 - Backward compatibility impact:
