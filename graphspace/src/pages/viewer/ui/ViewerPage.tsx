@@ -128,6 +128,12 @@ export function ViewerPage() {
       emptyDetail: "Artifact is live but contains no proposal trace entries.",
     }),
   ] as const;
+  const liveStatusTooltip = [
+    deploymentStatus.title,
+    ...artifactDiagnostics.map(
+      (artifact) => `${artifact.label}: ${artifact.status}; ${artifact.detail}`,
+    ),
+  ].join("\n");
 
   // Spec search narrows the feed before tone bucketing, so chip counts show
   // the tone distribution inside the active spec/path query.
@@ -408,6 +414,7 @@ export function ViewerPage() {
           workKind: workState.kind,
           workItemCount: liveWorkItems.length,
           traceKind: proposalTraceState.kind,
+          tooltip: liveStatusTooltip,
         }}
       />
     </div>

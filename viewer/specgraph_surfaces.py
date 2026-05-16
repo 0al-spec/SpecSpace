@@ -234,20 +234,25 @@ def read_implementation_work_index(
     runs_dir: Path | None,
     limit_raw: str | None,
 ) -> tuple[int, dict[str, Any]]:
+    artifact_path = "runs/implementation_work_index.json"
+    missing_error = {
+        "error": "implementation_work_index.json not found. Run `make viewer-surfaces` in SpecGraph first.",
+        "reason": "missing_artifact",
+        "artifact": artifact_path,
+        "build_hint": "`make viewer-surfaces` in SpecGraph",
+    }
     if runs_dir is None:
-        return HTTPStatus.NOT_FOUND, {
-            "error": "implementation_work_index.json not found. Run `make viewer-surfaces` in SpecGraph first."
-        }
+        return HTTPStatus.NOT_FOUND, missing_error
     path = runs_dir / "implementation_work_index.json"
     if not path.exists():
-        return HTTPStatus.NOT_FOUND, {
-            "error": "implementation_work_index.json not found. Run `make viewer-surfaces` in SpecGraph first."
-        }
+        return HTTPStatus.NOT_FOUND, missing_error
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         return HTTPStatus.UNPROCESSABLE_ENTITY, {
             "error": "implementation_work_index.json is not valid JSON",
+            "reason": "invalid_json",
+            "artifact": artifact_path,
             "detail": str(exc),
         }
 

@@ -51,6 +51,26 @@ describe("describeArtifact", () => {
     });
     expect(result.detail).toContain("HTTP 404");
   });
+
+  it("surfaces structured backend error details for artifact failures", () => {
+    const result = describeArtifact({
+      ...base,
+      state: {
+        kind: "http-error",
+        status: 404,
+        statusText: "Not Found",
+        body: {
+          error: "implementation_work_index.json not found. Run `make viewer-surfaces` in SpecGraph first.",
+          reason: "missing_artifact",
+          artifact: "runs/implementation_work_index.json",
+        },
+      },
+      liveCount: 0,
+    });
+    expect(result.detail).toContain("implementation_work_index.json not found");
+    expect(result.detail).toContain("artifact runs/implementation_work_index.json");
+    expect(result.detail).toContain("reason missing_artifact");
+  });
 });
 
 describe("describeSourceDeltaSnapshot", () => {
