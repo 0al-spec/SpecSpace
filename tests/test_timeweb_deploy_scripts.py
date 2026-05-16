@@ -51,6 +51,7 @@ def test_render_timeweb_deploy_branch_creates_manifest_only_tree(tmp_path: Path)
         in compose
     )
     assert 'SPECSPACE_RELEASE_COMMIT: "test-release"' in compose
+    assert "SPECSPACE_RELEASE_CREATED_AT" not in compose
 
     check = run_script("scripts/check-timeweb-deploy-tree.sh", str(tmp_path))
     assert check.returncode == 0, check.stderr
