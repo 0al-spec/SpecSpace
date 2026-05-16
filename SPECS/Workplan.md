@@ -1586,21 +1586,22 @@ Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer 
   - SpecSpace docs point to `/api/v1/*` and Docker smoke guidance.
   - Legacy conversation authoring docs do not present themselves as SpecSpace instructions.
 
-### ✅ CTXB-P12-T5 — Add Timeweb deploy-branch compose sync guard — DONE (PASS, 2026-05-16)
-- **Description:** Keep Timeweb's root `docker-compose.yml` only in the dedicated `timeweb-deploy` branch and guard it against drift from `compose.specspace.yml`.
+### ✅ CTXB-P12-T5 — Add Timeweb no-volume demo deployment guard — DONE (PASS, 2026-05-16)
+- **Description:** Keep Timeweb's root `docker-compose.yml` only in the dedicated `timeweb-deploy` branch and guard it against unsupported compose features. Timeweb currently rejects `volumes`, so the deploy branch boots against bundled demo artifacts until external SpecGraph artifact publishing exists.
 - **Priority:** P1
 - **Dependencies:** CTXB-P12-T4
 - **Parallelizable:** yes
-- **Outputs / Artifacts:** deploy-branch check scripts, optional pre-push hook, CI job, `timeweb-deploy` branch, validation report
+- **Outputs / Artifacts:** bundled demo artifacts, deploy-branch check scripts, optional pre-push hook, CI job, `timeweb-deploy` branch, validation report
 - **Acceptance Criteria:**
   - Timeweb can discover `docker-compose.yml` at repository root when deploying from `timeweb-deploy`.
   - Main/PR branches do not contain the Timeweb-only root `docker-compose.yml`.
-  - `timeweb-deploy:docker-compose.yml` and `compose.specspace.yml` are kept byte-for-byte identical.
+  - `timeweb-deploy:docker-compose.yml` contains no `volumes` and no required `${VAR:?message}` interpolation.
+  - `timeweb-deploy:docker-compose.yml` points the API at bundled demo SpecGraph artifacts.
   - A local pre-push hook can run the sync guard when `core.hooksPath` is configured.
   - CI runs a `Timeweb Docker Support` job that checks deploy-branch sync and validates compose config from the deploy branch.
 
 ### CTXB-P12-T6 — Plan registry-backed Timeweb deploy branch and HTTP artifacts
-- **Description:** Design the long-term Timeweb deployment branch where the branch can contain only deployment manifests because API/UI images are prebuilt and pinned. Include the companion plan for reading SpecGraph artifacts from HTTP/static hosting such as `https://specgraph.tech/specs` and `/runs`.
+- **Description:** Design the long-term Timeweb deployment branch where the branch can contain only deployment manifests because API/UI images are prebuilt and pinned. Include the companion plan for replacing bundled demo artifacts with HTTP/static SpecGraph artifacts from hosting such as `https://specgraph.tech/specs` and `/runs`.
 - **Priority:** P2
 - **Dependencies:** CTXB-P12-T5
 - **Parallelizable:** yes

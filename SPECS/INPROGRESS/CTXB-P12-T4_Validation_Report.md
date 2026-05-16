@@ -19,5 +19,5 @@ guidance and document Timeweb deployment notes.
   conversation-app guidance.
 - SpecSpace deployment docs now point to the Timeweb-specific guide.
 - `docs/TIMEWEB_DEPLOYMENT.md` records that the Timeweb-only
-  `docker-compose.yml` lives only in `timeweb-deploy`, while a future
-  manifest-only branch requires prebuilt images.
+  `docker-compose.yml` lives only in `timeweb-deploy`, uses no volumes, and
+  serves bundled demo artifacts until HTTP/static SpecGraph artifacts exist.
