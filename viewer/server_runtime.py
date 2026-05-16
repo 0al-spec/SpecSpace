@@ -119,7 +119,8 @@ def configure_server(
         server.specgraph_dir,
     )
     server.runs_watcher = runs_watcher_factory(server.runs_dir) if server.runs_dir is not None else None
-    server.artifact_base_url = args.artifact_base_url.strip() if args.artifact_base_url else None
+    artifact_base_url = getattr(args, "artifact_base_url", None)
+    server.artifact_base_url = artifact_base_url.strip() if artifact_base_url else None
     server.agent_available = args.agent
 
 
