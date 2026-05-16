@@ -44,6 +44,28 @@ if ! git cat-file -e "$deploy_ref:$target_file" 2>/dev/null; then
 fi
 
 compose_text="$(git show "$deploy_ref:$target_file")"
+first_service="$(
+  awk '
+    /^services:[[:space:]]*$/ { in_services = 1; next }
+    in_services && /^[^[:space:]]/ { exit }
+    in_services && /^  [A-Za-z0-9_.-]+:[[:space:]]*$/ {
+      service = $1
+      sub(":", "", service)
+      print service
+      exit
+    }
+  ' <<<"$compose_text"
+)"
+
+if [[ "$first_service" != "app" ]]; then
+  cat >&2 <<EOF
+$deploy_ref:$target_file must declare the UI service as the first service named
+'app'. Timeweb proxies the primary domain to the first compose service.
+
+Detected first service: ${first_service:-<none>}
+EOF
+  exit 1
+fi
 
 if grep -Eq '^[[:space:]]*volumes:' <<<"$compose_text"; then
   echo "$deploy_ref:$target_file contains volumes, which Timeweb rejects." >&2
