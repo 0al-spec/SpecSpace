@@ -3,7 +3,7 @@
 **Current Task:** `CTXB-P12-T6` — Plan registry-backed Timeweb deploy branch and HTTP artifacts
 
 ## Recently Archived
-- `CTXB-P12-T5` — Add Timeweb Docker Compose entrypoint and sync guard (PASS, 2026-05-16)
+- `CTXB-P12-T5` — Add Timeweb deploy-branch compose sync guard (PASS, 2026-05-16)
 - `CTXB-P12-T4` — Separate legacy ContextBuilder docs from SpecSpace docs (PASS, 2026-05-16)
 - `CTXB-P12-T3` — Add GraphSpace API boundary guardrail (PASS, 2026-05-16)
 - `CTXB-P12-T2` — Document SpecSpace product and deployment boundary (PASS, 2026-05-16)
@@ -46,7 +46,7 @@
 
 ### SpecSpace Product Boundary (Phase 12, current)
 - `CTXB-P12-T6` — Plan registry-backed Timeweb deploy branch and HTTP artifacts (P2, depends on P12-T5)
-- Rationale: the root `docker-compose.yml` now supports Timeweb discovery, but a branch containing only deployment manifests requires prebuilt images. HTTP/static SpecGraph artifacts also need a provider contract before Timeweb can consume `https://specgraph.tech/specs` and `/runs` directly.
+- Rationale: `timeweb-deploy` now owns the Timeweb-only root `docker-compose.yml`, while main stays free of Timeweb-only files. A future branch containing only deployment manifests requires prebuilt images. HTTP/static SpecGraph artifacts also need a provider contract before Timeweb can consume `https://specgraph.tech/specs` and `/runs` directly.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.

@@ -9,25 +9,22 @@ https://timeweb.cloud/docs/apps/deploying-with-docker-compose
 
 ## Compose Entrypoint
 
-SpecSpace keeps two compose filenames:
+SpecSpace keeps Timeweb's required compose filename out of the main development
+line:
 
-- `compose.specspace.yml`: local/operator compose entrypoint.
-- `docker-compose.yml`: Timeweb-compatible root entrypoint.
+- main/PR branches: `compose.specspace.yml`
+- `timeweb-deploy` branch only: `docker-compose.yml`
 
-These files are intentionally byte-for-byte identical. Timeweb discovers the
-root `docker-compose.yml`, while local operators can keep using the explicit
-`compose.specspace.yml` command from [`SPECSPACE_DEPLOYMENT.md`](SPECSPACE_DEPLOYMENT.md).
+The `timeweb-deploy` branch contains the full SpecSpace repository plus the
+Timeweb-only root `docker-compose.yml`. That root file is byte-for-byte
+identical to `compose.specspace.yml`.
 
-Use this helper after editing `compose.specspace.yml`:
+Timeweb should be configured to deploy from the `timeweb-deploy` branch.
 
-```bash
-scripts/sync-timeweb-compose.sh
-```
-
-Check drift manually:
+Check drift manually from a normal development branch:
 
 ```bash
-scripts/check-timeweb-compose-sync.sh
+TIMEWEB_DEPLOY_REMOTE=specspace scripts/check-timeweb-deploy-branch.sh
 ```
 
 Enable the optional local pre-push hook:
@@ -37,11 +34,17 @@ git config core.hooksPath .githooks
 ```
 
 Git does not enable repository hooks automatically after clone, so CI also runs
-the same sync guard in the `Timeweb Docker Support` job.
+the same deploy-branch guard in the `Timeweb Docker Support` job.
+
+The guard checks two things:
+
+- normal PR/main branches do not accidentally contain root `docker-compose.yml`;
+- `timeweb-deploy:docker-compose.yml` has the same SHA-256 as
+  `compose.specspace.yml`.
 
 ## Current Deployment Shape
 
-The current Timeweb compose file builds images from this repository:
+The current Timeweb compose file builds images from the repository:
 
 ```yaml
 services:
@@ -55,10 +58,9 @@ services:
       dockerfile: graphspace/Dockerfile
 ```
 
-Because the compose file uses `build.context: .`, the Timeweb branch must
-contain the full build context, not only the compose file. A branch containing
-only deployment manifests will work only after SpecSpace publishes prebuilt API
-and UI images to a container registry.
+Because the compose file uses `build.context: .`, the `timeweb-deploy` branch
+must contain the full repository build context. The Timeweb-specific file is
+only in that branch, but the branch itself is not manifest-only.
 
 ## Required Environment
 
@@ -87,25 +89,53 @@ Timeweb they must point to paths that exist on the deployment host. If the
 platform does not expose suitable host paths for bind mounts, use one of the
 future artifact-provider options below.
 
-## Deployment Branch Options
-
-### Full-Context Branch
+## Current Full-Context Branch
 
 This works with the current compose file:
 
-1. Keep `docker-compose.yml` in the repository root.
-2. Point Timeweb at a branch that contains the full SpecSpace repository.
-3. Configure the required `SPECSPACE_*` environment variables.
+1. Keep `docker-compose.yml` out of main/PR branches.
+2. Keep `docker-compose.yml` in `timeweb-deploy`.
+3. Point Timeweb at `timeweb-deploy`.
+4. Configure the required `SPECSPACE_*` environment variables.
 
-This can be `main`, a release branch, or a dedicated branch such as
-`timeweb-deploy` if that branch still contains the full build context.
+The branch currently has this shape:
 
-### Manifest-Only Branch
+```text
+timeweb-deploy
+  Dockerfile
+  graphspace/
+  viewer/
+  compose.specspace.yml
+  docker-compose.yml   # Timeweb-only root entrypoint
+  ...
+```
 
-This is the cleaner long-term deployment shape, but it requires one more step:
-prebuilt images.
+## Updating The Deploy Branch
 
-The desired shape is:
+After changing `compose.specspace.yml`, update `timeweb-deploy` so its
+`docker-compose.yml` is identical:
+
+```bash
+git switch timeweb-deploy
+cp compose.specspace.yml docker-compose.yml
+git add docker-compose.yml
+git commit -m "Update Timeweb compose entrypoint"
+git push specspace timeweb-deploy
+git switch -
+```
+
+Then check from your working branch:
+
+```bash
+TIMEWEB_DEPLOY_REMOTE=specspace scripts/check-timeweb-deploy-branch.sh
+```
+
+## Future Manifest-Only Branch
+
+The long-term cleaner deployment shape is a branch with only deployment
+manifests. That requires prebuilt images.
+
+Desired flow:
 
 ```text
 SpecSpace CI
@@ -125,9 +155,10 @@ services:
     image: ghcr.io/0al-spec/specspace-ui:<sha>
 ```
 
-Timeweb can then target the `timeweb-deploy` branch in its control panel. This
+Timeweb can still target the `timeweb-deploy` branch in its control panel. This
 is tracked as a follow-up because it changes the release pipeline and registry
-permissions.
+permissions. In that future state, the branch may contain only deployment
+manifests.
 
 ## SpecGraph Artifacts From FTP Or Static Hosting
 
