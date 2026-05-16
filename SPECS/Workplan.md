@@ -1574,7 +1574,7 @@ Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer 
   - CI runs the guardrail alongside GraphSpace validation.
   - GraphSpace runtime data reads remain on `/api/v1/*`.
 
-### CTXB-P12-T4 — Separate legacy ContextBuilder docs from SpecSpace docs
+### ✅ CTXB-P12-T4 — Separate legacy ContextBuilder docs from SpecSpace docs — DONE (PASS, 2026-05-16)
 - **Description:** Review top-level operator/developer docs and label or split legacy ContextBuilder conversation guidance from SpecSpace runtime guidance. The goal is to reduce local-run confusion now that `viewer/app` and `graphspace/` serve different products.
 - **Priority:** P2
 - **Dependencies:** CTXB-P12-T3
@@ -1585,6 +1585,30 @@ Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer 
   - Local run commands identify whether they launch `viewer/app` or `graphspace/`.
   - SpecSpace docs point to `/api/v1/*` and Docker smoke guidance.
   - Legacy conversation authoring docs do not present themselves as SpecSpace instructions.
+
+### ✅ CTXB-P12-T5 — Add Timeweb Docker Compose entrypoint and sync guard — DONE (PASS, 2026-05-16)
+- **Description:** Add a root `docker-compose.yml` for Timeweb Compose discovery and guard it against drift from `compose.specspace.yml`.
+- **Priority:** P1
+- **Dependencies:** CTXB-P12-T4
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** root `docker-compose.yml`, sync/check scripts, optional pre-push hook, CI job, validation report
+- **Acceptance Criteria:**
+  - Timeweb can discover `docker-compose.yml` at repository root.
+  - `docker-compose.yml` and `compose.specspace.yml` are kept byte-for-byte identical.
+  - A local pre-push hook can run the sync guard when `core.hooksPath` is configured.
+  - CI runs a `Timeweb Docker Support` job that checks sync and validates compose config.
+
+### CTXB-P12-T6 — Plan registry-backed Timeweb deploy branch and HTTP artifacts
+- **Description:** Design the long-term Timeweb deployment branch where the branch can contain only deployment manifests because API/UI images are prebuilt and pinned. Include the companion plan for reading SpecGraph artifacts from HTTP/static hosting such as `https://specgraph.tech/specs` and `/runs`.
+- **Priority:** P2
+- **Dependencies:** CTXB-P12-T5
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** deployment-branch plan, registry image naming/versioning plan, HTTP artifact provider task split
+- **Acceptance Criteria:**
+  - The plan explains how CI builds and publishes SpecSpace API/UI images.
+  - The plan explains how a `timeweb-deploy` branch is generated or maintained.
+  - The plan defines the minimal static SpecGraph artifact index contract.
+  - Follow-up implementation tasks are small enough to PR independently.
 
 ## Dependency Summary
 

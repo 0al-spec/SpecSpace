@@ -1,5 +1,10 @@
 # Quickstart
 
+This quickstart is for the legacy ContextBuilder conversation application
+(`viewer/app`). For SpecSpace/GraphSpace deployment and local Docker smoke, use
+[`SPECSPACE_DEPLOYMENT.md`](SPECSPACE_DEPLOYMENT.md) and
+[`TIMEWEB_DEPLOYMENT.md`](TIMEWEB_DEPLOYMENT.md).
+
 ## Update Canonical JSONs & Run the Server
 
 ### 1. Canonicalize
