@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   describeDeploymentStatus,
+  shouldUseRunsWatch,
   type ApiDeploymentState,
   type DeploymentInfo,
 } from "./deployment-status";
@@ -51,6 +52,28 @@ describe("describeDeploymentStatus", () => {
 
     expect(state.label).toBe("UI 0.0.1+c05f17d · API HTTP 502");
     expect(state.title).toContain("API deployment: HTTP 502 Bad Gateway");
+  });
+});
+
+describe("shouldUseRunsWatch", () => {
+  it("disables runs-watch for static HTTP artifact providers", () => {
+    expect(shouldUseRunsWatch({
+      kind: "ok",
+      deployment: deployment(),
+      provider: "http",
+    })).toBe(false);
+  });
+
+  it("keeps runs-watch for filesystem-backed local providers", () => {
+    expect(shouldUseRunsWatch({
+      kind: "ok",
+      deployment: deployment(),
+      provider: "file",
+    })).toBe(true);
+  });
+
+  it("waits for health before opening the SSE endpoint", () => {
+    expect(shouldUseRunsWatch({ kind: "loading" })).toBe(false);
   });
 });
 

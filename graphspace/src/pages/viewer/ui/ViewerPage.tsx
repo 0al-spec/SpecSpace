@@ -28,6 +28,7 @@ import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-art
 import { describeLive } from "../model/live-status";
 import {
   describeDeploymentStatus,
+  shouldUseRunsWatch,
   uiDeploymentInfo,
   useApiDeploymentStatus,
 } from "../model/deployment-status";
@@ -52,7 +53,10 @@ export function ViewerPage() {
     useState<ViewerUtilityPanelId | null>(null);
   const [selectedSpecNodeId, setSelectedSpecNodeId] = useState<string | null>(null);
   const [selectedSpec, setSelectedSpec] = useState<SpecInspectorSelection | null>(null);
-  const runsWatchVersion = useRunsWatchVersion();
+  const apiDeploymentState = useApiDeploymentStatus();
+  const runsWatchVersion = useRunsWatchVersion({
+    enabled: shouldUseRunsWatch(apiDeploymentState),
+  });
   const feedState = useRecentChanges({ refreshKey: runsWatchVersion });
   const workState = useImplementationWorkIndex({ refreshKey: runsWatchVersion });
   const proposalTraceState = useProposalSpecTraceIndex({ refreshKey: runsWatchVersion });
@@ -60,7 +64,6 @@ export function ViewerPage() {
   const specpmLifecycleState = useSpecPMLifecycleBadges({
     refreshKey: runsWatchVersion,
   });
-  const apiDeploymentState = useApiDeploymentStatus();
   const deploymentStatus = describeDeploymentStatus(uiDeploymentInfo, apiDeploymentState);
 
   const feedStatus = describeLive(feedState, {

@@ -165,3 +165,7 @@ export function describeDeploymentStatus(
     title: [describeInfo("UI", ui), describeApiState(api)].join("\n\n"),
   };
 }
+
+export function shouldUseRunsWatch(api: ApiDeploymentState): boolean {
+  return api.kind === "ok" && api.provider !== "http";
+}
