@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -23,6 +24,7 @@ class ViewerRuntimeServer(Protocol):
     specgraph_dir: Path | None
     runs_dir: Path | None
     runs_watcher: Any
+    artifact_base_url: str | None
     agent_available: bool
 
     def serve_forever(self) -> None: ...
@@ -67,6 +69,15 @@ def build_arg_parser(
         help="Path to a SpecGraph runs directory. Defaults to a path derived from --spec-dir or --specgraph-dir.",
     )
     parser.add_argument(
+        "--artifact-base-url",
+        type=str,
+        default=os.environ.get("SPECSPACE_ARTIFACT_BASE_URL"),
+        help=(
+            "Base URL for a static SpecGraph artifact site. When set, SpecSpace "
+            "reads artifact_manifest.json, specs/nodes/*.yaml, and runs/*.json over HTTP."
+        ),
+    )
+    parser.add_argument(
         "--agent",
         action="store_true",
         default=False,
@@ -108,6 +119,8 @@ def configure_server(
         server.specgraph_dir,
     )
     server.runs_watcher = runs_watcher_factory(server.runs_dir) if server.runs_dir is not None else None
+    artifact_base_url = getattr(args, "artifact_base_url", None)
+    server.artifact_base_url = artifact_base_url.strip() if artifact_base_url else None
     server.agent_available = args.agent
 
 

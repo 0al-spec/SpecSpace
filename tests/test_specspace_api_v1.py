@@ -1,8 +1,11 @@
 import json
 import tempfile
 import threading
+import time
 import unittest
-from http.server import ThreadingHTTPServer
+from functools import partial
+from http import HTTPStatus
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
 from urllib.error import HTTPError
@@ -46,6 +49,7 @@ def _start(
     spec_dir: Path | None = None,
     runs_dir: Path | None = None,
     specgraph_dir: Path | None = None,
+    artifact_base_url: str | None = None,
 ) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.ViewerHandler)
     httpd.repo_root = REPO_ROOT
@@ -57,6 +61,7 @@ def _start(
     httpd.specgraph_dir = specgraph_dir
     httpd.runs_dir = runs_dir
     httpd.runs_watcher = server.RunsWatcher(runs_dir) if runs_dir else None
+    httpd.artifact_base_url = artifact_base_url
     httpd.agent_available = False
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
@@ -75,6 +80,42 @@ def _get(url: str) -> tuple[int, dict]:
         return resp.status, json.loads(resp.read())
     except HTTPError as exc:
         return exc.code, json.loads(exc.read())
+
+
+class QuietStaticHandler(SimpleHTTPRequestHandler):
+    def log_message(self, format: str, *args) -> None:
+        return
+
+
+def _start_static(root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
+    handler = partial(QuietStaticHandler, directory=str(root))
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    return httpd, thread, f"http://127.0.0.1:{httpd.server_port}"
+
+
+def _write_manifest(root: Path, paths: list[str]) -> None:
+    files = []
+    for path in paths:
+        file_path = root / path
+        files.append(
+            {
+                "path": path,
+                "root": path.split("/", 1)[0],
+                "sha256": "0" * 64,
+                "size_bytes": file_path.stat().st_size,
+            }
+        )
+    _write_json(
+        root / "artifact_manifest.json",
+        {
+            "artifact_kind": "specgraph_static_artifact_manifest",
+            "schema_version": 1,
+            "generated_at": "2026-05-16T14:15:12Z",
+            "files": files,
+        },
+    )
 
 
 class SpecSpaceProviderHealthTests(unittest.TestCase):
@@ -144,6 +185,80 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
 
         self.assertEqual(health["status"], "degraded")
         self.assertEqual(health["sources"]["specgraph_root"]["status"], "missing")
+
+    def test_safe_manifest_path_rejects_absolute_and_parent_paths(self) -> None:
+        self.assertIsNone(specspace_provider.safe_manifest_path("/specs/nodes/SG-SPEC-0001.yaml"))
+        self.assertIsNone(specspace_provider.safe_manifest_path("specs/../secret.yaml"))
+        self.assertIsNone(specspace_provider.safe_manifest_path("https://example.test/spec.yaml"))
+        self.assertEqual(
+            specspace_provider.safe_manifest_path("specs/nodes/SG-SPEC-0001.yaml"),
+            "specs/nodes/SG-SPEC-0001.yaml",
+        )
+
+    def test_http_provider_recent_runs_reads_only_artifact_prefix(self) -> None:
+        manifest = {
+            "artifact_kind": "specgraph_static_artifact_manifest",
+            "files": [
+                {
+                    "path": "runs/20260513T100001Z-SG-SPEC-0001-abcdef1.json",
+                    "root": "runs",
+                    "sha256": "0" * 64,
+                    "size_bytes": 100_000,
+                }
+            ],
+        }
+        cache = specspace_provider.HttpArtifactCache(
+            manifest=manifest,
+            manifest_loaded_at=time.time(),
+        )
+        provider = specspace_provider.HttpSpecGraphProvider(
+            base_url="https://artifact.test",
+            cache=cache,
+        )
+
+        with mock.patch.object(
+            specspace_provider,
+            "http_get_text",
+            return_value=(HTTPStatus.PARTIAL_CONTENT, '{"title":"Recent run"}', None),
+        ) as get_text:
+            status, body = provider.read_recent_runs(limit=1, since_iso=None)
+
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(body["events"][0]["title"], "Recent run")
+        self.assertEqual(cache.text_by_path, {})
+        get_text.assert_called_once_with(
+            "https://artifact.test/runs/20260513T100001Z-SG-SPEC-0001-abcdef1.json",
+            max_bytes=specspace_provider.HTTP_ARTIFACT_PREFIX_BYTES,
+            range_bytes=specspace_provider.HTTP_ARTIFACT_PREFIX_BYTES,
+            allow_truncated=True,
+        )
+
+    def test_http_artifact_text_cache_evicts_expired_entries(self) -> None:
+        cache = specspace_provider.HttpArtifactCache(
+            text_by_path={
+                "runs/old.json": (0.0, "{}"),
+                "runs/fresh.json": (time.time(), "{}"),
+            },
+        )
+        provider = specspace_provider.HttpSpecGraphProvider(
+            base_url="https://artifact.test",
+            cache=cache,
+            cache_ttl_seconds=30,
+        )
+
+        with mock.patch.object(
+            specspace_provider,
+            "http_get_text",
+            return_value=(HTTPStatus.OK, '{"ok":true}', None),
+        ):
+            status, text, error = provider._read_artifact_text("runs/new.json")
+
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(text, '{"ok":true}')
+        self.assertIsNone(error)
+        self.assertNotIn("runs/old.json", cache.text_by_path or {})
+        self.assertIn("runs/fresh.json", cache.text_by_path or {})
+        self.assertIn("runs/new.json", cache.text_by_path or {})
 
 
 class SpecSpaceApiV1Tests(unittest.TestCase):
@@ -276,6 +391,83 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertNotIn("api_version", body)
         self.assertEqual(body["graph"]["summary"]["node_count"], 1)
+
+    def test_http_provider_reads_manifest_spec_graph_and_runs_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifact-site"
+            spec_dir = artifact_root / "specs" / "nodes"
+            runs_dir = artifact_root / "runs"
+            spec_dir.mkdir(parents=True)
+            runs_dir.mkdir()
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_json(
+                runs_dir / "spec_activity_feed.json",
+                {
+                    "artifact_kind": "spec_activity_feed",
+                    "entries": [
+                        {"occurred_at": "2026-05-16T14:00:00Z", "title": "new"},
+                        {"occurred_at": "2026-05-16T13:00:00Z", "title": "old"},
+                    ],
+                    "entry_count": 2,
+                },
+            )
+            _write_json(
+                runs_dir / "proposal_spec_trace_index.json",
+                {"artifact_kind": "proposal_spec_trace_index", "entries": [], "entry_count": 0},
+            )
+            _write_manifest(
+                artifact_root,
+                [
+                    "specs/nodes/SG-SPEC-0001.yaml",
+                    "runs/spec_activity_feed.json",
+                    "runs/proposal_spec_trace_index.json",
+                ],
+            )
+            static, static_thread, artifact_base_url = _start_static(artifact_root)
+            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base_url)
+            try:
+                health_status, health = _get(f"{base}/api/v1/health")
+                graph_status, graph = _get(f"{base}/api/v1/spec-graph")
+                node_status, node = _get(f"{base}/api/v1/spec-nodes/{quote('SG-SPEC-0001')}")
+                activity_status, activity = _get(f"{base}/api/v1/spec-activity?limit=1")
+                trace_status, trace = _get(f"{base}/api/v1/proposal-spec-trace-index")
+            finally:
+                _stop(httpd, thread)
+                _stop(static, static_thread)
+
+        self.assertEqual(health_status, 200)
+        self.assertEqual(health["provider"], "http")
+        self.assertEqual(health["sources"]["spec_nodes"]["item_count"], 1)
+        self.assertEqual(graph_status, 200)
+        self.assertEqual(graph["graph"]["summary"]["node_count"], 1)
+        self.assertEqual(graph["graph"]["nodes"][0]["node_id"], "SG-SPEC-0001")
+        self.assertEqual(node_status, 200)
+        self.assertEqual(node["data"]["title"], MINIMAL_SPEC["title"])
+        self.assertEqual(activity_status, 200)
+        self.assertEqual(activity["data"]["entry_count"], 1)
+        self.assertTrue(activity["path"].endswith("/runs/spec_activity_feed.json"))
+        self.assertEqual(trace_status, 200)
+        self.assertEqual(trace["data"]["artifact_kind"], "proposal_spec_trace_index")
+
+    def test_http_provider_reports_missing_runs_artifact_as_not_found(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifact-site"
+            spec_dir = artifact_root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_manifest(artifact_root, ["specs/nodes/SG-SPEC-0001.yaml"])
+            static, static_thread, artifact_base_url = _start_static(artifact_root)
+            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base_url)
+            try:
+                status, body = _get(f"{base}/api/v1/implementation-work-index")
+            finally:
+                _stop(httpd, thread)
+                _stop(static, static_thread)
+
+        self.assertEqual(status, 404)
+        self.assertIn("implementation_work_index.json not found", body["error"])
 
 
 if __name__ == "__main__":
