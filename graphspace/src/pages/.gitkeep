@@ -1,7 +1,0 @@
-# pages/ — FSD layer
-
-One slice per screen/route. Most logic and UI lives here first; promote
-to widgets/features/entities only when reuse appears.
-
-Examples (planned):
-  viewer/        — the main graph viewer screen

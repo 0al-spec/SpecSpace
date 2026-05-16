@@ -1,2 +1,0 @@
-# shared/api — generic HTTP client only.
-# Domain-specific contracts live in sibling segments (e.g. shared/spec-graph-contract).

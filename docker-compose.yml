@@ -2,20 +2,14 @@ name: specspace
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: graphspace/Dockerfile
-    image: specspace-ui:local
+    image: "ghcr.io/0al-spec/specspace-ui@sha256:116121c5240cb660a703690a1eb50f3548695c51e47639898e5dadadd9e5f1ee"
     ports:
       - "${SPECSPACE_UI_PORT:-5173}:80"
     depends_on:
       - specspace-api
 
   specspace-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: specspace-api:local
+    image: "ghcr.io/0al-spec/specspace-api@sha256:e94acb38d11570452af723ce360b205e6f432b7a2864249dac3910ebb2221778"
     command:
       - python
       - viewer/server.py
@@ -26,6 +20,6 @@ services:
       - --dialog-dir
       - /data/dialogs
       - --artifact-base-url
-      - https://specgraph.tech
+      - "https://specgraph.tech"
     ports:
       - "${SPECSPACE_API_PORT:-8001}:8001"

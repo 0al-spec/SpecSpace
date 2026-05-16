@@ -1,9 +1,0 @@
-{
-  "captured_at_iso": "2026-05-10",
-  "entry_count": 6,
-  "fixture_strategy": "first occurrence of each event_type + one empty spec_id, summary recounted",
-  "schema_version": 1,
-  "source_path": "/Users/egor/Development/GitHub/0AL/SpecGraph/runs/spec_activity_feed.json",
-  "source_sha256": "e8ac80f0b07f2d72f66531af92ff06e25152c665807d22ca04fc375994966d37",
-  "source_size_bytes": 95269
-}

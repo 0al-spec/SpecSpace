@@ -1,9 +1,0 @@
-# entities/ — FSD layer
-
-Business entities (nouns).
-Examples (planned):
-  spec-graph/        — nodes, edges, layout
-  run/
-  recent-change/
-  exploration-session/
-  spec/              — Spec, lens, kind
