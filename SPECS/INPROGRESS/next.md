@@ -1,8 +1,11 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P12-T7` — Publish pinned SpecSpace images and generate manifest-only Timeweb branch
+**Current Task:** `CTXB-P13-T1` — Select SpecSpace parity track after deployment hardening
 
 ## Recently Archived
+- `CTXB-P12-T9` — Clean up static production runtime noise (PASS, 2026-05-16)
+- `CTXB-P12-T8` — Surface live artifact error diagnostics (PASS, 2026-05-16)
+- `CTXB-P12-T7` — Publish pinned SpecSpace images and generate manifest-only Timeweb branch (PASS, 2026-05-16)
 - `CTXB-P12-T6` — Plan registry-backed Timeweb deploy branch and HTTP artifacts (PASS, 2026-05-16)
 - `CTXB-P12-T5` — Add Timeweb no-volume demo deployment guard (PASS, 2026-05-16)
 - `CTXB-P12-T4` — Separate legacy ContextBuilder docs from SpecSpace docs (PASS, 2026-05-16)
@@ -45,9 +48,18 @@
 
 ## Suggested Next Tasks
 
-### SpecSpace Product Boundary (Phase 12, current)
-- `CTXB-P12-T7` — Publish pinned SpecSpace images and generate manifest-only Timeweb branch (P2, depends on P12-T6)
-- Rationale: Timeweb can now consume real SpecGraph artifacts through the HTTP/static provider, and the `timeweb-deploy` branch has been switched away from bundled demo data. The remaining deployment hardening is release-shape work: build pinned API/UI images in CI and make the Timeweb branch manifest-only instead of source-build based.
+### SpecSpace Parity (Phase 13, current)
+- `CTXB-P13-T1` — Select SpecSpace parity track after deployment hardening (P1, depends on P12-T9)
+- Rationale: Timeweb/static deployment is now usable with versioned UI/API status, pinned images, HTTP SpecGraph artifacts, implementation work data, and reduced production log noise. The next product priority is parity with old ContextBuilder: SpecPM registry integration, Agent Workbench conversations, proposal viewer, metrics screen, and richer canvas interactions.
+
+### Phase 13 Suggested Stack
+- `CTXB-P13-T2` — Disable or replace local-only SpecPM lifecycle UI in static mode.
+- `CTXB-P13-T3` — Add SpecPM registry URL config and health reporting.
+- `CTXB-P13-T4` — Add SpecPM registry status/package read adapter.
+- `CTXB-P13-T5` — Start Proposal Viewer parity with static proposal indexes.
+- `CTXB-P13-T6` — Start Metrics screen parity with existing metrics artifacts.
+- `CTXB-P13-T7` — Define Agent Workbench conversation artifact model.
+- `CTXB-P13-T8` — Add graph-context-to-agent-context selection flow.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.
@@ -68,3 +80,4 @@
 ### Completed GraphSpace Context
 - Completed context: `CTXB-P10-T1` through `CTXB-P10-T12`, plus `CTXB-P8-T2`, `CTXB-P9-T6`, and `CTXB-P9-T7`.
 - GraphSpace currently has the primary SpecGraph canvas, Sidebar navigator, rich Spec Inspector, hover previews, SpecPM lifecycle badges, and unified SpecNode visual signals.
+- New parity context: see `SPECS/SPECSPACE_PARITY_ROADMAP.md`.
