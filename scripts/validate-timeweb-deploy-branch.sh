@@ -26,12 +26,6 @@ trap 'rm -rf "$tmp_dir"' EXIT
 
 git archive "$deploy_ref" | tar -x -C "$tmp_dir"
 
-export SPECSPACE_SPEC_NODES_DIR="$tmp_dir/specgraph/specs/nodes"
-export SPECSPACE_RUNS_DIR="$tmp_dir/specgraph/runs"
-export SPECSPACE_DIALOG_DIR="$tmp_dir/dialogs"
-
-mkdir -p "$SPECSPACE_SPEC_NODES_DIR" "$SPECSPACE_RUNS_DIR" "$SPECSPACE_DIALOG_DIR"
-
 (
   cd "$tmp_dir"
   docker compose -f docker-compose.yml config >/dev/null

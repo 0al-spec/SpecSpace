@@ -1,0 +1,20 @@
+id: SG-SPEC-0001
+title: SpecSpace Timeweb Demo Fixture
+kind: spec
+status: linked
+maturity: 1.0
+acceptance:
+  - Timeweb deployment can boot without external SpecGraph artifact mounts.
+acceptance_evidence:
+  - criterion: Timeweb deployment can boot without external SpecGraph artifact mounts.
+    evidence: The API reads this bundled fixture through /api/v1/spec-graph.
+inputs:
+  - deploy/specspace-demo/specs/nodes/SG-SPEC-0001.yaml
+specification:
+  objective: Provide a minimal readonly SpecGraph artifact for no-volume hosting.
+  decisions:
+    - title: Use bundled demo artifacts until external artifact publishing exists.
+      text: Timeweb currently rejects compose volumes, so real SpecGraph artifacts need a future HTTP/static provider or another platform-supported delivery path.
+depends_on: []
+refines: []
+relates_to: []
