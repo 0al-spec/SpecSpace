@@ -5,11 +5,12 @@ It is the branch Timeweb should deploy from.
 
 ## Release
 
-- Source commit: `10d9c2be931e2cb846bb0f2adf33f4a08504ec9f`
-- Generated at: `2026-05-17T18:50:51Z`
-- API image: `ghcr.io/0al-spec/specspace-api@sha256:063de783313cbfd0c29daec8f413388694199955990634788c4eedda7fe1ae7e`
-- UI image: `ghcr.io/0al-spec/specspace-ui@sha256:e5f781c9cea8de7195a92ce0fb9020d8d930befef082f3e299d0271fdb918754`
+- Source commit: `69ff770ea9f9c9dc91982795349dbb7d90f53a09`
+- Generated at: `2026-05-17T20:14:57Z`
+- API image: `ghcr.io/0al-spec/specspace-api@sha256:686eea1d0fbea611ee309ee482e27d829effbc7f8ccbefc88b522781e10fbd2b`
+- UI image: `ghcr.io/0al-spec/specspace-ui@sha256:cb8cba5ba86057202564075650ac4ac6428f084990bcd4fc9d12512e771e0dee`
 - SpecGraph artifact source: `https://specgraph.tech`
+- SpecPM registry source: `https://specpm.dev`
 
 ## Rollback
 
@@ -22,4 +23,5 @@ is selected together.
 - The first service is named `app` because Timeweb proxies the public domain to
   the first compose service.
 - SpecGraph data is read over HTTP through `--artifact-base-url`.
+- SpecPM registry metadata is read over HTTP through `--specpm-registry-url`.
 - This branch should not contain application source files.
