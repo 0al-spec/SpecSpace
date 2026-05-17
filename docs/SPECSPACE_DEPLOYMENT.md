@@ -158,6 +158,10 @@ belongs in SpecGraph producer validation, not SpecSpace deployment validation.
 
 The local deployment file is `compose.specspace.yml`.
 
+For a production-like local topology that reads SpecGraph artifacts and SpecPM
+registry metadata over HTTP, use
+[`LOCAL_DEPLOYMENT_LAB.md`](LOCAL_DEPLOYMENT_LAB.md).
+
 For Timeweb Cloud Apps, use the root `docker-compose.yml` entrypoint and the
 Timeweb-specific notes in [`TIMEWEB_DEPLOYMENT.md`](TIMEWEB_DEPLOYMENT.md).
 
