@@ -161,6 +161,9 @@ def extract_proposal_status(content: str) -> str:
 def extract_proposal_excerpt(content: str, *, max_length: int = 280) -> str:
     paragraphs: list[str] = []
     current: list[str] = []
+    in_frontmatter = False
+    frontmatter_checked = False
+    in_fence = False
     skip_status_section = False
     skipped_status_content = False
 
@@ -173,6 +176,23 @@ def extract_proposal_excerpt(content: str, *, max_length: int = 280) -> str:
     for line in content.splitlines():
         stripped = line.strip()
         lowered = stripped.lower()
+        if not frontmatter_checked:
+            if not stripped:
+                continue
+            frontmatter_checked = True
+            if stripped == "---":
+                in_frontmatter = True
+                continue
+        if in_frontmatter:
+            if stripped == "---":
+                in_frontmatter = False
+            continue
+        if stripped.startswith("```"):
+            flush()
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
         if not stripped:
             flush()
             if skip_status_section and skipped_status_content:
@@ -181,11 +201,8 @@ def extract_proposal_excerpt(content: str, *, max_length: int = 280) -> str:
             continue
         if stripped.startswith("#"):
             flush()
-            skip_status_section = lowered in {"## status", "### status"} or lowered.startswith("## status:")
+            skip_status_section = lowered in {"## status", "### status"}
             skipped_status_content = False
-            continue
-        if stripped.startswith("```"):
-            flush()
             continue
         if lowered.startswith("status:"):
             flush()
