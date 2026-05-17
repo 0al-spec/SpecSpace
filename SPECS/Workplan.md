@@ -1767,6 +1767,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Spec IDs rendered in context and transcript text stay graph-aware and clickable.
   - The shell remains framework-neutral; no third-party Agent UI package is installed.
 
+### ✅ CTXB-P13-T13 — Assistant UI adapter spike behind the conversation panel boundary — DONE (PASS, 2026-05-17)
+- **Description:** Add the first `assistant-ui` integration spike behind the Agent Conversation Panel boundary without moving framework types into Agent Workbench entities.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T12
+- **Parallelizable:** no
+- **Outputs / Artifacts:** `@assistant-ui/react` dependency, widget-local assistant-ui external-store adapter, adapter tests
+- **Acceptance Criteria:**
+  - `@assistant-ui/react` is installed only as a GraphSpace UI dependency.
+  - `entities/agent-workbench` continues to export only SpecSpace-owned runtime/context/projection types.
+  - Widget-local adapter code maps `AgentRuntimeProjection` into assistant-ui external-store message shape.
+  - The visible panel can host assistant-ui primitives without changing the persisted conversation artifact contract.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.

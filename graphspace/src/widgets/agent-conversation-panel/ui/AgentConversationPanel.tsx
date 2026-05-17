@@ -1,5 +1,10 @@
 import { type FormEvent, useCallback, useMemo, useState } from "react";
 import {
+  AssistantRuntimeProvider,
+  ThreadPrimitive,
+  useExternalStoreRuntime,
+} from "@assistant-ui/react";
+import {
   agentContextItemKey,
   createAgentRuntimeProjection,
   projectAgentRuntimeEvent,
@@ -11,6 +16,7 @@ import {
   type AgentRuntimeTurnProjection,
 } from "@/entities/agent-workbench";
 import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
+import { createAssistantUiExternalStoreAdapter } from "../model/assistant-ui-adapter";
 import styles from "./AgentConversationPanel.module.css";
 
 type AgentConversationPanelStatus = "idle" | "starting" | "streaming" | "active" | "error";
@@ -38,6 +44,15 @@ export function AgentConversationPanel({
   const [error, setError] = useState<string | null>(null);
   const isBusy = status === "starting" || status === "streaming";
   const hasPrompt = prompt.trim().length > 0;
+  const assistantUiStore = useMemo(
+    () =>
+      createAssistantUiExternalStoreAdapter({
+        projection,
+        is_running: isBusy,
+      }),
+    [projection, isBusy],
+  );
+  const assistantUiRuntime = useExternalStoreRuntime(assistantUiStore);
 
   const streamMessage = useCallback(
     async (ref: AgentConversationRef, text: string) => {
@@ -115,23 +130,29 @@ export function AgentConversationPanel({
         )}
       </div>
 
-      <div className={styles.transcript} aria-live="polite">
-        {projection.turns.length === 0 ? (
-          <Status
-            label="Conversation not started"
-            detail="Send a prompt to create a local mock conversation from the current Agent context draft."
-          />
-        ) : (
-          projection.turns.map((turn) => (
-            <TurnView
-              key={turn.turn_id}
-              turn={turn}
-              resolveSpecRef={resolveSpecRef}
-              onSpecIdClick={onSpecIdClick}
+      <AssistantRuntimeProvider runtime={assistantUiRuntime}>
+        <ThreadPrimitive.Root
+          className={styles.transcript}
+          aria-live="polite"
+          data-agent-ui-adapter="assistant-ui"
+        >
+          {projection.turns.length === 0 ? (
+            <Status
+              label="Conversation not started"
+              detail="Send a prompt to create a local mock conversation from the current Agent context draft."
             />
-          ))
-        )}
-      </div>
+          ) : (
+            projection.turns.map((turn) => (
+              <TurnView
+                key={turn.turn_id}
+                turn={turn}
+                resolveSpecRef={resolveSpecRef}
+                onSpecIdClick={onSpecIdClick}
+              />
+            ))
+          )}
+        </ThreadPrimitive.Root>
+      </AssistantRuntimeProvider>
 
       {error ? <p className={styles.error}>{error}</p> : null}
 
