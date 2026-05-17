@@ -1,11 +1,12 @@
 # Tasks Archive
 
-**Last Updated:** 2026-05-17 (CTXB-P13-T6)
+**Last Updated:** 2026-05-17 (CTXB-P13-T7)
 
 ## Archived Tasks
 
 | Task ID | Folder | Archived | Verdict |
 |---------|--------|----------|---------|
+| CTXB-P13-T7 | [CTXB-P13-T7_Define_Agent_Workbench_conversation_artifact_model/](CTXB-P13-T7_Define_Agent_Workbench_conversation_artifact_model/) | 2026-05-17 | PASS |
 | CTXB-P13-T6 | [CTXB-P13-T6_Start_Metrics_screen_parity_with_existing_metrics_artifacts/](CTXB-P13-T6_Start_Metrics_screen_parity_with_existing_metrics_artifacts/) | 2026-05-17 | PASS |
 | CTXB-P13-T5 | [CTXB-P13-T5_Start_Proposal_Viewer_parity_with_static_proposal_indexes/](CTXB-P13-T5_Start_Proposal_Viewer_parity_with_static_proposal_indexes/) | 2026-05-17 | PASS |
 | CTXB-P1-T1 | [CTXB-P1-T1_Define_Canonical_Conversation_And_Lineage_Schema/](CTXB-P1-T1_Define_Canonical_Conversation_And_Lineage_Schema/) | 2026-03-22 | PASS |
@@ -110,6 +111,7 @@
 
 | Date | Task ID | Action |
 |------|---------|--------|
+| 2026-05-17 | CTXB-P13-T7 | Archived Define_Agent_Workbench_conversation_artifact_model (PASS) |
 | 2026-05-17 | CTXB-P13-T6 | Archived REVIEW_CTXB-P13-T6_metrics_viewer_parity report (PASS, no findings) |
 | 2026-05-17 | CTXB-P13-T6 | Archived Start_Metrics_screen_parity_with_existing_metrics_artifacts (PASS) |
 | 2026-05-17 | CTXB-P13-T5 | Archived REVIEW_CTXB-P13-T5_proposal_viewer_parity report (PASS, no findings) |
