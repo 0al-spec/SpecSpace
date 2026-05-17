@@ -1,0 +1,229 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--gs-rule-mid);
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--gs-rule-soft);
+}
+
+.metric {
+  padding: var(--gs-space-5) var(--gs-space-6);
+  border-right: 1px solid var(--gs-rule-soft);
+}
+
+.metric:last-child {
+  border-right: 0;
+}
+
+.metricValue {
+  display: block;
+  font-family: var(--gs-serif);
+  font-size: 22px;
+  color: var(--gs-ink);
+}
+
+.metricLabel,
+.filterField span,
+.statusLabel,
+.metricId,
+.source {
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.metricLabel,
+.filterField span {
+  display: block;
+  margin-top: 2px;
+  color: var(--gs-muted-2);
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gs-space-4);
+  padding: var(--gs-space-5) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+}
+
+.filterField {
+  min-width: 0;
+}
+
+.filterField select,
+.filterField input {
+  width: 100%;
+  height: 32px;
+  margin-top: var(--gs-space-2);
+  border: 1px solid var(--gs-rule-mid);
+  border-radius: 0;
+  background: white;
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  padding: 0 var(--gs-space-3);
+}
+
+.sourceStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-2);
+  padding: var(--gs-space-4) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+}
+
+.source {
+  border: 1px solid var(--gs-rule-soft);
+  padding: 3px 6px;
+  overflow-wrap: anywhere;
+}
+
+.sourceOk {
+  color: var(--gs-ok);
+}
+
+.sourceMuted {
+  color: var(--gs-muted-2);
+}
+
+.entries {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.row {
+  padding: var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.rowHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gs-space-4);
+}
+
+.metricId {
+  color: var(--gs-accent);
+  overflow-wrap: anywhere;
+}
+
+.status {
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-align: right;
+}
+
+.title {
+  margin: var(--gs-space-3) 0 0;
+  color: var(--gs-ink);
+  font-family: var(--gs-serif);
+  font-size: 17px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.scoreLine {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  gap: var(--gs-space-4);
+  align-items: center;
+  margin-top: var(--gs-space-4);
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.scoreBar {
+  position: relative;
+  display: block;
+  height: 18px;
+  border: 1px solid var(--gs-rule-soft);
+  background: white;
+  overflow: hidden;
+}
+
+.scoreFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--gs-accent-soft);
+}
+
+.scoreText {
+  position: relative;
+  z-index: 1;
+  display: block;
+  padding: 2px 6px;
+  color: var(--gs-ink);
+  text-align: right;
+}
+
+.meta,
+.specRefs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-2);
+  margin-top: var(--gs-space-4);
+}
+
+.chip,
+.emptyRefs,
+.referenceChip {
+  border: 1px solid var(--gs-rule-soft);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  overflow-wrap: anywhere;
+}
+
+.referenceChip {
+  color: var(--gs-ink);
+}
+
+.path {
+  margin-top: var(--gs-space-4);
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.statusBox {
+  display: grid;
+  gap: var(--gs-space-3);
+  padding: var(--gs-space-8) var(--gs-space-6);
+}
+
+.statusLabel {
+  color: var(--gs-ink);
+}
+
+.statusDetail {
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}

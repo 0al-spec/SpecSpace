@@ -40,10 +40,12 @@ import {
   SAMPLE_WORK_ITEMS,
 } from "../model/sample-data";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
+import { MetricsViewerPanel } from "./MetricsViewerPanel";
 import { ProposalViewerPanel } from "./ProposalViewerPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
 import { SpecPMRegistryPanel } from "./SpecPMRegistryPanel";
 import { ViewerChrome, type ViewerUtilityPanelId } from "./ViewerChrome";
+import { useMetricsIndex } from "../model/use-metrics-index";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
 import styles from "./ViewerPage.module.css";
@@ -66,6 +68,7 @@ export function ViewerPage() {
   const workState = useImplementationWorkIndex({ refreshKey: runsWatchVersion });
   const proposalTraceState = useProposalSpecTraceIndex({ refreshKey: runsWatchVersion });
   const proposalIndexState = useProposalIndex({ refreshKey: runsWatchVersion });
+  const metricsIndexState = useMetricsIndex({ refreshKey: runsWatchVersion });
   const specpmRegistryState = useSpecPMRegistrySummary();
   const specGraphState = useSpecGraph({ refreshKey: runsWatchVersion });
   const specpmLifecycleState = useSpecPMLifecycleBadges({
@@ -184,6 +187,10 @@ export function ViewerPage() {
     proposalIndexState.kind === "ok"
       ? `${proposalIndexState.data.entry_count} proposals · readonly`
       : proposalIndexState.kind;
+  const metricsIndexCaption =
+    metricsIndexState.kind === "ok"
+      ? `${metricsIndexState.data.entry_count} metrics · readonly`
+      : metricsIndexState.kind;
   const artifactAttentionCount = artifactDiagnostics.filter(
     (artifact) => artifact.tone !== "live",
   ).length;
@@ -224,8 +231,10 @@ export function ViewerPage() {
         ? { title: "Implementation work", caption: workCaption }
       : activeUtilityPanel === "proposal-trace"
         ? { title: "Proposal trace", caption: proposalTraceCaption }
-        : activeUtilityPanel === "proposals"
-          ? { title: "Proposal viewer", caption: proposalIndexCaption }
+      : activeUtilityPanel === "proposals"
+        ? { title: "Proposal viewer", caption: proposalIndexCaption }
+        : activeUtilityPanel === "metrics"
+          ? { title: "Metrics viewer", caption: metricsIndexCaption }
           : activeUtilityPanel === "artifacts"
             ? { title: "Live artifacts", caption: artifactCaption }
             : activeUtilityPanel === "registry"
@@ -307,6 +316,19 @@ export function ViewerPage() {
               onClick={() => toggleUtilityPanel("proposals")}
             >
               ◈
+            </PanelBtn>
+            <PanelBtn
+              title="Open Metrics viewer"
+              aria-label="Open Metrics viewer"
+              active={activeUtilityPanel === "metrics"}
+              badge={
+                metricsIndexState.kind === "ok"
+                  ? metricsIndexState.data.entry_count
+                  : undefined
+              }
+              onClick={() => toggleUtilityPanel("metrics")}
+            >
+              ▥
             </PanelBtn>
             <PanelBtn
               title="Open Proposal trace"
@@ -435,6 +457,14 @@ export function ViewerPage() {
           {activeUtilityPanel === "proposals" ? (
             <ProposalViewerPanel
               state={proposalIndexState}
+              resolveSpecRef={resolveSpecRef}
+              onSpecIdClick={selectSpecNodeId}
+            />
+          ) : null}
+
+          {activeUtilityPanel === "metrics" ? (
+            <MetricsViewerPanel
+              state={metricsIndexState}
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={selectSpecNodeId}
             />
