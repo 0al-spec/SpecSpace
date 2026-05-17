@@ -14,7 +14,7 @@ SPECGRAPH_DIR ?= $(CLAUDE_SPECGRAPH_DIR)
 HYPERPROMPT_BINARY ?= $(CLAUDE_HYPERPROMPT_BINARY)
 AGENT ?= 1
 
-.PHONY: help serve api ui dev start stop test lint canonicalize canon quickstart
+.PHONY: help serve api ui dev start stop specspace-start specspace-stop specspace-restart specspace-status test lint canonicalize canon quickstart
 
 help:
 	@echo "Targets:"
@@ -27,6 +27,8 @@ help:
 	@echo "  make start                  Run API + UI using .claude launch defaults"
 	@echo "  make dev [DIALOG_DIR=...] [API_PORT=8001] [UI_PORT=5173]"
 	@echo "  make stop [API_PORT=8001] [UI_PORT=5173]"
+	@echo "  make specspace-restart     Restart SpecSpace API + GraphSpace dev UI in detached screen sessions"
+	@echo "  make specspace-status      Show SpecSpace dev screen sessions and port listeners"
 	@echo "  make test"
 	@echo "  make lint"
 
@@ -74,6 +76,38 @@ stop:
 	@lsof -ti:$(API_PORT) | xargs kill 2>/dev/null || true
 	@lsof -ti:$(UI_PORT) | xargs kill 2>/dev/null || true
 	@echo "Stopped servers on ports $(API_PORT) and $(UI_PORT)"
+
+specspace-start:
+	@PYTHON="$(PYTHON)" \
+	API_PORT="$(API_PORT)" \
+	UI_PORT="$(UI_PORT)" \
+	DIALOG_DIR="$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))" \
+	SPEC_DIR="$(SPEC_DIR)" \
+	SPECGRAPH_DIR="$(SPECGRAPH_DIR)" \
+	HYPERPROMPT_BINARY="$(HYPERPROMPT_BINARY)" \
+	AGENT="$(AGENT)" \
+	scripts/specspace-dev.sh start
+
+specspace-stop:
+	@API_PORT="$(API_PORT)" \
+	UI_PORT="$(UI_PORT)" \
+	scripts/specspace-dev.sh stop
+
+specspace-restart:
+	@PYTHON="$(PYTHON)" \
+	API_PORT="$(API_PORT)" \
+	UI_PORT="$(UI_PORT)" \
+	DIALOG_DIR="$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))" \
+	SPEC_DIR="$(SPEC_DIR)" \
+	SPECGRAPH_DIR="$(SPECGRAPH_DIR)" \
+	HYPERPROMPT_BINARY="$(HYPERPROMPT_BINARY)" \
+	AGENT="$(AGENT)" \
+	scripts/specspace-dev.sh restart
+
+specspace-status:
+	@API_PORT="$(API_PORT)" \
+	UI_PORT="$(UI_PORT)" \
+	scripts/specspace-dev.sh status
 
 test:
 	@$(PYTHON) -m unittest discover -s tests -p 'test_*.py'
