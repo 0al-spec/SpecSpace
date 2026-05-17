@@ -126,6 +126,11 @@ runs in `.github/workflows/deploy-lab-smoke.yml` for:
 This keeps ordinary PR feedback fast while still providing a GitHub-hosted
 regression gate for release and deployment-boundary changes.
 
+The CI workflow builds the SpecGraph static artifact bundle, but uses SpecPM's
+remote-registry conformance fixtures instead of regenerating the full public
+index. That keeps the SpecSpace lab focused on HTTP/static consumer behavior
+and avoids failing because of unrelated public-index source drift.
+
 ## Stop The Lab
 
 ```bash

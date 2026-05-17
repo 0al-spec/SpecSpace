@@ -85,13 +85,14 @@ jobs:
           python -m pip install -e .[dev]
           make publish-bundle
 
-      - name: Generate SpecPM public registry index
+      - name: Prepare SpecPM public registry fixture
         working-directory: SpecPM
-        env:
-          SPECPM_PUBLIC_INDEX_REGISTRY_URL: http://localhost:8081
         run: |
-          python -m pip install -e .[dev]
-          make public-index-generate
+          mkdir -p .specpm/public-index/v0/status .specpm/public-index/v0/packages
+          cp tests/fixtures/conformance/remote_registry/registry-status.json \
+            .specpm/public-index/v0/status/index.json
+          cp tests/fixtures/conformance/remote_registry/package-index.json \
+            .specpm/public-index/v0/packages/index.json
 
       - name: Run deploy lab smoke
         working-directory: SpecSpace
