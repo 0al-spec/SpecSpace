@@ -118,7 +118,8 @@ The smoke checks:
 The full lab smoke is intentionally outside the required default CI path. It
 runs in `.github/workflows/deploy-lab-smoke.yml` for:
 
-- manual `workflow_dispatch`, with optional `SpecGraph` and `SpecPM` refs;
+- manual `workflow_dispatch`, with optional `SpecGraph` ref and paired
+  `SpecPM` ref/revision override;
 - weekly scheduled drift detection;
 - release tag pushes matching `v*`;
 - PRs that change the lab, Docker, or GraphSpace version/build files.
@@ -130,6 +131,13 @@ The CI workflow builds the SpecGraph static artifact bundle, but uses SpecPM's
 remote-registry conformance fixtures instead of regenerating the full public
 index. That keeps the SpecSpace lab focused on HTTP/static consumer behavior
 and avoids failing because of unrelated public-index source drift.
+
+SpecSpace owns the trusted SpecPM fixture lock. The workflow checks out SpecPM
+by the pinned `SPECPM_FIXTURE_REVISION` commit by default; `SPECPM_FIXTURE_REF`
+is only a readable label. Manual runs may override SpecPM, but must provide
+both `specpm_ref` and `specpm_revision`. A ref without an expected revision is
+rejected so mutable branches or rewritten tags cannot silently become the root
+of trust.
 
 ## Stop The Lab
 

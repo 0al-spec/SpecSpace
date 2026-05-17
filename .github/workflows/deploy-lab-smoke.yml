@@ -8,9 +8,13 @@ on:
         required: false
         default: main
       specpm_ref:
-        description: SpecPM git ref to test against
+        description: Optional SpecPM ref/tag/commit to test against; requires specpm_revision when set
         required: false
-        default: main
+        default: ""
+      specpm_revision:
+        description: Optional expected SpecPM commit SHA for specpm_ref
+        required: false
+        default: ""
   schedule:
     - cron: "37 2 * * 1"
   push:
@@ -43,6 +47,10 @@ on:
 permissions:
   contents: read
 
+env:
+  SPECPM_FIXTURE_REF: main
+  SPECPM_FIXTURE_REVISION: 3961f7a1222f68f891f2a4ec6d0dd70ce24bdad7
+
 concurrency:
   group: deploy-lab-smoke-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
@@ -70,8 +78,38 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 0al-spec/SpecPM
-          ref: ${{ inputs.specpm_ref || 'main' }}
+          ref: ${{ inputs.specpm_revision || env.SPECPM_FIXTURE_REVISION }}
           path: SpecPM
+
+      - name: Verify pinned SpecPM fixture revision
+        working-directory: SpecPM
+        env:
+          INPUT_SPECPM_REF: ${{ inputs.specpm_ref }}
+          INPUT_SPECPM_REVISION: ${{ inputs.specpm_revision }}
+        run: |
+          set -euo pipefail
+          expected_revision="$SPECPM_FIXTURE_REVISION"
+          fixture_label="$SPECPM_FIXTURE_REF"
+
+          if [ -n "$INPUT_SPECPM_REF" ] || [ -n "$INPUT_SPECPM_REVISION" ]; then
+            if [ -z "$INPUT_SPECPM_REF" ] || [ -z "$INPUT_SPECPM_REVISION" ]; then
+              echo "Manual SpecPM override requires both specpm_ref and specpm_revision." >&2
+              exit 2
+            fi
+            expected_revision="$INPUT_SPECPM_REVISION"
+            fixture_label="$INPUT_SPECPM_REF"
+          fi
+
+          actual_revision="$(git rev-parse HEAD)"
+          if [ "$actual_revision" != "$expected_revision" ]; then
+            echo "SpecPM fixture revision mismatch." >&2
+            echo "label: $fixture_label" >&2
+            echo "expected: $expected_revision" >&2
+            echo "actual:   $actual_revision" >&2
+            exit 1
+          fi
+
+          echo "SpecPM fixture lock OK: $fixture_label @ $actual_revision"
 
       - name: Set up Python for producers
         uses: actions/setup-python@v5
