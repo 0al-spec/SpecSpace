@@ -1,7 +1,20 @@
 import { useCallback, useMemo, useState } from "react";
+import {
+  clearAgentContextItems,
+  createAgentContextDraft,
+  removeAgentContextItem,
+} from "@/entities/agent-workbench";
 import { createSpecNodeRefResolver } from "@/entities/spec-node";
 import type { SpecPMLifecycleBadge } from "@/entities/specpm-lifecycle";
+import { addSpecNodeToAgentContext } from "@/features/add-spec-to-agent-context";
+import { useToneFilter, filterByTone } from "@/features/filter-by-tone";
+import {
+  useSpecSearch,
+  filterBySpecQuery,
+} from "@/features/search-by-spec";
 import { useRunsWatchVersion } from "@/shared/api";
+import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
+import { AgentContextPanel } from "@/widgets/agent-context-panel";
 import { useRecentChanges } from "@/widgets/recent-changes-panel";
 import {
   ImplementationWorkPanel,
@@ -18,19 +31,6 @@ import {
 } from "@/widgets/spec-graph-canvas";
 import { SpecInspector, type SpecInspectorSelection } from "@/widgets/spec-inspector";
 import { SpecNodeNavigator } from "@/widgets/spec-node-navigator";
-import { useToneFilter, filterByTone } from "@/features/filter-by-tone";
-import {
-  useSpecSearch,
-  filterBySpecQuery,
-} from "@/features/search-by-spec";
-import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
-import {
-  addAgentContextItem,
-  clearAgentContextItems,
-  createAgentContextDraft,
-  createSpecNodeContextItem,
-  removeAgentContextItem,
-} from "../model/agent-context";
 import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-artifacts";
 import { describeLive } from "../model/live-status";
 import {
@@ -46,7 +46,6 @@ import {
   SAMPLE_PROPOSAL_TRACES,
   SAMPLE_WORK_ITEMS,
 } from "../model/sample-data";
-import { AgentContextPanel } from "./AgentContextPanel";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 import { MetricsViewerPanel } from "./MetricsViewerPanel";
 import { ProposalViewerPanel } from "./ProposalViewerPanel";
@@ -245,7 +244,7 @@ export function ViewerPage() {
   const addSelectedSpecToAgentContext = () => {
     if (!selectedGraphNode) return;
     setAgentContextDraft((draft) =>
-      addAgentContextItem(draft, createSpecNodeContextItem(selectedGraphNode)),
+      addSpecNodeToAgentContext(draft, selectedGraphNode),
     );
   };
   const removeAgentContextItemByKey = (key: string) => {

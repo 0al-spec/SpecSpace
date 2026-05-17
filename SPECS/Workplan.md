@@ -1719,6 +1719,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The context set has a stable serialized shape suitable for future agent calls.
   - The UI does not imply model execution until an agent backend exists.
 
+### ✅ CTXB-P13-T9 — FSD boundary for Agent Workbench UI adapters — DONE (PASS, 2026-05-17)
+- **Description:** Recompose the Agent Workbench UI entrypoint into explicit FSD slices and define framework-neutral runtime interfaces so future Agent UI framework choices stay replaceable.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T8
+- **Parallelizable:** no
+- **Outputs / Artifacts:** `entities/agent-workbench`, `features/add-spec-to-agent-context`, `widgets/agent-context-panel`, Agent UI framework boundary documentation
+- **Acceptance Criteria:**
+  - Agent Workbench domain types do not import React or concrete framework SDK types.
+  - The Viewer page composes the Agent context flow through slice public APIs.
+  - Future framework adapters can map into `AgentConversationRuntime` / `AgentRuntimeEvent` without changing persisted conversation artifacts.
+  - FSD lint passes with any intentional retained-slice exceptions documented.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.

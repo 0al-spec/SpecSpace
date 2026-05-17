@@ -248,6 +248,8 @@
 | 2026-04-12 | CTXB-P7-T6 | Archived Consolidate_Path_Traversal_Protection (PASS) |
 | 2026-05-17 | CTXB-P13-T1 | Archived Select_SpecSpace_parity_track_after_deployment_hardening (PASS) |
 | 2026-05-17 | CTXB-P13-T4 | Archived Add_SpecPM_registry_package_version_read_adapter (PASS) |
+| 2026-05-17 | CTXB-P13-T9 | Archived FSD_boundary_for_Agent_Workbench_UI_adapters (PASS) |
+| 2026-05-17 | CTXB-P13-T9 | Archived REVIEW_CTXB-P13-T9_agent_ui_fsd_boundary report (PASS, no findings) |
 | 2026-04-12 | CTXB-P7-T6 | Archived REVIEW_ctxb_p7_t6_path_traversal report (PASS, no findings) |
 | 2026-04-12 | CTXB-P7-T8 | Archived Add_rmtree_Safety_Marker (PASS) |
 | 2026-04-12 | CTXB-P7-T8 | Archived REVIEW_ctxb_p7_t8_rmtree_sentinel report (PASS, no findings) |
