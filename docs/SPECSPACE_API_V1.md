@@ -204,6 +204,46 @@ Envelope shape:
 }
 ```
 
+### `GET /api/v1/proposals`
+
+Returns a readonly SpecSpace proposal index for the new Proposal Viewer. The
+payload combines static SpecGraph proposal artifacts when present:
+
+- `proposal_spec_trace_index.json`
+- `proposal_lane_overlay.json`
+- `proposal_runtime_index.json`
+- `proposal_promotion_index.json`
+
+Local developer mode may also include metadata from `docs/proposals/*.md`.
+HTTP/static deployments do not require a local SpecGraph checkout; missing
+optional proposal artifacts are represented in `sources` instead of failing the
+whole endpoint.
+
+```json
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_proposal_index",
+  "read_only": true,
+  "entry_count": 1,
+  "entries": [
+    {
+      "proposal_id": "0042",
+      "status": "Draft proposal",
+      "runtime_state": "implemented",
+      "authority_state": null,
+      "affected_spec_ids": ["SG-SPEC-0001"]
+    }
+  ],
+  "filters": {
+    "status_counts": { "Draft proposal": 1 },
+    "authority_state_counts": { "unknown": 1 },
+    "runtime_state_counts": { "implemented": 1 },
+    "affected_spec_ids": ["SG-SPEC-0001"]
+  },
+  "sources": {}
+}
+```
+
 ### `GET /api/v1/specpm/lifecycle`
 
 Returns the existing SpecPM lifecycle read-model with additive v1 metadata:
