@@ -6,6 +6,17 @@ export type AgentContextSpecNodeItem = {
   file_name: string;
 };
 
+export type AgentContextSpecEdgeItem = {
+  kind: "spec_edge";
+  edge_id: string;
+  edge_kind: string;
+  status: string;
+  source_id: string;
+  target_id: string;
+  source_title: string | null;
+  target_title: string | null;
+};
+
 export type AgentContextProposalItem = {
   kind: "proposal";
   proposal_key: string;
@@ -16,7 +27,10 @@ export type AgentContextProposalItem = {
   affected_spec_ids: string[];
 };
 
-export type AgentContextItem = AgentContextSpecNodeItem | AgentContextProposalItem;
+export type AgentContextItem =
+  | AgentContextSpecNodeItem
+  | AgentContextSpecEdgeItem
+  | AgentContextProposalItem;
 
 export type AgentContextDraft = {
   context_set_id: string;
@@ -53,6 +67,31 @@ export function createSpecNodeContextItem(
   };
 }
 
+export type SpecEdgeContextSource = {
+  edge_id: string;
+  edge_kind: string;
+  status: string;
+  source_id: string;
+  target_id: string;
+  source_title?: string | null;
+  target_title?: string | null;
+};
+
+export function createSpecEdgeContextItem(
+  edge: SpecEdgeContextSource,
+): AgentContextSpecEdgeItem {
+  return {
+    kind: "spec_edge",
+    edge_id: edge.edge_id,
+    edge_kind: edge.edge_kind,
+    status: edge.status,
+    source_id: edge.source_id,
+    target_id: edge.target_id,
+    source_title: edge.source_title ?? null,
+    target_title: edge.target_title ?? null,
+  };
+}
+
 export type ProposalContextSource = {
   proposal_key: string;
   proposal_id: string;
@@ -79,6 +118,9 @@ export function createProposalContextItem(
 export function agentContextItemKey(item: AgentContextItem): string {
   if (item.kind === "proposal") {
     return `${item.kind}:${item.proposal_key}`;
+  }
+  if (item.kind === "spec_edge") {
+    return `${item.kind}:${item.edge_id}`;
   }
   return `${item.kind}:${item.node_id}`;
 }

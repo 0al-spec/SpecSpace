@@ -1803,6 +1803,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - A proposal can be added to the Agent Context draft as a proposal item without changing readonly proposal artifacts.
   - Starting a conversation from a proposal attaches the proposal to context and opens the Agent Conversation panel.
 
+### ✅ CTXB-P13-T16 — Edge context selection for Agent Workbench — DONE (PASS, 2026-05-18)
+- **Description:** Let users select SpecGraph canvas edges and add them to the Agent Context draft as first-class graph context items.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T8, CTXB-P13-T15
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** canvas edge selection state, spec edge context item contract, Agent Context UI support
+- **Acceptance Criteria:**
+  - Clicking a graph edge selects that edge without forcing a node Inspector selection.
+  - Agent Context can add the selected edge as a stable `spec_edge` item.
+  - Serialized context includes edge id, kind, status, source/target ids, and source/target titles when known.
+  - Agent Context and Agent Conversation panels render edge context tokens without assuming every item is a spec node.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
