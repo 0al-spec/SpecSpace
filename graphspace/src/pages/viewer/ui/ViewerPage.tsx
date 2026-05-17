@@ -60,6 +60,7 @@ import { ViewerChrome, type ViewerUtilityPanelId } from "./ViewerChrome";
 import { useMetricsIndex } from "../model/use-metrics-index";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
+import { proposalTraceEntriesForPanel } from "../model/proposal-trace-entries";
 import styles from "./ViewerPage.module.css";
 
 /**
@@ -118,10 +119,10 @@ export function ViewerPage() {
     workState.kind === "ok" ? workState.data.entries : SAMPLE_WORK_ITEMS;
   const liveProposalTraceIndex =
     proposalTraceState.kind === "ok" ? proposalTraceState.data : null;
-  const liveProposalTraceEntries =
-    proposalTraceState.kind === "ok"
-      ? proposalTraceState.data.entries.slice(0, 8)
-      : SAMPLE_PROPOSAL_TRACES;
+  const liveProposalTraceEntries = proposalTraceEntriesForPanel(
+    proposalTraceState,
+    SAMPLE_PROPOSAL_TRACES,
+  );
   const sourceDelta =
     workState.kind === "ok" ? workState.data.source_delta_snapshot : null;
   const sourceDeltaDescription = describeSourceDeltaSnapshot(sourceDelta);
