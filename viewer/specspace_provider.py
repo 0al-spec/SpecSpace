@@ -28,6 +28,7 @@ HTTP_ARTIFACT_MAX_BYTES = 10_000_000
 HTTP_ARTIFACT_PREFIX_BYTES = 4096
 SPECSPACE_APP_VERSION = "0.0.1"
 SPECPM_REGISTRY_SOURCE_NAME = "specpm_registry"
+SPECPM_REGISTRY_API_VERSION = "specpm.registry/v0"
 
 
 class CapabilityContext(capabilities_api.CapabilitiesHandler, Protocol):
@@ -855,6 +856,84 @@ def health_with_specpm_registry(server: Any, provider: SpecSpaceProvider) -> dic
                 specpm_registry_url_from_server(server)
             ),
         },
+    }
+
+
+def _specpm_registry_endpoint_url(registry_url: str, endpoint: str) -> str:
+    return f"{registry_url.rstrip('/')}/{endpoint.lstrip('/')}"
+
+
+def _read_specpm_registry_json(registry_url: str, endpoint: str) -> tuple[int, dict[str, Any] | None, dict[str, Any] | None]:
+    url = _specpm_registry_endpoint_url(registry_url, endpoint)
+    status, text, error = http_get_text(url)
+    if error is not None:
+        return status, None, {
+            "error": f"SpecPM registry endpoint {endpoint} could not be read.",
+            "reason": "registry_fetch_failed",
+            "path": url,
+            "detail": error["detail"],
+        }
+    if status != HTTPStatus.OK or text is None:
+        return status, None, {
+            "error": f"SpecPM registry endpoint {endpoint} returned HTTP {int(status)}.",
+            "reason": "registry_http_error",
+            "path": url,
+        }
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        return HTTPStatus.UNPROCESSABLE_ENTITY, None, {
+            "error": f"SpecPM registry endpoint {endpoint} is not valid JSON.",
+            "reason": "invalid_json",
+            "path": url,
+            "detail": str(exc),
+        }
+    if not isinstance(payload, dict):
+        return HTTPStatus.UNPROCESSABLE_ENTITY, None, {
+            "error": f"SpecPM registry endpoint {endpoint} did not return a JSON object.",
+            "reason": "invalid_payload",
+            "path": url,
+        }
+    if payload.get("apiVersion") != SPECPM_REGISTRY_API_VERSION:
+        return HTTPStatus.UNPROCESSABLE_ENTITY, None, {
+            "error": f"SpecPM registry endpoint {endpoint} has unsupported apiVersion.",
+            "reason": "unsupported_api_version",
+            "path": url,
+            "apiVersion": payload.get("apiVersion"),
+        }
+    return HTTPStatus.OK, payload, None
+
+
+def read_specpm_registry_summary(server: Any) -> tuple[int, dict[str, Any]]:
+    registry_url = specpm_registry_url_from_server(server)
+    if registry_url is None:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "api_version": SPECSPACE_API_VERSION,
+            "error": "SpecPM registry source is not configured.",
+            "source": specpm_registry_source(None),
+        }
+
+    status_code, status_payload, status_error = _read_specpm_registry_json(registry_url, "v0/status")
+    if status_error is not None:
+        return status_code, {
+            "api_version": SPECSPACE_API_VERSION,
+            "source": specpm_registry_source(registry_url),
+            **status_error,
+        }
+    package_status, packages_payload, packages_error = _read_specpm_registry_json(registry_url, "v0/packages")
+    if packages_error is not None:
+        return package_status, {
+            "api_version": SPECSPACE_API_VERSION,
+            "source": specpm_registry_source(registry_url),
+            **packages_error,
+        }
+    assert status_payload is not None
+    assert packages_payload is not None
+    return HTTPStatus.OK, {
+        "api_version": SPECSPACE_API_VERSION,
+        "source": specpm_registry_source(registry_url),
+        "registry": status_payload,
+        "packages": packages_payload,
     }
 
 

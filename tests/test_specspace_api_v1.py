@@ -120,6 +120,48 @@ def _write_manifest(root: Path, paths: list[str]) -> None:
     )
 
 
+def _write_specpm_registry(root: Path) -> None:
+    status_dir = root / "v0" / "status"
+    packages_dir = root / "v0" / "packages"
+    status_dir.mkdir(parents=True)
+    packages_dir.mkdir(parents=True)
+    common = {"apiVersion": "specpm.registry/v0", "schemaVersion": 1, "status": "ok"}
+    status_payload = {
+        **common,
+        "kind": "RemoteRegistryStatus",
+        "registry": {
+            "profile": "public_static_index",
+            "api_version": "v0",
+            "read_only": True,
+            "authority": "metadata_only",
+            "package_count": 1,
+            "version_count": 1,
+            "capability_count": 1,
+            "intent_count": 1,
+        },
+    }
+    packages_payload = {
+        **common,
+        "kind": "RemotePackageIndex",
+        "package_count": 1,
+        "version_count": 1,
+        "packages": [
+            {
+                "package_id": "specnode.core",
+                "name": "SpecNode Core",
+                "summary": "Core SpecNode package.",
+                "license": "MIT",
+                "latest_version": "0.1.0",
+                "capabilities": ["specnode.typed_job_protocol"],
+                "versions": [{"version": "0.1.0", "yanked": False, "deprecated": False}],
+            }
+        ],
+    }
+    for directory, payload in ((status_dir, status_payload), (packages_dir, packages_payload)):
+        _write_json(directory / "index.json", payload)
+        _write_json(directory / "index.html", payload)
+
+
 class SpecSpaceProviderHealthTests(unittest.TestCase):
     def test_directory_health_distinguishes_missing_empty_and_ok(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -309,6 +351,37 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(body["sources"]["specpm_registry"]["status"], "configured")
         self.assertEqual(body["sources"]["specpm_registry"]["path"], "https://0al-spec.github.io/SpecPM")
+
+    def test_specpm_registry_v1_returns_status_and_packages(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            registry_root = root / "registry"
+            _write_specpm_registry(registry_root)
+            registry, registry_thread, registry_url = _start_static(registry_root)
+            httpd, thread, base = _start(root / "dialogs", specpm_registry_url=registry_url)
+            try:
+                status, body = _get(f"{base}/api/v1/specpm/registry")
+            finally:
+                _stop(httpd, thread)
+                _stop(registry, registry_thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["source"]["status"], "configured")
+        self.assertEqual(body["registry"]["kind"], "RemoteRegistryStatus")
+        self.assertEqual(body["packages"]["kind"], "RemotePackageIndex")
+        self.assertEqual(body["packages"]["package_count"], 1)
+
+    def test_specpm_registry_v1_reports_not_configured(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            httpd, thread, base = _start(root / "dialogs")
+            try:
+                status, body = _get(f"{base}/api/v1/specpm/registry")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 503)
+        self.assertEqual(body["source"]["status"], "not_configured")
 
     def test_health_reports_deployment_metadata(self) -> None:
         env = {
