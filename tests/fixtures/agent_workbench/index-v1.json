@@ -1,0 +1,19 @@
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_agent_conversation_index",
+  "schema_version": 1,
+  "generated_at": "2026-05-17T16:06:00Z",
+  "entry_count": 1,
+  "entries": [
+    {
+      "conversation_id": "awb-conv-0001",
+      "title": "Review SIB metric gaps",
+      "status": "active",
+      "updated_at": "2026-05-17T16:05:00Z",
+      "turn_count": 2,
+      "context_item_count": 6,
+      "output_count": 1,
+      "proposal_output_count": 1
+    }
+  ]
+}

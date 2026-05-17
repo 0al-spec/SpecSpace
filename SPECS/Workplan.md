@@ -1697,7 +1697,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Metrics entries can link back to spec nodes/proposals where source refs exist.
   - Missing optional metrics artifacts degrade as diagnostics, not as broken app state.
 
-### CTXB-P13-T7 — Define Agent Workbench conversation artifact model
+### ✅ CTXB-P13-T7 — Define Agent Workbench conversation artifact model — DONE (PASS, 2026-05-17)
 - **Description:** Define the persisted conversation artifact model for future SpecSpace agent interactions, including graph context attachments, proposal origins, and analysis outputs.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T5, CTXB-P13-T6

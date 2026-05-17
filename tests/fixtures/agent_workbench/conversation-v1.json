@@ -1,0 +1,118 @@
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_agent_conversation",
+  "schema_version": 1,
+  "conversation_id": "awb-conv-0001",
+  "title": "Review SIB metric gaps",
+  "status": "active",
+  "created_at": "2026-05-17T16:00:00Z",
+  "updated_at": "2026-05-17T16:05:00Z",
+  "storage": {
+    "owner": "specspace",
+    "mutation_authority": "specspace_workbench_only"
+  },
+  "participants": [
+    {
+      "participant_id": "operator",
+      "role": "operator",
+      "display_name": "Operator"
+    },
+    {
+      "participant_id": "specspace-agent",
+      "role": "agent",
+      "display_name": "SpecSpace Agent"
+    }
+  ],
+  "context_sets": [
+    {
+      "context_set_id": "ctx-0001",
+      "created_at": "2026-05-17T16:00:30Z",
+      "label": "SIB graph context",
+      "items": [
+        {
+          "kind": "spec_node",
+          "node_id": "SG-SPEC-0001",
+          "title": "SpecGraph - The Executable Product Ontology"
+        },
+        {
+          "kind": "spec_edge",
+          "source_node_id": "SG-SPEC-0001",
+          "target_node_id": "SG-SPEC-0021",
+          "edge_kind": "relates_to"
+        },
+        {
+          "kind": "gap",
+          "node_id": "SG-SPEC-0021",
+          "gap_id": "gap-metric-threshold-authority",
+          "path": "specification.gaps[0]"
+        },
+        {
+          "kind": "proposal",
+          "proposal_key": "proposal::0042",
+          "proposal_path": "docs/proposals/0042_agent_context.md"
+        },
+        {
+          "kind": "metric",
+          "metric_key": "metric_score::sib",
+          "category": "metric_score",
+          "item_id": "sib"
+        },
+        {
+          "kind": "specpm_package",
+          "package_id": "specnode.core",
+          "version": "0.1.0"
+        }
+      ]
+    }
+  ],
+  "turns": [
+    {
+      "turn_id": "turn-0001",
+      "role": "operator",
+      "created_at": "2026-05-17T16:01:00Z",
+      "content": [
+        {
+          "kind": "markdown",
+          "text": "Analyze why SIB is below threshold."
+        }
+      ],
+      "context_set_ids": [
+        "ctx-0001"
+      ]
+    },
+    {
+      "turn_id": "turn-0002",
+      "role": "agent",
+      "created_at": "2026-05-17T16:04:00Z",
+      "content": [
+        {
+          "kind": "markdown",
+          "text": "SIB needs explicit threshold authority before promotion."
+        }
+      ],
+      "context_set_ids": [
+        "ctx-0001"
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "output_id": "out-0001",
+      "kind": "proposal_draft",
+      "created_at": "2026-05-17T16:05:00Z",
+      "origin_turn_id": "turn-0002",
+      "context_set_ids": [
+        "ctx-0001"
+      ],
+      "proposal": {
+        "proposal_key": "agent-proposal::awb-conv-0001::out-0001",
+        "title": "Attach SIB threshold authority",
+        "status": "draft",
+        "target_spec_ids": [
+          "SG-SPEC-0021"
+        ]
+      }
+    }
+  ],
+  "parent_refs": []
+}
