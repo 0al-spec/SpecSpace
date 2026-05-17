@@ -85,22 +85,106 @@ if ! grep -Fq -- "--artifact-base-url" <<<"$compose_text"; then
   exit 1
 fi
 
-if ! grep -Fq -- "$artifact_base_url" <<<"$compose_text"; then
-  echo "$deploy_ref:$target_file must point at the configured artifact base URL: $artifact_base_url" >&2
-  exit 1
-fi
+COMPOSE_TEXT="$compose_text" python3 - "$deploy_ref" "$target_file" "$artifact_base_url" "$specpm_registry_url" <<'PY'
+from __future__ import annotations
 
-if [[ -n "$specpm_registry_url" && "$specpm_registry_url" != "0" ]]; then
-  if ! grep -Fq -- "--specpm-registry-url" <<<"$compose_text"; then
-    echo "$deploy_ref:$target_file must configure the SpecPM registry provider with --specpm-registry-url." >&2
-    exit 1
-  fi
+import os
+import re
+import sys
 
-  if ! grep -Fq -- "$specpm_registry_url" <<<"$compose_text"; then
-    echo "$deploy_ref:$target_file must point at the configured SpecPM registry URL: $specpm_registry_url" >&2
-    exit 1
-  fi
-fi
+
+deploy_ref = sys.argv[1]
+target_file = sys.argv[2]
+artifact_base_url = sys.argv[3]
+specpm_registry_url = sys.argv[4]
+lines = os.environ["COMPOSE_TEXT"].splitlines()
+
+
+def service_blocks() -> dict[str, list[str]]:
+    in_services = False
+    current: str | None = None
+    blocks: dict[str, list[str]] = {}
+
+    for line in lines:
+        if line == "services:":
+            in_services = True
+            continue
+        if not in_services:
+            continue
+        if line and not line.startswith(" "):
+            break
+        match = re.match(r"^  ([A-Za-z0-9_.-]+):\s*$", line)
+        if match:
+            current = match.group(1)
+            blocks[current] = []
+            continue
+        if current is not None:
+            blocks[current].append(line)
+
+    return blocks
+
+
+def command_for(service_name: str) -> list[str]:
+    values: list[str] = []
+    in_command = False
+
+    for line in service_blocks().get(service_name, []):
+        if re.match(r"^    command:\s*$", line):
+            in_command = True
+            continue
+        if in_command:
+            match = re.match(r"^      -\s*(.*?)\s*$", line)
+            if match:
+                values.append(match.group(1).strip().strip('"').strip("'"))
+                continue
+            if line.strip() and not line.startswith("      "):
+                break
+
+    return values
+
+
+def command_value_after(command: list[str], flag: str) -> str | None:
+    try:
+        index = command.index(flag)
+    except ValueError:
+        return None
+    if index + 1 >= len(command):
+        return None
+    return command[index + 1]
+
+
+api_command = command_for("specspace-api")
+if not api_command:
+    raise SystemExit(f"{deploy_ref}:{target_file} specspace-api must declare a command list.")
+
+actual_artifact_base_url = command_value_after(api_command, "--artifact-base-url")
+if actual_artifact_base_url is None:
+    raise SystemExit(
+        f"{deploy_ref}:{target_file} must configure --artifact-base-url on specspace-api."
+    )
+if actual_artifact_base_url != artifact_base_url:
+    raise SystemExit(
+        f"{deploy_ref}:{target_file} specspace-api command must point at "
+        f"artifact base URL {artifact_base_url}, got {actual_artifact_base_url}."
+    )
+
+if specpm_registry_url and specpm_registry_url != "0":
+    actual_specpm_registry_url = command_value_after(
+        api_command,
+        "--specpm-registry-url",
+    )
+    if actual_specpm_registry_url is None:
+        raise SystemExit(
+            f"{deploy_ref}:{target_file} must configure --specpm-registry-url "
+            "on specspace-api."
+        )
+    if actual_specpm_registry_url != specpm_registry_url:
+        raise SystemExit(
+            f"{deploy_ref}:{target_file} specspace-api command must point at "
+            f"SpecPM registry URL {specpm_registry_url}, got "
+            f"{actual_specpm_registry_url}."
+        )
+PY
 
 if grep -Fq -- "/app/deploy/specspace-demo" <<<"$compose_text"; then
   echo "$deploy_ref:$target_file still references bundled demo artifacts." >&2

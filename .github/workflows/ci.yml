@@ -318,7 +318,9 @@ jobs:
           curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/health" >/dev/null
           curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/spec-graph" >/dev/null
           curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/implementation-work-index" >/dev/null
-          curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/specpm/registry" >/dev/null
+          if ! curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/specpm/registry" >/dev/null; then
+            echo "::warning::SpecPM registry endpoint is unavailable; deploy smoke keeps this diagnostic non-blocking because it depends on an external registry."
+          fi
 
   docker-compose-smoke:
     name: Docker Compose Smoke
