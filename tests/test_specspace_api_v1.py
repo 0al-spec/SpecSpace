@@ -721,7 +721,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             proposals_dir = root / "docs" / "proposals"
             proposals_dir.mkdir(parents=True)
             (proposals_dir / "0042_agent_context.md").write_text(
-                "# Agent Context Bridge\n\n## Status\n\nDraft proposal\n",
+                "# Agent Context Bridge\n\n## Status\n\nDraft proposal\n\n"
+                "This proposal connects selected SpecGraph context to the Agent Workbench.\n",
                 encoding="utf-8",
             )
             httpd, thread, base = _start(root / "dialogs", specgraph_dir=root)
@@ -745,6 +746,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(proposal["trace_status"], "bounded")
         self.assertEqual(proposal["affected_spec_ids"], ["SG-SPEC-0001"])
         self.assertTrue(proposal["markdown"]["available"])
+        self.assertEqual(
+            proposal["markdown"]["content_excerpt"],
+            "This proposal connects selected SpecGraph context to the Agent Workbench.",
+        )
         lane = by_key["lane::governance_proposal::SG-SPEC-0002::runtime"]
         self.assertEqual(lane["authority_state"], "under_review")
         self.assertEqual(lane["proposal_type"], "governance_proposal")

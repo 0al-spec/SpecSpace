@@ -16,7 +16,10 @@ const proposalIndex = () => ({
       title: "Agent Context Bridge",
       status: "Draft proposal",
       proposal_path: "docs/proposals/0042_agent_context.md",
-      markdown: { available: false },
+      markdown: {
+        available: true,
+        content_excerpt: "Connect selected SpecGraph context to the Agent Workbench.",
+      },
       authority_state: null,
       proposal_type: null,
       runtime_state: "implemented",
@@ -55,6 +58,9 @@ describe("parseProposalIndex", () => {
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
     expect(result.data.entries[0].affected_spec_ids).toEqual(["SG-SPEC-0001"]);
+    expect(result.data.entries[0].markdown.content_excerpt).toBe(
+      "Connect selected SpecGraph context to the Agent Workbench.",
+    );
     expect(result.data.filters.runtime_state_counts.implemented).toBe(1);
   });
 

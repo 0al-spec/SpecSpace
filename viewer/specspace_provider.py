@@ -791,6 +791,7 @@ class HttpSpecGraphProvider:
                 "proposal_id": PurePosixPath(path).stem.split("_", 1)[0],
                 "title": proposals.extract_proposal_title(text, PurePosixPath(path).stem),
                 "status": proposals.extract_proposal_status(text) or "Unknown",
+                "content_excerpt": proposals.extract_proposal_excerpt(text),
                 "file_name": file_name,
                 "relative_path": path,
                 "path": self._artifact_url(path),

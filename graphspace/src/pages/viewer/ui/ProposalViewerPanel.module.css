@@ -140,6 +140,14 @@
   overflow-wrap: anywhere;
 }
 
+.excerpt {
+  margin: var(--gs-space-3) 0 0;
+  color: var(--gs-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .meta,
 .specRefs {
   display: flex;

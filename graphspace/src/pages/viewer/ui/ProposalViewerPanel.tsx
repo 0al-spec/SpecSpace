@@ -205,6 +205,16 @@ function ProposalRow({
           variant="bare"
         />
       </h3>
+      {entry.markdown.content_excerpt ? (
+        <p className={styles.excerpt}>
+          <SpecIdText
+            text={entry.markdown.content_excerpt}
+            resolveSpecRef={resolveSpecRef}
+            onSpecIdClick={onSpecIdClick}
+            variant="bare"
+          />
+        </p>
+      ) : null}
       {secondary.length > 0 ? (
         <div className={styles.meta}>
           {secondary.map((item) => (
