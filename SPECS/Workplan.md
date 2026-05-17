@@ -1686,7 +1686,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Proposal entries link to referenced spec nodes through the existing graph-aware Spec ID resolver.
   - Static artifact deployments work without requiring a local SpecGraph checkout.
 
-### CTXB-P13-T6 — Start Metrics screen parity with existing metrics artifacts
+### ✅ CTXB-P13-T6 — Start Metrics screen parity with existing metrics artifacts — DONE (PASS, 2026-05-17)
 - **Description:** Add a metrics dashboard surface for source promotion, delivery workflow, feedback, metric pack adapters, metric pack runs, and graph dashboard signals.
 - **Priority:** P1
 - **Dependencies:** CTXB-P13-T4
