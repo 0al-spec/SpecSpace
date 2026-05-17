@@ -4,9 +4,10 @@ set -euo pipefail
 deploy_root="${1:-.}"
 target_file="${TIMEWEB_TARGET_COMPOSE:-docker-compose.yml}"
 artifact_base_url="${TIMEWEB_REQUIRED_ARTIFACT_BASE_URL:-https://specgraph.tech}"
+specpm_registry_url="${TIMEWEB_REQUIRED_SPECPM_REGISTRY_URL:-https://specpm.dev}"
 python_bin="${PYTHON:-python3}"
 
-"$python_bin" - "$deploy_root" "$target_file" "$artifact_base_url" <<'PY'
+"$python_bin" - "$deploy_root" "$target_file" "$artifact_base_url" "$specpm_registry_url" <<'PY'
 from __future__ import annotations
 
 import re
@@ -17,6 +18,7 @@ from pathlib import Path
 root = Path(sys.argv[1]).resolve()
 target_file = sys.argv[2]
 artifact_base_url = sys.argv[3]
+specpm_registry_url = sys.argv[4]
 compose_path = root / target_file
 
 allowed_top_level = {target_file, "README.md"}
@@ -52,14 +54,6 @@ if re.search(r"\$\{[^}]*\?", text):
     errors.append(f"{target_file} must not use required env interpolation")
 if "/app/deploy/specspace-demo" in text:
     errors.append(f"{target_file} must not reference bundled demo artifacts")
-if "--artifact-base-url" not in text:
-    errors.append(f"{target_file} must configure --artifact-base-url")
-if artifact_base_url not in text:
-    errors.append(
-        f"{target_file} must point at artifact base URL: {artifact_base_url}"
-    )
-
-
 def service_blocks() -> tuple[list[str], dict[str, list[str]]]:
     in_services = False
     order: list[str] = []
@@ -93,6 +87,65 @@ elif order[0] != "app":
     errors.append(
         f"{target_file} must declare the UI service first as 'app', got {order[0]!r}"
     )
+
+
+def command_for(service_name: str) -> list[str]:
+    block = blocks.get(service_name, [])
+    values: list[str] = []
+    in_command = False
+
+    for line in block:
+        if re.match(r"^    command:\s*$", line):
+            in_command = True
+            continue
+        if in_command:
+            match = re.match(r"^      -\s*(.*?)\s*$", line)
+            if match:
+                values.append(match.group(1).strip().strip('"').strip("'"))
+                continue
+            if line.strip() and not line.startswith("      "):
+                break
+
+    return values
+
+
+def command_value_after(command: list[str], flag: str) -> str | None:
+    try:
+        index = command.index(flag)
+    except ValueError:
+        return None
+    if index + 1 >= len(command):
+        return None
+    return command[index + 1]
+
+
+api_command = command_for("specspace-api")
+if not api_command:
+    errors.append("specspace-api must declare a command list")
+
+actual_artifact_base_url = command_value_after(api_command, "--artifact-base-url")
+if actual_artifact_base_url is None:
+    errors.append(f"{target_file} must configure --artifact-base-url on specspace-api")
+elif actual_artifact_base_url != artifact_base_url:
+    errors.append(
+        f"{target_file} specspace-api command must point at artifact base URL "
+        f"{artifact_base_url}, got {actual_artifact_base_url}"
+    )
+
+if specpm_registry_url and specpm_registry_url != "0":
+    actual_specpm_registry_url = command_value_after(
+        api_command,
+        "--specpm-registry-url",
+    )
+    if actual_specpm_registry_url is None:
+        errors.append(
+            f"{target_file} must configure --specpm-registry-url on specspace-api"
+        )
+    elif actual_specpm_registry_url != specpm_registry_url:
+        errors.append(
+            f"{target_file} specspace-api command must point at SpecPM registry URL "
+            f"{specpm_registry_url}, got {actual_specpm_registry_url}"
+        )
 
 
 def image_for(service_name: str) -> str | None:

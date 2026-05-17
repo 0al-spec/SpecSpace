@@ -52,9 +52,67 @@ def test_render_timeweb_deploy_branch_creates_manifest_only_tree(tmp_path: Path)
     )
     assert 'SPECSPACE_RELEASE_COMMIT: "test-release"' in compose
     assert "SPECSPACE_RELEASE_CREATED_AT" not in compose
+    assert "--specpm-registry-url" in compose
+    assert "https://specpm.dev" in compose
 
     check = run_script("scripts/check-timeweb-deploy-tree.sh", str(tmp_path))
     assert check.returncode == 0, check.stderr
+
+
+def test_render_timeweb_deploy_branch_allows_custom_specpm_registry_url(tmp_path: Path) -> None:
+    result = run_script(
+        "scripts/render-timeweb-deploy-branch.sh",
+        str(tmp_path),
+        env={
+            "SPECSPACE_API_IMAGE_REF": f"ghcr.io/0al-spec/specspace-api@sha256:{API_DIGEST}",
+            "SPECSPACE_UI_IMAGE_REF": f"ghcr.io/0al-spec/specspace-ui@sha256:{UI_DIGEST}",
+            "SPECSPACE_SPECPM_REGISTRY_URL": "https://registry.example.invalid",
+        },
+    )
+
+    assert result.returncode == 0, result.stderr
+    compose = (tmp_path / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "https://registry.example.invalid" in compose
+
+    check = run_script(
+        "scripts/check-timeweb-deploy-tree.sh",
+        str(tmp_path),
+        env={"TIMEWEB_REQUIRED_SPECPM_REGISTRY_URL": "https://registry.example.invalid"},
+    )
+    assert check.returncode == 0, check.stderr
+
+
+def test_check_timeweb_deploy_tree_requires_specpm_url_on_api_command(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text(
+        "SpecPM registry URL: https://specpm.dev\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "docker-compose.yml").write_text(
+        """
+name: specspace
+
+services:
+  app:
+    image: ghcr.io/0al-spec/specspace-ui@sha256:{ui_digest}
+    environment:
+      SPECSPACE_DOCUMENTED_SPECPM_REGISTRY_URL: https://specpm.dev
+  specspace-api:
+    image: ghcr.io/0al-spec/specspace-api@sha256:{api_digest}
+    command:
+      - python
+      - viewer/server.py
+      - --artifact-base-url
+      - https://specgraph.tech
+      - --specpm-registry-url
+      - https://registry.example.invalid
+""".format(api_digest=API_DIGEST, ui_digest=UI_DIGEST),
+        encoding="utf-8",
+    )
+
+    result = run_script("scripts/check-timeweb-deploy-tree.sh", str(tmp_path))
+
+    assert result.returncode != 0
+    assert "specspace-api command must point at SpecPM registry URL" in result.stderr
 
 
 def test_check_timeweb_deploy_tree_rejects_source_build_compose(tmp_path: Path) -> None:
@@ -75,6 +133,8 @@ services:
       - viewer/server.py
       - --artifact-base-url
       - https://specgraph.tech
+      - --specpm-registry-url
+      - https://specpm.dev
 """.format(api_digest=API_DIGEST),
         encoding="utf-8",
     )

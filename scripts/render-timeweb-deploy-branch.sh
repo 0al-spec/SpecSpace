@@ -15,6 +15,7 @@ Required environment:
 
 Optional environment:
   SPECSPACE_ARTIFACT_BASE_URL  Defaults to https://specgraph.tech
+  SPECSPACE_SPECPM_REGISTRY_URL Defaults to https://specpm.dev
   SPECSPACE_RELEASE_COMMIT     Defaults to the current git commit
   SPECSPACE_RELEASE_CREATED_AT Defaults to current UTC timestamp
 EOF
@@ -35,6 +36,7 @@ esac
 api_image_ref="${SPECSPACE_API_IMAGE_REF:-}"
 ui_image_ref="${SPECSPACE_UI_IMAGE_REF:-}"
 artifact_base_url="${SPECSPACE_ARTIFACT_BASE_URL:-https://specgraph.tech}"
+specpm_registry_url="${SPECSPACE_SPECPM_REGISTRY_URL:-https://specpm.dev}"
 release_commit="${SPECSPACE_RELEASE_COMMIT:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}"
 release_created_at="${SPECSPACE_RELEASE_CREATED_AT:-$(date -u +"%Y-%m-%dT%H:%M:%SZ")}"
 
@@ -92,6 +94,8 @@ services:
       - /data/dialogs
       - --artifact-base-url
       - "$artifact_base_url"
+      - --specpm-registry-url
+      - "$specpm_registry_url"
     ports:
       - "\${SPECSPACE_API_PORT:-8001}:8001"
 EOF
@@ -109,6 +113,7 @@ It is the branch Timeweb should deploy from.
 - API image: \`$api_image_ref\`
 - UI image: \`$ui_image_ref\`
 - SpecGraph artifact source: \`$artifact_base_url\`
+- SpecPM registry source: \`$specpm_registry_url\`
 
 ## Rollback
 
@@ -121,6 +126,7 @@ is selected together.
 - The first service is named \`app\` because Timeweb proxies the public domain to
   the first compose service.
 - SpecGraph data is read over HTTP through \`--artifact-base-url\`.
+- SpecPM registry metadata is read over HTTP through \`--specpm-registry-url\`.
 - This branch should not contain application source files.
 EOF
 

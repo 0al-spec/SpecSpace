@@ -81,6 +81,7 @@ The guard checks:
 - the Timeweb compose has no `build` sections or source-build requirement;
 - the Timeweb compose has no required `${VAR:?message}` interpolation;
 - the Timeweb API command configures `--artifact-base-url https://specgraph.tech`;
+- the Timeweb API command configures `--specpm-registry-url https://specpm.dev`;
 - the Timeweb API command no longer points at bundled demo artifact paths;
 - the manifest-only branch can be strictly checked with
   `TIMEWEB_REQUIRE_MANIFEST_ONLY=1`.
@@ -102,6 +103,8 @@ services:
       - viewer/server.py
       - --artifact-base-url
       - https://specgraph.tech
+      - --specpm-registry-url
+      - https://specpm.dev
 ```
 
 CI still tags both images by the source commit SHA, but the generated Timeweb
@@ -115,17 +118,21 @@ domain root would hit the backend and return `404`.
 ## Required Environment
 
 No SpecGraph artifact path variables are required for the current Timeweb
-deployment. The API reads published artifacts from `https://specgraph.tech`.
+deployment. The API reads published artifacts from `https://specgraph.tech`
+and readonly SpecPM registry metadata from `https://specpm.dev`.
 
 Optional:
 
 ```text
 SPECSPACE_API_PORT=8001
 SPECSPACE_UI_PORT=5173
+SPECSPACE_SPECPM_REGISTRY_URL=https://specpm.dev
 ```
 
-If Timeweb manages public ports itself, leave these unset and use the platform's
-generated URL.
+If Timeweb manages public ports itself, leave the port variables unset and use
+the platform's generated URL. The generated deploy branch already sets
+`--specpm-registry-url https://specpm.dev`; override
+`SPECSPACE_SPECPM_REGISTRY_URL` only when rendering a custom deploy manifest.
 
 ## Updating The Deploy Branch
 
@@ -168,6 +175,7 @@ production endpoints:
 https://<timeweb-host>/api/v1/health
 https://<timeweb-host>/api/v1/spec-graph
 https://<timeweb-host>/api/v1/implementation-work-index
+https://<timeweb-host>/api/v1/specpm/registry
 ```
 
 Leave `SPECSPACE_DEPLOY_URL` unset for forks or environments where external

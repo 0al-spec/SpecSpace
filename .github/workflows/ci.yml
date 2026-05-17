@@ -192,6 +192,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate Timeweb deploy branch
+        env:
+          # The existing remote timeweb-deploy branch can lag behind new manifest
+          # guardrails in PRs. The generated candidate below is checked strictly.
+          TIMEWEB_REQUIRED_SPECPM_REGISTRY_URL: "0"
         run: scripts/validate-timeweb-deploy-branch.sh
 
       - name: Validate generated manifest-only deploy tree
@@ -314,6 +318,9 @@ jobs:
           curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/health" >/dev/null
           curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/spec-graph" >/dev/null
           curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/implementation-work-index" >/dev/null
+          if ! curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/specpm/registry" >/dev/null; then
+            echo "::warning::SpecPM registry endpoint is unavailable; deploy smoke keeps this diagnostic non-blocking because it depends on an external registry."
+          fi
 
   docker-compose-smoke:
     name: Docker Compose Smoke
