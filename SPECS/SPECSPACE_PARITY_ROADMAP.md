@@ -152,8 +152,7 @@ Target:
 
 ## Suggested Next Slices
 
-1. `CTXB-P13-T4` — Add SpecPM registry package/version read adapter.
-2. `CTXB-P13-T5` — Start Proposal Viewer parity with static proposal indexes.
-3. `CTXB-P13-T6` — Start Metrics screen parity with existing metrics artifacts.
-4. `CTXB-P13-T7` — Define Agent Workbench conversation artifact model.
-5. `CTXB-P13-T8` — Add graph-context-to-agent-context selection flow.
+1. `CTXB-P13-T5` — Start Proposal Viewer parity with static proposal indexes.
+2. `CTXB-P13-T6` — Start Metrics screen parity with existing metrics artifacts.
+3. `CTXB-P13-T7` — Define Agent Workbench conversation artifact model.
+4. `CTXB-P13-T8` — Add graph-context-to-agent-context selection flow.

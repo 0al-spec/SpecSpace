@@ -41,7 +41,9 @@ import {
 } from "../model/sample-data";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
+import { SpecPMRegistryPanel } from "./SpecPMRegistryPanel";
 import { ViewerChrome, type ViewerUtilityPanelId } from "./ViewerChrome";
+import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
 import styles from "./ViewerPage.module.css";
 
 /**
@@ -61,6 +63,7 @@ export function ViewerPage() {
   const feedState = useRecentChanges({ refreshKey: runsWatchVersion });
   const workState = useImplementationWorkIndex({ refreshKey: runsWatchVersion });
   const proposalTraceState = useProposalSpecTraceIndex({ refreshKey: runsWatchVersion });
+  const specpmRegistryState = useSpecPMRegistrySummary();
   const specGraphState = useSpecGraph({ refreshKey: runsWatchVersion });
   const specpmLifecycleState = useSpecPMLifecycleBadges({
     enabled: shouldUseLocalSpecPMLifecycle(apiDeploymentState),
@@ -216,7 +219,15 @@ export function ViewerPage() {
           ? { title: "Proposal trace", caption: proposalTraceCaption }
           : activeUtilityPanel === "artifacts"
             ? { title: "Live artifacts", caption: artifactCaption }
-            : null;
+            : activeUtilityPanel === "registry"
+              ? {
+                  title: "SpecPM registry",
+                  caption:
+                    specpmRegistryState.kind === "ok"
+                      ? `${specpmRegistryState.data.packages.package_count} packages · readonly`
+                      : specpmRegistryState.kind,
+                }
+              : null;
 
   return (
     <div className={styles.root}>
@@ -296,6 +307,19 @@ export function ViewerPage() {
               onClick={() => toggleUtilityPanel("artifacts")}
             >
               ◎
+            </PanelBtn>
+            <PanelBtn
+              title="Open SpecPM registry"
+              aria-label="Open SpecPM registry"
+              active={activeUtilityPanel === "registry"}
+              badge={
+                specpmRegistryState.kind === "ok"
+                  ? specpmRegistryState.data.packages.package_count
+                  : undefined
+              }
+              onClick={() => toggleUtilityPanel("registry")}
+            >
+              ⌁
             </PanelBtn>
           </PanelBtnRow>
 
@@ -392,6 +416,10 @@ export function ViewerPage() {
               runsWatchVersion={runsWatchVersion}
               showHeader={false}
             />
+          ) : null}
+
+          {activeUtilityPanel === "registry" ? (
+            <SpecPMRegistryPanel state={specpmRegistryState} />
           ) : null}
         </aside>
       ) : null}
