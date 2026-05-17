@@ -1625,6 +1625,100 @@ Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer 
   - Guardrails verify that the deploy branch still uses the HTTP artifact provider and keeps the UI service first.
   - Documentation explains rollback by selecting a previous pinned image pair.
 
+## Phase 13: SpecSpace Parity
+
+Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the old ContextBuilder product surfaces. The first parity track is readonly SpecPM registry integration because production/static deploys already consume SpecGraph artifacts over HTTP and should not show local-checkout lifecycle noise. Later tracks bring in Proposal Viewer, Metrics, Agent Workbench conversations, and graph-context selection.
+
+### ✅ CTXB-P13-T1 — Select SpecSpace parity track after deployment hardening — DONE (PASS, 2026-05-17)
+- **Description:** After deployment hardening, select the next SpecSpace parity track and record the ordering in the workplan and active queue.
+- **Priority:** P1
+- **Dependencies:** CTXB-P12-T9
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** SpecSpace parity roadmap, Phase 13 workplan section, updated `SPECS/INPROGRESS/next.md`, validation report
+- **Acceptance Criteria:**
+  - Phase 13 states the parity goal without reopening legacy ContextBuilder conversation authoring as SpecSpace core.
+  - The first implementation track is explicit and ordered.
+  - Already-completed deployment-hardening slices are reflected so the queue does not repeat work.
+
+### ✅ CTXB-P13-T2 — Disable local-only SpecPM lifecycle UI in static mode — DONE (PASS, 2026-05-17)
+- **Description:** Stop static HTTP deployments from polling the local-checkout `/api/v1/specpm/lifecycle` endpoint for node badges. Filesystem-backed developer mode may keep using local lifecycle data.
+- **Priority:** P1
+- **Dependencies:** CTXB-P13-T1
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** deployment-state lifecycle gating in GraphSpace, frontend tests
+- **Acceptance Criteria:**
+  - HTTP/static providers do not fetch local SpecPM lifecycle badges.
+  - Filesystem-backed local providers can still fetch lifecycle badges.
+  - Health loading/error states do not create repeated lifecycle HTTP noise.
+
+### ✅ CTXB-P13-T3 — Add SpecPM registry URL config and health reporting — DONE (PASS, 2026-05-17)
+- **Description:** Add `SPECSPACE_SPECPM_REGISTRY_URL` / `--specpm-registry-url` runtime configuration and report the readonly SpecPM registry source in `/api/v1/health`.
+- **Priority:** P1
+- **Dependencies:** CTXB-P13-T2
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** server runtime config, v1 health source reporting, backend tests
+- **Acceptance Criteria:**
+  - Health reports `specpm_registry` as `not_configured` when absent.
+  - Health reports the normalized registry URL when configured.
+  - The deploy lab can point at a local static SpecPM registry fixture.
+
+### CTXB-P13-T4 — Add SpecPM registry package/version read adapter
+- **Description:** Expand the SpecPM registry adapter beyond status and package index summary. Add focused package and package-version reads so SpecSpace can link graph/spec UI to concrete registry metadata without running SpecPM package content.
+- **Priority:** P1
+- **Dependencies:** CTXB-P13-T3
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `/api/v1/specpm/registry` summary plus package/version endpoints, backend tests, optional GraphSpace read model
+- **Acceptance Criteria:**
+  - `GET /api/v1/specpm/registry` returns registry status and package index from a configured readonly registry.
+  - `GET /api/v1/specpm/registry/packages/{package_id}` returns the package metadata endpoint payload.
+  - `GET /api/v1/specpm/registry/packages/{package_id}/versions/{version}` returns the package version endpoint payload.
+  - Not configured, HTTP errors, invalid JSON, non-object payloads, and unsupported registry `apiVersion` return structured errors.
+  - SpecSpace does not execute packages, mutate registry state, or treat registry metadata as graph authority.
+
+### CTXB-P13-T5 — Start Proposal Viewer parity with static proposal indexes
+- **Description:** Add a proposal-focused surface that combines existing proposal trace rows with static proposal lane/runtime/promotion artifacts and, when available, proposal markdown metadata.
+- **Priority:** P1
+- **Dependencies:** CTXB-P13-T4
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** proposal read model, GraphSpace proposal viewer panel/page, tests
+- **Acceptance Criteria:**
+  - Users can browse proposal entries by status, authority lane, runtime state, and affected specs.
+  - Proposal entries link to referenced spec nodes through the existing graph-aware Spec ID resolver.
+  - Static artifact deployments work without requiring a local SpecGraph checkout.
+
+### CTXB-P13-T6 — Start Metrics screen parity with existing metrics artifacts
+- **Description:** Add a metrics dashboard surface for source promotion, delivery workflow, feedback, metric pack adapters, metric pack runs, and graph dashboard signals.
+- **Priority:** P1
+- **Dependencies:** CTXB-P13-T4
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** metrics read model, GraphSpace metrics panel/page, tests
+- **Acceptance Criteria:**
+  - Existing metrics artifacts are visible from SpecSpace without switching to the legacy viewer.
+  - Metrics entries can link back to spec nodes/proposals where source refs exist.
+  - Missing optional metrics artifacts degrade as diagnostics, not as broken app state.
+
+### CTXB-P13-T7 — Define Agent Workbench conversation artifact model
+- **Description:** Define the persisted conversation artifact model for future SpecSpace agent interactions, including graph context attachments, proposal origins, and analysis outputs.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T5, CTXB-P13-T6
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** artifact contract, storage boundary, workbench roadmap
+- **Acceptance Criteria:**
+  - Agent conversations are separate from legacy ContextBuilder file-browser conversations.
+  - The model can attach selected specs, edges, gaps, proposals, and metrics to a conversation turn.
+  - Proposal creation can reference the originating conversation turn.
+
+### CTXB-P13-T8 — Add graph-context-to-agent-context selection flow
+- **Description:** Add the first UI flow for selecting graph items and preparing them as Agent Workbench context.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T7
+- **Parallelizable:** no
+- **Outputs / Artifacts:** context selection UI model, disabled/placeholder agent handoff affordance, tests
+- **Acceptance Criteria:**
+  - Selected spec nodes can be collected into an explicit context set.
+  - The context set has a stable serialized shape suitable for future agent calls.
+  - The UI does not imply model execution until an agent backend exists.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
@@ -1640,6 +1734,7 @@ Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer 
 - Phase 10 migrates the graph-first SpecGraph experience into the new `graphspace/` rewrite. It depends on the GraphSpace FSD shell and current artifact panels, and should proceed in contract -> hook/model -> minimal canvas -> layout/composition -> inspector order.
 - Phase 11 makes SpecSpace deployable around a readonly SpecGraph boundary. It should establish versioned API contracts before Dockerizing the deployment shape.
 - Phase 12 protects the SpecSpace product boundary after deployment: readonly `/api/v1/*` SpecGraph/SpecPM viewing stays in `graphspace/`, while conversation authoring remains legacy ContextBuilder work.
+- Phase 13 closes product parity gaps after deployment hardening. The registry track comes first because it removes static-deploy lifecycle noise and gives SpecSpace a stable readonly SpecPM metadata source.
 
 ## Task Status Legend
 

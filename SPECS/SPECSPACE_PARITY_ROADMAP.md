@@ -152,11 +152,8 @@ Target:
 
 ## Suggested Next Slices
 
-1. `CTXB-P13-T1` — Select SpecSpace parity track after deployment hardening.
-2. `CTXB-P13-T2` — Disable or replace local-only SpecPM lifecycle UI in static mode.
-3. `CTXB-P13-T3` — Add SpecPM registry URL config and health reporting.
-4. `CTXB-P13-T4` — Add SpecPM registry status/package read adapter.
-5. `CTXB-P13-T5` — Start Proposal Viewer parity with static proposal indexes.
-6. `CTXB-P13-T6` — Start Metrics screen parity with existing metrics artifacts.
-7. `CTXB-P13-T7` — Define Agent Workbench conversation artifact model.
-8. `CTXB-P13-T8` — Add graph-context-to-agent-context selection flow.
+1. `CTXB-P13-T4` — Add SpecPM registry package/version read adapter.
+2. `CTXB-P13-T5` — Start Proposal Viewer parity with static proposal indexes.
+3. `CTXB-P13-T6` — Start Metrics screen parity with existing metrics artifacts.
+4. `CTXB-P13-T7` — Define Agent Workbench conversation artifact model.
+5. `CTXB-P13-T8` — Add graph-context-to-agent-context selection flow.
