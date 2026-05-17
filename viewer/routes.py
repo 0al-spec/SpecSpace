@@ -64,6 +64,7 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/v1/spec-activity": RouteSpec("handle_v1_spec_activity", pass_parsed=True),
     "/api/v1/implementation-work-index": RouteSpec("handle_v1_implementation_work_index", pass_parsed=True),
     "/api/v1/proposal-spec-trace-index": RouteSpec("handle_v1_proposal_spec_trace_index"),
+    "/api/v1/proposals": RouteSpec("handle_v1_proposals"),
     "/api/v1/specpm/registry": RouteSpec("handle_v1_specpm_registry"),
     "/api/v1/specpm/lifecycle": RouteSpec("handle_v1_specpm_lifecycle"),
     "/api/v1/runs-watch": RouteSpec("handle_v1_runs_watch"),

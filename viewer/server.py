@@ -308,6 +308,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_capabilities = specspace_v1_api.handle_v1_capabilities
     handle_v1_health = specspace_v1_api.handle_v1_health
     handle_v1_implementation_work_index = specspace_v1_api.handle_v1_implementation_work_index
+    handle_v1_proposals = specspace_v1_api.handle_v1_proposals
     handle_v1_proposal_spec_trace_index = specspace_v1_api.handle_v1_proposal_spec_trace_index
     handle_v1_recent_runs = specspace_v1_api.handle_v1_recent_runs
     handle_v1_runs_watch = specspace_v1_api.handle_v1_runs_watch
