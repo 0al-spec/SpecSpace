@@ -13,15 +13,21 @@ type Options = {
   url?: string;
   fetcher?: typeof fetch;
   refreshKey?: number;
+  enabled?: boolean;
 };
 
 export function useSpecPMLifecycleBadges(
   options: Options = {},
 ): UseSpecPMLifecycleBadgesState {
-  const { url, fetcher, refreshKey = 0 } = options;
+  const { url, fetcher, refreshKey = 0, enabled = true } = options;
   const [state, setState] = useState<UseSpecPMLifecycleBadgesState>({ kind: "idle" });
 
   useEffect(() => {
+    if (!enabled) {
+      setState({ kind: "idle" });
+      return;
+    }
+
     const controller = new AbortController();
     let cancelled = false;
     setState((current) => (current.kind === "idle" ? { kind: "loading" } : current));
@@ -49,7 +55,7 @@ export function useSpecPMLifecycleBadges(
       cancelled = true;
       controller.abort();
     };
-  }, [fetcher, refreshKey, url]);
+  }, [enabled, fetcher, refreshKey, url]);
 
   return state;
 }

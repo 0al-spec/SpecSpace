@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   describeDeploymentStatus,
+  shouldUseLocalSpecPMLifecycle,
   shouldUseRunsWatch,
   type ApiDeploymentState,
   type DeploymentInfo,
@@ -90,6 +91,32 @@ describe("shouldUseRunsWatch", () => {
       kind: "invalid",
       reason: "bad health envelope",
     })).toBe(true);
+  });
+});
+
+describe("shouldUseLocalSpecPMLifecycle", () => {
+  it("disables local lifecycle fetches for static HTTP artifact providers", () => {
+    expect(shouldUseLocalSpecPMLifecycle({
+      kind: "ok",
+      deployment: deployment(),
+      provider: "http",
+    })).toBe(false);
+  });
+
+  it("enables local lifecycle fetches for filesystem-backed providers", () => {
+    expect(shouldUseLocalSpecPMLifecycle({
+      kind: "ok",
+      deployment: deployment(),
+      provider: "file",
+    })).toBe(true);
+  });
+
+  it("waits for health before deciding lifecycle availability", () => {
+    expect(shouldUseLocalSpecPMLifecycle({ kind: "loading" })).toBe(false);
+    expect(shouldUseLocalSpecPMLifecycle({
+      kind: "network-error",
+      error: new TypeError("Failed to fetch"),
+    })).toBe(false);
   });
 });
 

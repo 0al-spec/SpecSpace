@@ -28,6 +28,7 @@ import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-art
 import { describeLive } from "../model/live-status";
 import {
   describeDeploymentStatus,
+  shouldUseLocalSpecPMLifecycle,
   shouldUseRunsWatch,
   uiDeploymentInfo,
   useApiDeploymentStatus,
@@ -62,6 +63,7 @@ export function ViewerPage() {
   const proposalTraceState = useProposalSpecTraceIndex({ refreshKey: runsWatchVersion });
   const specGraphState = useSpecGraph({ refreshKey: runsWatchVersion });
   const specpmLifecycleState = useSpecPMLifecycleBadges({
+    enabled: shouldUseLocalSpecPMLifecycle(apiDeploymentState),
     refreshKey: runsWatchVersion,
   });
   const deploymentStatus = describeDeploymentStatus(uiDeploymentInfo, apiDeploymentState);
