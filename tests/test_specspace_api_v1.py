@@ -466,6 +466,30 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertEqual(body["error"], "SpecPM package id and version are required in path.")
 
+    def test_specpm_registry_v1_version_endpoint_requires_version_without_trailing_slash(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            httpd, thread, base = _start(root / "dialogs", specpm_registry_url="https://example.invalid")
+            try:
+                status, body = _get(f"{base}/api/v1/specpm/registry/packages/specnode.core/versions")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "SpecPM package id and version are required in path.")
+
+    def test_specpm_registry_v1_rejects_dot_segment_package_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            httpd, thread, base = _start(root / "dialogs", specpm_registry_url="https://example.invalid")
+            try:
+                status, body = _get(f"{base}/api/v1/specpm/registry/packages/%2E%2E")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "SpecPM package id must not contain dot path segments.")
+
     def test_specpm_registry_v1_reports_not_configured(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

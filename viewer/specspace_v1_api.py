@@ -109,7 +109,20 @@ def handle_v1_specpm_registry_package(handler: SpecSpaceV1Handler, parsed: Any) 
         json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing SpecPM package id in path."})
         return
 
-    version_marker = "/versions/"
+    version_prefix = "/versions"
+    version_marker = f"{version_prefix}/"
+    if suffix.endswith(version_prefix):
+        package_id = unquote(suffix[: -len(version_prefix)]).strip()
+        if not package_id:
+            json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing SpecPM package id in path."})
+            return
+        json_response(
+            handler,
+            HTTPStatus.BAD_REQUEST,
+            {"error": "SpecPM package id and version are required in path."},
+        )
+        return
+
     if version_marker in suffix:
         package_raw, version_raw = suffix.split(version_marker, 1)
         package_id = unquote(package_raw).strip()

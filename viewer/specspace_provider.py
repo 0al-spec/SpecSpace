@@ -945,6 +945,17 @@ def _specpm_registry_not_configured_payload() -> dict[str, Any]:
     }
 
 
+def _specpm_registry_bad_request_payload(error: str) -> dict[str, Any]:
+    return {
+        "api_version": SPECSPACE_API_VERSION,
+        "error": error,
+    }
+
+
+def _has_dot_path_segment(value: str) -> bool:
+    return any(segment in {".", ".."} for segment in value.split("/"))
+
+
 def _read_configured_specpm_registry_endpoint(
     server: Any,
     endpoint: str,
@@ -969,6 +980,11 @@ def _read_configured_specpm_registry_endpoint(
 
 
 def read_specpm_registry_package(server: Any, package_id: str) -> tuple[int, dict[str, Any]]:
+    if _has_dot_path_segment(package_id):
+        return HTTPStatus.BAD_REQUEST, _specpm_registry_bad_request_payload(
+            "SpecPM package id must not contain dot path segments.",
+        )
+
     return _read_configured_specpm_registry_endpoint(
         server,
         f"v0/packages/{quote(package_id, safe='')}",
@@ -980,6 +996,11 @@ def read_specpm_registry_package_version(
     package_id: str,
     version: str,
 ) -> tuple[int, dict[str, Any]]:
+    if _has_dot_path_segment(package_id):
+        return HTTPStatus.BAD_REQUEST, _specpm_registry_bad_request_payload(
+            "SpecPM package id must not contain dot path segments.",
+        )
+
     return _read_configured_specpm_registry_endpoint(
         server,
         f"v0/packages/{quote(package_id, safe='')}/versions/{quote(version, safe='')}",
