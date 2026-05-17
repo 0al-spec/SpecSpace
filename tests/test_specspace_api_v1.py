@@ -194,6 +194,125 @@ def _write_specpm_registry(root: Path) -> None:
         _write_json(directory / "index.html", payload)
 
 
+def _write_proposal_viewer_artifacts(runs_dir: Path) -> None:
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(
+        runs_dir / "proposal_spec_trace_index.json",
+        {
+            "artifact_kind": "proposal_spec_trace_index",
+            "generated_at": "2026-05-17T12:00:00Z",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "trace_entry_id": "proposal::0042",
+                    "proposal_id": "0042",
+                    "proposal_path": "docs/proposals/0042_agent_context.md",
+                    "title": "Agent Context Bridge",
+                    "status": "Draft proposal",
+                    "spec_refs": [
+                        {
+                            "proposal_id": "0042",
+                            "proposal_path": "docs/proposals/0042_agent_context.md",
+                            "spec_id": "SG-SPEC-0001",
+                            "relation_kind": "mentions",
+                            "authority": "textual_reference",
+                            "trace_status": "inferred",
+                            "next_gap": "attach_promotion_trace",
+                            "source_refs": ["docs/proposals/0042_agent_context.md"],
+                        }
+                    ],
+                    "mentioned_spec_ids": ["SG-SPEC-0001"],
+                    "promotion_trace": {
+                        "status": "bounded",
+                        "trace_status": "bounded",
+                        "next_gap": "none",
+                        "source_refs": ["docs/archive/proposal_sources/0042_agent_context.md"],
+                    },
+                    "next_gap": "none",
+                }
+            ],
+            "lane_ref_count": 0,
+            "lane_refs": [],
+            "summary": {
+                "entry_count": 1,
+                "lane_ref_count": 0,
+                "spec_ref_count": 1,
+                "authority_counts": {"textual_reference": 1},
+                "trace_status_counts": {"bounded": 1},
+            },
+            "viewer_projection": {"spec_id": {}, "authority": {}, "trace_status": {}, "named_filters": {}},
+            "viewer_contract": {"contract_doc": "test", "read_only": True},
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+        },
+    )
+    _write_json(
+        runs_dir / "proposal_runtime_index.json",
+        {
+            "artifact_kind": "proposal_runtime_index",
+            "generated_at": "2026-05-17T12:00:00Z",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "proposal_id": "0042",
+                    "title": "Agent Context Bridge",
+                    "status": "Draft proposal",
+                    "path": "docs/proposals/0042_agent_context.md",
+                    "posture": "synchronous_runtime_slice",
+                    "runtime_realization": {"status": "implemented"},
+                    "reflective_chain": {"runtime_realization": "implemented", "next_gap": "none"},
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "proposal_promotion_index.json",
+        {
+            "artifact_kind": "proposal_promotion_index",
+            "generated_at": "2026-05-17T12:00:00Z",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "proposal_id": "0042",
+                    "title": "Agent Context Bridge",
+                    "path": "docs/proposals/0042_agent_context.md",
+                    "status": "Draft proposal",
+                    "promotion_traceability": {"status": "bounded", "next_gap": "none"},
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "proposal_lane_overlay.json",
+        {
+            "artifact_kind": "proposal_lane_overlay",
+            "generated_at": "2026-05-17T12:00:00Z",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "tracked_path": "proposal_lane/nodes/governance_proposal--sg-spec-0002.json",
+                    "title": "Governance Proposal for SG-SPEC-0002",
+                    "proposal_handle": "governance_proposal::SG-SPEC-0002::runtime",
+                    "proposal_authority_state": "under_review",
+                    "proposal_type": "governance_proposal",
+                    "target_region": {
+                        "target_kind": "canonical_node",
+                        "target_reference": "SG-SPEC-0002",
+                    },
+                    "lineage_links": [
+                        {
+                            "lineage_role": "motivated_by",
+                            "source_kind": "canonical_node",
+                            "source_reference": "SG-SPEC-0002",
+                        }
+                    ],
+                    "query_contract": {"status": "queryable", "findings": []},
+                }
+            ],
+        },
+    )
+
+
 class SpecSpaceProviderHealthTests(unittest.TestCase):
     def test_directory_health_distinguishes_missing_empty_and_ok(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -442,6 +561,82 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["data"]["package_id"], "specnode.core")
         self.assertEqual(body["data"]["version"], "0.1.0")
 
+    def test_proposals_v1_combines_static_artifacts_and_local_markdown(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_proposal_viewer_artifacts(root / "runs")
+            proposals_dir = root / "docs" / "proposals"
+            proposals_dir.mkdir(parents=True)
+            (proposals_dir / "0042_agent_context.md").write_text(
+                "# Agent Context Bridge\n\n## Status\n\nDraft proposal\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(root / "dialogs", specgraph_dir=root)
+            try:
+                status, body = _get(f"{base}/api/v1/proposals")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["api_version"], "v1")
+        self.assertEqual(body["artifact_kind"], "specspace_proposal_index")
+        self.assertEqual(body["source"]["provider"], "file")
+        self.assertEqual(body["entry_count"], 2)
+        by_key = {entry["proposal_key"]: entry for entry in body["entries"]}
+        proposal = by_key["proposal::0042"]
+        self.assertEqual(proposal["title"], "Agent Context Bridge")
+        self.assertEqual(proposal["status"], "Draft proposal")
+        self.assertEqual(proposal["runtime_state"], "implemented")
+        self.assertEqual(proposal["runtime_posture"], "synchronous_runtime_slice")
+        self.assertEqual(proposal["promotion_status"], "bounded")
+        self.assertEqual(proposal["trace_status"], "bounded")
+        self.assertEqual(proposal["affected_spec_ids"], ["SG-SPEC-0001"])
+        self.assertTrue(proposal["markdown"]["available"])
+        lane = by_key["lane::governance_proposal::SG-SPEC-0002::runtime"]
+        self.assertEqual(lane["authority_state"], "under_review")
+        self.assertEqual(lane["proposal_type"], "governance_proposal")
+        self.assertEqual(lane["affected_spec_ids"], ["SG-SPEC-0002"])
+        self.assertEqual(body["filters"]["authority_state_counts"]["under_review"], 1)
+        self.assertIn("SG-SPEC-0001", body["filters"]["affected_spec_ids"])
+        self.assertEqual(body["sources"]["proposal_markdown"]["entry_count"], 1)
+
+    def test_proposals_v1_degrades_when_optional_artifacts_are_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            _write_json(
+                runs_dir / "proposal_spec_trace_index.json",
+                {
+                    "artifact_kind": "proposal_spec_trace_index",
+                    "entry_count": 1,
+                    "entries": [
+                        {
+                            "trace_entry_id": "proposal::0007",
+                            "proposal_id": "0007",
+                            "proposal_path": "docs/proposals/0007.md",
+                            "title": "Trace-only proposal",
+                            "status": "Draft proposal",
+                            "spec_refs": [],
+                            "mentioned_spec_ids": ["SG-SPEC-0007"],
+                            "promotion_trace": {"status": "missing_trace"},
+                            "next_gap": "attach_promotion_trace",
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(root / "dialogs", specgraph_dir=root)
+            try:
+                status, body = _get(f"{base}/api/v1/proposals")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["entry_count"], 1)
+        self.assertEqual(body["entries"][0]["proposal_id"], "0007")
+        self.assertEqual(body["sources"]["proposal_runtime_index"]["available"], False)
+        self.assertEqual(body["sources"]["proposal_runtime_index"]["reason"], "missing_artifact")
+
     def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -662,16 +857,16 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     "entry_count": 2,
                 },
             )
-            _write_json(
-                runs_dir / "proposal_spec_trace_index.json",
-                {"artifact_kind": "proposal_spec_trace_index", "entries": [], "entry_count": 0},
-            )
+            _write_proposal_viewer_artifacts(runs_dir)
             _write_manifest(
                 artifact_root,
                 [
                     "specs/nodes/SG-SPEC-0001.yaml",
                     "runs/spec_activity_feed.json",
                     "runs/proposal_spec_trace_index.json",
+                    "runs/proposal_lane_overlay.json",
+                    "runs/proposal_runtime_index.json",
+                    "runs/proposal_promotion_index.json",
                 ],
             )
             static, static_thread, artifact_base_url = _start_static(artifact_root)
@@ -682,6 +877,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 node_status, node = _get(f"{base}/api/v1/spec-nodes/{quote('SG-SPEC-0001')}")
                 activity_status, activity = _get(f"{base}/api/v1/spec-activity?limit=1")
                 trace_status, trace = _get(f"{base}/api/v1/proposal-spec-trace-index")
+                proposals_status, proposals = _get(f"{base}/api/v1/proposals")
             finally:
                 _stop(httpd, thread)
                 _stop(static, static_thread)
@@ -699,6 +895,11 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(activity["path"].endswith("/runs/spec_activity_feed.json"))
         self.assertEqual(trace_status, 200)
         self.assertEqual(trace["data"]["artifact_kind"], "proposal_spec_trace_index")
+        self.assertEqual(proposals_status, 200)
+        self.assertEqual(proposals["source"]["provider"], "http")
+        self.assertEqual(proposals["entry_count"], 2)
+        self.assertEqual(proposals["sources"]["proposal_markdown"]["available"], False)
+        self.assertEqual(proposals["entries"][0]["affected_spec_ids"], ["SG-SPEC-0001"])
 
     def test_http_provider_reports_missing_runs_artifact_as_not_found(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -9,6 +9,7 @@ import styles from "./ViewerPage.module.css";
 export type ViewerUtilityPanelId =
   | "recent"
   | "work"
+  | "proposals"
   | "proposal-trace"
   | "artifacts"
   | "registry";

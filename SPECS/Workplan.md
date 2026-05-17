@@ -1675,7 +1675,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Not configured, HTTP errors, invalid JSON, non-object payloads, and unsupported registry `apiVersion` return structured errors.
   - SpecSpace does not execute packages, mutate registry state, or treat registry metadata as graph authority.
 
-### CTXB-P13-T5 — Start Proposal Viewer parity with static proposal indexes
+### ✅ CTXB-P13-T5 — Start Proposal Viewer parity with static proposal indexes — DONE (PASS, 2026-05-17)
 - **Description:** Add a proposal-focused surface that combines existing proposal trace rows with static proposal lane/runtime/promotion artifacts and, when available, proposal markdown metadata.
 - **Priority:** P1
 - **Dependencies:** CTXB-P13-T4

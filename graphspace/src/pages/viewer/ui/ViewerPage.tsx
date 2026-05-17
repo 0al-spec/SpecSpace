@@ -40,9 +40,11 @@ import {
   SAMPLE_WORK_ITEMS,
 } from "../model/sample-data";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
+import { ProposalViewerPanel } from "./ProposalViewerPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
 import { SpecPMRegistryPanel } from "./SpecPMRegistryPanel";
 import { ViewerChrome, type ViewerUtilityPanelId } from "./ViewerChrome";
+import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
 import styles from "./ViewerPage.module.css";
 
@@ -63,6 +65,7 @@ export function ViewerPage() {
   const feedState = useRecentChanges({ refreshKey: runsWatchVersion });
   const workState = useImplementationWorkIndex({ refreshKey: runsWatchVersion });
   const proposalTraceState = useProposalSpecTraceIndex({ refreshKey: runsWatchVersion });
+  const proposalIndexState = useProposalIndex({ refreshKey: runsWatchVersion });
   const specpmRegistryState = useSpecPMRegistrySummary();
   const specGraphState = useSpecGraph({ refreshKey: runsWatchVersion });
   const specpmLifecycleState = useSpecPMLifecycleBadges({
@@ -177,6 +180,10 @@ export function ViewerPage() {
     proposalTraceState.kind === "ok"
       ? `${proposalTraceState.data.entry_count} entries · live`
       : proposalTraceStatus.caption;
+  const proposalIndexCaption =
+    proposalIndexState.kind === "ok"
+      ? `${proposalIndexState.data.entry_count} proposals · readonly`
+      : proposalIndexState.kind;
   const artifactAttentionCount = artifactDiagnostics.filter(
     (artifact) => artifact.tone !== "live",
   ).length;
@@ -215,8 +222,10 @@ export function ViewerPage() {
       ? { title: "Recent changes", caption: feedCaption }
       : activeUtilityPanel === "work"
         ? { title: "Implementation work", caption: workCaption }
-        : activeUtilityPanel === "proposal-trace"
-          ? { title: "Proposal trace", caption: proposalTraceCaption }
+      : activeUtilityPanel === "proposal-trace"
+        ? { title: "Proposal trace", caption: proposalTraceCaption }
+        : activeUtilityPanel === "proposals"
+          ? { title: "Proposal viewer", caption: proposalIndexCaption }
           : activeUtilityPanel === "artifacts"
             ? { title: "Live artifacts", caption: artifactCaption }
             : activeUtilityPanel === "registry"
@@ -285,6 +294,19 @@ export function ViewerPage() {
               onClick={() => toggleUtilityPanel("work")}
             >
               ▤
+            </PanelBtn>
+            <PanelBtn
+              title="Open Proposal viewer"
+              aria-label="Open Proposal viewer"
+              active={activeUtilityPanel === "proposals"}
+              badge={
+                proposalIndexState.kind === "ok"
+                  ? proposalIndexState.data.entry_count
+                  : undefined
+              }
+              onClick={() => toggleUtilityPanel("proposals")}
+            >
+              ◈
             </PanelBtn>
             <PanelBtn
               title="Open Proposal trace"
@@ -405,6 +427,14 @@ export function ViewerPage() {
               caption={proposalTraceCaption}
               emptyMessage={proposalTraceStatus.emptyMessage}
               className={styles.proposalTracePanel}
+              resolveSpecRef={resolveSpecRef}
+              onSpecIdClick={selectSpecNodeId}
+            />
+          ) : null}
+
+          {activeUtilityPanel === "proposals" ? (
+            <ProposalViewerPanel
+              state={proposalIndexState}
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={selectSpecNodeId}
             />

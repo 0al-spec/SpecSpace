@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 
 import yaml  # type: ignore[import-untyped]
 
-from viewer import capabilities_api, specgraph, specgraph_surfaces
+from viewer import capabilities_api, proposals, specgraph, specgraph_surfaces
 from viewer.specpm import _build_specpm_lifecycle
 
 SPECSPACE_API_VERSION = "v1"
@@ -74,6 +74,8 @@ class SpecSpaceProvider(Protocol):
     def read_implementation_work_index(self, *, limit_raw: str | None) -> tuple[int, dict[str, Any]]: ...
 
     def read_proposal_spec_trace_index(self) -> tuple[int, dict[str, Any]]: ...
+
+    def read_proposals(self) -> tuple[int, dict[str, Any]]: ...
 
     def read_specpm_lifecycle(self) -> tuple[int, dict[str, Any]]: ...
 
@@ -282,6 +284,12 @@ class FileSpecGraphProvider:
             runs_dir=self.runs_dir,
             filename="proposal_spec_trace_index.json",
             build_hint="`make viewer-surfaces` in SpecGraph",
+        )
+
+    def read_proposals(self) -> tuple[int, dict[str, Any]]:
+        return proposals.read_file_proposal_index(
+            runs_dir=self.runs_dir,
+            specgraph_dir=self.specgraph_dir,
         )
 
     def read_specpm_lifecycle(self) -> tuple[HTTPStatus, dict[str, Any]]:
@@ -711,6 +719,108 @@ class HttpSpecGraphProvider:
         return self._read_json_artifact(
             "proposal_spec_trace_index.json",
             build_hint="`make viewer-surfaces` in SpecGraph",
+        )
+
+    def _read_optional_proposal_artifact(
+        self,
+        manifest: dict[str, Any],
+        name: str,
+        filename: str,
+    ) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        path = f"runs/{filename}"
+        if not self._has_artifact(manifest, path):
+            return proposals.empty_source(
+                name,
+                filename,
+                reason="missing_artifact",
+                path=f"{self.normalized_base_url}/{path}",
+            ), None
+
+        status, text, error = self._read_artifact_text(path)
+        url = self._artifact_url(path)
+        if error is not None or status != HTTPStatus.OK or text is None:
+            detail = error["detail"] if error is not None else f"HTTP {int(status)}"
+            return {
+                "available": False,
+                "artifact": path,
+                "path": url,
+                "entry_count": 0,
+                "reason": "artifact_fetch_failed",
+                "detail": detail,
+            }, None
+
+        data, source_error = proposals.decode_json_artifact_text(
+            text,
+            artifact=path,
+            path=url,
+        )
+        if source_error is not None:
+            return source_error, None
+        assert data is not None
+        artifact = http_envelope(url, manifest, data)
+        return proposals.artifact_source(name, filename, artifact), artifact
+
+    def _collect_http_proposal_markdown(self, manifest: dict[str, Any]) -> dict[str, Any]:
+        paths = self._paths_for(manifest, prefix="docs/proposals/", suffix=".md")
+        if not paths:
+            return {
+                "available": False,
+                "path": f"{self.normalized_base_url}/docs/proposals",
+                "entry_count": 0,
+                "entries": [],
+                "reason": "proposals_dir_missing",
+            }
+
+        entries: list[dict[str, Any]] = []
+        errors: list[dict[str, str]] = []
+        for path in paths:
+            status, text, error = self._read_artifact_text(path)
+            if error is not None or status != HTTPStatus.OK or text is None:
+                errors.append({
+                    "file_name": PurePosixPath(path).name,
+                    "error": error["detail"] if error is not None else f"HTTP {int(status)}",
+                })
+                continue
+            file_name = PurePosixPath(path).name
+            entries.append({
+                "proposal_id": PurePosixPath(path).stem.split("_", 1)[0],
+                "title": proposals.extract_proposal_title(text, PurePosixPath(path).stem),
+                "status": proposals.extract_proposal_status(text) or "Unknown",
+                "file_name": file_name,
+                "relative_path": path,
+                "path": self._artifact_url(path),
+            })
+
+        return {
+            "available": True,
+            "path": f"{self.normalized_base_url}/docs/proposals",
+            "entry_count": len(entries),
+            "entries": entries,
+            "errors": errors,
+        }
+
+    def read_proposals(self) -> tuple[int, dict[str, Any]]:
+        manifest, manifest_error = self._read_manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+
+        sources: dict[str, dict[str, Any]] = {}
+        artifacts: dict[str, dict[str, Any] | None] = {}
+        for name, filename in proposals.PROPOSAL_ARTIFACTS.items():
+            source, artifact = self._read_optional_proposal_artifact(manifest, name, filename)
+            sources[name] = source
+            artifacts[name] = artifact
+
+        return HTTPStatus.OK, proposals.build_proposal_index(
+            artifacts=artifacts,
+            sources=sources,
+            markdown=self._collect_http_proposal_markdown(manifest),
+            source={
+                "provider": "http",
+                "artifact_base_url": self.normalized_base_url,
+                "manifest": self.manifest_url,
+            },
         )
 
     def read_specpm_lifecycle(self) -> tuple[int, dict[str, Any]]:
