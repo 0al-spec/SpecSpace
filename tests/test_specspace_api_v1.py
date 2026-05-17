@@ -850,6 +850,28 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["sources"]["graph_dashboard"]["available"], False)
         self.assertEqual(body["sources"]["graph_dashboard"]["reason"], "missing_artifact")
 
+    def test_metrics_v1_rejects_non_object_file_artifact_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            (runs_dir / "metric_signal_index.json").write_text("[]", encoding="utf-8")
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/metrics")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["entry_count"], 0)
+        self.assertEqual(body["entries"], [])
+        self.assertEqual(body["sources"]["metric_signals"]["available"], False)
+        self.assertEqual(body["sources"]["metric_signals"]["reason"], "invalid_json_root")
+        self.assertEqual(
+            body["sources"]["metric_signals"]["detail"],
+            "JSON root is not an object",
+        )
+
     def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

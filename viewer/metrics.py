@@ -163,6 +163,15 @@ def _read_file_artifact(runs_dir: Path | None, name: str, filename: str) -> tupl
             "reason": "invalid_artifact",
             **payload,
         }, None
+    if not isinstance(payload.get("data"), dict):
+        return {
+            "available": False,
+            "artifact": f"runs/{filename}",
+            "path": str(path),
+            "entry_count": 0,
+            "reason": "invalid_json_root",
+            "detail": "JSON root is not an object",
+        }, None
     return artifact_source(name, filename, payload), payload
 
 
