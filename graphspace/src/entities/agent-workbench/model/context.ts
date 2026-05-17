@@ -6,7 +6,17 @@ export type AgentContextSpecNodeItem = {
   file_name: string;
 };
 
-export type AgentContextItem = AgentContextSpecNodeItem;
+export type AgentContextProposalItem = {
+  kind: "proposal";
+  proposal_key: string;
+  proposal_id: string;
+  title: string;
+  status: string;
+  proposal_path: string | null;
+  affected_spec_ids: string[];
+};
+
+export type AgentContextItem = AgentContextSpecNodeItem | AgentContextProposalItem;
 
 export type AgentContextDraft = {
   context_set_id: string;
@@ -43,7 +53,33 @@ export function createSpecNodeContextItem(
   };
 }
 
+export type ProposalContextSource = {
+  proposal_key: string;
+  proposal_id: string;
+  title: string;
+  status: string;
+  proposal_path: string | null;
+  affected_spec_ids: readonly string[];
+};
+
+export function createProposalContextItem(
+  proposal: ProposalContextSource,
+): AgentContextProposalItem {
+  return {
+    kind: "proposal",
+    proposal_key: proposal.proposal_key,
+    proposal_id: proposal.proposal_id,
+    title: proposal.title,
+    status: proposal.status,
+    proposal_path: proposal.proposal_path,
+    affected_spec_ids: [...proposal.affected_spec_ids],
+  };
+}
+
 export function agentContextItemKey(item: AgentContextItem): string {
+  if (item.kind === "proposal") {
+    return `${item.kind}:${item.proposal_key}`;
+  }
   return `${item.kind}:${item.node_id}`;
 }
 
@@ -83,6 +119,10 @@ export function serializeAgentContextSet(draft: AgentContextDraft): AgentContext
     context_set_id: draft.context_set_id,
     created_at: draft.created_at,
     label: draft.label,
-    items: draft.items.map((item) => ({ ...item })),
+    items: draft.items.map((item) =>
+      item.kind === "proposal"
+        ? { ...item, affected_spec_ids: [...item.affected_spec_ids] }
+        : { ...item },
+    ),
   };
 }

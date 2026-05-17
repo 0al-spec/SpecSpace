@@ -10,6 +10,7 @@ import {
   projectAgentRuntimeEvent,
   serializeAgentContextSet,
   type AgentContextDraft,
+  type AgentContextItem,
   type AgentConversationRef,
   type AgentConversationRuntime,
   type AgentRuntimeProjection,
@@ -119,11 +120,10 @@ export function AgentConversationPanel({
         ) : (
           serializedContext.items.map((item) => (
             <span className={styles.contextToken} key={agentContextItemKey(item)}>
-              <SpecIdText
-                text={item.node_id}
+              <AgentContextToken
+                item={item}
                 resolveSpecRef={resolveSpecRef}
                 onSpecIdClick={onSpecIdClick}
-                variant="bare"
               />
             </span>
           ))
@@ -177,6 +177,28 @@ export function AgentConversationPanel({
         </button>
       </form>
     </section>
+  );
+}
+
+function AgentContextToken({
+  item,
+  resolveSpecRef,
+  onSpecIdClick,
+}: {
+  item: AgentContextItem;
+  resolveSpecRef?: SpecRefResolver;
+  onSpecIdClick?: (nodeId: string) => void;
+}) {
+  if (item.kind === "proposal") {
+    return <span>{item.proposal_id}</span>;
+  }
+  return (
+    <SpecIdText
+      text={item.node_id}
+      resolveSpecRef={resolveSpecRef}
+      onSpecIdClick={onSpecIdClick}
+      variant="bare"
+    />
   );
 }
 

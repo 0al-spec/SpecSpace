@@ -224,11 +224,13 @@ def extract_proposal_excerpt(content: str, *, max_length: int = 280) -> str:
 
 
 def _proposal_markdown_entry(path: Path, content: str, stat: os.stat_result) -> dict[str, Any]:
+    content_excerpt = extract_proposal_excerpt(content)
     return {
         "proposal_id": path.stem.split("_", 1)[0],
         "title": extract_proposal_title(content, path.stem),
         "status": extract_proposal_status(content) or "Unknown",
-        "content_excerpt": extract_proposal_excerpt(content),
+        "content_excerpt": content_excerpt,
+        "content_preview": extract_proposal_excerpt(content, max_length=1200),
         "file_name": path.name,
         "relative_path": f"docs/proposals/{path.name}",
         "path": str(path),
@@ -344,6 +346,7 @@ def _merge_markdown(entries: dict[str, dict[str, Any]], markdown: dict[str, Any]
             "relative_path": item.get("relative_path"),
             "mtime_iso": item.get("mtime_iso"),
             "content_excerpt": item.get("content_excerpt"),
+            "content_preview": item.get("content_preview"),
         }
         _add_source(entry, "proposal_markdown")
 

@@ -3,9 +3,11 @@ import {
   addAgentContextItem,
   agentContextItemKey,
   createAgentContextDraft,
+  createProposalContextItem,
   createSpecNodeContextItem,
   removeAgentContextItem,
   serializeAgentContextSet,
+  type ProposalContextSource,
   type SpecNodeContextSource,
 } from "../index";
 
@@ -16,6 +18,18 @@ const node = (
   file_name: "SG-SPEC-0001.yaml",
   title: "SpecGraph - The Executable Product Ontology",
   status: "linked",
+  ...overrides,
+});
+
+const proposal = (
+  overrides: Partial<ProposalContextSource> = {},
+): ProposalContextSource => ({
+  proposal_key: "proposal::0042",
+  proposal_id: "0042",
+  title: "Agent Context Bridge",
+  status: "Draft proposal",
+  proposal_path: "docs/proposals/0042_agent_context.md",
+  affected_spec_ids: ["SG-SPEC-0001"],
   ...overrides,
 });
 
@@ -49,6 +63,37 @@ describe("agent context draft", () => {
 
     expect(withDuplicate.items).toHaveLength(1);
     expect(agentContextItemKey(item)).toBe("spec_node:SG-SPEC-0001");
+  });
+
+  it("serializes proposal context items by stable proposal key", () => {
+    const draft = createAgentContextDraft("2026-05-17T16:00:00Z");
+    const item = createProposalContextItem(proposal());
+    const withProposal = addAgentContextItem(draft, item);
+    const serialized = serializeAgentContextSet(withProposal);
+
+    expect(agentContextItemKey(item)).toBe("proposal:proposal::0042");
+    expect(serialized.items).toEqual([
+      {
+        kind: "proposal",
+        proposal_key: "proposal::0042",
+        proposal_id: "0042",
+        title: "Agent Context Bridge",
+        status: "Draft proposal",
+        proposal_path: "docs/proposals/0042_agent_context.md",
+        affected_spec_ids: ["SG-SPEC-0001"],
+      },
+    ]);
+
+    const serializedProposal = serialized.items[0];
+    if (serializedProposal.kind !== "proposal") {
+      throw new Error("expected serialized proposal item");
+    }
+    serializedProposal.affected_spec_ids.push("SG-SPEC-0002");
+
+    expect(withProposal.items[0]).toMatchObject({
+      kind: "proposal",
+      affected_spec_ids: ["SG-SPEC-0001"],
+    });
   });
 
   it("removes context items by key", () => {

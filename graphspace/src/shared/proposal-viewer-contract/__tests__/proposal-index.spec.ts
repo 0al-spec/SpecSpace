@@ -19,6 +19,7 @@ const proposalIndex = () => ({
       markdown: {
         available: true,
         content_excerpt: "Connect selected SpecGraph context to the Agent Workbench.",
+        content_preview: "Connect selected SpecGraph context to the Agent Workbench with a longer preview.",
       },
       authority_state: null,
       proposal_type: null,
@@ -61,6 +62,9 @@ describe("parseProposalIndex", () => {
     expect(result.data.entries[0].markdown.content_excerpt).toBe(
       "Connect selected SpecGraph context to the Agent Workbench.",
     );
+    expect(result.data.entries[0].markdown.content_preview).toBe(
+      "Connect selected SpecGraph context to the Agent Workbench with a longer preview.",
+    );
     expect(result.data.filters.runtime_state_counts.implemented).toBe(1);
   });
 
@@ -69,5 +73,16 @@ describe("parseProposalIndex", () => {
     broken.artifact_kind = "proposal_spec_trace_index";
 
     expect(parseProposalIndex(broken).kind).toBe("parse-error");
+  });
+
+  it("accepts missing preview fields as null for compatibility", () => {
+    const payload = proposalIndex() as any;
+    payload.entries[0].markdown.content_excerpt = null;
+    payload.entries[0].markdown.content_preview = null;
+    payload.sources.proposal_markdown.reason = null;
+
+    const result = parseProposalIndex(payload);
+
+    expect(result.kind).toBe("ok");
   });
 });

@@ -1791,6 +1791,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Spec IDs inside proposal excerpts stay graph-aware and clickable through the existing resolver.
   - Missing markdown continues to degrade to artifact-only proposal rows.
 
+### ✅ CTXB-P13-T15 — Proposal detail panel — DONE (PASS, 2026-05-18)
+- **Description:** Add a readonly Proposal Viewer detail surface with metadata, markdown preview, source artifacts, affected specs, and Agent Workbench handoff actions.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T14
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** proposal detail UI, proposal context item contract, longer proposal content preview
+- **Acceptance Criteria:**
+  - Clicking a Proposal Viewer row opens an in-panel detail surface without leaving the canvas workspace.
+  - Detail shows status, lane/runtime/promotion metadata, affected specs, source artifacts, and a longer markdown preview when available.
+  - A proposal can be added to the Agent Context draft as a proposal item without changing readonly proposal artifacts.
+  - Starting a conversation from a proposal attaches the proposal to context and opens the Agent Conversation panel.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.

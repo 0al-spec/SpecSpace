@@ -750,6 +750,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             proposal["markdown"]["content_excerpt"],
             "This proposal connects selected SpecGraph context to the Agent Workbench.",
         )
+        self.assertEqual(
+            proposal["markdown"]["content_preview"],
+            "This proposal connects selected SpecGraph context to the Agent Workbench.",
+        )
         lane = by_key["lane::governance_proposal::SG-SPEC-0002::runtime"]
         self.assertEqual(lane["authority_state"], "under_review")
         self.assertEqual(lane["proposal_type"], "governance_proposal")

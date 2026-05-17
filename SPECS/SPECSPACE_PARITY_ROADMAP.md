@@ -169,3 +169,4 @@ Target:
 8. `CTXB-P13-T12` — Agent conversation panel shell over the mock runtime.
 9. `CTXB-P13-T13` — Assistant UI adapter spike behind the conversation panel boundary. ✅
 10. `CTXB-P13-T14` — Proposal Viewer markdown previews. ✅
+11. `CTXB-P13-T15` — Proposal detail panel. ✅
