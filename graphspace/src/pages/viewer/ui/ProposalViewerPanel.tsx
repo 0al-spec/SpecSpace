@@ -13,6 +13,8 @@ type Props = {
   state: UseProposalIndexState;
   resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
+  onAddProposalToAgentContext?: (entry: ProposalIndexEntry) => void;
+  onStartConversationFromProposal?: (entry: ProposalIndexEntry) => void;
 };
 
 function errorDetail(state: Exclude<UseProposalIndexState, { kind: "ok" | "idle" | "loading" }>): string {
@@ -32,6 +34,8 @@ export function ProposalViewerPanel({
   state,
   resolveSpecRef,
   onSpecIdClick,
+  onAddProposalToAgentContext,
+  onStartConversationFromProposal,
 }: Props) {
   const [filters, setFilters] = useState<ProposalViewerFilters>({
     status: "",
@@ -47,6 +51,14 @@ export function ProposalViewerPanel({
   const filtered = useMemo(
     () => proposalData ? filterProposalEntries(proposalData.entries, filters) : [],
     [proposalData, filters],
+  );
+  const [selectedProposalKey, setSelectedProposalKey] = useState<string | null>(null);
+  const selectedProposal = useMemo(
+    () =>
+      proposalData && selectedProposalKey
+        ? proposalData.entries.find((entry) => entry.proposal_key === selectedProposalKey) ?? null
+        : null,
+    [proposalData, selectedProposalKey],
   );
 
   if (state.kind === "idle" || state.kind === "loading") {
@@ -122,6 +134,17 @@ export function ProposalViewerPanel({
         ))}
       </div>
 
+      {selectedProposal ? (
+        <ProposalDetail
+          entry={selectedProposal}
+          resolveSpecRef={resolveSpecRef}
+          onSpecIdClick={onSpecIdClick}
+          onClose={() => setSelectedProposalKey(null)}
+          onAddProposalToAgentContext={onAddProposalToAgentContext}
+          onStartConversationFromProposal={onStartConversationFromProposal}
+        />
+      ) : null}
+
       <div className={styles.entries}>
         {filtered.length === 0 ? (
           <Status label="No proposals" detail="No proposal entries match the current filters." />
@@ -130,6 +153,8 @@ export function ProposalViewerPanel({
             <ProposalRow
               key={entry.proposal_key}
               entry={entry}
+              selected={entry.proposal_key === selectedProposalKey}
+              onSelect={() => setSelectedProposalKey(entry.proposal_key)}
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
             />
@@ -177,10 +202,14 @@ function FilterSelect({
 
 function ProposalRow({
   entry,
+  selected,
+  onSelect,
   resolveSpecRef,
   onSpecIdClick,
 }: {
   entry: ProposalIndexEntry;
+  selected: boolean;
+  onSelect: () => void;
   resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 }) {
@@ -192,7 +221,7 @@ function ProposalRow({
   ].filter((item): item is string => Boolean(item));
 
   return (
-    <article className={styles.row}>
+    <article className={[styles.row, selected ? styles.rowSelected : ""].join(" ")}>
       <div className={styles.rowHeader}>
         <span className={styles.proposalId}>{entry.proposal_id}</span>
         <span className={styles.status}>{entry.status}</span>
@@ -242,6 +271,138 @@ function ProposalRow({
       <div className={styles.path}>
         {entry.markdown.available ? "markdown" : "artifact"} · {entry.proposal_path ?? "no path"}
       </div>
+      <button type="button" className={styles.openButton} onClick={onSelect}>
+        {selected ? "Viewing Details" : "View Details"}
+      </button>
+    </article>
+  );
+}
+
+function ProposalDetail({
+  entry,
+  resolveSpecRef,
+  onSpecIdClick,
+  onClose,
+  onAddProposalToAgentContext,
+  onStartConversationFromProposal,
+}: {
+  entry: ProposalIndexEntry;
+  resolveSpecRef?: SpecRefResolver;
+  onSpecIdClick?: (nodeId: string) => void;
+  onClose: () => void;
+  onAddProposalToAgentContext?: (entry: ProposalIndexEntry) => void;
+  onStartConversationFromProposal?: (entry: ProposalIndexEntry) => void;
+}) {
+  const metadata = [
+    ["Status", entry.status],
+    ["Lane", entry.authority_state],
+    ["Type", entry.proposal_type],
+    ["Runtime", entry.runtime_state],
+    ["Posture", entry.runtime_posture],
+    ["Promotion", entry.promotion_status],
+    ["Trace", entry.trace_status],
+    ["Next gap", entry.next_gap],
+  ].filter((item): item is [string, string] => Boolean(item[1]));
+  const preview = entry.markdown.content_preview ?? entry.markdown.content_excerpt ?? "";
+
+  return (
+    <article className={styles.detail} aria-label={`Proposal ${entry.proposal_id} details`}>
+      <div className={styles.detailHeader}>
+        <div>
+          <span className={styles.detailKicker}>Proposal detail</span>
+          <h3 className={styles.detailTitle}>
+            <SpecIdText
+              text={entry.title}
+              resolveSpecRef={resolveSpecRef}
+              onSpecIdClick={onSpecIdClick}
+              variant="bare"
+            />
+          </h3>
+        </div>
+        <button type="button" className={styles.closeDetailButton} onClick={onClose}>
+          Close
+        </button>
+      </div>
+
+      <div className={styles.detailActions}>
+        <button
+          type="button"
+          className={styles.primaryAction}
+          onClick={() => onAddProposalToAgentContext?.(entry)}
+          disabled={!onAddProposalToAgentContext}
+        >
+          Add to Agent Context
+        </button>
+        <button
+          type="button"
+          className={styles.secondaryAction}
+          onClick={() => onStartConversationFromProposal?.(entry)}
+          disabled={!onStartConversationFromProposal}
+        >
+          Start Conversation
+        </button>
+      </div>
+
+      <dl className={styles.detailGrid}>
+        {metadata.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {entry.affected_spec_ids.length > 0 ? (
+        <section className={styles.detailSection} aria-label="Affected specs">
+          <span className={styles.detailSectionTitle}>Affected specs</span>
+          <div className={styles.specRefs}>
+            {entry.affected_spec_ids.map((specId) => (
+              <SpecIdText
+                key={specId}
+                text={specId}
+                resolveSpecRef={resolveSpecRef}
+                onSpecIdClick={onSpecIdClick}
+                variant="chip"
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className={styles.detailSection} aria-label="Proposal preview">
+        <span className={styles.detailSectionTitle}>Preview</span>
+        {preview ? (
+          <p className={styles.detailPreview}>
+            <SpecIdText
+              text={preview}
+              resolveSpecRef={resolveSpecRef}
+              onSpecIdClick={onSpecIdClick}
+              variant="bare"
+            />
+          </p>
+        ) : (
+          <p className={styles.detailMuted}>
+            {entry.markdown.available
+              ? "Markdown is available; no narrative preview was extracted."
+              : "Markdown body is not available for this proposal."}
+          </p>
+        )}
+      </section>
+
+      <section className={styles.detailSection} aria-label="Source artifacts">
+        <span className={styles.detailSectionTitle}>Sources</span>
+        <div className={styles.meta}>
+          {entry.source_kinds.map((source) => (
+            <span key={source} className={styles.chip}>
+              {source.replace(/^proposal_/, "")}
+            </span>
+          ))}
+          <span className={styles.chip}>
+            {entry.markdown.available ? "markdown available" : "artifact only"}
+          </span>
+        </div>
+        <p className={styles.path}>{entry.proposal_path ?? "no path"}</p>
+      </section>
     </article>
   );
 }

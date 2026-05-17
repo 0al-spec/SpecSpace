@@ -157,17 +157,37 @@ function ContextItemRow({
         </button>
       </div>
       <h3 className={styles.title}>
-        <SpecIdText
-          text={item.node_id}
-          resolveSpecRef={resolveSpecRef}
-          variant="bare"
-        />
+        {item.kind === "spec_node" ? (
+          <SpecIdText
+            text={item.node_id}
+            resolveSpecRef={resolveSpecRef}
+            variant="bare"
+          />
+        ) : (
+          <span>{item.proposal_id}</span>
+        )}
       </h3>
       <p className={styles.detail}>{item.title}</p>
       <div className={styles.meta}>
         <span>{item.status}</span>
-        <span>{item.file_name}</span>
+        <span>
+          {item.kind === "spec_node"
+            ? item.file_name
+            : item.proposal_path ?? "proposal artifact"}
+        </span>
       </div>
+      {item.kind === "proposal" && item.affected_spec_ids.length > 0 ? (
+        <div className={styles.meta}>
+          {item.affected_spec_ids.slice(0, 4).map((specId) => (
+            <SpecIdText
+              key={specId}
+              text={specId}
+              resolveSpecRef={resolveSpecRef}
+              variant="chip"
+            />
+          ))}
+        </div>
+      ) : null}
     </article>
   );
 }

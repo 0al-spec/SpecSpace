@@ -3,12 +3,15 @@ export {
   agentContextItemKey,
   clearAgentContextItems,
   createAgentContextDraft,
+  createProposalContextItem,
   createSpecNodeContextItem,
   removeAgentContextItem,
   serializeAgentContextSet,
   type AgentContextDraft,
   type AgentContextItem,
+  type AgentContextProposalItem,
   type AgentContextSpecNodeItem,
+  type ProposalContextSource,
   type SpecNodeContextSource,
 } from "./model/context";
 export {

@@ -6,10 +6,11 @@ const countMapSchema = z.record(z.string(), z.number().int().nonnegative());
 const markdownSchema = z
   .object({
     available: z.boolean(),
-    file_name: z.string().optional(),
-    relative_path: z.string().optional(),
-    mtime_iso: z.string().optional(),
-    content_excerpt: z.string().optional(),
+    file_name: nullableString.optional(),
+    relative_path: nullableString.optional(),
+    mtime_iso: nullableString.optional(),
+    content_excerpt: nullableString.optional(),
+    content_preview: nullableString.optional(),
   })
   .passthrough();
 
@@ -19,9 +20,9 @@ const proposalSourceSchema = z
     artifact: z.string().optional(),
     path: z.string().nullable().optional(),
     entry_count: z.number().int().nonnegative(),
-    reason: z.string().optional(),
-    artifact_kind: z.string().optional(),
-    generated_at: z.string().optional(),
+    reason: nullableString.optional(),
+    artifact_kind: nullableString.optional(),
+    generated_at: nullableString.optional(),
   })
   .passthrough();
 

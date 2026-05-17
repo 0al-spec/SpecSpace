@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import {
+  addAgentContextItem,
   clearAgentContextItems,
   createAgentContextDraft,
+  createProposalContextItem,
   removeAgentContextItem,
 } from "@/entities/agent-workbench";
 import { createSpecNodeRefResolver } from "@/entities/spec-node";
@@ -14,6 +16,7 @@ import {
   filterBySpecQuery,
 } from "@/features/search-by-spec";
 import { useRunsWatchVersion } from "@/shared/api";
+import type { ProposalIndexEntry } from "@/shared/proposal-viewer-contract";
 import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { AgentConversationPanel } from "@/widgets/agent-conversation-panel";
 import { AgentContextPanel } from "@/widgets/agent-context-panel";
@@ -258,6 +261,15 @@ export function ViewerPage() {
   };
   const clearAgentContext = () => {
     setAgentContextDraft((draft) => clearAgentContextItems(draft));
+  };
+  const addProposalToAgentContext = (entry: ProposalIndexEntry) => {
+    setAgentContextDraft((draft) =>
+      addAgentContextItem(draft, createProposalContextItem(entry)),
+    );
+  };
+  const startConversationFromProposal = (entry: ProposalIndexEntry) => {
+    addProposalToAgentContext(entry);
+    setActiveUtilityPanel("agent-conversation");
   };
   const utilityPanelDetails = (() => {
     switch (activeUtilityPanel) {
@@ -526,6 +538,8 @@ export function ViewerPage() {
               state={proposalIndexState}
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={selectSpecNodeId}
+              onAddProposalToAgentContext={addProposalToAgentContext}
+              onStartConversationFromProposal={startConversationFromProposal}
             />
           ) : null}
 
