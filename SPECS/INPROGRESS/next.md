@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T4` — Add SpecPM registry package/version read adapter
+**Current Task:** `CTXB-P13-T5` — Start Proposal Viewer parity with static proposal indexes
 
 ## Recently Archived
+- `CTXB-P13-T4` — Add SpecPM registry package/version read adapter (PASS, 2026-05-17)
 - `CTXB-P13-T1` — Select SpecSpace parity track after deployment hardening (PASS, 2026-05-17)
 - `CTXB-P12-T9` — Clean up static production runtime noise (PASS, 2026-05-16)
 - `CTXB-P12-T8` — Surface live artifact error diagnostics (PASS, 2026-05-16)
@@ -50,11 +51,10 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T4` — Add SpecPM registry package/version read adapter (P1, depends on P13-T3)
-- Rationale: Timeweb/static deployment is now usable with versioned UI/API status, pinned images, HTTP SpecGraph artifacts, implementation work data, and reduced production log noise. The next product priority is parity with old ContextBuilder. The first implementation track is readonly SpecPM registry integration, followed by proposal viewer, metrics screen, Agent Workbench conversations, and richer canvas interactions.
+- `CTXB-P13-T5` — Start Proposal Viewer parity with static proposal indexes (P1, depends on P13-T4)
+- Rationale: Timeweb/static deployment is now usable with versioned UI/API status, pinned images, HTTP SpecGraph artifacts, implementation work data, reduced production log noise, and readonly SpecPM registry metadata. The next product priority is proposal viewer parity, followed by metrics screen, Agent Workbench conversations, and richer canvas interactions.
 
 ### Phase 13 Suggested Stack
-- `CTXB-P13-T4` — Add SpecPM registry status/package read adapter.
 - `CTXB-P13-T5` — Start Proposal Viewer parity with static proposal indexes.
 - `CTXB-P13-T6` — Start Metrics screen parity with existing metrics artifacts.
 - `CTXB-P13-T7` — Define Agent Workbench conversation artifact model.

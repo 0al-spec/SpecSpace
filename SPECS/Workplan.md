@@ -1662,7 +1662,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Health reports the normalized registry URL when configured.
   - The deploy lab can point at a local static SpecPM registry fixture.
 
-### CTXB-P13-T4 — Add SpecPM registry package/version read adapter
+### ✅ CTXB-P13-T4 — Add SpecPM registry package/version read adapter — DONE (PASS, 2026-05-17)
 - **Description:** Expand the SpecPM registry adapter beyond status and package index summary. Add focused package and package-version reads so SpecSpace can link graph/spec UI to concrete registry metadata without running SpecPM package content.
 - **Priority:** P1
 - **Dependencies:** CTXB-P13-T3

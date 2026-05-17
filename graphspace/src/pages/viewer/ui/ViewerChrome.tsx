@@ -10,7 +10,8 @@ export type ViewerUtilityPanelId =
   | "recent"
   | "work"
   | "proposal-trace"
-  | "artifacts";
+  | "artifacts"
+  | "registry";
 
 type Props = {
   controls: {
