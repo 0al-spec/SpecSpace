@@ -1,0 +1,145 @@
+name: Local Static Deploy Lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      specgraph_ref:
+        description: SpecGraph git ref to test against
+        required: false
+        default: main
+      specpm_ref:
+        description: Optional SpecPM ref/tag/commit to test against; requires specpm_revision when set
+        required: false
+        default: ""
+      specpm_revision:
+        description: Optional expected SpecPM commit SHA for specpm_ref
+        required: false
+        default: ""
+  schedule:
+    - cron: "37 2 * * 1"
+  push:
+    tags:
+      - "v*"
+    paths:
+      - ".github/workflows/deploy-lab-smoke.yml"
+      - "compose.deploy-lab.yml"
+      - "deploy/local-static/**"
+      - "scripts/smoke-specspace-deploy-lab.sh"
+      - "docs/LOCAL_DEPLOYMENT_LAB.md"
+      - "Dockerfile"
+      - "graphspace/Dockerfile"
+      - "graphspace/package.json"
+      - "graphspace/package-lock.json"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/deploy-lab-smoke.yml"
+      - "compose.deploy-lab.yml"
+      - "deploy/local-static/**"
+      - "scripts/smoke-specspace-deploy-lab.sh"
+      - "docs/LOCAL_DEPLOYMENT_LAB.md"
+      - "Dockerfile"
+      - "graphspace/Dockerfile"
+      - "graphspace/package.json"
+      - "graphspace/package-lock.json"
+
+permissions:
+  contents: read
+
+env:
+  SPECPM_FIXTURE_REF: main
+  SPECPM_FIXTURE_REVISION: 3961f7a1222f68f891f2a4ec6d0dd70ce24bdad7
+
+concurrency:
+  group: deploy-lab-smoke-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Local Static Deploy Lab Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out SpecSpace
+        uses: actions/checkout@v4
+        with:
+          path: SpecSpace
+
+      - name: Check out SpecGraph
+        uses: actions/checkout@v4
+        with:
+          repository: 0al-spec/SpecGraph
+          ref: ${{ inputs.specgraph_ref || 'main' }}
+          path: SpecGraph
+
+      - name: Check out SpecPM
+        uses: actions/checkout@v4
+        with:
+          repository: 0al-spec/SpecPM
+          ref: ${{ inputs.specpm_revision || env.SPECPM_FIXTURE_REVISION }}
+          path: SpecPM
+
+      - name: Verify pinned SpecPM fixture revision
+        working-directory: SpecPM
+        env:
+          INPUT_SPECPM_REF: ${{ inputs.specpm_ref }}
+          INPUT_SPECPM_REVISION: ${{ inputs.specpm_revision }}
+        run: |
+          set -euo pipefail
+          expected_revision="$SPECPM_FIXTURE_REVISION"
+          fixture_label="$SPECPM_FIXTURE_REF"
+
+          if [ -n "$INPUT_SPECPM_REF" ] || [ -n "$INPUT_SPECPM_REVISION" ]; then
+            if [ -z "$INPUT_SPECPM_REF" ] || [ -z "$INPUT_SPECPM_REVISION" ]; then
+              echo "Manual SpecPM override requires both specpm_ref and specpm_revision." >&2
+              exit 2
+            fi
+            expected_revision="$INPUT_SPECPM_REVISION"
+            fixture_label="$INPUT_SPECPM_REF"
+          fi
+
+          actual_revision="$(git rev-parse HEAD)"
+          if [ "$actual_revision" != "$expected_revision" ]; then
+            echo "SpecPM fixture revision mismatch." >&2
+            echo "label: $fixture_label" >&2
+            echo "expected: $expected_revision" >&2
+            echo "actual:   $actual_revision" >&2
+            exit 1
+          fi
+
+          echo "SpecPM fixture lock OK: $fixture_label @ $actual_revision"
+
+      - name: Set up Python for producers
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build SpecGraph static artifact bundle
+        working-directory: SpecGraph
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+          make publish-bundle
+
+      - name: Prepare SpecPM public registry fixture
+        working-directory: SpecPM
+        run: |
+          mkdir -p .specpm/public-index/v0/status .specpm/public-index/v0/packages
+          cp tests/fixtures/conformance/remote_registry/registry-status.json \
+            .specpm/public-index/v0/status/index.json
+          cp tests/fixtures/conformance/remote_registry/package-index.json \
+            .specpm/public-index/v0/packages/index.json
+
+      - name: Run deploy lab smoke
+        working-directory: SpecSpace
+        env:
+          SPECGRAPH_PUBLIC_DIR: ${{ github.workspace }}/SpecGraph/dist/specgraph-public
+          SPECPM_PUBLIC_INDEX_DIR: ${{ github.workspace }}/SpecPM/.specpm/public-index
+          SPECSPACE_DEPLOY_LAB_PROJECT_NAME: specspace-deploy-lab-ci
+          SPECSPACE_API_PORT: "18011"
+          SPECSPACE_UI_PORT: "15183"
+          SPECGRAPH_STATIC_PORT: "18082"
+          SPECPM_REGISTRY_PORT: "18081"
+        run: scripts/smoke-specspace-deploy-lab.sh
