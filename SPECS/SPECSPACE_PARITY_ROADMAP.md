@@ -94,6 +94,9 @@ This is not the legacy file-browser conversation UI. The old ContextBuilder
 conversation graph is source material for persistence, lineage, and transcript
 inspection patterns.
 
+The initial artifact contract is documented in
+[`docs/AGENT_WORKBENCH_CONVERSATIONS.md`](../docs/AGENT_WORKBENCH_CONVERSATIONS.md).
+
 ### 3. Proposal Viewer
 
 Current gap: GraphSpace shows proposal trace rows, but not the full proposal

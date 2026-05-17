@@ -13,6 +13,8 @@ SpecSpace owns these product surfaces:
 - Readonly consumption of SpecGraph `specs/nodes` and `runs` artifacts.
 - Optional readonly SpecPM lifecycle diagnostics derived from a mounted
   SpecGraph root.
+- Future Agent Workbench artifacts when a deployment explicitly enables a
+  SpecSpace-owned writable workbench store.
 
 The primary user workflow is inspection: open the graph, navigate specs, inspect
 spec detail, follow spec references, view recent activity, and diagnose artifact
@@ -34,6 +36,11 @@ Those workflows can continue to live in `viewer/app` and the legacy
 ContextBuilder route set while they are still useful. They should not be pulled
 into `graphspace/` unless the product goal explicitly changes from readonly
 SpecSpace to authoring.
+
+Agent Workbench conversations are the planned replacement surface for
+agent-mediated graph work. They are not legacy dialog JSON authoring and are
+documented separately in
+[`AGENT_WORKBENCH_CONVERSATIONS.md`](AGENT_WORKBENCH_CONVERSATIONS.md).
 
 ## API Boundary
 
@@ -73,6 +80,8 @@ be added behind the same `/api/v1/*` SpecSpace API boundary.
 When a new feature is proposed for SpecSpace, first classify it:
 
 - readonly artifact inspection: candidate for SpecSpace;
+- SpecSpace-owned Agent Workbench artifacts: candidate only behind an explicit
+  workbench storage/capability boundary;
 - producer mutation, conversation editing, or compile authoring: legacy
   ContextBuilder or a separate authoring product;
 - integration diagnostics: candidate only if it can be shown through readonly
