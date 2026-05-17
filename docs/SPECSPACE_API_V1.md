@@ -32,7 +32,7 @@ python viewer/server.py \
 
 ### HTTP Artifact Provider
 
-The Timeweb/cloud provider is HTTP-backed and readonly. It reads a static
+The HTTP/static artifact provider is readonly. It reads a static
 SpecGraph artifact site published by the producer repository:
 
 ```text

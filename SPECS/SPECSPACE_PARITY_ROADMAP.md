@@ -64,7 +64,7 @@ authority beyond the registry payloads.
 ### 1. SpecPM Registry Integration
 
 Current gap: `/api/v1/specpm/lifecycle` is local-checkout oriented and returns
-`503` in Timeweb/static mode.
+`503` in HTTP/static mode.
 
 Target:
 
@@ -160,4 +160,3 @@ Target:
 6. `CTXB-P13-T6` — Start Metrics screen parity with existing metrics artifacts.
 7. `CTXB-P13-T7` — Define Agent Workbench conversation artifact model.
 8. `CTXB-P13-T8` — Add graph-context-to-agent-context selection flow.
-

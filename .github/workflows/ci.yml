@@ -246,6 +246,75 @@ jobs:
           TIMEWEB_REQUIRE_MANIFEST_ONLY: "1"
         run: scripts/validate-timeweb-deploy-branch.sh
 
+  production-deploy-smoke:
+    name: Production Deploy Smoke
+    runs-on: ubuntu-latest
+    needs:
+      - publish-timeweb-deploy
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      vars.SPECSPACE_DEPLOY_URL != ''
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Wait for production deploy to pick up published manifest
+        env:
+          SPECSPACE_DEPLOY_URL: ${{ vars.SPECSPACE_DEPLOY_URL }}
+          SPECSPACE_RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          health_url="${SPECSPACE_DEPLOY_URL%/}/api/v1/health"
+          echo "Waiting for ${health_url} to report ${SPECSPACE_RELEASE_COMMIT}"
+          for attempt in $(seq 1 30); do
+            body="$(curl --connect-timeout 5 --max-time 15 -fsS "$health_url" || true)"
+            deployed_commit="$(BODY="$body" python3 - <<'PY'
+          import json
+          import os
+
+          raw = os.environ.get("BODY", "")
+          try:
+              payload = json.loads(raw)
+          except json.JSONDecodeError:
+              raise SystemExit(0)
+          commit = payload.get("deployment", {}).get("commit")
+          if isinstance(commit, str):
+              print(commit)
+          PY
+            )"
+            if [ "$deployed_commit" = "$SPECSPACE_RELEASE_COMMIT" ]; then
+              echo "Production deploy reports expected deployed commit ${SPECSPACE_RELEASE_COMMIT}"
+              exit 0
+            fi
+            if [ -n "$deployed_commit" ]; then
+              git fetch --quiet --no-tags origin main
+              if git cat-file -e "${deployed_commit}^{commit}" 2>/dev/null &&
+                git merge-base --is-ancestor "$SPECSPACE_RELEASE_COMMIT" "$deployed_commit"; then
+                echo "Production deploy already reports newer deployed commit ${deployed_commit}"
+                exit 0
+              fi
+            fi
+            echo "Attempt ${attempt}/30: deployed commit ${deployed_commit:-<none>} is not updated yet"
+            sleep 20
+          done
+          echo "Production deploy did not report commit ${SPECSPACE_RELEASE_COMMIT}" >&2
+          echo "Last /api/v1/health body:" >&2
+          echo "${body:-<empty>}" >&2
+          exit 1
+
+      - name: Verify core production endpoints
+        env:
+          SPECSPACE_DEPLOY_URL: ${{ vars.SPECSPACE_DEPLOY_URL }}
+        run: |
+          set -euo pipefail
+          base="${SPECSPACE_DEPLOY_URL%/}"
+          curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/health" >/dev/null
+          curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/spec-graph" >/dev/null
+          curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/implementation-work-index" >/dev/null
+
   docker-compose-smoke:
     name: Docker Compose Smoke
     runs-on: ubuntu-latest
