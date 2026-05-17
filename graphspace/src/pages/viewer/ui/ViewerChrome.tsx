@@ -11,6 +11,7 @@ export type ViewerUtilityPanelId =
   | "work"
   | "proposals"
   | "metrics"
+  | "agent-context"
   | "proposal-trace"
   | "artifacts"
   | "registry";

@@ -24,6 +24,13 @@ import {
   filterBySpecQuery,
 } from "@/features/search-by-spec";
 import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
+import {
+  addAgentContextItem,
+  clearAgentContextItems,
+  createAgentContextDraft,
+  createSpecNodeContextItem,
+  removeAgentContextItem,
+} from "../model/agent-context";
 import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-artifacts";
 import { describeLive } from "../model/live-status";
 import {
@@ -39,6 +46,7 @@ import {
   SAMPLE_PROPOSAL_TRACES,
   SAMPLE_WORK_ITEMS,
 } from "../model/sample-data";
+import { AgentContextPanel } from "./AgentContextPanel";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 import { MetricsViewerPanel } from "./MetricsViewerPanel";
 import { ProposalViewerPanel } from "./ProposalViewerPanel";
@@ -60,6 +68,9 @@ export function ViewerPage() {
     useState<ViewerUtilityPanelId | null>(null);
   const [selectedSpecNodeId, setSelectedSpecNodeId] = useState<string | null>(null);
   const [selectedSpec, setSelectedSpec] = useState<SpecInspectorSelection | null>(null);
+  const [agentContextDraft, setAgentContextDraft] = useState(() =>
+    createAgentContextDraft(new Date().toISOString()),
+  );
   const apiDeploymentState = useApiDeploymentStatus();
   const runsWatchVersion = useRunsWatchVersion({
     enabled: shouldUseRunsWatch(apiDeploymentState),
@@ -209,6 +220,13 @@ export function ViewerPage() {
     () => new Set(specGraphState.data.graph.nodes.map((node) => node.node_id)),
     [specGraphState.data.graph.nodes],
   );
+  const selectedGraphNode = useMemo(
+    () =>
+      selectedSpecNodeId
+        ? (specGraphState.data.graph.nodes.find((node) => node.node_id === selectedSpecNodeId) ?? null)
+        : null,
+    [selectedSpecNodeId, specGraphState.data.graph.nodes],
+  );
   const clearSpecSelection = () => {
     setSelectedSpecNodeId(null);
     setSelectedSpec(null);
@@ -224,28 +242,49 @@ export function ViewerPage() {
     setActiveUtilityPanel((current) => (current === panel ? null : panel));
   };
   const closeUtilityPanel = () => setActiveUtilityPanel(null);
-  const utilityPanelDetails =
-    activeUtilityPanel === "recent"
-      ? { title: "Recent changes", caption: feedCaption }
-      : activeUtilityPanel === "work"
-        ? { title: "Implementation work", caption: workCaption }
-      : activeUtilityPanel === "proposal-trace"
-        ? { title: "Proposal trace", caption: proposalTraceCaption }
-      : activeUtilityPanel === "proposals"
-        ? { title: "Proposal viewer", caption: proposalIndexCaption }
-        : activeUtilityPanel === "metrics"
-          ? { title: "Metrics viewer", caption: metricsIndexCaption }
-          : activeUtilityPanel === "artifacts"
-            ? { title: "Live artifacts", caption: artifactCaption }
-            : activeUtilityPanel === "registry"
-              ? {
-                  title: "SpecPM registry",
-                  caption:
-                    specpmRegistryState.kind === "ok"
-                      ? `${specpmRegistryState.data.packages.package_count} packages · readonly`
-                      : specpmRegistryState.kind,
-                }
-              : null;
+  const addSelectedSpecToAgentContext = () => {
+    if (!selectedGraphNode) return;
+    setAgentContextDraft((draft) =>
+      addAgentContextItem(draft, createSpecNodeContextItem(selectedGraphNode)),
+    );
+  };
+  const removeAgentContextItemByKey = (key: string) => {
+    setAgentContextDraft((draft) => removeAgentContextItem(draft, key));
+  };
+  const clearAgentContext = () => {
+    setAgentContextDraft((draft) => clearAgentContextItems(draft));
+  };
+  const utilityPanelDetails = (() => {
+    switch (activeUtilityPanel) {
+      case "recent":
+        return { title: "Recent changes", caption: feedCaption };
+      case "work":
+        return { title: "Implementation work", caption: workCaption };
+      case "proposal-trace":
+        return { title: "Proposal trace", caption: proposalTraceCaption };
+      case "proposals":
+        return { title: "Proposal viewer", caption: proposalIndexCaption };
+      case "metrics":
+        return { title: "Metrics viewer", caption: metricsIndexCaption };
+      case "agent-context":
+        return {
+          title: "Agent context",
+          caption: `${agentContextDraft.items.length} items · local draft`,
+        };
+      case "artifacts":
+        return { title: "Live artifacts", caption: artifactCaption };
+      case "registry":
+        return {
+          title: "SpecPM registry",
+          caption:
+            specpmRegistryState.kind === "ok"
+              ? `${specpmRegistryState.data.packages.package_count} packages · readonly`
+              : specpmRegistryState.kind,
+        };
+      default:
+        return null;
+    }
+  })();
 
   return (
     <div className={styles.root}>
@@ -329,6 +368,15 @@ export function ViewerPage() {
               onClick={() => toggleUtilityPanel("metrics")}
             >
               ▥
+            </PanelBtn>
+            <PanelBtn
+              title="Open Agent context"
+              aria-label="Open Agent context"
+              active={activeUtilityPanel === "agent-context"}
+              badge={agentContextDraft.items.length}
+              onClick={() => toggleUtilityPanel("agent-context")}
+            >
+              ⊕
             </PanelBtn>
             <PanelBtn
               title="Open Proposal trace"
@@ -467,6 +515,17 @@ export function ViewerPage() {
               state={metricsIndexState}
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={selectSpecNodeId}
+            />
+          ) : null}
+
+          {activeUtilityPanel === "agent-context" ? (
+            <AgentContextPanel
+              draft={agentContextDraft}
+              selectedNode={selectedGraphNode}
+              resolveSpecRef={resolveSpecRef}
+              onAddSelectedSpec={addSelectedSpecToAgentContext}
+              onRemoveItem={removeAgentContextItemByKey}
+              onClear={clearAgentContext}
             />
           ) : null}
 
