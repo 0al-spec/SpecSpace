@@ -98,6 +98,8 @@ The initial artifact contract is documented in
 [`docs/AGENT_WORKBENCH_CONVERSATIONS.md`](../docs/AGENT_WORKBENCH_CONVERSATIONS.md).
 The Agent UI framework adapter boundary is documented in
 [`docs/AGENT_UI_FRAMEWORK_BOUNDARY.md`](../docs/AGENT_UI_FRAMEWORK_BOUNDARY.md).
+The initial framework evaluation is documented in
+[`docs/AGENT_UI_FRAMEWORK_EVALUATION.md`](../docs/AGENT_UI_FRAMEWORK_EVALUATION.md).
 
 ### 3. Proposal Viewer
 
@@ -162,3 +164,4 @@ Target:
 3. `CTXB-P13-T7` — Define Agent Workbench conversation artifact model.
 4. `CTXB-P13-T8` — Add graph-context-to-agent-context selection flow.
 5. `CTXB-P13-T9` — FSD boundary for Agent Workbench UI adapters.
+6. `CTXB-P13-T10` — Evaluate Agent UI framework options for the first adapter.

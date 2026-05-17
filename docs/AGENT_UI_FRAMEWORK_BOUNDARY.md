@@ -4,6 +4,9 @@ SpecSpace can adopt an existing React agent UI framework only behind a local
 Agent Workbench boundary. Framework types must not become the persisted
 conversation contract, graph context model, or proposal origin model.
 
+Framework candidates and the first adapter decision are tracked in
+[`AGENT_UI_FRAMEWORK_EVALUATION.md`](./AGENT_UI_FRAMEWORK_EVALUATION.md).
+
 ## Decision
 
 Use a replaceable adapter boundary:

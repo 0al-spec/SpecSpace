@@ -1731,6 +1731,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Future framework adapters can map into `AgentConversationRuntime` / `AgentRuntimeEvent` without changing persisted conversation artifacts.
   - FSD lint passes with any intentional retained-slice exceptions documented.
 
+### ✅ CTXB-P13-T10 — Evaluate Agent UI framework options for the first adapter — DONE (PASS, 2026-05-17)
+- **Description:** Compare existing Agent UI frameworks and select the first adapter target without installing a dependency or coupling SpecSpace domain contracts to framework SDK types.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T9
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `docs/AGENT_UI_FRAMEWORK_EVALUATION.md`, updated Agent UI boundary docs
+- **Acceptance Criteria:**
+  - Evaluation covers `assistant-ui`, AG-UI, CopilotKit, and Vercel AI SDK.
+  - The decision names a first adapter target and explains why alternatives are deferred.
+  - The decision preserves SpecSpace-owned conversation/context/proposal contracts.
+  - The next implementation slice is explicit and does not require a concrete framework install.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
