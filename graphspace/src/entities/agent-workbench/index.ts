@@ -11,6 +11,15 @@ export {
   type AgentContextSpecNodeItem,
   type SpecNodeContextSource,
 } from "./model/context";
+export {
+  createAgentRuntimeProjection,
+  projectAgentRuntimeEvent,
+  projectAgentRuntimeEvents,
+  type AgentRuntimeOutputProjection,
+  type AgentRuntimeProjection,
+  type AgentRuntimeToolCallProjection,
+  type AgentRuntimeTurnProjection,
+} from "./model/event-projection";
 export type {
   AgentConversationId,
   AgentConversationRef,

@@ -153,3 +153,8 @@ pages/viewer -> assistant-ui runtime types
 `CTXB-P13-T11` should add a local/mock `AgentConversationRuntime` adapter and
 small event projection tests. It should not install a third-party framework yet
 unless the mock runtime proves the domain event shape is insufficient.
+
+After that, `CTXB-P13-T12` should wire the mock runtime into a visible Agent
+Workbench conversation panel shell. A concrete `assistant-ui` adapter can be
+introduced only after the panel proves the SpecSpace-owned event projection and
+context handoff shape.

@@ -24,6 +24,7 @@ second page consumes them.
 | `features/add-spec-to-agent-context` | Keep | User-facing graph-to-agent-context action. Keeping it outside `pages/viewer` prevents selected SpecNode mapping from being coupled to one panel and gives future edge/gap/proposal context actions a stable pattern. |
 | `features/filter-by-tone` | Keep | User-facing activity filter with reusable model, pure filtering logic, and toolbar UI. It is not owned by the Recent changes panel because the page uses the same state for captions, empty states, and utility-panel controls. |
 | `features/search-by-spec` | Keep | User-facing spec search action with graph-aware filtering and search UI. It remains separate from the panel because spec search already affects feed filtering and can naturally extend to other spec-aware surfaces. |
+| `features/start-agent-conversation` | Keep | User-facing Agent Workbench action boundary. It owns the first local conversation runtime adapter and keeps future assistant-ui/AG-UI adapters outside `entities/agent-workbench` and `pages/viewer`. |
 
 ## Retained Widget Slices
 
