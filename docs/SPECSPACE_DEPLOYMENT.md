@@ -286,6 +286,18 @@ root mount and start the API with `--specgraph-dir /specgraph`. Keep that mount
 readonly; lifecycle diagnostics should not turn SpecSpace into a SpecGraph
 producer.
 
+For static production deployments, prefer the published SpecPM registry when
+SpecPM package metadata is needed:
+
+```text
+https://0al-spec.github.io/SpecPM
+```
+
+The registry is a readonly `/v0` metadata API. It can support Timeweb and other
+static deployments without mounting a local SpecGraph checkout. SpecSpace must
+treat registry data as metadata only: it must not execute package content or
+infer package authority beyond the registry payload.
+
 ### Adjacent SpecPM Runtime
 
 SpecSpace does not require a running SpecPM service in this Compose stack. The

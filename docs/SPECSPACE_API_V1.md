@@ -218,6 +218,21 @@ Returns the existing SpecPM lifecycle read-model with additive v1 metadata:
 }
 ```
 
+For local developer mode this read model may be derived from a readonly
+SpecGraph checkout. For HTTP/static deployments, SpecSpace should prefer a
+configured SpecPM public registry source instead of assuming a local checkout.
+The initial public registry root is:
+
+```text
+https://0al-spec.github.io/SpecPM
+```
+
+The registry exposes readonly `/v0` metadata such as `/v0/status`,
+`/v0/packages`, package metadata, package version metadata, exact capability
+search, and observed intent lookup. SpecSpace must treat this as metadata only:
+it must not execute package content or infer package authority beyond the
+registry payload.
+
 ### `GET /api/v1/capabilities`
 
 Returns legacy capability booleans under `capabilities`, plus provider metadata:
