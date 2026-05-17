@@ -937,6 +937,55 @@ def read_specpm_registry_summary(server: Any) -> tuple[int, dict[str, Any]]:
     }
 
 
+def _specpm_registry_not_configured_payload() -> dict[str, Any]:
+    return {
+        "api_version": SPECSPACE_API_VERSION,
+        "error": "SpecPM registry source is not configured.",
+        "source": specpm_registry_source(None),
+    }
+
+
+def _read_configured_specpm_registry_endpoint(
+    server: Any,
+    endpoint: str,
+) -> tuple[int, dict[str, Any]]:
+    registry_url = specpm_registry_url_from_server(server)
+    if registry_url is None:
+        return HTTPStatus.SERVICE_UNAVAILABLE, _specpm_registry_not_configured_payload()
+
+    status, payload, error = _read_specpm_registry_json(registry_url, endpoint)
+    if error is not None:
+        return status, {
+            "api_version": SPECSPACE_API_VERSION,
+            "source": specpm_registry_source(registry_url),
+            **error,
+        }
+    assert payload is not None
+    return HTTPStatus.OK, {
+        "api_version": SPECSPACE_API_VERSION,
+        "source": specpm_registry_source(registry_url),
+        "data": payload,
+    }
+
+
+def read_specpm_registry_package(server: Any, package_id: str) -> tuple[int, dict[str, Any]]:
+    return _read_configured_specpm_registry_endpoint(
+        server,
+        f"v0/packages/{quote(package_id, safe='')}",
+    )
+
+
+def read_specpm_registry_package_version(
+    server: Any,
+    package_id: str,
+    version: str,
+) -> tuple[int, dict[str, Any]]:
+    return _read_configured_specpm_registry_endpoint(
+        server,
+        f"v0/packages/{quote(package_id, safe='')}/versions/{quote(version, safe='')}",
+    )
+
+
 def versioned_capabilities(handler: CapabilityContext, provider: SpecSpaceProvider) -> dict[str, Any]:
     return {
         "api_version": SPECSPACE_API_VERSION,
