@@ -69,9 +69,10 @@ describe("agent context draft", () => {
     const draft = createAgentContextDraft("2026-05-17T16:00:00Z");
     const item = createProposalContextItem(proposal());
     const withProposal = addAgentContextItem(draft, item);
+    const serialized = serializeAgentContextSet(withProposal);
 
     expect(agentContextItemKey(item)).toBe("proposal:proposal::0042");
-    expect(serializeAgentContextSet(withProposal).items).toEqual([
+    expect(serialized.items).toEqual([
       {
         kind: "proposal",
         proposal_key: "proposal::0042",
@@ -82,6 +83,17 @@ describe("agent context draft", () => {
         affected_spec_ids: ["SG-SPEC-0001"],
       },
     ]);
+
+    const serializedProposal = serialized.items[0];
+    if (serializedProposal.kind !== "proposal") {
+      throw new Error("expected serialized proposal item");
+    }
+    serializedProposal.affected_spec_ids.push("SG-SPEC-0002");
+
+    expect(withProposal.items[0]).toMatchObject({
+      kind: "proposal",
+      affected_spec_ids: ["SG-SPEC-0001"],
+    });
   });
 
   it("removes context items by key", () => {

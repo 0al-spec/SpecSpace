@@ -119,6 +119,10 @@ export function serializeAgentContextSet(draft: AgentContextDraft): AgentContext
     context_set_id: draft.context_set_id,
     created_at: draft.created_at,
     label: draft.label,
-    items: draft.items.map((item) => ({ ...item })),
+    items: draft.items.map((item) =>
+      item.kind === "proposal"
+        ? { ...item, affected_spec_ids: [...item.affected_spec_ids] }
+        : { ...item },
+    ),
   };
 }
