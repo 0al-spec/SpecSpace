@@ -45,6 +45,13 @@ they are prepublished, but cannot append turns or create proposal outputs.
 Writable deployments must advertise that authority separately from the existing
 readonly SpecGraph provider state.
 
+## UI Framework Boundary
+
+Agent UI frameworks are replaceable adapters around the SpecSpace-owned
+conversation and context model. The FSD placement and adapter rules are
+documented in
+[`AGENT_UI_FRAMEWORK_BOUNDARY.md`](./AGENT_UI_FRAMEWORK_BOUNDARY.md).
+
 ## Conversation Artifact
 
 Required top-level fields:

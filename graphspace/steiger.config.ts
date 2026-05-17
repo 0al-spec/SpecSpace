@@ -27,13 +27,16 @@ export default defineConfig([
   {
     files: [
       "src/entities/implementation-work/**/*",
+      "src/entities/agent-workbench/**/*",
       "src/entities/proposal-trace/**/*",
       "src/entities/recent-change/**/*",
       "src/entities/spec-edge/**/*",
       "src/entities/spec-node/**/*",
       "src/entities/specpm-lifecycle/**/*",
+      "src/features/add-spec-to-agent-context/**/*",
       "src/features/filter-by-tone/**/*",
       "src/features/search-by-spec/**/*",
+      "src/widgets/agent-context-panel/**/*",
       "src/widgets/implementation-work-panel/**/*",
       "src/widgets/proposal-trace/**/*",
       "src/widgets/recent-changes-panel/**/*",

@@ -1,16 +1,16 @@
-import type { SpecGraphNode } from "@/shared/spec-graph-contract";
-import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
 import {
   agentContextItemKey,
   serializeAgentContextSet,
   type AgentContextDraft,
   type AgentContextItem,
-} from "../model/agent-context";
+} from "@/entities/agent-workbench";
+import type { SpecNode } from "@/entities/spec-node";
+import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
 import styles from "./AgentContextPanel.module.css";
 
 type Props = {
   draft: AgentContextDraft;
-  selectedNode: SpecGraphNode | null;
+  selectedNode: SpecNode | null;
   resolveSpecRef?: SpecRefResolver;
   onAddSelectedSpec: () => void;
   onRemoveItem: (key: string) => void;

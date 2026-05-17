@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { SpecGraphNode } from "@/shared/spec-graph-contract";
 import {
   addAgentContextItem,
   agentContextItemKey,
@@ -7,25 +6,16 @@ import {
   createSpecNodeContextItem,
   removeAgentContextItem,
   serializeAgentContextSet,
-} from "./agent-context";
+  type SpecNodeContextSource,
+} from "../index";
 
-const node = (overrides: Partial<SpecGraphNode> = {}): SpecGraphNode => ({
+const node = (
+  overrides: Partial<SpecNodeContextSource> = {},
+): SpecNodeContextSource => ({
   node_id: "SG-SPEC-0001",
   file_name: "SG-SPEC-0001.yaml",
   title: "SpecGraph - The Executable Product Ontology",
-  kind: "spec",
   status: "linked",
-  maturity: 1,
-  acceptance_count: 9,
-  decisions_count: 7,
-  evidence_gap: 0,
-  input_gap: 1,
-  execution_gap: 2,
-  gap_count: 3,
-  depends_on: [],
-  refines: [],
-  relates_to: [],
-  diagnostics: [],
   ...overrides,
 });
 

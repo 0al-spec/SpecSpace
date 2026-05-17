@@ -96,6 +96,8 @@ inspection patterns.
 
 The initial artifact contract is documented in
 [`docs/AGENT_WORKBENCH_CONVERSATIONS.md`](../docs/AGENT_WORKBENCH_CONVERSATIONS.md).
+The Agent UI framework adapter boundary is documented in
+[`docs/AGENT_UI_FRAMEWORK_BOUNDARY.md`](../docs/AGENT_UI_FRAMEWORK_BOUNDARY.md).
 
 ### 3. Proposal Viewer
 
@@ -159,3 +161,4 @@ Target:
 2. `CTXB-P13-T6` — Start Metrics screen parity with existing metrics artifacts.
 3. `CTXB-P13-T7` — Define Agent Workbench conversation artifact model.
 4. `CTXB-P13-T8` — Add graph-context-to-agent-context selection flow.
+5. `CTXB-P13-T9` — FSD boundary for Agent Workbench UI adapters.

@@ -1,5 +1,3 @@
-import type { SpecGraphNode } from "@/shared/spec-graph-contract";
-
 export type AgentContextSpecNodeItem = {
   kind: "spec_node";
   node_id: string;
@@ -26,7 +24,16 @@ export function createAgentContextDraft(createdAt: string): AgentContextDraft {
   };
 }
 
-export function createSpecNodeContextItem(node: SpecGraphNode): AgentContextSpecNodeItem {
+export type SpecNodeContextSource = {
+  node_id: string;
+  title: string;
+  status: string;
+  file_name: string;
+};
+
+export function createSpecNodeContextItem(
+  node: SpecNodeContextSource,
+): AgentContextSpecNodeItem {
   return {
     kind: "spec_node",
     node_id: node.node_id,
