@@ -158,10 +158,11 @@ TIMEWEB_REQUIRE_MANIFEST_ONLY=1 \
 TIMEWEB_DEPLOY_REMOTE=specspace scripts/validate-timeweb-deploy-branch.sh
 ```
 
-If the repository variable `SPECSPACE_TIMEWEB_URL` is set to the public Timeweb
-application URL, CI also runs `Timeweb Auto Deploy Smoke` after publishing the
-deploy branch. The smoke job waits until `/api/v1/health` reports the source
-`main` commit and then checks core production endpoints:
+If the repository variable `SPECSPACE_DEPLOY_URL` is set to the public
+application URL, CI also runs the provider-neutral `Production Deploy Smoke`
+job after publishing the deploy branch. The smoke job waits until
+`/api/v1/health` reports the source `main` commit and then checks core
+production endpoints:
 
 ```text
 https://<timeweb-host>/api/v1/health
@@ -169,7 +170,7 @@ https://<timeweb-host>/api/v1/spec-graph
 https://<timeweb-host>/api/v1/implementation-work-index
 ```
 
-Leave `SPECSPACE_TIMEWEB_URL` unset for forks or environments where external
+Leave `SPECSPACE_DEPLOY_URL` unset for forks or environments where external
 production smoke should not run.
 
 ## Artifact Source
