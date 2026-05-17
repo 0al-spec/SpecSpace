@@ -171,3 +171,7 @@ export function shouldUseRunsWatch(api: ApiDeploymentState): boolean {
   if (api.kind === "loading") return false;
   return true;
 }
+
+export function shouldUseLocalSpecPMLifecycle(api: ApiDeploymentState): boolean {
+  return api.kind === "ok" && api.provider !== "http";
+}
