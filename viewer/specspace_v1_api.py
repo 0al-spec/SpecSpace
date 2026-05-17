@@ -39,7 +39,11 @@ def _query_limit(parsed: Any, *, default: int, minimum: int = 1, maximum: int = 
 
 
 def handle_v1_health(handler: SpecSpaceV1Handler) -> None:
-    json_response(handler, HTTPStatus.OK, _provider(handler).health())
+    json_response(
+        handler,
+        HTTPStatus.OK,
+        specspace_provider.health_with_specpm_registry(handler.server, _provider(handler)),
+    )
 
 
 def handle_v1_capabilities(handler: SpecSpaceV1Handler) -> None:

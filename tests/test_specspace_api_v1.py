@@ -50,6 +50,7 @@ def _start(
     runs_dir: Path | None = None,
     specgraph_dir: Path | None = None,
     artifact_base_url: str | None = None,
+    specpm_registry_url: str | None = None,
 ) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.ViewerHandler)
     httpd.repo_root = REPO_ROOT
@@ -62,6 +63,7 @@ def _start(
     httpd.runs_dir = runs_dir
     httpd.runs_watcher = server.RunsWatcher(runs_dir) if runs_dir else None
     httpd.artifact_base_url = artifact_base_url
+    httpd.specpm_registry_url = specpm_registry_url
     httpd.agent_available = False
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
@@ -283,6 +285,30 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["status"], "ok")
         self.assertEqual(body["sources"]["spec_nodes"]["status"], "ok")
         self.assertEqual(body["sources"]["runs"]["status"], "ok")
+        self.assertEqual(body["sources"]["specpm_registry"]["status"], "not_configured")
+
+    def test_health_reports_configured_specpm_registry_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            runs_dir = root / "runs"
+            spec_dir.mkdir(parents=True)
+            runs_dir.mkdir()
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=runs_dir,
+                specpm_registry_url="https://0al-spec.github.io/SpecPM/",
+            )
+            try:
+                status, body = _get(f"{base}/api/v1/health")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["sources"]["specpm_registry"]["status"], "configured")
+        self.assertEqual(body["sources"]["specpm_registry"]["path"], "https://0al-spec.github.io/SpecPM")
 
     def test_health_reports_deployment_metadata(self) -> None:
         env = {

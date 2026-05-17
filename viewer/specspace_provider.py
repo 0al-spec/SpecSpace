@@ -27,6 +27,7 @@ HTTP_ARTIFACT_CACHE_TTL_SECONDS = 30
 HTTP_ARTIFACT_MAX_BYTES = 10_000_000
 HTTP_ARTIFACT_PREFIX_BYTES = 4096
 SPECSPACE_APP_VERSION = "0.0.1"
+SPECPM_REGISTRY_SOURCE_NAME = "specpm_registry"
 
 
 class CapabilityContext(capabilities_api.CapabilitiesHandler, Protocol):
@@ -131,6 +132,22 @@ def deployment_metadata() -> dict[str, Any]:
         "api_image_ref": _optional_env("SPECSPACE_API_IMAGE_REF"),
         "ui_image_ref": _optional_env("SPECSPACE_UI_IMAGE_REF"),
     }
+
+
+def specpm_registry_source(registry_url: Any) -> dict[str, Any]:
+    if not isinstance(registry_url, str) or not registry_url.strip():
+        return SourceHealth(
+            name=SPECPM_REGISTRY_SOURCE_NAME,
+            path=None,
+            status="not_configured",
+        ).to_json()
+    normalized = registry_url.strip().rstrip("/")
+    return SourceHealth(
+        name=SPECPM_REGISTRY_SOURCE_NAME,
+        path=normalized,
+        status="configured",
+        detail="Read-only SpecPM registry metadata source.",
+    ).to_json()
 
 
 @dataclass(frozen=True)
@@ -818,6 +835,27 @@ def provider_from_server(server: Any) -> SpecSpaceProvider:
         runs_dir=runs_dir,
         specgraph_dir=specgraph_dir,
     )
+
+
+def specpm_registry_url_from_server(server: Any) -> str | None:
+    registry_url = getattr(server, "specpm_registry_url", None)
+    return registry_url.strip().rstrip("/") if isinstance(registry_url, str) and registry_url.strip() else None
+
+
+def health_with_specpm_registry(server: Any, provider: SpecSpaceProvider) -> dict[str, Any]:
+    health = provider.health()
+    sources = health.get("sources")
+    if not isinstance(sources, dict):
+        return health
+    return {
+        **health,
+        "sources": {
+            **sources,
+            SPECPM_REGISTRY_SOURCE_NAME: specpm_registry_source(
+                specpm_registry_url_from_server(server)
+            ),
+        },
+    }
 
 
 def versioned_capabilities(handler: CapabilityContext, provider: SpecSpaceProvider) -> dict[str, Any]:
