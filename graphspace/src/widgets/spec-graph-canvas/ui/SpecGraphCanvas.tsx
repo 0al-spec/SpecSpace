@@ -31,8 +31,10 @@ type Props = {
   state: UseSpecGraphState;
   className?: string;
   selectedNodeId?: string | null;
+  selectedEdgeId?: string | null;
   lifecycleBadgesByNode?: ReadonlyMap<string, SpecPMLifecycleBadge>;
   onSelectedNodeIdChange?: (nodeId: string | null) => void;
+  onSelectedEdgeIdChange?: (edgeId: string | null) => void;
   onSelectionChange?: (selection: SpecGraphSelection | null) => void;
 };
 
@@ -86,8 +88,10 @@ export function SpecGraphCanvas({
   state,
   className,
   selectedNodeId,
+  selectedEdgeId,
   lifecycleBadgesByNode,
   onSelectedNodeIdChange,
+  onSelectedEdgeIdChange,
   onSelectionChange,
 }: Props) {
   return (
@@ -96,8 +100,10 @@ export function SpecGraphCanvas({
         state={state}
         className={className}
         selectedNodeId={selectedNodeId}
+        selectedEdgeId={selectedEdgeId}
         lifecycleBadgesByNode={lifecycleBadgesByNode}
         onSelectedNodeIdChange={onSelectedNodeIdChange}
+        onSelectedEdgeIdChange={onSelectedEdgeIdChange}
         onSelectionChange={onSelectionChange}
       />
     </ReactFlowProvider>
@@ -108,11 +114,14 @@ function SpecGraphCanvasInner({
   state,
   className,
   selectedNodeId,
+  selectedEdgeId,
   lifecycleBadgesByNode,
   onSelectedNodeIdChange,
+  onSelectedEdgeIdChange,
   onSelectionChange,
 }: Props) {
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
+  const [internalSelectedEdgeId, setInternalSelectedEdgeId] = useState<string | null>(null);
   const [hoverCandidate, setHoverCandidate] = useState<HoverPreviewState | null>(null);
   const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null);
   const hoverPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,6 +131,7 @@ function SpecGraphCanvasInner({
     viewportInitialized,
   } = useReactFlow<SpecFlowNode>();
   const activeSelectedNodeId = selectedNodeId === undefined ? internalSelectedNodeId : selectedNodeId;
+  const activeSelectedEdgeId = selectedEdgeId === undefined ? internalSelectedEdgeId : selectedEdgeId;
   const focusedNodeIdRef = useRef<string | null>(null);
   const previewDetailState = useSpecNodePreviewDetail({
     nodeId: hoverCandidate?.node.node_id ?? null,
@@ -172,6 +182,14 @@ function SpecGraphCanvasInner({
       showHoverPreviewAfterDelay,
     ],
   );
+  const flowEdges = useMemo(
+    () =>
+      edges.map((edge) => ({
+        ...edge,
+        selected: edge.id === activeSelectedEdgeId,
+      })),
+    [activeSelectedEdgeId, edges],
+  );
   const selection = useMemo(
     () => buildSpecGraphSelection(state.data, activeSelectedNodeId ?? null),
     [state.data, activeSelectedNodeId],
@@ -183,6 +201,13 @@ function SpecGraphCanvasInner({
       onSelectedNodeIdChange?.(nodeId);
     },
     [onSelectedNodeIdChange, selectedNodeId],
+  );
+  const updateSelectedEdgeId = useCallback(
+    (edgeId: string | null) => {
+      if (selectedEdgeId === undefined) setInternalSelectedEdgeId(edgeId);
+      onSelectedEdgeIdChange?.(edgeId);
+    },
+    [onSelectedEdgeIdChange, selectedEdgeId],
   );
   const hoverPreviewDetail =
     previewDetailState.kind === "ok" &&
@@ -236,7 +261,7 @@ function SpecGraphCanvasInner({
       <ReactFlow<SpecFlowNode>
         className={styles.flow}
         nodes={nodes}
-        edges={edges}
+        edges={flowEdges}
         nodeTypes={nodeTypes}
         fitView
         defaultEdgeOptions={{ type: "smoothstep" }}
@@ -245,11 +270,18 @@ function SpecGraphCanvasInner({
         nodesDraggable={false}
         onNodeClick={(_, node) => {
           clearHoverPreview();
+          updateSelectedEdgeId(null);
           updateSelectedNodeId(node.id);
+        }}
+        onEdgeClick={(_, edge) => {
+          clearHoverPreview();
+          updateSelectedNodeId(null);
+          updateSelectedEdgeId(edge.id);
         }}
         onPaneClick={() => {
           clearHoverPreview();
           updateSelectedNodeId(null);
+          updateSelectedEdgeId(null);
         }}
         onMoveStart={clearHoverPreview}
       >

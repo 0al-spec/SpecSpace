@@ -3,6 +3,7 @@ export {
   agentContextItemKey,
   clearAgentContextItems,
   createAgentContextDraft,
+  createSpecEdgeContextItem,
   createProposalContextItem,
   createSpecNodeContextItem,
   removeAgentContextItem,
@@ -10,7 +11,9 @@ export {
   type AgentContextDraft,
   type AgentContextItem,
   type AgentContextProposalItem,
+  type AgentContextSpecEdgeItem,
   type AgentContextSpecNodeItem,
+  type SpecEdgeContextSource,
   type ProposalContextSource,
   type SpecNodeContextSource,
 } from "./model/context";

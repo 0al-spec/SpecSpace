@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `TBD` — Select next SpecSpace parity slice after Proposal detail panel
+**Current Task:** `TBD` — Select next SpecSpace parity slice after edge context selection
 
 ## Recently Archived
+- `CTXB-P13-T16` — Edge context selection for Agent Workbench (PASS, 2026-05-18)
 - `CTXB-P13-T15` — Proposal detail panel (PASS, 2026-05-18)
 - `CTXB-P13-T14` — Proposal Viewer markdown previews (PASS, 2026-05-17)
 - `CTXB-P13-T13` — Assistant UI adapter spike behind the conversation panel boundary (PASS, 2026-05-17)
@@ -63,11 +64,11 @@
 
 ### SpecSpace Parity (Phase 13, current)
 - `TBD` — Select next SpecSpace parity slice.
-- Rationale: The current Phase 13 stack now covers Proposal Viewer parity with detail and markdown previews, Metrics Viewer parity, an Agent Workbench conversation artifact contract, graph-context draft flow, mock conversation runtime, visible conversation shell, and an `assistant-ui` adapter spike. The next slice should be selected based on product priority: Metrics drill-downs, edge/gap context selection, or Agent Workbench persistence/API.
+- Rationale: The current Phase 13 stack now covers Proposal Viewer parity with detail and markdown previews, Metrics Viewer parity, an Agent Workbench conversation artifact contract, graph-context draft flow including selected edges, mock conversation runtime, visible conversation shell, and an `assistant-ui` adapter spike. The next slice should be selected based on product priority: Metrics drill-downs, visible gap context selection, or Agent Workbench persistence/API.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`.
-- Next: select between Metrics drill-downs, edge/gap context selection, or Agent Workbench persistence/API.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`.
+- Next: select between Metrics drill-downs, visible gap context selection, or Agent Workbench persistence/API.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.

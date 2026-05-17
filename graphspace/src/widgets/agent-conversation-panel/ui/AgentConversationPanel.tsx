@@ -192,6 +192,9 @@ function AgentContextToken({
   if (item.kind === "proposal") {
     return <span>{item.proposal_id}</span>;
   }
+  if (item.kind === "spec_edge") {
+    return <span>{item.edge_id}</span>;
+  }
   return (
     <SpecIdText
       text={item.node_id}

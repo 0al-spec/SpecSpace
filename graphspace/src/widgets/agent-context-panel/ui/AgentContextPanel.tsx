@@ -4,6 +4,7 @@ import {
   type AgentContextDraft,
   type AgentContextItem,
 } from "@/entities/agent-workbench";
+import type { SpecEdge } from "@/entities/spec-edge";
 import type { SpecNode } from "@/entities/spec-node";
 import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
 import styles from "./AgentContextPanel.module.css";
@@ -11,8 +12,10 @@ import styles from "./AgentContextPanel.module.css";
 type Props = {
   draft: AgentContextDraft;
   selectedNode: SpecNode | null;
+  selectedEdge: SpecEdge | null;
   resolveSpecRef?: SpecRefResolver;
   onAddSelectedSpec: () => void;
+  onAddSelectedEdge: () => void;
   onRemoveItem: (key: string) => void;
   onClear: () => void;
   onOpenConversation?: () => void;
@@ -21,16 +24,22 @@ type Props = {
 export function AgentContextPanel({
   draft,
   selectedNode,
+  selectedEdge,
   resolveSpecRef,
   onAddSelectedSpec,
+  onAddSelectedEdge,
   onRemoveItem,
   onClear,
   onOpenConversation,
 }: Props) {
   const serialized = serializeAgentContextSet(draft);
   const selectedKey = selectedNode ? `spec_node:${selectedNode.node_id}` : null;
+  const selectedEdgeKey = selectedEdge ? `spec_edge:${selectedEdge.edge_id}` : null;
   const selectedAlreadyAdded =
     selectedKey !== null && draft.items.some((item) => agentContextItemKey(item) === selectedKey);
+  const selectedEdgeAlreadyAdded =
+    selectedEdgeKey !== null &&
+    draft.items.some((item) => agentContextItemKey(item) === selectedEdgeKey);
 
   return (
     <section className={styles.panel} aria-label="Agent context">
@@ -40,7 +49,10 @@ export function AgentContextPanel({
           label="Specs"
           value={draft.items.filter((item) => item.kind === "spec_node").length}
         />
-        <Metric label="Outputs" value={0} />
+        <Metric
+          label="Edges"
+          value={draft.items.filter((item) => item.kind === "spec_edge").length}
+        />
       </div>
 
       <div className={styles.actions}>
@@ -55,6 +67,18 @@ export function AgentContextPanel({
               ? "Selected Spec Added"
               : "Add Selected Spec"
             : "Select A Spec First"}
+        </button>
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          onClick={onAddSelectedEdge}
+          disabled={!selectedEdge || selectedEdgeAlreadyAdded}
+        >
+          {selectedEdge
+            ? selectedEdgeAlreadyAdded
+              ? "Selected Edge Added"
+              : "Add Selected Edge"
+            : "Select An Edge First"}
         </button>
         <button
           type="button"
@@ -80,7 +104,7 @@ export function AgentContextPanel({
       </div>
 
       {selectedNode ? (
-        <div className={styles.selectedNode}>
+        <div className={styles.selectedContext}>
           <span className={styles.kicker}>Selected spec</span>
           <strong>
             <SpecIdText
@@ -91,10 +115,18 @@ export function AgentContextPanel({
           </strong>
           <span>{selectedNode.title}</span>
         </div>
+      ) : selectedEdge ? (
+        <div className={styles.selectedContext}>
+          <span className={styles.kicker}>Selected edge</span>
+          <strong>{selectedEdge.edge_id}</strong>
+          <span>
+            {selectedEdge.edge_kind} · {selectedEdge.source_id} → {selectedEdge.target_id}
+          </span>
+        </div>
       ) : (
         <Status
-          label="No selected spec"
-          detail="Select a node on the canvas or in the Sidebar, then add it to the context draft."
+          label="No selected graph item"
+          detail="Select a node or edge on the canvas, then add it to the context draft."
         />
       )}
 
@@ -163,17 +195,25 @@ function ContextItemRow({
             resolveSpecRef={resolveSpecRef}
             variant="bare"
           />
+        ) : item.kind === "spec_edge" ? (
+          <span>{item.edge_id}</span>
         ) : (
           <span>{item.proposal_id}</span>
         )}
       </h3>
-      <p className={styles.detail}>{item.title}</p>
+      <p className={styles.detail}>
+        {item.kind === "spec_edge"
+          ? `${item.source_title ?? item.source_id} → ${item.target_title ?? item.target_id}`
+          : item.title}
+      </p>
       <div className={styles.meta}>
         <span>{item.status}</span>
         <span>
           {item.kind === "spec_node"
             ? item.file_name
-            : item.proposal_path ?? "proposal artifact"}
+            : item.kind === "spec_edge"
+              ? item.edge_kind
+              : item.proposal_path ?? "proposal artifact"}
         </span>
       </div>
       {item.kind === "proposal" && item.affected_spec_ids.length > 0 ? (

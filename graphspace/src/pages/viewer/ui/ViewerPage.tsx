@@ -3,9 +3,11 @@ import {
   addAgentContextItem,
   clearAgentContextItems,
   createAgentContextDraft,
+  createSpecEdgeContextItem,
   createProposalContextItem,
   removeAgentContextItem,
 } from "@/entities/agent-workbench";
+import type { SpecEdge } from "@/entities/spec-edge";
 import { createSpecNodeRefResolver } from "@/entities/spec-node";
 import type { SpecPMLifecycleBadge } from "@/entities/specpm-lifecycle";
 import { addSpecNodeToAgentContext } from "@/features/add-spec-to-agent-context";
@@ -71,6 +73,7 @@ export function ViewerPage() {
   const [activeUtilityPanel, setActiveUtilityPanel] =
     useState<ViewerUtilityPanelId | null>(null);
   const [selectedSpecNodeId, setSelectedSpecNodeId] = useState<string | null>(null);
+  const [selectedSpecEdgeId, setSelectedSpecEdgeId] = useState<string | null>(null);
   const [selectedSpec, setSelectedSpec] = useState<SpecInspectorSelection | null>(null);
   const [agentContextDraft, setAgentContextDraft] = useState(() =>
     createAgentContextDraft(new Date().toISOString()),
@@ -235,17 +238,33 @@ export function ViewerPage() {
         : null,
     [selectedSpecNodeId, specGraphState.data.graph.nodes],
   );
+  const selectedGraphEdge = useMemo(
+    () =>
+      selectedSpecEdgeId
+        ? (specGraphState.data.graph.edges.find((edge) => edge.edge_id === selectedSpecEdgeId) ?? null)
+        : null,
+    [selectedSpecEdgeId, specGraphState.data.graph.edges],
+  );
+  const nodesById = useMemo(
+    () => new Map(specGraphState.data.graph.nodes.map((node) => [node.node_id, node])),
+    [specGraphState.data.graph.nodes],
+  );
   const clearSpecSelection = () => {
     setSelectedSpecNodeId(null);
+    setSelectedSpecEdgeId(null);
     setSelectedSpec(null);
   };
   const selectSpecNodeId = useCallback(
     (nodeId: string) => {
       if (!selectableSpecNodeIds.has(nodeId)) return;
+      setSelectedSpecEdgeId(null);
       setSelectedSpecNodeId(nodeId);
     },
     [selectableSpecNodeIds],
   );
+  const selectSpecEdgeId = useCallback((edgeId: string | null) => {
+    setSelectedSpecEdgeId(edgeId);
+  }, []);
   const toggleUtilityPanel = (panel: ViewerUtilityPanelId) => {
     setActiveUtilityPanel((current) => (current === panel ? null : panel));
   };
@@ -254,6 +273,15 @@ export function ViewerPage() {
     if (!selectedGraphNode) return;
     setAgentContextDraft((draft) =>
       addSpecNodeToAgentContext(draft, selectedGraphNode),
+    );
+  };
+  const addSelectedEdgeToAgentContext = () => {
+    if (!selectedGraphEdge) return;
+    setAgentContextDraft((draft) =>
+      addAgentContextItem(
+        draft,
+        createSpecEdgeContextItem(edgeContextSource(selectedGraphEdge, nodesById)),
+      ),
     );
   };
   const removeAgentContextItemByKey = (key: string) => {
@@ -319,8 +347,10 @@ export function ViewerPage() {
           .filter(Boolean)
           .join(" ")}
         selectedNodeId={selectedSpecNodeId}
+        selectedEdgeId={selectedSpecEdgeId}
         lifecycleBadgesByNode={lifecycleBadgesByNode}
         onSelectedNodeIdChange={setSelectedSpecNodeId}
+        onSelectedEdgeIdChange={selectSpecEdgeId}
         onSelectionChange={setSelectedSpec}
       />
 
@@ -555,8 +585,10 @@ export function ViewerPage() {
             <AgentContextPanel
               draft={agentContextDraft}
               selectedNode={selectedGraphNode}
+              selectedEdge={selectedGraphEdge}
               resolveSpecRef={resolveSpecRef}
               onAddSelectedSpec={addSelectedSpecToAgentContext}
+              onAddSelectedEdge={addSelectedEdgeToAgentContext}
               onRemoveItem={removeAgentContextItemByKey}
               onClear={clearAgentContext}
               onOpenConversation={() => setActiveUtilityPanel("agent-conversation")}
@@ -614,6 +646,17 @@ export function ViewerPage() {
       />
     </div>
   );
+}
+
+function edgeContextSource(
+  edge: SpecEdge,
+  nodesById: ReadonlyMap<string, { title: string }>,
+) {
+  return {
+    ...edge,
+    source_title: nodesById.get(edge.source_id)?.title ?? null,
+    target_title: nodesById.get(edge.target_id)?.title ?? null,
+  };
 }
 
 function SidebarLogo() {

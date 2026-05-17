@@ -47,7 +47,7 @@
 
 .actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto auto;
   gap: var(--gs-space-3);
   padding: var(--gs-space-5) var(--gs-space-6);
   border-bottom: 1px solid var(--gs-rule-soft);
@@ -85,7 +85,7 @@
   opacity: 0.52;
 }
 
-.selectedNode {
+.selectedContext {
   display: grid;
   gap: var(--gs-space-2);
   padding: var(--gs-space-5) var(--gs-space-6);
@@ -97,13 +97,14 @@
   color: var(--gs-muted-2);
 }
 
-.selectedNode strong {
+.selectedContext strong {
   color: var(--gs-accent);
   font-family: var(--gs-mono);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
-.selectedNode span:last-child {
+.selectedContext span:last-child {
   color: var(--gs-muted);
   font-size: 13px;
   line-height: 1.35;
