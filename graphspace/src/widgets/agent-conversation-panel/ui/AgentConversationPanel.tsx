@@ -1,4 +1,5 @@
 import { type FormEvent, useCallback, useMemo, useState } from "react";
+import { ThreadPrimitive } from "@assistant-ui/react";
 import {
   agentContextItemKey,
   createAgentRuntimeProjection,
@@ -115,7 +116,11 @@ export function AgentConversationPanel({
         )}
       </div>
 
-      <div className={styles.transcript} aria-live="polite">
+      <ThreadPrimitive.Root
+        className={styles.transcript}
+        aria-live="polite"
+        data-agent-ui-adapter="assistant-ui"
+      >
         {projection.turns.length === 0 ? (
           <Status
             label="Conversation not started"
@@ -131,7 +136,7 @@ export function AgentConversationPanel({
             />
           ))
         )}
-      </div>
+      </ThreadPrimitive.Root>
 
       {error ? <p className={styles.error}>{error}</p> : null}
 
