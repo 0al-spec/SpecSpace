@@ -37,11 +37,13 @@ instead:
 
 ```text
 SpecSpace API container
-  - viewer/server.py --artifact-base-url https://specgraph.tech
+  - viewer/server.py --artifact-base-url https://specgraph.tech --specpm-registry-url https://specpm.dev
   |
   +-- https://specgraph.tech/artifact_manifest.json
   +-- https://specgraph.tech/specs/nodes/*.yaml
   +-- https://specgraph.tech/runs/*.json
+  +-- https://specpm.dev/v0/status/
+  +-- https://specpm.dev/v0/packages/
 ```
 
 ## Ports
@@ -104,10 +106,12 @@ python viewer/server.py \
   --host 0.0.0.0 \
   --port 8001 \
   --dialog-dir /data/dialogs \
-  --artifact-base-url https://specgraph.tech
+  --artifact-base-url https://specgraph.tech \
+  --specpm-registry-url https://specpm.dev
 ```
 
 The same value can be supplied through `SPECSPACE_ARTIFACT_BASE_URL`.
+The SpecPM registry URL can be supplied through `SPECSPACE_SPECPM_REGISTRY_URL`.
 
 ## Local Developer Restart
 
@@ -195,6 +199,8 @@ Deployment smoke should verify:
 - `GET /api/v1/runs/recent` returns JSON `200`.
 - The UI entrypoint returns HTML `200`.
 - `/api` is reachable through the UI container proxy.
+- `GET /api/v1/specpm/registry` returns JSON `200` when the readonly SpecPM
+  registry URL is configured.
 - SpecGraph mounts are readonly in the compose definition.
 
 Smoke should not mutate SpecGraph. Any future test that needs write behavior

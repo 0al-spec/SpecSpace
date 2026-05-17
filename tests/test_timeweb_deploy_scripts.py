@@ -52,8 +52,33 @@ def test_render_timeweb_deploy_branch_creates_manifest_only_tree(tmp_path: Path)
     )
     assert 'SPECSPACE_RELEASE_COMMIT: "test-release"' in compose
     assert "SPECSPACE_RELEASE_CREATED_AT" not in compose
+    assert "--specpm-registry-url" in compose
+    assert "https://specpm.dev" in compose
 
     check = run_script("scripts/check-timeweb-deploy-tree.sh", str(tmp_path))
+    assert check.returncode == 0, check.stderr
+
+
+def test_render_timeweb_deploy_branch_allows_custom_specpm_registry_url(tmp_path: Path) -> None:
+    result = run_script(
+        "scripts/render-timeweb-deploy-branch.sh",
+        str(tmp_path),
+        env={
+            "SPECSPACE_API_IMAGE_REF": f"ghcr.io/0al-spec/specspace-api@sha256:{API_DIGEST}",
+            "SPECSPACE_UI_IMAGE_REF": f"ghcr.io/0al-spec/specspace-ui@sha256:{UI_DIGEST}",
+            "SPECSPACE_SPECPM_REGISTRY_URL": "https://registry.example.invalid",
+        },
+    )
+
+    assert result.returncode == 0, result.stderr
+    compose = (tmp_path / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "https://registry.example.invalid" in compose
+
+    check = run_script(
+        "scripts/check-timeweb-deploy-tree.sh",
+        str(tmp_path),
+        env={"TIMEWEB_REQUIRED_SPECPM_REGISTRY_URL": "https://registry.example.invalid"},
+    )
     assert check.returncode == 0, check.stderr
 
 
@@ -75,6 +100,8 @@ services:
       - viewer/server.py
       - --artifact-base-url
       - https://specgraph.tech
+      - --specpm-registry-url
+      - https://specpm.dev
 """.format(api_digest=API_DIGEST),
         encoding="utf-8",
     )

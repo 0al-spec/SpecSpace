@@ -8,6 +8,7 @@ deploy_branch="${TIMEWEB_DEPLOY_BRANCH:-timeweb-deploy}"
 target_file="${TIMEWEB_TARGET_COMPOSE:-docker-compose.yml}"
 remote="${TIMEWEB_DEPLOY_REMOTE:-}"
 artifact_base_url="${TIMEWEB_REQUIRED_ARTIFACT_BASE_URL:-https://specgraph.tech}"
+specpm_registry_url="${TIMEWEB_REQUIRED_SPECPM_REGISTRY_URL:-https://specpm.dev}"
 require_manifest_only="${TIMEWEB_REQUIRE_MANIFEST_ONLY:-0}"
 
 if [[ -z "$remote" ]]; then
@@ -89,6 +90,16 @@ if ! grep -Fq -- "$artifact_base_url" <<<"$compose_text"; then
   exit 1
 fi
 
+if ! grep -Fq -- "--specpm-registry-url" <<<"$compose_text"; then
+  echo "$deploy_ref:$target_file must configure the SpecPM registry provider with --specpm-registry-url." >&2
+  exit 1
+fi
+
+if ! grep -Fq -- "$specpm_registry_url" <<<"$compose_text"; then
+  echo "$deploy_ref:$target_file must point at the configured SpecPM registry URL: $specpm_registry_url" >&2
+  exit 1
+fi
+
 if grep -Fq -- "/app/deploy/specspace-demo" <<<"$compose_text"; then
   echo "$deploy_ref:$target_file still references bundled demo artifacts." >&2
   exit 1
@@ -100,8 +111,9 @@ if [[ "$require_manifest_only" == "1" ]]; then
   git archive "$deploy_ref" | tar -x -C "$tmp_dir"
   TIMEWEB_TARGET_COMPOSE="$target_file" \
     TIMEWEB_REQUIRED_ARTIFACT_BASE_URL="$artifact_base_url" \
+    TIMEWEB_REQUIRED_SPECPM_REGISTRY_URL="$specpm_registry_url" \
     scripts/check-timeweb-deploy-tree.sh "$tmp_dir"
-  echo "Timeweb deploy branch OK: $deploy_ref is manifest-only and uses HTTP artifacts from $artifact_base_url."
+  echo "Timeweb deploy branch OK: $deploy_ref is manifest-only and uses HTTP artifacts from $artifact_base_url plus SpecPM registry metadata from $specpm_registry_url."
 else
-  echo "Timeweb deploy branch OK: $deploy_ref:$target_file is no-volume and uses HTTP artifacts from $artifact_base_url."
+  echo "Timeweb deploy branch OK: $deploy_ref:$target_file is no-volume and uses HTTP artifacts from $artifact_base_url plus SpecPM registry metadata from $specpm_registry_url."
 fi

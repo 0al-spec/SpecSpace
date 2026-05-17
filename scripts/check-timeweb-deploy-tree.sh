@@ -4,9 +4,10 @@ set -euo pipefail
 deploy_root="${1:-.}"
 target_file="${TIMEWEB_TARGET_COMPOSE:-docker-compose.yml}"
 artifact_base_url="${TIMEWEB_REQUIRED_ARTIFACT_BASE_URL:-https://specgraph.tech}"
+specpm_registry_url="${TIMEWEB_REQUIRED_SPECPM_REGISTRY_URL:-https://specpm.dev}"
 python_bin="${PYTHON:-python3}"
 
-"$python_bin" - "$deploy_root" "$target_file" "$artifact_base_url" <<'PY'
+"$python_bin" - "$deploy_root" "$target_file" "$artifact_base_url" "$specpm_registry_url" <<'PY'
 from __future__ import annotations
 
 import re
@@ -17,6 +18,7 @@ from pathlib import Path
 root = Path(sys.argv[1]).resolve()
 target_file = sys.argv[2]
 artifact_base_url = sys.argv[3]
+specpm_registry_url = sys.argv[4]
 compose_path = root / target_file
 
 allowed_top_level = {target_file, "README.md"}
@@ -57,6 +59,12 @@ if "--artifact-base-url" not in text:
 if artifact_base_url not in text:
     errors.append(
         f"{target_file} must point at artifact base URL: {artifact_base_url}"
+    )
+if "--specpm-registry-url" not in text:
+    errors.append(f"{target_file} must configure --specpm-registry-url")
+if specpm_registry_url not in text:
+    errors.append(
+        f"{target_file} must point at SpecPM registry URL: {specpm_registry_url}"
     )
 
 

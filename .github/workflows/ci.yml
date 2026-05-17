@@ -314,6 +314,7 @@ jobs:
           curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/health" >/dev/null
           curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/spec-graph" >/dev/null
           curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/implementation-work-index" >/dev/null
+          curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/specpm/registry" >/dev/null
 
   docker-compose-smoke:
     name: Docker Compose Smoke
