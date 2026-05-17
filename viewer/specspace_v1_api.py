@@ -39,7 +39,11 @@ def _query_limit(parsed: Any, *, default: int, minimum: int = 1, maximum: int = 
 
 
 def handle_v1_health(handler: SpecSpaceV1Handler) -> None:
-    json_response(handler, HTTPStatus.OK, _provider(handler).health())
+    json_response(
+        handler,
+        HTTPStatus.OK,
+        specspace_provider.health_with_specpm_registry(handler.server, _provider(handler)),
+    )
 
 
 def handle_v1_capabilities(handler: SpecSpaceV1Handler) -> None:
@@ -90,6 +94,11 @@ def handle_v1_implementation_work_index(handler: SpecSpaceV1Handler, parsed: Any
 
 def handle_v1_proposal_spec_trace_index(handler: SpecSpaceV1Handler) -> None:
     status, payload = _provider(handler).read_proposal_spec_trace_index()
+    json_response(handler, status, payload)
+
+
+def handle_v1_specpm_registry(handler: SpecSpaceV1Handler) -> None:
+    status, payload = specspace_provider.read_specpm_registry_summary(handler.server)
     json_response(handler, status, payload)
 
 

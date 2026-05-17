@@ -25,6 +25,7 @@ class ViewerRuntimeServer(Protocol):
     runs_dir: Path | None
     runs_watcher: Any
     artifact_base_url: str | None
+    specpm_registry_url: str | None
     agent_available: bool
 
     def serve_forever(self) -> None: ...
@@ -78,6 +79,15 @@ def build_arg_parser(
         ),
     )
     parser.add_argument(
+        "--specpm-registry-url",
+        type=str,
+        default=os.environ.get("SPECSPACE_SPECPM_REGISTRY_URL"),
+        help=(
+            "Base URL for a read-only SpecPM public registry. When set, "
+            "SpecSpace exposes it in /api/v1/health for registry-backed metadata."
+        ),
+    )
+    parser.add_argument(
         "--agent",
         action="store_true",
         default=False,
@@ -121,6 +131,8 @@ def configure_server(
     server.runs_watcher = runs_watcher_factory(server.runs_dir) if server.runs_dir is not None else None
     artifact_base_url = getattr(args, "artifact_base_url", None)
     server.artifact_base_url = artifact_base_url.strip() if artifact_base_url else None
+    specpm_registry_url = getattr(args, "specpm_registry_url", None)
+    server.specpm_registry_url = specpm_registry_url.strip().rstrip("/") if specpm_registry_url else None
     server.agent_available = args.agent
 
 
