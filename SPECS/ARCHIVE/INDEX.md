@@ -1,11 +1,12 @@
 # Tasks Archive
 
-**Last Updated:** 2026-05-17 (CTXB-P13-T7)
+**Last Updated:** 2026-05-17 (CTXB-P13-T8)
 
 ## Archived Tasks
 
 | Task ID | Folder | Archived | Verdict |
 |---------|--------|----------|---------|
+| CTXB-P13-T8 | [CTXB-P13-T8_Add_graph_context_to_agent_context_selection_flow/](CTXB-P13-T8_Add_graph_context_to_agent_context_selection_flow/) | 2026-05-17 | PASS |
 | CTXB-P13-T7 | [CTXB-P13-T7_Define_Agent_Workbench_conversation_artifact_model/](CTXB-P13-T7_Define_Agent_Workbench_conversation_artifact_model/) | 2026-05-17 | PASS |
 | CTXB-P13-T6 | [CTXB-P13-T6_Start_Metrics_screen_parity_with_existing_metrics_artifacts/](CTXB-P13-T6_Start_Metrics_screen_parity_with_existing_metrics_artifacts/) | 2026-05-17 | PASS |
 | CTXB-P13-T5 | [CTXB-P13-T5_Start_Proposal_Viewer_parity_with_static_proposal_indexes/](CTXB-P13-T5_Start_Proposal_Viewer_parity_with_static_proposal_indexes/) | 2026-05-17 | PASS |
@@ -111,6 +112,7 @@
 
 | Date | Task ID | Action |
 |------|---------|--------|
+| 2026-05-17 | CTXB-P13-T8 | Archived Add_graph_context_to_agent_context_selection_flow (PASS) |
 | 2026-05-17 | CTXB-P13-T7 | Archived REVIEW_CTXB-P13-T7_agent_workbench_contract report (PASS, no findings) |
 | 2026-05-17 | CTXB-P13-T7 | Archived Define_Agent_Workbench_conversation_artifact_model (PASS) |
 | 2026-05-17 | CTXB-P13-T6 | Archived REVIEW_CTXB-P13-T6_metrics_viewer_parity report (PASS, no findings) |

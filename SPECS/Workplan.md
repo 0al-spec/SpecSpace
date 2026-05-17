@@ -1708,7 +1708,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The model can attach selected specs, edges, gaps, proposals, and metrics to a conversation turn.
   - Proposal creation can reference the originating conversation turn.
 
-### CTXB-P13-T8 — Add graph-context-to-agent-context selection flow
+### ✅ CTXB-P13-T8 — Add graph-context-to-agent-context selection flow — DONE (PASS, 2026-05-17)
 - **Description:** Add the first UI flow for selecting graph items and preparing them as Agent Workbench context.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T7
