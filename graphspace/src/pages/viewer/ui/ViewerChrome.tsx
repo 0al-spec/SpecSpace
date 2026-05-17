@@ -10,6 +10,7 @@ export type ViewerUtilityPanelId =
   | "recent"
   | "work"
   | "proposals"
+  | "metrics"
   | "proposal-trace"
   | "artifacts"
   | "registry";

@@ -244,6 +244,57 @@ whole endpoint.
 }
 ```
 
+### `GET /api/v1/metrics`
+
+Returns a readonly SpecSpace metrics index for the Metrics Viewer. The payload
+combines existing SpecGraph metrics artifacts when present:
+
+- `graph_dashboard.json`
+- `metrics_source_promotion_index.json`
+- `metrics_delivery_workflow.json`
+- `metrics_feedback_index.json`
+- `metric_pack_adapter_index.json`
+- `metric_pack_runs.json`
+- `metric_signal_index.json`
+
+Missing optional metrics artifacts are represented in `sources` instead of
+failing the whole endpoint. Reference text is kept as generic strings so the UI
+can resolve clickable spec ids from the live graph rather than from a
+project-specific id regex.
+
+```json
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_metrics_index",
+  "read_only": true,
+  "entry_count": 1,
+  "entries": [
+    {
+      "metric_key": "metric_score::sib",
+      "category": "metric_score",
+      "item_id": "sib",
+      "title": "Specification-Implementation Balance",
+      "status": "healthy",
+      "score": 0.74,
+      "minimum_score": 0.6,
+      "source_kind": "graph_dashboard",
+      "reference_texts": ["SG-SPEC-0001"]
+    }
+  ],
+  "filters": {
+    "category_counts": { "metric_score": 1 },
+    "status_counts": { "healthy": 1 },
+    "source_kind_counts": { "graph_dashboard": 1 },
+    "reference_texts": ["SG-SPEC-0001"]
+  },
+  "dashboard": {
+    "available": true,
+    "metric_count": 1
+  },
+  "sources": {}
+}
+```
+
 ### `GET /api/v1/specpm/lifecycle`
 
 Returns the existing SpecPM lifecycle read-model with additive v1 metadata:

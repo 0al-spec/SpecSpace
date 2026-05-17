@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T6` — Start Metrics screen parity with existing metrics artifacts
+**Current Task:** `CTXB-P13-T7` — Define Agent Workbench conversation artifact model
 
 ## Recently Archived
+- `CTXB-P13-T6` — Start Metrics screen parity with existing metrics artifacts (PASS, 2026-05-17)
 - `CTXB-P13-T5` — Start Proposal Viewer parity with static proposal indexes (PASS, 2026-05-17)
 - `CTXB-P13-T4` — Add SpecPM registry package/version read adapter (PASS, 2026-05-17)
 - `CTXB-P13-T1` — Select SpecSpace parity track after deployment hardening (PASS, 2026-05-17)
@@ -52,11 +53,10 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T6` — Start Metrics screen parity with existing metrics artifacts (P1, depends on P13-T4)
-- Rationale: Timeweb/static deployment is now usable with versioned UI/API status, pinned images, HTTP SpecGraph artifacts, implementation work data, reduced production log noise, readonly SpecPM registry metadata, and first Proposal Viewer parity. The next product priority is metrics visibility, followed by Agent Workbench conversations and richer canvas interactions.
+- `CTXB-P13-T7` — Define Agent Workbench conversation artifact model (P2, depends on P13-T5 and P13-T6)
+- Rationale: Timeweb/static deployment is now usable with versioned UI/API status, pinned images, HTTP SpecGraph artifacts, implementation work data, reduced production log noise, readonly SpecPM registry metadata, Proposal Viewer parity, and first Metrics Viewer parity. The next product priority is defining the persisted Agent Workbench conversation artifact model before building graph-context selection and proposal-origination flows.
 
 ### Phase 13 Suggested Stack
-- `CTXB-P13-T6` — Start Metrics screen parity with existing metrics artifacts.
 - `CTXB-P13-T7` — Define Agent Workbench conversation artifact model.
 - `CTXB-P13-T8` — Add graph-context-to-agent-context selection flow.
 
