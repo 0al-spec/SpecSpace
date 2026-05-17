@@ -30,6 +30,7 @@ second page consumes them.
 
 | Slice | Decision | Rationale |
 | --- | --- | --- |
+| `widgets/agent-conversation-panel` | Keep | Agent Workbench conversation surface. It owns transcript projection, prompt composition, and runtime adapter presentation separately from the context-draft panel so a third-party Agent UI framework can later replace the shell behind the same widget boundary. |
 | `widgets/agent-context-panel` | Keep | Agent Workbench utility panel boundary. It composes context draft presentation, selected-spec affordances, and serialized preview separately from the Viewer page so a future conversation framework can attach as an adapter instead of reshaping page state. |
 | `widgets/implementation-work-panel` | Keep | Utility panel around a live artifact read model. It composes entity rows and owns loading/error/empty states for the implementation work artifact. |
 | `widgets/proposal-trace` | Keep | Utility panel around proposal trace artifacts. It has its own read model and UI state independent from recent activity and implementation work. |

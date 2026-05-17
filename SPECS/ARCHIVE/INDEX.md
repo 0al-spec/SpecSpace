@@ -1,11 +1,12 @@
 # Tasks Archive
 
-**Last Updated:** 2026-05-17 (CTXB-P13-T11)
+**Last Updated:** 2026-05-17 (CTXB-P13-T12)
 
 ## Archived Tasks
 
 | Task ID | Folder | Archived | Verdict |
 |---------|--------|----------|---------|
+| CTXB-P13-T12 | [CTXB-P13-T12_Agent_conversation_panel_shell_over_mock_runtime/](CTXB-P13-T12_Agent_conversation_panel_shell_over_mock_runtime/) | 2026-05-17 | PASS |
 | CTXB-P13-T11 | [CTXB-P13-T11_Agent_conversation_runtime_mock_adapter/](CTXB-P13-T11_Agent_conversation_runtime_mock_adapter/) | 2026-05-17 | PASS |
 | CTXB-P13-T10 | [CTXB-P13-T10_Evaluate_Agent_UI_framework_options_for_the_first_adapter/](CTXB-P13-T10_Evaluate_Agent_UI_framework_options_for_the_first_adapter/) | 2026-05-17 | PASS |
 | CTXB-P13-T9 | [CTXB-P13-T9_FSD_boundary_for_Agent_Workbench_UI_adapters/](CTXB-P13-T9_FSD_boundary_for_Agent_Workbench_UI_adapters/) | 2026-05-17 | PASS |
@@ -115,6 +116,8 @@
 
 | Date | Task ID | Action |
 |------|---------|--------|
+| 2026-05-17 | CTXB-P13-T12 | Archived Agent_conversation_panel_shell_over_mock_runtime (PASS) |
+| 2026-05-17 | CTXB-P13-T12 | Archived REVIEW_CTXB-P13-T12_agent_conversation_panel_shell report (PASS, no findings) |
 | 2026-05-17 | CTXB-P13-T11 | Archived Agent_conversation_runtime_mock_adapter (PASS) |
 | 2026-05-17 | CTXB-P13-T11 | Archived REVIEW_CTXB-P13-T11_agent_runtime_mock_adapter report (PASS, no findings) |
 | 2026-05-17 | CTXB-P13-T8 | Archived REVIEW_CTXB-P13-T8_agent_context_selection report (PASS, no findings) |

@@ -3,6 +3,7 @@
 **Current Task:** `TBD` — Select next SpecSpace parity slice
 
 ## Recently Archived
+- `CTXB-P13-T12` — Agent conversation panel shell over the mock runtime (PASS, 2026-05-17)
 - `CTXB-P13-T11` — Agent conversation runtime mock adapter (PASS, 2026-05-17)
 - `CTXB-P13-T10` — Evaluate Agent UI framework options for the first adapter (PASS, 2026-05-17)
 - `CTXB-P13-T9` — FSD boundary for Agent Workbench UI adapters (PASS, 2026-05-17)
@@ -62,8 +63,8 @@
 - Rationale: The current Phase 13 stack now covers Proposal Viewer parity, Metrics Viewer parity, an Agent Workbench conversation artifact contract, and the first local graph-context draft flow. The next slice should be selected based on product priority: richer proposal details, richer metric drill-downs, edge/gap context selection, or Agent Workbench persistence/API.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`.
-- Next: `CTXB-P13-T12` — Agent conversation panel shell over the mock runtime.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`.
+- Next: `CTXB-P13-T13` — Assistant UI adapter spike behind the conversation panel boundary.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.

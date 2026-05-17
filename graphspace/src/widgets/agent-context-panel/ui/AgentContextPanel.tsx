@@ -15,6 +15,7 @@ type Props = {
   onAddSelectedSpec: () => void;
   onRemoveItem: (key: string) => void;
   onClear: () => void;
+  onOpenConversation?: () => void;
 };
 
 export function AgentContextPanel({
@@ -24,6 +25,7 @@ export function AgentContextPanel({
   onAddSelectedSpec,
   onRemoveItem,
   onClear,
+  onOpenConversation,
 }: Props) {
   const serialized = serializeAgentContextSet(draft);
   const selectedKey = selectedNode ? `spec_node:${selectedNode.node_id}` : null;
@@ -65,10 +67,15 @@ export function AgentContextPanel({
         <button
           type="button"
           className={styles.secondaryButton}
-          disabled
-          title="Agent execution is not wired yet."
+          onClick={onOpenConversation}
+          disabled={!onOpenConversation}
+          title={
+            onOpenConversation
+              ? "Open Agent conversation"
+              : "Agent execution is not wired yet."
+          }
         >
-          Start Conversation
+          Open Conversation
         </button>
       </div>
 

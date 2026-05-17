@@ -7,6 +7,7 @@ import {
 import { createSpecNodeRefResolver } from "@/entities/spec-node";
 import type { SpecPMLifecycleBadge } from "@/entities/specpm-lifecycle";
 import { addSpecNodeToAgentContext } from "@/features/add-spec-to-agent-context";
+import { createMockAgentConversationRuntime } from "@/features/start-agent-conversation";
 import { useToneFilter, filterByTone } from "@/features/filter-by-tone";
 import {
   useSpecSearch,
@@ -14,6 +15,7 @@ import {
 } from "@/features/search-by-spec";
 import { useRunsWatchVersion } from "@/shared/api";
 import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
+import { AgentConversationPanel } from "@/widgets/agent-conversation-panel";
 import { AgentContextPanel } from "@/widgets/agent-context-panel";
 import { useRecentChanges } from "@/widgets/recent-changes-panel";
 import {
@@ -69,6 +71,10 @@ export function ViewerPage() {
   const [selectedSpec, setSelectedSpec] = useState<SpecInspectorSelection | null>(null);
   const [agentContextDraft, setAgentContextDraft] = useState(() =>
     createAgentContextDraft(new Date().toISOString()),
+  );
+  const agentConversationRuntime = useMemo(
+    () => createMockAgentConversationRuntime({ id_prefix: "specspace-local" }),
+    [],
   );
   const apiDeploymentState = useApiDeploymentStatus();
   const runsWatchVersion = useRunsWatchVersion({
@@ -270,6 +276,11 @@ export function ViewerPage() {
           title: "Agent context",
           caption: `${agentContextDraft.items.length} items · local draft`,
         };
+      case "agent-conversation":
+        return {
+          title: "Agent conversation",
+          caption: `${agentContextDraft.items.length} context items · mock runtime`,
+        };
       case "artifacts":
         return { title: "Live artifacts", caption: artifactCaption };
       case "registry":
@@ -376,6 +387,15 @@ export function ViewerPage() {
               onClick={() => toggleUtilityPanel("agent-context")}
             >
               ⊕
+            </PanelBtn>
+            <PanelBtn
+              title="Open Agent conversation"
+              aria-label="Open Agent conversation"
+              active={activeUtilityPanel === "agent-conversation"}
+              badge={agentContextDraft.items.length}
+              onClick={() => toggleUtilityPanel("agent-conversation")}
+            >
+              ◌
             </PanelBtn>
             <PanelBtn
               title="Open Proposal trace"
@@ -525,6 +545,16 @@ export function ViewerPage() {
               onAddSelectedSpec={addSelectedSpecToAgentContext}
               onRemoveItem={removeAgentContextItemByKey}
               onClear={clearAgentContext}
+              onOpenConversation={() => setActiveUtilityPanel("agent-conversation")}
+            />
+          ) : null}
+
+          {activeUtilityPanel === "agent-conversation" ? (
+            <AgentConversationPanel
+              runtime={agentConversationRuntime}
+              draft={agentContextDraft}
+              resolveSpecRef={resolveSpecRef}
+              onSpecIdClick={selectSpecNodeId}
             />
           ) : null}
 

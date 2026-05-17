@@ -158,3 +158,7 @@ After that, `CTXB-P13-T12` should wire the mock runtime into a visible Agent
 Workbench conversation panel shell. A concrete `assistant-ui` adapter can be
 introduced only after the panel proves the SpecSpace-owned event projection and
 context handoff shape.
+
+`CTXB-P13-T13` is the first reasonable point to spike the concrete assistant-ui
+adapter, because the local panel shell now defines what the adapter must feed:
+SpecSpace-owned context drafts, runtime events, and turn projections.
