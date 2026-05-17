@@ -102,6 +102,54 @@ def handle_v1_specpm_registry(handler: SpecSpaceV1Handler) -> None:
     json_response(handler, status, payload)
 
 
+def handle_v1_specpm_registry_package(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    prefix = "/api/v1/specpm/registry/packages/"
+    suffix = parsed.path[len(prefix):]
+    if not suffix:
+        json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing SpecPM package id in path."})
+        return
+
+    version_prefix = "/versions"
+    version_marker = f"{version_prefix}/"
+    if suffix.endswith(version_prefix):
+        package_id = unquote(suffix[: -len(version_prefix)]).strip()
+        if not package_id:
+            json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing SpecPM package id in path."})
+            return
+        json_response(
+            handler,
+            HTTPStatus.BAD_REQUEST,
+            {"error": "SpecPM package id and version are required in path."},
+        )
+        return
+
+    if version_marker in suffix:
+        package_raw, version_raw = suffix.split(version_marker, 1)
+        package_id = unquote(package_raw).strip()
+        version = unquote(version_raw).strip()
+        if not package_id or not version:
+            json_response(
+                handler,
+                HTTPStatus.BAD_REQUEST,
+                {"error": "SpecPM package id and version are required in path."},
+            )
+            return
+        status, payload = specspace_provider.read_specpm_registry_package_version(
+            handler.server,
+            package_id,
+            version,
+        )
+        json_response(handler, status, payload)
+        return
+
+    package_id = unquote(suffix).strip()
+    if not package_id:
+        json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing SpecPM package id in path."})
+        return
+    status, payload = specspace_provider.read_specpm_registry_package(handler.server, package_id)
+    json_response(handler, status, payload)
+
+
 def handle_v1_specpm_lifecycle(handler: SpecSpaceV1Handler) -> None:
     status, payload = _provider(handler).read_specpm_lifecycle()
     json_response(handler, status, payload)

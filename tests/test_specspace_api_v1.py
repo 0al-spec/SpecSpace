@@ -123,8 +123,12 @@ def _write_manifest(root: Path, paths: list[str]) -> None:
 def _write_specpm_registry(root: Path) -> None:
     status_dir = root / "v0" / "status"
     packages_dir = root / "v0" / "packages"
+    package_dir = packages_dir / "specnode.core"
+    version_dir = package_dir / "versions" / "0.1.0"
     status_dir.mkdir(parents=True)
     packages_dir.mkdir(parents=True)
+    package_dir.mkdir(parents=True)
+    version_dir.mkdir(parents=True)
     common = {"apiVersion": "specpm.registry/v0", "schemaVersion": 1, "status": "ok"}
     status_payload = {
         **common,
@@ -157,7 +161,35 @@ def _write_specpm_registry(root: Path) -> None:
             }
         ],
     }
-    for directory, payload in ((status_dir, status_payload), (packages_dir, packages_payload)):
+    package_payload = {
+        **common,
+        "kind": "RemotePackage",
+        "package": {
+            "package_id": "specnode.core",
+            "name": "SpecNode Core",
+            "summary": "Core SpecNode package.",
+            "license": "MIT",
+            "latest_version": "0.1.0",
+            "capabilities": ["specnode.typed_job_protocol"],
+            "versions": [{"version": "0.1.0", "yanked": False, "deprecated": False}],
+        },
+    }
+    version_payload = {
+        **common,
+        "kind": "RemotePackageVersion",
+        "package_id": "specnode.core",
+        "version": "0.1.0",
+        "archive": {
+            "path": "v0/packages/specnode.core/versions/0.1.0/specnode.core-0.1.0.specpm.tgz",
+            "sha256": "1" * 64,
+        },
+    }
+    for directory, payload in (
+        (status_dir, status_payload),
+        (packages_dir, packages_payload),
+        (package_dir, package_payload),
+        (version_dir, version_payload),
+    ):
         _write_json(directory / "index.json", payload)
         _write_json(directory / "index.html", payload)
 
@@ -370,6 +402,93 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["registry"]["kind"], "RemoteRegistryStatus")
         self.assertEqual(body["packages"]["kind"], "RemotePackageIndex")
         self.assertEqual(body["packages"]["package_count"], 1)
+
+    def test_specpm_registry_v1_returns_package_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            registry_root = root / "registry"
+            _write_specpm_registry(registry_root)
+            registry, registry_thread, registry_url = _start_static(registry_root)
+            httpd, thread, base = _start(root / "dialogs", specpm_registry_url=registry_url)
+            try:
+                status, body = _get(f"{base}/api/v1/specpm/registry/packages/specnode.core")
+            finally:
+                _stop(httpd, thread)
+                _stop(registry, registry_thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["source"]["status"], "configured")
+        self.assertEqual(body["data"]["kind"], "RemotePackage")
+        self.assertEqual(body["data"]["package"]["package_id"], "specnode.core")
+
+    def test_specpm_registry_v1_returns_package_version_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            registry_root = root / "registry"
+            _write_specpm_registry(registry_root)
+            registry, registry_thread, registry_url = _start_static(registry_root)
+            httpd, thread, base = _start(root / "dialogs", specpm_registry_url=registry_url)
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/specpm/registry/packages/specnode.core/versions/0.1.0",
+                )
+            finally:
+                _stop(httpd, thread)
+                _stop(registry, registry_thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["source"]["status"], "configured")
+        self.assertEqual(body["data"]["kind"], "RemotePackageVersion")
+        self.assertEqual(body["data"]["package_id"], "specnode.core")
+        self.assertEqual(body["data"]["version"], "0.1.0")
+
+    def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            httpd, thread, base = _start(root / "dialogs", specpm_registry_url="https://example.invalid")
+            try:
+                status, body = _get(f"{base}/api/v1/specpm/registry/packages/")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "Missing SpecPM package id in path.")
+
+    def test_specpm_registry_v1_version_endpoint_requires_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            httpd, thread, base = _start(root / "dialogs", specpm_registry_url="https://example.invalid")
+            try:
+                status, body = _get(f"{base}/api/v1/specpm/registry/packages/specnode.core/versions/")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "SpecPM package id and version are required in path.")
+
+    def test_specpm_registry_v1_version_endpoint_requires_version_without_trailing_slash(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            httpd, thread, base = _start(root / "dialogs", specpm_registry_url="https://example.invalid")
+            try:
+                status, body = _get(f"{base}/api/v1/specpm/registry/packages/specnode.core/versions")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "SpecPM package id and version are required in path.")
+
+    def test_specpm_registry_v1_rejects_dot_segment_package_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            httpd, thread, base = _start(root / "dialogs", specpm_registry_url="https://example.invalid")
+            try:
+                status, body = _get(f"{base}/api/v1/specpm/registry/packages/%2E%2E")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "SpecPM package id must not contain dot path segments.")
 
     def test_specpm_registry_v1_reports_not_configured(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
