@@ -1,0 +1,232 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--gs-rule-mid);
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--gs-rule-soft);
+}
+
+.metric {
+  padding: var(--gs-space-5) var(--gs-space-6);
+  border-right: 1px solid var(--gs-rule-soft);
+}
+
+.metric:last-child {
+  border-right: 0;
+}
+
+.metricValue {
+  display: block;
+  color: var(--gs-ink);
+  font-family: var(--gs-serif);
+  font-size: 22px;
+}
+
+.metricLabel,
+.runtimeBadge,
+.composerLabel,
+.role,
+.turnState,
+.statusLabel {
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.metricLabel {
+  display: block;
+  margin-top: 2px;
+  color: var(--gs-muted-2);
+}
+
+.runtimeBar {
+  display: flex;
+  align-items: center;
+  gap: var(--gs-space-3);
+  padding: var(--gs-space-4) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+}
+
+.runtimeBadge {
+  flex: 0 0 auto;
+  border: 1px solid var(--gs-rule-mid);
+  background: var(--gs-ink);
+  color: white;
+  padding: 3px 7px;
+}
+
+.runtimeText {
+  min-width: 0;
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.contextStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-2);
+  padding: var(--gs-space-4) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+}
+
+.contextToken,
+.contextEmpty,
+.artifactPill {
+  border: 1px solid var(--gs-rule-soft);
+  background: white;
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 7px;
+}
+
+.contextToken {
+  color: var(--gs-accent);
+}
+
+.transcript {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gs-space-4);
+  min-height: 180px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: var(--gs-space-5) var(--gs-space-6);
+}
+
+.turn {
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  padding: var(--gs-space-5);
+}
+
+.turn[data-role="agent"] {
+  background: white;
+}
+
+.turnHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gs-space-4);
+}
+
+.role {
+  color: var(--gs-ink);
+}
+
+.turnState {
+  color: var(--gs-muted-2);
+}
+
+.turnText {
+  margin: var(--gs-space-4) 0 0;
+  color: var(--gs-ink);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.turnArtifacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-2);
+  margin-top: var(--gs-space-4);
+}
+
+.artifactPill {
+  background: var(--gs-panel);
+  color: var(--gs-muted);
+}
+
+.error {
+  margin: 0;
+  border-top: 1px solid var(--gs-rule-soft);
+  color: var(--gs-danger);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: var(--gs-space-4) var(--gs-space-6);
+}
+
+.composer {
+  display: grid;
+  gap: var(--gs-space-3);
+  border-top: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  padding: var(--gs-space-5) var(--gs-space-6);
+}
+
+.composerLabel {
+  color: var(--gs-muted);
+}
+
+.promptInput {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--gs-rule-mid);
+  border-radius: 0;
+  background: white;
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  padding: var(--gs-space-4);
+}
+
+.promptInput:disabled {
+  opacity: 0.62;
+}
+
+.primaryButton {
+  min-height: 34px;
+  border: 1px solid var(--gs-ink);
+  border-radius: 0;
+  background: var(--gs-ink);
+  color: white;
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.primaryButton:disabled {
+  cursor: default;
+  opacity: 0.52;
+}
+
+.statusBox {
+  display: grid;
+  gap: var(--gs-space-3);
+  padding: var(--gs-space-8) 0;
+}
+
+.statusLabel {
+  color: var(--gs-ink);
+}
+
+.statusDetail {
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}

@@ -37,6 +37,7 @@ export default defineConfig([
       "src/features/filter-by-tone/**/*",
       "src/features/search-by-spec/**/*",
       "src/features/start-agent-conversation/**/*",
+      "src/widgets/agent-conversation-panel/**/*",
       "src/widgets/agent-context-panel/**/*",
       "src/widgets/implementation-work-panel/**/*",
       "src/widgets/proposal-trace/**/*",

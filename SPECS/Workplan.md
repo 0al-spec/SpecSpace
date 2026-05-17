@@ -1755,6 +1755,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The mock runtime emits deterministic operator/agent turns, context attachment tool calls, and analysis outputs for future UI integration tests.
   - FSD lint passes with the retained feature slice documented.
 
+### ✅ CTXB-P13-T12 — Agent conversation panel shell over the mock runtime — DONE (PASS, 2026-05-17)
+- **Description:** Add a visible Agent Workbench conversation utility panel backed by the local/mock runtime.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T11
+- **Parallelizable:** no
+- **Outputs / Artifacts:** `widgets/agent-conversation-panel`, Viewer utility panel wiring, context-to-conversation affordance
+- **Acceptance Criteria:**
+  - Users can open a conversation panel from the utility dock and from the Agent context panel.
+  - The panel can start a local mock conversation from the current context draft and show streamed operator/agent turns.
+  - Spec IDs rendered in context and transcript text stay graph-aware and clickable.
+  - The shell remains framework-neutral; no third-party Agent UI package is installed.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
