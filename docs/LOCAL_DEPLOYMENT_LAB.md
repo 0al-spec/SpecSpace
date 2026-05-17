@@ -113,6 +113,19 @@ The smoke checks:
 - graph, implementation work, registry, UI, and UI-proxied health endpoints
   return `200`.
 
+## GitHub CI
+
+The full lab smoke is intentionally outside the required default CI path. It
+runs in `.github/workflows/deploy-lab-smoke.yml` for:
+
+- manual `workflow_dispatch`, with optional `SpecGraph` and `SpecPM` refs;
+- weekly scheduled drift detection;
+- release tag pushes matching `v*`;
+- PRs that change the lab, Docker, or GraphSpace version/build files.
+
+This keeps ordinary PR feedback fast while still providing a GitHub-hosted
+regression gate for release and deployment-boundary changes.
+
 ## Stop The Lab
 
 ```bash

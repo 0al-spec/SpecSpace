@@ -1,0 +1,106 @@
+name: Local Static Deploy Lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      specgraph_ref:
+        description: SpecGraph git ref to test against
+        required: false
+        default: main
+      specpm_ref:
+        description: SpecPM git ref to test against
+        required: false
+        default: main
+  schedule:
+    - cron: "37 2 * * 1"
+  push:
+    tags:
+      - "v*"
+    paths:
+      - ".github/workflows/deploy-lab-smoke.yml"
+      - "compose.deploy-lab.yml"
+      - "deploy/local-static/**"
+      - "scripts/smoke-specspace-deploy-lab.sh"
+      - "docs/LOCAL_DEPLOYMENT_LAB.md"
+      - "Dockerfile"
+      - "graphspace/Dockerfile"
+      - "graphspace/package.json"
+      - "graphspace/package-lock.json"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/deploy-lab-smoke.yml"
+      - "compose.deploy-lab.yml"
+      - "deploy/local-static/**"
+      - "scripts/smoke-specspace-deploy-lab.sh"
+      - "docs/LOCAL_DEPLOYMENT_LAB.md"
+      - "Dockerfile"
+      - "graphspace/Dockerfile"
+      - "graphspace/package.json"
+      - "graphspace/package-lock.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-lab-smoke-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Local Static Deploy Lab Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out SpecSpace
+        uses: actions/checkout@v4
+        with:
+          path: SpecSpace
+
+      - name: Check out SpecGraph
+        uses: actions/checkout@v4
+        with:
+          repository: 0al-spec/SpecGraph
+          ref: ${{ inputs.specgraph_ref || 'main' }}
+          path: SpecGraph
+
+      - name: Check out SpecPM
+        uses: actions/checkout@v4
+        with:
+          repository: 0al-spec/SpecPM
+          ref: ${{ inputs.specpm_ref || 'main' }}
+          path: SpecPM
+
+      - name: Set up Python for producers
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build SpecGraph static artifact bundle
+        working-directory: SpecGraph
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+          make publish-bundle
+
+      - name: Generate SpecPM public registry index
+        working-directory: SpecPM
+        env:
+          SPECPM_PUBLIC_INDEX_REGISTRY_URL: http://localhost:8081
+        run: |
+          python -m pip install -e .[dev]
+          make public-index-generate
+
+      - name: Run deploy lab smoke
+        working-directory: SpecSpace
+        env:
+          SPECGRAPH_PUBLIC_DIR: ${{ github.workspace }}/SpecGraph/dist/specgraph-public
+          SPECPM_PUBLIC_INDEX_DIR: ${{ github.workspace }}/SpecPM/.specpm/public-index
+          SPECSPACE_DEPLOY_LAB_PROJECT_NAME: specspace-deploy-lab-ci
+          SPECSPACE_API_PORT: "18011"
+          SPECSPACE_UI_PORT: "15183"
+          SPECGRAPH_STATIC_PORT: "18082"
+          SPECPM_REGISTRY_PORT: "18081"
+        run: scripts/smoke-specspace-deploy-lab.sh
