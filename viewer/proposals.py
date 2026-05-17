@@ -158,11 +158,60 @@ def extract_proposal_status(content: str) -> str:
     return " ".join(collected).strip()
 
 
+def extract_proposal_excerpt(content: str, *, max_length: int = 280) -> str:
+    paragraphs: list[str] = []
+    current: list[str] = []
+    skip_status_section = False
+    skipped_status_content = False
+
+    def flush() -> None:
+        nonlocal current
+        if current:
+            paragraphs.append(" ".join(current).strip())
+            current = []
+
+    for line in content.splitlines():
+        stripped = line.strip()
+        lowered = stripped.lower()
+        if not stripped:
+            flush()
+            if skip_status_section and skipped_status_content:
+                skip_status_section = False
+                skipped_status_content = False
+            continue
+        if stripped.startswith("#"):
+            flush()
+            skip_status_section = lowered in {"## status", "### status"} or lowered.startswith("## status:")
+            skipped_status_content = False
+            continue
+        if stripped.startswith("```"):
+            flush()
+            continue
+        if lowered.startswith("status:"):
+            flush()
+            continue
+        if skip_status_section:
+            skipped_status_content = True
+            continue
+        current.append(stripped.lstrip("-* ").strip())
+
+    flush()
+
+    for paragraph in paragraphs:
+        if not paragraph:
+            continue
+        if len(paragraph) <= max_length:
+            return paragraph
+        return f"{paragraph[: max_length - 1].rstrip()}…"
+    return ""
+
+
 def _proposal_markdown_entry(path: Path, content: str, stat: os.stat_result) -> dict[str, Any]:
     return {
         "proposal_id": path.stem.split("_", 1)[0],
         "title": extract_proposal_title(content, path.stem),
         "status": extract_proposal_status(content) or "Unknown",
+        "content_excerpt": extract_proposal_excerpt(content),
         "file_name": path.name,
         "relative_path": f"docs/proposals/{path.name}",
         "path": str(path),
@@ -277,6 +326,7 @@ def _merge_markdown(entries: dict[str, dict[str, Any]], markdown: dict[str, Any]
             "file_name": item.get("file_name"),
             "relative_path": item.get("relative_path"),
             "mtime_iso": item.get("mtime_iso"),
+            "content_excerpt": item.get("content_excerpt"),
         }
         _add_source(entry, "proposal_markdown")
 

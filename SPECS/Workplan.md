@@ -1779,6 +1779,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Widget-local adapter code maps `AgentRuntimeProjection` into assistant-ui external-store message shape.
   - The visible panel can host assistant-ui primitives without changing the persisted conversation artifact contract.
 
+### ✅ CTXB-P13-T14 — Proposal Viewer markdown previews — DONE (PASS, 2026-05-17)
+- **Description:** Extend the readonly proposal index with proposal markdown excerpts and surface those excerpts in the SpecSpace Proposal Viewer.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T5
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** proposal excerpt read model, GraphSpace proposal contract typing, Proposal Viewer preview UI
+- **Acceptance Criteria:**
+  - Local and HTTP/static proposal markdown sources expose a short content excerpt without treating status metadata as proposal body content.
+  - Proposal Viewer rows render the excerpt when markdown content is available.
+  - Spec IDs inside proposal excerpts stay graph-aware and clickable through the existing resolver.
+  - Missing markdown continues to degrade to artifact-only proposal rows.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.

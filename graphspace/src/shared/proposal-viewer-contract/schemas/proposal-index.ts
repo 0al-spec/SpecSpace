@@ -9,6 +9,7 @@ const markdownSchema = z
     file_name: z.string().optional(),
     relative_path: z.string().optional(),
     mtime_iso: z.string().optional(),
+    content_excerpt: z.string().optional(),
   })
   .passthrough();
 

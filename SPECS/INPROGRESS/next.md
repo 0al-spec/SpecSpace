@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `TBD` — Select next SpecSpace parity slice after Assistant UI adapter spike
+**Current Task:** `TBD` — Select next SpecSpace parity slice after Proposal Viewer markdown previews
 
 ## Recently Archived
+- `CTXB-P13-T14` — Proposal Viewer markdown previews (PASS, 2026-05-17)
 - `CTXB-P13-T13` — Assistant UI adapter spike behind the conversation panel boundary (PASS, 2026-05-17)
 - `CTXB-P13-T12` — Agent conversation panel shell over the mock runtime (PASS, 2026-05-17)
 - `CTXB-P13-T11` — Agent conversation runtime mock adapter (PASS, 2026-05-17)
@@ -61,10 +62,10 @@
 
 ### SpecSpace Parity (Phase 13, current)
 - `TBD` — Select next SpecSpace parity slice.
-- Rationale: The current Phase 13 stack now covers Proposal Viewer parity, Metrics Viewer parity, an Agent Workbench conversation artifact contract, graph-context draft flow, mock conversation runtime, visible conversation shell, and an `assistant-ui` adapter spike. The next slice should be selected based on product priority: richer proposal details, richer metric drill-downs, edge/gap context selection, or Agent Workbench persistence/API.
+- Rationale: The current Phase 13 stack now covers Proposal Viewer parity with markdown previews, Metrics Viewer parity, an Agent Workbench conversation artifact contract, graph-context draft flow, mock conversation runtime, visible conversation shell, and an `assistant-ui` adapter spike. The next slice should be selected based on product priority: richer proposal details, richer metric drill-downs, edge/gap context selection, or Agent Workbench persistence/API.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`.
 - Next: select between richer Proposal Viewer details, Metrics drill-downs, edge/gap context selection, or Agent Workbench persistence/API.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
