@@ -165,3 +165,5 @@ Target:
 4. `CTXB-P13-T8` — Add graph-context-to-agent-context selection flow.
 5. `CTXB-P13-T9` — FSD boundary for Agent Workbench UI adapters.
 6. `CTXB-P13-T10` — Evaluate Agent UI framework options for the first adapter.
+7. `CTXB-P13-T11` — Agent conversation runtime mock adapter.
+8. `CTXB-P13-T12` — Agent conversation panel shell over the mock runtime.

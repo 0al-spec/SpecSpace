@@ -1743,6 +1743,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The decision preserves SpecSpace-owned conversation/context/proposal contracts.
   - The next implementation slice is explicit and does not require a concrete framework install.
 
+### ✅ CTXB-P13-T11 — Agent conversation runtime mock adapter — DONE (PASS, 2026-05-17)
+- **Description:** Add the first framework-neutral Agent Workbench runtime adapter and runtime-event projection model before wiring a visible conversation panel.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T10
+- **Parallelizable:** no
+- **Outputs / Artifacts:** `features/start-agent-conversation`, Agent runtime event projection, mock runtime tests
+- **Acceptance Criteria:**
+  - `entities/agent-workbench` can project streaming runtime events into stable turn state.
+  - `features/start-agent-conversation` exposes a local/mock `AgentConversationRuntime` without importing React or a third-party Agent UI framework.
+  - The mock runtime emits deterministic operator/agent turns, context attachment tool calls, and analysis outputs for future UI integration tests.
+  - FSD lint passes with the retained feature slice documented.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
