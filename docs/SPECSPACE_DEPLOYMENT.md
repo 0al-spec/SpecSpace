@@ -109,6 +109,52 @@ python viewer/server.py \
 
 The same value can be supplied through `SPECSPACE_ARTIFACT_BASE_URL`.
 
+## Local Developer Restart
+
+For local GraphSpace development, use the detached restart wrapper instead of
+manually keeping old `screen` sessions alive:
+
+```bash
+make specspace-restart
+```
+
+This restarts:
+
+- SpecSpace API on `127.0.0.1:8001`
+- GraphSpace dev UI on `127.0.0.1:5173`
+
+The restart is intentionally idempotent. It stops the known
+`specspace_backend` and `specspace_graphspace` screen sessions, clears any
+stale listeners on the configured API/UI ports, starts fresh processes from the
+current checkout, and probes `/api/v1/health` plus the UI root before returning.
+This prevents stale backend processes from serving an old route table after a
+merge or pull.
+
+Useful commands:
+
+```bash
+make specspace-status
+make specspace-stop
+make specspace-start
+```
+
+Logs are written under `.specspace-dev/`:
+
+```text
+.specspace-dev/backend.log
+.specspace-dev/graphspace.log
+```
+
+The Makefile passes the same default local paths used by the existing
+developer launch targets. Override them when needed:
+
+```bash
+make specspace-restart \
+  DIALOG_DIR=/absolute/path/to/canonical_json \
+  SPEC_DIR=/absolute/path/to/SpecGraph/specs/nodes \
+  SPECGRAPH_DIR=/absolute/path/to/SpecGraph
+```
+
 ## Health Expectations
 
 `GET /api/v1/health` is the deployment boundary check. It must report:
