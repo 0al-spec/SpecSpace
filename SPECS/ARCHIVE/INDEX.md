@@ -1,11 +1,12 @@
 # Tasks Archive
 
-**Last Updated:** 2026-05-13 (CTXB-P9-T7)
+**Last Updated:** 2026-05-17 (CTXB-P13-T5)
 
 ## Archived Tasks
 
 | Task ID | Folder | Archived | Verdict |
 |---------|--------|----------|---------|
+| CTXB-P13-T5 | [CTXB-P13-T5_Start_Proposal_Viewer_parity_with_static_proposal_indexes/](CTXB-P13-T5_Start_Proposal_Viewer_parity_with_static_proposal_indexes/) | 2026-05-17 | PASS |
 | CTXB-P1-T1 | [CTXB-P1-T1_Define_Canonical_Conversation_And_Lineage_Schema/](CTXB-P1-T1_Define_Canonical_Conversation_And_Lineage_Schema/) | 2026-03-22 | PASS |
 | CTXB-P1-T2 | [CTXB-P1-T2_Normalize_Imported_Conversations_Into_Graph_Roots_Or_Linked_Nodes/](CTXB-P1-T2_Normalize_Imported_Conversations_Into_Graph_Roots_Or_Linked_Nodes/) | 2026-03-22 | PASS |
 | CTXB-P1-T3 | [CTXB-P1-T3_Validate_Lineage_Integrity_And_Reject_Ambiguous_Graph_State/](CTXB-P1-T3_Validate_Lineage_Integrity_And_Reject_Ambiguous_Graph_State/) | 2026-03-22 | PASS |
@@ -108,6 +109,7 @@
 
 | Date | Task ID | Action |
 |------|---------|--------|
+| 2026-05-17 | CTXB-P13-T5 | Archived Start_Proposal_Viewer_parity_with_static_proposal_indexes (PASS) |
 | 2026-05-13 | CTXB-P9-T7 | Archived SpecNode_visual_signal_unification (PASS) |
 | 2026-05-13 | CTXB-P8-T2 | Archived SpecPM_lifecycle_badge_on_SpecNode (PASS) |
 | 2026-05-13 | CTXB-P9-T6 | Archived Hover_preview_card_on_spec_nodes (PASS) |
