@@ -110,6 +110,7 @@
 
 | Date | Task ID | Action |
 |------|---------|--------|
+| 2026-05-17 | CTXB-P13-T6 | Archived REVIEW_CTXB-P13-T6_metrics_viewer_parity report (PASS, no findings) |
 | 2026-05-17 | CTXB-P13-T6 | Archived Start_Metrics_screen_parity_with_existing_metrics_artifacts (PASS) |
 | 2026-05-17 | CTXB-P13-T5 | Archived REVIEW_CTXB-P13-T5_proposal_viewer_parity report (PASS, no findings) |
 | 2026-05-17 | CTXB-P13-T5 | Archived Start_Proposal_Viewer_parity_with_static_proposal_indexes (PASS) |
