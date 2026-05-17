@@ -60,12 +60,13 @@ if artifact_base_url not in text:
     errors.append(
         f"{target_file} must point at artifact base URL: {artifact_base_url}"
     )
-if "--specpm-registry-url" not in text:
-    errors.append(f"{target_file} must configure --specpm-registry-url")
-if specpm_registry_url not in text:
-    errors.append(
-        f"{target_file} must point at SpecPM registry URL: {specpm_registry_url}"
-    )
+if specpm_registry_url and specpm_registry_url != "0":
+    if "--specpm-registry-url" not in text:
+        errors.append(f"{target_file} must configure --specpm-registry-url")
+    if specpm_registry_url not in text:
+        errors.append(
+            f"{target_file} must point at SpecPM registry URL: {specpm_registry_url}"
+        )
 
 
 def service_blocks() -> tuple[list[str], dict[str, list[str]]]:
