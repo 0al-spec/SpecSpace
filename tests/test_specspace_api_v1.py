@@ -816,6 +816,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["dashboard"]["metric_count"], 1)
         self.assertEqual(body["dashboard"]["metrics_delivery_entry_count"], 1)
         self.assertTrue(body["sources"]["graph_dashboard"]["available"])
+        self.assertEqual(body["sources"]["graph_dashboard"]["entry_count"], 1)
         self.assertTrue(body["sources"]["metric_pack_runs"]["available"])
 
     def test_metrics_v1_degrades_when_optional_artifacts_are_missing(self) -> None:

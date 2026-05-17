@@ -86,6 +86,9 @@ def _entry_count(data: dict[str, Any]) -> int:
     metrics = data.get("metrics")
     if isinstance(metrics, list):
         return len(metrics)
+    metric_scores = _nested(data, "sections", "metrics", "metric_scores")
+    if isinstance(metric_scores, dict):
+        return len(metric_scores)
     return 0
 
 
