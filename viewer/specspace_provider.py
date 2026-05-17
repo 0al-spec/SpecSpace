@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 
 import yaml  # type: ignore[import-untyped]
 
-from viewer import capabilities_api, proposals, specgraph, specgraph_surfaces
+from viewer import capabilities_api, metrics, proposals, specgraph, specgraph_surfaces
 from viewer.specpm import _build_specpm_lifecycle
 
 SPECSPACE_API_VERSION = "v1"
@@ -76,6 +76,8 @@ class SpecSpaceProvider(Protocol):
     def read_proposal_spec_trace_index(self) -> tuple[int, dict[str, Any]]: ...
 
     def read_proposals(self) -> tuple[int, dict[str, Any]]: ...
+
+    def read_metrics(self) -> tuple[int, dict[str, Any]]: ...
 
     def read_specpm_lifecycle(self) -> tuple[int, dict[str, Any]]: ...
 
@@ -291,6 +293,9 @@ class FileSpecGraphProvider:
             runs_dir=self.runs_dir,
             specgraph_dir=self.specgraph_dir,
         )
+
+    def read_metrics(self) -> tuple[int, dict[str, Any]]:
+        return metrics.read_file_metrics_index(runs_dir=self.runs_dir)
 
     def read_specpm_lifecycle(self) -> tuple[HTTPStatus, dict[str, Any]]:
         specgraph_root = self.specgraph_health()
@@ -816,6 +821,68 @@ class HttpSpecGraphProvider:
             artifacts=artifacts,
             sources=sources,
             markdown=self._collect_http_proposal_markdown(manifest),
+            source={
+                "provider": "http",
+                "artifact_base_url": self.normalized_base_url,
+                "manifest": self.manifest_url,
+            },
+        )
+
+    def _read_optional_metrics_artifact(
+        self,
+        manifest: dict[str, Any],
+        name: str,
+        filename: str,
+    ) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        path = f"runs/{filename}"
+        if not self._has_artifact(manifest, path):
+            return metrics.empty_source(
+                name,
+                filename,
+                reason="missing_artifact",
+                path=f"{self.normalized_base_url}/{path}",
+            ), None
+
+        status, text, error = self._read_artifact_text(path)
+        url = self._artifact_url(path)
+        if error is not None or status != HTTPStatus.OK or text is None:
+            detail = error["detail"] if error is not None else f"HTTP {int(status)}"
+            return {
+                "available": False,
+                "artifact": path,
+                "path": url,
+                "entry_count": 0,
+                "reason": "artifact_fetch_failed",
+                "detail": detail,
+            }, None
+
+        data, source_error = metrics.decode_json_artifact_text(
+            text,
+            artifact=path,
+            path=url,
+        )
+        if source_error is not None:
+            return source_error, None
+        assert data is not None
+        artifact = http_envelope(url, manifest, data)
+        return metrics.artifact_source(name, filename, artifact), artifact
+
+    def read_metrics(self) -> tuple[int, dict[str, Any]]:
+        manifest, manifest_error = self._read_manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+
+        sources: dict[str, dict[str, Any]] = {}
+        artifacts: dict[str, dict[str, Any] | None] = {}
+        for name, filename in metrics.METRICS_ARTIFACTS.items():
+            source, artifact = self._read_optional_metrics_artifact(manifest, name, filename)
+            sources[name] = source
+            artifacts[name] = artifact
+
+        return HTTPStatus.OK, metrics.build_metrics_index(
+            artifacts=artifacts,
+            sources=sources,
             source={
                 "provider": "http",
                 "artifact_base_url": self.normalized_base_url,

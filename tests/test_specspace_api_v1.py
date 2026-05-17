@@ -313,6 +313,159 @@ def _write_proposal_viewer_artifacts(runs_dir: Path) -> None:
     )
 
 
+def _write_metrics_viewer_artifacts(runs_dir: Path) -> None:
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(
+        runs_dir / "graph_dashboard.json",
+        {
+            "artifact_kind": "graph_dashboard",
+            "schema_version": 1,
+            "generated_at": "2026-05-17T12:30:00Z",
+            "sections": {
+                "metrics": {
+                    "metric_count": 1,
+                    "metric_status_counts": {"healthy": 1},
+                    "metric_scores": {
+                        "sib": {
+                            "score": 0.74,
+                            "minimum_score": 0.6,
+                            "status": "healthy",
+                            "threshold_gap": -0.14,
+                            "target_spec_ids": ["SG-SPEC-0001"],
+                        }
+                    },
+                    "below_threshold_metric_ids": [],
+                    "metric_pack_entry_count": 1,
+                    "metric_pack_adapter_entry_count": 1,
+                },
+                "external_consumers": {
+                    "entry_count": 1,
+                    "metrics_delivery_entry_count": 1,
+                    "metrics_feedback_entry_count": 1,
+                    "metrics_source_promotion_entry_count": 1,
+                },
+            },
+        },
+    )
+    _write_json(
+        runs_dir / "metric_signal_index.json",
+        {
+            "artifact_kind": "metric_signal_index",
+            "generated_at": "2026-05-17T12:30:00Z",
+            "metrics": [
+                {
+                    "metric_id": "sib",
+                    "title": "Specification-Implementation Balance",
+                    "score": 0.74,
+                    "minimum_score": 0.6,
+                    "status": "healthy",
+                    "target_spec_ids": ["SG-SPEC-0001"],
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "metrics_source_promotion_index.json",
+        {
+            "artifact_kind": "metrics_source_promotion_index",
+            "generated_at": "2026-05-17T12:30:00Z",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "promotion_id": "metrics_source_promotion::metrics_sib::sib",
+                    "metric_id": "sib",
+                    "title": "Promote SIB source",
+                    "promotion_status": "draft_visible_only",
+                    "authority_state": "not_threshold_authority",
+                    "next_gap": "review_draft_metric_source",
+                    "target_spec_ids": ["SG-SPEC-0001"],
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "metrics_delivery_workflow.json",
+        {
+            "artifact_kind": "metrics_delivery_workflow",
+            "generated_at": "2026-05-17T12:30:00Z",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "delivery_id": "metrics_delivery::metrics_sib",
+                    "consumer_id": "metrics_sib",
+                    "title": "Metrics SIB delivery",
+                    "delivery_status": "ready_for_delivery_review",
+                    "review_state": "ready_for_review",
+                    "bound_metric_ids": ["sib"],
+                    "delivery_paths": [".specgraph_handoffs/metrics_sib/handoff.json"],
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "metrics_feedback_index.json",
+        {
+            "artifact_kind": "metrics_feedback_index",
+            "generated_at": "2026-05-17T12:30:00Z",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "feedback_id": "metrics_feedback::metrics_sib",
+                    "consumer_id": "metrics_sib",
+                    "title": "Metrics SIB feedback",
+                    "feedback_status": "adoption_observed_locally",
+                    "review_state": "adoption_visible",
+                    "bound_metric_ids": ["sib"],
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "metric_pack_adapter_index.json",
+        {
+            "artifact_kind": "metric_pack_adapter_index",
+            "generated_at": "2026-05-17T12:30:00Z",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "metric_pack_id": "sib",
+                    "title": "SIB metric pack adapter",
+                    "adapter_status": "ready_for_adapter_review",
+                    "pack_status": "ready_for_index_review",
+                    "input_count": 1,
+                    "missing_input_count": 0,
+                    "inputs": [
+                        {
+                            "input_id": "specification_signal",
+                            "computability": "available",
+                            "source_artifact": "runs/metric_signal_index.json",
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "metric_pack_runs.json",
+        {
+            "artifact_kind": "metric_pack_runs",
+            "generated_at": "2026-05-17T12:30:00Z",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "run_id": "metric_pack_run::sib::latest",
+                    "metric_pack_id": "sib",
+                    "title": "SIB metric pack run",
+                    "run_status": "computed",
+                    "review_state": "ready_for_review",
+                    "computed_values": [{"metric_id": "sib", "score": 0.74, "status": "healthy"}],
+                    "gaps": [],
+                }
+            ],
+        },
+    )
+
+
 class SpecSpaceProviderHealthTests(unittest.TestCase):
     def test_directory_health_distinguishes_missing_empty_and_ok(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -637,6 +790,65 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["sources"]["proposal_runtime_index"]["available"], False)
         self.assertEqual(body["sources"]["proposal_runtime_index"]["reason"], "missing_artifact")
 
+    def test_metrics_v1_combines_static_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_metrics_viewer_artifacts(root / "runs")
+            httpd, thread, base = _start(root / "dialogs", runs_dir=root / "runs")
+            try:
+                status, body = _get(f"{base}/api/v1/metrics")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["api_version"], "v1")
+        self.assertEqual(body["artifact_kind"], "specspace_metrics_index")
+        self.assertEqual(body["source"]["provider"], "file")
+        self.assertEqual(body["entry_count"], 7)
+        self.assertEqual(body["filters"]["category_counts"]["metric_score"], 1)
+        self.assertEqual(body["filters"]["category_counts"]["metric_signal"], 1)
+        self.assertEqual(body["filters"]["category_counts"]["source_promotion"], 1)
+        self.assertEqual(body["filters"]["category_counts"]["delivery"], 1)
+        self.assertEqual(body["filters"]["category_counts"]["feedback"], 1)
+        self.assertEqual(body["filters"]["category_counts"]["metric_pack_adapter"], 1)
+        self.assertEqual(body["filters"]["category_counts"]["metric_pack_run"], 1)
+        self.assertIn("SG-SPEC-0001", body["filters"]["reference_texts"])
+        self.assertEqual(body["dashboard"]["metric_count"], 1)
+        self.assertEqual(body["dashboard"]["metrics_delivery_entry_count"], 1)
+        self.assertTrue(body["sources"]["graph_dashboard"]["available"])
+        self.assertTrue(body["sources"]["metric_pack_runs"]["available"])
+
+    def test_metrics_v1_degrades_when_optional_artifacts_are_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            _write_json(
+                runs_dir / "metric_signal_index.json",
+                {
+                    "artifact_kind": "metric_signal_index",
+                    "metrics": [
+                        {
+                            "metric_id": "specification_verifiability",
+                            "title": "Specification Verifiability",
+                            "status": "healthy",
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/metrics")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["entry_count"], 1)
+        self.assertEqual(body["entries"][0]["category"], "metric_signal")
+        self.assertEqual(body["entries"][0]["item_id"], "specification_verifiability")
+        self.assertEqual(body["sources"]["graph_dashboard"]["available"], False)
+        self.assertEqual(body["sources"]["graph_dashboard"]["reason"], "missing_artifact")
+
     def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -858,6 +1070,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 },
             )
             _write_proposal_viewer_artifacts(runs_dir)
+            _write_metrics_viewer_artifacts(runs_dir)
             _write_manifest(
                 artifact_root,
                 [
@@ -867,6 +1080,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     "runs/proposal_lane_overlay.json",
                     "runs/proposal_runtime_index.json",
                     "runs/proposal_promotion_index.json",
+                    "runs/graph_dashboard.json",
+                    "runs/metrics_source_promotion_index.json",
+                    "runs/metrics_delivery_workflow.json",
+                    "runs/metrics_feedback_index.json",
+                    "runs/metric_pack_adapter_index.json",
+                    "runs/metric_pack_runs.json",
+                    "runs/metric_signal_index.json",
                 ],
             )
             static, static_thread, artifact_base_url = _start_static(artifact_root)
@@ -878,6 +1098,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 activity_status, activity = _get(f"{base}/api/v1/spec-activity?limit=1")
                 trace_status, trace = _get(f"{base}/api/v1/proposal-spec-trace-index")
                 proposals_status, proposals = _get(f"{base}/api/v1/proposals")
+                metrics_status, metrics = _get(f"{base}/api/v1/metrics")
             finally:
                 _stop(httpd, thread)
                 _stop(static, static_thread)
@@ -900,6 +1121,11 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(proposals["entry_count"], 2)
         self.assertEqual(proposals["sources"]["proposal_markdown"]["available"], False)
         self.assertEqual(proposals["entries"][0]["affected_spec_ids"], ["SG-SPEC-0001"])
+        self.assertEqual(metrics_status, 200)
+        self.assertEqual(metrics["source"]["provider"], "http")
+        self.assertEqual(metrics["entry_count"], 7)
+        self.assertTrue(metrics["sources"]["graph_dashboard"]["available"])
+        self.assertIn("SG-SPEC-0001", metrics["filters"]["reference_texts"])
 
     def test_http_provider_reports_missing_runs_artifact_as_not_found(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
