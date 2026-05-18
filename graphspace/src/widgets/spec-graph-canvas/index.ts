@@ -17,6 +17,12 @@ export {
 } from "./model/gap-filter";
 export { buildSpecGraphSelection, type SpecGraphSelection } from "./model/selection";
 export {
+  buildSpecGraphCanvasOverlays,
+  type SpecGraphCanvasOverlayKind,
+  type SpecGraphCanvasOverlays,
+  type SpecGraphCanvasOverlaySummary,
+} from "./model/overlays";
+export {
   applySpecGraphCanvasLayoutOverrides,
   buildSpecGraphCanvasLayoutStorageKey,
   readSpecGraphCanvasLayoutOverrides,

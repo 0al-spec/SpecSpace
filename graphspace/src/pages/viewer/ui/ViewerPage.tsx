@@ -35,8 +35,10 @@ import {
 } from "@/widgets/proposal-trace";
 import {
   SpecGraphCanvas,
+  buildSpecGraphCanvasOverlays,
   useSpecGraph,
   useSpecPMLifecycleBadges,
+  type SpecGraphCanvasOverlayKind,
 } from "@/widgets/spec-graph-canvas";
 import { SpecEdgeInspector } from "@/widgets/spec-edge-inspector";
 import { SpecInspector, type SpecInspectorSelection } from "@/widgets/spec-inspector";
@@ -253,6 +255,21 @@ export function ViewerPage() {
     () => new Map(specGraphState.data.graph.nodes.map((node) => [node.node_id, node])),
     [specGraphState.data.graph.nodes],
   );
+  const canvasOverlays = useMemo(
+    () =>
+      buildSpecGraphCanvasOverlays({
+        nodes: specGraphState.data.graph.nodes,
+        edges: specGraphState.data.graph.edges,
+        proposals: proposalIndexState.kind === "ok" ? proposalIndexState.data.entries : [],
+        metrics: metricsIndexState.kind === "ok" ? metricsIndexState.data.entries : [],
+      }),
+    [
+      metricsIndexState,
+      proposalIndexState,
+      specGraphState.data.graph.edges,
+      specGraphState.data.graph.nodes,
+    ],
+  );
   const clearSpecSelection = () => {
     setSelectedSpecNodeId(null);
     setSelectedSpecEdgeId(null);
@@ -273,6 +290,26 @@ export function ViewerPage() {
     }
     setSelectedSpecEdgeId(edgeId);
   }, []);
+  const openCanvasOverlayPanel = useCallback(
+    (kind: SpecGraphCanvasOverlayKind) => {
+      setActiveUtilityPanel(kind === "proposal" ? "proposals" : "metrics");
+    },
+    [],
+  );
+  const openNodeOverlayPanel = useCallback(
+    (kind: SpecGraphCanvasOverlayKind, nodeId: string) => {
+      selectSpecNodeId(nodeId);
+      openCanvasOverlayPanel(kind);
+    },
+    [openCanvasOverlayPanel, selectSpecNodeId],
+  );
+  const openEdgeOverlayPanel = useCallback(
+    (kind: SpecGraphCanvasOverlayKind, edgeId: string) => {
+      selectSpecEdgeId(edgeId);
+      openCanvasOverlayPanel(kind);
+    },
+    [openCanvasOverlayPanel, selectSpecEdgeId],
+  );
   const toggleUtilityPanel = (panel: ViewerUtilityPanelId) => {
     setActiveUtilityPanel((current) => (current === panel ? null : panel));
   };
@@ -373,8 +410,11 @@ export function ViewerPage() {
         selectedNodeId={selectedSpecNodeId}
         selectedEdgeId={selectedSpecEdgeId}
         lifecycleBadgesByNode={lifecycleBadgesByNode}
+        overlays={canvasOverlays}
         onSelectedNodeIdChange={setSelectedSpecNodeId}
         onSelectedEdgeIdChange={selectSpecEdgeId}
+        onNodeOverlayClick={openNodeOverlayPanel}
+        onEdgeOverlayClick={openEdgeOverlayPanel}
         onSelectionChange={setSelectedSpec}
       />
 

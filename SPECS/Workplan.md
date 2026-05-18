@@ -1852,7 +1852,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Broken or missing endpoint edges explain the missing side clearly.
   - Edge context can still be added to Agent Context from the selected edge.
 
-### CTXB-P13-T20 — Node moving and layout persistence — INPROGRESS
+### ✅ CTXB-P13-T20 — Node moving and layout persistence — DONE (PASS, 2026-05-18)
 - **Description:** Let users reposition SpecGraph canvas nodes and persist a local layout override without changing canonical SpecGraph artifacts.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T18
@@ -1864,7 +1864,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Users can reset to the default Refinement Ladder Layout.
   - Persistence is scoped to SpecSpace UI state and does not mutate readonly SpecGraph sources.
 
-### CTXB-P13-T21 — Proposal and metric overlays on graph nodes and edges — NOT STARTED
+### CTXB-P13-T21 — Proposal and metric overlays on graph nodes and edges — INPROGRESS
 - **Description:** Surface proposal and metrics signals directly on relevant SpecGraph nodes/edges so canvas review can start from visible work and quality indicators.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T15, CTXB-P13-T18

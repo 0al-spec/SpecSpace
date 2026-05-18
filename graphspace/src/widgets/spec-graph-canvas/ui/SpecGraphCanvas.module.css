@@ -146,6 +146,62 @@
   cursor: grab;
 }
 
+.nodeOverlayDock {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.edgeOverlayLabel {
+  position: absolute;
+  z-index: 2;
+  pointer-events: all;
+}
+
+.edgeOverlayDock {
+  display: flex;
+  gap: 4px;
+}
+
+.overlayBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 27px;
+  height: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--gs-rule-mid);
+  background: color-mix(in srgb, var(--gs-panel) 94%, white);
+  color: var(--gs-muted);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--gs-rule-soft) 70%, transparent);
+}
+
+.overlayBadge:hover {
+  border-color: var(--gs-rule-mid);
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+}
+
+.overlayBadgeProposal {
+  border-color: color-mix(in srgb, var(--gs-warn) 42%, var(--gs-rule-soft));
+  color: var(--gs-warn);
+}
+
+.overlayBadgeMetric {
+  border-color: color-mix(in srgb, var(--gs-ok) 42%, var(--gs-rule-soft));
+  color: var(--gs-ok);
+}
+
 .flow :global(.react-flow__node.dragging) .nodeShell {
   cursor: grabbing;
 }

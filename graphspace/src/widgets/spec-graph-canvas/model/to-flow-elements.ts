@@ -5,20 +5,28 @@ import type { SpecNode } from "@/entities/spec-node";
 import type { SpecPMLifecycleBadge } from "@/entities/specpm-lifecycle";
 import type { SpecGraphResponse } from "@/shared/spec-graph-contract";
 import type { HoverPreviewAnchor } from "./hover-preview";
+import type {
+  SpecGraphCanvasOverlayKind,
+  SpecGraphCanvasOverlaySummary,
+} from "./overlays";
 
 export type SpecFlowNodeData = Record<string, unknown> & {
   spec: SpecNode;
   lifecycleBadge?: SpecPMLifecycleBadge | null;
+  overlay?: SpecGraphCanvasOverlaySummary | null;
   onHoverPreviewIntent?: (node: SpecNode, anchor: HoverPreviewAnchor) => void;
   onHoverPreviewClear?: () => void;
+  onOverlayClick?: (kind: SpecGraphCanvasOverlayKind, nodeId: string) => void;
 };
 
 export type SpecFlowEdgeData = Record<string, unknown> & {
   specEdge: SpecEdge;
+  overlay?: SpecGraphCanvasOverlaySummary | null;
+  onOverlayClick?: (kind: SpecGraphCanvasOverlayKind, edgeId: string) => void;
 };
 
 export type SpecFlowNode = Node<SpecFlowNodeData, "specNode">;
-export type SpecFlowEdge = Edge<SpecFlowEdgeData>;
+export type SpecFlowEdge = Edge<SpecFlowEdgeData, "specEdge">;
 
 const COLUMN_WIDTH = 360;
 const ROW_HEIGHT = 172;
@@ -203,7 +211,7 @@ export function toSpecGraphFlowElements(response: SpecGraphResponse): {
         source: endpoints.source,
         target: endpoints.target,
         data: { specEdge },
-        type: "smoothstep",
+        type: "specEdge",
         animated: false,
         style: edgeStyle(specEdge),
         markerEnd: edgeMarker(specEdge),
