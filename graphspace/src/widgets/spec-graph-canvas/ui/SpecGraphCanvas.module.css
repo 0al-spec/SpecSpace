@@ -98,6 +98,11 @@
   color: var(--gs-ink);
 }
 
+.layoutResetButton {
+  border-color: color-mix(in srgb, var(--gs-accent) 42%, var(--gs-rule-soft));
+  color: var(--gs-accent);
+}
+
 .emptyFilterState {
   position: absolute;
   top: calc(var(--gs-space-5) + 42px);
@@ -138,6 +143,11 @@
 
 .nodeShell {
   position: relative;
+  cursor: grab;
+}
+
+.flow :global(.react-flow__node.dragging) .nodeShell {
+  cursor: grabbing;
 }
 
 .handle {

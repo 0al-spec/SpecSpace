@@ -1840,7 +1840,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Filtering preserves selected-node and inspector behavior without forcing Sidebar state.
   - Empty/no-match states remain explicit and do not break pan/zoom controls.
 
-### CTXB-P13-T19 — Edge inspector for selected SpecGraph edges — INPROGRESS
+### ✅ CTXB-P13-T19 — Edge inspector for selected SpecGraph edges — DONE (PASS, 2026-05-18)
 - **Description:** Add a focused inspector surface for selected SpecGraph edges so edge selection exposes relation kind, status, source/target specs, diagnostics, and Agent Context actions.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T16
@@ -1852,7 +1852,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Broken or missing endpoint edges explain the missing side clearly.
   - Edge context can still be added to Agent Context from the selected edge.
 
-### CTXB-P13-T20 — Node moving and layout persistence — NOT STARTED
+### CTXB-P13-T20 — Node moving and layout persistence — INPROGRESS
 - **Description:** Let users reposition SpecGraph canvas nodes and persist a local layout override without changing canonical SpecGraph artifacts.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T18

@@ -7,6 +7,7 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  type NodeChange,
   type NodeProps,
   useReactFlow,
 } from "@xyflow/react";
@@ -22,6 +23,17 @@ import {
   SPEC_GRAPH_CANVAS_GAP_FILTERS,
   type SpecGraphCanvasGapFilter,
 } from "../model/gap-filter";
+import {
+  applySpecGraphCanvasLayoutOverrides,
+  buildSpecGraphCanvasLayoutStorageKey,
+  getSpecGraphCanvasLayoutStorage,
+  readSpecGraphCanvasLayoutOverrides,
+  removeSpecGraphCanvasLayoutOverrides,
+  upsertSpecGraphCanvasLayoutOverride,
+  writeSpecGraphCanvasLayoutOverrides,
+  type SpecGraphCanvasLayoutOverrides,
+  type SpecGraphCanvasLayoutPosition,
+} from "../model/layout-overrides";
 import {
   buildSpecNodeHoverPreview,
   SPEC_NODE_HOVER_PREVIEW_DELAY_MS,
@@ -130,6 +142,8 @@ function SpecGraphCanvasInner({
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
   const [internalSelectedEdgeId, setInternalSelectedEdgeId] = useState<string | null>(null);
   const [gapFilter, setGapFilter] = useState<SpecGraphCanvasGapFilter>("all");
+  const [layoutOverrides, setLayoutOverrides] =
+    useState<SpecGraphCanvasLayoutOverrides>({});
   const [hoverCandidate, setHoverCandidate] = useState<HoverPreviewState | null>(null);
   const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null);
   const hoverPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -147,6 +161,18 @@ function SpecGraphCanvasInner({
   const { nodes: baseNodes, edges } = useMemo(
     () => toSpecGraphFlowElements(state.data),
     [state.data],
+  );
+  const layoutStorageKey = useMemo(
+    () => buildSpecGraphCanvasLayoutStorageKey(state.data),
+    [state.data],
+  );
+  const layoutNodeIds = useMemo(
+    () => baseNodes.map((node) => node.id),
+    [baseNodes],
+  );
+  const positionedBaseNodes = useMemo(
+    () => applySpecGraphCanvasLayoutOverrides(baseNodes, layoutOverrides),
+    [baseNodes, layoutOverrides],
   );
   const baseSpecNodes = useMemo(
     () => baseNodes.map((node) => node.data.spec),
@@ -189,7 +215,7 @@ function SpecGraphCanvasInner({
   );
   const nodes = useMemo(
     () =>
-      baseNodes
+      positionedBaseNodes
         .filter((node) => visibleNodeIds.has(node.id))
         .map((node) => ({
         ...node,
@@ -203,9 +229,9 @@ function SpecGraphCanvasInner({
         })),
     [
       activeSelectedNodeId,
-      baseNodes,
       clearHoverPreview,
       lifecycleBadgesByNode,
+      positionedBaseNodes,
       showHoverPreviewAfterDelay,
       visibleNodeIds,
     ],
@@ -251,10 +277,69 @@ function SpecGraphCanvasInner({
   const hoverPreviewLifecycleBadge = hoverPreview
     ? lifecycleBadgesByNode?.get(hoverPreview.node.node_id) ?? null
     : null;
+  const layoutOverrideCount = Object.keys(layoutOverrides).length;
+
+  const persistLayoutOverride = useCallback(
+    (nodeId: string, position: SpecGraphCanvasLayoutPosition) => {
+      setLayoutOverrides((current) => {
+        const next = upsertSpecGraphCanvasLayoutOverride(current, nodeId, position);
+        writeSpecGraphCanvasLayoutOverrides(
+          getSpecGraphCanvasLayoutStorage(),
+          layoutStorageKey,
+          next,
+        );
+        return next;
+      });
+    },
+    [layoutStorageKey],
+  );
+
+  const updateLiveLayoutOverrides = useCallback(
+    (changes: NodeChange<SpecFlowNode>[]) => {
+      const positionChanges = changes.filter(
+        (
+          change,
+        ): change is NodeChange<SpecFlowNode> & {
+          id: string;
+          position: SpecGraphCanvasLayoutPosition;
+          type: "position";
+        } => change.type === "position" && Boolean(change.position),
+      );
+      if (positionChanges.length === 0) return;
+
+      setLayoutOverrides((current) => {
+        let next = current;
+        for (const change of positionChanges) {
+          next = upsertSpecGraphCanvasLayoutOverride(next, change.id, change.position);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const resetLayoutOverrides = useCallback(() => {
+    clearHoverPreview();
+    removeSpecGraphCanvasLayoutOverrides(
+      getSpecGraphCanvasLayoutStorage(),
+      layoutStorageKey,
+    );
+    setLayoutOverrides({});
+  }, [clearHoverPreview, layoutStorageKey]);
 
   useEffect(() => {
     onSelectionChange?.(selection);
   }, [onSelectionChange, selection]);
+
+  useEffect(() => {
+    setLayoutOverrides(
+      readSpecGraphCanvasLayoutOverrides(
+        getSpecGraphCanvasLayoutStorage(),
+        layoutStorageKey,
+        layoutNodeIds,
+      ),
+    );
+  }, [layoutNodeIds, layoutStorageKey]);
 
   useEffect(() => {
     if (activeSelectedNodeId && !selection) updateSelectedNodeId(null);
@@ -269,7 +354,7 @@ function SpecGraphCanvasInner({
 
     const selectedNode =
       getNode(activeSelectedNodeId) ??
-      baseNodes.find((node) => node.id === activeSelectedNodeId);
+      positionedBaseNodes.find((node) => node.id === activeSelectedNodeId);
     if (!selectedNode) return;
 
     const focusPoint = getSpecGraphNodeFocusPoint(selectedNode);
@@ -277,7 +362,7 @@ function SpecGraphCanvasInner({
     void setCenter(focusPoint.x, focusPoint.y, {
       duration: 360,
     });
-  }, [activeSelectedNodeId, baseNodes, getNode, setCenter, viewportInitialized]);
+  }, [activeSelectedNodeId, getNode, positionedBaseNodes, setCenter, viewportInitialized]);
 
   useEffect(() => clearHoverPreview, [clearHoverPreview]);
 
@@ -307,6 +392,16 @@ function SpecGraphCanvasInner({
             <span>{gapFilterCounts[filter]}</span>
           </button>
         ))}
+        {layoutOverrideCount > 0 ? (
+          <button
+            type="button"
+            className={[styles.gapFilterButton, styles.layoutResetButton].join(" ")}
+            onClick={resetLayoutOverrides}
+          >
+            <span>Reset layout</span>
+            <span>{layoutOverrideCount}</span>
+          </button>
+        ) : null}
       </div>
       <ReactFlow<SpecFlowNode>
         className={styles.flow}
@@ -317,11 +412,17 @@ function SpecGraphCanvasInner({
         defaultEdgeOptions={{ type: "smoothstep" }}
         minZoom={0.08}
         maxZoom={1.6}
-        nodesDraggable={false}
+        nodesDraggable
+        onNodesChange={updateLiveLayoutOverrides}
         onNodeClick={(_, node) => {
           clearHoverPreview();
           updateSelectedEdgeId(null);
           updateSelectedNodeId(node.id);
+        }}
+        onNodeDragStart={clearHoverPreview}
+        onNodeDragStop={(_, node) => {
+          clearHoverPreview();
+          persistLayoutOverride(node.id, node.position);
         }}
         onEdgeClick={(_, edge) => {
           clearHoverPreview();
