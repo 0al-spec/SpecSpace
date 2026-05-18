@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** no task selected yet (next parity task to define after `CTXB-P13-T17`)
+**Current Task:** `CTXB-P13-T18` — Canvas gap marks and filters
 
 ## Recently Archived
 - `CTXB-P13-T17` — Visible gap context selection for Agent Workbench (PASS, 2026-05-18)
@@ -64,12 +64,13 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T17` completed.
-- Rationale: Phase 13 parity now includes Proposal Viewer parity with detail and markdown previews, Metrics Viewer parity, Agent Workbench conversation artifact and runtime flow, edge context selection, and visible gap context selection. Next parity task is still to be selected from backlog.
+- `CTXB-P13-T18` — Canvas gap marks and filters.
+- Rationale: Phase 13 parity now includes Proposal Viewer parity with detail and markdown previews, Metrics Viewer parity, Agent Workbench conversation artifact and runtime flow, edge context selection, and visible gap context selection. The next missing canvas feature is making gap signals visible directly on graph nodes and filterable without relying only on the Sidebar or Inspector.
 
 ### Phase 13 Suggested Stack
 - Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`.
-- Current: not selected.
+- Current: `CTXB-P13-T18` canvas gap marks and filters.
+- Next: `CTXB-P13-T19` edge inspector, `CTXB-P13-T20` node moving and layout persistence, `CTXB-P13-T21` proposal/metric canvas overlays.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.
