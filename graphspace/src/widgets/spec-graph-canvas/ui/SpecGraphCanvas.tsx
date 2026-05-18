@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
+  BaseEdge,
   Controls,
+  EdgeLabelRenderer,
   Handle,
   MiniMap,
   Position,
   ReactFlow,
   ReactFlowProvider,
+  getSmoothStepPath,
+  type EdgeProps,
   type NodeChange,
   type NodeProps,
   useReactFlow,
@@ -39,8 +43,17 @@ import {
   SPEC_NODE_HOVER_PREVIEW_DELAY_MS,
   type HoverPreviewAnchor,
 } from "../model/hover-preview";
+import type {
+  SpecGraphCanvasOverlayKind,
+  SpecGraphCanvasOverlays,
+  SpecGraphCanvasOverlaySummary,
+} from "../model/overlays";
 import { buildSpecGraphSelection, type SpecGraphSelection } from "../model/selection";
-import { toSpecGraphFlowElements, type SpecFlowNode } from "../model/to-flow-elements";
+import {
+  toSpecGraphFlowElements,
+  type SpecFlowEdge,
+  type SpecFlowNode,
+} from "../model/to-flow-elements";
 import { useSpecNodePreviewDetail } from "../model/use-spec-node-preview-detail";
 import type { UseSpecGraphState } from "../model/use-spec-graph";
 import styles from "./SpecGraphCanvas.module.css";
@@ -52,8 +65,11 @@ type Props = {
   selectedNodeId?: string | null;
   selectedEdgeId?: string | null;
   lifecycleBadgesByNode?: ReadonlyMap<string, SpecPMLifecycleBadge>;
+  overlays?: SpecGraphCanvasOverlays;
   onSelectedNodeIdChange?: (nodeId: string | null) => void;
   onSelectedEdgeIdChange?: (edgeId: string | null) => void;
+  onNodeOverlayClick?: (kind: SpecGraphCanvasOverlayKind, nodeId: string) => void;
+  onEdgeOverlayClick?: (kind: SpecGraphCanvasOverlayKind, edgeId: string) => void;
   onSelectionChange?: (selection: SpecGraphSelection | null) => void;
 };
 
@@ -75,6 +91,11 @@ function hoverPreviewAnchorFromElement(element: HTMLElement): HoverPreviewAnchor
 }
 
 function SpecFlowNodeView({ data, selected }: NodeProps<SpecFlowNode>) {
+  const overlay = data.overlay;
+  const hasOverlay = Boolean(
+    overlay && (overlay.proposalCount > 0 || overlay.metricCount > 0),
+  );
+
   return (
     <div
       className={styles.nodeShell}
@@ -94,7 +115,117 @@ function SpecFlowNodeView({ data, selected }: NodeProps<SpecFlowNode>) {
         selected={selected}
         lifecycleBadge={data.lifecycleBadge}
       />
+      {hasOverlay && overlay ? (
+        <OverlayBadges
+          overlay={overlay}
+          targetId={data.spec.node_id}
+          onClick={data.onOverlayClick}
+          className={styles.nodeOverlayDock}
+        />
+      ) : null}
       <Handle type="source" position={Position.Right} className={styles.handle} />
+    </div>
+  );
+}
+
+function SpecFlowEdgeView({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+  data,
+}: EdgeProps<SpecFlowEdge>) {
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+  const overlay = data?.overlay;
+  const hasOverlay = Boolean(
+    overlay && (overlay.proposalCount > 0 || overlay.metricCount > 0),
+  );
+
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
+      {hasOverlay && overlay ? (
+        <EdgeLabelRenderer>
+          <div
+            className={styles.edgeOverlayLabel}
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            }}
+          >
+            <OverlayBadges
+              overlay={overlay}
+              targetId={id}
+              onClick={data?.onOverlayClick}
+              className={styles.edgeOverlayDock}
+            />
+          </div>
+        </EdgeLabelRenderer>
+      ) : null}
+    </>
+  );
+}
+
+function OverlayBadges({
+  overlay,
+  targetId,
+  onClick,
+  className,
+}: {
+  overlay: SpecGraphCanvasOverlaySummary;
+  targetId: string;
+  onClick?: (kind: SpecGraphCanvasOverlayKind, targetId: string) => void;
+  className?: string;
+}) {
+  const stopFlowEvent = (event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  };
+
+  return (
+    <div className={className}>
+      {overlay.proposalCount > 0 ? (
+        <button
+          type="button"
+          className={`${styles.overlayBadge} ${styles.overlayBadgeProposal}`}
+          title={`${overlay.proposalCount} related proposals`}
+          onPointerDown={stopFlowEvent}
+          onMouseDown={stopFlowEvent}
+          onClick={(event) => {
+            stopFlowEvent(event);
+            onClick?.("proposal", targetId);
+          }}
+        >
+          <span>P</span>
+          <span>{overlay.proposalCount}</span>
+        </button>
+      ) : null}
+      {overlay.metricCount > 0 ? (
+        <button
+          type="button"
+          className={`${styles.overlayBadge} ${styles.overlayBadgeMetric}`}
+          title={`${overlay.metricCount} related metrics`}
+          onPointerDown={stopFlowEvent}
+          onMouseDown={stopFlowEvent}
+          onClick={(event) => {
+            stopFlowEvent(event);
+            onClick?.("metric", targetId);
+          }}
+        >
+          <span>M</span>
+          <span>{overlay.metricCount}</span>
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -103,14 +234,21 @@ const nodeTypes = {
   specNode: SpecFlowNodeView,
 };
 
+const edgeTypes = {
+  specEdge: SpecFlowEdgeView,
+};
+
 export function SpecGraphCanvas({
   state,
   className,
   selectedNodeId,
   selectedEdgeId,
   lifecycleBadgesByNode,
+  overlays,
   onSelectedNodeIdChange,
   onSelectedEdgeIdChange,
+  onNodeOverlayClick,
+  onEdgeOverlayClick,
   onSelectionChange,
 }: Props) {
   return (
@@ -121,8 +259,11 @@ export function SpecGraphCanvas({
         selectedNodeId={selectedNodeId}
         selectedEdgeId={selectedEdgeId}
         lifecycleBadgesByNode={lifecycleBadgesByNode}
+        overlays={overlays}
         onSelectedNodeIdChange={onSelectedNodeIdChange}
         onSelectedEdgeIdChange={onSelectedEdgeIdChange}
+        onNodeOverlayClick={onNodeOverlayClick}
+        onEdgeOverlayClick={onEdgeOverlayClick}
         onSelectionChange={onSelectionChange}
       />
     </ReactFlowProvider>
@@ -135,8 +276,11 @@ function SpecGraphCanvasInner({
   selectedNodeId,
   selectedEdgeId,
   lifecycleBadgesByNode,
+  overlays,
   onSelectedNodeIdChange,
   onSelectedEdgeIdChange,
+  onNodeOverlayClick,
+  onEdgeOverlayClick,
   onSelectionChange,
 }: Props) {
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
@@ -223,14 +367,18 @@ function SpecGraphCanvasInner({
         data: {
           ...node.data,
           lifecycleBadge: lifecycleBadgesByNode?.get(node.id) ?? null,
+          overlay: overlays?.nodesById.get(node.id) ?? null,
           onHoverPreviewIntent: showHoverPreviewAfterDelay,
           onHoverPreviewClear: clearHoverPreview,
+          onOverlayClick: onNodeOverlayClick,
         },
         })),
     [
       activeSelectedNodeId,
       clearHoverPreview,
       lifecycleBadgesByNode,
+      onNodeOverlayClick,
+      overlays,
       positionedBaseNodes,
       showHoverPreviewAfterDelay,
       visibleNodeIds,
@@ -240,11 +388,16 @@ function SpecGraphCanvasInner({
     () =>
       edges
         .filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
-        .map((edge) => ({
+        .map((edge): SpecFlowEdge => ({
           ...edge,
           selected: edge.id === activeSelectedEdgeId,
+          data: {
+            specEdge: edge.data!.specEdge,
+            overlay: overlays?.edgesById.get(edge.id) ?? null,
+            onOverlayClick: onEdgeOverlayClick,
+          },
         })),
-    [activeSelectedEdgeId, edges, visibleNodeIds],
+    [activeSelectedEdgeId, edges, onEdgeOverlayClick, overlays, visibleNodeIds],
   );
   const selection = useMemo(
     () => buildSpecGraphSelection(state.data, activeSelectedNodeId ?? null),
@@ -403,13 +556,14 @@ function SpecGraphCanvasInner({
           </button>
         ) : null}
       </div>
-      <ReactFlow<SpecFlowNode>
+      <ReactFlow<SpecFlowNode, SpecFlowEdge>
         className={styles.flow}
         nodes={nodes}
         edges={flowEdges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
-        defaultEdgeOptions={{ type: "smoothstep" }}
+        defaultEdgeOptions={{ type: "specEdge" }}
         minZoom={0.08}
         maxZoom={1.6}
         nodesDraggable

@@ -29,6 +29,7 @@
   --spec-graph-canvas-left-dock: calc(
     var(--viewer-panel-edge) + var(--viewer-sidebar-width) + var(--viewer-panel-gap)
   );
+  --spec-graph-canvas-filter-left: var(--spec-graph-canvas-left-dock);
 }
 
 .sidebarRail,
