@@ -6,7 +6,7 @@ INPROGRESS
 
 ## Context
 
-The GraphSpace Sidebar now works as a hidden canvas-level surface, but it only
+The SpecSpace UI Sidebar now works as a hidden canvas-level surface, but it only
 contains utility panel launchers and live artifact diagnostics. The next useful
 role is the old ContextBuilder Sidebar role: navigation through graph items.
 

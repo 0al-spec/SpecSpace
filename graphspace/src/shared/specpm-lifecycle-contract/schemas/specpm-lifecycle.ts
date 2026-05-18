@@ -5,7 +5,7 @@ import { z } from "zod";
  *
  * This is a server read-model, not a versioned runs artifact envelope. It joins
  * SpecPM export, handoff, materialization, import, and import_handoff artifacts
- * by package key and preserves the SpecGraph node anchors that let GraphSpace
+ * by package key and preserves the SpecGraph node anchors that let SpecSpace UI
  * project package lifecycle status back onto canvas nodes.
  */
 

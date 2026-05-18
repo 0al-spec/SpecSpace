@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reject legacy ContextBuilder API routes in runtime GraphSpace source."""
+"""Reject legacy ContextBuilder API routes in runtime SpecSpace UI source."""
 
 from __future__ import annotations
 
@@ -95,7 +95,7 @@ def main() -> int:
     if not violations:
         return 0
 
-    print("GraphSpace API boundary violations:", file=sys.stderr)
+    print("SpecSpace UI API boundary violations:", file=sys.stderr)
     for violation in violations:
         rel_path = violation.path.relative_to(REPO_ROOT)
         print(

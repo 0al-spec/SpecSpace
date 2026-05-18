@@ -374,7 +374,7 @@ export function ViewerPage() {
       />
 
       {sidebarOpen ? (
-        <aside className={styles.sidebarRail} aria-label="GraphSpace Sidebar">
+        <aside className={styles.sidebarRail} aria-label="SpecSpace Sidebar">
           <div className={styles.sidebarHeader}>
             <span className={styles.sidebarBrandMark}>
               <SidebarLogo />

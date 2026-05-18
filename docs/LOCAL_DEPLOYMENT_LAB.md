@@ -122,7 +122,7 @@ runs in `.github/workflows/deploy-lab-smoke.yml` for:
   `SpecPM` ref/revision override;
 - weekly scheduled drift detection;
 - release tag pushes matching `v*`;
-- PRs that change the lab, Docker, or GraphSpace version/build files.
+- PRs that change the lab, Docker, or SpecSpace UI version/build files.
 
 This keeps ordinary PR feedback fast while still providing a GitHub-hosted
 regression gate for release and deployment-boundary changes.

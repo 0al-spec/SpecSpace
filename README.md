@@ -484,7 +484,7 @@ ContextBuilder/
 | `make dev DIALOG_DIR=...` | Start API on :8001 and React dev server on :5173 |
 | `make api` | Start API only (uses `$CANONICAL_DIR` default) |
 | `make ui` | Start React dev server only |
-| `make specspace-restart` | Restart SpecSpace API + GraphSpace dev UI in detached `screen` sessions |
+| `make specspace-restart` | Restart SpecSpace API + SpecSpace dev UI in detached `screen` sessions |
 | `make specspace-status` | Show SpecSpace dev `screen` sessions and port listeners |
 | `make canonicalize DIALOG_DIR=... OUTPUT_DIR=...` | Batch-normalize imported JSON to canonical form |
 | `make canon` | Canonicalize with default input/output paths |

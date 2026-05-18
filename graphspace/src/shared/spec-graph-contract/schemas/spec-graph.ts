@@ -9,7 +9,7 @@ import { z } from "zod";
  *
  * Unknown fields are intentionally preserved. The legacy viewer has gained
  * optional metadata over time (for example authority or presence hints), and
- * GraphSpace should not fail just because the server grows additive fields.
+ * SpecSpace UI should not fail just because the server grows additive fields.
  */
 
 export const SPEC_GRAPH_EDGE_KINDS = [

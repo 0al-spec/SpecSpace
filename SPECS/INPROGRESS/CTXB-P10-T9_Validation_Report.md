@@ -2,7 +2,7 @@
 
 ## Scope
 
-Validated the GraphSpace Sidebar spec node navigator:
+Validated the SpecSpace UI Sidebar spec node navigator:
 
 - Sidebar renders a compact searchable SpecGraph node list.
 - Search matches id/title/file name through a tested filter helper.
@@ -19,7 +19,7 @@ Validated the GraphSpace Sidebar spec node navigator:
 - `npm run build` — PASS
   - Vite emitted the existing bundle-size warning for chunks over 500 kB.
 - `npm run lint:fsd` — PASS with existing warnings
-  - `fsd/insignificant-slice` warnings remain for single-reference GraphSpace
+  - `fsd/insignificant-slice` warnings remain for single-reference SpecSpace UI
     feature/widget slices, including the new navigator slice.
 
 ## Browser Smoke

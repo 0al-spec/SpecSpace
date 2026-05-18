@@ -1,4 +1,4 @@
-# CTXB-P10-T8 — Add canvas-first panel dock for GraphSpace
+# CTXB-P10-T8 — Add canvas-first panel dock for SpecSpace UI
 
 ## Status
 
@@ -6,7 +6,7 @@ INPROGRESS
 
 ## Context
 
-GraphSpace now has a primary SpecGraph canvas, deterministic layout, node selection,
+SpecSpace UI now has a primary SpecGraph canvas, deterministic layout, node selection,
 and a richer Spec Inspector. The remaining layout problem is that secondary
 live-artifact panels still create visual noise by occupying large permanent rails.
 
@@ -36,7 +36,7 @@ The intended desktop model is closer to the old ContextBuilder structure:
 
 ## Validation Plan
 
-- Run GraphSpace unit tests.
-- Run GraphSpace production build.
-- Run GraphSpace FSD lint.
+- Run SpecSpace UI unit tests.
+- Run SpecSpace UI production build.
+- Run SpecSpace UI FSD lint.
 - Smoke-check the viewer in the browser at `http://127.0.0.1:5173/`.

@@ -3,7 +3,7 @@
 ## Task
 
 Replace the current source-build Timeweb deployment shape with a generated
-manifest-only branch that references CI-published SpecSpace API and GraphSpace
+manifest-only branch that references CI-published SpecSpace API and SpecSpace UI
 UI container images.
 
 ## Context
@@ -19,7 +19,7 @@ manifest.
 
 ## Deliverables
 
-- CI builds SpecSpace API and GraphSpace UI Docker images.
+- CI builds SpecSpace API and SpecSpace UI UI Docker images.
 - CI publishes those images to GHCR on `main` with commit-SHA tags.
 - CI generates a `timeweb-deploy` branch that contains only deployment
   manifests and minimal deployment notes.
@@ -50,4 +50,4 @@ manifest.
 - Render a candidate manifest-only deploy tree locally.
 - Validate the generated deploy tree with guard scripts.
 - Render Docker Compose config from the generated tree.
-- Run existing Python, viewer, GraphSpace, and compose smoke checks.
+- Run existing Python, viewer, SpecSpace UI, and compose smoke checks.

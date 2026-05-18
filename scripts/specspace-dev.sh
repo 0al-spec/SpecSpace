@@ -7,7 +7,7 @@ Usage: scripts/specspace-dev.sh <start|stop|restart|status>
 
 Environment:
   API_PORT                  Backend port. Default: 8001
-  UI_PORT                   GraphSpace dev server port. Default: 5173
+  UI_PORT                   SpecSpace dev server port. Default: 5173
   DIALOG_DIR                Canonical dialog directory. Required for start.
   SPEC_DIR                  Optional SpecGraph specs/nodes directory.
   SPECGRAPH_DIR             Optional SpecGraph repository directory.
@@ -172,10 +172,10 @@ start_services() {
   screen -dmS "$ui_screen" bash -lc "$ui_launch"
 
   wait_for_url "http://127.0.0.1:$api_port/api/v1/health" "SpecSpace API"
-  wait_for_url "http://127.0.0.1:$ui_port/" "GraphSpace UI"
+  wait_for_url "http://127.0.0.1:$ui_port/" "SpecSpace UI"
 
   echo "Backend log: $log_dir/backend.log"
-  echo "GraphSpace log: $log_dir/graphspace.log"
+  echo "SpecSpace UI log: $log_dir/graphspace.log"
 }
 
 status_services() {

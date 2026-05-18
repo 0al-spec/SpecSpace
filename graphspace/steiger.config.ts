@@ -6,7 +6,7 @@ import fsd from "@feature-sliced/steiger-plugin";
  * access, naming, segment/slice shape.
  *
  * Baseline: the plugin's `recommended` set. Local overrides below explain
- * the rare GraphSpace-specific relaxations; the recommended set runs as
+ * the rare SpecSpace UI-specific relaxations; the recommended set runs as
  * "error" everywhere else.
  *
  * Run with `npm run lint:fsd`. Treat any new error as a real architectural

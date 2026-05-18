@@ -2,7 +2,7 @@
 
 ## Scope
 
-Validated the GraphSpace canvas-first panel dock change:
+Validated the SpecSpace UI canvas-first panel dock change:
 
 - Sidebar is hidden by default and opens from canvas chrome.
 - Recent changes, Implementation work, and Proposal trace are reachable as one
@@ -17,7 +17,7 @@ Validated the GraphSpace canvas-first panel dock change:
   - 130 tests
 - `npm run build` — PASS
 - `npm run lint:fsd` — PASS with existing warnings
-  - `fsd/insignificant-slice` warnings remain for single-reference GraphSpace
+  - `fsd/insignificant-slice` warnings remain for single-reference SpecSpace UI
     feature/widget slices.
 
 ## Browser Smoke
@@ -41,7 +41,7 @@ Target: `http://localhost:5173/`
 - Opening Sidebar removes canvas-level dock buttons; utility buttons live inside
   Sidebar only.
 - Sidebar header shows the SpecSpace logo and `SpecSpace`; the old
-  `GraphSpace · Day 14` hero copy is no longer rendered.
+  `SpecSpace UI · Day 14` hero copy is no longer rendered.
 - Sidebar and Utility panel close controls use text `Close` buttons.
 - Automated checks were re-run after removing the duplicate canvas-level utility
   button.

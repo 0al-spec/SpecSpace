@@ -1,4 +1,4 @@
-# GraphSpace
+# SpecSpace UI
 
 The SpecSpace UI for readonly SpecGraph and SpecPM artifact inspection,
 organised by [Feature-Sliced Design v2.1](https://feature-sliced.design/).
@@ -16,7 +16,7 @@ Currently contains:
 - A primary SpecGraph canvas rendered with React Flow.
 
 `graphspace/` is not the conversation-authoring UI. Legacy ContextBuilder
-conversation flows stay in `viewer/app` and legacy routes. Runtime GraphSpace
+conversation flows stay in `viewer/app` and legacy routes. Runtime SpecSpace UI
 data reads should use the versioned SpecSpace API boundary, `/api/v1/*`.
 
 See [`docs/SPECSPACE_BOUNDARY.md`](../docs/SPECSPACE_BOUNDARY.md) for the

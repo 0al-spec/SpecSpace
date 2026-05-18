@@ -18,7 +18,7 @@ runtime ports through `entities/agent-workbench`.
 
 | Criterion | Why it matters for SpecSpace |
 | --- | --- |
-| React/Vite compatibility | GraphSpace is a Vite React app, not Next.js. |
+| React/Vite compatibility | SpecSpace UI is a Vite React app, not Next.js. |
 | Headless/custom runtime support | Agent execution will be SpecSpace-owned and graph-aware. |
 | Streaming and interruption UX | Agent turns need incremental events, cancellation, and retries. |
 | Tool-call presentation | Future graph actions, proposal drafts, and analysis outputs need visible tool surfaces. |
