@@ -3,7 +3,9 @@ import type { MetricsIndexEntry } from "@/shared/metrics-viewer-contract";
 import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
 import {
   filterMetricsEntries,
+  filterMetricsEntriesByContext,
   sortedFilterOptions,
+  type MetricsViewerContextFilter,
   type MetricsViewerFilters,
 } from "../model/metrics-filters";
 import type { UseMetricsIndexState } from "../model/use-metrics-index";
@@ -12,7 +14,9 @@ import styles from "./MetricsViewerPanel.module.css";
 type Props = {
   state: UseMetricsIndexState;
   resolveSpecRef?: SpecRefResolver;
+  contextFilter?: MetricsViewerContextFilter | null;
   onSpecIdClick?: (nodeId: string) => void;
+  onClearContextFilter?: () => void;
 };
 
 function errorDetail(state: Exclude<UseMetricsIndexState, { kind: "ok" | "idle" | "loading" }>): string {
@@ -31,7 +35,9 @@ function errorDetail(state: Exclude<UseMetricsIndexState, { kind: "ok" | "idle" 
 export function MetricsViewerPanel({
   state,
   resolveSpecRef,
+  contextFilter = null,
   onSpecIdClick,
+  onClearContextFilter,
 }: Props) {
   const [filters, setFilters] = useState<MetricsViewerFilters>({
     category: "",
@@ -44,9 +50,16 @@ export function MetricsViewerPanel({
     setFilters((current) => ({ ...current, ...patch }));
   };
   const metricsData = state.kind === "ok" ? state.data : null;
+  const contextEntries = useMemo(
+    () =>
+      metricsData
+        ? filterMetricsEntriesByContext(metricsData.entries, contextFilter)
+        : [],
+    [contextFilter, metricsData],
+  );
   const filtered = useMemo(
-    () => metricsData ? filterMetricsEntries(metricsData.entries, filters) : [],
-    [metricsData, filters],
+    () => filterMetricsEntries(contextEntries, filters),
+    [contextEntries, filters],
   );
 
   if (state.kind === "idle" || state.kind === "loading") {
@@ -77,6 +90,17 @@ export function MetricsViewerPanel({
         <Metric label="Visible" value={filtered.length} />
         <Metric label="Refs" value={data.filters.reference_texts.length} />
       </div>
+
+      {contextFilter ? (
+        <ContextFilterNotice
+          value={
+            contextFilter.kind === "node"
+              ? `Node ${contextFilter.nodeId}`
+              : `Edge ${contextFilter.edgeId}`
+          }
+          onClear={onClearContextFilter}
+        />
+      ) : null}
 
       <div className={styles.filters} role="group" aria-label="Metrics filters">
         <FilterSelect
@@ -137,6 +161,31 @@ export function MetricsViewerPanel({
         )}
       </div>
     </section>
+  );
+}
+
+function ContextFilterNotice({
+  value,
+  onClear,
+}: {
+  value: string;
+  onClear?: () => void;
+}) {
+  return (
+    <div className={styles.contextFilter} role="status">
+      <div className={styles.contextFilterText}>
+        <span className={styles.contextFilterLabel}>Canvas filter</span>
+        <span className={styles.contextFilterValue}>{value}</span>
+      </div>
+      <button
+        type="button"
+        className={styles.contextFilterClear}
+        onClick={onClear}
+        disabled={!onClear}
+      >
+        Clear
+      </button>
+    </div>
   );
 }
 

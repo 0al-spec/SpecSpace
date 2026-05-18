@@ -1864,7 +1864,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Users can reset to the default Refinement Ladder Layout.
   - Persistence is scoped to SpecSpace UI state and does not mutate readonly SpecGraph sources.
 
-### CTXB-P13-T21 — Proposal and metric overlays on graph nodes and edges — INPROGRESS
+### ✅ CTXB-P13-T21 — Proposal and metric overlays on graph nodes and edges — DONE (PASS, 2026-05-19)
 - **Description:** Surface proposal and metrics signals directly on relevant SpecGraph nodes/edges so canvas review can start from visible work and quality indicators.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T15, CTXB-P13-T18
@@ -1875,6 +1875,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Nodes or edges with metric signals show compact metric indicators.
   - Clicking an overlay opens or filters the relevant Proposal Viewer or Metrics surface.
   - Overlay rendering is bounded and does not make node cards visually unstable.
+
+### CTXB-P13-T22 — Contextual Proposal/Metrics filtering from canvas overlays — INPROGRESS
+- **Description:** Turn proposal and metric canvas badges into contextual panel entry points: node proposal badges filter Proposal Viewer by affected spec, node metric badges filter Metrics Viewer by node reference, and edge metric badges filter Metrics Viewer by edge reference.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T21
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** contextual proposal filter model, contextual metrics filter model, overlay click wiring, visible clearable panel context filters
+- **Acceptance Criteria:**
+  - Clicking a node proposal overlay opens Proposal Viewer filtered to proposals whose `affected_spec_ids` include that node.
+  - Clicking a node metric overlay opens Metrics Viewer filtered to metrics that reference that node exactly.
+  - Clicking an edge metric overlay opens Metrics Viewer filtered to metrics that reference that edge exactly.
+  - Context filters are visibly labeled and can be cleared manually.
+  - Opening Proposal Viewer or Metrics Viewer from the Sidebar remains unfiltered.
 
 ## Dependency Summary
 

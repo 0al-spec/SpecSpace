@@ -68,6 +68,8 @@ import { useMetricsIndex } from "../model/use-metrics-index";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
 import { proposalTraceEntriesForPanel } from "../model/proposal-trace-entries";
+import type { MetricsViewerContextFilter } from "../model/metrics-filters";
+import type { ProposalViewerContextFilter } from "../model/proposal-filters";
 import styles from "./ViewerPage.module.css";
 
 /**
@@ -78,6 +80,10 @@ export function ViewerPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeUtilityPanel, setActiveUtilityPanel] =
     useState<ViewerUtilityPanelId | null>(null);
+  const [proposalContextFilter, setProposalContextFilter] =
+    useState<ProposalViewerContextFilter | null>(null);
+  const [metricsContextFilter, setMetricsContextFilter] =
+    useState<MetricsViewerContextFilter | null>(null);
   const [selectedSpecNodeId, setSelectedSpecNodeId] = useState<string | null>(null);
   const [selectedSpecEdgeId, setSelectedSpecEdgeId] = useState<string | null>(null);
   const [selectedSpec, setSelectedSpec] = useState<SpecInspectorSelection | null>(null);
@@ -299,6 +305,13 @@ export function ViewerPage() {
   const openNodeOverlayPanel = useCallback(
     (kind: SpecGraphCanvasOverlayKind, nodeId: string) => {
       selectSpecNodeId(nodeId);
+      if (kind === "proposal") {
+        setProposalContextFilter({ kind: "spec", specId: nodeId });
+        setMetricsContextFilter(null);
+      } else {
+        setMetricsContextFilter({ kind: "node", nodeId });
+        setProposalContextFilter(null);
+      }
       openCanvasOverlayPanel(kind);
     },
     [openCanvasOverlayPanel, selectSpecNodeId],
@@ -306,11 +319,19 @@ export function ViewerPage() {
   const openEdgeOverlayPanel = useCallback(
     (kind: SpecGraphCanvasOverlayKind, edgeId: string) => {
       selectSpecEdgeId(edgeId);
+      if (kind === "metric") {
+        setMetricsContextFilter({ kind: "edge", edgeId });
+      } else {
+        setMetricsContextFilter(null);
+      }
+      setProposalContextFilter(null);
       openCanvasOverlayPanel(kind);
     },
     [openCanvasOverlayPanel, selectSpecEdgeId],
   );
   const toggleUtilityPanel = (panel: ViewerUtilityPanelId) => {
+    if (panel === "proposals") setProposalContextFilter(null);
+    if (panel === "metrics") setMetricsContextFilter(null);
     setActiveUtilityPanel((current) => (current === panel ? null : panel));
   };
   const closeUtilityPanel = () => setActiveUtilityPanel(null);
@@ -631,7 +652,9 @@ export function ViewerPage() {
             <ProposalViewerPanel
               state={proposalIndexState}
               resolveSpecRef={resolveSpecRef}
+              contextFilter={proposalContextFilter}
               onSpecIdClick={selectSpecNodeId}
+              onClearContextFilter={() => setProposalContextFilter(null)}
               onAddProposalToAgentContext={addProposalToAgentContext}
               onStartConversationFromProposal={startConversationFromProposal}
             />
@@ -641,7 +664,9 @@ export function ViewerPage() {
             <MetricsViewerPanel
               state={metricsIndexState}
               resolveSpecRef={resolveSpecRef}
+              contextFilter={metricsContextFilter}
               onSpecIdClick={selectSpecNodeId}
+              onClearContextFilter={() => setMetricsContextFilter(null)}
             />
           ) : null}
 

@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T21` — Proposal and metric overlays on graph nodes and edges
+**Current Task:** `CTXB-P13-T22` — Contextual Proposal/Metrics filtering from canvas overlays
 
 ## Recently Archived
+- `CTXB-P13-T21` — Proposal and metric overlays on graph nodes and edges (PASS, 2026-05-19)
 - `CTXB-P13-T20` — Node moving and layout persistence (PASS, 2026-05-18)
 - `CTXB-P13-T19` — Edge inspector for selected SpecGraph edges (PASS, 2026-05-18)
 - `CTXB-P13-T18` — Canvas gap marks and filters (PASS, 2026-05-18)
@@ -67,13 +68,13 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T21` — Proposal and metric overlays on graph nodes and edges.
-- Rationale: Phase 13 parity now includes Proposal Viewer parity with detail and markdown previews, Metrics Viewer parity, Agent Workbench conversation artifact and runtime flow, edge context selection, visible gap context selection, canvas gap marks/filters, edge inspection, and local layout persistence. The next missing canvas feature is surfacing proposal and metrics signals directly where graph review starts.
+- `CTXB-P13-T22` — Contextual Proposal/Metrics filtering from canvas overlays.
+- Rationale: Canvas overlays now surface proposal and metric counts directly on graph nodes and edges. The next parity gap is making those overlays navigational: clicking a badge should open the relevant utility panel already narrowed to the clicked graph context, without changing ordinary Sidebar panel behavior.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`.
-- Current: `CTXB-P13-T21` proposal/metric canvas overlays.
-- Next: select the next SpecSpace parity follow-up after overlay review.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`.
+- Current: `CTXB-P13-T22` contextual Proposal/Metrics filtering from canvas overlays.
+- Next: select the next SpecSpace parity follow-up after contextual overlay navigation review.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.
