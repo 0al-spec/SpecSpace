@@ -1,4 +1,4 @@
-# GraphSpace FSD Slice Rationale
+# SpecSpace UI FSD Slice Rationale
 
 `fsd/insignificant-slice` is kept enabled by default. The slices below are
 explicit exceptions because the Viewer page has stabilized into several large

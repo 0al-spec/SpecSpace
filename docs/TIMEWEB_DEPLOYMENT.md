@@ -76,7 +76,7 @@ The guard checks:
 
 - normal PR/main branches do not accidentally contain root `docker-compose.yml`;
 - `timeweb-deploy:docker-compose.yml` exists;
-- the first service is the GraphSpace UI service named `app`;
+- the first service is the SpecSpace UI service named `app`;
 - the Timeweb compose has no `volumes`;
 - the Timeweb compose has no `build` sections or source-build requirement;
 - the Timeweb compose has no required `${VAR:?message}` interpolation;
@@ -140,7 +140,7 @@ Do not edit `timeweb-deploy` by copying `compose.specspace.yml`. CI updates the
 branch after `main` succeeds:
 
 1. build the SpecSpace API image from `Dockerfile`;
-2. build the GraphSpace UI image from `graphspace/Dockerfile`;
+2. build the SpecSpace UI image from `graphspace/Dockerfile`;
 3. push both images to GHCR with the source commit SHA tag;
 4. render a manifest-only deploy tree with digest-pinned image refs;
 5. push that tree to `timeweb-deploy` with a normal branch push.
@@ -246,7 +246,7 @@ image from an older release unless you are intentionally testing compatibility.
 
 ## Identifying The Deployed Build
 
-GraphSpace shows the deployed build in the bottom-right status line:
+SpecSpace shows the deployed build in the bottom-right status line:
 
 ```text
 UI 0.0.1+<commit> · API 0.0.1+<commit> · runs tick ...
@@ -272,5 +272,5 @@ Expected for the current HTTP artifact deployment:
 - `/api/v1/health` reports `read_only: true`.
 - `sources.spec_nodes.status` is `ok`.
 - The graph contains `SG-SPEC-0001`.
-- GraphSpace UI loads without sample fallback.
+- SpecSpace UI loads without sample fallback.
 - Runtime data reads go through `/api/v1/*`.

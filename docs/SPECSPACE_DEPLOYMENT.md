@@ -3,7 +3,7 @@
 SpecSpace is deployed as a standalone viewer/API surface over a readonly
 SpecGraph workspace. SpecGraph remains the producer and owner of canonical
 specs and run artifacts; SpecSpace is a consumer that exposes stable
-`/api/v1/*` contracts and serves the GraphSpace UI.
+`/api/v1/*` contracts and serves the SpecSpace UI.
 
 The product boundary is documented in
 [`SPECSPACE_BOUNDARY.md`](SPECSPACE_BOUNDARY.md). In short: SpecSpace owns
@@ -51,7 +51,7 @@ SpecSpace API container
 - UI: host `5173` -> container `80`
 - API: host `8001` -> container `8001`
 
-The UI container is the user-facing entrypoint. It serves static GraphSpace
+The UI container is the user-facing entrypoint. It serves static SpecSpace UI
 assets and proxies `/api` to the API container so browser fetch URLs stay
 same-origin.
 
@@ -76,7 +76,7 @@ legacy ContextBuilder workflows exposed through `viewer/app` and legacy routes
 such as `/api/file`, `/api/conversation`, `/api/checkpoint`, and
 `/api/compile`.
 
-The GraphSpace UI should consume `/api/v1/*` for runtime data. Non-versioned
+The SpecSpace UI should consume `/api/v1/*` for runtime data. Non-versioned
 legacy routes may remain in the backend for compatibility, but they are not
 SpecSpace deployment contracts.
 
@@ -115,7 +115,7 @@ The SpecPM registry URL can be supplied through `SPECSPACE_SPECPM_REGISTRY_URL`.
 
 ## Local Developer Restart
 
-For local GraphSpace development, use the detached restart wrapper instead of
+For local SpecSpace UI development, use the detached restart wrapper instead of
 manually keeping old `screen` sessions alive:
 
 ```bash
@@ -125,7 +125,7 @@ make specspace-restart
 This restarts:
 
 - SpecSpace API on `127.0.0.1:8001`
-- GraphSpace dev UI on `127.0.0.1:5173`
+- SpecSpace dev UI on `127.0.0.1:5173`
 
 The restart is intentionally idempotent. It stops the known
 `specspace_backend` and `specspace_graphspace` screen sessions, clears any

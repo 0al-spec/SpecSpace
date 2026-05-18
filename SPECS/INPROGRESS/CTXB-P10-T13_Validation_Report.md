@@ -2,7 +2,7 @@
 
 ## Scope
 - Replaced the global `fsd/insignificant-slice` warning downgrade with explicit per-slice exceptions.
-- Documented the retained GraphSpace entity, feature, and widget slice rationale in `graphspace/docs/fsd-slice-rationale.md`.
+- Documented the retained SpecSpace UI entity, feature, and widget slice rationale in `graphspace/docs/fsd-slice-rationale.md`.
 - Kept new single-consumer slices actionable: anything outside the documented exception list is still checked by Steiger.
 
 ## Reviewed Slices

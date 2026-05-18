@@ -16,4 +16,4 @@ SpecSpace product and deployment boundary documentation.
 
 - The docs explicitly keep conversation authoring, checkpoint editing, and
   compile flows outside SpecSpace core.
-- Runtime GraphSpace reads are documented as `/api/v1/*` only.
+- Runtime SpecSpace UI reads are documented as `/api/v1/*` only.

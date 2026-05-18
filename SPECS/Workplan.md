@@ -1308,7 +1308,7 @@ Intent: reduce friction in daily spec-authoring and review workflows by improvin
 
 ### ✅ CTXB-P9-T7 — SpecNode visual signal unification
 - **Status:** DONE (2026-05-13, PASS)
-- **Description:** Unify SpecNode status and maturity visual signals across GraphSpace canvas nodes, hover previews, Sidebar navigator rows, and Spec Inspector. The hover preview should read as a richer version of the node card, reserve space for asynchronously loaded objective text, and avoid layout jumps.
+- **Description:** Unify SpecNode status and maturity visual signals across SpecSpace UI canvas nodes, hover previews, Sidebar navigator rows, and Spec Inspector. The hover preview should read as a richer version of the node card, reserve space for asynchronously loaded objective text, and avoid layout jumps.
 - **Priority:** P3
 - **Dependencies:** CTXB-P9-T6, CTXB-P8-T2
 - **Parallelizable:** yes
@@ -1318,14 +1318,14 @@ Intent: reduce friction in daily spec-authoring and review workflows by improvin
   - Maturity bars indicate weak, medium, and strong specs while keeping percentage labels right-aligned.
   - Hover preview uses the SpecNode card visual language and keeps stable height while objective text loads.
 
-## Phase 10: GraphSpace SpecGraph Canvas Migration
+## Phase 10: SpecSpace UI SpecGraph Canvas Migration
 
 Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph nodes and edges on a primary canvas, while keeping the current live artifact panels as secondary surfaces. This phase ports the useful behaviour from legacy `viewer/app` in small FSD-aligned slices instead of copying the legacy app wholesale.
 
-### CTXB-P10-T1 — Add GraphSpace SpecGraph graph contract
+### CTXB-P10-T1 — Add SpecSpace UI SpecGraph graph contract
 - **Description:** Extend `graphspace/src/shared/spec-graph-contract` with a validated contract for the `/api/spec-graph` payload used by the legacy viewer. Cover nodes, edges, roots, diagnostics, optional metadata, and broken-reference states. Keep the existing artifact contracts (`spec_activity_feed`, `implementation_work_index`, `proposal_spec_trace_index`) independent.
 - **Priority:** P1
-- **Dependencies:** current GraphSpace shared contract slice
+- **Dependencies:** current SpecSpace UI shared contract slice
 - **Parallelizable:** no
 - **Outputs / Artifacts:** `graphspace/src/shared/spec-graph-contract/schemas/spec-graph.ts`; `graphspace/src/shared/spec-graph-contract/parsers/parse-spec-graph.ts`; golden fixtures; parser tests
 - **Acceptance Criteria:**
@@ -1334,7 +1334,7 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - Public imports go through `@/shared/spec-graph-contract`.
   - No UI rendering changes are included in this task.
 
-### CTXB-P10-T2 — Add GraphSpace spec node and edge data model
+### CTXB-P10-T2 — Add SpecSpace UI spec node and edge data model
 - **Description:** Introduce FSD entity models for SpecGraph nodes and edges plus a canvas data hook that fetches `/api/spec-graph`, validates it through the shared contract, and exposes the current live-artifact state convention: `{ kind: "idle" }`, `{ kind: "loading" }`, or `EnvelopeResult<SpecGraph>`. Sample fallback remains a UI/model decision derived from non-`ok` states, matching the recent activity, work index, and proposal trace surfaces.
 - **Priority:** P1
 - **Dependencies:** CTXB-P10-T1
@@ -1342,24 +1342,24 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
 - **Outputs / Artifacts:** `graphspace/src/entities/spec-node/*`; `graphspace/src/entities/spec-edge/*`; `graphspace/src/widgets/spec-graph-canvas/model/use-spec-graph.ts`; sample data
 - **Acceptance Criteria:**
   - The hook returns `{ kind: "idle" }`, `{ kind: "loading" }`, or `EnvelopeResult<SpecGraph>`; it does not introduce generic `error` or `fallback` variants.
-  - Sample fallback is derived by consumers when the validated state is not `ok`, preserving the existing GraphSpace live-artifact pattern.
+  - Sample fallback is derived by consumers when the validated state is not `ok`, preserving the existing SpecSpace UI live-artifact pattern.
   - Node and edge domain types are exported through entity public APIs.
   - Sample fallback data can render at least three nodes and two edge kinds without a backend.
   - Tests cover successful parse, offline fallback, and invalid payload handling.
 
-### CTXB-P10-T3 — Render a minimal primary SpecGraph canvas in GraphSpace
+### CTXB-P10-T3 — Render a minimal primary SpecGraph canvas in SpecSpace UI
 - **Description:** Add `@xyflow/react` to `graphspace` and create `widgets/spec-graph-canvas` that renders SpecGraph nodes as a primary viewport surface. The first pass should prove the canvas pipeline end-to-end with deterministic placeholder positions and simple edge rendering; it should not yet port every legacy interaction.
 - **Priority:** P1
 - **Dependencies:** CTXB-P10-T2
 - **Parallelizable:** no
 - **Outputs / Artifacts:** `graphspace/src/widgets/spec-graph-canvas/ui/SpecGraphCanvas.tsx`; canvas CSS module; basic `SpecNodeCard` UI; updated `ViewerPage` composition
 - **Acceptance Criteria:**
-  - The GraphSpace first screen includes a visible canvas with rendered node labels.
+  - The SpecSpace UI first screen includes a visible canvas with rendered node labels.
   - The canvas is the primary surface and is not pushed below the artifact panels.
   - Pan/zoom controls work through React Flow defaults.
   - Browser smoke verifies that at least one spec node label and the canvas root are visible at `http://127.0.0.1:5173/`.
 
-### CTXB-P10-T4 — Add deterministic layout and edge semantics for GraphSpace canvas
+### CTXB-P10-T4 — Add deterministic layout and edge semantics for SpecSpace UI canvas
 - **Description:** Replace placeholder positions with **Refinement Ladder Layout**, a deterministic layout that ranks nodes by resolved `refines` depth: parent specs stay left, refining specs move right, and rows inside each rank remain stable by `node_id`. Render edge kinds with meaningful visual states. Start with this small local layout primitive; port Dagre or legacy `layoutGraph` only when needed for graph size and readability.
 - **Priority:** P1
 - **Dependencies:** CTXB-P10-T3
@@ -1372,7 +1372,7 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - Edges to hidden or missing nodes do not crash rendering.
   - The layout remains usable for the current SpecGraph node count.
 
-### CTXB-P10-T5 — Recompose GraphSpace viewer around canvas and secondary panels
+### CTXB-P10-T5 — Recompose SpecSpace UI viewer around canvas and secondary panels
 - **Description:** Move the current live artifact surfaces into secondary overlay/side-panel roles around the primary SpecGraph canvas. `ViewerChrome` remains fixed; recent activity, implementation work, proposal trace, and artifact diagnostics remain available but no longer define the page's main grid.
 - **Priority:** P1
 - **Dependencies:** CTXB-P10-T3
@@ -1384,7 +1384,7 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - Existing artifact panels remain reachable and keep their current live/sample behaviours.
   - No UI text overlaps at common desktop and mobile viewport sizes.
 
-### CTXB-P10-T6 — Add first-pass GraphSpace node selection and inspector
+### CTXB-P10-T6 — Add first-pass SpecSpace UI node selection and inspector
 - **Description:** Add selection state for spec nodes and a minimal inspector surface showing id, title, kind, status, maturity, direct dependencies, refinements, related links, and copyable source path. This is the first interaction pass after the canvas exists; deeper legacy inspector content remains follow-up work.
 - **Priority:** P2
 - **Dependencies:** CTXB-P10-T4, CTXB-P10-T5
@@ -1397,8 +1397,8 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - Source file path is visible and can be copied.
   - Inspector state does not break pan/zoom or artifact overlays.
 
-### CTXB-P10-T7 — Expand GraphSpace spec inspector content
-- **Description:** Bring the GraphSpace inspector closer to the legacy ContextBuilder inspector by loading and rendering richer spec content for the selected node: objective, acceptance criteria, scope in/out, terminology, decisions, evidence/input/execution details, and diagnostics. Extend the `/api/spec-graph` contract or add a focused detail endpoint only as needed; keep the compact T6 metadata view usable when detailed content is absent.
+### CTXB-P10-T7 — Expand SpecSpace UI spec inspector content
+- **Description:** Bring the SpecSpace UI inspector closer to the legacy ContextBuilder inspector by loading and rendering richer spec content for the selected node: objective, acceptance criteria, scope in/out, terminology, decisions, evidence/input/execution details, and diagnostics. Extend the `/api/spec-graph` contract or add a focused detail endpoint only as needed; keep the compact T6 metadata view usable when detailed content is absent.
 - **Priority:** P2
 - **Dependencies:** CTXB-P10-T6
 - **Parallelizable:** yes
@@ -1409,8 +1409,8 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - Long inspector content scrolls inside the inspector surface without moving the canvas.
   - Copy path and relation navigation continue to work.
 
-### CTXB-P10-T8 — Add canvas-first panel dock for GraphSpace
-- **Description:** Reduce GraphSpace visual noise by moving secondary live-artifact surfaces behind explicit canvas controls. The Sidebar should be a closable surface for graph context and utility entry points, while Recent changes, Implementation work, and Proposal trace should open as one active utility panel instead of three always-visible columns. The Spec Inspector remains the dedicated selected-spec surface.
+### CTXB-P10-T8 — Add canvas-first panel dock for SpecSpace UI
+- **Description:** Reduce SpecSpace UI visual noise by moving secondary live-artifact surfaces behind explicit canvas controls. The Sidebar should be a closable surface for graph context and utility entry points, while Recent changes, Implementation work, and Proposal trace should open as one active utility panel instead of three always-visible columns. The Spec Inspector remains the dedicated selected-spec surface.
 - **Priority:** P1
 - **Dependencies:** CTXB-P10-T5, CTXB-P10-T7
 - **Parallelizable:** yes
@@ -1424,7 +1424,7 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - Mobile keeps bounded overlays, with the inspector behaving as a bottom modal-style surface.
 
 ### CTXB-P10-T9 — Add Sidebar spec node navigator
-- **Description:** Make the GraphSpace Sidebar useful as a graph navigation surface by adding a compact searchable list of SpecGraph nodes. The navigator should select canvas nodes and open the existing Spec Inspector, without duplicating inspector content inside the Sidebar.
+- **Description:** Make the SpecSpace UI Sidebar useful as a graph navigation surface by adding a compact searchable list of SpecGraph nodes. The navigator should select canvas nodes and open the existing Spec Inspector, without duplicating inspector content inside the Sidebar.
 - **Priority:** P1
 - **Dependencies:** CTXB-P10-T8
 - **Parallelizable:** yes
@@ -1476,13 +1476,13 @@ Intent: make the new `graphspace/` rewrite graph-first by rendering SpecGraph no
   - If the selected node is hidden by the current filter/search, the navigator does not force filter state.
   - Existing row click selection behavior is unchanged.
 
-### ✅ CTXB-P10-T13 — Resolve GraphSpace FSD insignificant-slice warnings — DONE (PASS, 2026-05-15)
-- **Description:** `npm run lint:fsd --prefix graphspace` currently passes but reports the known `fsd/insignificant-slice` warnings for single-reference GraphSpace feature/widget slices. Review each warning after the canvas, Sidebar, utility panels, and Inspector stabilize; either keep the slice with an explicit architectural rationale, merge it back into `pages/viewer` when it is page-local, or introduce a legitimate second consumer. Do not silence Steiger globally just to hide useful architecture feedback.
+### ✅ CTXB-P10-T13 — Resolve SpecSpace UI FSD insignificant-slice warnings — DONE (PASS, 2026-05-15)
+- **Description:** `npm run lint:fsd --prefix graphspace` currently passes but reports the known `fsd/insignificant-slice` warnings for single-reference SpecSpace UI feature/widget slices. Review each warning after the canvas, Sidebar, utility panels, and Inspector stabilize; either keep the slice with an explicit architectural rationale, merge it back into `pages/viewer` when it is page-local, or introduce a legitimate second consumer. Do not silence Steiger globally just to hide useful architecture feedback.
 - **Priority:** P3
 - **Dependencies:** CTXB-P10-T12
 - **Parallelizable:** yes
-- **Source:** repeated GraphSpace validation note: `npm run lint:fsd` passes with known `fsd/insignificant-slice` warnings.
-- **Outputs / Artifacts:** updated GraphSpace FSD slice layout and/or documented Steiger rationale; validation report
+- **Source:** repeated SpecSpace UI validation note: `npm run lint:fsd` passes with known `fsd/insignificant-slice` warnings.
+- **Outputs / Artifacts:** updated SpecSpace UI FSD slice layout and/or documented Steiger rationale; validation report
 - **Acceptance Criteria:**
   - All current `fsd/insignificant-slice` warnings are reviewed with a decision per slice.
   - Page-local slices are merged into `pages/viewer` when no independent business boundary remains.
@@ -1555,24 +1555,24 @@ Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer 
 - **Priority:** P1
 - **Dependencies:** CTXB-P12-T1
 - **Parallelizable:** yes
-- **Outputs / Artifacts:** SpecSpace boundary documentation, deployment doc update, GraphSpace README clarification, validation report
+- **Outputs / Artifacts:** SpecSpace boundary documentation, deployment doc update, SpecSpace UI README clarification, validation report
 - **Acceptance Criteria:**
   - Documentation states that conversation mode, checkpoint editing, branch/merge authoring, and compile flows are outside SpecSpace core.
   - Documentation states that `graphspace/` consumes `/api/v1/*` as the SpecSpace runtime contract.
   - Legacy `viewer/app` is described as a ContextBuilder surface, not the SpecSpace product UI.
   - Docker/deployment docs point operators to the same boundary.
 
-### ✅ CTXB-P12-T3 — Add GraphSpace API boundary guardrail — DONE (PASS, 2026-05-16)
+### ✅ CTXB-P12-T3 — Add SpecSpace UI API boundary guardrail — DONE (PASS, 2026-05-16)
 - **Description:** Add an automated check that prevents runtime `graphspace/` code from depending on legacy ContextBuilder conversation/write endpoints. The guard should allow explicit compatibility tests/fixtures while keeping product code on `/api/v1/*`.
 - **Priority:** P1
 - **Dependencies:** CTXB-P12-T2
 - **Parallelizable:** yes
-- **Outputs / Artifacts:** boundary check script, CI integration, GraphSpace endpoint cleanup if required, validation report
+- **Outputs / Artifacts:** boundary check script, CI integration, SpecSpace UI endpoint cleanup if required, validation report
 - **Acceptance Criteria:**
   - Runtime `graphspace/` source fails validation when it references forbidden legacy endpoints such as `/api/file`, `/api/conversation`, `/api/checkpoint`, `/api/compile`, or non-versioned SpecGraph routes.
   - Existing compatibility fixtures/tests remain possible when they are explicitly isolated from runtime source.
-  - CI runs the guardrail alongside GraphSpace validation.
-  - GraphSpace runtime data reads remain on `/api/v1/*`.
+  - CI runs the guardrail alongside SpecSpace UI validation.
+  - SpecSpace UI runtime data reads remain on `/api/v1/*`.
 
 ### ✅ CTXB-P12-T4 — Separate legacy ContextBuilder docs from SpecSpace docs — DONE (PASS, 2026-05-16)
 - **Description:** Review top-level operator/developer docs and label or split legacy ContextBuilder conversation guidance from SpecSpace runtime guidance. The goal is to reduce local-run confusion now that `viewer/app` and `graphspace/` serve different products.
@@ -1619,7 +1619,7 @@ Intent: keep SpecSpace focused as a standalone readonly SpecGraph/SpecPM viewer 
 - **Parallelizable:** yes
 - **Outputs / Artifacts:** image publishing workflow, registry naming policy, generated `timeweb-deploy` branch update, rollback notes
 - **Acceptance Criteria:**
-  - CI builds the SpecSpace API and GraphSpace UI images and tags them by commit SHA.
+  - CI builds the SpecSpace API and SpecSpace UI UI images and tags them by commit SHA.
   - The generated `timeweb-deploy` branch contains no application source requirement for Timeweb, only deployment manifests and minimal docs.
   - The Timeweb compose references pinned images, not mutable `latest` tags.
   - Guardrails verify that the deploy branch still uses the HTTP artifact provider and keeps the UI service first.
@@ -1645,7 +1645,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
 - **Priority:** P1
 - **Dependencies:** CTXB-P13-T1
 - **Parallelizable:** yes
-- **Outputs / Artifacts:** deployment-state lifecycle gating in GraphSpace, frontend tests
+- **Outputs / Artifacts:** deployment-state lifecycle gating in SpecSpace UI, frontend tests
 - **Acceptance Criteria:**
   - HTTP/static providers do not fetch local SpecPM lifecycle badges.
   - Filesystem-backed local providers can still fetch lifecycle badges.
@@ -1667,7 +1667,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
 - **Priority:** P1
 - **Dependencies:** CTXB-P13-T3
 - **Parallelizable:** yes
-- **Outputs / Artifacts:** `/api/v1/specpm/registry` summary plus package/version endpoints, backend tests, optional GraphSpace read model
+- **Outputs / Artifacts:** `/api/v1/specpm/registry` summary plus package/version endpoints, backend tests, optional SpecSpace UI read model
 - **Acceptance Criteria:**
   - `GET /api/v1/specpm/registry` returns registry status and package index from a configured readonly registry.
   - `GET /api/v1/specpm/registry/packages/{package_id}` returns the package metadata endpoint payload.
@@ -1680,7 +1680,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
 - **Priority:** P1
 - **Dependencies:** CTXB-P13-T4
 - **Parallelizable:** yes
-- **Outputs / Artifacts:** proposal read model, GraphSpace proposal viewer panel/page, tests
+- **Outputs / Artifacts:** proposal read model, SpecSpace UI proposal viewer panel/page, tests
 - **Acceptance Criteria:**
   - Users can browse proposal entries by status, authority lane, runtime state, and affected specs.
   - Proposal entries link to referenced spec nodes through the existing graph-aware Spec ID resolver.
@@ -1691,7 +1691,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
 - **Priority:** P1
 - **Dependencies:** CTXB-P13-T4
 - **Parallelizable:** yes
-- **Outputs / Artifacts:** metrics read model, GraphSpace metrics panel/page, tests
+- **Outputs / Artifacts:** metrics read model, SpecSpace UI metrics panel/page, tests
 - **Acceptance Criteria:**
   - Existing metrics artifacts are visible from SpecSpace without switching to the legacy viewer.
   - Metrics entries can link back to spec nodes/proposals where source refs exist.
@@ -1774,7 +1774,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
 - **Parallelizable:** no
 - **Outputs / Artifacts:** `@assistant-ui/react` dependency, widget-local assistant-ui external-store adapter, adapter tests
 - **Acceptance Criteria:**
-  - `@assistant-ui/react` is installed only as a GraphSpace UI dependency.
+  - `@assistant-ui/react` is installed only as a SpecSpace UI UI dependency.
   - `entities/agent-workbench` continues to export only SpecSpace-owned runtime/context/projection types.
   - Widget-local adapter code maps `AgentRuntimeProjection` into assistant-ui external-store message shape.
   - The visible panel can host assistant-ui primitives without changing the persisted conversation artifact contract.
@@ -1784,7 +1784,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T5
 - **Parallelizable:** yes
-- **Outputs / Artifacts:** proposal excerpt read model, GraphSpace proposal contract typing, Proposal Viewer preview UI
+- **Outputs / Artifacts:** proposal excerpt read model, SpecSpace UI proposal contract typing, Proposal Viewer preview UI
 - **Acceptance Criteria:**
   - Local and HTTP/static proposal markdown sources expose a short content excerpt without treating status metadata as proposal body content.
   - Proposal Viewer rows render the excerpt when markdown content is available.
@@ -1815,7 +1815,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Serialized context includes edge id, kind, status, source/target ids, and source/target titles when known.
   - Agent Context and Agent Conversation panels render edge context tokens without assuming every item is a spec node.
 
-### CTXB-P13-T17 — Visible gap context selection for Agent Workbench — INPROGRESS
+### ✅ CTXB-P13-T17 — Visible gap context selection for Agent Workbench — DONE (PASS, 2026-05-18)
 - **Description:** Let users add visible selected-spec gap profile signals to the Agent Context draft as first-class context items.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T8, CTXB-P13-T16
@@ -1839,7 +1839,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
 - Phase 7 addresses technical debt identified in docs/PROBLEMS.md. Tasks are largely independent of each other and of Phases 3-6, with the exception that T2/T3 (server split + types) depend on T1 (cache layer).
 - Phase 8 extends the SpecPM integration started in Phase 6. T0 (lifecycle panel) is complete. T1 (5th stage) is blocked on an upstream SpecGraph branch merge. T2 (node badge) depends on T0.
 - Phase 9 improves graph UX for daily authoring and review workflows. All tasks are independent of each other. T1 (change highlighting) is the highest-priority item. Tasks have no blocking external dependencies.
-- Phase 10 migrates the graph-first SpecGraph experience into the new `graphspace/` rewrite. It depends on the GraphSpace FSD shell and current artifact panels, and should proceed in contract -> hook/model -> minimal canvas -> layout/composition -> inspector order.
+- Phase 10 migrates the graph-first SpecGraph experience into the new `graphspace/` rewrite. It depends on the SpecSpace UI FSD shell and current artifact panels, and should proceed in contract -> hook/model -> minimal canvas -> layout/composition -> inspector order.
 - Phase 11 makes SpecSpace deployable around a readonly SpecGraph boundary. It should establish versioned API contracts before Dockerizing the deployment shape.
 - Phase 12 protects the SpecSpace product boundary after deployment: readonly `/api/v1/*` SpecGraph/SpecPM viewing stays in `graphspace/`, while conversation authoring remains legacy ContextBuilder work.
 - Phase 13 closes product parity gaps after deployment hardening. The registry track comes first because it removes static-deploy lifecycle noise and gives SpecSpace a stable readonly SpecPM metadata source.

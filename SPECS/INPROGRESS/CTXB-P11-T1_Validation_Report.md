@@ -3,7 +3,7 @@
 ## Result
 
 PASS — SpecSpace now has a readonly file-backed SpecGraph provider, versioned
-`/api/v1/*` endpoints, contract documentation, and GraphSpace data reads routed
+`/api/v1/*` endpoints, contract documentation, and SpecSpace UI data reads routed
 through the versioned API boundary. Legacy endpoints remain available.
 
 ## Backend
@@ -16,7 +16,7 @@ through the versioned API boundary. Legacy endpoints remain available.
 | `python -m pytest tests/test_specspace_api_v1.py tests/test_server_runtime.py -q` | 13 passed |
 | `python -m pytest tests/ -q` | 539 passed, 41 subtests passed |
 
-## GraphSpace
+## SpecSpace UI
 
 | Check | Result |
 | --- | --- |

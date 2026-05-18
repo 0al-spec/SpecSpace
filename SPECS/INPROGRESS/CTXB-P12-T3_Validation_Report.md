@@ -5,7 +5,7 @@ Date: 2026-05-16
 
 ## Scope
 
-GraphSpace API boundary guardrail and CI integration.
+SpecSpace UI API boundary guardrail and CI integration.
 
 ## Checks
 
@@ -26,6 +26,6 @@ GraphSpace API boundary guardrail and CI integration.
 
 ## Notes
 
-- Runtime GraphSpace source now has a CI guard against legacy ContextBuilder
+- Runtime SpecSpace UI source now has a CI guard against legacy ContextBuilder
   endpoint references.
 - Explicit tests and fixtures remain available for compatibility coverage.

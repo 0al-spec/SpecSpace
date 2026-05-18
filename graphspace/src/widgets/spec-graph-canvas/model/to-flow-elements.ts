@@ -31,7 +31,7 @@ const byEdgeId = (a: SpecEdge, b: SpecEdge) =>
 /**
  * Refinement Ladder Layout
  *
- * The default GraphSpace SpecGraph layout ranks nodes by resolved `refines`
+ * The default SpecSpace UI SpecGraph layout ranks nodes by resolved `refines`
  * depth. Parents stay on the left, refining specs move right, and rows inside
  * each rank are sorted by stable node id. Non-hierarchy links remain visual
  * overlays and do not affect placement.
@@ -191,7 +191,7 @@ export function toSpecGraphFlowElements(response: SpecGraphResponse): {
     data: { spec },
   }));
 
-  // Missing-endpoint broken edges are omitted until GraphSpace has a
+  // Missing-endpoint broken edges are omitted until SpecSpace UI has a
   // placeholder-node affordance; broken edges with present endpoints are styled.
   const edges: SpecFlowEdge[] = response.graph.edges
     .filter((edge) => nodeIds.has(edge.source_id) && nodeIds.has(edge.target_id))

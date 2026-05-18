@@ -32,4 +32,4 @@ Timeweb deploy branch guard for no-volume hosting.
   `git config core.hooksPath .githooks`.
 - CI validates the deploy branch in the `Timeweb Docker Support` job.
 - The deploy branch names the UI service `app` and keeps it first so Timeweb's
-  primary domain proxies to GraphSpace rather than the API.
+  primary domain proxies to SpecSpace UI rather than the API.

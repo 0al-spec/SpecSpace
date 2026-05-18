@@ -103,7 +103,7 @@ The initial framework evaluation is documented in
 
 ### 3. Proposal Viewer
 
-Current gap: GraphSpace shows proposal trace rows, but not the full proposal
+Current gap: SpecSpace UI shows proposal trace rows, but not the full proposal
 workspace from the old viewer.
 
 Target:
@@ -171,4 +171,4 @@ Target:
 10. `CTXB-P13-T14` — Proposal Viewer markdown previews. ✅
 11. `CTXB-P13-T15` — Proposal detail panel. ✅
 12. `CTXB-P13-T16` — Edge context selection for Agent Workbench. ✅
-13. `CTXB-P13-T17` — Visible gap context selection for Agent Workbench.
+13. `CTXB-P13-T17` — Visible gap context selection for Agent Workbench. ✅

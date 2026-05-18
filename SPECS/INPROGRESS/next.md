@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T17` — Visible gap context selection for Agent Workbench
+**Current Task:** no task selected yet (next parity task to define after `CTXB-P13-T17`)
 
 ## Recently Archived
+- `CTXB-P13-T17` — Visible gap context selection for Agent Workbench (PASS, 2026-05-18)
 - `CTXB-P13-T16` — Edge context selection for Agent Workbench (PASS, 2026-05-18)
 - `CTXB-P13-T15` — Proposal detail panel (PASS, 2026-05-18)
 - `CTXB-P13-T14` — Proposal Viewer markdown previews (PASS, 2026-05-17)
@@ -23,14 +24,14 @@
 - `CTXB-P12-T6` — Plan registry-backed Timeweb deploy branch and HTTP artifacts (PASS, 2026-05-16)
 - `CTXB-P12-T5` — Add Timeweb no-volume demo deployment guard (PASS, 2026-05-16)
 - `CTXB-P12-T4` — Separate legacy ContextBuilder docs from SpecSpace docs (PASS, 2026-05-16)
-- `CTXB-P12-T3` — Add GraphSpace API boundary guardrail (PASS, 2026-05-16)
+- `CTXB-P12-T3` — Add SpecSpace UI API boundary guardrail (PASS, 2026-05-16)
 - `CTXB-P12-T2` — Document SpecSpace product and deployment boundary (PASS, 2026-05-16)
 - `CTXB-P12-T1` — Define SpecSpace product boundary and next queue (PASS, 2026-05-16)
 - `CTXB-P3-T6` — Add message authoring to conversations (PASS, 2026-05-16)
 - `CTXB-P11-T3` — Docker Compose CI smoke (PASS, 2026-05-15)
 - `CTXB-P11-T2` — Dockerized SpecSpace deployment smoke (PASS, 2026-05-15)
 - `CTXB-P11-T1` — Versioned readonly SpecGraph provider for SpecSpace API (PASS, 2026-05-15)
-- `CTXB-P10-T13` — Resolve GraphSpace FSD insignificant-slice warnings (PASS, 2026-05-15)
+- `CTXB-P10-T13` — Resolve SpecSpace UI FSD insignificant-slice warnings (PASS, 2026-05-15)
 - `CTXB-P7-T13` — Add CI pipeline (PASS, 2026-05-15)
 - `CTXB-P7-T12` — Extract shared data-fetching base hook (PASS, 2026-05-14)
 - `CTXB-P7-T11` — Enable TypeScript strict mode and add ESLint (PASS, 2026-05-14)
@@ -44,7 +45,7 @@
 - `CTXB-P10-T11` — Focus canvas on selected SpecGraph node (PASS, 2026-05-13)
 - `CTXB-P10-T10` — Add Sidebar navigator signal filters (PASS, 2026-05-13)
 - `CTXB-P10-T9` — Add Sidebar spec node navigator (PASS, 2026-05-13)
-- `CTXB-P10-T8` — Add canvas-first panel dock for GraphSpace (PASS, 2026-05-13)
+- `CTXB-P10-T8` — Add canvas-first panel dock for SpecSpace UI (PASS, 2026-05-13)
 - `CTXB-P10` follow-up — Tune Sidebar and canvas utility layout (PASS, 2026-05-13)
 - `CTXB-P9-T2` — Pin + compare two specs side-by-side (PASS, 2026-04-24)
 - `CTXB-P9-T5` — Related-items drawer in SpecInspector (PASS, 2026-04-24)
@@ -63,12 +64,12 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T17` — Visible gap context selection for Agent Workbench.
-- Rationale: The current Phase 13 stack covers Proposal Viewer parity with detail and markdown previews, Metrics Viewer parity, an Agent Workbench conversation artifact contract, graph-context draft flow including selected specs/edges, mock conversation runtime, visible conversation shell, and an `assistant-ui` adapter spike. The next smallest parity gap is making visible spec gap profile signals attachable as first-class Agent Context items before persistence/API work.
+- `CTXB-P13-T17` completed.
+- Rationale: Phase 13 parity now includes Proposal Viewer parity with detail and markdown previews, Metrics Viewer parity, Agent Workbench conversation artifact and runtime flow, edge context selection, and visible gap context selection. Next parity task is still to be selected from backlog.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`.
-- Current: `CTXB-P13-T17` visible gap context selection.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`.
+- Current: not selected.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.
@@ -78,15 +79,15 @@
 - Phase 7 core technical-debt queue is complete through `CTXB-P7-T13`.
 
 ### Phase 7 Follow-ups
-- No remaining Phase 7 follow-up selected after CI; next queue item is the GraphSpace FSD cleanup below.
+- No remaining Phase 7 follow-up selected after CI; next queue item is the SpecSpace UI FSD cleanup below.
 
 ### Deployment Follow-ups
 - Phase 11 deployment boundary is complete through `CTXB-P11-T3`.
 
-### GraphSpace Follow-ups
+### SpecSpace UI Follow-ups
 - Phase 10 follow-ups are complete through `CTXB-P10-T13`.
 
-### Completed GraphSpace Context
+### Completed SpecSpace UI Context
 - Completed context: `CTXB-P10-T1` through `CTXB-P10-T12`, plus `CTXB-P8-T2`, `CTXB-P9-T6`, and `CTXB-P9-T7`.
-- GraphSpace currently has the primary SpecGraph canvas, Sidebar navigator, rich Spec Inspector, hover previews, SpecPM lifecycle badges, and unified SpecNode visual signals.
+- SpecSpace UI currently has the primary SpecGraph canvas, Sidebar navigator, rich Spec Inspector, hover previews, SpecPM lifecycle badges, and unified SpecNode visual signals.
 - New parity context: see `SPECS/SPECSPACE_PARITY_ROADMAP.md`.
