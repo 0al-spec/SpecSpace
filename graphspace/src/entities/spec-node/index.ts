@@ -2,9 +2,13 @@ export type { SpecNode, SpecNodeId } from "./model/types";
 export {
   formatSpecNodeGapLabel,
   formatSpecNodeMaturity,
+  getSpecNodeGapCount,
+  getSpecNodeGapMarks,
   getSpecNodeMaturityPercent,
   getSpecNodeMaturityTone,
   getSpecNodeStatusTone,
+  type SpecNodeGapKind,
+  type SpecNodeGapMark,
   type SpecNodeMaturityTone,
   type SpecNodeStatusTone,
 } from "./lib/visual-signals";

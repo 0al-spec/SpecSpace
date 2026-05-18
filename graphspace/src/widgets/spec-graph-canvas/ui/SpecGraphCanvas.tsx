@@ -16,6 +16,13 @@ import { SpecNodeCard } from "@/entities/spec-node";
 import type { SpecPMLifecycleBadge } from "@/entities/specpm-lifecycle";
 import { getSpecGraphNodeFocusPoint } from "../model/focus-point";
 import {
+  countSpecGraphCanvasGapFilters,
+  filterSpecGraphCanvasNodes,
+  SPEC_GRAPH_CANVAS_GAP_FILTER_LABELS,
+  SPEC_GRAPH_CANVAS_GAP_FILTERS,
+  type SpecGraphCanvasGapFilter,
+} from "../model/gap-filter";
+import {
   buildSpecNodeHoverPreview,
   SPEC_NODE_HOVER_PREVIEW_DELAY_MS,
   type HoverPreviewAnchor,
@@ -122,6 +129,7 @@ function SpecGraphCanvasInner({
 }: Props) {
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
   const [internalSelectedEdgeId, setInternalSelectedEdgeId] = useState<string | null>(null);
+  const [gapFilter, setGapFilter] = useState<SpecGraphCanvasGapFilter>("all");
   const [hoverCandidate, setHoverCandidate] = useState<HoverPreviewState | null>(null);
   const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null);
   const hoverPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -139,6 +147,23 @@ function SpecGraphCanvasInner({
   const { nodes: baseNodes, edges } = useMemo(
     () => toSpecGraphFlowElements(state.data),
     [state.data],
+  );
+  const baseSpecNodes = useMemo(
+    () => baseNodes.map((node) => node.data.spec),
+    [baseNodes],
+  );
+  const gapFilterCounts = useMemo(
+    () => countSpecGraphCanvasGapFilters(baseSpecNodes),
+    [baseSpecNodes],
+  );
+  const visibleNodeIds = useMemo(
+    () =>
+      new Set(
+        filterSpecGraphCanvasNodes(baseSpecNodes, gapFilter).map(
+          (node) => node.node_id,
+        ),
+      ),
+    [baseSpecNodes, gapFilter],
   );
   const clearHoverPreviewTimer = useCallback(() => {
     if (!hoverPreviewTimerRef.current) return;
@@ -164,7 +189,9 @@ function SpecGraphCanvasInner({
   );
   const nodes = useMemo(
     () =>
-      baseNodes.map((node) => ({
+      baseNodes
+        .filter((node) => visibleNodeIds.has(node.id))
+        .map((node) => ({
         ...node,
         selected: node.id === activeSelectedNodeId,
         data: {
@@ -173,22 +200,25 @@ function SpecGraphCanvasInner({
           onHoverPreviewIntent: showHoverPreviewAfterDelay,
           onHoverPreviewClear: clearHoverPreview,
         },
-      })),
+        })),
     [
       activeSelectedNodeId,
       baseNodes,
       clearHoverPreview,
       lifecycleBadgesByNode,
       showHoverPreviewAfterDelay,
+      visibleNodeIds,
     ],
   );
   const flowEdges = useMemo(
     () =>
-      edges.map((edge) => ({
-        ...edge,
-        selected: edge.id === activeSelectedEdgeId,
-      })),
-    [activeSelectedEdgeId, edges],
+      edges
+        .filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
+        .map((edge) => ({
+          ...edge,
+          selected: edge.id === activeSelectedEdgeId,
+        })),
+    [activeSelectedEdgeId, edges, visibleNodeIds],
   );
   const selection = useMemo(
     () => buildSpecGraphSelection(state.data, activeSelectedNodeId ?? null),
@@ -256,8 +286,28 @@ function SpecGraphCanvasInner({
       className={classNames}
       aria-label="SpecGraph canvas"
       data-testid="spec-graph-canvas"
+      data-gap-filter={gapFilter}
       data-source={state.source}
     >
+      <div className={styles.gapFilterDock} aria-label="Canvas gap filters">
+        {SPEC_GRAPH_CANVAS_GAP_FILTERS.map((filter) => (
+          <button
+            key={filter}
+            type="button"
+            className={[
+              styles.gapFilterButton,
+              gapFilter === filter ? styles.gapFilterButtonActive : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            aria-pressed={gapFilter === filter}
+            onClick={() => setGapFilter(filter)}
+          >
+            <span>{SPEC_GRAPH_CANVAS_GAP_FILTER_LABELS[filter]}</span>
+            <span>{gapFilterCounts[filter]}</span>
+          </button>
+        ))}
+      </div>
       <ReactFlow<SpecFlowNode>
         className={styles.flow}
         nodes={nodes}
@@ -302,6 +352,11 @@ function SpecGraphCanvasInner({
         />
         <Controls showInteractive={false} />
       </ReactFlow>
+      {nodes.length === 0 ? (
+        <div className={styles.emptyFilterState}>
+          No nodes match the active canvas gap filter.
+        </div>
+      ) : null}
       {hoverPreview && hoverPreviewModel ? (
         <SpecNodeHoverPreview
           preview={hoverPreviewModel}

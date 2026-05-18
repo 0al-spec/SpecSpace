@@ -3,6 +3,7 @@ import type { SpecNode } from "../model/types";
 import {
   formatSpecNodeGapLabel,
   formatSpecNodeMaturity,
+  getSpecNodeGapMarks,
   getSpecNodeMaturityPercent,
   getSpecNodeMaturityTone,
 } from "../lib/visual-signals";
@@ -46,6 +47,7 @@ export function SpecNodeCard({
   const maturityLabel = formatSpecNodeMaturity(node.maturity);
   const maturityTone = getSpecNodeMaturityTone(node.maturity);
   const gapLabel = formatSpecNodeGapLabel(node.gap_count);
+  const gapMarks = getSpecNodeGapMarks(node);
   const showMaturity = variant === "preview" || maturityPercent !== null;
   const showObjective = variant === "preview" || Boolean(objectivePreview);
   const maturityStyle: MaturityStyle = {
@@ -96,6 +98,20 @@ export function SpecNodeCard({
             style={maturityStyle}
           />
         </span>
+      ) : null}
+      {gapMarks.length > 0 ? (
+        <div className={styles.gapMarks} aria-label="Gap profile">
+          {gapMarks.map((mark) => (
+            <span
+              key={mark.kind}
+              className={`${styles.gapMark} ${styles[`gapMark-${mark.kind}`]}`}
+              title={`${mark.label} gaps: ${mark.count}`}
+            >
+              <span>{mark.label.slice(0, 1)}</span>
+              <span>{mark.count}</span>
+            </span>
+          ))}
+        </div>
       ) : null}
       {lifecycleBadge ? (
         <div className={styles.lifecycle}>
