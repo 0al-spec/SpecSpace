@@ -172,3 +172,7 @@ Target:
 11. `CTXB-P13-T15` — Proposal detail panel. ✅
 12. `CTXB-P13-T16` — Edge context selection for Agent Workbench. ✅
 13. `CTXB-P13-T17` — Visible gap context selection for Agent Workbench. ✅
+14. `CTXB-P13-T18` — Canvas gap marks and filters.
+15. `CTXB-P13-T19` — Edge inspector for selected SpecGraph edges.
+16. `CTXB-P13-T20` — Node moving and layout persistence.
+17. `CTXB-P13-T21` — Proposal and metric overlays on graph nodes and edges.

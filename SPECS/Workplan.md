@@ -1827,6 +1827,55 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Serialized context includes node id, title, gap kind, and gap count.
   - Agent Conversation context tokens render gap context without assuming every item is a spec node, edge, or proposal.
 
+### CTXB-P13-T18 — Canvas gap marks and filters — INPROGRESS
+- **Description:** Make evidence/input/execution gap signals visible directly on SpecGraph canvas nodes and expose compact canvas-level filters for gap-bearing nodes.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T17, CTXB-P10-T10
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** canvas gap mark model, SpecNodeCard gap mark UI, canvas filter controls, focused filter tests
+- **Acceptance Criteria:**
+  - Canvas nodes show compact evidence/input/execution gap marks when the node has non-zero gap counts.
+  - Gap marks use the same gap-kind vocabulary as Agent Context `spec_gap` items.
+  - Canvas-level filters can show all nodes, nodes with any gap, or nodes with a selected gap kind.
+  - Filtering preserves selected-node and inspector behavior without forcing Sidebar state.
+  - Empty/no-match states remain explicit and do not break pan/zoom controls.
+
+### CTXB-P13-T19 — Edge inspector for selected SpecGraph edges — NOT STARTED
+- **Description:** Add a focused inspector surface for selected SpecGraph edges so edge selection exposes relation kind, status, source/target specs, diagnostics, and Agent Context actions.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T16
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** edge inspector read model, selected-edge inspector UI, relation navigation links
+- **Acceptance Criteria:**
+  - Selecting an edge opens edge details without replacing node Inspector behavior.
+  - Source and target spec references are graph-aware clickable IDs.
+  - Broken or missing endpoint edges explain the missing side clearly.
+  - Edge context can still be added to Agent Context from the selected edge.
+
+### CTXB-P13-T20 — Node moving and layout persistence — NOT STARTED
+- **Description:** Let users reposition SpecGraph canvas nodes and persist a local layout override without changing canonical SpecGraph artifacts.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T18
+- **Parallelizable:** no
+- **Outputs / Artifacts:** layout override model, drag persistence, reset-to-default action, storage boundary docs
+- **Acceptance Criteria:**
+  - Dragging a node updates its canvas position without changing graph data.
+  - Layout overrides survive refresh for the same graph revision.
+  - Users can reset to the default Refinement Ladder Layout.
+  - Persistence is scoped to SpecSpace UI state and does not mutate readonly SpecGraph sources.
+
+### CTXB-P13-T21 — Proposal and metric overlays on graph nodes and edges — NOT STARTED
+- **Description:** Surface proposal and metrics signals directly on relevant SpecGraph nodes/edges so canvas review can start from visible work and quality indicators.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T15, CTXB-P13-T18
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** proposal overlay model, metrics overlay model, node/edge badges, utility panel cross-links
+- **Acceptance Criteria:**
+  - Nodes with related proposals show compact proposal indicators.
+  - Nodes or edges with metric signals show compact metric indicators.
+  - Clicking an overlay opens or filters the relevant Proposal Viewer or Metrics surface.
+  - Overlay rendering is bounded and does not make node cards visually unstable.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
