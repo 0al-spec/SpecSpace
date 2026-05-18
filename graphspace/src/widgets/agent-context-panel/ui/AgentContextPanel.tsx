@@ -3,6 +3,7 @@ import {
   serializeAgentContextSet,
   type AgentContextDraft,
   type AgentContextItem,
+  type AgentContextSpecGapKind,
 } from "@/entities/agent-workbench";
 import type { SpecEdge } from "@/entities/spec-edge";
 import type { SpecNode } from "@/entities/spec-node";
@@ -16,6 +17,7 @@ type Props = {
   resolveSpecRef?: SpecRefResolver;
   onAddSelectedSpec: () => void;
   onAddSelectedEdge: () => void;
+  onAddSelectedGap: (gapKind: AgentContextSpecGapKind) => void;
   onRemoveItem: (key: string) => void;
   onClear: () => void;
   onOpenConversation?: () => void;
@@ -28,6 +30,7 @@ export function AgentContextPanel({
   resolveSpecRef,
   onAddSelectedSpec,
   onAddSelectedEdge,
+  onAddSelectedGap,
   onRemoveItem,
   onClear,
   onOpenConversation,
@@ -40,6 +43,7 @@ export function AgentContextPanel({
   const selectedEdgeAlreadyAdded =
     selectedEdgeKey !== null &&
     draft.items.some((item) => agentContextItemKey(item) === selectedEdgeKey);
+  const selectedGaps = selectedNode ? visibleSpecGaps(selectedNode) : [];
 
   return (
     <section className={styles.panel} aria-label="Agent context">
@@ -52,6 +56,10 @@ export function AgentContextPanel({
         <Metric
           label="Edges"
           value={draft.items.filter((item) => item.kind === "spec_edge").length}
+        />
+        <Metric
+          label="Gaps"
+          value={draft.items.filter((item) => item.kind === "spec_gap").length}
         />
       </div>
 
@@ -114,6 +122,29 @@ export function AgentContextPanel({
             />
           </strong>
           <span>{selectedNode.title}</span>
+          {selectedGaps.length > 0 ? (
+            <div className={styles.gapActions} aria-label="Selected spec gaps">
+              {selectedGaps.map((gap) => {
+                const gapKey = `spec_gap:${selectedNode.node_id}:${gap.kind}`;
+                const gapAlreadyAdded = draft.items.some(
+                  (item) => agentContextItemKey(item) === gapKey,
+                );
+                return (
+                  <button
+                    key={gap.kind}
+                    type="button"
+                    className={styles.gapButton}
+                    onClick={() => onAddSelectedGap(gap.kind)}
+                    disabled={gapAlreadyAdded}
+                  >
+                    {gapAlreadyAdded
+                      ? `${gap.label} Gap Added`
+                      : `Add ${gap.label} Gap (${gap.count})`}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
       ) : selectedEdge ? (
         <div className={styles.selectedContext}>
@@ -197,6 +228,12 @@ function ContextItemRow({
           />
         ) : item.kind === "spec_edge" ? (
           <span>{item.edge_id}</span>
+        ) : item.kind === "spec_gap" ? (
+          <SpecIdText
+            text={item.node_id}
+            resolveSpecRef={resolveSpecRef}
+            variant="bare"
+          />
         ) : (
           <span>{item.proposal_id}</span>
         )}
@@ -204,15 +241,19 @@ function ContextItemRow({
       <p className={styles.detail}>
         {item.kind === "spec_edge"
           ? `${item.source_title ?? item.source_id} → ${item.target_title ?? item.target_id}`
+          : item.kind === "spec_gap"
+            ? `${formatGapKind(item.gap_kind)} gap · ${item.title}`
           : item.title}
       </p>
       <div className={styles.meta}>
-        <span>{item.status}</span>
+        <span>{item.kind === "spec_gap" ? item.gap_kind : item.status}</span>
         <span>
           {item.kind === "spec_node"
             ? item.file_name
             : item.kind === "spec_edge"
               ? item.edge_kind
+              : item.kind === "spec_gap"
+                ? `${item.gap_count} ${item.gap_count === 1 ? "gap" : "gaps"}`
               : item.proposal_path ?? "proposal artifact"}
         </span>
       </div>
@@ -230,6 +271,29 @@ function ContextItemRow({
       ) : null}
     </article>
   );
+}
+
+function visibleSpecGaps(node: SpecNode): Array<{
+  kind: AgentContextSpecGapKind;
+  label: string;
+  count: number;
+}> {
+  const gaps: Array<{
+    kind: AgentContextSpecGapKind;
+    label: string;
+    count: number;
+  }> = [
+    { kind: "evidence", label: "Evidence", count: node.evidence_gap },
+    { kind: "input", label: "Input", count: node.input_gap },
+    { kind: "execution", label: "Execution", count: node.execution_gap },
+  ];
+  return gaps.filter((gap) => gap.count > 0);
+}
+
+function formatGapKind(kind: AgentContextSpecGapKind): string {
+  if (kind === "evidence") return "Evidence";
+  if (kind === "input") return "Input";
+  return "Execution";
 }
 
 function Status({ label, detail }: { label: string; detail: string }) {

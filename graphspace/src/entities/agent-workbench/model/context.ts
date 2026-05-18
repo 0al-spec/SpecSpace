@@ -17,6 +17,16 @@ export type AgentContextSpecEdgeItem = {
   target_title: string | null;
 };
 
+export type AgentContextSpecGapKind = "evidence" | "input" | "execution";
+
+export type AgentContextSpecGapItem = {
+  kind: "spec_gap";
+  node_id: string;
+  title: string;
+  gap_kind: AgentContextSpecGapKind;
+  gap_count: number;
+};
+
 export type AgentContextProposalItem = {
   kind: "proposal";
   proposal_key: string;
@@ -30,6 +40,7 @@ export type AgentContextProposalItem = {
 export type AgentContextItem =
   | AgentContextSpecNodeItem
   | AgentContextSpecEdgeItem
+  | AgentContextSpecGapItem
   | AgentContextProposalItem;
 
 export type AgentContextDraft = {
@@ -92,6 +103,25 @@ export function createSpecEdgeContextItem(
   };
 }
 
+export type SpecGapContextSource = {
+  node_id: string;
+  title: string;
+  gap_kind: AgentContextSpecGapKind;
+  gap_count: number;
+};
+
+export function createSpecGapContextItem(
+  gap: SpecGapContextSource,
+): AgentContextSpecGapItem {
+  return {
+    kind: "spec_gap",
+    node_id: gap.node_id,
+    title: gap.title,
+    gap_kind: gap.gap_kind,
+    gap_count: gap.gap_count,
+  };
+}
+
 export type ProposalContextSource = {
   proposal_key: string;
   proposal_id: string;
@@ -121,6 +151,9 @@ export function agentContextItemKey(item: AgentContextItem): string {
   }
   if (item.kind === "spec_edge") {
     return `${item.kind}:${item.edge_id}`;
+  }
+  if (item.kind === "spec_gap") {
+    return `${item.kind}:${item.node_id}:${item.gap_kind}`;
   }
   return `${item.kind}:${item.node_id}`;
 }
