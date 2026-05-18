@@ -195,6 +195,19 @@ function AgentContextToken({
   if (item.kind === "spec_edge") {
     return <span>{item.edge_id}</span>;
   }
+  if (item.kind === "spec_gap") {
+    return (
+      <span>
+        <SpecIdText
+          text={item.node_id}
+          resolveSpecRef={resolveSpecRef}
+          onSpecIdClick={onSpecIdClick}
+          variant="bare"
+        />{" "}
+        {item.gap_kind}
+      </span>
+    );
+  }
   return (
     <SpecIdText
       text={item.node_id}

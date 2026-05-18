@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** `TBD` — Select next SpecSpace parity slice after edge context selection
+**Current Task:** `CTXB-P13-T17` — Visible gap context selection for Agent Workbench
 
 ## Recently Archived
 - `CTXB-P13-T16` — Edge context selection for Agent Workbench (PASS, 2026-05-18)
@@ -63,12 +63,12 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `TBD` — Select next SpecSpace parity slice.
-- Rationale: The current Phase 13 stack now covers Proposal Viewer parity with detail and markdown previews, Metrics Viewer parity, an Agent Workbench conversation artifact contract, graph-context draft flow including selected edges, mock conversation runtime, visible conversation shell, and an `assistant-ui` adapter spike. The next slice should be selected based on product priority: Metrics drill-downs, visible gap context selection, or Agent Workbench persistence/API.
+- `CTXB-P13-T17` — Visible gap context selection for Agent Workbench.
+- Rationale: The current Phase 13 stack covers Proposal Viewer parity with detail and markdown previews, Metrics Viewer parity, an Agent Workbench conversation artifact contract, graph-context draft flow including selected specs/edges, mock conversation runtime, visible conversation shell, and an `assistant-ui` adapter spike. The next smallest parity gap is making visible spec gap profile signals attachable as first-class Agent Context items before persistence/API work.
 
 ### Phase 13 Suggested Stack
 - Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`.
-- Next: select between Metrics drill-downs, visible gap context selection, or Agent Workbench persistence/API.
+- Current: `CTXB-P13-T17` visible gap context selection.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.

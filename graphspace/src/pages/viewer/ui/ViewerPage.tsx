@@ -4,8 +4,10 @@ import {
   clearAgentContextItems,
   createAgentContextDraft,
   createSpecEdgeContextItem,
+  createSpecGapContextItem,
   createProposalContextItem,
   removeAgentContextItem,
+  type AgentContextSpecGapKind,
 } from "@/entities/agent-workbench";
 import type { SpecEdge } from "@/entities/spec-edge";
 import { createSpecNodeRefResolver } from "@/entities/spec-node";
@@ -282,6 +284,22 @@ export function ViewerPage() {
       addAgentContextItem(
         draft,
         createSpecEdgeContextItem(edgeContextSource(selectedGraphEdge, nodesById)),
+      ),
+    );
+  };
+  const addSelectedGapToAgentContext = (gapKind: AgentContextSpecGapKind) => {
+    if (!selectedGraphNode) return;
+    const gapCount = selectedSpecGapCount(selectedGraphNode, gapKind);
+    if (gapCount <= 0) return;
+    setAgentContextDraft((draft) =>
+      addAgentContextItem(
+        draft,
+        createSpecGapContextItem({
+          node_id: selectedGraphNode.node_id,
+          title: selectedGraphNode.title,
+          gap_kind: gapKind,
+          gap_count: gapCount,
+        }),
       ),
     );
   };
@@ -590,6 +608,7 @@ export function ViewerPage() {
               resolveSpecRef={resolveSpecRef}
               onAddSelectedSpec={addSelectedSpecToAgentContext}
               onAddSelectedEdge={addSelectedEdgeToAgentContext}
+              onAddSelectedGap={addSelectedGapToAgentContext}
               onRemoveItem={removeAgentContextItemByKey}
               onClear={clearAgentContext}
               onOpenConversation={() => setActiveUtilityPanel("agent-conversation")}
@@ -658,6 +677,19 @@ function edgeContextSource(
     source_title: nodesById.get(edge.source_id)?.title ?? null,
     target_title: nodesById.get(edge.target_id)?.title ?? null,
   };
+}
+
+function selectedSpecGapCount(
+  node: {
+    evidence_gap: number;
+    input_gap: number;
+    execution_gap: number;
+  },
+  gapKind: AgentContextSpecGapKind,
+) {
+  if (gapKind === "evidence") return node.evidence_gap;
+  if (gapKind === "input") return node.input_gap;
+  return node.execution_gap;
 }
 
 function SidebarLogo() {

@@ -4,6 +4,7 @@ import {
   agentContextItemKey,
   createAgentContextDraft,
   createSpecEdgeContextItem,
+  createSpecGapContextItem,
   createProposalContextItem,
   createSpecNodeContextItem,
   removeAgentContextItem,
@@ -86,7 +87,7 @@ describe("agent context draft", () => {
     const withEdge = addAgentContextItem(draft, item);
 
     expect(agentContextItemKey(item)).toBe("spec_edge:SG-SPEC-0002-refines-SG-SPEC-0001");
-    expect(serializeAgentContextSet(withEdge).items).toEqual([
+  expect(serializeAgentContextSet(withEdge).items).toEqual([
       {
         kind: "spec_edge",
         edge_id: "SG-SPEC-0002-refines-SG-SPEC-0001",
@@ -96,6 +97,28 @@ describe("agent context draft", () => {
         target_id: "SG-SPEC-0001",
         source_title: "Child spec",
         target_title: "Parent spec",
+      },
+    ]);
+  });
+
+  it("serializes selected spec gaps into the workbench context_set shape", () => {
+    const draft = createAgentContextDraft("2026-05-17T16:00:00Z");
+    const item = createSpecGapContextItem({
+      node_id: "SG-SPEC-0001",
+      title: "SpecGraph - The Executable Product Ontology",
+      gap_kind: "evidence",
+      gap_count: 2,
+    });
+    const withGap = addAgentContextItem(draft, item);
+
+    expect(agentContextItemKey(item)).toBe("spec_gap:SG-SPEC-0001:evidence");
+    expect(serializeAgentContextSet(withGap).items).toEqual([
+      {
+        kind: "spec_gap",
+        node_id: "SG-SPEC-0001",
+        title: "SpecGraph - The Executable Product Ontology",
+        gap_kind: "evidence",
+        gap_count: 2,
       },
     ]);
   });

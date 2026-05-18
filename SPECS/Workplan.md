@@ -1815,6 +1815,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Serialized context includes edge id, kind, status, source/target ids, and source/target titles when known.
   - Agent Context and Agent Conversation panels render edge context tokens without assuming every item is a spec node.
 
+### CTXB-P13-T17 — Visible gap context selection for Agent Workbench — INPROGRESS
+- **Description:** Let users add visible selected-spec gap profile signals to the Agent Context draft as first-class context items.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T8, CTXB-P13-T16
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** spec gap context item contract, Agent Context gap actions, Agent Conversation context tokens
+- **Acceptance Criteria:**
+  - Selected specs expose add actions for non-zero evidence/input/execution gaps.
+  - Agent Context can add each visible gap once as a stable `spec_gap` item.
+  - Serialized context includes node id, title, gap kind, and gap count.
+  - Agent Conversation context tokens render gap context without assuming every item is a spec node, edge, or proposal.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.
