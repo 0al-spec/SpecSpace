@@ -107,7 +107,7 @@ export function SpecNodeCard({
               className={`${styles.gapMark} ${styles[`gapMark-${mark.kind}`]}`}
               title={`${mark.label} gaps: ${mark.count}`}
             >
-              <span>{mark.label.slice(0, 1)}</span>
+              <span>{mark.shortLabel}</span>
               <span>{mark.count}</span>
             </span>
           ))}
