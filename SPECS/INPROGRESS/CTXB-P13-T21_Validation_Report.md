@@ -20,6 +20,6 @@ npm run lint:fsd --prefix graphspace
 
 Results:
 
-- `overlays`: 1 file / 2 tests passed.
+- `overlays`: 1 file / 3 tests passed.
 - `build`: passed; retained the existing Vite chunk-size warning.
 - `lint:fsd`: passed with no problems.

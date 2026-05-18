@@ -38,8 +38,8 @@ function increment(
   map.set(id, summary);
 }
 
-function referencesId(reference: string, id: string): boolean {
-  return reference === id || reference.includes(id);
+function referenceTokens(reference: string): Set<string> {
+  return new Set(reference.split(/[^A-Za-z0-9_-]+/).filter(Boolean));
 }
 
 export function buildSpecGraphCanvasOverlays({
@@ -61,17 +61,24 @@ export function buildSpecGraphCanvasOverlays({
   }
 
   for (const metric of metrics) {
+    const metricNodeIds = new Set<string>();
+    const metricEdgeIds = new Set<string>();
+
     for (const reference of metric.reference_texts) {
+      const tokens = referenceTokens(reference);
       for (const nodeId of nodeIds) {
-        if (referencesId(reference, nodeId)) {
-          increment(nodesById, nodeId, "metric");
-        }
+        if (tokens.has(nodeId)) metricNodeIds.add(nodeId);
       }
       for (const edgeId of edgeIds) {
-        if (referencesId(reference, edgeId)) {
-          increment(edgesById, edgeId, "metric");
-        }
+        if (tokens.has(edgeId)) metricEdgeIds.add(edgeId);
       }
+    }
+
+    for (const nodeId of metricNodeIds) {
+      increment(nodesById, nodeId, "metric");
+    }
+    for (const edgeId of metricEdgeIds) {
+      increment(edgesById, edgeId, "metric");
     }
   }
 

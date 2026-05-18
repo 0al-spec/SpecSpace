@@ -86,5 +86,41 @@ describe("buildSpecGraphCanvasOverlays", () => {
       proposalCount: 0,
       metricCount: 1,
     });
+    expect(overlays.nodesById.has("SG-SPEC-SAMPLE-ROOT")).toBe(false);
+    expect(overlays.nodesById.has("SG-SPEC-SAMPLE-RUNTIME")).toBe(false);
+  });
+
+  it("does not match ids by substring and counts each metric once per target", () => {
+    const edgeId = "SG-SPEC-SAMPLE-ROOT__depends_on__SG-SPEC-SAMPLE-RUNTIME";
+    const overlays = buildSpecGraphCanvasOverlays({
+      nodes: SAMPLE_SPEC_GRAPH.graph.nodes,
+      edges: SAMPLE_SPEC_GRAPH.graph.edges,
+      proposals: [],
+      metrics: [
+        metric({
+          metric_key: "metric::root",
+          reference_texts: [
+            "SG-SPEC-SAMPLE-ROOT",
+            "again SG-SPEC-SAMPLE-ROOT",
+          ],
+        }),
+        metric({
+          metric_key: "metric::edge",
+          reference_texts: [
+            edgeId,
+            `duplicate ${edgeId}`,
+          ],
+        }),
+      ],
+    });
+
+    expect(overlays.nodesById.get("SG-SPEC-SAMPLE-ROOT")).toEqual({
+      proposalCount: 0,
+      metricCount: 1,
+    });
+    expect(overlays.edgesById.get(edgeId)).toEqual({
+      proposalCount: 0,
+      metricCount: 1,
+    });
   });
 });
