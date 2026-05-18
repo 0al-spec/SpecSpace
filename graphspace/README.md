@@ -40,6 +40,13 @@ The default SpecGraph canvas layout is **Refinement Ladder Layout**.
 Future layout experiments should be introduced as explicit alternate modes
 instead of silently replacing this default.
 
+Users can drag nodes to create local layout overrides. These overrides are
+stored in browser `localStorage` under a key derived from `spec_dir`, graph
+revision metadata when present, and the sorted node/edge identity set. They are
+SpecSpace UI state only: they must not be written back into SpecGraph specs,
+runs, or readonly deployment mounts. The canvas reset action removes the local
+override and returns to Refinement Ladder Layout.
+
 ## Run
 
 ```sh

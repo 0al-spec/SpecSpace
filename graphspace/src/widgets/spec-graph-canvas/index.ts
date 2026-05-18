@@ -16,6 +16,17 @@ export {
   type SpecGraphCanvasGapFilterCounts,
 } from "./model/gap-filter";
 export { buildSpecGraphSelection, type SpecGraphSelection } from "./model/selection";
+export {
+  applySpecGraphCanvasLayoutOverrides,
+  buildSpecGraphCanvasLayoutStorageKey,
+  readSpecGraphCanvasLayoutOverrides,
+  removeSpecGraphCanvasLayoutOverrides,
+  upsertSpecGraphCanvasLayoutOverride,
+  writeSpecGraphCanvasLayoutOverrides,
+  type SpecGraphCanvasLayoutOverrides,
+  type SpecGraphCanvasLayoutPosition,
+  type SpecGraphCanvasLayoutStorage,
+} from "./model/layout-overrides";
 export { toSpecGraphFlowElements, type SpecFlowEdge, type SpecFlowNode } from "./model/to-flow-elements";
 export {
   fetchSpecPMLifecycleBadges,
