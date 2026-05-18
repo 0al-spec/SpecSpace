@@ -2,6 +2,13 @@ import type { SpecNode } from "../model/types";
 
 export type SpecNodeStatusTone = "linked" | "reviewed" | "frozen" | "unknown";
 export type SpecNodeMaturityTone = "weak" | "medium" | "strong" | "unknown";
+export type SpecNodeGapKind = "evidence" | "input" | "execution";
+
+export type SpecNodeGapMark = {
+  kind: SpecNodeGapKind;
+  label: string;
+  count: number;
+};
 
 const STATUS_TONES: Record<string, SpecNodeStatusTone> = {
   linked: "linked",
@@ -45,4 +52,22 @@ export function formatSpecNodeMaturity(maturity: SpecNode["maturity"]): string |
 
 export function formatSpecNodeGapLabel(count: SpecNode["gap_count"]): string {
   return count === 1 ? "1 gap" : `${count} gaps`;
+}
+
+export function getSpecNodeGapCount(
+  node: SpecNode,
+  kind: SpecNodeGapKind,
+): number {
+  if (kind === "evidence") return node.evidence_gap;
+  if (kind === "input") return node.input_gap;
+  return node.execution_gap;
+}
+
+export function getSpecNodeGapMarks(node: SpecNode): SpecNodeGapMark[] {
+  const marks: SpecNodeGapMark[] = [
+    { kind: "evidence", label: "Evidence", count: node.evidence_gap },
+    { kind: "input", label: "Input", count: node.input_gap },
+    { kind: "execution", label: "Execution", count: node.execution_gap },
+  ];
+  return marks.filter((mark) => mark.count > 0);
 }

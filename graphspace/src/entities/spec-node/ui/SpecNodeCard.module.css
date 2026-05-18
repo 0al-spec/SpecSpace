@@ -140,6 +140,47 @@
   background: var(--gs-muted-2);
 }
 
+.gapMarks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.gapMark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 34px;
+  padding: 3px 6px;
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper-2);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.gapMark-evidence {
+  border-color: color-mix(in srgb, var(--gs-warn) 34%, var(--gs-rule-soft));
+  color: var(--gs-warn);
+  background: color-mix(in srgb, var(--gs-warn) 9%, var(--gs-panel));
+}
+
+.gapMark-input {
+  border-color: color-mix(in srgb, var(--gs-accent) 34%, var(--gs-rule-soft));
+  color: var(--gs-accent);
+  background: color-mix(in srgb, var(--gs-accent) 9%, var(--gs-panel));
+}
+
+.gapMark-execution {
+  border-color: color-mix(in srgb, var(--gs-danger) 34%, var(--gs-rule-soft));
+  color: var(--gs-danger);
+  background: color-mix(in srgb, var(--gs-danger) 9%, var(--gs-panel));
+}
+
 .lifecycle {
   display: flex;
   margin-top: 10px;
