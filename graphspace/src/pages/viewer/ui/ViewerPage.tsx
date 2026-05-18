@@ -38,6 +38,7 @@ import {
   useSpecGraph,
   useSpecPMLifecycleBadges,
 } from "@/widgets/spec-graph-canvas";
+import { SpecEdgeInspector } from "@/widgets/spec-edge-inspector";
 import { SpecInspector, type SpecInspectorSelection } from "@/widgets/spec-inspector";
 import { SpecNodeNavigator } from "@/widgets/spec-node-navigator";
 import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-artifacts";
@@ -266,6 +267,10 @@ export function ViewerPage() {
     [selectableSpecNodeIds],
   );
   const selectSpecEdgeId = useCallback((edgeId: string | null) => {
+    if (edgeId) {
+      setSelectedSpecNodeId(null);
+      setSelectedSpec(null);
+    }
     setSelectedSpecEdgeId(edgeId);
   }, []);
   const toggleUtilityPanel = (panel: ViewerUtilityPanelId) => {
@@ -508,7 +513,7 @@ export function ViewerPage() {
         <aside
           className={[
             styles.utilityRail,
-            selectedSpec ? styles.utilityRailWithInspector : "",
+            selectedSpec || selectedGraphEdge ? styles.utilityRailWithInspector : "",
           ]
             .filter(Boolean)
             .join(" ")}
@@ -645,6 +650,16 @@ export function ViewerPage() {
           onClose={clearSpecSelection}
           resolveSpecRef={resolveSpecRef}
           onSelectNodeId={selectSpecNodeId}
+        />
+      ) : selectedGraphEdge ? (
+        <SpecEdgeInspector
+          className={styles.inspectorRail}
+          edge={selectedGraphEdge}
+          nodesById={nodesById}
+          onClose={clearSpecSelection}
+          resolveSpecRef={resolveSpecRef}
+          onSelectNodeId={selectSpecNodeId}
+          onAddEdgeToAgentContext={addSelectedEdgeToAgentContext}
         />
       ) : null}
 

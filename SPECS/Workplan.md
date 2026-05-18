@@ -1827,7 +1827,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Serialized context includes node id, title, gap kind, and gap count.
   - Agent Conversation context tokens render gap context without assuming every item is a spec node, edge, or proposal.
 
-### CTXB-P13-T18 — Canvas gap marks and filters — INPROGRESS
+### ✅ CTXB-P13-T18 — Canvas gap marks and filters — DONE (PASS, 2026-05-18)
 - **Description:** Make evidence/input/execution gap signals visible directly on SpecGraph canvas nodes and expose compact canvas-level filters for gap-bearing nodes.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T17, CTXB-P10-T10
@@ -1840,7 +1840,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Filtering preserves selected-node and inspector behavior without forcing Sidebar state.
   - Empty/no-match states remain explicit and do not break pan/zoom controls.
 
-### CTXB-P13-T19 — Edge inspector for selected SpecGraph edges — NOT STARTED
+### CTXB-P13-T19 — Edge inspector for selected SpecGraph edges — INPROGRESS
 - **Description:** Add a focused inspector surface for selected SpecGraph edges so edge selection exposes relation kind, status, source/target specs, diagnostics, and Agent Context actions.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T16
