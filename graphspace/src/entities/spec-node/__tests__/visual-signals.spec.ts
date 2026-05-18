@@ -4,8 +4,10 @@ import {
   formatSpecNodeMaturity,
   getSpecNodeMaturityPercent,
   getSpecNodeMaturityTone,
+  getSpecNodeGapMarks,
   getSpecNodeStatusTone,
 } from "../lib/visual-signals";
+import type { SpecNode } from "../model/types";
 
 describe("SpecNode visual signals", () => {
   it("maps known lifecycle-like spec statuses to stable tones", () => {
@@ -37,5 +39,19 @@ describe("SpecNode visual signals", () => {
     expect(formatSpecNodeGapLabel(0)).toBe("0 gaps");
     expect(formatSpecNodeGapLabel(1)).toBe("1 gap");
     expect(formatSpecNodeGapLabel(2)).toBe("2 gaps");
+  });
+
+  it("uses distinct short labels for gap marks", () => {
+    const node = {
+      evidence_gap: 1,
+      input_gap: 2,
+      execution_gap: 3,
+    } as SpecNode;
+
+    expect(getSpecNodeGapMarks(node).map((mark) => [mark.kind, mark.shortLabel])).toEqual([
+      ["evidence", "EV"],
+      ["input", "IN"],
+      ["execution", "EX"],
+    ]);
   });
 });

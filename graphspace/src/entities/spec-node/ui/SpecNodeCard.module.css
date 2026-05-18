@@ -164,21 +164,21 @@
 }
 
 .gapMark-evidence {
-  border-color: color-mix(in srgb, var(--gs-warn) 34%, var(--gs-rule-soft));
-  color: var(--gs-warn);
-  background: color-mix(in srgb, var(--gs-warn) 9%, var(--gs-panel));
+  border-color: color-mix(in srgb, #a8551c 44%, var(--gs-rule-soft));
+  color: #a8551c;
+  background: color-mix(in srgb, #a8551c 10%, var(--gs-panel));
 }
 
 .gapMark-input {
-  border-color: color-mix(in srgb, var(--gs-accent) 34%, var(--gs-rule-soft));
-  color: var(--gs-accent);
-  background: color-mix(in srgb, var(--gs-accent) 9%, var(--gs-panel));
+  border-color: color-mix(in srgb, #2563eb 42%, var(--gs-rule-soft));
+  color: #2563eb;
+  background: color-mix(in srgb, #2563eb 9%, var(--gs-panel));
 }
 
 .gapMark-execution {
-  border-color: color-mix(in srgb, var(--gs-danger) 34%, var(--gs-rule-soft));
-  color: var(--gs-danger);
-  background: color-mix(in srgb, var(--gs-danger) 9%, var(--gs-panel));
+  border-color: color-mix(in srgb, #b91c5c 44%, var(--gs-rule-soft));
+  color: #b91c5c;
+  background: color-mix(in srgb, #b91c5c 9%, var(--gs-panel));
 }
 
 .lifecycle {

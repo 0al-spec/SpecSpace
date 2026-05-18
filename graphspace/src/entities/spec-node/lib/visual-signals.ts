@@ -7,6 +7,7 @@ export type SpecNodeGapKind = "evidence" | "input" | "execution";
 export type SpecNodeGapMark = {
   kind: SpecNodeGapKind;
   label: string;
+  shortLabel: string;
   count: number;
 };
 
@@ -65,9 +66,9 @@ export function getSpecNodeGapCount(
 
 export function getSpecNodeGapMarks(node: SpecNode): SpecNodeGapMark[] {
   const marks: SpecNodeGapMark[] = [
-    { kind: "evidence", label: "Evidence", count: node.evidence_gap },
-    { kind: "input", label: "Input", count: node.input_gap },
-    { kind: "execution", label: "Execution", count: node.execution_gap },
+    { kind: "evidence", label: "Evidence", shortLabel: "EV", count: node.evidence_gap },
+    { kind: "input", label: "Input", shortLabel: "IN", count: node.input_gap },
+    { kind: "execution", label: "Execution", shortLabel: "EX", count: node.execution_gap },
   ];
   return marks.filter((mark) => mark.count > 0);
 }
