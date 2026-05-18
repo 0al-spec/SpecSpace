@@ -35,6 +35,7 @@ second page consumes them.
 | `widgets/implementation-work-panel` | Keep | Utility panel around a live artifact read model. It composes entity rows and owns loading/error/empty states for the implementation work artifact. |
 | `widgets/proposal-trace` | Keep | Utility panel around proposal trace artifacts. It has its own read model and UI state independent from recent activity and implementation work. |
 | `widgets/recent-changes-panel` | Keep | Activity surface panel with its own read model and entity composition. The page coordinates filters, but the panel owns presentation of recent change entries. |
+| `widgets/spec-edge-inspector` | Keep | Edge detail inspection workspace boundary. It owns selected-edge relation presentation, endpoint diagnosis, and edge-to-agent-context affordances separately from the node Inspector. |
 | `widgets/spec-graph-canvas` | Keep | Primary graph workspace boundary. It owns graph loading, flow element mapping, selection helpers, hover previews, focus math, lifecycle badge loading, and canvas UI. Merging it into `pages/viewer` would recreate the god-page shape that `CTXB-P7-T9` removed. |
 | `widgets/spec-inspector` | Keep | Detail inspection workspace boundary. It owns node detail loading, inspector model building, and large content rendering separately from canvas selection. |
 | `widgets/spec-node-navigator` | Keep | Sidebar navigator boundary. It owns filtering, scroll behavior, and node list presentation independently from the canvas and inspector. |

@@ -42,6 +42,7 @@ export default defineConfig([
       "src/widgets/implementation-work-panel/**/*",
       "src/widgets/proposal-trace/**/*",
       "src/widgets/recent-changes-panel/**/*",
+      "src/widgets/spec-edge-inspector/**/*",
       "src/widgets/spec-graph-canvas/**/*",
       "src/widgets/spec-inspector/**/*",
       "src/widgets/spec-node-navigator/**/*",
