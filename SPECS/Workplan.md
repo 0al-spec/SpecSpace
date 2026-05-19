@@ -1978,6 +1978,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Follow-up tasks split backend export, frontend UI, and compile capability work.
   - Existing ContextBuilder implementation is referenced as behavior source, not copied as architecture.
 
+### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
+- **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
+- **Priority:** P1
+- **Dependencies:** CTXB-P13-T5
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** utility rail viewport CSS fix, Proposal Viewer entries scroll fix, validation note
+- **Acceptance Criteria:**
+  - Proposal Viewer rows are reachable after the source strip on mobile/narrow viewports.
+  - The proposal list owns a scroll region instead of being hidden below fixed-height chrome.
+  - Desktop utility panel behavior remains unchanged.
+  - Mobile smoke verifies scrolling to lower proposal rows.
+
 ## Dependency Summary
 
 - Phase 1 establishes the schema, integrity rules, graph index, and API contract required by all later work.

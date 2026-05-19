@@ -132,6 +132,10 @@
   padding: var(--gs-space-5);
 }
 
+.utilityRail > * {
+  min-height: 0;
+}
+
 .utilityRailWithInspector {
   right: calc(
     var(--viewer-panel-edge) + var(--viewer-inspector-width) +
@@ -361,7 +365,8 @@
   }
 
   .utilityRail {
-    max-height: 42vh;
+    bottom: 86px;
+    max-height: none;
   }
 
   .canvasControlDock {
@@ -374,7 +379,8 @@
 
   .utilityRailWithInspector {
     right: var(--viewer-panel-edge);
-    max-height: 24vh;
+    bottom: 86px;
+    max-height: none;
   }
 
   .statusOverlay {

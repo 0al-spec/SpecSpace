@@ -13,4 +13,5 @@
 - `npm run lint:fsd --prefix graphspace` — PASS, no problems found.
 - `npm run build --prefix graphspace` — PASS, Vite chunk-size warning only.
 - Browser smoke on `http://127.0.0.1:5173/` — PASS: `Ladder` and `Status` controls render; switching sets `data-layout-preset` to `status-columns`, then back to `refinement-ladder`. The only console error was the existing local `/api/v1/specpm/registry` 503.
+- Mobile regression smoke on `http://127.0.0.1:5173/` at `390x844` — PASS: Proposal Viewer opens from Sidebar, entries scroll region is reachable after source chips, and programmatic scroll reaches lower proposal rows. The only console error was the existing local `/api/v1/specpm/registry` 503.
 - `git diff --check` — PASS.

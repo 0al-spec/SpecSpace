@@ -3,6 +3,7 @@
 **Current Task:** `CTXB-P13-T28` — Add canvas layout presets
 
 ## Recently Archived
+- `CTXB-P13-B1` — Fix mobile Proposal Viewer list scroll trap (PASS, 2026-05-19)
 - `CTXB-P13-T27` — Add Recent timeline filters (PASS, 2026-05-19)
 - `CTXB-P13-T26` — Focus selected edge endpoints on canvas (PASS, 2026-05-19)
 - `CTXB-P13-T25` — Seed Agent Conversation prompts from selected artifacts (PASS, 2026-05-19)
