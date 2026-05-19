@@ -388,6 +388,10 @@ export function ViewerPage() {
     addProposalToAgentContext(entry);
     setActiveUtilityPanel("agent-conversation");
   };
+  const startConversationFromMetric = (entry: MetricsIndexEntry) => {
+    addMetricToAgentContext(entry);
+    setActiveUtilityPanel("agent-conversation");
+  };
   const utilityPanelDetails = (() => {
     switch (activeUtilityPanel) {
       case "recent":
@@ -675,6 +679,7 @@ export function ViewerPage() {
               onSpecIdClick={selectSpecNodeId}
               onClearContextFilter={() => setMetricsContextFilter(null)}
               onAddMetricToAgentContext={addMetricToAgentContext}
+              onStartConversationFromMetric={startConversationFromMetric}
             />
           ) : null}
 

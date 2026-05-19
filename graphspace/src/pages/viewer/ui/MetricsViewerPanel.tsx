@@ -18,6 +18,7 @@ type Props = {
   onSpecIdClick?: (nodeId: string) => void;
   onClearContextFilter?: () => void;
   onAddMetricToAgentContext?: (entry: MetricsIndexEntry) => void;
+  onStartConversationFromMetric?: (entry: MetricsIndexEntry) => void;
 };
 
 function errorDetail(state: Exclude<UseMetricsIndexState, { kind: "ok" | "idle" | "loading" }>): string {
@@ -40,6 +41,7 @@ export function MetricsViewerPanel({
   onSpecIdClick,
   onClearContextFilter,
   onAddMetricToAgentContext,
+  onStartConversationFromMetric,
 }: Props) {
   const [filters, setFilters] = useState<MetricsViewerFilters>({
     category: "",
@@ -159,6 +161,7 @@ export function MetricsViewerPanel({
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
               onAddMetricToAgentContext={onAddMetricToAgentContext}
+              onStartConversationFromMetric={onStartConversationFromMetric}
             />
           ))
         )}
@@ -232,11 +235,13 @@ function MetricsRow({
   resolveSpecRef,
   onSpecIdClick,
   onAddMetricToAgentContext,
+  onStartConversationFromMetric,
 }: {
   entry: MetricsIndexEntry;
   resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
   onAddMetricToAgentContext?: (entry: MetricsIndexEntry) => void;
+  onStartConversationFromMetric?: (entry: MetricsIndexEntry) => void;
 }) {
   const secondary = [
     entry.secondary_status,
@@ -288,14 +293,24 @@ function MetricsRow({
         )}
       </div>
       <div className={styles.path}>source · {entry.source_kind}</div>
-      <button
-        type="button"
-        className={styles.contextAction}
-        onClick={() => onAddMetricToAgentContext?.(entry)}
-        disabled={!onAddMetricToAgentContext}
-      >
-        Add to Agent Context
-      </button>
+      <div className={styles.contextActions}>
+        <button
+          type="button"
+          className={styles.contextAction}
+          onClick={() => onAddMetricToAgentContext?.(entry)}
+          disabled={!onAddMetricToAgentContext}
+        >
+          Add to Agent Context
+        </button>
+        <button
+          type="button"
+          className={styles.contextAction}
+          onClick={() => onStartConversationFromMetric?.(entry)}
+          disabled={!onStartConversationFromMetric}
+        >
+          Start Conversation
+        </button>
+      </div>
     </article>
   );
 }
