@@ -1096,6 +1096,22 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "invalid_provider_data")
         self.assertEqual(body["load_errors"][0]["file_name"], "SG-SPEC-0001.yaml")
 
+    def test_spec_markdown_v1_reports_idless_provider_data(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", {"title": "No id"})
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/spec-markdown?root=SG-SPEC-0001")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "invalid_provider_data")
+        self.assertEqual(body["invalid_nodes"][0]["file_name"], "SG-SPEC-0001.yaml")
+
     def test_recent_runs_v1_reads_explicit_runs_dir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

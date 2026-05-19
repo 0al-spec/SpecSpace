@@ -171,13 +171,23 @@ def build_spec_markdown_response(
     source: dict[str, Any],
 ) -> tuple[HTTPStatus, dict[str, Any]]:
     nodes_by_id = spec_compile.index_nodes(nodes)
-    if not nodes_by_id and load_errors:
+    invalid_node_count = len(nodes) - len(nodes_by_id)
+    if not nodes_by_id and (load_errors or invalid_node_count):
+        invalid_nodes = [
+            {
+                "file_name": raw.get("_file_name", "unknown.yaml"),
+                "message": "Missing or invalid 'id' field.",
+            }
+            for raw in nodes
+            if not isinstance(raw.get("id"), str) or not raw.get("id", "").strip()
+        ]
         return HTTPStatus.UNPROCESSABLE_ENTITY, {
             "api_version": SPECSPACE_API_VERSION,
             "error": "SpecGraph provider data contains no exportable spec nodes.",
             "reason": "invalid_provider_data",
             "root_id": root_id,
             "load_errors": load_errors,
+            "invalid_nodes": invalid_nodes,
             "source": source,
         }
     if root_id not in nodes_by_id:

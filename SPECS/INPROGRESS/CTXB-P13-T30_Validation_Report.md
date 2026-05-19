@@ -22,6 +22,7 @@ Result: PASS
 | Invalid query options return structured `400` | PASS |
 | Unknown root spec ids return `404` | PASS |
 | Malformed provider data that prevents export returns structured `422` | PASS |
+| Id-less provider node mappings return structured `422` instead of root-missing `404` | PASS |
 | Capability payload includes `spec_markdown_export` | PASS |
 
 ## Validation Commands
@@ -37,9 +38,9 @@ git diff --check
 
 ## Results
 
-- Focused backend tests: `36 passed`.
+- Focused backend tests: `37 passed`.
 - `py_compile`: passed.
 - `make lint`: passed.
 - `python -m mypy viewer/`: passed.
-- Full backend tests: `579 passed, 41 subtests passed`.
+- Full backend tests: `580 passed, 41 subtests passed`.
 - `git diff --check`: passed.
