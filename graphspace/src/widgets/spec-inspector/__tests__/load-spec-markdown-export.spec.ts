@@ -77,6 +77,22 @@ describe("fetchSpecMarkdownExport", () => {
     );
   });
 
+  it("replaces existing root and scope query params for URL overrides", async () => {
+    const fetcher = vi.fn().mockResolvedValue(buildResponse(payload));
+
+    await fetchSpecMarkdownExport({
+      rootId: "SG-SPEC-NEW",
+      scope: "node",
+      url: "/proxy/spec-markdown?token=abc&root=SG-SPEC-OLD&scope=subtree",
+      fetcher,
+    });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "/proxy/spec-markdown?token=abc&root=SG-SPEC-NEW&scope=node",
+      { signal: undefined },
+    );
+  });
+
   it("returns http-error for backend failures", async () => {
     const fetcher = vi
       .fn()

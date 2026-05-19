@@ -36,9 +36,15 @@ const exportUrl = (
   rootId: string,
   scope: SpecMarkdownExportScope,
 ): string => {
-  const params = new URLSearchParams({ root: rootId, scope });
-  const separator = baseUrl.includes("?") ? "&" : "?";
-  return `${baseUrl}${separator}${params.toString()}`;
+  const absolute = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(baseUrl);
+  const parsed = new URL(baseUrl, "http://specspace.local");
+  parsed.searchParams.set("root", rootId);
+  parsed.searchParams.set("scope", scope);
+  if (absolute) return parsed.toString();
+  const pathname = baseUrl.startsWith("/")
+    ? parsed.pathname
+    : parsed.pathname.replace(/^\//, "");
+  return `${pathname}${parsed.search}${parsed.hash}`;
 };
 
 export async function fetchSpecMarkdownExport({

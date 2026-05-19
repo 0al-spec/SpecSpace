@@ -26,8 +26,13 @@ import styles from "./SpecInspector.module.css";
 
 type MarkdownExportState =
   | { kind: "idle" }
-  | { kind: "loading" }
-  | SpecMarkdownExportFetchResult;
+  | ({ kind: "loading" } & MarkdownExportRequest)
+  | (SpecMarkdownExportFetchResult & MarkdownExportRequest);
+
+type MarkdownExportRequest = {
+  rootId: string;
+  scope: SpecMarkdownExportScope;
+};
 
 type Props = Omit<HTMLAttributes<HTMLElement>, "children"> & {
   selection: SpecInspectorSelection;
@@ -58,8 +63,13 @@ export function SpecInspector({
   const model = buildSpecInspectorModel(selection, detail);
   const { node } = model;
   const cls = [styles.panel, className].filter(Boolean).join(" ");
+  const activeMarkdownState: MarkdownExportState =
+    markdownState.kind !== "idle" &&
+    (markdownState.rootId !== node.node_id || markdownState.scope !== markdownScope)
+      ? { kind: "idle" }
+      : markdownState;
   const markdownExport =
-    markdownState.kind === "ok" ? markdownState.data : null;
+    activeMarkdownState.kind === "ok" ? activeMarkdownState.data : null;
 
   useEffect(() => {
     markdownAbortRef.current?.abort();
@@ -83,18 +93,28 @@ export function SpecInspector({
   const exportMarkdown = () => {
     markdownAbortRef.current?.abort();
     const controller = new AbortController();
+    const requestRootId = node.node_id;
+    const requestScope = markdownScope;
     markdownAbortRef.current = controller;
     setMarkdownCopied(false);
-    setMarkdownState({ kind: "loading" });
+    setMarkdownState({
+      kind: "loading",
+      rootId: requestRootId,
+      scope: requestScope,
+    });
 
     void fetchSpecMarkdownExport({
-      rootId: node.node_id,
-      scope: markdownScope,
+      rootId: requestRootId,
+      scope: requestScope,
       signal: controller.signal,
     })
       .then((result) => {
         if (markdownAbortRef.current === controller) {
-          setMarkdownState(result);
+          setMarkdownState({
+            ...result,
+            rootId: requestRootId,
+            scope: requestScope,
+          });
         }
       })
       .catch((error: unknown) => {
@@ -104,6 +124,8 @@ export function SpecInspector({
             kind: "network-error",
             message: error instanceof Error ? error.message : "Network error",
             error,
+            rootId: requestRootId,
+            scope: requestScope,
           });
         }
       })
@@ -189,7 +211,7 @@ export function SpecInspector({
         </dl>
 
         <MarkdownExportSection
-          state={markdownState}
+          state={activeMarkdownState}
           scope={markdownScope}
           copied={markdownCopied}
           onScopeChange={setMarkdownScope}
