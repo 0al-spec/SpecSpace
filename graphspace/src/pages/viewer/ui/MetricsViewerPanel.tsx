@@ -17,6 +17,7 @@ type Props = {
   contextFilter?: MetricsViewerContextFilter | null;
   onSpecIdClick?: (nodeId: string) => void;
   onClearContextFilter?: () => void;
+  onAddMetricToAgentContext?: (entry: MetricsIndexEntry) => void;
 };
 
 function errorDetail(state: Exclude<UseMetricsIndexState, { kind: "ok" | "idle" | "loading" }>): string {
@@ -38,6 +39,7 @@ export function MetricsViewerPanel({
   contextFilter = null,
   onSpecIdClick,
   onClearContextFilter,
+  onAddMetricToAgentContext,
 }: Props) {
   const [filters, setFilters] = useState<MetricsViewerFilters>({
     category: "",
@@ -156,6 +158,7 @@ export function MetricsViewerPanel({
               entry={entry}
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
+              onAddMetricToAgentContext={onAddMetricToAgentContext}
             />
           ))
         )}
@@ -228,10 +231,12 @@ function MetricsRow({
   entry,
   resolveSpecRef,
   onSpecIdClick,
+  onAddMetricToAgentContext,
 }: {
   entry: MetricsIndexEntry;
   resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
+  onAddMetricToAgentContext?: (entry: MetricsIndexEntry) => void;
 }) {
   const secondary = [
     entry.secondary_status,
@@ -283,6 +288,14 @@ function MetricsRow({
         )}
       </div>
       <div className={styles.path}>source · {entry.source_kind}</div>
+      <button
+        type="button"
+        className={styles.contextAction}
+        onClick={() => onAddMetricToAgentContext?.(entry)}
+        disabled={!onAddMetricToAgentContext}
+      >
+        Add to Agent Context
+      </button>
     </article>
   );
 }

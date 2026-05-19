@@ -37,11 +37,23 @@ export type AgentContextProposalItem = {
   affected_spec_ids: string[];
 };
 
+export type AgentContextMetricItem = {
+  kind: "metric";
+  metric_key: string;
+  item_id: string;
+  title: string;
+  category: string;
+  status: string;
+  source_kind: string;
+  reference_texts: string[];
+};
+
 export type AgentContextItem =
   | AgentContextSpecNodeItem
   | AgentContextSpecEdgeItem
   | AgentContextSpecGapItem
-  | AgentContextProposalItem;
+  | AgentContextProposalItem
+  | AgentContextMetricItem;
 
 export type AgentContextDraft = {
   context_set_id: string;
@@ -145,9 +157,37 @@ export function createProposalContextItem(
   };
 }
 
+export type MetricContextSource = {
+  metric_key: string;
+  item_id: string;
+  title: string;
+  category: string;
+  status: string;
+  source_kind: string;
+  reference_texts: readonly string[];
+};
+
+export function createMetricContextItem(
+  metric: MetricContextSource,
+): AgentContextMetricItem {
+  return {
+    kind: "metric",
+    metric_key: metric.metric_key,
+    item_id: metric.item_id,
+    title: metric.title,
+    category: metric.category,
+    status: metric.status,
+    source_kind: metric.source_kind,
+    reference_texts: [...metric.reference_texts],
+  };
+}
+
 export function agentContextItemKey(item: AgentContextItem): string {
   if (item.kind === "proposal") {
     return `${item.kind}:${item.proposal_key}`;
+  }
+  if (item.kind === "metric") {
+    return `${item.kind}:${item.metric_key}`;
   }
   if (item.kind === "spec_edge") {
     return `${item.kind}:${item.edge_id}`;
@@ -197,7 +237,9 @@ export function serializeAgentContextSet(draft: AgentContextDraft): AgentContext
     items: draft.items.map((item) =>
       item.kind === "proposal"
         ? { ...item, affected_spec_ids: [...item.affected_spec_ids] }
-        : { ...item },
+        : item.kind === "metric"
+          ? { ...item, reference_texts: [...item.reference_texts] }
+          : { ...item },
     ),
   };
 }

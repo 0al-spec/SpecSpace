@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T22` — Contextual Proposal/Metrics filtering from canvas overlays
+**Current Task:** `CTXB-P13-T23` — Add Metrics entries to Agent Context
 
 ## Recently Archived
+- `CTXB-P13-T22` — Contextual Proposal/Metrics filtering from canvas overlays (PASS, 2026-05-19)
 - `CTXB-P13-T21` — Proposal and metric overlays on graph nodes and edges (PASS, 2026-05-19)
 - `CTXB-P13-T20` — Node moving and layout persistence (PASS, 2026-05-18)
 - `CTXB-P13-T19` — Edge inspector for selected SpecGraph edges (PASS, 2026-05-18)
@@ -68,13 +69,13 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T22` — Contextual Proposal/Metrics filtering from canvas overlays.
-- Rationale: Canvas overlays now surface proposal and metric counts directly on graph nodes and edges. The next parity gap is making those overlays navigational: clicking a badge should open the relevant utility panel already narrowed to the clicked graph context, without changing ordinary Sidebar panel behavior.
+- `CTXB-P13-T23` — Add Metrics entries to Agent Context.
+- Rationale: Canvas metric overlays now navigate to scoped Metrics Viewer entries, but those entries cannot yet be captured for the Agent Workbench. Metrics should be first-class context items alongside specs, edges, gaps, and proposals so analysis can start from quality signals.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`.
-- Current: `CTXB-P13-T22` contextual Proposal/Metrics filtering from canvas overlays.
-- Next: select the next SpecSpace parity follow-up after contextual overlay navigation review.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`.
+- Current: `CTXB-P13-T23` metric entries as Agent Context items.
+- Next: select the next SpecSpace parity follow-up after metric context review.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.

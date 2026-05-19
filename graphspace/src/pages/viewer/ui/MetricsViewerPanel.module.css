@@ -260,6 +260,30 @@
   overflow-wrap: anywhere;
 }
 
+.contextAction {
+  height: 28px;
+  margin-top: var(--gs-space-4);
+  padding: 0 var(--gs-space-4);
+  border: 1px solid var(--gs-rule-mid);
+  border-radius: 0;
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.contextAction:hover {
+  border-color: var(--gs-accent);
+  color: var(--gs-accent);
+}
+
+.contextAction:disabled {
+  color: var(--gs-muted-2);
+  cursor: not-allowed;
+}
+
 .statusBox {
   display: grid;
   gap: var(--gs-space-3);
