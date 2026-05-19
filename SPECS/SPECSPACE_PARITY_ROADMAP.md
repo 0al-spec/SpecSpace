@@ -1,7 +1,7 @@
 # SpecSpace Parity Roadmap
 
 Status: active planning
-Updated: 2026-05-17
+Updated: 2026-05-19
 
 ## Purpose
 
@@ -178,4 +178,5 @@ Target:
 17. `CTXB-P13-T21` — Proposal and metric overlays on graph nodes and edges. ✅
 18. `CTXB-P13-T22` — Contextual Proposal/Metrics filtering from canvas overlays. ✅
 19. `CTXB-P13-T23` — Add Metrics entries to Agent Context. ✅
-20. `CTXB-P13-T24` — Start Agent Conversation from Metrics entries.
+20. `CTXB-P13-T24` — Start Agent Conversation from Metrics entries. ✅
+21. `CTXB-P13-T25` — Seed Agent Conversation prompts from selected artifacts.

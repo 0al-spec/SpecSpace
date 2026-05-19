@@ -1901,7 +1901,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Serialized context includes metric id, title, category, status, source kind, and references.
   - Agent Context and Agent Conversation render metric items without assuming every non-spec item is a proposal.
 
-### CTXB-P13-T24 — Start Agent Conversation from Metrics entries — INPROGRESS
+### ✅ CTXB-P13-T24 — Start Agent Conversation from Metrics entries — DONE (PASS, 2026-05-19)
 - **Description:** Add a direct Metrics Viewer action that seeds Agent Context with the selected metric and opens Agent Conversation, matching the existing proposal-to-conversation workflow.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T23, CTXB-P13-T12
@@ -1912,6 +1912,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Starting from a metric adds that metric to Agent Context before opening Agent Conversation.
   - Existing `Add to Agent Context` behavior remains available.
   - The action is optional for the panel and does not break Metrics Viewer in error/loading states.
+
+### CTXB-P13-T25 — Seed Agent Conversation prompts from selected artifacts — INPROGRESS
+- **Description:** When a user starts Agent Conversation from Proposal Viewer or Metrics Viewer, prefill the composer with a source-specific prompt that names the selected artifact and points the agent toward the next graph action.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T24, CTXB-P13-T15, CTXB-P13-T12
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** Agent conversation prompt seed model, Proposal/Metrics start-action wiring, validation report
+- **Acceptance Criteria:**
+  - Starting from a proposal opens Agent Conversation with a proposal-specific prompt seed.
+  - Starting from a metric opens Agent Conversation with a metric-specific prompt seed.
+  - Manual Agent Conversation opens keep the generic default prompt.
+  - Prompt seed wiring does not overwrite an already active conversation turn.
+  - Prompt seed generation has focused unit coverage.
 
 ## Dependency Summary
 

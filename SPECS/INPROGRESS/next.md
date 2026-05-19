@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T24` — Start Agent Conversation from Metrics entries
+**Current Task:** `CTXB-P13-T25` — Seed Agent Conversation prompts from selected artifacts
 
 ## Recently Archived
+- `CTXB-P13-T24` — Start Agent Conversation from Metrics entries (PASS, 2026-05-19)
 - `CTXB-P13-T23` — Add Metrics entries to Agent Context (PASS, 2026-05-19)
 - `CTXB-P13-T22` — Contextual Proposal/Metrics filtering from canvas overlays (PASS, 2026-05-19)
 - `CTXB-P13-T21` — Proposal and metric overlays on graph nodes and edges (PASS, 2026-05-19)
@@ -70,13 +71,13 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T24` — Start Agent Conversation from Metrics entries.
-- Rationale: Metrics can now be captured as Agent Context items, but the quickest product loop should mirror Proposal Viewer: pick a metric signal and immediately start an Agent Conversation seeded with that metric context.
+- `CTXB-P13-T25` — Seed Agent Conversation prompts from selected artifacts.
+- Rationale: Proposal and Metrics entries can now open Agent Conversation, but both currently land on the generic composer text. The next parity slice should make those entry points artifact-aware so the agent starts from the selected proposal or metric signal.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`.
-- Current: `CTXB-P13-T24` metrics-to-conversation entry point.
-- Next: select the next SpecSpace parity follow-up after metric conversation start review.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`.
+- Current: `CTXB-P13-T25` artifact-aware Agent Conversation prompt seed.
+- Next: select the next SpecSpace parity follow-up after prompt seed review.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.

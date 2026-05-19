@@ -25,6 +25,13 @@ export {
   type SpecNodeContextSource,
 } from "./model/context";
 export {
+  createMetricConversationPromptSeed,
+  createProposalConversationPromptSeed,
+  type AgentConversationPromptSeed,
+  type MetricConversationPromptSource,
+  type ProposalConversationPromptSource,
+} from "./model/conversation-prompt";
+export {
   createAgentRuntimeProjection,
   projectAgentRuntimeEvent,
   projectAgentRuntimeEvents,
