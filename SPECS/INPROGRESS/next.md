@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T30` — Add SpecSpace v1 Spec Markdown export endpoint
+**Current Task:** `CTXB-P13-T31` — Add Spec Markdown export action to Spec Inspector
 
 ## Recently Archived
+- `CTXB-P13-T30` — Add SpecSpace v1 Spec Markdown export endpoint (PASS, 2026-05-19)
 - `CTXB-P13-T29` — Plan Spec Markdown export and Hyperprompt compile boundary (PASS, 2026-05-19)
 - `CTXB-P13-T28` — Add canvas layout presets (PASS, 2026-05-19)
 - `CTXB-P13-B1` — Fix mobile Proposal Viewer list scroll trap (PASS, 2026-05-19)
@@ -77,13 +78,13 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T30` — Add SpecSpace v1 Spec Markdown export endpoint.
-- Rationale: ContextBuilder's compile/export value should return to SpecSpace as a readonly SpecGraph Markdown export first, with Hyperprompt compile kept behind an explicit capability boundary.
+- `CTXB-P13-T31` — Add Spec Markdown export action to Spec Inspector.
+- Rationale: the backend now exposes readonly SpecGraph Markdown export through `/api/v1/spec-markdown`; the next parity slice should make it usable from the selected spec UI.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`.
-- Current: `CTXB-P13-T30` SpecSpace v1 Spec Markdown export endpoint.
-- Next: `CTXB-P13-T31` Spec Markdown export action to Spec Inspector, then `CTXB-P13-T32` optional Hyperprompt compile capability diagnostics.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`.
+- Current: `CTXB-P13-T31` Spec Markdown export action to Spec Inspector.
+- Next: `CTXB-P13-T32` optional Hyperprompt compile capability diagnostics.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.

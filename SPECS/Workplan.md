@@ -1978,7 +1978,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Follow-up tasks split backend export, frontend UI, and compile capability work.
   - Existing ContextBuilder implementation is referenced as behavior source, not copied as architecture.
 
-### CTXB-P13-T30 — Add SpecSpace v1 Spec Markdown export endpoint — Not Started
+### ✅ CTXB-P13-T30 — Add SpecSpace v1 Spec Markdown export endpoint — DONE (PASS, 2026-05-19)
 - **Description:** Add a versioned readonly API endpoint that exports the selected SpecGraph subtree to Markdown using provider-backed SpecGraph nodes.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T29

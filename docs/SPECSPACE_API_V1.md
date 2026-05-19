@@ -139,10 +139,6 @@ Source status values:
 
 ## Endpoints
 
-Planned readonly export endpoints are documented separately until they are
-implemented: see
-[SPECSPACE_MARKDOWN_EXPORT_HYPERPROMPT_PLAN.md](SPECSPACE_MARKDOWN_EXPORT_HYPERPROMPT_PLAN.md).
-
 ### `GET /api/v1/spec-graph`
 
 Returns the existing SpecGraph graph contract with additive v1 metadata:
@@ -171,6 +167,49 @@ Returns raw node detail:
 ```
 
 Unknown node ids return `404`.
+
+### `GET /api/v1/spec-markdown`
+
+Exports a readonly SpecGraph subtree as Markdown. This endpoint is SpecSpace's
+versioned replacement for the useful SpecGraph Markdown part of the legacy
+`/api/spec-compile` route; it does not invoke Hyperprompt and does not use
+legacy conversation export state.
+
+Query parameters:
+
+- `root`: required spec node id.
+- `depth`: optional heading depth clamp, integer `1..6`, default `6`.
+- `objective`: optional boolean, default `true`.
+- `acceptance`: optional boolean, default `true`.
+- `deps`: optional boolean, default `true`.
+- `prompt`: optional boolean, default `false`.
+
+Response:
+
+```json
+{
+  "api_version": "v1",
+  "root_id": "SG-SPEC-0001",
+  "markdown": "# SG-SPEC-0001 ...",
+  "manifest": {
+    "root_id": "SG-SPEC-0001",
+    "node_count": 12,
+    "max_depth_reached": 4,
+    "nodes_included": ["SG-SPEC-0001"],
+    "cycles_skipped": [],
+    "missing_skipped": [],
+    "load_errors": []
+  },
+  "source": {
+    "provider": "file",
+    "read_only": true
+  },
+  "download_filename": "SG-SPEC-0001.md"
+}
+```
+
+Invalid query options return `400`, unknown root ids return `404`, and unreadable
+provider sources return `503`.
 
 ### `GET /api/v1/runs/recent`
 
@@ -336,7 +375,8 @@ Returns legacy capability booleans under `capabilities`, plus provider metadata:
 {
   "api_version": "v1",
   "capabilities": {
-    "spec_graph": true
+    "spec_graph": true,
+    "spec_markdown_export": true
   },
   "provider": {
     "kind": "file",

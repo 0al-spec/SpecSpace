@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 
 import yaml  # type: ignore[import-untyped]
 
-from viewer import capabilities_api, metrics, proposals, specgraph, specgraph_surfaces
+from viewer import capabilities_api, metrics, proposals, spec_compile, specgraph, specgraph_surfaces
 from viewer.specpm import _build_specpm_lifecycle
 
 SPECSPACE_API_VERSION = "v1"
@@ -66,6 +66,8 @@ class SpecSpaceProvider(Protocol):
     def read_spec_graph(self) -> tuple[int, dict[str, Any]]: ...
 
     def read_spec_node(self, node_id: str) -> tuple[int, dict[str, Any]]: ...
+
+    def read_spec_markdown(self, root_id: str, options: spec_compile.CompileOptions) -> tuple[int, dict[str, Any]]: ...
 
     def read_recent_runs(self, *, limit: int, since_iso: str | None) -> tuple[int, dict[str, Any]]: ...
 
@@ -153,6 +155,61 @@ def specpm_registry_source(registry_url: Any) -> dict[str, Any]:
         status="configured",
         detail="Read-only SpecPM registry metadata source.",
     ).to_json()
+
+
+def _download_filename(root_id: str) -> str:
+    stem = re.sub(r"[^A-Za-z0-9._-]+", "_", root_id).strip("._-")
+    return f"{stem or 'spec'}.md"
+
+
+def build_spec_markdown_response(
+    *,
+    nodes: list[dict[str, Any]],
+    load_errors: list[dict[str, Any]],
+    root_id: str,
+    options: spec_compile.CompileOptions,
+    source: dict[str, Any],
+) -> tuple[HTTPStatus, dict[str, Any]]:
+    nodes_by_id = spec_compile.index_nodes(nodes)
+    invalid_node_count = len(nodes) - len(nodes_by_id)
+    if not nodes_by_id and (load_errors or invalid_node_count):
+        invalid_nodes = [
+            {
+                "file_name": raw.get("_file_name", "unknown.yaml"),
+                "message": "Missing or invalid 'id' field.",
+            }
+            for raw in nodes
+            if not isinstance(raw.get("id"), str) or not raw.get("id", "").strip()
+        ]
+        return HTTPStatus.UNPROCESSABLE_ENTITY, {
+            "api_version": SPECSPACE_API_VERSION,
+            "error": "SpecGraph provider data contains no exportable spec nodes.",
+            "reason": "invalid_provider_data",
+            "root_id": root_id,
+            "load_errors": load_errors,
+            "invalid_nodes": invalid_nodes,
+            "source": source,
+        }
+    if root_id not in nodes_by_id:
+        return HTTPStatus.NOT_FOUND, {
+            "api_version": SPECSPACE_API_VERSION,
+            "error": f"Spec node '{root_id}' not found",
+            "root_id": root_id,
+            "source": source,
+        }
+
+    result = spec_compile.compile_spec_tree(nodes_by_id, root_id, options)
+    return HTTPStatus.OK, {
+        "api_version": SPECSPACE_API_VERSION,
+        "root_id": root_id,
+        "markdown": result.markdown,
+        "manifest": {
+            **result.manifest(),
+            "load_errors": load_errors,
+        },
+        "source": source,
+        "download_filename": _download_filename(root_id),
+    }
 
 
 @dataclass(frozen=True)
@@ -249,6 +306,24 @@ class FileSpecGraphProvider:
         if detail is None:
             return HTTPStatus.NOT_FOUND, {"error": f"Spec node '{node_id}' not found"}
         return HTTPStatus.OK, {"api_version": SPECSPACE_API_VERSION, "node_id": node_id, "data": detail}
+
+    def read_spec_markdown(self, root_id: str, options: spec_compile.CompileOptions) -> tuple[HTTPStatus, dict[str, Any]]:
+        unavailable = self._spec_nodes_unavailable()
+        if unavailable is not None:
+            return unavailable
+        assert self.spec_nodes_dir is not None
+        nodes, load_errors = specgraph.load_spec_nodes(self.spec_nodes_dir)
+        return build_spec_markdown_response(
+            nodes=nodes,
+            load_errors=load_errors,
+            root_id=root_id,
+            options=options,
+            source={
+                "provider": "file",
+                "read_only": True,
+                "spec_nodes": str(self.spec_nodes_dir),
+            },
+        )
 
     def read_recent_runs(self, *, limit: int, since_iso: str | None) -> tuple[HTTPStatus, dict[str, Any]]:
         unavailable = self._runs_unavailable()
@@ -527,6 +602,7 @@ class HttpSpecGraphProvider:
         capabilities.update(
             {
                 "spec_graph": bool(self._paths_for(manifest, prefix="specs/nodes/", suffix=".yaml")),
+                "spec_markdown_export": bool(self._paths_for(manifest, prefix="specs/nodes/", suffix=".yaml")),
                 "spec_compile": False,
                 "graph_dashboard": "runs/graph_dashboard.json" in run_paths,
                 "spec_overlay": any(
@@ -631,6 +707,27 @@ class HttpSpecGraphProvider:
         if detail is None:
             return HTTPStatus.NOT_FOUND, {"error": f"Spec node '{node_id}' not found"}
         return HTTPStatus.OK, {"api_version": SPECSPACE_API_VERSION, "node_id": node_id, "data": detail}
+
+    def read_spec_markdown(self, root_id: str, options: spec_compile.CompileOptions) -> tuple[int, dict[str, Any]]:
+        manifest, manifest_error = self._read_manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+        nodes, load_errors = self._load_spec_nodes(manifest)
+        return build_spec_markdown_response(
+            nodes=nodes,
+            load_errors=load_errors,
+            root_id=root_id,
+            options=options,
+            source={
+                "provider": "http",
+                "read_only": True,
+                "artifact_base_url": self.normalized_base_url,
+                "manifest": self.manifest_url,
+                "generated_at": manifest.get("generated_at"),
+                "git": manifest.get("git") if isinstance(manifest.get("git"), dict) else None,
+            },
+        )
 
     def read_recent_runs(self, *, limit: int, since_iso: str | None) -> tuple[int, dict[str, Any]]:
         manifest, manifest_error = self._read_manifest()

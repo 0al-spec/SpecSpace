@@ -315,6 +315,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_runs_watch = specspace_v1_api.handle_v1_runs_watch
     handle_v1_spec_activity = specspace_v1_api.handle_v1_spec_activity
     handle_v1_spec_graph = specspace_v1_api.handle_v1_spec_graph
+    handle_v1_spec_markdown = specspace_v1_api.handle_v1_spec_markdown
     handle_v1_spec_node = specspace_v1_api.handle_v1_spec_node
     handle_v1_specpm_registry = specspace_v1_api.handle_v1_specpm_registry
     handle_v1_specpm_registry_package = specspace_v1_api.handle_v1_specpm_registry_package

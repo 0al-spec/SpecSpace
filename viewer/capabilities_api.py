@@ -23,6 +23,7 @@ class CapabilitiesHandler(JsonResponseHandler, Protocol):
 def build_capabilities(handler: CapabilitiesHandler) -> dict[str, bool]:
     return {
         "spec_graph": handler.server.spec_dir is not None,
+        "spec_markdown_export": handler.server.spec_dir is not None,
         "spec_compile": handler.server.spec_dir is not None,
         "compile": handler.server.compile_available,
         "graph_dashboard": handler._graph_dashboard_path() is not None,
