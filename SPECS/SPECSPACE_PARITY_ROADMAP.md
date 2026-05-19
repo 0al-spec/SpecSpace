@@ -180,7 +180,10 @@ Target:
 19. `CTXB-P13-T23` — Add Metrics entries to Agent Context. ✅
 20. `CTXB-P13-T24` — Start Agent Conversation from Metrics entries. ✅
 21. `CTXB-P13-T25` — Seed Agent Conversation prompts from selected artifacts. ✅
-22. `CTXB-P13-T26` — Focus selected edge endpoints on canvas.
-23. `CTXB-P13-T27` — Add Recent timeline filters.
-24. `CTXB-P13-T28` — Add canvas layout presets.
-25. `CTXB-P13-T29` — Plan Spec Markdown export and Hyperprompt compile boundary.
+22. `CTXB-P13-T26` — Focus selected edge endpoints on canvas. ✅
+23. `CTXB-P13-T27` — Add Recent timeline filters. ✅
+24. `CTXB-P13-T28` — Add canvas layout presets. ✅
+25. `CTXB-P13-T29` — Plan Spec Markdown export and Hyperprompt compile boundary. ✅
+26. `CTXB-P13-T30` — Add SpecSpace v1 Spec Markdown export endpoint.
+27. `CTXB-P13-T31` — Add Spec Markdown export action to Spec Inspector.
+28. `CTXB-P13-T32` — Add optional Hyperprompt compile capability diagnostics.

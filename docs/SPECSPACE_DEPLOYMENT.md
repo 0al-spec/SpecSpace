@@ -71,10 +71,15 @@ requires `--dialog-dir`; it is not part of the SpecSpace product contract.
 ## Out Of Scope
 
 SpecSpace deployment does not include conversation authoring, checkpoint
-editing, branch/merge/delete flows, or Hyperprompt compile authoring. Those are
-legacy ContextBuilder workflows exposed through `viewer/app` and legacy routes
-such as `/api/file`, `/api/conversation`, `/api/checkpoint`, and
+editing, branch/merge/delete flows, or legacy Hyperprompt compile authoring.
+Those are legacy ContextBuilder workflows exposed through `viewer/app` and
+legacy routes such as `/api/file`, `/api/conversation`, `/api/checkpoint`, and
 `/api/compile`.
+
+Readonly SpecGraph Markdown export is compatible with this deployment boundary
+when exposed through `/api/v1/*`. Hyperprompt compilation is not part of the
+default deployment contract and should be enabled only by an explicit capability
+with a configured compiler binary and scratch workspace.
 
 The SpecSpace UI should consume `/api/v1/*` for runtime data. Non-versioned
 legacy routes may remain in the backend for compatibility, but they are not
