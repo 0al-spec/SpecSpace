@@ -3,12 +3,14 @@ import {
   addAgentContextItem,
   agentContextItemKey,
   createAgentContextDraft,
+  createMetricContextItem,
   createSpecEdgeContextItem,
   createSpecGapContextItem,
   createProposalContextItem,
   createSpecNodeContextItem,
   removeAgentContextItem,
   serializeAgentContextSet,
+  type MetricContextSource,
   type ProposalContextSource,
   type SpecEdgeContextSource,
   type SpecNodeContextSource,
@@ -33,6 +35,19 @@ const proposal = (
   status: "Draft proposal",
   proposal_path: "docs/proposals/0042_agent_context.md",
   affected_spec_ids: ["SG-SPEC-0001"],
+  ...overrides,
+});
+
+const metric = (
+  overrides: Partial<MetricContextSource> = {},
+): MetricContextSource => ({
+  metric_key: "metric_score::specification_quality",
+  item_id: "specification_quality",
+  title: "Specification quality",
+  category: "metric_score",
+  status: "healthy",
+  source_kind: "graph_dashboard",
+  reference_texts: ["SG-SPEC-0001"],
   ...overrides,
 });
 
@@ -151,6 +166,38 @@ describe("agent context draft", () => {
     expect(withProposal.items[0]).toMatchObject({
       kind: "proposal",
       affected_spec_ids: ["SG-SPEC-0001"],
+    });
+  });
+
+  it("serializes metric context items by stable metric key", () => {
+    const draft = createAgentContextDraft("2026-05-17T16:00:00Z");
+    const item = createMetricContextItem(metric());
+    const withMetric = addAgentContextItem(draft, item);
+    const serialized = serializeAgentContextSet(withMetric);
+
+    expect(agentContextItemKey(item)).toBe("metric:metric_score::specification_quality");
+    expect(serialized.items).toEqual([
+      {
+        kind: "metric",
+        metric_key: "metric_score::specification_quality",
+        item_id: "specification_quality",
+        title: "Specification quality",
+        category: "metric_score",
+        status: "healthy",
+        source_kind: "graph_dashboard",
+        reference_texts: ["SG-SPEC-0001"],
+      },
+    ]);
+
+    const serializedMetric = serialized.items[0];
+    if (serializedMetric.kind !== "metric") {
+      throw new Error("expected serialized metric item");
+    }
+    serializedMetric.reference_texts.push("SG-SPEC-0002");
+
+    expect(withMetric.items[0]).toMatchObject({
+      kind: "metric",
+      reference_texts: ["SG-SPEC-0001"],
     });
   });
 

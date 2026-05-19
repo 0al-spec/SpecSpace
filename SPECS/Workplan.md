@@ -1876,7 +1876,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Clicking an overlay opens or filters the relevant Proposal Viewer or Metrics surface.
   - Overlay rendering is bounded and does not make node cards visually unstable.
 
-### CTXB-P13-T22 — Contextual Proposal/Metrics filtering from canvas overlays — INPROGRESS
+### ✅ CTXB-P13-T22 — Contextual Proposal/Metrics filtering from canvas overlays — DONE (PASS, 2026-05-19)
 - **Description:** Turn proposal and metric canvas badges into contextual panel entry points: node proposal badges filter Proposal Viewer by affected spec, node metric badges filter Metrics Viewer by node reference, and edge metric badges filter Metrics Viewer by edge reference.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T21
@@ -1888,6 +1888,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Clicking an edge metric overlay opens Metrics Viewer filtered to metrics that reference that edge exactly.
   - Context filters are visibly labeled and can be cleared manually.
   - Opening Proposal Viewer or Metrics Viewer from the Sidebar remains unfiltered.
+
+### CTXB-P13-T23 — Add Metrics entries to Agent Context — INPROGRESS
+- **Description:** Let users add Metrics Viewer entries to the Agent Workbench context draft so metric signals can seed agent analysis and later proposal work.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T22, CTXB-P13-T8
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** metric context item contract, Metrics Viewer add action, Agent Context row rendering, Agent Conversation token rendering
+- **Acceptance Criteria:**
+  - Metrics Viewer rows expose an `Add to Agent Context` action.
+  - Agent Context deduplicates metric items by stable `metric_key`.
+  - Serialized context includes metric id, title, category, status, source kind, and references.
+  - Agent Context and Agent Conversation render metric items without assuming every non-spec item is a proposal.
 
 ## Dependency Summary
 

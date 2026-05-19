@@ -3,6 +3,7 @@ import {
   addAgentContextItem,
   clearAgentContextItems,
   createAgentContextDraft,
+  createMetricContextItem,
   createSpecEdgeContextItem,
   createSpecGapContextItem,
   createProposalContextItem,
@@ -20,6 +21,7 @@ import {
   filterBySpecQuery,
 } from "@/features/search-by-spec";
 import { useRunsWatchVersion } from "@/shared/api";
+import type { MetricsIndexEntry } from "@/shared/metrics-viewer-contract";
 import type { ProposalIndexEntry } from "@/shared/proposal-viewer-contract";
 import { PanelBtn, PanelBtnRow } from "@/shared/ui/panel-btn";
 import { AgentConversationPanel } from "@/widgets/agent-conversation-panel";
@@ -377,6 +379,11 @@ export function ViewerPage() {
       addAgentContextItem(draft, createProposalContextItem(entry)),
     );
   };
+  const addMetricToAgentContext = (entry: MetricsIndexEntry) => {
+    setAgentContextDraft((draft) =>
+      addAgentContextItem(draft, createMetricContextItem(entry)),
+    );
+  };
   const startConversationFromProposal = (entry: ProposalIndexEntry) => {
     addProposalToAgentContext(entry);
     setActiveUtilityPanel("agent-conversation");
@@ -667,6 +674,7 @@ export function ViewerPage() {
               contextFilter={metricsContextFilter}
               onSpecIdClick={selectSpecNodeId}
               onClearContextFilter={() => setMetricsContextFilter(null)}
+              onAddMetricToAgentContext={addMetricToAgentContext}
             />
           ) : null}
 

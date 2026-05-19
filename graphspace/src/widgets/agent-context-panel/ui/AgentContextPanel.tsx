@@ -61,6 +61,10 @@ export function AgentContextPanel({
           label="Gaps"
           value={draft.items.filter((item) => item.kind === "spec_gap").length}
         />
+        <Metric
+          label="Metrics"
+          value={draft.items.filter((item) => item.kind === "metric").length}
+        />
       </div>
 
       <div className={styles.actions}>
@@ -234,6 +238,8 @@ function ContextItemRow({
             resolveSpecRef={resolveSpecRef}
             variant="bare"
           />
+        ) : item.kind === "metric" ? (
+          <span>{item.item_id}</span>
         ) : (
           <span>{item.proposal_id}</span>
         )}
@@ -243,7 +249,7 @@ function ContextItemRow({
           ? `${item.source_title ?? item.source_id} → ${item.target_title ?? item.target_id}`
           : item.kind === "spec_gap"
             ? `${formatGapKind(item.gap_kind)} gap · ${item.title}`
-          : item.title}
+            : item.title}
       </p>
       <div className={styles.meta}>
         <span>{item.kind === "spec_gap" ? item.gap_kind : item.status}</span>
@@ -254,9 +260,25 @@ function ContextItemRow({
               ? item.edge_kind
               : item.kind === "spec_gap"
                 ? `${item.gap_count} ${item.gap_count === 1 ? "gap" : "gaps"}`
-              : item.proposal_path ?? "proposal artifact"}
+                : item.kind === "metric"
+                  ? item.category
+                  : item.proposal_path ?? "proposal artifact"}
         </span>
+        {item.kind === "metric" ? <span>{item.source_kind}</span> : null}
       </div>
+      {item.kind === "metric" && item.reference_texts.length > 0 ? (
+        <div className={styles.meta}>
+          {item.reference_texts.slice(0, 4).map((reference) => (
+            <span key={reference}>
+              <SpecIdText
+                text={reference}
+                resolveSpecRef={resolveSpecRef}
+                variant="bare"
+              />
+            </span>
+          ))}
+        </div>
+      ) : null}
       {item.kind === "proposal" && item.affected_spec_ids.length > 0 ? (
         <div className={styles.meta}>
           {item.affected_spec_ids.slice(0, 4).map((specId) => (
