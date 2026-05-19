@@ -1939,7 +1939,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Existing node focus behavior remains unchanged.
   - Focus helper has unit coverage for endpoint bounds and fallback cases.
 
-### CTXB-P13-T27 — Add Recent timeline filters — INPROGRESS
+### ✅ CTXB-P13-T27 — Add Recent timeline filters — DONE (PASS, 2026-05-19)
 - **Description:** Bring back ContextBuilder-style timeline filtering for recent activity by created/updated timestamps, with clear visible filter state in the Recent changes panel.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T22
@@ -1952,7 +1952,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The active timeline filter is visible and clearable.
   - Filter behavior has unit coverage against representative activity entries.
 
-### CTXB-P13-T28 — Add canvas layout presets — Not Started
+### CTXB-P13-T28 — Add canvas layout presets — INPROGRESS
 - **Description:** Add multiple SpecGraph layout presets while preserving the current Refinement Ladder Layout as a named, stable option.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T20

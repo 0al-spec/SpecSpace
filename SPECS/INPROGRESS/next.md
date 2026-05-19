@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T27` — Add Recent timeline filters
+**Current Task:** `CTXB-P13-T28` — Add canvas layout presets
 
 ## Recently Archived
+- `CTXB-P13-T27` — Add Recent timeline filters (PASS, 2026-05-19)
 - `CTXB-P13-T26` — Focus selected edge endpoints on canvas (PASS, 2026-05-19)
 - `CTXB-P13-T25` — Seed Agent Conversation prompts from selected artifacts (PASS, 2026-05-19)
 - `CTXB-P13-T24` — Start Agent Conversation from Metrics entries (PASS, 2026-05-19)
@@ -73,13 +74,13 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T27` — Add Recent timeline filters.
-- Rationale: Recent changes has search and tone filtering, but old ContextBuilder also let users slice activity by timeline. SpecSpace should expose event time, spec updated time, and spec created time without hiding entries whose graph metadata is missing.
+- `CTXB-P13-T28` — Add canvas layout presets.
+- Rationale: the current Refinement Ladder Layout is valuable enough to preserve by name, but parity with ContextBuilder requires users to switch between multiple graph layouts without losing manual node placement overrides.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`.
-- Current: `CTXB-P13-T27` Recent timeline filters.
-- Next: `CTXB-P13-T28` canvas layout presets, then `CTXB-P13-T29` Spec Markdown export and Hyperprompt compile boundary.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`.
+- Current: `CTXB-P13-T28` canvas layout presets.
+- Next: `CTXB-P13-T29` Spec Markdown export and Hyperprompt compile boundary.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.
