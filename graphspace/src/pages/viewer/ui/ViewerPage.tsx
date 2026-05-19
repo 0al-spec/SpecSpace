@@ -4,10 +4,13 @@ import {
   clearAgentContextItems,
   createAgentContextDraft,
   createMetricContextItem,
+  createMetricConversationPromptSeed,
   createSpecEdgeContextItem,
   createSpecGapContextItem,
   createProposalContextItem,
+  createProposalConversationPromptSeed,
   removeAgentContextItem,
+  type AgentConversationPromptSeed,
   type AgentContextSpecGapKind,
 } from "@/entities/agent-workbench";
 import type { SpecEdge } from "@/entities/spec-edge";
@@ -92,6 +95,8 @@ export function ViewerPage() {
   const [agentContextDraft, setAgentContextDraft] = useState(() =>
     createAgentContextDraft(new Date().toISOString()),
   );
+  const [agentConversationPromptSeed, setAgentConversationPromptSeed] =
+    useState<AgentConversationPromptSeed | null>(null);
   const agentConversationRuntime = useMemo(
     () => createMockAgentConversationRuntime({ id_prefix: "specspace-local" }),
     [],
@@ -334,9 +339,13 @@ export function ViewerPage() {
   const toggleUtilityPanel = (panel: ViewerUtilityPanelId) => {
     if (panel === "proposals") setProposalContextFilter(null);
     if (panel === "metrics") setMetricsContextFilter(null);
+    if (panel === "agent-conversation") setAgentConversationPromptSeed(null);
     setActiveUtilityPanel((current) => (current === panel ? null : panel));
   };
-  const closeUtilityPanel = () => setActiveUtilityPanel(null);
+  const closeUtilityPanel = () => {
+    setActiveUtilityPanel(null);
+    setAgentConversationPromptSeed(null);
+  };
   const addSelectedSpecToAgentContext = () => {
     if (!selectedGraphNode) return;
     setAgentContextDraft((draft) =>
@@ -386,10 +395,12 @@ export function ViewerPage() {
   };
   const startConversationFromProposal = (entry: ProposalIndexEntry) => {
     addProposalToAgentContext(entry);
+    setAgentConversationPromptSeed(createProposalConversationPromptSeed(entry));
     setActiveUtilityPanel("agent-conversation");
   };
   const startConversationFromMetric = (entry: MetricsIndexEntry) => {
     addMetricToAgentContext(entry);
+    setAgentConversationPromptSeed(createMetricConversationPromptSeed(entry));
     setActiveUtilityPanel("agent-conversation");
   };
   const utilityPanelDetails = (() => {
@@ -694,7 +705,10 @@ export function ViewerPage() {
               onAddSelectedGap={addSelectedGapToAgentContext}
               onRemoveItem={removeAgentContextItemByKey}
               onClear={clearAgentContext}
-              onOpenConversation={() => setActiveUtilityPanel("agent-conversation")}
+              onOpenConversation={() => {
+                setAgentConversationPromptSeed(null);
+                setActiveUtilityPanel("agent-conversation");
+              }}
             />
           ) : null}
 
@@ -702,6 +716,7 @@ export function ViewerPage() {
             <AgentConversationPanel
               runtime={agentConversationRuntime}
               draft={agentContextDraft}
+              promptSeed={agentConversationPromptSeed}
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={selectSpecNodeId}
             />

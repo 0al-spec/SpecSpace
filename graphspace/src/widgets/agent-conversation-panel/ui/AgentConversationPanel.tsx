@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   AssistantRuntimeProvider,
   ThreadPrimitive,
@@ -9,6 +9,7 @@ import {
   createAgentRuntimeProjection,
   projectAgentRuntimeEvent,
   serializeAgentContextSet,
+  type AgentConversationPromptSeed,
   type AgentContextDraft,
   type AgentContextItem,
   type AgentConversationRef,
@@ -25,13 +26,17 @@ type AgentConversationPanelStatus = "idle" | "starting" | "streaming" | "active"
 type Props = {
   runtime: AgentConversationRuntime;
   draft: AgentContextDraft;
+  promptSeed?: AgentConversationPromptSeed | null;
   resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 };
 
+const DEFAULT_PROMPT = "Review selected context and suggest the next proposal.";
+
 export function AgentConversationPanel({
   runtime,
   draft,
+  promptSeed = null,
   resolveSpecRef,
   onSpecIdClick,
 }: Props) {
@@ -40,7 +45,7 @@ export function AgentConversationPanel({
   const [projection, setProjection] = useState<AgentRuntimeProjection>(() =>
     createAgentRuntimeProjection(),
   );
-  const [prompt, setPrompt] = useState("Review selected context and suggest the next proposal.");
+  const [prompt, setPrompt] = useState(promptSeed?.prompt ?? DEFAULT_PROMPT);
   const [status, setStatus] = useState<AgentConversationPanelStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const isBusy = status === "starting" || status === "streaming";
@@ -54,6 +59,11 @@ export function AgentConversationPanel({
     [projection, isBusy],
   );
   const assistantUiRuntime = useExternalStoreRuntime(assistantUiStore);
+
+  useEffect(() => {
+    if (!promptSeed || conversation || isBusy) return;
+    setPrompt(promptSeed.prompt);
+  }, [conversation, isBusy, promptSeed]);
 
   const streamMessage = useCallback(
     async (ref: AgentConversationRef, text: string) => {
