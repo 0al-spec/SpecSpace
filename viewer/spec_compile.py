@@ -44,6 +44,9 @@ class CompileOptions:
     include_prompt: bool = False
     """Include the node's prompt field (verbose; off by default)."""
 
+    include_children: bool = True
+    """Include child specs that refine the selected root."""
+
 
 @dataclass
 class CompileResult:
@@ -338,8 +341,9 @@ def compile_spec_tree(
         children_unordered = parent_to_children.get(node_id, [])
         children = _ordered_children(node_id, raw, children_unordered)
 
-        for i, child_id in enumerate(children, start=1):
-            _dfs(child_id, depth + 1, num_stack + [i])
+        if options.include_children:
+            for i, child_id in enumerate(children, start=1):
+                _dfs(child_id, depth + 1, num_stack + [i])
 
     _dfs(root_id, 0, [])
 

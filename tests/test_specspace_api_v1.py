@@ -1044,11 +1044,44 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["root_id"], "SG-SPEC-0001")
         self.assertEqual(body["download_filename"], "SG-SPEC-0001.md")
         self.assertEqual(body["source"]["provider"], "file")
+        self.assertEqual(body["scope"], "subtree")
+        self.assertEqual(body["manifest"]["scope"], "subtree")
         self.assertEqual(body["manifest"]["node_count"], 2)
         self.assertEqual(body["manifest"]["nodes_included"], ["SG-SPEC-0001", "SG-SPEC-0002"])
         self.assertIn("# SG-SPEC-0001", body["markdown"])
         self.assertIn("## 1. SG-SPEC-0002", body["markdown"])
         self.assertIn("> Define the readonly export boundary.", body["markdown"])
+
+    def test_spec_markdown_v1_can_export_selected_node_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_yaml(
+                spec_dir / "SG-SPEC-0002.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-0002",
+                    "title": "Spec Markdown Child",
+                    "refines": ["SG-SPEC-0001"],
+                },
+            )
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/spec-markdown?root={quote('SG-SPEC-0001')}&scope=node",
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["scope"], "node")
+        self.assertEqual(body["manifest"]["scope"], "node")
+        self.assertEqual(body["manifest"]["node_count"], 1)
+        self.assertEqual(body["manifest"]["nodes_included"], ["SG-SPEC-0001"])
+        self.assertIn("# SG-SPEC-0001", body["markdown"])
+        self.assertNotIn("SG-SPEC-0002", body["markdown"])
 
     def test_spec_markdown_v1_rejects_invalid_depth(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1064,6 +1097,21 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 400)
         self.assertEqual(body["parameter"], "depth")
+
+    def test_spec_markdown_v1_rejects_invalid_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/spec-markdown?root=SG-SPEC-0001&scope=wide")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["parameter"], "scope")
 
     def test_spec_markdown_v1_reports_unknown_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

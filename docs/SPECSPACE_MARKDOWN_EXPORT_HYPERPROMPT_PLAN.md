@@ -39,7 +39,7 @@ architecture.
 The planned backend slice should add a v1 endpoint such as:
 
 ```text
-GET /api/v1/spec-markdown?root=SG-SPEC-0001&depth=6
+GET /api/v1/spec-markdown?root=SG-SPEC-0001&scope=subtree&depth=6
 ```
 
 The final name can change during implementation, but the contract should remain
@@ -51,9 +51,11 @@ The response should include:
 {
   "api_version": "v1",
   "root_id": "SG-SPEC-0001",
+  "scope": "subtree",
   "markdown": "# SG-SPEC-0001 ...",
   "manifest": {
     "root_id": "SG-SPEC-0001",
+    "scope": "subtree",
     "node_count": 12,
     "max_depth_reached": 4,
     "nodes_included": ["SG-SPEC-0001"],
