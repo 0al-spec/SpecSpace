@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ProposalIndexEntry } from "@/shared/proposal-viewer-contract";
-import { filterProposalEntries, sortedFilterOptions } from "./proposal-filters";
+import {
+  filterProposalEntries,
+  filterProposalEntriesByContext,
+  sortedFilterOptions,
+} from "./proposal-filters";
 
 const entry = (overrides: Partial<ProposalIndexEntry>): ProposalIndexEntry => ({
   proposal_key: "proposal::0001",
@@ -62,6 +66,31 @@ describe("filterProposalEntries", () => {
       runtimeState: "",
       specQuery: "",
     }).map((item) => item.proposal_id)).toEqual(["0001"]);
+  });
+});
+
+describe("filterProposalEntriesByContext", () => {
+  it("keeps only proposals that affect the selected canvas spec", () => {
+    const entries = [
+      entry({ proposal_id: "0001", affected_spec_ids: ["SG-SPEC-0001"] }),
+      entry({ proposal_id: "0002", affected_spec_ids: ["SG-SPEC-0002"] }),
+    ];
+
+    expect(filterProposalEntriesByContext(entries, {
+      kind: "spec",
+      specId: "SG-SPEC-0001",
+    }).map((item) => item.proposal_id)).toEqual(["0001"]);
+  });
+
+  it("does not fuzzy-match proposal context filters", () => {
+    const entries = [
+      entry({ proposal_id: "0001", affected_spec_ids: ["SG-SPEC-0001-extra"] }),
+    ];
+
+    expect(filterProposalEntriesByContext(entries, {
+      kind: "spec",
+      specId: "SG-SPEC-0001",
+    })).toEqual([]);
   });
 });
 

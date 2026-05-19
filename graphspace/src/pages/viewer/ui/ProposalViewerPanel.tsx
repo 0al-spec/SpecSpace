@@ -3,7 +3,9 @@ import type { ProposalIndexEntry } from "@/shared/proposal-viewer-contract";
 import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
 import {
   filterProposalEntries,
+  filterProposalEntriesByContext,
   sortedFilterOptions,
+  type ProposalViewerContextFilter,
   type ProposalViewerFilters,
 } from "../model/proposal-filters";
 import type { UseProposalIndexState } from "../model/use-proposal-index";
@@ -12,7 +14,9 @@ import styles from "./ProposalViewerPanel.module.css";
 type Props = {
   state: UseProposalIndexState;
   resolveSpecRef?: SpecRefResolver;
+  contextFilter?: ProposalViewerContextFilter | null;
   onSpecIdClick?: (nodeId: string) => void;
+  onClearContextFilter?: () => void;
   onAddProposalToAgentContext?: (entry: ProposalIndexEntry) => void;
   onStartConversationFromProposal?: (entry: ProposalIndexEntry) => void;
 };
@@ -33,7 +37,9 @@ function errorDetail(state: Exclude<UseProposalIndexState, { kind: "ok" | "idle"
 export function ProposalViewerPanel({
   state,
   resolveSpecRef,
+  contextFilter = null,
   onSpecIdClick,
+  onClearContextFilter,
   onAddProposalToAgentContext,
   onStartConversationFromProposal,
 }: Props) {
@@ -48,9 +54,16 @@ export function ProposalViewerPanel({
     setFilters((current) => ({ ...current, ...patch }));
   };
   const proposalData = state.kind === "ok" ? state.data : null;
+  const contextEntries = useMemo(
+    () =>
+      proposalData
+        ? filterProposalEntriesByContext(proposalData.entries, contextFilter)
+        : [],
+    [contextFilter, proposalData],
+  );
   const filtered = useMemo(
-    () => proposalData ? filterProposalEntries(proposalData.entries, filters) : [],
-    [proposalData, filters],
+    () => filterProposalEntries(contextEntries, filters),
+    [contextEntries, filters],
   );
   const [selectedProposalKey, setSelectedProposalKey] = useState<string | null>(null);
   const selectedProposal = useMemo(
@@ -89,6 +102,13 @@ export function ProposalViewerPanel({
         <Metric label="Visible" value={filtered.length} />
         <Metric label="Spec refs" value={data.filters.affected_spec_ids.length} />
       </div>
+
+      {contextFilter ? (
+        <ContextFilterNotice
+          value={`Spec ${contextFilter.specId}`}
+          onClear={onClearContextFilter}
+        />
+      ) : null}
 
       <div className={styles.filters} role="group" aria-label="Proposal filters">
         <FilterSelect
@@ -162,6 +182,31 @@ export function ProposalViewerPanel({
         )}
       </div>
     </section>
+  );
+}
+
+function ContextFilterNotice({
+  value,
+  onClear,
+}: {
+  value: string;
+  onClear?: () => void;
+}) {
+  return (
+    <div className={styles.contextFilter} role="status">
+      <div className={styles.contextFilterText}>
+        <span className={styles.contextFilterLabel}>Canvas filter</span>
+        <span className={styles.contextFilterValue}>{value}</span>
+      </div>
+      <button
+        type="button"
+        className={styles.contextFilterClear}
+        onClick={onClear}
+        disabled={!onClear}
+      >
+        Clear
+      </button>
+    </div>
   );
 }
 

@@ -7,6 +7,11 @@ export type ProposalViewerFilters = {
   specQuery: string;
 };
 
+export type ProposalViewerContextFilter = {
+  kind: "spec";
+  specId: string;
+};
+
 const normalize = (value: string): string =>
   value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
 
@@ -26,6 +31,16 @@ export function filterProposalEntries(
     if (!specNeedle) return true;
     return entry.affected_spec_ids.some((specId) => normalize(specId).includes(specNeedle));
   });
+}
+
+export function filterProposalEntriesByContext(
+  entries: readonly ProposalIndexEntry[],
+  contextFilter: ProposalViewerContextFilter | null,
+): ProposalIndexEntry[] {
+  if (!contextFilter) return [...entries];
+  return entries.filter((entry) =>
+    entry.affected_spec_ids.includes(contextFilter.specId),
+  );
 }
 
 export function sortedFilterOptions(counts: Record<string, number>): string[] {

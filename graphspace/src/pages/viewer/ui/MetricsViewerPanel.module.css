@@ -56,6 +56,56 @@
   background: var(--gs-paper);
 }
 
+.contextFilter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gs-space-4);
+  padding: var(--gs-space-4) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: color-mix(in srgb, var(--gs-accent) 8%, var(--gs-panel));
+}
+
+.contextFilterText {
+  min-width: 0;
+}
+
+.contextFilterLabel,
+.contextFilterValue,
+.contextFilterClear {
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.contextFilterLabel {
+  display: block;
+  color: var(--gs-muted-2);
+}
+
+.contextFilterValue {
+  display: block;
+  margin-top: 2px;
+  color: var(--gs-ink);
+  overflow-wrap: anywhere;
+}
+
+.contextFilterClear {
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 var(--gs-space-4);
+  border: 1px solid var(--gs-rule-mid);
+  border-radius: 0;
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+}
+
+.contextFilterClear:hover {
+  border-color: var(--gs-accent);
+  color: var(--gs-accent);
+}
+
 .filterField {
   min-width: 0;
 }

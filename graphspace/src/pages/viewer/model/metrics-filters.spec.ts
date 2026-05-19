@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { MetricsIndexEntry } from "@/shared/metrics-viewer-contract";
-import { filterMetricsEntries, sortedFilterOptions } from "./metrics-filters";
+import {
+  filterMetricsEntries,
+  filterMetricsEntriesByContext,
+  sortedFilterOptions,
+} from "./metrics-filters";
 
 const entry = (overrides: Partial<MetricsIndexEntry>): MetricsIndexEntry => ({
   metric_key: "metric_score::sib",
@@ -52,6 +56,33 @@ describe("filterMetricsEntries", () => {
       sourceKind: "",
       referenceQuery: "0002",
     }).map((item) => item.category)).toEqual(["source_promotion"]);
+  });
+});
+
+describe("filterMetricsEntriesByContext", () => {
+  it("keeps metrics with exact selected node references", () => {
+    const entries = [
+      entry({ item_id: "node", reference_texts: ["spec SG-SPEC-0001"] }),
+      entry({ item_id: "other", reference_texts: ["SG-SPEC-00010"] }),
+    ];
+
+    expect(filterMetricsEntriesByContext(entries, {
+      kind: "node",
+      nodeId: "SG-SPEC-0001",
+    }).map((item) => item.item_id)).toEqual(["node"]);
+  });
+
+  it("keeps metrics with exact selected edge references", () => {
+    const edgeId = "SG-SPEC-0001__refines__SG-SPEC-0002";
+    const entries = [
+      entry({ item_id: "edge", reference_texts: [`edge ${edgeId}`] }),
+      entry({ item_id: "node", reference_texts: ["SG-SPEC-0001"] }),
+    ];
+
+    expect(filterMetricsEntriesByContext(entries, {
+      kind: "edge",
+      edgeId,
+    }).map((item) => item.item_id)).toEqual(["edge"]);
   });
 });
 
