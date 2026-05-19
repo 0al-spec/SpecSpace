@@ -160,6 +160,87 @@
   color: var(--gs-accent);
 }
 
+.exportSection {
+  padding: var(--gs-space-5);
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+}
+
+.exportHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gs-space-5);
+}
+
+.exportHeader .sectionTitle {
+  margin: 0;
+}
+
+.exportActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--gs-space-3);
+}
+
+.actionButton {
+  flex: 0 0 auto;
+  min-height: 28px;
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  color: var(--gs-muted);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 9px;
+  font-weight: 600;
+  padding: var(--gs-space-2) var(--gs-space-4);
+  text-transform: uppercase;
+}
+
+.actionButton:hover:not(:disabled) {
+  border-color: var(--gs-accent);
+  color: var(--gs-accent);
+}
+
+.actionButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.exportStatus {
+  margin-top: var(--gs-space-4);
+  border-left: 2px solid var(--gs-rule-mid);
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  line-height: 1.45;
+  padding: var(--gs-space-3) 0 var(--gs-space-3) var(--gs-space-4);
+}
+
+.exportMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-3);
+  margin-top: var(--gs-space-4);
+}
+
+.exportMeta span {
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 9px;
+  font-weight: 600;
+  padding: var(--gs-space-2) var(--gs-space-3);
+  text-transform: uppercase;
+}
+
+.markdownPreview {
+  margin-top: var(--gs-space-4);
+  max-height: 280px;
+}
+
 .detailStatus {
   margin-top: var(--gs-space-5);
   border-left: 2px solid var(--gs-rule-mid);
@@ -568,6 +649,25 @@ ol.contentList > .contentItem::before {
   color: var(--gs-muted);
   font-family: var(--gs-mono);
   font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .exportHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .exportActions {
+    justify-content: flex-start;
+  }
+
+  .actionButton {
+    flex: 1 1 84px;
+  }
+
+  .markdownPreview {
+    max-height: 36vh;
+  }
 }
 
 @media (max-width: 520px) {

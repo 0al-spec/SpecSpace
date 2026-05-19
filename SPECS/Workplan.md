@@ -1991,7 +1991,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The response includes Markdown, a serializable manifest, source metadata, and a stable download filename.
   - The implementation does not call legacy `/api/export`, `/api/compile`, or conversation compile-target helpers.
 
-### CTXB-P13-T31 — Add Spec Markdown export action to Spec Inspector — Not Started
+### ✅ CTXB-P13-T31 — Add Spec Markdown export action to Spec Inspector — DONE (PASS, 2026-05-19)
 - **Description:** Add a Spec Inspector action that lets users preview, copy, or download readonly Markdown for the selected SpecGraph node.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T30, CTXB-P13-T15

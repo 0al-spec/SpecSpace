@@ -1,4 +1,10 @@
-import { useState, type HTMLAttributes, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react";
 import { SpecNodeStatusBadge } from "@/entities/spec-node";
 import {
   SpecIdText,
@@ -6,7 +12,9 @@ import {
 } from "@/shared/ui/spec-id-text";
 import {
   buildSpecInspectorModel,
+  fetchSpecMarkdownExport,
   useSpecNodeDetail,
+  type SpecMarkdownExportFetchResult,
   type SpecInspectorDetailModel,
   type SpecInspectorSelection,
   type SpecRelationGroup,
@@ -14,6 +22,11 @@ import {
   type UseSpecNodeDetailState,
 } from "../model";
 import styles from "./SpecInspector.module.css";
+
+type MarkdownExportState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | SpecMarkdownExportFetchResult;
 
 type Props = Omit<HTMLAttributes<HTMLElement>, "children"> & {
   selection: SpecInspectorSelection;
@@ -31,17 +44,91 @@ export function SpecInspector({
   ...rest
 }: Props) {
   const [copied, setCopied] = useState(false);
+  const [markdownCopied, setMarkdownCopied] = useState(false);
+  const [markdownState, setMarkdownState] = useState<MarkdownExportState>({
+    kind: "idle",
+  });
+  const markdownAbortRef = useRef<AbortController | null>(null);
   const detailState = useSpecNodeDetail({ nodeId: selection.node.node_id });
   const detail =
     detailState.kind === "ok" ? detailState.data.data : null;
   const model = buildSpecInspectorModel(selection, detail);
   const { node } = model;
   const cls = [styles.panel, className].filter(Boolean).join(" ");
+  const markdownExport =
+    markdownState.kind === "ok" ? markdownState.data : null;
+
+  useEffect(() => {
+    markdownAbortRef.current?.abort();
+    markdownAbortRef.current = null;
+    setMarkdownState({ kind: "idle" });
+    setMarkdownCopied(false);
+  }, [node.node_id]);
+
+  useEffect(() => {
+    return () => {
+      markdownAbortRef.current?.abort();
+    };
+  }, []);
+
   const copyFilePath = () => {
     void navigator.clipboard.writeText(model.filePath).then(() => {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1400);
     });
+  };
+  const exportMarkdown = () => {
+    markdownAbortRef.current?.abort();
+    const controller = new AbortController();
+    markdownAbortRef.current = controller;
+    setMarkdownCopied(false);
+    setMarkdownState({ kind: "loading" });
+
+    void fetchSpecMarkdownExport({
+      rootId: node.node_id,
+      signal: controller.signal,
+    })
+      .then((result) => {
+        if (markdownAbortRef.current === controller) {
+          setMarkdownState(result);
+        }
+      })
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        if (markdownAbortRef.current === controller) {
+          setMarkdownState({
+            kind: "network-error",
+            message: error instanceof Error ? error.message : "Network error",
+            error,
+          });
+        }
+      })
+      .finally(() => {
+        if (markdownAbortRef.current === controller) {
+          markdownAbortRef.current = null;
+        }
+      });
+  };
+  const copyMarkdown = () => {
+    if (!markdownExport) return;
+    void navigator.clipboard.writeText(markdownExport.markdown).then(() => {
+      setMarkdownCopied(true);
+      window.setTimeout(() => setMarkdownCopied(false), 1400);
+    });
+  };
+  const downloadMarkdown = () => {
+    if (!markdownExport) return;
+    const blob = new Blob([markdownExport.markdown], {
+      type: "text/markdown;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = markdownExport.download_filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   return (
@@ -97,6 +184,14 @@ export function SpecInspector({
           </div>
         </dl>
 
+        <MarkdownExportSection
+          state={markdownState}
+          copied={markdownCopied}
+          onExport={exportMarkdown}
+          onCopy={copyMarkdown}
+          onDownload={downloadMarkdown}
+        />
+
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Gap profile</h3>
           <div className={styles.metricRow}>
@@ -147,6 +242,102 @@ export function SpecInspector({
       </div>
     </aside>
   );
+}
+
+function MarkdownExportSection({
+  state,
+  copied,
+  onExport,
+  onCopy,
+  onDownload,
+}: {
+  state: MarkdownExportState;
+  copied: boolean;
+  onExport: () => void;
+  onCopy: () => void;
+  onDownload: () => void;
+}) {
+  const exportData = state.kind === "ok" ? state.data : null;
+  const status = describeMarkdownExportState(state);
+
+  return (
+    <section
+      className={`${styles.section} ${styles.exportSection}`}
+      aria-busy={state.kind === "loading"}
+    >
+      <div className={styles.exportHeader}>
+        <h3 className={styles.sectionTitle}>Markdown export</h3>
+        <div className={styles.exportActions}>
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={onExport}
+            disabled={state.kind === "loading"}
+          >
+            {exportData ? "Refresh" : "Export"}
+          </button>
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={onCopy}
+            disabled={!exportData}
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={onDownload}
+            disabled={!exportData}
+          >
+            Download
+          </button>
+        </div>
+      </div>
+
+      {status ? <div className={styles.exportStatus}>{status}</div> : null}
+
+      {exportData ? (
+        <>
+          <div className={styles.exportMeta}>
+            <span>{exportData.manifest.node_count} nodes</span>
+            <span>depth {exportData.manifest.max_depth_reached}</span>
+            <span>{exportData.manifest.cycles_skipped.length} cycles</span>
+            <span>{exportData.manifest.missing_skipped.length} missing</span>
+          </div>
+          <pre className={`${styles.pre} ${styles.markdownPreview}`}>
+            {exportData.markdown}
+          </pre>
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+function describeMarkdownExportState(state: MarkdownExportState): string | null {
+  switch (state.kind) {
+    case "idle":
+      return null;
+    case "loading":
+      return "Exporting Markdown...";
+    case "ok":
+      return null;
+    case "http-error":
+      return `Markdown export unavailable: HTTP ${state.status}`;
+    case "network-error":
+      return `Markdown export unavailable: ${state.message}`;
+    case "response-error":
+      return `Markdown export unavailable: ${state.reason}`;
+    case "parse-error":
+      return "Markdown export unavailable: response did not match the contract";
+    case "invariant-violation":
+      return `Markdown export unavailable: ${state.message}`;
+    case "version-not-supported":
+      return `Markdown export unavailable: schema v${state.schema_version} is not supported`;
+    case "wrong-artifact-kind":
+      return "Markdown export unavailable: wrong artifact kind";
+  }
+  return null;
 }
 
 function DetailLoadStatus({ state }: { state: UseSpecNodeDetailState }) {

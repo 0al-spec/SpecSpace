@@ -5,6 +5,7 @@ export { parseSpecActivityFeed } from "./parsers/parse-spec-activity-feed";
 export { parseImplementationWorkIndex } from "./parsers/parse-implementation-work-index";
 export { parseProposalSpecTraceIndex } from "./parsers/parse-proposal-spec-trace-index";
 export { parseSpecGraph } from "./parsers/parse-spec-graph";
+export { parseSpecMarkdownExport } from "./parsers/parse-spec-markdown-export";
 export { parseSpecNodeDetail } from "./parsers/parse-spec-node-detail";
 export type { ParseResult } from "./parsers/parse";
 
@@ -47,6 +48,11 @@ export {
   type SpecGraphResponse,
   type SpecGraphSummary,
 } from "./schemas/spec-graph";
+
+export type {
+  SpecMarkdownExportResponse,
+  SpecMarkdownManifest,
+} from "./schemas/spec-markdown-export";
 
 export type {
   SpecNodeDetail,
