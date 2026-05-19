@@ -19,7 +19,10 @@ import "@xyflow/react/dist/style.css";
 import type { SpecNode } from "@/entities/spec-node";
 import { SpecNodeCard } from "@/entities/spec-node";
 import type { SpecPMLifecycleBadge } from "@/entities/specpm-lifecycle";
-import { getSpecGraphNodeFocusPoint } from "../model/focus-point";
+import {
+  getSpecGraphEdgeEndpointBounds,
+  getSpecGraphNodeFocusPoint,
+} from "../model/focus-point";
 import {
   countSpecGraphCanvasGapFilters,
   filterSpecGraphCanvasNodes,
@@ -292,6 +295,7 @@ function SpecGraphCanvasInner({
   const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null);
   const hoverPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
+    fitBounds,
     getNode,
     setCenter,
     viewportInitialized,
@@ -299,6 +303,7 @@ function SpecGraphCanvasInner({
   const activeSelectedNodeId = selectedNodeId === undefined ? internalSelectedNodeId : selectedNodeId;
   const activeSelectedEdgeId = selectedEdgeId === undefined ? internalSelectedEdgeId : selectedEdgeId;
   const focusedNodeIdRef = useRef<string | null>(null);
+  const focusedEdgeIdRef = useRef<string | null>(null);
   const previewDetailState = useSpecNodePreviewDetail({
     nodeId: hoverCandidate?.node.node_id ?? null,
   });
@@ -516,6 +521,39 @@ function SpecGraphCanvasInner({
       duration: 360,
     });
   }, [activeSelectedNodeId, getNode, positionedBaseNodes, setCenter, viewportInitialized]);
+
+  useEffect(() => {
+    if (!activeSelectedEdgeId) {
+      focusedEdgeIdRef.current = null;
+      return;
+    }
+    if (!viewportInitialized || focusedEdgeIdRef.current === activeSelectedEdgeId) return;
+
+    const selectedEdge = flowEdges.find((edge) => edge.id === activeSelectedEdgeId);
+    if (!selectedEdge) return;
+
+    const sourceNode =
+      getNode(selectedEdge.source) ??
+      positionedBaseNodes.find((node) => node.id === selectedEdge.source);
+    const targetNode =
+      getNode(selectedEdge.target) ??
+      positionedBaseNodes.find((node) => node.id === selectedEdge.target);
+    const endpointBounds = getSpecGraphEdgeEndpointBounds(sourceNode, targetNode);
+    if (!endpointBounds) return;
+
+    focusedEdgeIdRef.current = activeSelectedEdgeId;
+    void fitBounds(endpointBounds, {
+      duration: 360,
+      padding: 0.28,
+    });
+  }, [
+    activeSelectedEdgeId,
+    fitBounds,
+    flowEdges,
+    getNode,
+    positionedBaseNodes,
+    viewportInitialized,
+  ]);
 
   useEffect(() => clearHoverPreview, [clearHoverPreview]);
 

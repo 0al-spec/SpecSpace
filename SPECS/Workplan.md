@@ -1913,7 +1913,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Existing `Add to Agent Context` behavior remains available.
   - The action is optional for the panel and does not break Metrics Viewer in error/loading states.
 
-### CTXB-P13-T25 — Seed Agent Conversation prompts from selected artifacts — INPROGRESS
+### ✅ CTXB-P13-T25 — Seed Agent Conversation prompts from selected artifacts — DONE (PASS, 2026-05-19)
 - **Description:** When a user starts Agent Conversation from Proposal Viewer or Metrics Viewer, prefill the composer with a source-specific prompt that names the selected artifact and points the agent toward the next graph action.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T24, CTXB-P13-T15, CTXB-P13-T12
@@ -1925,6 +1925,58 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Manual Agent Conversation opens keep the generic default prompt.
   - Prompt seed wiring does not overwrite an already active conversation turn.
   - Prompt seed generation has focused unit coverage.
+
+### CTXB-P13-T26 — Focus selected edge endpoints on canvas — INPROGRESS
+- **Description:** Restore the old ContextBuilder edge-navigation behavior in SpecSpace: when an edge is selected, fit the canvas viewport so both endpoint nodes are visible with comfortable padding.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T19
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** React Flow endpoint bounds helper, selected-edge focus wiring, validation report
+- **Acceptance Criteria:**
+  - Selecting an edge focuses the canvas on both source and target nodes.
+  - The viewport includes padding so endpoint cards are not pinned to the edge of the canvas.
+  - Missing endpoint node data does not throw and preserves existing selection behavior.
+  - Existing node focus behavior remains unchanged.
+  - Focus helper has unit coverage for endpoint bounds and fallback cases.
+
+### CTXB-P13-T27 — Add Recent timeline filters — Not Started
+- **Description:** Bring back ContextBuilder-style timeline filtering for recent activity by created/updated timestamps, with clear visible filter state in the Recent changes panel.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T22
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** activity timestamp filter model, Recent changes filter UI, validation report
+- **Acceptance Criteria:**
+  - Recent changes can be filtered by recent updated timestamp when artifact data provides it.
+  - Recent changes can be filtered by created timestamp when artifact data provides it.
+  - Unknown/missing timestamp values are handled explicitly and do not disappear silently.
+  - The active timeline filter is visible and clearable.
+  - Filter behavior has unit coverage against representative activity entries.
+
+### CTXB-P13-T28 — Add canvas layout presets — Not Started
+- **Description:** Add multiple SpecGraph layout presets while preserving the current Refinement Ladder Layout as a named, stable option.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T20
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** layout preset model, canvas layout selector, persisted layout mode, validation report
+- **Acceptance Criteria:**
+  - The current Refinement Ladder Layout remains available under that name.
+  - At least one additional layout preset can be selected.
+  - Layout selection does not discard user-moved node overrides.
+  - Layout mode is represented in typed UI state rather than stringly ad hoc code.
+  - Layout preset behavior has focused unit coverage.
+
+### CTXB-P13-T29 — Plan Spec Markdown export and Hyperprompt compile boundary — Not Started
+- **Description:** Define how SpecSpace should expose readonly SpecGraph Markdown export and optional Hyperprompt compilation without regressing into legacy ContextBuilder authoring semantics.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T15, CTXB-P13-T25
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** product/API boundary plan, follow-up implementation tasks, validation report
+- **Acceptance Criteria:**
+  - The plan separates readonly SpecGraph export from legacy conversation authoring/export.
+  - Hyperprompt binary use is optional and clearly gated by capability/config.
+  - Production static deploy constraints are documented.
+  - Follow-up tasks split backend export, frontend UI, and compile capability work.
+  - Existing ContextBuilder implementation is referenced as behavior source, not copied as architecture.
 
 ## Dependency Summary
 
