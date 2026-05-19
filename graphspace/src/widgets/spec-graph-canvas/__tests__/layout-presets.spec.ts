@@ -60,10 +60,14 @@ describe("SpecGraph canvas layout presets", () => {
   it("can place specs into status columns", () => {
     const positions = computeSpecGraphCanvasLayoutPositions(
       [
-        node("SG-SPEC-0003", "frozen"),
-        node("SG-SPEC-0001", "linked"),
-        node("SG-SPEC-0002", "reviewed"),
-        node("SG-SPEC-0004", "future"),
+        node("SG-SPEC-0007", "frozen"),
+        node("SG-SPEC-0005", "linked"),
+        node("SG-SPEC-0006", "reviewed"),
+        node("SG-SPEC-0001", "idea"),
+        node("SG-SPEC-0002", "stub"),
+        node("SG-SPEC-0003", "outlined"),
+        node("SG-SPEC-0004", "specified"),
+        node("SG-SPEC-0008", "future"),
       ],
       [],
       "status-columns",
@@ -72,7 +76,11 @@ describe("SpecGraph canvas layout presets", () => {
     expect(positions.get("SG-SPEC-0001")).toEqual({ x: 0, y: 0 });
     expect(positions.get("SG-SPEC-0002")).toEqual({ x: 360, y: 0 });
     expect(positions.get("SG-SPEC-0003")).toEqual({ x: 720, y: 0 });
-    expect(positions.get("SG-SPEC-0004")).toEqual({ x: 2520, y: 0 });
+    expect(positions.get("SG-SPEC-0004")).toEqual({ x: 1080, y: 0 });
+    expect(positions.get("SG-SPEC-0005")).toEqual({ x: 1440, y: 0 });
+    expect(positions.get("SG-SPEC-0006")).toEqual({ x: 1800, y: 0 });
+    expect(positions.get("SG-SPEC-0007")).toEqual({ x: 2160, y: 0 });
+    expect(positions.get("SG-SPEC-0008")).toEqual({ x: 3960, y: 0 });
   });
 
   it("normalizes and persists the selected layout preset", () => {

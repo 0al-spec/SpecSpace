@@ -31,6 +31,10 @@ const ROW_HEIGHT = 172;
 const PRESET_STORAGE_KEY = "specspace:spec-graph-canvas-layout-preset:v1";
 
 const STATUS_ORDER = [
+  "idea",
+  "stub",
+  "outlined",
+  "specified",
   "linked",
   "reviewed",
   "frozen",
