@@ -1926,7 +1926,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Prompt seed wiring does not overwrite an already active conversation turn.
   - Prompt seed generation has focused unit coverage.
 
-### CTXB-P13-T26 — Focus selected edge endpoints on canvas — INPROGRESS
+### ✅ CTXB-P13-T26 — Focus selected edge endpoints on canvas — DONE (PASS, 2026-05-19)
 - **Description:** Restore the old ContextBuilder edge-navigation behavior in SpecSpace: when an edge is selected, fit the canvas viewport so both endpoint nodes are visible with comfortable padding.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T19
@@ -1939,7 +1939,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Existing node focus behavior remains unchanged.
   - Focus helper has unit coverage for endpoint bounds and fallback cases.
 
-### CTXB-P13-T27 — Add Recent timeline filters — Not Started
+### CTXB-P13-T27 — Add Recent timeline filters — INPROGRESS
 - **Description:** Bring back ContextBuilder-style timeline filtering for recent activity by created/updated timestamps, with clear visible filter state in the Recent changes panel.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T22
