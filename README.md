@@ -5,10 +5,10 @@ It is the branch Timeweb should deploy from.
 
 ## Release
 
-- Source commit: `cbc4217af2c9277d5789d2abcfa5655c0ee4991c`
-- Generated at: `2026-05-19T06:13:41Z`
-- API image: `ghcr.io/0al-spec/specspace-api@sha256:0acdd13d6744b9412e2a62cdbd74a728fc5f1cc725352f2e2194048ac9c11465`
-- UI image: `ghcr.io/0al-spec/specspace-ui@sha256:528cbf9230f991f99a2d8ea178f3d37b9e17bb3d9b3707f13ea1ad336f3df061`
+- Source commit: `6878295a3080f84442e3b32f6ef18fb2bfd91e74`
+- Generated at: `2026-05-19T07:47:55Z`
+- API image: `ghcr.io/0al-spec/specspace-api@sha256:795b16c449ab0a8f659a4016020b85c111e9afb16d676c0db363d98b333cad7e`
+- UI image: `ghcr.io/0al-spec/specspace-ui@sha256:33dedcfd5dba346972009c6c81073901346bf715469b0372d721d63f828719fc`
 - SpecGraph artifact source: `https://specgraph.tech`
 - SpecPM registry source: `https://specpm.dev`
 
