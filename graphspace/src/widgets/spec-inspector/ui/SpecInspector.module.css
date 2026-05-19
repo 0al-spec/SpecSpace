@@ -218,22 +218,41 @@
   padding: var(--gs-space-3) 0 var(--gs-space-3) var(--gs-space-4);
 }
 
-.exportMeta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--gs-space-3);
+.exportStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: var(--gs-space-4);
-}
-
-.exportMeta span {
   border: 1px solid var(--gs-rule-soft);
   background: var(--gs-paper);
-  color: var(--gs-muted);
+}
+
+.exportStat {
+  min-width: 0;
+  padding: var(--gs-space-4);
+  border-right: 1px solid var(--gs-rule-soft);
+}
+
+.exportStat:last-child {
+  border-right: 0;
+}
+
+.exportStatLabel {
+  display: block;
+  margin: 0;
+  color: var(--gs-muted-2);
   font-family: var(--gs-mono);
   font-size: 9px;
   font-weight: 600;
-  padding: var(--gs-space-2) var(--gs-space-3);
   text-transform: uppercase;
+}
+
+.exportStatValue {
+  display: block;
+  margin: var(--gs-space-1) 0 0;
+  color: var(--gs-ink);
+  font-family: var(--gs-serif);
+  font-size: 20px;
+  line-height: 1.05;
 }
 
 .markdownPreview {
@@ -663,6 +682,18 @@ ol.contentList > .contentItem::before {
 
   .actionButton {
     flex: 1 1 84px;
+  }
+
+  .exportStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .exportStat:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .exportStat:nth-child(n + 3) {
+    border-top: 1px solid var(--gs-rule-soft);
   }
 
   .markdownPreview {

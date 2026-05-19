@@ -299,12 +299,32 @@ function MarkdownExportSection({
 
       {exportData ? (
         <>
-          <div className={styles.exportMeta}>
-            <span>{exportData.manifest.node_count} nodes</span>
-            <span>depth {exportData.manifest.max_depth_reached}</span>
-            <span>{exportData.manifest.cycles_skipped.length} cycles</span>
-            <span>{exportData.manifest.missing_skipped.length} missing</span>
-          </div>
+          <dl className={styles.exportStats} aria-label="Markdown export stats">
+            <div className={styles.exportStat}>
+              <dt className={styles.exportStatLabel}>Nodes</dt>
+              <dd className={styles.exportStatValue}>
+                {exportData.manifest.node_count}
+              </dd>
+            </div>
+            <div className={styles.exportStat}>
+              <dt className={styles.exportStatLabel}>Depth</dt>
+              <dd className={styles.exportStatValue}>
+                {exportData.manifest.max_depth_reached}
+              </dd>
+            </div>
+            <div className={styles.exportStat}>
+              <dt className={styles.exportStatLabel}>Cycles</dt>
+              <dd className={styles.exportStatValue}>
+                {exportData.manifest.cycles_skipped.length}
+              </dd>
+            </div>
+            <div className={styles.exportStat}>
+              <dt className={styles.exportStatLabel}>Missing</dt>
+              <dd className={styles.exportStatValue}>
+                {exportData.manifest.missing_skipped.length}
+              </dd>
+            </div>
+          </dl>
           <pre className={`${styles.pre} ${styles.markdownPreview}`}>
             {exportData.markdown}
           </pre>
