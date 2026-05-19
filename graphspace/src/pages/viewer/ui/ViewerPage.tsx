@@ -58,6 +58,13 @@ import {
   useApiDeploymentStatus,
 } from "../model/deployment-status";
 import {
+  DEFAULT_RECENT_TIMELINE_FILTER,
+  filterRecentChangesByTimeline,
+  hasRecentTimelineFilter,
+  type RecentTimelineField,
+  type RecentTimelineRange,
+} from "../model/recent-timeline-filter";
+import {
   SAMPLE_ENTRIES,
   SAMPLE_NOW,
   SAMPLE_PROPOSAL_TRACES,
@@ -92,6 +99,9 @@ export function ViewerPage() {
   const [selectedSpecNodeId, setSelectedSpecNodeId] = useState<string | null>(null);
   const [selectedSpecEdgeId, setSelectedSpecEdgeId] = useState<string | null>(null);
   const [selectedSpec, setSelectedSpec] = useState<SpecInspectorSelection | null>(null);
+  const [recentTimelineFilter, setRecentTimelineFilter] = useState(
+    DEFAULT_RECENT_TIMELINE_FILTER,
+  );
   const [agentContextDraft, setAgentContextDraft] = useState(() =>
     createAgentContextDraft(new Date().toISOString()),
   );
@@ -195,24 +205,40 @@ export function ViewerPage() {
   const specSearch = useSpecSearch();
   const specMatchedEntries = filterBySpecQuery(liveEntries, specSearch.query);
 
-  // Tone filter is local UI state — lifted from inside the panel because the
-  // chip bar lives above the panel header. Empty selection = no filter.
-  const toneFilter = useToneFilter();
-  const filteredEntries = filterByTone(specMatchedEntries, toneFilter.selected);
-
   // For "ok" with live data, drop the static demo timestamps so relative time
   // reflects the real artifact mtime story.
   const now = feedState.kind === "ok" ? undefined : SAMPLE_NOW;
+  const timelineFilterActive = hasRecentTimelineFilter(recentTimelineFilter);
+  const timelineFilteredEntries = useMemo(
+    () =>
+      filterRecentChangesByTimeline(
+        specMatchedEntries,
+        specGraphState.data.graph.nodes,
+        recentTimelineFilter,
+        now,
+      ),
+    [now, recentTimelineFilter, specGraphState.data.graph.nodes, specMatchedEntries],
+  );
+
+  // Tone filter is local UI state — lifted from inside the panel because the
+  // chip bar lives above the panel header. Empty selection = no filter.
+  const toneFilter = useToneFilter();
+  const filteredEntries = filterByTone(
+    timelineFilteredEntries.entries,
+    toneFilter.selected,
+  );
 
   const feedCaption =
     feedState.kind === "ok"
-      ? toneFilter.hasAny || specSearch.hasQuery
+      ? toneFilter.hasAny || specSearch.hasQuery || timelineFilterActive
         ? `${filteredEntries.length} of ${liveEntries.length} events · live · filtered`
         : `${liveEntries.length} events · live`
       : feedStatus.caption;
   const feedEmptyMessage =
     specSearch.hasQuery && specMatchedEntries.length === 0
       ? "No events match that spec search"
+      : timelineFilterActive && timelineFilteredEntries.entries.length === 0
+        ? "No events match the current timeline filter"
       : toneFilter.hasAny && filteredEntries.length === 0
         ? "No events match the current filter"
         : feedStatus.emptyMessage;
@@ -345,6 +371,18 @@ export function ViewerPage() {
   const closeUtilityPanel = () => {
     setActiveUtilityPanel(null);
     setAgentConversationPromptSeed(null);
+  };
+  const setRecentTimelineField = (field: RecentTimelineField) => {
+    setRecentTimelineFilter((filter) => ({ ...filter, field }));
+  };
+  const setRecentTimelineRange = (range: RecentTimelineRange) => {
+    setRecentTimelineFilter((filter) => ({ ...filter, range }));
+  };
+  const setRecentTimelineIncludeUnknown = (includeUnknown: boolean) => {
+    setRecentTimelineFilter((filter) => ({ ...filter, includeUnknown }));
+  };
+  const clearRecentTimelineFilter = () => {
+    setRecentTimelineFilter(DEFAULT_RECENT_TIMELINE_FILTER);
   };
   const addSelectedSpecToAgentContext = () => {
     if (!selectedGraphNode) return;
@@ -635,10 +673,21 @@ export function ViewerPage() {
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={selectSpecNodeId}
               tone={{
-                entries: specMatchedEntries,
+                entries: timelineFilteredEntries.entries,
                 selected: toneFilter.selected,
                 onToggle: toneFilter.toggle,
                 onClear: toneFilter.clear,
+              }}
+              timeline={{
+                filter: recentTimelineFilter,
+                resultCount: timelineFilteredEntries.entries.length,
+                totalCount: timelineFilteredEntries.totalCount,
+                knownCount: timelineFilteredEntries.knownCount,
+                unknownCount: timelineFilteredEntries.unknownCount,
+                onFieldChange: setRecentTimelineField,
+                onRangeChange: setRecentTimelineRange,
+                onIncludeUnknownChange: setRecentTimelineIncludeUnknown,
+                onClear: clearRecentTimelineFilter,
               }}
             />
           ) : null}
