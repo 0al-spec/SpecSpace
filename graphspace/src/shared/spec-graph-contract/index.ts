@@ -13,6 +13,10 @@ export {
   KNOWN_EVENT_TYPES,
   isKnownEventType,
   type KnownEventType,
+  type PromptOverlayProvenance,
+  type PromptOverlaySourceKind,
+  type PromptOverlayStatus,
+  type PromptOverlaySummary,
   type SpecActivityEntry,
   type SpecActivityFeed,
 } from "./schemas/spec-activity-feed";

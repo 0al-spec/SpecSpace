@@ -311,6 +311,115 @@
   display: none;
 }
 
+.promptDrift {
+  display: grid;
+  gap: var(--gs-space-3);
+  padding: var(--gs-space-4) var(--gs-space-7);
+  border-right: 1px solid var(--gs-rule-mid);
+  border-left: 1px solid var(--gs-rule-mid);
+  background: var(--gs-paper);
+}
+
+.promptDriftHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gs-space-3);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.promptDriftCounts,
+.promptDriftGroups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-2);
+}
+
+.promptDriftCount,
+.promptDriftGroup {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border: 1px solid var(--gs-rule-soft);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 7px;
+  text-transform: uppercase;
+}
+
+.promptDriftCount-active {
+  border-color: var(--gs-accent);
+  background: var(--gs-accent-soft);
+  color: var(--gs-accent);
+}
+
+.promptDriftCount-danger {
+  border-color: var(--gs-danger);
+  background: rgba(181, 65, 49, 0.1);
+  color: var(--gs-danger);
+}
+
+.promptDriftCount-muted {
+  color: var(--gs-muted-2);
+}
+
+.promptDriftCount-neutral {
+  color: var(--gs-muted);
+}
+
+.promptDriftGroup {
+  gap: var(--gs-space-2);
+  background: var(--gs-panel);
+}
+
+.promptDriftDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--gs-rule-soft);
+}
+
+.promptDriftDot-active {
+  background: var(--gs-accent);
+}
+
+.promptDriftDot-danger {
+  background: var(--gs-danger);
+}
+
+.promptDriftDot-muted {
+  background: var(--gs-muted-2);
+}
+
+.promptDriftDot-neutral {
+  background: var(--gs-muted);
+}
+
+.promptDriftGroupLabel {
+  color: var(--gs-ink);
+}
+
+.promptDriftGroupMeta,
+.promptDriftMore {
+  color: var(--gs-muted-2);
+}
+
+.promptDriftMore {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .statusOverlay {
   position: fixed;
   z-index: 3;
