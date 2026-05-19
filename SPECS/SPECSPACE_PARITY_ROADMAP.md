@@ -177,4 +177,5 @@ Target:
 16. `CTXB-P13-T20` — Node moving and layout persistence. ✅
 17. `CTXB-P13-T21` — Proposal and metric overlays on graph nodes and edges. ✅
 18. `CTXB-P13-T22` — Contextual Proposal/Metrics filtering from canvas overlays. ✅
-19. `CTXB-P13-T23` — Add Metrics entries to Agent Context.
+19. `CTXB-P13-T23` — Add Metrics entries to Agent Context. ✅
+20. `CTXB-P13-T24` — Start Agent Conversation from Metrics entries.

@@ -1889,7 +1889,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Context filters are visibly labeled and can be cleared manually.
   - Opening Proposal Viewer or Metrics Viewer from the Sidebar remains unfiltered.
 
-### CTXB-P13-T23 — Add Metrics entries to Agent Context — INPROGRESS
+### ✅ CTXB-P13-T23 — Add Metrics entries to Agent Context — DONE (PASS, 2026-05-19)
 - **Description:** Let users add Metrics Viewer entries to the Agent Workbench context draft so metric signals can seed agent analysis and later proposal work.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T22, CTXB-P13-T8
@@ -1900,6 +1900,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Agent Context deduplicates metric items by stable `metric_key`.
   - Serialized context includes metric id, title, category, status, source kind, and references.
   - Agent Context and Agent Conversation render metric items without assuming every non-spec item is a proposal.
+
+### CTXB-P13-T24 — Start Agent Conversation from Metrics entries — INPROGRESS
+- **Description:** Add a direct Metrics Viewer action that seeds Agent Context with the selected metric and opens Agent Conversation, matching the existing proposal-to-conversation workflow.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T23, CTXB-P13-T12
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** Metrics Viewer conversation action, metric context seeding hook, validation report
+- **Acceptance Criteria:**
+  - Metrics Viewer rows expose a `Start Conversation` action.
+  - Starting from a metric adds that metric to Agent Context before opening Agent Conversation.
+  - Existing `Add to Agent Context` behavior remains available.
+  - The action is optional for the panel and does not break Metrics Viewer in error/loading states.
 
 ## Dependency Summary
 
