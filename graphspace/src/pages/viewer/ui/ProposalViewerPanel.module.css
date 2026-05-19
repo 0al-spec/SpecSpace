@@ -1,7 +1,9 @@
 .panel {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
   border: 1px solid var(--gs-rule-mid);
   background: var(--gs-panel);
   color: var(--gs-ink);
@@ -148,8 +150,10 @@
 }
 
 .entries {
+  flex: 1 1 auto;
   overflow-y: auto;
   min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .row {

@@ -62,17 +62,30 @@
   transition: left 160ms ease;
 }
 
-.gapFilterDock {
+.canvasFilterDock {
   position: absolute;
   top: var(--gs-space-5);
   left: var(--spec-graph-canvas-filter-left);
   z-index: 5;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   max-width: min(520px, calc(100vw - var(--spec-graph-canvas-filter-left) - 24px));
   gap: var(--gs-space-2);
   pointer-events: auto;
   transition: left 160ms ease;
+}
+
+.gapFilterDock,
+.layoutPresetDock {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-2);
+}
+
+.layoutPresetDock {
+  padding-left: var(--gs-space-2);
+  border-left: 1px solid var(--gs-rule-soft);
 }
 
 .gapFilterButton {

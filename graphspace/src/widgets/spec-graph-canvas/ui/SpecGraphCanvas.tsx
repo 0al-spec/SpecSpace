@@ -42,6 +42,14 @@ import {
   type SpecGraphCanvasLayoutPosition,
 } from "../model/layout-overrides";
 import {
+  SPEC_GRAPH_CANVAS_LAYOUT_PRESETS,
+  SPEC_GRAPH_CANVAS_LAYOUT_PRESET_LABELS,
+  getSpecGraphCanvasLayoutPresetStorage,
+  readSpecGraphCanvasLayoutPreset,
+  writeSpecGraphCanvasLayoutPreset,
+  type SpecGraphCanvasLayoutPreset,
+} from "../model/layout-presets";
+import {
   buildSpecNodeHoverPreview,
   SPEC_NODE_HOVER_PREVIEW_DELAY_MS,
   type HoverPreviewAnchor,
@@ -289,6 +297,9 @@ function SpecGraphCanvasInner({
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
   const [internalSelectedEdgeId, setInternalSelectedEdgeId] = useState<string | null>(null);
   const [gapFilter, setGapFilter] = useState<SpecGraphCanvasGapFilter>("all");
+  const [layoutPreset, setLayoutPreset] = useState<SpecGraphCanvasLayoutPreset>(() =>
+    readSpecGraphCanvasLayoutPreset(getSpecGraphCanvasLayoutPresetStorage()),
+  );
   const [layoutOverrides, setLayoutOverrides] =
     useState<SpecGraphCanvasLayoutOverrides>({});
   const [hoverCandidate, setHoverCandidate] = useState<HoverPreviewState | null>(null);
@@ -308,8 +319,8 @@ function SpecGraphCanvasInner({
     nodeId: hoverCandidate?.node.node_id ?? null,
   });
   const { nodes: baseNodes, edges } = useMemo(
-    () => toSpecGraphFlowElements(state.data),
-    [state.data],
+    () => toSpecGraphFlowElements(state.data, layoutPreset),
+    [layoutPreset, state.data],
   );
   const layoutStorageKey = useMemo(
     () => buildSpecGraphCanvasLayoutStorageKey(state.data),
@@ -436,6 +447,14 @@ function SpecGraphCanvasInner({
     ? lifecycleBadgesByNode?.get(hoverPreview.node.node_id) ?? null
     : null;
   const layoutOverrideCount = Object.keys(layoutOverrides).length;
+  const updateLayoutPreset = useCallback((preset: SpecGraphCanvasLayoutPreset) => {
+    clearHoverPreview();
+    setLayoutPreset(preset);
+    writeSpecGraphCanvasLayoutPreset(
+      getSpecGraphCanvasLayoutPresetStorage(),
+      preset,
+    );
+  }, [clearHoverPreview]);
 
   const persistLayoutOverride = useCallback(
     (nodeId: string, position: SpecGraphCanvasLayoutPosition) => {
@@ -563,9 +582,11 @@ function SpecGraphCanvasInner({
       aria-label="SpecGraph canvas"
       data-testid="spec-graph-canvas"
       data-gap-filter={gapFilter}
+      data-layout-preset={layoutPreset}
       data-source={state.source}
     >
-      <div className={styles.gapFilterDock} aria-label="Canvas gap filters">
+      <div className={styles.canvasFilterDock}>
+        <div className={styles.gapFilterDock} aria-label="Canvas gap filters">
         {SPEC_GRAPH_CANVAS_GAP_FILTERS.map((filter) => (
           <button
             key={filter}
@@ -583,6 +604,25 @@ function SpecGraphCanvasInner({
             <span>{gapFilterCounts[filter]}</span>
           </button>
         ))}
+        </div>
+        <div className={styles.layoutPresetDock} aria-label="Canvas layout presets">
+          {SPEC_GRAPH_CANVAS_LAYOUT_PRESETS.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              className={[
+                styles.gapFilterButton,
+                layoutPreset === preset ? styles.gapFilterButtonActive : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              aria-pressed={layoutPreset === preset}
+              onClick={() => updateLayoutPreset(preset)}
+            >
+              <span>{SPEC_GRAPH_CANVAS_LAYOUT_PRESET_LABELS[preset]}</span>
+            </button>
+          ))}
+        </div>
         {layoutOverrideCount > 0 ? (
           <button
             type="button"

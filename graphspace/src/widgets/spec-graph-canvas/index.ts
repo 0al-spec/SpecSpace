@@ -33,6 +33,18 @@ export {
   type SpecGraphCanvasLayoutPosition,
   type SpecGraphCanvasLayoutStorage,
 } from "./model/layout-overrides";
+export {
+  DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET,
+  SPEC_GRAPH_CANVAS_LAYOUT_PRESETS,
+  SPEC_GRAPH_CANVAS_LAYOUT_PRESET_LABELS,
+  computeSpecGraphCanvasLayoutPositions,
+  getSpecGraphCanvasLayoutPresetStorage,
+  normalizeSpecGraphCanvasLayoutPreset,
+  readSpecGraphCanvasLayoutPreset,
+  writeSpecGraphCanvasLayoutPreset,
+  type SpecGraphCanvasLayoutPreset,
+  type SpecGraphCanvasLayoutPresetStorage,
+} from "./model/layout-presets";
 export { toSpecGraphFlowElements, type SpecFlowEdge, type SpecFlowNode } from "./model/to-flow-elements";
 export {
   fetchSpecPMLifecycleBadges,
