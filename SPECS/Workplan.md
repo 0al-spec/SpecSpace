@@ -1952,7 +1952,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The active timeline filter is visible and clearable.
   - Filter behavior has unit coverage against representative activity entries.
 
-### CTXB-P13-T28 — Add canvas layout presets — INPROGRESS
+### ✅ CTXB-P13-T28 — Add canvas layout presets — DONE (PASS, 2026-05-19)
 - **Description:** Add multiple SpecGraph layout presets while preserving the current Refinement Ladder Layout as a named, stable option.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T20
@@ -1965,7 +1965,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Layout mode is represented in typed UI state rather than stringly ad hoc code.
   - Layout preset behavior has focused unit coverage.
 
-### CTXB-P13-T29 — Plan Spec Markdown export and Hyperprompt compile boundary — Not Started
+### ✅ CTXB-P13-T29 — Plan Spec Markdown export and Hyperprompt compile boundary — DONE (PASS, 2026-05-19)
 - **Description:** Define how SpecSpace should expose readonly SpecGraph Markdown export and optional Hyperprompt compilation without regressing into legacy ContextBuilder authoring semantics.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T15, CTXB-P13-T25
@@ -1977,6 +1977,45 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Production static deploy constraints are documented.
   - Follow-up tasks split backend export, frontend UI, and compile capability work.
   - Existing ContextBuilder implementation is referenced as behavior source, not copied as architecture.
+
+### CTXB-P13-T30 — Add SpecSpace v1 Spec Markdown export endpoint — Not Started
+- **Description:** Add a versioned readonly API endpoint that exports the selected SpecGraph subtree to Markdown using provider-backed SpecGraph nodes.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T29
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** `/api/v1/*` Spec Markdown export handler, export read model, structured manifest/errors, regression tests
+- **Acceptance Criteria:**
+  - Runtime SpecSpace clients can request Markdown export through `/api/v1/*`.
+  - The endpoint reads through the existing readonly SpecGraph provider boundary.
+  - Unknown roots, invalid options, malformed provider data, cycles, and missing refs are represented explicitly.
+  - The response includes Markdown, a serializable manifest, source metadata, and a stable download filename.
+  - The implementation does not call legacy `/api/export`, `/api/compile`, or conversation compile-target helpers.
+
+### CTXB-P13-T31 — Add Spec Markdown export action to Spec Inspector — Not Started
+- **Description:** Add a Spec Inspector action that lets users preview, copy, or download readonly Markdown for the selected SpecGraph node.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T30, CTXB-P13-T15
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** Spec Inspector export action, Markdown preview/copy/download UI, manifest diagnostics, desktop and mobile smoke
+- **Acceptance Criteria:**
+  - Selected specs expose an `Export Markdown` action in the Inspector.
+  - The UI uses the v1 export endpoint and never calls legacy compile routes.
+  - Export diagnostics show skipped cycles, missing refs, and depth limits when present.
+  - Copy/download behavior works in desktop and mobile viewports.
+  - Exported Markdown can later be added to Agent Context without changing this task's UI contract.
+
+### CTXB-P13-T32 — Add optional Hyperprompt compile capability diagnostics — Not Started
+- **Description:** Add capability and diagnostic plumbing for future Hyperprompt compilation without enabling compile by default in static/HTTP deployments.
+- **Priority:** P3
+- **Dependencies:** CTXB-P13-T30
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** capability keys, deployment diagnostics, disabled-state UI/API contract, implementation plan for the compile adapter
+- **Acceptance Criteria:**
+  - Capabilities distinguish readonly Markdown export from configured Hyperprompt compile.
+  - Static/HTTP deployments report compile as unavailable without surfacing runtime noise.
+  - Local deployments can report configured binary path/status without mutating SpecGraph inputs.
+  - Missing compiler, non-executable compiler, and missing scratch workspace are actionable diagnostics.
+  - No production UI suggests compile is available unless the capability is true.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

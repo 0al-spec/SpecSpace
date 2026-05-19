@@ -29,7 +29,7 @@ These remain legacy ContextBuilder responsibilities:
 - checkpoint editing;
 - branch, merge, delete, reorder, move, duplicate, copy, or paste operations for
   conversations/messages;
-- Hyperprompt export and compile flows;
+- legacy conversation Hyperprompt export and compile flows;
 - write APIs over dialog JSON workspaces.
 
 Those workflows can continue to live in `viewer/app` and the legacy
@@ -41,6 +41,13 @@ Agent Workbench conversations are the planned replacement surface for
 agent-mediated graph work. They are not legacy dialog JSON authoring and are
 documented separately in
 [`AGENT_WORKBENCH_CONVERSATIONS.md`](AGENT_WORKBENCH_CONVERSATIONS.md).
+
+Readonly SpecGraph Markdown export is a valid SpecSpace candidate when it is
+derived from provider data and exposed through `/api/v1/*`. Optional Hyperprompt
+compilation is allowed only behind an explicit deployment capability and must
+not reuse legacy conversation export semantics. The boundary plan is documented
+in
+[`SPECSPACE_MARKDOWN_EXPORT_HYPERPROMPT_PLAN.md`](SPECSPACE_MARKDOWN_EXPORT_HYPERPROMPT_PLAN.md).
 
 ## API Boundary
 
@@ -82,7 +89,7 @@ When a new feature is proposed for SpecSpace, first classify it:
 - readonly artifact inspection: candidate for SpecSpace;
 - SpecSpace-owned Agent Workbench artifacts: candidate only behind an explicit
   workbench storage/capability boundary;
-- producer mutation, conversation editing, or compile authoring: legacy
+- producer mutation, conversation editing, or legacy compile authoring: legacy
   ContextBuilder or a separate authoring product;
 - integration diagnostics: candidate only if it can be shown through readonly
   provider state.

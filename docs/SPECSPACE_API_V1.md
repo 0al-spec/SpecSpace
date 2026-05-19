@@ -139,6 +139,10 @@ Source status values:
 
 ## Endpoints
 
+Planned readonly export endpoints are documented separately until they are
+implemented: see
+[SPECSPACE_MARKDOWN_EXPORT_HYPERPROMPT_PLAN.md](SPECSPACE_MARKDOWN_EXPORT_HYPERPROMPT_PLAN.md).
+
 ### `GET /api/v1/spec-graph`
 
 Returns the existing SpecGraph graph contract with additive v1 metadata:
