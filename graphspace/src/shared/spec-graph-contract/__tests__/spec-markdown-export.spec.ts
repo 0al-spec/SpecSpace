@@ -4,9 +4,11 @@ import { parseSpecMarkdownExport } from "../parsers/parse-spec-markdown-export";
 const payload = {
   api_version: "v1",
   root_id: "SG-SPEC-0001",
+  scope: "subtree",
   markdown: "# SG-SPEC-0001\n",
   manifest: {
     root_id: "SG-SPEC-0001",
+    scope: "subtree",
     node_count: 1,
     max_depth_reached: 0,
     nodes_included: ["SG-SPEC-0001"],
@@ -36,6 +38,15 @@ describe("parseSpecMarkdownExport", () => {
     const result = parseSpecMarkdownExport({
       ...payload,
       manifest: { ...payload.manifest, root_id: "SG-SPEC-0002" },
+    });
+
+    expect(result.kind).toBe("invariant-violation");
+  });
+
+  it("rejects scope mismatches", () => {
+    const result = parseSpecMarkdownExport({
+      ...payload,
+      manifest: { ...payload.manifest, scope: "node" },
     });
 
     expect(result.kind).toBe("invariant-violation");

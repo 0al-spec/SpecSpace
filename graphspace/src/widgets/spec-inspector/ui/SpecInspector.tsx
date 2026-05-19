@@ -15,6 +15,7 @@ import {
   fetchSpecMarkdownExport,
   useSpecNodeDetail,
   type SpecMarkdownExportFetchResult,
+  type SpecMarkdownExportScope,
   type SpecInspectorDetailModel,
   type SpecInspectorSelection,
   type SpecRelationGroup,
@@ -45,6 +46,8 @@ export function SpecInspector({
 }: Props) {
   const [copied, setCopied] = useState(false);
   const [markdownCopied, setMarkdownCopied] = useState(false);
+  const [markdownScope, setMarkdownScope] =
+    useState<SpecMarkdownExportScope>("subtree");
   const [markdownState, setMarkdownState] = useState<MarkdownExportState>({
     kind: "idle",
   });
@@ -63,7 +66,7 @@ export function SpecInspector({
     markdownAbortRef.current = null;
     setMarkdownState({ kind: "idle" });
     setMarkdownCopied(false);
-  }, [node.node_id]);
+  }, [node.node_id, markdownScope]);
 
   useEffect(() => {
     return () => {
@@ -86,6 +89,7 @@ export function SpecInspector({
 
     void fetchSpecMarkdownExport({
       rootId: node.node_id,
+      scope: markdownScope,
       signal: controller.signal,
     })
       .then((result) => {
@@ -186,7 +190,9 @@ export function SpecInspector({
 
         <MarkdownExportSection
           state={markdownState}
+          scope={markdownScope}
           copied={markdownCopied}
+          onScopeChange={setMarkdownScope}
           onExport={exportMarkdown}
           onCopy={copyMarkdown}
           onDownload={downloadMarkdown}
@@ -246,13 +252,17 @@ export function SpecInspector({
 
 function MarkdownExportSection({
   state,
+  scope,
   copied,
+  onScopeChange,
   onExport,
   onCopy,
   onDownload,
 }: {
   state: MarkdownExportState;
+  scope: SpecMarkdownExportScope;
   copied: boolean;
+  onScopeChange: (scope: SpecMarkdownExportScope) => void;
   onExport: () => void;
   onCopy: () => void;
   onDownload: () => void;
@@ -293,6 +303,29 @@ function MarkdownExportSection({
             Download
           </button>
         </div>
+      </div>
+
+      <div className={styles.exportScope} aria-label="Markdown export scope">
+        <button
+          type="button"
+          className={`${styles.scopeButton} ${
+            scope === "node" ? styles.scopeButtonActive : ""
+          }`}
+          aria-pressed={scope === "node"}
+          onClick={() => onScopeChange("node")}
+        >
+          Selected spec
+        </button>
+        <button
+          type="button"
+          className={`${styles.scopeButton} ${
+            scope === "subtree" ? styles.scopeButtonActive : ""
+          }`}
+          aria-pressed={scope === "subtree"}
+          onClick={() => onScopeChange("subtree")}
+        >
+          Refinement subtree
+        </button>
       </div>
 
       {status ? <div className={styles.exportStatus}>{status}</div> : null}

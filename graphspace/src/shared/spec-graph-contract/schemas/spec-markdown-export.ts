@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+export const specMarkdownExportScopes = ["node", "subtree"] as const;
+export type SpecMarkdownExportScope = (typeof specMarkdownExportScopes)[number];
+
 const specMarkdownSourceSchema = z
   .object({
     provider: z.string(),
@@ -23,6 +26,7 @@ export const specMarkdownManifestSchema = z
     cycles_skipped: z.array(z.string()),
     missing_skipped: z.array(z.string()),
     load_errors: z.array(loadErrorSchema).default([]),
+    scope: z.enum(specMarkdownExportScopes),
   })
   .passthrough();
 
@@ -32,6 +36,7 @@ export const specMarkdownExportResponseSchema = z
   .object({
     api_version: z.string().optional(),
     root_id: z.string(),
+    scope: z.enum(specMarkdownExportScopes),
     markdown: z.string(),
     manifest: specMarkdownManifestSchema,
     source: specMarkdownSourceSchema,

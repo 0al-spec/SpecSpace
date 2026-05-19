@@ -23,6 +23,14 @@ export const parseSpecMarkdownExport = (
     };
   }
 
+  if (result.data.scope !== result.data.manifest.scope) {
+    return {
+      kind: "invariant-violation",
+      message: `spec-markdown scope mismatch: scope='${result.data.scope}', manifest.scope='${result.data.manifest.scope}'`,
+      raw,
+    };
+  }
+
   if (!result.data.download_filename.endsWith(".md")) {
     return {
       kind: "invariant-violation",

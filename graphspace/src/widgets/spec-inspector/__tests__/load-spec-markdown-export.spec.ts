@@ -10,9 +10,11 @@ const buildResponse = (body: unknown, init?: ResponseInit): Response =>
 const payload = {
   api_version: "v1",
   root_id: "SG-SPEC-ROOT",
+  scope: "subtree",
   markdown: "# SG-SPEC-ROOT\n",
   manifest: {
     root_id: "SG-SPEC-ROOT",
+    scope: "subtree",
     node_count: 1,
     max_depth_reached: 0,
     nodes_included: ["SG-SPEC-ROOT"],
@@ -37,12 +39,27 @@ describe("fetchSpecMarkdownExport", () => {
     });
 
     expect(fetcher).toHaveBeenCalledWith(
-      "/api/v1/spec-markdown?root=SG-SPEC-ROOT",
+      "/api/v1/spec-markdown?root=SG-SPEC-ROOT&scope=subtree",
       { signal: undefined },
     );
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
     expect(result.data.markdown).toContain("# SG-SPEC-ROOT");
+  });
+
+  it("can request a selected-node-only export", async () => {
+    const fetcher = vi.fn().mockResolvedValue(buildResponse(payload));
+
+    await fetchSpecMarkdownExport({
+      rootId: "SG-SPEC-ROOT",
+      scope: "node",
+      fetcher,
+    });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/v1/spec-markdown?root=SG-SPEC-ROOT&scope=node",
+      { signal: undefined },
+    );
   });
 
   it("preserves existing query params for URL overrides", async () => {
@@ -55,7 +72,7 @@ describe("fetchSpecMarkdownExport", () => {
     });
 
     expect(fetcher).toHaveBeenCalledWith(
-      "/proxy/spec-markdown?token=abc&root=SG-SPEC-ROOT",
+      "/proxy/spec-markdown?token=abc&root=SG-SPEC-ROOT&scope=subtree",
       { signal: undefined },
     );
   });

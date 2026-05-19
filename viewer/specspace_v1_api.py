@@ -87,6 +87,18 @@ def _query_bool_required(
     }
 
 
+def _query_scope_required(params: dict[str, list[str]]) -> tuple[str | None, dict[str, Any] | None]:
+    raw = query_value(params, "scope", "subtree")
+    value = raw.strip().lower() if raw is not None else "subtree"
+    if value in {"node", "subtree"}:
+        return value, None
+    return None, {
+        "error": "Invalid query parameter: scope",
+        "parameter": "scope",
+        "detail": "Expected one of: node, subtree.",
+    }
+
+
 def handle_v1_health(handler: SpecSpaceV1Handler) -> None:
     json_response(
         handler,
@@ -144,6 +156,11 @@ def handle_v1_spec_markdown(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     if error is not None:
         json_response(handler, HTTPStatus.BAD_REQUEST, error)
         return
+    scope, error = _query_scope_required(params)
+    if error is not None:
+        json_response(handler, HTTPStatus.BAD_REQUEST, error)
+        return
+    assert scope is not None
 
     options = spec_compile.CompileOptions(
         max_depth=max_depth,
@@ -151,8 +168,13 @@ def handle_v1_spec_markdown(handler: SpecSpaceV1Handler, parsed: Any) -> None:
         include_acceptance=bool(include_acceptance),
         include_depends_on_refs=bool(include_depends_on_refs),
         include_prompt=bool(include_prompt),
+        include_children=scope == "subtree",
     )
     status, payload = _provider(handler).read_spec_markdown(root_id, options)
+    if status == HTTPStatus.OK:
+        payload["scope"] = scope
+        if isinstance(payload.get("manifest"), dict):
+            payload["manifest"]["scope"] = scope
     json_response(handler, status, payload)
 
 

@@ -208,6 +208,41 @@
   opacity: 0.48;
 }
 
+.exportScope {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: var(--gs-space-4);
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+}
+
+.scopeButton {
+  min-width: 0;
+  border: 0;
+  border-right: 1px solid var(--gs-rule-soft);
+  background: transparent;
+  color: var(--gs-muted);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 9px;
+  font-weight: 600;
+  padding: var(--gs-space-3) var(--gs-space-4);
+  text-transform: uppercase;
+}
+
+.scopeButton:last-child {
+  border-right: 0;
+}
+
+.scopeButton:hover {
+  color: var(--gs-accent);
+}
+
+.scopeButtonActive {
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+}
+
 .exportStatus {
   margin-top: var(--gs-space-4);
   border-left: 2px solid var(--gs-rule-mid);

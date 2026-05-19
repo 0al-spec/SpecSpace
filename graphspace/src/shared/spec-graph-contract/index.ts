@@ -50,6 +50,7 @@ export {
 } from "./schemas/spec-graph";
 
 export type {
+  SpecMarkdownExportScope,
   SpecMarkdownExportResponse,
   SpecMarkdownManifest,
 } from "./schemas/spec-markdown-export";

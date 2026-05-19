@@ -170,14 +170,15 @@ Unknown node ids return `404`.
 
 ### `GET /api/v1/spec-markdown`
 
-Exports a readonly SpecGraph subtree as Markdown. This endpoint is SpecSpace's
-versioned replacement for the useful SpecGraph Markdown part of the legacy
-`/api/spec-compile` route; it does not invoke Hyperprompt and does not use
-legacy conversation export state.
+Exports a readonly SpecGraph selection as Markdown. This endpoint is
+SpecSpace's versioned replacement for the useful SpecGraph Markdown part of the
+legacy `/api/spec-compile` route; it does not invoke Hyperprompt and does not
+use legacy conversation export state.
 
 Query parameters:
 
 - `root`: required spec node id.
+- `scope`: optional export scope, one of `node` or `subtree`, default `subtree`.
 - `depth`: optional heading depth clamp, integer `1..6`, default `6`.
 - `objective`: optional boolean, default `true`.
 - `acceptance`: optional boolean, default `true`.
@@ -190,9 +191,11 @@ Response:
 {
   "api_version": "v1",
   "root_id": "SG-SPEC-0001",
+  "scope": "subtree",
   "markdown": "# SG-SPEC-0001 ...",
   "manifest": {
     "root_id": "SG-SPEC-0001",
+    "scope": "subtree",
     "node_count": 12,
     "max_depth_reached": 4,
     "nodes_included": ["SG-SPEC-0001"],

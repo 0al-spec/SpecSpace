@@ -5,6 +5,7 @@ export { useSpecNodeDetail } from "./use-spec-node-detail";
 export type {
   SpecMarkdownExportFetchFailure,
   SpecMarkdownExportFetchResult,
+  SpecMarkdownExportScope,
 } from "./load-spec-markdown-export";
 export type {
   SpecNodeDetailFetchFailure,

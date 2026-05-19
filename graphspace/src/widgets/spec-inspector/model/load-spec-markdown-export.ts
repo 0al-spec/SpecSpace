@@ -1,6 +1,7 @@
 import {
   parseSpecMarkdownExport,
   type ParseResult,
+  type SpecMarkdownExportScope,
   type SpecMarkdownExportResponse,
 } from "@/shared/spec-graph-contract";
 
@@ -21,6 +22,7 @@ export type SpecMarkdownExportFetchResult =
 
 type FetchSpecMarkdownExportArgs = {
   rootId: string;
+  scope?: SpecMarkdownExportScope;
   url?: string;
   fetcher?: typeof fetch;
   signal?: AbortSignal;
@@ -29,21 +31,26 @@ type FetchSpecMarkdownExportArgs = {
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Network error";
 
-const exportUrl = (baseUrl: string, rootId: string): string => {
-  const params = new URLSearchParams({ root: rootId });
+const exportUrl = (
+  baseUrl: string,
+  rootId: string,
+  scope: SpecMarkdownExportScope,
+): string => {
+  const params = new URLSearchParams({ root: rootId, scope });
   const separator = baseUrl.includes("?") ? "&" : "?";
   return `${baseUrl}${separator}${params.toString()}`;
 };
 
 export async function fetchSpecMarkdownExport({
   rootId,
+  scope = "subtree",
   url = "/api/v1/spec-markdown",
   fetcher = fetch,
   signal,
 }: FetchSpecMarkdownExportArgs): Promise<SpecMarkdownExportFetchResult> {
   let response: Response;
   try {
-    response = await fetcher(exportUrl(url, rootId), { signal });
+    response = await fetcher(exportUrl(url, rootId, scope), { signal });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
     return { kind: "network-error", message: errorMessage(error), error };
@@ -80,3 +87,5 @@ export async function fetchSpecMarkdownExport({
   if (parsed.kind !== "ok") return parsed;
   return { kind: "ok", data: parsed.data };
 }
+
+export type { SpecMarkdownExportScope };
