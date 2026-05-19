@@ -47,6 +47,7 @@ def test_build_capabilities_reports_unconfigured_defaults() -> None:
 
     assert capabilities == {
         "spec_graph": False,
+        "spec_markdown_export": False,
         "spec_compile": False,
         "compile": False,
         "graph_dashboard": False,
@@ -76,6 +77,7 @@ def test_build_capabilities_reports_configured_surfaces() -> None:
 
     assert capabilities == {
         "spec_graph": True,
+        "spec_markdown_export": True,
         "spec_compile": True,
         "compile": True,
         "graph_dashboard": True,

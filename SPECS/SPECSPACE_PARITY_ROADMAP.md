@@ -184,6 +184,6 @@ Target:
 23. `CTXB-P13-T27` — Add Recent timeline filters. ✅
 24. `CTXB-P13-T28` — Add canvas layout presets. ✅
 25. `CTXB-P13-T29` — Plan Spec Markdown export and Hyperprompt compile boundary. ✅
-26. `CTXB-P13-T30` — Add SpecSpace v1 Spec Markdown export endpoint.
+26. `CTXB-P13-T30` — Add SpecSpace v1 Spec Markdown export endpoint. ✅
 27. `CTXB-P13-T31` — Add Spec Markdown export action to Spec Inspector.
 28. `CTXB-P13-T32` — Add optional Hyperprompt compile capability diagnostics.

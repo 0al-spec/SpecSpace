@@ -6,7 +6,7 @@ from http import HTTPStatus
 from typing import Any, Protocol
 from urllib.parse import unquote
 
-from viewer import specspace_provider
+from viewer import spec_compile, specspace_provider
 from viewer.http_response import JsonResponseHandler, json_response
 from viewer.request_query import query_params, query_value
 
@@ -38,6 +38,55 @@ def _query_limit(parsed: Any, *, default: int, minimum: int = 1, maximum: int = 
     return max(minimum, min(value, maximum))
 
 
+def _query_int_required_range(
+    params: dict[str, list[str]],
+    name: str,
+    *,
+    default: int,
+    minimum: int,
+    maximum: int,
+) -> tuple[int | None, dict[str, Any] | None]:
+    raw = query_value(params, name, None)
+    if raw is None:
+        return default, None
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None, {
+            "error": f"Invalid query parameter: {name}",
+            "parameter": name,
+            "detail": f"Expected integer from {minimum} to {maximum}.",
+        }
+    if value < minimum or value > maximum:
+        return None, {
+            "error": f"Invalid query parameter: {name}",
+            "parameter": name,
+            "detail": f"Expected integer from {minimum} to {maximum}.",
+        }
+    return value, None
+
+
+def _query_bool_required(
+    params: dict[str, list[str]],
+    name: str,
+    *,
+    default: bool,
+) -> tuple[bool | None, dict[str, Any] | None]:
+    raw = query_value(params, name, None)
+    if raw is None:
+        return default, None
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True, None
+    if value in {"0", "false", "no", "off"}:
+        return False, None
+    return None, {
+        "error": f"Invalid query parameter: {name}",
+        "parameter": name,
+        "detail": "Expected boolean true/false value.",
+    }
+
+
 def handle_v1_health(handler: SpecSpaceV1Handler) -> None:
     json_response(
         handler,
@@ -63,6 +112,47 @@ def handle_v1_spec_node(handler: SpecSpaceV1Handler, parsed: Any) -> None:
         json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing spec node id in path."})
         return
     status, payload = _provider(handler).read_spec_node(node_id)
+    json_response(handler, status, payload)
+
+
+def handle_v1_spec_markdown(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    params = query_params(parsed)
+    root_id = query_value(params, "root", "").strip()
+    if not root_id:
+        json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing required query parameter: root"})
+        return
+
+    max_depth, error = _query_int_required_range(params, "depth", default=6, minimum=1, maximum=6)
+    if error is not None:
+        json_response(handler, HTTPStatus.BAD_REQUEST, error)
+        return
+    assert max_depth is not None
+
+    include_objective, error = _query_bool_required(params, "objective", default=True)
+    if error is not None:
+        json_response(handler, HTTPStatus.BAD_REQUEST, error)
+        return
+    include_acceptance, error = _query_bool_required(params, "acceptance", default=True)
+    if error is not None:
+        json_response(handler, HTTPStatus.BAD_REQUEST, error)
+        return
+    include_depends_on_refs, error = _query_bool_required(params, "deps", default=True)
+    if error is not None:
+        json_response(handler, HTTPStatus.BAD_REQUEST, error)
+        return
+    include_prompt, error = _query_bool_required(params, "prompt", default=False)
+    if error is not None:
+        json_response(handler, HTTPStatus.BAD_REQUEST, error)
+        return
+
+    options = spec_compile.CompileOptions(
+        max_depth=max_depth,
+        include_objective=bool(include_objective),
+        include_acceptance=bool(include_acceptance),
+        include_depends_on_refs=bool(include_depends_on_refs),
+        include_prompt=bool(include_prompt),
+    )
+    status, payload = _provider(handler).read_spec_markdown(root_id, options)
     json_response(handler, status, payload)
 
 

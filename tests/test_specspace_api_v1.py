@@ -1007,6 +1007,95 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["node_id"], "SG-SPEC-0001")
         self.assertEqual(body["data"]["title"], MINIMAL_SPEC["title"])
 
+    def test_spec_markdown_v1_exports_file_provider_subtree(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(
+                spec_dir / "SG-SPEC-0001.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "depends_on": ["SG-SPEC-0002"],
+                    "specification": {
+                        "objective": "Define the readonly export boundary.",
+                        "decisions": [],
+                    },
+                },
+            )
+            _write_yaml(
+                spec_dir / "SG-SPEC-0002.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-0002",
+                    "title": "Spec Markdown Child",
+                    "refines": ["SG-SPEC-0001"],
+                    "acceptance": ["Child included"],
+                },
+            )
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/spec-markdown?root={quote('SG-SPEC-0001')}&depth=2")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["api_version"], "v1")
+        self.assertEqual(body["root_id"], "SG-SPEC-0001")
+        self.assertEqual(body["download_filename"], "SG-SPEC-0001.md")
+        self.assertEqual(body["source"]["provider"], "file")
+        self.assertEqual(body["manifest"]["node_count"], 2)
+        self.assertEqual(body["manifest"]["nodes_included"], ["SG-SPEC-0001", "SG-SPEC-0002"])
+        self.assertIn("# SG-SPEC-0001", body["markdown"])
+        self.assertIn("## 1. SG-SPEC-0002", body["markdown"])
+        self.assertIn("> Define the readonly export boundary.", body["markdown"])
+
+    def test_spec_markdown_v1_rejects_invalid_depth(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/spec-markdown?root=SG-SPEC-0001&depth=deep")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["parameter"], "depth")
+
+    def test_spec_markdown_v1_reports_unknown_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/spec-markdown?root=SG-SPEC-9999")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 404)
+        self.assertEqual(body["root_id"], "SG-SPEC-9999")
+
+    def test_spec_markdown_v1_reports_malformed_provider_data(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            (spec_dir / "SG-SPEC-0001.yaml").write_text("- not\n- a\n- mapping\n", encoding="utf-8")
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/spec-markdown?root=SG-SPEC-0001")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "invalid_provider_data")
+        self.assertEqual(body["load_errors"][0]["file_name"], "SG-SPEC-0001.yaml")
+
     def test_recent_runs_v1_reads_explicit_runs_dir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -1127,6 +1216,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 health_status, health = _get(f"{base}/api/v1/health")
                 graph_status, graph = _get(f"{base}/api/v1/spec-graph")
                 node_status, node = _get(f"{base}/api/v1/spec-nodes/{quote('SG-SPEC-0001')}")
+                markdown_status, markdown = _get(f"{base}/api/v1/spec-markdown?root={quote('SG-SPEC-0001')}")
                 activity_status, activity = _get(f"{base}/api/v1/spec-activity?limit=1")
                 trace_status, trace = _get(f"{base}/api/v1/proposal-spec-trace-index")
                 proposals_status, proposals = _get(f"{base}/api/v1/proposals")
@@ -1143,6 +1233,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(graph["graph"]["nodes"][0]["node_id"], "SG-SPEC-0001")
         self.assertEqual(node_status, 200)
         self.assertEqual(node["data"]["title"], MINIMAL_SPEC["title"])
+        self.assertEqual(markdown_status, 200)
+        self.assertEqual(markdown["source"]["provider"], "http")
+        self.assertEqual(markdown["source"]["artifact_base_url"], artifact_base_url)
+        self.assertIn("# SG-SPEC-0001", markdown["markdown"])
         self.assertEqual(activity_status, 200)
         self.assertEqual(activity["data"]["entry_count"], 1)
         self.assertTrue(activity["path"].endswith("/runs/spec_activity_feed.json"))
