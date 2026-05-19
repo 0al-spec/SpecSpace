@@ -146,6 +146,8 @@ export function ViewerPage() {
 
   const liveEntries =
     feedState.kind === "ok" ? feedState.data.entries : SAMPLE_ENTRIES;
+  const promptOverlaySummary =
+    feedState.kind === "ok" ? feedState.data.viewer_projection.prompt_overlay : undefined;
   const liveWorkItems =
     workState.kind === "ok" ? workState.data.entries : SAMPLE_WORK_ITEMS;
   const liveProposalTraceIndex =
@@ -689,6 +691,7 @@ export function ViewerPage() {
                 onIncludeUnknownChange: setRecentTimelineIncludeUnknown,
                 onClear: clearRecentTimelineFilter,
               }}
+              promptOverlay={promptOverlaySummary}
             />
           ) : null}
 

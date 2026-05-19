@@ -128,6 +128,78 @@ describe("parseSpecActivityFeed", () => {
     expect(parseSpecActivityFeed(variant).kind).toBe("ok");
   });
 
+  it("accepts prompt overlay provenance and visible-run drift summary", () => {
+    const variant = cloneGolden();
+    const provenance = {
+      status: "enabled",
+      source_kind: "profile",
+      display_label: "default",
+      drift_key: `${"profile"}|default|${"e".repeat(64)}|${"p".repeat(64)}`,
+      core_prompt_overridden: false,
+      prompt_profile_id: "default",
+      prompt_extension_path: "tools/supervisor_prompts/default.md",
+      prompt_extension_sha256: "e".repeat(64),
+      prompt_overlay_authority: "project",
+      policy_reference: {
+        artifact_path: "tools/supervisor_prompt_policy.json",
+        artifact_sha256: "p".repeat(64),
+        version: 1,
+      },
+      non_overridable_invariants: ["allowed_paths_required"],
+    };
+    variant.entries[0].prompt_overlay_provenance = provenance;
+    variant.summary.prompt_overlay = {
+      scope: "visible_entries",
+      label: "Prompt drift in visible runs",
+      status_counts: { enabled: 1 },
+      drift_group_count: 1,
+    };
+    variant.viewer_projection.prompt_overlay = {
+      scope: "visible_entries",
+      label: "Prompt drift in visible runs",
+      status_counts: { enabled: 1 },
+      drift_group_count: 1,
+      drift_groups: [
+        {
+          drift_key: provenance.drift_key,
+          display_label: "default",
+          dominant_status: "enabled",
+          source_kind: "profile",
+          event_ids: [variant.entries[0].event_id],
+          event_count: 1,
+          status_counts: { enabled: 1 },
+        },
+      ],
+    };
+
+    const r = parseSpecActivityFeed(variant);
+    expect(r.kind).toBe("ok");
+    if (r.kind !== "ok") return;
+    expect(r.data.entries[0].prompt_overlay_provenance?.display_label).toBe("default");
+    expect(r.data.viewer_projection.prompt_overlay?.drift_group_count).toBe(1);
+  });
+
+  it("accepts legacy_unknown prompt overlay reasons", () => {
+    const variant = cloneGolden();
+    variant.entries[0].prompt_overlay_provenance = {
+      status: "legacy_unknown",
+      source_kind: "unknown",
+      display_label: "legacy",
+      reason: "missing_exact_run_link",
+    };
+    expect(parseSpecActivityFeed(variant).kind).toBe("ok");
+  });
+
+  it("rejects unknown prompt overlay statuses", () => {
+    const broken = cloneGolden();
+    broken.entries[0].prompt_overlay_provenance = {
+      status: "maybe",
+      source_kind: "profile",
+      display_label: "maybe",
+    };
+    expect(parseSpecActivityFeed(broken).kind).toBe("parse-error");
+  });
+
   it("known event-type vocabulary stays in sync with the contract", () => {
     // Lock against accidental drift. Contract §5 lists exactly these types.
     expect([...KNOWN_EVENT_TYPES].sort()).toEqual([

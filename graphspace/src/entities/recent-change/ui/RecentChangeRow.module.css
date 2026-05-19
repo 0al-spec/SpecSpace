@@ -31,11 +31,19 @@
   min-width: 0;
 }
 
+.labelRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gs-space-2) var(--gs-space-3);
+  margin: 0 0 var(--gs-space-2);
+}
+
 .label {
   display: inline-flex;
   align-items: center;
   gap: var(--gs-space-3);
-  margin: 0 0 var(--gs-space-2);
+  margin: 0;
   font-family: var(--gs-mono);
   font-size: 10px;
   font-weight: 600;
@@ -48,6 +56,113 @@
 .tone-trace          .label { color: var(--gs-accent); }
 .tone-proposal       .label { color: var(--gs-warn); }
 .tone-implementation .label { color: var(--gs-ok); }
+
+.promptOverlay {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.promptOverlay[open] {
+  z-index: 3;
+}
+
+.promptBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  color: var(--gs-muted);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  list-style: none;
+  padding: 4px 7px;
+  text-transform: uppercase;
+}
+
+.promptBadge::-webkit-details-marker {
+  display: none;
+}
+
+.promptBadge-active {
+  border-color: var(--gs-accent);
+  background: var(--gs-accent-soft);
+  color: var(--gs-accent);
+}
+
+.promptBadge-danger {
+  border-color: var(--gs-danger);
+  background: rgba(181, 65, 49, 0.1);
+  color: var(--gs-danger);
+}
+
+.promptBadge-muted {
+  color: var(--gs-muted-2);
+}
+
+.promptBadge-neutral {
+  color: var(--gs-muted);
+}
+
+.promptPanel {
+  position: absolute;
+  top: calc(100% + var(--gs-space-2));
+  left: 0;
+  width: min(320px, calc(100vw - 48px));
+  border: 1px solid var(--gs-rule-mid);
+  background: var(--gs-paper);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  padding: var(--gs-space-4);
+}
+
+.promptWarning {
+  margin: 0 0 var(--gs-space-3);
+  color: var(--gs-danger);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.promptDetails {
+  display: grid;
+  gap: var(--gs-space-2);
+  margin: 0;
+}
+
+.promptDetail {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.38fr) minmax(0, 1fr);
+  gap: var(--gs-space-3);
+  align-items: baseline;
+}
+
+.promptDetail dt {
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.promptDetail dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.promptDangerText {
+  color: var(--gs-danger) !important;
+  font-weight: 700;
+}
 
 .spec-id {
   font-family: var(--gs-mono);

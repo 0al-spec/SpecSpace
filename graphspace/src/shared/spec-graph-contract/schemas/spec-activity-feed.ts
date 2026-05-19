@@ -47,6 +47,79 @@ const mergeLandingSchema = z.object({
   main_contains_commit: z.boolean(),
 }).passthrough();
 
+export const promptOverlayStatusSchema = z.enum([
+  "core",
+  "enabled",
+  "legacy_unknown",
+  "unsafe",
+]);
+
+export type PromptOverlayStatus = z.infer<typeof promptOverlayStatusSchema>;
+
+export const promptOverlaySourceKindSchema = z.enum([
+  "core",
+  "profile",
+  "extension_file",
+  "unknown",
+]);
+
+export type PromptOverlaySourceKind = z.infer<typeof promptOverlaySourceKindSchema>;
+
+export const promptOverlayReasonSchema = z.enum([
+  "missing_exact_run_link",
+  "legacy_run_without_provenance",
+]);
+
+const promptOverlayPolicyReferenceSchema = z.object({
+  artifact_path: z.string().optional(),
+  artifact_sha256: z.string().optional(),
+  version: z.number().int().nonnegative().nullable().optional(),
+}).passthrough();
+
+export const promptOverlayProvenanceSchema = z.object({
+  status: promptOverlayStatusSchema,
+  source_kind: promptOverlaySourceKindSchema,
+  display_label: z.string(),
+  reason: promptOverlayReasonSchema.optional(),
+  drift_key: z.string().optional(),
+  core_prompt_overridden: z.boolean().nullable().optional(),
+  prompt_profile_id: z.string().optional(),
+  prompt_extension_path: z.string().optional(),
+  prompt_extension_sha256: z.string().optional(),
+  prompt_overlay_authority: z.string().optional(),
+  policy_reference: promptOverlayPolicyReferenceSchema.optional(),
+  non_overridable_invariants: z.array(z.string()).optional(),
+  unsafe_reasons: z.array(z.string()).optional(),
+}).passthrough();
+
+export type PromptOverlayProvenance = z.infer<typeof promptOverlayProvenanceSchema>;
+
+const promptOverlayStatusCountsSchema = z.record(
+  promptOverlayStatusSchema,
+  z.number().int().nonnegative(),
+);
+
+const promptOverlayDriftGroupSchema = z.object({
+  drift_key: z.string(),
+  display_label: z.string(),
+  status: promptOverlayStatusSchema.optional(),
+  dominant_status: promptOverlayStatusSchema.optional(),
+  source_kind: promptOverlaySourceKindSchema.optional(),
+  event_ids: z.array(z.string()).optional(),
+  event_count: z.number().int().nonnegative(),
+  status_counts: promptOverlayStatusCountsSchema.optional(),
+}).passthrough();
+
+export const promptOverlaySummarySchema = z.object({
+  scope: z.literal("visible_entries"),
+  label: z.string(),
+  status_counts: promptOverlayStatusCountsSchema,
+  drift_group_count: z.number().int().nonnegative(),
+  drift_groups: z.array(promptOverlayDriftGroupSchema).optional(),
+}).passthrough();
+
+export type PromptOverlaySummary = z.infer<typeof promptOverlaySummarySchema>;
+
 export const specActivityEntrySchema = z.object({
   event_id: z.string(),
   event_type: z.string(),
@@ -59,6 +132,7 @@ export const specActivityEntrySchema = z.object({
   source_paths: z.array(z.string()),
   viewer: viewerHintSchema,
   merge_landing: mergeLandingSchema.optional(),
+  prompt_overlay_provenance: promptOverlayProvenanceSchema.optional(),
 }).passthrough();
 
 export type SpecActivityEntry = z.infer<typeof specActivityEntrySchema>;
@@ -67,6 +141,7 @@ const summarySchema = z.object({
   entry_count: z.number().int().nonnegative(),
   event_type_counts: z.record(z.string(), z.number().int().nonnegative()),
   spec_event_counts: z.record(z.string(), z.number().int().nonnegative()),
+  prompt_overlay: promptOverlaySummarySchema.optional(),
 }).passthrough();
 
 /**
@@ -82,6 +157,7 @@ const viewerProjectionSchema = z.object({
   event_type: projectionBucket,
   spec_id: projectionBucket,
   named_filters: projectionBucket,
+  prompt_overlay: promptOverlaySummarySchema.optional(),
 }).passthrough();
 
 const viewerContractSchema = z.object({
