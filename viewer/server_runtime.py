@@ -41,7 +41,7 @@ def build_arg_parser(
     description: str | None,
     default_hyperprompt_binary: str,
 ) -> argparse.ArgumentParser:
-    default_hyperprompt_work_dir = os.environ.get("SPECSPACE_HYPERPROMPT_WORK_DIR")
+    hyperprompt_work_dir_env = os.environ.get("SPECSPACE_HYPERPROMPT_WORK_DIR", "").strip()
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--host",
@@ -60,7 +60,7 @@ def build_arg_parser(
     parser.add_argument(
         "--hyperprompt-work-dir",
         type=Path,
-        default=Path(default_hyperprompt_work_dir) if default_hyperprompt_work_dir else None,
+        default=Path(hyperprompt_work_dir_env) if hyperprompt_work_dir_env else None,
         help=(
             "Explicit scratch workspace for optional SpecSpace Hyperprompt compile. "
             "When omitted, /api/v1/capabilities reports Hyperprompt compile as unavailable."

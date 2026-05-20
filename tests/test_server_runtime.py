@@ -26,6 +26,28 @@ def test_build_arg_parser_accepts_container_host() -> None:
     assert args.host == "0.0.0.0"
 
 
+def test_build_arg_parser_strips_hyperprompt_work_dir_env(monkeypatch) -> None:
+    monkeypatch.setenv("SPECSPACE_HYPERPROMPT_WORK_DIR", "  /tmp/specspace-hyperprompt  ")
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+    args = parser.parse_args(["--dialog-dir", "/tmp/dialogs"])
+
+    assert args.hyperprompt_work_dir == Path("/tmp/specspace-hyperprompt")
+
+
+def test_build_arg_parser_treats_blank_hyperprompt_work_dir_env_as_unset(monkeypatch) -> None:
+    monkeypatch.setenv("SPECSPACE_HYPERPROMPT_WORK_DIR", "   ")
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+    args = parser.parse_args(["--dialog-dir", "/tmp/dialogs"])
+
+    assert args.hyperprompt_work_dir is None
+
+
 def test_runs_watch_path_prefers_spec_dir_layout() -> None:
     spec_dir = Path("/repo/specs/nodes")
     specgraph_dir = Path("/other")

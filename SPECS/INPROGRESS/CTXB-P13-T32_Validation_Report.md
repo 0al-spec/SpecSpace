@@ -33,7 +33,7 @@ Result: PASS
 
 ```bash
 python -m pytest tests/test_capabilities_api.py tests/test_server_runtime.py tests/test_specspace_api_v1.py -q
-# 51 passed
+# 53 passed
 
 npm test --prefix graphspace -- capability-diagnostics
 # 1 file / 3 tests passed
