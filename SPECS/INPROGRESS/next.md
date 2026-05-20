@@ -81,7 +81,7 @@
 
 ### SpecSpace Parity (Phase 13, current)
 - `CTXB-P13-T33` — Add local Hyperprompt compile endpoint for Spec Markdown exports.
-- Rationale: readonly Markdown export is usable and compile availability is now explicitly diagnosed. The next parity step is to restore the old ContextBuilder compile value for local file-provider deployments only, by compiling a SpecSpace-generated export bundle behind the existing `hyperprompt_compile` capability gate.
+- Rationale: readonly Markdown export is usable and compile availability is now explicitly diagnosed. The next parity step is to restore the old ContextBuilder compile value for local file provider deployments only, by compiling a SpecSpace-generated export bundle behind the existing `hyperprompt_compile` capability gate.
 
 ### Phase 13 Suggested Stack
 - Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`.

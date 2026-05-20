@@ -134,7 +134,7 @@ requiring any mounted SpecGraph checkout or Hyperprompt binary.
 1. `CTXB-P13-T30` — Add SpecSpace v1 Spec Markdown export endpoint.
 2. `CTXB-P13-T31` — Add Spec Markdown export action to Spec Inspector.
 3. `CTXB-P13-T32` — Add optional Hyperprompt compile capability diagnostics.
-4. `CTXB-P13-T33` — Add a local file-provider Hyperprompt compile endpoint
+4. `CTXB-P13-T33` — Add a local file provider Hyperprompt compile endpoint
    that compiles only SpecSpace-generated export bundles behind the existing
    `hyperprompt_compile` capability gate.
 5. Add a Spec Inspector compile action only after the backend endpoint has
