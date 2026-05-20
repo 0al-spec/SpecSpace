@@ -6,6 +6,7 @@ import {
   createMetricContextItem,
   createSpecMarkdownContextItem,
   createMetricConversationPromptSeed,
+  createSpecMarkdownConversationPromptSeed,
   createSpecEdgeContextItem,
   createSpecGapContextItem,
   createProposalContextItem,
@@ -463,6 +464,11 @@ export function ViewerPage() {
     setAgentConversationPromptSeed(createMetricConversationPromptSeed(entry));
     setActiveUtilityPanel("agent-conversation");
   };
+  const startConversationFromSpecMarkdown = (source: SpecMarkdownContextSource) => {
+    addSpecMarkdownToAgentContext(source);
+    setAgentConversationPromptSeed(createSpecMarkdownConversationPromptSeed(source));
+    setActiveUtilityPanel("agent-conversation");
+  };
   const utilityPanelDetails = (() => {
     switch (activeUtilityPanel) {
       case "recent":
@@ -818,6 +824,7 @@ export function ViewerPage() {
           onSelectNodeId={selectSpecNodeId}
           compileCapability={hyperpromptCompileCapability}
           onAddMarkdownToAgentContext={addSpecMarkdownToAgentContext}
+          onStartConversationFromMarkdown={startConversationFromSpecMarkdown}
         />
       ) : selectedGraphEdge ? (
         <SpecEdgeInspector

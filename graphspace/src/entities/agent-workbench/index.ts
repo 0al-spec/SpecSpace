@@ -33,9 +33,11 @@ export {
 export {
   createMetricConversationPromptSeed,
   createProposalConversationPromptSeed,
+  createSpecMarkdownConversationPromptSeed,
   type AgentConversationPromptSeed,
   type MetricConversationPromptSource,
   type ProposalConversationPromptSource,
+  type SpecMarkdownConversationPromptSource,
 } from "./model/conversation-prompt";
 export {
   createAgentRuntimeProjection,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createMetricConversationPromptSeed,
   createProposalConversationPromptSeed,
+  createSpecMarkdownConversationPromptSeed,
 } from "../index";
 
 describe("agent conversation prompt seeds", () => {
@@ -44,5 +45,26 @@ describe("agent conversation prompt seeds", () => {
     expect(seed.prompt).toContain(
       "References: SG-SPEC-0001, SG-SPEC-0002, SG-SPEC-0003, SG-SPEC-0004, SG-SPEC-0005, SG-SPEC-0006, +1 more",
     );
+  });
+
+  it("builds a Spec Markdown starter prompt with scope and artifact context", () => {
+    const seed = createSpecMarkdownConversationPromptSeed({
+      node_id: "SG-SPEC-0001",
+      title: "SpecGraph - The Executable Product Ontology",
+      scope: "subtree",
+      source_kind: "hyperprompt_compile",
+      download_filename: "SG-SPEC-0001.compiled.md",
+      node_count: 65,
+    });
+
+    expect(seed).toEqual({
+      source_kind: "spec_markdown",
+      source_id: "hyperprompt_compile:SG-SPEC-0001:subtree",
+      prompt: [
+        "Review compiled Spec Markdown for SG-SPEC-0001: SpecGraph - The Executable Product Ontology.",
+        "Use the attached Markdown context to identify the affected specs, remaining gaps, and the next SpecGraph proposal or analysis action.",
+        "Scope: refinement subtree; nodes: 65; artifact: SG-SPEC-0001.compiled.md",
+      ].join("\n"),
+    });
   });
 });
