@@ -16,6 +16,7 @@
 
 .header {
   display: flex;
+  flex: 0 0 auto;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--gs-space-5);
@@ -40,6 +41,7 @@
 }
 
 .scroll {
+  flex: 1 1 auto;
   overflow-y: auto;
   min-height: 0;
 }
@@ -73,6 +75,7 @@
 }
 
 .boundary {
+  flex: 0 0 auto;
   /* Contract §8 requires we surface the planning-only boundary clearly. */
   padding: var(--gs-space-4) var(--gs-space-7);
   border-top: 1px solid var(--gs-rule-soft);

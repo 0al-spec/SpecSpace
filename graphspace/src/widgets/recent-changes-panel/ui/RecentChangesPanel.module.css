@@ -13,6 +13,7 @@
 
 .header {
   display: flex;
+  flex: 0 0 auto;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--gs-space-5);
@@ -38,6 +39,7 @@
 }
 
 .scroll {
+  flex: 1 1 auto;
   overflow-y: auto;
   min-height: 0;
 }
