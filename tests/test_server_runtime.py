@@ -45,7 +45,7 @@ def test_configure_server_sets_runtime_capabilities() -> None:
     runs_watchers: list[Path] = []
 
     def resolve_hyperprompt_binary(binary: str):
-        return binary, [], ""
+        return binary, [binary], "configured"
 
     def workspace_watcher_factory(path: Path):
         workspace_watchers.append(path)
@@ -64,6 +64,7 @@ def test_configure_server_sets_runtime_capabilities() -> None:
         args = argparse.Namespace(
             dialog_dir=root / "dialogs",
             hyperprompt_binary="/bin/hyperprompt",
+            hyperprompt_work_dir=root / "hyperprompt-work",
             spec_dir=root / "specgraph" / "specs" / "nodes",
             specgraph_dir=None,
             runs_dir=None,
@@ -86,6 +87,11 @@ def test_configure_server_sets_runtime_capabilities() -> None:
         assert server.dialog_dir.exists()
         assert workspace_watchers == [server.dialog_dir]
         assert server.hyperprompt_binary == "/bin/hyperprompt"
+        assert server.hyperprompt_resolved_binary == "/bin/hyperprompt"
+        assert server.hyperprompt_checked_paths == ["/bin/hyperprompt"]
+        assert server.hyperprompt_resolution_source == "configured"
+        assert server.hyperprompt_work_dir == (root / "hyperprompt-work").resolve()
+        assert server.hyperprompt_compile_available is False
         assert server.compile_available is True
         assert server.spec_dir == (root / "specgraph" / "specs" / "nodes").resolve()
         assert spec_watchers == [server.spec_dir]
@@ -105,6 +111,7 @@ def test_configure_server_accepts_explicit_runs_dir() -> None:
         args = argparse.Namespace(
             dialog_dir=root / "dialogs",
             hyperprompt_binary="/bin/hyperprompt",
+            hyperprompt_work_dir=None,
             spec_dir=root / "specgraph" / "specs" / "nodes",
             specgraph_dir=root / "specgraph",
             runs_dir=root / "mounted-runs",

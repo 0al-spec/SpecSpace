@@ -48,6 +48,7 @@ import {
 import { SpecEdgeInspector } from "@/widgets/spec-edge-inspector";
 import { SpecInspector, type SpecInspectorSelection } from "@/widgets/spec-inspector";
 import { SpecNodeNavigator } from "@/widgets/spec-node-navigator";
+import { describeCapabilityDiagnostics } from "../model/capability-diagnostics";
 import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-artifacts";
 import { describeLive } from "../model/live-status";
 import {
@@ -80,6 +81,7 @@ import { SpecPMRegistryPanel } from "./SpecPMRegistryPanel";
 import { ViewerChrome, type ViewerUtilityPanelId } from "./ViewerChrome";
 import { useMetricsIndex } from "../model/use-metrics-index";
 import { useProposalIndex } from "../model/use-proposal-index";
+import { useSpecSpaceCapabilities } from "../model/use-specspace-capabilities";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
 import { proposalTraceEntriesForPanel } from "../model/proposal-trace-entries";
 import type { MetricsViewerContextFilter } from "../model/metrics-filters";
@@ -122,6 +124,7 @@ export function ViewerPage() {
   const proposalTraceState = useProposalSpecTraceIndex({ refreshKey: runsWatchVersion });
   const proposalIndexState = useProposalIndex({ refreshKey: runsWatchVersion });
   const metricsIndexState = useMetricsIndex({ refreshKey: runsWatchVersion });
+  const capabilitiesState = useSpecSpaceCapabilities();
   const specpmRegistryState = useSpecPMRegistrySummary();
   const specGraphState = useSpecGraph({ refreshKey: runsWatchVersion });
   const specpmLifecycleState = useSpecPMLifecycleBadges({
@@ -197,9 +200,13 @@ export function ViewerPage() {
       emptyDetail: "Artifact is live but contains no proposal trace entries.",
     }),
   ] as const;
+  const capabilityDiagnostics = describeCapabilityDiagnostics(capabilitiesState);
   const liveStatusTooltip = [
     deploymentStatus.title,
     ...artifactDiagnostics.map(
+      (artifact) => `${artifact.label}: ${artifact.status}; ${artifact.detail}`,
+    ),
+    ...capabilityDiagnostics.map(
       (artifact) => `${artifact.label}: ${artifact.status}; ${artifact.detail}`,
     ),
   ].join("\n");
@@ -779,6 +786,7 @@ export function ViewerPage() {
           {activeUtilityPanel === "artifacts" ? (
             <LiveArtifactStatusPanel
               diagnostics={artifactDiagnostics}
+              capabilityDiagnostics={capabilityDiagnostics}
               runsWatchVersion={runsWatchVersion}
               showHeader={false}
             />

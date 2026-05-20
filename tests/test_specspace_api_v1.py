@@ -51,11 +51,19 @@ def _start(
     specgraph_dir: Path | None = None,
     artifact_base_url: str | None = None,
     specpm_registry_url: str | None = None,
+    hyperprompt_binary: str = "",
+    hyperprompt_resolved_binary: str | None = None,
+    hyperprompt_work_dir: Path | None = None,
 ) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.ViewerHandler)
     httpd.repo_root = REPO_ROOT
     httpd.dialog_dir = dialog_dir
-    httpd.hyperprompt_binary = ""
+    httpd.hyperprompt_binary = hyperprompt_binary
+    httpd.hyperprompt_resolved_binary = hyperprompt_resolved_binary
+    httpd.hyperprompt_checked_paths = [hyperprompt_binary] if hyperprompt_binary else []
+    httpd.hyperprompt_resolution_source = "configured" if hyperprompt_resolved_binary else "missing"
+    httpd.hyperprompt_work_dir = hyperprompt_work_dir
+    httpd.hyperprompt_compile_available = False
     httpd.compile_available = False
     httpd.spec_dir = spec_dir
     httpd.spec_watcher = server.SpecWatcher(spec_dir) if spec_dir else None
@@ -1083,6 +1091,53 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertIn("# SG-SPEC-0001", body["markdown"])
         self.assertNotIn("SG-SPEC-0002", body["markdown"])
 
+    def test_capabilities_v1_distinguishes_markdown_export_from_hyperprompt_compile(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/capabilities")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(body["capabilities"]["spec_markdown_export"])
+        self.assertFalse(body["capabilities"]["hyperprompt_compile"])
+        self.assertEqual(body["diagnostics"]["spec_markdown_export"]["status"], "available")
+        self.assertEqual(body["diagnostics"]["hyperprompt_compile"]["status"], "compiler_missing")
+
+    def test_capabilities_v1_reports_configured_hyperprompt_compile(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            binary = root / "hyperprompt"
+            binary.write_text("#!/bin/sh\n", encoding="utf-8")
+            binary.chmod(0o755)
+            scratch = root / "scratch"
+            scratch.mkdir()
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                hyperprompt_binary=str(binary),
+                hyperprompt_resolved_binary=str(binary),
+                hyperprompt_work_dir=scratch,
+            )
+            try:
+                status, body = _get(f"{base}/api/v1/capabilities")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(body["capabilities"]["spec_markdown_export"])
+        self.assertTrue(body["capabilities"]["hyperprompt_compile"])
+        self.assertEqual(body["diagnostics"]["hyperprompt_compile"]["status"], "available")
+        self.assertEqual(body["diagnostics"]["hyperprompt_compile"]["resolved_binary"], str(binary))
+
     def test_spec_markdown_v1_rejects_invalid_depth(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -1285,6 +1340,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 trace_status, trace = _get(f"{base}/api/v1/proposal-spec-trace-index")
                 proposals_status, proposals = _get(f"{base}/api/v1/proposals")
                 metrics_status, metrics = _get(f"{base}/api/v1/metrics")
+                capabilities_status, capabilities = _get(f"{base}/api/v1/capabilities")
             finally:
                 _stop(httpd, thread)
                 _stop(static, static_thread)
@@ -1316,6 +1372,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(metrics["entry_count"], 7)
         self.assertTrue(metrics["sources"]["graph_dashboard"]["available"])
         self.assertIn("SG-SPEC-0001", metrics["filters"]["reference_texts"])
+        self.assertEqual(capabilities_status, 200)
+        self.assertTrue(capabilities["capabilities"]["spec_markdown_export"])
+        self.assertFalse(capabilities["capabilities"]["hyperprompt_compile"])
+        self.assertEqual(
+            capabilities["diagnostics"]["hyperprompt_compile"]["status"],
+            "provider_unsupported",
+        )
 
     def test_http_provider_reports_missing_runs_artifact_as_not_found(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

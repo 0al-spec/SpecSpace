@@ -1284,9 +1284,20 @@ def read_specpm_registry_package_version(
 
 
 def versioned_capabilities(handler: CapabilityContext, provider: SpecSpaceProvider) -> dict[str, Any]:
+    capabilities = provider.capabilities(handler)
+    diagnostics = capabilities_api.build_capability_diagnostics(
+        handler,
+        provider_kind=provider.kind,
+        capabilities=capabilities,
+    )
+    capabilities = {
+        **capabilities,
+        "hyperprompt_compile": bool(diagnostics["hyperprompt_compile"]["available"]),
+    }
     return {
         "api_version": SPECSPACE_API_VERSION,
-        "capabilities": provider.capabilities(handler),
+        "capabilities": capabilities,
+        "diagnostics": diagnostics,
         "provider": {
             "kind": provider.kind,
             "read_only": True,
