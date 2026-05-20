@@ -50,6 +50,7 @@ type Props = Omit<HTMLAttributes<HTMLElement>, "children"> & {
   onSelectNodeId?: (nodeId: string) => void;
   compileCapability?: SpecMarkdownCompileCapability | null;
   onAddMarkdownToAgentContext?: (source: SpecMarkdownContextSource) => void;
+  onStartConversationFromMarkdown?: (source: SpecMarkdownContextSource) => void;
 };
 
 export function SpecInspector({
@@ -59,6 +60,7 @@ export function SpecInspector({
   onSelectNodeId,
   compileCapability = null,
   onAddMarkdownToAgentContext,
+  onStartConversationFromMarkdown,
   className,
   ...rest
 }: Props) {
@@ -259,9 +261,9 @@ export function SpecInspector({
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
-  const addMarkdownExportToAgentContext = () => {
-    if (!markdownExport || !onAddMarkdownToAgentContext) return;
-    onAddMarkdownToAgentContext({
+  const markdownExportContextSource = (): SpecMarkdownContextSource | null => {
+    if (!markdownExport) return null;
+    return {
       node_id: node.node_id,
       title: node.title,
       scope: markdownExport.scope,
@@ -269,12 +271,12 @@ export function SpecInspector({
       download_filename: markdownExport.download_filename,
       node_count: markdownExport.manifest.node_count,
       markdown: markdownExport.markdown,
-    });
+    };
   };
-  const addCompiledMarkdownToAgentContext = () => {
+  const compiledMarkdownContextSource = (): SpecMarkdownContextSource | null => {
     const compiledMarkdown = compileData?.compile.compiled_markdown;
-    if (!compiledMarkdown || !compileData || !onAddMarkdownToAgentContext) return;
-    onAddMarkdownToAgentContext({
+    if (!compiledMarkdown || !compileData) return null;
+    return {
       node_id: node.node_id,
       title: node.title,
       scope: compileData.scope,
@@ -291,7 +293,27 @@ export function SpecInspector({
         manifest_json: compileData.compile.manifest_json ?? null,
         root_hc: compileData.compile.root_hc ?? null,
       },
-    });
+    };
+  };
+  const addMarkdownExportToAgentContext = () => {
+    const source = markdownExportContextSource();
+    if (!source || !onAddMarkdownToAgentContext) return;
+    onAddMarkdownToAgentContext(source);
+  };
+  const addCompiledMarkdownToAgentContext = () => {
+    const source = compiledMarkdownContextSource();
+    if (!source || !onAddMarkdownToAgentContext) return;
+    onAddMarkdownToAgentContext(source);
+  };
+  const startMarkdownExportConversation = () => {
+    const source = markdownExportContextSource();
+    if (!source || !onStartConversationFromMarkdown) return;
+    onStartConversationFromMarkdown(source);
+  };
+  const startCompiledMarkdownConversation = () => {
+    const source = compiledMarkdownContextSource();
+    if (!source || !onStartConversationFromMarkdown) return;
+    onStartConversationFromMarkdown(source);
   };
 
   return (
@@ -355,6 +377,7 @@ export function SpecInspector({
           copied={markdownCopied}
           compiledCopied={compiledCopied}
           canAddToAgentContext={Boolean(onAddMarkdownToAgentContext)}
+          canStartConversation={Boolean(onStartConversationFromMarkdown)}
           onScopeChange={setMarkdownScope}
           onExport={exportMarkdown}
           onCompile={compileMarkdown}
@@ -364,6 +387,8 @@ export function SpecInspector({
           onDownloadCompiled={downloadCompiledMarkdown}
           onAddExportToAgentContext={addMarkdownExportToAgentContext}
           onAddCompiledToAgentContext={addCompiledMarkdownToAgentContext}
+          onStartExportConversation={startMarkdownExportConversation}
+          onStartCompiledConversation={startCompiledMarkdownConversation}
         />
 
         <section className={styles.section}>
@@ -426,6 +451,7 @@ function MarkdownExportSection({
   copied,
   compiledCopied,
   canAddToAgentContext,
+  canStartConversation,
   onScopeChange,
   onExport,
   onCompile,
@@ -435,6 +461,8 @@ function MarkdownExportSection({
   onDownloadCompiled,
   onAddExportToAgentContext,
   onAddCompiledToAgentContext,
+  onStartExportConversation,
+  onStartCompiledConversation,
 }: {
   state: MarkdownExportState;
   compileState: MarkdownCompileState;
@@ -443,6 +471,7 @@ function MarkdownExportSection({
   copied: boolean;
   compiledCopied: boolean;
   canAddToAgentContext: boolean;
+  canStartConversation: boolean;
   onScopeChange: (scope: SpecMarkdownExportScope) => void;
   onExport: () => void;
   onCompile: () => void;
@@ -452,6 +481,8 @@ function MarkdownExportSection({
   onDownloadCompiled: () => void;
   onAddExportToAgentContext: () => void;
   onAddCompiledToAgentContext: () => void;
+  onStartExportConversation: () => void;
+  onStartCompiledConversation: () => void;
 }) {
   const exportData = state.kind === "ok" ? state.data : null;
   const compileData = compileState.kind === "ok" ? compileState.data : null;
@@ -506,6 +537,19 @@ function MarkdownExportSection({
             }
           >
             Add Context
+          </button>
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={onStartExportConversation}
+            disabled={!exportData || !canStartConversation}
+            title={
+              canStartConversation
+                ? "Add exported Markdown and open Agent conversation"
+                : "Agent conversation is not available"
+            }
+          >
+            Start Chat
           </button>
           <button
             type="button"
@@ -625,6 +669,21 @@ function MarkdownExportSection({
                 }
               >
                 Add Context
+              </button>
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={onStartCompiledConversation}
+                disabled={
+                  !compileData.compile.compiled_markdown || !canStartConversation
+                }
+                title={
+                  canStartConversation
+                    ? "Add compiled Markdown and open Agent conversation"
+                    : "Agent conversation is not available"
+                }
+              >
+                Start Chat
               </button>
             </div>
           </div>

@@ -101,7 +101,28 @@
 }
 
 .contextToken {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gs-space-2);
   color: var(--gs-accent);
+}
+
+.contextTokenRemove {
+  border: 0;
+  border-left: 1px solid var(--gs-rule-soft);
+  background: transparent;
+  color: var(--gs-muted-2);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 0 0 0 var(--gs-space-2);
+  text-transform: uppercase;
+}
+
+.contextTokenRemove:hover,
+.contextTokenRemove:focus-visible {
+  color: var(--gs-danger);
 }
 
 .transcript {

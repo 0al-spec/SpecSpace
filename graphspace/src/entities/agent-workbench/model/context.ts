@@ -263,6 +263,32 @@ export function agentContextItemKey(item: AgentContextItem): string {
   return `${item.kind}:${item.node_id}`;
 }
 
+export function agentContextItemLabel(item: AgentContextItem): string {
+  if (item.kind === "proposal") return item.proposal_id;
+  if (item.kind === "metric") return item.item_id;
+  if (item.kind === "spec_edge") return item.edge_id;
+  if (item.kind === "spec_gap") {
+    return `${item.node_id} ${formatAgentContextGapKind(item.gap_kind)} gap`;
+  }
+  if (item.kind === "spec_markdown") {
+    return `${item.node_id} ${formatAgentContextMarkdownSource(item.source_kind)}`;
+  }
+  return item.node_id;
+}
+
+function formatAgentContextGapKind(kind: AgentContextSpecGapKind): string {
+  if (kind === "evidence") return "Evidence";
+  if (kind === "input") return "Input";
+  return "Execution";
+}
+
+function formatAgentContextMarkdownSource(
+  sourceKind: AgentContextSpecMarkdownSourceKind,
+): string {
+  if (sourceKind === "hyperprompt_compile") return "Hyperprompt compile";
+  return "Markdown export";
+}
+
 export function addAgentContextItem(
   draft: AgentContextDraft,
   item: AgentContextItem,

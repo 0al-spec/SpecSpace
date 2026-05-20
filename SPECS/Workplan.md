@@ -2043,7 +2043,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - HTTP/static production deployments remain explicitly compile-disabled.
   - Compile response parsing and request behavior have focused unit coverage.
 
-### CTXB-P13-T35 — Add Spec Markdown export and compile results to Agent Context — In Progress
+### ✅ CTXB-P13-T35 — Add Spec Markdown export and compile results to Agent Context — DONE (PASS, 2026-05-21)
 - **Description:** Let operators attach the Spec Inspector Markdown export or Hyperprompt-compiled Markdown result to the Agent Context draft as a first-class context item.
 - **Priority:** P3
 - **Dependencies:** CTXB-P13-T31, CTXB-P13-T34, CTXB-P13-T8
@@ -2055,6 +2055,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Agent Context deduplicates Markdown items by source kind, root spec, and scope.
   - Agent Context and Agent Conversation panels render Markdown context tokens without assuming every context item is a spec/proposal/metric.
   - No backend mutation or new execution path is introduced.
+
+### CTXB-P13-T36 — Start Agent Conversation from Spec Markdown exports — In Progress
+- **Description:** Add direct Spec Inspector conversation actions for exported and Hyperprompt-compiled Spec Markdown, seeding Agent Context and the Agent Conversation prompt from the exact selected artifact.
+- **Priority:** P3
+- **Dependencies:** CTXB-P13-T25, CTXB-P13-T35
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** Spec Markdown conversation prompt seed, Spec Inspector start-chat actions, Agent Conversation wiring, validation report
+- **Acceptance Criteria:**
+  - Exported Markdown can start an Agent Conversation after adding the export to Agent Context.
+  - Hyperprompt-compiled Markdown can start an Agent Conversation after adding the compiled result to Agent Context.
+  - The starter prompt includes root spec, artifact kind, scope, node count, and filename.
+  - Existing add/copy/download actions remain unchanged.
+  - The implementation stays frontend-only and uses the mock runtime boundary already present in Agent Conversation.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

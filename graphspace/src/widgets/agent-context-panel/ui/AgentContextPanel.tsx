@@ -1,4 +1,5 @@
 import {
+  agentContextItemLabel,
   agentContextItemKey,
   serializeAgentContextSet,
   type AgentContextDraft,
@@ -246,7 +247,7 @@ function ContextItemRow({
           type="button"
           className={styles.removeButton}
           onClick={() => onRemoveItem(key)}
-          aria-label={`Remove ${contextItemLabel(item)} from Agent context`}
+          aria-label={`Remove ${agentContextItemLabel(item)} from Agent context`}
         >
           Remove from Context
         </button>
@@ -374,15 +375,6 @@ function formatSpecMarkdownSource(
 ): string {
   if (sourceKind === "hyperprompt_compile") return "Hyperprompt compile";
   return "Markdown export";
-}
-
-function contextItemLabel(item: AgentContextItem): string {
-  if (item.kind === "spec_node") return item.node_id;
-  if (item.kind === "spec_edge") return item.edge_id;
-  if (item.kind === "spec_gap") return `${item.node_id} ${formatGapKind(item.gap_kind)} gap`;
-  if (item.kind === "metric") return item.item_id;
-  if (item.kind === "proposal") return item.proposal_id;
-  return `${item.node_id} ${formatSpecMarkdownSource(item.source_kind)}`;
 }
 
 function Status({ label, detail }: { label: string; detail: string }) {

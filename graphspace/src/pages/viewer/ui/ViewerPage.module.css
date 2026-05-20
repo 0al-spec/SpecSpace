@@ -490,6 +490,7 @@
   .utilityRail {
     bottom: calc(86px + env(safe-area-inset-bottom, 0px));
     max-height: none;
+    z-index: 5;
   }
 
   .canvasControlDock {
@@ -504,6 +505,7 @@
     right: var(--viewer-panel-edge);
     bottom: calc(86px + env(safe-area-inset-bottom, 0px));
     max-height: none;
+    z-index: 5;
   }
 
   .statusOverlay {
