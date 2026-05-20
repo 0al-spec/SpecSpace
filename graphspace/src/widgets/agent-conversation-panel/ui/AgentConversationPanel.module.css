@@ -167,6 +167,7 @@
   font-size: 14px;
   line-height: 1.45;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .turnArtifacts {
