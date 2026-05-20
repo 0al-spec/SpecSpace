@@ -55,3 +55,27 @@ export type AgentConversationRuntime = {
   sendMessage(input: SendAgentMessageInput): AsyncIterable<AgentRuntimeEvent>;
   resumeConversation(conversationId: AgentConversationId): AsyncIterable<AgentRuntimeEvent>;
 };
+
+export type AgentConversationHistoryEntry = {
+  ref: AgentConversationRef;
+  context_set: AgentContextDraft;
+  created_at: string;
+  updated_at: string;
+  turn_count: number;
+  event_count: number;
+};
+
+export type AgentConversationHistoryRuntime = AgentConversationRuntime & {
+  getConversation(conversationId: AgentConversationId): AgentConversationHistoryEntry | null;
+  listConversations(): AgentConversationHistoryEntry[];
+};
+
+export function isAgentConversationHistoryRuntime(
+  runtime: AgentConversationRuntime,
+): runtime is AgentConversationHistoryRuntime {
+  const candidate = runtime as Partial<AgentConversationHistoryRuntime>;
+  return (
+    typeof candidate.getConversation === "function" &&
+    typeof candidate.listConversations === "function"
+  );
+}

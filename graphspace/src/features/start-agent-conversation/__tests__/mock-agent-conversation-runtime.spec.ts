@@ -147,6 +147,132 @@ describe("createMockAgentConversationRuntime", () => {
     );
     expect(agentTurn?.text).not.toContain("Do not render this raw body");
   });
+
+  it("lists conversations newest first and replays stored transcript on resume", async () => {
+    const timestamps = [
+      "2026-05-17T18:30:00Z",
+      "2026-05-17T18:31:00Z",
+      "2026-05-17T18:32:00Z",
+      "2026-05-17T18:33:00Z",
+    ];
+    const runtime = createMockAgentConversationRuntime({
+      id_prefix: "test-awb",
+      now: () => timestamps.shift() ?? "2026-05-17T18:34:00Z",
+    });
+
+    const first = await runtime.startConversation({
+      title: "First context pass",
+      context_set: createAgentContextDraft("2026-05-17T18:29:00Z"),
+    });
+    const firstEvents = await collectAsyncIterable(
+      runtime.sendMessage({
+        conversation_id: first.conversation_id,
+        text: "Summarize first",
+      }),
+    );
+    const second = await runtime.startConversation({
+      title: "Second context pass",
+      context_set: createAgentContextDraft("2026-05-17T18:29:00Z"),
+    });
+    await collectAsyncIterable(
+      runtime.sendMessage({
+        conversation_id: second.conversation_id,
+        text: "Summarize second",
+      }),
+    );
+
+    expect(runtime.listConversations().map((record) => record.ref.conversation_id)).toEqual([
+      second.conversation_id,
+      first.conversation_id,
+    ]);
+    expect(runtime.getConversation(first.conversation_id)).toMatchObject({
+      updated_at: "2026-05-17T18:31:00Z",
+      turn_count: 2,
+      event_count: firstEvents.length,
+    });
+
+    const resumed = await collectAsyncIterable(runtime.resumeConversation(first.conversation_id));
+    expect(resumed).toEqual(firstEvents);
+    expect(projectAgentRuntimeEvents(resumed)).toEqual(projectAgentRuntimeEvents(firstEvents));
+  });
+
+  it("defensively clones conversation history records", async () => {
+    const runtime = createMockAgentConversationRuntime({
+      id_prefix: "test-awb",
+      now: () => "2026-05-17T18:30:00Z",
+    });
+    const context = addAgentContextItem(
+      createAgentContextDraft("2026-05-17T18:29:00Z"),
+      createSpecNodeContextItem({
+        node_id: "SG-SPEC-0001",
+        title: "SpecGraph - The Executable Product Ontology",
+        status: "linked",
+        file_name: "SG-SPEC-0001.yaml",
+      }),
+    );
+    const conversation = await runtime.startConversation({
+      title: "Clone safety",
+      context_set: context,
+    });
+    await collectAsyncIterable(
+      runtime.sendMessage({
+        conversation_id: conversation.conversation_id,
+        text: "Inspect clone",
+      }),
+    );
+
+    const clone = runtime.getConversation(conversation.conversation_id);
+    expect(clone).not.toBeNull();
+    clone!.context_set.items.length = 0;
+    clone!.events.length = 0;
+
+    const freshClone = runtime.getConversation(conversation.conversation_id);
+    expect(freshClone?.context_set.items).toHaveLength(1);
+    expect(freshClone?.events.length).toBeGreaterThan(0);
+  });
+
+  it("replays Spec Markdown summary without raw Markdown on resume", async () => {
+    const runtime = createMockAgentConversationRuntime({
+      id_prefix: "test-awb",
+      now: () => "2026-05-17T18:30:00Z",
+    });
+    const context = addAgentContextItem(
+      createAgentContextDraft("2026-05-17T18:29:00Z"),
+      createSpecMarkdownContextItem({
+        node_id: "SG-SPEC-0001",
+        title: "SpecGraph - The Executable Product Ontology",
+        scope: "node",
+        source_kind: "export",
+        download_filename: "SG-SPEC-0001.md",
+        node_count: 1,
+        markdown: "# SG-SPEC-0001\n\nRaw body must stay hidden after resume.",
+      }),
+    );
+    const conversation = await runtime.startConversation({
+      title: "Resume markdown",
+      context_set: context,
+    });
+    await collectAsyncIterable(
+      runtime.sendMessage({
+        conversation_id: conversation.conversation_id,
+        text: "Review attached markdown",
+      }),
+    );
+
+    const resumedProjection = projectAgentRuntimeEvents(
+      await collectAsyncIterable(runtime.resumeConversation(conversation.conversation_id)),
+    );
+    const transcriptText = resumedProjection.turns.map((turn) => turn.text).join("\n");
+    const historyMarkdown = runtime
+      .getConversation(conversation.conversation_id)
+      ?.context_set.items.find((item) => item.kind === "spec_markdown");
+
+    expect(transcriptText).toContain("SG-SPEC-0001 Markdown export");
+    expect(transcriptText).not.toContain("Raw body must stay hidden after resume");
+    if (historyMarkdown?.kind === "spec_markdown") {
+      expect(historyMarkdown.markdown).toBe("");
+    }
+  });
 });
 
 async function collectAsyncIterable<T>(iterable: AsyncIterable<T>): Promise<T[]> {

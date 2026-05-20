@@ -8,11 +8,14 @@ import {
   agentContextItemLabel,
   agentContextItemKey,
   createAgentRuntimeProjection,
+  isAgentConversationHistoryRuntime,
   projectAgentRuntimeEvent,
   serializeAgentContextSet,
+  type AgentConversationHistoryEntry,
   type AgentConversationPromptSeed,
   type AgentContextDraft,
   type AgentContextItem,
+  type AgentConversationId,
   type AgentConversationRef,
   type AgentConversationRuntime,
   type AgentRuntimeProjection,
@@ -51,8 +54,17 @@ export function AgentConversationPanel({
   const [prompt, setPrompt] = useState(promptSeed?.prompt ?? DEFAULT_PROMPT);
   const [status, setStatus] = useState<AgentConversationPanelStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [historyVersion, setHistoryVersion] = useState(0);
   const isBusy = status === "starting" || status === "streaming";
   const hasPrompt = prompt.trim().length > 0;
+  const historyRuntime = useMemo(
+    () => (isAgentConversationHistoryRuntime(runtime) ? runtime : null),
+    [runtime],
+  );
+  const conversationHistory = useMemo(
+    () => (historyRuntime ? historyRuntime.listConversations() : []),
+    [historyRuntime, historyVersion],
+  );
   const assistantUiStore = useMemo(
     () =>
       createAssistantUiExternalStoreAdapter({
@@ -68,6 +80,10 @@ export function AgentConversationPanel({
     setPrompt(promptSeed.prompt);
   }, [conversation, isBusy, promptSeed]);
 
+  const refreshHistory = useCallback(() => {
+    setHistoryVersion((current) => current + 1);
+  }, []);
+
   const streamMessage = useCallback(
     async (ref: AgentConversationRef, text: string) => {
       setStatus("streaming");
@@ -78,9 +94,50 @@ export function AgentConversationPanel({
       })) {
         setProjection((current) => projectAgentRuntimeEvent(current, event));
       }
+      refreshHistory();
       setStatus("active");
     },
-    [runtime, serializedContext],
+    [refreshHistory, runtime, serializedContext],
+  );
+
+  const handleStartFresh = useCallback(() => {
+    if (isBusy) return;
+    setConversation(null);
+    setProjection(createAgentRuntimeProjection());
+    setPrompt(promptSeed?.prompt ?? DEFAULT_PROMPT);
+    setStatus("idle");
+    setError(null);
+  }, [isBusy, promptSeed]);
+
+  const handleResumeConversation = useCallback(
+    async (conversationId: AgentConversationId) => {
+      if (!historyRuntime || isBusy) return;
+      const record = historyRuntime.getConversation(conversationId);
+      if (!record) {
+        setStatus("error");
+        setError("Conversation history entry is unavailable.");
+        refreshHistory();
+        return;
+      }
+
+      setConversation(record.ref);
+      setProjection(createAgentRuntimeProjection());
+      setPrompt(DEFAULT_PROMPT);
+      setStatus("streaming");
+      setError(null);
+
+      try {
+        for await (const event of historyRuntime.resumeConversation(conversationId)) {
+          setProjection((current) => projectAgentRuntimeEvent(current, event));
+        }
+        setStatus("active");
+        refreshHistory();
+      } catch (cause) {
+        setStatus("error");
+        setError(cause instanceof Error ? cause.message : "Conversation history resume failed.");
+      }
+    },
+    [historyRuntime, isBusy, refreshHistory],
   );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -126,6 +183,16 @@ export function AgentConversationPanel({
             : "No conversation started"}
         </span>
       </div>
+
+      {historyRuntime ? (
+        <ConversationHistory
+          conversations={conversationHistory}
+          currentConversationId={conversation?.conversation_id ?? null}
+          isBusy={isBusy}
+          onResume={handleResumeConversation}
+          onStartFresh={handleStartFresh}
+        />
+      ) : null}
 
       <div className={styles.contextStrip} aria-label="Conversation context">
         {serializedContext.items.length === 0 ? (
@@ -204,6 +271,61 @@ export function AgentConversationPanel({
         </button>
       </form>
     </section>
+  );
+}
+
+function ConversationHistory({
+  conversations,
+  currentConversationId,
+  isBusy,
+  onResume,
+  onStartFresh,
+}: {
+  conversations: AgentConversationHistoryEntry[];
+  currentConversationId: AgentConversationId | null;
+  isBusy: boolean;
+  onResume: (conversationId: AgentConversationId) => void;
+  onStartFresh: () => void;
+}) {
+  return (
+    <div className={styles.historyPanel} aria-label="Local conversation history">
+      <div className={styles.historyHeader}>
+        <span className={styles.historyTitle}>Conversation history</span>
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          disabled={isBusy}
+          onClick={onStartFresh}
+        >
+          New
+        </button>
+      </div>
+      {conversations.length === 0 ? (
+        <span className={styles.historyEmpty}>No local conversations yet.</span>
+      ) : (
+        <div className={styles.historyList}>
+          {conversations.map((entry) => {
+            const isCurrent = entry.ref.conversation_id === currentConversationId;
+
+            return (
+              <button
+                type="button"
+                key={entry.ref.conversation_id}
+                className={`${styles.historyButton} ${
+                  isCurrent ? styles.historyButtonActive : ""
+                }`}
+                disabled={isBusy || isCurrent}
+                onClick={() => onResume(entry.ref.conversation_id)}
+                title={entry.ref.title}
+              >
+                <span className={styles.historyButtonTitle}>{entry.ref.title}</span>
+                <span className={styles.historyMeta}>{formatHistoryMeta(entry)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -326,6 +448,13 @@ function Status({ label, detail }: { label: string; detail: string }) {
 
 function countOutputs(projection: AgentRuntimeProjection): number {
   return projection.turns.reduce((count, turn) => count + turn.outputs.length, 0);
+}
+
+function formatHistoryMeta(entry: AgentConversationHistoryEntry): string {
+  const contextCount = entry.context_set.items.length;
+  return `${entry.turn_count} ${entry.turn_count === 1 ? "turn" : "turns"} · ${
+    contextCount
+  } context ${contextCount === 1 ? "item" : "items"}`;
 }
 
 function createConversationTitle(prompt: string): string {

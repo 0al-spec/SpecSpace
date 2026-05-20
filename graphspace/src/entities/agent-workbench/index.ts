@@ -51,6 +51,8 @@ export {
 } from "./model/event-projection";
 export type {
   AgentConversationId,
+  AgentConversationHistoryEntry,
+  AgentConversationHistoryRuntime,
   AgentConversationRef,
   AgentConversationRuntime,
   AgentRuntimeEvent,
@@ -58,3 +60,4 @@ export type {
   SendAgentMessageInput,
   StartAgentConversationInput,
 } from "./model/runtime";
+export { isAgentConversationHistoryRuntime } from "./model/runtime";

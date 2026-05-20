@@ -35,7 +35,10 @@
 .composerLabel,
 .role,
 .turnState,
-.statusLabel {
+.statusLabel,
+.historyTitle,
+.historyMeta,
+.historyEmpty {
   font-family: var(--gs-mono);
   font-size: 10px;
   font-weight: 600;
@@ -76,6 +79,100 @@
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.historyPanel {
+  flex: 0 0 auto;
+  display: grid;
+  gap: var(--gs-space-3);
+  padding: var(--gs-space-4) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+}
+
+.historyHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gs-space-4);
+}
+
+.historyTitle {
+  color: var(--gs-muted);
+}
+
+.historyList {
+  display: flex;
+  gap: var(--gs-space-2);
+  overflow-x: auto;
+  padding-bottom: 1px;
+}
+
+.historyButton {
+  flex: 0 0 min(220px, 72vw);
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid var(--gs-rule-soft);
+  border-radius: 0;
+  background: white;
+  color: var(--gs-ink);
+  cursor: pointer;
+  padding: var(--gs-space-3);
+  text-align: left;
+}
+
+.historyButton:hover,
+.historyButton:focus-visible {
+  border-color: var(--gs-accent);
+}
+
+.historyButton:disabled {
+  cursor: default;
+}
+
+.historyButtonActive {
+  border-color: var(--gs-accent);
+  background: color-mix(in srgb, var(--gs-accent) 8%, white);
+}
+
+.historyButtonTitle {
+  overflow: hidden;
+  color: var(--gs-ink);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.historyMeta,
+.historyEmpty {
+  color: var(--gs-muted-2);
+}
+
+.secondaryButton {
+  min-height: 28px;
+  border: 1px solid var(--gs-rule-mid);
+  border-radius: 0;
+  background: white;
+  color: var(--gs-muted);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0 var(--gs-space-4);
+  text-transform: uppercase;
+}
+
+.secondaryButton:hover,
+.secondaryButton:focus-visible {
+  border-color: var(--gs-ink);
+  color: var(--gs-ink);
+}
+
+.secondaryButton:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .contextStrip {

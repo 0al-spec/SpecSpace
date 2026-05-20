@@ -4,6 +4,7 @@ import {
   type AgentContextDraft,
   type AgentContextItem,
   type AgentConversationId,
+  type AgentConversationHistoryEntry,
   type AgentConversationRef,
   type AgentConversationRuntime,
   type AgentRuntimeEvent,
@@ -11,12 +12,8 @@ import {
   type StartAgentConversationInput,
 } from "@/entities/agent-workbench";
 
-export type MockAgentConversationRecord = {
-  ref: AgentConversationRef;
-  context_set: AgentContextDraft;
-  created_at: string;
-  updated_at: string;
-  turn_count: number;
+export type MockAgentConversationRecord = AgentConversationHistoryEntry & {
+  events: AgentRuntimeEvent[];
 };
 
 export type MockAgentConversationRuntime = AgentConversationRuntime & {
@@ -45,8 +42,19 @@ export function createMockAgentConversationRuntime(
     return {
       ...record,
       ref: { ...record.ref },
-      context_set: serializeAgentContextSet(record.context_set),
+      context_set: serializeHistoryContextSet(record.context_set),
+      events: record.events.map(cloneEvent),
     };
+  }
+
+  function appendEvent(
+    record: MockAgentConversationRecord,
+    event: AgentRuntimeEvent,
+  ): AgentRuntimeEvent {
+    const savedEvent = cloneEvent(event);
+    record.events.push(savedEvent);
+    record.event_count = record.events.length;
+    return cloneEvent(savedEvent);
   }
 
   function nextId(kind: "conversation" | "turn" | "output"): string {
@@ -80,6 +88,8 @@ export function createMockAgentConversationRuntime(
         created_at: createdAt,
         updated_at: createdAt,
         turn_count: 0,
+        event_count: 0,
+        events: [],
       });
 
       return { ...ref };
@@ -105,46 +115,50 @@ export function createMockAgentConversationRuntime(
       record.updated_at = now();
       record.turn_count += 2;
 
-      yield { kind: "turn_started", turn_id: operatorTurnId, role: "operator" };
-      yield { kind: "text_delta", turn_id: operatorTurnId, text: input.text };
-      yield { kind: "turn_completed", turn_id: operatorTurnId };
+      yield appendEvent(record, {
+        kind: "turn_started",
+        turn_id: operatorTurnId,
+        role: "operator",
+      });
+      yield appendEvent(record, { kind: "text_delta", turn_id: operatorTurnId, text: input.text });
+      yield appendEvent(record, { kind: "turn_completed", turn_id: operatorTurnId });
 
-      yield { kind: "turn_started", turn_id: agentTurnId, role: "agent" };
+      yield appendEvent(record, { kind: "turn_started", turn_id: agentTurnId, role: "agent" });
       if (contextCount > 0) {
-        yield {
+        yield appendEvent(record, {
           kind: "tool_call",
           turn_id: agentTurnId,
           tool_call_id: toolCallId,
           tool_name: "attach_context",
           title: `Attach ${contextCount} context item${contextCount === 1 ? "" : "s"}`,
-        };
+        });
       }
-      yield {
+      yield appendEvent(record, {
         kind: "text_delta",
         turn_id: agentTurnId,
         text: `Mock agent received "${input.text}"`,
-      };
-      yield {
+      });
+      yield appendEvent(record, {
         kind: "text_delta",
         turn_id: agentTurnId,
         text: ` with ${contextCount} context item${contextCount === 1 ? "" : "s"}.`,
-      };
+      });
       if (contextSummary.length > 0) {
-        yield {
+        yield appendEvent(record, {
           kind: "text_delta",
           turn_id: agentTurnId,
           text: `\n\nAttached context:\n${contextSummary
             .map((summary) => `- ${summary}`)
             .join("\n")}`,
-        };
+        });
       }
-      yield {
+      yield appendEvent(record, {
         kind: "output_created",
         turn_id: agentTurnId,
         output_id: outputId,
         output_kind: "analysis",
-      };
-      yield { kind: "turn_completed", turn_id: agentTurnId };
+      });
+      yield appendEvent(record, { kind: "turn_completed", turn_id: agentTurnId });
     },
 
     async *resumeConversation(
@@ -155,16 +169,9 @@ export function createMockAgentConversationRuntime(
         throw new Error(`Unknown mock Agent Workbench conversation: ${conversationId}`);
       }
 
-      const turnId = nextId("turn");
-      yield { kind: "turn_started", turn_id: turnId, role: "system" };
-      yield {
-        kind: "text_delta",
-        turn_id: turnId,
-        text: `Mock conversation resumed with ${record.context_set.items.length} context item${
-          record.context_set.items.length === 1 ? "" : "s"
-        }.`,
-      };
-      yield { kind: "turn_completed", turn_id: turnId };
+      for (const event of record.events) {
+        yield cloneEvent(event);
+      }
     },
 
     getConversation(conversationId: AgentConversationId): MockAgentConversationRecord | null {
@@ -173,9 +180,34 @@ export function createMockAgentConversationRuntime(
     },
 
     listConversations(): MockAgentConversationRecord[] {
-      return Array.from(conversations.values(), cloneRecord);
+      return Array.from(conversations.values())
+        .sort(compareConversationRecords)
+        .map(cloneRecord);
     },
   };
+}
+
+function cloneEvent(event: AgentRuntimeEvent): AgentRuntimeEvent {
+  return { ...event };
+}
+
+function serializeHistoryContextSet(draft: AgentContextDraft): AgentContextDraft {
+  const serialized = serializeAgentContextSet(draft);
+  return {
+    ...serialized,
+    items: serialized.items.map((item) =>
+      item.kind === "spec_markdown" ? { ...item, markdown: "" } : item,
+    ),
+  };
+}
+
+function compareConversationRecords(
+  left: MockAgentConversationRecord,
+  right: MockAgentConversationRecord,
+): number {
+  const updated = right.updated_at.localeCompare(left.updated_at);
+  if (updated !== 0) return updated;
+  return right.ref.conversation_id.localeCompare(left.ref.conversation_id);
 }
 
 function normalizeConversationTitle(title: string, initialPrompt?: string): string {
