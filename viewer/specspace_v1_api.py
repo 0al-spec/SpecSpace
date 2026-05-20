@@ -14,6 +14,8 @@ from viewer.request_query import query_params, query_value
 class SpecSpaceV1Handler(JsonResponseHandler, Protocol):
     server: Any
 
+    def read_json_body(self) -> dict[str, Any] | None: ...
+
     def _exploration_build_available(self) -> bool: ...
 
     def _graph_dashboard_path(self) -> Any: ...
@@ -99,6 +101,126 @@ def _query_scope_required(params: dict[str, list[str]]) -> tuple[str | None, dic
     }
 
 
+def _payload_int_required_range(
+    payload: dict[str, Any],
+    name: str,
+    *,
+    default: int,
+    minimum: int,
+    maximum: int,
+) -> tuple[int | None, dict[str, Any] | None]:
+    raw = payload.get(name, default)
+    if isinstance(raw, bool):
+        return None, {
+            "error": f"Invalid request field: {name}",
+            "field": name,
+            "detail": f"Expected integer from {minimum} to {maximum}.",
+        }
+    if isinstance(raw, int):
+        value = raw
+    elif isinstance(raw, str):
+        try:
+            value = int(raw)
+        except ValueError:
+            return None, {
+                "error": f"Invalid request field: {name}",
+                "field": name,
+                "detail": f"Expected integer from {minimum} to {maximum}.",
+            }
+    else:
+        return None, {
+            "error": f"Invalid request field: {name}",
+            "field": name,
+            "detail": f"Expected integer from {minimum} to {maximum}.",
+        }
+    if value < minimum or value > maximum:
+        return None, {
+            "error": f"Invalid request field: {name}",
+            "field": name,
+            "detail": f"Expected integer from {minimum} to {maximum}.",
+        }
+    return value, None
+
+
+def _payload_bool_required(
+    payload: dict[str, Any],
+    name: str,
+    *,
+    default: bool,
+) -> tuple[bool | None, dict[str, Any] | None]:
+    raw = payload.get(name, default)
+    if isinstance(raw, bool):
+        return raw, None
+    if isinstance(raw, str):
+        value = raw.strip().lower()
+        if value in {"1", "true", "yes", "on"}:
+            return True, None
+        if value in {"0", "false", "no", "off"}:
+            return False, None
+    return None, {
+        "error": f"Invalid request field: {name}",
+        "field": name,
+        "detail": "Expected boolean true/false value.",
+    }
+
+
+def _payload_scope_required(payload: dict[str, Any]) -> tuple[str | None, dict[str, Any] | None]:
+    raw = payload.get("scope", "subtree")
+    if not isinstance(raw, str):
+        return None, {
+            "error": "Invalid request field: scope",
+            "field": "scope",
+            "detail": "Expected one of: node, subtree.",
+        }
+    value = raw.strip().lower()
+    if value in {"node", "subtree"}:
+        return value, None
+    return None, {
+        "error": "Invalid request field: scope",
+        "field": "scope",
+        "detail": "Expected one of: node, subtree.",
+    }
+
+
+def _compile_options_from_payload(
+    payload: dict[str, Any],
+) -> tuple[spec_compile.CompileOptions | None, str | None, dict[str, Any] | None]:
+    max_depth, error = _payload_int_required_range(payload, "depth", default=6, minimum=1, maximum=6)
+    if error is not None:
+        return None, None, error
+    assert max_depth is not None
+
+    include_objective, error = _payload_bool_required(payload, "objective", default=True)
+    if error is not None:
+        return None, None, error
+    include_acceptance, error = _payload_bool_required(payload, "acceptance", default=True)
+    if error is not None:
+        return None, None, error
+    include_depends_on_refs, error = _payload_bool_required(payload, "deps", default=True)
+    if error is not None:
+        return None, None, error
+    include_prompt, error = _payload_bool_required(payload, "prompt", default=False)
+    if error is not None:
+        return None, None, error
+    scope, error = _payload_scope_required(payload)
+    if error is not None:
+        return None, None, error
+    assert scope is not None
+
+    return (
+        spec_compile.CompileOptions(
+            max_depth=max_depth,
+            include_objective=bool(include_objective),
+            include_acceptance=bool(include_acceptance),
+            include_depends_on_refs=bool(include_depends_on_refs),
+            include_prompt=bool(include_prompt),
+            include_children=scope == "subtree",
+        ),
+        scope,
+        None,
+    )
+
+
 def handle_v1_health(handler: SpecSpaceV1Handler) -> None:
     json_response(
         handler,
@@ -176,6 +298,27 @@ def handle_v1_spec_markdown(handler: SpecSpaceV1Handler, parsed: Any) -> None:
         if isinstance(payload.get("manifest"), dict):
             payload["manifest"]["scope"] = scope
     json_response(handler, status, payload)
+
+
+def handle_v1_spec_markdown_compile(handler: SpecSpaceV1Handler) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+
+    root_raw = payload.get("root")
+    root_id = root_raw.strip() if isinstance(root_raw, str) else ""
+    if not root_id:
+        json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing required request field: root"})
+        return
+
+    options, scope, error = _compile_options_from_payload(payload)
+    if error is not None:
+        json_response(handler, HTTPStatus.BAD_REQUEST, error)
+        return
+    assert options is not None and scope is not None
+
+    status, response = _provider(handler).compile_spec_markdown(handler, root_id, options, scope=scope)
+    json_response(handler, status, response)
 
 
 def handle_v1_recent_runs(handler: SpecSpaceV1Handler, parsed: Any) -> None:

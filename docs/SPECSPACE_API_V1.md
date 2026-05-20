@@ -214,6 +214,65 @@ Response:
 Invalid query options return `400`, unknown root ids return `404`, and unreadable
 provider sources return `503`.
 
+### `POST /api/v1/spec-markdown/compile`
+
+Compiles a SpecSpace-generated Spec Markdown export with a local Hyperprompt
+binary. This endpoint is only available for local file provider deployments
+where `/api/v1/capabilities` reports `hyperprompt_compile: true`. It never
+mutates mounted SpecGraph inputs and writes only inside the configured
+Hyperprompt scratch workspace. SpecSpace marks its own compile bundle
+directories and keeps only the latest local bundles by default so the scratch
+workspace does not grow indefinitely.
+
+Request body fields mirror `GET /api/v1/spec-markdown`:
+
+- `root`: required spec node id.
+- `scope`: optional export scope, one of `node` or `subtree`, default `subtree`.
+- `depth`: optional heading depth clamp, integer `1..6`, default `6`.
+- `objective`: optional boolean, default `true`.
+- `acceptance`: optional boolean, default `true`.
+- `deps`: optional boolean, default `true`.
+- `prompt`: optional boolean, default `false`.
+
+Response:
+
+```json
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_hyperprompt_compile",
+  "root_id": "SG-SPEC-0001",
+  "scope": "subtree",
+  "source": {
+    "provider": "file",
+    "read_only": true
+  },
+  "export": {
+    "download_filename": "SG-SPEC-0001.md",
+    "manifest": {
+      "root_id": "SG-SPEC-0001",
+      "node_count": 12,
+      "nodes_included": ["SG-SPEC-0001"]
+    }
+  },
+  "compile": {
+    "exit_code": 0,
+    "compiled_markdown": "# Compiled output ...",
+    "compiler_manifest": {},
+    "export_dir": "/data/specspace-hyperprompt/SG-SPEC-0001-abc123",
+    "root_hc": "/data/specspace-hyperprompt/SG-SPEC-0001-abc123/root.hc",
+    "markdown_file": "/data/specspace-hyperprompt/SG-SPEC-0001-abc123/export.md",
+    "export_manifest": "/data/specspace-hyperprompt/SG-SPEC-0001-abc123/export_manifest.json",
+    "compiled_md": "/data/specspace-hyperprompt/SG-SPEC-0001-abc123/compiled.md",
+    "manifest_json": "/data/specspace-hyperprompt/SG-SPEC-0001-abc123/manifest.json"
+  }
+}
+```
+
+If `hyperprompt_compile` is unavailable, the endpoint returns `503` with the
+same actionable diagnostic shape used by `/api/v1/capabilities`. HTTP/static
+artifact deployments return `provider_unsupported`. Compiler failures return
+`422` with `compile.exit_code`, `stderr`, and `stdout`.
+
 ### `GET /api/v1/runs/recent`
 
 Query parameters:

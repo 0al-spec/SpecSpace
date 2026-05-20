@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import threading
 import time
@@ -10,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 from urllib.error import HTTPError
 from urllib.parse import quote
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 import yaml
 
@@ -90,6 +91,48 @@ def _get(url: str) -> tuple[int, dict]:
         return resp.status, json.loads(resp.read())
     except HTTPError as exc:
         return exc.code, json.loads(exc.read())
+
+
+def _post(url: str, payload: dict) -> tuple[int, dict]:
+    data = json.dumps(payload).encode("utf-8")
+    request = Request(
+        url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        resp = urlopen(request)
+        return resp.status, json.loads(resp.read())
+    except HTTPError as exc:
+        return exc.code, json.loads(exc.read())
+
+
+def _write_hyperprompt_stub(path: Path, *, exit_code: int = 0) -> None:
+    if exit_code == 0:
+        path.write_text(
+            """#!/bin/sh
+out=""
+manifest=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --output) shift; out="$1" ;;
+    --manifest) shift; manifest="$1" ;;
+  esac
+  shift
+done
+[ -n "$out" ] && printf '# Compiled SpecSpace export\\n' > "$out"
+[ -n "$manifest" ] && printf '{"compiled":true}\\n' > "$manifest"
+exit 0
+""",
+            encoding="utf-8",
+        )
+    else:
+        path.write_text(
+            f"#!/bin/sh\necho 'syntax error' >&2\nexit {exit_code}\n",
+            encoding="utf-8",
+        )
+    path.chmod(0o755)
 
 
 class QuietStaticHandler(SimpleHTTPRequestHandler):
@@ -1137,6 +1180,183 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(body["capabilities"]["hyperprompt_compile"])
         self.assertEqual(body["diagnostics"]["hyperprompt_compile"]["status"], "available")
         self.assertEqual(body["diagnostics"]["hyperprompt_compile"]["resolved_binary"], str(binary))
+
+    def test_spec_markdown_compile_v1_compiles_local_export_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_yaml(
+                spec_dir / "SG-SPEC-0002.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-0002",
+                    "title": "Spec Markdown Child",
+                    "refines": ["SG-SPEC-0001"],
+                },
+            )
+            binary = root / "hyperprompt"
+            _write_hyperprompt_stub(binary)
+            scratch = root / "scratch"
+            scratch.mkdir()
+            for index in range(25):
+                stale = scratch / f"specspace-stale-{index}"
+                stale.mkdir()
+                (stale / ".specspace-hyperprompt-bundle").write_text("old\n", encoding="utf-8")
+                os.utime(stale, (1000 + index, 1000 + index))
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                hyperprompt_binary=str(binary),
+                hyperprompt_resolved_binary=str(binary),
+                hyperprompt_work_dir=scratch,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/spec-markdown/compile",
+                    {"root": "SG-SPEC-0001", "scope": "subtree", "depth": 2},
+                )
+                root_hc_text = Path(body["compile"]["root_hc"]).read_text(encoding="utf-8") if status == 200 else ""
+                export_manifest_data = (
+                    json.loads(Path(body["compile"]["export_manifest"]).read_text(encoding="utf-8"))
+                    if status == 200
+                    else {}
+                )
+                owned_bundle_count = len([
+                    path
+                    for path in scratch.iterdir()
+                    if path.is_dir()
+                    and path.name.startswith("specspace-")
+                    and (path / ".specspace-hyperprompt-bundle").is_file()
+                ])
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["api_version"], "v1")
+        self.assertEqual(body["artifact_kind"], "specspace_hyperprompt_compile")
+        self.assertEqual(body["root_id"], "SG-SPEC-0001")
+        self.assertEqual(body["scope"], "subtree")
+        self.assertEqual(body["export"]["manifest"]["node_count"], 2)
+        self.assertEqual(body["compile"]["exit_code"], 0)
+        self.assertIn("# Compiled SpecSpace export", body["compile"]["compiled_markdown"])
+        self.assertEqual(body["compile"]["compiler_manifest"], {"compiled": True})
+        root_hc = Path(body["compile"]["root_hc"])
+        export_manifest = Path(body["compile"]["export_manifest"])
+        self.assertTrue(root_hc.is_relative_to(scratch))
+        self.assertTrue(export_manifest.is_relative_to(scratch))
+        self.assertIn('"export.md"', root_hc_text)
+        self.assertEqual(export_manifest_data["root_id"], "SG-SPEC-0001")
+        self.assertLessEqual(owned_bundle_count, 20)
+
+    def test_spec_markdown_compile_v1_returns_capability_diagnostic_when_disabled(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/spec-markdown/compile",
+                    {"root": "SG-SPEC-0001"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 503)
+        self.assertEqual(body["reason"], "hyperprompt_compile_unavailable")
+        self.assertFalse(body["capabilities"]["hyperprompt_compile"])
+        self.assertEqual(body["diagnostic"]["status"], "compiler_missing")
+
+    def test_spec_markdown_compile_v1_rejects_http_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifact-site"
+            spec_dir = artifact_root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_manifest(artifact_root, ["specs/nodes/SG-SPEC-0001.yaml"])
+            binary = root / "hyperprompt"
+            _write_hyperprompt_stub(binary)
+            scratch = root / "scratch"
+            scratch.mkdir()
+            static, static_thread, artifact_base_url = _start_static(artifact_root)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                artifact_base_url=artifact_base_url,
+                hyperprompt_binary=str(binary),
+                hyperprompt_resolved_binary=str(binary),
+                hyperprompt_work_dir=scratch,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/spec-markdown/compile",
+                    {"root": "SG-SPEC-0001"},
+                )
+            finally:
+                _stop(httpd, thread)
+                _stop(static, static_thread)
+
+        self.assertEqual(status, 503)
+        self.assertEqual(body["diagnostic"]["status"], "provider_unsupported")
+        self.assertFalse(body["capabilities"]["hyperprompt_compile"])
+
+    def test_spec_markdown_compile_v1_returns_compiler_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            binary = root / "hyperprompt"
+            _write_hyperprompt_stub(binary, exit_code=2)
+            scratch = root / "scratch"
+            scratch.mkdir()
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                hyperprompt_binary=str(binary),
+                hyperprompt_resolved_binary=str(binary),
+                hyperprompt_work_dir=scratch,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/spec-markdown/compile",
+                    {"root": "SG-SPEC-0001"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertIn("Hyperprompt compiler failed: Syntax error", body["error"])
+        self.assertEqual(body["compile"]["exit_code"], 2)
+        self.assertIn("syntax error", body["compile"]["stderr"])
+        self.assertEqual(body["export"]["manifest"]["root_id"], "SG-SPEC-0001")
+
+    def test_spec_markdown_compile_v1_rejects_invalid_request_options(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
+            try:
+                depth_status, depth_body = _post(
+                    f"{base}/api/v1/spec-markdown/compile",
+                    {"root": "SG-SPEC-0001", "depth": True},
+                )
+                scope_status, scope_body = _post(
+                    f"{base}/api/v1/spec-markdown/compile",
+                    {"root": "SG-SPEC-0001", "scope": 42},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(depth_status, 400)
+        self.assertEqual(depth_body["field"], "depth")
+        self.assertEqual(scope_status, 400)
+        self.assertEqual(scope_body["field"], "scope")
 
     def test_spec_markdown_v1_rejects_invalid_depth(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
