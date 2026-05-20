@@ -220,7 +220,9 @@ Compiles a SpecSpace-generated Spec Markdown export with a local Hyperprompt
 binary. This endpoint is only available for local file provider deployments
 where `/api/v1/capabilities` reports `hyperprompt_compile: true`. It never
 mutates mounted SpecGraph inputs and writes only inside the configured
-Hyperprompt scratch workspace.
+Hyperprompt scratch workspace. SpecSpace marks its own compile bundle
+directories and keeps only the latest local bundles by default so the scratch
+workspace does not grow indefinitely.
 
 Request body fields mirror `GET /api/v1/spec-markdown`:
 

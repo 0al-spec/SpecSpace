@@ -123,7 +123,9 @@ compiler binary and an explicit scratch workspace. The scratch workspace is
 reported through `/api/v1/capabilities`; SpecSpace does not create it or write
 to mounted SpecGraph inputs while checking capabilities. When enabled,
 `POST /api/v1/spec-markdown/compile` writes a generated Markdown export bundle
-inside this scratch workspace and invokes Hyperprompt there.
+inside this scratch workspace and invokes Hyperprompt there. SpecSpace marks
+its own bundle directories and prunes old SpecSpace-owned bundles by retention
+count; it does not delete unrelated files in the scratch directory.
 
 ```bash
 python viewer/server.py \

@@ -110,9 +110,24 @@ def _payload_int_required_range(
     maximum: int,
 ) -> tuple[int | None, dict[str, Any] | None]:
     raw = payload.get(name, default)
-    try:
-        value = int(raw)
-    except (TypeError, ValueError):
+    if isinstance(raw, bool):
+        return None, {
+            "error": f"Invalid request field: {name}",
+            "field": name,
+            "detail": f"Expected integer from {minimum} to {maximum}.",
+        }
+    if isinstance(raw, int):
+        value = raw
+    elif isinstance(raw, str):
+        try:
+            value = int(raw)
+        except ValueError:
+            return None, {
+                "error": f"Invalid request field: {name}",
+                "field": name,
+                "detail": f"Expected integer from {minimum} to {maximum}.",
+            }
+    else:
         return None, {
             "error": f"Invalid request field: {name}",
             "field": name,

@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import threading
 import time
@@ -1199,6 +1200,11 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             _write_hyperprompt_stub(binary)
             scratch = root / "scratch"
             scratch.mkdir()
+            for index in range(25):
+                stale = scratch / f"specspace-stale-{index}"
+                stale.mkdir()
+                (stale / ".specspace-hyperprompt-bundle").write_text("old\n", encoding="utf-8")
+                os.utime(stale, (1000 + index, 1000 + index))
             httpd, thread, base = _start(
                 root / "dialogs",
                 spec_dir=spec_dir,
@@ -1217,6 +1223,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     if status == 200
                     else {}
                 )
+                owned_bundle_count = len([
+                    path
+                    for path in scratch.iterdir()
+                    if path.is_dir()
+                    and path.name.startswith("specspace-")
+                    and (path / ".specspace-hyperprompt-bundle").is_file()
+                ])
             finally:
                 _stop(httpd, thread)
 
@@ -1235,6 +1248,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(export_manifest.is_relative_to(scratch))
         self.assertIn('"export.md"', root_hc_text)
         self.assertEqual(export_manifest_data["root_id"], "SG-SPEC-0001")
+        self.assertLessEqual(owned_bundle_count, 20)
 
     def test_spec_markdown_compile_v1_returns_capability_diagnostic_when_disabled(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1328,15 +1342,21 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
             httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
             try:
-                status, body = _post(
+                depth_status, depth_body = _post(
+                    f"{base}/api/v1/spec-markdown/compile",
+                    {"root": "SG-SPEC-0001", "depth": True},
+                )
+                scope_status, scope_body = _post(
                     f"{base}/api/v1/spec-markdown/compile",
                     {"root": "SG-SPEC-0001", "scope": 42},
                 )
             finally:
                 _stop(httpd, thread)
 
-        self.assertEqual(status, 400)
-        self.assertEqual(body["field"], "scope")
+        self.assertEqual(depth_status, 400)
+        self.assertEqual(depth_body["field"], "depth")
+        self.assertEqual(scope_status, 400)
+        self.assertEqual(scope_body["field"], "scope")
 
     def test_spec_markdown_v1_rejects_invalid_depth(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
