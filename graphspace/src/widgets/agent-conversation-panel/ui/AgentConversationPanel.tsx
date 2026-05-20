@@ -208,6 +208,19 @@ function AgentContextToken({
   if (item.kind === "spec_edge") {
     return <span>{item.edge_id}</span>;
   }
+  if (item.kind === "spec_markdown") {
+    return (
+      <span>
+        <SpecIdText
+          text={item.node_id}
+          resolveSpecRef={resolveSpecRef}
+          onSpecIdClick={onSpecIdClick}
+          variant="bare"
+        />{" "}
+        {item.source_kind === "hyperprompt_compile" ? "compiled" : "markdown"}
+      </span>
+    );
+  }
   if (item.kind === "spec_gap") {
     return (
       <span>

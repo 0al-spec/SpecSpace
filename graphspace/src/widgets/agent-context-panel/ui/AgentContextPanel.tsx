@@ -65,30 +65,50 @@ export function AgentContextPanel({
           label="Metrics"
           value={draft.items.filter((item) => item.kind === "metric").length}
         />
+        <Metric
+          label="Markdown"
+          value={draft.items.filter((item) => item.kind === "spec_markdown").length}
+        />
       </div>
 
       <div className={styles.actions}>
         <button
           type="button"
-          className={styles.primaryButton}
-          onClick={onAddSelectedSpec}
-          disabled={!selectedNode || selectedAlreadyAdded}
+          className={
+            selectedAlreadyAdded
+              ? `${styles.primaryButton} ${styles.removeIntentButton}`
+              : styles.primaryButton
+          }
+          onClick={
+            selectedAlreadyAdded && selectedKey
+              ? () => onRemoveItem(selectedKey)
+              : onAddSelectedSpec
+          }
+          disabled={!selectedNode}
         >
           {selectedNode
             ? selectedAlreadyAdded
-              ? "Selected Spec Added"
+              ? "Remove Selected Spec"
               : "Add Selected Spec"
             : "Select A Spec First"}
         </button>
         <button
           type="button"
-          className={styles.secondaryButton}
-          onClick={onAddSelectedEdge}
-          disabled={!selectedEdge || selectedEdgeAlreadyAdded}
+          className={
+            selectedEdgeAlreadyAdded
+              ? `${styles.secondaryButton} ${styles.removeIntentButton}`
+              : styles.secondaryButton
+          }
+          onClick={
+            selectedEdgeAlreadyAdded && selectedEdgeKey
+              ? () => onRemoveItem(selectedEdgeKey)
+              : onAddSelectedEdge
+          }
+          disabled={!selectedEdge}
         >
           {selectedEdge
             ? selectedEdgeAlreadyAdded
-              ? "Selected Edge Added"
+              ? "Remove Selected Edge"
               : "Add Selected Edge"
             : "Select An Edge First"}
         </button>
@@ -137,12 +157,19 @@ export function AgentContextPanel({
                   <button
                     key={gap.kind}
                     type="button"
-                    className={styles.gapButton}
-                    onClick={() => onAddSelectedGap(gap.kind)}
-                    disabled={gapAlreadyAdded}
+                    className={
+                      gapAlreadyAdded
+                        ? `${styles.gapButton} ${styles.removeIntentButton}`
+                        : styles.gapButton
+                    }
+                    onClick={() =>
+                      gapAlreadyAdded
+                        ? onRemoveItem(gapKey)
+                        : onAddSelectedGap(gap.kind)
+                    }
                   >
                     {gapAlreadyAdded
-                      ? `${gap.label} Gap Added`
+                      ? `Remove ${gap.label} Gap`
                       : `Add ${gap.label} Gap (${gap.count})`}
                   </button>
                 );
@@ -219,8 +246,9 @@ function ContextItemRow({
           type="button"
           className={styles.removeButton}
           onClick={() => onRemoveItem(key)}
+          aria-label={`Remove ${contextItemLabel(item)} from Agent context`}
         >
-          Remove
+          Remove from Context
         </button>
       </div>
       <h3 className={styles.title}>
@@ -240,6 +268,12 @@ function ContextItemRow({
           />
         ) : item.kind === "metric" ? (
           <span>{item.item_id}</span>
+        ) : item.kind === "spec_markdown" ? (
+          <SpecIdText
+            text={item.node_id}
+            resolveSpecRef={resolveSpecRef}
+            variant="bare"
+          />
         ) : (
           <span>{item.proposal_id}</span>
         )}
@@ -249,10 +283,18 @@ function ContextItemRow({
           ? `${item.source_title ?? item.source_id} → ${item.target_title ?? item.target_id}`
           : item.kind === "spec_gap"
             ? `${formatGapKind(item.gap_kind)} gap · ${item.title}`
-            : item.title}
+            : item.kind === "spec_markdown"
+              ? `${formatSpecMarkdownSource(item.source_kind)} · ${item.title}`
+              : item.title}
       </p>
       <div className={styles.meta}>
-        <span>{item.kind === "spec_gap" ? item.gap_kind : item.status}</span>
+        <span>
+          {item.kind === "spec_gap"
+            ? item.gap_kind
+            : item.kind === "spec_markdown"
+              ? formatSpecMarkdownSource(item.source_kind)
+              : item.status}
+        </span>
         <span>
           {item.kind === "spec_node"
             ? item.file_name
@@ -262,9 +304,18 @@ function ContextItemRow({
                 ? `${item.gap_count} ${item.gap_count === 1 ? "gap" : "gaps"}`
                 : item.kind === "metric"
                   ? item.category
-                  : item.proposal_path ?? "proposal artifact"}
+                  : item.kind === "spec_markdown"
+                    ? item.scope
+                    : item.proposal_path ?? "proposal artifact"}
         </span>
         {item.kind === "metric" ? <span>{item.source_kind}</span> : null}
+        {item.kind === "spec_markdown" ? (
+          <>
+            <span>{item.node_count} nodes</span>
+            <span>{item.download_filename}</span>
+            {item.compile ? <span>exit {item.compile.exit_code}</span> : null}
+          </>
+        ) : null}
       </div>
       {item.kind === "metric" && item.reference_texts.length > 0 ? (
         <div className={styles.meta}>
@@ -316,6 +367,22 @@ function formatGapKind(kind: AgentContextSpecGapKind): string {
   if (kind === "evidence") return "Evidence";
   if (kind === "input") return "Input";
   return "Execution";
+}
+
+function formatSpecMarkdownSource(
+  sourceKind: "export" | "hyperprompt_compile",
+): string {
+  if (sourceKind === "hyperprompt_compile") return "Hyperprompt compile";
+  return "Markdown export";
+}
+
+function contextItemLabel(item: AgentContextItem): string {
+  if (item.kind === "spec_node") return item.node_id;
+  if (item.kind === "spec_edge") return item.edge_id;
+  if (item.kind === "spec_gap") return `${item.node_id} ${formatGapKind(item.gap_kind)} gap`;
+  if (item.kind === "metric") return item.item_id;
+  if (item.kind === "proposal") return item.proposal_id;
+  return `${item.node_id} ${formatSpecMarkdownSource(item.source_kind)}`;
 }
 
 function Status({ label, detail }: { label: string; detail: string }) {

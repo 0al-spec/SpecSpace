@@ -10,7 +10,7 @@
 .summary {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   border-bottom: 1px solid var(--gs-rule-soft);
 }
 
@@ -84,6 +84,12 @@
 .secondaryButton:disabled {
   cursor: default;
   opacity: 0.52;
+}
+
+.removeIntentButton {
+  border-color: color-mix(in srgb, var(--gs-danger) 45%, var(--gs-rule-mid));
+  background: color-mix(in srgb, var(--gs-danger) 8%, white);
+  color: var(--gs-danger);
 }
 
 .selectedContext {
@@ -161,6 +167,8 @@
 }
 
 .removeButton {
+  border-color: color-mix(in srgb, var(--gs-danger) 38%, var(--gs-rule-soft));
+  color: var(--gs-danger);
   padding: 4px 7px;
 }
 

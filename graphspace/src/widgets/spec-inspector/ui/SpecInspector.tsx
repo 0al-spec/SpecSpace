@@ -5,6 +5,7 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from "react";
+import type { SpecMarkdownContextSource } from "@/entities/agent-workbench";
 import { SpecNodeStatusBadge } from "@/entities/spec-node";
 import {
   SpecIdText,
@@ -48,6 +49,7 @@ type Props = Omit<HTMLAttributes<HTMLElement>, "children"> & {
   resolveSpecRef?: SpecRefResolver;
   onSelectNodeId?: (nodeId: string) => void;
   compileCapability?: SpecMarkdownCompileCapability | null;
+  onAddMarkdownToAgentContext?: (source: SpecMarkdownContextSource) => void;
 };
 
 export function SpecInspector({
@@ -56,6 +58,7 @@ export function SpecInspector({
   resolveSpecRef,
   onSelectNodeId,
   compileCapability = null,
+  onAddMarkdownToAgentContext,
   className,
   ...rest
 }: Props) {
@@ -256,6 +259,40 @@ export function SpecInspector({
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
+  const addMarkdownExportToAgentContext = () => {
+    if (!markdownExport || !onAddMarkdownToAgentContext) return;
+    onAddMarkdownToAgentContext({
+      node_id: node.node_id,
+      title: node.title,
+      scope: markdownExport.scope,
+      source_kind: "export",
+      download_filename: markdownExport.download_filename,
+      node_count: markdownExport.manifest.node_count,
+      markdown: markdownExport.markdown,
+    });
+  };
+  const addCompiledMarkdownToAgentContext = () => {
+    const compiledMarkdown = compileData?.compile.compiled_markdown;
+    if (!compiledMarkdown || !compileData || !onAddMarkdownToAgentContext) return;
+    onAddMarkdownToAgentContext({
+      node_id: node.node_id,
+      title: node.title,
+      scope: compileData.scope,
+      source_kind: "hyperprompt_compile",
+      download_filename: compileData.export.download_filename.replace(
+        /\.md$/i,
+        ".compiled.md",
+      ),
+      node_count: compileData.export.manifest.node_count,
+      markdown: compiledMarkdown,
+      compile: {
+        exit_code: compileData.compile.exit_code,
+        compiled_md: compileData.compile.compiled_md ?? null,
+        manifest_json: compileData.compile.manifest_json ?? null,
+        root_hc: compileData.compile.root_hc ?? null,
+      },
+    });
+  };
 
   return (
     <aside className={cls} aria-label="Spec inspector" {...rest}>
@@ -317,6 +354,7 @@ export function SpecInspector({
           scope={markdownScope}
           copied={markdownCopied}
           compiledCopied={compiledCopied}
+          canAddToAgentContext={Boolean(onAddMarkdownToAgentContext)}
           onScopeChange={setMarkdownScope}
           onExport={exportMarkdown}
           onCompile={compileMarkdown}
@@ -324,6 +362,8 @@ export function SpecInspector({
           onDownload={downloadMarkdown}
           onCopyCompiled={copyCompiledMarkdown}
           onDownloadCompiled={downloadCompiledMarkdown}
+          onAddExportToAgentContext={addMarkdownExportToAgentContext}
+          onAddCompiledToAgentContext={addCompiledMarkdownToAgentContext}
         />
 
         <section className={styles.section}>
@@ -385,6 +425,7 @@ function MarkdownExportSection({
   scope,
   copied,
   compiledCopied,
+  canAddToAgentContext,
   onScopeChange,
   onExport,
   onCompile,
@@ -392,6 +433,8 @@ function MarkdownExportSection({
   onDownload,
   onCopyCompiled,
   onDownloadCompiled,
+  onAddExportToAgentContext,
+  onAddCompiledToAgentContext,
 }: {
   state: MarkdownExportState;
   compileState: MarkdownCompileState;
@@ -399,6 +442,7 @@ function MarkdownExportSection({
   scope: SpecMarkdownExportScope;
   copied: boolean;
   compiledCopied: boolean;
+  canAddToAgentContext: boolean;
   onScopeChange: (scope: SpecMarkdownExportScope) => void;
   onExport: () => void;
   onCompile: () => void;
@@ -406,6 +450,8 @@ function MarkdownExportSection({
   onDownload: () => void;
   onCopyCompiled: () => void;
   onDownloadCompiled: () => void;
+  onAddExportToAgentContext: () => void;
+  onAddCompiledToAgentContext: () => void;
 }) {
   const exportData = state.kind === "ok" ? state.data : null;
   const compileData = compileState.kind === "ok" ? compileState.data : null;
@@ -447,6 +493,19 @@ function MarkdownExportSection({
             disabled={!exportData}
           >
             Download
+          </button>
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={onAddExportToAgentContext}
+            disabled={!exportData || !canAddToAgentContext}
+            title={
+              canAddToAgentContext
+                ? "Add exported Markdown to Agent context"
+                : "Agent context is not available"
+            }
+          >
+            Add Context
           </button>
           <button
             type="button"
@@ -551,6 +610,21 @@ function MarkdownExportSection({
                 disabled={!compileData.compile.compiled_markdown}
               >
                 Download
+              </button>
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={onAddCompiledToAgentContext}
+                disabled={
+                  !compileData.compile.compiled_markdown || !canAddToAgentContext
+                }
+                title={
+                  canAddToAgentContext
+                    ? "Add compiled Markdown to Agent context"
+                    : "Agent context is not available"
+                }
+              >
+                Add Context
               </button>
             </div>
           </div>

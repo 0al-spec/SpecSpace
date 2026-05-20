@@ -2030,7 +2030,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Compile bundle writes are constrained to the configured scratch workspace and old SpecSpace-owned bundles are pruned.
   - The endpoint does not mutate mounted SpecGraph inputs or call legacy conversation compile routes.
 
-### CTXB-P13-T34 — Add Spec Inspector Hyperprompt compile action for Spec Markdown exports — In Progress
+### ✅ CTXB-P13-T34 — Add Spec Inspector Hyperprompt compile action for Spec Markdown exports — DONE (PASS, 2026-05-20)
 - **Description:** Expose the local Spec Markdown Hyperprompt compile endpoint from the Spec Inspector Markdown export section with capability-aware disabled states and compiled Markdown copy/download actions.
 - **Priority:** P3
 - **Dependencies:** CTXB-P13-T31, CTXB-P13-T32, CTXB-P13-T33
@@ -2042,6 +2042,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Successful compile responses show exit code, generated artifact paths, compiled Markdown preview, copy, and download actions.
   - HTTP/static production deployments remain explicitly compile-disabled.
   - Compile response parsing and request behavior have focused unit coverage.
+
+### CTXB-P13-T35 — Add Spec Markdown export and compile results to Agent Context — In Progress
+- **Description:** Let operators attach the Spec Inspector Markdown export or Hyperprompt-compiled Markdown result to the Agent Context draft as a first-class context item.
+- **Priority:** P3
+- **Dependencies:** CTXB-P13-T31, CTXB-P13-T34, CTXB-P13-T8
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** Spec Markdown Agent Context item contract, Spec Inspector add-context actions, Agent Context and Agent Conversation rendering, validation report
+- **Acceptance Criteria:**
+  - Exported Markdown can be added to Agent Context with root spec, scope, filename, node count, and Markdown body.
+  - Hyperprompt-compiled Markdown can be added separately with compile artifact diagnostics and compiled Markdown body.
+  - Agent Context deduplicates Markdown items by source kind, root spec, and scope.
+  - Agent Context and Agent Conversation panels render Markdown context tokens without assuming every context item is a spec/proposal/metric.
+  - No backend mutation or new execution path is introduced.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

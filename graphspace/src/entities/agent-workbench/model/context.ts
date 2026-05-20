@@ -48,12 +48,39 @@ export type AgentContextMetricItem = {
   reference_texts: string[];
 };
 
+export type AgentContextSpecMarkdownSourceKind =
+  | "export"
+  | "hyperprompt_compile";
+
+export type AgentContextSpecMarkdownScope = "node" | "subtree";
+
+export type AgentContextSpecMarkdownCompileArtifacts = {
+  exit_code: number;
+  compiled_md: string | null;
+  manifest_json: string | null;
+  root_hc: string | null;
+};
+
+export type AgentContextSpecMarkdownItem = {
+  kind: "spec_markdown";
+  markdown_key: string;
+  node_id: string;
+  title: string;
+  scope: AgentContextSpecMarkdownScope;
+  source_kind: AgentContextSpecMarkdownSourceKind;
+  download_filename: string;
+  node_count: number;
+  markdown: string;
+  compile: AgentContextSpecMarkdownCompileArtifacts | null;
+};
+
 export type AgentContextItem =
   | AgentContextSpecNodeItem
   | AgentContextSpecEdgeItem
   | AgentContextSpecGapItem
   | AgentContextProposalItem
-  | AgentContextMetricItem;
+  | AgentContextMetricItem
+  | AgentContextSpecMarkdownItem;
 
 export type AgentContextDraft = {
   context_set_id: string;
@@ -182,12 +209,50 @@ export function createMetricContextItem(
   };
 }
 
+export type SpecMarkdownContextSource = {
+  node_id: string;
+  title: string;
+  scope: AgentContextSpecMarkdownScope;
+  source_kind: AgentContextSpecMarkdownSourceKind;
+  download_filename: string;
+  node_count: number;
+  markdown: string;
+  compile?: AgentContextSpecMarkdownCompileArtifacts | null;
+};
+
+export function createSpecMarkdownContextItem(
+  markdown: SpecMarkdownContextSource,
+): AgentContextSpecMarkdownItem {
+  return {
+    kind: "spec_markdown",
+    markdown_key: specMarkdownContextKey(markdown),
+    node_id: markdown.node_id,
+    title: markdown.title,
+    scope: markdown.scope,
+    source_kind: markdown.source_kind,
+    download_filename: markdown.download_filename,
+    node_count: markdown.node_count,
+    markdown: markdown.markdown,
+    compile: markdown.compile
+      ? {
+          exit_code: markdown.compile.exit_code,
+          compiled_md: markdown.compile.compiled_md,
+          manifest_json: markdown.compile.manifest_json,
+          root_hc: markdown.compile.root_hc,
+        }
+      : null,
+  };
+}
+
 export function agentContextItemKey(item: AgentContextItem): string {
   if (item.kind === "proposal") {
     return `${item.kind}:${item.proposal_key}`;
   }
   if (item.kind === "metric") {
     return `${item.kind}:${item.metric_key}`;
+  }
+  if (item.kind === "spec_markdown") {
+    return `${item.kind}:${item.markdown_key}`;
   }
   if (item.kind === "spec_edge") {
     return `${item.kind}:${item.edge_id}`;
@@ -239,7 +304,20 @@ export function serializeAgentContextSet(draft: AgentContextDraft): AgentContext
         ? { ...item, affected_spec_ids: [...item.affected_spec_ids] }
         : item.kind === "metric"
           ? { ...item, reference_texts: [...item.reference_texts] }
+          : item.kind === "spec_markdown"
+            ? {
+                ...item,
+                compile: item.compile ? { ...item.compile } : null,
+              }
           : { ...item },
     ),
   };
+}
+
+function specMarkdownContextKey(markdown: {
+  source_kind: AgentContextSpecMarkdownSourceKind;
+  node_id: string;
+  scope: AgentContextSpecMarkdownScope;
+}): string {
+  return `${markdown.source_kind}:${markdown.node_id}:${markdown.scope}`;
 }
