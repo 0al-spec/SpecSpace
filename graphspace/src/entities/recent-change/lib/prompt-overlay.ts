@@ -50,6 +50,9 @@ export function buildPromptOverlayDetails(
     { label: "Status", value: provenance.status },
     { label: "Source", value: provenance.source_kind },
   ];
+  if (provenance.run_id) {
+    details.push({ label: "Run ID", value: provenance.run_id });
+  }
   const reason = promptOverlayReasonLabel(provenance.reason);
   if (reason) details.push({ label: "Reason", value: reason });
   if (provenance.prompt_profile_id) {

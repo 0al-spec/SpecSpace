@@ -34,6 +34,7 @@ describe("prompt overlay activity helpers", () => {
       status: "unsafe",
       source_kind: "profile",
       display_label: "unsafe",
+      run_id: "20260519T214802Z-SG-SPEC-0063-80e51a2c",
       drift_key: "profile|default|prompt|policy",
       core_prompt_overridden: true,
       prompt_profile_id: "default",
@@ -55,6 +56,10 @@ describe("prompt overlay activity helpers", () => {
       label: "Core overridden",
       value: "true",
       tone: "danger",
+    });
+    expect(details).toContainEqual({
+      label: "Run ID",
+      value: "20260519T214802Z-SG-SPEC-0063-80e51a2c",
     });
     expect(details.find((detail) => detail.label === "Prompt SHA")?.value).toBe("eeeeeee...");
   });

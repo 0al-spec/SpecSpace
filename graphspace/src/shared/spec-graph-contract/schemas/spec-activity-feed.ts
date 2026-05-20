@@ -81,6 +81,7 @@ export const promptOverlayProvenanceSchema = z.object({
   source_kind: promptOverlaySourceKindSchema,
   display_label: z.string(),
   reason: promptOverlayReasonSchema.optional(),
+  run_id: z.string().optional(),
   drift_key: z.string().optional(),
   core_prompt_overridden: z.boolean().nullable().optional(),
   prompt_profile_id: z.string().optional(),
