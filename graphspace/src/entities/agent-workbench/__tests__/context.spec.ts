@@ -6,6 +6,7 @@ import {
   createMetricContextItem,
   createSpecEdgeContextItem,
   createSpecGapContextItem,
+  createSpecMarkdownContextItem,
   createProposalContextItem,
   createSpecNodeContextItem,
   removeAgentContextItem,
@@ -14,6 +15,7 @@ import {
   type ProposalContextSource,
   type SpecEdgeContextSource,
   type SpecNodeContextSource,
+  type SpecMarkdownContextSource,
 } from "../index";
 
 const node = (
@@ -64,6 +66,19 @@ const edge = (
   ...overrides,
 });
 
+const specMarkdown = (
+  overrides: Partial<SpecMarkdownContextSource> = {},
+): SpecMarkdownContextSource => ({
+  node_id: "SG-SPEC-0001",
+  title: "SpecGraph - The Executable Product Ontology",
+  scope: "subtree",
+  source_kind: "export",
+  download_filename: "SG-SPEC-0001.subtree.md",
+  node_count: 3,
+  markdown: "# SG-SPEC-0001\n\nCompiled context.",
+  ...overrides,
+});
+
 describe("agent context draft", () => {
   it("serializes selected spec nodes into the workbench context_set shape", () => {
     const draft = createAgentContextDraft("2026-05-17T16:00:00Z");
@@ -102,7 +117,7 @@ describe("agent context draft", () => {
     const withEdge = addAgentContextItem(draft, item);
 
     expect(agentContextItemKey(item)).toBe("spec_edge:SG-SPEC-0002-refines-SG-SPEC-0001");
-  expect(serializeAgentContextSet(withEdge).items).toEqual([
+    expect(serializeAgentContextSet(withEdge).items).toEqual([
       {
         kind: "spec_edge",
         edge_id: "SG-SPEC-0002-refines-SG-SPEC-0001",
@@ -198,6 +213,67 @@ describe("agent context draft", () => {
     expect(withMetric.items[0]).toMatchObject({
       kind: "metric",
       reference_texts: ["SG-SPEC-0001"],
+    });
+  });
+
+  it("serializes Spec Markdown context items by source, root, and scope", () => {
+    const draft = createAgentContextDraft("2026-05-17T16:00:00Z");
+    const item = createSpecMarkdownContextItem(specMarkdown());
+    const withMarkdown = addAgentContextItem(draft, item);
+    const serialized = serializeAgentContextSet(withMarkdown);
+
+    expect(agentContextItemKey(item)).toBe(
+      "spec_markdown:export:SG-SPEC-0001:subtree",
+    );
+    expect(serialized.items).toEqual([
+      {
+        kind: "spec_markdown",
+        markdown_key: "export:SG-SPEC-0001:subtree",
+        node_id: "SG-SPEC-0001",
+        title: "SpecGraph - The Executable Product Ontology",
+        scope: "subtree",
+        source_kind: "export",
+        download_filename: "SG-SPEC-0001.subtree.md",
+        node_count: 3,
+        markdown: "# SG-SPEC-0001\n\nCompiled context.",
+        compile: null,
+      },
+    ]);
+  });
+
+  it("serializes Hyperprompt-compiled Markdown artifacts without sharing compile object references", () => {
+    const draft = createAgentContextDraft("2026-05-17T16:00:00Z");
+    const item = createSpecMarkdownContextItem(
+      specMarkdown({
+        source_kind: "hyperprompt_compile",
+        download_filename: "SG-SPEC-0001.subtree.compiled.md",
+        markdown: "# Compiled",
+        compile: {
+          exit_code: 0,
+          compiled_md: "/tmp/specspace/out.compiled.md",
+          manifest_json: "/tmp/specspace/manifest.json",
+          root_hc: "/tmp/specspace/root.hc",
+        },
+      }),
+    );
+    const withMarkdown = addAgentContextItem(draft, item);
+    const serialized = serializeAgentContextSet(withMarkdown);
+
+    expect(agentContextItemKey(item)).toBe(
+      "spec_markdown:hyperprompt_compile:SG-SPEC-0001:subtree",
+    );
+
+    const serializedMarkdown = serialized.items[0];
+    if (serializedMarkdown.kind !== "spec_markdown" || !serializedMarkdown.compile) {
+      throw new Error("expected serialized Spec Markdown item");
+    }
+    serializedMarkdown.compile.root_hc = "/mutated/root.hc";
+
+    expect(withMarkdown.items[0]).toMatchObject({
+      kind: "spec_markdown",
+      compile: {
+        root_hc: "/tmp/specspace/root.hc",
+      },
     });
   });
 

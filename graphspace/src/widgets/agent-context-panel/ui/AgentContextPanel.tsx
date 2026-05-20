@@ -65,6 +65,10 @@ export function AgentContextPanel({
           label="Metrics"
           value={draft.items.filter((item) => item.kind === "metric").length}
         />
+        <Metric
+          label="Markdown"
+          value={draft.items.filter((item) => item.kind === "spec_markdown").length}
+        />
       </div>
 
       <div className={styles.actions}>
@@ -240,19 +244,33 @@ function ContextItemRow({
           />
         ) : item.kind === "metric" ? (
           <span>{item.item_id}</span>
+        ) : item.kind === "spec_markdown" ? (
+          <SpecIdText
+            text={item.node_id}
+            resolveSpecRef={resolveSpecRef}
+            variant="bare"
+          />
         ) : (
           <span>{item.proposal_id}</span>
         )}
       </h3>
       <p className={styles.detail}>
         {item.kind === "spec_edge"
-          ? `${item.source_title ?? item.source_id} → ${item.target_title ?? item.target_id}`
-          : item.kind === "spec_gap"
-            ? `${formatGapKind(item.gap_kind)} gap · ${item.title}`
-            : item.title}
+            ? `${item.source_title ?? item.source_id} → ${item.target_title ?? item.target_id}`
+            : item.kind === "spec_gap"
+              ? `${formatGapKind(item.gap_kind)} gap · ${item.title}`
+              : item.kind === "spec_markdown"
+                ? `${formatSpecMarkdownSource(item.source_kind)} · ${item.title}`
+                : item.title}
       </p>
       <div className={styles.meta}>
-        <span>{item.kind === "spec_gap" ? item.gap_kind : item.status}</span>
+        <span>
+          {item.kind === "spec_gap"
+            ? item.gap_kind
+            : item.kind === "spec_markdown"
+              ? formatSpecMarkdownSource(item.source_kind)
+              : item.status}
+        </span>
         <span>
           {item.kind === "spec_node"
             ? item.file_name
@@ -262,9 +280,18 @@ function ContextItemRow({
                 ? `${item.gap_count} ${item.gap_count === 1 ? "gap" : "gaps"}`
                 : item.kind === "metric"
                   ? item.category
-                  : item.proposal_path ?? "proposal artifact"}
+                  : item.kind === "spec_markdown"
+                    ? item.scope
+                    : item.proposal_path ?? "proposal artifact"}
         </span>
         {item.kind === "metric" ? <span>{item.source_kind}</span> : null}
+        {item.kind === "spec_markdown" ? (
+          <>
+            <span>{item.node_count} nodes</span>
+            <span>{item.download_filename}</span>
+            {item.compile ? <span>exit {item.compile.exit_code}</span> : null}
+          </>
+        ) : null}
       </div>
       {item.kind === "metric" && item.reference_texts.length > 0 ? (
         <div className={styles.meta}>
@@ -316,6 +343,13 @@ function formatGapKind(kind: AgentContextSpecGapKind): string {
   if (kind === "evidence") return "Evidence";
   if (kind === "input") return "Input";
   return "Execution";
+}
+
+function formatSpecMarkdownSource(
+  sourceKind: "export" | "hyperprompt_compile",
+): string {
+  if (sourceKind === "hyperprompt_compile") return "Hyperprompt compile";
+  return "Markdown export";
 }
 
 function Status({ label, detail }: { label: string; detail: string }) {

@@ -4,6 +4,7 @@ import {
   clearAgentContextItems,
   createAgentContextDraft,
   createMetricContextItem,
+  createSpecMarkdownContextItem,
   createMetricConversationPromptSeed,
   createSpecEdgeContextItem,
   createSpecGapContextItem,
@@ -12,6 +13,7 @@ import {
   removeAgentContextItem,
   type AgentConversationPromptSeed,
   type AgentContextSpecGapKind,
+  type SpecMarkdownContextSource,
 } from "@/entities/agent-workbench";
 import type { SpecEdge } from "@/entities/spec-edge";
 import { createSpecNodeRefResolver } from "@/entities/spec-node";
@@ -446,6 +448,11 @@ export function ViewerPage() {
       addAgentContextItem(draft, createMetricContextItem(entry)),
     );
   };
+  const addSpecMarkdownToAgentContext = (source: SpecMarkdownContextSource) => {
+    setAgentContextDraft((draft) =>
+      addAgentContextItem(draft, createSpecMarkdownContextItem(source)),
+    );
+  };
   const startConversationFromProposal = (entry: ProposalIndexEntry) => {
     addProposalToAgentContext(entry);
     setAgentConversationPromptSeed(createProposalConversationPromptSeed(entry));
@@ -810,6 +817,7 @@ export function ViewerPage() {
           resolveSpecRef={resolveSpecRef}
           onSelectNodeId={selectSpecNodeId}
           compileCapability={hyperpromptCompileCapability}
+          onAddMarkdownToAgentContext={addSpecMarkdownToAgentContext}
         />
       ) : selectedGraphEdge ? (
         <SpecEdgeInspector

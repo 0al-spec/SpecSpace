@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T34` — Add Spec Inspector Hyperprompt compile action for Spec Markdown exports
+**Current Task:** `CTXB-P13-T35` — Add Spec Markdown export and compile results to Agent Context
 
 ## Recently Archived
+- `CTXB-P13-T34` — Add Spec Inspector Hyperprompt compile action for Spec Markdown exports (PASS, 2026-05-20)
 - `CTXB-P13-T33` — Add local Hyperprompt compile endpoint for Spec Markdown exports (PASS, 2026-05-20)
 - `CTXB-P13-T32` — Add optional Hyperprompt compile capability diagnostics (PASS, 2026-05-20)
 - `CTXB-P13-T31` — Add Spec Markdown export action to Spec Inspector (PASS, 2026-05-19)
@@ -81,13 +82,13 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T34` — Add Spec Inspector Hyperprompt compile action for Spec Markdown exports.
-- Rationale: readonly Markdown export is usable and the local compile endpoint is now capability-gated and tested. The next parity step is to expose that compile path inside the Spec Inspector while keeping HTTP/static deployments disabled and explicit.
+- `CTXB-P13-T35` — Add Spec Markdown export and compile results to Agent Context.
+- Rationale: Spec Inspector can now export and optionally compile Markdown, but the output is still isolated to preview/copy/download. The next parity step is to attach those artifacts to the Agent Context draft so the future SpecSpace agent can reason over exact selected spec material.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`.
-- Current: `CTXB-P13-T34` Spec Inspector Hyperprompt compile action for Spec Markdown exports.
-- Next: choose the next parity gap after the compile action is reviewed against local and production capability states.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`, `CTXB-P13-T34`.
+- Current: `CTXB-P13-T35` Spec Markdown export and compile results to Agent Context.
+- Next: continue parity with agent-side use of attached Markdown artifacts after the context item contract is reviewed.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.
