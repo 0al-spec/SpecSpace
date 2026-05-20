@@ -7,21 +7,23 @@ Result: PASS.
 `CTXB-P13-T36` adds direct Agent Conversation starts from Spec Inspector
 Markdown artifacts. The implementation is frontend-only: it adds the selected
 Markdown artifact to Agent Context and opens Agent Conversation with a seeded
-prompt over the existing mock runtime boundary.
+prompt over the existing mock runtime boundary. The Agent Conversation panel
+also exposes per-item context removal so users do not have to return to the
+separate Agent Context panel.
 
 ## Local Validation
 
 ```bash
-npm test --prefix graphspace -- agent-workbench
+npm test --prefix graphspace -- agent-workbench start-agent-conversation
 ```
 
-Result: PASS — 3 files / 14 tests passed.
+Result: PASS — 4 files / 17 tests passed.
 
 ```bash
 npm test --prefix graphspace
 ```
 
-Result: PASS — 51 files / 276 tests passed.
+Result: PASS — 51 files / 277 tests passed.
 
 ```bash
 npm run build --prefix graphspace
@@ -64,6 +66,10 @@ Mobile viewport: `390x844`.
 - Verified Agent Conversation remains inside the mobile utility panel.
 - Verified utility header and content do not overlap.
 - Verified the Markdown context token and seeded prompt remain visible.
+- Verified `Remove` on the conversation context token removes the item and shows
+  the empty context state.
+- Verified the mobile utility panel stays above the Spec Inspector when both
+  would otherwise overlap, so the conversation token controls remain clickable.
 
 Known local dev console noise: `/api/v1/specpm/registry` returns `503` in this
 local setup. It is unrelated to this task.

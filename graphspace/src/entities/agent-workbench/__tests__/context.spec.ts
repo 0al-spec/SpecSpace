@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addAgentContextItem,
+  agentContextItemLabel,
   agentContextItemKey,
   createAgentContextDraft,
   createMetricContextItem,
@@ -283,5 +284,22 @@ describe("agent context draft", () => {
     const withNode = addAgentContextItem(draft, item);
 
     expect(removeAgentContextItem(withNode, agentContextItemKey(item)).items).toEqual([]);
+  });
+
+  it("labels context items for shared remove controls", () => {
+    expect(agentContextItemLabel(createSpecNodeContextItem(node()))).toBe("SG-SPEC-0001");
+    expect(
+      agentContextItemLabel(
+        createSpecGapContextItem({
+          node_id: "SG-SPEC-0001",
+          title: "SpecGraph - The Executable Product Ontology",
+          gap_kind: "input",
+          gap_count: 2,
+        }),
+      ),
+    ).toBe("SG-SPEC-0001 Input gap");
+    expect(agentContextItemLabel(createSpecMarkdownContextItem(specMarkdown()))).toBe(
+      "SG-SPEC-0001 Markdown export",
+    );
   });
 });

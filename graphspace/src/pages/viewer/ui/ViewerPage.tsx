@@ -797,6 +797,7 @@ export function ViewerPage() {
               promptSeed={agentConversationPromptSeed}
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={selectSpecNodeId}
+              onRemoveContextItem={removeAgentContextItemByKey}
             />
           ) : null}
 

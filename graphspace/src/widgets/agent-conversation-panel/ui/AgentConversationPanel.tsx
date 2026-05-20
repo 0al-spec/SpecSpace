@@ -5,6 +5,7 @@ import {
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
 import {
+  agentContextItemLabel,
   agentContextItemKey,
   createAgentRuntimeProjection,
   projectAgentRuntimeEvent,
@@ -29,6 +30,7 @@ type Props = {
   promptSeed?: AgentConversationPromptSeed | null;
   resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
+  onRemoveContextItem?: (key: string) => void;
 };
 
 const DEFAULT_PROMPT = "Review selected context and suggest the next proposal.";
@@ -39,6 +41,7 @@ export function AgentConversationPanel({
   promptSeed = null,
   resolveSpecRef,
   onSpecIdClick,
+  onRemoveContextItem,
 }: Props) {
   const serializedContext = useMemo(() => serializeAgentContextSet(draft), [draft]);
   const [conversation, setConversation] = useState<AgentConversationRef | null>(null);
@@ -128,15 +131,29 @@ export function AgentConversationPanel({
         {serializedContext.items.length === 0 ? (
           <span className={styles.contextEmpty}>No context items attached.</span>
         ) : (
-          serializedContext.items.map((item) => (
-            <span className={styles.contextToken} key={agentContextItemKey(item)}>
-              <AgentContextToken
-                item={item}
-                resolveSpecRef={resolveSpecRef}
-                onSpecIdClick={onSpecIdClick}
-              />
-            </span>
-          ))
+          serializedContext.items.map((item) => {
+            const key = agentContextItemKey(item);
+
+            return (
+              <span className={styles.contextToken} key={key}>
+                <AgentContextToken
+                  item={item}
+                  resolveSpecRef={resolveSpecRef}
+                  onSpecIdClick={onSpecIdClick}
+                />
+                {onRemoveContextItem ? (
+                  <button
+                    type="button"
+                    className={styles.contextTokenRemove}
+                    onClick={() => onRemoveContextItem(key)}
+                    aria-label={`Remove ${agentContextItemLabel(item)} from Agent context`}
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </span>
+            );
+          })
         )}
       </div>
 

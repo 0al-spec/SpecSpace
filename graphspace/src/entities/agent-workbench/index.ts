@@ -1,5 +1,6 @@
 export {
   addAgentContextItem,
+  agentContextItemLabel,
   agentContextItemKey,
   clearAgentContextItems,
   createAgentContextDraft,
