@@ -8,6 +8,7 @@
 }
 
 .summary {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   border-bottom: 1px solid var(--gs-rule-soft);
@@ -137,6 +138,7 @@
 }
 
 .entries {
+  flex: 1 1 auto;
   overflow-y: auto;
   min-height: 0;
 }

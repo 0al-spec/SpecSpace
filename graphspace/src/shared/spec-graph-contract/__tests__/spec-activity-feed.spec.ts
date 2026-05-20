@@ -134,6 +134,7 @@ describe("parseSpecActivityFeed", () => {
       status: "enabled",
       source_kind: "profile",
       display_label: "default",
+      run_id: "20260519T214802Z-SG-SPEC-0063-80e51a2c",
       drift_key: `${"profile"}|default|${"e".repeat(64)}|${"p".repeat(64)}`,
       core_prompt_overridden: false,
       prompt_profile_id: "default",
@@ -176,6 +177,9 @@ describe("parseSpecActivityFeed", () => {
     expect(r.kind).toBe("ok");
     if (r.kind !== "ok") return;
     expect(r.data.entries[0].prompt_overlay_provenance?.display_label).toBe("default");
+    expect(r.data.entries[0].prompt_overlay_provenance?.run_id).toBe(
+      "20260519T214802Z-SG-SPEC-0063-80e51a2c",
+    );
     expect(r.data.viewer_projection.prompt_overlay?.drift_group_count).toBe(1);
   });
 

@@ -18,6 +18,7 @@
 
   position: relative;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -74,10 +75,19 @@
 
 .sidebarHeader,
 .utilityHeader {
+  position: relative;
+  z-index: 2;
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--gs-space-4);
+  background: var(--gs-paper);
+}
+
+.utilityHeader {
+  position: sticky;
+  top: 0;
 }
 
 .utilityKicker {
@@ -127,13 +137,17 @@
   top: var(--viewer-panel-top);
   right: var(--viewer-panel-edge);
   width: var(--viewer-utility-width);
-  max-height: calc(100vh - var(--viewer-panel-top) - 72px);
+  max-height: calc(100dvh - var(--viewer-panel-top) - 72px);
   gap: var(--gs-space-4);
   padding: var(--gs-space-5);
 }
 
 .utilityRail > * {
   min-height: 0;
+}
+
+.utilityRail > :not(.utilityHeader) {
+  flex: 1 1 auto;
 }
 
 .utilityRailWithInspector {
@@ -456,7 +470,7 @@
 
 @media (max-width: 640px) {
   .root {
-    --viewer-panel-top: var(--gs-space-4);
+    --viewer-panel-top: max(var(--gs-space-4), env(safe-area-inset-top, 0px));
     --viewer-panel-edge: var(--gs-space-4);
     --viewer-sidebar-width: calc(100vw - 2 * var(--viewer-panel-edge));
   }
@@ -474,7 +488,7 @@
   }
 
   .utilityRail {
-    bottom: 86px;
+    bottom: calc(86px + env(safe-area-inset-bottom, 0px));
     max-height: none;
   }
 
@@ -488,7 +502,7 @@
 
   .utilityRailWithInspector {
     right: var(--viewer-panel-edge);
-    bottom: 86px;
+    bottom: calc(86px + env(safe-area-inset-bottom, 0px));
     max-height: none;
   }
 
@@ -499,9 +513,9 @@
   .inspectorRail {
     top: auto;
     right: var(--viewer-panel-edge);
-    bottom: 86px;
+    bottom: calc(86px + env(safe-area-inset-bottom, 0px));
     left: var(--viewer-panel-edge);
     width: auto;
-    max-height: min(75vh, calc(100vh - 128px));
+    max-height: min(75dvh, calc(100dvh - 128px - env(safe-area-inset-top, 0px)));
   }
 }
