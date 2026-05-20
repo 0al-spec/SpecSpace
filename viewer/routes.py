@@ -83,6 +83,7 @@ POST_ROUTES: dict[str, RouteSpec] = {
     "/api/file": RouteSpec("handle_write_file"),
     "/api/export": RouteSpec("handle_export"),
     "/api/compile": RouteSpec("handle_compile"),
+    "/api/v1/spec-markdown/compile": RouteSpec("handle_v1_spec_markdown_compile"),
     "/api/specpm/preview/build": RouteSpec("handle_specpm_preview_build"),
     "/api/specpm/build-export-preview": RouteSpec(
         "_handle_specpm_build",

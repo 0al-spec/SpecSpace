@@ -18,7 +18,15 @@ from urllib.request import Request, urlopen
 
 import yaml  # type: ignore[import-untyped]
 
-from viewer import capabilities_api, metrics, proposals, spec_compile, specgraph, specgraph_surfaces
+from viewer import (
+    capabilities_api,
+    metrics,
+    proposals,
+    spec_compile,
+    specgraph,
+    specgraph_surfaces,
+    specspace_hyperprompt,
+)
 from viewer.specpm import _build_specpm_lifecycle
 
 SPECSPACE_API_VERSION = "v1"
@@ -68,6 +76,15 @@ class SpecSpaceProvider(Protocol):
     def read_spec_node(self, node_id: str) -> tuple[int, dict[str, Any]]: ...
 
     def read_spec_markdown(self, root_id: str, options: spec_compile.CompileOptions) -> tuple[int, dict[str, Any]]: ...
+
+    def compile_spec_markdown(
+        self,
+        handler: CapabilityContext,
+        root_id: str,
+        options: spec_compile.CompileOptions,
+        *,
+        scope: str,
+    ) -> tuple[int, dict[str, Any]]: ...
 
     def read_recent_runs(self, *, limit: int, since_iso: str | None) -> tuple[int, dict[str, Any]]: ...
 
@@ -212,6 +229,31 @@ def build_spec_markdown_response(
     }
 
 
+def build_hyperprompt_compile_unavailable_response(
+    handler: CapabilityContext,
+    provider: SpecSpaceProvider,
+) -> tuple[HTTPStatus, dict[str, Any]]:
+    capabilities = provider.capabilities(handler)
+    diagnostic = capabilities_api.build_hyperprompt_compile_diagnostic(
+        handler,
+        provider_kind=provider.kind,
+    )
+    return HTTPStatus.SERVICE_UNAVAILABLE, {
+        "api_version": SPECSPACE_API_VERSION,
+        "error": "Hyperprompt compile is not available.",
+        "reason": "hyperprompt_compile_unavailable",
+        "provider": {
+            "kind": provider.kind,
+            "read_only": True,
+        },
+        "capabilities": {
+            **capabilities,
+            "hyperprompt_compile": bool(diagnostic.get("available")),
+        },
+        "diagnostic": diagnostic,
+    }
+
+
 @dataclass(frozen=True)
 class FileSpecGraphProvider:
     """Readonly file-backed provider over SpecGraph nodes and runs artifacts."""
@@ -324,6 +366,67 @@ class FileSpecGraphProvider:
                 "spec_nodes": str(self.spec_nodes_dir),
             },
         )
+
+    def compile_spec_markdown(
+        self,
+        handler: CapabilityContext,
+        root_id: str,
+        options: spec_compile.CompileOptions,
+        *,
+        scope: str,
+    ) -> tuple[int, dict[str, Any]]:
+        diagnostic = capabilities_api.build_hyperprompt_compile_diagnostic(
+            handler,
+            provider_kind=self.kind,
+        )
+        if not bool(diagnostic.get("available")):
+            return build_hyperprompt_compile_unavailable_response(handler, self)
+
+        export_status, export_payload = self.read_spec_markdown(root_id, options)
+        if export_status != HTTPStatus.OK:
+            return export_status, export_payload
+
+        markdown = export_payload.get("markdown")
+        manifest = export_payload.get("manifest")
+        source = export_payload.get("source")
+        if not isinstance(markdown, str) or not isinstance(manifest, dict) or not isinstance(source, dict):
+            return HTTPStatus.INTERNAL_SERVER_ERROR, {
+                "api_version": SPECSPACE_API_VERSION,
+                "error": "Spec Markdown export response was incomplete.",
+            }
+
+        server = handler.server
+        work_dir = Path(getattr(server, "hyperprompt_work_dir"))
+        binary_path = str(getattr(server, "hyperprompt_resolved_binary") or getattr(server, "hyperprompt_binary"))
+        default_binary = str(getattr(server, "hyperprompt_binary"))
+        repo_root = Path(getattr(server, "repo_root"))
+        compile_status, compile_payload = specspace_hyperprompt.compile_spec_markdown_export(
+            work_dir=work_dir,
+            root_id=root_id,
+            scope=scope,
+            markdown=markdown,
+            manifest=manifest,
+            source=source,
+            options=options,
+            binary_path=binary_path,
+            default_hyperprompt_binary=default_binary,
+            repo_root=repo_root,
+        )
+        response: dict[str, Any] = {
+            "api_version": SPECSPACE_API_VERSION,
+            "artifact_kind": "specspace_hyperprompt_compile",
+            "root_id": root_id,
+            "scope": scope,
+            "source": source,
+            "export": {
+                "manifest": manifest,
+                "download_filename": export_payload.get("download_filename"),
+            },
+            "compile": compile_payload,
+        }
+        if compile_status != HTTPStatus.OK:
+            response["error"] = compile_payload.get("error", "Hyperprompt compile failed.")
+        return compile_status, response
 
     def read_recent_runs(self, *, limit: int, since_iso: str | None) -> tuple[HTTPStatus, dict[str, Any]]:
         unavailable = self._runs_unavailable()
@@ -728,6 +831,16 @@ class HttpSpecGraphProvider:
                 "git": manifest.get("git") if isinstance(manifest.get("git"), dict) else None,
             },
         )
+
+    def compile_spec_markdown(
+        self,
+        handler: CapabilityContext,
+        root_id: str,
+        options: spec_compile.CompileOptions,
+        *,
+        scope: str,
+    ) -> tuple[int, dict[str, Any]]:
+        return build_hyperprompt_compile_unavailable_response(handler, self)
 
     def read_recent_runs(self, *, limit: int, since_iso: str | None) -> tuple[int, dict[str, Any]]:
         manifest, manifest_error = self._read_manifest()

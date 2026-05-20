@@ -121,7 +121,9 @@ The SpecPM registry URL can be supplied through `SPECSPACE_SPECPM_REGISTRY_URL`.
 Optional Hyperprompt compile is disabled unless a deployment configures both a
 compiler binary and an explicit scratch workspace. The scratch workspace is
 reported through `/api/v1/capabilities`; SpecSpace does not create it or write
-to mounted SpecGraph inputs while checking capabilities.
+to mounted SpecGraph inputs while checking capabilities. When enabled,
+`POST /api/v1/spec-markdown/compile` writes a generated Markdown export bundle
+inside this scratch workspace and invokes Hyperprompt there.
 
 ```bash
 python viewer/server.py \
@@ -136,6 +138,10 @@ python viewer/server.py \
 
 `--hyperprompt-work-dir` can also be supplied through
 `SPECSPACE_HYPERPROMPT_WORK_DIR`.
+
+HTTP/static artifact deployments keep Hyperprompt compile disabled even if a
+binary and scratch directory are configured; they expose readonly Markdown
+export only until a separate worker/storage boundary is designed.
 
 ## Local Developer Restart
 

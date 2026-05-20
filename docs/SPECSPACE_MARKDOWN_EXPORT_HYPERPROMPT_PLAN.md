@@ -1,6 +1,6 @@
 # SpecSpace Spec Markdown Export And Hyperprompt Boundary
 
-Status: diagnostics implemented
+Status: local compile endpoint implemented
 Updated: 2026-05-20
 
 ## Decision
@@ -113,8 +113,11 @@ The capability model should distinguish:
 - `hyperprompt_compile`: local compile is configured and available.
 
 As of `CTXB-P13-T32`, `/api/v1/capabilities` exposes both keys plus
-diagnostics for disabled compile states. SpecSpace still does not expose a
-compile action in production UI unless `hyperprompt_compile` is true.
+diagnostics for disabled compile states. As of `CTXB-P13-T33`,
+`POST /api/v1/spec-markdown/compile` can compile a SpecSpace-generated export
+bundle in local file provider deployments when `hyperprompt_compile` is true.
+SpecSpace still does not expose a compile action in production UI unless
+`hyperprompt_compile` is true.
 
 ## Deployment Constraints
 
