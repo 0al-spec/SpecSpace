@@ -61,6 +61,8 @@ import {
   DEFAULT_RECENT_TIMELINE_FILTER,
   filterRecentChangesByTimeline,
   hasRecentTimelineFilter,
+  withRecentTimelineField,
+  withRecentTimelineRange,
   type RecentTimelineField,
   type RecentTimelineRange,
 } from "../model/recent-timeline-filter";
@@ -375,10 +377,10 @@ export function ViewerPage() {
     setAgentConversationPromptSeed(null);
   };
   const setRecentTimelineField = (field: RecentTimelineField) => {
-    setRecentTimelineFilter((filter) => ({ ...filter, field }));
+    setRecentTimelineFilter((filter) => withRecentTimelineField(filter, field));
   };
   const setRecentTimelineRange = (range: RecentTimelineRange) => {
-    setRecentTimelineFilter((filter) => ({ ...filter, range }));
+    setRecentTimelineFilter((filter) => withRecentTimelineRange(filter, range));
   };
   const setRecentTimelineIncludeUnknown = (includeUnknown: boolean) => {
     setRecentTimelineFilter((filter) => ({ ...filter, includeUnknown }));

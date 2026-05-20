@@ -52,6 +52,10 @@ export function RecentTimelineFilterBar({
   onClear,
 }: Props) {
   const active = hasRecentTimelineFilter(filter);
+  const unknownIncludedLabel =
+    filter.includeUnknown && unknownCount > 0
+      ? ` · ${unknownCount} unknown included`
+      : "";
 
   return (
     <div className={styles.timelineFilter} aria-label="Filter recent changes by time">
@@ -100,7 +104,7 @@ export function RecentTimelineFilterBar({
         <span>unknown {unknownCount}</span>
       </label>
       <span className={styles.timelineFilterCount}>
-        {resultCount}/{totalCount} shown · {knownCount} dated
+        {resultCount}/{totalCount} shown · {knownCount} dated{unknownIncludedLabel}
       </span>
       <button
         type="button"
