@@ -11,9 +11,14 @@ import {
 
 const NOW = new Date("2026-05-19T12:00:00+00:00");
 
-const baseEntry = (event_id: string, spec_id: string, occurred_at: string): RecentChange => ({
+const baseEntry = (
+  event_id: string,
+  spec_id: string,
+  occurred_at: string,
+  event_type = "canonical_spec_updated",
+): RecentChange => ({
   event_id,
-  event_type: "canonical_spec_updated",
+  event_type,
   spec_id,
   title: event_id,
   occurred_at,
@@ -49,7 +54,7 @@ const baseNode = (
 const entries: RecentChange[] = [
   baseEntry("fresh", "SG-SPEC-0001", "2026-05-19T10:00:00+00:00"),
   baseEntry("week-old", "SG-SPEC-0002", "2026-05-12T09:00:00+00:00"),
-  baseEntry("graph-level", "", "2026-05-19T11:00:00+00:00"),
+  baseEntry("trace", "", "2026-05-19T11:00:00+00:00", "trace_baseline_attached"),
 ];
 
 const nodes: SpecGraphNode[] = [
@@ -74,13 +79,13 @@ describe("filterRecentChangesByTimeline", () => {
 
     expect(result.entries.map((entry) => entry.event_id)).toEqual([
       "fresh",
-      "graph-level",
+      "trace",
     ]);
     expect(result.knownCount).toBe(3);
     expect(result.unknownCount).toBe(0);
   });
 
-  it("filters by related spec updated timestamp while keeping unknown values visible", () => {
+  it("filters spec update activity by occurrence timestamp while keeping other event types visible as unknown", () => {
     const result = filterRecentChangesByTimeline(
       entries,
       nodes,
@@ -90,10 +95,30 @@ describe("filterRecentChangesByTimeline", () => {
 
     expect(result.entries.map((entry) => entry.event_id)).toEqual([
       "fresh",
-      "graph-level",
+      "trace",
     ]);
     expect(result.knownCount).toBe(2);
     expect(result.unknownCount).toBe(1);
+  });
+
+  it("filters spec update activity by occurrence timestamp even when node updated_at is stale", () => {
+    const result = filterRecentChangesByTimeline(
+      [baseEntry("fresh-spec-update", "SG-SPEC-0001", "2026-05-19T10:00:00+00:00")],
+      [
+        baseNode("SG-SPEC-0001", {
+          created_at: "2026-05-01T00:00:00+00:00",
+          updated_at: "2026-04-01T00:00:00+00:00",
+        }),
+      ],
+      { field: "spec-updated", range: "24h", includeUnknown: false },
+      NOW,
+    );
+
+    expect(result.entries.map((entry) => entry.event_id)).toEqual([
+      "fresh-spec-update",
+    ]);
+    expect(result.knownCount).toBe(1);
+    expect(result.unknownCount).toBe(0);
   });
 
   it("can hide entries whose selected timestamp is unknown", () => {

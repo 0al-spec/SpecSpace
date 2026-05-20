@@ -29,6 +29,8 @@ const RANGE_DURATION_MS: Record<Exclude<RecentTimelineRange, "all">, number> = {
   "30d": 30 * 24 * 60 * 60 * 1000,
 };
 
+const SPEC_UPDATED_EVENT_TYPE = "canonical_spec_updated";
+
 export function hasRecentTimelineFilter(filter: RecentTimelineFilter): boolean {
   return (
     filter.field !== DEFAULT_RECENT_TIMELINE_FILTER.field ||
@@ -104,11 +106,16 @@ function entryTimestamp(
   field: RecentTimelineField,
 ): number | null {
   if (field === "event") return parseTimestamp(entry.occurred_at);
+  if (field === "spec-updated") {
+    return entry.event_type === SPEC_UPDATED_EVENT_TYPE
+      ? parseTimestamp(entry.occurred_at)
+      : null;
+  }
 
   const node = nodesById.get(entry.spec_id);
   if (!node) return null;
 
-  return parseTimestamp(field === "spec-updated" ? node.updated_at : node.created_at);
+  return parseTimestamp(node.created_at);
 }
 
 function parseTimestamp(value: unknown): number | null {
