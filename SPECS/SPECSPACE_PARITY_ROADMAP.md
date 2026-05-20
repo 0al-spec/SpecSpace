@@ -187,4 +187,5 @@ Target:
 26. `CTXB-P13-T30` — Add SpecSpace v1 Spec Markdown export endpoint. ✅
 27. `CTXB-P13-T31` — Add Spec Markdown export action to Spec Inspector. ✅
 28. `CTXB-P13-T32` — Add optional Hyperprompt compile capability diagnostics. ✅
-29. `CTXB-P13-T33` — Add local Hyperprompt compile endpoint for Spec Markdown exports.
+29. `CTXB-P13-T33` — Add local Hyperprompt compile endpoint for Spec Markdown exports. ✅
+30. `CTXB-P13-T34` — Add Spec Inspector Hyperprompt compile action for Spec Markdown exports.

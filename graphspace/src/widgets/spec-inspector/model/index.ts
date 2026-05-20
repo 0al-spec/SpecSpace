@@ -1,7 +1,13 @@
 export { buildSpecInspectorModel } from "./build-spec-inspector-model";
+export { fetchSpecMarkdownCompile } from "./load-spec-markdown-compile";
 export { fetchSpecMarkdownExport } from "./load-spec-markdown-export";
 export { fetchSpecNodeDetail } from "./load-spec-node-detail";
 export { useSpecNodeDetail } from "./use-spec-node-detail";
+export type {
+  SpecMarkdownCompileCapability,
+  SpecMarkdownCompileFetchFailure,
+  SpecMarkdownCompileFetchResult,
+} from "./load-spec-markdown-compile";
 export type {
   SpecMarkdownExportFetchFailure,
   SpecMarkdownExportFetchResult,

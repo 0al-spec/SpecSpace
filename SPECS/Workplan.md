@@ -2004,7 +2004,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Copy/download behavior works in desktop and mobile viewports.
   - Exported Markdown can later be added to Agent Context without changing this task's UI contract.
 
-### CTXB-P13-T32 — Add optional Hyperprompt compile capability diagnostics — Not Started
+### ✅ CTXB-P13-T32 — Add optional Hyperprompt compile capability diagnostics — DONE (PASS, 2026-05-20)
 - **Description:** Add capability and diagnostic plumbing for future Hyperprompt compilation without enabling compile by default in static/HTTP deployments.
 - **Priority:** P3
 - **Dependencies:** CTXB-P13-T30
@@ -2016,6 +2016,32 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Local deployments can report configured binary path/status without mutating SpecGraph inputs.
   - Missing compiler, non-executable compiler, and missing scratch workspace are actionable diagnostics.
   - No production UI suggests compile is available unless the capability is true.
+
+### ✅ CTXB-P13-T33 — Add local Hyperprompt compile endpoint for Spec Markdown exports — DONE (PASS, 2026-05-20)
+- **Description:** Add a local file provider-only `/api/v1/spec-markdown/compile` endpoint that compiles SpecSpace-generated Spec Markdown export bundles through the existing Hyperprompt capability gate.
+- **Priority:** P3
+- **Dependencies:** CTXB-P13-T30, CTXB-P13-T32
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** SpecSpace v1 compile endpoint, typed provider method, scratch bundle lifecycle guard, validation report
+- **Acceptance Criteria:**
+  - Local file provider deployments can compile a selected SpecGraph Markdown export when `hyperprompt_compile` is available.
+  - HTTP/static artifact deployments return an explicit unsupported diagnostic.
+  - Invalid request options, unknown roots, compiler failures, and missing capabilities return structured errors.
+  - Compile bundle writes are constrained to the configured scratch workspace and old SpecSpace-owned bundles are pruned.
+  - The endpoint does not mutate mounted SpecGraph inputs or call legacy conversation compile routes.
+
+### CTXB-P13-T34 — Add Spec Inspector Hyperprompt compile action for Spec Markdown exports — In Progress
+- **Description:** Expose the local Spec Markdown Hyperprompt compile endpoint from the Spec Inspector Markdown export section with capability-aware disabled states and compiled Markdown copy/download actions.
+- **Priority:** P3
+- **Dependencies:** CTXB-P13-T31, CTXB-P13-T32, CTXB-P13-T33
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** typed compile response parser, Spec Inspector compile fetcher/action, disabled diagnostics, validation report
+- **Acceptance Criteria:**
+  - Spec Inspector shows a compile action next to Markdown export controls.
+  - The compile action is disabled with diagnostic copy unless `/api/v1/capabilities` reports `hyperprompt_compile: true`.
+  - Successful compile responses show exit code, generated artifact paths, compiled Markdown preview, copy, and download actions.
+  - HTTP/static production deployments remain explicitly compile-disabled.
+  - Compile response parsing and request behavior have focused unit coverage.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

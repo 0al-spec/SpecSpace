@@ -47,3 +47,40 @@ export const specMarkdownExportResponseSchema = z
 export type SpecMarkdownExportResponse = z.infer<
   typeof specMarkdownExportResponseSchema
 >;
+
+const specMarkdownCompilePayloadSchema = z
+  .object({
+    exit_code: z.number(),
+    compiled_markdown: z.string().optional(),
+    compiler_manifest: z.unknown().optional(),
+    export_dir: z.string().optional(),
+    root_hc: z.string().optional(),
+    markdown_file: z.string().optional(),
+    export_manifest: z.string().optional(),
+    compiled_md: z.string().optional(),
+    manifest_json: z.string().optional(),
+    stdout: z.string().optional(),
+    stderr: z.string().optional(),
+  })
+  .passthrough();
+
+export const specMarkdownCompileResponseSchema = z
+  .object({
+    api_version: z.string().optional(),
+    artifact_kind: z.literal("specspace_hyperprompt_compile"),
+    root_id: z.string(),
+    scope: z.enum(specMarkdownExportScopes),
+    source: specMarkdownSourceSchema,
+    export: z
+      .object({
+        download_filename: z.string(),
+        manifest: specMarkdownManifestSchema,
+      })
+      .passthrough(),
+    compile: specMarkdownCompilePayloadSchema,
+  })
+  .passthrough();
+
+export type SpecMarkdownCompileResponse = z.infer<
+  typeof specMarkdownCompileResponseSchema
+>;
