@@ -18,6 +18,11 @@ class ViewerRuntimeServer(Protocol):
     dialog_dir: Path
     workspace_watcher: Any
     hyperprompt_binary: str
+    hyperprompt_resolved_binary: str | None
+    hyperprompt_checked_paths: list[str]
+    hyperprompt_resolution_source: str
+    hyperprompt_work_dir: Path | None
+    hyperprompt_compile_available: bool
     compile_available: bool
     spec_dir: Path | None
     spec_watcher: Any
@@ -36,6 +41,7 @@ def build_arg_parser(
     description: str | None,
     default_hyperprompt_binary: str,
 ) -> argparse.ArgumentParser:
+    hyperprompt_work_dir_env = os.environ.get("SPECSPACE_HYPERPROMPT_WORK_DIR", "").strip()
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--host",
@@ -50,6 +56,15 @@ def build_arg_parser(
         type=str,
         default=default_hyperprompt_binary,
         help="Path to the Hyperprompt compiler binary",
+    )
+    parser.add_argument(
+        "--hyperprompt-work-dir",
+        type=Path,
+        default=Path(hyperprompt_work_dir_env) if hyperprompt_work_dir_env else None,
+        help=(
+            "Explicit scratch workspace for optional SpecSpace Hyperprompt compile. "
+            "When omitted, /api/v1/capabilities reports Hyperprompt compile as unavailable."
+        ),
     )
     parser.add_argument(
         "--spec-dir",
@@ -119,7 +134,13 @@ def configure_server(
     server.dialog_dir.mkdir(parents=True, exist_ok=True)
     server.workspace_watcher = workspace_watcher_factory(server.dialog_dir)
     server.hyperprompt_binary = args.hyperprompt_binary
-    resolved_binary, _, _ = resolve_hyperprompt_binary(args.hyperprompt_binary)
+    resolved_binary, checked_paths, resolution_source = resolve_hyperprompt_binary(args.hyperprompt_binary)
+    server.hyperprompt_resolved_binary = resolved_binary
+    server.hyperprompt_checked_paths = checked_paths
+    server.hyperprompt_resolution_source = resolution_source
+    hyperprompt_work_dir = getattr(args, "hyperprompt_work_dir", None)
+    server.hyperprompt_work_dir = hyperprompt_work_dir.expanduser().resolve() if hyperprompt_work_dir else None
+    server.hyperprompt_compile_available = False
     server.compile_available = resolved_binary is not None
     server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None
     server.spec_watcher = spec_watcher_factory(server.spec_dir) if server.spec_dir else None

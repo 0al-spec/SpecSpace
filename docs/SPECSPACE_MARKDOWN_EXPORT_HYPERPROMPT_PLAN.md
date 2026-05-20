@@ -1,7 +1,7 @@
 # SpecSpace Spec Markdown Export And Hyperprompt Boundary
 
-Status: planned
-Updated: 2026-05-19
+Status: diagnostics implemented
+Updated: 2026-05-20
 
 ## Decision
 
@@ -111,6 +111,10 @@ The capability model should distinguish:
 
 - `spec_markdown_export`: readonly export is available;
 - `hyperprompt_compile`: local compile is configured and available.
+
+As of `CTXB-P13-T32`, `/api/v1/capabilities` exposes both keys plus
+diagnostics for disabled compile states. SpecSpace still does not expose a
+compile action in production UI unless `hyperprompt_compile` is true.
 
 ## Deployment Constraints
 

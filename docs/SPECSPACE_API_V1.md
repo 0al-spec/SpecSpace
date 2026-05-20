@@ -372,14 +372,36 @@ registry payload.
 
 ### `GET /api/v1/capabilities`
 
-Returns legacy capability booleans under `capabilities`, plus provider metadata:
+Returns capability booleans, provider metadata, and deployment diagnostics.
+`spec_markdown_export` means readonly SpecGraph Markdown export is available.
+`hyperprompt_compile` means a local Hyperprompt compiler and scratch workspace
+are explicitly configured for SpecSpace. Static/HTTP artifact deployments should
+normally report `spec_markdown_export: true` and `hyperprompt_compile: false`.
 
 ```json
 {
   "api_version": "v1",
   "capabilities": {
     "spec_graph": true,
-    "spec_markdown_export": true
+    "spec_markdown_export": true,
+    "hyperprompt_compile": false
+  },
+  "diagnostics": {
+    "spec_markdown_export": {
+      "available": true,
+      "status": "available",
+      "detail": "Readonly SpecGraph Markdown export is available."
+    },
+    "hyperprompt_compile": {
+      "available": false,
+      "status": "scratch_not_configured",
+      "detail": "Hyperprompt compile requires an explicit scratch workspace.",
+      "configured_binary": "/repo/deps/hyperprompt",
+      "resolved_binary": "/repo/deps/hyperprompt",
+      "resolution_source": "configured",
+      "checked_paths": ["/repo/deps/hyperprompt"],
+      "scratch_workspace": null
+    }
   },
   "provider": {
     "kind": "file",
@@ -388,6 +410,11 @@ Returns legacy capability booleans under `capabilities`, plus provider metadata:
   }
 }
 ```
+
+Known `hyperprompt_compile.status` values include `available`,
+`provider_unsupported`, `compiler_missing`, `compiler_not_executable`,
+`scratch_not_configured`, `scratch_missing`, `scratch_not_directory`,
+`scratch_not_writable`, and `scratch_unreadable`.
 
 ### `GET /api/v1/runs-watch`
 

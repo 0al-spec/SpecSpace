@@ -118,6 +118,25 @@ python viewer/server.py \
 The same value can be supplied through `SPECSPACE_ARTIFACT_BASE_URL`.
 The SpecPM registry URL can be supplied through `SPECSPACE_SPECPM_REGISTRY_URL`.
 
+Optional Hyperprompt compile is disabled unless a deployment configures both a
+compiler binary and an explicit scratch workspace. The scratch workspace is
+reported through `/api/v1/capabilities`; SpecSpace does not create it or write
+to mounted SpecGraph inputs while checking capabilities.
+
+```bash
+python viewer/server.py \
+  --host 0.0.0.0 \
+  --port 8001 \
+  --dialog-dir /data/dialogs \
+  --spec-dir /specgraph/specs/nodes \
+  --runs-dir /specgraph/runs \
+  --hyperprompt-binary /opt/hyperprompt/bin/hyperprompt \
+  --hyperprompt-work-dir /data/specspace-hyperprompt
+```
+
+`--hyperprompt-work-dir` can also be supplied through
+`SPECSPACE_HYPERPROMPT_WORK_DIR`.
+
 ## Local Developer Restart
 
 For local SpecSpace UI development, use the detached restart wrapper instead of
