@@ -37,6 +37,28 @@ export function hasRecentTimelineFilter(filter: RecentTimelineFilter): boolean {
   );
 }
 
+export function withRecentTimelineField(
+  filter: RecentTimelineFilter,
+  field: RecentTimelineField,
+): RecentTimelineFilter {
+  return {
+    ...filter,
+    field,
+    includeUnknown: filter.range === "all" ? filter.includeUnknown : false,
+  };
+}
+
+export function withRecentTimelineRange(
+  filter: RecentTimelineFilter,
+  range: RecentTimelineRange,
+): RecentTimelineFilter {
+  return {
+    ...filter,
+    range,
+    includeUnknown: range === "all" ? filter.includeUnknown : false,
+  };
+}
+
 export function filterRecentChangesByTimeline(
   entries: readonly RecentChange[],
   nodes: readonly SpecGraphNode[],

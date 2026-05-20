@@ -5,6 +5,8 @@ import {
   DEFAULT_RECENT_TIMELINE_FILTER,
   filterRecentChangesByTimeline,
   hasRecentTimelineFilter,
+  withRecentTimelineField,
+  withRecentTimelineRange,
 } from "./recent-timeline-filter";
 
 const NOW = new Date("2026-05-19T12:00:00+00:00");
@@ -143,5 +145,43 @@ describe("hasRecentTimelineFilter", () => {
     expect(
       hasRecentTimelineFilter({ field: "event", range: "all", includeUnknown: false }),
     ).toBe(true);
+  });
+});
+
+describe("recent timeline filter updates", () => {
+  it("turns unknown inclusion off when selecting a bounded range", () => {
+    expect(
+      withRecentTimelineRange(DEFAULT_RECENT_TIMELINE_FILTER, "24h"),
+    ).toEqual({
+      field: "event",
+      range: "24h",
+      includeUnknown: false,
+    });
+  });
+
+  it("keeps explicit unknown visibility when selecting all dates", () => {
+    expect(
+      withRecentTimelineRange(
+        { field: "spec-created", range: "24h", includeUnknown: false },
+        "all",
+      ),
+    ).toEqual({
+      field: "spec-created",
+      range: "all",
+      includeUnknown: false,
+    });
+  });
+
+  it("keeps bounded range filters focused on dated entries when switching fields", () => {
+    expect(
+      withRecentTimelineField(
+        { field: "event", range: "7d", includeUnknown: true },
+        "spec-created",
+      ),
+    ).toEqual({
+      field: "spec-created",
+      range: "7d",
+      includeUnknown: false,
+    });
   });
 });
