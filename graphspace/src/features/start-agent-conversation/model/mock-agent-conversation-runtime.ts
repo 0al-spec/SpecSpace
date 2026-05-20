@@ -1,6 +1,8 @@
 import {
+  agentContextItemLabel,
   serializeAgentContextSet,
   type AgentContextDraft,
+  type AgentContextItem,
   type AgentConversationId,
   type AgentConversationRef,
   type AgentConversationRuntime,
@@ -97,6 +99,7 @@ export function createMockAgentConversationRuntime(
       const outputId = nextId("output");
       const toolCallId = `${agentTurnId}-tool-context`;
       const contextCount = contextSet.items.length;
+      const contextSummary = summarizeContextItems(contextSet.items);
 
       record.context_set = contextSet;
       record.updated_at = now();
@@ -126,6 +129,15 @@ export function createMockAgentConversationRuntime(
         turn_id: agentTurnId,
         text: ` with ${contextCount} context item${contextCount === 1 ? "" : "s"}.`,
       };
+      if (contextSummary.length > 0) {
+        yield {
+          kind: "text_delta",
+          turn_id: agentTurnId,
+          text: `\n\nAttached context:\n${contextSummary
+            .map((summary) => `- ${summary}`)
+            .join("\n")}`,
+        };
+      }
       yield {
         kind: "output_created",
         turn_id: agentTurnId,
@@ -176,6 +188,38 @@ function normalizeConversationTitle(title: string, initialPrompt?: string): stri
     return normalizedPrompt.slice(0, 80);
   }
   return "Untitled Agent Workbench conversation";
+}
+
+function summarizeContextItems(items: AgentContextItem[]): string[] {
+  return items.map(summarizeContextItem);
+}
+
+function summarizeContextItem(item: AgentContextItem): string {
+  const label = agentContextItemLabel(item);
+  if (item.kind === "spec_node") {
+    return `${label}: spec node (${item.status}, ${item.file_name})`;
+  }
+  if (item.kind === "spec_edge") {
+    return `${label}: ${item.source_id} -> ${item.target_id} (${item.edge_kind}, ${item.status})`;
+  }
+  if (item.kind === "spec_gap") {
+    return `${label}: ${item.gap_count} ${item.gap_count === 1 ? "gap" : "gaps"} on ${item.title}`;
+  }
+  if (item.kind === "proposal") {
+    const path = item.proposal_path ? `, ${item.proposal_path}` : "";
+    return `${label}: proposal ${item.title} (${item.status}${path})`;
+  }
+  if (item.kind === "metric") {
+    return `${label}: metric ${item.title} (${item.category}, ${item.status})`;
+  }
+  return `${label}: ${formatMarkdownScope(item.scope)}, ${item.node_count} ${
+    item.node_count === 1 ? "node" : "nodes"
+  }, ${item.download_filename}`;
+}
+
+function formatMarkdownScope(scope: "node" | "subtree"): string {
+  if (scope === "subtree") return "refinement subtree";
+  return "selected spec";
 }
 
 function formatSequence(value: number): string {

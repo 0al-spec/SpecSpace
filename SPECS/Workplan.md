@@ -2056,7 +2056,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Agent Context and Agent Conversation panels render Markdown context tokens without assuming every context item is a spec/proposal/metric.
   - No backend mutation or new execution path is introduced.
 
-### CTXB-P13-T36 — Start Agent Conversation from Spec Markdown exports — In Progress
+### ✅ CTXB-P13-T36 — Start Agent Conversation from Spec Markdown exports — DONE (PASS, 2026-05-21)
 - **Description:** Add direct Spec Inspector conversation actions for exported and Hyperprompt-compiled Spec Markdown, seeding Agent Context and the Agent Conversation prompt from the exact selected artifact.
 - **Priority:** P3
 - **Dependencies:** CTXB-P13-T25, CTXB-P13-T35
@@ -2068,6 +2068,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The starter prompt includes root spec, artifact kind, scope, node count, and filename.
   - Existing add/copy/download actions remain unchanged.
   - The implementation stays frontend-only and uses the mock runtime boundary already present in Agent Conversation.
+
+### CTXB-P13-T37 — Summarize attached context in Agent Conversation mock runtime — In Progress
+- **Description:** Make the mock Agent Conversation runtime describe the attached context items it receives, so operators can verify which specs, edges, gaps, proposals, metrics, or Markdown artifacts are being handed to the agent surface.
+- **Priority:** P3
+- **Dependencies:** CTXB-P13-T36
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** context summary text in mock agent turns, Spec Markdown summary without raw Markdown body, focused tests, validation report
+- **Acceptance Criteria:**
+  - Mock agent responses include an `Attached context` summary when context items are present.
+  - Spec Markdown context is summarized by root spec, artifact source, scope, node count, and filename.
+  - Raw Markdown body content is not rendered into the conversation transcript.
+  - Existing conversation start, send, context strip, and remove behavior remains unchanged.
+  - The implementation stays inside the mock runtime boundary and does not introduce backend mutation.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addAgentContextItem,
   createAgentContextDraft,
+  createSpecMarkdownContextItem,
   createSpecNodeContextItem,
   projectAgentRuntimeEvents,
 } from "@/entities/agent-workbench";
@@ -52,7 +53,10 @@ describe("createMockAgentConversationRuntime", () => {
         {
           turn_id: "test-awb-turn-0002",
           role: "agent",
-          text: 'Mock agent received "Summarize current gaps" with 1 context item.',
+          text:
+            'Mock agent received "Summarize current gaps" with 1 context item.' +
+            "\n\nAttached context:\n" +
+            "- SG-SPEC-0001: spec node (linked, SG-SPEC-0001.yaml)",
           tool_calls: [
             {
               tool_call_id: "test-awb-turn-0002-tool-context",
@@ -98,6 +102,50 @@ describe("createMockAgentConversationRuntime", () => {
       ),
     ).rejects.toThrow("Unknown mock Agent Workbench conversation");
     expect(conversation.title).toBe("Investigate proposal drift");
+  });
+
+  it("summarizes Spec Markdown context without rendering raw Markdown", async () => {
+    const runtime = createMockAgentConversationRuntime({
+      id_prefix: "test-awb",
+      now: () => "2026-05-17T18:30:00Z",
+    });
+    const context = addAgentContextItem(
+      createAgentContextDraft("2026-05-17T18:29:00Z"),
+      createSpecMarkdownContextItem({
+        node_id: "SG-SPEC-0001",
+        title: "SpecGraph - The Executable Product Ontology",
+        scope: "subtree",
+        source_kind: "hyperprompt_compile",
+        download_filename: "SG-SPEC-0001.compiled.md",
+        node_count: 65,
+        markdown: "# SG-SPEC-0001\n\nDo not render this raw body.",
+        compile: {
+          exit_code: 0,
+          compiled_md: "/tmp/specspace/out.compiled.md",
+          manifest_json: "/tmp/specspace/manifest.json",
+          root_hc: "/tmp/specspace/root.hc",
+        },
+      }),
+    );
+
+    const conversation = await runtime.startConversation({
+      title: "Review compiled markdown",
+      context_set: context,
+    });
+    const events = await collectAsyncIterable(
+      runtime.sendMessage({
+        conversation_id: conversation.conversation_id,
+        text: "Review attached artifact",
+      }),
+    );
+    const agentTurn = projectAgentRuntimeEvents(events).turns.find(
+      (turn) => turn.role === "agent",
+    );
+
+    expect(agentTurn?.text).toContain(
+      "- SG-SPEC-0001 Hyperprompt compile: refinement subtree, 65 nodes, SG-SPEC-0001.compiled.md",
+    );
+    expect(agentTurn?.text).not.toContain("Do not render this raw body");
   });
 });
 

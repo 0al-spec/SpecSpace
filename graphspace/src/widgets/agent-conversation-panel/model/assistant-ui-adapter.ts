@@ -41,17 +41,24 @@ export function mapAgentProjectionToAssistantUiMessages(
 export function mapAgentTurnToAssistantUiMessage(
   turn: AgentRuntimeTurnProjection,
 ): AssistantUiAgentMessage {
-  return {
+  const role = mapAgentRoleToAssistantUiRole(turn.role);
+  const message: AssistantUiAgentMessage = {
     id: turn.turn_id,
-    role: mapAgentRoleToAssistantUiRole(turn.role),
+    role,
     content: buildAssistantUiContent(turn),
-    status: turn.completed ? { type: "complete", reason: "stop" } : { type: "running" },
     metadata: {
       custom: {
         specspace_turn_id: turn.turn_id,
         specspace_role: turn.role,
       },
     },
+  };
+  if (role !== "assistant") {
+    return message;
+  }
+  return {
+    ...message,
+    status: turn.completed ? { type: "complete", reason: "stop" } : { type: "running" },
   };
 }
 

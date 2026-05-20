@@ -42,7 +42,6 @@ describe("assistant-ui adapter", () => {
       {
         id: "turn-operator",
         role: "user",
-        status: { type: "complete", reason: "stop" },
         metadata: {
           custom: {
             specspace_turn_id: "turn-operator",
@@ -62,6 +61,7 @@ describe("assistant-ui adapter", () => {
         },
       },
     ]);
+    expect(messages[0]).not.toHaveProperty("status");
     expect(messages[1]?.content).toEqual([
       {
         type: "text",
