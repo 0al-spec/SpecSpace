@@ -132,6 +132,10 @@ export function ViewerPage() {
     refreshKey: runsWatchVersion,
   });
   const deploymentStatus = describeDeploymentStatus(uiDeploymentInfo, apiDeploymentState);
+  const hyperpromptCompileCapability =
+    capabilitiesState.kind === "ok"
+      ? capabilitiesState.data.diagnostics.hyperpromptCompile
+      : null;
 
   const feedStatus = describeLive(feedState, {
     items: "events",
@@ -805,6 +809,7 @@ export function ViewerPage() {
           onClose={clearSpecSelection}
           resolveSpecRef={resolveSpecRef}
           onSelectNodeId={selectSpecNodeId}
+          compileCapability={hyperpromptCompileCapability}
         />
       ) : selectedGraphEdge ? (
         <SpecEdgeInspector

@@ -12,7 +12,10 @@ import {
 } from "@/shared/ui/spec-id-text";
 import {
   buildSpecInspectorModel,
+  fetchSpecMarkdownCompile,
   fetchSpecMarkdownExport,
+  type SpecMarkdownCompileCapability,
+  type SpecMarkdownCompileFetchResult,
   useSpecNodeDetail,
   type SpecMarkdownExportFetchResult,
   type SpecMarkdownExportScope,
@@ -34,11 +37,17 @@ type MarkdownExportRequest = {
   scope: SpecMarkdownExportScope;
 };
 
+type MarkdownCompileState =
+  | { kind: "idle" }
+  | ({ kind: "loading" } & MarkdownExportRequest)
+  | (SpecMarkdownCompileFetchResult & MarkdownExportRequest);
+
 type Props = Omit<HTMLAttributes<HTMLElement>, "children"> & {
   selection: SpecInspectorSelection;
   onClose: () => void;
   resolveSpecRef?: SpecRefResolver;
   onSelectNodeId?: (nodeId: string) => void;
+  compileCapability?: SpecMarkdownCompileCapability | null;
 };
 
 export function SpecInspector({
@@ -46,17 +55,23 @@ export function SpecInspector({
   onClose,
   resolveSpecRef,
   onSelectNodeId,
+  compileCapability = null,
   className,
   ...rest
 }: Props) {
   const [copied, setCopied] = useState(false);
   const [markdownCopied, setMarkdownCopied] = useState(false);
+  const [compiledCopied, setCompiledCopied] = useState(false);
   const [markdownScope, setMarkdownScope] =
     useState<SpecMarkdownExportScope>("subtree");
   const [markdownState, setMarkdownState] = useState<MarkdownExportState>({
     kind: "idle",
   });
+  const [compileState, setCompileState] = useState<MarkdownCompileState>({
+    kind: "idle",
+  });
   const markdownAbortRef = useRef<AbortController | null>(null);
+  const compileAbortRef = useRef<AbortController | null>(null);
   const detailState = useSpecNodeDetail({ nodeId: selection.node.node_id });
   const detail =
     detailState.kind === "ok" ? detailState.data.data : null;
@@ -70,17 +85,29 @@ export function SpecInspector({
       : markdownState;
   const markdownExport =
     activeMarkdownState.kind === "ok" ? activeMarkdownState.data : null;
+  const activeCompileState: MarkdownCompileState =
+    compileState.kind !== "idle" &&
+    (compileState.rootId !== node.node_id || compileState.scope !== markdownScope)
+      ? { kind: "idle" }
+      : compileState;
+  const compileData =
+    activeCompileState.kind === "ok" ? activeCompileState.data : null;
 
   useEffect(() => {
     markdownAbortRef.current?.abort();
     markdownAbortRef.current = null;
+    compileAbortRef.current?.abort();
+    compileAbortRef.current = null;
     setMarkdownState({ kind: "idle" });
+    setCompileState({ kind: "idle" });
     setMarkdownCopied(false);
+    setCompiledCopied(false);
   }, [node.node_id, markdownScope]);
 
   useEffect(() => {
     return () => {
       markdownAbortRef.current?.abort();
+      compileAbortRef.current?.abort();
     };
   }, []);
 
@@ -135,6 +162,52 @@ export function SpecInspector({
         }
       });
   };
+  const compileMarkdown = () => {
+    if (!compileCapability?.available) return;
+    compileAbortRef.current?.abort();
+    const controller = new AbortController();
+    const requestRootId = node.node_id;
+    const requestScope = markdownScope;
+    compileAbortRef.current = controller;
+    setCompiledCopied(false);
+    setCompileState({
+      kind: "loading",
+      rootId: requestRootId,
+      scope: requestScope,
+    });
+
+    void fetchSpecMarkdownCompile({
+      rootId: requestRootId,
+      scope: requestScope,
+      signal: controller.signal,
+    })
+      .then((result) => {
+        if (compileAbortRef.current === controller) {
+          setCompileState({
+            ...result,
+            rootId: requestRootId,
+            scope: requestScope,
+          });
+        }
+      })
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        if (compileAbortRef.current === controller) {
+          setCompileState({
+            kind: "network-error",
+            message: error instanceof Error ? error.message : "Network error",
+            error,
+            rootId: requestRootId,
+            scope: requestScope,
+          });
+        }
+      })
+      .finally(() => {
+        if (compileAbortRef.current === controller) {
+          compileAbortRef.current = null;
+        }
+      });
+  };
   const copyMarkdown = () => {
     if (!markdownExport) return;
     void navigator.clipboard.writeText(markdownExport.markdown).then(() => {
@@ -151,6 +224,33 @@ export function SpecInspector({
     const link = document.createElement("a");
     link.href = url;
     link.download = markdownExport.download_filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+  const copyCompiledMarkdown = () => {
+    const compiledMarkdown = compileData?.compile.compiled_markdown;
+    if (!compiledMarkdown) return;
+    void navigator.clipboard.writeText(compiledMarkdown).then(() => {
+      setCompiledCopied(true);
+      window.setTimeout(() => setCompiledCopied(false), 1400);
+    });
+  };
+  const downloadCompiledMarkdown = () => {
+    const compiledMarkdown = compileData?.compile.compiled_markdown;
+    if (!compiledMarkdown) return;
+    const blob = new Blob([compiledMarkdown], {
+      type: "text/markdown;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const filename = compileData.export.download_filename.replace(
+      /\.md$/i,
+      ".compiled.md",
+    );
+    link.href = url;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -212,12 +312,18 @@ export function SpecInspector({
 
         <MarkdownExportSection
           state={activeMarkdownState}
+          compileState={activeCompileState}
+          compileCapability={compileCapability}
           scope={markdownScope}
           copied={markdownCopied}
+          compiledCopied={compiledCopied}
           onScopeChange={setMarkdownScope}
           onExport={exportMarkdown}
+          onCompile={compileMarkdown}
           onCopy={copyMarkdown}
           onDownload={downloadMarkdown}
+          onCopyCompiled={copyCompiledMarkdown}
+          onDownloadCompiled={downloadCompiledMarkdown}
         />
 
         <section className={styles.section}>
@@ -274,28 +380,46 @@ export function SpecInspector({
 
 function MarkdownExportSection({
   state,
+  compileState,
+  compileCapability,
   scope,
   copied,
+  compiledCopied,
   onScopeChange,
   onExport,
+  onCompile,
   onCopy,
   onDownload,
+  onCopyCompiled,
+  onDownloadCompiled,
 }: {
   state: MarkdownExportState;
+  compileState: MarkdownCompileState;
+  compileCapability: SpecMarkdownCompileCapability | null;
   scope: SpecMarkdownExportScope;
   copied: boolean;
+  compiledCopied: boolean;
   onScopeChange: (scope: SpecMarkdownExportScope) => void;
   onExport: () => void;
+  onCompile: () => void;
   onCopy: () => void;
   onDownload: () => void;
+  onCopyCompiled: () => void;
+  onDownloadCompiled: () => void;
 }) {
   const exportData = state.kind === "ok" ? state.data : null;
+  const compileData = compileState.kind === "ok" ? compileState.data : null;
   const status = describeMarkdownExportState(state);
+  const compileStatus = describeMarkdownCompileState(
+    compileState,
+    compileCapability,
+  );
+  const compileAvailable = Boolean(compileCapability?.available);
 
   return (
     <section
       className={`${styles.section} ${styles.exportSection}`}
-      aria-busy={state.kind === "loading"}
+      aria-busy={state.kind === "loading" || compileState.kind === "loading"}
     >
       <div className={styles.exportHeader}>
         <h3 className={styles.sectionTitle}>Markdown export</h3>
@@ -324,6 +448,19 @@ function MarkdownExportSection({
           >
             Download
           </button>
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={onCompile}
+            disabled={!compileAvailable || compileState.kind === "loading"}
+            title={
+              compileAvailable
+                ? "Compile with Hyperprompt"
+                : compileCapability?.detail
+            }
+          >
+            {compileState.kind === "loading" ? "Compiling" : "Compile"}
+          </button>
         </div>
       </div>
 
@@ -351,6 +488,9 @@ function MarkdownExportSection({
       </div>
 
       {status ? <div className={styles.exportStatus}>{status}</div> : null}
+      {compileStatus ? (
+        <div className={styles.exportStatus}>{compileStatus}</div>
+      ) : null}
 
       {exportData ? (
         <>
@@ -385,6 +525,59 @@ function MarkdownExportSection({
           </pre>
         </>
       ) : null}
+
+      {compileData ? (
+        <div className={styles.compileResult}>
+          <div className={styles.compileHeader}>
+            <div>
+              <span className={styles.compileKicker}>Hyperprompt compile</span>
+              <div className={styles.compileTitle}>
+                Exit code {compileData.compile.exit_code}
+              </div>
+            </div>
+            <div className={styles.exportActions}>
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={onCopyCompiled}
+                disabled={!compileData.compile.compiled_markdown}
+              >
+                {compiledCopied ? "Copied" : "Copy"}
+              </button>
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={onDownloadCompiled}
+                disabled={!compileData.compile.compiled_markdown}
+              >
+                Download
+              </button>
+            </div>
+          </div>
+          <dl className={styles.compilePaths} aria-label="Compile artifacts">
+            {compileData.compile.compiled_md ? (
+              <KeyValue
+                label="Compiled file"
+                value={compileData.compile.compiled_md}
+              />
+            ) : null}
+            {compileData.compile.manifest_json ? (
+              <KeyValue
+                label="Manifest"
+                value={compileData.compile.manifest_json}
+              />
+            ) : null}
+            {compileData.compile.root_hc ? (
+              <KeyValue label="Root HC" value={compileData.compile.root_hc} />
+            ) : null}
+          </dl>
+          {compileData.compile.compiled_markdown ? (
+            <pre className={`${styles.pre} ${styles.markdownPreview}`}>
+              {compileData.compile.compiled_markdown}
+            </pre>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -413,6 +606,61 @@ function describeMarkdownExportState(state: MarkdownExportState): string | null 
       return "Markdown export unavailable: wrong artifact kind";
   }
   return null;
+}
+
+function describeMarkdownCompileState(
+  state: MarkdownCompileState,
+  capability: SpecMarkdownCompileCapability | null,
+): string | null {
+  if (!capability?.available) {
+    return capability
+      ? `Hyperprompt compile disabled: ${capability.detail}`
+      : "Hyperprompt compile status is loading...";
+  }
+
+  switch (state.kind) {
+    case "idle":
+      return capability.resolvedBinary
+        ? `Hyperprompt compile ready: ${capability.resolvedBinary}`
+        : "Hyperprompt compile ready";
+    case "loading":
+      return "Compiling Markdown with Hyperprompt...";
+    case "ok":
+      return null;
+    case "http-error":
+      return `Hyperprompt compile unavailable: HTTP ${state.status}${describeHttpErrorBody(state.body)}`;
+    case "network-error":
+      return `Hyperprompt compile unavailable: ${state.message}`;
+    case "response-error":
+      return `Hyperprompt compile unavailable: ${state.reason}`;
+    case "parse-error":
+      return "Hyperprompt compile unavailable: response did not match the contract";
+    case "invariant-violation":
+      return `Hyperprompt compile unavailable: ${state.message}`;
+    case "version-not-supported":
+      return `Hyperprompt compile unavailable: schema v${state.schema_version} is not supported`;
+    case "wrong-artifact-kind":
+      return "Hyperprompt compile unavailable: wrong artifact kind";
+  }
+  return null;
+}
+
+function describeHttpErrorBody(body: unknown): string {
+  if (!body || typeof body !== "object") return "";
+  const record = body as Record<string, unknown>;
+  const compile =
+    record.compile && typeof record.compile === "object"
+      ? (record.compile as Record<string, unknown>)
+      : null;
+  const detail = typeof record.detail === "string" ? record.detail : null;
+  const error = typeof record.error === "string" ? record.error : null;
+  const compileError = typeof compile?.error === "string" ? compile.error : null;
+  const exitCode =
+    typeof compile?.exit_code === "number" ? `exit code ${compile.exit_code}` : null;
+  const stderr = typeof compile?.stderr === "string" ? compile.stderr.trim() : "";
+  const status = typeof record.status === "string" ? record.status : null;
+  const message = detail ?? error ?? compileError ?? exitCode ?? stderr ?? status;
+  return message ? ` — ${message}` : "";
 }
 
 function DetailLoadStatus({ state }: { state: UseSpecNodeDetailState }) {
