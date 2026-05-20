@@ -74,25 +74,41 @@ export function AgentContextPanel({
       <div className={styles.actions}>
         <button
           type="button"
-          className={styles.primaryButton}
-          onClick={onAddSelectedSpec}
-          disabled={!selectedNode || selectedAlreadyAdded}
+          className={
+            selectedAlreadyAdded
+              ? `${styles.primaryButton} ${styles.removeIntentButton}`
+              : styles.primaryButton
+          }
+          onClick={
+            selectedAlreadyAdded && selectedKey
+              ? () => onRemoveItem(selectedKey)
+              : onAddSelectedSpec
+          }
+          disabled={!selectedNode}
         >
           {selectedNode
             ? selectedAlreadyAdded
-              ? "Selected Spec Added"
+              ? "Remove Selected Spec"
               : "Add Selected Spec"
             : "Select A Spec First"}
         </button>
         <button
           type="button"
-          className={styles.secondaryButton}
-          onClick={onAddSelectedEdge}
-          disabled={!selectedEdge || selectedEdgeAlreadyAdded}
+          className={
+            selectedEdgeAlreadyAdded
+              ? `${styles.secondaryButton} ${styles.removeIntentButton}`
+              : styles.secondaryButton
+          }
+          onClick={
+            selectedEdgeAlreadyAdded && selectedEdgeKey
+              ? () => onRemoveItem(selectedEdgeKey)
+              : onAddSelectedEdge
+          }
+          disabled={!selectedEdge}
         >
           {selectedEdge
             ? selectedEdgeAlreadyAdded
-              ? "Selected Edge Added"
+              ? "Remove Selected Edge"
               : "Add Selected Edge"
             : "Select An Edge First"}
         </button>
@@ -141,12 +157,19 @@ export function AgentContextPanel({
                   <button
                     key={gap.kind}
                     type="button"
-                    className={styles.gapButton}
-                    onClick={() => onAddSelectedGap(gap.kind)}
-                    disabled={gapAlreadyAdded}
+                    className={
+                      gapAlreadyAdded
+                        ? `${styles.gapButton} ${styles.removeIntentButton}`
+                        : styles.gapButton
+                    }
+                    onClick={() =>
+                      gapAlreadyAdded
+                        ? onRemoveItem(gapKey)
+                        : onAddSelectedGap(gap.kind)
+                    }
                   >
                     {gapAlreadyAdded
-                      ? `${gap.label} Gap Added`
+                      ? `Remove ${gap.label} Gap`
                       : `Add ${gap.label} Gap (${gap.count})`}
                   </button>
                 );
@@ -223,8 +246,9 @@ function ContextItemRow({
           type="button"
           className={styles.removeButton}
           onClick={() => onRemoveItem(key)}
+          aria-label={`Remove ${contextItemLabel(item)} from Agent context`}
         >
-          Remove
+          Remove from Context
         </button>
       </div>
       <h3 className={styles.title}>
@@ -256,12 +280,12 @@ function ContextItemRow({
       </h3>
       <p className={styles.detail}>
         {item.kind === "spec_edge"
-            ? `${item.source_title ?? item.source_id} → ${item.target_title ?? item.target_id}`
-            : item.kind === "spec_gap"
-              ? `${formatGapKind(item.gap_kind)} gap · ${item.title}`
-              : item.kind === "spec_markdown"
-                ? `${formatSpecMarkdownSource(item.source_kind)} · ${item.title}`
-                : item.title}
+          ? `${item.source_title ?? item.source_id} → ${item.target_title ?? item.target_id}`
+          : item.kind === "spec_gap"
+            ? `${formatGapKind(item.gap_kind)} gap · ${item.title}`
+            : item.kind === "spec_markdown"
+              ? `${formatSpecMarkdownSource(item.source_kind)} · ${item.title}`
+              : item.title}
       </p>
       <div className={styles.meta}>
         <span>
@@ -350,6 +374,15 @@ function formatSpecMarkdownSource(
 ): string {
   if (sourceKind === "hyperprompt_compile") return "Hyperprompt compile";
   return "Markdown export";
+}
+
+function contextItemLabel(item: AgentContextItem): string {
+  if (item.kind === "spec_node") return item.node_id;
+  if (item.kind === "spec_edge") return item.edge_id;
+  if (item.kind === "spec_gap") return `${item.node_id} ${formatGapKind(item.gap_kind)} gap`;
+  if (item.kind === "metric") return item.item_id;
+  if (item.kind === "proposal") return item.proposal_id;
+  return `${item.node_id} ${formatSpecMarkdownSource(item.source_kind)}`;
 }
 
 function Status({ label, detail }: { label: string; detail: string }) {

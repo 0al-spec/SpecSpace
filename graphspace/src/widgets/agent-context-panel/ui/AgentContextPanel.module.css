@@ -86,6 +86,12 @@
   opacity: 0.52;
 }
 
+.removeIntentButton {
+  border-color: color-mix(in srgb, var(--gs-danger) 45%, var(--gs-rule-mid));
+  background: color-mix(in srgb, var(--gs-danger) 8%, white);
+  color: var(--gs-danger);
+}
+
 .selectedContext {
   display: grid;
   gap: var(--gs-space-2);
@@ -161,6 +167,8 @@
 }
 
 .removeButton {
+  border-color: color-mix(in srgb, var(--gs-danger) 38%, var(--gs-rule-soft));
+  color: var(--gs-danger);
   padding: 4px 7px;
 }
 

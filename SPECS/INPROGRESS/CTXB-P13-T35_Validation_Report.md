@@ -53,6 +53,9 @@ Desktop viewport: `1440x1000`.
 - Opened Agent Context and verified one `spec_markdown` item with root spec,
   scope, node count, filename, and serialized Markdown body.
 - Opened Agent Conversation and verified the Markdown context token renders.
+- Verified selected context actions become removal actions after add:
+  `Remove Selected Spec` and row-level `Remove from Context`.
+- Verified removing the selected spec returns Agent Context to empty state.
 
 Mobile viewport: `390x844`.
 
@@ -60,6 +63,8 @@ Mobile viewport: `390x844`.
 - Verified utility header and content do not overlap.
 - Verified the `spec_markdown` row remains visible with serialized context
   preview available below it.
+- Verified remove actions remain visible and the panel returns to empty state on
+  narrow viewport.
 
 Known local dev console noise: `/api/v1/specpm/registry` returns `503` in this
 local setup. It is unrelated to this task.
