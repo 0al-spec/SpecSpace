@@ -12,19 +12,24 @@ normalizing artifact context sets to the documented conversation artifact schema
 tracking per-turn context snapshot ids, preserving per-event timestamps for
 turns/outputs, and replacing empty tuple fields with explicit array types.
 
+PR #181 review follow-up: artifact snapshots are no longer rebuilt on every
+streaming projection update, the rendered readonly summary is memoized, and
+distinct context snapshots with matching labels/items preserve their own
+`context_set_id` and `created_at`.
+
 ## Local Validation
 
 ```bash
-npm test --prefix graphspace -- agent-workbench start-agent-conversation agent-conversation-panel
+npm test --prefix graphspace -- agent-workbench agent-conversation-panel
 ```
 
-Result: PASS — 6 files / 27 tests passed.
+Result: PASS — 5 files / 21 tests passed.
 
 ```bash
 npm test --prefix graphspace
 ```
 
-Result: PASS — 52 files / 285 tests passed.
+Result: PASS — 52 files / 286 tests passed.
 
 ```bash
 npm run lint:fsd --prefix graphspace

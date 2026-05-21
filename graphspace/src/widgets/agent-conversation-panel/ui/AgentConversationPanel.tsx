@@ -72,11 +72,11 @@ export function AgentConversationPanel({
     [historyRuntime, historyVersion],
   );
   const conversationArtifact = useMemo(
-    () =>
-      artifactRuntime && conversation
-        ? artifactRuntime.getConversationArtifact(conversation.conversation_id)
-        : null,
-    [artifactRuntime, conversation, historyVersion, projection],
+    () => {
+      if (!artifactRuntime || !conversation) return null;
+      return artifactRuntime.getConversationArtifact(conversation.conversation_id);
+    },
+    [artifactRuntime, conversation?.conversation_id, historyVersion],
   );
   const assistantUiStore = useMemo(
     () =>
@@ -351,6 +351,15 @@ function ConversationArtifactSnapshot({
 }: {
   artifact: AgentConversationArtifact | null;
 }) {
+  const contextItemCount = useMemo(
+    () => (artifact ? countArtifactContextItems(artifact) : 0),
+    [artifact],
+  );
+  const artifactSummary = useMemo(
+    () => (artifact ? formatArtifactSummary(artifact) : ""),
+    [artifact],
+  );
+
   if (!artifact) {
     return (
       <div className={styles.artifactPanel} aria-label="Conversation artifact snapshot">
@@ -361,8 +370,6 @@ function ConversationArtifactSnapshot({
       </div>
     );
   }
-
-  const contextItemCount = countArtifactContextItems(artifact);
 
   return (
     <div className={styles.artifactPanel} aria-label="Conversation artifact snapshot">
@@ -393,7 +400,7 @@ function ConversationArtifactSnapshot({
       </dl>
       <details className={styles.artifactDetails}>
         <summary>Readonly artifact summary</summary>
-        <pre>{formatArtifactSummary(artifact)}</pre>
+        <pre>{artifactSummary}</pre>
       </details>
     </div>
   );

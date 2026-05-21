@@ -352,7 +352,7 @@ type ArtifactEventMetadata = {
 
 function collectEventMetadata(source: AgentConversationArtifactSource): ArtifactEventMetadata {
   const contextSets: AgentConversationContextSetArtifact[] = [];
-  const contextKeyToId = new Map<string, string>();
+  const contextSnapshotKeyToId = new Map<string, string>();
   const contextIdUseCount = new Map<string, number>();
   const contextSetIdsByTurn = new Map<string, string[]>();
   const turnCreatedAt = new Map<string, string>();
@@ -387,10 +387,12 @@ function collectEventMetadata(source: AgentConversationArtifactSource): Artifact
   function registerContextSet(contextSet: AgentContextDraft): string {
     const artifactContextSet = createArtifactContextSet(contextSet, contextSet.context_set_id);
     const signature = JSON.stringify({
+      context_set_id: artifactContextSet.context_set_id,
+      created_at: artifactContextSet.created_at,
       label: artifactContextSet.label,
       items: artifactContextSet.items,
     });
-    const existingId = contextKeyToId.get(signature);
+    const existingId = contextSnapshotKeyToId.get(signature);
     if (existingId) return existingId;
 
     const baseId = artifactContextSet.context_set_id || "ctx";
@@ -402,7 +404,7 @@ function collectEventMetadata(source: AgentConversationArtifactSource): Artifact
       context_set_id: contextSetId,
     };
 
-    contextKeyToId.set(signature, contextSetId);
+    contextSnapshotKeyToId.set(signature, contextSetId);
     contextSets.push(registered);
     return contextSetId;
   }

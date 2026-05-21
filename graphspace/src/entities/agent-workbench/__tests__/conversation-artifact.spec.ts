@@ -196,6 +196,75 @@ describe("agent conversation artifact snapshots", () => {
     ]);
   });
 
+  it("preserves distinct context snapshots with matching labels and items", () => {
+    const sharedItem = createSpecNodeContextItem({
+      node_id: "SG-SPEC-0001",
+      title: "SpecGraph - The Executable Product Ontology",
+      status: "linked",
+      file_name: "SG-SPEC-0001.yaml",
+    });
+    const firstContext = {
+      ...addAgentContextItem(createAgentContextDraft("2026-05-21T09:00:00Z"), sharedItem),
+      context_set_id: "ctx-first",
+    };
+    const secondContext = {
+      ...addAgentContextItem(createAgentContextDraft("2026-05-21T09:03:00Z"), sharedItem),
+      context_set_id: "ctx-second",
+    };
+
+    const artifact = createAgentConversationArtifactSnapshot({
+      ref: {
+        conversation_id: "awb-conv-0003",
+        title: "Matching content snapshots",
+        status: "active",
+      },
+      context_set: secondContext,
+      created_at: "2026-05-21T09:00:00Z",
+      updated_at: "2026-05-21T09:04:00Z",
+      turn_count: 2,
+      event_count: 2,
+      events: [
+        {
+          kind: "turn_started",
+          turn_id: "turn-first",
+          role: "operator",
+          created_at: "2026-05-21T09:01:00Z",
+          context_set: firstContext,
+        },
+        {
+          kind: "turn_started",
+          turn_id: "turn-second",
+          role: "agent",
+          created_at: "2026-05-21T09:04:00Z",
+          context_set: secondContext,
+        },
+      ],
+    });
+
+    expect(artifact.context_sets).toMatchObject([
+      {
+        context_set_id: "ctx-second",
+        created_at: "2026-05-21T09:03:00Z",
+        items: [{ kind: "spec_node", node_id: "SG-SPEC-0001" }],
+      },
+      {
+        context_set_id: "ctx-first",
+        created_at: "2026-05-21T09:00:00Z",
+        items: [{ kind: "spec_node", node_id: "SG-SPEC-0001" }],
+      },
+    ]);
+    expect(artifact.turns).toMatchObject([
+      {
+        turn_id: "turn-first",
+        context_set_ids: ["ctx-first"],
+      },
+      {
+        turn_id: "turn-second",
+        context_set_ids: ["ctx-second"],
+      },
+    ]);
+  });
+
   it("creates sorted index entries with output and context counts", () => {
     const older = createAgentConversationArtifactSnapshot(
       createSource("awb-conv-0001", "Older", "2026-05-21T09:00:00Z", []),
