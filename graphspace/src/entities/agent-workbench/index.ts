@@ -41,6 +41,24 @@ export {
   type SpecMarkdownConversationPromptSource,
 } from "./model/conversation-prompt";
 export {
+  createAgentConversationArtifactSnapshot,
+  createAgentConversationIndexArtifact,
+  createAgentConversationIndexEntry,
+  type AgentConversationArtifact,
+  type AgentConversationArtifactApiVersion,
+  type AgentConversationArtifactKind,
+  type AgentConversationArtifactSchemaVersion,
+  type AgentConversationArtifactSource,
+  type AgentConversationContentBlock,
+  type AgentConversationIndexArtifact,
+  type AgentConversationIndexArtifactKind,
+  type AgentConversationIndexEntry,
+  type AgentConversationOutputArtifact,
+  type AgentConversationOutputStatus,
+  type AgentConversationParticipantRole,
+  type AgentConversationTurnArtifact,
+} from "./model/conversation-artifact";
+export {
   createAgentRuntimeProjection,
   projectAgentRuntimeEvent,
   projectAgentRuntimeEvents,
