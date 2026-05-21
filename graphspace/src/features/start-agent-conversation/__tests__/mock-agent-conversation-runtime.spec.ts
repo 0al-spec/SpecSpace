@@ -4,6 +4,7 @@ import {
   createAgentContextDraft,
   createSpecMarkdownContextItem,
   createSpecNodeContextItem,
+  isAgentConversationArtifactRuntime,
   projectAgentRuntimeEvents,
 } from "@/entities/agent-workbench";
 import { createMockAgentConversationRuntime } from "../index";
@@ -194,6 +195,88 @@ describe("createMockAgentConversationRuntime", () => {
     const resumed = await collectAsyncIterable(runtime.resumeConversation(first.conversation_id));
     expect(resumed).toEqual(firstEvents);
     expect(projectAgentRuntimeEvents(resumed)).toEqual(projectAgentRuntimeEvents(firstEvents));
+  });
+
+  it("exposes readonly conversation artifact snapshots and index entries", async () => {
+    const runtime = createMockAgentConversationRuntime({
+      id_prefix: "test-awb",
+      now: () => "2026-05-17T18:30:00Z",
+    });
+    const context = addAgentContextItem(
+      createAgentContextDraft("2026-05-17T18:29:00Z"),
+      createSpecMarkdownContextItem({
+        node_id: "SG-SPEC-0001",
+        title: "SpecGraph - The Executable Product Ontology",
+        scope: "node",
+        source_kind: "export",
+        download_filename: "SG-SPEC-0001.md",
+        node_count: 1,
+        markdown: "# SG-SPEC-0001\n\nArtifact body must not leak.",
+        compile: null,
+      }),
+    );
+    const conversation = await runtime.startConversation({
+      title: "Artifact snapshot",
+      context_set: context,
+    });
+
+    await collectAsyncIterable(
+      runtime.sendMessage({
+        conversation_id: conversation.conversation_id,
+        text: "Review artifact",
+      }),
+    );
+
+    expect(isAgentConversationArtifactRuntime(runtime)).toBe(true);
+    expect(runtime.getConversationArtifact(conversation.conversation_id)).toMatchObject({
+      api_version: "v1",
+      artifact_kind: "specspace_agent_conversation",
+      schema_version: 1,
+      conversation_id: conversation.conversation_id,
+      storage: {
+        owner: "specspace",
+        mutation_authority: "specspace_workbench_only",
+      },
+      context_sets: [
+        {
+          items: [
+            {
+              kind: "external_link",
+              artifact_path: "SG-SPEC-0001.md",
+              source_kind: "export",
+              node_id: "SG-SPEC-0001",
+            },
+          ],
+        },
+      ],
+      turns: [
+        {
+          role: "operator",
+        },
+        {
+          role: "agent",
+        },
+      ],
+      outputs: [
+        {
+          kind: "analysis",
+          origin_turn_id: "test-awb-turn-0002",
+        },
+      ],
+    });
+    expect(runtime.getConversationIndexArtifact("2026-05-17T18:31:00Z")).toMatchObject({
+      artifact_kind: "specspace_agent_conversation_index",
+      generated_at: "2026-05-17T18:31:00Z",
+      entry_count: 1,
+      entries: [
+        {
+          conversation_id: conversation.conversation_id,
+          turn_count: 2,
+          context_item_count: 1,
+          output_count: 1,
+        },
+      ],
+    });
   });
 
   it("defensively clones conversation history records", async () => {

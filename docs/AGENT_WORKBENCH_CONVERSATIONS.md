@@ -183,9 +183,25 @@ Context item examples:
     "kind": "specpm_package",
     "package_id": "specnode.core",
     "version": "0.1.0"
+  },
+  {
+    "kind": "external_link",
+    "title": "SpecGraph - The Executable Product Ontology",
+    "artifact_path": "SG-SPEC-0001.compiled.md",
+    "source_kind": "hyperprompt_compile",
+    "node_id": "SG-SPEC-0001",
+    "scope": "node",
+    "node_count": 1
   }
 ]
 ```
+
+Runtime-only Agent Context entries must be normalized before they are written to
+this artifact contract. For example, SpecSpace UI `spec_gap` context entries are
+stored as artifact `gap` entries, and `spec_markdown` context entries are stored
+as `external_link` entries that reference the generated Markdown/compile
+artifact path. Raw Markdown bodies and compiled Markdown bodies are not part of
+the conversation artifact context schema.
 
 ## Outputs And Proposal Origins
 

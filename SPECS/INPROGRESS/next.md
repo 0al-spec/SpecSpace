@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T39` — Add Agent Conversation artifact snapshot contract
+**Current Task:** `CTXB-P13-T40` — Expose Agent Conversation artifact snapshots in the UI
 
 ## Recently Archived
+- `CTXB-P13-T39` — Add Agent Conversation artifact snapshot contract (PASS, 2026-05-21)
 - `CTXB-P13-T38` — Add local Agent Conversation history and resume (PASS, 2026-05-21)
 - `CTXB-P13-T37` — Summarize attached context in Agent Conversation mock runtime (PASS, 2026-05-21)
 - `CTXB-P13-T36` — Start Agent Conversation from Spec Markdown exports (PASS, 2026-05-21)
@@ -86,13 +87,13 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T39` — Add Agent Conversation artifact snapshot contract.
-- Rationale: local Agent Conversation history is now visible and resumable, but future durable storage and proposal-origin linkage still need a SpecSpace-owned artifact snapshot contract in code.
+- `CTXB-P13-T40` — Expose Agent Conversation artifact snapshots in the UI.
+- Rationale: the artifact contract is now in code; the next useful parity step is making the readonly snapshot visible in the Agent Conversation panel before introducing backend persistence.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`, `CTXB-P13-T34`, `CTXB-P13-T35`, `CTXB-P13-T36`, `CTXB-P13-T37`, `CTXB-P13-T38`.
-- Current: `CTXB-P13-T39` Add Agent Conversation artifact snapshot contract.
-- Next: expose readonly local artifact snapshots in Agent Conversation UI or add a guarded `/api/v1/agent-workbench/*` read model once the contract is reviewed.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`, `CTXB-P13-T34`, `CTXB-P13-T35`, `CTXB-P13-T36`, `CTXB-P13-T37`, `CTXB-P13-T38`, `CTXB-P13-T39`.
+- Current: `CTXB-P13-T40` Expose Agent Conversation artifact snapshots in the UI.
+- Next: add guarded `/api/v1/agent-workbench/*` read models or persist local conversations once the UI-visible snapshot boundary is reviewed.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.

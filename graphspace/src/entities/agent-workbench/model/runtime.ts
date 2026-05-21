@@ -26,11 +26,14 @@ export type AgentRuntimeEvent =
       kind: "turn_started";
       turn_id: AgentTurnId;
       role: "operator" | "agent" | "system" | "tool";
+      created_at?: string;
+      context_set?: AgentContextDraft;
     }
   | {
       kind: "text_delta";
       turn_id: AgentTurnId;
       text: string;
+      created_at?: string;
     }
   | {
       kind: "tool_call";
@@ -38,16 +41,19 @@ export type AgentRuntimeEvent =
       tool_call_id: string;
       tool_name: string;
       title: string;
+      created_at?: string;
     }
   | {
       kind: "output_created";
       turn_id: AgentTurnId;
       output_id: string;
       output_kind: "analysis" | "proposal_draft" | "implementation_handoff" | "metric_note";
+      created_at?: string;
     }
   | {
       kind: "turn_completed";
       turn_id: AgentTurnId;
+      created_at?: string;
     };
 
 export type AgentConversationRuntime = {
