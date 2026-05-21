@@ -15,19 +15,19 @@ writes unavailable.
 python -m pytest tests/test_agent_workbench_api.py tests/test_agent_workbench_contract.py tests/test_routes.py tests/test_server_runtime.py tests/test_specspace_api_v1.py -q
 ```
 
-Result: PASS — 71 tests passed.
+Result: PASS — 74 tests passed.
 
 ```bash
 python -m pytest tests/test_capabilities_api.py tests/test_agent_workbench_api.py tests/test_specspace_api_v1.py::AgentWorkbenchV1ApiTests -q
 ```
 
-Result: PASS — 14 tests passed.
+Result: PASS — 16 tests passed.
 
 ```bash
 python -m pytest tests/ -q
 ```
 
-Result: PASS — 605 tests passed, 41 subtests passed.
+Result: PASS — 608 tests passed, 41 subtests passed.
 
 ```bash
 make lint
@@ -53,3 +53,7 @@ Result: PASS.
   configured.
 - A configured empty store returns a valid empty conversation index.
 - Writable Agent Workbench authority remains explicitly unavailable.
+- Review follow-up: `SPECSPACE_AGENT_WORKBENCH_DIR` now follows the same
+  whitespace handling as other optional path env vars, conversation id
+  validation distinguishes traversal, separator, and control-character failures,
+  and the capabilities expectation formatting stays aligned.

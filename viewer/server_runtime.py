@@ -43,6 +43,7 @@ def build_arg_parser(
     default_hyperprompt_binary: str,
 ) -> argparse.ArgumentParser:
     hyperprompt_work_dir_env = os.environ.get("SPECSPACE_HYPERPROMPT_WORK_DIR", "").strip()
+    agent_workbench_dir_env = os.environ.get("SPECSPACE_AGENT_WORKBENCH_DIR", "").strip()
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--host",
@@ -112,9 +113,7 @@ def build_arg_parser(
     parser.add_argument(
         "--agent-workbench-dir",
         type=Path,
-        default=Path(os.environ["SPECSPACE_AGENT_WORKBENCH_DIR"])
-        if os.environ.get("SPECSPACE_AGENT_WORKBENCH_DIR")
-        else None,
+        default=Path(agent_workbench_dir_env) if agent_workbench_dir_env else None,
         help=(
             "Optional SpecSpace-owned Agent Workbench artifact store. "
             "Readonly APIs expect workbench/conversations/index.json and conversation artifacts."

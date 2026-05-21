@@ -194,7 +194,11 @@ def read_agent_conversation_index(server: Any) -> tuple[HTTPStatus, dict[str, An
 def _bad_conversation_id(value: str) -> dict[str, Any] | None:
     if not value:
         return {"error": "Missing Agent Workbench conversation id in path."}
-    if "/" in value or "\\" in value or any(segment in {".", ".."} for segment in value.split("/")):
+    if any(ord(char) < 32 or ord(char) == 127 for char in value):
+        return {"error": "Agent Workbench conversation id must not contain control characters."}
+    if value in {".", ".."}:
+        return {"error": "Agent Workbench conversation id must not contain path traversal segments."}
+    if "/" in value or "\\" in value:
         return {"error": "Agent Workbench conversation id must not contain path separators."}
     return None
 

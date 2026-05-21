@@ -49,7 +49,7 @@ def test_build_arg_parser_treats_blank_hyperprompt_work_dir_env_as_unset(monkeyp
 
 
 def test_build_arg_parser_accepts_agent_workbench_dir_env(monkeypatch) -> None:
-    monkeypatch.setenv("SPECSPACE_AGENT_WORKBENCH_DIR", "/tmp/specspace-workbench")
+    monkeypatch.setenv("SPECSPACE_AGENT_WORKBENCH_DIR", "  /tmp/specspace-workbench  ")
     parser = server_runtime.build_arg_parser(
         description=None,
         default_hyperprompt_binary="/bin/hyperprompt",
@@ -57,6 +57,17 @@ def test_build_arg_parser_accepts_agent_workbench_dir_env(monkeypatch) -> None:
     args = parser.parse_args(["--dialog-dir", "/tmp/dialogs"])
 
     assert args.agent_workbench_dir == Path("/tmp/specspace-workbench")
+
+
+def test_build_arg_parser_treats_blank_agent_workbench_dir_env_as_unset(monkeypatch) -> None:
+    monkeypatch.setenv("SPECSPACE_AGENT_WORKBENCH_DIR", "   ")
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+    args = parser.parse_args(["--dialog-dir", "/tmp/dialogs"])
+
+    assert args.agent_workbench_dir is None
 
 
 def test_runs_watch_path_prefers_spec_dir_layout() -> None:

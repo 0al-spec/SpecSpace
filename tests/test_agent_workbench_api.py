@@ -75,6 +75,20 @@ def test_agent_workbench_rejects_path_like_conversation_id(tmp_path: Path) -> No
     assert "path separators" in payload["error"]
 
 
+def test_agent_workbench_rejects_traversal_segment_conversation_id(tmp_path: Path) -> None:
+    status, payload = agent_workbench.read_agent_conversation(_server(tmp_path / "workbench"), ".")
+
+    assert status == 400
+    assert "path traversal segments" in payload["error"]
+
+
+def test_agent_workbench_rejects_control_char_conversation_id(tmp_path: Path) -> None:
+    status, payload = agent_workbench.read_agent_conversation(_server(tmp_path / "workbench"), "awb\x00conv")
+
+    assert status == 400
+    assert "control characters" in payload["error"]
+
+
 def test_agent_workbench_rejects_mismatched_conversation_artifact(tmp_path: Path) -> None:
     workbench = tmp_path / "workbench"
     conversation = json.loads((FIXTURE_DIR / "conversation-v1.json").read_text(encoding="utf-8"))
