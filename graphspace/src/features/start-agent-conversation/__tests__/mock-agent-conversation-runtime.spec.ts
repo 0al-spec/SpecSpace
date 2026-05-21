@@ -241,8 +241,10 @@ describe("createMockAgentConversationRuntime", () => {
         {
           items: [
             {
-              kind: "spec_markdown",
-              markdown: "",
+              kind: "external_link",
+              artifact_path: "SG-SPEC-0001.md",
+              source_kind: "export",
+              node_id: "SG-SPEC-0001",
             },
           ],
         },

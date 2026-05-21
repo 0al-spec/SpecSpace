@@ -90,7 +90,7 @@ export function createMockAgentConversationRuntime(
 
       conversations.set(conversationId, {
         ref,
-        context_set: serializeAgentContextSet(input.context_set),
+        context_set: serializeHistoryContextSet(input.context_set),
         created_at: createdAt,
         updated_at: createdAt,
         turn_count: 0,
@@ -108,8 +108,9 @@ export function createMockAgentConversationRuntime(
       }
 
       const contextSet = input.context_set
-        ? serializeAgentContextSet(input.context_set)
+        ? serializeHistoryContextSet(input.context_set)
         : record.context_set;
+      const eventCreatedAt = now();
       const operatorTurnId = nextId("turn");
       const agentTurnId = nextId("turn");
       const outputId = nextId("output");
@@ -118,18 +119,35 @@ export function createMockAgentConversationRuntime(
       const contextSummary = summarizeContextItems(contextSet.items);
 
       record.context_set = contextSet;
-      record.updated_at = now();
+      record.updated_at = eventCreatedAt;
       record.turn_count += 2;
 
       yield appendEvent(record, {
         kind: "turn_started",
         turn_id: operatorTurnId,
         role: "operator",
+        created_at: eventCreatedAt,
+        context_set: contextSet,
       });
-      yield appendEvent(record, { kind: "text_delta", turn_id: operatorTurnId, text: input.text });
-      yield appendEvent(record, { kind: "turn_completed", turn_id: operatorTurnId });
+      yield appendEvent(record, {
+        kind: "text_delta",
+        turn_id: operatorTurnId,
+        text: input.text,
+        created_at: eventCreatedAt,
+      });
+      yield appendEvent(record, {
+        kind: "turn_completed",
+        turn_id: operatorTurnId,
+        created_at: eventCreatedAt,
+      });
 
-      yield appendEvent(record, { kind: "turn_started", turn_id: agentTurnId, role: "agent" });
+      yield appendEvent(record, {
+        kind: "turn_started",
+        turn_id: agentTurnId,
+        role: "agent",
+        created_at: eventCreatedAt,
+        context_set: contextSet,
+      });
       if (contextCount > 0) {
         yield appendEvent(record, {
           kind: "tool_call",
@@ -137,17 +155,20 @@ export function createMockAgentConversationRuntime(
           tool_call_id: toolCallId,
           tool_name: "attach_context",
           title: `Attach ${contextCount} context item${contextCount === 1 ? "" : "s"}`,
+          created_at: eventCreatedAt,
         });
       }
       yield appendEvent(record, {
         kind: "text_delta",
         turn_id: agentTurnId,
         text: `Mock agent received "${input.text}"`,
+        created_at: eventCreatedAt,
       });
       yield appendEvent(record, {
         kind: "text_delta",
         turn_id: agentTurnId,
         text: ` with ${contextCount} context item${contextCount === 1 ? "" : "s"}.`,
+        created_at: eventCreatedAt,
       });
       if (contextSummary.length > 0) {
         yield appendEvent(record, {
@@ -156,6 +177,7 @@ export function createMockAgentConversationRuntime(
           text: `\n\nAttached context:\n${contextSummary
             .map((summary) => `- ${summary}`)
             .join("\n")}`,
+          created_at: eventCreatedAt,
         });
       }
       yield appendEvent(record, {
@@ -163,8 +185,13 @@ export function createMockAgentConversationRuntime(
         turn_id: agentTurnId,
         output_id: outputId,
         output_kind: "analysis",
+        created_at: eventCreatedAt,
       });
-      yield appendEvent(record, { kind: "turn_completed", turn_id: agentTurnId });
+      yield appendEvent(record, {
+        kind: "turn_completed",
+        turn_id: agentTurnId,
+        created_at: eventCreatedAt,
+      });
     },
 
     async *resumeConversation(
@@ -214,6 +241,12 @@ export function createMockAgentConversationRuntime(
 }
 
 function cloneEvent(event: AgentRuntimeEvent): AgentRuntimeEvent {
+  if (event.kind === "turn_started" && event.context_set) {
+    return {
+      ...event,
+      context_set: serializeHistoryContextSet(event.context_set),
+    };
+  }
   return { ...event };
 }
 

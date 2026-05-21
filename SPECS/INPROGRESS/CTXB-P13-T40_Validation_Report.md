@@ -7,19 +7,24 @@ Result: PASS.
 `CTXB-P13-T40` exposes readonly local Agent Conversation artifact snapshots in
 the Agent Conversation panel.
 
+Review follow-up: this pass also addresses review comments from PR #180 by
+normalizing artifact context sets to the documented conversation artifact schema,
+tracking per-turn context snapshot ids, preserving per-event timestamps for
+turns/outputs, and replacing empty tuple fields with explicit array types.
+
 ## Local Validation
 
 ```bash
 npm test --prefix graphspace -- agent-workbench start-agent-conversation agent-conversation-panel
 ```
 
-Result: PASS — 6 files / 26 tests passed.
+Result: PASS — 6 files / 27 tests passed.
 
 ```bash
 npm test --prefix graphspace
 ```
 
-Result: PASS — 52 files / 284 tests passed.
+Result: PASS — 52 files / 285 tests passed.
 
 ```bash
 npm run lint:fsd --prefix graphspace

@@ -1,4 +1,14 @@
-import { serializeAgentContextSet, type AgentContextDraft } from "./context";
+import {
+  serializeAgentContextSet,
+  type AgentContextDraft,
+  type AgentContextItem,
+  type AgentContextMetricItem,
+  type AgentContextProposalItem,
+  type AgentContextSpecEdgeItem,
+  type AgentContextSpecGapItem,
+  type AgentContextSpecMarkdownItem,
+  type AgentContextSpecNodeItem,
+} from "./context";
 import {
   projectAgentRuntimeEvents,
   type AgentRuntimeOutputProjection,
@@ -18,6 +28,100 @@ export type AgentConversationArtifactApiVersion = "v1";
 export type AgentConversationArtifactSchemaVersion = 1;
 
 export type AgentConversationParticipantRole = "operator" | "agent" | "system" | "tool";
+
+export type AgentConversationParticipant = {
+  participant_id: string;
+  role: AgentConversationParticipantRole;
+  display_name?: string | null;
+};
+
+export type AgentConversationParentRef = {
+  kind: string;
+  artifact_ref: string;
+  title?: string | null;
+};
+
+export type AgentConversationContextItem =
+  | AgentConversationSpecNodeContextItem
+  | AgentConversationSpecEdgeContextItem
+  | AgentConversationGapContextItem
+  | AgentConversationProposalContextItem
+  | AgentConversationMetricContextItem
+  | AgentConversationSpecPmPackageContextItem
+  | AgentConversationExternalLinkContextItem;
+
+export type AgentConversationSpecNodeContextItem = {
+  kind: "spec_node";
+  node_id: string;
+  title: string;
+  status?: string;
+  file_name?: string;
+};
+
+export type AgentConversationSpecEdgeContextItem = {
+  kind: "spec_edge";
+  edge_id: string;
+  source_node_id: string;
+  target_node_id: string;
+  edge_kind: string;
+  status?: string;
+  source_title?: string | null;
+  target_title?: string | null;
+};
+
+export type AgentConversationGapContextItem = {
+  kind: "gap";
+  node_id: string;
+  title: string;
+  gap_id: string;
+  gap_kind: AgentContextSpecGapItem["gap_kind"];
+  gap_count: number;
+  path: string;
+};
+
+export type AgentConversationProposalContextItem = {
+  kind: "proposal";
+  proposal_key: string;
+  proposal_id: string;
+  title: string;
+  status: string;
+  proposal_path: string | null;
+  affected_spec_ids: string[];
+};
+
+export type AgentConversationMetricContextItem = {
+  kind: "metric";
+  metric_key: string;
+  item_id: string;
+  title: string;
+  category: string;
+  status: string;
+  source_kind: string;
+  reference_texts: string[];
+};
+
+export type AgentConversationSpecPmPackageContextItem = {
+  kind: "specpm_package";
+  package_id: string;
+  version: string;
+};
+
+export type AgentConversationExternalLinkContextItem = {
+  kind: "external_link";
+  title: string;
+  artifact_path: string;
+  source_kind: AgentContextSpecMarkdownItem["source_kind"];
+  node_id: string;
+  scope: AgentContextSpecMarkdownItem["scope"];
+  node_count: number;
+};
+
+export type AgentConversationContextSetArtifact = {
+  context_set_id: string;
+  created_at: string;
+  label: string;
+  items: AgentConversationContextItem[];
+};
 
 export type AgentConversationContentBlock =
   | {
@@ -76,11 +180,11 @@ export type AgentConversationArtifact = {
     owner: "specspace";
     mutation_authority: "specspace_workbench_only";
   };
-  participants: [];
-  context_sets: AgentContextDraft[];
+  participants: AgentConversationParticipant[];
+  context_sets: AgentConversationContextSetArtifact[];
   turns: AgentConversationTurnArtifact[];
   outputs: AgentConversationOutputArtifact[];
-  parent_refs: [];
+  parent_refs: AgentConversationParentRef[];
 };
 
 export type AgentConversationIndexEntry = {
@@ -128,8 +232,7 @@ export function createAgentConversationArtifactSnapshot(
   source: AgentConversationArtifactSource,
 ): AgentConversationArtifact {
   const projection = projectAgentRuntimeEvents([...source.events]);
-  const contextSetIds = [source.context_set.context_set_id];
-  const contextSet = redactArtifactContextSet(source.context_set);
+  const eventMetadata = collectEventMetadata(source);
 
   return {
     api_version: "v1",
@@ -145,13 +248,26 @@ export function createAgentConversationArtifactSnapshot(
       mutation_authority: "specspace_workbench_only",
     },
     participants: [],
-    context_sets: [contextSet],
+    context_sets: eventMetadata.contextSets,
     turns: projection.turns.map((turn) =>
-      createTurnArtifact(turn, source.created_at, contextSetIds),
+      createTurnArtifact(
+        turn,
+        eventMetadata.turnCreatedAt.get(turn.turn_id) ?? source.created_at,
+        eventMetadata.contextSetIdsByTurn.get(turn.turn_id) ??
+          eventMetadata.fallbackContextSetIds,
+      ),
     ),
     outputs: projection.turns.flatMap((turn) =>
       turn.outputs.map((output) =>
-        createOutputArtifact(output, turn.turn_id, source.updated_at, contextSetIds),
+        createOutputArtifact(
+          output,
+          turn.turn_id,
+          eventMetadata.outputCreatedAt.get(output.output_id) ??
+            eventMetadata.turnCreatedAt.get(turn.turn_id) ??
+            source.updated_at,
+          eventMetadata.contextSetIdsByTurn.get(turn.turn_id) ??
+            eventMetadata.fallbackContextSetIds,
+        ),
       ),
     ),
     parent_refs: [],
@@ -226,19 +342,175 @@ function createOutputArtifact(
   };
 }
 
-function redactArtifactContextSet(contextSet: AgentContextDraft): AgentContextDraft {
+type ArtifactEventMetadata = {
+  contextSets: AgentConversationContextSetArtifact[];
+  fallbackContextSetIds: string[];
+  contextSetIdsByTurn: Map<string, string[]>;
+  turnCreatedAt: Map<string, string>;
+  outputCreatedAt: Map<string, string>;
+};
+
+function collectEventMetadata(source: AgentConversationArtifactSource): ArtifactEventMetadata {
+  const contextSets: AgentConversationContextSetArtifact[] = [];
+  const contextKeyToId = new Map<string, string>();
+  const contextIdUseCount = new Map<string, number>();
+  const contextSetIdsByTurn = new Map<string, string[]>();
+  const turnCreatedAt = new Map<string, string>();
+  const outputCreatedAt = new Map<string, string>();
+  const fallbackContextSetIds = [registerContextSet(source.context_set)];
+
+  for (const event of source.events) {
+    const eventCreatedAt = event.created_at ?? source.created_at;
+    if (event.kind === "turn_started") {
+      const contextSetIds = [
+        registerContextSet(event.context_set ?? source.context_set),
+      ];
+      contextSetIdsByTurn.set(event.turn_id, contextSetIds);
+      turnCreatedAt.set(event.turn_id, eventCreatedAt);
+    }
+    if (event.kind === "output_created") {
+      outputCreatedAt.set(
+        event.output_id,
+        event.created_at ?? turnCreatedAt.get(event.turn_id) ?? source.updated_at,
+      );
+    }
+  }
+
+  return {
+    contextSets,
+    fallbackContextSetIds,
+    contextSetIdsByTurn,
+    turnCreatedAt,
+    outputCreatedAt,
+  };
+
+  function registerContextSet(contextSet: AgentContextDraft): string {
+    const artifactContextSet = createArtifactContextSet(contextSet, contextSet.context_set_id);
+    const signature = JSON.stringify({
+      label: artifactContextSet.label,
+      items: artifactContextSet.items,
+    });
+    const existingId = contextKeyToId.get(signature);
+    if (existingId) return existingId;
+
+    const baseId = artifactContextSet.context_set_id || "ctx";
+    const seenCount = contextIdUseCount.get(baseId) ?? 0;
+    contextIdUseCount.set(baseId, seenCount + 1);
+    const contextSetId = seenCount === 0 ? baseId : `${baseId}-${seenCount + 1}`;
+    const registered = {
+      ...artifactContextSet,
+      context_set_id: contextSetId,
+    };
+
+    contextKeyToId.set(signature, contextSetId);
+    contextSets.push(registered);
+    return contextSetId;
+  }
+}
+
+function createArtifactContextSet(
+  contextSet: AgentContextDraft,
+  contextSetId: string,
+): AgentConversationContextSetArtifact {
   const serialized = serializeAgentContextSet(contextSet);
   return {
-    ...serialized,
-    items: serialized.items.map((item) =>
-      item.kind === "spec_markdown"
-        ? {
-            ...item,
-            markdown: "",
-            compile: item.compile ? { ...item.compile, compiled_md: null } : null,
-          }
-        : item,
-    ),
+    context_set_id: contextSetId,
+    created_at: serialized.created_at,
+    label: serialized.label,
+    items: serialized.items.map(mapContextItem),
+  };
+}
+
+function mapContextItem(item: AgentContextItem): AgentConversationContextItem {
+  if (item.kind === "spec_node") return mapSpecNodeContextItem(item);
+  if (item.kind === "spec_edge") return mapSpecEdgeContextItem(item);
+  if (item.kind === "spec_gap") return mapSpecGapContextItem(item);
+  if (item.kind === "proposal") return mapProposalContextItem(item);
+  if (item.kind === "metric") return mapMetricContextItem(item);
+  return mapSpecMarkdownContextItem(item);
+}
+
+function mapSpecNodeContextItem(
+  item: AgentContextSpecNodeItem,
+): AgentConversationSpecNodeContextItem {
+  return {
+    kind: "spec_node",
+    node_id: item.node_id,
+    title: item.title,
+    status: item.status,
+    file_name: item.file_name,
+  };
+}
+
+function mapSpecEdgeContextItem(
+  item: AgentContextSpecEdgeItem,
+): AgentConversationSpecEdgeContextItem {
+  return {
+    kind: "spec_edge",
+    edge_id: item.edge_id,
+    source_node_id: item.source_id,
+    target_node_id: item.target_id,
+    edge_kind: item.edge_kind,
+    status: item.status,
+    source_title: item.source_title,
+    target_title: item.target_title,
+  };
+}
+
+function mapSpecGapContextItem(
+  item: AgentContextSpecGapItem,
+): AgentConversationGapContextItem {
+  return {
+    kind: "gap",
+    node_id: item.node_id,
+    title: item.title,
+    gap_id: `${item.node_id}:${item.gap_kind}`,
+    gap_kind: item.gap_kind,
+    gap_count: item.gap_count,
+    path: `specification.gaps.${item.gap_kind}`,
+  };
+}
+
+function mapProposalContextItem(
+  item: AgentContextProposalItem,
+): AgentConversationProposalContextItem {
+  return {
+    kind: "proposal",
+    proposal_key: item.proposal_key,
+    proposal_id: item.proposal_id,
+    title: item.title,
+    status: item.status,
+    proposal_path: item.proposal_path,
+    affected_spec_ids: [...item.affected_spec_ids],
+  };
+}
+
+function mapMetricContextItem(
+  item: AgentContextMetricItem,
+): AgentConversationMetricContextItem {
+  return {
+    kind: "metric",
+    metric_key: item.metric_key,
+    item_id: item.item_id,
+    title: item.title,
+    category: item.category,
+    status: item.status,
+    source_kind: item.source_kind,
+    reference_texts: [...item.reference_texts],
+  };
+}
+
+function mapSpecMarkdownContextItem(
+  item: AgentContextSpecMarkdownItem,
+): AgentConversationExternalLinkContextItem {
+  return {
+    kind: "external_link",
+    title: item.title,
+    artifact_path: item.download_filename,
+    source_kind: item.source_kind,
+    node_id: item.node_id,
+    scope: item.scope,
+    node_count: item.node_count,
   };
 }
 
