@@ -44,7 +44,9 @@
 .artifactStatLabel,
 .artifactFacts dt,
 .artifactFacts dd,
-.artifactDetails summary {
+.artifactDetails summary,
+.storeError,
+.readonlyNotice {
   font-family: var(--gs-mono);
   font-size: 10px;
   font-weight: 600;
@@ -154,6 +156,10 @@
 .historyMeta,
 .historyEmpty {
   color: var(--gs-muted-2);
+}
+
+.storeError {
+  color: var(--gs-danger);
 }
 
 .artifactPanel {
@@ -393,6 +399,13 @@
   font-family: var(--gs-mono);
   font-size: 10px;
   font-weight: 600;
+  padding: var(--gs-space-4) var(--gs-space-6);
+}
+
+.readonlyNotice {
+  margin: 0;
+  border-top: 1px solid var(--gs-rule-soft);
+  color: var(--gs-muted);
   padding: var(--gs-space-4) var(--gs-space-6);
 }
 

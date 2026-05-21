@@ -72,6 +72,18 @@ export {
   type AgentConversationTurnArtifact,
 } from "./model/conversation-artifact";
 export {
+  parseAgentConversationArtifact,
+  parseAgentConversationIndexArtifact,
+  projectAgentConversationArtifactToProjection,
+  type AgentConversationParseResult,
+} from "./model/conversation-artifact-read";
+export {
+  fetchAgentConversationArtifact,
+  fetchAgentConversationIndex,
+  type AgentWorkbenchReadResult,
+  type AgentWorkbenchSource,
+} from "./api/read-conversations";
+export {
   createAgentRuntimeProjection,
   projectAgentRuntimeEvent,
   projectAgentRuntimeEvents,

@@ -489,7 +489,7 @@ export function ViewerPage() {
       case "agent-conversation":
         return {
           title: "Agent conversation",
-          caption: `${agentContextDraft.items.length} context items · mock runtime`,
+          caption: "mock runtime · readonly store",
         };
       case "artifacts":
         return { title: "Live artifacts", caption: artifactCaption };
