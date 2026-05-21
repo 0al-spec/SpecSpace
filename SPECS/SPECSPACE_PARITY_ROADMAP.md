@@ -191,4 +191,5 @@ Target:
 30. `CTXB-P13-T34` — Add Spec Inspector Hyperprompt compile action for Spec Markdown exports. ✅
 31. `CTXB-P13-T35` — Add Spec Markdown export and compile results to Agent Context. ✅
 32. `CTXB-P13-T36` — Start Agent Conversation from Spec Markdown exports. ✅
-33. `CTXB-P13-T37` — Summarize attached context in Agent Conversation mock runtime.
+33. `CTXB-P13-T37` — Summarize attached context in Agent Conversation mock runtime. ✅
+34. `CTXB-P13-T38` — Add local Agent Conversation history and resume.

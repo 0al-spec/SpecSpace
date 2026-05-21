@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T37` — Summarize attached context in Agent Conversation mock runtime
+**Current Task:** `CTXB-P13-T38` — Add local Agent Conversation history and resume
 
 ## Recently Archived
+- `CTXB-P13-T37` — Summarize attached context in Agent Conversation mock runtime (PASS, 2026-05-21)
 - `CTXB-P13-T36` — Start Agent Conversation from Spec Markdown exports (PASS, 2026-05-21)
 - `CTXB-P13-T35` — Add Spec Markdown export and compile results to Agent Context (PASS, 2026-05-21)
 - `CTXB-P13-T34` — Add Spec Inspector Hyperprompt compile action for Spec Markdown exports (PASS, 2026-05-20)
@@ -84,13 +85,13 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T37` — Summarize attached context in Agent Conversation mock runtime.
-- Rationale: Spec Markdown conversations can now be started directly, but the mock agent only acknowledges the number of attached context items. The next parity step is to make the conversation transcript show which artifacts were handed to the agent without rendering raw Markdown bodies.
+- `CTXB-P13-T38` — Add local Agent Conversation history and resume.
+- Rationale: Agent Conversation now shows which artifacts were handed to the mock agent, but the session has no visible history. The next parity step is to make locally-started conversations inspectable and resumable without introducing backend persistence or raw context dumps.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`, `CTXB-P13-T34`, `CTXB-P13-T35`, `CTXB-P13-T36`.
-- Current: `CTXB-P13-T37` Summarize attached context in Agent Conversation mock runtime.
-- Next: continue parity with persisted/safe conversation history once attached context visibility is reviewed.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`, `CTXB-P13-T34`, `CTXB-P13-T35`, `CTXB-P13-T36`, `CTXB-P13-T37`.
+- Current: `CTXB-P13-T38` Add local Agent Conversation history and resume.
+- Next: continue parity toward durable Agent Workbench conversation artifacts and proposal-origin linkage after local resume behavior is reviewed.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.

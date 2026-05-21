@@ -2069,7 +2069,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Existing add/copy/download actions remain unchanged.
   - The implementation stays frontend-only and uses the mock runtime boundary already present in Agent Conversation.
 
-### CTXB-P13-T37 — Summarize attached context in Agent Conversation mock runtime — In Progress
+### ✅ CTXB-P13-T37 — Summarize attached context in Agent Conversation mock runtime — DONE (PASS, 2026-05-21)
 - **Description:** Make the mock Agent Conversation runtime describe the attached context items it receives, so operators can verify which specs, edges, gaps, proposals, metrics, or Markdown artifacts are being handed to the agent surface.
 - **Priority:** P3
 - **Dependencies:** CTXB-P13-T36
@@ -2081,6 +2081,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Raw Markdown body content is not rendered into the conversation transcript.
   - Existing conversation start, send, context strip, and remove behavior remains unchanged.
   - The implementation stays inside the mock runtime boundary and does not introduce backend mutation.
+
+### CTXB-P13-T38 — Add local Agent Conversation history and resume — In Progress
+- **Description:** Make locally-started mock Agent Conversation sessions inspectable and resumable from the Agent Conversation panel, so operators can return to prior context handoffs during a SpecSpace review session.
+- **Priority:** P3
+- **Dependencies:** CTXB-P13-T37
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** mock conversation event history, conversation history UI, resume flow, focused tests, validation report
+- **Acceptance Criteria:**
+  - Started mock conversations appear in a compact local history list with title, turn count, and context count.
+  - Selecting a prior conversation replays its stored transcript into the panel without inventing new agent output.
+  - Starting a new conversation remains available and clears the visible transcript without clearing Agent Context.
+  - Exposed conversation history records and resume output do not render or leak raw Spec Markdown bodies.
+  - The implementation stays frontend-only and keeps persisted backend conversation storage out of scope.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
