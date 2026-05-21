@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AssistantRuntimeProvider,
   ThreadPrimitive,
@@ -43,6 +43,10 @@ type StoredArtifactState =
   | { kind: "loading"; conversationId: AgentConversationId }
   | { kind: "ok"; artifact: AgentConversationArtifact }
   | { kind: "error"; conversationId: AgentConversationId; message: string };
+type StoredArtifactRequest = {
+  requestId: number;
+  controller: AbortController;
+};
 
 type Props = {
   runtime: AgentConversationRuntime;
@@ -76,6 +80,8 @@ export function AgentConversationPanel({
   const [storedArtifactState, setStoredArtifactState] = useState<StoredArtifactState>({
     kind: "idle",
   });
+  const storedArtifactRequestIdRef = useRef(0);
+  const storedArtifactRequestRef = useRef<StoredArtifactRequest | null>(null);
   const isBusy = status === "starting" || status === "streaming";
   const storedArtifact =
     storedArtifactState.kind === "ok" ? storedArtifactState.artifact : null;
@@ -123,6 +129,13 @@ export function AgentConversationPanel({
   const assistantUiRuntime = useExternalStoreRuntime(assistantUiStore);
 
   useEffect(() => {
+    return () => {
+      storedArtifactRequestRef.current?.controller.abort();
+      storedArtifactRequestRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!promptSeed || conversation || isBusy) return;
     setPrompt(promptSeed.prompt);
   }, [conversation, isBusy, promptSeed]);
@@ -132,6 +145,10 @@ export function AgentConversationPanel({
   }, []);
   const refreshStoreIndex = useCallback(() => {
     setStoreRefreshKey((current) => current + 1);
+  }, []);
+  const abortStoredArtifactRequest = useCallback(() => {
+    storedArtifactRequestRef.current?.controller.abort();
+    storedArtifactRequestRef.current = null;
   }, []);
 
   const streamMessage = useCallback(
@@ -152,13 +169,14 @@ export function AgentConversationPanel({
 
   const handleStartFresh = useCallback(() => {
     if (isBusy) return;
+    abortStoredArtifactRequest();
     setStoredArtifactState({ kind: "idle" });
     setConversation(null);
     setProjection(createAgentRuntimeProjection());
     setPrompt(promptSeed?.prompt ?? DEFAULT_PROMPT);
     setStatus("idle");
     setError(null);
-  }, [isBusy, promptSeed]);
+  }, [abortStoredArtifactRequest, isBusy, promptSeed]);
 
   const handleResumeConversation = useCallback(
     async (conversationId: AgentConversationId) => {
@@ -171,6 +189,7 @@ export function AgentConversationPanel({
         return;
       }
 
+      abortStoredArtifactRequest();
       setStoredArtifactState({ kind: "idle" });
       setConversation(record.ref);
       setProjection(createAgentRuntimeProjection());
@@ -189,27 +208,43 @@ export function AgentConversationPanel({
         setError(cause instanceof Error ? cause.message : "Conversation history resume failed.");
       }
     },
-    [historyRuntime, isBusy, refreshHistory],
+    [abortStoredArtifactRequest, historyRuntime, isBusy, refreshHistory],
   );
 
   const handleOpenStoredConversation = useCallback(
     async (conversationId: AgentConversationId) => {
       if (isBusy) return;
+      storedArtifactRequestRef.current?.controller.abort();
+      storedArtifactRequestIdRef.current += 1;
+      const request: StoredArtifactRequest = {
+        requestId: storedArtifactRequestIdRef.current,
+        controller: new AbortController(),
+      };
+      storedArtifactRequestRef.current = request;
       setStoredArtifactState({ kind: "loading", conversationId });
+      setConversation(null);
+      setProjection(createAgentRuntimeProjection());
+      setPrompt(DEFAULT_PROMPT);
       setStatus("starting");
       setError(null);
 
       try {
-        const result = await fetchAgentConversationArtifact({ conversationId });
+        const result = await fetchAgentConversationArtifact({
+          conversationId,
+          signal: request.controller.signal,
+        });
+        if (storedArtifactRequestRef.current?.requestId !== request.requestId) return;
         if (result.kind !== "ok") {
           const message = describeWorkbenchReadFailure(result);
           setStoredArtifactState({ kind: "error", conversationId, message });
+          storedArtifactRequestRef.current = null;
           setStatus("error");
           setError(message);
           return;
         }
 
         setStoredArtifactState({ kind: "ok", artifact: result.data });
+        storedArtifactRequestRef.current = null;
         setConversation({
           conversation_id: result.data.conversation_id,
           title: result.data.title,
@@ -219,6 +254,8 @@ export function AgentConversationPanel({
         setPrompt(DEFAULT_PROMPT);
         setStatus("active");
       } catch (cause) {
+        if (storedArtifactRequestRef.current?.requestId !== request.requestId) return;
+        storedArtifactRequestRef.current = null;
         if (cause instanceof Error && cause.name === "AbortError") return;
         const message =
           cause instanceof Error
@@ -242,6 +279,7 @@ export function AgentConversationPanel({
       return;
     }
 
+    abortStoredArtifactRequest();
     setError(null);
     setPrompt("");
 

@@ -28,7 +28,7 @@ export function useAgentWorkbenchConversationIndex({
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
-    setState((current) => (current.kind === "idle" ? { kind: "loading" } : current));
+    setState({ kind: "loading" });
 
     fetchAgentConversationIndex({
       url,

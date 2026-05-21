@@ -19,8 +19,8 @@ git diff --check
 
 Results:
 
-- focused frontend tests: 6 files / 26 tests passed
-- full frontend tests: 53 files / 291 tests passed
+- focused frontend tests: 6 files / 28 tests passed
+- full frontend tests: 53 files / 293 tests passed
 - frontend build: passed; Vite chunk-size warning unchanged
 - FSD lint: passed with no problems found
 - backend lint: passed
@@ -57,3 +57,13 @@ Known local browser noise:
 - `/favicon.ico` returns 404
 
 No Agent Workbench API console errors were observed in the smoke path.
+
+## Review Fixes
+
+Follow-up review validation covered:
+
+- strict parser rejection for missing required top-level artifact arrays
+- strict parser rejection for invalid proposal output statuses
+- deterministic readonly index refresh loading state
+- stored conversation detail fetch abort/request guard
+- stale transcript/snapshot clearing while a stored artifact is loading

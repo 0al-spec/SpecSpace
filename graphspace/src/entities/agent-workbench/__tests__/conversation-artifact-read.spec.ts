@@ -158,6 +158,35 @@ describe("Agent Workbench conversation artifact reads", () => {
     });
   });
 
+  it("rejects conversation artifacts with missing required array fields", () => {
+    const { participants: _participants, ...artifactWithoutParticipants } = conversationFixture;
+
+    expect(parseAgentConversationArtifact(artifactWithoutParticipants)).toMatchObject({
+      kind: "parse-error",
+      reason: "conversation artifact is missing required fields",
+    });
+  });
+
+  it("rejects proposal outputs with invalid status values", () => {
+    expect(
+      parseAgentConversationArtifact({
+        ...conversationFixture,
+        outputs: [
+          {
+            ...conversationFixture.outputs[0],
+            proposal: {
+              ...conversationFixture.outputs[0].proposal,
+              status: "done",
+            },
+          },
+        ],
+      }),
+    ).toMatchObject({
+      kind: "parse-error",
+      reason: "conversation artifact contains malformed nested records",
+    });
+  });
+
   it("fetches the conversation index through the v1 API wrapper", async () => {
     const fetcher = async () =>
       new Response(

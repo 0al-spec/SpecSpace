@@ -90,13 +90,25 @@ export function parseAgentConversationArtifact(
   const createdAt = stringField(obj, "created_at");
   const updatedAt = stringField(obj, "updated_at");
   const storage = recordField(obj, "storage");
-  const participantsRaw = arrayField(obj, "participants") ?? [];
-  const contextSetsRaw = arrayField(obj, "context_sets") ?? [];
-  const turnsRaw = arrayField(obj, "turns") ?? [];
-  const outputsRaw = arrayField(obj, "outputs") ?? [];
-  const parentRefsRaw = arrayField(obj, "parent_refs") ?? [];
+  const participantsRaw = arrayField(obj, "participants");
+  const contextSetsRaw = arrayField(obj, "context_sets");
+  const turnsRaw = arrayField(obj, "turns");
+  const outputsRaw = arrayField(obj, "outputs");
+  const parentRefsRaw = arrayField(obj, "parent_refs");
 
-  if (!conversationId || !title || !status || !createdAt || !updatedAt || !storage) {
+  if (
+    !conversationId ||
+    !title ||
+    !status ||
+    !createdAt ||
+    !updatedAt ||
+    !storage ||
+    participantsRaw === null ||
+    contextSetsRaw === null ||
+    turnsRaw === null ||
+    outputsRaw === null ||
+    parentRefsRaw === null
+  ) {
     return parseError("conversation artifact is missing required fields", raw);
   }
   if (storage.owner !== "specspace" || storage.mutation_authority !== "specspace_workbench_only") {
@@ -411,20 +423,24 @@ function parseOutput(raw: unknown): AgentConversationOutputArtifact | null {
   const originTurnId = stringField(raw, "origin_turn_id");
   if (!outputId || !kind || !createdAt || !originTurnId) return null;
   const proposal = recordField(raw, "proposal");
+  let parsedProposal: AgentConversationOutputArtifact["proposal"];
+  if (proposal) {
+    const proposalStatus = outputStatus(proposal.status);
+    if (proposalStatus === null) return null;
+    parsedProposal = {
+      proposal_key: optionalString(proposal.proposal_key) ?? outputId,
+      title: optionalString(proposal.title) ?? outputId,
+      status: proposalStatus,
+      target_spec_ids: stringArray(proposal.target_spec_ids),
+    };
+  }
   return {
     output_id: outputId,
     kind,
     created_at: createdAt,
     origin_turn_id: originTurnId,
     context_set_ids: stringArray(raw.context_set_ids),
-    proposal: proposal
-      ? {
-          proposal_key: optionalString(proposal.proposal_key) ?? outputId,
-          title: optionalString(proposal.title) ?? outputId,
-          status: outputStatus(proposal.status),
-          target_spec_ids: stringArray(proposal.target_spec_ids),
-        }
-      : undefined,
+    proposal: parsedProposal,
   };
 }
 
@@ -471,7 +487,7 @@ function outputKind(value: unknown): AgentConversationOutputArtifact["kind"] | n
   return null;
 }
 
-function outputStatus(value: unknown): AgentConversationOutputStatus {
+function outputStatus(value: unknown): AgentConversationOutputStatus | null {
   if (
     value === "draft" ||
     value === "proposed" ||
@@ -480,7 +496,7 @@ function outputStatus(value: unknown): AgentConversationOutputStatus {
   ) {
     return value;
   }
-  return "draft";
+  return null;
 }
 
 function gapKind(value: unknown): AgentContextSpecGapKind {
