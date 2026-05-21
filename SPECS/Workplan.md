@@ -2082,7 +2082,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Existing conversation start, send, context strip, and remove behavior remains unchanged.
   - The implementation stays inside the mock runtime boundary and does not introduce backend mutation.
 
-### CTXB-P13-T38 — Add local Agent Conversation history and resume — In Progress
+### ✅ CTXB-P13-T38 — Add local Agent Conversation history and resume — DONE (PASS, 2026-05-21)
 - **Description:** Make locally-started mock Agent Conversation sessions inspectable and resumable from the Agent Conversation panel, so operators can return to prior context handoffs during a SpecSpace review session.
 - **Priority:** P3
 - **Dependencies:** CTXB-P13-T37
@@ -2094,6 +2094,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Starting a new conversation remains available and clears the visible transcript without clearing Agent Context.
   - Exposed conversation history records and resume output do not render or leak raw Spec Markdown bodies.
   - The implementation stays frontend-only and keeps persisted backend conversation storage out of scope.
+
+### CTXB-P13-T39 — Add Agent Conversation artifact snapshot contract — In Progress
+- **Description:** Add typed Agent Workbench conversation artifact and index snapshot builders from local runtime history, giving future writable storage and proposal-origin work a concrete SpecSpace-owned contract.
+- **Priority:** P3
+- **Dependencies:** CTXB-P13-T38
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** Agent Conversation artifact model, index entry builder, output origin mapping, focused tests, validation report
+- **Acceptance Criteria:**
+  - Agent Workbench conversation artifacts use the documented `specspace_agent_conversation` shape with storage authority, context sets, turns, outputs, and parent refs.
+  - Artifact snapshots can be built from local runtime history events without importing React or assistant-ui types.
+  - Output records preserve `origin_turn_id` and context-set linkage for future proposal draft origins.
+  - Index entries expose title, status, updated time, turn count, context count, output count, and proposal output count.
+  - Spec Markdown bodies remain redacted when the artifact is built from redacted history records.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
