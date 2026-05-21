@@ -48,6 +48,17 @@ def test_build_arg_parser_treats_blank_hyperprompt_work_dir_env_as_unset(monkeyp
     assert args.hyperprompt_work_dir is None
 
 
+def test_build_arg_parser_accepts_agent_workbench_dir_env(monkeypatch) -> None:
+    monkeypatch.setenv("SPECSPACE_AGENT_WORKBENCH_DIR", "/tmp/specspace-workbench")
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+    args = parser.parse_args(["--dialog-dir", "/tmp/dialogs"])
+
+    assert args.agent_workbench_dir == Path("/tmp/specspace-workbench")
+
+
 def test_runs_watch_path_prefers_spec_dir_layout() -> None:
     spec_dir = Path("/repo/specs/nodes")
     specgraph_dir = Path("/other")
@@ -90,6 +101,9 @@ def test_configure_server_sets_runtime_capabilities() -> None:
             spec_dir=root / "specgraph" / "specs" / "nodes",
             specgraph_dir=None,
             runs_dir=None,
+            artifact_base_url=None,
+            specpm_registry_url=None,
+            agent_workbench_dir=root / "workbench",
             agent=True,
         )
         server = SimpleNamespace()
@@ -119,6 +133,7 @@ def test_configure_server_sets_runtime_capabilities() -> None:
         assert spec_watchers == [server.spec_dir]
         assert server.runs_dir == (root / "specgraph" / "runs").resolve()
         assert runs_watchers == [(root / "specgraph" / "runs").resolve()]
+        assert server.agent_workbench_dir == (root / "workbench").resolve()
         assert server.agent_available is True
 
 
@@ -137,6 +152,9 @@ def test_configure_server_accepts_explicit_runs_dir() -> None:
             spec_dir=root / "specgraph" / "specs" / "nodes",
             specgraph_dir=root / "specgraph",
             runs_dir=root / "mounted-runs",
+            artifact_base_url=None,
+            specpm_registry_url=None,
+            agent_workbench_dir=None,
             agent=False,
         )
         server = SimpleNamespace()

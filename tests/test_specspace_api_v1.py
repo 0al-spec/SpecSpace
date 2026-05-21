@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import tempfile
 import threading
 import time
@@ -19,6 +20,7 @@ from viewer import server, specspace_provider
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+AGENT_WORKBENCH_FIXTURES = Path(__file__).resolve().parent / "fixtures" / "agent_workbench"
 
 MINIMAL_SPEC = {
     "id": "SG-SPEC-0001",
@@ -52,6 +54,7 @@ def _start(
     specgraph_dir: Path | None = None,
     artifact_base_url: str | None = None,
     specpm_registry_url: str | None = None,
+    agent_workbench_dir: Path | None = None,
     hyperprompt_binary: str = "",
     hyperprompt_resolved_binary: str | None = None,
     hyperprompt_work_dir: Path | None = None,
@@ -73,6 +76,7 @@ def _start(
     httpd.runs_watcher = server.RunsWatcher(runs_dir) if runs_dir else None
     httpd.artifact_base_url = artifact_base_url
     httpd.specpm_registry_url = specpm_registry_url
+    httpd.agent_workbench_dir = agent_workbench_dir
     httpd.agent_available = False
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
@@ -1621,6 +1625,67 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "missing_artifact")
         self.assertEqual(body["artifact"], "runs/implementation_work_index.json")
         self.assertEqual(body["artifact_base_url"], artifact_base_url)
+
+
+class AgentWorkbenchV1ApiTests(unittest.TestCase):
+    def test_agent_workbench_read_endpoints_are_guarded_when_unconfigured(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            httpd, thread, base = _start(root / "dialogs")
+            try:
+                status, body = _get(f"{base}/api/v1/agent-workbench/conversations")
+                capabilities_status, capabilities = _get(f"{base}/api/v1/capabilities")
+                health_status, health = _get(f"{base}/api/v1/health")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 503)
+        self.assertEqual(body["reason"], "agent_workbench_store_unavailable")
+        self.assertEqual(body["source"]["status"], "not_configured")
+        self.assertEqual(capabilities_status, 200)
+        self.assertFalse(capabilities["capabilities"]["agent_workbench_conversations"])
+        self.assertFalse(capabilities["capabilities"]["agent_workbench_writes"])
+        self.assertEqual(
+            capabilities["diagnostics"]["agent_workbench_conversations"]["source"]["status"],
+            "not_configured",
+        )
+        self.assertEqual(health_status, 200)
+        self.assertEqual(
+            health["sources"]["agent_workbench_conversations"]["status"],
+            "not_configured",
+        )
+
+    def test_agent_workbench_read_endpoints_return_configured_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workbench = root / "workbench"
+            conversations = workbench / "conversations"
+            conversations.mkdir(parents=True)
+            shutil.copyfile(AGENT_WORKBENCH_FIXTURES / "index-v1.json", conversations / "index.json")
+            shutil.copyfile(
+                AGENT_WORKBENCH_FIXTURES / "conversation-v1.json",
+                conversations / "awb-conv-0001.json",
+            )
+            httpd, thread, base = _start(root / "dialogs", agent_workbench_dir=workbench)
+            try:
+                index_status, index = _get(f"{base}/api/v1/agent-workbench/conversations")
+                conversation_status, conversation = _get(
+                    f"{base}/api/v1/agent-workbench/conversations/awb-conv-0001",
+                )
+                capabilities_status, capabilities = _get(f"{base}/api/v1/capabilities")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(index_status, 200)
+        self.assertEqual(index["source"]["status"], "ok")
+        self.assertEqual(index["data"]["artifact_kind"], "specspace_agent_conversation_index")
+        self.assertEqual(index["data"]["entry_count"], 1)
+        self.assertEqual(conversation_status, 200)
+        self.assertEqual(conversation["conversation_id"], "awb-conv-0001")
+        self.assertEqual(conversation["data"]["artifact_kind"], "specspace_agent_conversation")
+        self.assertEqual(capabilities_status, 200)
+        self.assertTrue(capabilities["capabilities"]["agent_workbench_conversations"])
+        self.assertFalse(capabilities["capabilities"]["agent_workbench_writes"])
 
 
 if __name__ == "__main__":

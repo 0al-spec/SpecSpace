@@ -69,12 +69,17 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/v1/metrics": RouteSpec("handle_v1_metrics"),
     "/api/v1/specpm/registry": RouteSpec("handle_v1_specpm_registry"),
     "/api/v1/specpm/lifecycle": RouteSpec("handle_v1_specpm_lifecycle"),
+    "/api/v1/agent-workbench/conversations": RouteSpec("handle_v1_agent_workbench_conversations"),
     "/api/v1/runs-watch": RouteSpec("handle_v1_runs_watch"),
 }
 
 
 GET_PREFIX_ROUTES: dict[str, RouteSpec] = {
     "/api/v1/specpm/registry/packages/": RouteSpec("handle_v1_specpm_registry_package", pass_parsed=True),
+    "/api/v1/agent-workbench/conversations/": RouteSpec(
+        "handle_v1_agent_workbench_conversation",
+        pass_parsed=True,
+    ),
     "/api/v1/spec-nodes/": RouteSpec("handle_v1_spec_node", pass_parsed=True),
 }
 

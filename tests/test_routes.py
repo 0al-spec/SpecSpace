@@ -28,6 +28,14 @@ def test_route_table_resolves_delete_file_with_parsed_url() -> None:
     assert route.pass_parsed is True
 
 
+def test_route_table_resolves_agent_workbench_conversation_prefix() -> None:
+    route = routes.route_for("GET", "/api/v1/agent-workbench/conversations/awb-conv-0001")
+
+    assert route is not None
+    assert route.handler == "handle_v1_agent_workbench_conversation"
+    assert route.pass_parsed is True
+
+
 def test_route_table_returns_none_for_unknown_route() -> None:
     assert routes.route_for("GET", "/api/not-a-real-route") is None
     assert routes.route_for("PATCH", "/api/file") is None
@@ -37,3 +45,5 @@ def test_all_route_handlers_exist_on_viewer_handler() -> None:
     for table in routes.ROUTES_BY_METHOD.values():
         for route in table.values():
             assert hasattr(ViewerHandler, route.handler), route.handler
+    for route in routes.GET_PREFIX_ROUTES.values():
+        assert hasattr(ViewerHandler, route.handler), route.handler

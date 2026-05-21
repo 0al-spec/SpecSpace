@@ -6,7 +6,7 @@ from http import HTTPStatus
 from typing import Any, Protocol
 from urllib.parse import unquote
 
-from viewer import spec_compile, specspace_provider
+from viewer import agent_workbench, spec_compile, specspace_provider
 from viewer.http_response import JsonResponseHandler, json_response
 from viewer.request_query import query_params, query_value
 
@@ -417,6 +417,18 @@ def handle_v1_specpm_registry_package(handler: SpecSpaceV1Handler, parsed: Any) 
 
 def handle_v1_specpm_lifecycle(handler: SpecSpaceV1Handler) -> None:
     status, payload = _provider(handler).read_specpm_lifecycle()
+    json_response(handler, status, payload)
+
+
+def handle_v1_agent_workbench_conversations(handler: SpecSpaceV1Handler) -> None:
+    status, payload = agent_workbench.read_agent_conversation_index(handler.server)
+    json_response(handler, status, payload)
+
+
+def handle_v1_agent_workbench_conversation(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    prefix = "/api/v1/agent-workbench/conversations/"
+    conversation_id = unquote(parsed.path[len(prefix):]).strip()
+    status, payload = agent_workbench.read_agent_conversation(handler.server, conversation_id)
     json_response(handler, status, payload)
 
 

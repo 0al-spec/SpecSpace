@@ -2108,7 +2108,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Index entries expose title, status, updated time, turn count, context count, output count, and proposal output count.
   - Spec Markdown bodies remain redacted when the artifact is built from redacted history records.
 
-### CTXB-P13-T40 — Expose Agent Conversation artifact snapshots in the UI — In Progress
+### ✅ CTXB-P13-T40 — Expose Agent Conversation artifact snapshots in the UI — DONE (PASS, 2026-05-21)
 - **Description:** Surface readonly local Agent Conversation artifact snapshots in the Agent Conversation panel, so operators can inspect the durable artifact boundary before backend persistence exists.
 - **Priority:** P3
 - **Dependencies:** CTXB-P13-T39
@@ -2120,6 +2120,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Snapshot summary includes artifact kind, schema/API version, storage authority, turn count, output count, and context item count.
   - The UI does not render raw Spec Markdown bodies or compiled Markdown bodies from the snapshot.
   - Existing conversation start, resume, send, and context removal flows remain unchanged.
+
+### CTXB-P13-T41 — Add Agent Workbench readonly conversation API boundary — In Progress
+- **Description:** Add guarded SpecSpace v1 read endpoints for SpecSpace-owned Agent Workbench conversation artifacts, backed by the documented local `workbench/conversations` layout.
+- **Priority:** P3
+- **Dependencies:** CTXB-P13-T40
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** backend read model, `/api/v1/agent-workbench/conversations` routes, capability/health source, focused tests, validation report
+- **Acceptance Criteria:**
+  - `GET /api/v1/agent-workbench/conversations` returns the configured conversation index or an explicit empty index for an initialized empty store.
+  - `GET /api/v1/agent-workbench/conversations/{conversation_id}` returns a matching `specspace_agent_conversation` artifact or a bounded 404/422 error.
+  - The API is unavailable with a structured 503 when no Agent Workbench store is configured.
+  - `/api/v1/capabilities` and `/api/v1/health` expose readonly Agent Workbench availability without implying writable agent authority.
+  - Path-like conversation ids and mismatched artifact ids are rejected.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

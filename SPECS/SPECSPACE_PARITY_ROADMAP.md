@@ -1,7 +1,7 @@
 # SpecSpace Parity Roadmap
 
 Status: active planning
-Updated: 2026-05-19
+Updated: 2026-05-21
 
 ## Purpose
 
@@ -194,4 +194,5 @@ Target:
 33. `CTXB-P13-T37` — Summarize attached context in Agent Conversation mock runtime. ✅
 34. `CTXB-P13-T38` — Add local Agent Conversation history and resume. ✅
 35. `CTXB-P13-T39` — Add Agent Conversation artifact snapshot contract. ✅
-36. `CTXB-P13-T40` — Expose Agent Conversation artifact snapshots in the UI.
+36. `CTXB-P13-T40` — Expose Agent Conversation artifact snapshots in the UI. ✅
+37. `CTXB-P13-T41` — Add Agent Workbench readonly conversation API boundary.

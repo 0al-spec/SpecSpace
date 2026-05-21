@@ -19,6 +19,7 @@ from urllib.request import Request, urlopen
 import yaml  # type: ignore[import-untyped]
 
 from viewer import (
+    agent_workbench,
     capabilities_api,
     metrics,
     proposals,
@@ -1244,6 +1245,7 @@ def health_with_specpm_registry(server: Any, provider: SpecSpaceProvider) -> dic
             SPECPM_REGISTRY_SOURCE_NAME: specpm_registry_source(
                 specpm_registry_url_from_server(server)
             ),
+            "agent_workbench_conversations": agent_workbench.agent_workbench_source(server),
         },
     }
 
