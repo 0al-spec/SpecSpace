@@ -196,7 +196,13 @@ function serializeHistoryContextSet(draft: AgentContextDraft): AgentContextDraft
   return {
     ...serialized,
     items: serialized.items.map((item) =>
-      item.kind === "spec_markdown" ? { ...item, markdown: "" } : item,
+      item.kind === "spec_markdown"
+        ? {
+            ...item,
+            markdown: "",
+            compile: item.compile ? { ...item.compile, compiled_md: null } : null,
+          }
+        : item,
     ),
   };
 }

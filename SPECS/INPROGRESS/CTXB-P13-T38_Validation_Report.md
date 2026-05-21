@@ -7,8 +7,9 @@ Result: PASS.
 `CTXB-P13-T38` adds frontend-only local Agent Conversation history and resume
 for the mock runtime. Resume replays stored runtime events instead of emitting a
 synthetic resume turn, so the transcript remains the exact local conversation
-history. Exposed history records redact Spec Markdown bodies, and resume output
-continues to show only the safe context summary.
+history. Exposed history records redact Spec Markdown bodies, including
+`compile.compiled_md`, and resume output continues to show only the safe context
+summary.
 
 ## Local Validation
 

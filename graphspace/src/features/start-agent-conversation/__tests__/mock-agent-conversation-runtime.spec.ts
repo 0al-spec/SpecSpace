@@ -242,10 +242,16 @@ describe("createMockAgentConversationRuntime", () => {
         node_id: "SG-SPEC-0001",
         title: "SpecGraph - The Executable Product Ontology",
         scope: "node",
-        source_kind: "export",
+        source_kind: "hyperprompt_compile",
         download_filename: "SG-SPEC-0001.md",
         node_count: 1,
         markdown: "# SG-SPEC-0001\n\nRaw body must stay hidden after resume.",
+        compile: {
+          exit_code: 0,
+          compiled_md: "# SG-SPEC-0001\n\nCompiled raw body must stay hidden too.",
+          manifest_json: "/tmp/specspace/manifest.json",
+          root_hc: "/tmp/specspace/root.hc",
+        },
       }),
     );
     const conversation = await runtime.startConversation({
@@ -267,10 +273,12 @@ describe("createMockAgentConversationRuntime", () => {
       .getConversation(conversation.conversation_id)
       ?.context_set.items.find((item) => item.kind === "spec_markdown");
 
-    expect(transcriptText).toContain("SG-SPEC-0001 Markdown export");
+    expect(transcriptText).toContain("SG-SPEC-0001 Hyperprompt compile");
     expect(transcriptText).not.toContain("Raw body must stay hidden after resume");
+    expect(transcriptText).not.toContain("Compiled raw body must stay hidden too");
     if (historyMarkdown?.kind === "spec_markdown") {
       expect(historyMarkdown.markdown).toBe("");
+      expect(historyMarkdown.compile?.compiled_md).toBeNull();
     }
   });
 });
