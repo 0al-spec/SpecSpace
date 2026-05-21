@@ -45,6 +45,11 @@ they are prepublished, but cannot append turns or create proposal outputs.
 Writable deployments must advertise that authority separately from the existing
 readonly SpecGraph provider state.
 
+SpecSpace can expose the readonly store by setting
+`SPECSPACE_AGENT_WORKBENCH_DIR` or `--agent-workbench-dir` to the `workbench/`
+directory. The initial API surface is read-only: it may serve existing artifacts
+or an empty index, but it must not create, append, or mutate conversations.
+
 ## UI Framework Boundary
 
 Agent UI frameworks are replaceable adapters around the SpecSpace-owned
@@ -273,6 +278,11 @@ Read endpoints:
 
 - `GET /api/v1/agent-workbench/conversations`
 - `GET /api/v1/agent-workbench/conversations/{conversation_id}`
+
+The read endpoints are guarded by the Agent Workbench store configuration. If no
+store is configured, SpecSpace returns a structured `503` and reports
+`agent_workbench_conversations: false` in `/api/v1/capabilities`. Readonly
+deployments must report `agent_workbench_writes: false`.
 
 Future writable endpoints must be capability-gated and must not be enabled by
 the existing readonly SpecGraph provider:

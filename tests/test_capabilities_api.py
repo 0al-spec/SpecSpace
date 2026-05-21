@@ -69,6 +69,8 @@ def test_build_capabilities_reports_unconfigured_defaults() -> None:
         "exploration_preview_build": False,
         "viewer_surfaces_build": False,
         "agent": False,
+        "agent_workbench_conversations": False,
+        "agent_workbench_writes": False,
     }
 
 
@@ -99,6 +101,8 @@ def test_build_capabilities_reports_configured_surfaces() -> None:
         "exploration_preview_build": True,
         "viewer_surfaces_build": True,
         "agent": True,
+        "agent_workbench_conversations": False,
+        "agent_workbench_writes": False,
     }
 
 

@@ -31,6 +31,7 @@ class ViewerRuntimeServer(Protocol):
     runs_watcher: Any
     artifact_base_url: str | None
     specpm_registry_url: str | None
+    agent_workbench_dir: Path | None
     agent_available: bool
 
     def serve_forever(self) -> None: ...
@@ -42,6 +43,7 @@ def build_arg_parser(
     default_hyperprompt_binary: str,
 ) -> argparse.ArgumentParser:
     hyperprompt_work_dir_env = os.environ.get("SPECSPACE_HYPERPROMPT_WORK_DIR", "").strip()
+    agent_workbench_dir_env = os.environ.get("SPECSPACE_AGENT_WORKBENCH_DIR", "").strip()
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--host",
@@ -108,6 +110,15 @@ def build_arg_parser(
         default=False,
         help="Enable the AgentChat panel in the UI",
     )
+    parser.add_argument(
+        "--agent-workbench-dir",
+        type=Path,
+        default=Path(agent_workbench_dir_env) if agent_workbench_dir_env else None,
+        help=(
+            "Optional SpecSpace-owned Agent Workbench artifact store. "
+            "Readonly APIs expect workbench/conversations/index.json and conversation artifacts."
+        ),
+    )
     return parser
 
 
@@ -154,6 +165,8 @@ def configure_server(
     server.artifact_base_url = artifact_base_url.strip() if artifact_base_url else None
     specpm_registry_url = getattr(args, "specpm_registry_url", None)
     server.specpm_registry_url = specpm_registry_url.strip().rstrip("/") if specpm_registry_url else None
+    agent_workbench_dir = getattr(args, "agent_workbench_dir", None)
+    server.agent_workbench_dir = agent_workbench_dir.expanduser().resolve() if agent_workbench_dir else None
     server.agent_available = args.agent
 
 

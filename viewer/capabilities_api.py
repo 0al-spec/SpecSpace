@@ -7,6 +7,7 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Protocol
 
+from viewer import agent_workbench
 from viewer.http_response import JsonResponseHandler, json_response
 
 
@@ -36,6 +37,8 @@ def build_capabilities(handler: CapabilitiesHandler) -> dict[str, bool]:
         "exploration_preview_build": handler._exploration_build_available(),
         "viewer_surfaces_build": handler._viewer_surfaces_build_available(),
         "agent": bool(getattr(handler.server, "agent_available", False)),
+        "agent_workbench_conversations": agent_workbench.agent_workbench_read_available(handler.server),
+        "agent_workbench_writes": False,
     }
 
 
@@ -165,6 +168,7 @@ def build_capability_diagnostics(
     capabilities: dict[str, bool],
 ) -> dict[str, dict[str, Any]]:
     markdown_available = bool(capabilities.get("spec_markdown_export"))
+    agent_workbench_available = bool(capabilities.get("agent_workbench_conversations"))
     return {
         "spec_markdown_export": {
             "available": markdown_available,
@@ -179,6 +183,17 @@ def build_capability_diagnostics(
             handler,
             provider_kind=provider_kind,
         ),
+        "agent_workbench_conversations": {
+            "available": agent_workbench_available,
+            "status": "available" if agent_workbench_available else "unavailable",
+            "detail": (
+                "Readonly Agent Workbench conversation artifacts are available."
+                if agent_workbench_available
+                else "Readonly Agent Workbench conversation artifacts are not configured."
+            ),
+            "source": agent_workbench.agent_workbench_source(handler.server),
+            "writes_available": False,
+        },
     }
 
 
