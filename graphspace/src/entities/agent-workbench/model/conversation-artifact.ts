@@ -8,6 +8,7 @@ import type {
   AgentConversationHistoryEntry,
   AgentConversationId,
   AgentConversationRef,
+  AgentConversationRuntime,
   AgentRuntimeEvent,
 } from "./runtime";
 
@@ -105,6 +106,23 @@ export type AgentConversationIndexArtifact = {
 export type AgentConversationArtifactSource = AgentConversationHistoryEntry & {
   events: readonly AgentRuntimeEvent[];
 };
+
+export type AgentConversationArtifactRuntime = {
+  getConversationArtifact(conversationId: AgentConversationId): AgentConversationArtifact | null;
+  listConversationArtifacts(): AgentConversationArtifact[];
+  getConversationIndexArtifact(generatedAt: string): AgentConversationIndexArtifact;
+};
+
+export function isAgentConversationArtifactRuntime(
+  runtime: AgentConversationRuntime,
+): runtime is AgentConversationRuntime & AgentConversationArtifactRuntime {
+  const candidate = runtime as Partial<AgentConversationArtifactRuntime>;
+  return (
+    typeof candidate.getConversationArtifact === "function" &&
+    typeof candidate.listConversationArtifacts === "function" &&
+    typeof candidate.getConversationIndexArtifact === "function"
+  );
+}
 
 export function createAgentConversationArtifactSnapshot(
   source: AgentConversationArtifactSource,

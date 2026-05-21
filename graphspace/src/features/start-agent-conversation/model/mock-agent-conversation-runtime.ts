@@ -1,9 +1,14 @@
 import {
   agentContextItemLabel,
+  createAgentConversationArtifactSnapshot,
+  createAgentConversationIndexArtifact,
   serializeAgentContextSet,
   type AgentContextDraft,
   type AgentContextItem,
+  type AgentConversationArtifact,
+  type AgentConversationArtifactRuntime,
   type AgentConversationId,
+  type AgentConversationIndexArtifact,
   type AgentConversationHistoryEntry,
   type AgentConversationRef,
   type AgentConversationRuntime,
@@ -16,7 +21,8 @@ export type MockAgentConversationRecord = AgentConversationHistoryEntry & {
   events: AgentRuntimeEvent[];
 };
 
-export type MockAgentConversationRuntime = AgentConversationRuntime & {
+export type MockAgentConversationRuntime = AgentConversationRuntime &
+  AgentConversationArtifactRuntime & {
   getConversation(conversationId: AgentConversationId): MockAgentConversationRecord | null;
   listConversations(): MockAgentConversationRecord[];
 };
@@ -183,6 +189,26 @@ export function createMockAgentConversationRuntime(
       return Array.from(conversations.values())
         .sort(compareConversationRecords)
         .map(cloneRecord);
+    },
+
+    getConversationArtifact(conversationId: AgentConversationId): AgentConversationArtifact | null {
+      const record = conversations.get(conversationId);
+      return record ? createAgentConversationArtifactSnapshot(record) : null;
+    },
+
+    listConversationArtifacts(): AgentConversationArtifact[] {
+      return Array.from(conversations.values())
+        .sort(compareConversationRecords)
+        .map(createAgentConversationArtifactSnapshot);
+    },
+
+    getConversationIndexArtifact(generatedAt: string): AgentConversationIndexArtifact {
+      return createAgentConversationIndexArtifact(
+        Array.from(conversations.values())
+          .sort(compareConversationRecords)
+          .map(createAgentConversationArtifactSnapshot),
+        generatedAt,
+      );
     },
   };
 }

@@ -7,10 +7,12 @@ import {
 import {
   agentContextItemLabel,
   agentContextItemKey,
+  isAgentConversationArtifactRuntime,
   createAgentRuntimeProjection,
   isAgentConversationHistoryRuntime,
   projectAgentRuntimeEvent,
   serializeAgentContextSet,
+  type AgentConversationArtifact,
   type AgentConversationHistoryEntry,
   type AgentConversationPromptSeed,
   type AgentContextDraft,
@@ -61,9 +63,20 @@ export function AgentConversationPanel({
     () => (isAgentConversationHistoryRuntime(runtime) ? runtime : null),
     [runtime],
   );
+  const artifactRuntime = useMemo(
+    () => (isAgentConversationArtifactRuntime(runtime) ? runtime : null),
+    [runtime],
+  );
   const conversationHistory = useMemo(
     () => (historyRuntime ? historyRuntime.listConversations() : []),
     [historyRuntime, historyVersion],
+  );
+  const conversationArtifact = useMemo(
+    () =>
+      artifactRuntime && conversation
+        ? artifactRuntime.getConversationArtifact(conversation.conversation_id)
+        : null,
+    [artifactRuntime, conversation, historyVersion, projection],
   );
   const assistantUiStore = useMemo(
     () =>
@@ -192,6 +205,10 @@ export function AgentConversationPanel({
           onResume={handleResumeConversation}
           onStartFresh={handleStartFresh}
         />
+      ) : null}
+
+      {artifactRuntime && conversation ? (
+        <ConversationArtifactSnapshot artifact={conversationArtifact} />
       ) : null}
 
       <div className={styles.contextStrip} aria-label="Conversation context">
@@ -329,6 +346,59 @@ function ConversationHistory({
   );
 }
 
+function ConversationArtifactSnapshot({
+  artifact,
+}: {
+  artifact: AgentConversationArtifact | null;
+}) {
+  if (!artifact) {
+    return (
+      <div className={styles.artifactPanel} aria-label="Conversation artifact snapshot">
+        <div className={styles.artifactHeader}>
+          <span className={styles.artifactTitle}>Artifact snapshot</span>
+          <span className={styles.artifactMeta}>Unavailable</span>
+        </div>
+      </div>
+    );
+  }
+
+  const contextItemCount = countArtifactContextItems(artifact);
+
+  return (
+    <div className={styles.artifactPanel} aria-label="Conversation artifact snapshot">
+      <div className={styles.artifactHeader}>
+        <span className={styles.artifactTitle}>Artifact snapshot</span>
+        <span className={styles.artifactMeta}>
+          {artifact.artifact_kind} · {artifact.api_version} · schema {artifact.schema_version}
+        </span>
+      </div>
+      <div className={styles.artifactStats}>
+        <ArtifactStat label="Turns" value={artifact.turns.length} />
+        <ArtifactStat label="Outputs" value={artifact.outputs.length} />
+        <ArtifactStat label="Context" value={contextItemCount} />
+      </div>
+      <dl className={styles.artifactFacts}>
+        <div>
+          <dt>Owner</dt>
+          <dd>{artifact.storage.owner}</dd>
+        </div>
+        <div>
+          <dt>Authority</dt>
+          <dd>{artifact.storage.mutation_authority}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>{artifact.status}</dd>
+        </div>
+      </dl>
+      <details className={styles.artifactDetails}>
+        <summary>Readonly artifact summary</summary>
+        <pre>{formatArtifactSummary(artifact)}</pre>
+      </details>
+    </div>
+  );
+}
+
 function AgentContextToken({
   item,
   resolveSpecRef,
@@ -392,6 +462,15 @@ function Metric({ value, label }: { value: number; label: string }) {
   );
 }
 
+function ArtifactStat({ value, label }: { value: number; label: string }) {
+  return (
+    <div className={styles.artifactStat}>
+      <span className={styles.artifactStatValue}>{value}</span>
+      <span className={styles.artifactStatLabel}>{label}</span>
+    </div>
+  );
+}
+
 function TurnView({
   turn,
   resolveSpecRef,
@@ -448,6 +527,35 @@ function Status({ label, detail }: { label: string; detail: string }) {
 
 function countOutputs(projection: AgentRuntimeProjection): number {
   return projection.turns.reduce((count, turn) => count + turn.outputs.length, 0);
+}
+
+function countArtifactContextItems(artifact: AgentConversationArtifact): number {
+  return artifact.context_sets.reduce((count, contextSet) => count + contextSet.items.length, 0);
+}
+
+function formatArtifactSummary(artifact: AgentConversationArtifact): string {
+  return JSON.stringify(
+    {
+      artifact_kind: artifact.artifact_kind,
+      api_version: artifact.api_version,
+      schema_version: artifact.schema_version,
+      conversation_id: artifact.conversation_id,
+      storage: artifact.storage,
+      counts: {
+        context_sets: artifact.context_sets.length,
+        context_items: countArtifactContextItems(artifact),
+        turns: artifact.turns.length,
+        outputs: artifact.outputs.length,
+      },
+      outputs: artifact.outputs.map((output) => ({
+        output_id: output.output_id,
+        kind: output.kind,
+        origin_turn_id: output.origin_turn_id,
+      })),
+    },
+    null,
+    2,
+  );
 }
 
 function formatHistoryMeta(entry: AgentConversationHistoryEntry): string {

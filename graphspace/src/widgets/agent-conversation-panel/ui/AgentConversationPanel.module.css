@@ -38,7 +38,13 @@
 .statusLabel,
 .historyTitle,
 .historyMeta,
-.historyEmpty {
+.historyEmpty,
+.artifactTitle,
+.artifactMeta,
+.artifactStatLabel,
+.artifactFacts dt,
+.artifactFacts dd,
+.artifactDetails summary {
   font-family: var(--gs-mono);
   font-size: 10px;
   font-weight: 600;
@@ -148,6 +154,107 @@
 .historyMeta,
 .historyEmpty {
   color: var(--gs-muted-2);
+}
+
+.artifactPanel {
+  flex: 0 0 auto;
+  display: grid;
+  gap: var(--gs-space-4);
+  padding: var(--gs-space-4) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+}
+
+.artifactHeader {
+  display: grid;
+  gap: 2px;
+}
+
+.artifactTitle {
+  color: var(--gs-muted);
+}
+
+.artifactMeta {
+  color: var(--gs-ink);
+  overflow-wrap: anywhere;
+}
+
+.artifactStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--gs-rule-soft);
+  background: white;
+}
+
+.artifactStat {
+  min-width: 0;
+  padding: var(--gs-space-3);
+  border-right: 1px solid var(--gs-rule-soft);
+}
+
+.artifactStat:last-child {
+  border-right: 0;
+}
+
+.artifactStatValue {
+  display: block;
+  color: var(--gs-ink);
+  font-family: var(--gs-serif);
+  font-size: 18px;
+}
+
+.artifactStatLabel {
+  display: block;
+  margin-top: 1px;
+  color: var(--gs-muted-2);
+}
+
+.artifactFacts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--gs-space-2);
+  margin: 0;
+}
+
+.artifactFacts div {
+  min-width: 0;
+  border: 1px solid var(--gs-rule-soft);
+  background: white;
+  padding: var(--gs-space-3);
+}
+
+.artifactFacts dt {
+  color: var(--gs-muted-2);
+}
+
+.artifactFacts dd {
+  margin: 2px 0 0;
+  color: var(--gs-ink);
+  overflow-wrap: anywhere;
+}
+
+.artifactDetails {
+  border: 1px solid var(--gs-rule-soft);
+  background: white;
+}
+
+.artifactDetails summary {
+  cursor: pointer;
+  color: var(--gs-muted);
+  padding: var(--gs-space-3);
+}
+
+.artifactDetails pre {
+  max-height: 180px;
+  margin: 0;
+  overflow: auto;
+  border-top: 1px solid var(--gs-rule-soft);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  line-height: 1.45;
+  padding: var(--gs-space-3);
+  white-space: pre-wrap;
 }
 
 .secondaryButton {

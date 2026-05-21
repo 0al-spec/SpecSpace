@@ -2095,7 +2095,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Exposed conversation history records and resume output do not render or leak raw Spec Markdown bodies.
   - The implementation stays frontend-only and keeps persisted backend conversation storage out of scope.
 
-### CTXB-P13-T39 — Add Agent Conversation artifact snapshot contract — In Progress
+### ✅ CTXB-P13-T39 — Add Agent Conversation artifact snapshot contract — DONE (PASS, 2026-05-21)
 - **Description:** Add typed Agent Workbench conversation artifact and index snapshot builders from local runtime history, giving future writable storage and proposal-origin work a concrete SpecSpace-owned contract.
 - **Priority:** P3
 - **Dependencies:** CTXB-P13-T38
@@ -2107,6 +2107,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Output records preserve `origin_turn_id` and context-set linkage for future proposal draft origins.
   - Index entries expose title, status, updated time, turn count, context count, output count, and proposal output count.
   - Spec Markdown bodies remain redacted when the artifact is built from redacted history records.
+
+### CTXB-P13-T40 — Expose Agent Conversation artifact snapshots in the UI — In Progress
+- **Description:** Surface readonly local Agent Conversation artifact snapshots in the Agent Conversation panel, so operators can inspect the durable artifact boundary before backend persistence exists.
+- **Priority:** P3
+- **Dependencies:** CTXB-P13-T39
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** artifact-capable mock runtime surface, Agent Conversation snapshot UI, focused tests, validation report
+- **Acceptance Criteria:**
+  - The mock Agent Conversation runtime can expose `specspace_agent_conversation` snapshots and a sorted index artifact through an explicit readonly capability.
+  - The Agent Conversation panel shows a compact artifact snapshot summary for the active/resumed conversation.
+  - Snapshot summary includes artifact kind, schema/API version, storage authority, turn count, output count, and context item count.
+  - The UI does not render raw Spec Markdown bodies or compiled Markdown bodies from the snapshot.
+  - Existing conversation start, resume, send, and context removal flows remain unchanged.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
