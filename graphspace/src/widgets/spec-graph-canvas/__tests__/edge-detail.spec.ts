@@ -25,6 +25,16 @@ class MemoryStorage {
   }
 }
 
+class ThrowingStorage {
+  getItem() {
+    return null;
+  }
+
+  setItem() {
+    throw new Error("storage unavailable");
+  }
+}
+
 const edge = (
   edge_id: string,
   edge_kind: SpecEdge["edge_kind"],
@@ -56,6 +66,17 @@ describe("SpecGraph canvas edge detail", () => {
     writeSpecGraphCanvasEdgeDetailMode(storage, "full");
 
     expect(readSpecGraphCanvasEdgeDetailMode(storage)).toBe("full");
+  });
+
+  it("ignores storage write failures for edge controls", () => {
+    const storage = new ThrowingStorage();
+
+    expect(() =>
+      writeSpecGraphCanvasEdgeDetailMode(storage, "full"),
+    ).not.toThrow();
+    expect(() =>
+      writeSpecGraphCanvasEdgeRouteMode(storage, "orthogonal"),
+    ).not.toThrow();
   });
 
   it("normalizes and persists the selected edge route mode", () => {

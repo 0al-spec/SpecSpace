@@ -118,7 +118,11 @@ export function writeSpecGraphCanvasEdgeDetailMode(
   mode: SpecGraphCanvasEdgeDetailMode,
 ) {
   if (!storage) return;
-  storage.setItem(EDGE_DETAIL_STORAGE_KEY, mode);
+  try {
+    storage.setItem(EDGE_DETAIL_STORAGE_KEY, mode);
+  } catch {
+    // Storage persistence is optional; keep canvas controls usable when writes fail.
+  }
 }
 
 export function readSpecGraphCanvasEdgeRouteMode(
@@ -141,7 +145,11 @@ export function writeSpecGraphCanvasEdgeRouteMode(
   mode: SpecGraphCanvasEdgeRouteMode,
 ) {
   if (!storage) return;
-  storage.setItem(EDGE_ROUTE_STORAGE_KEY, mode);
+  try {
+    storage.setItem(EDGE_ROUTE_STORAGE_KEY, mode);
+  } catch {
+    // Storage persistence is optional; keep canvas controls usable when writes fail.
+  }
 }
 
 export function resolveSpecGraphCanvasEdgeDetailMode(
