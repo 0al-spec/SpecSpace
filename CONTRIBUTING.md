@@ -66,7 +66,8 @@
 - Для React Flow canvas задаём deterministic `initialWidth`/`initialHeight` у custom nodes:
   без них `MiniMap` может не отрисовать node rectangles, даже если сами nodes видны на canvas.
 - Canvas parity переносим из старого ContextBuilder избирательно:
-  - сначала deterministic presets (`Tree`, `Linear`, `Canonical`, `Status`);
+  - сначала deterministic presets (`Tree`, `Linear`, `Spine`, `Canonical`, `Status`);
+  - `Spine`/tidy DAG layout нужен для readable large-graph maps: depth задаёт колонку, `refines` children центрируются вокруг parent, а secondary links не двигают nodes;
   - dense edges должны идти через edge-detail/LOD controls (`Auto`, `Main`, `Core`, `Links`, `All`) и edge routing (`Curve`, `Rect`), а не как always-on rendering;
   - `Auto` на дальнем zoom должен уметь скрывать пунктирные `refines`, потому что они легко перекрывают основные directional links;
   - legacy `Force` был отдельной D3 SVG-сценой, а не React Flow layout preset, поэтому возвращаем его только как guarded/opt-in режим с явным budget и smoke;

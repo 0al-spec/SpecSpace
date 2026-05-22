@@ -96,6 +96,7 @@ describe("SpecGraph canvas layout presets", () => {
     expect(SPEC_GRAPH_CANVAS_LAYOUT_PRESETS).toEqual([
       "tree",
       "linear",
+      "spine",
       "canonical",
       "status-columns",
     ]);
@@ -167,6 +168,72 @@ describe("SpecGraph canvas layout presets", () => {
     });
   });
 
+  it("centers Spine child groups around their parent by hierarchy depth", () => {
+    const positions = computeSpecGraphCanvasLayoutPositions(
+      [
+        node("SG-SPEC-0001", "linked"),
+        node("SG-SPEC-0002", "linked"),
+        node("SG-SPEC-0003", "linked"),
+        node("SG-SPEC-0004", "linked"),
+      ],
+      [
+        edge("refines-2-1", "refines", "SG-SPEC-0002", "SG-SPEC-0001"),
+        edge("refines-3-1", "refines", "SG-SPEC-0003", "SG-SPEC-0001"),
+        edge("refines-4-1", "refines", "SG-SPEC-0004", "SG-SPEC-0001"),
+      ],
+      "spine",
+    );
+
+    expect(positions.get("SG-SPEC-0001")).toEqual({ x: 0, y: 172 });
+    expect(positions.get("SG-SPEC-0002")).toEqual({ x: 360, y: 0 });
+    expect(positions.get("SG-SPEC-0003")).toEqual({ x: 360, y: 172 });
+    expect(positions.get("SG-SPEC-0004")).toEqual({ x: 360, y: 344 });
+  });
+
+  it("uses subtree spans in Spine so nested groups stay compact", () => {
+    const positions = computeSpecGraphCanvasLayoutPositions(
+      [
+        node("SG-SPEC-0001", "linked"),
+        node("SG-SPEC-0002", "linked"),
+        node("SG-SPEC-0003", "linked"),
+        node("SG-SPEC-0004", "linked"),
+        node("SG-SPEC-0005", "linked"),
+      ],
+      [
+        edge("refines-2-1", "refines", "SG-SPEC-0002", "SG-SPEC-0001"),
+        edge("refines-3-1", "refines", "SG-SPEC-0003", "SG-SPEC-0001"),
+        edge("refines-4-2", "refines", "SG-SPEC-0004", "SG-SPEC-0002"),
+        edge("refines-5-2", "refines", "SG-SPEC-0005", "SG-SPEC-0002"),
+      ],
+      "spine",
+    );
+
+    expect(positions.get("SG-SPEC-0001")).toEqual({ x: 0, y: 172 });
+    expect(positions.get("SG-SPEC-0002")).toEqual({ x: 360, y: 86 });
+    expect(positions.get("SG-SPEC-0003")).toEqual({ x: 360, y: 344 });
+    expect(positions.get("SG-SPEC-0004")).toEqual({ x: 720, y: 0 });
+    expect(positions.get("SG-SPEC-0005")).toEqual({ x: 720, y: 172 });
+  });
+
+  it("keeps secondary links out of Spine depth placement", () => {
+    const positions = computeSpecGraphCanvasLayoutPositions(
+      [
+        node("SG-SPEC-0001", "linked"),
+        node("SG-SPEC-0002", "linked"),
+        node("SG-SPEC-0003", "linked"),
+      ],
+      [
+        edge("refines-2-1", "refines", "SG-SPEC-0002", "SG-SPEC-0001"),
+        edge("depends-1-3", "depends_on", "SG-SPEC-0001", "SG-SPEC-0003"),
+      ],
+      "spine",
+    );
+
+    expect(positions.get("SG-SPEC-0001")?.x).toBe(0);
+    expect(positions.get("SG-SPEC-0002")?.x).toBe(360);
+    expect(positions.get("SG-SPEC-0003")?.x).toBe(0);
+  });
+
   it("can place specs into status columns", () => {
     const positions = computeSpecGraphCanvasLayoutPositions(
       [
@@ -199,6 +266,7 @@ describe("SpecGraph canvas layout presets", () => {
     expect(normalizeSpecGraphCanvasLayoutPreset("status-columns")).toBe(
       "status-columns",
     );
+    expect(normalizeSpecGraphCanvasLayoutPreset("spine")).toBe("spine");
     expect(normalizeSpecGraphCanvasLayoutPreset("refinement-ladder")).toBe(
       "tree",
     );
