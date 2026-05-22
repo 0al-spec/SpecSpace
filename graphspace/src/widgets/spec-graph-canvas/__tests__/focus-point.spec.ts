@@ -19,7 +19,7 @@ describe("getSpecGraphNodeFocusPoint", () => {
       getSpecGraphNodeFocusPoint({
         position: { x: 720, y: 344 },
       }),
-    ).toEqual({ x: 830, y: 400 });
+    ).toEqual({ x: 830, y: 407 });
   });
 });
 
@@ -54,7 +54,7 @@ describe("getSpecGraphEdgeEndpointBounds", () => {
       x: 360,
       y: 172,
       width: 580,
-      height: 284,
+      height: 298,
     });
   });
 

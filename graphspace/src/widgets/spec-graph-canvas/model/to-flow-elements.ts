@@ -34,7 +34,7 @@ export type SpecFlowNode = Node<SpecFlowNodeData, "specNode">;
 export type SpecFlowEdge = Edge<SpecFlowEdgeData, "specEdge">;
 
 export const SPEC_FLOW_NODE_INITIAL_WIDTH = 220;
-export const SPEC_FLOW_NODE_INITIAL_HEIGHT = 112;
+export const SPEC_FLOW_NODE_INITIAL_HEIGHT = 126;
 
 const byNodeId = (a: SpecNode, b: SpecNode) =>
   a.node_id.localeCompare(b.node_id);
