@@ -20,6 +20,11 @@
   box-shadow: 0 0 0 3px var(--gs-accent-soft);
 }
 
+.highlighted {
+  border-color: color-mix(in srgb, var(--gs-accent) 58%, var(--gs-rule-mid));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gs-accent) 18%, transparent);
+}
+
 .header,
 .meta {
   display: flex;

@@ -21,6 +21,7 @@ type SpecNodeCardVariant = "canvas" | "preview";
 type Props = {
   node: SpecNode;
   selected?: boolean;
+  highlighted?: boolean;
   lifecycleBadge?: LifecycleBadge | null;
   objectivePreview?: string | null;
   variant?: SpecNodeCardVariant;
@@ -36,6 +37,7 @@ type MaturityStyle = CSSProperties & {
 export function SpecNodeCard({
   node,
   selected = false,
+  highlighted = false,
   lifecycleBadge = null,
   objectivePreview = null,
   variant = "canvas",
@@ -57,6 +59,7 @@ export function SpecNodeCard({
     styles.card,
     variant === "preview" ? styles.preview : "",
     selected ? styles.selected : "",
+    highlighted && !selected ? styles.highlighted : "",
     className ?? "",
   ]
     .filter(Boolean)

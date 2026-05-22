@@ -9,6 +9,7 @@ import type {
   SpecGraphCanvasOverlayKind,
   SpecGraphCanvasOverlaySummary,
 } from "./overlays";
+import type { SpecGraphCanvasEdgeRouteMode } from "./edge-detail";
 import {
   DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET,
   computeSpecGraphCanvasLayoutPositions,
@@ -17,6 +18,7 @@ import {
 
 export type SpecFlowNodeData = Record<string, unknown> & {
   spec: SpecNode;
+  edgeEndpointHighlighted?: boolean;
   lifecycleBadge?: SpecPMLifecycleBadge | null;
   overlay?: SpecGraphCanvasOverlaySummary | null;
   onHoverPreviewIntent?: (node: SpecNode, anchor: HoverPreviewAnchor) => void;
@@ -26,6 +28,7 @@ export type SpecFlowNodeData = Record<string, unknown> & {
 
 export type SpecFlowEdgeData = Record<string, unknown> & {
   specEdge: SpecEdge;
+  route?: SpecGraphCanvasEdgeRouteMode;
   overlay?: SpecGraphCanvasOverlaySummary | null;
   onOverlayClick?: (kind: SpecGraphCanvasOverlayKind, edgeId: string) => void;
 };

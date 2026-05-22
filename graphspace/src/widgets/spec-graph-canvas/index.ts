@@ -15,6 +15,28 @@ export {
   type SpecGraphCanvasGapFilter,
   type SpecGraphCanvasGapFilterCounts,
 } from "./model/gap-filter";
+export {
+  DEFAULT_SPEC_GRAPH_CANVAS_EDGE_DETAIL_MODE,
+  DEFAULT_SPEC_GRAPH_CANVAS_EDGE_ROUTE_MODE,
+  SPEC_GRAPH_CANVAS_EDGE_DETAIL_LABELS,
+  SPEC_GRAPH_CANVAS_EDGE_DETAIL_MODES,
+  SPEC_GRAPH_CANVAS_EDGE_ROUTE_LABELS,
+  SPEC_GRAPH_CANVAS_EDGE_ROUTE_MODES,
+  SPEC_GRAPH_CANVAS_EFFECTIVE_EDGE_DETAIL_LABELS,
+  getSpecGraphCanvasEdgeDetailStorage,
+  isSpecGraphCanvasEdgeVisible,
+  normalizeSpecGraphCanvasEdgeDetailMode,
+  normalizeSpecGraphCanvasEdgeRouteMode,
+  readSpecGraphCanvasEdgeDetailMode,
+  readSpecGraphCanvasEdgeRouteMode,
+  resolveSpecGraphCanvasEdgeDetailMode,
+  writeSpecGraphCanvasEdgeDetailMode,
+  writeSpecGraphCanvasEdgeRouteMode,
+  type SpecGraphCanvasEdgeDetailMode,
+  type SpecGraphCanvasEdgeRouteMode,
+  type SpecGraphCanvasEdgeDetailStorage,
+  type SpecGraphCanvasEffectiveEdgeDetailMode,
+} from "./model/edge-detail";
 export { buildSpecGraphSelection, type SpecGraphSelection } from "./model/selection";
 export {
   buildSpecGraphCanvasOverlays,
