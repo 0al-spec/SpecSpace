@@ -155,7 +155,7 @@ Target:
 - visible gap marks and gap filters;
 - selecting spec nodes, edges, gaps, and proposals as agent context;
 - minimap and canvas controls that stay coherent with side panels;
-- edge density / LOD controls before reintroducing heavier Force-style layouts;
+- edge density / LOD controls and curved routing before reintroducing heavier Force-style layouts;
 - proposal/metric overlays on graph nodes and edges.
 
 ## Suggested Next Slices
@@ -199,4 +199,4 @@ Target:
 37. `CTXB-P13-T41` — Add Agent Workbench readonly conversation API boundary. ✅
 38. `CTXB-P13-T42` — Connect Agent Conversation panel to readonly Workbench API. ✅
 39. `CTXB-P13-T43` — Restore legacy SpecGraph layout preset semantics. ✅
-40. `CTXB-P13-T44` — Add canvas edge density and LOD controls.
+40. `CTXB-P13-T44` — Add canvas edge density, routing, and LOD controls.

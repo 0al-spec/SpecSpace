@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { SpecEdge } from "@/entities/spec-edge";
 import {
   DEFAULT_SPEC_GRAPH_CANVAS_EDGE_DETAIL_MODE,
+  DEFAULT_SPEC_GRAPH_CANVAS_EDGE_ROUTE_MODE,
   isSpecGraphCanvasEdgeVisible,
   normalizeSpecGraphCanvasEdgeDetailMode,
+  normalizeSpecGraphCanvasEdgeRouteMode,
   readSpecGraphCanvasEdgeDetailMode,
+  readSpecGraphCanvasEdgeRouteMode,
   resolveSpecGraphCanvasEdgeDetailMode,
   writeSpecGraphCanvasEdgeDetailMode,
+  writeSpecGraphCanvasEdgeRouteMode,
 } from "../index";
 
 class MemoryStorage {
@@ -40,6 +44,7 @@ describe("SpecGraph canvas edge detail", () => {
     const storage = new MemoryStorage();
 
     expect(normalizeSpecGraphCanvasEdgeDetailMode("auto")).toBe("auto");
+    expect(normalizeSpecGraphCanvasEdgeDetailMode("primary")).toBe("primary");
     expect(normalizeSpecGraphCanvasEdgeDetailMode("structural")).toBe(
       "structural",
     );
@@ -53,8 +58,25 @@ describe("SpecGraph canvas edge detail", () => {
     expect(readSpecGraphCanvasEdgeDetailMode(storage)).toBe("full");
   });
 
+  it("normalizes and persists the selected edge route mode", () => {
+    const storage = new MemoryStorage();
+
+    expect(normalizeSpecGraphCanvasEdgeRouteMode("curved")).toBe("curved");
+    expect(normalizeSpecGraphCanvasEdgeRouteMode("orthogonal")).toBe(
+      "orthogonal",
+    );
+    expect(normalizeSpecGraphCanvasEdgeRouteMode("grid")).toBeNull();
+    expect(readSpecGraphCanvasEdgeRouteMode(storage)).toBe(
+      DEFAULT_SPEC_GRAPH_CANVAS_EDGE_ROUTE_MODE,
+    );
+
+    writeSpecGraphCanvasEdgeRouteMode(storage, "orthogonal");
+
+    expect(readSpecGraphCanvasEdgeRouteMode(storage)).toBe("orthogonal");
+  });
+
   it("resolves Auto detail from zoom to avoid dense far-zoom edges", () => {
-    expect(resolveSpecGraphCanvasEdgeDetailMode("auto", 0.2)).toBe("hierarchy");
+    expect(resolveSpecGraphCanvasEdgeDetailMode("auto", 0.2)).toBe("primary");
     expect(resolveSpecGraphCanvasEdgeDetailMode("auto", 0.5)).toBe(
       "structural",
     );
@@ -65,6 +87,12 @@ describe("SpecGraph canvas edge detail", () => {
   });
 
   it("filters edge density by effective mode while preserving diagnostics", () => {
+    expect(
+      isSpecGraphCanvasEdgeVisible(edge("depends", "depends_on"), "primary"),
+    ).toBe(true);
+    expect(
+      isSpecGraphCanvasEdgeVisible(edge("refines", "refines"), "primary"),
+    ).toBe(false);
     expect(
       isSpecGraphCanvasEdgeVisible(edge("refines", "refines"), "hierarchy"),
     ).toBe(true);
@@ -89,6 +117,11 @@ describe("SpecGraph canvas edge detail", () => {
   });
 
   it("keeps selected and node-adjacent edges visible in sparse modes", () => {
+    expect(
+      isSpecGraphCanvasEdgeVisible(edge("refines", "refines"), "primary", {
+        selectedEdgeId: "refines",
+      }),
+    ).toBe(true);
     expect(
       isSpecGraphCanvasEdgeVisible(edge("depends", "depends_on"), "hierarchy", {
         selectedEdgeId: "depends",

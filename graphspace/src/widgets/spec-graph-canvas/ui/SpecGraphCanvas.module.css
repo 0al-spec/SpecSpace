@@ -78,14 +78,16 @@
 
 .gapFilterDock,
 .layoutPresetDock,
-.edgeDetailDock {
+.edgeDetailDock,
+.edgeRouteDock {
   display: inline-flex;
   flex-wrap: wrap;
   gap: var(--gs-space-2);
 }
 
 .layoutPresetDock,
-.edgeDetailDock {
+.edgeDetailDock,
+.edgeRouteDock {
   padding-left: var(--gs-space-2);
   border-left: 1px solid var(--gs-rule-soft);
 }

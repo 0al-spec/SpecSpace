@@ -2,6 +2,7 @@ import type { SpecEdge } from "@/entities/spec-edge";
 
 export const SPEC_GRAPH_CANVAS_EDGE_DETAIL_MODES = [
   "auto",
+  "primary",
   "hierarchy",
   "structural",
   "full",
@@ -23,6 +24,7 @@ export const SPEC_GRAPH_CANVAS_EDGE_DETAIL_LABELS: Record<
   string
 > = {
   auto: "Auto",
+  primary: "Main",
   hierarchy: "Core",
   structural: "Links",
   full: "All",
@@ -32,9 +34,29 @@ export const SPEC_GRAPH_CANVAS_EFFECTIVE_EDGE_DETAIL_LABELS: Record<
   SpecGraphCanvasEffectiveEdgeDetailMode,
   string
 > = {
+  primary: "Main",
   hierarchy: "Core",
   structural: "Links",
   full: "All",
+};
+
+export const SPEC_GRAPH_CANVAS_EDGE_ROUTE_MODES = [
+  "curved",
+  "orthogonal",
+] as const;
+
+export type SpecGraphCanvasEdgeRouteMode =
+  (typeof SPEC_GRAPH_CANVAS_EDGE_ROUTE_MODES)[number];
+
+export const DEFAULT_SPEC_GRAPH_CANVAS_EDGE_ROUTE_MODE: SpecGraphCanvasEdgeRouteMode =
+  "curved";
+
+export const SPEC_GRAPH_CANVAS_EDGE_ROUTE_LABELS: Record<
+  SpecGraphCanvasEdgeRouteMode,
+  string
+> = {
+  curved: "Curve",
+  orthogonal: "Rect",
 };
 
 export type SpecGraphCanvasEdgeDetailStorage = Pick<
@@ -43,6 +65,7 @@ export type SpecGraphCanvasEdgeDetailStorage = Pick<
 >;
 
 const EDGE_DETAIL_STORAGE_KEY = "specspace:spec-graph-canvas-edge-detail:v1";
+const EDGE_ROUTE_STORAGE_KEY = "specspace:spec-graph-canvas-edge-route:v1";
 const AUTO_STRUCTURAL_ZOOM = 0.36;
 const AUTO_FULL_ZOOM = 0.72;
 
@@ -52,6 +75,15 @@ export function normalizeSpecGraphCanvasEdgeDetailMode(
   return typeof value === "string" &&
     (SPEC_GRAPH_CANVAS_EDGE_DETAIL_MODES as readonly string[]).includes(value)
     ? (value as SpecGraphCanvasEdgeDetailMode)
+    : null;
+}
+
+export function normalizeSpecGraphCanvasEdgeRouteMode(
+  value: unknown,
+): SpecGraphCanvasEdgeRouteMode | null {
+  return typeof value === "string" &&
+    (SPEC_GRAPH_CANVAS_EDGE_ROUTE_MODES as readonly string[]).includes(value)
+    ? (value as SpecGraphCanvasEdgeRouteMode)
     : null;
 }
 
@@ -89,6 +121,29 @@ export function writeSpecGraphCanvasEdgeDetailMode(
   storage.setItem(EDGE_DETAIL_STORAGE_KEY, mode);
 }
 
+export function readSpecGraphCanvasEdgeRouteMode(
+  storage: SpecGraphCanvasEdgeDetailStorage | null,
+): SpecGraphCanvasEdgeRouteMode {
+  if (!storage) return DEFAULT_SPEC_GRAPH_CANVAS_EDGE_ROUTE_MODE;
+  try {
+    return (
+      normalizeSpecGraphCanvasEdgeRouteMode(
+        storage.getItem(EDGE_ROUTE_STORAGE_KEY),
+      ) ?? DEFAULT_SPEC_GRAPH_CANVAS_EDGE_ROUTE_MODE
+    );
+  } catch {
+    return DEFAULT_SPEC_GRAPH_CANVAS_EDGE_ROUTE_MODE;
+  }
+}
+
+export function writeSpecGraphCanvasEdgeRouteMode(
+  storage: SpecGraphCanvasEdgeDetailStorage | null,
+  mode: SpecGraphCanvasEdgeRouteMode,
+) {
+  if (!storage) return;
+  storage.setItem(EDGE_ROUTE_STORAGE_KEY, mode);
+}
+
 export function resolveSpecGraphCanvasEdgeDetailMode(
   mode: SpecGraphCanvasEdgeDetailMode,
   zoom: number,
@@ -96,7 +151,7 @@ export function resolveSpecGraphCanvasEdgeDetailMode(
   if (mode !== "auto") return mode;
   if (zoom >= AUTO_FULL_ZOOM) return "full";
   if (zoom >= AUTO_STRUCTURAL_ZOOM) return "structural";
-  return "hierarchy";
+  return "primary";
 }
 
 export function isSpecGraphCanvasEdgeVisible(
@@ -117,5 +172,6 @@ export function isSpecGraphCanvasEdgeVisible(
   if (edge.status === "broken") return true;
   if (effectiveMode === "full") return true;
   if (effectiveMode === "structural") return edge.edge_kind !== "relates_to";
+  if (effectiveMode === "primary") return edge.edge_kind === "depends_on";
   return edge.edge_kind === "refines";
 }
