@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AssistantRuntimeProvider,
   ThreadPrimitive,
@@ -9,11 +9,16 @@ import {
   agentContextItemKey,
   isAgentConversationArtifactRuntime,
   createAgentRuntimeProjection,
+  fetchAgentConversationArtifact,
   isAgentConversationHistoryRuntime,
+  projectAgentConversationArtifactToProjection,
   projectAgentRuntimeEvent,
   serializeAgentContextSet,
   type AgentConversationArtifact,
+  type AgentConversationContextItem,
   type AgentConversationHistoryEntry,
+  type AgentConversationIndexArtifact,
+  type AgentConversationIndexEntry,
   type AgentConversationPromptSeed,
   type AgentContextDraft,
   type AgentContextItem,
@@ -22,12 +27,26 @@ import {
   type AgentConversationRuntime,
   type AgentRuntimeProjection,
   type AgentRuntimeTurnProjection,
+  type AgentWorkbenchReadResult,
 } from "@/entities/agent-workbench";
 import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
 import { createAssistantUiExternalStoreAdapter } from "../model/assistant-ui-adapter";
+import {
+  useAgentWorkbenchConversationIndex,
+  type AgentWorkbenchConversationIndexState,
+} from "../model/use-agent-workbench-conversation-index";
 import styles from "./AgentConversationPanel.module.css";
 
 type AgentConversationPanelStatus = "idle" | "starting" | "streaming" | "active" | "error";
+type StoredArtifactState =
+  | { kind: "idle" }
+  | { kind: "loading"; conversationId: AgentConversationId }
+  | { kind: "ok"; artifact: AgentConversationArtifact }
+  | { kind: "error"; conversationId: AgentConversationId; message: string };
+type StoredArtifactRequest = {
+  requestId: number;
+  controller: AbortController;
+};
 
 type Props = {
   runtime: AgentConversationRuntime;
@@ -57,8 +76,28 @@ export function AgentConversationPanel({
   const [status, setStatus] = useState<AgentConversationPanelStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [historyVersion, setHistoryVersion] = useState(0);
+  const [storeRefreshKey, setStoreRefreshKey] = useState(0);
+  const [storedArtifactState, setStoredArtifactState] = useState<StoredArtifactState>({
+    kind: "idle",
+  });
+  const storedArtifactRequestIdRef = useRef(0);
+  const storedArtifactRequestRef = useRef<StoredArtifactRequest | null>(null);
   const isBusy = status === "starting" || status === "streaming";
+  const storedArtifact =
+    storedArtifactState.kind === "ok" ? storedArtifactState.artifact : null;
+  const isReadonlyStoredConversation =
+    !!storedArtifact && conversation?.conversation_id === storedArtifact.conversation_id;
+  const storedContextItems = useMemo(
+    () => (isReadonlyStoredConversation ? flattenArtifactContextItems(storedArtifact) : []),
+    [isReadonlyStoredConversation, storedArtifact],
+  );
+  const activeContextCount = isReadonlyStoredConversation
+    ? storedContextItems.length
+    : serializedContext.items.length;
   const hasPrompt = prompt.trim().length > 0;
+  const storeIndexState = useAgentWorkbenchConversationIndex({
+    refreshKey: storeRefreshKey,
+  });
   const historyRuntime = useMemo(
     () => (isAgentConversationHistoryRuntime(runtime) ? runtime : null),
     [runtime],
@@ -71,13 +110,14 @@ export function AgentConversationPanel({
     () => (historyRuntime ? historyRuntime.listConversations() : []),
     [historyRuntime, historyVersion],
   );
-  const conversationArtifact = useMemo(
+  const localConversationArtifact = useMemo(
     () => {
       if (!artifactRuntime || !conversation) return null;
       return artifactRuntime.getConversationArtifact(conversation.conversation_id);
     },
     [artifactRuntime, conversation?.conversation_id, historyVersion],
   );
+  const activeConversationArtifact = storedArtifact ?? localConversationArtifact;
   const assistantUiStore = useMemo(
     () =>
       createAssistantUiExternalStoreAdapter({
@@ -89,12 +129,26 @@ export function AgentConversationPanel({
   const assistantUiRuntime = useExternalStoreRuntime(assistantUiStore);
 
   useEffect(() => {
+    return () => {
+      storedArtifactRequestRef.current?.controller.abort();
+      storedArtifactRequestRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!promptSeed || conversation || isBusy) return;
     setPrompt(promptSeed.prompt);
   }, [conversation, isBusy, promptSeed]);
 
   const refreshHistory = useCallback(() => {
     setHistoryVersion((current) => current + 1);
+  }, []);
+  const refreshStoreIndex = useCallback(() => {
+    setStoreRefreshKey((current) => current + 1);
+  }, []);
+  const abortStoredArtifactRequest = useCallback(() => {
+    storedArtifactRequestRef.current?.controller.abort();
+    storedArtifactRequestRef.current = null;
   }, []);
 
   const streamMessage = useCallback(
@@ -115,12 +169,14 @@ export function AgentConversationPanel({
 
   const handleStartFresh = useCallback(() => {
     if (isBusy) return;
+    abortStoredArtifactRequest();
+    setStoredArtifactState({ kind: "idle" });
     setConversation(null);
     setProjection(createAgentRuntimeProjection());
     setPrompt(promptSeed?.prompt ?? DEFAULT_PROMPT);
     setStatus("idle");
     setError(null);
-  }, [isBusy, promptSeed]);
+  }, [abortStoredArtifactRequest, isBusy, promptSeed]);
 
   const handleResumeConversation = useCallback(
     async (conversationId: AgentConversationId) => {
@@ -133,6 +189,8 @@ export function AgentConversationPanel({
         return;
       }
 
+      abortStoredArtifactRequest();
+      setStoredArtifactState({ kind: "idle" });
       setConversation(record.ref);
       setProjection(createAgentRuntimeProjection());
       setPrompt(DEFAULT_PROMPT);
@@ -150,20 +208,85 @@ export function AgentConversationPanel({
         setError(cause instanceof Error ? cause.message : "Conversation history resume failed.");
       }
     },
-    [historyRuntime, isBusy, refreshHistory],
+    [abortStoredArtifactRequest, historyRuntime, isBusy, refreshHistory],
+  );
+
+  const handleOpenStoredConversation = useCallback(
+    async (conversationId: AgentConversationId) => {
+      if (isBusy) return;
+      storedArtifactRequestRef.current?.controller.abort();
+      storedArtifactRequestIdRef.current += 1;
+      const request: StoredArtifactRequest = {
+        requestId: storedArtifactRequestIdRef.current,
+        controller: new AbortController(),
+      };
+      storedArtifactRequestRef.current = request;
+      setStoredArtifactState({ kind: "loading", conversationId });
+      setConversation(null);
+      setProjection(createAgentRuntimeProjection());
+      setPrompt(DEFAULT_PROMPT);
+      setStatus("starting");
+      setError(null);
+
+      try {
+        const result = await fetchAgentConversationArtifact({
+          conversationId,
+          signal: request.controller.signal,
+        });
+        if (storedArtifactRequestRef.current?.requestId !== request.requestId) return;
+        if (result.kind !== "ok") {
+          const message = describeWorkbenchReadFailure(result);
+          setStoredArtifactState({ kind: "error", conversationId, message });
+          storedArtifactRequestRef.current = null;
+          setStatus("error");
+          setError(message);
+          return;
+        }
+
+        setStoredArtifactState({ kind: "ok", artifact: result.data });
+        storedArtifactRequestRef.current = null;
+        setConversation({
+          conversation_id: result.data.conversation_id,
+          title: result.data.title,
+          status: result.data.status,
+        });
+        setProjection(projectAgentConversationArtifactToProjection(result.data));
+        setPrompt(DEFAULT_PROMPT);
+        setStatus("active");
+      } catch (cause) {
+        if (storedArtifactRequestRef.current?.requestId !== request.requestId) return;
+        storedArtifactRequestRef.current = null;
+        if (cause instanceof Error && cause.name === "AbortError") return;
+        const message =
+          cause instanceof Error
+            ? cause.message
+            : "Agent Workbench conversation artifact could not be loaded.";
+        setStoredArtifactState({ kind: "error", conversationId, message });
+        setStatus("error");
+        setError(message);
+      }
+    },
+    [isBusy],
   );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const text = prompt.trim();
     if (!text || isBusy) return;
+    if (isReadonlyStoredConversation) {
+      setStatus("error");
+      setError("Readonly Workbench artifacts cannot be appended yet. Start a new conversation to continue.");
+      return;
+    }
 
+    abortStoredArtifactRequest();
     setError(null);
     setPrompt("");
 
     try {
       let ref = conversation;
       if (!ref) {
+        setStoredArtifactState({ kind: "idle" });
         setStatus("starting");
         ref = await runtime.startConversation({
           title: createConversationTitle(text),
@@ -184,12 +307,14 @@ export function AgentConversationPanel({
     <section className={styles.panel} aria-label="Agent conversation">
       <div className={styles.summary}>
         <Metric label="Turns" value={projection.turns.length} />
-        <Metric label="Context" value={serializedContext.items.length} />
+        <Metric label="Context" value={activeContextCount} />
         <Metric label="Outputs" value={countOutputs(projection)} />
       </div>
 
       <div className={styles.runtimeBar}>
-        <span className={styles.runtimeBadge}>Mock runtime</span>
+        <span className={styles.runtimeBadge}>
+          {isReadonlyStoredConversation ? "Readonly store" : "Mock runtime"}
+        </span>
         <span className={styles.runtimeText}>
           {conversation
             ? `${conversation.conversation_id} · ${status}`
@@ -207,12 +332,36 @@ export function AgentConversationPanel({
         />
       ) : null}
 
-      {artifactRuntime && conversation ? (
-        <ConversationArtifactSnapshot artifact={conversationArtifact} />
+      <StoredConversationIndex
+        state={storeIndexState}
+        selectedArtifactState={storedArtifactState}
+        currentConversationId={conversation?.conversation_id ?? null}
+        currentIsStored={isReadonlyStoredConversation}
+        isBusy={isBusy}
+        onOpen={handleOpenStoredConversation}
+        onRefresh={refreshStoreIndex}
+      />
+
+      {(artifactRuntime && conversation) || storedArtifact ? (
+        <ConversationArtifactSnapshot artifact={activeConversationArtifact} />
       ) : null}
 
       <div className={styles.contextStrip} aria-label="Conversation context">
-        {serializedContext.items.length === 0 ? (
+        {isReadonlyStoredConversation ? (
+          storedContextItems.length === 0 ? (
+            <span className={styles.contextEmpty}>No context items attached.</span>
+          ) : (
+            storedContextItems.map((item, index) => (
+              <span className={styles.contextToken} key={storedContextItemKey(item, index)}>
+                <StoredArtifactContextToken
+                  item={item}
+                  resolveSpecRef={resolveSpecRef}
+                  onSpecIdClick={onSpecIdClick}
+                />
+              </span>
+            ))
+          )
+        ) : serializedContext.items.length === 0 ? (
           <span className={styles.contextEmpty}>No context items attached.</span>
         ) : (
           serializedContext.items.map((item) => {
@@ -266,6 +415,11 @@ export function AgentConversationPanel({
       </AssistantRuntimeProvider>
 
       {error ? <p className={styles.error}>{error}</p> : null}
+      {isReadonlyStoredConversation ? (
+        <p className={styles.readonlyNotice}>
+          Readonly Workbench artifact. Start a new conversation to continue with new turns.
+        </p>
+      ) : null}
 
       <form className={styles.composer} onSubmit={handleSubmit}>
         <label className={styles.composerLabel} htmlFor="agent-conversation-prompt">
@@ -275,19 +429,89 @@ export function AgentConversationPanel({
           id="agent-conversation-prompt"
           className={styles.promptInput}
           value={prompt}
-          disabled={isBusy}
+          disabled={isBusy || isReadonlyStoredConversation}
           rows={4}
           onChange={(event) => setPrompt(event.target.value)}
         />
         <button
           type="submit"
           className={styles.primaryButton}
-          disabled={!hasPrompt || isBusy}
+          disabled={!hasPrompt || isBusy || isReadonlyStoredConversation}
         >
-          {conversation ? "Send" : "Start Conversation"}
+          {isReadonlyStoredConversation ? "Readonly Artifact" : conversation ? "Send" : "Start Conversation"}
         </button>
       </form>
     </section>
+  );
+}
+
+function StoredConversationIndex({
+  state,
+  selectedArtifactState,
+  currentConversationId,
+  currentIsStored,
+  isBusy,
+  onOpen,
+  onRefresh,
+}: {
+  state: AgentWorkbenchConversationIndexState;
+  selectedArtifactState: StoredArtifactState;
+  currentConversationId: AgentConversationId | null;
+  currentIsStored: boolean;
+  isBusy: boolean;
+  onOpen: (conversationId: AgentConversationId) => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className={styles.historyPanel} aria-label="Readonly Workbench conversation store">
+      <div className={styles.historyHeader}>
+        <span className={styles.historyTitle}>Workbench store</span>
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          disabled={isBusy || state.kind === "loading"}
+          onClick={onRefresh}
+        >
+          Refresh
+        </button>
+      </div>
+      {state.kind === "ok" ? (
+        state.data.entries.length === 0 ? (
+          <span className={styles.historyEmpty}>Readonly store is initialized but empty.</span>
+        ) : (
+          <div className={styles.historyList}>
+            {state.data.entries.map((entry) => {
+              const isCurrent =
+                currentIsStored && entry.conversation_id === currentConversationId;
+              const isLoading =
+                selectedArtifactState.kind === "loading" &&
+                selectedArtifactState.conversationId === entry.conversation_id;
+
+              return (
+                <button
+                  type="button"
+                  key={entry.conversation_id}
+                  className={`${styles.historyButton} ${
+                    isCurrent ? styles.historyButtonActive : ""
+                  }`}
+                  disabled={isBusy || isCurrent || isLoading}
+                  onClick={() => onOpen(entry.conversation_id)}
+                  title={entry.title}
+                >
+                  <span className={styles.historyButtonTitle}>{entry.title}</span>
+                  <span className={styles.historyMeta}>{formatStoredIndexMeta(entry)}</span>
+                </button>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        <span className={styles.historyEmpty}>{describeWorkbenchIndexState(state)}</span>
+      )}
+      {selectedArtifactState.kind === "error" ? (
+        <span className={styles.storeError}>{selectedArtifactState.message}</span>
+      ) : null}
+    </div>
   );
 }
 
@@ -403,6 +627,79 @@ function ConversationArtifactSnapshot({
         <pre>{artifactSummary}</pre>
       </details>
     </div>
+  );
+}
+
+function StoredArtifactContextToken({
+  item,
+  resolveSpecRef,
+  onSpecIdClick,
+}: {
+  item: AgentConversationContextItem;
+  resolveSpecRef?: SpecRefResolver;
+  onSpecIdClick?: (nodeId: string) => void;
+}) {
+  if (item.kind === "spec_node") {
+    return (
+      <SpecIdText
+        text={item.node_id}
+        resolveSpecRef={resolveSpecRef}
+        onSpecIdClick={onSpecIdClick}
+        variant="bare"
+      />
+    );
+  }
+  if (item.kind === "spec_edge") {
+    return (
+      <span>
+        <SpecIdText
+          text={item.source_node_id}
+          resolveSpecRef={resolveSpecRef}
+          onSpecIdClick={onSpecIdClick}
+          variant="bare"
+        />{" "}
+        -&gt;{" "}
+        <SpecIdText
+          text={item.target_node_id}
+          resolveSpecRef={resolveSpecRef}
+          onSpecIdClick={onSpecIdClick}
+          variant="bare"
+        />
+      </span>
+    );
+  }
+  if (item.kind === "gap") {
+    return (
+      <span>
+        <SpecIdText
+          text={item.node_id}
+          resolveSpecRef={resolveSpecRef}
+          onSpecIdClick={onSpecIdClick}
+          variant="bare"
+        />{" "}
+        {item.gap_kind}
+      </span>
+    );
+  }
+  if (item.kind === "proposal") {
+    return <span>{item.proposal_id}</span>;
+  }
+  if (item.kind === "metric") {
+    return <span>{item.item_id}</span>;
+  }
+  if (item.kind === "specpm_package") {
+    return <span>{item.package_id}</span>;
+  }
+  return (
+    <span>
+      <SpecIdText
+        text={item.node_id}
+        resolveSpecRef={resolveSpecRef}
+        onSpecIdClick={onSpecIdClick}
+        variant="bare"
+      />{" "}
+      {item.source_kind}
+    </span>
   );
 }
 
@@ -540,6 +837,23 @@ function countArtifactContextItems(artifact: AgentConversationArtifact): number 
   return artifact.context_sets.reduce((count, contextSet) => count + contextSet.items.length, 0);
 }
 
+function flattenArtifactContextItems(
+  artifact: AgentConversationArtifact | null,
+): AgentConversationContextItem[] {
+  if (!artifact) return [];
+  return artifact.context_sets.flatMap((contextSet) => contextSet.items);
+}
+
+function storedContextItemKey(item: AgentConversationContextItem, index: number): string {
+  if (item.kind === "spec_node") return `stored-spec-node:${item.node_id}:${index}`;
+  if (item.kind === "spec_edge") return `stored-spec-edge:${item.edge_id}:${index}`;
+  if (item.kind === "gap") return `stored-gap:${item.gap_id}:${index}`;
+  if (item.kind === "proposal") return `stored-proposal:${item.proposal_key}:${index}`;
+  if (item.kind === "metric") return `stored-metric:${item.metric_key}:${index}`;
+  if (item.kind === "specpm_package") return `stored-specpm:${item.package_id}:${index}`;
+  return `stored-link:${item.artifact_path}:${index}`;
+}
+
 function formatArtifactSummary(artifact: AgentConversationArtifact): string {
   return JSON.stringify(
     {
@@ -570,6 +884,63 @@ function formatHistoryMeta(entry: AgentConversationHistoryEntry): string {
   return `${entry.turn_count} ${entry.turn_count === 1 ? "turn" : "turns"} · ${
     contextCount
   } context ${contextCount === 1 ? "item" : "items"}`;
+}
+
+function formatStoredIndexMeta(entry: AgentConversationIndexEntry): string {
+  return `${entry.turn_count} ${entry.turn_count === 1 ? "turn" : "turns"} · ${
+    entry.context_item_count
+  } context · ${entry.output_count} ${entry.output_count === 1 ? "output" : "outputs"}`;
+}
+
+function describeWorkbenchIndexState(state: AgentWorkbenchConversationIndexState): string {
+  if (state.kind === "idle" || state.kind === "loading") {
+    return "Loading readonly Workbench store.";
+  }
+  if (state.kind === "ok") {
+    return "Readonly Workbench store is available.";
+  }
+  return describeWorkbenchReadFailure(state);
+}
+
+function describeWorkbenchReadFailure(
+  result: Exclude<
+    AgentWorkbenchReadResult<AgentConversationArtifact | AgentConversationIndexArtifact>,
+    { kind: "ok" }
+  >,
+): string {
+  if (result.kind === "http-error") {
+    const detail = describeHttpErrorBody(result.body);
+    if (result.status === 503) {
+      return detail ?? "Readonly Workbench store is not configured.";
+    }
+    return detail ?? `Readonly Workbench store returned HTTP ${result.status}.`;
+  }
+  if (result.kind === "network-error") {
+    return "Readonly Workbench store could not be reached.";
+  }
+  if (result.kind === "response-error") {
+    return result.reason;
+  }
+  if (result.kind === "wrong-artifact-kind") {
+    return `Expected ${result.expected}; received ${String(result.got)}.`;
+  }
+  if (result.kind === "version-not-supported") {
+    return `${result.artifact_kind} schema ${result.schema_version} is newer than supported schema ${result.max_supported}.`;
+  }
+  return result.reason;
+}
+
+function describeHttpErrorBody(body: unknown): string | null {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const record = body as Record<string, unknown>;
+  if (typeof record.error === "string" && record.error.length > 0) return record.error;
+  if (typeof record.detail === "string" && record.detail.length > 0) return record.detail;
+  const source = record.source;
+  if (source && typeof source === "object" && !Array.isArray(source)) {
+    const detail = (source as Record<string, unknown>).detail;
+    if (typeof detail === "string" && detail.length > 0) return detail;
+  }
+  return null;
 }
 
 function createConversationTitle(prompt: string): string {

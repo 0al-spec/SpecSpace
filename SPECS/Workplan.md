@@ -2121,7 +2121,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The UI does not render raw Spec Markdown bodies or compiled Markdown bodies from the snapshot.
   - Existing conversation start, resume, send, and context removal flows remain unchanged.
 
-### CTXB-P13-T41 — Add Agent Workbench readonly conversation API boundary — In Progress
+### ✅ CTXB-P13-T41 — Add Agent Workbench readonly conversation API boundary — DONE (PASS, 2026-05-21)
 - **Description:** Add guarded SpecSpace v1 read endpoints for SpecSpace-owned Agent Workbench conversation artifacts, backed by the documented local `workbench/conversations` layout.
 - **Priority:** P3
 - **Dependencies:** CTXB-P13-T40
@@ -2133,6 +2133,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The API is unavailable with a structured 503 when no Agent Workbench store is configured.
   - `/api/v1/capabilities` and `/api/v1/health` expose readonly Agent Workbench availability without implying writable agent authority.
   - Path-like conversation ids and mismatched artifact ids are rejected.
+
+### CTXB-P13-T42 — Connect Agent Conversation panel to readonly Workbench API — In Progress
+- **Description:** Let the Agent Conversation panel read persisted Agent Workbench conversation index/detail artifacts through the new `/api/v1/agent-workbench/*` boundary and inspect them alongside local mock conversations.
+- **Priority:** P3
+- **Dependencies:** CTXB-P13-T41
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** frontend Agent Workbench API parser/client, readonly stored-conversation list, artifact transcript projection, validation report
+- **Acceptance Criteria:**
+  - The Agent Conversation panel can show a configured readonly Workbench conversation index without requiring local mock runtime state.
+  - Opening a stored conversation fetches its artifact through `/api/v1/agent-workbench/conversations/{conversation_id}` and renders its transcript/snapshot as readonly.
+  - Unconfigured or missing stores degrade to a muted diagnostic instead of breaking the panel.
+  - Stored artifacts do not expose writable send/append affordances until writable API capability exists.
+  - Existing local mock conversation start/resume/context-removal flows remain unchanged.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

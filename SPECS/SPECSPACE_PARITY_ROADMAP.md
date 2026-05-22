@@ -195,4 +195,5 @@ Target:
 34. `CTXB-P13-T38` — Add local Agent Conversation history and resume. ✅
 35. `CTXB-P13-T39` — Add Agent Conversation artifact snapshot contract. ✅
 36. `CTXB-P13-T40` — Expose Agent Conversation artifact snapshots in the UI. ✅
-37. `CTXB-P13-T41` — Add Agent Workbench readonly conversation API boundary.
+37. `CTXB-P13-T41` — Add Agent Workbench readonly conversation API boundary. ✅
+38. `CTXB-P13-T42` — Connect Agent Conversation panel to readonly Workbench API.
