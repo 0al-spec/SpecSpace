@@ -199,4 +199,5 @@ Target:
 37. `CTXB-P13-T41` — Add Agent Workbench readonly conversation API boundary. ✅
 38. `CTXB-P13-T42` — Connect Agent Conversation panel to readonly Workbench API. ✅
 39. `CTXB-P13-T43` — Restore legacy SpecGraph layout preset semantics. ✅
-40. `CTXB-P13-T44` — Add canvas edge density, routing, and LOD controls.
+40. `CTXB-P13-T44` — Add canvas edge density, routing, and LOD controls. ✅
+41. `CTXB-P13-T45` — Plan guarded Force layout parity.

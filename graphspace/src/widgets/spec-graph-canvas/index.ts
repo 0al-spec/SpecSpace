@@ -67,6 +67,16 @@ export {
   type SpecGraphCanvasLayoutPreset,
   type SpecGraphCanvasLayoutPresetStorage,
 } from "./model/layout-presets";
+export {
+  SPEC_GRAPH_FORCE_LAYOUT_EDGE_LIMIT,
+  SPEC_GRAPH_FORCE_LAYOUT_NODE_LIMIT,
+  SPEC_GRAPH_FORCE_LAYOUT_PRESET,
+  evaluateSpecGraphForceLayoutGuard,
+  type SpecGraphForceLayoutGuardFailureReason,
+  type SpecGraphForceLayoutGuardInput,
+  type SpecGraphForceLayoutGuardResult,
+  type SpecGraphForceLayoutPreset,
+} from "./model/force-layout-guard";
 export { toSpecGraphFlowElements, type SpecFlowEdge, type SpecFlowNode } from "./model/to-flow-elements";
 export {
   fetchSpecPMLifecycleBadges,

@@ -2161,7 +2161,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Canonical uses raw SpecGraph edge direction for both layout rank and visible edge endpoints.
   - The first parity pass does not reintroduce legacy Force layout or dense always-on canvas details that were known to hurt Safari performance.
 
-### CTXB-P13-T44 — Add canvas edge density, routing, and LOD controls — In Progress
+### ✅ CTXB-P13-T44 — Add canvas edge density, routing, and LOD controls — DONE (PASS, 2026-05-22)
 - **Description:** Add explicit edge detail controls to keep dense SpecGraph canvases readable and Safari-safe while preserving selected/focused edge workflows.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T43, CTXB-P13-T19, CTXB-P13-T26
@@ -2177,6 +2177,20 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Selected edges and their endpoint nodes are visually highlighted.
   - The selected edge focus behavior and edge inspector workflows remain usable when edge density is reduced.
   - The selected edge detail and routing modes persist across reloads without changing canonical SpecGraph artifacts.
+
+### CTXB-P13-T45 — Plan guarded Force layout parity — In Progress
+- **Description:** Recover the legacy ContextBuilder Force layout semantics, document why it is not a normal React Flow preset, and add an explicit guard contract before any runtime UI exposure.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T43, CTXB-P13-T44
+- **Parallelizable:** no
+- **Outputs / Artifacts:** Force layout guard model, parity documentation, workplan update, validation report
+- **Acceptance Criteria:**
+  - The old ContextBuilder Force implementation is summarized with its separate D3 SVG rendering boundary.
+  - SpecSpace records that Force remains outside the normal Tree/Linear/Canonical/Status preset list.
+  - A typed guard defines explicit enablement plus initial node/edge budgets for any future Force runtime.
+  - The guard has focused unit coverage for explicit opt-in and over-budget rejection.
+  - The follow-up smoke criteria require desktop and mobile/narrow browser checks before Force can be exposed.
+  - No UI button or production runtime path enables Force in this planning PR.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
