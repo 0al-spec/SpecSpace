@@ -89,6 +89,10 @@ type HoverPreviewState = {
   anchor: HoverPreviewAnchor;
 };
 
+const MINIMAP_NODE_COLOR = "#f4f2ed";
+const MINIMAP_NODE_STROKE_COLOR = "#151719";
+const MINIMAP_MASK_STROKE_COLOR = "#2c74ad";
+
 function hoverPreviewAnchorFromElement(element: HTMLElement): HoverPreviewAnchor {
   const rect = element.getBoundingClientRect();
   return {
@@ -676,11 +680,11 @@ function SpecGraphCanvasInner({
           pannable
           zoomable
           nodeBorderRadius={0}
-          nodeColor="var(--gs-paper-3)"
-          nodeStrokeColor="var(--gs-muted-2)"
-          nodeStrokeWidth={1}
+          nodeColor={MINIMAP_NODE_COLOR}
+          nodeStrokeColor={MINIMAP_NODE_STROKE_COLOR}
+          nodeStrokeWidth={1.4}
           maskColor="rgba(244, 242, 237, 0.68)"
-          maskStrokeColor="var(--gs-accent)"
+          maskStrokeColor={MINIMAP_MASK_STROKE_COLOR}
           maskStrokeWidth={1}
         />
         <Controls showInteractive={false} />
