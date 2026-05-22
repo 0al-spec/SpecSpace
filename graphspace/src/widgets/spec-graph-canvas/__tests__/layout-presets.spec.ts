@@ -202,6 +202,8 @@ describe("SpecGraph canvas layout presets", () => {
     expect(normalizeSpecGraphCanvasLayoutPreset("refinement-ladder")).toBe(
       "tree",
     );
+    expect(normalizeSpecGraphCanvasLayoutPreset("__proto__")).toBeNull();
+    expect(normalizeSpecGraphCanvasLayoutPreset("constructor")).toBeNull();
     expect(normalizeSpecGraphCanvasLayoutPreset("unknown")).toBeNull();
     expect(readSpecGraphCanvasLayoutPreset(storage)).toBe(
       DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET,

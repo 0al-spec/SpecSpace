@@ -33,9 +33,9 @@ export type SpecGraphCanvasLayoutPresetStorage = Pick<
 const COLUMN_WIDTH = 360;
 const ROW_HEIGHT = 172;
 const PRESET_STORAGE_KEY = "specspace:spec-graph-canvas-layout-preset:v1";
-const LEGACY_PRESET_ALIASES: Record<string, SpecGraphCanvasLayoutPreset> = {
-  "refinement-ladder": "tree",
-};
+const LEGACY_PRESET_ALIASES = new Map<string, SpecGraphCanvasLayoutPreset>([
+  ["refinement-ladder", "tree"],
+]);
 
 const STATUS_ORDER = [
   "idea",
@@ -63,7 +63,7 @@ export function normalizeSpecGraphCanvasLayoutPreset(
   value: unknown,
 ): SpecGraphCanvasLayoutPreset | null {
   if (typeof value !== "string") return null;
-  const alias = LEGACY_PRESET_ALIASES[value];
+  const alias = LEGACY_PRESET_ALIASES.get(value);
   if (alias) return alias;
   return (SPEC_GRAPH_CANVAS_LAYOUT_PRESETS as readonly string[]).includes(value)
     ? (value as SpecGraphCanvasLayoutPreset)
