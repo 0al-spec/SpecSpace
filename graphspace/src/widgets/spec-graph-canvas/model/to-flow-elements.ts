@@ -72,8 +72,11 @@ const EDGE_STYLE: Record<SpecEdge["edge_kind"] | "broken", CSSProperties> = {
   },
 };
 
-function edgeEndpoints(edge: SpecEdge): { source: string; target: string } {
-  if (edge.edge_kind === "refines") {
+function edgeEndpoints(
+  edge: SpecEdge,
+  layoutPreset: SpecGraphCanvasLayoutPreset,
+): { source: string; target: string } {
+  if (layoutPreset !== "canonical" && edge.edge_kind === "refines") {
     return { source: edge.target_id, target: edge.source_id };
   }
   return { source: edge.source_id, target: edge.target_id };
@@ -124,7 +127,7 @@ export function toSpecGraphFlowElements(
     .filter((edge) => nodeIds.has(edge.source_id) && nodeIds.has(edge.target_id))
     .sort(byEdgeId)
     .map((specEdge) => {
-      const endpoints = edgeEndpoints(specEdge);
+      const endpoints = edgeEndpoints(specEdge, layoutPreset);
       return {
         id: specEdge.edge_id,
         source: endpoints.source,

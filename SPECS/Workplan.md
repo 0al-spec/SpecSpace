@@ -2134,7 +2134,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - `/api/v1/capabilities` and `/api/v1/health` expose readonly Agent Workbench availability without implying writable agent authority.
   - Path-like conversation ids and mismatched artifact ids are rejected.
 
-### CTXB-P13-T42 — Connect Agent Conversation panel to readonly Workbench API — In Progress
+### ✅ CTXB-P13-T42 — Connect Agent Conversation panel to readonly Workbench API — DONE (PASS, 2026-05-22)
 - **Description:** Let the Agent Conversation panel read persisted Agent Workbench conversation index/detail artifacts through the new `/api/v1/agent-workbench/*` boundary and inspect them alongside local mock conversations.
 - **Priority:** P3
 - **Dependencies:** CTXB-P13-T41
@@ -2147,6 +2147,20 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Stored artifacts do not expose writable send/append affordances until writable API capability exists.
   - Existing local mock conversation start/resume/context-removal flows remain unchanged.
 
+### CTXB-P13-T43 — Restore legacy SpecGraph layout preset semantics — In Progress
+- **Description:** Bring the old ContextBuilder SpecGraph layout vocabulary into SpecSpace by exposing Tree, Linear, Canonical, and Status presets on the React Flow canvas while keeping the implementation deterministic and Safari-safe.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T28, CTXB-P13-T20
+- **Parallelizable:** no
+- **Outputs / Artifacts:** layout preset model update, storage migration for legacy `refinement-ladder`, canvas edge-direction handling, focused tests, validation report
+- **Acceptance Criteria:**
+  - The canvas exposes Tree, Linear, Canonical, and Status layout presets.
+  - Existing stored `refinement-ladder` layout preferences resolve to Tree without resetting user state to an unknown preset.
+  - Tree preserves the current Refinement Ladder placement semantics.
+  - Linear ranks all resolved forward edges left-to-right while keeping refinement children visually near their parent lanes.
+  - Canonical uses raw SpecGraph edge direction for both layout rank and visible edge endpoints.
+  - The first parity pass does not reintroduce legacy Force layout or dense always-on canvas details that were known to hurt Safari performance.
+
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
 - **Priority:** P1
@@ -2158,6 +2172,18 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The proposal list owns a scroll region instead of being hidden below fixed-height chrome.
   - Desktop utility panel behavior remains unchanged.
   - Mobile smoke verifies scrolling to lower proposal rows.
+
+### ✅ CTXB-P13-B2 — Restore SpecGraph minimap node visibility — DONE (PASS, 2026-05-22)
+- **Description:** React Flow MiniMap could render no node rectangles even while the main SpecGraph canvas showed nodes, because custom nodes did not provide deterministic dimensions to React Flow.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T20
+- **Parallelizable:** yes
+- **Outputs / Artifacts:** custom node initial dimensions, MiniMap contrast tuning, focused tests, validation report
+- **Acceptance Criteria:**
+  - Custom SpecGraph nodes provide stable `initialWidth` and `initialHeight` for React Flow.
+  - MiniMap shows visible node rectangles on desktop and mobile/narrow viewports.
+  - The declared minimap dimensions stay aligned with actual `SpecNodeCard` CSS sizing.
+  - Existing canvas node selection and movement behavior remains unchanged.
 
 ## Dependency Summary
 

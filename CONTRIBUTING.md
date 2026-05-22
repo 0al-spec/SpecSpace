@@ -65,6 +65,10 @@
 - Не ломим UX-образ старого ContextBuilder без альтернативы в новой навигации.
 - Для React Flow canvas задаём deterministic `initialWidth`/`initialHeight` у custom nodes:
   без них `MiniMap` может не отрисовать node rectangles, даже если сами nodes видны на canvas.
+- Canvas parity переносим из старого ContextBuilder избирательно:
+  - сначала deterministic presets (`Tree`, `Linear`, `Canonical`, `Status`);
+  - `Force`, dense labels, long always-on edges, animations and dashed/filtered SVG effects требуют отдельного performance pass;
+  - Safari особенно чувствителен к большому числу детальных nodes и длинных edges, поэтому перед возвратом таких фич нужны edge-density controls/LOD и desktop+mobile smoke.
 
 ## 5) Практика работы с PR-стеками
 
