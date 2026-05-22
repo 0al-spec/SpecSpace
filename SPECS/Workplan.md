@@ -2178,7 +2178,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The selected edge focus behavior and edge inspector workflows remain usable when edge density is reduced.
   - The selected edge detail and routing modes persist across reloads without changing canonical SpecGraph artifacts.
 
-### CTXB-P13-T45 — Plan guarded Force layout parity — In Progress
+### ✅ CTXB-P13-T45 — Plan guarded Force layout parity — DONE (PASS, 2026-05-22)
 - **Description:** Recover the legacy ContextBuilder Force layout semantics, document why it is not a normal React Flow preset, and add an explicit guard contract before any runtime UI exposure.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T43, CTXB-P13-T44
@@ -2191,6 +2191,21 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The guard has focused unit coverage for explicit opt-in and over-budget rejection.
   - The follow-up smoke criteria require desktop and mobile/narrow browser checks before Force can be exposed.
   - No UI button or production runtime path enables Force in this planning PR.
+
+### CTXB-P13-T46 — Add Spine layout preset — In Progress
+- **Description:** Add a deterministic tidy DAG layout that places hierarchy depth into columns and centers compact child groups around their parent, matching the readable hand-arranged SpecGraph map operators build manually.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T43, CTXB-P13-T44, CTXB-P13-T45
+- **Parallelizable:** no
+- **Outputs / Artifacts:** Spine layout preset, deterministic layout tests, layout semantics note, validation report
+- **Acceptance Criteria:**
+  - The canvas exposes a `Spine` layout preset alongside Tree, Linear, Canonical, and Status.
+  - Spine uses resolved `refines` hierarchy depth for columns.
+  - Child groups are placed compactly and centered around their parent when possible.
+  - Secondary `depends_on` / `relates_to` links do not influence node depth or placement.
+  - The layout is deterministic and does not use force simulation, randomness, or animation.
+  - Existing edge detail/routing controls continue to work with the new preset.
+  - Desktop and mobile/narrow browser smoke pass for the canvas with Spine selected.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

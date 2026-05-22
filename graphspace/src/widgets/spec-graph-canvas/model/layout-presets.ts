@@ -5,6 +5,7 @@ import type { SpecGraphCanvasLayoutPosition } from "./layout-overrides";
 export const SPEC_GRAPH_CANVAS_LAYOUT_PRESETS = [
   "tree",
   "linear",
+  "spine",
   "canonical",
   "status-columns",
 ] as const;
@@ -21,6 +22,7 @@ export const SPEC_GRAPH_CANVAS_LAYOUT_PRESET_LABELS: Record<
 > = {
   tree: "Tree",
   linear: "Linear",
+  spine: "Spine",
   canonical: "Canonical",
   "status-columns": "Status",
 };
@@ -110,6 +112,7 @@ export function computeSpecGraphCanvasLayoutPositions(
 ): Map<string, SpecGraphCanvasLayoutPosition> {
   if (preset === "status-columns") return computeStatusColumnPositions(nodes);
   if (preset === "linear") return computeLinearPositions(nodes, edges);
+  if (preset === "spine") return computeSpinePositions(nodes, edges);
   if (preset === "canonical") return computeCanonicalPositions(nodes, edges);
   return computeTreePositions(nodes, edges);
 }
@@ -205,6 +208,42 @@ function computeLinearPositions(
   return positions;
 }
 
+function computeSpinePositions(
+  nodes: readonly SpecNode[],
+  edges: readonly SpecEdge[],
+): Map<string, SpecGraphCanvasLayoutPosition> {
+  const nodeIds = sortedNodeIds(nodes);
+  const tree = buildPrimaryTree(nodeIds, refinementHierarchyEdges(nodes, edges));
+  const ranks = computeDirectedRanks(nodes, tree.primaryEdges);
+  const spans = computeSubtreeSpans(nodeIds, tree.childrenByParent);
+  const rowCenters = new Map<string, number>();
+  const roots = nodeIds.filter((nodeId) => !tree.parentByChild.has(nodeId));
+  let nextTopRow = 0;
+
+  for (const root of roots) {
+    const span = spans.get(root) ?? 1;
+    assignSpineRows(root, nextTopRow, tree.childrenByParent, spans, rowCenters);
+    nextTopRow += span + 1;
+  }
+
+  for (const nodeId of nodeIds) {
+    if (!rowCenters.has(nodeId)) {
+      rowCenters.set(nodeId, nextTopRow);
+      nextTopRow += 1;
+    }
+  }
+
+  const positions = new Map<string, SpecGraphCanvasLayoutPosition>();
+  for (const nodeId of nodeIds) {
+    positions.set(nodeId, {
+      x: (ranks.get(nodeId) ?? 0) * COLUMN_WIDTH,
+      y: (rowCenters.get(nodeId) ?? 0) * ROW_HEIGHT,
+    });
+  }
+
+  return positions;
+}
+
 function computeDirectedRanks(
   nodes: readonly SpecNode[],
   edges: readonly LayoutEdge[],
@@ -291,6 +330,98 @@ function computeTreeLanes(
   return lanes;
 }
 
+function buildPrimaryTree(
+  nodeIds: readonly string[],
+  treeEdges: readonly LayoutEdge[],
+): {
+  childrenByParent: Map<string, string[]>;
+  parentByChild: Map<string, string>;
+  primaryEdges: LayoutEdge[];
+} {
+  const nodeIdSet = new Set(nodeIds);
+  const parentByChild = new Map<string, string>();
+  const childrenByParent = new Map<string, string[]>();
+  const primaryEdges: LayoutEdge[] = [];
+
+  for (const edge of acyclicLayoutEdgesFromIds(nodeIds, treeEdges)) {
+    if (!nodeIdSet.has(edge.source) || !nodeIdSet.has(edge.target)) continue;
+    if (parentByChild.has(edge.target)) continue;
+    parentByChild.set(edge.target, edge.source);
+    primaryEdges.push(edge);
+    childrenByParent.set(edge.source, [
+      ...(childrenByParent.get(edge.source) ?? []),
+      edge.target,
+    ]);
+  }
+
+  for (const [parent, children] of childrenByParent) {
+    childrenByParent.set(parent, children.sort((a, b) => a.localeCompare(b)));
+  }
+
+  return { childrenByParent, parentByChild, primaryEdges };
+}
+
+function computeSubtreeSpans(
+  nodeIds: readonly string[],
+  childrenByParent: ReadonlyMap<string, readonly string[]>,
+): Map<string, number> {
+  const spans = new Map<string, number>();
+  const visiting = new Set<string>();
+
+  function spanFor(nodeId: string): number {
+    const cached = spans.get(nodeId);
+    if (cached !== undefined) return cached;
+    if (visiting.has(nodeId)) return 1;
+    visiting.add(nodeId);
+    const children = childrenByParent.get(nodeId) ?? [];
+    const childrenSpan = children.reduce(
+      (total, childId) => total + spanFor(childId),
+      0,
+    );
+    const span = Math.max(1, childrenSpan);
+    visiting.delete(nodeId);
+    spans.set(nodeId, span);
+    return span;
+  }
+
+  for (const nodeId of nodeIds) spanFor(nodeId);
+
+  return spans;
+}
+
+function assignSpineRows(
+  nodeId: string,
+  topRow: number,
+  childrenByParent: ReadonlyMap<string, readonly string[]>,
+  spans: ReadonlyMap<string, number>,
+  rowCenters: Map<string, number>,
+): void {
+  if (rowCenters.has(nodeId)) return;
+  const children = childrenByParent.get(nodeId) ?? [];
+  if (children.length === 0) {
+    rowCenters.set(nodeId, topRow);
+    return;
+  }
+
+  const childrenSpan = children.reduce(
+    (total, childId) => total + (spans.get(childId) ?? 1),
+    0,
+  );
+  rowCenters.set(nodeId, topRow + (childrenSpan - 1) / 2);
+
+  let childTopRow = topRow;
+  for (const childId of children) {
+    assignSpineRows(
+      childId,
+      childTopRow,
+      childrenByParent,
+      spans,
+      rowCenters,
+    );
+    childTopRow += spans.get(childId) ?? 1;
+  }
+}
+
 function refinementHierarchyEdges(
   nodes: readonly SpecNode[],
   edges: readonly SpecEdge[],
@@ -344,14 +475,24 @@ function acyclicLayoutEdges(
   nodes: readonly SpecNode[],
   edges: readonly LayoutEdge[],
 ): LayoutEdge[] {
-  const nodeIds = new Set(nodes.map((node) => node.node_id));
+  return acyclicLayoutEdgesFromIds(
+    nodes.map((node) => node.node_id),
+    edges,
+  );
+}
+
+function acyclicLayoutEdgesFromIds(
+  nodeIds: readonly string[],
+  edges: readonly LayoutEdge[],
+): LayoutEdge[] {
+  const nodeIdSet = new Set(nodeIds);
   const adjacency = new Map<string, string[]>();
   const acceptedKeys = new Set<string>();
   const accepted: LayoutEdge[] = [];
 
   for (const edge of edges) {
     const edgeKey = `${edge.source}\u0000${edge.target}`;
-    if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) continue;
+    if (!nodeIdSet.has(edge.source) || !nodeIdSet.has(edge.target)) continue;
     if (acceptedKeys.has(edgeKey)) continue;
     if (wouldCreateCycle(adjacency, edge.source, edge.target)) continue;
     accepted.push(edge);
