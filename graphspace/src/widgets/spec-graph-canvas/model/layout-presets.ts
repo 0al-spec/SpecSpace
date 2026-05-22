@@ -209,22 +209,39 @@ function computeDirectedRanks(
   nodes: readonly SpecNode[],
   edges: readonly LayoutEdge[],
 ): Map<string, number> {
-  const ranks = new Map(sortedNodeIds(nodes).map((nodeId) => [nodeId, 0]));
+  const nodeIds = sortedNodeIds(nodes);
+  const ranks = new Map(nodeIds.map((nodeId) => [nodeId, 0]));
   const acyclicEdges = acyclicLayoutEdges(nodes, edges);
+  const adjacency = new Map<string, string[]>(nodeIds.map((nodeId) => [nodeId, []]));
+  const inDegree = new Map<string, number>(nodeIds.map((nodeId) => [nodeId, 0]));
 
-  for (let i = 0; i < ranks.size; i += 1) {
-    let changed = false;
-    for (const edge of acyclicEdges) {
-      const sourceRank = ranks.get(edge.source);
-      const targetRank = ranks.get(edge.target);
-      if (sourceRank === undefined || targetRank === undefined) continue;
-      const nextRank = sourceRank + 1;
-      if (targetRank < nextRank) {
-        ranks.set(edge.target, nextRank);
-        changed = true;
-      }
+  for (const edge of acyclicEdges) {
+    adjacency.get(edge.source)?.push(edge.target);
+    inDegree.set(edge.target, (inDegree.get(edge.target) ?? 0) + 1);
+  }
+  for (const targets of adjacency.values()) {
+    targets.sort((a, b) => a.localeCompare(b));
+  }
+
+  const queue = nodeIds.filter((nodeId) => inDegree.get(nodeId) === 0);
+  const visited = new Set<string>();
+  let head = 0;
+
+  while (head < queue.length) {
+    const sourceId = queue[head++];
+    visited.add(sourceId);
+    const sourceRank = ranks.get(sourceId) ?? 0;
+
+    for (const targetId of adjacency.get(sourceId) ?? []) {
+      ranks.set(targetId, Math.max(ranks.get(targetId) ?? 0, sourceRank + 1));
+      const nextDegree = (inDegree.get(targetId) ?? 0) - 1;
+      inDegree.set(targetId, nextDegree);
+      if (nextDegree === 0) queue.push(targetId);
     }
-    if (!changed) break;
+  }
+
+  for (const nodeId of nodeIds) {
+    if (!visited.has(nodeId)) ranks.set(nodeId, ranks.get(nodeId) ?? 0);
   }
 
   return ranks;
@@ -329,12 +346,16 @@ function acyclicLayoutEdges(
 ): LayoutEdge[] {
   const nodeIds = new Set(nodes.map((node) => node.node_id));
   const adjacency = new Map<string, string[]>();
+  const acceptedKeys = new Set<string>();
   const accepted: LayoutEdge[] = [];
 
   for (const edge of edges) {
+    const edgeKey = `${edge.source}\u0000${edge.target}`;
     if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) continue;
+    if (acceptedKeys.has(edgeKey)) continue;
     if (wouldCreateCycle(adjacency, edge.source, edge.target)) continue;
     accepted.push(edge);
+    acceptedKeys.add(edgeKey);
     adjacency.set(edge.source, [...(adjacency.get(edge.source) ?? []), edge.target]);
   }
 
