@@ -1,4 +1,8 @@
-import type { SpecFlowNode } from "./to-flow-elements";
+import {
+  SPEC_FLOW_NODE_INITIAL_HEIGHT,
+  SPEC_FLOW_NODE_INITIAL_WIDTH,
+  type SpecFlowNode,
+} from "./to-flow-elements";
 
 type FocusableNode = Pick<SpecFlowNode, "position" | "width" | "height"> & {
   measured?: {
@@ -14,15 +18,13 @@ export type SpecGraphFocusBounds = {
   height: number;
 };
 
-const FALLBACK_NODE_WIDTH = 220;
-const FALLBACK_NODE_HEIGHT = 112;
-
 export function getSpecGraphNodeFocusPoint(node: FocusableNode): {
   x: number;
   y: number;
 } {
-  const width = node.measured?.width ?? node.width ?? FALLBACK_NODE_WIDTH;
-  const height = node.measured?.height ?? node.height ?? FALLBACK_NODE_HEIGHT;
+  const width = node.measured?.width ?? node.width ?? SPEC_FLOW_NODE_INITIAL_WIDTH;
+  const height =
+    node.measured?.height ?? node.height ?? SPEC_FLOW_NODE_INITIAL_HEIGHT;
 
   return {
     x: node.position.x + width / 2,
@@ -61,7 +63,8 @@ function getSpecGraphNodeBounds(node: FocusableNode): SpecGraphFocusBounds {
   return {
     x: node.position.x,
     y: node.position.y,
-    width: node.measured?.width ?? node.width ?? FALLBACK_NODE_WIDTH,
-    height: node.measured?.height ?? node.height ?? FALLBACK_NODE_HEIGHT,
+    width: node.measured?.width ?? node.width ?? SPEC_FLOW_NODE_INITIAL_WIDTH,
+    height:
+      node.measured?.height ?? node.height ?? SPEC_FLOW_NODE_INITIAL_HEIGHT,
   };
 }

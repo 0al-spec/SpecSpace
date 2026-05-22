@@ -33,6 +33,9 @@ export type SpecFlowEdgeData = Record<string, unknown> & {
 export type SpecFlowNode = Node<SpecFlowNodeData, "specNode">;
 export type SpecFlowEdge = Edge<SpecFlowEdgeData, "specEdge">;
 
+export const SPEC_FLOW_NODE_INITIAL_WIDTH = 220;
+export const SPEC_FLOW_NODE_INITIAL_HEIGHT = 126;
+
 const byNodeId = (a: SpecNode, b: SpecNode) =>
   a.node_id.localeCompare(b.node_id);
 const byEdgeId = (a: SpecEdge, b: SpecEdge) =>
@@ -110,6 +113,8 @@ export function toSpecGraphFlowElements(
     id: spec.node_id,
     type: "specNode",
     position: positions.get(spec.node_id) ?? { x: 0, y: 0 },
+    initialWidth: SPEC_FLOW_NODE_INITIAL_WIDTH,
+    initialHeight: SPEC_FLOW_NODE_INITIAL_HEIGHT,
     data: { spec },
   }));
 

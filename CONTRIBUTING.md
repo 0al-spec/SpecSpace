@@ -63,6 +63,8 @@
   - metrics/coverage visibility;
   - отсутствие конфликтов z-index/overlay поверх canvas.
 - Не ломим UX-образ старого ContextBuilder без альтернативы в новой навигации.
+- Для React Flow canvas задаём deterministic `initialWidth`/`initialHeight` у custom nodes:
+  без них `MiniMap` может не отрисовать node rectangles, даже если сами nodes видны на canvas.
 
 ## 5) Практика работы с PR-стеками
 
