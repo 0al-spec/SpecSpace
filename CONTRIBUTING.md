@@ -67,6 +67,7 @@
   без них `MiniMap` может не отрисовать node rectangles, даже если сами nodes видны на canvas.
 - Canvas parity переносим из старого ContextBuilder избирательно:
   - сначала deterministic presets (`Tree`, `Linear`, `Canonical`, `Status`);
+  - dense edges должны идти через edge-detail/LOD controls (`Auto`, `Core`, `Links`, `All`), а не как always-on rendering;
   - `Force`, dense labels, long always-on edges, animations and dashed/filtered SVG effects требуют отдельного performance pass;
   - Safari особенно чувствителен к большому числу детальных nodes и длинных edges, поэтому перед возвратом таких фич нужны edge-density controls/LOD и desktop+mobile smoke.
 

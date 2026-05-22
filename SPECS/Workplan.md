@@ -2147,7 +2147,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Stored artifacts do not expose writable send/append affordances until writable API capability exists.
   - Existing local mock conversation start/resume/context-removal flows remain unchanged.
 
-### CTXB-P13-T43 — Restore legacy SpecGraph layout preset semantics — In Progress
+### ✅ CTXB-P13-T43 — Restore legacy SpecGraph layout preset semantics — DONE (PASS, 2026-05-22)
 - **Description:** Bring the old ContextBuilder SpecGraph layout vocabulary into SpecSpace by exposing Tree, Linear, Canonical, and Status presets on the React Flow canvas while keeping the implementation deterministic and Safari-safe.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T28, CTXB-P13-T20
@@ -2160,6 +2160,20 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Linear ranks all resolved forward edges left-to-right while keeping refinement children visually near their parent lanes.
   - Canonical uses raw SpecGraph edge direction for both layout rank and visible edge endpoints.
   - The first parity pass does not reintroduce legacy Force layout or dense always-on canvas details that were known to hurt Safari performance.
+
+### CTXB-P13-T44 — Add canvas edge density and LOD controls — In Progress
+- **Description:** Add explicit edge detail controls to keep dense SpecGraph canvases readable and Safari-safe while preserving selected/focused edge workflows.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T43, CTXB-P13-T19, CTXB-P13-T26
+- **Parallelizable:** no
+- **Outputs / Artifacts:** edge detail model, persisted canvas control, zoom-aware Auto mode, focused tests, validation report
+- **Acceptance Criteria:**
+  - The canvas exposes edge detail modes for Auto, Core, Links, and All.
+  - Auto mode reduces far-zoom edge density and expands detail as the user zooms in.
+  - Core shows hierarchy/refinement edges plus diagnostics; Links also includes structural dependency edges; All includes relation edges too.
+  - Selected edges and edges adjacent to the selected node remain visible even in sparse modes.
+  - The selected edge focus behavior and edge inspector workflows remain usable when edge density is reduced.
+  - The selected edge detail mode persists across reloads without changing canonical SpecGraph artifacts.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

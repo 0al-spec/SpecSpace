@@ -14,6 +14,7 @@ import {
   type NodeChange,
   type NodeProps,
   useReactFlow,
+  useOnViewportChange,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { SpecNode } from "@/entities/spec-node";
@@ -30,6 +31,17 @@ import {
   SPEC_GRAPH_CANVAS_GAP_FILTERS,
   type SpecGraphCanvasGapFilter,
 } from "../model/gap-filter";
+import {
+  SPEC_GRAPH_CANVAS_EDGE_DETAIL_LABELS,
+  SPEC_GRAPH_CANVAS_EDGE_DETAIL_MODES,
+  SPEC_GRAPH_CANVAS_EFFECTIVE_EDGE_DETAIL_LABELS,
+  getSpecGraphCanvasEdgeDetailStorage,
+  isSpecGraphCanvasEdgeVisible,
+  readSpecGraphCanvasEdgeDetailMode,
+  resolveSpecGraphCanvasEdgeDetailMode,
+  writeSpecGraphCanvasEdgeDetailMode,
+  type SpecGraphCanvasEdgeDetailMode,
+} from "../model/edge-detail";
 import {
   applySpecGraphCanvasLayoutOverrides,
   buildSpecGraphCanvasLayoutStorageKey,
@@ -304,6 +316,10 @@ function SpecGraphCanvasInner({
   const [layoutPreset, setLayoutPreset] = useState<SpecGraphCanvasLayoutPreset>(() =>
     readSpecGraphCanvasLayoutPreset(getSpecGraphCanvasLayoutPresetStorage()),
   );
+  const [edgeDetailMode, setEdgeDetailMode] = useState<SpecGraphCanvasEdgeDetailMode>(() =>
+    readSpecGraphCanvasEdgeDetailMode(getSpecGraphCanvasEdgeDetailStorage()),
+  );
+  const [canvasZoom, setCanvasZoom] = useState(1);
   const [layoutOverrides, setLayoutOverrides] =
     useState<SpecGraphCanvasLayoutOverrides>({});
   const [hoverCandidate, setHoverCandidate] = useState<HoverPreviewState | null>(null);
@@ -325,6 +341,10 @@ function SpecGraphCanvasInner({
   const { nodes: baseNodes, edges } = useMemo(
     () => toSpecGraphFlowElements(state.data, layoutPreset),
     [layoutPreset, state.data],
+  );
+  const effectiveEdgeDetailMode = useMemo(
+    () => resolveSpecGraphCanvasEdgeDetailMode(edgeDetailMode, canvasZoom),
+    [canvasZoom, edgeDetailMode],
   );
   const layoutStorageKey = useMemo(
     () => buildSpecGraphCanvasLayoutStorageKey(state.data),
@@ -408,6 +428,12 @@ function SpecGraphCanvasInner({
     () =>
       edges
         .filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
+        .filter((edge) =>
+          isSpecGraphCanvasEdgeVisible(edge.data!.specEdge, effectiveEdgeDetailMode, {
+            selectedEdgeId: activeSelectedEdgeId,
+            selectedNodeId: activeSelectedNodeId,
+          })
+        )
         .map((edge): SpecFlowEdge => ({
           ...edge,
           selected: edge.id === activeSelectedEdgeId,
@@ -417,7 +443,15 @@ function SpecGraphCanvasInner({
             onOverlayClick: onEdgeOverlayClick,
           },
         })),
-    [activeSelectedEdgeId, edges, onEdgeOverlayClick, overlays, visibleNodeIds],
+    [
+      activeSelectedEdgeId,
+      activeSelectedNodeId,
+      edges,
+      effectiveEdgeDetailMode,
+      onEdgeOverlayClick,
+      overlays,
+      visibleNodeIds,
+    ],
   );
   const selection = useMemo(
     () => buildSpecGraphSelection(state.data, activeSelectedNodeId ?? null),
@@ -459,6 +493,22 @@ function SpecGraphCanvasInner({
       preset,
     );
   }, [clearHoverPreview]);
+  const updateEdgeDetailMode = useCallback((mode: SpecGraphCanvasEdgeDetailMode) => {
+    clearHoverPreview();
+    setEdgeDetailMode(mode);
+    writeSpecGraphCanvasEdgeDetailMode(
+      getSpecGraphCanvasEdgeDetailStorage(),
+      mode,
+    );
+  }, [clearHoverPreview]);
+
+  useOnViewportChange({
+    onChange: ({ zoom }) => {
+      setCanvasZoom((currentZoom) =>
+        Math.abs(currentZoom - zoom) < 0.02 ? currentZoom : zoom,
+      );
+    },
+  });
 
   const persistLayoutOverride = useCallback(
     (nodeId: string, position: SpecGraphCanvasLayoutPosition) => {
@@ -587,6 +637,8 @@ function SpecGraphCanvasInner({
       data-testid="spec-graph-canvas"
       data-gap-filter={gapFilter}
       data-layout-preset={layoutPreset}
+      data-edge-detail-mode={edgeDetailMode}
+      data-edge-detail-effective={effectiveEdgeDetailMode}
       data-source={state.source}
     >
       <div className={styles.canvasFilterDock}>
@@ -624,6 +676,35 @@ function SpecGraphCanvasInner({
               onClick={() => updateLayoutPreset(preset)}
             >
               <span>{SPEC_GRAPH_CANVAS_LAYOUT_PRESET_LABELS[preset]}</span>
+            </button>
+          ))}
+        </div>
+        <div className={styles.edgeDetailDock} aria-label="Canvas edge detail">
+          {SPEC_GRAPH_CANVAS_EDGE_DETAIL_MODES.map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className={[
+                styles.gapFilterButton,
+                edgeDetailMode === mode ? styles.gapFilterButtonActive : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              aria-label={SPEC_GRAPH_CANVAS_EDGE_DETAIL_LABELS[mode]}
+              aria-pressed={edgeDetailMode === mode}
+              onClick={() => updateEdgeDetailMode(mode)}
+              title={
+                mode === "auto"
+                  ? `Auto edge detail: ${SPEC_GRAPH_CANVAS_EFFECTIVE_EDGE_DETAIL_LABELS[effectiveEdgeDetailMode]} at current zoom`
+                  : `${SPEC_GRAPH_CANVAS_EDGE_DETAIL_LABELS[mode]} edge detail`
+              }
+            >
+              <span>{SPEC_GRAPH_CANVAS_EDGE_DETAIL_LABELS[mode]}</span>
+              {mode === "auto" ? (
+                <span aria-hidden="true">
+                  {SPEC_GRAPH_CANVAS_EFFECTIVE_EDGE_DETAIL_LABELS[effectiveEdgeDetailMode]}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
