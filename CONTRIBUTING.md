@@ -69,7 +69,8 @@
   - сначала deterministic presets (`Tree`, `Linear`, `Canonical`, `Status`);
   - dense edges должны идти через edge-detail/LOD controls (`Auto`, `Main`, `Core`, `Links`, `All`) и edge routing (`Curve`, `Rect`), а не как always-on rendering;
   - `Auto` на дальнем zoom должен уметь скрывать пунктирные `refines`, потому что они легко перекрывают основные directional links;
-  - `Force`, dense labels, long always-on edges, animations and dashed/filtered SVG effects требуют отдельного performance pass;
+  - legacy `Force` был отдельной D3 SVG-сценой, а не React Flow layout preset, поэтому возвращаем его только как guarded/opt-in режим с явным budget и smoke;
+  - dense labels, long always-on edges, animations and dashed/filtered SVG effects требуют отдельного performance pass;
   - Safari особенно чувствителен к большому числу детальных nodes и длинных edges, поэтому перед возвратом таких фич нужны edge-density controls/LOD и desktop+mobile smoke.
 
 ## 5) Практика работы с PR-стеками
