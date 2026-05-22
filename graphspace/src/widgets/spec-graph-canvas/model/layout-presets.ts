@@ -61,8 +61,7 @@ type LayoutEdge = {
   target: string;
 };
 
-type SpineSubtreeLayout = {
-  centers: Map<string, number>;
+type SpineSubtreeExtent = {
   top: number;
   bottom: number;
 };
@@ -221,17 +220,25 @@ function computeSpinePositions(
   const nodeIds = sortedNodeIds(nodes);
   const tree = buildPrimaryTree(nodeIds, refinementHierarchyEdges(nodes, edges));
   const ranks = computeDirectedRanks(nodes, tree.primaryEdges);
+  const extents = new Map<string, SpineSubtreeExtent>();
   const rowCenters = new Map<string, number>();
   const roots = nodeIds.filter((nodeId) => !tree.parentByChild.has(nodeId));
   let nextTopRow = 0;
 
   for (const root of roots) {
-    const layout = computeRelativeSpineSubtree(root, tree.childrenByParent);
-    const rowOffset = nextTopRow - layout.top;
-    for (const [nodeId, rowCenter] of layout.centers) {
-      rowCenters.set(nodeId, rowCenter + rowOffset);
-    }
-    nextTopRow += layout.bottom - layout.top + 2;
+    const extent = computeRelativeSpineExtent(
+      root,
+      tree.childrenByParent,
+      extents,
+    );
+    assignRelativeSpineRows(
+      root,
+      nextTopRow - extent.top,
+      tree.childrenByParent,
+      extents,
+      rowCenters,
+    );
+    nextTopRow += extent.bottom - extent.top + 2;
   }
 
   for (const nodeId of nodeIds) {
@@ -369,71 +376,110 @@ function buildPrimaryTree(
   return { childrenByParent, parentByChild, primaryEdges };
 }
 
-function computeRelativeSpineSubtree(
+function computeRelativeSpineExtent(
   nodeId: string,
   childrenByParent: ReadonlyMap<string, readonly string[]>,
+  extents: Map<string, SpineSubtreeExtent>,
   visiting: Set<string> = new Set<string>(),
-): SpineSubtreeLayout {
+): SpineSubtreeExtent {
+  const cached = extents.get(nodeId);
+  if (cached) return cached;
   if (visiting.has(nodeId)) {
-    return { centers: new Map([[nodeId, 0]]), top: 0, bottom: 0 };
+    return { top: 0, bottom: 0 };
   }
   visiting.add(nodeId);
   const children = childrenByParent.get(nodeId) ?? [];
   if (children.length === 0) {
     visiting.delete(nodeId);
-    return { centers: new Map([[nodeId, 0]]), top: 0, bottom: 0 };
+    const extent = { top: 0, bottom: 0 };
+    extents.set(nodeId, extent);
+    return extent;
   }
 
-  const childLayouts = children.map((childId) =>
-    computeRelativeSpineSubtree(childId, childrenByParent, visiting),
+  const childExtents = children.map((childId) =>
+    computeRelativeSpineExtent(
+      childId,
+      childrenByParent,
+      extents,
+      visiting,
+    ),
   );
-  const childOffsets = spineChildOffsets(childLayouts);
-  const centers = new Map<string, number>([[nodeId, 0]]);
+  const childOffsets = spineChildOffsets(childExtents);
   let top = 0;
   let bottom = 0;
 
   for (let index = 0; index < children.length; index += 1) {
     const childOffset = childOffsets[index] ?? 0;
-    const childLayout = childLayouts[index];
-    top = Math.min(top, childOffset + childLayout.top);
-    bottom = Math.max(bottom, childOffset + childLayout.bottom);
-    for (const [descendantId, rowCenter] of childLayout.centers) {
-      centers.set(descendantId, childOffset + rowCenter);
-    }
+    const childExtent = childExtents[index];
+    top = Math.min(top, childOffset + childExtent.top);
+    bottom = Math.max(bottom, childOffset + childExtent.bottom);
   }
 
   visiting.delete(nodeId);
-  return { centers, top, bottom };
+  const extent = { top, bottom };
+  extents.set(nodeId, extent);
+  return extent;
+}
+
+function assignRelativeSpineRows(
+  nodeId: string,
+  rowCenter: number,
+  childrenByParent: ReadonlyMap<string, readonly string[]>,
+  extents: ReadonlyMap<string, SpineSubtreeExtent>,
+  rowCenters: Map<string, number>,
+  visiting: Set<string> = new Set<string>(),
+): void {
+  if (visiting.has(nodeId) || rowCenters.has(nodeId)) return;
+  visiting.add(nodeId);
+  rowCenters.set(nodeId, rowCenter);
+  const children = childrenByParent.get(nodeId) ?? [];
+  const childExtents = children.map(
+    (childId) => extents.get(childId) ?? { top: 0, bottom: 0 },
+  );
+  const childOffsets = spineChildOffsets(childExtents);
+
+  for (let index = 0; index < children.length; index += 1) {
+    assignRelativeSpineRows(
+      children[index],
+      rowCenter + (childOffsets[index] ?? 0),
+      childrenByParent,
+      extents,
+      rowCenters,
+      visiting,
+    );
+  }
+
+  visiting.delete(nodeId);
 }
 
 function spineChildOffsets(
-  childLayouts: readonly SpineSubtreeLayout[],
+  childExtents: readonly SpineSubtreeExtent[],
 ): number[] {
-  if (childLayouts.length === 0) return [];
-  if (childLayouts.length === 1) return [0];
-  if (childLayouts.length === 2) return symmetricTwoChildOffsets(childLayouts);
+  if (childExtents.length === 0) return [];
+  if (childExtents.length === 1) return [0];
+  if (childExtents.length === 2) return symmetricTwoChildOffsets(childExtents);
 
-  return relaxedSpineChildOffsets(childLayouts);
+  return relaxedSpineChildOffsets(childExtents);
 }
 
 function symmetricTwoChildOffsets(
-  childLayouts: readonly SpineSubtreeLayout[],
+  childExtents: readonly SpineSubtreeExtent[],
 ): [number, number] {
-  const upper = childLayouts[0];
-  const lower = childLayouts[1];
+  const upper = childExtents[0];
+  const lower = childExtents[1];
   const halfDistance = Math.max(1, (upper.bottom - lower.top + 1) / 2);
   return [-halfDistance, halfDistance];
 }
 
 function relaxedSpineChildOffsets(
-  childLayouts: readonly SpineSubtreeLayout[],
+  childExtents: readonly SpineSubtreeExtent[],
 ): number[] {
-  const offsets = symmetricRowOffsets(childLayouts.length);
+  const offsets = symmetricRowOffsets(childExtents.length);
 
-  for (let index = 1; index < childLayouts.length; index += 1) {
+  for (let index = 1; index < childExtents.length; index += 1) {
     const previousBottom =
-      offsets[index - 1] + childLayouts[index - 1].bottom;
-    const currentTop = offsets[index] + childLayouts[index].top;
+      offsets[index - 1] + childExtents[index - 1].bottom;
+    const currentTop = offsets[index] + childExtents[index].top;
     const overlap = previousBottom + 1 - currentTop;
     if (overlap > 0) {
       for (let shifted = index; shifted < offsets.length; shifted += 1) {
@@ -443,10 +489,10 @@ function relaxedSpineChildOffsets(
   }
 
   const top = Math.min(
-    ...offsets.map((offset, index) => offset + childLayouts[index].top),
+    ...offsets.map((offset, index) => offset + childExtents[index].top),
   );
   const bottom = Math.max(
-    ...offsets.map((offset, index) => offset + childLayouts[index].bottom),
+    ...offsets.map((offset, index) => offset + childExtents[index].bottom),
   );
   const centerOffset = (top + bottom) / 2;
   return offsets.map((offset) => offset - centerOffset);
