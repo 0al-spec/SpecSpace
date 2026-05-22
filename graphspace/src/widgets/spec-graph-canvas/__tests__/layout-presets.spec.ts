@@ -190,7 +190,7 @@ describe("SpecGraph canvas layout presets", () => {
     expect(positions.get("SG-SPEC-0004")).toEqual({ x: 360, y: 344 });
   });
 
-  it("uses subtree spans in Spine so nested groups stay compact", () => {
+  it("keeps uneven two-child Spine branches symmetric around their parent", () => {
     const positions = computeSpecGraphCanvasLayoutPositions(
       [
         node("SG-SPEC-0001", "linked"),
@@ -208,11 +208,11 @@ describe("SpecGraph canvas layout presets", () => {
       "spine",
     );
 
-    expect(positions.get("SG-SPEC-0001")).toEqual({ x: 0, y: 172 });
-    expect(positions.get("SG-SPEC-0002")).toEqual({ x: 360, y: 86 });
-    expect(positions.get("SG-SPEC-0003")).toEqual({ x: 360, y: 344 });
+    expect(positions.get("SG-SPEC-0001")).toEqual({ x: 0, y: 344 });
+    expect(positions.get("SG-SPEC-0002")).toEqual({ x: 360, y: 172 });
+    expect(positions.get("SG-SPEC-0003")).toEqual({ x: 360, y: 516 });
     expect(positions.get("SG-SPEC-0004")).toEqual({ x: 720, y: 0 });
-    expect(positions.get("SG-SPEC-0005")).toEqual({ x: 720, y: 172 });
+    expect(positions.get("SG-SPEC-0005")).toEqual({ x: 720, y: 344 });
   });
 
   it("keeps secondary links out of Spine depth placement", () => {

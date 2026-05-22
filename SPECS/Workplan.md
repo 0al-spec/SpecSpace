@@ -2192,7 +2192,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The follow-up smoke criteria require desktop and mobile/narrow browser checks before Force can be exposed.
   - No UI button or production runtime path enables Force in this planning PR.
 
-### CTXB-P13-T46 — Add Spine layout preset — In Progress
+### ✅ CTXB-P13-T46 — Add Spine layout preset — DONE (PASS, 2026-05-23)
 - **Description:** Add a deterministic tidy DAG layout that places hierarchy depth into columns and centers compact child groups around their parent, matching the readable hand-arranged SpecGraph map operators build manually.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T43, CTXB-P13-T44, CTXB-P13-T45
@@ -2206,6 +2206,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - The layout is deterministic and does not use force simulation, randomness, or animation.
   - Existing edge detail/routing controls continue to work with the new preset.
   - Desktop and mobile/narrow browser smoke pass for the canvas with Spine selected.
+
+### CTXB-P13-B3 — Balance Spine sibling anchors — In Progress
+- **Description:** Fix the first Spine pass where a parent could look visually off-center when it had two children with uneven descendant spans. Keep immediate child anchors symmetric around the parent when space allows, while descendants expand around their own child anchors.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T46
+- **Parallelizable:** no
+- **Outputs / Artifacts:** Spine relative subtree placement update, focused regression test, documentation update, validation report
+- **Acceptance Criteria:**
+  - Two immediate Spine children are evenly spaced around their parent when their subtrees can fit without overlap.
+  - A child with deeper descendants expands its own subtree around its child anchor instead of pulling the sibling anchor off balance.
+  - Larger sibling groups still relax deterministically to avoid overlap.
+  - Secondary links still do not influence Spine placement.
+  - Desktop and mobile/narrow browser smoke pass for Spine.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
