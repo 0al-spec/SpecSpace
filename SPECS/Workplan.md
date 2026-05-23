@@ -2220,7 +2220,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Secondary links still do not influence Spine placement.
   - Desktop and mobile/narrow browser smoke pass for Spine.
 
-### CTXB-P13-T47 — Add layout-specific edge visibility defaults — In Progress
+### ✅ CTXB-P13-T47 — Add layout-specific edge visibility defaults — DONE (PASS, 2026-05-23)
 - **Description:** Make zoom-aware Auto edge detail respect the active canvas layout so dense visual modes such as Spine and Status stay sparse longer while explicit Core/Links/All user choices remain unchanged.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T44, CTXB-P13-T46, CTXB-P13-B3
@@ -2233,6 +2233,20 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Explicit Main/Core/Links/All modes bypass layout-specific Auto thresholds.
   - Selected edges, selected-node adjacent edges, and broken diagnostics remain visible in sparse modes.
   - Desktop and mobile/narrow browser smoke pass with Spine selected.
+
+### CTXB-P13-T48 — Add canvas edge direction legend — In Progress
+- **Description:** Surface a compact canvas legend for edge direction semantics so operators can distinguish raw graph direction from hierarchy projection, especially for `refines` edges that render parent-to-child outside Canonical layout.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T43, CTXB-P13-T44, CTXB-P13-T46
+- **Parallelizable:** no
+- **Outputs / Artifacts:** edge direction legend model, canvas UI legend, focused tests, documentation update, validation report
+- **Acceptance Criteria:**
+  - Canvas shows a compact direction legend near existing edge controls.
+  - Legend states that `refines` displays `parent -> child` in Tree/Linear/Spine/Status hierarchy projection.
+  - Legend states that Canonical keeps `refines` as raw `child -> parent`.
+  - `depends_on` is shown as `source -> target`.
+  - `relates_to` is shown as an association without an arrow.
+  - Desktop and mobile/narrow smoke verify the legend does not overlap canvas controls.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

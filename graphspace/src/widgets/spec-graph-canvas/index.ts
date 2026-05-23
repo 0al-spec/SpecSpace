@@ -37,6 +37,11 @@ export {
   type SpecGraphCanvasEdgeDetailStorage,
   type SpecGraphCanvasEffectiveEdgeDetailMode,
 } from "./model/edge-detail";
+export {
+  buildSpecGraphCanvasEdgeDirectionLegend,
+  usesSpecGraphCanvasHierarchyProjection,
+  type SpecGraphCanvasEdgeDirectionLegendItem,
+} from "./model/edge-direction-legend";
 export { buildSpecGraphSelection, type SpecGraphSelection } from "./model/selection";
 export {
   buildSpecGraphCanvasOverlays,

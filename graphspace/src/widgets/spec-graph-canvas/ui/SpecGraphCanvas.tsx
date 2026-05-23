@@ -50,6 +50,10 @@ import {
   type SpecGraphCanvasEdgeRouteMode,
 } from "../model/edge-detail";
 import {
+  buildSpecGraphCanvasEdgeDirectionLegend,
+  type SpecGraphCanvasEdgeDirectionLegendItem,
+} from "../model/edge-direction-legend";
+import {
   applySpecGraphCanvasLayoutOverrides,
   buildSpecGraphCanvasLayoutStorageKey,
   getSpecGraphCanvasLayoutStorage,
@@ -306,6 +310,14 @@ const edgeTypes = {
   specEdge: SpecFlowEdgeView,
 };
 
+function edgeDirectionToneClassName(
+  tone: SpecGraphCanvasEdgeDirectionLegendItem["tone"],
+) {
+  if (tone === "depends") return styles.edgeDirectionSwatchDepends;
+  if (tone === "refines") return styles.edgeDirectionSwatchRefines;
+  return styles.edgeDirectionSwatchRelates;
+}
+
 export function SpecGraphCanvas({
   state,
   className,
@@ -394,6 +406,10 @@ function SpecGraphCanvasInner({
         layoutPreset,
       ),
     [canvasZoom, edgeDetailMode, layoutPreset],
+  );
+  const edgeDirectionLegend = useMemo(
+    () => buildSpecGraphCanvasEdgeDirectionLegend(layoutPreset),
+    [layoutPreset],
   );
   const layoutStorageKey = useMemo(
     () => buildSpecGraphCanvasLayoutStorageKey(state.data),
@@ -794,6 +810,31 @@ function SpecGraphCanvasInner({
             >
               <span>{SPEC_GRAPH_CANVAS_EDGE_ROUTE_LABELS[mode]}</span>
             </button>
+          ))}
+        </div>
+        <div
+          className={styles.edgeDirectionDock}
+          aria-label="Canvas edge direction legend"
+        >
+          {edgeDirectionLegend.map((item) => (
+            <span
+              key={item.edgeKind}
+              className={styles.edgeDirectionChip}
+              aria-label={`${item.label}: ${item.displayDirection}`}
+              title={item.title}
+            >
+              <span
+                className={[
+                  styles.edgeDirectionSwatch,
+                  edgeDirectionToneClassName(item.tone),
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                aria-hidden="true"
+              />
+              <span>{item.label}</span>
+              <span>{item.displayDirection}</span>
+            </span>
           ))}
         </div>
         {layoutOverrideCount > 0 ? (

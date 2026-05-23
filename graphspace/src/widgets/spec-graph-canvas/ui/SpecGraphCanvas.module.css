@@ -79,7 +79,8 @@
 .gapFilterDock,
 .layoutPresetDock,
 .edgeDetailDock,
-.edgeRouteDock {
+.edgeRouteDock,
+.edgeDirectionDock {
   display: inline-flex;
   flex-wrap: wrap;
   gap: var(--gs-space-2);
@@ -87,7 +88,8 @@
 
 .layoutPresetDock,
 .edgeDetailDock,
-.edgeRouteDock {
+.edgeRouteDock,
+.edgeDirectionDock {
   padding-left: var(--gs-space-2);
   border-left: 1px solid var(--gs-rule-soft);
 }
@@ -119,6 +121,44 @@
 .layoutResetButton {
   border-color: color-mix(in srgb, var(--gs-accent) 42%, var(--gs-rule-soft));
   color: var(--gs-accent);
+}
+
+.edgeDirectionChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gs-space-2);
+  min-height: 28px;
+  padding: 0 var(--gs-space-3);
+  border: 1px solid var(--gs-rule-soft);
+  background: color-mix(in srgb, var(--gs-panel) 88%, transparent);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.edgeDirectionSwatch {
+  width: 18px;
+  height: 0;
+  border-top: 2px solid currentColor;
+  opacity: 0.9;
+}
+
+.edgeDirectionSwatchDepends {
+  color: #b06924;
+}
+
+.edgeDirectionSwatchRefines {
+  color: #4e689b;
+  border-top-style: dashed;
+}
+
+.edgeDirectionSwatchRelates {
+  color: #7c3aed;
+  border-top-style: dotted;
+  opacity: 0.58;
 }
 
 .emptyFilterState {
