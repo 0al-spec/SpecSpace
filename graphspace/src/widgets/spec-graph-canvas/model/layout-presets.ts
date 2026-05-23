@@ -61,6 +61,11 @@ type LayoutEdge = {
   target: string;
 };
 
+type SpineSubtreeExtent = {
+  top: number;
+  bottom: number;
+};
+
 export function normalizeSpecGraphCanvasLayoutPreset(
   value: unknown,
 ): SpecGraphCanvasLayoutPreset | null {
@@ -215,15 +220,25 @@ function computeSpinePositions(
   const nodeIds = sortedNodeIds(nodes);
   const tree = buildPrimaryTree(nodeIds, refinementHierarchyEdges(nodes, edges));
   const ranks = computeDirectedRanks(nodes, tree.primaryEdges);
-  const spans = computeSubtreeSpans(nodeIds, tree.childrenByParent);
+  const extents = new Map<string, SpineSubtreeExtent>();
   const rowCenters = new Map<string, number>();
   const roots = nodeIds.filter((nodeId) => !tree.parentByChild.has(nodeId));
   let nextTopRow = 0;
 
   for (const root of roots) {
-    const span = spans.get(root) ?? 1;
-    assignSpineRows(root, nextTopRow, tree.childrenByParent, spans, rowCenters);
-    nextTopRow += span + 1;
+    const extent = computeRelativeSpineExtent(
+      root,
+      tree.childrenByParent,
+      extents,
+    );
+    assignRelativeSpineRows(
+      root,
+      nextTopRow - extent.top,
+      tree.childrenByParent,
+      extents,
+      rowCenters,
+    );
+    nextTopRow += extent.bottom - extent.top + 2;
   }
 
   for (const nodeId of nodeIds) {
@@ -361,65 +376,143 @@ function buildPrimaryTree(
   return { childrenByParent, parentByChild, primaryEdges };
 }
 
-function computeSubtreeSpans(
-  nodeIds: readonly string[],
-  childrenByParent: ReadonlyMap<string, readonly string[]>,
-): Map<string, number> {
-  const spans = new Map<string, number>();
-  const visiting = new Set<string>();
-
-  function spanFor(nodeId: string): number {
-    const cached = spans.get(nodeId);
-    if (cached !== undefined) return cached;
-    if (visiting.has(nodeId)) return 1;
-    visiting.add(nodeId);
-    const children = childrenByParent.get(nodeId) ?? [];
-    const childrenSpan = children.reduce(
-      (total, childId) => total + spanFor(childId),
-      0,
-    );
-    const span = Math.max(1, childrenSpan);
-    visiting.delete(nodeId);
-    spans.set(nodeId, span);
-    return span;
-  }
-
-  for (const nodeId of nodeIds) spanFor(nodeId);
-
-  return spans;
-}
-
-function assignSpineRows(
+function computeRelativeSpineExtent(
   nodeId: string,
-  topRow: number,
   childrenByParent: ReadonlyMap<string, readonly string[]>,
-  spans: ReadonlyMap<string, number>,
-  rowCenters: Map<string, number>,
-): void {
-  if (rowCenters.has(nodeId)) return;
+  extents: Map<string, SpineSubtreeExtent>,
+  visiting: Set<string> = new Set<string>(),
+): SpineSubtreeExtent {
+  const cached = extents.get(nodeId);
+  if (cached) return cached;
+  if (visiting.has(nodeId)) {
+    return { top: 0, bottom: 0 };
+  }
+  visiting.add(nodeId);
   const children = childrenByParent.get(nodeId) ?? [];
   if (children.length === 0) {
-    rowCenters.set(nodeId, topRow);
-    return;
+    visiting.delete(nodeId);
+    const extent = { top: 0, bottom: 0 };
+    extents.set(nodeId, extent);
+    return extent;
   }
 
-  const childrenSpan = children.reduce(
-    (total, childId) => total + (spans.get(childId) ?? 1),
-    0,
-  );
-  rowCenters.set(nodeId, topRow + (childrenSpan - 1) / 2);
-
-  let childTopRow = topRow;
-  for (const childId of children) {
-    assignSpineRows(
+  const childExtents = children.map((childId) =>
+    computeRelativeSpineExtent(
       childId,
-      childTopRow,
       childrenByParent,
-      spans,
-      rowCenters,
-    );
-    childTopRow += spans.get(childId) ?? 1;
+      extents,
+      visiting,
+    ),
+  );
+  const childOffsets = spineChildOffsets(childExtents);
+  let top = 0;
+  let bottom = 0;
+
+  for (let index = 0; index < children.length; index += 1) {
+    const childOffset = childOffsets[index] ?? 0;
+    const childExtent = childExtents[index];
+    top = Math.min(top, childOffset + childExtent.top);
+    bottom = Math.max(bottom, childOffset + childExtent.bottom);
   }
+
+  visiting.delete(nodeId);
+  const extent = { top, bottom };
+  extents.set(nodeId, extent);
+  return extent;
+}
+
+function assignRelativeSpineRows(
+  nodeId: string,
+  rowCenter: number,
+  childrenByParent: ReadonlyMap<string, readonly string[]>,
+  extents: ReadonlyMap<string, SpineSubtreeExtent>,
+  rowCenters: Map<string, number>,
+  visiting: Set<string> = new Set<string>(),
+): void {
+  if (visiting.has(nodeId) || rowCenters.has(nodeId)) return;
+  visiting.add(nodeId);
+  rowCenters.set(nodeId, rowCenter);
+  const children = childrenByParent.get(nodeId) ?? [];
+  const childExtents = children.map(
+    (childId) => extents.get(childId) ?? { top: 0, bottom: 0 },
+  );
+  const childOffsets = spineChildOffsets(childExtents);
+
+  for (let index = 0; index < children.length; index += 1) {
+    assignRelativeSpineRows(
+      children[index],
+      rowCenter + (childOffsets[index] ?? 0),
+      childrenByParent,
+      extents,
+      rowCenters,
+      visiting,
+    );
+  }
+
+  visiting.delete(nodeId);
+}
+
+function spineChildOffsets(
+  childExtents: readonly SpineSubtreeExtent[],
+): number[] {
+  if (childExtents.length === 0) return [];
+  if (childExtents.length === 1) return [0];
+  if (childExtents.length === 2) return symmetricTwoChildOffsets(childExtents);
+
+  return relaxedSpineChildOffsets(childExtents);
+}
+
+function symmetricTwoChildOffsets(
+  childExtents: readonly SpineSubtreeExtent[],
+): [number, number] {
+  const upper = childExtents[0];
+  const lower = childExtents[1];
+  const halfDistance = Math.max(1, (upper.bottom - lower.top + 1) / 2);
+  return [-halfDistance, halfDistance];
+}
+
+function relaxedSpineChildOffsets(
+  childExtents: readonly SpineSubtreeExtent[],
+): number[] {
+  const offsets = symmetricRowOffsets(childExtents.length);
+
+  for (let index = 1; index < childExtents.length; index += 1) {
+    const previousBottom =
+      offsets[index - 1] + childExtents[index - 1].bottom;
+    const currentTop = offsets[index] + childExtents[index].top;
+    const overlap = previousBottom + 1 - currentTop;
+    if (overlap > 0) {
+      for (let shifted = index; shifted < offsets.length; shifted += 1) {
+        offsets[shifted] += overlap;
+      }
+    }
+  }
+
+  const top = Math.min(
+    ...offsets.map((offset, index) => offset + childExtents[index].top),
+  );
+  const bottom = Math.max(
+    ...offsets.map((offset, index) => offset + childExtents[index].bottom),
+  );
+  const centerOffset = (top + bottom) / 2;
+  return offsets.map((offset) => offset - centerOffset);
+}
+
+function symmetricRowOffsets(count: number): number[] {
+  const offsets: number[] = [];
+  const sideCount = Math.floor(count / 2);
+
+  for (let index = 0; index < count; index += 1) {
+    if (count % 2 === 1) {
+      offsets.push(index - sideCount);
+    } else if (index < sideCount) {
+      offsets.push(index - sideCount);
+    } else {
+      offsets.push(index - sideCount + 1);
+    }
+  }
+
+  return offsets;
 }
 
 function refinementHierarchyEdges(

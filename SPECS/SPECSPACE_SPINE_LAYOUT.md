@@ -18,24 +18,23 @@ safe for Safari/mobile smoke.
    - `depends_on` and `relates_to` stay as visible links but do not move nodes.
 2. Each parent owns one primary child group.
 3. Child groups are placed as compact subtrees.
-4. A parent is centered on the vertical span of its child group when possible.
-5. Non-overlap and deterministic ordering win over perfect symmetry.
-6. Multiple parents are reduced to one primary parent for layout purposes.
-7. Secondary edges should rely on existing edge detail/routing controls instead
+4. Sibling anchors are evenly distributed around the parent when possible.
+5. A child's own descendants expand around that child anchor.
+6. Non-overlap and deterministic ordering win over perfect symmetry.
+7. Multiple parents are reduced to one primary parent for layout purposes.
+8. Secondary edges should rely on existing edge detail/routing controls instead
    of changing node placement.
 
 ## Algorithm
 
-The first implementation uses two deterministic passes:
+The implementation uses deterministic relative subtree placement:
 
-1. Bottom-up span pass:
-   - leaves occupy one row;
-   - a parent subtree occupies the sum of its child subtree spans;
-   - child order is stable by `node_id`.
-2. Top-down placement pass:
-   - roots are stacked with one spacer row between root subtrees;
-   - child subtrees are assigned adjacent row spans;
-   - parent `y` is placed at the center of the child group span.
+1. Each subtree is computed relative to its own root center.
+2. Leaves occupy the root center.
+3. Two-child groups use symmetric anchors above and below the parent.
+4. Larger sibling groups start from symmetric offsets and relax only enough to
+   avoid overlap.
+5. Roots are shifted into global rows with spacer rows between root subtrees.
 
 This produces a tidy hierarchy without D3 ticks, animation, or random initial
 positions.
