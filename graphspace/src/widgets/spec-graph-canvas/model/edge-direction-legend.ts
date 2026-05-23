@@ -1,5 +1,9 @@
 import type { SpecEdge } from "@/entities/spec-edge";
 import type { SpecGraphCanvasLayoutPreset } from "./layout-presets";
+import {
+  EDGE_KIND_STROKE_COLOR,
+  usesSpecGraphCanvasHierarchyProjection,
+} from "./to-flow-elements";
 
 export type SpecGraphCanvasEdgeDirectionLegendItem = {
   edgeKind: SpecEdge["edge_kind"];
@@ -7,16 +11,11 @@ export type SpecGraphCanvasEdgeDirectionLegendItem = {
   displayDirection: string;
   semanticDirection: string;
   tone: "depends" | "refines" | "relates";
+  toneColor: string;
   title: string;
 };
 
 const REFINES_SEMANTIC_DIRECTION = "child -> parent";
-
-export function usesSpecGraphCanvasHierarchyProjection(
-  layoutPreset: SpecGraphCanvasLayoutPreset,
-): boolean {
-  return layoutPreset !== "canonical";
-}
 
 export function buildSpecGraphCanvasEdgeDirectionLegend(
   layoutPreset: SpecGraphCanvasLayoutPreset,
@@ -33,6 +32,7 @@ export function buildSpecGraphCanvasEdgeDirectionLegend(
       displayDirection: refinesDisplayDirection,
       semanticDirection: REFINES_SEMANTIC_DIRECTION,
       tone: "refines",
+      toneColor: EDGE_KIND_STROKE_COLOR.refines,
       title: refinesProjected
         ? "Hierarchy projection: raw refines is child -> parent, canvas draws parent -> child."
         : "Canonical direction: raw refines is child -> parent.",
@@ -43,6 +43,7 @@ export function buildSpecGraphCanvasEdgeDirectionLegend(
       displayDirection: "source -> target",
       semanticDirection: "source -> target",
       tone: "depends",
+      toneColor: EDGE_KIND_STROKE_COLOR.depends_on,
       title: "Dependency direction follows the source -> target graph edge.",
     },
     {
@@ -51,6 +52,7 @@ export function buildSpecGraphCanvasEdgeDirectionLegend(
       displayDirection: "no arrow",
       semanticDirection: "association",
       tone: "relates",
+      toneColor: EDGE_KIND_STROKE_COLOR.relates_to,
       title: "Relation edges are associative overlays and intentionally have no arrow.",
     },
   ];

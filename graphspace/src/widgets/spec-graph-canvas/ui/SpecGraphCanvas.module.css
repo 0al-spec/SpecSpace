@@ -147,16 +147,13 @@
 }
 
 .edgeDirectionSwatchDepends {
-  color: #b06924;
 }
 
 .edgeDirectionSwatchRefines {
-  color: #4e689b;
   border-top-style: dashed;
 }
 
 .edgeDirectionSwatchRelates {
-  color: #7c3aed;
   border-top-style: dotted;
   opacity: 0.58;
 }

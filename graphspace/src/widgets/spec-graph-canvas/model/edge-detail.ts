@@ -1,5 +1,8 @@
 import type { SpecEdge } from "@/entities/spec-edge";
-import type { SpecGraphCanvasLayoutPreset } from "./layout-presets";
+import {
+  DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET,
+  type SpecGraphCanvasLayoutPreset,
+} from "./layout-presets";
 
 export const SPEC_GRAPH_CANVAS_EDGE_DETAIL_MODES = [
   "auto",
@@ -184,7 +187,7 @@ export function writeSpecGraphCanvasEdgeRouteMode(
 export function resolveSpecGraphCanvasEdgeDetailMode(
   mode: SpecGraphCanvasEdgeDetailMode,
   zoom: number,
-  layoutPreset: SpecGraphCanvasLayoutPreset = "tree",
+  layoutPreset: SpecGraphCanvasLayoutPreset = DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET,
 ): SpecGraphCanvasEffectiveEdgeDetailMode {
   if (mode !== "auto") return mode;
   const profile = AUTO_EDGE_DETAIL_PROFILES[layoutPreset];

@@ -44,6 +44,12 @@ const byNodeId = (a: SpecNode, b: SpecNode) =>
 const byEdgeId = (a: SpecEdge, b: SpecEdge) =>
   a.edge_id.localeCompare(b.edge_id);
 
+export function usesSpecGraphCanvasHierarchyProjection(
+  layoutPreset: SpecGraphCanvasLayoutPreset,
+): boolean {
+  return layoutPreset !== "canonical";
+}
+
 /**
  * Refinement Ladder Layout
  *
@@ -75,11 +81,20 @@ const EDGE_STYLE: Record<SpecEdge["edge_kind"] | "broken", CSSProperties> = {
   },
 };
 
+export const EDGE_KIND_STROKE_COLOR: Record<
+  Exclude<keyof typeof EDGE_STYLE, "broken">,
+  string
+> = {
+  depends_on: EDGE_STYLE.depends_on.stroke ?? "#000000",
+  refines: EDGE_STYLE.refines.stroke ?? "#000000",
+  relates_to: EDGE_STYLE.relates_to.stroke ?? "#000000",
+};
+
 function edgeEndpoints(
   edge: SpecEdge,
   layoutPreset: SpecGraphCanvasLayoutPreset,
 ): { source: string; target: string } {
-  if (layoutPreset !== "canonical" && edge.edge_kind === "refines") {
+  if (usesSpecGraphCanvasHierarchyProjection(layoutPreset) && edge.edge_kind === "refines") {
     return { source: edge.target_id, target: edge.source_id };
   }
   return { source: edge.source_id, target: edge.target_id };

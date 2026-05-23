@@ -830,6 +830,7 @@ function SpecGraphCanvasInner({
                 ]
                   .filter(Boolean)
                   .join(" ")}
+                style={{ color: item.toneColor }}
                 aria-hidden="true"
               />
               <span>{item.label}</span>
