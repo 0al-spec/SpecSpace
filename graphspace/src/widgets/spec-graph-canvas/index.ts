@@ -41,6 +41,10 @@ export {
   buildSpecGraphCanvasEdgeDirectionLegend,
   type SpecGraphCanvasEdgeDirectionLegendItem,
 } from "./model/edge-direction-legend";
+export {
+  buildSpecGraphCanvasSubtreeCollapseModel,
+  type SpecGraphCanvasSubtreeCollapseModel,
+} from "./model/subtree-collapse";
 export { buildSpecGraphSelection, type SpecGraphSelection } from "./model/selection";
 export {
   buildSpecGraphCanvasOverlays,
