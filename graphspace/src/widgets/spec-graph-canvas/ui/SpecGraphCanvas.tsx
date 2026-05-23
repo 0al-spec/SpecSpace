@@ -387,8 +387,13 @@ function SpecGraphCanvasInner({
     [layoutPreset, state.data],
   );
   const effectiveEdgeDetailMode = useMemo(
-    () => resolveSpecGraphCanvasEdgeDetailMode(edgeDetailMode, canvasZoom),
-    [canvasZoom, edgeDetailMode],
+    () =>
+      resolveSpecGraphCanvasEdgeDetailMode(
+        edgeDetailMode,
+        canvasZoom,
+        layoutPreset,
+      ),
+    [canvasZoom, edgeDetailMode, layoutPreset],
   );
   const layoutStorageKey = useMemo(
     () => buildSpecGraphCanvasLayoutStorageKey(state.data),
@@ -700,6 +705,7 @@ function SpecGraphCanvasInner({
       data-layout-preset={layoutPreset}
       data-edge-detail-mode={edgeDetailMode}
       data-edge-detail-effective={effectiveEdgeDetailMode}
+      data-edge-detail-layout={layoutPreset}
       data-edge-route-mode={edgeRouteMode}
       data-source={state.source}
     >

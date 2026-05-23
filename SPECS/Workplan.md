@@ -2207,7 +2207,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Existing edge detail/routing controls continue to work with the new preset.
   - Desktop and mobile/narrow browser smoke pass for the canvas with Spine selected.
 
-### CTXB-P13-B3 — Balance Spine sibling anchors — In Progress
+### ✅ CTXB-P13-B3 — Balance Spine sibling anchors — DONE (PASS, 2026-05-23)
 - **Description:** Fix the first Spine pass where a parent could look visually off-center when it had two children with uneven descendant spans. Keep immediate child anchors symmetric around the parent when space allows, while descendants expand around their own child anchors.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T46
@@ -2219,6 +2219,20 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Larger sibling groups still relax deterministically to avoid overlap.
   - Secondary links still do not influence Spine placement.
   - Desktop and mobile/narrow browser smoke pass for Spine.
+
+### CTXB-P13-T47 — Add layout-specific edge visibility defaults — In Progress
+- **Description:** Make zoom-aware Auto edge detail respect the active canvas layout so dense visual modes such as Spine and Status stay sparse longer while explicit Core/Links/All user choices remain unchanged.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T44, CTXB-P13-T46, CTXB-P13-B3
+- **Parallelizable:** no
+- **Outputs / Artifacts:** layout-aware Auto edge detail model, focused tests, plan and contributor documentation, validation report
+- **Acceptance Criteria:**
+  - Auto edge detail resolves through deterministic per-layout zoom thresholds.
+  - Spine keeps far and medium zoom sparser than Tree so dashed/refinement-heavy structures do not dominate the canvas too early.
+  - Status layout also delays dense edge detail compared with Tree.
+  - Explicit Main/Core/Links/All modes bypass layout-specific Auto thresholds.
+  - Selected edges, selected-node adjacent edges, and broken diagnostics remain visible in sparse modes.
+  - Desktop and mobile/narrow browser smoke pass with Spine selected.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

@@ -1,4 +1,8 @@
 import type { SpecEdge } from "@/entities/spec-edge";
+import {
+  DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET,
+  type SpecGraphCanvasLayoutPreset,
+} from "./layout-presets";
 
 export const SPEC_GRAPH_CANVAS_EDGE_DETAIL_MODES = [
   "auto",
@@ -68,6 +72,34 @@ const EDGE_DETAIL_STORAGE_KEY = "specspace:spec-graph-canvas-edge-detail:v1";
 const EDGE_ROUTE_STORAGE_KEY = "specspace:spec-graph-canvas-edge-route:v1";
 const AUTO_STRUCTURAL_ZOOM = 0.36;
 const AUTO_FULL_ZOOM = 0.72;
+const AUTO_EDGE_DETAIL_PROFILES: Record<
+  SpecGraphCanvasLayoutPreset,
+  {
+    structuralZoom: number;
+    fullZoom: number;
+  }
+> = {
+  tree: {
+    structuralZoom: AUTO_STRUCTURAL_ZOOM,
+    fullZoom: AUTO_FULL_ZOOM,
+  },
+  linear: {
+    structuralZoom: 0.42,
+    fullZoom: 0.84,
+  },
+  spine: {
+    structuralZoom: 0.56,
+    fullZoom: 1.05,
+  },
+  canonical: {
+    structuralZoom: AUTO_STRUCTURAL_ZOOM,
+    fullZoom: AUTO_FULL_ZOOM,
+  },
+  "status-columns": {
+    structuralZoom: 0.5,
+    fullZoom: 1,
+  },
+};
 
 export function normalizeSpecGraphCanvasEdgeDetailMode(
   value: unknown,
@@ -155,10 +187,12 @@ export function writeSpecGraphCanvasEdgeRouteMode(
 export function resolveSpecGraphCanvasEdgeDetailMode(
   mode: SpecGraphCanvasEdgeDetailMode,
   zoom: number,
+  layoutPreset: SpecGraphCanvasLayoutPreset = DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET,
 ): SpecGraphCanvasEffectiveEdgeDetailMode {
   if (mode !== "auto") return mode;
-  if (zoom >= AUTO_FULL_ZOOM) return "full";
-  if (zoom >= AUTO_STRUCTURAL_ZOOM) return "structural";
+  const profile = AUTO_EDGE_DETAIL_PROFILES[layoutPreset];
+  if (zoom >= profile.fullZoom) return "full";
+  if (zoom >= profile.structuralZoom) return "structural";
   return "primary";
 }
 
