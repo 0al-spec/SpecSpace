@@ -107,6 +107,27 @@ describe("SpecGraph canvas edge detail", () => {
     );
   });
 
+  it("uses layout-specific Auto detail thresholds", () => {
+    expect(resolveSpecGraphCanvasEdgeDetailMode("auto", 0.5, "tree")).toBe(
+      "structural",
+    );
+    expect(resolveSpecGraphCanvasEdgeDetailMode("auto", 0.5, "spine")).toBe(
+      "primary",
+    );
+    expect(resolveSpecGraphCanvasEdgeDetailMode("auto", 0.8, "spine")).toBe(
+      "structural",
+    );
+    expect(resolveSpecGraphCanvasEdgeDetailMode("auto", 1.1, "spine")).toBe(
+      "full",
+    );
+    expect(
+      resolveSpecGraphCanvasEdgeDetailMode("auto", 0.72, "status-columns"),
+    ).toBe("structural");
+    expect(resolveSpecGraphCanvasEdgeDetailMode("full", 0.1, "spine")).toBe(
+      "full",
+    );
+  });
+
   it("filters edge density by effective mode while preserving diagnostics", () => {
     expect(
       isSpecGraphCanvasEdgeVisible(edge("depends", "depends_on"), "primary"),

@@ -202,4 +202,5 @@ Target:
 40. `CTXB-P13-T44` — Add canvas edge density, routing, and LOD controls. ✅
 41. `CTXB-P13-T45` — Plan guarded Force layout parity. ✅
 42. `CTXB-P13-T46` — Add Spine layout preset. ✅
-43. `CTXB-P13-B3` — Balance Spine sibling anchors.
+43. `CTXB-P13-B3` — Balance Spine sibling anchors. ✅
+44. `CTXB-P13-T47` — Add layout-specific edge visibility defaults.

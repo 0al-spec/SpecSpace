@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-B3` — Balance Spine sibling anchors
+**Current Task:** `CTXB-P13-T47` — Add layout-specific edge visibility defaults
 
 ## Recently Archived
+- `CTXB-P13-B3` — Balance Spine sibling anchors (PASS, 2026-05-23)
 - `CTXB-P13-T46` — Add Spine layout preset (PASS, 2026-05-23)
 - `CTXB-P13-T45` — Plan guarded Force layout parity (PASS, 2026-05-22)
 - `CTXB-P13-T44` — Add canvas edge density, routing, and LOD controls (PASS, 2026-05-22)
@@ -95,13 +96,13 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-B3` — Balance Spine sibling anchors.
-- Rationale: the first Spine preset pass can look uneven when a two-child group has different descendant spans. Immediate sibling anchors should stay symmetric around the parent when there is enough room.
+- `CTXB-P13-T47` — Add layout-specific edge visibility defaults.
+- Rationale: after Spine, edge density needs to adapt to the active layout. Dense layouts should keep Auto sparse longer so refinement-heavy or status-clustered canvases remain readable at zoomed-out and medium zoom levels.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`, `CTXB-P13-T34`, `CTXB-P13-T35`, `CTXB-P13-T36`, `CTXB-P13-T37`, `CTXB-P13-T38`, `CTXB-P13-T39`, `CTXB-P13-T40`, `CTXB-P13-T41`, `CTXB-P13-T42`, `CTXB-P13-T43`, `CTXB-P13-T44`, `CTXB-P13-T45`, `CTXB-P13-T46`, `CTXB-P13-B2`.
-- Current: `CTXB-P13-B3` Balance Spine sibling anchors.
-- Next: evaluate layout-specific edge visibility defaults, subtree collapse, or experimental Force runtime behind guard.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`, `CTXB-P13-T34`, `CTXB-P13-T35`, `CTXB-P13-T36`, `CTXB-P13-T37`, `CTXB-P13-T38`, `CTXB-P13-T39`, `CTXB-P13-T40`, `CTXB-P13-T41`, `CTXB-P13-T42`, `CTXB-P13-T43`, `CTXB-P13-T44`, `CTXB-P13-T45`, `CTXB-P13-T46`, `CTXB-P13-B2`, `CTXB-P13-B3`.
+- Current: `CTXB-P13-T47` Add layout-specific edge visibility defaults.
+- Next: subtree collapse, layout-specific edge legends, or experimental Force runtime behind guard.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.
