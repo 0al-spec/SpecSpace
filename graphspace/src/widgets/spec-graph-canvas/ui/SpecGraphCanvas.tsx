@@ -614,13 +614,8 @@ function SpecGraphCanvasInner({
     [activeSelectedNodeId, subtreeCollapseModel.response],
   );
   const collapsedSubtreeCount = useMemo(
-    () =>
-      [...collapsedSubtreeNodeIds].filter(
-        (nodeId) =>
-          (subtreeCollapseModel.hiddenDescendantCountsByNodeId.get(nodeId) ?? 0) >
-          0,
-      ).length,
-    [collapsedSubtreeNodeIds, subtreeCollapseModel.hiddenDescendantCountsByNodeId],
+    () => subtreeCollapseModel.visibleCollapsedNodeIds.size,
+    [subtreeCollapseModel.visibleCollapsedNodeIds],
   );
   const classNames = className ? `${styles.root} ${className}` : styles.root;
   const updateSelectedNodeId = useCallback(

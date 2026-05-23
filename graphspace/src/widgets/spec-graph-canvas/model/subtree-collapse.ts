@@ -7,6 +7,7 @@ import type {
 export type SpecGraphCanvasSubtreeCollapseModel = {
   response: SpecGraphResponse;
   hiddenNodeIds: ReadonlySet<string>;
+  visibleCollapsedNodeIds: ReadonlySet<string>;
   childCountsByNodeId: ReadonlyMap<string, number>;
   descendantCountsByNodeId: ReadonlyMap<string, number>;
   hiddenDescendantCountsByNodeId: ReadonlyMap<string, number>;
@@ -34,23 +35,42 @@ function buildRefinesChildrenByParent(
   return childrenByParent;
 }
 
-function collectDescendants(
-  nodeId: string,
+function buildDescendantsByNodeId(
   childrenByParent: ReadonlyMap<string, readonly string[]>,
-): Set<string> {
-  const descendants = new Set<string>();
-  const stack = [...(childrenByParent.get(nodeId) ?? [])].sort((a, b) =>
-    b.localeCompare(a),
-  );
+): Map<string, ReadonlySet<string>> {
+  const descendantsByNodeId = new Map<string, Set<string>>();
+  const nodeIds = new Set<string>();
 
-  while (stack.length > 0) {
-    const childId = stack.pop()!;
-    if (childId === nodeId || descendants.has(childId)) continue;
-    descendants.add(childId);
-    stack.push(...(childrenByParent.get(childId) ?? []));
+  for (const [nodeId, children] of childrenByParent.entries()) {
+    nodeIds.add(nodeId);
+    const descendants = descendantsByNodeId.get(nodeId) ?? new Set<string>();
+    for (const childId of children) {
+      nodeIds.add(childId);
+      if (childId !== nodeId) descendants.add(childId);
+    }
+    descendantsByNodeId.set(nodeId, descendants);
   }
 
-  return descendants;
+  let changed = true;
+  while (changed) {
+    changed = false;
+
+    for (const nodeId of [...nodeIds].sort((a, b) => a.localeCompare(b))) {
+      const descendants = descendantsByNodeId.get(nodeId) ?? new Set<string>();
+      const previousSize = descendants.size;
+
+      for (const childId of childrenByParent.get(nodeId) ?? []) {
+        for (const descendantId of descendantsByNodeId.get(childId) ?? []) {
+          if (descendantId !== nodeId) descendants.add(descendantId);
+        }
+      }
+
+      if (descendants.size !== previousSize) changed = true;
+      descendantsByNodeId.set(nodeId, descendants);
+    }
+  }
+
+  return descendantsByNodeId;
 }
 
 function summarizeVisibleGraph(
@@ -73,6 +93,7 @@ export function buildSpecGraphCanvasSubtreeCollapseModel(
   collapsedNodeIds: ReadonlySet<string>,
 ): SpecGraphCanvasSubtreeCollapseModel {
   const childrenByParent = buildRefinesChildrenByParent(response);
+  const descendantsByNodeId = buildDescendantsByNodeId(childrenByParent);
   const childCountsByNodeId = new Map(
     [...childrenByParent.entries()].map(([nodeId, children]) => [
       nodeId,
@@ -82,14 +103,14 @@ export function buildSpecGraphCanvasSubtreeCollapseModel(
   const descendantCountsByNodeId = new Map(
     [...childrenByParent.keys()].map((nodeId) => [
       nodeId,
-      collectDescendants(nodeId, childrenByParent).size,
+      descendantsByNodeId.get(nodeId)?.size ?? 0,
     ]),
   );
   const hiddenNodeIds = new Set<string>();
   const hiddenDescendantCountsByNodeId = new Map<string, number>();
 
   for (const nodeId of [...collapsedNodeIds].sort((a, b) => a.localeCompare(b))) {
-    const descendants = collectDescendants(nodeId, childrenByParent);
+    const descendants = descendantsByNodeId.get(nodeId) ?? new Set<string>();
     hiddenDescendantCountsByNodeId.set(nodeId, descendants.size);
     for (const descendantId of descendants) hiddenNodeIds.add(descendantId);
   }
@@ -103,6 +124,13 @@ export function buildSpecGraphCanvasSubtreeCollapseModel(
   );
   const visibleRoots = response.graph.roots.filter((nodeId) =>
     visibleNodeIds.has(nodeId),
+  );
+  const visibleCollapsedNodeIds = new Set(
+    [...collapsedNodeIds].filter(
+      (nodeId) =>
+        visibleNodeIds.has(nodeId) &&
+        (hiddenDescendantCountsByNodeId.get(nodeId) ?? 0) > 0,
+    ),
   );
   const graphSummary = summarizeVisibleGraph(
     response.graph.summary,
@@ -130,6 +158,7 @@ export function buildSpecGraphCanvasSubtreeCollapseModel(
       summary,
     },
     hiddenNodeIds,
+    visibleCollapsedNodeIds,
     childCountsByNodeId,
     descendantCountsByNodeId,
     hiddenDescendantCountsByNodeId,

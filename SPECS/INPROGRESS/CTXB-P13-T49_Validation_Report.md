@@ -28,13 +28,13 @@ empty branch gaps.
 npm test --prefix graphspace -- subtree-collapse
 ```
 
-Result: PASS - 1 file / 3 tests passed.
+Result: PASS - 1 file / 4 tests passed.
 
 ```bash
 npm test --prefix graphspace
 ```
 
-Result: PASS - 58 files / 316 tests passed.
+Result: PASS - 58 files / 317 tests passed.
 
 ```bash
 npm run build --prefix graphspace

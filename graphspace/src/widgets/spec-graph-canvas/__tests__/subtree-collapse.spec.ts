@@ -121,6 +121,17 @@ describe("SpecGraph canvas subtree collapse", () => {
     ]);
   });
 
+  it("reports only visible collapsed subtrees", () => {
+    const model = buildSpecGraphCanvasSubtreeCollapseModel(
+      response,
+      new Set(["ROOT", "A"]),
+    );
+
+    expect([...model.visibleCollapsedNodeIds]).toEqual(["ROOT"]);
+    expect(model.hiddenDescendantCountsByNodeId.get("ROOT")).toBe(3);
+    expect(model.hiddenDescendantCountsByNodeId.get("A")).toBe(1);
+  });
+
   it("keeps cyclic refines traversal bounded", () => {
     const cyclicResponse: SpecGraphResponse = {
       ...response,
