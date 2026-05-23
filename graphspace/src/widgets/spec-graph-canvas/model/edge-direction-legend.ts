@@ -5,6 +5,8 @@ import {
   usesSpecGraphCanvasHierarchyProjection,
 } from "./to-flow-elements";
 
+export { usesSpecGraphCanvasHierarchyProjection } from "./to-flow-elements";
+
 export type SpecGraphCanvasEdgeDirectionLegendItem = {
   edgeKind: SpecEdge["edge_kind"];
   label: string;
