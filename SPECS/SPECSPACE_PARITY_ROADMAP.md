@@ -205,4 +205,5 @@ Target:
 43. `CTXB-P13-B3` — Balance Spine sibling anchors. ✅
 44. `CTXB-P13-T47` — Add layout-specific edge visibility defaults. ✅
 45. `CTXB-P13-T48` — Add canvas edge direction legend. ✅
-46. `CTXB-P13-T49` — Add canvas subtree collapse controls.
+46. `CTXB-P13-T49` — Add canvas subtree collapse controls. ✅
+47. `CTXB-P13-T50` — Add guarded Force layout runtime.

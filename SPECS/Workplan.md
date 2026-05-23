@@ -2248,7 +2248,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - `relates_to` is shown as an association without an arrow.
   - Desktop and mobile/narrow smoke verify the legend does not overlap canvas controls.
 
-### CTXB-P13-T49 — Add canvas subtree collapse controls — In Progress
+### ✅ CTXB-P13-T49 — Add canvas subtree collapse controls — DONE (PASS, 2026-05-23)
 - **Description:** Let operators collapse and expand visible `refines` subtrees directly on the canvas so large hierarchy branches can be temporarily hidden while preserving the parent node as a map anchor.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T43, CTXB-P13-T46, CTXB-P13-T48
@@ -2261,6 +2261,20 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Collapsed nodes show how many descendants are hidden.
   - A global `Expand all` control appears when one or more subtrees are collapsed.
   - Desktop and mobile/narrow smoke pass for collapse, expand, and edge selection cleanup.
+
+### CTXB-P13-T50 — Add guarded Force layout runtime — In Progress
+- **Description:** Reintroduce legacy ContextBuilder Force-style graph exploration as an explicitly guarded runtime mode, not as a normal always-available React Flow preset, so operators can inspect relationship clusters without regressing Safari or large-graph performance.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T45, CTXB-P13-T44, CTXB-P13-T49
+- **Parallelizable:** no
+- **Outputs / Artifacts:** guarded Force runtime adapter, explicit enablement control, node/edge budget checks, focused tests, validation report
+- **Acceptance Criteria:**
+  - Force runtime is unavailable unless the explicit guard/feature flag is enabled.
+  - The guard rejects graphs above the documented node/edge budget and explains why in UI or diagnostics.
+  - Force mode uses a separate runtime path and does not replace Tree, Linear, Canonical, Status, or Spine layout presets.
+  - Existing edge density, routing, selection, inspector, minimap, and subtree collapse controls remain coherent when Force is disabled.
+  - Desktop and mobile/narrow browser smoke verify guarded disabled state and one enabled in-budget graph.
+  - The implementation does not introduce random or animated layout work into the default canvas path.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
