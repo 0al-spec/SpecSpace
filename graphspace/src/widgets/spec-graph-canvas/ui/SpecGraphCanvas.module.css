@@ -123,6 +123,11 @@
   color: var(--gs-accent);
 }
 
+.expandSubtreesButton {
+  border-color: color-mix(in srgb, var(--gs-accent) 36%, var(--gs-rule-soft));
+  color: var(--gs-accent);
+}
+
 .edgeDirectionChip {
   display: inline-flex;
   align-items: center;
@@ -199,6 +204,41 @@
 .nodeShell {
   position: relative;
   cursor: grab;
+}
+
+.subtreeToggleButton {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 34px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--gs-accent) 44%, var(--gs-rule-soft));
+  background: color-mix(in srgb, var(--gs-panel) 96%, white);
+  color: var(--gs-accent);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--gs-rule-soft) 70%, transparent);
+}
+
+.subtreeToggleButton:hover {
+  border-color: var(--gs-accent);
+  background: var(--gs-panel);
+  color: var(--gs-accent);
+}
+
+.subtreeToggleButtonCollapsed {
+  border-color: color-mix(in srgb, var(--gs-muted) 46%, var(--gs-rule-soft));
+  color: var(--gs-muted);
 }
 
 .nodeOverlayDock {

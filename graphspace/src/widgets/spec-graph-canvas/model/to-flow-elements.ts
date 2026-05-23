@@ -21,9 +21,14 @@ export type SpecFlowNodeData = Record<string, unknown> & {
   edgeEndpointHighlighted?: boolean;
   lifecycleBadge?: SpecPMLifecycleBadge | null;
   overlay?: SpecGraphCanvasOverlaySummary | null;
+  subtreeCollapsed?: boolean;
+  subtreeChildCount?: number;
+  subtreeDescendantCount?: number;
+  subtreeHiddenDescendantCount?: number;
   onHoverPreviewIntent?: (node: SpecNode, anchor: HoverPreviewAnchor) => void;
   onHoverPreviewClear?: () => void;
   onOverlayClick?: (kind: SpecGraphCanvasOverlayKind, nodeId: string) => void;
+  onSubtreeCollapseToggle?: (nodeId: string) => void;
 };
 
 export type SpecFlowEdgeData = Record<string, unknown> & {

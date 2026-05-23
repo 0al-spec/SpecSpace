@@ -72,6 +72,7 @@
   - `Auto` на дальнем zoom должен уметь скрывать пунктирные `refines`, потому что они легко перекрывают основные directional links;
   - `Auto` edge detail должен учитывать активный layout: для плотных layouts вроде `Spine` и `Status` держим sparse `Main` дольше, а явные `Core`/`Links`/`All` не переопределяем;
   - `refines` в graph contract хранится как `child -> parent`, но Tree/Linear/Spine/Status показывают hierarchy projection `parent -> child`; Canonical должен оставаться raw-direction layout;
+  - subtree collapse должен скрывать descendants на уровне visible graph перед layout calculation, иначе на canvas остаются большие пустые разрывы от спрятанных веток;
   - legacy `Force` был отдельной D3 SVG-сценой, а не React Flow layout preset, поэтому возвращаем его только как guarded/opt-in режим с явным budget и smoke;
   - dense labels, long always-on edges, animations and dashed/filtered SVG effects требуют отдельного performance pass;
   - Safari особенно чувствителен к большому числу детальных nodes и длинных edges, поэтому перед возвратом таких фич нужны edge-density controls/LOD и desktop+mobile smoke.

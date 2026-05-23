@@ -83,6 +83,7 @@ import type {
   SpecGraphCanvasOverlaySummary,
 } from "../model/overlays";
 import { buildSpecGraphSelection, type SpecGraphSelection } from "../model/selection";
+import { buildSpecGraphCanvasSubtreeCollapseModel } from "../model/subtree-collapse";
 import {
   toSpecGraphFlowElements,
   type SpecFlowEdge,
@@ -130,9 +131,19 @@ function hoverPreviewAnchorFromElement(element: HTMLElement): HoverPreviewAnchor
 
 function SpecFlowNodeView({ data, selected }: NodeProps<SpecFlowNode>) {
   const overlay = data.overlay;
+  const subtreeChildCount = data.subtreeChildCount ?? 0;
+  const subtreeDescendantCount = data.subtreeDescendantCount ?? subtreeChildCount;
+  const subtreeHiddenDescendantCount = data.subtreeHiddenDescendantCount ?? 0;
   const hasOverlay = Boolean(
     overlay && (overlay.proposalCount > 0 || overlay.metricCount > 0),
   );
+  const showSubtreeCollapse = subtreeChildCount > 0;
+  const subtreeToggleLabel = data.subtreeCollapsed
+    ? `Expand ${subtreeHiddenDescendantCount} hidden descendants`
+    : `Collapse ${subtreeDescendantCount} descendants`;
+  const stopFlowEvent = (event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  };
 
   return (
     <div
@@ -154,6 +165,33 @@ function SpecFlowNodeView({ data, selected }: NodeProps<SpecFlowNode>) {
         highlighted={data.edgeEndpointHighlighted === true}
         lifecycleBadge={data.lifecycleBadge}
       />
+      {showSubtreeCollapse ? (
+        <button
+          type="button"
+          className={[
+            styles.subtreeToggleButton,
+            data.subtreeCollapsed ? styles.subtreeToggleButtonCollapsed : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          aria-label={subtreeToggleLabel}
+          aria-expanded={data.subtreeCollapsed ? "false" : "true"}
+          title={subtreeToggleLabel}
+          onPointerDown={stopFlowEvent}
+          onMouseDown={stopFlowEvent}
+          onClick={(event) => {
+            stopFlowEvent(event);
+            data.onSubtreeCollapseToggle?.(data.spec.node_id);
+          }}
+        >
+          <span aria-hidden="true">{data.subtreeCollapsed ? "+" : "-"}</span>
+          <span>
+            {data.subtreeCollapsed
+              ? subtreeHiddenDescendantCount
+              : subtreeDescendantCount}
+          </span>
+        </button>
+      ) : null}
       {hasOverlay && overlay ? (
         <OverlayBadges
           overlay={overlay}
@@ -375,6 +413,9 @@ function SpecGraphCanvasInner({
   const [edgeRouteMode, setEdgeRouteMode] = useState<SpecGraphCanvasEdgeRouteMode>(() =>
     readSpecGraphCanvasEdgeRouteMode(getSpecGraphCanvasEdgeDetailStorage()),
   );
+  const [collapsedSubtreeNodeIds, setCollapsedSubtreeNodeIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [layoutOverrides, setLayoutOverrides] =
     useState<SpecGraphCanvasLayoutOverrides>({});
@@ -394,9 +435,24 @@ function SpecGraphCanvasInner({
   const previewDetailState = useSpecNodePreviewDetail({
     nodeId: hoverCandidate?.node.node_id ?? null,
   });
+  const subtreeCollapseModel = useMemo(
+    () =>
+      buildSpecGraphCanvasSubtreeCollapseModel(
+        state.data,
+        collapsedSubtreeNodeIds,
+      ),
+    [collapsedSubtreeNodeIds, state.data],
+  );
+  const subtreeVisibleNodeIds = useMemo(
+    () =>
+      new Set(
+        subtreeCollapseModel.response.graph.nodes.map((node) => node.node_id),
+      ),
+    [subtreeCollapseModel.response.graph.nodes],
+  );
   const { nodes: baseNodes, edges } = useMemo(
-    () => toSpecGraphFlowElements(state.data, layoutPreset),
-    [layoutPreset, state.data],
+    () => toSpecGraphFlowElements(subtreeCollapseModel.response, layoutPreset),
+    [layoutPreset, subtreeCollapseModel.response],
   );
   const effectiveEdgeDetailMode = useMemo(
     () =>
@@ -416,8 +472,8 @@ function SpecGraphCanvasInner({
     [state.data],
   );
   const layoutNodeIds = useMemo(
-    () => baseNodes.map((node) => node.id),
-    [baseNodes],
+    () => state.data.graph.nodes.map((node) => node.node_id),
+    [state.data.graph.nodes],
   );
   const positionedBaseNodes = useMemo(
     () => applySpecGraphCanvasLayoutOverrides(baseNodes, layoutOverrides),
@@ -455,6 +511,22 @@ function SpecGraphCanvasInner({
     setHoverCandidate(null);
     setHoverPreview(null);
   }, [clearHoverPreviewTimer]);
+  const toggleSubtreeCollapse = useCallback(
+    (nodeId: string) => {
+      clearHoverPreview();
+      setCollapsedSubtreeNodeIds((current) => {
+        const next = new Set(current);
+        if (next.has(nodeId)) next.delete(nodeId);
+        else next.add(nodeId);
+        return next;
+      });
+    },
+    [clearHoverPreview],
+  );
+  const expandAllSubtrees = useCallback(() => {
+    clearHoverPreview();
+    setCollapsedSubtreeNodeIds(new Set());
+  }, [clearHoverPreview]);
   const showHoverPreviewAfterDelay = useCallback(
     (node: SpecNode, anchor: HoverPreviewAnchor) => {
       clearHoverPreviewTimer();
@@ -479,20 +551,33 @@ function SpecGraphCanvasInner({
           lifecycleBadge: lifecycleBadgesByNode?.get(node.id) ?? null,
           edgeEndpointHighlighted: selectedEdgeEndpointIds.has(node.id),
           overlay: overlays?.nodesById.get(node.id) ?? null,
+          subtreeCollapsed: collapsedSubtreeNodeIds.has(node.id),
+          subtreeChildCount:
+            subtreeCollapseModel.childCountsByNodeId.get(node.id) ?? 0,
+          subtreeDescendantCount:
+            subtreeCollapseModel.descendantCountsByNodeId.get(node.id) ?? 0,
+          subtreeHiddenDescendantCount:
+            subtreeCollapseModel.hiddenDescendantCountsByNodeId.get(node.id) ?? 0,
           onHoverPreviewIntent: showHoverPreviewAfterDelay,
           onHoverPreviewClear: clearHoverPreview,
           onOverlayClick: onNodeOverlayClick,
+          onSubtreeCollapseToggle: toggleSubtreeCollapse,
         },
         })),
     [
       activeSelectedNodeId,
       clearHoverPreview,
+      collapsedSubtreeNodeIds,
       lifecycleBadgesByNode,
       onNodeOverlayClick,
       overlays,
       positionedBaseNodes,
       selectedEdgeEndpointIds,
       showHoverPreviewAfterDelay,
+      subtreeCollapseModel.childCountsByNodeId,
+      subtreeCollapseModel.descendantCountsByNodeId,
+      subtreeCollapseModel.hiddenDescendantCountsByNodeId,
+      toggleSubtreeCollapse,
       visibleNodeIds,
     ],
   );
@@ -527,9 +612,24 @@ function SpecGraphCanvasInner({
       visibleNodeIds,
     ],
   );
+  const fullSelection = useMemo(
+    () =>
+      buildSpecGraphSelection(
+        state.data,
+        activeSelectedNodeId ?? null,
+      ),
+    [activeSelectedNodeId, state.data],
+  );
   const selection = useMemo(
-    () => buildSpecGraphSelection(state.data, activeSelectedNodeId ?? null),
-    [state.data, activeSelectedNodeId],
+    () =>
+      activeSelectedNodeId && !subtreeVisibleNodeIds.has(activeSelectedNodeId)
+        ? null
+        : fullSelection,
+    [activeSelectedNodeId, fullSelection, subtreeVisibleNodeIds],
+  );
+  const collapsedSubtreeCount = useMemo(
+    () => subtreeCollapseModel.visibleCollapsedNodeIds.size,
+    [subtreeCollapseModel.visibleCollapsedNodeIds],
   );
   const classNames = className ? `${styles.root} ${className}` : styles.root;
   const updateSelectedNodeId = useCallback(
@@ -659,6 +759,15 @@ function SpecGraphCanvasInner({
   }, [activeSelectedNodeId, selection, updateSelectedNodeId]);
 
   useEffect(() => {
+    if (
+      activeSelectedEdgeId &&
+      !edges.some((edge) => edge.id === activeSelectedEdgeId)
+    ) {
+      updateSelectedEdgeId(null);
+    }
+  }, [activeSelectedEdgeId, edges, updateSelectedEdgeId]);
+
+  useEffect(() => {
     if (!activeSelectedNodeId) {
       focusedNodeIdRef.current = null;
       return;
@@ -723,6 +832,8 @@ function SpecGraphCanvasInner({
       data-edge-detail-effective={effectiveEdgeDetailMode}
       data-edge-detail-layout={layoutPreset}
       data-edge-route-mode={edgeRouteMode}
+      data-collapsed-subtrees={collapsedSubtreeCount}
+      data-hidden-subtree-nodes={subtreeCollapseModel.hiddenNodeIds.size}
       data-source={state.source}
     >
       <div className={styles.canvasFilterDock}>
@@ -838,6 +949,16 @@ function SpecGraphCanvasInner({
             </span>
           ))}
         </div>
+        {collapsedSubtreeCount > 0 ? (
+          <button
+            type="button"
+            className={[styles.gapFilterButton, styles.expandSubtreesButton].join(" ")}
+            onClick={expandAllSubtrees}
+          >
+            <span>Expand all</span>
+            <span>{collapsedSubtreeCount}</span>
+          </button>
+        ) : null}
         {layoutOverrideCount > 0 ? (
           <button
             type="button"

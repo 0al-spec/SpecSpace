@@ -2234,7 +2234,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Selected edges, selected-node adjacent edges, and broken diagnostics remain visible in sparse modes.
   - Desktop and mobile/narrow browser smoke pass with Spine selected.
 
-### CTXB-P13-T48 — Add canvas edge direction legend — In Progress
+### ✅ CTXB-P13-T48 — Add canvas edge direction legend — DONE (PASS, 2026-05-23)
 - **Description:** Surface a compact canvas legend for edge direction semantics so operators can distinguish raw graph direction from hierarchy projection, especially for `refines` edges that render parent-to-child outside Canonical layout.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T43, CTXB-P13-T44, CTXB-P13-T46
@@ -2247,6 +2247,20 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - `depends_on` is shown as `source -> target`.
   - `relates_to` is shown as an association without an arrow.
   - Desktop and mobile/narrow smoke verify the legend does not overlap canvas controls.
+
+### CTXB-P13-T49 — Add canvas subtree collapse controls — In Progress
+- **Description:** Let operators collapse and expand visible `refines` subtrees directly on the canvas so large hierarchy branches can be temporarily hidden while preserving the parent node as a map anchor.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T43, CTXB-P13-T46, CTXB-P13-T48
+- **Parallelizable:** no
+- **Outputs / Artifacts:** subtree collapse model, canvas node controls, focused tests, validation report
+- **Acceptance Criteria:**
+  - Nodes with direct `refines` children expose a compact collapse/expand control.
+  - Collapsing a node hides all descendant nodes and incident edges, while keeping the collapsed node visible.
+  - Canvas layout recomputes against the visible collapsed graph instead of leaving hidden subtree gaps.
+  - Collapsed nodes show how many descendants are hidden.
+  - A global `Expand all` control appears when one or more subtrees are collapsed.
+  - Desktop and mobile/narrow smoke pass for collapse, expand, and edge selection cleanup.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
