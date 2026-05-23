@@ -11,6 +11,11 @@ collapse/expand controls. Collapsed subtrees hide descendants before layout is
 computed, so the remaining visible graph compacts instead of preserving large
 empty branch gaps.
 
+Review follow-up keeps selection semantics based on the full graph, preserves
+hidden-node layout overrides while a subtree is collapsed, counts only visible
+collapsed subtrees in the global badge, and reuses cached descendant closure
+data for subtree counts.
+
 ## Acceptance Criteria
 
 | Criterion | Result |
@@ -29,6 +34,12 @@ npm test --prefix graphspace -- subtree-collapse
 ```
 
 Result: PASS - 1 file / 4 tests passed.
+
+```bash
+npm test --prefix graphspace -- subtree-collapse layout-overrides
+```
+
+Result: PASS - 2 files / 9 tests passed.
 
 ```bash
 npm test --prefix graphspace

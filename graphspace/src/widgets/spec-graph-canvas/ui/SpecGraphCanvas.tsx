@@ -443,6 +443,13 @@ function SpecGraphCanvasInner({
       ),
     [collapsedSubtreeNodeIds, state.data],
   );
+  const subtreeVisibleNodeIds = useMemo(
+    () =>
+      new Set(
+        subtreeCollapseModel.response.graph.nodes.map((node) => node.node_id),
+      ),
+    [subtreeCollapseModel.response.graph.nodes],
+  );
   const { nodes: baseNodes, edges } = useMemo(
     () => toSpecGraphFlowElements(subtreeCollapseModel.response, layoutPreset),
     [layoutPreset, subtreeCollapseModel.response],
@@ -465,8 +472,8 @@ function SpecGraphCanvasInner({
     [state.data],
   );
   const layoutNodeIds = useMemo(
-    () => baseNodes.map((node) => node.id),
-    [baseNodes],
+    () => state.data.graph.nodes.map((node) => node.node_id),
+    [state.data.graph.nodes],
   );
   const positionedBaseNodes = useMemo(
     () => applySpecGraphCanvasLayoutOverrides(baseNodes, layoutOverrides),
@@ -605,13 +612,20 @@ function SpecGraphCanvasInner({
       visibleNodeIds,
     ],
   );
-  const selection = useMemo(
+  const fullSelection = useMemo(
     () =>
       buildSpecGraphSelection(
-        subtreeCollapseModel.response,
+        state.data,
         activeSelectedNodeId ?? null,
       ),
-    [activeSelectedNodeId, subtreeCollapseModel.response],
+    [activeSelectedNodeId, state.data],
+  );
+  const selection = useMemo(
+    () =>
+      activeSelectedNodeId && !subtreeVisibleNodeIds.has(activeSelectedNodeId)
+        ? null
+        : fullSelection,
+    [activeSelectedNodeId, fullSelection, subtreeVisibleNodeIds],
   );
   const collapsedSubtreeCount = useMemo(
     () => subtreeCollapseModel.visibleCollapsedNodeIds.size,
