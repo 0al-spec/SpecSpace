@@ -187,6 +187,14 @@ function SpecFlowNodeView({ data, selected }: NodeProps<SpecFlowNode>) {
         >
           <span>{data.spec.node_id}</span>
         </div>
+        {hasOverlay && overlay ? (
+          <OverlayBadges
+            overlay={overlay}
+            targetId={data.spec.node_id}
+            onClick={data.onOverlayClick}
+            className={styles.nodeOverlayDock}
+          />
+        ) : null}
         <Handle
           type="source"
           position={Position.Right}
