@@ -56,6 +56,7 @@ import {
 } from "../model/edge-direction-legend";
 import {
   advanceSpecGraphForceLayoutPositions,
+  buildSpecGraphForceLayoutTickInput,
   buildSpecGraphForceLayoutRuntimeModel,
   computeSpecGraphForceLayoutPositions,
   forceLayoutGuardDiagnosticState,
@@ -590,12 +591,12 @@ function SpecGraphCanvasInner({
       visibleNodeIds,
     ],
   );
-  const forceLayoutInputKey = useMemo(
+  const forceLayoutTickInput = useMemo(
     () =>
-      [
-        forceLayoutVisibleNodes.map((node) => node.node_id).sort().join(","),
-        forceLayoutVisibleEdgeSpecs.map((edge) => edge.edge_id).sort().join(","),
-      ].join("|"),
+      buildSpecGraphForceLayoutTickInput(
+        forceLayoutVisibleNodes,
+        forceLayoutVisibleEdgeSpecs,
+      ),
     [forceLayoutVisibleEdgeSpecs, forceLayoutVisibleNodes],
   );
   const forceLayoutBudgetModel = useMemo(
@@ -993,7 +994,7 @@ function SpecGraphCanvasInner({
     setForceLiveState("off");
     setForceLivePositions(null);
     forceLiveAlphaRef.current = FORCE_LIVE_INITIAL_ALPHA;
-  }, [forceLayoutInputKey]);
+  }, [forceLayoutTickInput]);
 
   useEffect(() => {
     if (!forceLayoutRuntimeModel.active) {
@@ -1017,8 +1018,7 @@ function SpecGraphCanvasInner({
       setForceLivePositions((current) => {
         const seed = current ?? forceLayoutPositions;
         const result = advanceSpecGraphForceLayoutPositions(
-          forceLayoutVisibleNodes,
-          forceLayoutVisibleEdgeSpecs,
+          forceLayoutTickInput,
           seed,
           forceLiveAlphaRef.current,
         );
@@ -1051,8 +1051,7 @@ function SpecGraphCanvasInner({
   }, [
     forceLayoutPositions,
     forceLayoutRuntimeModel.active,
-    forceLayoutVisibleEdgeSpecs,
-    forceLayoutVisibleNodes,
+    forceLayoutTickInput,
     forceLiveState,
   ]);
 

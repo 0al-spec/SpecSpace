@@ -87,10 +87,12 @@ export {
 } from "./model/force-layout-guard";
 export {
   advanceSpecGraphForceLayoutPositions,
+  buildSpecGraphForceLayoutTickInput,
   buildSpecGraphForceLayoutRuntimeModel,
   computeSpecGraphForceLayoutPositions,
   forceLayoutGuardDiagnosticState,
   forceLayoutGuardMessage,
+  type SpecGraphForceLayoutTickInput,
   type SpecGraphForceLayoutTickResult,
   type SpecGraphForceLayoutRuntimeModel,
 } from "./model/force-layout-runtime";

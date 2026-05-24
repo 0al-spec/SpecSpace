@@ -19,6 +19,11 @@ export type SpecGraphForceLayoutTickResult = {
   maxMovement: number;
 };
 
+export type SpecGraphForceLayoutTickInput = {
+  nodes: readonly SpecNode[];
+  edges: readonly SpecEdge[];
+};
+
 const INITIAL_RADIUS_MIN = 240;
 const INITIAL_RADIUS_PER_NODE = 16;
 const IDEAL_EDGE_LENGTH = 185;
@@ -80,14 +85,12 @@ export function computeSpecGraphForceLayoutPositions(
   nodes: readonly SpecNode[],
   edges: readonly SpecEdge[],
 ): Map<string, SpecGraphCanvasLayoutPosition> {
-  const sortedNodes = [...nodes].sort(byNodeId);
-  const resolvedEdges = resolvedForceLayoutEdges(sortedNodes, edges);
-  const positions = seedCircularPositions(sortedNodes);
+  const input = buildSpecGraphForceLayoutTickInput(nodes, edges);
+  const positions = seedCircularPositions(input.nodes);
 
   for (let iteration = 0; iteration < ITERATION_COUNT; iteration += 1) {
     const tick = advanceSpecGraphForceLayoutPositions(
-      sortedNodes,
-      resolvedEdges,
+      input,
       positions,
       1,
       { x: 0, y: 0 },
@@ -96,28 +99,36 @@ export function computeSpecGraphForceLayoutPositions(
     for (const [nodeId, position] of tick.positions) positions.set(nodeId, position);
   }
 
-  return normalizePositions(sortedNodes, positions);
+  return normalizePositions(input.nodes, positions);
+}
+
+export function buildSpecGraphForceLayoutTickInput(
+  nodes: readonly SpecNode[],
+  edges: readonly SpecEdge[],
+): SpecGraphForceLayoutTickInput {
+  const sortedNodes = [...nodes].sort(byNodeId);
+  return {
+    nodes: sortedNodes,
+    edges: resolvedForceLayoutEdges(sortedNodes, edges),
+  };
 }
 
 export function advanceSpecGraphForceLayoutPositions(
-  nodes: readonly SpecNode[],
-  edges: readonly SpecEdge[],
+  input: SpecGraphForceLayoutTickInput,
   currentPositions: ReadonlyMap<string, SpecGraphCanvasLayoutPosition>,
   alpha: number,
-  center = currentForceLayoutCenter(nodes, currentPositions),
+  center = currentForceLayoutCenter(input.nodes, currentPositions),
 ): SpecGraphForceLayoutTickResult {
-  const sortedNodes = [...nodes].sort(byNodeId);
-  const resolvedEdges = resolvedForceLayoutEdges(sortedNodes, edges);
-  const positions = seedMissingPositions(sortedNodes, currentPositions);
+  const positions = seedMissingPositions(input.nodes, currentPositions);
   const deltas = new Map<string, SpecGraphCanvasLayoutPosition>(
-    sortedNodes.map((node) => [node.node_id, { x: 0, y: 0 }]),
+    input.nodes.map((node) => [node.node_id, { x: 0, y: 0 }]),
   );
 
-  applyRepulsion(sortedNodes, positions, deltas);
-  applyEdgeSprings(resolvedEdges, positions, deltas);
-  applyCentering(sortedNodes, positions, deltas, center);
+  applyRepulsion(input.nodes, positions, deltas);
+  applyEdgeSprings(input.edges, positions, deltas);
+  applyCentering(input.nodes, positions, deltas, center);
 
-  return applyDeltas(sortedNodes, positions, deltas, alpha);
+  return applyDeltas(input.nodes, positions, deltas, alpha);
 }
 
 function seedCircularPositions(

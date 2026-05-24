@@ -3,6 +3,7 @@ import type { SpecEdge } from "@/entities/spec-edge";
 import type { SpecNode } from "@/entities/spec-node";
 import {
   advanceSpecGraphForceLayoutPositions,
+  buildSpecGraphForceLayoutTickInput,
   buildSpecGraphForceLayoutRuntimeModel,
   computeSpecGraphForceLayoutPositions,
   forceLayoutGuardDiagnosticState,
@@ -87,7 +88,11 @@ describe("SpecGraph force layout runtime", () => {
       ["SG-SPEC-0002", { x: 500, y: 0 }],
     ]);
 
-    const result = advanceSpecGraphForceLayoutPositions(nodes, edges, positions, 0.8);
+    const result = advanceSpecGraphForceLayoutPositions(
+      buildSpecGraphForceLayoutTickInput(nodes, edges),
+      positions,
+      0.8,
+    );
 
     expect(result.maxMovement).toBeGreaterThan(0);
     expect(result.positions.get("SG-SPEC-0001")?.x).toBeGreaterThan(0);
