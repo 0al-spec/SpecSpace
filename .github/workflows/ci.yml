@@ -191,6 +191,13 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Check out Platform deploy renderer
+        uses: actions/checkout@v4
+        with:
+          repository: 0al-spec/Platform
+          ref: main
+          path: Platform
+
       - name: Validate Timeweb deploy branch
         env:
           # The existing remote timeweb-deploy branch can lag behind new manifest
@@ -205,7 +212,14 @@ jobs:
           SPECSPACE_RELEASE_COMMIT: ${{ github.sha }}
           SPECSPACE_RELEASE_CREATED_AT: "1970-01-01T00:00:00Z"
         run: |
-          scripts/render-timeweb-deploy-branch.sh "$RUNNER_TEMP/timeweb-deploy"
+          python3 Platform/scripts/platform.py deploy timeweb-render \
+            --output-dir "$RUNNER_TEMP/timeweb-deploy" \
+            --specspace-api-image-ref "$SPECSPACE_API_IMAGE_REF" \
+            --specspace-ui-image-ref "$SPECSPACE_UI_IMAGE_REF" \
+            --release-commit "$SPECSPACE_RELEASE_COMMIT" \
+            --release-created-at "$SPECSPACE_RELEASE_CREATED_AT"
+          python3 Platform/scripts/platform.py deploy timeweb-validate \
+            --path "$RUNNER_TEMP/timeweb-deploy"
           scripts/validate-timeweb-deploy-tree.sh "$RUNNER_TEMP/timeweb-deploy"
 
   publish-timeweb-deploy:
@@ -228,6 +242,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check out Platform deploy renderer
+        uses: actions/checkout@v4
+        with:
+          repository: 0al-spec/Platform
+          ref: main
+          path: Platform
+
       - name: Configure git identity
         run: |
           git config user.name "github-actions[bot]"
@@ -238,7 +259,14 @@ jobs:
           SPECSPACE_API_IMAGE_REF: ${{ needs.specspace-images.outputs.api-image }}@${{ needs.specspace-images.outputs.api-digest }}
           SPECSPACE_UI_IMAGE_REF: ${{ needs.specspace-images.outputs.ui-image }}@${{ needs.specspace-images.outputs.ui-digest }}
           SPECSPACE_RELEASE_COMMIT: ${{ github.sha }}
-        run: scripts/render-timeweb-deploy-branch.sh "$RUNNER_TEMP/timeweb-deploy"
+        run: |
+          python3 Platform/scripts/platform.py deploy timeweb-render \
+            --output-dir "$RUNNER_TEMP/timeweb-deploy" \
+            --specspace-api-image-ref "$SPECSPACE_API_IMAGE_REF" \
+            --specspace-ui-image-ref "$SPECSPACE_UI_IMAGE_REF" \
+            --release-commit "$SPECSPACE_RELEASE_COMMIT"
+          python3 Platform/scripts/platform.py deploy timeweb-validate \
+            --path "$RUNNER_TEMP/timeweb-deploy"
 
       - name: Publish Timeweb deploy branch
         env:

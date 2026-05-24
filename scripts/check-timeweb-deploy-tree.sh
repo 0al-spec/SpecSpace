@@ -21,7 +21,7 @@ artifact_base_url = sys.argv[3]
 specpm_registry_url = sys.argv[4]
 compose_path = root / target_file
 
-allowed_top_level = {target_file, "README.md"}
+allowed_top_level = {target_file, "README.md", "platform-timeweb-deploy.json"}
 errors: list[str] = []
 
 if not compose_path.is_file():
