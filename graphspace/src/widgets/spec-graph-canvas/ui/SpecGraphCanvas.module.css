@@ -237,6 +237,53 @@
   cursor: grab;
 }
 
+.forceNodeShell {
+  width: 82px;
+  height: 82px;
+}
+
+.forceNodeGlyph {
+  position: relative;
+  display: grid;
+  width: 82px;
+  height: 82px;
+  place-items: center;
+  border: 1.4px solid color-mix(in srgb, var(--gs-accent) 46%, var(--gs-rule-mid));
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--gs-panel) 96%, white), var(--gs-panel) 62%),
+    var(--gs-panel);
+  color: var(--gs-accent);
+  font-family: var(--gs-mono);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+  text-transform: uppercase;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--gs-paper) 70%, transparent);
+}
+
+.forceNodeGlyph span {
+  max-width: 68px;
+  overflow-wrap: anywhere;
+}
+
+.forceNodeGlyphHighlighted {
+  border-color: var(--gs-accent);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--gs-accent) 14%, transparent),
+    0 0 0 8px color-mix(in srgb, var(--gs-paper) 72%, transparent);
+}
+
+.forceNodeGlyphSelected {
+  border-color: var(--gs-accent);
+  background: var(--gs-accent-soft);
+  color: var(--gs-ink);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--gs-accent) 22%, transparent),
+    0 0 0 8px color-mix(in srgb, var(--gs-paper) 72%, transparent);
+}
+
 .subtreeToggleButton {
   position: absolute;
   top: -10px;
@@ -337,6 +384,13 @@
   height: 8px;
   border: 1px solid var(--gs-panel);
   background: var(--gs-accent);
+}
+
+.forceHandle {
+  width: 6px;
+  height: 6px;
+  border-color: color-mix(in srgb, var(--gs-panel) 80%, transparent);
+  background: color-mix(in srgb, var(--gs-accent) 82%, var(--gs-muted));
 }
 
 @media (max-width: 760px) {

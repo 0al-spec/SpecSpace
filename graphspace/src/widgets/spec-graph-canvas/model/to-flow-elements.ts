@@ -19,6 +19,7 @@ import {
 export type SpecFlowNodeData = Record<string, unknown> & {
   spec: SpecNode;
   edgeEndpointHighlighted?: boolean;
+  forceGlyph?: boolean;
   lifecycleBadge?: SpecPMLifecycleBadge | null;
   overlay?: SpecGraphCanvasOverlaySummary | null;
   subtreeCollapsed?: boolean;
@@ -33,6 +34,7 @@ export type SpecFlowNodeData = Record<string, unknown> & {
 
 export type SpecFlowEdgeData = Record<string, unknown> & {
   specEdge: SpecEdge;
+  forceStraight?: boolean;
   route?: SpecGraphCanvasEdgeRouteMode;
   overlay?: SpecGraphCanvasOverlaySummary | null;
   onOverlayClick?: (kind: SpecGraphCanvasOverlayKind, edgeId: string) => void;

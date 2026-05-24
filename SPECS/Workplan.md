@@ -2262,7 +2262,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - A global `Expand all` control appears when one or more subtrees are collapsed.
   - Desktop and mobile/narrow smoke pass for collapse, expand, and edge selection cleanup.
 
-### CTXB-P13-T50 — Add guarded Force layout runtime — In Progress
+### ✅ CTXB-P13-T50 — Add guarded Force layout runtime — DONE (PASS, 2026-05-24)
 - **Description:** Reintroduce legacy ContextBuilder Force-style graph exploration as an explicitly guarded runtime mode, not as a normal always-available React Flow preset, so operators can inspect relationship clusters without regressing Safari or large-graph performance.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T45, CTXB-P13-T44, CTXB-P13-T49
@@ -2275,6 +2275,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Existing edge density, routing, selection, inspector, minimap, and subtree collapse controls remain coherent when Force is disabled.
   - Desktop and mobile/narrow browser smoke verify guarded disabled state and one enabled in-budget graph.
   - The implementation does not introduce random or animated layout work into the default canvas path.
+
+### CTXB-P13-T51 — Add compact Force glyph presentation — In Progress
+- **Description:** Refine the guarded Force runtime so active Force mode reads as a conventional relationship graph rather than repositioned full SpecNode cards: compact circular glyphs, `SPEC-ID` labels, and direct straight links make clusters and connection strength easier to scan.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T50
+- **Parallelizable:** no
+- **Outputs / Artifacts:** Force glyph node presentation, straight Force edge rendering, tuned Force spacing, validation report
+- **Acceptance Criteria:**
+  - Active Force mode renders compact circular nodes with visible `SPEC-ID` labels instead of full SpecNode cards.
+  - Active Force mode uses direct straight links, independent of the normal Curve/Rect edge route control.
+  - Normal Tree, Linear, Spine, Canonical, and Status layouts keep the existing SpecNode card presentation.
+  - Node click, selected endpoint highlighting, hover preview, minimap, and edge selection remain available in Force mode.
+  - Desktop and mobile/narrow smoke verify Force glyph rendering on the current public SpecGraph data.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
