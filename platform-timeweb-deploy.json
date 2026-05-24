@@ -3,10 +3,10 @@
   "artifact_kind": "platform_timeweb_deploy_manifest",
   "compose_file": "docker-compose.yml",
   "readme": "README.md",
-  "release_commit": "01e113eb63a0017a9b9746c555c612b09299b1cc",
-  "release_created_at": "2026-05-24T13:02:37Z",
+  "release_commit": "6153c540b18d078d16073dcb02a798adf0e9e3a9",
+  "release_created_at": "2026-05-24T18:50:16Z",
   "schema_version": 1,
   "specpm_registry_url": "https://specpm.dev",
-  "specspace_api_image_ref": "ghcr.io/0al-spec/specspace-api@sha256:d560ecb52c12ec1360cb37f8f6344373a09004deedbef087878bcd1640647824",
-  "specspace_ui_image_ref": "ghcr.io/0al-spec/specspace-ui@sha256:3a70842805c2f238c60cba67d8363722665818fd8f32fabbd7992af6750e0fda"
+  "specspace_api_image_ref": "ghcr.io/0al-spec/specspace-api@sha256:89c1a8d08957e2b5626c6549db1ec0274ce868cd85963b90d00b6ae4fc6f49d7",
+  "specspace_ui_image_ref": "ghcr.io/0al-spec/specspace-ui@sha256:f9bce9af60cff9b10cae67bef58d0de52352062f9c4517b6a73eaac9807a91fc"
 }
