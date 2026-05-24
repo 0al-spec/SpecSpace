@@ -34,8 +34,9 @@ The current production canvas exposes deterministic presets only:
 `Force` is a guarded experimental preset. It is represented by
 `SPEC_GRAPH_FORCE_LAYOUT_PRESET = "force"` and evaluated by
 `evaluateSpecGraphForceLayoutGuard(...)`, but it must stay outside
-`SPEC_GRAPH_CANVAS_LAYOUT_PRESETS` until a follow-up PR deliberately wires the
-runtime UI.
+`SPEC_GRAPH_CANVAS_LAYOUT_PRESETS`. The first SpecSpace runtime pass wires Force
+as a separate opt-in runtime toggle over the existing React Flow canvas, not as
+a persisted ordinary layout preset.
 
 Initial budget:
 
@@ -70,6 +71,23 @@ The first runtime PR that exposes Force in the UI must keep these requirements:
 6. React Flow controls/minimap expectations are documented if Force remains a
    separate SVG surface.
 7. Browser smoke covers desktop and mobile/narrow viewports.
+
+## First Runtime Pass
+
+SpecSpace restores the first Force affordance as a guarded deterministic React
+Flow runtime:
+
+- `Tree`, `Linear`, `Spine`, `Canonical`, and `Status` remain the persisted
+  layout presets.
+- `Force` is a separate button that must be explicitly toggled by the operator.
+- The runtime reuses React Flow nodes, edges, minimap, controls, selection,
+  edge routing, edge density, overlays, subtree collapse, and manual node
+  overrides.
+- The runtime computes deterministic force-like positions from sorted graph
+  ids; it does not run a random or animated D3 simulation in the default canvas
+  path.
+- If the graph exceeds the node or edge budget, the Force button is disabled and
+  the canvas shows the guard reason.
 
 ## Smoke Criteria
 

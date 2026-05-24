@@ -118,7 +118,38 @@
   color: var(--gs-ink);
 }
 
+.gapFilterButton:disabled {
+  border-color: var(--gs-rule-soft);
+  background: color-mix(in srgb, var(--gs-panel) 72%, transparent);
+  color: var(--gs-muted-2);
+  cursor: not-allowed;
+}
+
 .layoutResetButton {
+  border-color: color-mix(in srgb, var(--gs-accent) 42%, var(--gs-rule-soft));
+  color: var(--gs-accent);
+}
+
+.forceLayoutButton {
+  border-color: color-mix(in srgb, var(--gs-warn) 32%, var(--gs-rule-soft));
+}
+
+.forceLayoutStatus {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 var(--gs-space-3);
+  border: 1px solid color-mix(in srgb, var(--gs-warn) 34%, var(--gs-rule-soft));
+  background: color-mix(in srgb, var(--gs-panel) 88%, transparent);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.forceLayoutStatusActive {
   border-color: color-mix(in srgb, var(--gs-accent) 42%, var(--gs-rule-soft));
   color: var(--gs-accent);
 }
