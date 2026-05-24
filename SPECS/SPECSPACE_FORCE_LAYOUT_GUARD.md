@@ -89,6 +89,14 @@ Flow runtime:
 - If the graph exceeds the node or edge budget, the Force button is disabled and
   the canvas shows the guard reason.
 
+The first operator-facing refinement presents active Force as a compact graph
+surface rather than full cards:
+
+- nodes render as circular `SPEC-ID` glyphs;
+- Force edges render as straight links regardless of the normal Curve/Rect
+  route control;
+- normal deterministic layouts keep the full SpecNode card presentation.
+
 ## Smoke Criteria
 
 Before Force can be treated as parity-complete:

@@ -11,6 +11,7 @@ import {
   ReactFlowProvider,
   getBezierPath,
   getSmoothStepPath,
+  getStraightPath,
   type EdgeProps,
   type NodeChange,
   type NodeProps,
@@ -149,10 +150,55 @@ function SpecFlowNodeView({ data, selected }: NodeProps<SpecFlowNode>) {
   const stopFlowEvent = (event: React.SyntheticEvent) => {
     event.stopPropagation();
   };
+  const shellClassName = data.forceGlyph
+    ? `${styles.nodeShell} ${styles.forceNodeShell}`
+    : styles.nodeShell;
+
+  if (data.forceGlyph) {
+    return (
+      <div
+        className={shellClassName}
+        onMouseEnter={(event) =>
+          data.onHoverPreviewIntent?.(
+            data.spec,
+            hoverPreviewAnchorFromElement(event.currentTarget),
+          )
+        }
+        onMouseLeave={data.onHoverPreviewClear}
+        onMouseDown={data.onHoverPreviewClear}
+        onClick={data.onHoverPreviewClear}
+      >
+        <Handle
+          type="target"
+          position={Position.Left}
+          className={[styles.handle, styles.forceHandle].join(" ")}
+        />
+        <div
+          className={[
+            styles.forceNodeGlyph,
+            selected ? styles.forceNodeGlyphSelected : "",
+            data.edgeEndpointHighlighted === true
+              ? styles.forceNodeGlyphHighlighted
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          title={`${data.spec.node_id}: ${data.spec.title}`}
+        >
+          <span>{data.spec.node_id}</span>
+        </div>
+        <Handle
+          type="source"
+          position={Position.Right}
+          className={[styles.handle, styles.forceHandle].join(" ")}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
-      className={styles.nodeShell}
+      className={shellClassName}
       onMouseEnter={(event) =>
         data.onHoverPreviewIntent?.(
           data.spec,
@@ -238,7 +284,9 @@ function SpecFlowEdgeView({
     targetPosition,
   };
   const [edgePath, labelX, labelY] =
-    data?.route === "orthogonal"
+    data?.forceStraight === true
+      ? getStraightPath(edgePathOptions)
+      : data?.route === "orthogonal"
       ? getSmoothStepPath(edgePathOptions)
       : getBezierPath({
           ...edgePathOptions,
@@ -248,14 +296,22 @@ function SpecFlowEdgeView({
   const hasOverlay = Boolean(
     overlay && (overlay.proposalCount > 0 || overlay.metricCount > 0),
   );
+  const baseStyle =
+    data?.forceStraight === true
+      ? {
+          ...style,
+          opacity: selected ? 1 : 0.68,
+          strokeWidth: selected ? 2.2 : 1.35,
+        }
+      : style;
   const selectedStyle = selected
     ? {
-        ...style,
+        ...baseStyle,
         stroke: "var(--gs-accent)",
         strokeWidth: 2.8,
         opacity: 1,
       }
-    : style;
+    : baseStyle;
 
   return (
     <>
@@ -620,6 +676,7 @@ function SpecGraphCanvasInner({
         selected: node.id === activeSelectedNodeId,
         data: {
           ...node.data,
+          forceGlyph: forceLayoutRuntimeModel.active,
           lifecycleBadge: lifecycleBadgesByNode?.get(node.id) ?? null,
           edgeEndpointHighlighted: selectedEdgeEndpointIds.has(node.id),
           overlay: overlays?.nodesById.get(node.id) ?? null,
@@ -641,6 +698,7 @@ function SpecGraphCanvasInner({
       clearHoverPreview,
       collapsedSubtreeNodeIds,
       lifecycleBadgesByNode,
+      forceLayoutRuntimeModel.active,
       onNodeOverlayClick,
       overlays,
       positionedBaseNodes,
@@ -668,6 +726,7 @@ function SpecGraphCanvasInner({
           selected: edge.id === activeSelectedEdgeId,
           data: {
             specEdge: edge.data!.specEdge,
+            forceStraight: forceLayoutRuntimeModel.active,
             route: edgeRouteMode,
             overlay: overlays?.edgesById.get(edge.id) ?? null,
             onOverlayClick: onEdgeOverlayClick,
@@ -679,6 +738,7 @@ function SpecGraphCanvasInner({
       edges,
       edgeRouteMode,
       effectiveEdgeDetailMode,
+      forceLayoutRuntimeModel.active,
       onEdgeOverlayClick,
       overlays,
       visibleNodeIds,

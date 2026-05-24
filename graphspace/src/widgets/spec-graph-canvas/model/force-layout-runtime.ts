@@ -14,11 +14,11 @@ export type SpecGraphForceLayoutRuntimeModel = {
   message: string;
 };
 
-const INITIAL_RADIUS_MIN = 320;
-const INITIAL_RADIUS_PER_NODE = 22;
-const IDEAL_EDGE_LENGTH = 270;
-const REPULSION_STRENGTH = 42000;
-const SPRING_STRENGTH = 0.032;
+const INITIAL_RADIUS_MIN = 240;
+const INITIAL_RADIUS_PER_NODE = 16;
+const IDEAL_EDGE_LENGTH = 185;
+const REPULSION_STRENGTH = 24000;
+const SPRING_STRENGTH = 0.038;
 const CENTERING_STRENGTH = 0.0024;
 const MAX_STEP = 22;
 const ITERATION_COUNT = 92;
