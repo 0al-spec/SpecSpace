@@ -2,8 +2,8 @@ export const SPEC_GRAPH_FORCE_LAYOUT_PRESET = "force" as const;
 
 export type SpecGraphForceLayoutPreset = typeof SPEC_GRAPH_FORCE_LAYOUT_PRESET;
 
-export const SPEC_GRAPH_FORCE_LAYOUT_NODE_LIMIT = 80;
-export const SPEC_GRAPH_FORCE_LAYOUT_EDGE_LIMIT = 220;
+export const SPEC_GRAPH_FORCE_LAYOUT_NODE_LIMIT = Number.POSITIVE_INFINITY;
+export const SPEC_GRAPH_FORCE_LAYOUT_EDGE_LIMIT = Number.POSITIVE_INFINITY;
 
 export type SpecGraphForceLayoutGuardFailureReason =
   | "explicit_enable_required"

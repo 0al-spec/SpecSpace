@@ -134,6 +134,10 @@
   border-color: color-mix(in srgb, var(--gs-warn) 32%, var(--gs-rule-soft));
 }
 
+.forceLiveButton {
+  border-color: color-mix(in srgb, var(--gs-accent) 34%, var(--gs-rule-soft));
+}
+
 .forceLayoutStatus {
   display: inline-flex;
   align-items: center;

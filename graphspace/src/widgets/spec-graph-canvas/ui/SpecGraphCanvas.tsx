@@ -55,6 +55,7 @@ import {
   type SpecGraphCanvasEdgeDirectionLegendItem,
 } from "../model/edge-direction-legend";
 import {
+  advanceSpecGraphForceLayoutPositions,
   buildSpecGraphForceLayoutRuntimeModel,
   computeSpecGraphForceLayoutPositions,
   forceLayoutGuardDiagnosticState,
@@ -118,6 +119,13 @@ type HoverPreviewState = {
   node: SpecNode;
   anchor: HoverPreviewAnchor;
 };
+
+const FORCE_LIVE_INITIAL_ALPHA = 0.92;
+const FORCE_LIVE_ALPHA_DECAY = 0.965;
+const FORCE_LIVE_SETTLED_ALPHA = 0.025;
+const FORCE_LIVE_SETTLED_MOVEMENT = 0.18;
+
+type ForceLiveState = "off" | "running" | "paused" | "settled";
 
 const MINIMAP_NODE_COLOR = "#f4f2ed";
 const MINIMAP_NODE_STROKE_COLOR = "#151719";
@@ -469,6 +477,9 @@ function SpecGraphCanvasInner({
     readSpecGraphCanvasLayoutPreset(getSpecGraphCanvasLayoutPresetStorage()),
   );
   const [forceLayoutEnabled, setForceLayoutEnabled] = useState(false);
+  const [forceLiveState, setForceLiveState] = useState<ForceLiveState>("off");
+  const [forceLivePositions, setForceLivePositions] =
+    useState<Map<string, SpecGraphCanvasLayoutPosition> | null>(null);
   const [edgeDetailMode, setEdgeDetailMode] = useState<SpecGraphCanvasEdgeDetailMode>(() =>
     readSpecGraphCanvasEdgeDetailMode(getSpecGraphCanvasEdgeDetailStorage()),
   );
@@ -484,6 +495,8 @@ function SpecGraphCanvasInner({
   const [hoverCandidate, setHoverCandidate] = useState<HoverPreviewState | null>(null);
   const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null);
   const hoverPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const forceLiveFrameRef = useRef<number | null>(null);
+  const forceLiveAlphaRef = useRef(FORCE_LIVE_INITIAL_ALPHA);
   const {
     fitBounds,
     getNode,
@@ -577,6 +590,14 @@ function SpecGraphCanvasInner({
       visibleNodeIds,
     ],
   );
+  const forceLayoutInputKey = useMemo(
+    () =>
+      [
+        forceLayoutVisibleNodes.map((node) => node.node_id).sort().join(","),
+        forceLayoutVisibleEdgeSpecs.map((edge) => edge.edge_id).sort().join(","),
+      ].join("|"),
+    [forceLayoutVisibleEdgeSpecs, forceLayoutVisibleNodes],
+  );
   const forceLayoutBudgetModel = useMemo(
     () =>
       buildSpecGraphForceLayoutRuntimeModel({
@@ -613,13 +634,17 @@ function SpecGraphCanvasInner({
       forceLayoutVisibleNodes,
     ],
   );
+  const effectiveForceLayoutPositions =
+    forceLayoutRuntimeModel.active && forceLiveState !== "off" && forceLivePositions
+      ? forceLivePositions
+      : forceLayoutPositions;
   const forcePositionedBaseNodes = useMemo(() => {
-    if (!forceLayoutPositions) return baseNodes;
+    if (!effectiveForceLayoutPositions) return baseNodes;
     return baseNodes.map((node) => ({
       ...node,
-      position: forceLayoutPositions.get(node.id) ?? node.position,
+      position: effectiveForceLayoutPositions.get(node.id) ?? node.position,
     }));
-  }, [baseNodes, forceLayoutPositions]);
+  }, [baseNodes, effectiveForceLayoutPositions]);
   const positionedBaseNodes = useMemo(
     () => applySpecGraphCanvasLayoutOverrides(forcePositionedBaseNodes, layoutOverrides),
     [forcePositionedBaseNodes, layoutOverrides],
@@ -798,14 +823,24 @@ function SpecGraphCanvasInner({
   const forceLayoutInactiveMessage = forceLayoutBudgetModel.guard.available
     ? [
         "Enable guarded Force:",
-        `${forceLayoutBudgetModel.guard.nodeCount}/${forceLayoutBudgetModel.guard.nodeLimit} nodes,`,
-        `${forceLayoutBudgetModel.guard.edgeCount}/${forceLayoutBudgetModel.guard.edgeLimit} edges`,
+        `${forceLayoutBudgetModel.guard.nodeCount} nodes,`,
+        `${forceLayoutBudgetModel.guard.edgeCount} edges`,
       ].join(" ")
     : forceLayoutBudgetModel.message;
+  const forceLiveStatusLabel =
+    forceLiveState === "running"
+      ? "Force live"
+      : forceLiveState === "paused"
+        ? "Force paused"
+        : forceLiveState === "settled"
+          ? "Force settled"
+          : "";
   const layoutOverrideCount = Object.keys(layoutOverrides).length;
   const updateLayoutPreset = useCallback((preset: SpecGraphCanvasLayoutPreset) => {
     clearHoverPreview();
     setForceLayoutEnabled(false);
+    setForceLiveState("off");
+    setForceLivePositions(null);
     setLayoutPreset(preset);
     writeSpecGraphCanvasLayoutPreset(
       getSpecGraphCanvasLayoutPresetStorage(),
@@ -814,10 +849,35 @@ function SpecGraphCanvasInner({
   }, [clearHoverPreview]);
   const toggleForceLayout = useCallback(() => {
     clearHoverPreview();
-    setForceLayoutEnabled((current) =>
-      current ? false : forceLayoutBudgetModel.active,
-    );
+    setForceLayoutEnabled((current) => {
+      if (current) {
+        setForceLiveState("off");
+        setForceLivePositions(null);
+        return false;
+      }
+      return forceLayoutBudgetModel.active;
+    });
   }, [clearHoverPreview, forceLayoutBudgetModel.active]);
+  const startForceLiveLayout = useCallback(() => {
+    if (!forceLayoutRuntimeModel.active || !forceLayoutPositions) return;
+    clearHoverPreview();
+    forceLiveAlphaRef.current = FORCE_LIVE_INITIAL_ALPHA;
+    setForceLivePositions((current) => current ?? new Map(forceLayoutPositions));
+    setForceLiveState("running");
+  }, [clearHoverPreview, forceLayoutPositions, forceLayoutRuntimeModel.active]);
+  const pauseForceLiveLayout = useCallback(() => {
+    clearHoverPreview();
+    setForceLiveState((current) => (current === "running" ? "paused" : current));
+  }, [clearHoverPreview]);
+  const toggleForceLiveLayout = useCallback(() => {
+    if (forceLiveState === "running") pauseForceLiveLayout();
+    else startForceLiveLayout();
+  }, [forceLiveState, pauseForceLiveLayout, startForceLiveLayout]);
+  const reheatForceLiveLayout = useCallback(() => {
+    if (!forceLayoutRuntimeModel.active || forceLiveState === "off") return;
+    forceLiveAlphaRef.current = FORCE_LIVE_INITIAL_ALPHA;
+    setForceLiveState("running");
+  }, [forceLayoutRuntimeModel.active, forceLiveState]);
   const updateEdgeDetailMode = useCallback((mode: SpecGraphCanvasEdgeDetailMode) => {
     clearHoverPreview();
     setEdgeDetailMode(mode);
@@ -871,6 +931,18 @@ function SpecGraphCanvasInner({
       );
       if (positionChanges.length === 0) return;
 
+      if (forceLayoutRuntimeModel.active) {
+        setForceLivePositions((current) => {
+          const next = new Map(current ?? forceLayoutPositions ?? []);
+          for (const change of positionChanges) {
+            next.set(change.id, change.position);
+          }
+          return next;
+        });
+        reheatForceLiveLayout();
+        return;
+      }
+
       setLayoutOverrides((current) => {
         let next = current;
         for (const change of positionChanges) {
@@ -879,7 +951,11 @@ function SpecGraphCanvasInner({
         return next;
       });
     },
-    [],
+    [
+      forceLayoutPositions,
+      forceLayoutRuntimeModel.active,
+      reheatForceLiveLayout,
+    ],
   );
 
   const resetLayoutOverrides = useCallback(() => {
@@ -908,8 +984,77 @@ function SpecGraphCanvasInner({
   useEffect(() => {
     if (forceLayoutEnabled && !forceLayoutBudgetModel.active) {
       setForceLayoutEnabled(false);
+      setForceLiveState("off");
+      setForceLivePositions(null);
     }
   }, [forceLayoutBudgetModel.active, forceLayoutEnabled]);
+
+  useEffect(() => {
+    setForceLiveState("off");
+    setForceLivePositions(null);
+    forceLiveAlphaRef.current = FORCE_LIVE_INITIAL_ALPHA;
+  }, [forceLayoutInputKey]);
+
+  useEffect(() => {
+    if (!forceLayoutRuntimeModel.active) {
+      setForceLiveState("off");
+      setForceLivePositions(null);
+      forceLiveAlphaRef.current = FORCE_LIVE_INITIAL_ALPHA;
+    }
+  }, [forceLayoutRuntimeModel.active]);
+
+  useEffect(() => {
+    if (
+      !forceLayoutRuntimeModel.active ||
+      forceLiveState !== "running" ||
+      !forceLayoutPositions
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const tick = () => {
+      setForceLivePositions((current) => {
+        const seed = current ?? forceLayoutPositions;
+        const result = advanceSpecGraphForceLayoutPositions(
+          forceLayoutVisibleNodes,
+          forceLayoutVisibleEdgeSpecs,
+          seed,
+          forceLiveAlphaRef.current,
+        );
+        forceLiveAlphaRef.current *= FORCE_LIVE_ALPHA_DECAY;
+
+        if (
+          forceLiveAlphaRef.current < FORCE_LIVE_SETTLED_ALPHA ||
+          result.maxMovement < FORCE_LIVE_SETTLED_MOVEMENT
+        ) {
+          setForceLiveState("settled");
+        }
+
+        return result.positions;
+      });
+
+      if (!cancelled) {
+        forceLiveFrameRef.current = window.requestAnimationFrame(tick);
+      }
+    };
+
+    forceLiveFrameRef.current = window.requestAnimationFrame(tick);
+
+    return () => {
+      cancelled = true;
+      if (forceLiveFrameRef.current !== null) {
+        window.cancelAnimationFrame(forceLiveFrameRef.current);
+        forceLiveFrameRef.current = null;
+      }
+    };
+  }, [
+    forceLayoutPositions,
+    forceLayoutRuntimeModel.active,
+    forceLayoutVisibleEdgeSpecs,
+    forceLayoutVisibleNodes,
+    forceLiveState,
+  ]);
 
   useEffect(() => {
     if (activeSelectedNodeId && !selection) updateSelectedNodeId(null);
@@ -993,6 +1138,7 @@ function SpecGraphCanvasInner({
       data-hidden-subtree-nodes={subtreeCollapseModel.hiddenNodeIds.size}
       data-force-layout={forceLayoutRuntimeModel.active ? "enabled" : "disabled"}
       data-force-layout-guard={forceLayoutGuardDiagnostic}
+      data-force-live-layout={forceLiveState}
       data-source={state.source}
     >
       <div className={styles.canvasFilterDock}>
@@ -1055,6 +1201,28 @@ function SpecGraphCanvasInner({
               <span>{forceLayoutRuntimeModel.active ? "On" : "Blocked"}</span>
             ) : null}
           </button>
+          {forceLayoutRuntimeModel.active ? (
+            <button
+              type="button"
+              className={[
+                styles.gapFilterButton,
+                styles.forceLiveButton,
+                forceLiveState === "running" ? styles.gapFilterButtonActive : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              aria-pressed={forceLiveState === "running"}
+              title={
+                forceLiveState === "running"
+                  ? "Pause live Force simulation"
+                  : "Run live Force simulation"
+              }
+              onClick={toggleForceLiveLayout}
+            >
+              <span>{forceLiveState === "running" ? "Pause" : "Live"}</span>
+              {forceLiveState !== "off" ? <span>{forceLiveState}</span> : null}
+            </button>
+          ) : null}
         </div>
         {forceLayoutRuntimeModel.active || forceLayoutBlocked ? (
           <div
@@ -1071,7 +1239,7 @@ function SpecGraphCanvasInner({
             }
           >
             {forceLayoutRuntimeModel.active
-              ? "Force active"
+              ? forceLiveStatusLabel || "Force active"
               : forceLayoutInactiveMessage}
           </div>
         ) : null}
@@ -1188,9 +1356,21 @@ function SpecGraphCanvasInner({
           updateSelectedEdgeId(null);
           updateSelectedNodeId(node.id);
         }}
-        onNodeDragStart={clearHoverPreview}
+        onNodeDragStart={() => {
+          clearHoverPreview();
+          reheatForceLiveLayout();
+        }}
         onNodeDragStop={(_, node) => {
           clearHoverPreview();
+          if (forceLayoutRuntimeModel.active) {
+            setForceLivePositions((current) => {
+              const next = new Map(current ?? forceLayoutPositions ?? []);
+              next.set(node.id, node.position);
+              return next;
+            });
+            reheatForceLiveLayout();
+            return;
+          }
           persistLayoutOverride(node.id, node.position);
         }}
         onEdgeClick={(_, edge) => {

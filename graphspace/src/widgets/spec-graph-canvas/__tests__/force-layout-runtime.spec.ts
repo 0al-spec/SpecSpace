@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SpecEdge } from "@/entities/spec-edge";
 import type { SpecNode } from "@/entities/spec-node";
 import {
+  advanceSpecGraphForceLayoutPositions,
   buildSpecGraphForceLayoutRuntimeModel,
   computeSpecGraphForceLayoutPositions,
   forceLayoutGuardDiagnosticState,
@@ -78,16 +79,33 @@ describe("SpecGraph force layout runtime", () => {
     }
   });
 
-  it("surfaces budget failure diagnostics even when Force is inactive", () => {
+  it("advances live Force positions incrementally", () => {
+    const nodes = [node("SG-SPEC-0001"), node("SG-SPEC-0002")];
+    const edges = [edge("e-1", "SG-SPEC-0001", "SG-SPEC-0002")];
+    const positions = new Map([
+      ["SG-SPEC-0001", { x: 0, y: 0 }],
+      ["SG-SPEC-0002", { x: 500, y: 0 }],
+    ]);
+
+    const result = advanceSpecGraphForceLayoutPositions(nodes, edges, positions, 0.8);
+
+    expect(result.maxMovement).toBeGreaterThan(0);
+    expect(result.positions.get("SG-SPEC-0001")?.x).toBeGreaterThan(0);
+    expect(result.positions.get("SG-SPEC-0002")?.x).toBeLessThan(500);
+  });
+
+  it("surfaces explicit budget failure diagnostics even when Force is inactive", () => {
     const inactive = buildSpecGraphForceLayoutRuntimeModel({
       nodeCount: 81,
       edgeCount: 1,
       explicitEnabled: false,
+      nodeLimit: 80,
     });
     const budget = buildSpecGraphForceLayoutRuntimeModel({
       nodeCount: 81,
       edgeCount: 1,
       explicitEnabled: true,
+      nodeLimit: 80,
     });
 
     expect(forceLayoutGuardDiagnosticState(inactive.guard, budget.guard)).toBe(
