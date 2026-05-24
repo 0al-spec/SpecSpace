@@ -485,49 +485,6 @@ function SpecGraphCanvasInner({
     () => baseNodes.map((node) => node.data.spec),
     [baseNodes],
   );
-  const forceLayoutEdgeSpecs = useMemo(
-    () => edges.map((edge) => edge.data!.specEdge),
-    [edges],
-  );
-  const forceLayoutBudgetModel = useMemo(
-    () =>
-      buildSpecGraphForceLayoutRuntimeModel({
-        nodeCount: baseNodes.length,
-        edgeCount: edges.length,
-        explicitEnabled: true,
-      }),
-    [baseNodes.length, edges.length],
-  );
-  const forceLayoutRuntimeModel = useMemo(
-    () =>
-      buildSpecGraphForceLayoutRuntimeModel({
-        nodeCount: baseNodes.length,
-        edgeCount: edges.length,
-        explicitEnabled: forceLayoutEnabled,
-      }),
-    [baseNodes.length, edges.length, forceLayoutEnabled],
-  );
-  const forceLayoutPositions = useMemo(
-    () =>
-      forceLayoutRuntimeModel.active
-        ? computeSpecGraphForceLayoutPositions(
-            baseSpecNodes,
-            forceLayoutEdgeSpecs,
-          )
-        : null,
-    [baseSpecNodes, forceLayoutEdgeSpecs, forceLayoutRuntimeModel.active],
-  );
-  const forcePositionedBaseNodes = useMemo(() => {
-    if (!forceLayoutPositions) return baseNodes;
-    return baseNodes.map((node) => ({
-      ...node,
-      position: forceLayoutPositions.get(node.id) ?? node.position,
-    }));
-  }, [baseNodes, forceLayoutPositions]);
-  const positionedBaseNodes = useMemo(
-    () => applySpecGraphCanvasLayoutOverrides(forcePositionedBaseNodes, layoutOverrides),
-    [forcePositionedBaseNodes, layoutOverrides],
-  );
   const gapFilterCounts = useMemo(
     () => countSpecGraphCanvasGapFilters(baseSpecNodes),
     [baseSpecNodes],
@@ -540,6 +497,76 @@ function SpecGraphCanvasInner({
         ),
       ),
     [baseSpecNodes, gapFilter],
+  );
+  const forceLayoutVisibleNodes = useMemo(
+    () => baseSpecNodes.filter((node) => visibleNodeIds.has(node.node_id)),
+    [baseSpecNodes, visibleNodeIds],
+  );
+  const forceLayoutVisibleEdgeSpecs = useMemo(
+    () =>
+      edges
+        .filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
+        .filter((edge) =>
+          isSpecGraphCanvasEdgeVisible(edge.data!.specEdge, effectiveEdgeDetailMode, {
+            selectedEdgeId: activeSelectedEdgeId,
+            selectedNodeId: activeSelectedNodeId,
+          }),
+        )
+        .map((edge) => edge.data!.specEdge),
+    [
+      activeSelectedEdgeId,
+      activeSelectedNodeId,
+      edges,
+      effectiveEdgeDetailMode,
+      visibleNodeIds,
+    ],
+  );
+  const forceLayoutBudgetModel = useMemo(
+    () =>
+      buildSpecGraphForceLayoutRuntimeModel({
+        nodeCount: forceLayoutVisibleNodes.length,
+        edgeCount: forceLayoutVisibleEdgeSpecs.length,
+        explicitEnabled: true,
+      }),
+    [forceLayoutVisibleEdgeSpecs.length, forceLayoutVisibleNodes.length],
+  );
+  const forceLayoutRuntimeModel = useMemo(
+    () =>
+      buildSpecGraphForceLayoutRuntimeModel({
+        nodeCount: forceLayoutVisibleNodes.length,
+        edgeCount: forceLayoutVisibleEdgeSpecs.length,
+        explicitEnabled: forceLayoutEnabled,
+      }),
+    [
+      forceLayoutEnabled,
+      forceLayoutVisibleEdgeSpecs.length,
+      forceLayoutVisibleNodes.length,
+    ],
+  );
+  const forceLayoutPositions = useMemo(
+    () =>
+      forceLayoutRuntimeModel.active
+        ? computeSpecGraphForceLayoutPositions(
+            forceLayoutVisibleNodes,
+            forceLayoutVisibleEdgeSpecs,
+          )
+        : null,
+    [
+      forceLayoutRuntimeModel.active,
+      forceLayoutVisibleEdgeSpecs,
+      forceLayoutVisibleNodes,
+    ],
+  );
+  const forcePositionedBaseNodes = useMemo(() => {
+    if (!forceLayoutPositions) return baseNodes;
+    return baseNodes.map((node) => ({
+      ...node,
+      position: forceLayoutPositions.get(node.id) ?? node.position,
+    }));
+  }, [baseNodes, forceLayoutPositions]);
+  const positionedBaseNodes = useMemo(
+    () => applySpecGraphCanvasLayoutOverrides(forcePositionedBaseNodes, layoutOverrides),
+    [forcePositionedBaseNodes, layoutOverrides],
   );
   const selectedEdgeEndpointIds = useMemo(() => {
     if (!activeSelectedEdgeId) return new Set<string>();
