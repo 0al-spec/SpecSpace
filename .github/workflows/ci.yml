@@ -195,7 +195,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 0al-spec/Platform
-          ref: main
+          ref: 08328ff4de136c33558dbf63a82e2adbfaf69dc2
           path: Platform
 
       - name: Validate Timeweb deploy branch
@@ -246,7 +246,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 0al-spec/Platform
-          ref: main
+          ref: 08328ff4de136c33558dbf63a82e2adbfaf69dc2
           path: Platform
 
       - name: Configure git identity
