@@ -54,6 +54,10 @@ import {
   type SpecGraphCanvasEdgeDirectionLegendItem,
 } from "../model/edge-direction-legend";
 import {
+  buildSpecGraphForceLayoutRuntimeModel,
+  computeSpecGraphForceLayoutPositions,
+} from "../model/force-layout-runtime";
+import {
   applySpecGraphCanvasLayoutOverrides,
   buildSpecGraphCanvasLayoutStorageKey,
   getSpecGraphCanvasLayoutStorage,
@@ -407,6 +411,7 @@ function SpecGraphCanvasInner({
   const [layoutPreset, setLayoutPreset] = useState<SpecGraphCanvasLayoutPreset>(() =>
     readSpecGraphCanvasLayoutPreset(getSpecGraphCanvasLayoutPresetStorage()),
   );
+  const [forceLayoutEnabled, setForceLayoutEnabled] = useState(false);
   const [edgeDetailMode, setEdgeDetailMode] = useState<SpecGraphCanvasEdgeDetailMode>(() =>
     readSpecGraphCanvasEdgeDetailMode(getSpecGraphCanvasEdgeDetailStorage()),
   );
@@ -475,13 +480,52 @@ function SpecGraphCanvasInner({
     () => state.data.graph.nodes.map((node) => node.node_id),
     [state.data.graph.nodes],
   );
-  const positionedBaseNodes = useMemo(
-    () => applySpecGraphCanvasLayoutOverrides(baseNodes, layoutOverrides),
-    [baseNodes, layoutOverrides],
-  );
   const baseSpecNodes = useMemo(
     () => baseNodes.map((node) => node.data.spec),
     [baseNodes],
+  );
+  const forceLayoutEdgeSpecs = useMemo(
+    () => edges.map((edge) => edge.data!.specEdge),
+    [edges],
+  );
+  const forceLayoutBudgetModel = useMemo(
+    () =>
+      buildSpecGraphForceLayoutRuntimeModel({
+        nodeCount: baseNodes.length,
+        edgeCount: edges.length,
+        explicitEnabled: true,
+      }),
+    [baseNodes.length, edges.length],
+  );
+  const forceLayoutRuntimeModel = useMemo(
+    () =>
+      buildSpecGraphForceLayoutRuntimeModel({
+        nodeCount: baseNodes.length,
+        edgeCount: edges.length,
+        explicitEnabled: forceLayoutEnabled,
+      }),
+    [baseNodes.length, edges.length, forceLayoutEnabled],
+  );
+  const forceLayoutPositions = useMemo(
+    () =>
+      forceLayoutRuntimeModel.active
+        ? computeSpecGraphForceLayoutPositions(
+            baseSpecNodes,
+            forceLayoutEdgeSpecs,
+          )
+        : null,
+    [baseSpecNodes, forceLayoutEdgeSpecs, forceLayoutRuntimeModel.active],
+  );
+  const forcePositionedBaseNodes = useMemo(() => {
+    if (!forceLayoutPositions) return baseNodes;
+    return baseNodes.map((node) => ({
+      ...node,
+      position: forceLayoutPositions.get(node.id) ?? node.position,
+    }));
+  }, [baseNodes, forceLayoutPositions]);
+  const positionedBaseNodes = useMemo(
+    () => applySpecGraphCanvasLayoutOverrides(forcePositionedBaseNodes, layoutOverrides),
+    [forcePositionedBaseNodes, layoutOverrides],
   );
   const gapFilterCounts = useMemo(
     () => countSpecGraphCanvasGapFilters(baseSpecNodes),
@@ -658,15 +702,30 @@ function SpecGraphCanvasInner({
   const hoverPreviewLifecycleBadge = hoverPreview
     ? lifecycleBadgesByNode?.get(hoverPreview.node.node_id) ?? null
     : null;
+  const forceLayoutBlocked = !forceLayoutBudgetModel.active;
+  const forceLayoutInactiveMessage = forceLayoutBudgetModel.guard.available
+    ? [
+        "Enable guarded Force:",
+        `${forceLayoutBudgetModel.guard.nodeCount}/${forceLayoutBudgetModel.guard.nodeLimit} nodes,`,
+        `${forceLayoutBudgetModel.guard.edgeCount}/${forceLayoutBudgetModel.guard.edgeLimit} edges`,
+      ].join(" ")
+    : forceLayoutBudgetModel.message;
   const layoutOverrideCount = Object.keys(layoutOverrides).length;
   const updateLayoutPreset = useCallback((preset: SpecGraphCanvasLayoutPreset) => {
     clearHoverPreview();
+    setForceLayoutEnabled(false);
     setLayoutPreset(preset);
     writeSpecGraphCanvasLayoutPreset(
       getSpecGraphCanvasLayoutPresetStorage(),
       preset,
     );
   }, [clearHoverPreview]);
+  const toggleForceLayout = useCallback(() => {
+    clearHoverPreview();
+    setForceLayoutEnabled((current) =>
+      current ? false : forceLayoutBudgetModel.active,
+    );
+  }, [clearHoverPreview, forceLayoutBudgetModel.active]);
   const updateEdgeDetailMode = useCallback((mode: SpecGraphCanvasEdgeDetailMode) => {
     clearHoverPreview();
     setEdgeDetailMode(mode);
@@ -755,6 +814,12 @@ function SpecGraphCanvasInner({
   }, [layoutNodeIds, layoutStorageKey]);
 
   useEffect(() => {
+    if (forceLayoutEnabled && !forceLayoutBudgetModel.active) {
+      setForceLayoutEnabled(false);
+    }
+  }, [forceLayoutBudgetModel.active, forceLayoutEnabled]);
+
+  useEffect(() => {
     if (activeSelectedNodeId && !selection) updateSelectedNodeId(null);
   }, [activeSelectedNodeId, selection, updateSelectedNodeId]);
 
@@ -834,6 +899,12 @@ function SpecGraphCanvasInner({
       data-edge-route-mode={edgeRouteMode}
       data-collapsed-subtrees={collapsedSubtreeCount}
       data-hidden-subtree-nodes={subtreeCollapseModel.hiddenNodeIds.size}
+      data-force-layout={forceLayoutRuntimeModel.active ? "enabled" : "disabled"}
+      data-force-layout-guard={
+        forceLayoutRuntimeModel.guard.available
+          ? "available"
+          : forceLayoutRuntimeModel.guard.reason
+      }
       data-source={state.source}
     >
       <div className={styles.canvasFilterDock}>
@@ -873,7 +944,49 @@ function SpecGraphCanvasInner({
               <span>{SPEC_GRAPH_CANVAS_LAYOUT_PRESET_LABELS[preset]}</span>
             </button>
           ))}
+          <button
+            type="button"
+            className={[
+              styles.gapFilterButton,
+              styles.forceLayoutButton,
+              forceLayoutRuntimeModel.active ? styles.gapFilterButtonActive : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            aria-pressed={forceLayoutRuntimeModel.active}
+            disabled={forceLayoutBlocked}
+            title={
+              forceLayoutRuntimeModel.active
+                ? forceLayoutRuntimeModel.message
+                : forceLayoutInactiveMessage
+            }
+            onClick={toggleForceLayout}
+          >
+            <span>Force</span>
+            {forceLayoutRuntimeModel.active || forceLayoutBlocked ? (
+              <span>{forceLayoutRuntimeModel.active ? "On" : "Blocked"}</span>
+            ) : null}
+          </button>
         </div>
+        {forceLayoutRuntimeModel.active || forceLayoutBlocked ? (
+          <div
+            className={[
+              styles.forceLayoutStatus,
+              forceLayoutRuntimeModel.active ? styles.forceLayoutStatusActive : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            title={
+              forceLayoutRuntimeModel.active
+                ? forceLayoutRuntimeModel.message
+                : forceLayoutInactiveMessage
+            }
+          >
+            {forceLayoutRuntimeModel.active
+              ? "Force active"
+              : forceLayoutInactiveMessage}
+          </div>
+        ) : null}
         <div className={styles.edgeDetailDock} aria-label="Canvas edge detail">
           {SPEC_GRAPH_CANVAS_EDGE_DETAIL_MODES.map((mode) => (
             <button
