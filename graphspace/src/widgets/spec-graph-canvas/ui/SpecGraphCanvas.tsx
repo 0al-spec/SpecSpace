@@ -56,6 +56,7 @@ import {
 import {
   buildSpecGraphForceLayoutRuntimeModel,
   computeSpecGraphForceLayoutPositions,
+  forceLayoutGuardDiagnosticState,
 } from "../model/force-layout-runtime";
 import {
   applySpecGraphCanvasLayoutOverrides,
@@ -703,6 +704,10 @@ function SpecGraphCanvasInner({
     ? lifecycleBadgesByNode?.get(hoverPreview.node.node_id) ?? null
     : null;
   const forceLayoutBlocked = !forceLayoutBudgetModel.active;
+  const forceLayoutGuardDiagnostic = forceLayoutGuardDiagnosticState(
+    forceLayoutRuntimeModel.guard,
+    forceLayoutBudgetModel.guard,
+  );
   const forceLayoutInactiveMessage = forceLayoutBudgetModel.guard.available
     ? [
         "Enable guarded Force:",
@@ -900,11 +905,7 @@ function SpecGraphCanvasInner({
       data-collapsed-subtrees={collapsedSubtreeCount}
       data-hidden-subtree-nodes={subtreeCollapseModel.hiddenNodeIds.size}
       data-force-layout={forceLayoutRuntimeModel.active ? "enabled" : "disabled"}
-      data-force-layout-guard={
-        forceLayoutRuntimeModel.guard.available
-          ? "available"
-          : forceLayoutRuntimeModel.guard.reason
-      }
+      data-force-layout-guard={forceLayoutGuardDiagnostic}
       data-source={state.source}
     >
       <div className={styles.canvasFilterDock}>

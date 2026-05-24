@@ -88,6 +88,7 @@ export {
 export {
   buildSpecGraphForceLayoutRuntimeModel,
   computeSpecGraphForceLayoutPositions,
+  forceLayoutGuardDiagnosticState,
   forceLayoutGuardMessage,
   type SpecGraphForceLayoutRuntimeModel,
 } from "./model/force-layout-runtime";

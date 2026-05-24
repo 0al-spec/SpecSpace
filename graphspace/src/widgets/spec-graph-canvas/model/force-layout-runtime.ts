@@ -3,6 +3,7 @@ import type { SpecNode } from "@/entities/spec-node";
 import type { SpecGraphCanvasLayoutPosition } from "./layout-overrides";
 import {
   evaluateSpecGraphForceLayoutGuard,
+  type SpecGraphForceLayoutGuardFailureReason,
   type SpecGraphForceLayoutGuardInput,
   type SpecGraphForceLayoutGuardResult,
 } from "./force-layout-guard";
@@ -52,6 +53,15 @@ export function forceLayoutGuardMessage(
     return `Force unavailable: ${guard.edgeCount}/${guard.edgeLimit} edges`;
   }
   return `Force guarded: ${guard.nodeCount}/${guard.nodeLimit} nodes, ${guard.edgeCount}/${guard.edgeLimit} edges`;
+}
+
+export function forceLayoutGuardDiagnosticState(
+  runtimeGuard: SpecGraphForceLayoutGuardResult,
+  budgetGuard: SpecGraphForceLayoutGuardResult,
+): "available" | SpecGraphForceLayoutGuardFailureReason {
+  if (runtimeGuard.available) return "available";
+  if (!budgetGuard.available) return budgetGuard.reason;
+  return runtimeGuard.reason;
 }
 
 export function computeSpecGraphForceLayoutPositions(

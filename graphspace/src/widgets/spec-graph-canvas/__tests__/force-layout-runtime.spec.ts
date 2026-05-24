@@ -4,6 +4,7 @@ import type { SpecNode } from "@/entities/spec-node";
 import {
   buildSpecGraphForceLayoutRuntimeModel,
   computeSpecGraphForceLayoutPositions,
+  forceLayoutGuardDiagnosticState,
 } from "../index";
 
 const node = (node_id: string): SpecNode => ({
@@ -75,5 +76,22 @@ describe("SpecGraph force layout runtime", () => {
       expect(position.x).toBeGreaterThanOrEqual(0);
       expect(position.y).toBeGreaterThanOrEqual(0);
     }
+  });
+
+  it("surfaces budget failure diagnostics even when Force is inactive", () => {
+    const inactive = buildSpecGraphForceLayoutRuntimeModel({
+      nodeCount: 81,
+      edgeCount: 1,
+      explicitEnabled: false,
+    });
+    const budget = buildSpecGraphForceLayoutRuntimeModel({
+      nodeCount: 81,
+      edgeCount: 1,
+      explicitEnabled: true,
+    });
+
+    expect(forceLayoutGuardDiagnosticState(inactive.guard, budget.guard)).toBe(
+      "node_limit_exceeded",
+    );
   });
 });
