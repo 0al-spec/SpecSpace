@@ -3,8 +3,6 @@ import {
   evaluateSpecGraphForceLayoutGuard,
   normalizeSpecGraphCanvasLayoutPreset,
   SPEC_GRAPH_CANVAS_LAYOUT_PRESETS,
-  SPEC_GRAPH_FORCE_LAYOUT_EDGE_LIMIT,
-  SPEC_GRAPH_FORCE_LAYOUT_NODE_LIMIT,
   SPEC_GRAPH_FORCE_LAYOUT_PRESET,
 } from "../index";
 
@@ -18,8 +16,8 @@ describe("SpecGraph force layout guard", () => {
   it("requires an explicit enable flag before Force can be used", () => {
     expect(
       evaluateSpecGraphForceLayoutGuard({
-        nodeCount: SPEC_GRAPH_FORCE_LAYOUT_NODE_LIMIT,
-        edgeCount: SPEC_GRAPH_FORCE_LAYOUT_EDGE_LIMIT,
+        nodeCount: 500,
+        edgeCount: 1200,
         explicitEnabled: false,
       }),
     ).toMatchObject({
@@ -28,11 +26,11 @@ describe("SpecGraph force layout guard", () => {
     });
   });
 
-  it("allows Force only while the graph stays inside the initial budget", () => {
+  it("does not impose a hard default node or edge budget", () => {
     expect(
       evaluateSpecGraphForceLayoutGuard({
-        nodeCount: SPEC_GRAPH_FORCE_LAYOUT_NODE_LIMIT,
-        edgeCount: SPEC_GRAPH_FORCE_LAYOUT_EDGE_LIMIT,
+        nodeCount: 500,
+        edgeCount: 1200,
         explicitEnabled: true,
       }),
     ).toMatchObject({
@@ -41,12 +39,13 @@ describe("SpecGraph force layout guard", () => {
     });
   });
 
-  it("blocks graphs above the node or edge budget", () => {
+  it("still supports explicit diagnostic budgets for constrained environments", () => {
     expect(
       evaluateSpecGraphForceLayoutGuard({
-        nodeCount: SPEC_GRAPH_FORCE_LAYOUT_NODE_LIMIT + 1,
-        edgeCount: SPEC_GRAPH_FORCE_LAYOUT_EDGE_LIMIT,
+        nodeCount: 4,
+        edgeCount: 3,
         explicitEnabled: true,
+        nodeLimit: 3,
       }),
     ).toMatchObject({
       available: false,
@@ -54,9 +53,10 @@ describe("SpecGraph force layout guard", () => {
     });
     expect(
       evaluateSpecGraphForceLayoutGuard({
-        nodeCount: SPEC_GRAPH_FORCE_LAYOUT_NODE_LIMIT,
-        edgeCount: SPEC_GRAPH_FORCE_LAYOUT_EDGE_LIMIT + 1,
+        nodeCount: 3,
+        edgeCount: 4,
         explicitEnabled: true,
+        edgeLimit: 3,
       }),
     ).toMatchObject({
       available: false,

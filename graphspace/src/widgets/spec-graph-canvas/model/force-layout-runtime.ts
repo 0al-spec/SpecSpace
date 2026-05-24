@@ -14,6 +14,16 @@ export type SpecGraphForceLayoutRuntimeModel = {
   message: string;
 };
 
+export type SpecGraphForceLayoutTickResult = {
+  positions: Map<string, SpecGraphCanvasLayoutPosition>;
+  maxMovement: number;
+};
+
+export type SpecGraphForceLayoutTickInput = {
+  nodes: readonly SpecNode[];
+  edges: readonly SpecEdge[];
+};
+
 const INITIAL_RADIUS_MIN = 240;
 const INITIAL_RADIUS_PER_NODE = 16;
 const IDEAL_EDGE_LENGTH = 185;
@@ -43,16 +53,23 @@ export function buildSpecGraphForceLayoutRuntimeModel(
 export function forceLayoutGuardMessage(
   guard: SpecGraphForceLayoutGuardResult,
 ): string {
+  const nodeBudget = Number.isFinite(guard.nodeLimit)
+    ? `${guard.nodeCount}/${guard.nodeLimit} nodes`
+    : `${guard.nodeCount} nodes`;
+  const edgeBudget = Number.isFinite(guard.edgeLimit)
+    ? `${guard.edgeCount}/${guard.edgeLimit} edges`
+    : `${guard.edgeCount} edges`;
+
   if (guard.available) {
-    return `Force active: ${guard.nodeCount}/${guard.nodeLimit} nodes, ${guard.edgeCount}/${guard.edgeLimit} edges`;
+    return `Force active: ${nodeBudget}, ${edgeBudget}`;
   }
   if (guard.reason === "node_limit_exceeded") {
-    return `Force unavailable: ${guard.nodeCount}/${guard.nodeLimit} nodes`;
+    return `Force unavailable: ${nodeBudget}`;
   }
   if (guard.reason === "edge_limit_exceeded") {
-    return `Force unavailable: ${guard.edgeCount}/${guard.edgeLimit} edges`;
+    return `Force unavailable: ${edgeBudget}`;
   }
-  return `Force guarded: ${guard.nodeCount}/${guard.nodeLimit} nodes, ${guard.edgeCount}/${guard.edgeLimit} edges`;
+  return `Force guarded: ${nodeBudget}, ${edgeBudget}`;
 }
 
 export function forceLayoutGuardDiagnosticState(
@@ -68,30 +85,50 @@ export function computeSpecGraphForceLayoutPositions(
   nodes: readonly SpecNode[],
   edges: readonly SpecEdge[],
 ): Map<string, SpecGraphCanvasLayoutPosition> {
-  const sortedNodes = [...nodes].sort(byNodeId);
-  const nodeIds = new Set(sortedNodes.map((node) => node.node_id));
-  const resolvedEdges = edges
-    .filter(
-      (edge) =>
-        edge.status === "resolved" &&
-        nodeIds.has(edge.source_id) &&
-        nodeIds.has(edge.target_id),
-    )
-    .sort(byEdgeId);
-  const positions = seedCircularPositions(sortedNodes);
+  const input = buildSpecGraphForceLayoutTickInput(nodes, edges);
+  const positions = seedCircularPositions(input.nodes);
 
   for (let iteration = 0; iteration < ITERATION_COUNT; iteration += 1) {
-    const deltas = new Map<string, SpecGraphCanvasLayoutPosition>(
-      sortedNodes.map((node) => [node.node_id, { x: 0, y: 0 }]),
+    const tick = advanceSpecGraphForceLayoutPositions(
+      input,
+      positions,
+      1,
+      { x: 0, y: 0 },
     );
-
-    applyRepulsion(sortedNodes, positions, deltas);
-    applyEdgeSprings(resolvedEdges, positions, deltas);
-    applyCentering(sortedNodes, positions, deltas);
-    applyDeltas(sortedNodes, positions, deltas);
+    positions.clear();
+    for (const [nodeId, position] of tick.positions) positions.set(nodeId, position);
   }
 
-  return normalizePositions(sortedNodes, positions);
+  return normalizePositions(input.nodes, positions);
+}
+
+export function buildSpecGraphForceLayoutTickInput(
+  nodes: readonly SpecNode[],
+  edges: readonly SpecEdge[],
+): SpecGraphForceLayoutTickInput {
+  const sortedNodes = [...nodes].sort(byNodeId);
+  return {
+    nodes: sortedNodes,
+    edges: resolvedForceLayoutEdges(sortedNodes, edges),
+  };
+}
+
+export function advanceSpecGraphForceLayoutPositions(
+  input: SpecGraphForceLayoutTickInput,
+  currentPositions: ReadonlyMap<string, SpecGraphCanvasLayoutPosition>,
+  alpha: number,
+  center = currentForceLayoutCenter(input.nodes, currentPositions),
+): SpecGraphForceLayoutTickResult {
+  const positions = seedMissingPositions(input.nodes, currentPositions);
+  const deltas = new Map<string, SpecGraphCanvasLayoutPosition>(
+    input.nodes.map((node) => [node.node_id, { x: 0, y: 0 }]),
+  );
+
+  applyRepulsion(input.nodes, positions, deltas);
+  applyEdgeSprings(input.edges, positions, deltas);
+  applyCentering(input.nodes, positions, deltas, center);
+
+  return applyDeltas(input.nodes, positions, deltas, alpha);
 }
 
 function seedCircularPositions(
@@ -109,6 +146,33 @@ function seedCircularPositions(
   });
 
   return positions;
+}
+
+function seedMissingPositions(
+  nodes: readonly SpecNode[],
+  positions: ReadonlyMap<string, SpecGraphCanvasLayoutPosition>,
+): Map<string, SpecGraphCanvasLayoutPosition> {
+  const seeded = seedCircularPositions(nodes);
+  for (const node of nodes) {
+    const current = positions.get(node.node_id);
+    if (current) seeded.set(node.node_id, current);
+  }
+  return seeded;
+}
+
+function resolvedForceLayoutEdges(
+  nodes: readonly SpecNode[],
+  edges: readonly SpecEdge[],
+): SpecEdge[] {
+  const nodeIds = new Set(nodes.map((node) => node.node_id));
+  return edges
+    .filter(
+      (edge) =>
+        edge.status === "resolved" &&
+        nodeIds.has(edge.source_id) &&
+        nodeIds.has(edge.target_id),
+    )
+    .sort(byEdgeId);
 }
 
 function applyRepulsion(
@@ -157,6 +221,7 @@ function applyCentering(
   nodes: readonly SpecNode[],
   positions: ReadonlyMap<string, SpecGraphCanvasLayoutPosition>,
   deltas: Map<string, SpecGraphCanvasLayoutPosition>,
+  center: SpecGraphCanvasLayoutPosition,
 ) {
   for (const node of nodes) {
     const position = positions.get(node.node_id);
@@ -164,8 +229,8 @@ function applyCentering(
     addDelta(
       deltas,
       node.node_id,
-      -position.x * CENTERING_STRENGTH,
-      -position.y * CENTERING_STRENGTH,
+      (center.x - position.x) * CENTERING_STRENGTH,
+      (center.y - position.y) * CENTERING_STRENGTH,
     );
   }
 }
@@ -174,17 +239,27 @@ function applyDeltas(
   nodes: readonly SpecNode[],
   positions: Map<string, SpecGraphCanvasLayoutPosition>,
   deltas: ReadonlyMap<string, SpecGraphCanvasLayoutPosition>,
-) {
+  alpha: number,
+): SpecGraphForceLayoutTickResult {
+  let maxMovement = 0;
   for (const node of nodes) {
     const position = positions.get(node.node_id);
     const delta = deltas.get(node.node_id);
     if (!position || !delta) continue;
 
+    const x = clamp(delta.x * alpha, -MAX_STEP, MAX_STEP);
+    const y = clamp(delta.y * alpha, -MAX_STEP, MAX_STEP);
+    maxMovement = Math.max(maxMovement, Math.hypot(x, y));
     positions.set(node.node_id, {
-      x: position.x + clamp(delta.x, -MAX_STEP, MAX_STEP),
-      y: position.y + clamp(delta.y, -MAX_STEP, MAX_STEP),
+      x: position.x + x,
+      y: position.y + y,
     });
   }
+
+  return {
+    positions,
+    maxMovement,
+  };
 }
 
 function normalizePositions(
@@ -240,4 +315,26 @@ function addDelta(
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function currentForceLayoutCenter(
+  nodes: readonly SpecNode[],
+  positions: ReadonlyMap<string, SpecGraphCanvasLayoutPosition>,
+): SpecGraphCanvasLayoutPosition {
+  let x = 0;
+  let y = 0;
+  let count = 0;
+  for (const node of nodes) {
+    const position = positions.get(node.node_id);
+    if (!position) continue;
+    x += position.x;
+    y += position.y;
+    count += 1;
+  }
+
+  if (count === 0) return { x: 0, y: 0 };
+  return {
+    x: x / count,
+    y: y / count,
+  };
 }

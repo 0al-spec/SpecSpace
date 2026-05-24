@@ -86,10 +86,14 @@ export {
   type SpecGraphForceLayoutPreset,
 } from "./model/force-layout-guard";
 export {
+  advanceSpecGraphForceLayoutPositions,
+  buildSpecGraphForceLayoutTickInput,
   buildSpecGraphForceLayoutRuntimeModel,
   computeSpecGraphForceLayoutPositions,
   forceLayoutGuardDiagnosticState,
   forceLayoutGuardMessage,
+  type SpecGraphForceLayoutTickInput,
+  type SpecGraphForceLayoutTickResult,
   type SpecGraphForceLayoutRuntimeModel,
 } from "./model/force-layout-runtime";
 export { toSpecGraphFlowElements, type SpecFlowEdge, type SpecFlowNode } from "./model/to-flow-elements";

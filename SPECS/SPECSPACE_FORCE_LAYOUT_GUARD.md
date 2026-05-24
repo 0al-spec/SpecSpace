@@ -38,23 +38,17 @@ The current production canvas exposes deterministic presets only:
 as a separate opt-in runtime toggle over the existing React Flow canvas, not as
 a persisted ordinary layout preset.
 
-Initial budget:
-
-| Limit | Value |
-| --- | ---: |
-| Max nodes | 80 |
-| Max edges | 220 |
-
 The guard must reject Force when:
 
 - Force was not explicitly enabled by a future feature flag or equivalent
   operator action;
-- the visible graph exceeds the node budget;
-- the visible graph exceeds the edge budget.
 
-The budget is intentionally conservative. It is high enough for the current
-public SpecGraph scale, but low enough to prevent accidental rollout on larger
-graphs before measurement.
+The first Force passes intentionally avoid a hard default node-count cap. The
+current public graph is already large enough that an arbitrary cap would make
+ordinary use feel broken. Runtime safety is instead enforced through explicit
+operator enablement, compact glyph rendering, edge-density controls, Live/Pause
+state, auto-settle behavior, and browser smoke. The guard still accepts optional
+diagnostic budgets for constrained environments or future feature flags.
 
 ## Implementation Requirements Before UI Exposure
 
@@ -86,8 +80,8 @@ Flow runtime:
 - The runtime computes deterministic force-like positions from sorted graph
   ids; it does not run a random or animated D3 simulation in the default canvas
   path.
-- If the graph exceeds the node or edge budget, the Force button is disabled and
-  the canvas shows the guard reason.
+- The default Force guard does not block by node count; constrained deployments
+  may pass explicit diagnostic budgets and show the guard reason.
 
 The first operator-facing refinement presents active Force as a compact graph
 surface rather than full cards:
@@ -96,6 +90,16 @@ surface rather than full cards:
 - Force edges render as straight links regardless of the normal Curve/Rect
   route control;
 - normal deterministic layouts keep the full SpecNode card presentation.
+
+The second operator-facing refinement adds an explicit live runtime:
+
+- live simulation is available only while Force glyph mode is active;
+- `Live` starts or resumes animation, `Pause` stops it, and `Settled` is shown
+  when movement decays;
+- dragging a glyph reheats the simulation but does not persist Force-only
+  positions into the normal layout override store;
+- live ticks reuse the deterministic solver instead of introducing random
+  D3-style initial placement.
 
 ## Smoke Criteria
 
@@ -114,9 +118,6 @@ Before Force can be treated as parity-complete:
 
 ## Follow-Up Plan
 
-1. Add a hidden/explicit feature flag that can enable Force only when
-   `evaluateSpecGraphForceLayoutGuard(...)` returns `available: true`.
-2. Port or replace the legacy D3 renderer with a SpecSpace FSD boundary.
-3. Add browser smoke for desktop and mobile/narrow viewports.
-4. Review production behavior on the public SpecGraph before exposing Force as
+1. Add browser smoke for desktop and mobile/narrow viewports.
+2. Review production behavior on the public SpecGraph before exposing Force as
    an ordinary layout choice.

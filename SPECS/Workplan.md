@@ -2267,16 +2267,16 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T45, CTXB-P13-T44, CTXB-P13-T49
 - **Parallelizable:** no
-- **Outputs / Artifacts:** guarded Force runtime adapter, explicit enablement control, node/edge budget checks, focused tests, validation report
+- **Outputs / Artifacts:** guarded Force runtime adapter, explicit enablement control, optional node/edge diagnostic budget checks, focused tests, validation report
 - **Acceptance Criteria:**
   - Force runtime is unavailable unless the explicit guard/feature flag is enabled.
-  - The guard rejects graphs above the documented node/edge budget and explains why in UI or diagnostics.
+  - The guard supports explicit diagnostic budgets and explains budget failures in UI or diagnostics.
   - Force mode uses a separate runtime path and does not replace Tree, Linear, Canonical, Status, or Spine layout presets.
   - Existing edge density, routing, selection, inspector, minimap, and subtree collapse controls remain coherent when Force is disabled.
   - Desktop and mobile/narrow browser smoke verify guarded disabled state and one enabled in-budget graph.
   - The implementation does not introduce random or animated layout work into the default canvas path.
 
-### CTXB-P13-T51 — Add compact Force glyph presentation — In Progress
+### ✅ CTXB-P13-T51 — Add compact Force glyph presentation — DONE (PASS, 2026-05-24)
 - **Description:** Refine the guarded Force runtime so active Force mode reads as a conventional relationship graph rather than repositioned full SpecNode cards: compact circular glyphs, `SPEC-ID` labels, and direct straight links make clusters and connection strength easier to scan.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T50
@@ -2288,6 +2288,20 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Normal Tree, Linear, Spine, Canonical, and Status layouts keep the existing SpecNode card presentation.
   - Node click, selected endpoint highlighting, hover preview, minimap, and edge selection remain available in Force mode.
   - Desktop and mobile/narrow smoke verify Force glyph rendering on the current public SpecGraph data.
+
+### CTXB-P13-T52 — Add guarded live Force simulation — In Progress
+- **Description:** Add an opt-in live Force runtime on top of the compact glyph presentation so operators can see clusters relax interactively, drag nodes, and pause/resume the simulation without turning Force into a persisted layout preset.
+- **Priority:** P1
+- **Dependencies:** CTXB-P13-T51
+- **Parallelizable:** no
+- **Outputs / Artifacts:** live Force tick runtime, Live/Pause canvas control, settle diagnostics, drag reheat behavior, focused tests, validation report
+- **Acceptance Criteria:**
+  - Live Force is available only after guarded Force mode is active.
+  - Live Force uses compact glyph nodes and straight links, not full SpecNode cards.
+  - Live Force has explicit Live/Pause/Settled state and auto-settles when movement decays.
+  - Manual node drag reheats the live simulation without persisting Force-only positions into normal layout overrides.
+  - Force is not blocked by a hard default node-count cap; runtime safety is handled by explicit enablement, pause/settle behavior, and browser smoke.
+  - Desktop and mobile/narrow smoke verify live Force interaction on the current public SpecGraph data.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
