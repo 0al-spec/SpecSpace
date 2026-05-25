@@ -252,15 +252,15 @@
 }
 
 .forceNodeShell {
-  width: 82px;
-  height: 82px;
+  width: var(--spec-graph-force-glyph-size);
+  height: var(--spec-graph-force-glyph-size);
 }
 
 .forceNodeGlyph {
   position: relative;
   display: grid;
-  width: 82px;
-  height: 82px;
+  width: var(--spec-graph-force-glyph-size);
+  height: var(--spec-graph-force-glyph-size);
   place-items: center;
   border: 1.4px solid color-mix(in srgb, var(--gs-accent) 46%, var(--gs-rule-mid));
   border-radius: 50%;
@@ -278,7 +278,7 @@
 }
 
 .forceNodeGlyph span {
-  max-width: 68px;
+  max-width: calc(var(--spec-graph-force-glyph-size) - 14px);
   overflow-wrap: anywhere;
 }
 

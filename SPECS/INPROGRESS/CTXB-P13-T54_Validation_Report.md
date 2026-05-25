@@ -7,7 +7,6 @@ Clarify the guarded Force runtime control copy so auto-settle reads as a complet
 ## Local Validation
 
 - `npm test --prefix graphspace -- force-layout` — passed, 2 files / 8 tests.
-- `npm run build --prefix graphspace` — passed, Vite chunk-size warning unchanged.
 - `npm test --prefix graphspace` — passed, 59 files / 321 tests.
 - `npm run lint:fsd --prefix graphspace` — passed.
 - `npm run build --prefix graphspace` — passed, Vite chunk-size warning unchanged.
