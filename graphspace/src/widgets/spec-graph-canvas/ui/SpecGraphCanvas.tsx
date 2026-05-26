@@ -997,6 +997,9 @@ function SpecGraphCanvasInner({
   const forceLiveStateLabel = forceLiveControlStateLabel(forceLiveState);
   const forceLiveButtonTitle = forceLiveControlTitle(forceLiveState);
   const forceLiveRuntimeStatusLabel = forceLiveStatusLabel(forceLiveState);
+  const forceLiveAriaLabel = forceLiveStateLabel
+    ? `${forceLiveButtonLabel} Force relaxation (${forceLiveStateLabel})`
+    : `${forceLiveButtonLabel} Force relaxation`;
   const layoutOverrideCount = Object.keys(layoutOverrides).length;
   const updateLayoutPreset = useCallback((preset: SpecGraphCanvasLayoutPreset) => {
     clearHoverPreview();
@@ -1023,6 +1026,7 @@ function SpecGraphCanvasInner({
   const startForceLiveLayout = useCallback(() => {
     if (!forceLayoutRuntimeModel.active || !forceLayoutPositions) return;
     clearHoverPreview();
+    setCanvasViewport(canvasViewportRef.current);
     forceLiveAlphaRef.current = FORCE_LIVE_INITIAL_ALPHA;
     setForceLivePositions((current) => current ?? new Map(forceLayoutPositions));
     setForceLiveState("running");
@@ -1031,12 +1035,24 @@ function SpecGraphCanvasInner({
     clearHoverPreview();
     setForceLiveState((current) => (current === "running" ? "paused" : current));
   }, [clearHoverPreview]);
+  const resumeForceLiveLayout = useCallback(() => {
+    clearHoverPreview();
+    setCanvasViewport(canvasViewportRef.current);
+    setForceLiveState((current) => (current === "paused" ? "running" : current));
+  }, [clearHoverPreview]);
   const toggleForceLiveLayout = useCallback(() => {
     if (forceLiveState === "running") pauseForceLiveLayout();
+    else if (forceLiveState === "paused") resumeForceLiveLayout();
     else startForceLiveLayout();
-  }, [forceLiveState, pauseForceLiveLayout, startForceLiveLayout]);
+  }, [
+    forceLiveState,
+    pauseForceLiveLayout,
+    resumeForceLiveLayout,
+    startForceLiveLayout,
+  ]);
   const reheatForceLiveLayout = useCallback(() => {
     if (!forceLayoutRuntimeModel.active || forceLiveState === "off") return;
+    setCanvasViewport(canvasViewportRef.current);
     forceLiveAlphaRef.current = FORCE_LIVE_INITIAL_ALPHA;
     setForceLiveState("running");
   }, [forceLayoutRuntimeModel.active, forceLiveState]);
@@ -1390,7 +1406,7 @@ function SpecGraphCanvasInner({
               ]
                 .filter(Boolean)
                 .join(" ")}
-              aria-pressed={forceLiveState === "running"}
+              aria-label={forceLiveAriaLabel}
               title={forceLiveButtonTitle}
               onClick={toggleForceLiveLayout}
             >
