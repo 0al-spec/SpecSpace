@@ -1,6 +1,6 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T55` — Add layout preset keyboard navigation affordances
+**Current Task:** `CTXB-P13-T55` — Add selected Spec navigation history
 
 ## Recently Archived
 - `CTXB-P13-T54` — Clarify Force relaxation controls (PASS, 2026-05-24)
@@ -104,13 +104,13 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T55` — Add layout preset keyboard navigation affordances.
-- Rationale: layout presets are now a primary canvas parity surface, but switching among Tree, Linear, Canonical, Status, Spine, and Force still depends on pointer-heavy toolbar use. Keyboard and focus affordances will make layout exploration faster on desktop and more predictable after the recent Force/Spine work.
+- `CTXB-P13-T55` — Add selected Spec navigation history.
+- Rationale: legacy ContextBuilder made it easy to move backward and forward through recently selected graph items. SpecSpace now has many ways to jump between specs (canvas nodes, Sidebar rows, inline Spec IDs, Recent changes, Proposal/Metrics links), but no browser-like selection history, so operators lose traversal context while inspecting dense SpecGraph branches.
 
 ### Phase 13 Suggested Stack
 - Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`, `CTXB-P13-T34`, `CTXB-P13-T35`, `CTXB-P13-T36`, `CTXB-P13-T37`, `CTXB-P13-T38`, `CTXB-P13-T39`, `CTXB-P13-T40`, `CTXB-P13-T41`, `CTXB-P13-T42`, `CTXB-P13-T43`, `CTXB-P13-T44`, `CTXB-P13-T45`, `CTXB-P13-T46`, `CTXB-P13-B2`, `CTXB-P13-B3`, `CTXB-P13-T47`, `CTXB-P13-T48`, `CTXB-P13-T49`, `CTXB-P13-T50`, `CTXB-P13-T51`, `CTXB-P13-T52`, `CTXB-P13-T53`, `CTXB-P13-T54`.
-- Current: `CTXB-P13-T55` Add layout preset keyboard navigation affordances.
-- Next: subtree collapse polish, deeper Metrics screen parity, or Force polish driven by operator feedback.
+- Current: `CTXB-P13-T55` Add selected Spec navigation history.
+- Next: layout preset keyboard/navigation affordances, subtree collapse polish, deeper Metrics screen parity, or Force polish driven by operator feedback.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
 - `CTXB-P3-T6` is complete. Remaining Phase 3 authoring tasks are legacy ContextBuilder work and should not be selected as SpecSpace follow-ups unless the goal explicitly returns to conversation editing.
