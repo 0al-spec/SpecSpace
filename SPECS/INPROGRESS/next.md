@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T53` — Keep Force Live edges visible
+**Current Task:** `CTXB-P13-T54` — Clarify Force relaxation controls
 
 ## Recently Archived
+- `CTXB-P13-T53` — Keep Force Live edges visible (PASS, 2026-05-24)
 - `CTXB-P13-T52` — Add guarded live Force simulation (PASS, 2026-05-24)
 - `CTXB-P13-T51` — Add compact Force glyph presentation (PASS, 2026-05-24)
 - `CTXB-P13-T50` — Add guarded Force layout runtime (PASS, 2026-05-24)
@@ -102,12 +103,12 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T53` — Keep Force Live edges visible.
-- Rationale: Live Force must preserve the conventional graph contract: glyph nodes plus visible straight links. Edges disappearing or becoming too faint after `Live` is a canvas regression and should be fixed before deeper Force polish.
+- `CTXB-P13-T54` — Clarify Force relaxation controls.
+- Rationale: the Force runtime intentionally auto-settles to protect browser responsiveness, but the previous `Live` copy made a completed relaxation pass look like a self-disabled mode. The control should explain the lifecycle as Run/Pause/Resume/Run again.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`, `CTXB-P13-T34`, `CTXB-P13-T35`, `CTXB-P13-T36`, `CTXB-P13-T37`, `CTXB-P13-T38`, `CTXB-P13-T39`, `CTXB-P13-T40`, `CTXB-P13-T41`, `CTXB-P13-T42`, `CTXB-P13-T43`, `CTXB-P13-T44`, `CTXB-P13-T45`, `CTXB-P13-T46`, `CTXB-P13-B2`, `CTXB-P13-B3`, `CTXB-P13-T47`, `CTXB-P13-T48`, `CTXB-P13-T49`, `CTXB-P13-T50`, `CTXB-P13-T51`, `CTXB-P13-T52`.
-- Current: `CTXB-P13-T53` Keep Force Live edges visible.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`, `CTXB-P13-T34`, `CTXB-P13-T35`, `CTXB-P13-T36`, `CTXB-P13-T37`, `CTXB-P13-T38`, `CTXB-P13-T39`, `CTXB-P13-T40`, `CTXB-P13-T41`, `CTXB-P13-T42`, `CTXB-P13-T43`, `CTXB-P13-T44`, `CTXB-P13-T45`, `CTXB-P13-T46`, `CTXB-P13-B2`, `CTXB-P13-B3`, `CTXB-P13-T47`, `CTXB-P13-T48`, `CTXB-P13-T49`, `CTXB-P13-T50`, `CTXB-P13-T51`, `CTXB-P13-T52`, `CTXB-P13-T53`.
+- Current: `CTXB-P13-T54` Clarify Force relaxation controls.
 - Next: layout preset keyboard/navigation affordances, subtree collapse polish, or deeper Metrics screen parity.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)

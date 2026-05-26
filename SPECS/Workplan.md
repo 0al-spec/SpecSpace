@@ -2303,7 +2303,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Force is not blocked by a hard default node-count cap; runtime safety is handled by explicit enablement, pause/settle behavior, and browser smoke.
   - Desktop and mobile/narrow smoke verify live Force interaction on the current public SpecGraph data.
 
-### CTXB-P13-T53 — Keep Force Live edges visible — In Progress
+### ✅ CTXB-P13-T53 — Keep Force Live edges visible — DONE (PASS, 2026-05-24)
 - **Description:** Fix the Live Force regression where straight Force links can disappear or become visually too weak after pressing `Live` in browsers. Live mode must keep edge geometry synchronized with moving glyph nodes and preserve visible straight links.
 - **Priority:** P1
 - **Dependencies:** CTXB-P13-T52
@@ -2313,6 +2313,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Pressing `Live` keeps Force edge paths visible in Chrome/Safari-class browsers.
   - Force straight links remain visually legible while preserving selected-edge highlighting.
   - Browser smoke asserts nonzero visible edge paths after `Force` + `Live`.
+
+### CTXB-P13-T54 — Clarify Force relaxation controls — In Progress
+- **Description:** Rename the Force runtime control copy so auto-settle reads as a completed relaxation pass rather than a broken or self-disabled `Live` mode. The physics and auto-settle guard remain unchanged; the UI should make the operator state explicit.
+- **Priority:** P1
+- **Dependencies:** CTXB-P13-T53
+- **Parallelizable:** no
+- **Outputs / Artifacts:** Force relaxation control labels, status copy, validation report
+- **Acceptance Criteria:**
+  - Force runtime starts with a `Run` action rather than a `Live` action.
+  - While simulation is active, the control reads `Pause` with a `settling` state label.
+  - Paused state reads `Resume`; settled state reads `Run again`.
+  - Status copy says `Force settling`, `Force paused`, or `Force settled` so auto-settle is not interpreted as an unexpected mode shutdown.
+  - Browser smoke verifies the state labels and visible Force edges after an auto-settle cycle.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

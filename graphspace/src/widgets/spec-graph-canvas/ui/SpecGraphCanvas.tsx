@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   Background,
   BaseEdge,
@@ -125,8 +132,83 @@ const FORCE_LIVE_INITIAL_ALPHA = 0.92;
 const FORCE_LIVE_ALPHA_DECAY = 0.965;
 const FORCE_LIVE_SETTLED_ALPHA = 0.025;
 const FORCE_LIVE_SETTLED_MOVEMENT = 0.18;
+const FORCE_GLYPH_DIAMETER = 82;
+const FORCE_GLYPH_RADIUS = FORCE_GLYPH_DIAMETER / 2;
+const FORCE_GLYPH_STYLE = {
+  "--spec-graph-force-glyph-size": `${FORCE_GLYPH_DIAMETER}px`,
+} as CSSProperties;
 
 type ForceLiveState = "off" | "running" | "paused" | "settled";
+type CanvasViewport = { x: number; y: number; zoom: number };
+type ForceLiveOverlayEdge = {
+  id: string;
+  path: string;
+  opacity: number;
+  stroke: string;
+  strokeDasharray?: string;
+  strokeWidth: number;
+};
+
+function forceLiveControlLabel(state: ForceLiveState): string {
+  switch (state) {
+    case "running":
+      return "Pause";
+    case "paused":
+      return "Resume";
+    case "settled":
+      return "Run again";
+    case "off":
+      return "Run";
+  }
+}
+
+function forceLiveControlStateLabel(state: ForceLiveState): string {
+  switch (state) {
+    case "running":
+      return "settling";
+    case "paused":
+      return "paused";
+    case "settled":
+      return "settled";
+    case "off":
+      return "";
+  }
+}
+
+function forceLiveControlTitle(state: ForceLiveState): string {
+  switch (state) {
+    case "running":
+      return "Pause Force relaxation";
+    case "paused":
+      return "Resume Force relaxation";
+    case "settled":
+      return "Run Force relaxation again";
+    case "off":
+      return "Run Force relaxation";
+  }
+}
+
+function forceLiveStatusLabel(state: ForceLiveState): string {
+  switch (state) {
+    case "running":
+      return "Force settling";
+    case "paused":
+      return "Force paused";
+    case "settled":
+      return "Force settled";
+    case "off":
+      return "";
+  }
+}
+
+function cssNumericValue(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
 
 const MINIMAP_NODE_COLOR = "#f4f2ed";
 const MINIMAP_NODE_STROKE_COLOR = "#151719";
@@ -167,6 +249,7 @@ function SpecFlowNodeView({ data, selected }: NodeProps<SpecFlowNode>) {
     return (
       <div
         className={shellClassName}
+        style={FORCE_GLYPH_STYLE}
         onMouseEnter={(event) =>
           data.onHoverPreviewIntent?.(
             data.spec,
@@ -499,6 +582,11 @@ function SpecGraphCanvasInner({
     ReadonlySet<string>
   >(() => new Set());
   const [canvasZoom, setCanvasZoom] = useState(1);
+  const [canvasViewport, setCanvasViewport] = useState<CanvasViewport>({
+    x: 0,
+    y: 0,
+    zoom: 1,
+  });
   const [layoutOverrides, setLayoutOverrides] =
     useState<SpecGraphCanvasLayoutOverrides>({});
   const [hoverCandidate, setHoverCandidate] = useState<HoverPreviewState | null>(null);
@@ -506,6 +594,7 @@ function SpecGraphCanvasInner({
   const hoverPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const forceLiveFrameRef = useRef<number | null>(null);
   const forceLiveAlphaRef = useRef(FORCE_LIVE_INITIAL_ALPHA);
+  const canvasViewportRef = useRef<CanvasViewport>({ x: 0, y: 0, zoom: 1 });
   const {
     fitBounds,
     getNode,
@@ -647,6 +736,8 @@ function SpecGraphCanvasInner({
     forceLayoutRuntimeModel.active && forceLiveState !== "off" && forceLivePositions
       ? forceLivePositions
       : forceLayoutPositions;
+  const forceLiveOverlayActive =
+    forceLiveState === "running" || forceLiveState === "paused";
   const forcePositionedBaseNodes = useMemo(() => {
     if (!effectiveForceLayoutPositions) return baseNodes;
     return baseNodes.map((node) => ({
@@ -778,6 +869,72 @@ function SpecGraphCanvasInner({
       visibleNodeIds,
     ],
   );
+  const forceLiveOverlayEdges = useMemo((): ForceLiveOverlayEdge[] => {
+    if (
+      !effectiveForceLayoutPositions ||
+      !forceLiveOverlayActive
+    ) {
+      return [];
+    }
+    return flowEdges.flatMap((edge) => {
+      const source = effectiveForceLayoutPositions.get(edge.source);
+      const target = effectiveForceLayoutPositions.get(edge.target);
+      if (!source || !target) return [];
+      const sourceX = source.x + FORCE_GLYPH_RADIUS;
+      const sourceY = source.y + FORCE_GLYPH_RADIUS;
+      const targetX = target.x + FORCE_GLYPH_RADIUS;
+      const targetY = target.y + FORCE_GLYPH_RADIUS;
+      const deltaX = targetX - sourceX;
+      const deltaY = targetY - sourceY;
+      const length = Math.hypot(deltaX, deltaY);
+      if (length <= 0) return [];
+      const trim = Math.max(
+        0,
+        Math.min(FORCE_GLYPH_RADIUS + 2, length / 2 - 1),
+      );
+      const unitX = deltaX / length;
+      const unitY = deltaY / length;
+      const startX = sourceX + unitX * trim;
+      const startY = sourceY + unitY * trim;
+      const endX = targetX - unitX * trim;
+      const endY = targetY - unitY * trim;
+      const selected = edge.id === activeSelectedEdgeId;
+      const stroke =
+        selected
+          ? "var(--gs-accent)"
+          : typeof edge.style?.stroke === "string"
+            ? edge.style.stroke
+            : "#4e689b";
+      const strokeDasharray =
+        typeof edge.style?.strokeDasharray === "string"
+          ? edge.style.strokeDasharray
+          : undefined;
+      const baseOpacity = cssNumericValue(edge.style?.opacity, 0.88);
+      const baseStrokeWidth = cssNumericValue(edge.style?.strokeWidth, 1.65);
+      return [
+        {
+          id: edge.id,
+          path: [
+            `M ${startX}`,
+            `${startY}`,
+            `L ${endX}`,
+            `${endY}`,
+          ].join(" "),
+          opacity: selected ? 1 : baseOpacity,
+          stroke,
+          strokeDasharray,
+          strokeWidth: selected
+            ? Math.max(baseStrokeWidth * 1.45, 2.2)
+            : baseStrokeWidth,
+        },
+      ];
+    });
+  }, [
+    activeSelectedEdgeId,
+    effectiveForceLayoutPositions,
+    forceLiveOverlayActive,
+    flowEdges,
+  ]);
   const fullSelection = useMemo(
     () =>
       buildSpecGraphSelection(
@@ -836,14 +993,13 @@ function SpecGraphCanvasInner({
         `${forceLayoutBudgetModel.guard.edgeCount} edges`,
       ].join(" ")
     : forceLayoutBudgetModel.message;
-  const forceLiveStatusLabel =
-    forceLiveState === "running"
-      ? "Force live"
-      : forceLiveState === "paused"
-        ? "Force paused"
-        : forceLiveState === "settled"
-          ? "Force settled"
-          : "";
+  const forceLiveButtonLabel = forceLiveControlLabel(forceLiveState);
+  const forceLiveStateLabel = forceLiveControlStateLabel(forceLiveState);
+  const forceLiveButtonTitle = forceLiveControlTitle(forceLiveState);
+  const forceLiveRuntimeStatusLabel = forceLiveStatusLabel(forceLiveState);
+  const forceLiveAriaLabel = forceLiveStateLabel
+    ? `${forceLiveButtonLabel} Force relaxation (${forceLiveStateLabel})`
+    : `${forceLiveButtonLabel} Force relaxation`;
   const layoutOverrideCount = Object.keys(layoutOverrides).length;
   const updateLayoutPreset = useCallback((preset: SpecGraphCanvasLayoutPreset) => {
     clearHoverPreview();
@@ -870,6 +1026,7 @@ function SpecGraphCanvasInner({
   const startForceLiveLayout = useCallback(() => {
     if (!forceLayoutRuntimeModel.active || !forceLayoutPositions) return;
     clearHoverPreview();
+    setCanvasViewport(canvasViewportRef.current);
     forceLiveAlphaRef.current = FORCE_LIVE_INITIAL_ALPHA;
     setForceLivePositions((current) => current ?? new Map(forceLayoutPositions));
     setForceLiveState("running");
@@ -878,12 +1035,24 @@ function SpecGraphCanvasInner({
     clearHoverPreview();
     setForceLiveState((current) => (current === "running" ? "paused" : current));
   }, [clearHoverPreview]);
+  const resumeForceLiveLayout = useCallback(() => {
+    clearHoverPreview();
+    setCanvasViewport(canvasViewportRef.current);
+    setForceLiveState((current) => (current === "paused" ? "running" : current));
+  }, [clearHoverPreview]);
   const toggleForceLiveLayout = useCallback(() => {
     if (forceLiveState === "running") pauseForceLiveLayout();
+    else if (forceLiveState === "paused") resumeForceLiveLayout();
     else startForceLiveLayout();
-  }, [forceLiveState, pauseForceLiveLayout, startForceLiveLayout]);
+  }, [
+    forceLiveState,
+    pauseForceLiveLayout,
+    resumeForceLiveLayout,
+    startForceLiveLayout,
+  ]);
   const reheatForceLiveLayout = useCallback(() => {
     if (!forceLayoutRuntimeModel.active || forceLiveState === "off") return;
+    setCanvasViewport(canvasViewportRef.current);
     forceLiveAlphaRef.current = FORCE_LIVE_INITIAL_ALPHA;
     setForceLiveState("running");
   }, [forceLayoutRuntimeModel.active, forceLiveState]);
@@ -905,9 +1074,24 @@ function SpecGraphCanvasInner({
   }, [clearHoverPreview]);
 
   useOnViewportChange({
-    onChange: ({ zoom }) => {
+    onChange: (viewport) => {
+      const { zoom } = viewport;
+      const nextViewport = {
+        x: viewport.x,
+        y: viewport.y,
+        zoom: viewport.zoom,
+      };
+      canvasViewportRef.current = nextViewport;
       setCanvasZoom((currentZoom) =>
         Math.abs(currentZoom - zoom) < 0.02 ? currentZoom : zoom,
+      );
+      if (!forceLiveOverlayActive) return;
+      setCanvasViewport((currentViewport) =>
+        Math.abs(currentViewport.x - nextViewport.x) < 0.5 &&
+        Math.abs(currentViewport.y - nextViewport.y) < 0.5 &&
+        Math.abs(currentViewport.zoom - nextViewport.zoom) < 0.01
+          ? currentViewport
+          : nextViewport,
       );
     },
   });
@@ -989,6 +1173,10 @@ function SpecGraphCanvasInner({
       ),
     );
   }, [layoutNodeIds, layoutStorageKey]);
+
+  useEffect(() => {
+    if (forceLiveOverlayActive) setCanvasViewport(canvasViewportRef.current);
+  }, [forceLiveOverlayActive]);
 
   useEffect(() => {
     if (forceLayoutEnabled && !forceLayoutBudgetModel.active) {
@@ -1218,16 +1406,12 @@ function SpecGraphCanvasInner({
               ]
                 .filter(Boolean)
                 .join(" ")}
-              aria-pressed={forceLiveState === "running"}
-              title={
-                forceLiveState === "running"
-                  ? "Pause live Force simulation"
-                  : "Run live Force simulation"
-              }
+              aria-label={forceLiveAriaLabel}
+              title={forceLiveButtonTitle}
               onClick={toggleForceLiveLayout}
             >
-              <span>{forceLiveState === "running" ? "Pause" : "Live"}</span>
-              {forceLiveState !== "off" ? <span>{forceLiveState}</span> : null}
+              <span>{forceLiveButtonLabel}</span>
+              {forceLiveStateLabel ? <span>{forceLiveStateLabel}</span> : null}
             </button>
           ) : null}
         </div>
@@ -1246,7 +1430,7 @@ function SpecGraphCanvasInner({
             }
           >
             {forceLayoutRuntimeModel.active
-              ? forceLiveStatusLabel || "Force active"
+              ? forceLiveRuntimeStatusLabel || "Force active"
               : forceLayoutInactiveMessage}
           </div>
         ) : null}
@@ -1409,6 +1593,27 @@ function SpecGraphCanvasInner({
         />
         <Controls showInteractive={false} />
       </ReactFlow>
+      {forceLiveOverlayEdges.length > 0 ? (
+        <svg className={styles.forceLiveEdgeOverlay} aria-hidden="true">
+          <g
+            transform={`translate(${canvasViewport.x} ${canvasViewport.y}) scale(${canvasViewport.zoom})`}
+          >
+            {forceLiveOverlayEdges.map((edge) => (
+              <path
+                key={edge.id}
+                d={edge.path}
+                fill="none"
+                opacity={edge.opacity}
+                stroke={edge.stroke}
+                strokeDasharray={edge.strokeDasharray}
+                strokeLinecap="round"
+                strokeWidth={edge.strokeWidth}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </g>
+        </svg>
+      ) : null}
       {nodes.length === 0 ? (
         <div className={styles.emptyFilterState}>
           No nodes match the active canvas gap filter.
