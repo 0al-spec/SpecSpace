@@ -2289,7 +2289,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Node click, selected endpoint highlighting, hover preview, minimap, and edge selection remain available in Force mode.
   - Desktop and mobile/narrow smoke verify Force glyph rendering on the current public SpecGraph data.
 
-### CTXB-P13-T52 — Add guarded live Force simulation — In Progress
+### ✅ CTXB-P13-T52 — Add guarded live Force simulation — DONE (PASS, 2026-05-24)
 - **Description:** Add an opt-in live Force runtime on top of the compact glyph presentation so operators can see clusters relax interactively, drag nodes, and pause/resume the simulation without turning Force into a persisted layout preset.
 - **Priority:** P1
 - **Dependencies:** CTXB-P13-T51
@@ -2302,6 +2302,17 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Manual node drag reheats the live simulation without persisting Force-only positions into normal layout overrides.
   - Force is not blocked by a hard default node-count cap; runtime safety is handled by explicit enablement, pause/settle behavior, and browser smoke.
   - Desktop and mobile/narrow smoke verify live Force interaction on the current public SpecGraph data.
+
+### CTXB-P13-T53 — Keep Force Live edges visible — In Progress
+- **Description:** Fix the Live Force regression where straight Force links can disappear or become visually too weak after pressing `Live` in browsers. Live mode must keep edge geometry synchronized with moving glyph nodes and preserve visible straight links.
+- **Priority:** P1
+- **Dependencies:** CTXB-P13-T52
+- **Parallelizable:** no
+- **Outputs / Artifacts:** stronger Force edge visibility, browser smoke evidence, validation report
+- **Acceptance Criteria:**
+  - Pressing `Live` keeps Force edge paths visible in Chrome/Safari-class browsers.
+  - Force straight links remain visually legible while preserving selected-edge highlighting.
+  - Browser smoke asserts nonzero visible edge paths after `Force` + `Live`.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.

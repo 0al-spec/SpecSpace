@@ -317,8 +317,8 @@ function SpecFlowEdgeView({
     data?.forceStraight === true
       ? {
           ...style,
-          opacity: selected ? 1 : 0.68,
-          strokeWidth: selected ? 2.2 : 1.35,
+          opacity: selected ? 1 : 0.88,
+          strokeWidth: selected ? 2.2 : 1.65,
         }
       : style;
   const selectedStyle = selected
