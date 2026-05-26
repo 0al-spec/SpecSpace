@@ -2314,7 +2314,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Force straight links remain visually legible while preserving selected-edge highlighting.
   - Browser smoke asserts nonzero visible edge paths after `Force` + `Live`.
 
-### CTXB-P13-T54 — Clarify Force relaxation controls — In Progress
+### ✅ CTXB-P13-T54 — Clarify Force relaxation controls — DONE (PASS, 2026-05-24)
 - **Description:** Rename the Force runtime control copy so auto-settle reads as a completed relaxation pass rather than a broken or self-disabled `Live` mode. The physics and auto-settle guard remain unchanged; the UI should make the operator state explicit.
 - **Priority:** P1
 - **Dependencies:** CTXB-P13-T53
@@ -2326,6 +2326,19 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Paused state reads `Resume`; settled state reads `Run again`.
   - Status copy says `Force settling`, `Force paused`, or `Force settled` so auto-settle is not interpreted as an unexpected mode shutdown.
   - Browser smoke verifies the state labels and visible Force edges after an auto-settle cycle.
+
+### CTXB-P13-T55 — Add layout preset keyboard navigation affordances — In Progress
+- **Description:** Add desktop-oriented keyboard and focus affordances for switching canvas layout presets so operators can move quickly among Tree, Linear, Canonical, Status, Spine, and guarded Force without relying only on pointer toolbar clicks.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T28, CTXB-P13-T43, CTXB-P13-T46, CTXB-P13-T50
+- **Parallelizable:** no
+- **Outputs / Artifacts:** layout preset keyboard model, toolbar focus/accessibility updates, focused tests, validation report
+- **Acceptance Criteria:**
+  - Layout preset controls are keyboard-focusable with clear current-state semantics.
+  - Operators can cycle to previous/next non-disabled layout presets from the canvas using documented shortcut labels in control metadata/tooltips, without adding visible instructional text to the canvas.
+  - Guarded Force remains unavailable until its explicit guard is enabled; keyboard cycling skips disabled Force rather than accidentally enabling it.
+  - Layout preset selection still persists through the existing storage path and respects manual node position overrides.
+  - Desktop and mobile/narrow smoke verify that keyboard affordance additions do not overlap canvas controls or panel chrome.
 
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
