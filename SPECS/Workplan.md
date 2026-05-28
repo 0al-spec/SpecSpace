@@ -2354,6 +2354,36 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Layout preset selection still persists through the existing storage path and respects manual node position overrides.
   - Desktop and mobile/narrow smoke verify that keyboard affordance additions do not overlap canvas controls or panel chrome.
 
+### CTXB-P13-T57 — Reserve Feature Evidence derived artifact UI slots — Planned, blocked on SpecGraph artifacts
+- **Description:** Prepare the SpecSpace plan for future Feature Runtime Evidence surfaces once SpecGraph materializes derived artifacts from Feature Passport evidence. This task must not implement UI against raw logs or external RFC text.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T6, CTXB-P13-T21, CTXB-P13-T22, SpecGraph `0058 Feature Runtime Evidence Layer`
+- **Parallelizable:** yes
+- **Expected Derived Artifacts:** `runs/feature_passport_index.json`, `runs/feature_evidence_index.json`, `runs/feature_evidence_ladder.json`
+- **Outputs / Artifacts:** Feature Evidence panel contract slot, data adapter plan, evidence-ladder UI mapping, validation report
+- **Acceptance Criteria:**
+  - SpecSpace reads only safe derived SpecGraph `runs/*.json` projections for Feature Evidence.
+  - UI model is an evidence ladder, not a boolean deployed/implemented flag.
+  - Ladder levels are represented as `L0 Specified`, `L1 Implemented`, `L2 Built`, `L3 Released`, `L4 Runtime Seen`, `L5 Feature Exposed`, `L6 Code Path Executed`, `L7 Effect Committed`, and `L8 Outcome Completed`.
+  - The panel can show strongest proof, missing evidence, receipt/source summary, and boundary notes.
+  - Client-side telemetry is labeled as observation; canonical proof is server-side or signed receipt.
+  - Feature Passport remains the canonical vocabulary authority; SpecSpace does not duplicate or reinterpret its RFC as source of truth.
+
+### CTXB-P13-T58 — Reserve Agent Identity and passport verification UI slots — Planned, blocked on SpecGraph artifacts
+- **Description:** Prepare the SpecSpace plan for future graph-agent identity and capability surfaces once SpecGraph publishes safe derived Agent Passport adoption indexes. This task must not read raw executor logs, private passport material, or local prompt/config files.
+- **Priority:** P2
+- **Dependencies:** CTXB-P13-T40, CTXB-P13-T41, CTXB-P13-T42, SpecGraph `0059 Agent Passport Adoption for Graph Agents`
+- **Parallelizable:** yes
+- **Expected Derived Artifacts:** `tools/agent_passport_adoption_policy.json`, `runs/known_agent_passport_index.json`, `runs/agent_verification_gap_index.json`, `runs/agent_surface_index.json`
+- **Outputs / Artifacts:** Agent Identity panel contract slot, verification-state UI mapping, declaration-vs-enforcement notes, validation report
+- **Acceptance Criteria:**
+  - SpecSpace reads only safe derived Agent Passport adoption projections from SpecGraph artifacts.
+  - UI model is verification state, not a boolean trusted/untrusted flag.
+  - Verification levels are represented as `V0 unknown`, `V1 known surface`, `V2 passport referenced`, `V3 schema valid`, `V4 signature verified`, `V5 lifecycle valid`, `V6 integrity declared`, `V7 policies mappable`, and `V8 runtime enforcement observed`.
+  - The panel can show agent surface, passport reference/status, verification state, declared capabilities summary, and verification gaps.
+  - Declaration and enforcement are visually distinct: declared policy is not treated as observed runtime enforcement.
+  - Agent Passport remains the canonical authority for identity/capability/security contract; SpecSpace does not create its own authority model.
+
 ### ✅ CTXB-P13-B1 — Fix mobile Proposal Viewer list scroll trap — DONE (PASS, 2026-05-19)
 - **Description:** On narrow/mobile viewports, opening Proposal Viewer from Sidebar could show only summary, filters, and source chips; proposal rows were effectively trapped below the visible utility panel area.
 - **Priority:** P1
