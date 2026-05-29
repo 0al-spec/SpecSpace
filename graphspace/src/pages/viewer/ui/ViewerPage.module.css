@@ -483,8 +483,8 @@
   }
 
   .sidebarRail {
-    bottom: auto;
-    max-height: 42vh;
+    bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+    max-height: none;
   }
 
   .utilityRail {
