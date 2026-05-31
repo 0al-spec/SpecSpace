@@ -211,7 +211,7 @@ Target:
 49. `CTXB-P13-T52` — Add guarded live Force simulation. ✅
 50. `CTXB-P13-T53` — Keep Force Live edges visible. ✅
 51. `CTXB-P13-T54` — Clarify Force relaxation controls. ✅
-52. `CTXB-P13-T55` — Add selected Spec navigation history.
+52. `CTXB-P13-T55` — Add selected Spec navigation history. ✅
 53. `CTXB-P13-T56` — Add layout preset keyboard navigation affordances.
 54. `CTXB-P13-T57` — Reserve Feature Evidence derived artifact UI slots.
 55. `CTXB-P13-T58` — Reserve Agent Identity and passport verification UI slots.

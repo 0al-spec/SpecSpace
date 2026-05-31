@@ -4,8 +4,10 @@ import type { SpecNode } from "@/entities/spec-node";
 import type { SpecGraphResponse } from "@/shared/spec-graph-contract";
 import {
   DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET,
+  SPEC_GRAPH_CANVAS_FORCE_LAYOUT_TARGET,
   SPEC_GRAPH_CANVAS_LAYOUT_PRESETS,
   computeSpecGraphCanvasLayoutPositions,
+  cycleSpecGraphCanvasLayoutTarget,
   normalizeSpecGraphCanvasLayoutPreset,
   readSpecGraphCanvasLayoutPreset,
   toSpecGraphFlowElements,
@@ -280,5 +282,40 @@ describe("SpecGraph canvas layout presets", () => {
     writeSpecGraphCanvasLayoutPreset(storage, "status-columns");
 
     expect(readSpecGraphCanvasLayoutPreset(storage)).toBe("status-columns");
+  });
+
+  it("cycles layout targets while skipping guarded Force when unavailable", () => {
+    expect(
+      cycleSpecGraphCanvasLayoutTarget({
+        currentPreset: "tree",
+        forceLayoutActive: false,
+        forceLayoutAvailable: false,
+        direction: "previous",
+      }),
+    ).toBe("status-columns");
+    expect(
+      cycleSpecGraphCanvasLayoutTarget({
+        currentPreset: "status-columns",
+        forceLayoutActive: false,
+        forceLayoutAvailable: false,
+        direction: "next",
+      }),
+    ).toBe("tree");
+    expect(
+      cycleSpecGraphCanvasLayoutTarget({
+        currentPreset: "status-columns",
+        forceLayoutActive: false,
+        forceLayoutAvailable: true,
+        direction: "next",
+      }),
+    ).toBe(SPEC_GRAPH_CANVAS_FORCE_LAYOUT_TARGET);
+    expect(
+      cycleSpecGraphCanvasLayoutTarget({
+        currentPreset: "status-columns",
+        forceLayoutActive: true,
+        forceLayoutAvailable: true,
+        direction: "next",
+      }),
+    ).toBe("tree");
   });
 });

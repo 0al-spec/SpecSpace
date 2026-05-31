@@ -118,6 +118,11 @@
   color: var(--gs-ink);
 }
 
+.gapFilterButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--gs-accent) 58%, transparent);
+  outline-offset: 2px;
+}
+
 .gapFilterButton:disabled {
   border-color: var(--gs-rule-soft);
   background: color-mix(in srgb, var(--gs-panel) 72%, transparent);

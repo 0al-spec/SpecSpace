@@ -1,8 +1,9 @@
 # In Progress Queue
 
-**Current Task:** `CTXB-P13-T55` — Add selected Spec navigation history
+**Current Task:** `CTXB-P13-T56` — Add layout preset keyboard navigation affordances
 
 ## Recently Archived
+- `CTXB-P13-T55` — Add selected Spec navigation history (PASS, 2026-05-31)
 - `CTXB-P13-T54` — Clarify Force relaxation controls (PASS, 2026-05-24)
 - `CTXB-P13-T53` — Keep Force Live edges visible (PASS, 2026-05-24)
 - `CTXB-P13-T52` — Add guarded live Force simulation (PASS, 2026-05-24)
@@ -104,13 +105,13 @@
 ## Suggested Next Tasks
 
 ### SpecSpace Parity (Phase 13, current)
-- `CTXB-P13-T55` — Add selected Spec navigation history.
-- Rationale: legacy ContextBuilder made it easy to move backward and forward through recently selected graph items. SpecSpace now has many ways to jump between specs (canvas nodes, Sidebar rows, inline Spec IDs, Recent changes, Proposal/Metrics links), but no browser-like selection history, so operators lose traversal context while inspecting dense SpecGraph branches.
+- `CTXB-P13-T56` — Add layout preset keyboard navigation affordances.
+- Rationale: SpecSpace now has several layout presets (Tree, Linear, Canonical, Status, Spine, and guarded Force), but operators still need pointer toolbar clicks to move between them. Desktop graph exploration should support fast keyboard/focus navigation without adding visible instructional copy or accidentally enabling guarded Force.
 
 ### Phase 13 Suggested Stack
-- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`, `CTXB-P13-T34`, `CTXB-P13-T35`, `CTXB-P13-T36`, `CTXB-P13-T37`, `CTXB-P13-T38`, `CTXB-P13-T39`, `CTXB-P13-T40`, `CTXB-P13-T41`, `CTXB-P13-T42`, `CTXB-P13-T43`, `CTXB-P13-T44`, `CTXB-P13-T45`, `CTXB-P13-T46`, `CTXB-P13-B2`, `CTXB-P13-B3`, `CTXB-P13-T47`, `CTXB-P13-T48`, `CTXB-P13-T49`, `CTXB-P13-T50`, `CTXB-P13-T51`, `CTXB-P13-T52`, `CTXB-P13-T53`, `CTXB-P13-T54`.
-- Current: `CTXB-P13-T55` Add selected Spec navigation history.
-- Next: layout preset keyboard/navigation affordances, subtree collapse polish, deeper Metrics screen parity, or Force polish driven by operator feedback.
+- Completed: `CTXB-P13-T5`, `CTXB-P13-T6`, `CTXB-P13-T7`, `CTXB-P13-T8`, `CTXB-P13-T9`, `CTXB-P13-T10`, `CTXB-P13-T11`, `CTXB-P13-T12`, `CTXB-P13-T13`, `CTXB-P13-T14`, `CTXB-P13-T15`, `CTXB-P13-T16`, `CTXB-P13-T17`, `CTXB-P13-T18`, `CTXB-P13-T19`, `CTXB-P13-T20`, `CTXB-P13-T21`, `CTXB-P13-T22`, `CTXB-P13-T23`, `CTXB-P13-T24`, `CTXB-P13-T25`, `CTXB-P13-T26`, `CTXB-P13-T27`, `CTXB-P13-T28`, `CTXB-P13-T29`, `CTXB-P13-T30`, `CTXB-P13-T31`, `CTXB-P13-T32`, `CTXB-P13-T33`, `CTXB-P13-T34`, `CTXB-P13-T35`, `CTXB-P13-T36`, `CTXB-P13-T37`, `CTXB-P13-T38`, `CTXB-P13-T39`, `CTXB-P13-T40`, `CTXB-P13-T41`, `CTXB-P13-T42`, `CTXB-P13-T43`, `CTXB-P13-T44`, `CTXB-P13-T45`, `CTXB-P13-T46`, `CTXB-P13-B2`, `CTXB-P13-B3`, `CTXB-P13-T47`, `CTXB-P13-T48`, `CTXB-P13-T49`, `CTXB-P13-T50`, `CTXB-P13-T51`, `CTXB-P13-T52`, `CTXB-P13-T53`, `CTXB-P13-T54`, `CTXB-P13-T55`.
+- Current: `CTXB-P13-T56` Add layout preset keyboard navigation affordances.
+- Next: subtree collapse polish, deeper Metrics screen parity, or Force polish driven by operator feedback.
 - Future artifact-backed slots: Feature Evidence and Agent Identity panels are planned only after SpecGraph publishes safe derived indexes for Feature Passport evidence and Agent Passport verification. Do not implement these panels against raw run/executor logs, private passport material, local prompt/config files, or external RFC parsing.
 
 ### Legacy ContextBuilder Product Authoring (Phase 3)
