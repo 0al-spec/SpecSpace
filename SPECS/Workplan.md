@@ -2327,7 +2327,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Status copy says `Force settling`, `Force paused`, or `Force settled` so auto-settle is not interpreted as an unexpected mode shutdown.
   - Browser smoke verifies the state labels and visible Force edges after an auto-settle cycle.
 
-### CTXB-P13-T55 — Add selected Spec navigation history — In Progress
+### ✅ CTXB-P13-T55 — Add selected Spec navigation history — DONE (PASS, 2026-05-31)
 - **Description:** Add browser-like back/forward navigation for selected SpecGraph specs so operators can traverse inspection history after jumping between nodes from the canvas, Sidebar, inline Spec IDs, Recent changes, Proposal Viewer, Metrics, or inspector relation links.
 - **Priority:** P1
 - **Dependencies:** CTXB-P10-T9, CTXB-P10-T11, CTXB-P13-T15, CTXB-P13-T22, CTXB-P13-T26
@@ -2341,7 +2341,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Keyboard shortcuts are available on desktop without interfering with browser text inputs or panel form controls.
   - Desktop and mobile/narrow smoke verify controls do not overlap canvas controls, Sidebar, Utility Panel, or Inspector chrome.
 
-### CTXB-P13-T56 — Add layout preset keyboard navigation affordances — Planned
+### CTXB-P13-T56 — Add layout preset keyboard navigation affordances — In Progress
 - **Description:** Add desktop-oriented keyboard and focus affordances for switching canvas layout presets so operators can move quickly among Tree, Linear, Canonical, Status, Spine, and guarded Force without relying only on pointer toolbar clicks.
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T28, CTXB-P13-T43, CTXB-P13-T46, CTXB-P13-T50
