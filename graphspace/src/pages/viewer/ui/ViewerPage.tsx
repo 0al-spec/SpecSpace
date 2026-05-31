@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addAgentContextItem,
   clearAgentContextItems,
@@ -55,6 +55,13 @@ import { describeCapabilityDiagnostics } from "../model/capability-diagnostics";
 import { describeArtifact, describeSourceDeltaSnapshot } from "../model/live-artifacts";
 import { describeLive } from "../model/live-status";
 import {
+  createSpecSelectionHistory,
+  goBackSpecSelectionHistory,
+  goForwardSpecSelectionHistory,
+  pruneSpecSelectionHistory,
+  pushSpecSelectionHistory,
+} from "../model/spec-selection-history";
+import {
   describeDeploymentStatus,
   shouldUseLocalSpecPMLifecycle,
   shouldUseRunsWatch,
@@ -81,7 +88,11 @@ import { MetricsViewerPanel } from "./MetricsViewerPanel";
 import { ProposalViewerPanel } from "./ProposalViewerPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
 import { SpecPMRegistryPanel } from "./SpecPMRegistryPanel";
-import { ViewerChrome, type ViewerUtilityPanelId } from "./ViewerChrome";
+import {
+  SelectionHistoryButtons,
+  ViewerChrome,
+  type ViewerUtilityPanelId,
+} from "./ViewerChrome";
 import { useMetricsIndex } from "../model/use-metrics-index";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecSpaceCapabilities } from "../model/use-specspace-capabilities";
@@ -106,6 +117,12 @@ export function ViewerPage() {
   const [selectedSpecNodeId, setSelectedSpecNodeId] = useState<string | null>(null);
   const [selectedSpecEdgeId, setSelectedSpecEdgeId] = useState<string | null>(null);
   const [selectedSpec, setSelectedSpec] = useState<SpecInspectorSelection | null>(null);
+  const [specSelectionHistory, setSpecSelectionHistory] = useState(
+    createSpecSelectionHistory,
+  );
+  const specSelectionHistoryRef = useRef(specSelectionHistory);
+  const [canvasVisibleSpecNodeIds, setCanvasVisibleSpecNodeIds] =
+    useState<ReadonlySet<string> | null>(null);
   const [recentTimelineFilter, setRecentTimelineFilter] = useState(
     DEFAULT_RECENT_TIMELINE_FILTER,
   );
@@ -294,6 +311,7 @@ export function ViewerPage() {
     () => new Set(specGraphState.data.graph.nodes.map((node) => node.node_id)),
     [specGraphState.data.graph.nodes],
   );
+  const selectionHistorySpecNodeIds = canvasVisibleSpecNodeIds ?? selectableSpecNodeIds;
   const selectedGraphNode = useMemo(
     () =>
       selectedSpecNodeId
@@ -335,10 +353,66 @@ export function ViewerPage() {
   const selectSpecNodeId = useCallback(
     (nodeId: string) => {
       if (!selectableSpecNodeIds.has(nodeId)) return;
+      setSpecSelectionHistory((history) =>
+        pushSpecSelectionHistory(history, selectedSpecNodeId, nodeId),
+      );
       setSelectedSpecEdgeId(null);
       setSelectedSpecNodeId(nodeId);
     },
-    [selectableSpecNodeIds],
+    [selectableSpecNodeIds, selectedSpecNodeId],
+  );
+  const selectSpecNodeIdFromCanvas = useCallback(
+    (nodeId: string | null) => {
+      if (nodeId) {
+        selectSpecNodeId(nodeId);
+        return;
+      }
+      setSelectedSpecNodeId(null);
+    },
+    [selectSpecNodeId],
+  );
+  const updateCanvasVisibleSpecNodeIds = useCallback((nodeIds: ReadonlySet<string>) => {
+    setCanvasVisibleSpecNodeIds((current) =>
+      stringSetsEqual(current, nodeIds) ? current : new Set(nodeIds),
+    );
+  }, []);
+  const goBackSpecSelection = useCallback(() => {
+    const step = goBackSpecSelectionHistory(
+      specSelectionHistoryRef.current,
+      selectedSpecNodeId,
+      selectionHistorySpecNodeIds,
+    );
+    setSpecSelectionHistory(step.history);
+    if (step.selectedNodeId && selectionHistorySpecNodeIds.has(step.selectedNodeId)) {
+      setSelectedSpecEdgeId(null);
+      setSelectedSpecNodeId(step.selectedNodeId);
+    }
+  }, [selectedSpecNodeId, selectionHistorySpecNodeIds]);
+  const goForwardSpecSelection = useCallback(() => {
+    const step = goForwardSpecSelectionHistory(
+      specSelectionHistoryRef.current,
+      selectedSpecNodeId,
+      selectionHistorySpecNodeIds,
+    );
+    setSpecSelectionHistory(step.history);
+    if (step.selectedNodeId && selectionHistorySpecNodeIds.has(step.selectedNodeId)) {
+      setSelectedSpecEdgeId(null);
+      setSelectedSpecNodeId(step.selectedNodeId);
+    }
+  }, [selectedSpecNodeId, selectionHistorySpecNodeIds]);
+  const specSelectionHistoryControls = useMemo(
+    () => ({
+      canGoBack: specSelectionHistory.back.length > 0,
+      canGoForward: specSelectionHistory.forward.length > 0,
+      onBack: goBackSpecSelection,
+      onForward: goForwardSpecSelection,
+    }),
+    [
+      goBackSpecSelection,
+      goForwardSpecSelection,
+      specSelectionHistory.back.length,
+      specSelectionHistory.forward.length,
+    ],
   );
   const selectSpecEdgeId = useCallback((edgeId: string | null) => {
     if (edgeId) {
@@ -506,6 +580,40 @@ export function ViewerPage() {
     }
   })();
 
+  useEffect(() => {
+    specSelectionHistoryRef.current = specSelectionHistory;
+  }, [specSelectionHistory]);
+
+  useEffect(() => {
+    setSpecSelectionHistory((history) =>
+      pruneSpecSelectionHistory(history, selectionHistorySpecNodeIds),
+    );
+  }, [selectionHistorySpecNodeIds]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isTextEntryTarget(event.target)) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+      if (event.code === "BracketLeft" && specSelectionHistory.back.length > 0) {
+        event.preventDefault();
+        goBackSpecSelection();
+      }
+      if (event.code === "BracketRight" && specSelectionHistory.forward.length > 0) {
+        event.preventDefault();
+        goForwardSpecSelection();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    goBackSpecSelection,
+    goForwardSpecSelection,
+    specSelectionHistory.back.length,
+    specSelectionHistory.forward.length,
+  ]);
+
   return (
     <div className={styles.root}>
       <SpecGraphCanvas
@@ -520,11 +628,12 @@ export function ViewerPage() {
         selectedEdgeId={selectedSpecEdgeId}
         lifecycleBadgesByNode={lifecycleBadgesByNode}
         overlays={canvasOverlays}
-        onSelectedNodeIdChange={setSelectedSpecNodeId}
+        onSelectedNodeIdChange={selectSpecNodeIdFromCanvas}
         onSelectedEdgeIdChange={selectSpecEdgeId}
         onNodeOverlayClick={openNodeOverlayPanel}
         onEdgeOverlayClick={openEdgeOverlayPanel}
         onSelectionChange={setSelectedSpec}
+        onVisibleNodeIdsChange={updateCanvasVisibleSpecNodeIds}
       />
 
       {sidebarOpen ? (
@@ -534,6 +643,12 @@ export function ViewerPage() {
               <SidebarLogo />
               <span className={styles.sidebarBrand}>SpecSpace</span>
             </span>
+            <PanelBtnRow
+              className={styles.sidebarHeaderActions}
+              aria-label="Selected spec navigation"
+            >
+              <SelectionHistoryButtons {...specSelectionHistoryControls} />
+            </PanelBtnRow>
             <button
               title="Close Sidebar"
               aria-label="Close Sidebar"
@@ -843,6 +958,7 @@ export function ViewerPage() {
         controls={{
           sidebarOpen,
           onSidebarToggle: () => setSidebarOpen((v) => !v),
+          selectionHistory: specSelectionHistoryControls,
         }}
         status={{
           deployment: deploymentStatus,
@@ -881,6 +997,25 @@ function selectedSpecGapCount(
   if (gapKind === "evidence") return node.evidence_gap;
   if (gapKind === "input") return node.input_gap;
   return node.execution_gap;
+}
+
+function isTextEntryTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+
+  const tagName = target.tagName.toLowerCase();
+  return tagName === "input" || tagName === "select" || tagName === "textarea";
+}
+
+function stringSetsEqual(
+  left: ReadonlySet<string> | null,
+  right: ReadonlySet<string>,
+) {
+  if (!left || left.size !== right.size) return false;
+  for (const value of left) {
+    if (!right.has(value)) return false;
+  }
+  return true;
 }
 
 function SidebarLogo() {
