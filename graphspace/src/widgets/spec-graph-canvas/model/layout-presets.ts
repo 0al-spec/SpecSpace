@@ -13,6 +13,11 @@ export const SPEC_GRAPH_CANVAS_LAYOUT_PRESETS = [
 export type SpecGraphCanvasLayoutPreset =
   (typeof SPEC_GRAPH_CANVAS_LAYOUT_PRESETS)[number];
 
+export const SPEC_GRAPH_CANVAS_FORCE_LAYOUT_TARGET = "force" as const;
+export type SpecGraphCanvasLayoutCycleTarget =
+  | SpecGraphCanvasLayoutPreset
+  | typeof SPEC_GRAPH_CANVAS_FORCE_LAYOUT_TARGET;
+
 export const DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET: SpecGraphCanvasLayoutPreset =
   "tree";
 
@@ -108,6 +113,30 @@ export function writeSpecGraphCanvasLayoutPreset(
 ) {
   if (!storage) return;
   storage.setItem(PRESET_STORAGE_KEY, preset);
+}
+
+export function cycleSpecGraphCanvasLayoutTarget({
+  currentPreset,
+  forceLayoutActive,
+  forceLayoutAvailable,
+  direction,
+}: {
+  currentPreset: SpecGraphCanvasLayoutPreset;
+  forceLayoutActive: boolean;
+  forceLayoutAvailable: boolean;
+  direction: "previous" | "next";
+}): SpecGraphCanvasLayoutCycleTarget {
+  const targets: readonly SpecGraphCanvasLayoutCycleTarget[] = forceLayoutAvailable
+    ? [...SPEC_GRAPH_CANVAS_LAYOUT_PRESETS, SPEC_GRAPH_CANVAS_FORCE_LAYOUT_TARGET]
+    : SPEC_GRAPH_CANVAS_LAYOUT_PRESETS;
+  const currentTarget: SpecGraphCanvasLayoutCycleTarget = forceLayoutActive
+    ? SPEC_GRAPH_CANVAS_FORCE_LAYOUT_TARGET
+    : currentPreset;
+  const currentIndex = targets.indexOf(currentTarget);
+  const startIndex = currentIndex >= 0 ? currentIndex : 0;
+  const delta = direction === "next" ? 1 : -1;
+  const nextIndex = (startIndex + delta + targets.length) % targets.length;
+  return targets[nextIndex];
 }
 
 export function computeSpecGraphCanvasLayoutPositions(

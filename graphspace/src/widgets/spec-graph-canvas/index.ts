@@ -65,13 +65,16 @@ export {
 } from "./model/layout-overrides";
 export {
   DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET,
+  SPEC_GRAPH_CANVAS_FORCE_LAYOUT_TARGET,
   SPEC_GRAPH_CANVAS_LAYOUT_PRESETS,
   SPEC_GRAPH_CANVAS_LAYOUT_PRESET_LABELS,
   computeSpecGraphCanvasLayoutPositions,
+  cycleSpecGraphCanvasLayoutTarget,
   getSpecGraphCanvasLayoutPresetStorage,
   normalizeSpecGraphCanvasLayoutPreset,
   readSpecGraphCanvasLayoutPreset,
   writeSpecGraphCanvasLayoutPreset,
+  type SpecGraphCanvasLayoutCycleTarget,
   type SpecGraphCanvasLayoutPreset,
   type SpecGraphCanvasLayoutPresetStorage,
 } from "./model/layout-presets";

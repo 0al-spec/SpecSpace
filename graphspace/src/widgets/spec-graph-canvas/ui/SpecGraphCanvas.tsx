@@ -80,11 +80,14 @@ import {
   type SpecGraphCanvasLayoutPosition,
 } from "../model/layout-overrides";
 import {
+  SPEC_GRAPH_CANVAS_FORCE_LAYOUT_TARGET,
   SPEC_GRAPH_CANVAS_LAYOUT_PRESETS,
   SPEC_GRAPH_CANVAS_LAYOUT_PRESET_LABELS,
+  cycleSpecGraphCanvasLayoutTarget,
   getSpecGraphCanvasLayoutPresetStorage,
   readSpecGraphCanvasLayoutPreset,
   writeSpecGraphCanvasLayoutPreset,
+  type SpecGraphCanvasLayoutCycleTarget,
   type SpecGraphCanvasLayoutPreset,
 } from "../model/layout-presets";
 import {
@@ -355,6 +358,14 @@ function SpecFlowNodeView({ data, selected }: NodeProps<SpecFlowNode>) {
       <Handle type="source" position={Position.Right} className={styles.handle} />
     </div>
   );
+}
+
+function isCanvasTextEntryTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+
+  const tagName = target.tagName.toLowerCase();
+  return tagName === "input" || tagName === "select" || tagName === "textarea";
 }
 
 function edgeCurve(edgeKind?: SpecEdge["edge_kind"]) {
@@ -1004,6 +1015,7 @@ function SpecGraphCanvasInner({
   const forceLiveAriaLabel = forceLiveStateLabel
     ? `${forceLiveButtonLabel} Force relaxation (${forceLiveStateLabel})`
     : `${forceLiveButtonLabel} Force relaxation`;
+  const layoutCycleShortcutLabel = "Alt+[ / Alt+]";
   const layoutOverrideCount = Object.keys(layoutOverrides).length;
   const updateLayoutPreset = useCallback((preset: SpecGraphCanvasLayoutPreset) => {
     clearHoverPreview();
@@ -1027,6 +1039,39 @@ function SpecGraphCanvasInner({
       return forceLayoutBudgetModel.active;
     });
   }, [clearHoverPreview, forceLayoutBudgetModel.active]);
+  const enableForceLayout = useCallback(() => {
+    if (!forceLayoutBudgetModel.active) return;
+    clearHoverPreview();
+    setForceLayoutEnabled(true);
+  }, [clearHoverPreview, forceLayoutBudgetModel.active]);
+  const updateLayoutCycleTarget = useCallback(
+    (target: SpecGraphCanvasLayoutCycleTarget) => {
+      if (target === SPEC_GRAPH_CANVAS_FORCE_LAYOUT_TARGET) {
+        enableForceLayout();
+        return;
+      }
+      updateLayoutPreset(target);
+    },
+    [enableForceLayout, updateLayoutPreset],
+  );
+  const cycleLayoutPreset = useCallback(
+    (direction: "previous" | "next") => {
+      updateLayoutCycleTarget(
+        cycleSpecGraphCanvasLayoutTarget({
+          currentPreset: layoutPreset,
+          forceLayoutActive: forceLayoutRuntimeModel.active,
+          forceLayoutAvailable: forceLayoutBudgetModel.active,
+          direction,
+        }),
+      );
+    },
+    [
+      forceLayoutBudgetModel.active,
+      forceLayoutRuntimeModel.active,
+      layoutPreset,
+      updateLayoutCycleTarget,
+    ],
+  );
   const startForceLiveLayout = useCallback(() => {
     if (!forceLayoutRuntimeModel.active || !forceLayoutPositions) return;
     clearHoverPreview();
@@ -1171,6 +1216,25 @@ function SpecGraphCanvasInner({
   useEffect(() => {
     onVisibleNodeIdsChange?.(visibleNodeIds);
   }, [onVisibleNodeIdsChange, visibleNodeIds]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isCanvasTextEntryTarget(event.target)) return;
+      if (!event.altKey || event.metaKey || event.ctrlKey) return;
+
+      if (event.code === "BracketLeft") {
+        event.preventDefault();
+        cycleLayoutPreset("previous");
+      }
+      if (event.code === "BracketRight") {
+        event.preventDefault();
+        cycleLayoutPreset("next");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [cycleLayoutPreset]);
 
   useEffect(() => {
     setLayoutOverrides(
@@ -1364,7 +1428,11 @@ function SpecGraphCanvasInner({
           </button>
         ))}
         </div>
-        <div className={styles.layoutPresetDock} aria-label="Canvas layout presets">
+        <div
+          className={styles.layoutPresetDock}
+          aria-label="Canvas layout presets"
+          title={`Canvas layout presets. Cycle layouts with ${layoutCycleShortcutLabel}.`}
+        >
           {SPEC_GRAPH_CANVAS_LAYOUT_PRESETS.map((preset) => (
             <button
               key={preset}
@@ -1375,8 +1443,10 @@ function SpecGraphCanvasInner({
               ]
                 .filter(Boolean)
                 .join(" ")}
+              aria-label={`${SPEC_GRAPH_CANVAS_LAYOUT_PRESET_LABELS[preset]} layout preset`}
               aria-pressed={layoutPreset === preset}
               onClick={() => updateLayoutPreset(preset)}
+              title={`${SPEC_GRAPH_CANVAS_LAYOUT_PRESET_LABELS[preset]} layout. Cycle layouts with ${layoutCycleShortcutLabel}.`}
             >
               <span>{SPEC_GRAPH_CANVAS_LAYOUT_PRESET_LABELS[preset]}</span>
             </button>
@@ -1394,8 +1464,8 @@ function SpecGraphCanvasInner({
             disabled={forceLayoutBlocked}
             title={
               forceLayoutRuntimeModel.active
-                ? forceLayoutRuntimeModel.message
-                : forceLayoutInactiveMessage
+                ? `${forceLayoutRuntimeModel.message} Cycle layouts with ${layoutCycleShortcutLabel}.`
+                : `${forceLayoutInactiveMessage} Cycle layouts with ${layoutCycleShortcutLabel}.`
             }
             onClick={toggleForceLayout}
           >
