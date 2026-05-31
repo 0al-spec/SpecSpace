@@ -121,6 +121,8 @@ export function ViewerPage() {
     createSpecSelectionHistory,
   );
   const specSelectionHistoryRef = useRef(specSelectionHistory);
+  const [canvasVisibleSpecNodeIds, setCanvasVisibleSpecNodeIds] =
+    useState<ReadonlySet<string> | null>(null);
   const [recentTimelineFilter, setRecentTimelineFilter] = useState(
     DEFAULT_RECENT_TIMELINE_FILTER,
   );
@@ -309,6 +311,7 @@ export function ViewerPage() {
     () => new Set(specGraphState.data.graph.nodes.map((node) => node.node_id)),
     [specGraphState.data.graph.nodes],
   );
+  const selectionHistorySpecNodeIds = canvasVisibleSpecNodeIds ?? selectableSpecNodeIds;
   const selectedGraphNode = useMemo(
     () =>
       selectedSpecNodeId
@@ -368,28 +371,35 @@ export function ViewerPage() {
     },
     [selectSpecNodeId],
   );
+  const updateCanvasVisibleSpecNodeIds = useCallback((nodeIds: ReadonlySet<string>) => {
+    setCanvasVisibleSpecNodeIds((current) =>
+      stringSetsEqual(current, nodeIds) ? current : new Set(nodeIds),
+    );
+  }, []);
   const goBackSpecSelection = useCallback(() => {
     const step = goBackSpecSelectionHistory(
       specSelectionHistoryRef.current,
       selectedSpecNodeId,
+      selectionHistorySpecNodeIds,
     );
     setSpecSelectionHistory(step.history);
-    if (step.selectedNodeId && selectableSpecNodeIds.has(step.selectedNodeId)) {
+    if (step.selectedNodeId && selectionHistorySpecNodeIds.has(step.selectedNodeId)) {
       setSelectedSpecEdgeId(null);
       setSelectedSpecNodeId(step.selectedNodeId);
     }
-  }, [selectableSpecNodeIds, selectedSpecNodeId]);
+  }, [selectedSpecNodeId, selectionHistorySpecNodeIds]);
   const goForwardSpecSelection = useCallback(() => {
     const step = goForwardSpecSelectionHistory(
       specSelectionHistoryRef.current,
       selectedSpecNodeId,
+      selectionHistorySpecNodeIds,
     );
     setSpecSelectionHistory(step.history);
-    if (step.selectedNodeId && selectableSpecNodeIds.has(step.selectedNodeId)) {
+    if (step.selectedNodeId && selectionHistorySpecNodeIds.has(step.selectedNodeId)) {
       setSelectedSpecEdgeId(null);
       setSelectedSpecNodeId(step.selectedNodeId);
     }
-  }, [selectableSpecNodeIds, selectedSpecNodeId]);
+  }, [selectedSpecNodeId, selectionHistorySpecNodeIds]);
   const specSelectionHistoryControls = useMemo(
     () => ({
       canGoBack: specSelectionHistory.back.length > 0,
@@ -576,9 +586,9 @@ export function ViewerPage() {
 
   useEffect(() => {
     setSpecSelectionHistory((history) =>
-      pruneSpecSelectionHistory(history, selectableSpecNodeIds),
+      pruneSpecSelectionHistory(history, selectionHistorySpecNodeIds),
     );
-  }, [selectableSpecNodeIds]);
+  }, [selectionHistorySpecNodeIds]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -623,6 +633,7 @@ export function ViewerPage() {
         onNodeOverlayClick={openNodeOverlayPanel}
         onEdgeOverlayClick={openEdgeOverlayPanel}
         onSelectionChange={setSelectedSpec}
+        onVisibleNodeIdsChange={updateCanvasVisibleSpecNodeIds}
       />
 
       {sidebarOpen ? (
@@ -994,6 +1005,17 @@ function isTextEntryTarget(target: EventTarget | null) {
 
   const tagName = target.tagName.toLowerCase();
   return tagName === "input" || tagName === "select" || tagName === "textarea";
+}
+
+function stringSetsEqual(
+  left: ReadonlySet<string> | null,
+  right: ReadonlySet<string>,
+) {
+  if (!left || left.size !== right.size) return false;
+  for (const value of left) {
+    if (!right.has(value)) return false;
+  }
+  return true;
 }
 
 function SidebarLogo() {

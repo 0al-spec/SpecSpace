@@ -7,8 +7,8 @@ SpecSpace selection surfaces.
 
 ## Local Validation
 
-- `npm test --prefix graphspace -- src/pages/viewer/model/spec-selection-history.spec.ts --reporter=verbose` — passed, 1 file / 4 tests.
-- `npm test --prefix graphspace` — passed, 60 files / 325 tests.
+- `npm test --prefix graphspace -- src/pages/viewer/model/spec-selection-history.spec.ts --reporter=verbose` — passed, 1 file / 5 tests.
+- `npm test --prefix graphspace` — passed, 60 files / 326 tests.
 - `npm run lint:fsd --prefix graphspace` — passed.
 - `npm run build --prefix graphspace` — passed, Vite chunk-size warning unchanged.
 - `git diff --check` — passed.
@@ -31,4 +31,7 @@ SpecSpace selection surfaces.
 - The local smoke target still reports the known local `/api/v1/specpm/registry`
   503 and `favicon.ico` 404; selected-spec navigation behavior is otherwise
   validated.
-- History is bounded and pruned against the currently available graph nodes.
+- History is bounded and pruned against the currently canvas-visible graph nodes,
+  including collapsed subtree and gap-filter visibility.
+- Review fix: hidden history entries are skipped during Back/Forward traversal
+  instead of mutating history into a non-restored hidden selection.

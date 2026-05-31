@@ -121,6 +121,7 @@ type Props = {
   onNodeOverlayClick?: (kind: SpecGraphCanvasOverlayKind, nodeId: string) => void;
   onEdgeOverlayClick?: (kind: SpecGraphCanvasOverlayKind, edgeId: string) => void;
   onSelectionChange?: (selection: SpecGraphSelection | null) => void;
+  onVisibleNodeIdsChange?: (nodeIds: ReadonlySet<string>) => void;
 };
 
 type HoverPreviewState = {
@@ -529,6 +530,7 @@ export function SpecGraphCanvas({
   onNodeOverlayClick,
   onEdgeOverlayClick,
   onSelectionChange,
+  onVisibleNodeIdsChange,
 }: Props) {
   return (
     <ReactFlowProvider>
@@ -544,6 +546,7 @@ export function SpecGraphCanvas({
         onNodeOverlayClick={onNodeOverlayClick}
         onEdgeOverlayClick={onEdgeOverlayClick}
         onSelectionChange={onSelectionChange}
+        onVisibleNodeIdsChange={onVisibleNodeIdsChange}
       />
     </ReactFlowProvider>
   );
@@ -561,6 +564,7 @@ function SpecGraphCanvasInner({
   onNodeOverlayClick,
   onEdgeOverlayClick,
   onSelectionChange,
+  onVisibleNodeIdsChange,
 }: Props) {
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<string | null>(null);
   const [internalSelectedEdgeId, setInternalSelectedEdgeId] = useState<string | null>(null);
@@ -1163,6 +1167,10 @@ function SpecGraphCanvasInner({
   useEffect(() => {
     onSelectionChange?.(selection);
   }, [onSelectionChange, selection]);
+
+  useEffect(() => {
+    onVisibleNodeIdsChange?.(visibleNodeIds);
+  }, [onVisibleNodeIdsChange, visibleNodeIds]);
 
   useEffect(() => {
     setLayoutOverrides(

@@ -33,14 +33,21 @@ export function pushSpecSelectionHistory(
 export function goBackSpecSelectionHistory(
   history: SpecSelectionHistory,
   currentNodeId: string | null,
+  selectableNodeIds?: ReadonlySet<string>,
 ): SpecSelectionHistoryStep {
-  const selectedNodeId = history.back[history.back.length - 1] ?? null;
-  if (!selectedNodeId) return { history, selectedNodeId: currentNodeId };
+  const nextBack = [...history.back];
+  const selectedNodeId = popSelectableNodeId(nextBack, selectableNodeIds);
+  if (!selectedNodeId) {
+    return {
+      history: { ...history, back: nextBack },
+      selectedNodeId: currentNodeId,
+    };
+  }
 
   return {
     selectedNodeId,
     history: {
-      back: history.back.slice(0, -1),
+      back: nextBack,
       forward: currentNodeId
         ? appendUnique(history.forward, currentNodeId)
         : history.forward,
@@ -51,15 +58,22 @@ export function goBackSpecSelectionHistory(
 export function goForwardSpecSelectionHistory(
   history: SpecSelectionHistory,
   currentNodeId: string | null,
+  selectableNodeIds?: ReadonlySet<string>,
 ): SpecSelectionHistoryStep {
-  const selectedNodeId = history.forward[history.forward.length - 1] ?? null;
-  if (!selectedNodeId) return { history, selectedNodeId: currentNodeId };
+  const nextForward = [...history.forward];
+  const selectedNodeId = popSelectableNodeId(nextForward, selectableNodeIds);
+  if (!selectedNodeId) {
+    return {
+      history: { ...history, forward: nextForward },
+      selectedNodeId: currentNodeId,
+    };
+  }
 
   return {
     selectedNodeId,
     history: {
       back: currentNodeId ? appendUnique(history.back, currentNodeId) : history.back,
-      forward: history.forward.slice(0, -1),
+      forward: nextForward,
     },
   };
 }
@@ -86,4 +100,16 @@ function appendBounded(
 function appendUnique(stack: readonly string[], nodeId: string): readonly string[] {
   if (stack[stack.length - 1] === nodeId) return stack;
   return [...stack, nodeId];
+}
+
+function popSelectableNodeId(
+  stack: string[],
+  selectableNodeIds: ReadonlySet<string> | undefined,
+): string | null {
+  while (stack.length > 0) {
+    const nodeId = stack.pop() ?? null;
+    if (!nodeId) return null;
+    if (!selectableNodeIds || selectableNodeIds.has(nodeId)) return nodeId;
+  }
+  return null;
 }

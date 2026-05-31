@@ -71,4 +71,30 @@ describe("spec selection history", () => {
       ),
     ).toEqual({ back: ["SG-SPEC-0002"], forward: [] });
   });
+
+  it("skips unavailable nodes during traversal", () => {
+    const back = goBackSpecSelectionHistory(
+      { back: ["SG-SPEC-0001", "SG-SPEC-0002"], forward: [] },
+      "SG-SPEC-0003",
+      new Set(["SG-SPEC-0001", "SG-SPEC-0003"]),
+    );
+
+    expect(back.selectedNodeId).toBe("SG-SPEC-0001");
+    expect(back.history).toEqual({
+      back: [],
+      forward: ["SG-SPEC-0003"],
+    });
+
+    const forward = goForwardSpecSelectionHistory(
+      { back: [], forward: ["SG-SPEC-0004", "SG-SPEC-0005"] },
+      "SG-SPEC-0003",
+      new Set(["SG-SPEC-0003", "SG-SPEC-0004"]),
+    );
+
+    expect(forward.selectedNodeId).toBe("SG-SPEC-0004");
+    expect(forward.history).toEqual({
+      back: ["SG-SPEC-0003"],
+      forward: [],
+    });
+  });
 });
