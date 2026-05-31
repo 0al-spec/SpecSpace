@@ -21,6 +21,7 @@ type Props = {
   controls: {
     sidebarOpen: boolean;
     onSidebarToggle: () => void;
+    selectionHistory: ViewerSelectionHistoryControls;
   };
   status: {
     deployment: {
@@ -37,6 +38,13 @@ type Props = {
   };
 };
 
+export type ViewerSelectionHistoryControls = {
+  canGoBack: boolean;
+  canGoForward: boolean;
+  onBack: () => void;
+  onForward: () => void;
+};
+
 export function ViewerChrome({ controls, status }: Props) {
   return (
     <>
@@ -50,6 +58,7 @@ export function ViewerChrome({ controls, status }: Props) {
             >
               ☰
             </PanelBtn>
+            <SelectionHistoryButtons {...controls.selectionHistory} />
           </PanelBtnRow>
         </div>
       ) : null}
@@ -63,6 +72,36 @@ export function ViewerChrome({ controls, status }: Props) {
           </span>
         </Panel>
       </Overlay>
+    </>
+  );
+}
+
+export function SelectionHistoryButtons({
+  canGoBack,
+  canGoForward,
+  onBack,
+  onForward,
+}: ViewerSelectionHistoryControls) {
+  return (
+    <>
+      <PanelBtn
+        title="Back to previous selected spec ([)"
+        aria-label="Back to previous selected spec"
+        disabled={!canGoBack}
+        dim={!canGoBack}
+        onClick={onBack}
+      >
+        ‹
+      </PanelBtn>
+      <PanelBtn
+        title="Forward to next selected spec (])"
+        aria-label="Forward to next selected spec"
+        disabled={!canGoForward}
+        dim={!canGoForward}
+        onClick={onForward}
+      >
+        ›
+      </PanelBtn>
     </>
   );
 }
