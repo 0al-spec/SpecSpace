@@ -31,9 +31,9 @@
   - сначала «resolver by graph data», потом только рендер/вывод кликабельности;
   - не полагаемся на жёсткие regex по шаблонам вроде `SG-SPEC-*`.
 - Для внешних specification/identity/evidence contracts:
-  - SpecSpace отображает только safe derived read-only projections из SpecGraph artifacts (`runs/*.json`, documented `tools/*.json`);
+  - SpecSpace отображает только safe derived read-only projections из поддерживаемых SpecGraph artifact paths (`runs/*.json` и specs); новые artifact roots требуют отдельного provider contract;
   - не парсим raw supervisor/executor logs, private passport material, локальные prompt/config файлы или external RFC напрямую в UI;
-  - canonical authority остаётся во внешних repos вроде `FeaturePassport` и `Agent Passport`, а SpecSpace не заводит собственную authority model для vocabulary, capabilities или trust.
+  - canonical authority остаётся во внешних repos вроде `Feature Passport` и `Agent Passport`, а SpecSpace не заводит собственную authority model для vocabulary, capabilities или trust.
 - По состоянию и панелям:
   - отделяем canvas/инфраструктурные overlays/panels по ответственностям;
   - сохраняем предсказуемый layout и устойчивый fallback при ошибках live-загрузки.

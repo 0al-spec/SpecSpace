@@ -2374,7 +2374,8 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
 - **Priority:** P2
 - **Dependencies:** CTXB-P13-T40, CTXB-P13-T41, CTXB-P13-T42, SpecGraph `0059 Agent Passport Adoption for Graph Agents`
 - **Parallelizable:** yes
-- **Expected Derived Artifacts:** `tools/agent_passport_adoption_policy.json`, `runs/known_agent_passport_index.json`, `runs/agent_verification_gap_index.json`, `runs/agent_surface_index.json`
+- **Expected Derived Artifacts:** `runs/known_agent_passport_index.json`, `runs/agent_verification_gap_index.json`, `runs/agent_surface_index.json`
+- **Producer Policy Context:** `tools/agent_passport_adoption_policy.json` may exist on the SpecGraph producer side, but it is not a SpecSpace runtime data source until an explicit provider contract supports that artifact root.
 - **Outputs / Artifacts:** Agent Identity panel contract slot, verification-state UI mapping, declaration-vs-enforcement notes, validation report
 - **Acceptance Criteria:**
   - SpecSpace reads only safe derived Agent Passport adoption projections from SpecGraph artifacts.
