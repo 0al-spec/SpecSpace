@@ -245,7 +245,10 @@ jobs:
       - specspace-images
       - timeweb-docker-support
       - viewer-app
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      vars.SPECSPACE_TIMEWEB_PUBLISH_ENABLED != 'false'
     permissions:
       contents: write
 
@@ -304,15 +307,118 @@ jobs:
           TIMEWEB_REQUIRE_MANIFEST_ONLY: "1"
         run: scripts/validate-timeweb-deploy-branch.sh
 
+  trigger-platform-timeweb-publish:
+    name: Trigger Platform Timeweb Publish
+    runs-on: ubuntu-latest
+    needs:
+      - backend
+      - docker-compose-smoke
+      - graphspace
+      - specspace-images
+      - timeweb-docker-support
+      - viewer-app
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      vars.PLATFORM_TIMEWEB_PUBLISH_ENABLED == 'true'
+
+    steps:
+      - name: Trigger Platform Timeweb Publish workflow
+        env:
+          GH_TOKEN: ${{ secrets.PLATFORM_TIMEWEB_PUBLISH_TOKEN }}
+          SPECSPACE_API_IMAGE_REF: ${{ needs.specspace-images.outputs.api-image }}@${{ needs.specspace-images.outputs.api-digest }}
+          SPECSPACE_UI_IMAGE_REF: ${{ needs.specspace-images.outputs.ui-image }}@${{ needs.specspace-images.outputs.ui-digest }}
+          PLATFORM_TIMEWEB_DEPLOY_BRANCH: ${{ vars.PLATFORM_TIMEWEB_DEPLOY_BRANCH }}
+          PLATFORM_TIMEWEB_WORKFLOW_REF: ${{ vars.PLATFORM_TIMEWEB_WORKFLOW_REF }}
+          PLATFORM_TIMEWEB_ARTIFACT_BASE_URL: ${{ vars.PLATFORM_TIMEWEB_ARTIFACT_BASE_URL }}
+          PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL: ${{ vars.PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "PLATFORM_TIMEWEB_PUBLISH_TOKEN is required when PLATFORM_TIMEWEB_PUBLISH_ENABLED=true." >&2
+            exit 2
+          fi
+          PLATFORM_TIMEWEB_DEPLOY_BRANCH="${PLATFORM_TIMEWEB_DEPLOY_BRANCH:-timeweb-deploy}"
+          PLATFORM_TIMEWEB_WORKFLOW_REF="${PLATFORM_TIMEWEB_WORKFLOW_REF:-main}"
+          PLATFORM_TIMEWEB_ARTIFACT_BASE_URL="${PLATFORM_TIMEWEB_ARTIFACT_BASE_URL:-https://specgraph.tech}"
+          PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL="${PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL:-https://specpm.dev}"
+
+          python3 - <<'PY' > "$RUNNER_TEMP/platform-timeweb-inputs.json"
+          import json
+          import os
+
+          image_lock = {
+              "artifact_kind": "platform_service_image_lock",
+              "schema_version": 1,
+              "services": {
+                  "specspace_api": {
+                      "image_ref": os.environ["SPECSPACE_API_IMAGE_REF"],
+                  },
+                  "specspace_ui": {
+                      "image_ref": os.environ["SPECSPACE_UI_IMAGE_REF"],
+                  },
+              },
+          }
+          inputs = {
+              "service_image_lock_json": json.dumps(image_lock, sort_keys=True),
+              "deploy_branch": os.environ["PLATFORM_TIMEWEB_DEPLOY_BRANCH"],
+              "publish_deploy_branch": True,
+              "release_commit": os.environ["GITHUB_SHA"],
+              "artifact_base_url": os.environ["PLATFORM_TIMEWEB_ARTIFACT_BASE_URL"],
+              "specpm_registry_url": os.environ["PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL"],
+          }
+          print(json.dumps(inputs))
+          PY
+
+          gh workflow run timeweb-publish.yml \
+            --repo 0al-spec/Platform \
+            --ref "$PLATFORM_TIMEWEB_WORKFLOW_REF" \
+            --json < "$RUNNER_TEMP/platform-timeweb-inputs.json" \
+            > "$RUNNER_TEMP/platform-timeweb-run-url.txt"
+
+          run_url="$(cat "$RUNNER_TEMP/platform-timeweb-run-url.txt")"
+          echo "Triggered Platform Timeweb Publish: ${run_url}"
+          run_id=""
+          if [[ "${run_url}" = https://* ]]; then
+            run_id="${run_url##*/}"
+          fi
+          if ! [[ "${run_id}" =~ ^[0-9]+$ ]]; then
+            echo "Platform workflow run URL was unavailable; locating newest workflow_dispatch run." >&2
+            sleep 5
+            run_id="$(gh run list \
+              --repo 0al-spec/Platform \
+              --workflow timeweb-publish.yml \
+              --branch "$PLATFORM_TIMEWEB_WORKFLOW_REF" \
+              --event workflow_dispatch \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId // ""')"
+          fi
+          if ! [[ "${run_id}" =~ ^[0-9]+$ ]]; then
+            echo "Could not determine Platform workflow run id from: ${run_url:-<empty>}" >&2
+            exit 2
+          fi
+          gh run watch "${run_id}" \
+            --repo 0al-spec/Platform \
+            --interval 10 \
+            --exit-status
+
   production-deploy-smoke:
     name: Production Deploy Smoke
     runs-on: ubuntu-latest
     needs:
       - publish-timeweb-deploy
+      - trigger-platform-timeweb-publish
     if: >-
+      always() &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
-      vars.SPECSPACE_DEPLOY_URL != ''
+      vars.SPECSPACE_DEPLOY_URL != '' &&
+      (
+        needs.publish-timeweb-deploy.result == 'success' ||
+        needs.trigger-platform-timeweb-publish.result == 'success'
+      )
 
     steps:
       - uses: actions/checkout@v4
