@@ -9,6 +9,7 @@ export type SpecIdTextPart =
   | { kind: "spec-ref"; value: string; nodeId: string };
 
 const REF_TOKEN_PATTERN = /[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)+/g;
+const ADJACENT_SPEC_REF_PATTERN = /(?:[A-Za-z0-9_]+-)?SPEC-\d+/g;
 
 function pushText(parts: SpecIdTextPart[], value: string) {
   if (!value) return;
@@ -35,8 +36,48 @@ export function splitSpecIdText(
     const nodeId = resolveSpecRef(value);
 
     if (!nodeId) {
+      const adjacentParts = splitAdjacentSpecRefText(value, resolveSpecRef);
+      if (adjacentParts.some((part) => part.kind === "spec-ref")) {
+        pushText(parts, text.slice(lastIndex, index));
+        pushParts(parts, adjacentParts);
+        lastIndex = index + value.length;
+      }
       continue;
     }
+
+    pushText(parts, text.slice(lastIndex, index));
+    parts.push({ kind: "spec-ref", value, nodeId });
+    lastIndex = index + value.length;
+  }
+
+  pushText(parts, text.slice(lastIndex));
+
+  return parts.length > 0 ? parts : [{ kind: "text", value: text }];
+}
+
+function pushParts(parts: SpecIdTextPart[], nextParts: readonly SpecIdTextPart[]) {
+  for (const part of nextParts) {
+    if (part.kind === "text") {
+      pushText(parts, part.value);
+      continue;
+    }
+    parts.push(part);
+  }
+}
+
+function splitAdjacentSpecRefText(
+  text: string,
+  resolveSpecRef: SpecRefResolver,
+): SpecIdTextPart[] {
+  const parts: SpecIdTextPart[] = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(ADJACENT_SPEC_REF_PATTERN)) {
+    const value = match[0];
+    const index = match.index ?? 0;
+    const nodeId = resolveSpecRef(value);
+
+    if (!nodeId) continue;
 
     pushText(parts, text.slice(lastIndex, index));
     parts.push({ kind: "spec-ref", value, nodeId });
