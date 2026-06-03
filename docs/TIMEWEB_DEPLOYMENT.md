@@ -148,19 +148,44 @@ images, while Platform owns the Timeweb manifest shape:
 1. build the SpecSpace API image from `Dockerfile`;
 2. build the SpecSpace UI image from `graphspace/Dockerfile`;
 3. push both images to GHCR with the source commit SHA tag;
-4. call Platform to render a manifest-only deploy tree with digest-pinned image
-   refs;
-5. push that tree to `timeweb-deploy` with a normal branch push.
+4. write `platform_service_image_lock` with digest-pinned image refs;
+5. call Platform to render a manifest-only deploy tree from that image lock;
+6. push that tree to `timeweb-deploy` with a normal branch push.
 
 For local diagnosis, render and validate a candidate manifest:
 
 ```bash
 SPECSPACE_API_IMAGE_REF=ghcr.io/0al-spec/specspace-api@sha256:<digest> \
 SPECSPACE_UI_IMAGE_REF=ghcr.io/0al-spec/specspace-ui@sha256:<digest> \
+python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+Path("/tmp/platform-service-images.json").write_text(
+    json.dumps(
+        {
+            "artifact_kind": "platform_service_image_lock",
+            "schema_version": 1,
+            "services": {
+                "specspace_api": {
+                    "image_ref": os.environ["SPECSPACE_API_IMAGE_REF"],
+                },
+                "specspace_ui": {
+                    "image_ref": os.environ["SPECSPACE_UI_IMAGE_REF"],
+                },
+            },
+        },
+        indent=2,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+PY
+
 ../Platform/scripts/platform.py deploy timeweb-render \
   --output-dir /tmp/specspace-timeweb \
-  --specspace-api-image-ref "$SPECSPACE_API_IMAGE_REF" \
-  --specspace-ui-image-ref "$SPECSPACE_UI_IMAGE_REF"
+  --image-lock /tmp/platform-service-images.json
 
 ../Platform/scripts/platform.py deploy timeweb-validate \
   --path /tmp/specspace-timeweb
