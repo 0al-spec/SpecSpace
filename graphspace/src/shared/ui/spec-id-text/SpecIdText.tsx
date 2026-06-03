@@ -9,7 +9,13 @@ export type SpecIdTextPart =
   | { kind: "spec-ref"; value: string; nodeId: string };
 
 const REF_TOKEN_PATTERN = /[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)+/g;
-const ADJACENT_SPEC_REF_PATTERN = /(?:[A-Za-z0-9_]+-)?SPEC-\d+/g;
+
+type ResolvedSpecRefRange = {
+  start: number;
+  end: number;
+  value: string;
+  nodeId: string;
+};
 
 function pushText(parts: SpecIdTextPart[], value: string) {
   if (!value) return;
@@ -70,23 +76,95 @@ function splitAdjacentSpecRefText(
   resolveSpecRef: SpecRefResolver,
 ): SpecIdTextPart[] {
   const parts: SpecIdTextPart[] = [];
-  let lastIndex = 0;
+  const ranges = findAdjacentSpecRefRanges(text, resolveSpecRef);
 
-  for (const match of text.matchAll(ADJACENT_SPEC_REF_PATTERN)) {
-    const value = match[0];
-    const index = match.index ?? 0;
-    const nodeId = resolveSpecRef(value);
-
-    if (!nodeId) continue;
-
-    pushText(parts, text.slice(lastIndex, index));
-    parts.push({ kind: "spec-ref", value, nodeId });
-    lastIndex = index + value.length;
+  if (ranges.length < 2) {
+    return [{ kind: "text", value: text }];
   }
 
+  let lastIndex = 0;
+  for (const range of ranges) {
+    pushText(parts, text.slice(lastIndex, range.start));
+    parts.push({
+      kind: "spec-ref",
+      value: range.value,
+      nodeId: range.nodeId,
+    });
+    lastIndex = range.end;
+  }
   pushText(parts, text.slice(lastIndex));
 
-  return parts.length > 0 ? parts : [{ kind: "text", value: text }];
+  return parts;
+}
+
+function findAdjacentSpecRefRanges(
+  text: string,
+  resolveSpecRef: SpecRefResolver,
+): ResolvedSpecRefRange[] {
+  const rangesByStart = new Map<number, ResolvedSpecRefRange[]>();
+
+  for (let start = 0; start < text.length; start += 1) {
+    if (!canStartSpecRef(text, start)) continue;
+
+    for (let end = start + 1; end <= text.length; end += 1) {
+      const value = text.slice(start, end);
+      const nodeId = resolveSpecRef(value);
+      if (!nodeId) continue;
+
+      const ranges = rangesByStart.get(start) ?? [];
+      ranges.push({ start, end, value, nodeId });
+      rangesByStart.set(start, ranges);
+    }
+  }
+
+  return selectBestSpecRefRanges(text, rangesByStart);
+}
+
+function canStartSpecRef(text: string, start: number) {
+  return /^(?:[A-Za-z0-9_]+-)?SPEC-/.test(text.slice(start));
+}
+
+function selectBestSpecRefRanges(
+  text: string,
+  rangesByStart: ReadonlyMap<number, readonly ResolvedSpecRefRange[]>,
+) {
+  const best = Array.from(
+    { length: text.length + 1 },
+    () => ({ count: 0, covered: 0, range: null as ResolvedSpecRefRange | null }),
+  );
+
+  for (let index = text.length - 1; index >= 0; index -= 1) {
+    best[index] = { ...best[index + 1], range: null };
+
+    for (const range of rangesByStart.get(index) ?? []) {
+      const candidate = {
+        count: 1 + best[range.end].count,
+        covered: range.end - range.start + best[range.end].covered,
+        range,
+      };
+
+      if (
+        candidate.count > best[index].count ||
+        (candidate.count === best[index].count &&
+          candidate.covered > best[index].covered)
+      ) {
+        best[index] = candidate;
+      }
+    }
+  }
+
+  const ranges: ResolvedSpecRefRange[] = [];
+  for (let index = 0; index < text.length; ) {
+    const range = best[index].range;
+    if (!range) {
+      index += 1;
+      continue;
+    }
+    ranges.push(range);
+    index = range.end;
+  }
+
+  return ranges;
 }
 
 type Props = {

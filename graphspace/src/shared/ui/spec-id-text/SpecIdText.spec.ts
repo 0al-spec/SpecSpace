@@ -7,6 +7,9 @@ describe("SpecIdText helpers", () => {
     token === "CTXB-SPEC-0123" ||
     token === "CTXB-SPEC-0150" ||
     token === "CTXB-SPEC-0200" ||
+    token === "SG-SPEC-0063" ||
+    token === "SG-SPEC-SAMPLE-ROOT" ||
+    token === "SG-SPEC-SAMPLE-RUNTIME" ||
     token === "SPEC-0054"
       ? `resolved:${token}`
       : null;
@@ -82,6 +85,34 @@ describe("SpecIdText helpers", () => {
         kind: "spec-ref",
         value: "CTXB-SPEC-0150",
         nodeId: "resolved:CTXB-SPEC-0150",
+      },
+    ]);
+  });
+
+  it("does not split a single embedded spec ref inside an artifact id", () => {
+    expect(
+      splitSpecIdText("20260519T214802Z-SG-SPEC-0063-80e51a2c", resolve),
+    ).toEqual([
+      { kind: "text", value: "20260519T214802Z-SG-SPEC-0063-80e51a2c" },
+    ]);
+  });
+
+  it("splits adjacent nonnumeric spec refs accepted by the resolver", () => {
+    expect(
+      splitSpecIdText(
+        "SG-SPEC-SAMPLE-ROOTSG-SPEC-SAMPLE-RUNTIME",
+        resolve,
+      ),
+    ).toEqual([
+      {
+        kind: "spec-ref",
+        value: "SG-SPEC-SAMPLE-ROOT",
+        nodeId: "resolved:SG-SPEC-SAMPLE-ROOT",
+      },
+      {
+        kind: "spec-ref",
+        value: "SG-SPEC-SAMPLE-RUNTIME",
+        nodeId: "resolved:SG-SPEC-SAMPLE-RUNTIME",
       },
     ]);
   });
