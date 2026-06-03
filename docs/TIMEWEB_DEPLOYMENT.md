@@ -193,6 +193,45 @@ PY
 scripts/validate-timeweb-deploy-tree.sh /tmp/specspace-timeweb
 ```
 
+## Platform Publisher Automation
+
+After the Timeweb application is moved to the Platform repository, SpecSpace can
+trigger the Platform-owned publisher automatically after image build succeeds.
+This keeps SpecSpace responsible for producing API/UI images while Platform owns
+the deploy branch watched by Timeweb.
+
+Enable it with repository variables and one secret in `0al-spec/SpecSpace`:
+
+| Name | Kind | Purpose |
+| --- | --- | --- |
+| `PLATFORM_TIMEWEB_PUBLISH_ENABLED` | variable | Set to `true` to trigger Platform's `Timeweb Publish` workflow after `main` CI builds images. |
+| `PLATFORM_TIMEWEB_PUBLISH_TOKEN` | secret | GitHub token allowed to dispatch workflows in `0al-spec/Platform`. |
+| `PLATFORM_TIMEWEB_DEPLOY_BRANCH` | variable, optional | Platform deploy branch. Defaults to `timeweb-deploy`. |
+| `PLATFORM_TIMEWEB_WORKFLOW_REF` | variable, optional | Platform ref containing `timeweb-publish.yml`. Defaults to `main`. |
+| `PLATFORM_TIMEWEB_ARTIFACT_BASE_URL` | variable, optional | SpecGraph static artifact base URL. Defaults to `https://specgraph.tech`. |
+| `PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL` | variable, optional | SpecPM registry URL. Defaults to `https://specpm.dev`. |
+
+The token should be a fine-grained GitHub token scoped to `0al-spec/Platform`
+with `Actions: Read and write` permission. It is used only to dispatch
+Platform's workflow; Platform's own workflow token publishes the Platform deploy
+branch.
+SpecSpace CI waits for the dispatched Platform workflow and fails if Platform
+rendering, validation, or branch publishing fails.
+
+During migration, the legacy SpecSpace deploy branch publisher remains enabled.
+After the Platform app has deployed successfully from `0al-spec/Platform`, set:
+
+```text
+SPECSPACE_TIMEWEB_PUBLISH_ENABLED=false
+```
+
+That stops SpecSpace from updating its old `timeweb-deploy` branch while keeping
+the automatic Platform publisher active.
+
+When `SPECSPACE_DEPLOY_URL` is set, the production smoke job runs after either
+publisher succeeds: the legacy SpecSpace deploy-branch publisher or the Platform
+publisher.
+
 After CI updates the branch, validate it strictly:
 
 ```bash
