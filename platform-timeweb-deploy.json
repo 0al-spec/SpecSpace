@@ -2,11 +2,12 @@
   "artifact_base_url": "https://specgraph.tech",
   "artifact_kind": "platform_timeweb_deploy_manifest",
   "compose_file": "docker-compose.yml",
+  "image_lock": "/home/runner/work/_temp/platform-service-images.json",
   "readme": "README.md",
-  "release_commit": "36d09aa756583b46745cb8cef38dc8aa5d5e7a56",
-  "release_created_at": "2026-05-31T21:54:50Z",
+  "release_commit": "2b434a328af5a13ce3194577bf79eee05bb5a4f2",
+  "release_created_at": "2026-06-03T22:18:56Z",
   "schema_version": 1,
   "specpm_registry_url": "https://specpm.dev",
-  "specspace_api_image_ref": "ghcr.io/0al-spec/specspace-api@sha256:53708c3a82919d6d2efb1e3f8bb088aa43e9fe3fe33faa7a59da26b93b605427",
-  "specspace_ui_image_ref": "ghcr.io/0al-spec/specspace-ui@sha256:4d1ace0cb8a4ac504ef8c0689d0cc1cdb58e5b1257c55ece4b2e28a5a12c0964"
+  "specspace_api_image_ref": "ghcr.io/0al-spec/specspace-api@sha256:9db3ab2d3741026c8ba604cfab60df5e585d86fb039c9f455334ff0afd40a543",
+  "specspace_ui_image_ref": "ghcr.io/0al-spec/specspace-ui@sha256:92584c4dce8d5f4f7c59cd46cdb16c3e46a879432148ed8898ebf929a8b49ac5"
 }
