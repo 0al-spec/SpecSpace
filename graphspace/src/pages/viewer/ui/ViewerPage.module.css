@@ -501,6 +501,11 @@
     left: var(--viewer-panel-edge);
   }
 
+  .canvasLayer:not(.canvasLayerWithSidebar),
+  .canvasLayer:not(.canvasLayerWithSidebar)[data-testid="spec-graph-canvas"] {
+    --spec-graph-canvas-filter-top-override: calc(var(--viewer-panel-top) + 42px);
+  }
+
   .canvasLayerWithSidebar {
     --spec-graph-canvas-left-dock: var(--viewer-panel-edge);
   }
