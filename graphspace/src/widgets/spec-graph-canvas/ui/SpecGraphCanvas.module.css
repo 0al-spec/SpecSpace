@@ -50,7 +50,9 @@
   border-radius: var(--gs-radius-md);
   box-shadow: none;
   overflow: hidden;
-  transition: left 160ms ease;
+  transition:
+    left 160ms ease,
+    top 160ms ease;
 }
 
 .flow :global(.react-flow__controls-button) {
