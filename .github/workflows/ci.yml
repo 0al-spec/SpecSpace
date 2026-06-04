@@ -2,8 +2,8 @@ name: CI
 
 on:
   push:
-    branches-ignore:
-      - timeweb-deploy
+    branches:
+      - main
   pull_request:
     branches:
       - main
