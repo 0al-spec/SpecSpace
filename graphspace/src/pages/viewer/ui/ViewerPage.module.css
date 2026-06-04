@@ -503,6 +503,7 @@
   }
 
   .canvasLayer:not(.canvasLayerWithSidebar) {
+    --spec-graph-canvas-filter-left-override: var(--viewer-panel-edge);
     --spec-graph-canvas-filter-top-override: calc(
       var(--viewer-panel-top) + var(--viewer-canvas-control-row-clearance)
     );
