@@ -363,7 +363,7 @@ jobs:
           inputs = {
               "service_image_lock_json": json.dumps(image_lock, sort_keys=True),
               "deploy_branch": os.environ["PLATFORM_TIMEWEB_DEPLOY_BRANCH"],
-              "publish_deploy_branch": True,
+              "publish_deploy_branch": "true",
               "release_commit": os.environ["GITHUB_SHA"],
               "artifact_base_url": os.environ["PLATFORM_TIMEWEB_ARTIFACT_BASE_URL"],
               "specpm_registry_url": os.environ["PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL"],
