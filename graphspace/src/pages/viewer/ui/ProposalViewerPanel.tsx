@@ -1,6 +1,12 @@
+import type { MouseEvent } from "react";
 import { useMemo, useState } from "react";
 import type { ProposalIndexEntry } from "@/shared/proposal-viewer-contract";
-import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
+import {
+  SpecIdText,
+  splitSpecIdText,
+  type SpecIdTextPart,
+  type SpecRefResolver,
+} from "@/shared/ui/spec-id-text";
 import {
   filterProposalEntries,
   filterProposalEntriesByContext,
@@ -9,6 +15,7 @@ import {
   type ProposalViewerFilters,
 } from "../model/proposal-filters";
 import type { UseProposalIndexState } from "../model/use-proposal-index";
+import { proposalViewerSpecRefs } from "../model/proposal-spec-refs";
 import styles from "./ProposalViewerPanel.module.css";
 
 type Props = {
@@ -264,6 +271,7 @@ function ProposalRow({
     entry.promotion_status ? `promotion ${entry.promotion_status}` : null,
     entry.next_gap ? `next ${entry.next_gap}` : null,
   ].filter((item): item is string => Boolean(item));
+  const affectedSpecIds = proposalViewerSpecRefs(entry.affected_spec_ids);
 
   return (
     <article className={[styles.row, selected ? styles.rowSelected : ""].join(" ")}>
@@ -299,14 +307,13 @@ function ProposalRow({
         </div>
       ) : null}
       <div className={styles.specRefs}>
-        {entry.affected_spec_ids.length > 0 ? (
-          entry.affected_spec_ids.slice(0, 8).map((specId) => (
-            <SpecIdText
-              key={specId}
-              text={specId}
+        {affectedSpecIds.length > 0 ? (
+          affectedSpecIds.slice(0, 8).map((specId, index) => (
+            <ProposalSpecRefChip
+              key={`${specId}-${index}`}
+              specId={specId}
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
-              variant="chip"
             />
           ))
         ) : (
@@ -349,6 +356,7 @@ function ProposalDetail({
     ["Next gap", entry.next_gap],
   ].filter((item): item is [string, string] => Boolean(item[1]));
   const preview = entry.markdown.content_preview ?? entry.markdown.content_excerpt ?? "";
+  const affectedSpecIds = proposalViewerSpecRefs(entry.affected_spec_ids);
 
   return (
     <article className={styles.detail} aria-label={`Proposal ${entry.proposal_id} details`}>
@@ -397,17 +405,16 @@ function ProposalDetail({
         ))}
       </dl>
 
-      {entry.affected_spec_ids.length > 0 ? (
+      {affectedSpecIds.length > 0 ? (
         <section className={styles.detailSection} aria-label="Affected specs">
           <span className={styles.detailSectionTitle}>Affected specs</span>
           <div className={styles.specRefs}>
-            {entry.affected_spec_ids.map((specId) => (
-              <SpecIdText
-                key={specId}
-                text={specId}
+            {affectedSpecIds.map((specId, index) => (
+              <ProposalSpecRefChip
+                key={`${specId}-${index}`}
+                specId={specId}
                 resolveSpecRef={resolveSpecRef}
                 onSpecIdClick={onSpecIdClick}
-                variant="chip"
               />
             ))}
           </div>
@@ -449,6 +456,65 @@ function ProposalDetail({
         <p className={styles.path}>{entry.proposal_path ?? "no path"}</p>
       </section>
     </article>
+  );
+}
+
+function ProposalSpecRefChip({
+  specId,
+  resolveSpecRef,
+  onSpecIdClick,
+}: {
+  specId: string;
+  resolveSpecRef?: SpecRefResolver;
+  onSpecIdClick?: (nodeId: string) => void;
+}) {
+  if (!resolveSpecRef) {
+    return <span className={styles.chip}>{specId}</span>;
+  }
+
+  const parts = splitSpecIdText(specId, resolveSpecRef);
+  if (!parts.some((part) => part.kind === "spec-ref")) {
+    return <span className={styles.chip}>{specId}</span>;
+  }
+
+  return (
+    <>
+      {parts.map((part, index) => (
+        <ProposalSpecRefPart
+          key={`${part.value}-${index}`}
+          part={part}
+          onSpecIdClick={onSpecIdClick}
+        />
+      ))}
+    </>
+  );
+}
+
+function ProposalSpecRefPart({
+  part,
+  onSpecIdClick,
+}: {
+  part: SpecIdTextPart;
+  onSpecIdClick?: (nodeId: string) => void;
+}) {
+  if (part.kind === "text") {
+    return <span className={styles.chip}>{part.value}</span>;
+  }
+
+  if (!onSpecIdClick) {
+    return <span className={styles.chip}>{part.value}</span>;
+  }
+
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSpecIdClick(part.nodeId);
+  };
+
+  return (
+    <button type="button" className={styles.chip} onClick={handleClick}>
+      {part.value}
+    </button>
   );
 }
 
