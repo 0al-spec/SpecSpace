@@ -1,4 +1,10 @@
-import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
+import type { MouseEvent } from "react";
+import {
+  SpecIdText,
+  splitSpecIdText,
+  type SpecIdTextPart,
+  type SpecRefResolver,
+} from "@/shared/ui/spec-id-text";
 import { proposalTraceSpecRefs } from "../lib/spec-refs";
 import { toneFor, type ProposalTraceTone } from "../lib/tone";
 import type { ProposalTraceEntry } from "../model/types";
@@ -45,9 +51,9 @@ export function ProposalTraceRow({
         </div>
         <div className={styles.meta}>
           <span className={styles.chip}>{entry.spec_refs.length} refs</span>
-          {specIds.map((specId) => (
+          {specIds.map((specId, index) => (
             <ProposalTraceSpecRef
-              key={specId}
+              key={`${specId}-${index}`}
               specId={specId}
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
@@ -80,16 +86,52 @@ function ProposalTraceSpecRef({
   resolveSpecRef?: SpecRefResolver;
   onSpecIdClick?: (nodeId: string) => void;
 }) {
-  if (!resolveSpecRef?.(specId)) {
+  if (!resolveSpecRef) {
+    return <span className={styles.chip}>{specId}</span>;
+  }
+
+  const parts = splitSpecIdText(specId, resolveSpecRef);
+  if (!parts.some((part) => part.kind === "spec-ref")) {
     return <span className={styles.chip}>{specId}</span>;
   }
 
   return (
-    <SpecIdText
-      text={specId}
-      resolveSpecRef={resolveSpecRef}
-      onSpecIdClick={onSpecIdClick}
-      variant="chip"
-    />
+    <>
+      {parts.map((part, index) => (
+        <ProposalTraceSpecRefPart
+          key={`${part.value}-${index}`}
+          part={part}
+          onSpecIdClick={onSpecIdClick}
+        />
+      ))}
+    </>
+  );
+}
+
+function ProposalTraceSpecRefPart({
+  part,
+  onSpecIdClick,
+}: {
+  part: SpecIdTextPart;
+  onSpecIdClick?: (nodeId: string) => void;
+}) {
+  if (part.kind === "text") {
+    return <span className={styles.chip}>{part.value}</span>;
+  }
+
+  if (!onSpecIdClick) {
+    return <span className={styles.chip}>{part.value}</span>;
+  }
+
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSpecIdClick(part.nodeId);
+  };
+
+  return (
+    <button type="button" className={styles.chip} onClick={handleClick}>
+      {part.value}
+    </button>
   );
 }

@@ -36,4 +36,24 @@ describe("ProposalTraceRow", () => {
     expect(html).toContain("SG-SPEC-0200");
     expect(html).not.toContain("SG-SPEC-0123SG-SPEC-0150SG-SPEC-0200");
   });
+
+  it("preserves resolver-backed splitting for nonnumeric graph refs", () => {
+    const sampleEntry: ProposalTraceEntry = {
+      ...entry,
+      mentioned_spec_ids: ["SG-SPEC-SAMPLE-ROOTSG-SPEC-SAMPLE-RUNTIME"],
+    };
+    const html = renderToStaticMarkup(
+      createElement(ProposalTraceRow, {
+        entry: sampleEntry,
+        resolveSpecRef: (token: string) =>
+          token === "SG-SPEC-SAMPLE-ROOT" || token === "SG-SPEC-SAMPLE-RUNTIME"
+            ? token
+            : null,
+      }),
+    );
+
+    expect(html).toContain("SG-SPEC-SAMPLE-ROOT");
+    expect(html).toContain("SG-SPEC-SAMPLE-RUNTIME");
+    expect(html).not.toContain("SG-SPEC-SAMPLE-ROOTSG-SPEC-SAMPLE-RUNTIME");
+  });
 });
