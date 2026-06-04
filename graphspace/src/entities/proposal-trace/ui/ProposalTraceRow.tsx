@@ -1,4 +1,11 @@
-import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
+import type { MouseEvent } from "react";
+import {
+  SpecIdText,
+  splitSpecIdText,
+  type SpecIdTextPart,
+  type SpecRefResolver,
+} from "@/shared/ui/spec-id-text";
+import { proposalTraceSpecRefs } from "../lib/spec-refs";
 import { toneFor, type ProposalTraceTone } from "../lib/tone";
 import type { ProposalTraceEntry } from "../model/types";
 import styles from "./ProposalTraceRow.module.css";
@@ -23,7 +30,8 @@ export function ProposalTraceRow({
 }: Props) {
   const cls = [styles.row, toneClass[toneFor(entry)]].join(" ");
   const traceStatus = entry.promotion_trace.trace_status ?? entry.promotion_trace.status;
-  const specIds = entry.mentioned_spec_ids.slice(0, 4);
+  const mentionedSpecIds = proposalTraceSpecRefs(entry.mentioned_spec_ids);
+  const specIds = mentionedSpecIds.slice(0, 4);
 
   return (
     <article className={cls}>
@@ -43,17 +51,16 @@ export function ProposalTraceRow({
         </div>
         <div className={styles.meta}>
           <span className={styles.chip}>{entry.spec_refs.length} refs</span>
-          {specIds.map((specId) => (
-            <SpecIdText
-              key={specId}
-              text={specId}
+          {specIds.map((specId, index) => (
+            <ProposalTraceSpecRef
+              key={`${specId}-${index}`}
+              specId={specId}
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
-              variant="chip"
             />
           ))}
-          {entry.mentioned_spec_ids.length > specIds.length && (
-            <span className={styles.chip}>+{entry.mentioned_spec_ids.length - specIds.length}</span>
+          {mentionedSpecIds.length > specIds.length && (
+            <span className={styles.chip}>+{mentionedSpecIds.length - specIds.length}</span>
           )}
         </div>
         <div className={styles.gap}>
@@ -67,5 +74,64 @@ export function ProposalTraceRow({
         </div>
       </div>
     </article>
+  );
+}
+
+function ProposalTraceSpecRef({
+  specId,
+  resolveSpecRef,
+  onSpecIdClick,
+}: {
+  specId: string;
+  resolveSpecRef?: SpecRefResolver;
+  onSpecIdClick?: (nodeId: string) => void;
+}) {
+  if (!resolveSpecRef) {
+    return <span className={styles.chip}>{specId}</span>;
+  }
+
+  const parts = splitSpecIdText(specId, resolveSpecRef);
+  if (!parts.some((part) => part.kind === "spec-ref")) {
+    return <span className={styles.chip}>{specId}</span>;
+  }
+
+  return (
+    <>
+      {parts.map((part, index) => (
+        <ProposalTraceSpecRefPart
+          key={`${part.value}-${index}`}
+          part={part}
+          onSpecIdClick={onSpecIdClick}
+        />
+      ))}
+    </>
+  );
+}
+
+function ProposalTraceSpecRefPart({
+  part,
+  onSpecIdClick,
+}: {
+  part: SpecIdTextPart;
+  onSpecIdClick?: (nodeId: string) => void;
+}) {
+  if (part.kind === "text") {
+    return <span className={styles.chip}>{part.value}</span>;
+  }
+
+  if (!onSpecIdClick) {
+    return <span className={styles.chip}>{part.value}</span>;
+  }
+
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSpecIdClick(part.nodeId);
+  };
+
+  return (
+    <button type="button" className={styles.chip} onClick={handleClick}>
+      {part.value}
+    </button>
   );
 }
