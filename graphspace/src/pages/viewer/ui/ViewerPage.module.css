@@ -477,6 +477,7 @@
     --viewer-panel-top: max(var(--gs-space-4), env(safe-area-inset-top, 0px));
     --viewer-panel-edge: var(--gs-space-4);
     --viewer-sidebar-width: calc(100vw - 2 * var(--viewer-panel-edge));
+    --viewer-canvas-control-row-clearance: 42px;
   }
 
   .sidebarRail,
@@ -499,6 +500,12 @@
 
   .canvasControlDock {
     left: var(--viewer-panel-edge);
+  }
+
+  .canvasLayer:not(.canvasLayerWithSidebar) {
+    --spec-graph-canvas-filter-top-override: calc(
+      var(--viewer-panel-top) + var(--viewer-canvas-control-row-clearance)
+    );
   }
 
   .canvasLayerWithSidebar {
