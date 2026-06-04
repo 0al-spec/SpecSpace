@@ -1,4 +1,5 @@
 import { SpecIdText, type SpecRefResolver } from "@/shared/ui/spec-id-text";
+import { proposalTraceSpecRefs } from "../lib/spec-refs";
 import { toneFor, type ProposalTraceTone } from "../lib/tone";
 import type { ProposalTraceEntry } from "../model/types";
 import styles from "./ProposalTraceRow.module.css";
@@ -23,7 +24,8 @@ export function ProposalTraceRow({
 }: Props) {
   const cls = [styles.row, toneClass[toneFor(entry)]].join(" ");
   const traceStatus = entry.promotion_trace.trace_status ?? entry.promotion_trace.status;
-  const specIds = entry.mentioned_spec_ids.slice(0, 4);
+  const mentionedSpecIds = proposalTraceSpecRefs(entry.mentioned_spec_ids);
+  const specIds = mentionedSpecIds.slice(0, 4);
 
   return (
     <article className={cls}>
@@ -44,16 +46,15 @@ export function ProposalTraceRow({
         <div className={styles.meta}>
           <span className={styles.chip}>{entry.spec_refs.length} refs</span>
           {specIds.map((specId) => (
-            <SpecIdText
+            <ProposalTraceSpecRef
               key={specId}
-              text={specId}
+              specId={specId}
               resolveSpecRef={resolveSpecRef}
               onSpecIdClick={onSpecIdClick}
-              variant="chip"
             />
           ))}
-          {entry.mentioned_spec_ids.length > specIds.length && (
-            <span className={styles.chip}>+{entry.mentioned_spec_ids.length - specIds.length}</span>
+          {mentionedSpecIds.length > specIds.length && (
+            <span className={styles.chip}>+{mentionedSpecIds.length - specIds.length}</span>
           )}
         </div>
         <div className={styles.gap}>
@@ -67,5 +68,28 @@ export function ProposalTraceRow({
         </div>
       </div>
     </article>
+  );
+}
+
+function ProposalTraceSpecRef({
+  specId,
+  resolveSpecRef,
+  onSpecIdClick,
+}: {
+  specId: string;
+  resolveSpecRef?: SpecRefResolver;
+  onSpecIdClick?: (nodeId: string) => void;
+}) {
+  if (!resolveSpecRef?.(specId)) {
+    return <span className={styles.chip}>{specId}</span>;
+  }
+
+  return (
+    <SpecIdText
+      text={specId}
+      resolveSpecRef={resolveSpecRef}
+      onSpecIdClick={onSpecIdClick}
+      variant="chip"
+    />
   );
 }
