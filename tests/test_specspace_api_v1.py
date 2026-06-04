@@ -78,7 +78,7 @@ def _start(
     httpd.specpm_registry_url = specpm_registry_url
     httpd.agent_workbench_dir = agent_workbench_dir
     httpd.agent_available = False
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread = threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
     return httpd, thread, f"http://127.0.0.1:{httpd.server_port}"
 
@@ -147,7 +147,7 @@ class QuietStaticHandler(SimpleHTTPRequestHandler):
 def _start_static(root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     handler = partial(QuietStaticHandler, directory=str(root))
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread = threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
     return httpd, thread, f"http://127.0.0.1:{httpd.server_port}"
 

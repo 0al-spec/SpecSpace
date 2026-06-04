@@ -304,7 +304,7 @@ def start_spec_test_server(
     httpd.spec_dir = spec_dir
     httpd.spec_watcher = server.SpecWatcher(spec_dir) if spec_dir else None
     httpd.specgraph_dir = None
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread = threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
     return httpd, thread, f"http://127.0.0.1:{httpd.server_port}"
 

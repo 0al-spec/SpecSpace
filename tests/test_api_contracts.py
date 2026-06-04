@@ -31,7 +31,7 @@ def start_test_server(dialog_dir: Path) -> tuple[ThreadingHTTPServer, threading.
     httpd.repo_root = REPO_ROOT
     httpd.dialog_dir = dialog_dir
     httpd.workspace_watcher = server.WorkspaceWatcher(dialog_dir)
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread = threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
     return httpd, thread, f"http://127.0.0.1:{httpd.server_port}"
 

@@ -36,7 +36,7 @@ def start_test_server(dialog_dir: Path, hyperprompt_binary: str = "") -> tuple[T
     httpd.repo_root = REPO_ROOT
     httpd.dialog_dir = dialog_dir
     httpd.hyperprompt_binary = hyperprompt_binary
-    t = threading.Thread(target=httpd.serve_forever, daemon=True)
+    t = threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     t.start()
     return httpd, t, f"http://127.0.0.1:{httpd.server_port}"
 
