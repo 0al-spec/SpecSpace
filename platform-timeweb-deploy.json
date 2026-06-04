@@ -4,10 +4,10 @@
   "compose_file": "docker-compose.yml",
   "image_lock": "/home/runner/work/_temp/platform-service-images.json",
   "readme": "README.md",
-  "release_commit": "459aeff71b6b79bb9cc71036de43543e353132d2",
-  "release_created_at": "2026-06-03T23:30:40Z",
+  "release_commit": "cbc4379d52169c076700f8b7b1375059b55c04a5",
+  "release_created_at": "2026-06-04T00:02:23Z",
   "schema_version": 1,
   "specpm_registry_url": "https://specpm.dev",
-  "specspace_api_image_ref": "ghcr.io/0al-spec/specspace-api@sha256:4f6e519e841d7cfca8d471cd0239c49fd5975e07d0f7594c8fdf704d9f4591b9",
-  "specspace_ui_image_ref": "ghcr.io/0al-spec/specspace-ui@sha256:3e3a1437c68c60e73a07a2728ac3b122d73d668362c6593b7a2c246ee5751d60"
+  "specspace_api_image_ref": "ghcr.io/0al-spec/specspace-api@sha256:12556df9b0635f846d8f0a9cc7e38f53006fd6598f9c4c9bc20d07661b746d86",
+  "specspace_ui_image_ref": "ghcr.io/0al-spec/specspace-ui@sha256:63b24f60dc51e1205b7dcd70f6e5f4c0e1106d3f05fc75cded4860ce85c387e4"
 }
