@@ -1,6 +1,9 @@
 .root {
   --spec-graph-canvas-left-dock: 10px;
-  --spec-graph-canvas-filter-left: calc(var(--spec-graph-canvas-left-dock) + 48px);
+  --spec-graph-canvas-filter-left: var(
+    --spec-graph-canvas-filter-left-override,
+    calc(var(--spec-graph-canvas-left-dock) + 48px)
+  );
   --spec-graph-canvas-filter-top: var(
     --spec-graph-canvas-filter-top-override,
     var(--gs-space-5)
