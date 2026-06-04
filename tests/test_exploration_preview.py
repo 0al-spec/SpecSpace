@@ -67,7 +67,7 @@ def start_server(
     httpd.spec_watcher = None
     httpd.specgraph_dir = specgraph_dir
     httpd.agent_available = False
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread = threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
     return httpd, thread, f"http://127.0.0.1:{httpd.server_port}"
 
