@@ -19,10 +19,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -30,7 +30,7 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
 
       - name: Download viewer build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: viewer-app-dist
           path: viewer/app/dist
@@ -47,10 +47,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "18"
           cache: npm
@@ -69,7 +69,7 @@ jobs:
         run: npm run build --prefix viewer/app
 
       - name: Upload viewer build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: viewer-app-dist
           path: viewer/app/dist
@@ -81,10 +81,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "18"
           cache: npm
@@ -119,10 +119,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Resolve image refs
         id: image-refs
@@ -141,7 +141,7 @@ jobs:
 
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -149,7 +149,7 @@ jobs:
 
       - name: Build API image
         id: build-api
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
@@ -167,7 +167,7 @@ jobs:
 
       - name: Build UI image
         id: build-ui
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: graphspace/Dockerfile
@@ -189,10 +189,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check out Platform deploy renderer
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: 0al-spec/Platform
           ref: 7a2dcb0e1a25feb81b65ecebb0d35b38b18a7ccb
@@ -338,7 +338,7 @@ jobs:
       needs.trigger-platform-timeweb-publish.result == 'success'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -405,7 +405,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Prepare SpecSpace smoke fixtures
         run: scripts/prepare-specspace-smoke-fixtures.sh "$RUNNER_TEMP/specspace-smoke-fixtures"

@@ -63,19 +63,19 @@ jobs:
 
     steps:
       - name: Check out SpecSpace
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: SpecSpace
 
       - name: Check out SpecGraph
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: 0al-spec/SpecGraph
           ref: ${{ inputs.specgraph_ref || 'main' }}
           path: SpecGraph
 
       - name: Check out SpecPM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: 0al-spec/SpecPM
           ref: ${{ inputs.specpm_revision || env.SPECPM_FIXTURE_REVISION }}
@@ -112,7 +112,7 @@ jobs:
           echo "SpecPM fixture lock OK: $fixture_label @ $actual_revision"
 
       - name: Set up Python for producers
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
