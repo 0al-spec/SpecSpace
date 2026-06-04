@@ -221,10 +221,13 @@
 
 .chip,
 .emptyRefs {
+  appearance: none;
+  background: transparent;
   border: 1px solid var(--gs-rule-soft);
   color: var(--gs-muted);
   font-family: var(--gs-mono);
   font-size: 10px;
+  line-height: 1.2;
   padding: 2px 6px;
 }
 
