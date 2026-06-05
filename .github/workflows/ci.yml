@@ -184,6 +184,108 @@ jobs:
           cp "$RUNNER_TEMP/hyperprompt-linux-amd64/hyperprompt-artifact.json" deps/hyperprompt-artifact.json
           deps/hyperprompt --version
 
+      - name: Download Agent Passport Linux binary
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p deps
+          release_tag="$(
+            gh release view \
+              --repo 0al-spec/agent-passport \
+              --json tagName \
+              --jq '.tagName'
+          )"
+          if [ -z "$release_tag" ]; then
+            echo "No Agent Passport release tag found." >&2
+            exit 1
+          fi
+          version="${release_tag#v}"
+          host="x86_64-unknown-linux-gnu"
+          asset="agent-passport-${version}-${host}"
+          artifact_dir="$RUNNER_TEMP/agent-passport-linux-amd64"
+          mkdir -p "$artifact_dir"
+
+          gh release download "$release_tag" \
+            --repo 0al-spec/agent-passport \
+            --pattern "${asset}*" \
+            --dir "$artifact_dir"
+
+          (
+            cd "$artifact_dir"
+            sha256sum -c "${asset}.sha256"
+          )
+          install -m 0755 "$artifact_dir/$asset" deps/agent-passport
+
+          cat > "$RUNNER_TEMP/agent-passport-smoke.passport.yaml" <<'YAML'
+          passport:
+            apiVersion: "agent-passport.io/v1alpha1"
+            kind: "AgentPassport"
+            metadata:
+              name: "specspace-release-smoke"
+              uid: "123e4567-e89b-12d3-a456-426614174000"
+              version: "1.0.0"
+              issueDate: "2025-01-01T00:00:00Z"
+              expiryDate: "9999-12-31T23:59:59Z"
+              issuer: "0AL"
+            spec:
+              entity:
+                type: "system-agent"
+                description: "Release smoke validation passport."
+                owner: "0AL"
+                contact: "ops@example.invalid"
+              capabilities:
+                - name: "validate_passport"
+                  description: "Validate Agent Passport YAML documents."
+                  signature:
+                    parameters: []
+                    returns:
+                      type: "object"
+                      description: "Validation report."
+                  accessControl: ["internal"]
+              resources:
+                cpu: "100m"
+                memory: "128Mi"
+                fileSystemAccess: []
+                executables:
+                  - "/app/deps/agent-passport"
+              securityPolicies:
+                capabilities: []
+                networkRestrictions:
+                  denyList: ["0.0.0.0/0"]
+                executionEnvironment:
+                  isolated: true
+                  privileged: false
+            signature:
+              algorithm: "EdDSA"
+              value: "YWJjZA=="
+              publicKeyRef: "did:example:issuer:0al:key1"
+              signedBy: "0AL"
+          YAML
+          deps/agent-passport --help >/dev/null
+          deps/agent-passport validate "$RUNNER_TEMP/agent-passport-smoke.passport.yaml"
+
+          python3 - "$artifact_dir/${asset}.sha256" "$release_tag" "$version" "$host" <<'PY' > deps/agent-passport-artifact.json
+          import json
+          import sys
+          from pathlib import Path
+
+          checksum_line = Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()[0]
+          sha256 = checksum_line.split()[0]
+          print(json.dumps({
+              "artifact_kind": "specspace_bundled_agent_passport_cli",
+              "schema_version": 1,
+              "source_repository": "0al-spec/agent-passport",
+              "release_tag": sys.argv[2],
+              "version": sys.argv[3],
+              "host": sys.argv[4],
+              "binary_path": "/app/deps/agent-passport",
+              "sha256": sha256,
+          }, indent=2, sort_keys=True))
+          PY
+
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v4
