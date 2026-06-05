@@ -17,6 +17,14 @@ RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 
 COPY viewer /app/viewer
 COPY deploy/specspace-demo /app/deploy/specspace-demo
+COPY deps /app/deps
+
+RUN if [ -f /app/deps/hyperprompt ]; then \
+      chmod 0755 /app/deps/hyperprompt && \
+      /app/deps/hyperprompt --version; \
+    else \
+      echo "No bundled Hyperprompt binary found; compile capability stays runtime-configured."; \
+    fi
 
 RUN mkdir -p /data/dialogs
 
