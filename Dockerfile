@@ -26,6 +26,13 @@ RUN if [ -f /app/deps/hyperprompt ]; then \
       echo "No bundled Hyperprompt binary found; compile capability stays runtime-configured."; \
     fi
 
+RUN if [ -f /app/deps/agent-passport ]; then \
+      chmod 0755 /app/deps/agent-passport && \
+      /app/deps/agent-passport --help >/dev/null; \
+    else \
+      echo "No bundled Agent Passport CLI found; passport validation stays externally provided."; \
+    fi
+
 RUN mkdir -p /data/dialogs
 
 EXPOSE 8001

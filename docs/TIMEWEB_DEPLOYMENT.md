@@ -109,6 +109,24 @@ manifest uses the stronger digest form carried through
 `platform_service_image_lock`. A digest-pinned image reference is the exact
 image Timeweb should pull, independent of later tags.
 
+The standard Timeweb API image also includes release-built utility binaries
+under `/app/deps`:
+
+- `/app/deps/hyperprompt` from the latest successful Hyperprompt Linux artifact;
+- `/app/deps/agent-passport` from the latest Agent Passport GitHub Release
+  Linux asset.
+
+The Agent Passport CLI is intended for server-side validation workflows such as:
+
+```bash
+/app/deps/agent-passport validate /path/to/agent.passport.yaml
+```
+
+SpecSpace validates the downloaded checksum before building the API image and
+smoke-tests the binary during the Docker build. The binary is bundled for
+availability inside the standard deployment; exposing a public validation API is
+a separate application feature.
+
 Timeweb proxies the primary domain to the first compose service. The UI service
 is therefore named `app` and declared before `specspace-api`; otherwise the
 domain root would hit the backend and return `404`.
