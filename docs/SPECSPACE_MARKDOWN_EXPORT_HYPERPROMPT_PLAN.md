@@ -126,8 +126,12 @@ read readonly `specs/nodes`. They may support Hyperprompt compile only when a
 compiler binary and scratch workspace are configured.
 
 HTTP/static artifact deployments can support Markdown export if all required
-spec nodes are present in the static manifest. They should not support compile
-unless a future worker/storage boundary is explicitly added.
+spec nodes are present in the static manifest. They must keep compile disabled
+by default, but may enable it later through the explicit materialization
+contract in
+[`HTTP_HYPERPROMPT_COMPILE_CONTRACT.md`](HTTP_HYPERPROMPT_COMPILE_CONTRACT.md):
+the HTTP source stays read-only, SpecSpace writes only generated export bundles
+into its own scratch workspace, and Platform must opt in with deployment flags.
 
 Timeweb-style deployment should therefore expose a useful export button without
 requiring any mounted SpecGraph checkout or Hyperprompt binary.
@@ -142,8 +146,11 @@ requiring any mounted SpecGraph checkout or Hyperprompt binary.
    `hyperprompt_compile` capability gate.
 5. Add a Spec Inspector compile action only after the backend endpoint has
    structured diagnostics, timeout handling, and local-only tests.
+6. `SpecSpace#220` — define the HTTP-provider Hyperprompt compile
+   materialization contract.
+7. `SpecSpace#221` — implement bounded HTTP-provider Hyperprompt compile behind
+   the explicit contract and capability gate.
 
 These tasks should stay separate so the readonly export can ship without
 blocking on compiler setup or production storage policy. Compile support stays
-explicitly local until a future worker/storage boundary is designed for
-HTTP/static deployments.
+explicitly gated until the HTTP/static deployment contract is implemented.

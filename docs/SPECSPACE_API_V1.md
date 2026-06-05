@@ -217,12 +217,15 @@ provider sources return `503`.
 ### `POST /api/v1/spec-markdown/compile`
 
 Compiles a SpecSpace-generated Spec Markdown export with a local Hyperprompt
-binary. This endpoint is only available for local file provider deployments
-where `/api/v1/capabilities` reports `hyperprompt_compile: true`. It never
-mutates mounted SpecGraph inputs and writes only inside the configured
-Hyperprompt scratch workspace. SpecSpace marks its own compile bundle
-directories and keeps only the latest local bundles by default so the scratch
-workspace does not grow indefinitely.
+binary. This endpoint is available only where `/api/v1/capabilities` reports
+`hyperprompt_compile: true`. Local file provider deployments can enable it with
+a compiler binary plus scratch workspace. HTTP/static artifact deployments must
+also opt in through the contract in
+[`HTTP_HYPERPROMPT_COMPILE_CONTRACT.md`](HTTP_HYPERPROMPT_COMPILE_CONTRACT.md).
+It never mutates mounted or remote SpecGraph inputs and writes only inside the
+configured Hyperprompt scratch workspace. SpecSpace marks its own compile
+bundle directories and keeps only the latest local bundles by default so the
+scratch workspace does not grow indefinitely.
 
 Request body fields mirror `GET /api/v1/spec-markdown`:
 
@@ -270,8 +273,10 @@ Response:
 
 If `hyperprompt_compile` is unavailable, the endpoint returns `503` with the
 same actionable diagnostic shape used by `/api/v1/capabilities`. HTTP/static
-artifact deployments return `provider_unsupported`. Compiler failures return
-`422` with `compile.exit_code`, `stderr`, and `stdout`.
+artifact deployments return `http_compile_disabled` until explicitly enabled
+and `provider_unsupported` only when the active provider cannot support the
+contract. Compiler failures return `422` with `compile.exit_code`, `stderr`,
+and `stdout`.
 
 ### `GET /api/v1/runs/recent`
 
@@ -433,9 +438,12 @@ registry payload.
 
 Returns capability booleans, provider metadata, and deployment diagnostics.
 `spec_markdown_export` means readonly SpecGraph Markdown export is available.
-`hyperprompt_compile` means a local Hyperprompt compiler and scratch workspace
-are explicitly configured for SpecSpace. Static/HTTP artifact deployments should
-normally report `spec_markdown_export: true` and `hyperprompt_compile: false`.
+`hyperprompt_compile` means a Hyperprompt compiler and scratch workspace are
+explicitly configured for SpecSpace and allowed for the active provider.
+Static/HTTP artifact deployments should normally report
+`spec_markdown_export: true` and `hyperprompt_compile: false`; they become
+eligible only through the opt-in contract in
+[`HTTP_HYPERPROMPT_COMPILE_CONTRACT.md`](HTTP_HYPERPROMPT_COMPILE_CONTRACT.md).
 
 ```json
 {
@@ -471,9 +479,10 @@ normally report `spec_markdown_export: true` and `hyperprompt_compile: false`.
 ```
 
 Known `hyperprompt_compile.status` values include `available`,
-`provider_unsupported`, `compiler_missing`, `compiler_not_executable`,
-`scratch_not_configured`, `scratch_missing`, `scratch_not_directory`,
-`scratch_not_writable`, and `scratch_unreadable`.
+`http_compile_disabled`, `provider_unsupported`, `compiler_missing`,
+`compiler_not_executable`, `scratch_not_configured`, `scratch_missing`,
+`scratch_not_directory`, `scratch_not_writable`, `scratch_unreadable`, and
+`invalid_limit`.
 
 ### `GET /api/v1/runs-watch`
 
