@@ -77,7 +77,7 @@ export function SpecPMRegistryPanel({ state }: Props) {
 
       <div className={styles.packages}>
         {packages.length > 0 ? (
-          packages.slice(0, 8).map((pkg) => (
+          packages.map((pkg) => (
             <div key={pkg.package_id} className={styles.packageRow}>
               <div className={styles.packageMain}>
                 <span className={styles.packageId}>{pkg.package_id}</span>
