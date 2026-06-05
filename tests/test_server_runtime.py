@@ -48,6 +48,25 @@ def test_build_arg_parser_treats_blank_hyperprompt_work_dir_env_as_unset(monkeyp
     assert args.hyperprompt_work_dir is None
 
 
+def test_build_arg_parser_accepts_http_hyperprompt_compile_env(monkeypatch) -> None:
+    monkeypatch.setenv("SPECSPACE_HYPERPROMPT_HTTP_COMPILE_ENABLED", "true")
+    monkeypatch.setenv("SPECSPACE_HYPERPROMPT_COMPILE_TIMEOUT_SECONDS", "45")
+    monkeypatch.setenv("SPECSPACE_HYPERPROMPT_MAX_INPUT_BYTES", "1000")
+    monkeypatch.setenv("SPECSPACE_HYPERPROMPT_MAX_OUTPUT_BYTES", "2000")
+    monkeypatch.setenv("SPECSPACE_HYPERPROMPT_BUNDLE_RETENTION_COUNT", "5")
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+    args = parser.parse_args(["--dialog-dir", "/tmp/dialogs"])
+
+    assert args.enable_http_hyperprompt_compile is True
+    assert args.hyperprompt_compile_timeout_seconds == "45"
+    assert args.hyperprompt_max_input_bytes == "1000"
+    assert args.hyperprompt_max_output_bytes == "2000"
+    assert args.hyperprompt_bundle_retention_count == "5"
+
+
 def test_build_arg_parser_accepts_agent_workbench_dir_env(monkeypatch) -> None:
     monkeypatch.setenv("SPECSPACE_AGENT_WORKBENCH_DIR", "  /tmp/specspace-workbench  ")
     parser = server_runtime.build_arg_parser(
@@ -109,6 +128,11 @@ def test_configure_server_sets_runtime_capabilities() -> None:
             dialog_dir=root / "dialogs",
             hyperprompt_binary="/bin/hyperprompt",
             hyperprompt_work_dir=root / "hyperprompt-work",
+            enable_http_hyperprompt_compile=True,
+            hyperprompt_compile_timeout_seconds="45",
+            hyperprompt_max_input_bytes="1000",
+            hyperprompt_max_output_bytes="2000",
+            hyperprompt_bundle_retention_count="5",
             spec_dir=root / "specgraph" / "specs" / "nodes",
             specgraph_dir=None,
             runs_dir=None,
@@ -138,6 +162,11 @@ def test_configure_server_sets_runtime_capabilities() -> None:
         assert server.hyperprompt_checked_paths == ["/bin/hyperprompt"]
         assert server.hyperprompt_resolution_source == "configured"
         assert server.hyperprompt_work_dir == (root / "hyperprompt-work").resolve()
+        assert server.hyperprompt_http_compile_enabled is True
+        assert server.hyperprompt_compile_timeout_seconds == "45"
+        assert server.hyperprompt_max_input_bytes == "1000"
+        assert server.hyperprompt_max_output_bytes == "2000"
+        assert server.hyperprompt_bundle_retention_count == "5"
         assert server.hyperprompt_compile_available is False
         assert server.compile_available is True
         assert server.spec_dir == (root / "specgraph" / "specs" / "nodes").resolve()
@@ -160,6 +189,11 @@ def test_configure_server_accepts_explicit_runs_dir() -> None:
             dialog_dir=root / "dialogs",
             hyperprompt_binary="/bin/hyperprompt",
             hyperprompt_work_dir=None,
+            enable_http_hyperprompt_compile=False,
+            hyperprompt_compile_timeout_seconds=None,
+            hyperprompt_max_input_bytes=None,
+            hyperprompt_max_output_bytes=None,
+            hyperprompt_bundle_retention_count=None,
             spec_dir=root / "specgraph" / "specs" / "nodes",
             specgraph_dir=root / "specgraph",
             runs_dir=root / "mounted-runs",

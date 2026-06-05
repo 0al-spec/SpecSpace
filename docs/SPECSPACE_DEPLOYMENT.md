@@ -118,14 +118,19 @@ python viewer/server.py \
 The same value can be supplied through `SPECSPACE_ARTIFACT_BASE_URL`.
 The SpecPM registry URL can be supplied through `SPECSPACE_SPECPM_REGISTRY_URL`.
 
-Optional Hyperprompt compile is disabled unless a deployment configures both a
-compiler binary and an explicit scratch workspace. The scratch workspace is
-reported through `/api/v1/capabilities`; SpecSpace does not create it or write
-to mounted SpecGraph inputs while checking capabilities. When enabled,
-`POST /api/v1/spec-markdown/compile` writes a generated Markdown export bundle
-inside this scratch workspace and invokes Hyperprompt there. SpecSpace marks
-its own bundle directories and prunes old SpecSpace-owned bundles by retention
-count; it does not delete unrelated files in the scratch directory.
+Optional Hyperprompt compile is disabled unless a deployment configures a
+compiler binary and an explicit scratch workspace. Local file-provider
+deployments need only those two settings. HTTP/static artifact deployments must
+also opt in with `SPECSPACE_HYPERPROMPT_HTTP_COMPILE_ENABLED=true` or
+`--enable-http-hyperprompt-compile`.
+
+The scratch workspace is reported through `/api/v1/capabilities`; SpecSpace
+does not create it or write to mounted or remote SpecGraph inputs while checking
+capabilities. When enabled, `POST /api/v1/spec-markdown/compile` writes a
+generated Markdown export bundle inside this scratch workspace and invokes
+Hyperprompt there. SpecSpace marks its own bundle directories and prunes old
+SpecSpace-owned bundles by retention count; it does not delete unrelated files
+in the scratch directory.
 
 ```bash
 python viewer/server.py \
@@ -141,9 +146,20 @@ python viewer/server.py \
 `--hyperprompt-work-dir` can also be supplied through
 `SPECSPACE_HYPERPROMPT_WORK_DIR`.
 
-HTTP/static artifact deployments keep Hyperprompt compile disabled even if a
-binary and scratch directory are configured; they expose readonly Markdown
-export only until a separate worker/storage boundary is designed.
+For HTTP/static artifact deployments, add the explicit opt-in and optional
+limits:
+
+```bash
+export SPECSPACE_HYPERPROMPT_HTTP_COMPILE_ENABLED=true
+export SPECSPACE_HYPERPROMPT_WORK_DIR=/data/specspace-hyperprompt
+export SPECSPACE_HYPERPROMPT_COMPILE_TIMEOUT_SECONDS=60
+export SPECSPACE_HYPERPROMPT_MAX_INPUT_BYTES=1048576
+export SPECSPACE_HYPERPROMPT_MAX_OUTPUT_BYTES=2097152
+export SPECSPACE_HYPERPROMPT_BUNDLE_RETENTION_COUNT=20
+```
+
+If the HTTP feature flag is omitted, HTTP deployments continue to expose
+readonly Markdown export only and report `http_compile_disabled`.
 
 ## Local Developer Restart
 

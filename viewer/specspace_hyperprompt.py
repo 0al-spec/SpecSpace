@@ -115,8 +115,6 @@ def write_spec_markdown_export_bundle(
         + "\n",
         encoding="utf-8",
     )
-    prune_specspace_compile_bundles(work_dir)
-
     return {
         "export_dir": str(export_dir),
         "root_hc": str(root_hc),
@@ -141,8 +139,20 @@ def compile_spec_markdown_export(
     binary_path: str,
     default_hyperprompt_binary: str,
     repo_root: Path,
+    timeout_seconds: int = 60,
+    max_input_bytes: int = 1_048_576,
+    max_output_bytes: int = 2_097_152,
+    bundle_retention_count: int = DEFAULT_BUNDLE_RETENTION_COUNT,
 ) -> tuple[int, dict[str, Any]]:
     """Compile a SpecSpace-generated Markdown export with Hyperprompt."""
+    input_bytes = len(markdown.encode("utf-8"))
+    if input_bytes > max_input_bytes:
+        return HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {
+            "error": "Generated Spec Markdown export exceeds Hyperprompt input limit.",
+            "input_bytes": input_bytes,
+            "max_input_bytes": max_input_bytes,
+        }
+
     try:
         bundle = write_spec_markdown_export_bundle(
             work_dir=work_dir,
@@ -153,6 +163,7 @@ def compile_spec_markdown_export(
             source=source,
             options=options,
         )
+        prune_specspace_compile_bundles(work_dir, keep_latest=bundle_retention_count)
     except OSError as exc:
         return HTTPStatus.INTERNAL_SERVER_ERROR, {
             "error": "Failed to write SpecSpace Hyperprompt export bundle.",
@@ -164,13 +175,25 @@ def compile_spec_markdown_export(
         binary_path,
         default_hyperprompt_binary=default_hyperprompt_binary,
         repo_root=repo_root,
+        timeout_seconds=timeout_seconds,
     )
-    compile_payload = {**compile_payload, **bundle}
+    compile_payload = {
+        **compile_payload,
+        **bundle,
+        "timeout_seconds": timeout_seconds,
+        "max_input_bytes": max_input_bytes,
+        "max_output_bytes": max_output_bytes,
+    }
 
     compiled_md = compile_payload.get("compiled_md")
     if status == HTTPStatus.OK and isinstance(compiled_md, str):
         compiled_path = Path(compiled_md)
         try:
+            if compiled_path.stat().st_size > max_output_bytes:
+                return HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {
+                    "error": "Hyperprompt compiled output exceeds API response limit.",
+                    "compile": compile_payload,
+                }
             compile_payload["compiled_markdown"] = compiled_path.read_text(encoding="utf-8")
         except OSError as exc:
             return HTTPStatus.INTERNAL_SERVER_ERROR, {

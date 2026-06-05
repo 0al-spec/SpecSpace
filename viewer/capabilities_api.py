@@ -10,6 +10,15 @@ from typing import Any, Protocol
 from viewer import agent_workbench
 from viewer.http_response import JsonResponseHandler, json_response
 
+DEFAULT_HYPERPROMPT_COMPILE_TIMEOUT_SECONDS = 60
+DEFAULT_HYPERPROMPT_MAX_INPUT_BYTES = 1_048_576
+DEFAULT_HYPERPROMPT_MAX_OUTPUT_BYTES = 2_097_152
+DEFAULT_HYPERPROMPT_BUNDLE_RETENTION_COUNT = 20
+MAX_HYPERPROMPT_COMPILE_TIMEOUT_SECONDS = 300
+MAX_HYPERPROMPT_MAX_INPUT_BYTES = 10_485_760
+MAX_HYPERPROMPT_MAX_OUTPUT_BYTES = 20_971_520
+MAX_HYPERPROMPT_BUNDLE_RETENTION_COUNT = 100
+
 
 class CapabilitiesHandler(JsonResponseHandler, Protocol):
     server: Any
@@ -47,6 +56,79 @@ def _path_text(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _server_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return False
+
+
+def _server_positive_int(
+    server: Any,
+    attr: str,
+    *,
+    default: int,
+    minimum: int = 1,
+    maximum: int,
+) -> tuple[int | None, dict[str, Any] | None]:
+    raw = getattr(server, attr, None)
+    if raw is None or raw == "":
+        return default, None
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None, {
+            "field": attr,
+            "value": raw,
+            "message": f"{attr} must be an integer.",
+        }
+    if value < minimum or value > maximum:
+        return None, {
+            "field": attr,
+            "value": raw,
+            "message": f"{attr} must be between {minimum} and {maximum}.",
+        }
+    return value, None
+
+
+def hyperprompt_compile_limits(server: Any) -> tuple[dict[str, int], dict[str, Any] | None]:
+    fields = [
+        (
+            "hyperprompt_compile_timeout_seconds",
+            "timeout_seconds",
+            DEFAULT_HYPERPROMPT_COMPILE_TIMEOUT_SECONDS,
+            MAX_HYPERPROMPT_COMPILE_TIMEOUT_SECONDS,
+        ),
+        (
+            "hyperprompt_max_input_bytes",
+            "max_input_bytes",
+            DEFAULT_HYPERPROMPT_MAX_INPUT_BYTES,
+            MAX_HYPERPROMPT_MAX_INPUT_BYTES,
+        ),
+        (
+            "hyperprompt_max_output_bytes",
+            "max_output_bytes",
+            DEFAULT_HYPERPROMPT_MAX_OUTPUT_BYTES,
+            MAX_HYPERPROMPT_MAX_OUTPUT_BYTES,
+        ),
+        (
+            "hyperprompt_bundle_retention_count",
+            "bundle_retention_count",
+            DEFAULT_HYPERPROMPT_BUNDLE_RETENTION_COUNT,
+            MAX_HYPERPROMPT_BUNDLE_RETENTION_COUNT,
+        ),
+    ]
+    limits: dict[str, int] = {}
+    for attr, key, default, maximum in fields:
+        value, error = _server_positive_int(server, attr, default=default, maximum=maximum)
+        if error is not None:
+            return limits, error
+        assert value is not None
+        limits[key] = value
+    return limits, None
 
 
 def _scratch_workspace_diagnostic(work_dir: Any) -> dict[str, Any] | None:
@@ -108,15 +190,27 @@ def build_hyperprompt_compile_diagnostic(
     ]
     resolution_source = _path_text(getattr(server, "hyperprompt_resolution_source", None)) or "missing"
     scratch_workspace = _path_text(getattr(server, "hyperprompt_work_dir", None))
+    http_compile_enabled = _server_bool(getattr(server, "hyperprompt_http_compile_enabled", False))
+    limits, limit_error = hyperprompt_compile_limits(server)
     base: dict[str, Any] = {
         "configured_binary": configured_binary,
         "resolved_binary": resolved_binary,
         "resolution_source": resolution_source,
         "checked_paths": checked_paths,
         "scratch_workspace": scratch_workspace,
+        "http_compile_enabled": http_compile_enabled,
+        "limits": limits,
     }
 
-    if provider_kind != "file":
+    if provider_kind == "http" and not http_compile_enabled:
+        return {
+            **base,
+            "available": False,
+            "status": "http_compile_disabled",
+            "detail": "Hyperprompt compile for HTTP artifact providers requires an explicit feature flag.",
+        }
+
+    if provider_kind not in {"file", "http"}:
         return {
             **base,
             "available": False,
@@ -140,6 +234,15 @@ def build_hyperprompt_compile_diagnostic(
             "detail": "Hyperprompt compiler binary was not found.",
         }
 
+    if limit_error is not None:
+        return {
+            **base,
+            "available": False,
+            "status": "invalid_limit",
+            "detail": limit_error["message"],
+            "limit_error": limit_error,
+        }
+
     binary_path = Path(resolved_binary).expanduser()
     if not os.access(binary_path, os.X_OK):
         return {
@@ -157,7 +260,7 @@ def build_hyperprompt_compile_diagnostic(
         **base,
         "available": True,
         "status": "available",
-        "detail": "Hyperprompt compile is configured for this local SpecSpace deployment.",
+        "detail": "Hyperprompt compile is configured for this SpecSpace deployment.",
     }
 
 

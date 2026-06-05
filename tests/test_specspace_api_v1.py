@@ -58,6 +58,11 @@ def _start(
     hyperprompt_binary: str = "",
     hyperprompt_resolved_binary: str | None = None,
     hyperprompt_work_dir: Path | None = None,
+    hyperprompt_http_compile_enabled: bool = False,
+    hyperprompt_compile_timeout_seconds: str | None = None,
+    hyperprompt_max_input_bytes: str | None = None,
+    hyperprompt_max_output_bytes: str | None = None,
+    hyperprompt_bundle_retention_count: str | None = None,
 ) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.ViewerHandler)
     httpd.repo_root = REPO_ROOT
@@ -67,6 +72,11 @@ def _start(
     httpd.hyperprompt_checked_paths = [hyperprompt_binary] if hyperprompt_binary else []
     httpd.hyperprompt_resolution_source = "configured" if hyperprompt_resolved_binary else "missing"
     httpd.hyperprompt_work_dir = hyperprompt_work_dir
+    httpd.hyperprompt_http_compile_enabled = hyperprompt_http_compile_enabled
+    httpd.hyperprompt_compile_timeout_seconds = hyperprompt_compile_timeout_seconds
+    httpd.hyperprompt_max_input_bytes = hyperprompt_max_input_bytes
+    httpd.hyperprompt_max_output_bytes = hyperprompt_max_output_bytes
+    httpd.hyperprompt_bundle_retention_count = hyperprompt_bundle_retention_count
     httpd.hyperprompt_compile_available = False
     httpd.compile_available = False
     httpd.spec_dir = spec_dir
@@ -112,10 +122,11 @@ def _post(url: str, payload: dict) -> tuple[int, dict]:
         return exc.code, json.loads(exc.read())
 
 
-def _write_hyperprompt_stub(path: Path, *, exit_code: int = 0) -> None:
+def _write_hyperprompt_stub(path: Path, *, exit_code: int = 0, sleep_seconds: int = 0) -> None:
     if exit_code == 0:
         path.write_text(
-            """#!/bin/sh
+            f"""#!/bin/sh
+sleep {sleep_seconds}
 out=""
 manifest=""
 while [ $# -gt 0 ]; do
@@ -126,7 +137,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 [ -n "$out" ] && printf '# Compiled SpecSpace export\\n' > "$out"
-[ -n "$manifest" ] && printf '{"compiled":true}\\n' > "$manifest"
+[ -n "$manifest" ] && printf '{{"compiled":true}}\\n' > "$manifest"
 exit 0
 """,
             encoding="utf-8",
@@ -1304,8 +1315,125 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 _stop(static, static_thread)
 
         self.assertEqual(status, 503)
-        self.assertEqual(body["diagnostic"]["status"], "provider_unsupported")
+        self.assertEqual(body["diagnostic"]["status"], "http_compile_disabled")
         self.assertFalse(body["capabilities"]["hyperprompt_compile"])
+
+    def test_spec_markdown_compile_v1_compiles_http_provider_when_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifact-site"
+            spec_dir = artifact_root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_manifest(artifact_root, ["specs/nodes/SG-SPEC-0001.yaml"])
+            binary = root / "hyperprompt"
+            _write_hyperprompt_stub(binary)
+            scratch = root / "scratch"
+            scratch.mkdir()
+            static, static_thread, artifact_base_url = _start_static(artifact_root)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                artifact_base_url=artifact_base_url,
+                hyperprompt_binary=str(binary),
+                hyperprompt_resolved_binary=str(binary),
+                hyperprompt_work_dir=scratch,
+                hyperprompt_http_compile_enabled=True,
+                hyperprompt_compile_timeout_seconds="5",
+                hyperprompt_bundle_retention_count="3",
+            )
+            try:
+                capabilities_status, capabilities = _get(f"{base}/api/v1/capabilities")
+                status, body = _post(
+                    f"{base}/api/v1/spec-markdown/compile",
+                    {"root": "SG-SPEC-0001"},
+                )
+                root_hc = Path(body["compile"]["root_hc"]) if status == 200 else None
+            finally:
+                _stop(httpd, thread)
+                _stop(static, static_thread)
+
+        self.assertEqual(capabilities_status, 200)
+        self.assertTrue(capabilities["capabilities"]["hyperprompt_compile"])
+        self.assertEqual(capabilities["diagnostics"]["hyperprompt_compile"]["status"], "available")
+        self.assertEqual(status, 200)
+        self.assertEqual(body["source"]["provider"], "http")
+        self.assertEqual(body["source"]["artifact_base_url"], artifact_base_url)
+        self.assertEqual(body["compile"]["exit_code"], 0)
+        self.assertEqual(body["compile"]["timeout_seconds"], 5)
+        self.assertIn("# Compiled SpecSpace export", body["compile"]["compiled_markdown"])
+        self.assertIsNotNone(root_hc)
+        assert root_hc is not None
+        self.assertTrue(root_hc.is_relative_to(scratch))
+
+    def test_spec_markdown_compile_v1_reports_http_provider_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifact-site"
+            spec_dir = artifact_root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_manifest(artifact_root, ["specs/nodes/SG-SPEC-0001.yaml"])
+            binary = root / "hyperprompt"
+            _write_hyperprompt_stub(binary, sleep_seconds=2)
+            scratch = root / "scratch"
+            scratch.mkdir()
+            static, static_thread, artifact_base_url = _start_static(artifact_root)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                artifact_base_url=artifact_base_url,
+                hyperprompt_binary=str(binary),
+                hyperprompt_resolved_binary=str(binary),
+                hyperprompt_work_dir=scratch,
+                hyperprompt_http_compile_enabled=True,
+                hyperprompt_compile_timeout_seconds="1",
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/spec-markdown/compile",
+                    {"root": "SG-SPEC-0001"},
+                )
+            finally:
+                _stop(httpd, thread)
+                _stop(static, static_thread)
+
+        self.assertEqual(status, 500)
+        self.assertEqual(body["error"], "Hyperprompt compiler timed out")
+        self.assertEqual(body["compile"]["timeout_seconds"], 1)
+
+    def test_spec_markdown_compile_v1_reports_invalid_http_compile_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifact-site"
+            spec_dir = artifact_root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_manifest(artifact_root, ["specs/nodes/SG-SPEC-0001.yaml"])
+            binary = root / "hyperprompt"
+            _write_hyperprompt_stub(binary)
+            scratch = root / "scratch"
+            scratch.mkdir()
+            static, static_thread, artifact_base_url = _start_static(artifact_root)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                artifact_base_url=artifact_base_url,
+                hyperprompt_binary=str(binary),
+                hyperprompt_resolved_binary=str(binary),
+                hyperprompt_work_dir=scratch,
+                hyperprompt_http_compile_enabled=True,
+                hyperprompt_compile_timeout_seconds="fast",
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/spec-markdown/compile",
+                    {"root": "SG-SPEC-0001"},
+                )
+            finally:
+                _stop(httpd, thread)
+                _stop(static, static_thread)
+
+        self.assertEqual(status, 503)
+        self.assertEqual(body["diagnostic"]["status"], "invalid_limit")
+        self.assertEqual(body["diagnostic"]["limit_error"]["field"], "hyperprompt_compile_timeout_seconds")
 
     def test_spec_markdown_compile_v1_returns_compiler_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1601,7 +1729,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(capabilities["capabilities"]["hyperprompt_compile"])
         self.assertEqual(
             capabilities["diagnostics"]["hyperprompt_compile"]["status"],
-            "provider_unsupported",
+            "http_compile_disabled",
         )
 
     def test_http_provider_reports_missing_runs_artifact_as_not_found(self) -> None:

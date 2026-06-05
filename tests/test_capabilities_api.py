@@ -15,6 +15,11 @@ class FakeHandler:
         hyperprompt_checked_paths=None,
         hyperprompt_resolution_source="missing",
         hyperprompt_work_dir=None,
+        hyperprompt_http_compile_enabled=False,
+        hyperprompt_compile_timeout_seconds=None,
+        hyperprompt_max_input_bytes=None,
+        hyperprompt_max_output_bytes=None,
+        hyperprompt_bundle_retention_count=None,
         agent_available=None,
         graph_dashboard_path=None,
         runs_dir=None,
@@ -31,6 +36,11 @@ class FakeHandler:
             "hyperprompt_checked_paths": hyperprompt_checked_paths or [],
             "hyperprompt_resolution_source": hyperprompt_resolution_source,
             "hyperprompt_work_dir": hyperprompt_work_dir,
+            "hyperprompt_http_compile_enabled": hyperprompt_http_compile_enabled,
+            "hyperprompt_compile_timeout_seconds": hyperprompt_compile_timeout_seconds,
+            "hyperprompt_max_input_bytes": hyperprompt_max_input_bytes,
+            "hyperprompt_max_output_bytes": hyperprompt_max_output_bytes,
+            "hyperprompt_bundle_retention_count": hyperprompt_bundle_retention_count,
         }
         if agent_available is not None:
             server_fields["agent_available"] = agent_available
@@ -128,7 +138,33 @@ def test_capability_diagnostics_disable_hyperprompt_for_http_provider(tmp_path) 
 
     assert diagnostics["spec_markdown_export"]["available"] is True
     assert diagnostics["hyperprompt_compile"]["available"] is False
-    assert diagnostics["hyperprompt_compile"]["status"] == "provider_unsupported"
+    assert diagnostics["hyperprompt_compile"]["status"] == "http_compile_disabled"
+
+
+def test_capability_diagnostics_allow_hyperprompt_for_enabled_http_provider(tmp_path) -> None:
+    binary = tmp_path / "hyperprompt"
+    binary.write_text("#!/bin/sh\n", encoding="utf-8")
+    binary.chmod(0o755)
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+
+    diagnostics = build_capability_diagnostics(
+        FakeHandler(
+            spec_dir=object(),
+            hyperprompt_binary=str(binary),
+            hyperprompt_resolved_binary=str(binary),
+            hyperprompt_checked_paths=[str(binary)],
+            hyperprompt_resolution_source="configured",
+            hyperprompt_work_dir=scratch,
+            hyperprompt_http_compile_enabled=True,
+        ),
+        provider_kind="http",
+        capabilities={"spec_markdown_export": True},
+    )
+
+    assert diagnostics["hyperprompt_compile"]["available"] is True
+    assert diagnostics["hyperprompt_compile"]["status"] == "available"
+    assert diagnostics["hyperprompt_compile"]["limits"]["timeout_seconds"] == 60
 
 
 def test_capability_diagnostics_require_executable_hyperprompt_binary(tmp_path) -> None:
@@ -198,3 +234,29 @@ def test_capability_diagnostics_report_available_hyperprompt_compile(tmp_path) -
 
     assert diagnostics["hyperprompt_compile"]["available"] is True
     assert diagnostics["hyperprompt_compile"]["status"] == "available"
+
+
+def test_capability_diagnostics_report_invalid_hyperprompt_limit(tmp_path) -> None:
+    binary = tmp_path / "hyperprompt"
+    binary.write_text("#!/bin/sh\n", encoding="utf-8")
+    binary.chmod(0o755)
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+
+    diagnostics = build_capability_diagnostics(
+        FakeHandler(
+            spec_dir=object(),
+            hyperprompt_binary=str(binary),
+            hyperprompt_resolved_binary=str(binary),
+            hyperprompt_checked_paths=[str(binary)],
+            hyperprompt_resolution_source="configured",
+            hyperprompt_work_dir=scratch,
+            hyperprompt_compile_timeout_seconds="fast",
+        ),
+        provider_kind="file",
+        capabilities={"spec_markdown_export": True},
+    )
+
+    assert diagnostics["hyperprompt_compile"]["available"] is False
+    assert diagnostics["hyperprompt_compile"]["status"] == "invalid_limit"
+    assert diagnostics["hyperprompt_compile"]["limit_error"]["field"] == "hyperprompt_compile_timeout_seconds"
