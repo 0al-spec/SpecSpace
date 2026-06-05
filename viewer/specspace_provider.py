@@ -255,6 +255,75 @@ def build_hyperprompt_compile_unavailable_response(
     }
 
 
+def compile_spec_markdown_with_provider(
+    provider: SpecSpaceProvider,
+    handler: CapabilityContext,
+    root_id: str,
+    options: spec_compile.CompileOptions,
+    *,
+    scope: str,
+) -> tuple[int, dict[str, Any]]:
+    diagnostic = capabilities_api.build_hyperprompt_compile_diagnostic(
+        handler,
+        provider_kind=provider.kind,
+    )
+    if not bool(diagnostic.get("available")):
+        return build_hyperprompt_compile_unavailable_response(handler, provider)
+
+    export_status, export_payload = provider.read_spec_markdown(root_id, options)
+    if export_status != HTTPStatus.OK:
+        return export_status, export_payload
+
+    markdown = export_payload.get("markdown")
+    manifest = export_payload.get("manifest")
+    source = export_payload.get("source")
+    if not isinstance(markdown, str) or not isinstance(manifest, dict) or not isinstance(source, dict):
+        return HTTPStatus.INTERNAL_SERVER_ERROR, {
+            "api_version": SPECSPACE_API_VERSION,
+            "error": "Spec Markdown export response was incomplete.",
+        }
+
+    server = handler.server
+    limits, limit_error = capabilities_api.hyperprompt_compile_limits(server)
+    if limit_error is not None:
+        return build_hyperprompt_compile_unavailable_response(handler, provider)
+    work_dir = Path(getattr(server, "hyperprompt_work_dir"))
+    binary_path = str(getattr(server, "hyperprompt_resolved_binary") or getattr(server, "hyperprompt_binary"))
+    default_binary = str(getattr(server, "hyperprompt_binary"))
+    repo_root = Path(getattr(server, "repo_root"))
+    compile_status, compile_payload = specspace_hyperprompt.compile_spec_markdown_export(
+        work_dir=work_dir,
+        root_id=root_id,
+        scope=scope,
+        markdown=markdown,
+        manifest=manifest,
+        source=source,
+        options=options,
+        binary_path=binary_path,
+        default_hyperprompt_binary=default_binary,
+        repo_root=repo_root,
+        timeout_seconds=limits["timeout_seconds"],
+        max_input_bytes=limits["max_input_bytes"],
+        max_output_bytes=limits["max_output_bytes"],
+        bundle_retention_count=limits["bundle_retention_count"],
+    )
+    response: dict[str, Any] = {
+        "api_version": SPECSPACE_API_VERSION,
+        "artifact_kind": "specspace_hyperprompt_compile",
+        "root_id": root_id,
+        "scope": scope,
+        "source": source,
+        "export": {
+            "manifest": manifest,
+            "download_filename": export_payload.get("download_filename"),
+        },
+        "compile": compile_payload,
+    }
+    if compile_status != HTTPStatus.OK:
+        response["error"] = compile_payload.get("error", "Hyperprompt compile failed.")
+    return compile_status, response
+
+
 @dataclass(frozen=True)
 class FileSpecGraphProvider:
     """Readonly file-backed provider over SpecGraph nodes and runs artifacts."""
@@ -376,58 +445,7 @@ class FileSpecGraphProvider:
         *,
         scope: str,
     ) -> tuple[int, dict[str, Any]]:
-        diagnostic = capabilities_api.build_hyperprompt_compile_diagnostic(
-            handler,
-            provider_kind=self.kind,
-        )
-        if not bool(diagnostic.get("available")):
-            return build_hyperprompt_compile_unavailable_response(handler, self)
-
-        export_status, export_payload = self.read_spec_markdown(root_id, options)
-        if export_status != HTTPStatus.OK:
-            return export_status, export_payload
-
-        markdown = export_payload.get("markdown")
-        manifest = export_payload.get("manifest")
-        source = export_payload.get("source")
-        if not isinstance(markdown, str) or not isinstance(manifest, dict) or not isinstance(source, dict):
-            return HTTPStatus.INTERNAL_SERVER_ERROR, {
-                "api_version": SPECSPACE_API_VERSION,
-                "error": "Spec Markdown export response was incomplete.",
-            }
-
-        server = handler.server
-        work_dir = Path(getattr(server, "hyperprompt_work_dir"))
-        binary_path = str(getattr(server, "hyperprompt_resolved_binary") or getattr(server, "hyperprompt_binary"))
-        default_binary = str(getattr(server, "hyperprompt_binary"))
-        repo_root = Path(getattr(server, "repo_root"))
-        compile_status, compile_payload = specspace_hyperprompt.compile_spec_markdown_export(
-            work_dir=work_dir,
-            root_id=root_id,
-            scope=scope,
-            markdown=markdown,
-            manifest=manifest,
-            source=source,
-            options=options,
-            binary_path=binary_path,
-            default_hyperprompt_binary=default_binary,
-            repo_root=repo_root,
-        )
-        response: dict[str, Any] = {
-            "api_version": SPECSPACE_API_VERSION,
-            "artifact_kind": "specspace_hyperprompt_compile",
-            "root_id": root_id,
-            "scope": scope,
-            "source": source,
-            "export": {
-                "manifest": manifest,
-                "download_filename": export_payload.get("download_filename"),
-            },
-            "compile": compile_payload,
-        }
-        if compile_status != HTTPStatus.OK:
-            response["error"] = compile_payload.get("error", "Hyperprompt compile failed.")
-        return compile_status, response
+        return compile_spec_markdown_with_provider(self, handler, root_id, options, scope=scope)
 
     def read_recent_runs(self, *, limit: int, since_iso: str | None) -> tuple[HTTPStatus, dict[str, Any]]:
         unavailable = self._runs_unavailable()
@@ -841,7 +859,7 @@ class HttpSpecGraphProvider:
         *,
         scope: str,
     ) -> tuple[int, dict[str, Any]]:
-        return build_hyperprompt_compile_unavailable_response(handler, self)
+        return compile_spec_markdown_with_provider(self, handler, root_id, options, scope=scope)
 
     def read_recent_runs(self, *, limit: int, since_iso: str | None) -> tuple[int, dict[str, Any]]:
         manifest, manifest_error = self._read_manifest()

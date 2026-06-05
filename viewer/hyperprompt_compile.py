@@ -66,6 +66,7 @@ def invoke_hyperprompt(
     *,
     default_hyperprompt_binary: str,
     repo_root: Path,
+    timeout_seconds: int = 60,
 ) -> tuple[int, dict[str, Any]]:
     """Invoke the Hyperprompt compiler on the exported root.hc.
 
@@ -110,11 +111,12 @@ def invoke_hyperprompt(
     ]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
     except subprocess.TimeoutExpired:
         return HTTPStatus.INTERNAL_SERVER_ERROR, {
             "error": "Hyperprompt compiler timed out",
             "exit_code": None,
+            "timeout_seconds": timeout_seconds,
         }
     except Exception as exc:
         return HTTPStatus.INTERNAL_SERVER_ERROR, {

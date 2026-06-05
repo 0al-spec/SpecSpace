@@ -266,7 +266,10 @@ Response:
     "markdown_file": "/data/specspace-hyperprompt/SG-SPEC-0001-abc123/export.md",
     "export_manifest": "/data/specspace-hyperprompt/SG-SPEC-0001-abc123/export_manifest.json",
     "compiled_md": "/data/specspace-hyperprompt/SG-SPEC-0001-abc123/compiled.md",
-    "manifest_json": "/data/specspace-hyperprompt/SG-SPEC-0001-abc123/manifest.json"
+    "manifest_json": "/data/specspace-hyperprompt/SG-SPEC-0001-abc123/manifest.json",
+    "timeout_seconds": 60,
+    "max_input_bytes": 1048576,
+    "max_output_bytes": 2097152
   }
 }
 ```
@@ -276,7 +279,8 @@ same actionable diagnostic shape used by `/api/v1/capabilities`. HTTP/static
 artifact deployments return `http_compile_disabled` until explicitly enabled
 and `provider_unsupported` only when the active provider cannot support the
 contract. Compiler failures return `422` with `compile.exit_code`, `stderr`,
-and `stdout`.
+and `stdout`; timeout failures return `500`; generated input/output over
+configured limits returns `413`.
 
 ### `GET /api/v1/runs/recent`
 
@@ -467,7 +471,14 @@ eligible only through the opt-in contract in
       "resolved_binary": "/repo/deps/hyperprompt",
       "resolution_source": "configured",
       "checked_paths": ["/repo/deps/hyperprompt"],
-      "scratch_workspace": null
+      "scratch_workspace": null,
+      "http_compile_enabled": false,
+      "limits": {
+        "timeout_seconds": 60,
+        "max_input_bytes": 1048576,
+        "max_output_bytes": 2097152,
+        "bundle_retention_count": 20
+      }
     }
   },
   "provider": {

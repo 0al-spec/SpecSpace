@@ -22,6 +22,11 @@ class ViewerRuntimeServer(Protocol):
     hyperprompt_checked_paths: list[str]
     hyperprompt_resolution_source: str
     hyperprompt_work_dir: Path | None
+    hyperprompt_http_compile_enabled: bool
+    hyperprompt_compile_timeout_seconds: str | None
+    hyperprompt_max_input_bytes: str | None
+    hyperprompt_max_output_bytes: str | None
+    hyperprompt_bundle_retention_count: str | None
     hyperprompt_compile_available: bool
     compile_available: bool
     spec_dir: Path | None
@@ -43,6 +48,7 @@ def build_arg_parser(
     default_hyperprompt_binary: str,
 ) -> argparse.ArgumentParser:
     hyperprompt_work_dir_env = os.environ.get("SPECSPACE_HYPERPROMPT_WORK_DIR", "").strip()
+    http_compile_enabled_env = os.environ.get("SPECSPACE_HYPERPROMPT_HTTP_COMPILE_ENABLED", "").strip()
     agent_workbench_dir_env = os.environ.get("SPECSPACE_AGENT_WORKBENCH_DIR", "").strip()
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
@@ -67,6 +73,32 @@ def build_arg_parser(
             "Explicit scratch workspace for optional SpecSpace Hyperprompt compile. "
             "When omitted, /api/v1/capabilities reports Hyperprompt compile as unavailable."
         ),
+    )
+    parser.add_argument(
+        "--enable-http-hyperprompt-compile",
+        action="store_true",
+        default=http_compile_enabled_env.lower() in {"1", "true", "yes", "on"},
+        help="Allow Hyperprompt compile for HTTP artifact providers when scratch and limits are configured.",
+    )
+    parser.add_argument(
+        "--hyperprompt-compile-timeout-seconds",
+        default=os.environ.get("SPECSPACE_HYPERPROMPT_COMPILE_TIMEOUT_SECONDS"),
+        help="Hyperprompt compile timeout in seconds. Defaults to 60.",
+    )
+    parser.add_argument(
+        "--hyperprompt-max-input-bytes",
+        default=os.environ.get("SPECSPACE_HYPERPROMPT_MAX_INPUT_BYTES"),
+        help="Maximum generated Markdown input size for Hyperprompt compile. Defaults to 1048576.",
+    )
+    parser.add_argument(
+        "--hyperprompt-max-output-bytes",
+        default=os.environ.get("SPECSPACE_HYPERPROMPT_MAX_OUTPUT_BYTES"),
+        help="Maximum compiled Markdown bytes returned by the API. Defaults to 2097152.",
+    )
+    parser.add_argument(
+        "--hyperprompt-bundle-retention-count",
+        default=os.environ.get("SPECSPACE_HYPERPROMPT_BUNDLE_RETENTION_COUNT"),
+        help="Number of SpecSpace-owned Hyperprompt bundles to retain. Defaults to 20.",
     )
     parser.add_argument(
         "--spec-dir",
@@ -151,6 +183,11 @@ def configure_server(
     server.hyperprompt_resolution_source = resolution_source
     hyperprompt_work_dir = getattr(args, "hyperprompt_work_dir", None)
     server.hyperprompt_work_dir = hyperprompt_work_dir.expanduser().resolve() if hyperprompt_work_dir else None
+    server.hyperprompt_http_compile_enabled = bool(args.enable_http_hyperprompt_compile)
+    server.hyperprompt_compile_timeout_seconds = args.hyperprompt_compile_timeout_seconds
+    server.hyperprompt_max_input_bytes = args.hyperprompt_max_input_bytes
+    server.hyperprompt_max_output_bytes = args.hyperprompt_max_output_bytes
+    server.hyperprompt_bundle_retention_count = args.hyperprompt_bundle_retention_count
     server.hyperprompt_compile_available = False
     server.compile_available = resolved_binary is not None
     server.spec_dir = args.spec_dir.expanduser().resolve() if args.spec_dir else None

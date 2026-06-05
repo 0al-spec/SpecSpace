@@ -1,14 +1,14 @@
 # HTTP Provider Hyperprompt Compile Contract
 
-Status: planned contract for SpecSpace issue #220.
+Status: implemented runtime contract for SpecSpace issues #220 and #221.
 
 ## Purpose
 
-SpecSpace can already export SpecGraph Markdown from both local file providers
-and read-only HTTP artifact providers. The production Timeweb deployment also
-bundles a Hyperprompt binary at `/app/deps/hyperprompt`, but compile remains
-disabled for HTTP providers until SpecSpace has an explicit materialization and
-safety contract.
+SpecSpace can export SpecGraph Markdown from both local file providers and
+read-only HTTP artifact providers. The production Timeweb deployment also
+bundles a Hyperprompt binary at `/app/deps/hyperprompt`. Compile remains
+disabled by default for HTTP providers, but can be enabled explicitly under the
+bounded materialization contract below.
 
 This document defines that contract. It is intentionally narrower than a
 general remote workspace compiler: HTTP-backed SpecGraph artifacts remain
@@ -40,8 +40,8 @@ HTTP-provider Hyperprompt compile is disabled by default. It becomes available
 only when all of the following are true:
 
 1. The active provider kind is `http`.
-2. `SPECSPACE_HYPERPROMPT_HTTP_COMPILE_ENABLED=true` is set, or the equivalent
-   future CLI flag is passed.
+2. `SPECSPACE_HYPERPROMPT_HTTP_COMPILE_ENABLED=true` is set, or
+   `--enable-http-hyperprompt-compile` is passed.
 3. A Hyperprompt binary is configured and executable.
 4. `SPECSPACE_HYPERPROMPT_WORK_DIR` or `--hyperprompt-work-dir` points to an
    existing writable directory.
@@ -100,7 +100,7 @@ The runtime must enforce bounded execution. Default limits:
 - maximum compiled Markdown output read into the API response: 2 MiB;
 - maximum retained bundles: 20.
 
-Planned configuration names:
+Configuration names:
 
 ```text
 SPECSPACE_HYPERPROMPT_COMPILE_TIMEOUT_SECONDS
@@ -131,7 +131,7 @@ Expected `hyperprompt_compile.status` values:
 - `scratch_unreadable`: scratch path inspection raised an OS error.
 - `invalid_limit`: configured timeout/size/retention limit is invalid.
 
-When available, diagnostics should include:
+When available, diagnostics include:
 
 - configured binary path;
 - resolved binary path;
@@ -191,8 +191,8 @@ returned.
 
 ## Platform Deployment Inputs
 
-Platform should keep production compile disabled until SpecSpace implements this
-contract. To enable it later, Platform will need to render:
+Platform should keep production compile disabled unless an operator explicitly
+enables this runtime. To enable it, Platform must render:
 
 ```text
 SPECSPACE_HYPERPROMPT_HTTP_COMPILE_ENABLED=true
