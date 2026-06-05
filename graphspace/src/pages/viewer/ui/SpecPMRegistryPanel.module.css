@@ -3,6 +3,10 @@
   background: var(--gs-panel);
 }
 
+.panel.panel {
+  flex: 0 0 auto;
+}
+
 .summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -41,6 +45,47 @@
 .packages {
   display: grid;
   grid-template-columns: 1fr;
+}
+
+.packageTools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--gs-space-4);
+  align-items: end;
+  padding: var(--gs-space-5) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+}
+
+.searchLabel {
+  display: grid;
+  gap: var(--gs-space-2);
+  min-width: 0;
+}
+
+.searchInput {
+  width: 100%;
+  border: 1px solid var(--gs-rule-soft);
+  border-radius: 0;
+  background: var(--gs-paper);
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  min-height: 32px;
+  padding: 0 var(--gs-space-3);
+}
+
+.searchInput::placeholder {
+  color: var(--gs-muted-2);
+}
+
+.resultCount {
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-align: right;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .packageRow {
@@ -105,4 +150,48 @@
   font-size: 10px;
   line-height: 1.45;
   overflow-wrap: anywhere;
+}
+
+.showMoreRow {
+  display: flex;
+  gap: var(--gs-space-4);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--gs-space-5) var(--gs-space-6);
+  border-top: 1px solid var(--gs-rule-soft);
+}
+
+.showMoreButton {
+  border: 1px solid var(--gs-accent-soft);
+  border-radius: 0;
+  background: var(--gs-paper);
+  color: var(--gs-accent);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  min-height: 28px;
+  padding: 0 var(--gs-space-3);
+  text-transform: uppercase;
+}
+
+.showMoreButton:hover {
+  background: color-mix(in srgb, var(--gs-accent) 8%, var(--gs-paper));
+}
+
+@media (max-width: 640px) {
+  .packageTools,
+  .showMoreRow {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .showMoreRow {
+    display: grid;
+  }
+
+  .resultCount {
+    text-align: left;
+    white-space: normal;
+  }
 }

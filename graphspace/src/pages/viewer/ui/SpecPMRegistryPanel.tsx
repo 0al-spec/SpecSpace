@@ -1,4 +1,9 @@
+import { useState } from "react";
 import type { SpecPMRegistryPackageSummary } from "@/shared/specpm-registry-contract";
+import {
+  filterSpecPMRegistryPackages,
+  visibleSpecPMRegistryPackages,
+} from "../model/specpm-registry-filter";
 import type { UseSpecPMRegistryState } from "../model/use-specpm-registry-summary";
 import styles from "./SpecPMRegistryPanel.module.css";
 
@@ -26,6 +31,9 @@ function errorDetail(state: Exclude<UseSpecPMRegistryState, { kind: "ok" | "idle
 }
 
 export function SpecPMRegistryPanel({ state }: Props) {
+  const [packageQuery, setPackageQuery] = useState("");
+  const [expandedPackages, setExpandedPackages] = useState(false);
+
   if (state.kind === "idle" || state.kind === "loading") {
     return (
       <section className={styles.panel} aria-label="SpecPM registry">
@@ -51,6 +59,16 @@ export function SpecPMRegistryPanel({ state }: Props) {
   const { data } = state;
   const registry = data.registry.registry;
   const packages = data.packages.packages;
+  const filteredPackages = filterSpecPMRegistryPackages(packages, packageQuery);
+  const { hiddenCount, visiblePackages } = visibleSpecPMRegistryPackages(
+    filteredPackages,
+    expandedPackages,
+  );
+
+  const updatePackageQuery = (query: string) => {
+    setPackageQuery(query);
+    setExpandedPackages(false);
+  };
 
   return (
     <section className={styles.panel} aria-label="SpecPM registry">
@@ -75,9 +93,25 @@ export function SpecPMRegistryPanel({ state }: Props) {
         </div>
       </div>
 
+      <div className={styles.packageTools}>
+        <label className={styles.searchLabel}>
+          <span className={styles.label}>Package search</span>
+          <input
+            className={styles.searchInput}
+            type="search"
+            value={packageQuery}
+            placeholder="xyflow.core or capability"
+            onChange={(event) => updatePackageQuery(event.currentTarget.value)}
+          />
+        </label>
+        <span className={styles.resultCount}>
+          {filteredPackages.length} of {packages.length} packages
+        </span>
+      </div>
+
       <div className={styles.packages}>
-        {packages.length > 0 ? (
-          packages.slice(0, 8).map((pkg) => (
+        {visiblePackages.length > 0 ? (
+          visiblePackages.map((pkg) => (
             <div key={pkg.package_id} className={styles.packageRow}>
               <div className={styles.packageMain}>
                 <span className={styles.packageId}>{pkg.package_id}</span>
@@ -96,10 +130,27 @@ export function SpecPMRegistryPanel({ state }: Props) {
           ))
         ) : (
           <div className={styles.status}>
-            <span className={styles.empty}>No packages published in this registry.</span>
+            <span className={styles.empty}>
+              {packages.length > 0
+                ? "No packages match the current search."
+                : "No packages published in this registry."}
+            </span>
           </div>
         )}
       </div>
+
+      {hiddenCount > 0 ? (
+        <div className={styles.showMoreRow}>
+          <button
+            className={styles.showMoreButton}
+            type="button"
+            onClick={() => setExpandedPackages(true)}
+          >
+            Show all {filteredPackages.length} packages
+          </button>
+          <span className={styles.resultCount}>{hiddenCount} hidden initially</span>
+        </div>
+      ) : null}
     </section>
   );
 }
