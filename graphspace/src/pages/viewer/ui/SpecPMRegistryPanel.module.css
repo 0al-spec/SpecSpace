@@ -3,6 +3,10 @@
   background: var(--gs-panel);
 }
 
+.panel.panel {
+  flex: 0 0 auto;
+}
+
 .summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
