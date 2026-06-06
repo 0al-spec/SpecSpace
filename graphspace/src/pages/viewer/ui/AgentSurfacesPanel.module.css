@@ -1,0 +1,274 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--gs-rule-mid);
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+}
+
+.summary {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid var(--gs-rule-soft);
+}
+
+.metric {
+  min-width: 0;
+  padding: var(--gs-space-5) var(--gs-space-5);
+  border-right: 1px solid var(--gs-rule-soft);
+}
+
+.metric:last-child {
+  border-right: 0;
+}
+
+.metricValue {
+  display: block;
+  font-family: var(--gs-serif);
+  font-size: 21px;
+  color: var(--gs-ink);
+}
+
+.metricLabel,
+.kicker,
+.rowId,
+.metaLabel,
+.source,
+.pill,
+.gapSeverity,
+.statusLabel {
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.metricLabel,
+.kicker,
+.metaLabel,
+.statusDetail {
+  color: var(--gs-muted-2);
+}
+
+.handoff {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gs-space-4);
+  padding: var(--gs-space-5) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: color-mix(in srgb, var(--gs-accent) 6%, var(--gs-paper));
+}
+
+.handoffMain {
+  min-width: 0;
+}
+
+.handoffId,
+.passportRef,
+.metaValue,
+.gapText,
+.gapAction {
+  overflow-wrap: anywhere;
+}
+
+.handoffId {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  color: var(--gs-ink);
+}
+
+.statusGroup {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--gs-space-2);
+}
+
+.pill {
+  border: 1px solid var(--gs-rule-soft);
+  padding: 3px 6px;
+  background: var(--gs-panel);
+}
+
+.toneOk {
+  color: var(--gs-ok);
+}
+
+.toneWarn {
+  color: var(--gs-warn);
+}
+
+.toneDanger {
+  color: var(--gs-danger);
+}
+
+.toneNeutral {
+  color: var(--gs-muted);
+}
+
+.sourceStrip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-2);
+  padding: var(--gs-space-4) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+}
+
+.source {
+  border: 1px solid var(--gs-rule-soft);
+  padding: 3px 6px;
+  overflow-wrap: anywhere;
+}
+
+.sourceOk {
+  color: var(--gs-ok);
+}
+
+.sourceMuted {
+  color: var(--gs-muted-2);
+}
+
+.executorList {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--gs-rule-soft);
+}
+
+.executorRow,
+.row {
+  padding: var(--gs-space-6);
+  background: var(--gs-paper);
+  border-bottom: 1px solid var(--gs-rule-soft);
+}
+
+.executorRow:last-child,
+.row:last-child {
+  border-bottom: 0;
+}
+
+.entries {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.rowHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gs-space-4);
+}
+
+.rowId {
+  min-width: 0;
+  color: var(--gs-accent);
+  overflow-wrap: anywhere;
+}
+
+.title {
+  margin: var(--gs-space-3) 0 0;
+  color: var(--gs-ink);
+  font-family: var(--gs-serif);
+  font-size: 17px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gs-space-4);
+  margin-top: var(--gs-space-5);
+}
+
+.meta {
+  min-width: 0;
+}
+
+.metaLabel {
+  display: block;
+}
+
+.metaValue {
+  display: block;
+  margin-top: 2px;
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+}
+
+.passportRef {
+  margin: var(--gs-space-5) 0 0;
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+}
+
+.gaps {
+  margin-top: var(--gs-space-5);
+  border-top: 1px solid var(--gs-rule-soft);
+}
+
+.gapRow {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: var(--gs-space-3) var(--gs-space-4);
+  padding-top: var(--gs-space-4);
+}
+
+.gapSeverity {
+  grid-row: span 2;
+}
+
+.gapText {
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+}
+
+.gapAction {
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+}
+
+.statusNotice {
+  padding: var(--gs-space-8) var(--gs-space-6);
+  color: var(--gs-muted);
+}
+
+.statusLabel,
+.statusDetail {
+  display: block;
+}
+
+.statusDetail {
+  margin-top: var(--gs-space-2);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .summary,
+  .metaGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .handoff,
+  .rowHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .statusGroup {
+    justify-content: flex-start;
+  }
+}

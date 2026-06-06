@@ -362,6 +362,11 @@ def handle_v1_metrics(handler: SpecSpaceV1Handler) -> None:
     json_response(handler, status, payload)
 
 
+def handle_v1_agent_surfaces(handler: SpecSpaceV1Handler) -> None:
+    status, payload = _provider(handler).read_agent_surfaces()
+    json_response(handler, status, payload)
+
+
 def handle_v1_specpm_registry(handler: SpecSpaceV1Handler) -> None:
     status, payload = specspace_provider.read_specpm_registry_summary(handler.server)
     json_response(handler, status, payload)

@@ -49,6 +49,7 @@ export function describeCapabilityDiagnostics(
 
   const markdown = state.data.diagnostics.specMarkdownExport;
   const hyperprompt = state.data.diagnostics.hyperpromptCompile;
+  const agentPassport = state.data.diagnostics.agentPassportCli;
   return [
     {
       id: "spec-markdown-export",
@@ -70,6 +71,18 @@ export function describeCapabilityDiagnostics(
         hyperprompt.detail,
         hyperprompt.resolvedBinary ? `binary ${hyperprompt.resolvedBinary}` : null,
         hyperprompt.scratchWorkspace ? `scratch ${hyperprompt.scratchWorkspace}` : null,
+      ].filter(Boolean).join("; "),
+    },
+    {
+      id: "agent-passport-cli",
+      label: "Agent Passport CLI",
+      endpoint,
+      tone: agentPassport.available ? "live" : "empty",
+      status: agentPassport.status,
+      countLabel: agentPassport.available ? "ready" : "disabled",
+      detail: [
+        agentPassport.detail,
+        agentPassport.resolvedBinary ? `binary ${agentPassport.resolvedBinary}` : null,
       ].filter(Boolean).join("; "),
     },
   ];

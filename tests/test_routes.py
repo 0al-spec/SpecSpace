@@ -36,6 +36,13 @@ def test_route_table_resolves_agent_workbench_conversation_prefix() -> None:
     assert route.pass_parsed is True
 
 
+def test_route_table_resolves_agent_surfaces() -> None:
+    route = routes.route_for("GET", "/api/v1/agent-surfaces")
+
+    assert route is not None
+    assert route.handler == "handle_v1_agent_surfaces"
+
+
 def test_route_table_returns_none_for_unknown_route() -> None:
     assert routes.route_for("GET", "/api/not-a-real-route") is None
     assert routes.route_for("PATCH", "/api/file") is None
