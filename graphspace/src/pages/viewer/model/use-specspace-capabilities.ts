@@ -11,6 +11,15 @@ export type HyperpromptCompileDiagnostic = {
   scratchWorkspace: string | null;
 };
 
+export type AgentPassportCliDiagnostic = {
+  available: boolean;
+  status: string;
+  detail: string;
+  configuredBinary: string | null;
+  resolvedBinary: string | null;
+  checkedPaths: readonly string[];
+};
+
 export type SpecMarkdownExportDiagnostic = {
   available: boolean;
   status: string;
@@ -23,6 +32,7 @@ export type SpecSpaceCapabilities = {
   diagnostics: {
     specMarkdownExport: SpecMarkdownExportDiagnostic;
     hyperpromptCompile: HyperpromptCompileDiagnostic;
+    agentPassportCli: AgentPassportCliDiagnostic;
   };
 };
 
@@ -82,6 +92,29 @@ function parseHyperpromptDiagnostic(value: unknown): HyperpromptCompileDiagnosti
   };
 }
 
+function parseAgentPassportCliDiagnostic(value: unknown): AgentPassportCliDiagnostic {
+  if (!isRecord(value) || typeof value.available !== "boolean") {
+    return {
+      available: false,
+      status: "not_reported",
+      detail: "Agent Passport CLI diagnostic is not reported by this deployment.",
+      configuredBinary: null,
+      resolvedBinary: null,
+      checkedPaths: [],
+    };
+  }
+  return {
+    available: value.available,
+    status: optionalString(value.status) ?? (value.available ? "available" : "unavailable"),
+    detail: optionalString(value.detail) ?? "No Agent Passport CLI diagnostic detail.",
+    configuredBinary: optionalString(value.configured_binary),
+    resolvedBinary: optionalString(value.resolved_binary),
+    checkedPaths: Array.isArray(value.checked_paths)
+      ? value.checked_paths.filter((path): path is string => typeof path === "string" && path.length > 0)
+      : [],
+  };
+}
+
 function parseCapabilities(raw: unknown): SpecSpaceCapabilities | { reason: string; raw: unknown } {
   if (!isRecord(raw)) return { reason: "capabilities response is not an object", raw };
   const capabilities = booleanMap(raw.capabilities);
@@ -89,6 +122,7 @@ function parseCapabilities(raw: unknown): SpecSpaceCapabilities | { reason: stri
   const diagnostics = isRecord(raw.diagnostics) ? raw.diagnostics : {};
   const specMarkdownExport = parseMarkdownDiagnostic(diagnostics.spec_markdown_export);
   const hyperpromptCompile = parseHyperpromptDiagnostic(diagnostics.hyperprompt_compile);
+  const agentPassportCli = parseAgentPassportCliDiagnostic(diagnostics.agent_passport_cli);
   if (!specMarkdownExport || !hyperpromptCompile) {
     return { reason: "capability diagnostics are missing or malformed", raw };
   }
@@ -99,6 +133,7 @@ function parseCapabilities(raw: unknown): SpecSpaceCapabilities | { reason: stri
     diagnostics: {
       specMarkdownExport,
       hyperpromptCompile,
+      agentPassportCli,
     },
   };
 }

@@ -532,6 +532,163 @@ def _write_metrics_viewer_artifacts(runs_dir: Path) -> None:
     )
 
 
+def _write_agent_surface_artifacts(runs_dir: Path) -> None:
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(
+        runs_dir / "supervisor_executor_adapter_index.json",
+        {
+            "artifact_kind": "supervisor_executor_adapter_index",
+            "schema_version": 1,
+            "generated_at": "2026-06-06T10:00:00Z",
+            "summary": {
+                "backend_count": 1,
+                "available_backend_count": 1,
+                "default_backend_id": "codex",
+                "agent_passport_cli_status": "available",
+                "next_gap": "run_executor_adapter_smoke_benchmark",
+            },
+            "entries": [
+                {
+                    "backend_id": "codex",
+                    "display_name": "Codex CLI",
+                    "backend_status": "available",
+                    "authority_state": "default",
+                    "command_surface": "cli",
+                    "protocol_contract": "run_outcome_blocker",
+                    "passport_ref": "agent-passport://executors/codex-cli/0.1.0",
+                    "passport_validation": {
+                        "required": False,
+                        "validation_state": "not_attempted",
+                        "tool_status": "available",
+                    },
+                    "smoke_status": "not_run",
+                    "canonical_trial_allowed": False,
+                    "safe_next_action": "run_executor_adapter_smoke_benchmark",
+                    "capability_gaps": [{"gap": "smoke_not_run"}],
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "known_agent_passport_index.json",
+        {
+            "artifact_kind": "known_agent_passport_index",
+            "schema_version": 1,
+            "generated_at": "2026-06-06T10:00:00Z",
+            "summary": {"agent_count": 1, "verified_count": 0},
+            "entries": [
+                {
+                    "agent_surface": "specgraph.executor.codex",
+                    "surface_type": "executor_backend",
+                    "passport_ref": "agent-passport://executors/codex-cli/0.1.0",
+                    "verification_state": "not_attempted",
+                    "runtime_enforcement_state": "not_enforced",
+                    "requires_passport": True,
+                    "executor_backend_id": "codex",
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "agent_surface_index.json",
+        {
+            "artifact_kind": "agent_surface_index",
+            "schema_version": 1,
+            "generated_at": "2026-06-06T10:00:00Z",
+            "summary": {
+                "surface_count": 1,
+                "missing_passport_count": 0,
+                "agent_passport_cli_status": "available",
+                "next_gap": "close_agent_verification_gaps",
+            },
+            "surfaces": [
+                {
+                    "surface_id": "specgraph.executor.codex",
+                    "title": "Codex executor backend",
+                    "surface_type": "executor_backend",
+                    "source": "supervisor_executor_adapter_index",
+                    "source_proposal_ids": ["0056", "0059"],
+                    "requires_passport": True,
+                    "launches_agents": True,
+                    "prepares_handoffs": False,
+                    "passport_ref": "agent-passport://executors/codex-cli/0.1.0",
+                    "verification_state": "not_attempted",
+                    "runtime_enforcement_state": "not_enforced",
+                    "executor_backend_id": "codex",
+                    "backend_status": "available",
+                    "passport_validation": {
+                        "required": False,
+                        "validation_state": "not_attempted",
+                        "tool_status": "available",
+                    },
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "agent_verification_gap_index.json",
+        {
+            "artifact_kind": "agent_verification_gap_index",
+            "schema_version": 1,
+            "generated_at": "2026-06-06T10:00:00Z",
+            "summary": {
+                "gap_count": 1,
+                "missing_passport_count": 0,
+                "runtime_enforcement_unknown_count": 1,
+                "agent_passport_cli_status": "available",
+                "next_gap": "close_agent_verification_gaps",
+            },
+            "gaps": [
+                {
+                    "gap_id": "agent_gap::specgraph.executor.codex::runtime_enforcement",
+                    "agent_surface": "specgraph.executor.codex",
+                    "surface_type": "executor_backend",
+                    "gap": "runtime_enforcement_not_proven",
+                    "severity": "medium",
+                    "reason": "Executor passport enforcement has not been observed.",
+                    "next_action": "wire_agent_passport_validation_cli",
+                    "source_proposal_ids": ["0059"],
+                    "source_artifacts": ["runs/agent_surface_index.json"],
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "external_consumer_handoff_packets.json",
+        {
+            "artifact_kind": "external_consumer_handoff_packets",
+            "schema_version": 1,
+            "generated_at": "2026-06-06T10:00:00Z",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "handoff_id": "external_consumer_handoff::specspace",
+                    "consumer_id": "specspace",
+                    "handoff_status": "ready_for_handoff",
+                    "review_state": "ready_for_review",
+                    "next_gap": "review_handoff_packet",
+                    "source_gap": "specspace_agent_surface_visibility",
+                    "source_proposal_ids": ["0065", "0068"],
+                    "artifact_contract": {
+                        "required_artifacts": [
+                            "runs/supervisor_executor_adapter_index.json",
+                            "runs/agent_surface_index.json",
+                            "runs/agent_verification_gap_index.json",
+                        ]
+                    },
+                    "expected_consumer_behavior": {
+                        "surface": "utility_panel",
+                        "mode": "readonly",
+                    },
+                    "evidence_requirements": {
+                        "evidence_kind": "report_only",
+                    },
+                }
+            ],
+        },
+    )
+
+
 class SpecSpaceProviderHealthTests(unittest.TestCase):
     def test_directory_health_distinguishes_missing_empty_and_ok(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -946,6 +1103,107 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["sources"]["metric_signals"]["detail"],
             "JSON root is not an object",
         )
+
+    def test_agent_surfaces_v1_combines_stable_specgraph_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_agent_surface_artifacts(root / "runs")
+            httpd, thread, base = _start(root / "dialogs", runs_dir=root / "runs")
+            try:
+                status, body = _get(f"{base}/api/v1/agent-surfaces")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["api_version"], "v1")
+        self.assertEqual(body["artifact_kind"], "specspace_agent_surface_index")
+        self.assertEqual(body["schema_version"], 1)
+        self.assertEqual(body["source"]["provider"], "file")
+        self.assertEqual(body["entry_count"], 1)
+        self.assertEqual(body["summary"]["surface_count"], 1)
+        self.assertEqual(body["summary"]["executor_backend_count"], 1)
+        self.assertEqual(body["summary"]["verification_gap_count"], 1)
+        self.assertEqual(body["summary"]["agent_passport_cli_status"], "available")
+        self.assertEqual(body["handoff"]["handoff_status"], "ready_for_handoff")
+        self.assertEqual(body["handoff"]["review_state"], "ready_for_review")
+        self.assertEqual(body["entries"][0]["surface_id"], "specgraph.executor.codex")
+        self.assertEqual(body["entries"][0]["gap_count"], 1)
+        self.assertEqual(body["entries"][0]["gaps"][0]["next_action"], "wire_agent_passport_validation_cli")
+        self.assertEqual(body["executor_adapters"][0]["backend_id"], "codex")
+        self.assertNotIn("supervisor_stdout", json.dumps(body))
+        self.assertNotIn("/Users/", json.dumps(body["entries"]))
+
+    def test_agent_surfaces_v1_degrades_when_optional_artifacts_are_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            _write_json(
+                runs_dir / "agent_surface_index.json",
+                {
+                    "artifact_kind": "agent_surface_index",
+                    "schema_version": 1,
+                    "surfaces": [
+                        {
+                            "surface_id": "specspace.operator_handoff",
+                            "title": "SpecSpace operator handoff",
+                            "surface_type": "external_consumer",
+                            "requires_passport": True,
+                            "verification_state": "missing_passport",
+                        }
+                    ],
+                    "summary": {
+                        "surface_count": 1,
+                        "missing_passport_count": 1,
+                        "agent_passport_cli_status": "unknown",
+                    },
+                },
+            )
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/agent-surfaces")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["entry_count"], 1)
+        self.assertEqual(body["entries"][0]["surface_id"], "specspace.operator_handoff")
+        self.assertEqual(body["handoff"]["available"], False)
+        self.assertEqual(body["handoff"]["handoff_status"], "missing")
+        self.assertEqual(body["sources"]["external_handoffs"]["available"], False)
+        self.assertEqual(body["sources"]["external_handoffs"]["reason"], "missing_artifact")
+
+    def test_agent_surfaces_v1_reads_http_static_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifact-site"
+            runs_dir = artifact_root / "runs"
+            runs_dir.mkdir(parents=True)
+            _write_agent_surface_artifacts(runs_dir)
+            _write_manifest(
+                artifact_root,
+                [
+                    "runs/supervisor_executor_adapter_index.json",
+                    "runs/known_agent_passport_index.json",
+                    "runs/agent_surface_index.json",
+                    "runs/agent_verification_gap_index.json",
+                    "runs/external_consumer_handoff_packets.json",
+                ],
+            )
+            static, static_thread, artifact_base_url = _start_static(artifact_root)
+            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base_url)
+            try:
+                status, body = _get(f"{base}/api/v1/agent-surfaces")
+            finally:
+                _stop(httpd, thread)
+                _stop(static, static_thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["source"]["provider"], "http")
+        self.assertEqual(body["source"]["artifact_base_url"], artifact_base_url)
+        self.assertEqual(body["summary"]["handoff_status"], "ready_for_handoff")
+        self.assertTrue(body["sources"]["agent_surfaces"]["available"])
+        self.assertTrue(body["sources"]["external_handoffs"]["path"].startswith(artifact_base_url))
 
     def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -409,6 +409,66 @@ project-specific id regex.
 }
 ```
 
+### `GET /api/v1/agent-surfaces`
+
+Returns a readonly SpecSpace projection for SpecGraph agent/executor/passport
+visibility. The endpoint combines stable derived SpecGraph artifacts when
+present:
+
+- `supervisor_executor_adapter_index.json`
+- `known_agent_passport_index.json`
+- `agent_surface_index.json`
+- `agent_verification_gap_index.json`
+- `external_consumer_handoff_packets.json`
+
+Missing optional artifacts are represented in `sources`; the endpoint does not
+parse raw supervisor logs, passport private material, local prompt files, or
+executor output. It is a consumer surface for the SpecSpace handoff loop, not an
+Agent Passport validation endpoint.
+
+```json
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_agent_surface_index",
+  "schema_version": 1,
+  "read_only": true,
+  "entry_count": 1,
+  "summary": {
+    "surface_count": 1,
+    "executor_backend_count": 1,
+    "missing_passport_count": 0,
+    "verification_gap_count": 1,
+    "agent_passport_cli_status": "available",
+    "handoff_status": "ready_for_handoff",
+    "next_gap": "review_handoff_packet"
+  },
+  "handoff": {
+    "available": true,
+    "handoff_id": "external_consumer_handoff::specspace",
+    "handoff_status": "ready_for_handoff",
+    "review_state": "ready_for_review"
+  },
+  "entries": [
+    {
+      "surface_id": "specgraph.executor.codex",
+      "surface_type": "executor_backend",
+      "passport_ref": "agent-passport://executors/codex-cli/0.1.0",
+      "verification_state": "not_attempted",
+      "runtime_enforcement_state": "not_enforced",
+      "gap_count": 1
+    }
+  ],
+  "executor_adapters": [
+    {
+      "backend_id": "codex",
+      "backend_status": "available",
+      "smoke_status": "not_run"
+    }
+  ],
+  "sources": {}
+}
+```
+
 ### `GET /api/v1/specpm/lifecycle`
 
 Returns the existing SpecPM lifecycle read-model with additive v1 metadata:
@@ -444,6 +504,9 @@ Returns capability booleans, provider metadata, and deployment diagnostics.
 `spec_markdown_export` means readonly SpecGraph Markdown export is available.
 `hyperprompt_compile` means a Hyperprompt compiler and scratch workspace are
 explicitly configured for SpecSpace and allowed for the active provider.
+`agent_passport_cli` means the Agent Passport validation CLI binary is present
+and executable in the API container. It is a bundled utility diagnostic, not a
+public validation endpoint.
 Static/HTTP artifact deployments should normally report
 `spec_markdown_export: true` and `hyperprompt_compile: false`; they become
 eligible only through the opt-in contract in
@@ -455,7 +518,8 @@ eligible only through the opt-in contract in
   "capabilities": {
     "spec_graph": true,
     "spec_markdown_export": true,
-    "hyperprompt_compile": false
+    "hyperprompt_compile": false,
+    "agent_passport_cli": true
   },
   "diagnostics": {
     "spec_markdown_export": {
@@ -479,6 +543,14 @@ eligible only through the opt-in contract in
         "max_output_bytes": 2097152,
         "bundle_retention_count": 20
       }
+    },
+    "agent_passport_cli": {
+      "available": true,
+      "status": "available",
+      "detail": "Agent Passport validation CLI is bundled with this SpecSpace deployment.",
+      "configured_binary": "/app/deps/agent-passport",
+      "resolved_binary": "/app/deps/agent-passport",
+      "checked_paths": ["/app/deps/agent-passport"]
     }
   },
   "provider": {
@@ -494,6 +566,9 @@ Known `hyperprompt_compile.status` values include `available`,
 `compiler_not_executable`, `scratch_not_configured`, `scratch_missing`,
 `scratch_not_directory`, `scratch_not_writable`, `scratch_unreadable`, and
 `invalid_limit`.
+Known `agent_passport_cli.status` values include `available`,
+`binary_missing`, `binary_not_file`, `binary_not_executable`,
+`binary_unreadable`, and the UI fallback `not_reported` for older backends.
 
 ### `GET /api/v1/runs-watch`
 

@@ -20,6 +20,7 @@ class FakeHandler:
         hyperprompt_max_input_bytes=None,
         hyperprompt_max_output_bytes=None,
         hyperprompt_bundle_retention_count=None,
+        agent_passport_binary=None,
         agent_available=None,
         graph_dashboard_path=None,
         runs_dir=None,
@@ -41,6 +42,7 @@ class FakeHandler:
             "hyperprompt_max_input_bytes": hyperprompt_max_input_bytes,
             "hyperprompt_max_output_bytes": hyperprompt_max_output_bytes,
             "hyperprompt_bundle_retention_count": hyperprompt_bundle_retention_count,
+            "agent_passport_binary": agent_passport_binary,
         }
         if agent_available is not None:
             server_fields["agent_available"] = agent_available
@@ -81,6 +83,7 @@ def test_build_capabilities_reports_unconfigured_defaults() -> None:
         "agent": False,
         "agent_workbench_conversations": False,
         "agent_workbench_writes": False,
+        "agent_passport_cli": False,
     }
 
 
@@ -113,7 +116,26 @@ def test_build_capabilities_reports_configured_surfaces() -> None:
         "agent": True,
         "agent_workbench_conversations": False,
         "agent_workbench_writes": False,
+        "agent_passport_cli": False,
     }
+
+
+def test_build_capabilities_reports_available_agent_passport_cli(tmp_path) -> None:
+    binary = tmp_path / "agent-passport"
+    binary.write_text("#!/bin/sh\n", encoding="utf-8")
+    binary.chmod(0o755)
+
+    capabilities = build_capabilities(FakeHandler(agent_passport_binary=str(binary)))
+    diagnostics = build_capability_diagnostics(
+        FakeHandler(agent_passport_binary=str(binary)),
+        provider_kind="http",
+        capabilities={"spec_markdown_export": True},
+    )
+
+    assert capabilities["agent_passport_cli"] is True
+    assert diagnostics["agent_passport_cli"]["available"] is True
+    assert diagnostics["agent_passport_cli"]["status"] == "available"
+    assert diagnostics["agent_passport_cli"]["resolved_binary"] == str(binary)
 
 
 def test_capability_diagnostics_disable_hyperprompt_for_http_provider(tmp_path) -> None:

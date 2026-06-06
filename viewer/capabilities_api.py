@@ -18,6 +18,7 @@ MAX_HYPERPROMPT_COMPILE_TIMEOUT_SECONDS = 300
 MAX_HYPERPROMPT_MAX_INPUT_BYTES = 10_485_760
 MAX_HYPERPROMPT_MAX_OUTPUT_BYTES = 20_971_520
 MAX_HYPERPROMPT_BUNDLE_RETENTION_COUNT = 100
+DEFAULT_AGENT_PASSPORT_BINARY = Path(__file__).resolve().parents[1] / "deps" / "agent-passport"
 
 
 class CapabilitiesHandler(JsonResponseHandler, Protocol):
@@ -33,6 +34,7 @@ class CapabilitiesHandler(JsonResponseHandler, Protocol):
 
 
 def build_capabilities(handler: CapabilitiesHandler) -> dict[str, bool]:
+    agent_passport = build_agent_passport_cli_diagnostic(handler)
     return {
         "spec_graph": handler.server.spec_dir is not None,
         "spec_markdown_export": handler.server.spec_dir is not None,
@@ -48,6 +50,7 @@ def build_capabilities(handler: CapabilitiesHandler) -> dict[str, bool]:
         "agent": bool(getattr(handler.server, "agent_available", False)),
         "agent_workbench_conversations": agent_workbench.agent_workbench_read_available(handler.server),
         "agent_workbench_writes": False,
+        "agent_passport_cli": bool(agent_passport["available"]),
     }
 
 
@@ -264,6 +267,56 @@ def build_hyperprompt_compile_diagnostic(
     }
 
 
+def build_agent_passport_cli_diagnostic(handler: CapabilitiesHandler) -> dict[str, Any]:
+    configured_binary = (
+        _path_text(getattr(handler.server, "agent_passport_binary", None))
+        or str(DEFAULT_AGENT_PASSPORT_BINARY)
+    )
+    binary_path = Path(configured_binary).expanduser()
+    base: dict[str, Any] = {
+        "configured_binary": configured_binary,
+        "resolved_binary": str(binary_path),
+        "checked_paths": [configured_binary],
+    }
+
+    try:
+        if not binary_path.exists():
+            return {
+                **base,
+                "available": False,
+                "status": "binary_missing",
+                "detail": "Agent Passport CLI binary was not found.",
+            }
+        if not binary_path.is_file():
+            return {
+                **base,
+                "available": False,
+                "status": "binary_not_file",
+                "detail": "Configured Agent Passport CLI path is not a file.",
+            }
+        if not os.access(binary_path, os.X_OK):
+            return {
+                **base,
+                "available": False,
+                "status": "binary_not_executable",
+                "detail": "Configured Agent Passport CLI binary is not executable.",
+            }
+    except OSError as exc:
+        return {
+            **base,
+            "available": False,
+            "status": "binary_unreadable",
+            "detail": str(exc),
+        }
+
+    return {
+        **base,
+        "available": True,
+        "status": "available",
+        "detail": "Agent Passport validation CLI is bundled with this SpecSpace deployment.",
+    }
+
+
 def build_capability_diagnostics(
     handler: CapabilitiesHandler,
     *,
@@ -286,6 +339,7 @@ def build_capability_diagnostics(
             handler,
             provider_kind=provider_kind,
         ),
+        "agent_passport_cli": build_agent_passport_cli_diagnostic(handler),
         "agent_workbench_conversations": {
             "available": agent_workbench_available,
             "status": "available" if agent_workbench_available else "unavailable",

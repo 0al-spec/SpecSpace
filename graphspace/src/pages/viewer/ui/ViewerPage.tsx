@@ -84,6 +84,7 @@ import {
   SAMPLE_WORK_ITEMS,
 } from "../model/sample-data";
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
+import { AgentSurfacesPanel } from "./AgentSurfacesPanel";
 import { MetricsViewerPanel } from "./MetricsViewerPanel";
 import { ProposalViewerPanel } from "./ProposalViewerPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
@@ -94,6 +95,7 @@ import {
   type ViewerUtilityPanelId,
 } from "./ViewerChrome";
 import { useMetricsIndex } from "../model/use-metrics-index";
+import { useAgentSurfaces } from "../model/use-agent-surfaces";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecSpaceCapabilities } from "../model/use-specspace-capabilities";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
@@ -144,6 +146,7 @@ export function ViewerPage() {
   const proposalTraceState = useProposalSpecTraceIndex({ refreshKey: runsWatchVersion });
   const proposalIndexState = useProposalIndex({ refreshKey: runsWatchVersion });
   const metricsIndexState = useMetricsIndex({ refreshKey: runsWatchVersion });
+  const agentSurfacesState = useAgentSurfaces({ refreshKey: runsWatchVersion });
   const capabilitiesState = useSpecSpaceCapabilities();
   const specpmRegistryState = useSpecPMRegistrySummary();
   const specGraphState = useSpecGraph({ refreshKey: runsWatchVersion });
@@ -293,6 +296,10 @@ export function ViewerPage() {
     metricsIndexState.kind === "ok"
       ? `${metricsIndexState.data.entry_count} metrics · readonly`
       : metricsIndexState.kind;
+  const agentSurfacesCaption =
+    agentSurfacesState.kind === "ok"
+      ? `${agentSurfacesState.data.entryCount} surfaces · ${agentSurfacesState.data.summary.handoffStatus}`
+      : agentSurfacesState.kind;
   const artifactAttentionCount = artifactDiagnostics.filter(
     (artifact) => artifact.tone !== "live",
   ).length;
@@ -555,6 +562,8 @@ export function ViewerPage() {
         return { title: "Proposal viewer", caption: proposalIndexCaption };
       case "metrics":
         return { title: "Metrics viewer", caption: metricsIndexCaption };
+      case "agents":
+        return { title: "Agent surfaces", caption: agentSurfacesCaption };
       case "agent-context":
         return {
           title: "Agent context",
@@ -708,6 +717,19 @@ export function ViewerPage() {
               onClick={() => toggleUtilityPanel("metrics")}
             >
               ▥
+            </PanelBtn>
+            <PanelBtn
+              title="Open Agent surfaces"
+              aria-label="Open Agent surfaces"
+              active={activeUtilityPanel === "agents"}
+              badge={
+                agentSurfacesState.kind === "ok"
+                  ? agentSurfacesState.data.entryCount
+                  : undefined
+              }
+              onClick={() => toggleUtilityPanel("agents")}
+            >
+              ⎈
             </PanelBtn>
             <PanelBtn
               title="Open Agent context"
@@ -885,6 +907,10 @@ export function ViewerPage() {
               onAddMetricToAgentContext={addMetricToAgentContext}
               onStartConversationFromMetric={startConversationFromMetric}
             />
+          ) : null}
+
+          {activeUtilityPanel === "agents" ? (
+            <AgentSurfacesPanel state={agentSurfacesState} />
           ) : null}
 
           {activeUtilityPanel === "agent-context" ? (

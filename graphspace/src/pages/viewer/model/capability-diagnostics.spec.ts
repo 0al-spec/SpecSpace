@@ -27,6 +27,14 @@ const capabilities = (
       scratchWorkspace: null,
       ...overrides,
     },
+    agentPassportCli: {
+      available: false,
+      status: "binary_missing",
+      detail: "Agent Passport CLI binary was not found.",
+      configuredBinary: "/app/deps/agent-passport",
+      resolvedBinary: "/app/deps/agent-passport",
+      checkedPaths: ["/app/deps/agent-passport"],
+    },
   },
 });
 
@@ -40,6 +48,7 @@ describe("describeCapabilityDiagnostics", () => {
     expect(rows.map((row) => [row.id, row.status, row.countLabel])).toEqual([
       ["spec-markdown-export", "available", "readonly"],
       ["hyperprompt-compile", "scratch_not_configured", "disabled"],
+      ["agent-passport-cli", "binary_missing", "disabled"],
     ]);
   });
 
@@ -61,6 +70,40 @@ describe("describeCapabilityDiagnostics", () => {
       countLabel: "ready",
     });
     expect(rows[1].detail).toContain("scratch /tmp/specspace-hyperprompt");
+  });
+
+  it("shows the bundled Agent Passport CLI when the backend reports it", () => {
+    const rows = describeCapabilityDiagnostics({
+      kind: "ok",
+      data: {
+        ...capabilities(),
+        capabilities: {
+          spec_markdown_export: true,
+          hyperprompt_compile: false,
+          agent_passport_cli: true,
+        },
+        diagnostics: {
+          ...capabilities().diagnostics,
+          agentPassportCli: {
+            available: true,
+            status: "available",
+            detail: "Agent Passport validation CLI is bundled.",
+            configuredBinary: "/app/deps/agent-passport",
+            resolvedBinary: "/app/deps/agent-passport",
+            checkedPaths: ["/app/deps/agent-passport"],
+          },
+        },
+      },
+    });
+
+    expect(rows[2]).toMatchObject({
+      id: "agent-passport-cli",
+      label: "Agent Passport CLI",
+      tone: "live",
+      status: "available",
+      countLabel: "ready",
+    });
+    expect(rows[2].detail).toContain("binary /app/deps/agent-passport");
   });
 
   it("surfaces capability endpoint failures as deployment diagnostics", () => {
