@@ -630,12 +630,25 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
             "schema_version": 1,
             "generated_at": "2026-06-06T10:00:00Z",
             "summary": {
-                "surface_count": 1,
+                "surface_count": 2,
                 "missing_passport_count": 0,
                 "agent_passport_cli_status": "available",
                 "next_gap": "close_agent_verification_gaps",
             },
             "surfaces": [
+                {
+                    "surface_id": "specgraph.supervisor.executor_adapter",
+                    "title": "Supervisor executor adapter gateway",
+                    "surface_type": "graph_runtime",
+                    "source": "policy",
+                    "source_proposal_ids": ["0056", "0059", "0077"],
+                    "requires_passport": True,
+                    "launches_agents": True,
+                    "prepares_handoffs": True,
+                    "passport_ref": "agent-passport://specgraph/supervisor-executor-adapter/0.1.0",
+                    "verification_state": "V3_schema_valid",
+                    "runtime_enforcement_state": "policy_only",
+                },
                 {
                     "surface_id": "specgraph.executor.codex",
                     "title": "Codex executor backend",
@@ -655,6 +668,41 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
                         "validation_state": "not_attempted",
                         "tool_status": "available",
                     },
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "agent_runtime_enforcement_evidence_index.json",
+        {
+            "artifact_kind": "agent_runtime_enforcement_evidence_index",
+            "schema_version": 1,
+            "generated_at": "2026-06-06T10:00:00Z",
+            "summary": {
+                "evidence_count": 1,
+                "passed_count": 1,
+                "failed_count": 0,
+                "missing_count": 0,
+                "next_gap": "review_runtime_enforcement_evidence",
+            },
+            "entries": [
+                {
+                    "evidence_id": (
+                        "agent_runtime_enforcement_evidence::"
+                        "specgraph.supervisor.executor_adapter::runtime_smoke"
+                    ),
+                    "agent_surface": "specgraph.supervisor.executor_adapter",
+                    "surface_id": "specgraph.supervisor.executor_adapter",
+                    "evidence_kind": "runtime_smoke",
+                    "runtime_enforcement_state": "policy_only",
+                    "posture_claim": "runtime_enforcement_policy_only",
+                    "status": "passed",
+                    "evidence_ref": (
+                        "runs/agent_runtime_enforcement_evidence/"
+                        "supervisor-executor-adapter-smoke.json"
+                    ),
+                    "result_status": "passed",
+                    "source_proposal_ids": ["0056", "0059", "0076", "0077"],
                 }
             ],
         },
@@ -1156,25 +1204,39 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["artifact_kind"], "specspace_agent_surface_index")
         self.assertEqual(body["schema_version"], 1)
         self.assertEqual(body["source"]["provider"], "file")
-        self.assertEqual(body["entry_count"], 1)
-        self.assertEqual(body["summary"]["surface_count"], 1)
+        self.assertEqual(body["entry_count"], 2)
+        self.assertEqual(body["summary"]["surface_count"], 2)
         self.assertEqual(body["summary"]["executor_backend_count"], 1)
         self.assertEqual(body["summary"]["verification_gap_count"], 1)
         self.assertEqual(body["summary"]["verification_valid_count"], 1)
         self.assertEqual(body["summary"]["runtime_enforcement_policy_only_count"], 1)
         self.assertEqual(body["summary"]["runtime_enforcement_unknown_count"], 0)
+        self.assertEqual(body["summary"]["runtime_enforcement_evidence_count"], 1)
+        self.assertEqual(body["summary"]["runtime_enforcement_evidence_passed_count"], 1)
+        self.assertEqual(body["summary"]["runtime_enforcement_evidence_failed_count"], 0)
+        self.assertEqual(body["summary"]["runtime_enforcement_evidence_missing_count"], 0)
         self.assertEqual(body["summary"]["agent_passport_cli_status"], "available")
         self.assertEqual(body["handoff"]["handoff_status"], "ready_for_handoff")
         self.assertEqual(body["handoff"]["review_state"], "ready_for_review")
-        self.assertEqual(body["entries"][0]["surface_id"], "specgraph.executor.codex")
-        self.assertEqual(body["entries"][0]["verification_state"], "V3_schema_valid")
-        self.assertEqual(body["entries"][0]["verification_status"], "valid")
-        self.assertEqual(body["entries"][0]["verification_tool_status"], "available")
-        self.assertEqual(body["entries"][0]["runtime_enforcement_state"], "policy_only")
-        self.assertEqual(body["entries"][0]["runtime_enforcement_observed"], False)
-        self.assertEqual(body["entries"][0]["next_action"], "define_runtime_enforcement_runtime")
-        self.assertEqual(body["entries"][0]["gap_count"], 1)
-        self.assertEqual(body["entries"][0]["gaps"][0]["next_action"], "define_runtime_enforcement_runtime")
+        entries = {entry["surface_id"]: entry for entry in body["entries"]}
+        self.assertEqual(entries["specgraph.executor.codex"]["verification_state"], "V3_schema_valid")
+        self.assertEqual(entries["specgraph.executor.codex"]["verification_status"], "valid")
+        self.assertEqual(entries["specgraph.executor.codex"]["verification_tool_status"], "available")
+        self.assertEqual(entries["specgraph.executor.codex"]["runtime_enforcement_state"], "policy_only")
+        self.assertEqual(entries["specgraph.executor.codex"]["runtime_enforcement_observed"], False)
+        self.assertEqual(entries["specgraph.executor.codex"]["next_action"], "define_runtime_enforcement_runtime")
+        self.assertEqual(entries["specgraph.executor.codex"]["gap_count"], 1)
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["gaps"][0]["next_action"],
+            "define_runtime_enforcement_runtime",
+        )
+        supervisor_entry = entries["specgraph.supervisor.executor_adapter"]
+        self.assertEqual(supervisor_entry["runtime_enforcement_evidence_count"], 1)
+        self.assertEqual(supervisor_entry["runtime_enforcement_evidence"][0]["status"], "passed")
+        self.assertEqual(
+            supervisor_entry["runtime_enforcement_evidence"][0]["evidence_ref"],
+            "runs/agent_runtime_enforcement_evidence/supervisor-executor-adapter-smoke.json",
+        )
         self.assertEqual(body["executor_adapters"][0]["backend_id"], "codex")
         self.assertNotIn("supervisor_stdout", json.dumps(body))
         self.assertNotIn("/Users/", json.dumps(body["entries"]))
@@ -1218,6 +1280,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["handoff"]["handoff_status"], "missing")
         self.assertEqual(body["sources"]["external_handoffs"]["available"], False)
         self.assertEqual(body["sources"]["external_handoffs"]["reason"], "missing_artifact")
+        self.assertEqual(body["sources"]["runtime_evidence"]["available"], False)
+        self.assertEqual(body["sources"]["runtime_evidence"]["reason"], "missing_artifact")
 
     def test_agent_surfaces_v1_reads_http_static_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1234,6 +1298,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     "runs/agent_passport_verification_report.json",
                     "runs/agent_surface_index.json",
                     "runs/agent_verification_gap_index.json",
+                    "runs/agent_runtime_enforcement_evidence_index.json",
                     "runs/external_consumer_handoff_packets.json",
                 ],
             )
@@ -1250,6 +1315,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["source"]["artifact_base_url"], artifact_base_url)
         self.assertEqual(body["summary"]["handoff_status"], "ready_for_handoff")
         self.assertTrue(body["sources"]["agent_surfaces"]["available"])
+        self.assertTrue(body["sources"]["runtime_evidence"]["available"])
         self.assertTrue(body["sources"]["external_handoffs"]["path"].startswith(artifact_base_url))
 
     def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:

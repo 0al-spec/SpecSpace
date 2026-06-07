@@ -18,6 +18,10 @@ const payload = {
     runtime_enforcement_policy_only_count: 1,
     runtime_enforcement_boundary_only_count: 0,
     runtime_enforcement_deferred_count: 0,
+    runtime_enforcement_evidence_count: 1,
+    runtime_enforcement_evidence_passed_count: 1,
+    runtime_enforcement_evidence_failed_count: 0,
+    runtime_enforcement_evidence_missing_count: 0,
     agent_passport_cli_status: "available",
     handoff_status: "ready_for_handoff",
     next_gap: "review_handoff_packet",
@@ -37,6 +41,7 @@ const payload = {
         "runs/known_agent_passport_index.json",
         "runs/agent_passport_verification_report.json",
         "runs/agent_verification_gap_index.json",
+        "runs/agent_runtime_enforcement_evidence_index.json",
       ],
     },
     expected_consumer_behavior: ["show Agent Passport verification states"],
@@ -72,6 +77,19 @@ const payload = {
           reason: "Runtime enforcement posture is known but policy-only.",
           next_action: "define_runtime_enforcement_runtime",
           source_proposal_ids: ["0059"],
+        },
+      ],
+      runtime_enforcement_evidence_count: 1,
+      runtime_enforcement_evidence: [
+        {
+          evidence_id: "agent_runtime_enforcement_evidence::specgraph.executor.codex::runtime_smoke",
+          evidence_kind: "runtime_smoke",
+          status: "passed",
+          runtime_enforcement_state: "policy_only",
+          posture_claim: "runtime_enforcement_policy_only",
+          evidence_ref: "runs/agent_runtime_enforcement_evidence/codex-smoke.json",
+          result_status: "passed",
+          source_proposal_ids: ["0077"],
         },
       ],
     },
@@ -115,6 +133,7 @@ describe("parseAgentSurfaceIndex", () => {
     expect(parsed.data.summary.agentPassportCliStatus).toBe("available");
     expect(parsed.data.summary.verificationValidCount).toBe(1);
     expect(parsed.data.summary.runtimeEnforcementPolicyOnlyCount).toBe(1);
+    expect(parsed.data.summary.runtimeEnforcementEvidencePassedCount).toBe(1);
     expect(parsed.data.handoff.expectedConsumerBehavior).toEqual(["show Agent Passport verification states"]);
     expect(parsed.data.entries[0]).toMatchObject({
       surfaceId: "specgraph.executor.codex",
@@ -125,6 +144,11 @@ describe("parseAgentSurfaceIndex", () => {
       nextAction: "define_runtime_enforcement_runtime",
     });
     expect(parsed.data.entries[0].gaps[0].nextAction).toBe("define_runtime_enforcement_runtime");
+    expect(parsed.data.entries[0].runtimeEnforcementEvidence[0]).toMatchObject({
+      evidenceKind: "runtime_smoke",
+      status: "passed",
+      evidenceRef: "runs/agent_runtime_enforcement_evidence/codex-smoke.json",
+    });
     expect(parsed.data.executorAdapters[0]).toMatchObject({
       backendId: "codex",
       backendStatus: "available",

@@ -104,6 +104,9 @@ export function AgentSurfacesPanel({ state }: Props) {
         <PostureItem label="Policy only" value={String(data.summary.runtimeEnforcementPolicyOnlyCount)} />
         <PostureItem label="Boundary only" value={String(data.summary.runtimeEnforcementBoundaryOnlyCount)} />
         <PostureItem label="Deferred" value={String(data.summary.runtimeEnforcementDeferredCount)} />
+        <PostureItem label="Evidence passed" value={String(data.summary.runtimeEnforcementEvidencePassedCount)} />
+        <PostureItem label="Evidence failed" value={String(data.summary.runtimeEnforcementEvidenceFailedCount)} />
+        <PostureItem label="Evidence missing" value={String(data.summary.runtimeEnforcementEvidenceMissingCount)} />
       </div>
 
       {data.executorAdapters.length > 0 ? (
@@ -211,6 +214,24 @@ function SurfaceRow({ entry }: { entry: AgentSurfaceEntry }) {
               </span>
               <span className={styles.gapText}>{gap.gap}</span>
               <span className={styles.gapAction}>{gap.nextAction || gap.reason}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {entry.runtimeEnforcementEvidence.length > 0 ? (
+        <div className={styles.gaps}>
+          {entry.runtimeEnforcementEvidence.map((evidence) => (
+            <div
+              key={evidence.evidenceId || `${entry.surfaceId}:${evidence.evidenceKind}`}
+              className={styles.gapRow}
+            >
+              <span className={[styles.gapSeverity, toneClass(agentSurfaceTone(evidence.status))].join(" ")}>
+                {evidence.status}
+              </span>
+              <span className={styles.gapText}>{evidence.evidenceKind}</span>
+              <span className={styles.gapAction}>
+                {evidence.evidenceRef ?? evidence.postureClaim ?? evidence.resultStatus}
+              </span>
             </div>
           ))}
         </div>

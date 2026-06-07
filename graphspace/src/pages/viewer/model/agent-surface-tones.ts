@@ -26,6 +26,7 @@ export function agentSurfaceTone(value: string | null | undefined): AgentSurface
     status.includes("ready") ||
     status.includes("available") ||
     status.includes("verified") ||
+    status === "passed" ||
     status === "valid" ||
     status.includes("schema_valid") ||
     status === "observed"
