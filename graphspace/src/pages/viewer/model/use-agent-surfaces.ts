@@ -30,6 +30,19 @@ export type AgentSurfaceEntry = {
   backendStatus: string | null;
   gapCount: number;
   gaps: readonly AgentSurfaceGap[];
+  runtimeEnforcementEvidenceCount: number;
+  runtimeEnforcementEvidence: readonly AgentRuntimeEvidenceEntry[];
+};
+
+export type AgentRuntimeEvidenceEntry = {
+  evidenceId: string;
+  evidenceKind: string;
+  status: string;
+  runtimeEnforcementState: string;
+  postureClaim: string;
+  evidenceRef: string | null;
+  resultStatus: string;
+  sourceProposalIds: readonly string[];
 };
 
 export type ExecutorAdapterEntry = {
@@ -89,6 +102,10 @@ export type AgentSurfaceIndex = {
     runtimeEnforcementPolicyOnlyCount: number;
     runtimeEnforcementBoundaryOnlyCount: number;
     runtimeEnforcementDeferredCount: number;
+    runtimeEnforcementEvidenceCount: number;
+    runtimeEnforcementEvidencePassedCount: number;
+    runtimeEnforcementEvidenceFailedCount: number;
+    runtimeEnforcementEvidenceMissingCount: number;
     agentPassportCliStatus: string;
     handoffStatus: string;
     nextGap: string | null;
@@ -156,6 +173,19 @@ function parseGap(raw: Record<string, unknown>): AgentSurfaceGap {
   };
 }
 
+function parseRuntimeEvidence(raw: Record<string, unknown>): AgentRuntimeEvidenceEntry {
+  return {
+    evidenceId: stringValue(raw.evidence_id, ""),
+    evidenceKind: stringValue(raw.evidence_kind, "unknown"),
+    status: stringValue(raw.status, "missing"),
+    runtimeEnforcementState: stringValue(raw.runtime_enforcement_state, "unknown"),
+    postureClaim: stringValue(raw.posture_claim, ""),
+    evidenceRef: optionalString(raw.evidence_ref),
+    resultStatus: stringValue(raw.result_status, "unknown"),
+    sourceProposalIds: stringList(raw.source_proposal_ids),
+  };
+}
+
 function parseSurface(raw: Record<string, unknown>): AgentSurfaceEntry | null {
   const surfaceId = optionalString(raw.surface_id);
   if (!surfaceId) return null;
@@ -180,6 +210,8 @@ function parseSurface(raw: Record<string, unknown>): AgentSurfaceEntry | null {
     backendStatus: optionalString(raw.backend_status),
     gapCount: numberValue(raw.gap_count),
     gaps: records(raw.gaps).map(parseGap),
+    runtimeEnforcementEvidenceCount: numberValue(raw.runtime_enforcement_evidence_count),
+    runtimeEnforcementEvidence: records(raw.runtime_enforcement_evidence).map(parseRuntimeEvidence),
   };
 }
 
@@ -276,6 +308,10 @@ export function parseAgentSurfaceIndex(raw: unknown): ParseAgentSurfaceIndexResu
         runtimeEnforcementPolicyOnlyCount: numberValue(summary.runtime_enforcement_policy_only_count),
         runtimeEnforcementBoundaryOnlyCount: numberValue(summary.runtime_enforcement_boundary_only_count),
         runtimeEnforcementDeferredCount: numberValue(summary.runtime_enforcement_deferred_count),
+        runtimeEnforcementEvidenceCount: numberValue(summary.runtime_enforcement_evidence_count),
+        runtimeEnforcementEvidencePassedCount: numberValue(summary.runtime_enforcement_evidence_passed_count),
+        runtimeEnforcementEvidenceFailedCount: numberValue(summary.runtime_enforcement_evidence_failed_count),
+        runtimeEnforcementEvidenceMissingCount: numberValue(summary.runtime_enforcement_evidence_missing_count),
         agentPassportCliStatus: stringValue(summary.agent_passport_cli_status, "unknown"),
         handoffStatus: stringValue(summary.handoff_status, "unknown"),
         nextGap: optionalString(summary.next_gap),

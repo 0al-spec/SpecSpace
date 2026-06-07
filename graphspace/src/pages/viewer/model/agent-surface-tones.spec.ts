@@ -13,6 +13,7 @@ describe("agentSurfaceTone", () => {
     expect(agentSurfaceTone("ready_for_handoff")).toBe("ok");
     expect(agentSurfaceTone("available")).toBe("ok");
     expect(agentSurfaceTone("valid")).toBe("ok");
+    expect(agentSurfaceTone("passed")).toBe("ok");
     expect(agentSurfaceTone("V3_schema_valid")).toBe("ok");
     expect(agentSurfaceTone("observed")).toBe("ok");
     expect(agentSurfaceTone("missing_passport")).toBe("warn");
