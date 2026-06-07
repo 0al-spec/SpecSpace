@@ -64,8 +64,8 @@ export function AgentSurfacesPanel({ state }: Props) {
       <div className={styles.summary}>
         <Metric label="Surfaces" value={data.summary.surfaceCount} />
         <Metric label="Executors" value={data.summary.executorBackendCount} />
-        <Metric label="Gaps" value={data.summary.verificationGapCount} />
-        <Metric label="Passports missing" value={data.summary.missingPassportCount} />
+        <Metric label="Verified" value={data.summary.verificationValidCount} />
+        <Metric label="Runtime gaps" value={data.summary.verificationGapCount} />
       </div>
 
       <div className={styles.handoff}>
@@ -95,6 +95,15 @@ export function AgentSurfacesPanel({ state }: Props) {
             {name.replace(/_/g, " ")}: {source.available ? source.entryCount : "missing"}
           </span>
         ))}
+      </div>
+
+      <div className={styles.postureStrip}>
+        <PostureItem label="Passport CLI" value={data.summary.agentPassportCliStatus} />
+        <PostureItem label="Invalid" value={String(data.summary.verificationInvalidCount)} />
+        <PostureItem label="Unavailable" value={String(data.summary.verificationUnavailableCount)} />
+        <PostureItem label="Policy only" value={String(data.summary.runtimeEnforcementPolicyOnlyCount)} />
+        <PostureItem label="Boundary only" value={String(data.summary.runtimeEnforcementBoundaryOnlyCount)} />
+        <PostureItem label="Deferred" value={String(data.summary.runtimeEnforcementDeferredCount)} />
       </div>
 
       {data.executorAdapters.length > 0 ? (
@@ -129,6 +138,15 @@ function Metric({ value, label }: { value: number; label: string }) {
 
 function Pill({ value }: { value: string | null | undefined }) {
   return <span className={[styles.pill, toneClass(agentSurfaceTone(value))].join(" ")}>{compact(value)}</span>;
+}
+
+function PostureItem({ label, value }: { label: string; value: string }) {
+  return (
+    <span className={styles.postureItem}>
+      <span className={styles.postureLabel}>{label}</span>
+      <span className={styles.postureValue}>{value}</span>
+    </span>
+  );
 }
 
 function ExecutorRow({ entry }: { entry: ExecutorAdapterEntry }) {
@@ -168,6 +186,7 @@ function SurfaceRow({ entry }: { entry: AgentSurfaceEntry }) {
         <span className={styles.rowId}>{entry.surfaceId}</span>
         <div className={styles.statusGroup}>
           <Pill value={entry.verificationState} />
+          <Pill value={entry.verificationStatus} />
           <Pill value={entry.runtimeEnforcementState} />
         </div>
       </div>
@@ -176,7 +195,9 @@ function SurfaceRow({ entry }: { entry: AgentSurfaceEntry }) {
         <Meta label="Type" value={entry.surfaceType} />
         <Meta label="Source" value={entry.source} />
         <Meta label="Backend" value={entry.executorBackendId ?? entry.backendStatus ?? "none"} />
-        <Meta label="Gaps" value={String(entry.gapCount)} />
+        <Meta label="Passport tool" value={entry.verificationToolStatus} />
+        <Meta label="Runtime" value={entry.runtimeEnforcementObserved ? "observed" : entry.runtimeEnforcementState} />
+        <Meta label="Next" value={entry.nextAction ?? (entry.gapCount > 0 ? "review gaps" : "none")} />
       </div>
       <p className={styles.passportRef}>
         {entry.passportRef ?? (entry.requiresPassport ? "missing passport" : "passport optional")}

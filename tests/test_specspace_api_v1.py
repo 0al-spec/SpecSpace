@@ -581,10 +581,44 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
                     "agent_surface": "specgraph.executor.codex",
                     "surface_type": "executor_backend",
                     "passport_ref": "agent-passport://executors/codex-cli/0.1.0",
-                    "verification_state": "not_attempted",
-                    "runtime_enforcement_state": "not_enforced",
+                    "verification_state": "V3_schema_valid",
+                    "runtime_enforcement_state": "policy_only",
                     "requires_passport": True,
                     "executor_backend_id": "codex",
+                    "verification_result": {
+                        "verification_status": "valid",
+                        "valid": True,
+                        "tool_status": "available",
+                    },
+                }
+            ],
+        },
+    )
+    _write_json(
+        runs_dir / "agent_passport_verification_report.json",
+        {
+            "artifact_kind": "agent_passport_verification_report",
+            "schema_version": 1,
+            "generated_at": "2026-06-06T10:00:00Z",
+            "summary": {
+                "entry_count": 1,
+                "valid_count": 1,
+                "invalid_count": 0,
+                "unavailable_count": 0,
+                "tool_unavailable_count": 0,
+                "agent_passport_cli_status": "available",
+                "next_gap": "none",
+            },
+            "entries": [
+                {
+                    "agent_surface": "specgraph.executor.codex",
+                    "surface_type": "executor_backend",
+                    "passport_ref": "agent-passport://executors/codex-cli/0.1.0",
+                    "verification_status": "valid",
+                    "verification_state": "V3_schema_valid",
+                    "valid": True,
+                    "tool_status": "available",
+                    "source_proposal_ids": ["0056", "0059", "0066", "0071"],
                 }
             ],
         },
@@ -612,8 +646,8 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
                     "launches_agents": True,
                     "prepares_handoffs": False,
                     "passport_ref": "agent-passport://executors/codex-cli/0.1.0",
-                    "verification_state": "not_attempted",
-                    "runtime_enforcement_state": "not_enforced",
+                    "verification_state": "V2_passport_referenced",
+                    "runtime_enforcement_state": "policy_only",
                     "executor_backend_id": "codex",
                     "backend_status": "available",
                     "passport_validation": {
@@ -634,7 +668,8 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
             "summary": {
                 "gap_count": 1,
                 "missing_passport_count": 0,
-                "runtime_enforcement_unknown_count": 1,
+                "runtime_enforcement_policy_only_count": 1,
+                "runtime_enforcement_unknown_count": 0,
                 "agent_passport_cli_status": "available",
                 "next_gap": "close_agent_verification_gaps",
             },
@@ -643,10 +678,10 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
                     "gap_id": "agent_gap::specgraph.executor.codex::runtime_enforcement",
                     "agent_surface": "specgraph.executor.codex",
                     "surface_type": "executor_backend",
-                    "gap": "runtime_enforcement_not_proven",
-                    "severity": "medium",
-                    "reason": "Executor passport enforcement has not been observed.",
-                    "next_action": "wire_agent_passport_validation_cli",
+                    "gap": "runtime_enforcement_policy_only",
+                    "severity": "low",
+                    "reason": "Runtime enforcement posture is known but policy-only.",
+                    "next_action": "define_runtime_enforcement_runtime",
                     "source_proposal_ids": ["0059"],
                     "source_artifacts": ["runs/agent_surface_index.json"],
                 }
@@ -673,6 +708,8 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
                         "required_artifacts": [
                             "runs/supervisor_executor_adapter_index.json",
                             "runs/agent_surface_index.json",
+                            "runs/known_agent_passport_index.json",
+                            "runs/agent_passport_verification_report.json",
                             "runs/agent_verification_gap_index.json",
                         ]
                     },
@@ -1123,12 +1160,21 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["surface_count"], 1)
         self.assertEqual(body["summary"]["executor_backend_count"], 1)
         self.assertEqual(body["summary"]["verification_gap_count"], 1)
+        self.assertEqual(body["summary"]["verification_valid_count"], 1)
+        self.assertEqual(body["summary"]["runtime_enforcement_policy_only_count"], 1)
+        self.assertEqual(body["summary"]["runtime_enforcement_unknown_count"], 0)
         self.assertEqual(body["summary"]["agent_passport_cli_status"], "available")
         self.assertEqual(body["handoff"]["handoff_status"], "ready_for_handoff")
         self.assertEqual(body["handoff"]["review_state"], "ready_for_review")
         self.assertEqual(body["entries"][0]["surface_id"], "specgraph.executor.codex")
+        self.assertEqual(body["entries"][0]["verification_state"], "V3_schema_valid")
+        self.assertEqual(body["entries"][0]["verification_status"], "valid")
+        self.assertEqual(body["entries"][0]["verification_tool_status"], "available")
+        self.assertEqual(body["entries"][0]["runtime_enforcement_state"], "policy_only")
+        self.assertEqual(body["entries"][0]["runtime_enforcement_observed"], False)
+        self.assertEqual(body["entries"][0]["next_action"], "define_runtime_enforcement_runtime")
         self.assertEqual(body["entries"][0]["gap_count"], 1)
-        self.assertEqual(body["entries"][0]["gaps"][0]["next_action"], "wire_agent_passport_validation_cli")
+        self.assertEqual(body["entries"][0]["gaps"][0]["next_action"], "define_runtime_enforcement_runtime")
         self.assertEqual(body["executor_adapters"][0]["backend_id"], "codex")
         self.assertNotIn("supervisor_stdout", json.dumps(body))
         self.assertNotIn("/Users/", json.dumps(body["entries"]))
@@ -1185,6 +1231,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 [
                     "runs/supervisor_executor_adapter_index.json",
                     "runs/known_agent_passport_index.json",
+                    "runs/agent_passport_verification_report.json",
                     "runs/agent_surface_index.json",
                     "runs/agent_verification_gap_index.json",
                     "runs/external_consumer_handoff_packets.json",

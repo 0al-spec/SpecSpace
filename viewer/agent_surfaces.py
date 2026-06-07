@@ -16,6 +16,7 @@ AGENT_SURFACE_ARTIFACTS: dict[str, str] = {
     "executor_adapters": "supervisor_executor_adapter_index.json",
     "known_agent_passports": "known_agent_passport_index.json",
     "agent_surfaces": "agent_surface_index.json",
+    "verification_report": "agent_passport_verification_report.json",
     "verification_gaps": "agent_verification_gap_index.json",
     "external_handoffs": "external_consumer_handoff_packets.json",
 }
@@ -39,6 +40,10 @@ def _text(value: Any, default: str = "") -> str:
 
 def _bool(value: Any) -> bool:
     return bool(value) if isinstance(value, bool) else False
+
+
+def _optional_bool(value: Any) -> bool | None:
+    return value if isinstance(value, bool) else None
 
 
 def _string_list(value: Any) -> list[str]:
@@ -179,8 +184,49 @@ def _gaps_by_surface(gaps: list[dict[str, Any]]) -> dict[str, list[dict[str, Any
     return grouped
 
 
-def _surface_entry(raw: dict[str, Any], gaps: list[dict[str, Any]]) -> dict[str, Any]:
+def _entries_by_surface(entries: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = {}
+    for entry in entries:
+        surface_id = _text(entry.get("agent_surface"))
+        if surface_id and surface_id not in grouped:
+            grouped[surface_id] = entry
+    return grouped
+
+
+def _surface_entry(
+    raw: dict[str, Any],
+    *,
+    gaps: list[dict[str, Any]],
+    passport: dict[str, Any],
+    verification: dict[str, Any],
+) -> dict[str, Any]:
     surface_id = _text(raw.get("surface_id"))
+    verification_result = _dict(passport.get("verification_result"))
+    verification_state = _text(
+        verification.get("verification_state")
+        or passport.get("verification_state")
+        or raw.get("verification_state"),
+        "unknown",
+    )
+    verification_status = _text(
+        verification.get("verification_status")
+        or verification_result.get("verification_status"),
+        "unknown",
+    )
+    verification_tool_status = _text(
+        verification.get("tool_status")
+        or verification_result.get("tool_status")
+        or _dict(raw.get("passport_validation")).get("tool_status"),
+        "unknown",
+    )
+    verification_valid = _optional_bool(verification.get("valid"))
+    if verification_valid is None:
+        verification_valid = _optional_bool(verification_result.get("valid"))
+    runtime_enforcement_state = _text(
+        passport.get("runtime_enforcement_state") or raw.get("runtime_enforcement_state"),
+        "unknown",
+    )
+    next_action = _text(gaps[0].get("next_action")) if gaps else ""
     return {
         "surface_id": surface_id,
         "title": _text(raw.get("title"), surface_id or "Agent surface"),
@@ -191,8 +237,13 @@ def _surface_entry(raw: dict[str, Any], gaps: list[dict[str, Any]]) -> dict[str,
         "launches_agents": _bool(raw.get("launches_agents")),
         "prepares_handoffs": _bool(raw.get("prepares_handoffs")),
         "passport_ref": _text(raw.get("passport_ref")) or None,
-        "verification_state": _text(raw.get("verification_state"), "unknown"),
-        "runtime_enforcement_state": _text(raw.get("runtime_enforcement_state"), "unknown"),
+        "verification_state": verification_state,
+        "verification_status": verification_status,
+        "verification_tool_status": verification_tool_status,
+        "verification_valid": bool(verification_valid),
+        "runtime_enforcement_state": runtime_enforcement_state,
+        "runtime_enforcement_observed": runtime_enforcement_state == "observed",
+        "next_action": next_action or None,
         "executor_backend_id": _text(raw.get("executor_backend_id")) or None,
         "backend_status": _text(raw.get("backend_status")) or None,
         "passport_validation": _dict(raw.get("passport_validation")),
@@ -247,8 +298,9 @@ def _handoff_payload(raw: dict[str, Any] | None) -> dict[str, Any]:
         "source_gap": _text(raw.get("source_gap")) or None,
         "source_proposal_ids": _string_list(raw.get("source_proposal_ids")),
         "artifact_contract": _dict(raw.get("artifact_contract")),
-        "expected_consumer_behavior": _dict(raw.get("expected_consumer_behavior")),
-        "evidence_requirements": _dict(raw.get("evidence_requirements")),
+        "expected_consumer_behavior": _string_list(raw.get("expected_consumer_behavior")),
+        "evidence_contract": _dict(raw.get("evidence_contract")),
+        "privacy_boundary": _dict(raw.get("privacy_boundary")),
     }
 
 
@@ -265,14 +317,24 @@ def build_agent_surface_index(
 ) -> dict[str, Any]:
     agent_surfaces_data = _artifact_data(artifacts, "agent_surfaces")
     verification_data = _artifact_data(artifacts, "verification_gaps")
+    verification_report_data = _artifact_data(artifacts, "verification_report")
     executor_data = _artifact_data(artifacts, "executor_adapters")
     passport_data = _artifact_data(artifacts, "known_agent_passports")
     handoff_data = _artifact_data(artifacts, "external_handoffs")
 
     gaps = _list_of_dicts(verification_data.get("gaps"))
     grouped_gaps = _gaps_by_surface(gaps)
+    passports_by_surface = _entries_by_surface(_list_of_dicts(passport_data.get("entries")))
+    verification_by_surface = _entries_by_surface(
+        _list_of_dicts(verification_report_data.get("entries"))
+    )
     entries = [
-        _surface_entry(surface, grouped_gaps.get(_text(surface.get("surface_id")), []))
+        _surface_entry(
+            surface,
+            gaps=grouped_gaps.get(_text(surface.get("surface_id")), []),
+            passport=passports_by_surface.get(_text(surface.get("surface_id")), {}),
+            verification=verification_by_surface.get(_text(surface.get("surface_id")), {}),
+        )
         for surface in _list_of_dicts(agent_surfaces_data.get("surfaces"))
         if _text(surface.get("surface_id"))
     ]
@@ -295,6 +357,7 @@ def build_agent_surface_index(
     handoff = _handoff_payload(_specspace_handoff(handoff_data))
     surface_summary = _dict(agent_surfaces_data.get("summary"))
     gap_summary = _dict(verification_data.get("summary"))
+    report_summary = _dict(verification_report_data.get("summary"))
     executor_summary = _dict(executor_data.get("summary"))
 
     return {
@@ -314,13 +377,32 @@ def build_agent_surface_index(
             "executor_backend_count": len(executor_adapters),
             "missing_passport_count": _summary_value(agent_surfaces_data, "missing_passport_count"),
             "verification_gap_count": _summary_value(verification_data, "gap_count"),
+            "verification_valid_count": _summary_value(verification_report_data, "valid_count"),
+            "verification_invalid_count": _summary_value(verification_report_data, "invalid_count"),
+            "verification_unavailable_count": _summary_value(
+                verification_report_data,
+                "unavailable_count",
+            ),
             "runtime_enforcement_unknown_count": _summary_value(
                 verification_data,
                 "runtime_enforcement_unknown_count",
             ),
+            "runtime_enforcement_policy_only_count": _summary_value(
+                verification_data,
+                "runtime_enforcement_policy_only_count",
+            ),
+            "runtime_enforcement_boundary_only_count": _summary_value(
+                verification_data,
+                "runtime_enforcement_boundary_only_count",
+            ),
+            "runtime_enforcement_deferred_count": _summary_value(
+                verification_data,
+                "runtime_enforcement_deferred_count",
+            ),
             "agent_passport_cli_status": _text(
                 surface_summary.get("agent_passport_cli_status")
                 or gap_summary.get("agent_passport_cli_status")
+                or report_summary.get("agent_passport_cli_status")
                 or executor_summary.get("agent_passport_cli_status"),
                 "unknown",
             ),
