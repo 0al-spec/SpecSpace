@@ -43,6 +43,16 @@ export type AgentRuntimeEvidenceEntry = {
   evidenceRef: string | null;
   resultStatus: string;
   sourceProposalIds: readonly string[];
+  detailStatus: string;
+  detailReason: string;
+  detailMessage: string;
+  checks: readonly AgentRuntimeEvidenceCheck[];
+};
+
+export type AgentRuntimeEvidenceCheck = {
+  checkId: string;
+  status: string;
+  message: string;
 };
 
 export type ExecutorAdapterEntry = {
@@ -173,6 +183,16 @@ function parseGap(raw: Record<string, unknown>): AgentSurfaceGap {
   };
 }
 
+function parseRuntimeEvidenceCheck(raw: Record<string, unknown>): AgentRuntimeEvidenceCheck | null {
+  const checkId = optionalString(raw.check_id);
+  if (!checkId) return null;
+  return {
+    checkId,
+    status: stringValue(raw.status, "unknown"),
+    message: stringValue(raw.message, ""),
+  };
+}
+
 function parseRuntimeEvidence(raw: Record<string, unknown>): AgentRuntimeEvidenceEntry {
   return {
     evidenceId: stringValue(raw.evidence_id, ""),
@@ -183,6 +203,12 @@ function parseRuntimeEvidence(raw: Record<string, unknown>): AgentRuntimeEvidenc
     evidenceRef: optionalString(raw.evidence_ref),
     resultStatus: stringValue(raw.result_status, "unknown"),
     sourceProposalIds: stringList(raw.source_proposal_ids),
+    detailStatus: stringValue(raw.detail_status, "missing"),
+    detailReason: stringValue(raw.detail_reason, ""),
+    detailMessage: stringValue(raw.detail_message, ""),
+    checks: records(raw.checks)
+      .map(parseRuntimeEvidenceCheck)
+      .filter((check): check is AgentRuntimeEvidenceCheck => !!check),
   };
 }
 

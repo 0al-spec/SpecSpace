@@ -278,6 +278,49 @@
   font-size: 10px;
 }
 
+.evidenceChecks {
+  margin: var(--gs-space-3) 0 0 58px;
+  border-left: 1px solid var(--gs-rule-soft);
+  padding-left: var(--gs-space-4);
+}
+
+.evidenceCheckRow {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 2px var(--gs-space-3);
+  padding-top: var(--gs-space-3);
+}
+
+.checkStatus,
+.checkId,
+.checkMessage,
+.detailUnavailable {
+  font-family: var(--gs-mono);
+  font-size: 10px;
+}
+
+.checkStatus {
+  grid-row: span 2;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.checkId {
+  color: var(--gs-ink);
+  overflow-wrap: anywhere;
+}
+
+.checkMessage,
+.detailUnavailable {
+  color: var(--gs-muted-2);
+  overflow-wrap: anywhere;
+}
+
+.detailUnavailable {
+  display: block;
+  margin: var(--gs-space-3) 0 0 58px;
+}
+
 .statusNotice {
   padding: var(--gs-space-8) var(--gs-space-6);
   color: var(--gs-muted);
@@ -319,5 +362,10 @@
 
   .statusGroup {
     justify-content: flex-start;
+  }
+
+  .evidenceChecks,
+  .detailUnavailable {
+    margin-left: 0;
   }
 }

@@ -221,17 +221,34 @@ function SurfaceRow({ entry }: { entry: AgentSurfaceEntry }) {
       {entry.runtimeEnforcementEvidence.length > 0 ? (
         <div className={styles.gaps}>
           {entry.runtimeEnforcementEvidence.map((evidence) => (
-            <div
-              key={evidence.evidenceId || `${entry.surfaceId}:${evidence.evidenceKind}`}
-              className={styles.gapRow}
-            >
-              <span className={[styles.gapSeverity, toneClass(agentSurfaceTone(evidence.status))].join(" ")}>
-                {evidence.status}
-              </span>
-              <span className={styles.gapText}>{evidence.evidenceKind}</span>
-              <span className={styles.gapAction}>
-                {evidence.evidenceRef ?? evidence.postureClaim ?? evidence.resultStatus}
-              </span>
+            <div key={evidence.evidenceId || `${entry.surfaceId}:${evidence.evidenceKind}`}>
+              <div className={styles.gapRow}>
+                <span className={[styles.gapSeverity, toneClass(agentSurfaceTone(evidence.status))].join(" ")}>
+                  {evidence.status}
+                </span>
+                <span className={styles.gapText}>{evidence.evidenceKind}</span>
+                <span className={styles.gapAction}>
+                  {evidence.evidenceRef ?? evidence.postureClaim ?? evidence.resultStatus}
+                </span>
+              </div>
+              {evidence.detailStatus === "available" && evidence.checks.length > 0 ? (
+                <div className={styles.evidenceChecks}>
+                  {evidence.checks.map((check) => (
+                    <div key={check.checkId} className={styles.evidenceCheckRow}>
+                      <span className={[styles.checkStatus, toneClass(agentSurfaceTone(check.status))].join(" ")}>
+                        {check.status}
+                      </span>
+                      <span className={styles.checkId}>{check.checkId}</span>
+                      {check.message ? <span className={styles.checkMessage}>{check.message}</span> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className={styles.detailUnavailable}>
+                  {evidence.detailStatus === "available" ? "no checks" : "details unavailable"}
+                  {evidence.detailReason ? ` · ${evidence.detailReason}` : ""}
+                </span>
+              )}
             </div>
           ))}
         </div>

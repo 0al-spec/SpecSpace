@@ -419,12 +419,21 @@ present:
 - `known_agent_passport_index.json`
 - `agent_surface_index.json`
 - `agent_verification_gap_index.json`
+- `agent_runtime_enforcement_evidence_index.json`
+- `runs/agent_runtime_enforcement_evidence/*.json` detail artifacts referenced
+  by safe evidence refs
 - `external_consumer_handoff_packets.json`
 
 Missing optional artifacts are represented in `sources`; the endpoint does not
 parse raw supervisor logs, passport private material, local prompt files, or
 executor output. It is a consumer surface for the SpecSpace handoff loop, not an
 Agent Passport validation endpoint.
+
+Runtime evidence detail refs are loaded only when they are repo-relative paths
+under `runs/agent_runtime_enforcement_evidence/`. Absolute paths, URLs,
+`file://`, Windows paths, home-relative paths, and traversal are rejected; the
+aggregate evidence row remains visible with `detail_status: "invalid"` or
+`"missing"` when details cannot be read.
 
 ```json
 {
@@ -455,7 +464,22 @@ Agent Passport validation endpoint.
       "passport_ref": "agent-passport://executors/codex-cli/0.1.0",
       "verification_state": "not_attempted",
       "runtime_enforcement_state": "not_enforced",
-      "gap_count": 1
+      "gap_count": 1,
+      "runtime_enforcement_evidence": [
+        {
+          "evidence_kind": "runtime_smoke",
+          "status": "passed",
+          "evidence_ref": "runs/agent_runtime_enforcement_evidence/codex-smoke.json",
+          "detail_status": "available",
+          "checks": [
+            {
+              "check_id": "executor_adapter_invocation_boundary",
+              "status": "passed",
+              "message": "Structured invocation boundary passed."
+            }
+          ]
+        }
+      ]
     }
   ],
   "executor_adapters": [
