@@ -5,7 +5,9 @@ export function agentSurfaceTone(value: string | null | undefined): AgentSurface
   if (
     status.includes("critical") ||
     status.includes("high") ||
-    status.includes("severe")
+    status.includes("severe") ||
+    status.includes("failed") ||
+    status.includes("failure")
   ) {
     return "danger";
   }

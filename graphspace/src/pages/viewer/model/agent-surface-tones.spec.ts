@@ -5,6 +5,8 @@ describe("agentSurfaceTone", () => {
   it("marks elevated gap severities as actionable tones", () => {
     expect(agentSurfaceTone("critical")).toBe("danger");
     expect(agentSurfaceTone("high")).toBe("danger");
+    expect(agentSurfaceTone("failed")).toBe("danger");
+    expect(agentSurfaceTone("runtime_failure")).toBe("danger");
     expect(agentSurfaceTone("medium")).toBe("warn");
     expect(agentSurfaceTone("low")).toBe("warn");
   });

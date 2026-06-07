@@ -603,8 +603,19 @@ class HttpSpecGraphProvider:
             paths.append(path)
         return sorted(paths)
 
-    def _has_artifact(self, manifest: dict[str, Any], path: str) -> bool:
-        return path in {entry_path for entry_path in self._paths_for(manifest, prefix="")}
+    def _manifest_path_set(self, manifest: dict[str, Any]) -> set[str]:
+        return {entry_path for entry_path in self._paths_for(manifest, prefix="")}
+
+    def _has_artifact(
+        self,
+        manifest: dict[str, Any],
+        path: str,
+        *,
+        manifest_paths: set[str] | None = None,
+    ) -> bool:
+        if safe_manifest_path(path) is None:
+            return False
+        return path in (manifest_paths if manifest_paths is not None else self._manifest_path_set(manifest))
 
     def _read_artifact_text(self, path: str) -> tuple[int, str | None, dict[str, Any] | None]:
         if safe_manifest_path(path) is None:
@@ -1173,6 +1184,8 @@ class HttpSpecGraphProvider:
         self,
         manifest: dict[str, Any],
         ref: str,
+        *,
+        manifest_paths: set[str] | None = None,
     ) -> dict[str, Any]:
         safe_ref = agent_surfaces.safe_runtime_evidence_detail_ref(ref)
         if safe_ref is None:
@@ -1180,7 +1193,7 @@ class HttpSpecGraphProvider:
                 "unsafe_evidence_ref",
                 "Runtime evidence detail refs must be repo-relative paths under runs/agent_runtime_enforcement_evidence/.",
             )
-        if not self._has_artifact(manifest, safe_ref):
+        if not self._has_artifact(manifest, safe_ref, manifest_paths=manifest_paths):
             return agent_surfaces.runtime_evidence_detail_unavailable(
                 "missing_detail_artifact",
                 f"{safe_ref} is not available.",
@@ -1219,8 +1232,13 @@ class HttpSpecGraphProvider:
         runtime_evidence_entries = agent_surfaces._list_of_dicts(
             agent_surfaces._artifact_data(artifacts, "runtime_evidence").get("entries")
         )
+        manifest_paths = self._manifest_path_set(manifest)
         runtime_evidence_details = {
-            ref: self._read_optional_agent_runtime_evidence_detail(manifest, ref)
+            ref: self._read_optional_agent_runtime_evidence_detail(
+                manifest,
+                ref,
+                manifest_paths=manifest_paths,
+            )
             for ref in agent_surfaces.runtime_evidence_detail_refs(runtime_evidence_entries)
         }
 
