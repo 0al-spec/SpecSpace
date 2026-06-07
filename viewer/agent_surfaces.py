@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from http import HTTPStatus
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from viewer import specgraph_surfaces
@@ -21,6 +22,8 @@ AGENT_SURFACE_ARTIFACTS: dict[str, str] = {
     "runtime_evidence": "agent_runtime_enforcement_evidence_index.json",
     "external_handoffs": "external_consumer_handoff_packets.json",
 }
+RUNTIME_EVIDENCE_DETAIL_PREFIX = "runs/agent_runtime_enforcement_evidence/"
+WINDOWS_DRIVE_PATH_RE = re.compile(r"^[A-Za-z]:[\\/]")
 
 
 def _now_iso() -> str:
@@ -51,6 +54,83 @@ def _string_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, str) and item]
+
+
+def safe_runtime_evidence_detail_ref(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    if not candidate:
+        return None
+    if (
+        candidate.startswith(("/", "~"))
+        or "\\" in candidate
+        or "://" in candidate
+        or WINDOWS_DRIVE_PATH_RE.match(candidate)
+    ):
+        return None
+    path = PurePosixPath(candidate)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        return None
+    normalized = path.as_posix()
+    if not normalized.startswith(RUNTIME_EVIDENCE_DETAIL_PREFIX):
+        return None
+    if not normalized.endswith(".json"):
+        return None
+    return normalized
+
+
+def runtime_evidence_detail_refs(entries: list[dict[str, Any]]) -> list[str]:
+    refs: set[str] = set()
+    for entry in entries:
+        ref = safe_runtime_evidence_detail_ref(entry.get("evidence_ref"))
+        if ref:
+            refs.add(ref)
+    return sorted(refs)
+
+
+def runtime_evidence_detail_unavailable(reason: str, detail: str = "") -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "detail_status": "missing" if reason == "missing_detail_artifact" else "invalid",
+        "detail_reason": reason,
+        "checks": [],
+    }
+    if detail:
+        payload["detail_message"] = detail
+    return payload
+
+
+def _runtime_evidence_check(raw: dict[str, Any]) -> dict[str, Any] | None:
+    check_id = _text(raw.get("check_id"))
+    if not check_id:
+        return None
+    return {
+        "check_id": check_id,
+        "status": _text(raw.get("status") or raw.get("check_status"), "unknown"),
+        "message": _text(raw.get("message")),
+    }
+
+
+def runtime_evidence_detail_from_data(data: dict[str, Any]) -> dict[str, Any]:
+    evidence = _dict(data.get("evidence"))
+    checks_raw = data.get("checks")
+    if checks_raw is None:
+        checks_raw = evidence.get("checks")
+    if not isinstance(checks_raw, list):
+        return runtime_evidence_detail_unavailable(
+            "invalid_detail_artifact",
+            "Runtime evidence detail artifact does not expose checks[].",
+        )
+    checks = [
+        check
+        for check in (_runtime_evidence_check(raw) for raw in _list_of_dicts(checks_raw))
+        if check is not None
+    ]
+    return {
+        "detail_status": "available",
+        "detail_reason": "",
+        "checks": checks,
+    }
 
 
 def _entry_count(data: dict[str, Any]) -> int:
@@ -194,12 +274,77 @@ def _entries_by_surface(entries: list[dict[str, Any]]) -> dict[str, dict[str, An
     return grouped
 
 
-def _runtime_evidence_by_surface(entries: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def read_file_runtime_evidence_details(
+    runs_dir: Path | None,
+    entries: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    details: dict[str, dict[str, Any]] = {}
+    for ref in runtime_evidence_detail_refs(entries):
+        if runs_dir is None:
+            details[ref] = runtime_evidence_detail_unavailable(
+                "missing_detail_artifact",
+                "runs_dir is not configured.",
+            )
+            continue
+        path = runs_dir / ref.removeprefix("runs/")
+        if not path.is_file():
+            details[ref] = runtime_evidence_detail_unavailable(
+                "missing_detail_artifact",
+                f"{ref} is not available.",
+            )
+            continue
+        status, payload = specgraph_surfaces.read_json_artifact(
+            path,
+            invalid_message=f"{ref} is not valid JSON",
+        )
+        if status != HTTPStatus.OK or not isinstance(payload.get("data"), dict):
+            details[ref] = runtime_evidence_detail_unavailable(
+                "invalid_detail_artifact",
+                _text(
+                    payload.get("detail") or payload.get("error"),
+                    "Invalid runtime evidence detail artifact.",
+                ),
+            )
+            continue
+        details[ref] = runtime_evidence_detail_from_data(_dict(payload.get("data")))
+    return details
+
+
+def _runtime_evidence_detail_for_entry(
+    entry: dict[str, Any],
+    details: dict[str, dict[str, Any]],
+) -> tuple[str | None, dict[str, Any]]:
+    raw_ref = entry.get("evidence_ref")
+    safe_ref = safe_runtime_evidence_detail_ref(raw_ref)
+    if raw_ref and not safe_ref:
+        return None, runtime_evidence_detail_unavailable(
+            "unsafe_evidence_ref",
+            "Runtime evidence detail refs must be repo-relative paths under runs/agent_runtime_enforcement_evidence/.",
+        )
+    if safe_ref is None:
+        return None, runtime_evidence_detail_unavailable(
+            "missing_detail_artifact",
+            "Runtime evidence entry does not include a detail evidence_ref.",
+        )
+    return safe_ref, details.get(
+        safe_ref,
+        runtime_evidence_detail_unavailable(
+            "missing_detail_artifact",
+            f"{safe_ref} is not available.",
+        ),
+    )
+
+
+def _runtime_evidence_by_surface(
+    entries: list[dict[str, Any]],
+    details: dict[str, dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = {}
     for entry in entries:
         surface_id = _text(entry.get("surface_id") or entry.get("agent_surface"))
         if not surface_id:
             continue
+        evidence_ref, detail = _runtime_evidence_detail_for_entry(entry, details)
         grouped.setdefault(surface_id, []).append(
             {
                 "evidence_id": _text(entry.get("evidence_id")),
@@ -210,9 +355,10 @@ def _runtime_evidence_by_surface(entries: list[dict[str, Any]]) -> dict[str, lis
                     "unknown",
                 ),
                 "posture_claim": _text(entry.get("posture_claim")),
-                "evidence_ref": _text(entry.get("evidence_ref")) or None,
+                "evidence_ref": evidence_ref,
                 "result_status": _text(entry.get("result_status"), "unknown"),
                 "source_proposal_ids": _string_list(entry.get("source_proposal_ids")),
+                **detail,
             }
         )
     for items in grouped.values():
@@ -344,6 +490,7 @@ def build_agent_surface_index(
     artifacts: dict[str, dict[str, Any] | None],
     sources: dict[str, dict[str, Any]],
     source: dict[str, Any],
+    runtime_evidence_details: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     agent_surfaces_data = _artifact_data(artifacts, "agent_surfaces")
     verification_data = _artifact_data(artifacts, "verification_gaps")
@@ -360,7 +507,8 @@ def build_agent_surface_index(
         _list_of_dicts(verification_report_data.get("entries"))
     )
     runtime_evidence_by_surface = _runtime_evidence_by_surface(
-        _list_of_dicts(runtime_evidence_data.get("entries"))
+        _list_of_dicts(runtime_evidence_data.get("entries")),
+        runtime_evidence_details or {},
     )
     entries = [
         _surface_entry(
@@ -477,6 +625,10 @@ def read_file_agent_surface_index(*, runs_dir: Path | None) -> tuple[int, dict[s
         source, artifact = read_file_artifact(runs_dir, name, filename)
         sources[name] = source
         artifacts[name] = artifact
+    runtime_evidence_details = read_file_runtime_evidence_details(
+        runs_dir,
+        _list_of_dicts(_artifact_data(artifacts, "runtime_evidence").get("entries")),
+    )
 
     return HTTPStatus.OK, build_agent_surface_index(
         artifacts=artifacts,
@@ -485,4 +637,5 @@ def read_file_agent_surface_index(*, runs_dir: Path | None) -> tuple[int, dict[s
             "provider": "file",
             "runs_dir": str(runs_dir) if runs_dir is not None else None,
         },
+        runtime_evidence_details=runtime_evidence_details,
     )

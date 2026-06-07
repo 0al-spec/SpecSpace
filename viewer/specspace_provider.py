@@ -1169,6 +1169,41 @@ class HttpSpecGraphProvider:
         artifact = http_envelope(url, manifest, data)
         return agent_surfaces.artifact_source(name, filename, artifact), artifact
 
+    def _read_optional_agent_runtime_evidence_detail(
+        self,
+        manifest: dict[str, Any],
+        ref: str,
+    ) -> dict[str, Any]:
+        safe_ref = agent_surfaces.safe_runtime_evidence_detail_ref(ref)
+        if safe_ref is None:
+            return agent_surfaces.runtime_evidence_detail_unavailable(
+                "unsafe_evidence_ref",
+                "Runtime evidence detail refs must be repo-relative paths under runs/agent_runtime_enforcement_evidence/.",
+            )
+        if not self._has_artifact(manifest, safe_ref):
+            return agent_surfaces.runtime_evidence_detail_unavailable(
+                "missing_detail_artifact",
+                f"{safe_ref} is not available.",
+            )
+        status, text, error = self._read_artifact_text(safe_ref)
+        if error is not None or status != HTTPStatus.OK or text is None:
+            detail = error["detail"] if error is not None else f"HTTP {int(status)}"
+            return agent_surfaces.runtime_evidence_detail_unavailable(
+                "invalid_detail_artifact",
+                detail,
+            )
+        data, source_error = agent_surfaces.decode_json_artifact_text(
+            text,
+            artifact=safe_ref,
+            path=self._artifact_url(safe_ref),
+        )
+        if source_error is not None or data is None:
+            return agent_surfaces.runtime_evidence_detail_unavailable(
+                "invalid_detail_artifact",
+                str((source_error or {}).get("detail") or (source_error or {}).get("reason") or "Invalid JSON."),
+            )
+        return agent_surfaces.runtime_evidence_detail_from_data(data)
+
     def read_agent_surfaces(self) -> tuple[int, dict[str, Any]]:
         manifest, manifest_error = self._read_manifest()
         if manifest_error is not None:
@@ -1181,6 +1216,13 @@ class HttpSpecGraphProvider:
             source, artifact = self._read_optional_agent_surface_artifact(manifest, name, filename)
             sources[name] = source
             artifacts[name] = artifact
+        runtime_evidence_entries = agent_surfaces._list_of_dicts(
+            agent_surfaces._artifact_data(artifacts, "runtime_evidence").get("entries")
+        )
+        runtime_evidence_details = {
+            ref: self._read_optional_agent_runtime_evidence_detail(manifest, ref)
+            for ref in agent_surfaces.runtime_evidence_detail_refs(runtime_evidence_entries)
+        }
 
         return HTTPStatus.OK, agent_surfaces.build_agent_surface_index(
             artifacts=artifacts,
@@ -1190,6 +1232,7 @@ class HttpSpecGraphProvider:
                 "artifact_base_url": self.normalized_base_url,
                 "manifest": self.manifest_url,
             },
+            runtime_evidence_details=runtime_evidence_details,
         )
 
     def read_specpm_lifecycle(self) -> tuple[int, dict[str, Any]]:

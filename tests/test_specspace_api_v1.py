@@ -707,6 +707,36 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
             ],
         },
     )
+    evidence_dir = runs_dir / "agent_runtime_enforcement_evidence"
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(
+        evidence_dir / "supervisor-executor-adapter-smoke.json",
+        {
+            "artifact_kind": "agent_runtime_enforcement_evidence",
+            "schema_version": 1,
+            "surface_id": "specgraph.supervisor.executor_adapter",
+            "evidence_kind": "runtime_smoke",
+            "status": "passed",
+            "safe_evidence_ref": (
+                "runs/agent_runtime_enforcement_evidence/"
+                "supervisor-executor-adapter-smoke.json"
+            ),
+            "evidence": {
+                "kind": "runtime_smoke",
+                "checks": [
+                    {
+                        "check_id": "executor_adapter_invocation_boundary",
+                        "status": "passed",
+                        "message": (
+                            "Supervisor executor adapter policy uses declarative CLI executable "
+                            "lookup, and the generated adapter index does not persist executable "
+                            "paths or command lines."
+                        ),
+                    }
+                ],
+            },
+        },
+    )
     _write_json(
         runs_dir / "agent_verification_gap_index.json",
         {
@@ -1237,9 +1267,88 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             supervisor_entry["runtime_enforcement_evidence"][0]["evidence_ref"],
             "runs/agent_runtime_enforcement_evidence/supervisor-executor-adapter-smoke.json",
         )
+        self.assertEqual(
+            supervisor_entry["runtime_enforcement_evidence"][0]["detail_status"],
+            "available",
+        )
+        self.assertEqual(
+            supervisor_entry["runtime_enforcement_evidence"][0]["checks"][0]["check_id"],
+            "executor_adapter_invocation_boundary",
+        )
+        self.assertEqual(
+            supervisor_entry["runtime_enforcement_evidence"][0]["checks"][0]["status"],
+            "passed",
+        )
         self.assertEqual(body["executor_adapters"][0]["backend_id"], "codex")
         self.assertNotIn("supervisor_stdout", json.dumps(body))
         self.assertNotIn("/Users/", json.dumps(body["entries"]))
+
+    def test_agent_surfaces_v1_rejects_unsafe_runtime_evidence_detail_ref(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            _write_agent_surface_artifacts(runs_dir)
+            index_path = runs_dir / "agent_runtime_enforcement_evidence_index.json"
+            index = json.loads(index_path.read_text(encoding="utf-8"))
+            index["entries"][0]["evidence_ref"] = "file:///Users/example/evidence.json"
+            _write_json(index_path, index)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/agent-surfaces")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        entries = {entry["surface_id"]: entry for entry in body["entries"]}
+        evidence = entries["specgraph.supervisor.executor_adapter"]["runtime_enforcement_evidence"][0]
+        self.assertIsNone(evidence["evidence_ref"])
+        self.assertEqual(evidence["detail_status"], "invalid")
+        self.assertEqual(evidence["detail_reason"], "unsafe_evidence_ref")
+        self.assertEqual(evidence["checks"], [])
+        self.assertNotIn("file:///Users/example/evidence.json", json.dumps(body))
+
+    def test_agent_surfaces_v1_keeps_aggregate_when_runtime_evidence_detail_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            _write_agent_surface_artifacts(runs_dir)
+            (runs_dir / "agent_runtime_enforcement_evidence" / "supervisor-executor-adapter-smoke.json").unlink()
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/agent-surfaces")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["runtime_enforcement_evidence_passed_count"], 1)
+        entries = {entry["surface_id"]: entry for entry in body["entries"]}
+        evidence = entries["specgraph.supervisor.executor_adapter"]["runtime_enforcement_evidence"][0]
+        self.assertEqual(evidence["status"], "passed")
+        self.assertEqual(evidence["detail_status"], "missing")
+        self.assertEqual(evidence["detail_reason"], "missing_detail_artifact")
+        self.assertEqual(evidence["checks"], [])
+
+    def test_agent_surfaces_v1_marks_malformed_runtime_evidence_detail_invalid(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            _write_agent_surface_artifacts(runs_dir)
+            _write_json(
+                runs_dir / "agent_runtime_enforcement_evidence" / "supervisor-executor-adapter-smoke.json",
+                {"artifact_kind": "agent_runtime_enforcement_evidence", "checks": "not-a-list"},
+            )
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/agent-surfaces")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        entries = {entry["surface_id"]: entry for entry in body["entries"]}
+        evidence = entries["specgraph.supervisor.executor_adapter"]["runtime_enforcement_evidence"][0]
+        self.assertEqual(evidence["detail_status"], "invalid")
+        self.assertEqual(evidence["detail_reason"], "invalid_detail_artifact")
+        self.assertEqual(evidence["checks"], [])
 
     def test_agent_surfaces_v1_degrades_when_optional_artifacts_are_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1299,6 +1408,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     "runs/agent_surface_index.json",
                     "runs/agent_verification_gap_index.json",
                     "runs/agent_runtime_enforcement_evidence_index.json",
+                    "runs/agent_runtime_enforcement_evidence/supervisor-executor-adapter-smoke.json",
                     "runs/external_consumer_handoff_packets.json",
                 ],
             )
@@ -1317,6 +1427,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(body["sources"]["agent_surfaces"]["available"])
         self.assertTrue(body["sources"]["runtime_evidence"]["available"])
         self.assertTrue(body["sources"]["external_handoffs"]["path"].startswith(artifact_base_url))
+        entries = {entry["surface_id"]: entry for entry in body["entries"]}
+        evidence = entries["specgraph.supervisor.executor_adapter"]["runtime_enforcement_evidence"][0]
+        self.assertEqual(evidence["detail_status"], "available")
+        self.assertEqual(evidence["checks"][0]["check_id"], "executor_adapter_invocation_boundary")
 
     def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

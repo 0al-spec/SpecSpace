@@ -90,6 +90,15 @@ const payload = {
           evidence_ref: "runs/agent_runtime_enforcement_evidence/codex-smoke.json",
           result_status: "passed",
           source_proposal_ids: ["0077"],
+          detail_status: "available",
+          detail_reason: "",
+          checks: [
+            {
+              check_id: "executor_adapter_invocation_boundary",
+              status: "passed",
+              message: "Structured invocation boundary passed.",
+            },
+          ],
         },
       ],
     },
@@ -148,6 +157,12 @@ describe("parseAgentSurfaceIndex", () => {
       evidenceKind: "runtime_smoke",
       status: "passed",
       evidenceRef: "runs/agent_runtime_enforcement_evidence/codex-smoke.json",
+      detailStatus: "available",
+    });
+    expect(parsed.data.entries[0].runtimeEnforcementEvidence[0].checks[0]).toMatchObject({
+      checkId: "executor_adapter_invocation_boundary",
+      status: "passed",
+      message: "Structured invocation boundary passed.",
     });
     expect(parsed.data.executorAdapters[0]).toMatchObject({
       backendId: "codex",
