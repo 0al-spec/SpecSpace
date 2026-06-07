@@ -20,7 +20,12 @@ export type AgentSurfaceEntry = {
   preparesHandoffs: boolean;
   passportRef: string | null;
   verificationState: string;
+  verificationStatus: string;
+  verificationToolStatus: string;
+  verificationValid: boolean;
   runtimeEnforcementState: string;
+  runtimeEnforcementObserved: boolean;
+  nextAction: string | null;
   executorBackendId: string | null;
   backendStatus: string | null;
   gapCount: number;
@@ -58,6 +63,10 @@ export type AgentSurfaceHandoff = {
   nextGap: string | null;
   sourceGap: string | null;
   sourceProposalIds: readonly string[];
+  artifactContract: Record<string, unknown>;
+  expectedConsumerBehavior: readonly string[];
+  evidenceContract: Record<string, unknown>;
+  privacyBoundary: Record<string, unknown>;
 };
 
 export type AgentSurfaceIndex = {
@@ -73,7 +82,13 @@ export type AgentSurfaceIndex = {
     executorBackendCount: number;
     missingPassportCount: number;
     verificationGapCount: number;
+    verificationValidCount: number;
+    verificationInvalidCount: number;
+    verificationUnavailableCount: number;
     runtimeEnforcementUnknownCount: number;
+    runtimeEnforcementPolicyOnlyCount: number;
+    runtimeEnforcementBoundaryOnlyCount: number;
+    runtimeEnforcementDeferredCount: number;
     agentPassportCliStatus: string;
     handoffStatus: string;
     nextGap: string | null;
@@ -155,7 +170,12 @@ function parseSurface(raw: Record<string, unknown>): AgentSurfaceEntry | null {
     preparesHandoffs: boolValue(raw.prepares_handoffs),
     passportRef: optionalString(raw.passport_ref),
     verificationState: stringValue(raw.verification_state, "unknown"),
+    verificationStatus: stringValue(raw.verification_status, "unknown"),
+    verificationToolStatus: stringValue(raw.verification_tool_status, "unknown"),
+    verificationValid: boolValue(raw.verification_valid),
     runtimeEnforcementState: stringValue(raw.runtime_enforcement_state, "unknown"),
+    runtimeEnforcementObserved: boolValue(raw.runtime_enforcement_observed),
+    nextAction: optionalString(raw.next_action),
     executorBackendId: optionalString(raw.executor_backend_id),
     backendStatus: optionalString(raw.backend_status),
     gapCount: numberValue(raw.gap_count),
@@ -215,6 +235,10 @@ function parseHandoff(raw: unknown): AgentSurfaceHandoff {
     nextGap: optionalString(value.next_gap),
     sourceGap: optionalString(value.source_gap),
     sourceProposalIds: stringList(value.source_proposal_ids),
+    artifactContract: isRecord(value.artifact_contract) ? value.artifact_contract : {},
+    expectedConsumerBehavior: stringList(value.expected_consumer_behavior),
+    evidenceContract: isRecord(value.evidence_contract) ? value.evidence_contract : {},
+    privacyBoundary: isRecord(value.privacy_boundary) ? value.privacy_boundary : {},
   };
 }
 
@@ -245,7 +269,13 @@ export function parseAgentSurfaceIndex(raw: unknown): ParseAgentSurfaceIndexResu
         executorBackendCount: numberValue(summary.executor_backend_count),
         missingPassportCount: numberValue(summary.missing_passport_count),
         verificationGapCount: numberValue(summary.verification_gap_count),
+        verificationValidCount: numberValue(summary.verification_valid_count),
+        verificationInvalidCount: numberValue(summary.verification_invalid_count),
+        verificationUnavailableCount: numberValue(summary.verification_unavailable_count),
         runtimeEnforcementUnknownCount: numberValue(summary.runtime_enforcement_unknown_count),
+        runtimeEnforcementPolicyOnlyCount: numberValue(summary.runtime_enforcement_policy_only_count),
+        runtimeEnforcementBoundaryOnlyCount: numberValue(summary.runtime_enforcement_boundary_only_count),
+        runtimeEnforcementDeferredCount: numberValue(summary.runtime_enforcement_deferred_count),
         agentPassportCliStatus: stringValue(summary.agent_passport_cli_status, "unknown"),
         handoffStatus: stringValue(summary.handoff_status, "unknown"),
         nextGap: optionalString(summary.next_gap),

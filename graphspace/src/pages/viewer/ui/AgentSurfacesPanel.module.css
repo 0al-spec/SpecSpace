@@ -122,6 +122,45 @@
   background: var(--gs-panel);
 }
 
+.postureStrip {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+}
+
+.postureItem {
+  min-width: 0;
+  padding: var(--gs-space-4) var(--gs-space-5);
+  border-right: 1px solid var(--gs-rule-soft);
+}
+
+.postureItem:nth-child(3n) {
+  border-right: 0;
+}
+
+.postureLabel,
+.postureValue {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.postureLabel {
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.postureValue {
+  margin-top: 2px;
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+}
+
 .source {
   border: 1px solid var(--gs-rule-soft);
   padding: 3px 6px;
@@ -258,8 +297,18 @@
 
 @media (max-width: 760px) {
   .summary,
+  .postureStrip,
   .metaGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .postureItem,
+  .postureItem:nth-child(3n) {
+    border-right: 1px solid var(--gs-rule-soft);
+  }
+
+  .postureItem:nth-child(2n) {
+    border-right: 0;
   }
 
   .handoff,
