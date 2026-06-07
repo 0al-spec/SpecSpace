@@ -317,7 +317,10 @@ def compile_spec_markdown_with_provider(
         "scope": scope,
         "source": source,
         "export": {
-            "manifest": manifest,
+            "manifest": {
+                **manifest,
+                "scope": scope,
+            },
             "download_filename": export_payload.get("download_filename"),
         },
         "compile": compile_payload,

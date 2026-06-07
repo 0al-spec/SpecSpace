@@ -71,6 +71,19 @@ describe("parseSpecMarkdownCompile", () => {
     expect(result.kind).toBe("invariant-violation");
   });
 
+  it("rejects compile responses without export manifest scope", () => {
+    const { scope: _scope, ...manifestWithoutScope } = payload.export.manifest;
+    const result = parseSpecMarkdownCompile({
+      ...payload,
+      export: {
+        ...payload.export,
+        manifest: manifestWithoutScope,
+      },
+    });
+
+    expect(result.kind).toBe("parse-error");
+  });
+
   it("rejects successful responses without compiled markdown", () => {
     const result = parseSpecMarkdownCompile({
       ...payload,
