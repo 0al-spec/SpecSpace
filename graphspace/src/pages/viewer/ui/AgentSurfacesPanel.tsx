@@ -41,6 +41,12 @@ function compact(value: string | null | undefined, fallback = "unknown"): string
   return value && value.length > 0 ? value : fallback;
 }
 
+function compactBool(value: boolean | null | undefined): string {
+  if (value === true) return "true";
+  if (value === false) return "false";
+  return "unknown";
+}
+
 export function AgentSurfacesPanel({ state }: Props) {
   if (state.kind === "idle" || state.kind === "loading") {
     return (
@@ -268,11 +274,13 @@ function RuntimeEnvironmentBlock({ value }: { value: RuntimeEnvironment }) {
         <Meta label="Intended env" value={compact(value.intendedEnvironment)} />
         <Meta label="Probe" value={compact(value.executableProbeScope)} />
         <Meta label="Semantics" value={compact(value.backendStatusSemantics)} />
+        <Meta label="Producer executable required" value={compactBool(value.producerEnvironmentExecutableRequired)} />
+        <Meta label="Producer execution suppressed" value={compactBool(value.producerEnvironmentExecutionSuppressed)} />
       </div>
       {value.missingExecutableIsStaticPublishGap ? (
         <div className={styles.environmentNotice}>
           <Pill value="static_publish_gap" />
-          <span>{value.operatorNextAction ?? "configure_local_operator_executable"}</span>
+          <span>{value.operatorNextAction ?? "run_in_intended_runtime_environment"}</span>
         </div>
       ) : null}
     </div>

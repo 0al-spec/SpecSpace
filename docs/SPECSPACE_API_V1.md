@@ -431,8 +431,9 @@ Agent Passport validation endpoint.
 
 Executor backend availability is reported with producer runtime environment
 semantics when SpecGraph publishes them. For example, `backend_status:
-"missing_executable"` can mean the executable is missing from the static publish
-process while the backend is still intended for a local operator environment.
+"not_applicable_in_producer_environment"` means the static publish producer is
+not the intended local operator runtime and should not be presented as a broken
+local executor configuration.
 
 Runtime evidence detail refs are loaded only when they are repo-relative paths
 under `runs/agent_runtime_enforcement_evidence/`. Absolute paths, URLs,
@@ -469,16 +470,18 @@ aggregate evidence row remains visible with `detail_status: "invalid"` or
       "passport_ref": "agent-passport://executors/codex-cli/0.1.0",
       "verification_state": "not_attempted",
       "runtime_enforcement_state": "not_enforced",
-      "backend_status": "missing_executable",
+      "backend_status": "not_applicable_in_producer_environment",
       "runtime_environment": {
         "producer_environment": "static_publish_environment",
         "intended_environment": "local_operator_environment",
         "executable_probe_scope": "current_process_environment",
-        "backend_status_semantics": "executable_not_available_in_current_process_environment",
+        "backend_status_semantics": "executable_probe_not_required_for_producer_environment",
         "static_publish_executable_required": false,
         "local_operator_executable_required": true,
+        "producer_environment_executable_required": false,
+        "producer_environment_execution_suppressed": true,
         "missing_executable_is_static_publish_gap": true,
-        "operator_next_action": "configure_local_operator_executable"
+        "operator_next_action": "run_in_intended_runtime_environment"
       },
       "gap_count": 1,
       "runtime_enforcement_evidence": [
@@ -501,17 +504,19 @@ aggregate evidence row remains visible with `detail_status: "invalid"` or
   "executor_adapters": [
     {
       "backend_id": "codex",
-      "backend_status": "missing_executable",
+      "backend_status": "not_applicable_in_producer_environment",
       "smoke_status": "not_run",
       "runtime_environment": {
         "producer_environment": "static_publish_environment",
         "intended_environment": "local_operator_environment",
         "executable_probe_scope": "current_process_environment",
-        "backend_status_semantics": "executable_not_available_in_current_process_environment",
+        "backend_status_semantics": "executable_probe_not_required_for_producer_environment",
         "static_publish_executable_required": false,
         "local_operator_executable_required": true,
+        "producer_environment_executable_required": false,
+        "producer_environment_execution_suppressed": true,
         "missing_executable_is_static_publish_gap": true,
-        "operator_next_action": "configure_local_operator_executable"
+        "operator_next_action": "run_in_intended_runtime_environment"
       }
     }
   ],

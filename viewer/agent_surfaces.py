@@ -65,6 +65,12 @@ def _runtime_environment(value: Any) -> dict[str, Any] | None:
         "local_operator_executable_required": _optional_bool(
             raw.get("local_operator_executable_required")
         ),
+        "producer_environment_executable_required": _optional_bool(
+            raw.get("producer_environment_executable_required")
+        ),
+        "producer_environment_execution_suppressed": _optional_bool(
+            raw.get("producer_environment_execution_suppressed")
+        ),
         "missing_executable_is_static_publish_gap": _optional_bool(
             raw.get("missing_executable_is_static_publish_gap")
         ),

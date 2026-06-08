@@ -67,16 +67,18 @@ const payload = {
       runtime_enforcement_observed: false,
       next_action: "define_runtime_enforcement_runtime",
       executor_backend_id: "codex",
-      backend_status: "missing_executable",
+      backend_status: "not_applicable_in_producer_environment",
       runtime_environment: {
         producer_environment: "static_publish_environment",
         intended_environment: "local_operator_environment",
         executable_probe_scope: "current_process_environment",
-        backend_status_semantics: "executable_not_available_in_current_process_environment",
+        backend_status_semantics: "executable_probe_not_required_for_producer_environment",
         static_publish_executable_required: false,
         local_operator_executable_required: true,
+        producer_environment_executable_required: false,
+        producer_environment_execution_suppressed: true,
         missing_executable_is_static_publish_gap: true,
-        operator_next_action: "configure_local_operator_executable",
+        operator_next_action: "run_in_intended_runtime_environment",
       },
       gap_count: 1,
       gaps: [
@@ -117,17 +119,19 @@ const payload = {
     {
       backend_id: "codex",
       display_name: "Codex CLI",
-      backend_status: "missing_executable",
+      backend_status: "not_applicable_in_producer_environment",
       authority_state: "default",
       runtime_environment: {
         producer_environment: "static_publish_environment",
         intended_environment: "local_operator_environment",
         executable_probe_scope: "current_process_environment",
-        backend_status_semantics: "executable_not_available_in_current_process_environment",
+        backend_status_semantics: "executable_probe_not_required_for_producer_environment",
         static_publish_executable_required: false,
         local_operator_executable_required: true,
+        producer_environment_executable_required: false,
+        producer_environment_execution_suppressed: true,
         missing_executable_is_static_publish_gap: true,
-        operator_next_action: "configure_local_operator_executable",
+        operator_next_action: "run_in_intended_runtime_environment",
       },
       command_surface: "cli",
       protocol_contract: "run_outcome_blocker",
@@ -138,7 +142,7 @@ const payload = {
       },
       smoke_status: "not_run",
       canonical_trial_allowed: false,
-      safe_next_action: "run_executor_adapter_smoke_benchmark",
+      safe_next_action: "run_in_intended_runtime_environment",
       capability_gap_count: 1,
     },
   ],
@@ -171,14 +175,16 @@ describe("parseAgentSurfaceIndex", () => {
       verificationStatus: "valid",
       runtimeEnforcementState: "policy_only",
       nextAction: "define_runtime_enforcement_runtime",
-      backendStatus: "missing_executable",
+      backendStatus: "not_applicable_in_producer_environment",
     });
     expect(parsed.data.entries[0].runtimeEnvironment).toMatchObject({
       producerEnvironment: "static_publish_environment",
       intendedEnvironment: "local_operator_environment",
-      backendStatusSemantics: "executable_not_available_in_current_process_environment",
+      backendStatusSemantics: "executable_probe_not_required_for_producer_environment",
+      producerEnvironmentExecutableRequired: false,
+      producerEnvironmentExecutionSuppressed: true,
       missingExecutableIsStaticPublishGap: true,
-      operatorNextAction: "configure_local_operator_executable",
+      operatorNextAction: "run_in_intended_runtime_environment",
     });
     expect(parsed.data.entries[0].gaps[0].nextAction).toBe("define_runtime_enforcement_runtime");
     expect(parsed.data.entries[0].runtimeEnforcementEvidence[0]).toMatchObject({
@@ -194,7 +200,7 @@ describe("parseAgentSurfaceIndex", () => {
     });
     expect(parsed.data.executorAdapters[0]).toMatchObject({
       backendId: "codex",
-      backendStatus: "missing_executable",
+      backendStatus: "not_applicable_in_producer_environment",
       smokeStatus: "not_run",
     });
     expect(parsed.data.executorAdapters[0].runtimeEnvironment).toMatchObject({
@@ -241,6 +247,7 @@ describe("parseAgentSurfaceIndex", () => {
           runtime_environment: {
             producer_environment: "static_publish_environment",
             static_publish_executable_required: false,
+            producer_environment_execution_suppressed: true,
           },
         },
       ],
@@ -255,6 +262,8 @@ describe("parseAgentSurfaceIndex", () => {
       intendedEnvironment: null,
       staticPublishExecutableRequired: false,
       localOperatorExecutableRequired: null,
+      producerEnvironmentExecutableRequired: null,
+      producerEnvironmentExecutionSuppressed: true,
       missingExecutableIsStaticPublishGap: null,
     });
   });

@@ -79,6 +79,8 @@ export type RuntimeEnvironment = {
   backendStatusSemantics: string | null;
   staticPublishExecutableRequired: boolean | null;
   localOperatorExecutableRequired: boolean | null;
+  producerEnvironmentExecutableRequired: boolean | null;
+  producerEnvironmentExecutionSuppressed: boolean | null;
   missingExecutableIsStaticPublishGap: boolean | null;
   operatorNextAction: string | null;
 };
@@ -238,6 +240,8 @@ function parseRuntimeEnvironment(raw: unknown): RuntimeEnvironment | null {
     backendStatusSemantics: optionalString(raw.backend_status_semantics),
     staticPublishExecutableRequired: optionalBool(raw.static_publish_executable_required),
     localOperatorExecutableRequired: optionalBool(raw.local_operator_executable_required),
+    producerEnvironmentExecutableRequired: optionalBool(raw.producer_environment_executable_required),
+    producerEnvironmentExecutionSuppressed: optionalBool(raw.producer_environment_execution_suppressed),
     missingExecutableIsStaticPublishGap: optionalBool(raw.missing_executable_is_static_publish_gap),
     operatorNextAction: optionalString(raw.operator_next_action),
   };
