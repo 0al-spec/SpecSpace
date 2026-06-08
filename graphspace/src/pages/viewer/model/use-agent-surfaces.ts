@@ -28,6 +28,7 @@ export type AgentSurfaceEntry = {
   nextAction: string | null;
   executorBackendId: string | null;
   backendStatus: string | null;
+  runtimeEnvironment: RuntimeEnvironment | null;
   gapCount: number;
   gaps: readonly AgentSurfaceGap[];
   runtimeEnforcementEvidenceCount: number;
@@ -68,6 +69,18 @@ export type ExecutorAdapterEntry = {
   safeNextAction: string | null;
   capabilityGapCount: number;
   passportValidation: Record<string, unknown>;
+  runtimeEnvironment: RuntimeEnvironment | null;
+};
+
+export type RuntimeEnvironment = {
+  producerEnvironment: string;
+  intendedEnvironment: string;
+  executableProbeScope: string;
+  backendStatusSemantics: string;
+  staticPublishExecutableRequired: boolean;
+  localOperatorExecutableRequired: boolean;
+  missingExecutableIsStaticPublishGap: boolean;
+  operatorNextAction: string | null;
 };
 
 export type AgentSurfaceSource = {
@@ -212,6 +225,20 @@ function parseRuntimeEvidence(raw: Record<string, unknown>): AgentRuntimeEvidenc
   };
 }
 
+function parseRuntimeEnvironment(raw: unknown): RuntimeEnvironment | null {
+  if (!isRecord(raw)) return null;
+  return {
+    producerEnvironment: stringValue(raw.producer_environment, "unknown"),
+    intendedEnvironment: stringValue(raw.intended_environment, "unknown"),
+    executableProbeScope: stringValue(raw.executable_probe_scope, "unknown"),
+    backendStatusSemantics: stringValue(raw.backend_status_semantics, "unknown"),
+    staticPublishExecutableRequired: boolValue(raw.static_publish_executable_required),
+    localOperatorExecutableRequired: boolValue(raw.local_operator_executable_required),
+    missingExecutableIsStaticPublishGap: boolValue(raw.missing_executable_is_static_publish_gap),
+    operatorNextAction: optionalString(raw.operator_next_action),
+  };
+}
+
 function parseSurface(raw: Record<string, unknown>): AgentSurfaceEntry | null {
   const surfaceId = optionalString(raw.surface_id);
   if (!surfaceId) return null;
@@ -234,6 +261,7 @@ function parseSurface(raw: Record<string, unknown>): AgentSurfaceEntry | null {
     nextAction: optionalString(raw.next_action),
     executorBackendId: optionalString(raw.executor_backend_id),
     backendStatus: optionalString(raw.backend_status),
+    runtimeEnvironment: parseRuntimeEnvironment(raw.runtime_environment),
     gapCount: numberValue(raw.gap_count),
     gaps: records(raw.gaps).map(parseGap),
     runtimeEnforcementEvidenceCount: numberValue(raw.runtime_enforcement_evidence_count),
@@ -257,6 +285,7 @@ function parseExecutor(raw: Record<string, unknown>): ExecutorAdapterEntry | nul
     safeNextAction: optionalString(raw.safe_next_action),
     capabilityGapCount: numberValue(raw.capability_gap_count),
     passportValidation: isRecord(raw.passport_validation) ? raw.passport_validation : {},
+    runtimeEnvironment: parseRuntimeEnvironment(raw.runtime_environment),
   };
 }
 

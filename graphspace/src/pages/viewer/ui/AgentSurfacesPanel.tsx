@@ -1,6 +1,7 @@
 import type {
   AgentSurfaceEntry,
   ExecutorAdapterEntry,
+  RuntimeEnvironment,
   UseAgentSurfacesState,
 } from "../model/use-agent-surfaces";
 import { agentSurfaceTone, type AgentSurfaceTone } from "../model/agent-surface-tones";
@@ -177,6 +178,7 @@ function ExecutorRow({ entry }: { entry: ExecutorAdapterEntry }) {
         <Meta label="Passport tool" value={toolStatus ?? validationState ?? "unknown"} />
         <Meta label="Next" value={entry.safeNextAction ?? "none"} />
       </div>
+      {entry.runtimeEnvironment ? <RuntimeEnvironmentBlock value={entry.runtimeEnvironment} /> : null}
       {entry.passportRef ? <p className={styles.passportRef}>{entry.passportRef}</p> : null}
     </div>
   );
@@ -202,6 +204,7 @@ function SurfaceRow({ entry }: { entry: AgentSurfaceEntry }) {
         <Meta label="Runtime" value={entry.runtimeEnforcementObserved ? "observed" : entry.runtimeEnforcementState} />
         <Meta label="Next" value={entry.nextAction ?? (entry.gapCount > 0 ? "review gaps" : "none")} />
       </div>
+      {entry.runtimeEnvironment ? <RuntimeEnvironmentBlock value={entry.runtimeEnvironment} /> : null}
       <p className={styles.passportRef}>
         {entry.passportRef ?? (entry.requiresPassport ? "missing passport" : "passport optional")}
       </p>
@@ -254,6 +257,25 @@ function SurfaceRow({ entry }: { entry: AgentSurfaceEntry }) {
         </div>
       ) : null}
     </article>
+  );
+}
+
+function RuntimeEnvironmentBlock({ value }: { value: RuntimeEnvironment }) {
+  return (
+    <div className={styles.runtimeEnvironment}>
+      <div className={styles.environmentGrid}>
+        <Meta label="Producer env" value={value.producerEnvironment} />
+        <Meta label="Intended env" value={value.intendedEnvironment} />
+        <Meta label="Probe" value={value.executableProbeScope} />
+        <Meta label="Semantics" value={value.backendStatusSemantics} />
+      </div>
+      {value.missingExecutableIsStaticPublishGap ? (
+        <div className={styles.environmentNotice}>
+          <Pill value="static_publish_gap" />
+          <span>{value.operatorNextAction ?? "configure_local_operator_executable"}</span>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

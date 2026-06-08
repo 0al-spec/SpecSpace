@@ -67,7 +67,17 @@ const payload = {
       runtime_enforcement_observed: false,
       next_action: "define_runtime_enforcement_runtime",
       executor_backend_id: "codex",
-      backend_status: "available",
+      backend_status: "missing_executable",
+      runtime_environment: {
+        producer_environment: "static_publish_environment",
+        intended_environment: "local_operator_environment",
+        executable_probe_scope: "current_process_environment",
+        backend_status_semantics: "executable_not_available_in_current_process_environment",
+        static_publish_executable_required: false,
+        local_operator_executable_required: true,
+        missing_executable_is_static_publish_gap: true,
+        operator_next_action: "configure_local_operator_executable",
+      },
       gap_count: 1,
       gaps: [
         {
@@ -107,8 +117,18 @@ const payload = {
     {
       backend_id: "codex",
       display_name: "Codex CLI",
-      backend_status: "available",
+      backend_status: "missing_executable",
       authority_state: "default",
+      runtime_environment: {
+        producer_environment: "static_publish_environment",
+        intended_environment: "local_operator_environment",
+        executable_probe_scope: "current_process_environment",
+        backend_status_semantics: "executable_not_available_in_current_process_environment",
+        static_publish_executable_required: false,
+        local_operator_executable_required: true,
+        missing_executable_is_static_publish_gap: true,
+        operator_next_action: "configure_local_operator_executable",
+      },
       command_surface: "cli",
       protocol_contract: "run_outcome_blocker",
       passport_ref: "agent-passport://executors/codex-cli/0.1.0",
@@ -151,6 +171,14 @@ describe("parseAgentSurfaceIndex", () => {
       verificationStatus: "valid",
       runtimeEnforcementState: "policy_only",
       nextAction: "define_runtime_enforcement_runtime",
+      backendStatus: "missing_executable",
+    });
+    expect(parsed.data.entries[0].runtimeEnvironment).toMatchObject({
+      producerEnvironment: "static_publish_environment",
+      intendedEnvironment: "local_operator_environment",
+      backendStatusSemantics: "executable_not_available_in_current_process_environment",
+      missingExecutableIsStaticPublishGap: true,
+      operatorNextAction: "configure_local_operator_executable",
     });
     expect(parsed.data.entries[0].gaps[0].nextAction).toBe("define_runtime_enforcement_runtime");
     expect(parsed.data.entries[0].runtimeEnforcementEvidence[0]).toMatchObject({
@@ -166,8 +194,13 @@ describe("parseAgentSurfaceIndex", () => {
     });
     expect(parsed.data.executorAdapters[0]).toMatchObject({
       backendId: "codex",
-      backendStatus: "available",
+      backendStatus: "missing_executable",
       smokeStatus: "not_run",
+    });
+    expect(parsed.data.executorAdapters[0].runtimeEnvironment).toMatchObject({
+      producerEnvironment: "static_publish_environment",
+      intendedEnvironment: "local_operator_environment",
+      missingExecutableIsStaticPublishGap: true,
     });
   });
 

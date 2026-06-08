@@ -551,8 +551,20 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
                 {
                     "backend_id": "codex",
                     "display_name": "Codex CLI",
-                    "backend_status": "available",
+                    "backend_status": "missing_executable",
                     "authority_state": "default",
+                    "runtime_environment": {
+                        "producer_environment": "static_publish_environment",
+                        "intended_environment": "local_operator_environment",
+                        "executable_probe_scope": "current_process_environment",
+                        "backend_status_semantics": (
+                            "executable_not_available_in_current_process_environment"
+                        ),
+                        "static_publish_executable_required": False,
+                        "local_operator_executable_required": True,
+                        "missing_executable_is_static_publish_gap": True,
+                        "operator_next_action": "configure_local_operator_executable",
+                    },
                     "command_surface": "cli",
                     "protocol_contract": "run_outcome_blocker",
                     "passport_ref": "agent-passport://executors/codex-cli/0.1.0",
@@ -662,7 +674,19 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
                     "verification_state": "V2_passport_referenced",
                     "runtime_enforcement_state": "policy_only",
                     "executor_backend_id": "codex",
-                    "backend_status": "available",
+                    "backend_status": "missing_executable",
+                    "runtime_environment": {
+                        "producer_environment": "static_publish_environment",
+                        "intended_environment": "local_operator_environment",
+                        "executable_probe_scope": "current_process_environment",
+                        "backend_status_semantics": (
+                            "executable_not_available_in_current_process_environment"
+                        ),
+                        "static_publish_executable_required": False,
+                        "local_operator_executable_required": True,
+                        "missing_executable_is_static_publish_gap": True,
+                        "operator_next_action": "configure_local_operator_executable",
+                    },
                     "passport_validation": {
                         "required": False,
                         "validation_state": "not_attempted",
@@ -1254,6 +1278,21 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(entries["specgraph.executor.codex"]["verification_tool_status"], "available")
         self.assertEqual(entries["specgraph.executor.codex"]["runtime_enforcement_state"], "policy_only")
         self.assertEqual(entries["specgraph.executor.codex"]["runtime_enforcement_observed"], False)
+        self.assertEqual(entries["specgraph.executor.codex"]["backend_status"], "missing_executable")
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["runtime_environment"]["producer_environment"],
+            "static_publish_environment",
+        )
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["runtime_environment"]["intended_environment"],
+            "local_operator_environment",
+        )
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["runtime_environment"][
+                "missing_executable_is_static_publish_gap"
+            ],
+            True,
+        )
         self.assertEqual(entries["specgraph.executor.codex"]["next_action"], "define_runtime_enforcement_runtime")
         self.assertEqual(entries["specgraph.executor.codex"]["gap_count"], 1)
         self.assertEqual(
@@ -1261,6 +1300,12 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "define_runtime_enforcement_runtime",
         )
         supervisor_entry = entries["specgraph.supervisor.executor_adapter"]
+        executor_entry = body["executor_adapters"][0]
+        self.assertEqual(executor_entry["backend_status"], "missing_executable")
+        self.assertEqual(
+            executor_entry["runtime_environment"]["operator_next_action"],
+            "configure_local_operator_executable",
+        )
         self.assertEqual(supervisor_entry["runtime_enforcement_evidence_count"], 1)
         self.assertEqual(supervisor_entry["runtime_enforcement_evidence"][0]["status"], "passed")
         self.assertEqual(
