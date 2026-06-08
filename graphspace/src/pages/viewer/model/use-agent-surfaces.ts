@@ -73,13 +73,13 @@ export type ExecutorAdapterEntry = {
 };
 
 export type RuntimeEnvironment = {
-  producerEnvironment: string;
-  intendedEnvironment: string;
-  executableProbeScope: string;
-  backendStatusSemantics: string;
-  staticPublishExecutableRequired: boolean;
-  localOperatorExecutableRequired: boolean;
-  missingExecutableIsStaticPublishGap: boolean;
+  producerEnvironment: string | null;
+  intendedEnvironment: string | null;
+  executableProbeScope: string | null;
+  backendStatusSemantics: string | null;
+  staticPublishExecutableRequired: boolean | null;
+  localOperatorExecutableRequired: boolean | null;
+  missingExecutableIsStaticPublishGap: boolean | null;
   operatorNextAction: string | null;
 };
 
@@ -175,6 +175,10 @@ function boolValue(value: unknown): boolean {
   return typeof value === "boolean" ? value : false;
 }
 
+function optionalBool(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
 function stringList(value: unknown): readonly string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string" && item.length > 0)
@@ -227,15 +231,19 @@ function parseRuntimeEvidence(raw: Record<string, unknown>): AgentRuntimeEvidenc
 
 function parseRuntimeEnvironment(raw: unknown): RuntimeEnvironment | null {
   if (!isRecord(raw)) return null;
-  return {
-    producerEnvironment: stringValue(raw.producer_environment, "unknown"),
-    intendedEnvironment: stringValue(raw.intended_environment, "unknown"),
-    executableProbeScope: stringValue(raw.executable_probe_scope, "unknown"),
-    backendStatusSemantics: stringValue(raw.backend_status_semantics, "unknown"),
-    staticPublishExecutableRequired: boolValue(raw.static_publish_executable_required),
-    localOperatorExecutableRequired: boolValue(raw.local_operator_executable_required),
-    missingExecutableIsStaticPublishGap: boolValue(raw.missing_executable_is_static_publish_gap),
+  const parsed = {
+    producerEnvironment: optionalString(raw.producer_environment),
+    intendedEnvironment: optionalString(raw.intended_environment),
+    executableProbeScope: optionalString(raw.executable_probe_scope),
+    backendStatusSemantics: optionalString(raw.backend_status_semantics),
+    staticPublishExecutableRequired: optionalBool(raw.static_publish_executable_required),
+    localOperatorExecutableRequired: optionalBool(raw.local_operator_executable_required),
+    missingExecutableIsStaticPublishGap: optionalBool(raw.missing_executable_is_static_publish_gap),
     operatorNextAction: optionalString(raw.operator_next_action),
+  };
+  if (Object.values(parsed).every((value) => value === null)) return null;
+  return {
+    ...parsed,
   };
 }
 

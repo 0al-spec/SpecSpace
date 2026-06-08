@@ -16,7 +16,7 @@ from urllib.request import Request, urlopen
 
 import yaml
 
-from viewer import server, specspace_provider
+from viewer import agent_surfaces, server, specspace_provider
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -972,6 +972,21 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
 
 
 class SpecSpaceApiV1Tests(unittest.TestCase):
+    def test_agent_surface_runtime_environment_preserves_unknown_values(self) -> None:
+        payload = agent_surfaces._runtime_environment(
+            {
+                "producer_environment": "static_publish_environment",
+                "static_publish_executable_required": False,
+            }
+        )
+
+        self.assertIsNotNone(payload)
+        assert payload is not None
+        self.assertEqual(payload["producer_environment"], "static_publish_environment")
+        self.assertIsNone(payload["intended_environment"])
+        self.assertIs(payload["static_publish_executable_required"], False)
+        self.assertIsNone(payload["local_operator_executable_required"])
+
     def test_health_reports_versioned_readonly_provider(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -1300,6 +1315,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "define_runtime_enforcement_runtime",
         )
         supervisor_entry = entries["specgraph.supervisor.executor_adapter"]
+        self.assertIsNone(supervisor_entry["runtime_environment"])
         executor_entry = body["executor_adapters"][0]
         self.assertEqual(executor_entry["backend_status"], "missing_executable")
         self.assertEqual(

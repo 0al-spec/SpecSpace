@@ -54,22 +54,25 @@ def _runtime_environment(value: Any) -> dict[str, Any] | None:
     raw = _dict(value)
     if not raw:
         return None
-    return {
-        "producer_environment": _text(raw.get("producer_environment")),
-        "intended_environment": _text(raw.get("intended_environment")),
-        "executable_probe_scope": _text(raw.get("executable_probe_scope")),
-        "backend_status_semantics": _text(raw.get("backend_status_semantics")),
-        "static_publish_executable_required": _bool(
+    payload = {
+        "producer_environment": _text(raw.get("producer_environment")) or None,
+        "intended_environment": _text(raw.get("intended_environment")) or None,
+        "executable_probe_scope": _text(raw.get("executable_probe_scope")) or None,
+        "backend_status_semantics": _text(raw.get("backend_status_semantics")) or None,
+        "static_publish_executable_required": _optional_bool(
             raw.get("static_publish_executable_required")
         ),
-        "local_operator_executable_required": _bool(
+        "local_operator_executable_required": _optional_bool(
             raw.get("local_operator_executable_required")
         ),
-        "missing_executable_is_static_publish_gap": _bool(
+        "missing_executable_is_static_publish_gap": _optional_bool(
             raw.get("missing_executable_is_static_publish_gap")
         ),
         "operator_next_action": _text(raw.get("operator_next_action")) or None,
     }
+    if not any(item is not None for item in payload.values()):
+        return None
+    return payload
 
 
 def _string_list(value: Any) -> list[str]:

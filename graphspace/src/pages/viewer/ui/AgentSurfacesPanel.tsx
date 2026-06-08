@@ -264,10 +264,10 @@ function RuntimeEnvironmentBlock({ value }: { value: RuntimeEnvironment }) {
   return (
     <div className={styles.runtimeEnvironment}>
       <div className={styles.environmentGrid}>
-        <Meta label="Producer env" value={value.producerEnvironment} />
-        <Meta label="Intended env" value={value.intendedEnvironment} />
-        <Meta label="Probe" value={value.executableProbeScope} />
-        <Meta label="Semantics" value={value.backendStatusSemantics} />
+        <Meta label="Producer env" value={compact(value.producerEnvironment)} />
+        <Meta label="Intended env" value={compact(value.intendedEnvironment)} />
+        <Meta label="Probe" value={compact(value.executableProbeScope)} />
+        <Meta label="Semantics" value={compact(value.backendStatusSemantics)} />
       </div>
       {value.missingExecutableIsStaticPublishGap ? (
         <div className={styles.environmentNotice}>

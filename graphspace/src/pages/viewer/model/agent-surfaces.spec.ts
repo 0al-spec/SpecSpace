@@ -225,6 +225,40 @@ describe("parseAgentSurfaceIndex", () => {
     expect(parsed.data.handoff.handoffStatus).toBe("missing");
   });
 
+  it("preserves unknown runtime environment flags as null", () => {
+    const parsed = parseAgentSurfaceIndex({
+      artifact_kind: "specspace_agent_surface_index",
+      schema_version: 1,
+      entry_count: 1,
+      handoff: {
+        available: false,
+        handoff_status: "missing",
+        review_state: "missing",
+      },
+      entries: [
+        {
+          surface_id: "specgraph.executor.codex",
+          runtime_environment: {
+            producer_environment: "static_publish_environment",
+            static_publish_executable_required: false,
+          },
+        },
+      ],
+      executor_adapters: [],
+      sources: {},
+    });
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.entries[0].runtimeEnvironment).toMatchObject({
+      producerEnvironment: "static_publish_environment",
+      intendedEnvironment: null,
+      staticPublishExecutableRequired: false,
+      localOperatorExecutableRequired: null,
+      missingExecutableIsStaticPublishGap: null,
+    });
+  });
+
   it("rejects unexpected artifact kinds", () => {
     const parsed = parseAgentSurfaceIndex({
       artifact_kind: "metrics_source_promotion_index",
