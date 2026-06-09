@@ -28,6 +28,7 @@ export type AgentSurfaceEntry = {
   nextAction: string | null;
   executorBackendId: string | null;
   backendStatus: string | null;
+  runtimeEnvironment: RuntimeEnvironment | null;
   gapCount: number;
   gaps: readonly AgentSurfaceGap[];
   runtimeEnforcementEvidenceCount: number;
@@ -68,6 +69,20 @@ export type ExecutorAdapterEntry = {
   safeNextAction: string | null;
   capabilityGapCount: number;
   passportValidation: Record<string, unknown>;
+  runtimeEnvironment: RuntimeEnvironment | null;
+};
+
+export type RuntimeEnvironment = {
+  producerEnvironment: string | null;
+  intendedEnvironment: string | null;
+  executableProbeScope: string | null;
+  backendStatusSemantics: string | null;
+  staticPublishExecutableRequired: boolean | null;
+  localOperatorExecutableRequired: boolean | null;
+  producerEnvironmentExecutableRequired: boolean | null;
+  producerEnvironmentExecutionSuppressed: boolean | null;
+  missingExecutableIsStaticPublishGap: boolean | null;
+  operatorNextAction: string | null;
 };
 
 export type AgentSurfaceSource = {
@@ -162,6 +177,10 @@ function boolValue(value: unknown): boolean {
   return typeof value === "boolean" ? value : false;
 }
 
+function optionalBool(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
 function stringList(value: unknown): readonly string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string" && item.length > 0)
@@ -212,6 +231,26 @@ function parseRuntimeEvidence(raw: Record<string, unknown>): AgentRuntimeEvidenc
   };
 }
 
+function parseRuntimeEnvironment(raw: unknown): RuntimeEnvironment | null {
+  if (!isRecord(raw)) return null;
+  const parsed = {
+    producerEnvironment: optionalString(raw.producer_environment),
+    intendedEnvironment: optionalString(raw.intended_environment),
+    executableProbeScope: optionalString(raw.executable_probe_scope),
+    backendStatusSemantics: optionalString(raw.backend_status_semantics),
+    staticPublishExecutableRequired: optionalBool(raw.static_publish_executable_required),
+    localOperatorExecutableRequired: optionalBool(raw.local_operator_executable_required),
+    producerEnvironmentExecutableRequired: optionalBool(raw.producer_environment_executable_required),
+    producerEnvironmentExecutionSuppressed: optionalBool(raw.producer_environment_execution_suppressed),
+    missingExecutableIsStaticPublishGap: optionalBool(raw.missing_executable_is_static_publish_gap),
+    operatorNextAction: optionalString(raw.operator_next_action),
+  };
+  if (Object.values(parsed).every((value) => value === null)) return null;
+  return {
+    ...parsed,
+  };
+}
+
 function parseSurface(raw: Record<string, unknown>): AgentSurfaceEntry | null {
   const surfaceId = optionalString(raw.surface_id);
   if (!surfaceId) return null;
@@ -234,6 +273,7 @@ function parseSurface(raw: Record<string, unknown>): AgentSurfaceEntry | null {
     nextAction: optionalString(raw.next_action),
     executorBackendId: optionalString(raw.executor_backend_id),
     backendStatus: optionalString(raw.backend_status),
+    runtimeEnvironment: parseRuntimeEnvironment(raw.runtime_environment),
     gapCount: numberValue(raw.gap_count),
     gaps: records(raw.gaps).map(parseGap),
     runtimeEnforcementEvidenceCount: numberValue(raw.runtime_enforcement_evidence_count),
@@ -257,6 +297,7 @@ function parseExecutor(raw: Record<string, unknown>): ExecutorAdapterEntry | nul
     safeNextAction: optionalString(raw.safe_next_action),
     capabilityGapCount: numberValue(raw.capability_gap_count),
     passportValidation: isRecord(raw.passport_validation) ? raw.passport_validation : {},
+    runtimeEnvironment: parseRuntimeEnvironment(raw.runtime_environment),
   };
 }
 

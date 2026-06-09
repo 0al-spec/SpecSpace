@@ -1,6 +1,7 @@
 import type {
   AgentSurfaceEntry,
   ExecutorAdapterEntry,
+  RuntimeEnvironment,
   UseAgentSurfacesState,
 } from "../model/use-agent-surfaces";
 import { agentSurfaceTone, type AgentSurfaceTone } from "../model/agent-surface-tones";
@@ -38,6 +39,12 @@ function toneClass(tone: AgentSurfaceTone): string {
 
 function compact(value: string | null | undefined, fallback = "unknown"): string {
   return value && value.length > 0 ? value : fallback;
+}
+
+function compactBool(value: boolean | null | undefined): string {
+  if (value === true) return "true";
+  if (value === false) return "false";
+  return "unknown";
 }
 
 export function AgentSurfacesPanel({ state }: Props) {
@@ -177,6 +184,7 @@ function ExecutorRow({ entry }: { entry: ExecutorAdapterEntry }) {
         <Meta label="Passport tool" value={toolStatus ?? validationState ?? "unknown"} />
         <Meta label="Next" value={entry.safeNextAction ?? "none"} />
       </div>
+      {entry.runtimeEnvironment ? <RuntimeEnvironmentBlock value={entry.runtimeEnvironment} /> : null}
       {entry.passportRef ? <p className={styles.passportRef}>{entry.passportRef}</p> : null}
     </div>
   );
@@ -202,6 +210,7 @@ function SurfaceRow({ entry }: { entry: AgentSurfaceEntry }) {
         <Meta label="Runtime" value={entry.runtimeEnforcementObserved ? "observed" : entry.runtimeEnforcementState} />
         <Meta label="Next" value={entry.nextAction ?? (entry.gapCount > 0 ? "review gaps" : "none")} />
       </div>
+      {entry.runtimeEnvironment ? <RuntimeEnvironmentBlock value={entry.runtimeEnvironment} /> : null}
       <p className={styles.passportRef}>
         {entry.passportRef ?? (entry.requiresPassport ? "missing passport" : "passport optional")}
       </p>
@@ -254,6 +263,27 @@ function SurfaceRow({ entry }: { entry: AgentSurfaceEntry }) {
         </div>
       ) : null}
     </article>
+  );
+}
+
+function RuntimeEnvironmentBlock({ value }: { value: RuntimeEnvironment }) {
+  return (
+    <div className={styles.runtimeEnvironment}>
+      <div className={styles.environmentGrid}>
+        <Meta label="Producer env" value={compact(value.producerEnvironment)} />
+        <Meta label="Intended env" value={compact(value.intendedEnvironment)} />
+        <Meta label="Probe" value={compact(value.executableProbeScope)} />
+        <Meta label="Semantics" value={compact(value.backendStatusSemantics)} />
+        <Meta label="Producer executable required" value={compactBool(value.producerEnvironmentExecutableRequired)} />
+        <Meta label="Producer execution suppressed" value={compactBool(value.producerEnvironmentExecutionSuppressed)} />
+      </div>
+      {value.missingExecutableIsStaticPublishGap ? (
+        <div className={styles.environmentNotice}>
+          <Pill value="static_publish_gap" />
+          <span>{value.operatorNextAction ?? "run_in_intended_runtime_environment"}</span>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

@@ -16,7 +16,7 @@ from urllib.request import Request, urlopen
 
 import yaml
 
-from viewer import server, specspace_provider
+from viewer import agent_surfaces, server, specspace_provider
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -542,17 +542,31 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
             "generated_at": "2026-06-06T10:00:00Z",
             "summary": {
                 "backend_count": 1,
-                "available_backend_count": 1,
+                "available_backend_count": 0,
                 "default_backend_id": "codex",
                 "agent_passport_cli_status": "available",
-                "next_gap": "run_executor_adapter_smoke_benchmark",
+                "next_gap": "none",
             },
             "entries": [
                 {
                     "backend_id": "codex",
                     "display_name": "Codex CLI",
-                    "backend_status": "available",
+                    "backend_status": "not_applicable_in_producer_environment",
                     "authority_state": "default",
+                    "runtime_environment": {
+                        "producer_environment": "static_publish_environment",
+                        "intended_environment": "local_operator_environment",
+                        "executable_probe_scope": "current_process_environment",
+                        "backend_status_semantics": (
+                            "executable_probe_not_required_for_producer_environment"
+                        ),
+                        "static_publish_executable_required": False,
+                        "local_operator_executable_required": True,
+                        "producer_environment_executable_required": False,
+                        "producer_environment_execution_suppressed": True,
+                        "missing_executable_is_static_publish_gap": True,
+                        "operator_next_action": "run_in_intended_runtime_environment",
+                    },
                     "command_surface": "cli",
                     "protocol_contract": "run_outcome_blocker",
                     "passport_ref": "agent-passport://executors/codex-cli/0.1.0",
@@ -563,8 +577,8 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
                     },
                     "smoke_status": "not_run",
                     "canonical_trial_allowed": False,
-                    "safe_next_action": "run_executor_adapter_smoke_benchmark",
-                    "capability_gaps": [{"gap": "smoke_not_run"}],
+                    "safe_next_action": "run_in_intended_runtime_environment",
+                    "capability_gaps": [{"gap": "producer_environment_not_executor_runtime"}],
                 }
             ],
         },
@@ -662,7 +676,21 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
                     "verification_state": "V2_passport_referenced",
                     "runtime_enforcement_state": "policy_only",
                     "executor_backend_id": "codex",
-                    "backend_status": "available",
+                    "backend_status": "not_applicable_in_producer_environment",
+                    "runtime_environment": {
+                        "producer_environment": "static_publish_environment",
+                        "intended_environment": "local_operator_environment",
+                        "executable_probe_scope": "current_process_environment",
+                        "backend_status_semantics": (
+                            "executable_probe_not_required_for_producer_environment"
+                        ),
+                        "static_publish_executable_required": False,
+                        "local_operator_executable_required": True,
+                        "producer_environment_executable_required": False,
+                        "producer_environment_execution_suppressed": True,
+                        "missing_executable_is_static_publish_gap": True,
+                        "operator_next_action": "run_in_intended_runtime_environment",
+                    },
                     "passport_validation": {
                         "required": False,
                         "validation_state": "not_attempted",
@@ -948,6 +976,24 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
 
 
 class SpecSpaceApiV1Tests(unittest.TestCase):
+    def test_agent_surface_runtime_environment_preserves_unknown_values(self) -> None:
+        payload = agent_surfaces._runtime_environment(
+            {
+                "producer_environment": "static_publish_environment",
+                "static_publish_executable_required": False,
+                "producer_environment_execution_suppressed": True,
+            }
+        )
+
+        self.assertIsNotNone(payload)
+        assert payload is not None
+        self.assertEqual(payload["producer_environment"], "static_publish_environment")
+        self.assertIsNone(payload["intended_environment"])
+        self.assertIs(payload["static_publish_executable_required"], False)
+        self.assertIsNone(payload["local_operator_executable_required"])
+        self.assertIsNone(payload["producer_environment_executable_required"])
+        self.assertIs(payload["producer_environment_execution_suppressed"], True)
+
     def test_health_reports_versioned_readonly_provider(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -1254,6 +1300,36 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(entries["specgraph.executor.codex"]["verification_tool_status"], "available")
         self.assertEqual(entries["specgraph.executor.codex"]["runtime_enforcement_state"], "policy_only")
         self.assertEqual(entries["specgraph.executor.codex"]["runtime_enforcement_observed"], False)
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["backend_status"],
+            "not_applicable_in_producer_environment",
+        )
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["runtime_environment"]["producer_environment"],
+            "static_publish_environment",
+        )
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["runtime_environment"]["intended_environment"],
+            "local_operator_environment",
+        )
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["runtime_environment"][
+                "missing_executable_is_static_publish_gap"
+            ],
+            True,
+        )
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["runtime_environment"][
+                "producer_environment_executable_required"
+            ],
+            False,
+        )
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["runtime_environment"][
+                "producer_environment_execution_suppressed"
+            ],
+            True,
+        )
         self.assertEqual(entries["specgraph.executor.codex"]["next_action"], "define_runtime_enforcement_runtime")
         self.assertEqual(entries["specgraph.executor.codex"]["gap_count"], 1)
         self.assertEqual(
@@ -1261,6 +1337,16 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "define_runtime_enforcement_runtime",
         )
         supervisor_entry = entries["specgraph.supervisor.executor_adapter"]
+        self.assertIsNone(supervisor_entry["runtime_environment"])
+        executor_entry = body["executor_adapters"][0]
+        self.assertEqual(
+            executor_entry["backend_status"],
+            "not_applicable_in_producer_environment",
+        )
+        self.assertEqual(
+            executor_entry["runtime_environment"]["operator_next_action"],
+            "run_in_intended_runtime_environment",
+        )
         self.assertEqual(supervisor_entry["runtime_enforcement_evidence_count"], 1)
         self.assertEqual(supervisor_entry["runtime_enforcement_evidence"][0]["status"], "passed")
         self.assertEqual(

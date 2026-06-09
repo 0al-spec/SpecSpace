@@ -50,6 +50,37 @@ def _optional_bool(value: Any) -> bool | None:
     return value if isinstance(value, bool) else None
 
 
+def _runtime_environment(value: Any) -> dict[str, Any] | None:
+    raw = _dict(value)
+    if not raw:
+        return None
+    payload = {
+        "producer_environment": _text(raw.get("producer_environment")) or None,
+        "intended_environment": _text(raw.get("intended_environment")) or None,
+        "executable_probe_scope": _text(raw.get("executable_probe_scope")) or None,
+        "backend_status_semantics": _text(raw.get("backend_status_semantics")) or None,
+        "static_publish_executable_required": _optional_bool(
+            raw.get("static_publish_executable_required")
+        ),
+        "local_operator_executable_required": _optional_bool(
+            raw.get("local_operator_executable_required")
+        ),
+        "producer_environment_executable_required": _optional_bool(
+            raw.get("producer_environment_executable_required")
+        ),
+        "producer_environment_execution_suppressed": _optional_bool(
+            raw.get("producer_environment_execution_suppressed")
+        ),
+        "missing_executable_is_static_publish_gap": _optional_bool(
+            raw.get("missing_executable_is_static_publish_gap")
+        ),
+        "operator_next_action": _text(raw.get("operator_next_action")) or None,
+    }
+    if not any(item is not None for item in payload.values()):
+        return None
+    return payload
+
+
 def _string_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
@@ -420,6 +451,7 @@ def _surface_entry(
         "next_action": next_action or None,
         "executor_backend_id": _text(raw.get("executor_backend_id")) or None,
         "backend_status": _text(raw.get("backend_status")) or None,
+        "runtime_environment": _runtime_environment(raw.get("runtime_environment")),
         "passport_validation": _dict(raw.get("passport_validation")),
         "gap_count": len(gaps),
         "gaps": gaps,
@@ -438,6 +470,7 @@ def _executor_entry(raw: dict[str, Any]) -> dict[str, Any]:
         "protocol_contract": _text(raw.get("protocol_contract"), "unknown"),
         "passport_ref": _text(raw.get("passport_ref")) or None,
         "passport_validation": _dict(raw.get("passport_validation")),
+        "runtime_environment": _runtime_environment(raw.get("runtime_environment")),
         "smoke_status": _text(raw.get("smoke_status"), "unknown"),
         "canonical_trial_allowed": _bool(raw.get("canonical_trial_allowed")),
         "safe_next_action": _text(raw.get("safe_next_action")) or None,

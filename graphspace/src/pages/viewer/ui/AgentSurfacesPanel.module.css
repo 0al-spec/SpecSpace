@@ -227,6 +227,31 @@
   margin-top: var(--gs-space-5);
 }
 
+.runtimeEnvironment {
+  margin-top: var(--gs-space-5);
+  padding: var(--gs-space-4);
+  border: 1px solid var(--gs-rule-soft);
+  background: color-mix(in srgb, var(--gs-accent) 4%, var(--gs-panel));
+}
+
+.environmentGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gs-space-4);
+}
+
+.environmentNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gs-space-2);
+  margin-top: var(--gs-space-4);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
 .meta {
   min-width: 0;
 }
