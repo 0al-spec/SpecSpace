@@ -2227,6 +2227,60 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "stale_summary")
         self.assertIn("preview_count", body["detail"])
 
+    def test_ontology_owner_decision_review_v1_rejects_stale_derived_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            review = _ontology_owner_decision_review()
+            review["summary"]["accepted_count"] = 0
+            _write_json(runs_dir / "ontology_decision_import_preview.json", review)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "stale_summary")
+        self.assertIn("accepted_count", body["detail"])
+
+    def test_ontology_owner_decision_review_v1_rejects_malformed_ignored_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            review = _ontology_owner_decision_review()
+            del review["ignored_owner_decisions"][0]["decision_id"]
+            _write_json(runs_dir / "ontology_decision_import_preview.json", review)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "invalid_ignored_owner_decisions")
+        self.assertIn("ignored_owner_decisions[0].decision_id", body["detail"])
+
+    def test_ontology_owner_decision_review_v1_rejects_no_decisions_with_previews(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            review = _ontology_owner_decision_review()
+            review["summary"]["status"] = "no_decisions"
+            _write_json(runs_dir / "ontology_decision_import_preview.json", review)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "state_mismatch")
+        self.assertIn("no_decisions", body["detail"])
+
     def test_ontology_owner_decision_review_v1_reads_http_static_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

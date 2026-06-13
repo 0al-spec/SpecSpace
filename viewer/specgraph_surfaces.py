@@ -615,7 +615,24 @@ def validate_ontology_owner_decision_review_data(data: Any) -> tuple[int, dict[s
             "stale_summary",
             "summary.ignored_decision_count must match ignored_owner_decisions length.",
         )
+    for index, ignored in enumerate(ignored_owner_decisions):
+        if not isinstance(ignored, dict):
+            return _ontology_owner_decision_review_contract_error(
+                "invalid_ignored_owner_decisions",
+                f"ignored_owner_decisions[{index}] must be an object.",
+            )
+        if not isinstance(ignored.get("decision_id"), str) or not ignored["decision_id"]:
+            return _ontology_owner_decision_review_contract_error(
+                "invalid_ignored_owner_decisions",
+                f"ignored_owner_decisions[{index}].decision_id must be a non-empty string.",
+            )
 
+    accepted_count = 0
+    rejected_count = 0
+    clarification_count = 0
+    importable_count = 0
+    blocked_count = 0
+    unmatched_count = 0
     for index, preview in enumerate(decision_import_previews):
         if not isinstance(preview, dict):
             return _ontology_owner_decision_review_contract_error(
@@ -643,12 +660,22 @@ def validate_ontology_owner_decision_review_data(data: Any) -> tuple[int, dict[s
                 "unsupported_decision_state",
                 f"decision_import_previews[{index}].decision_state must be supported.",
             )
+        if decision_state == "accepted":
+            accepted_count += 1
+        elif decision_state == "rejected":
+            rejected_count += 1
+        else:
+            clarification_count += 1
         preview_state = preview.get("preview_state")
         if preview_state not in ONTOLOGY_OWNER_DECISION_REVIEW_STATUSES - {"no_decisions"}:
             return _ontology_owner_decision_review_contract_error(
                 "unsupported_preview_state",
                 f"decision_import_previews[{index}].preview_state must be supported.",
             )
+        if preview_state == "blocked_by_semantic_gate":
+            blocked_count += 1
+        elif preview_state == "unmatched_decision":
+            unmatched_count += 1
         import_recommended = preview.get("import_recommended")
         if import_recommended is not (preview_state == "ready_for_operator_review"):
             return _ontology_owner_decision_review_contract_error(
@@ -658,6 +685,8 @@ def validate_ontology_owner_decision_review_data(data: Any) -> tuple[int, dict[s
                     "ready_for_operator_review state."
                 ),
             )
+        if import_recommended:
+            importable_count += 1
         accepted_ontology_delta = preview.get("accepted_ontology_delta")
         if not isinstance(accepted_ontology_delta, bool):
             return _ontology_owner_decision_review_contract_error(
@@ -689,6 +718,26 @@ def validate_ontology_owner_decision_review_data(data: Any) -> tuple[int, dict[s
                     "authority_expansion",
                     f"decision_import_previews[{index}].{flag} must be false.",
                 )
+
+    derived_summary_counts = {
+        "accepted_count": accepted_count,
+        "rejected_count": rejected_count,
+        "clarification_count": clarification_count,
+        "importable_count": importable_count,
+        "blocked_count": blocked_count,
+        "unmatched_count": unmatched_count,
+    }
+    for field, expected in derived_summary_counts.items():
+        if summary.get(field) != expected:
+            return _ontology_owner_decision_review_contract_error(
+                "stale_summary",
+                f"summary.{field} must match decision_import_previews.",
+            )
+    if summary.get("status") == "no_decisions" and any(derived_summary_counts.values()):
+        return _ontology_owner_decision_review_contract_error(
+            "state_mismatch",
+            "summary.status no_decisions requires empty decision previews and decision counters.",
+        )
 
     consumer_boundary = data.get("consumer_boundary")
     if not isinstance(consumer_boundary, dict):
