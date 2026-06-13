@@ -231,6 +231,29 @@
   margin-top: var(--gs-space-5);
 }
 
+.rowActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--gs-space-5);
+}
+
+.ackButton {
+  min-height: 30px;
+  border: 1px solid var(--gs-rule-mid);
+  border-radius: 4px;
+  padding: 0 var(--gs-space-4);
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.ackButton:disabled {
+  color: var(--gs-muted-2);
+  cursor: default;
+}
+
 .meta {
   min-width: 0;
 }

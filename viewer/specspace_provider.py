@@ -106,6 +106,8 @@ class SpecSpaceProvider(Protocol):
 
     def read_ontology_review_dashboard(self) -> tuple[int, dict[str, Any]]: ...
 
+    def read_ontology_owner_decision_review(self) -> tuple[int, dict[str, Any]]: ...
+
     def read_specpm_lifecycle(self) -> tuple[int, dict[str, Any]]: ...
 
 
@@ -515,6 +517,12 @@ class FileSpecGraphProvider:
 
     def read_ontology_review_dashboard(self) -> tuple[int, dict[str, Any]]:
         return specgraph_surfaces.read_ontology_review_dashboard(
+            spec_dir=self.spec_nodes_dir,
+            runs_dir=self.runs_dir,
+        )
+
+    def read_ontology_owner_decision_review(self) -> tuple[int, dict[str, Any]]:
+        return specgraph_surfaces.read_ontology_owner_decision_review(
             spec_dir=self.spec_nodes_dir,
             runs_dir=self.runs_dir,
         )
@@ -1292,6 +1300,18 @@ class HttpSpecGraphProvider:
         if status != HTTPStatus.OK:
             return status, payload
         return specgraph_surfaces.validate_ontology_review_dashboard_envelope(payload)
+
+    def read_ontology_owner_decision_review(self) -> tuple[int, dict[str, Any]]:
+        status, payload = self._read_json_artifact(
+            specgraph_surfaces.ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME,
+            build_hint=(
+                f"{specgraph_surfaces.ONTOLOGY_SEMANTIC_REVIEW_SURFACE_BUILD_HINT} "
+                "in SpecGraph"
+            ),
+        )
+        if status != HTTPStatus.OK:
+            return status, payload
+        return specgraph_surfaces.validate_ontology_owner_decision_review_envelope(payload)
 
     def read_specpm_lifecycle(self) -> tuple[int, dict[str, Any]]:
         return HTTPStatus.SERVICE_UNAVAILABLE, {

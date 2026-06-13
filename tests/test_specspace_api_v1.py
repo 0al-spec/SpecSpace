@@ -775,6 +775,116 @@ def _ontology_review_dashboard() -> dict:
     }
 
 
+def _ontology_owner_decision_review() -> dict:
+    source_artifacts = {
+        **_ontology_review_dashboard()["source_artifacts"],
+        "ontology_review_dashboard": "runs/ontology_review_dashboard.json",
+        "ontology_owner_decision_report": "runs/ontology_owner_decision_report.json",
+    }
+    accepted = {
+        "preview_id": "ontology-decision-import-preview-accept-casfunction",
+        "decision_id": "ontology-owner-decision-accept-casfunction",
+        "candidate_id": "ontology-delta-candidate-examcalc-casfunction",
+        "intake_id": "ontology-delta-draft-intake-ontology-delta-candidate-examcalc-casfunction",
+        "decision_state": "accepted",
+        "ontology_decision_ref": "ontology-decision://edu.university.examcalc/0.1.0/casfunction/accepted",
+        "decided_by": "ontology-owner",
+        "decided_at": "2026-06-13T00:00:00Z",
+        "reason": "accepted domain term",
+        "accepted_ontology_delta": True,
+        "matched_closed_loop_evidence_id": "ontology-closed-loop-evidence-ontology-delta-candidate-examcalc-casfunction",
+        "matched_source_intake_state": "awaiting_ontology_owner_review",
+        "matched_evidence_state": "pending_ontology_owner_decision",
+        "preview_state": "ready_for_operator_review",
+        "required_human_action": "operator_review_ontology_owner_decision",
+        "import_recommended": True,
+        "imports_into_specgraph": False,
+        "closes_semantic_gate": False,
+        "mutates_canonical_specs": False,
+        "writes_ontology_package": False,
+        "updates_ontology_lockfile": False,
+    }
+    rejected = {
+        "preview_id": "ontology-decision-import-preview-reject-legacyterm",
+        "decision_id": "ontology-owner-decision-reject-legacyterm",
+        "candidate_id": "ontology-delta-candidate-examcalc-legacyterm",
+        "intake_id": "ontology-delta-draft-intake-ontology-delta-candidate-examcalc-legacyterm",
+        "decision_state": "rejected",
+        "ontology_decision_ref": "ontology-decision://edu.university.examcalc/0.1.0/legacyterm/rejected",
+        "decided_by": "ontology-owner",
+        "decided_at": "2026-06-13T00:00:00Z",
+        "reason": "ambiguous legacy term",
+        "accepted_ontology_delta": False,
+        "matched_closed_loop_evidence_id": "ontology-closed-loop-evidence-ontology-delta-candidate-examcalc-legacyterm",
+        "matched_source_intake_state": "awaiting_ontology_owner_review",
+        "matched_evidence_state": "pending_ontology_owner_decision",
+        "preview_state": "rejected_by_owner",
+        "required_human_action": "record_owner_rejection_without_import",
+        "import_recommended": False,
+        "imports_into_specgraph": False,
+        "closes_semantic_gate": False,
+        "mutates_canonical_specs": False,
+        "writes_ontology_package": False,
+        "updates_ontology_lockfile": False,
+    }
+    return {
+        "artifact_kind": "ontology_decision_import_preview",
+        "schema_version": 1,
+        "proposal_id": "0115",
+        "policy_basis": ["docs/proposals/0100_ontology_grounded_semantic_control.md"],
+        "source_policy": "tools/ontology_semantic_control_policy.json",
+        "source_artifacts": source_artifacts,
+        "target": {
+            "target_kind": "proposal",
+            "target_ref": "SG-RFC-0115",
+        },
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "decision_import_previews": [accepted, rejected],
+        "ignored_owner_decisions": [
+            {
+                "decision_id": "ontology-owner-decision-stale-example",
+                "candidate_id": "ontology-delta-candidate-stale-example",
+                "intake_id": "ontology-delta-draft-intake-stale-example",
+                "decision_state": "accepted",
+                "reason": "missing_closed_loop_evidence",
+            }
+        ],
+        "consumer_boundary": {
+            "for_specgraph_decision_import_preview": True,
+            "for_specspace_review_dashboard": True,
+            "may_execute_prompt_agent": False,
+            "may_write_ontology_package": False,
+            "may_update_ontology_lockfile": False,
+            "may_mutate_canonical_specs": False,
+            "may_mark_candidate_accepted": False,
+            "may_apply_preview": False,
+            "may_import_into_specgraph": False,
+            "may_close_semantic_gate": False,
+        },
+        "authority_boundary": {
+            "ontology_decision_import_preview_is_authority": False,
+            "prompt_agent_execution_allowed": False,
+            "automatic_import_lock_update": False,
+            "automatic_canonical_node_update": False,
+            "canonical_mutations_allowed": False,
+        },
+        "summary": {
+            "status": "ready_for_operator_review",
+            "preview_count": 2,
+            "accepted_count": 1,
+            "rejected_count": 1,
+            "clarification_count": 0,
+            "importable_count": 1,
+            "blocked_count": 0,
+            "unmatched_count": 0,
+            "ignored_decision_count": 1,
+            "next_gap": "build_specspace_owner_decision_review_surface",
+        },
+        "output_artifact": "runs/ontology_decision_import_preview.json",
+    }
+
+
 def _write_agent_surface_artifacts(runs_dir: Path) -> None:
     runs_dir.mkdir(parents=True, exist_ok=True)
     _write_json(
@@ -1995,6 +2105,203 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertEqual(body["data"]["status_summary"]["next_gap"], "build_specspace_rich_ontology_review_panel")
+        self.assertTrue(body["path"].startswith(artifact_base_url))
+
+    def test_ontology_owner_decision_review_v1_reads_file_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            _write_json(
+                runs_dir / "ontology_decision_import_preview.json",
+                _ontology_owner_decision_review(),
+            )
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["data"]["artifact_kind"], "ontology_decision_import_preview")
+        self.assertEqual(body["data"]["proposal_id"], "0115")
+        self.assertEqual(body["data"]["summary"]["status"], "ready_for_operator_review")
+        self.assertEqual(body["data"]["summary"]["accepted_count"], 1)
+        self.assertEqual(body["data"]["summary"]["rejected_count"], 1)
+        self.assertEqual(
+            body["data"]["decision_import_previews"][0]["matched_closed_loop_evidence_id"],
+            "ontology-closed-loop-evidence-ontology-delta-candidate-examcalc-casfunction",
+        )
+        self.assertFalse(body["data"]["canonical_mutations_allowed"])
+        self.assertFalse(body["data"]["tracked_artifacts_written"])
+        self.assertFalse(body["data"]["consumer_boundary"]["may_apply_preview"])
+        self.assertFalse(
+            body["data"]["authority_boundary"]["ontology_decision_import_preview_is_authority"]
+        )
+
+    def test_ontology_owner_decision_review_v1_reports_missing_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 404)
+        self.assertEqual(body["reason"], "missing_artifact")
+        self.assertEqual(body["artifact"], "runs/ontology_decision_import_preview.json")
+        self.assertIn("make ontology-imports", body["build_hint"])
+
+    def test_ontology_owner_decision_review_v1_rejects_apply_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            review = _ontology_owner_decision_review()
+            review["consumer_boundary"]["may_apply_preview"] = True
+            _write_json(runs_dir / "ontology_decision_import_preview.json", review)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "authority_expansion")
+        self.assertIn("may_apply_preview", body["detail"])
+
+    def test_ontology_owner_decision_review_v1_rejects_preview_mutation_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            review = _ontology_owner_decision_review()
+            review["decision_import_previews"][0]["imports_into_specgraph"] = True
+            _write_json(runs_dir / "ontology_decision_import_preview.json", review)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "authority_expansion")
+        self.assertIn("decision_import_previews[0].imports_into_specgraph", body["detail"])
+
+    def test_ontology_owner_decision_review_v1_rejects_ready_without_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            review = _ontology_owner_decision_review()
+            review["decision_import_previews"][0]["matched_closed_loop_evidence_id"] = ""
+            _write_json(runs_dir / "ontology_decision_import_preview.json", review)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "missing_evidence_link")
+        self.assertIn("matched_closed_loop_evidence_id", body["detail"])
+
+    def test_ontology_owner_decision_review_v1_rejects_stale_summary_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            review = _ontology_owner_decision_review()
+            review["summary"]["preview_count"] = 3
+            _write_json(runs_dir / "ontology_decision_import_preview.json", review)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "stale_summary")
+        self.assertIn("preview_count", body["detail"])
+
+    def test_ontology_owner_decision_review_v1_rejects_stale_derived_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            review = _ontology_owner_decision_review()
+            review["summary"]["accepted_count"] = 0
+            _write_json(runs_dir / "ontology_decision_import_preview.json", review)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "stale_summary")
+        self.assertIn("accepted_count", body["detail"])
+
+    def test_ontology_owner_decision_review_v1_rejects_malformed_ignored_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            review = _ontology_owner_decision_review()
+            del review["ignored_owner_decisions"][0]["decision_id"]
+            _write_json(runs_dir / "ontology_decision_import_preview.json", review)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "invalid_ignored_owner_decisions")
+        self.assertIn("ignored_owner_decisions[0].decision_id", body["detail"])
+
+    def test_ontology_owner_decision_review_v1_rejects_no_decisions_with_previews(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            review = _ontology_owner_decision_review()
+            review["summary"]["status"] = "no_decisions"
+            _write_json(runs_dir / "ontology_decision_import_preview.json", review)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "state_mismatch")
+        self.assertIn("no_decisions", body["detail"])
+
+    def test_ontology_owner_decision_review_v1_reads_http_static_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifact-site"
+            runs_dir = artifact_root / "runs"
+            runs_dir.mkdir(parents=True)
+            _write_json(
+                runs_dir / "ontology_decision_import_preview.json",
+                _ontology_owner_decision_review(),
+            )
+            _write_manifest(artifact_root, ["runs/ontology_decision_import_preview.json"])
+            static, static_thread, artifact_base_url = _start_static(artifact_root)
+            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base_url)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
+            finally:
+                _stop(httpd, thread)
+                _stop(static, static_thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["data"]["summary"]["next_gap"], "build_specspace_owner_decision_review_surface")
         self.assertTrue(body["path"].startswith(artifact_base_url))
 
     def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:

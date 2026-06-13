@@ -22,6 +22,10 @@ ONTOLOGY_REVIEW_DASHBOARD_FILENAME = "ontology_review_dashboard.json"
 ONTOLOGY_REVIEW_DASHBOARD_ARTIFACT = f"runs/{ONTOLOGY_REVIEW_DASHBOARD_FILENAME}"
 ONTOLOGY_REVIEW_DASHBOARD_KIND = "ontology_review_dashboard"
 ONTOLOGY_REVIEW_DASHBOARD_PROPOSAL_ID = "0113"
+ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME = "ontology_decision_import_preview.json"
+ONTOLOGY_OWNER_DECISION_REVIEW_ARTIFACT = f"runs/{ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME}"
+ONTOLOGY_OWNER_DECISION_REVIEW_KIND = "ontology_decision_import_preview"
+ONTOLOGY_OWNER_DECISION_REVIEW_PROPOSAL_ID = "0115"
 ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FALSE_BOUNDARY_FLAGS = (
     "may_execute_prompt_agent",
     "may_write_ontology_package",
@@ -62,6 +66,42 @@ ONTOLOGY_REVIEW_DASHBOARD_STATUSES = {
     "review_pending",
     "clear",
     "no_candidates",
+}
+ONTOLOGY_OWNER_DECISION_REVIEW_TRUE_BOUNDARY_FLAGS = (
+    "for_specgraph_decision_import_preview",
+    "for_specspace_review_dashboard",
+)
+ONTOLOGY_OWNER_DECISION_REVIEW_FALSE_BOUNDARY_FLAGS = (
+    "may_execute_prompt_agent",
+    "may_write_ontology_package",
+    "may_update_ontology_lockfile",
+    "may_mutate_canonical_specs",
+    "may_mark_candidate_accepted",
+    "may_apply_preview",
+    "may_import_into_specgraph",
+    "may_close_semantic_gate",
+)
+ONTOLOGY_OWNER_DECISION_REVIEW_FALSE_PREVIEW_FLAGS = (
+    "imports_into_specgraph",
+    "closes_semantic_gate",
+    "mutates_canonical_specs",
+    "writes_ontology_package",
+    "updates_ontology_lockfile",
+)
+ONTOLOGY_OWNER_DECISION_REVIEW_FALSE_AUTHORITY_FLAGS = (
+    "ontology_decision_import_preview_is_authority",
+    "prompt_agent_execution_allowed",
+    "automatic_import_lock_update",
+    "automatic_canonical_node_update",
+    "canonical_mutations_allowed",
+)
+ONTOLOGY_OWNER_DECISION_REVIEW_STATUSES = {
+    "blocked_by_semantic_gate",
+    "ready_for_operator_review",
+    "rejected_by_owner",
+    "needs_clarification",
+    "unmatched_decision",
+    "no_decisions",
 }
 
 
@@ -202,6 +242,27 @@ def _ontology_review_dashboard_contract_error(reason: str, detail: str) -> tuple
         "error": "ontology_review_dashboard.json violates the SpecSpace read-only consumer contract.",
         "reason": reason,
         "artifact": ONTOLOGY_REVIEW_DASHBOARD_ARTIFACT,
+        "detail": detail,
+    }
+
+
+def _ontology_owner_decision_review_missing_error() -> dict[str, Any]:
+    return {
+        "error": (
+            f"{ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME} not found. "
+            f"Run {ONTOLOGY_SEMANTIC_REVIEW_SURFACE_BUILD_HINT} first."
+        ),
+        "reason": "missing_artifact",
+        "artifact": ONTOLOGY_OWNER_DECISION_REVIEW_ARTIFACT,
+        "build_hint": f"{ONTOLOGY_SEMANTIC_REVIEW_SURFACE_BUILD_HINT} in SpecGraph",
+    }
+
+
+def _ontology_owner_decision_review_contract_error(reason: str, detail: str) -> tuple[int, dict[str, Any]]:
+    return HTTPStatus.UNPROCESSABLE_ENTITY, {
+        "error": "ontology_decision_import_preview.json violates the SpecSpace read-only owner decision contract.",
+        "reason": reason,
+        "artifact": ONTOLOGY_OWNER_DECISION_REVIEW_ARTIFACT,
         "detail": detail,
     }
 
@@ -486,6 +547,260 @@ def read_ontology_review_dashboard(
             **payload,
         }
     return validate_ontology_review_dashboard_envelope(payload)
+
+
+def validate_ontology_owner_decision_review_data(data: Any) -> tuple[int, dict[str, Any] | None]:
+    if not isinstance(data, dict):
+        return _ontology_owner_decision_review_contract_error(
+            "invalid_json_root",
+            "JSON root must be an object.",
+        )
+    if data.get("artifact_kind") != ONTOLOGY_OWNER_DECISION_REVIEW_KIND:
+        return _ontology_owner_decision_review_contract_error(
+            "wrong_artifact_kind",
+            "artifact_kind must be ontology_decision_import_preview.",
+        )
+    if data.get("schema_version") != 1:
+        return _ontology_owner_decision_review_contract_error(
+            "unsupported_schema_version",
+            "schema_version must be 1.",
+        )
+    if data.get("proposal_id") != ONTOLOGY_OWNER_DECISION_REVIEW_PROPOSAL_ID:
+        return _ontology_owner_decision_review_contract_error(
+            "wrong_proposal_id",
+            "proposal_id must be 0115.",
+        )
+    if data.get("canonical_mutations_allowed") is not False:
+        return _ontology_owner_decision_review_contract_error(
+            "authority_expansion",
+            "canonical_mutations_allowed must be false.",
+        )
+    if data.get("tracked_artifacts_written") is not False:
+        return _ontology_owner_decision_review_contract_error(
+            "authority_expansion",
+            "tracked_artifacts_written must be false.",
+        )
+
+    summary = data.get("summary")
+    if not isinstance(summary, dict):
+        return _ontology_owner_decision_review_contract_error(
+            "invalid_summary",
+            "summary must be an object.",
+        )
+    if summary.get("status") not in ONTOLOGY_OWNER_DECISION_REVIEW_STATUSES:
+        return _ontology_owner_decision_review_contract_error(
+            "unsupported_status",
+            "summary.status is not a supported owner decision review state.",
+        )
+
+    decision_import_previews = data.get("decision_import_previews")
+    if not isinstance(decision_import_previews, list):
+        return _ontology_owner_decision_review_contract_error(
+            "invalid_decision_import_previews",
+            "decision_import_previews must be a list.",
+        )
+    ignored_owner_decisions = data.get("ignored_owner_decisions", [])
+    if not isinstance(ignored_owner_decisions, list):
+        return _ontology_owner_decision_review_contract_error(
+            "invalid_ignored_owner_decisions",
+            "ignored_owner_decisions must be a list.",
+        )
+    if summary.get("preview_count") != len(decision_import_previews):
+        return _ontology_owner_decision_review_contract_error(
+            "stale_summary",
+            "summary.preview_count must match decision_import_previews length.",
+        )
+    if summary.get("ignored_decision_count") != len(ignored_owner_decisions):
+        return _ontology_owner_decision_review_contract_error(
+            "stale_summary",
+            "summary.ignored_decision_count must match ignored_owner_decisions length.",
+        )
+    for index, ignored in enumerate(ignored_owner_decisions):
+        if not isinstance(ignored, dict):
+            return _ontology_owner_decision_review_contract_error(
+                "invalid_ignored_owner_decisions",
+                f"ignored_owner_decisions[{index}] must be an object.",
+            )
+        if not isinstance(ignored.get("decision_id"), str) or not ignored["decision_id"]:
+            return _ontology_owner_decision_review_contract_error(
+                "invalid_ignored_owner_decisions",
+                f"ignored_owner_decisions[{index}].decision_id must be a non-empty string.",
+            )
+
+    accepted_count = 0
+    rejected_count = 0
+    clarification_count = 0
+    importable_count = 0
+    blocked_count = 0
+    unmatched_count = 0
+    for index, preview in enumerate(decision_import_previews):
+        if not isinstance(preview, dict):
+            return _ontology_owner_decision_review_contract_error(
+                "invalid_decision_import_previews",
+                f"decision_import_previews[{index}] must be an object.",
+            )
+        for field in (
+            "preview_id",
+            "decision_id",
+            "candidate_id",
+            "intake_id",
+            "ontology_decision_ref",
+            "decided_by",
+            "decided_at",
+            "required_human_action",
+        ):
+            if not isinstance(preview.get(field), str) or not preview[field]:
+                return _ontology_owner_decision_review_contract_error(
+                    "invalid_decision_import_previews",
+                    f"decision_import_previews[{index}].{field} must be a non-empty string.",
+                )
+        decision_state = preview.get("decision_state")
+        if decision_state not in {"accepted", "rejected", "needs_clarification"}:
+            return _ontology_owner_decision_review_contract_error(
+                "unsupported_decision_state",
+                f"decision_import_previews[{index}].decision_state must be supported.",
+            )
+        if decision_state == "accepted":
+            accepted_count += 1
+        elif decision_state == "rejected":
+            rejected_count += 1
+        else:
+            clarification_count += 1
+        preview_state = preview.get("preview_state")
+        if preview_state not in ONTOLOGY_OWNER_DECISION_REVIEW_STATUSES - {"no_decisions"}:
+            return _ontology_owner_decision_review_contract_error(
+                "unsupported_preview_state",
+                f"decision_import_previews[{index}].preview_state must be supported.",
+            )
+        if preview_state == "blocked_by_semantic_gate":
+            blocked_count += 1
+        elif preview_state == "unmatched_decision":
+            unmatched_count += 1
+        import_recommended = preview.get("import_recommended")
+        if import_recommended is not (preview_state == "ready_for_operator_review"):
+            return _ontology_owner_decision_review_contract_error(
+                "state_mismatch",
+                (
+                    f"decision_import_previews[{index}].import_recommended must match "
+                    "ready_for_operator_review state."
+                ),
+            )
+        if import_recommended:
+            importable_count += 1
+        accepted_ontology_delta = preview.get("accepted_ontology_delta")
+        if not isinstance(accepted_ontology_delta, bool):
+            return _ontology_owner_decision_review_contract_error(
+                "invalid_decision_import_previews",
+                f"decision_import_previews[{index}].accepted_ontology_delta must be boolean.",
+            )
+        if preview_state == "ready_for_operator_review":
+            if decision_state != "accepted" or accepted_ontology_delta is not True:
+                return _ontology_owner_decision_review_contract_error(
+                    "state_mismatch",
+                    (
+                        "decision_import_previews"
+                        f"[{index}].ready_for_operator_review requires an accepted decision."
+                    ),
+                )
+            for field in (
+                "matched_closed_loop_evidence_id",
+                "matched_source_intake_state",
+                "matched_evidence_state",
+            ):
+                if not isinstance(preview.get(field), str) or not preview[field]:
+                    return _ontology_owner_decision_review_contract_error(
+                        "missing_evidence_link",
+                        f"decision_import_previews[{index}].{field} must be a non-empty string.",
+                    )
+        for flag in ONTOLOGY_OWNER_DECISION_REVIEW_FALSE_PREVIEW_FLAGS:
+            if preview.get(flag) is not False:
+                return _ontology_owner_decision_review_contract_error(
+                    "authority_expansion",
+                    f"decision_import_previews[{index}].{flag} must be false.",
+                )
+
+    derived_summary_counts = {
+        "accepted_count": accepted_count,
+        "rejected_count": rejected_count,
+        "clarification_count": clarification_count,
+        "importable_count": importable_count,
+        "blocked_count": blocked_count,
+        "unmatched_count": unmatched_count,
+    }
+    for field, expected in derived_summary_counts.items():
+        if summary.get(field) != expected:
+            return _ontology_owner_decision_review_contract_error(
+                "stale_summary",
+                f"summary.{field} must match decision_import_previews.",
+            )
+    if summary.get("status") == "no_decisions" and any(derived_summary_counts.values()):
+        return _ontology_owner_decision_review_contract_error(
+            "state_mismatch",
+            "summary.status no_decisions requires empty decision previews and decision counters.",
+        )
+
+    consumer_boundary = data.get("consumer_boundary")
+    if not isinstance(consumer_boundary, dict):
+        return _ontology_owner_decision_review_contract_error(
+            "missing_consumer_boundary",
+            "consumer_boundary must be an object.",
+        )
+    for flag in ONTOLOGY_OWNER_DECISION_REVIEW_TRUE_BOUNDARY_FLAGS:
+        if consumer_boundary.get(flag) is not True:
+            return _ontology_owner_decision_review_contract_error(
+                "consumer_boundary_mismatch",
+                f"consumer_boundary.{flag} must be true.",
+            )
+    for flag in ONTOLOGY_OWNER_DECISION_REVIEW_FALSE_BOUNDARY_FLAGS:
+        if consumer_boundary.get(flag) is not False:
+            return _ontology_owner_decision_review_contract_error(
+                "authority_expansion",
+                f"consumer_boundary.{flag} must be false.",
+            )
+
+    authority_boundary = data.get("authority_boundary")
+    if not isinstance(authority_boundary, dict):
+        return _ontology_owner_decision_review_contract_error(
+            "missing_authority_boundary",
+            "authority_boundary must be an object.",
+        )
+    for flag in ONTOLOGY_OWNER_DECISION_REVIEW_FALSE_AUTHORITY_FLAGS:
+        if authority_boundary.get(flag) is not False:
+            return _ontology_owner_decision_review_contract_error(
+                "authority_expansion",
+                f"authority_boundary.{flag} must be false.",
+            )
+    return HTTPStatus.OK, None
+
+
+def validate_ontology_owner_decision_review_envelope(payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    status, error = validate_ontology_owner_decision_review_data(payload.get("data"))
+    if error is not None:
+        return status, error
+    return HTTPStatus.OK, payload
+
+
+def read_ontology_owner_decision_review(
+    *,
+    spec_dir: Path | None,
+    runs_dir: Path | None,
+) -> tuple[int, dict[str, Any]]:
+    if runs_dir is None:
+        return HTTPStatus.NOT_FOUND, _ontology_owner_decision_review_missing_error()
+    path = runs_dir / ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME
+    if not path.exists():
+        return HTTPStatus.NOT_FOUND, _ontology_owner_decision_review_missing_error()
+    status, payload = read_json_artifact(
+        path,
+        invalid_message=f"{ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME} is not valid JSON",
+    )
+    if status != HTTPStatus.OK:
+        return status, {
+            "reason": "invalid_json",
+            "artifact": ONTOLOGY_OWNER_DECISION_REVIEW_ARTIFACT,
+            **payload,
+        }
+    return validate_ontology_owner_decision_review_envelope(payload)
 
 
 def parse_iso_compact(stamp: str) -> str:
