@@ -18,6 +18,10 @@ ONTOLOGY_SEMANTIC_REVIEW_SURFACE_ARTIFACT = f"runs/{ONTOLOGY_SEMANTIC_REVIEW_SUR
 ONTOLOGY_SEMANTIC_REVIEW_SURFACE_BUILD_HINT = "`make ontology-imports`"
 ONTOLOGY_SEMANTIC_REVIEW_SURFACE_KIND = "ontology_semantic_review_surface"
 ONTOLOGY_SEMANTIC_REVIEW_SURFACE_PROPOSAL_ID = "0108"
+ONTOLOGY_REVIEW_DASHBOARD_FILENAME = "ontology_review_dashboard.json"
+ONTOLOGY_REVIEW_DASHBOARD_ARTIFACT = f"runs/{ONTOLOGY_REVIEW_DASHBOARD_FILENAME}"
+ONTOLOGY_REVIEW_DASHBOARD_KIND = "ontology_review_dashboard"
+ONTOLOGY_REVIEW_DASHBOARD_PROPOSAL_ID = "0113"
 ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FALSE_BOUNDARY_FLAGS = (
     "may_execute_prompt_agent",
     "may_write_ontology_package",
@@ -33,6 +37,26 @@ ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FALSE_ACTION_FLAGS = (
     "writes_ontology_package",
     "mutates_canonical_specs",
 )
+ONTOLOGY_REVIEW_DASHBOARD_TRUE_BOUNDARY_FLAGS = (
+    "for_specgraph_review_dashboard",
+    "for_specspace_review_dashboard",
+)
+ONTOLOGY_REVIEW_DASHBOARD_FALSE_BOUNDARY_FLAGS = (
+    "may_execute_prompt_agent",
+    "may_write_ontology_package",
+    "may_update_ontology_lockfile",
+    "may_mutate_canonical_specs",
+    "may_mark_candidate_accepted",
+    "may_import_owner_decision",
+    "may_close_semantic_gate",
+)
+ONTOLOGY_REVIEW_DASHBOARD_STATUSES = {
+    "blocked_by_semantic_gate",
+    "pending_ontology_owner_decision",
+    "review_pending",
+    "clear",
+    "no_candidates",
+}
 
 
 def runs_dir_from_spec_dir(spec_dir: Path | None) -> Path | None:
@@ -155,6 +179,27 @@ def _ontology_semantic_review_surface_contract_error(reason: str, detail: str) -
     }
 
 
+def _ontology_review_dashboard_missing_error() -> dict[str, Any]:
+    return {
+        "error": (
+            f"{ONTOLOGY_REVIEW_DASHBOARD_FILENAME} not found. "
+            f"Run {ONTOLOGY_SEMANTIC_REVIEW_SURFACE_BUILD_HINT} first."
+        ),
+        "reason": "missing_artifact",
+        "artifact": ONTOLOGY_REVIEW_DASHBOARD_ARTIFACT,
+        "build_hint": f"{ONTOLOGY_SEMANTIC_REVIEW_SURFACE_BUILD_HINT} in SpecGraph",
+    }
+
+
+def _ontology_review_dashboard_contract_error(reason: str, detail: str) -> tuple[int, dict[str, Any]]:
+    return HTTPStatus.UNPROCESSABLE_ENTITY, {
+        "error": "ontology_review_dashboard.json violates the SpecSpace read-only consumer contract.",
+        "reason": reason,
+        "artifact": ONTOLOGY_REVIEW_DASHBOARD_ARTIFACT,
+        "detail": detail,
+    }
+
+
 def validate_ontology_semantic_review_surface_data(data: Any) -> tuple[int, dict[str, Any] | None]:
     if not isinstance(data, dict):
         return _ontology_semantic_review_surface_contract_error(
@@ -266,6 +311,152 @@ def read_ontology_semantic_review_surface(
             **payload,
         }
     return validate_ontology_semantic_review_surface_envelope(payload)
+
+
+def validate_ontology_review_dashboard_data(data: Any) -> tuple[int, dict[str, Any] | None]:
+    if not isinstance(data, dict):
+        return _ontology_review_dashboard_contract_error(
+            "invalid_json_root",
+            "JSON root must be an object.",
+        )
+    if data.get("artifact_kind") != ONTOLOGY_REVIEW_DASHBOARD_KIND:
+        return _ontology_review_dashboard_contract_error(
+            "wrong_artifact_kind",
+            "artifact_kind must be ontology_review_dashboard.",
+        )
+    if data.get("schema_version") != 1:
+        return _ontology_review_dashboard_contract_error(
+            "unsupported_schema_version",
+            "schema_version must be 1.",
+        )
+    if data.get("proposal_id") != ONTOLOGY_REVIEW_DASHBOARD_PROPOSAL_ID:
+        return _ontology_review_dashboard_contract_error(
+            "wrong_proposal_id",
+            "proposal_id must be 0113.",
+        )
+    if data.get("canonical_mutations_allowed") is not False:
+        return _ontology_review_dashboard_contract_error(
+            "authority_expansion",
+            "canonical_mutations_allowed must be false.",
+        )
+    if data.get("tracked_artifacts_written") is not False:
+        return _ontology_review_dashboard_contract_error(
+            "authority_expansion",
+            "tracked_artifacts_written must be false.",
+        )
+
+    status_summary = data.get("status_summary")
+    if not isinstance(status_summary, dict):
+        return _ontology_review_dashboard_contract_error(
+            "invalid_status_summary",
+            "status_summary must be an object.",
+        )
+    if status_summary.get("status") not in ONTOLOGY_REVIEW_DASHBOARD_STATUSES:
+        return _ontology_review_dashboard_contract_error(
+            "unsupported_status",
+            "status_summary.status is not a supported dashboard state.",
+        )
+
+    consumer_boundary = data.get("consumer_boundary")
+    if not isinstance(consumer_boundary, dict):
+        return _ontology_review_dashboard_contract_error(
+            "missing_consumer_boundary",
+            "consumer_boundary must be an object.",
+        )
+    for flag in ONTOLOGY_REVIEW_DASHBOARD_TRUE_BOUNDARY_FLAGS:
+        if consumer_boundary.get(flag) is not True:
+            return _ontology_review_dashboard_contract_error(
+                "consumer_boundary_mismatch",
+                f"consumer_boundary.{flag} must be true.",
+            )
+    for flag in ONTOLOGY_REVIEW_DASHBOARD_FALSE_BOUNDARY_FLAGS:
+        if consumer_boundary.get(flag) is not False:
+            return _ontology_review_dashboard_contract_error(
+                "authority_expansion",
+                f"consumer_boundary.{flag} must be false.",
+            )
+
+    authority_boundary = data.get("authority_boundary")
+    if not isinstance(authority_boundary, dict):
+        return _ontology_review_dashboard_contract_error(
+            "missing_authority_boundary",
+            "authority_boundary must be an object.",
+        )
+    if authority_boundary.get("ontology_review_dashboard_is_authority") is not False:
+        return _ontology_review_dashboard_contract_error(
+            "authority_expansion",
+            "authority_boundary.ontology_review_dashboard_is_authority must be false.",
+        )
+
+    for field in (
+        "blocking_items",
+        "review_required_items",
+        "delta_candidates",
+        "draft_requests",
+        "closed_loop_entries",
+        "review_actions",
+    ):
+        if not isinstance(data.get(field), list):
+            return _ontology_review_dashboard_contract_error(
+                f"invalid_{field}",
+                f"{field} must be a list.",
+            )
+
+    for index, action in enumerate(data["review_actions"]):
+        if not isinstance(action, dict):
+            return _ontology_review_dashboard_contract_error(
+                "invalid_review_actions",
+                f"review_actions[{index}] must be an object.",
+            )
+        for flag in ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FALSE_ACTION_FLAGS:
+            if action.get(flag) is not False:
+                return _ontology_review_dashboard_contract_error(
+                    "authority_expansion",
+                    f"review_actions[{index}].{flag} must be false.",
+                )
+    for index, entry in enumerate(data["closed_loop_entries"]):
+        if not isinstance(entry, dict):
+            return _ontology_review_dashboard_contract_error(
+                "invalid_closed_loop_entries",
+                f"closed_loop_entries[{index}] must be an object.",
+            )
+        for flag in ("accepted_ontology_delta", "closes_semantic_gate", "mutates_canonical_specs"):
+            if entry.get(flag) is not False:
+                return _ontology_review_dashboard_contract_error(
+                    "authority_expansion",
+                    f"closed_loop_entries[{index}].{flag} must be false.",
+                )
+    return HTTPStatus.OK, None
+
+
+def validate_ontology_review_dashboard_envelope(payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    status, error = validate_ontology_review_dashboard_data(payload.get("data"))
+    if error is not None:
+        return status, error
+    return HTTPStatus.OK, payload
+
+
+def read_ontology_review_dashboard(
+    *,
+    spec_dir: Path | None,
+    runs_dir: Path | None,
+) -> tuple[int, dict[str, Any]]:
+    if runs_dir is None:
+        return HTTPStatus.NOT_FOUND, _ontology_review_dashboard_missing_error()
+    path = runs_dir / ONTOLOGY_REVIEW_DASHBOARD_FILENAME
+    if not path.exists():
+        return HTTPStatus.NOT_FOUND, _ontology_review_dashboard_missing_error()
+    status, payload = read_json_artifact(
+        path,
+        invalid_message=f"{ONTOLOGY_REVIEW_DASHBOARD_FILENAME} is not valid JSON",
+    )
+    if status != HTTPStatus.OK:
+        return status, {
+            "reason": "invalid_json",
+            "artifact": ONTOLOGY_REVIEW_DASHBOARD_ARTIFACT,
+            **payload,
+        }
+    return validate_ontology_review_dashboard_envelope(payload)
 
 
 def parse_iso_compact(stamp: str) -> str:

@@ -50,6 +50,13 @@ def test_route_table_resolves_ontology_semantic_review_surface() -> None:
     assert route.handler == "handle_v1_ontology_semantic_review_surface"
 
 
+def test_route_table_resolves_ontology_review_dashboard() -> None:
+    route = routes.route_for("GET", "/api/v1/ontology-review-dashboard")
+
+    assert route is not None
+    assert route.handler == "handle_v1_ontology_review_dashboard"
+
+
 def test_route_table_returns_none_for_unknown_route() -> None:
     assert routes.route_for("GET", "/api/not-a-real-route") is None
     assert routes.route_for("PATCH", "/api/file") is None
