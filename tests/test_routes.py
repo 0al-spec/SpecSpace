@@ -43,6 +43,13 @@ def test_route_table_resolves_agent_surfaces() -> None:
     assert route.handler == "handle_v1_agent_surfaces"
 
 
+def test_route_table_resolves_ontology_semantic_review_surface() -> None:
+    route = routes.route_for("GET", "/api/v1/ontology-semantic-review-surface")
+
+    assert route is not None
+    assert route.handler == "handle_v1_ontology_semantic_review_surface"
+
+
 def test_route_table_returns_none_for_unknown_route() -> None:
     assert routes.route_for("GET", "/api/not-a-real-route") is None
     assert routes.route_for("PATCH", "/api/file") is None

@@ -13,6 +13,22 @@ RUN_FILENAME_RE = re.compile(
     r"^(?P<ts>\d{8}T\d{6}Z)-(?P<spec_id>SG-[A-Z]+-\d+)-(?P<hash>[0-9a-f]+)\.json$",
 )
 JSON_STRING_RE = r'"(?:\\.|[^"\\])*"'
+ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FILENAME = "ontology_semantic_review_surface.json"
+ONTOLOGY_SEMANTIC_REVIEW_SURFACE_ARTIFACT = f"runs/{ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FILENAME}"
+ONTOLOGY_SEMANTIC_REVIEW_SURFACE_BUILD_HINT = "`make ontology-imports`"
+ONTOLOGY_SEMANTIC_REVIEW_SURFACE_KIND = "ontology_semantic_review_surface"
+ONTOLOGY_SEMANTIC_REVIEW_SURFACE_PROPOSAL_ID = "0108"
+ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FALSE_BOUNDARY_FLAGS = (
+    "may_execute_prompt_agent",
+    "may_write_ontology_package",
+    "may_update_ontology_lockfile",
+    "may_mutate_canonical_specs",
+    "may_mark_candidate_accepted",
+)
+ONTOLOGY_SEMANTIC_REVIEW_SURFACE_TRUE_BOUNDARY_FLAGS = (
+    "for_supervisor_gate_evidence",
+    "for_specspace_review_surface",
+)
 
 
 def runs_dir_from_spec_dir(spec_dir: Path | None) -> Path | None:
@@ -112,6 +128,122 @@ def read_runs_artifact(
     if not path.exists():
         return HTTPStatus.NOT_FOUND, {"error": f"{filename} not found. Run {build_hint} first."}
     return read_json_artifact(path, invalid_message=f"{filename} is not valid JSON")
+
+
+def _ontology_semantic_review_surface_missing_error() -> dict[str, Any]:
+    return {
+        "error": (
+            f"{ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FILENAME} not found. "
+            f"Run {ONTOLOGY_SEMANTIC_REVIEW_SURFACE_BUILD_HINT} first."
+        ),
+        "reason": "missing_artifact",
+        "artifact": ONTOLOGY_SEMANTIC_REVIEW_SURFACE_ARTIFACT,
+        "build_hint": f"{ONTOLOGY_SEMANTIC_REVIEW_SURFACE_BUILD_HINT} in SpecGraph",
+    }
+
+
+def _ontology_semantic_review_surface_contract_error(reason: str, detail: str) -> tuple[int, dict[str, Any]]:
+    return HTTPStatus.UNPROCESSABLE_ENTITY, {
+        "error": "ontology_semantic_review_surface.json violates the SpecSpace read-only consumer contract.",
+        "reason": reason,
+        "artifact": ONTOLOGY_SEMANTIC_REVIEW_SURFACE_ARTIFACT,
+        "detail": detail,
+    }
+
+
+def validate_ontology_semantic_review_surface_data(data: Any) -> tuple[int, dict[str, Any] | None]:
+    if not isinstance(data, dict):
+        return _ontology_semantic_review_surface_contract_error(
+            "invalid_json_root",
+            "JSON root must be an object.",
+        )
+    if data.get("artifact_kind") != ONTOLOGY_SEMANTIC_REVIEW_SURFACE_KIND:
+        return _ontology_semantic_review_surface_contract_error(
+            "wrong_artifact_kind",
+            "artifact_kind must be ontology_semantic_review_surface.",
+        )
+    if data.get("schema_version") != 1:
+        return _ontology_semantic_review_surface_contract_error(
+            "unsupported_schema_version",
+            "schema_version must be 1.",
+        )
+    if data.get("proposal_id") != ONTOLOGY_SEMANTIC_REVIEW_SURFACE_PROPOSAL_ID:
+        return _ontology_semantic_review_surface_contract_error(
+            "wrong_proposal_id",
+            "proposal_id must be 0108.",
+        )
+    if data.get("canonical_mutations_allowed") is not False:
+        return _ontology_semantic_review_surface_contract_error(
+            "authority_expansion",
+            "canonical_mutations_allowed must be false.",
+        )
+    if data.get("tracked_artifacts_written") is not False:
+        return _ontology_semantic_review_surface_contract_error(
+            "authority_expansion",
+            "tracked_artifacts_written must be false.",
+        )
+
+    consumer_boundary = data.get("consumer_boundary")
+    if not isinstance(consumer_boundary, dict):
+        return _ontology_semantic_review_surface_contract_error(
+            "missing_consumer_boundary",
+            "consumer_boundary must be an object.",
+        )
+    for flag in ONTOLOGY_SEMANTIC_REVIEW_SURFACE_TRUE_BOUNDARY_FLAGS:
+        if consumer_boundary.get(flag) is not True:
+            return _ontology_semantic_review_surface_contract_error(
+                "consumer_boundary_mismatch",
+                f"consumer_boundary.{flag} must be true.",
+            )
+    for flag in ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FALSE_BOUNDARY_FLAGS:
+        if consumer_boundary.get(flag) is not False:
+            return _ontology_semantic_review_surface_contract_error(
+                "authority_expansion",
+                f"consumer_boundary.{flag} must be false.",
+            )
+
+    authority_boundary = data.get("authority_boundary")
+    if not isinstance(authority_boundary, dict):
+        return _ontology_semantic_review_surface_contract_error(
+            "missing_authority_boundary",
+            "authority_boundary must be an object.",
+        )
+    if authority_boundary.get("semantic_review_surface_is_authority") is not False:
+        return _ontology_semantic_review_surface_contract_error(
+            "authority_expansion",
+            "authority_boundary.semantic_review_surface_is_authority must be false.",
+        )
+    return HTTPStatus.OK, None
+
+
+def validate_ontology_semantic_review_surface_envelope(payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    status, error = validate_ontology_semantic_review_surface_data(payload.get("data"))
+    if error is not None:
+        return status, error
+    return HTTPStatus.OK, payload
+
+
+def read_ontology_semantic_review_surface(
+    *,
+    spec_dir: Path | None,
+    runs_dir: Path | None,
+) -> tuple[int, dict[str, Any]]:
+    if runs_dir is None:
+        return HTTPStatus.NOT_FOUND, _ontology_semantic_review_surface_missing_error()
+    path = runs_dir / ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FILENAME
+    if not path.exists():
+        return HTTPStatus.NOT_FOUND, _ontology_semantic_review_surface_missing_error()
+    status, payload = read_json_artifact(
+        path,
+        invalid_message=f"{ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FILENAME} is not valid JSON",
+    )
+    if status != HTTPStatus.OK:
+        return status, {
+            "reason": "invalid_json",
+            "artifact": ONTOLOGY_SEMANTIC_REVIEW_SURFACE_ARTIFACT,
+            **payload,
+        }
+    return validate_ontology_semantic_review_surface_envelope(payload)
 
 
 def parse_iso_compact(stamp: str) -> str:

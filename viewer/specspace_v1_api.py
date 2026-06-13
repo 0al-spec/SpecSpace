@@ -367,6 +367,11 @@ def handle_v1_agent_surfaces(handler: SpecSpaceV1Handler) -> None:
     json_response(handler, status, payload)
 
 
+def handle_v1_ontology_semantic_review_surface(handler: SpecSpaceV1Handler) -> None:
+    status, payload = _provider(handler).read_ontology_semantic_review_surface()
+    json_response(handler, status, payload)
+
+
 def handle_v1_specpm_registry(handler: SpecSpaceV1Handler) -> None:
     status, payload = specspace_provider.read_specpm_registry_summary(handler.server)
     json_response(handler, status, payload)
