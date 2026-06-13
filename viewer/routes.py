@@ -71,6 +71,7 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/v1/ontology-semantic-review-surface": RouteSpec(
         "handle_v1_ontology_semantic_review_surface"
     ),
+    "/api/v1/ontology-review-dashboard": RouteSpec("handle_v1_ontology_review_dashboard"),
     "/api/v1/specpm/registry": RouteSpec("handle_v1_specpm_registry"),
     "/api/v1/specpm/lifecycle": RouteSpec("handle_v1_specpm_lifecycle"),
     "/api/v1/agent-workbench/conversations": RouteSpec("handle_v1_agent_workbench_conversations"),

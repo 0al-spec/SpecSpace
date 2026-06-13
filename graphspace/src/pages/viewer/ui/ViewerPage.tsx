@@ -86,7 +86,7 @@ import {
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 import { AgentSurfacesPanel } from "./AgentSurfacesPanel";
 import { MetricsViewerPanel } from "./MetricsViewerPanel";
-import { OntologySemanticReviewPanel } from "./OntologySemanticReviewPanel";
+import { OntologyReviewDashboardPanel } from "./OntologyReviewDashboardPanel";
 import { ProposalViewerPanel } from "./ProposalViewerPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
 import { SpecPMRegistryPanel } from "./SpecPMRegistryPanel";
@@ -97,7 +97,7 @@ import {
 } from "./ViewerChrome";
 import { useMetricsIndex } from "../model/use-metrics-index";
 import { useAgentSurfaces } from "../model/use-agent-surfaces";
-import { useOntologySemanticReviewSurface } from "../model/use-ontology-semantic-review-surface";
+import { useOntologyReviewDashboard } from "../model/use-ontology-review-dashboard";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecSpaceCapabilities } from "../model/use-specspace-capabilities";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
@@ -149,7 +149,7 @@ export function ViewerPage() {
   const proposalIndexState = useProposalIndex({ refreshKey: runsWatchVersion });
   const metricsIndexState = useMetricsIndex({ refreshKey: runsWatchVersion });
   const agentSurfacesState = useAgentSurfaces({ refreshKey: runsWatchVersion });
-  const ontologySemanticReviewState = useOntologySemanticReviewSurface({
+  const ontologyReviewDashboardState = useOntologyReviewDashboard({
     refreshKey: runsWatchVersion,
   });
   const capabilitiesState = useSpecSpaceCapabilities();
@@ -234,15 +234,15 @@ export function ViewerPage() {
     describeArtifact({
       id: "ontology-review",
       label: "Ontology review",
-      endpoint: "/api/v1/ontology-semantic-review-surface",
-      state: ontologySemanticReviewState,
+      endpoint: "/api/v1/ontology-review-dashboard",
+      state: ontologyReviewDashboardState,
       liveCount:
-        ontologySemanticReviewState.kind === "ok"
-          ? ontologySemanticReviewState.data.summary.reviewItemCount
+        ontologyReviewDashboardState.kind === "ok"
+          ? ontologyReviewDashboardState.data.statusSummary.evidenceEntryCount
           : 0,
       sampleCount: 0,
-      noun: { singular: "item", plural: "items" },
-      emptyDetail: "Artifact is live but contains no review items.",
+      noun: { singular: "entry", plural: "entries" },
+      emptyDetail: "Artifact is live but contains no evidence entries.",
     }),
   ] as const;
   const capabilityDiagnostics = describeCapabilityDiagnostics(capabilitiesState);
@@ -318,10 +318,10 @@ export function ViewerPage() {
     agentSurfacesState.kind === "ok"
       ? `${agentSurfacesState.data.entryCount} surfaces · ${agentSurfacesState.data.summary.handoffStatus}`
       : agentSurfacesState.kind;
-  const ontologySemanticReviewCaption =
-    ontologySemanticReviewState.kind === "ok"
-      ? `${ontologySemanticReviewState.data.summary.reviewItemCount} items · ${ontologySemanticReviewState.data.summary.status}`
-      : ontologySemanticReviewState.kind;
+  const ontologyReviewDashboardCaption =
+    ontologyReviewDashboardState.kind === "ok"
+      ? `${ontologyReviewDashboardState.data.statusSummary.evidenceEntryCount} entries · ${ontologyReviewDashboardState.data.statusSummary.status}`
+      : ontologyReviewDashboardState.kind;
   const artifactAttentionCount = artifactDiagnostics.filter(
     (artifact) => artifact.tone !== "live",
   ).length;
@@ -589,7 +589,7 @@ export function ViewerPage() {
       case "ontology-review":
         return {
           title: "Ontology review",
-          caption: ontologySemanticReviewCaption,
+          caption: ontologyReviewDashboardCaption,
         };
       case "agent-context":
         return {
@@ -763,8 +763,8 @@ export function ViewerPage() {
               aria-label="Open Ontology review"
               active={activeUtilityPanel === "ontology-review"}
               badge={
-                ontologySemanticReviewState.kind === "ok"
-                  ? ontologySemanticReviewState.data.summary.reviewItemCount
+                ontologyReviewDashboardState.kind === "ok"
+                  ? ontologyReviewDashboardState.data.statusSummary.evidenceEntryCount
                   : undefined
               }
               onClick={() => toggleUtilityPanel("ontology-review")}
@@ -954,7 +954,7 @@ export function ViewerPage() {
           ) : null}
 
           {activeUtilityPanel === "ontology-review" ? (
-            <OntologySemanticReviewPanel state={ontologySemanticReviewState} />
+            <OntologyReviewDashboardPanel state={ontologyReviewDashboardState} />
           ) : null}
 
           {activeUtilityPanel === "agent-context" ? (
