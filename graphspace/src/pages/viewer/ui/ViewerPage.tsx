@@ -86,6 +86,7 @@ import {
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 import { AgentSurfacesPanel } from "./AgentSurfacesPanel";
 import { MetricsViewerPanel } from "./MetricsViewerPanel";
+import { OntologyOwnerDecisionReviewPanel } from "./OntologyOwnerDecisionReviewPanel";
 import { OntologyReviewDashboardPanel } from "./OntologyReviewDashboardPanel";
 import { ProposalViewerPanel } from "./ProposalViewerPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
@@ -97,6 +98,7 @@ import {
 } from "./ViewerChrome";
 import { useMetricsIndex } from "../model/use-metrics-index";
 import { useAgentSurfaces } from "../model/use-agent-surfaces";
+import { useOntologyOwnerDecisionReview } from "../model/use-ontology-owner-decision-review";
 import { useOntologyReviewDashboard } from "../model/use-ontology-review-dashboard";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecSpaceCapabilities } from "../model/use-specspace-capabilities";
@@ -150,6 +152,9 @@ export function ViewerPage() {
   const metricsIndexState = useMetricsIndex({ refreshKey: runsWatchVersion });
   const agentSurfacesState = useAgentSurfaces({ refreshKey: runsWatchVersion });
   const ontologyReviewDashboardState = useOntologyReviewDashboard({
+    refreshKey: runsWatchVersion,
+  });
+  const ontologyOwnerDecisionReviewState = useOntologyOwnerDecisionReview({
     refreshKey: runsWatchVersion,
   });
   const capabilitiesState = useSpecSpaceCapabilities();
@@ -244,6 +249,19 @@ export function ViewerPage() {
       noun: { singular: "entry", plural: "entries" },
       emptyDetail: "Artifact is live but contains no evidence entries.",
     }),
+    describeArtifact({
+      id: "ontology-owner-decisions",
+      label: "Ontology owner decisions",
+      endpoint: "/api/v1/ontology-owner-decision-review",
+      state: ontologyOwnerDecisionReviewState,
+      liveCount:
+        ontologyOwnerDecisionReviewState.kind === "ok"
+          ? ontologyOwnerDecisionReviewState.data.summary.previewCount
+          : 0,
+      sampleCount: 0,
+      noun: { singular: "decision", plural: "decisions" },
+      emptyDetail: "Artifact is live but contains no owner decision previews.",
+    }),
   ] as const;
   const capabilityDiagnostics = describeCapabilityDiagnostics(capabilitiesState);
   const liveStatusTooltip = [
@@ -322,6 +340,10 @@ export function ViewerPage() {
     ontologyReviewDashboardState.kind === "ok"
       ? `${ontologyReviewDashboardState.data.statusSummary.evidenceEntryCount} entries · ${ontologyReviewDashboardState.data.statusSummary.status}`
       : ontologyReviewDashboardState.kind;
+  const ontologyOwnerDecisionReviewCaption =
+    ontologyOwnerDecisionReviewState.kind === "ok"
+      ? `${ontologyOwnerDecisionReviewState.data.summary.previewCount} decisions · ${ontologyOwnerDecisionReviewState.data.summary.status}`
+      : ontologyOwnerDecisionReviewState.kind;
   const artifactAttentionCount = artifactDiagnostics.filter(
     (artifact) => artifact.tone !== "live",
   ).length;
@@ -591,6 +613,11 @@ export function ViewerPage() {
           title: "Ontology review",
           caption: ontologyReviewDashboardCaption,
         };
+      case "ontology-owner-decisions":
+        return {
+          title: "Ontology owner decisions",
+          caption: ontologyOwnerDecisionReviewCaption,
+        };
       case "agent-context":
         return {
           title: "Agent context",
@@ -770,6 +797,19 @@ export function ViewerPage() {
               onClick={() => toggleUtilityPanel("ontology-review")}
             >
               ⌬
+            </PanelBtn>
+            <PanelBtn
+              title="Open Ontology owner decisions"
+              aria-label="Open Ontology owner decisions"
+              active={activeUtilityPanel === "ontology-owner-decisions"}
+              badge={
+                ontologyOwnerDecisionReviewState.kind === "ok"
+                  ? ontologyOwnerDecisionReviewState.data.summary.previewCount
+                  : undefined
+              }
+              onClick={() => toggleUtilityPanel("ontology-owner-decisions")}
+            >
+              ◇
             </PanelBtn>
             <PanelBtn
               title="Open Agent context"
@@ -955,6 +995,10 @@ export function ViewerPage() {
 
           {activeUtilityPanel === "ontology-review" ? (
             <OntologyReviewDashboardPanel state={ontologyReviewDashboardState} />
+          ) : null}
+
+          {activeUtilityPanel === "ontology-owner-decisions" ? (
+            <OntologyOwnerDecisionReviewPanel state={ontologyOwnerDecisionReviewState} />
           ) : null}
 
           {activeUtilityPanel === "agent-context" ? (

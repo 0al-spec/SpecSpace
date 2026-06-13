@@ -314,6 +314,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
         specspace_v1_api.handle_v1_ontology_semantic_review_surface
     )
     handle_v1_ontology_review_dashboard = specspace_v1_api.handle_v1_ontology_review_dashboard
+    handle_v1_ontology_owner_decision_review = (
+        specspace_v1_api.handle_v1_ontology_owner_decision_review
+    )
     handle_v1_agent_workbench_conversation = specspace_v1_api.handle_v1_agent_workbench_conversation
     handle_v1_agent_workbench_conversations = specspace_v1_api.handle_v1_agent_workbench_conversations
     handle_v1_proposals = specspace_v1_api.handle_v1_proposals

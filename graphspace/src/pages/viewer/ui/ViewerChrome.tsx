@@ -13,6 +13,7 @@ export type ViewerUtilityPanelId =
   | "metrics"
   | "agents"
   | "ontology-review"
+  | "ontology-owner-decisions"
   | "agent-context"
   | "agent-conversation"
   | "proposal-trace"
