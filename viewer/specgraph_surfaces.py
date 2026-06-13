@@ -29,6 +29,10 @@ ONTOLOGY_SEMANTIC_REVIEW_SURFACE_TRUE_BOUNDARY_FLAGS = (
     "for_supervisor_gate_evidence",
     "for_specspace_review_surface",
 )
+ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FALSE_ACTION_FLAGS = (
+    "writes_ontology_package",
+    "mutates_canonical_specs",
+)
 
 
 def runs_dir_from_spec_dir(spec_dir: Path | None) -> Path | None:
@@ -213,6 +217,24 @@ def validate_ontology_semantic_review_surface_data(data: Any) -> tuple[int, dict
             "authority_expansion",
             "authority_boundary.semantic_review_surface_is_authority must be false.",
         )
+    review_actions = data.get("review_actions")
+    if not isinstance(review_actions, list):
+        return _ontology_semantic_review_surface_contract_error(
+            "invalid_review_actions",
+            "review_actions must be a list.",
+        )
+    for index, action in enumerate(review_actions):
+        if not isinstance(action, dict):
+            return _ontology_semantic_review_surface_contract_error(
+                "invalid_review_actions",
+                f"review_actions[{index}] must be an object.",
+            )
+        for flag in ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FALSE_ACTION_FLAGS:
+            if action.get(flag) is not False:
+                return _ontology_semantic_review_surface_contract_error(
+                    "authority_expansion",
+                    f"review_actions[{index}].{flag} must be false.",
+                )
     return HTTPStatus.OK, None
 
 

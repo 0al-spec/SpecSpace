@@ -1704,6 +1704,24 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "authority_expansion")
         self.assertIn("may_mutate_canonical_specs", body["detail"])
 
+    def test_ontology_semantic_review_surface_v1_rejects_action_authority_expansion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            surface = _ontology_semantic_review_surface()
+            surface["review_actions"][0]["writes_ontology_package"] = True
+            _write_json(runs_dir / "ontology_semantic_review_surface.json", surface)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-semantic-review-surface")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "authority_expansion")
+        self.assertIn("review_actions[0].writes_ontology_package", body["detail"])
+
     def test_ontology_semantic_review_surface_v1_reads_http_static_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

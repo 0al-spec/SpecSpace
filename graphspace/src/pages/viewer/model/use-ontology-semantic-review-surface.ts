@@ -256,6 +256,29 @@ export function parseOntologySemanticReviewSurface(
   const target = isRecord(raw.target) ? raw.target : {};
   const consumerBoundary = parseConsumerBoundary(rawConsumerBoundary);
   if (!consumerBoundary) return invariantViolation("consumer_boundary must be an object", raw);
+  const rawReviewItems = records(raw.review_items);
+  const reviewItems = rawReviewItems
+    .map(parseReviewItem)
+    .filter((entry): entry is OntologySemanticReviewItem => !!entry);
+  if (reviewItems.length !== rawReviewItems.length) {
+    return invariantViolation("review_items entries must include item_id", raw);
+  }
+  const reviewItemCount = numberValue(summary.review_item_count);
+  if (reviewItemCount !== reviewItems.length) {
+    return invariantViolation("summary.review_item_count must match review_items length", raw);
+  }
+  const reviewActions = records(raw.review_actions)
+    .map(parseReviewAction)
+    .filter((entry): entry is OntologySemanticReviewAction => !!entry);
+  const expandedAction = reviewActions.find(
+    (action) => action.writesOntologyPackage || action.mutatesCanonicalSpecs,
+  );
+  if (expandedAction?.writesOntologyPackage) {
+    return invariantViolation("review_actions[].writes_ontology_package must be false", raw);
+  }
+  if (expandedAction?.mutatesCanonicalSpecs) {
+    return invariantViolation("review_actions[].mutates_canonical_specs must be false", raw);
+  }
 
   return {
     kind: "ok",
@@ -277,12 +300,8 @@ export function parseOntologySemanticReviewSurface(
       blockingFindings: records(raw.blocking_findings),
       reviewRequiredFindings: records(raw.review_required_findings),
       deltaCandidates: records(raw.delta_candidates),
-      reviewItems: records(raw.review_items)
-        .map(parseReviewItem)
-        .filter((entry): entry is OntologySemanticReviewItem => !!entry),
-      reviewActions: records(raw.review_actions)
-        .map(parseReviewAction)
-        .filter((entry): entry is OntologySemanticReviewAction => !!entry),
+      reviewItems,
+      reviewActions,
       consumerBoundary,
       authorityBoundary: {
         semanticReviewSurfaceIsAuthority: false,
@@ -292,7 +311,7 @@ export function parseOntologySemanticReviewSurface(
         blockingCount: numberValue(summary.blocking_count),
         reviewRequiredCount: numberValue(summary.review_required_count),
         candidateCount: numberValue(summary.candidate_count),
-        reviewItemCount: numberValue(summary.review_item_count),
+        reviewItemCount,
         nextGap: optionalString(summary.next_gap),
       },
       outputArtifact: optionalString(raw.output_artifact),

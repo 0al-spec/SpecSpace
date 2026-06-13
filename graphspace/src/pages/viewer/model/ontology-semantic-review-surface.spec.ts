@@ -142,4 +142,36 @@ describe("parseOntologySemanticReviewSurface", () => {
       message: "consumer_boundary.may_execute_prompt_agent must be false",
     });
   });
+
+  it("rejects review item count drift", () => {
+    const parsed = parseOntologySemanticReviewSurface({
+      ...payload,
+      summary: {
+        ...payload.summary,
+        review_item_count: 3,
+      },
+    });
+
+    expect(parsed).toMatchObject({
+      kind: "invariant-violation",
+      message: "summary.review_item_count must match review_items length",
+    });
+  });
+
+  it("rejects action-level authority expansion", () => {
+    const parsed = parseOntologySemanticReviewSurface({
+      ...payload,
+      review_actions: [
+        {
+          ...payload.review_actions[0],
+          mutates_canonical_specs: true,
+        },
+      ],
+    });
+
+    expect(parsed).toMatchObject({
+      kind: "invariant-violation",
+      message: "review_actions[].mutates_canonical_specs must be false",
+    });
+  });
 });
