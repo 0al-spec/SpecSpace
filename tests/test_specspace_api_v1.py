@@ -1938,6 +1938,42 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "authority_expansion")
         self.assertIn("closed_loop_entries[0].accepted_ontology_delta", body["detail"])
 
+    def test_ontology_review_dashboard_v1_rejects_draft_request_authority_expansion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            dashboard = _ontology_review_dashboard()
+            dashboard["draft_requests"][0]["writes_ontology_package"] = True
+            _write_json(runs_dir / "ontology_review_dashboard.json", dashboard)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-review-dashboard")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "authority_expansion")
+        self.assertIn("draft_requests[0].writes_ontology_package", body["detail"])
+
+    def test_ontology_review_dashboard_v1_rejects_stale_summary_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            dashboard = _ontology_review_dashboard()
+            dashboard["status_summary"]["draft_request_count"] = 2
+            _write_json(runs_dir / "ontology_review_dashboard.json", dashboard)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-review-dashboard")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "stale_status_summary")
+        self.assertIn("draft_request_count", body["detail"])
+
     def test_ontology_review_dashboard_v1_reads_http_static_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

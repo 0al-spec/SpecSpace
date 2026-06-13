@@ -50,6 +50,12 @@ ONTOLOGY_REVIEW_DASHBOARD_FALSE_BOUNDARY_FLAGS = (
     "may_import_owner_decision",
     "may_close_semantic_gate",
 )
+ONTOLOGY_REVIEW_DASHBOARD_FALSE_DRAFT_REQUEST_FLAGS = (
+    "writes_ontology_package",
+    "updates_ontology_lockfile",
+    "mutates_canonical_specs",
+    "marks_candidate_accepted",
+)
 ONTOLOGY_REVIEW_DASHBOARD_STATUSES = {
     "blocked_by_semantic_gate",
     "pending_ontology_owner_decision",
@@ -401,6 +407,29 @@ def validate_ontology_review_dashboard_data(data: Any) -> tuple[int, dict[str, A
                 f"invalid_{field}",
                 f"{field} must be a list.",
             )
+
+    if status_summary.get("draft_request_count") != len(data["draft_requests"]):
+        return _ontology_review_dashboard_contract_error(
+            "stale_status_summary",
+            "status_summary.draft_request_count must match draft_requests length.",
+        )
+    if status_summary.get("evidence_entry_count") != len(data["closed_loop_entries"]):
+        return _ontology_review_dashboard_contract_error(
+            "stale_status_summary",
+            "status_summary.evidence_entry_count must match closed_loop_entries length.",
+        )
+    for index, request in enumerate(data["draft_requests"]):
+        if not isinstance(request, dict):
+            return _ontology_review_dashboard_contract_error(
+                "invalid_draft_requests",
+                f"draft_requests[{index}] must be an object.",
+            )
+        for flag in ONTOLOGY_REVIEW_DASHBOARD_FALSE_DRAFT_REQUEST_FLAGS:
+            if request.get(flag) is not False:
+                return _ontology_review_dashboard_contract_error(
+                    "authority_expansion",
+                    f"draft_requests[{index}].{flag} must be false.",
+                )
 
     for index, action in enumerate(data["review_actions"]):
         if not isinstance(action, dict):
