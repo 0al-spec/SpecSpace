@@ -86,6 +86,7 @@ import {
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 import { AgentSurfacesPanel } from "./AgentSurfacesPanel";
 import { MetricsViewerPanel } from "./MetricsViewerPanel";
+import { OntologySemanticReviewPanel } from "./OntologySemanticReviewPanel";
 import { ProposalViewerPanel } from "./ProposalViewerPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
 import { SpecPMRegistryPanel } from "./SpecPMRegistryPanel";
@@ -96,6 +97,7 @@ import {
 } from "./ViewerChrome";
 import { useMetricsIndex } from "../model/use-metrics-index";
 import { useAgentSurfaces } from "../model/use-agent-surfaces";
+import { useOntologySemanticReviewSurface } from "../model/use-ontology-semantic-review-surface";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecSpaceCapabilities } from "../model/use-specspace-capabilities";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
@@ -147,6 +149,9 @@ export function ViewerPage() {
   const proposalIndexState = useProposalIndex({ refreshKey: runsWatchVersion });
   const metricsIndexState = useMetricsIndex({ refreshKey: runsWatchVersion });
   const agentSurfacesState = useAgentSurfaces({ refreshKey: runsWatchVersion });
+  const ontologySemanticReviewState = useOntologySemanticReviewSurface({
+    refreshKey: runsWatchVersion,
+  });
   const capabilitiesState = useSpecSpaceCapabilities();
   const specpmRegistryState = useSpecPMRegistrySummary();
   const specGraphState = useSpecGraph({ refreshKey: runsWatchVersion });
@@ -226,6 +231,19 @@ export function ViewerPage() {
       noun: { singular: "entry", plural: "entries" },
       emptyDetail: "Artifact is live but contains no proposal trace entries.",
     }),
+    describeArtifact({
+      id: "ontology-review",
+      label: "Ontology review",
+      endpoint: "/api/v1/ontology-semantic-review-surface",
+      state: ontologySemanticReviewState,
+      liveCount:
+        ontologySemanticReviewState.kind === "ok"
+          ? ontologySemanticReviewState.data.summary.reviewItemCount
+          : 0,
+      sampleCount: 0,
+      noun: { singular: "item", plural: "items" },
+      emptyDetail: "Artifact is live but contains no review items.",
+    }),
   ] as const;
   const capabilityDiagnostics = describeCapabilityDiagnostics(capabilitiesState);
   const liveStatusTooltip = [
@@ -300,6 +318,10 @@ export function ViewerPage() {
     agentSurfacesState.kind === "ok"
       ? `${agentSurfacesState.data.entryCount} surfaces · ${agentSurfacesState.data.summary.handoffStatus}`
       : agentSurfacesState.kind;
+  const ontologySemanticReviewCaption =
+    ontologySemanticReviewState.kind === "ok"
+      ? `${ontologySemanticReviewState.data.summary.reviewItemCount} items · ${ontologySemanticReviewState.data.summary.status}`
+      : ontologySemanticReviewState.kind;
   const artifactAttentionCount = artifactDiagnostics.filter(
     (artifact) => artifact.tone !== "live",
   ).length;
@@ -564,6 +586,11 @@ export function ViewerPage() {
         return { title: "Metrics viewer", caption: metricsIndexCaption };
       case "agents":
         return { title: "Agent surfaces", caption: agentSurfacesCaption };
+      case "ontology-review":
+        return {
+          title: "Ontology review",
+          caption: ontologySemanticReviewCaption,
+        };
       case "agent-context":
         return {
           title: "Agent context",
@@ -730,6 +757,19 @@ export function ViewerPage() {
               onClick={() => toggleUtilityPanel("agents")}
             >
               ⎈
+            </PanelBtn>
+            <PanelBtn
+              title="Open Ontology review"
+              aria-label="Open Ontology review"
+              active={activeUtilityPanel === "ontology-review"}
+              badge={
+                ontologySemanticReviewState.kind === "ok"
+                  ? ontologySemanticReviewState.data.summary.reviewItemCount
+                  : undefined
+              }
+              onClick={() => toggleUtilityPanel("ontology-review")}
+            >
+              ⌬
             </PanelBtn>
             <PanelBtn
               title="Open Agent context"
@@ -911,6 +951,10 @@ export function ViewerPage() {
 
           {activeUtilityPanel === "agents" ? (
             <AgentSurfacesPanel state={agentSurfacesState} />
+          ) : null}
+
+          {activeUtilityPanel === "ontology-review" ? (
+            <OntologySemanticReviewPanel state={ontologySemanticReviewState} />
           ) : null}
 
           {activeUtilityPanel === "agent-context" ? (

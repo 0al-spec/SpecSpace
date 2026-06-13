@@ -532,6 +532,133 @@ def _write_metrics_viewer_artifacts(runs_dir: Path) -> None:
     )
 
 
+def _ontology_semantic_review_surface() -> dict:
+    return {
+        "artifact_kind": "ontology_semantic_review_surface",
+        "schema_version": 1,
+        "proposal_id": "0108",
+        "policy_basis": ["docs/proposals/0103_semantic_control.md"],
+        "source_policy": "tools/ontology_semantic_control_policy.json",
+        "source_artifacts": {
+            "semantic_context_pack": "runs/ontology_semantic_context_pack.json",
+            "semantic_lint_report": "runs/ontology_semantic_lint_report.json",
+            "ontology_delta_candidate_review_packet": (
+                "runs/ontology_delta_candidate_review_packet.json"
+            ),
+        },
+        "target": {
+            "target_kind": "proposal",
+            "target_ref": "SG-RFC-0108",
+        },
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "grounding_summary": {
+            "source_context_status": "ready_with_gaps",
+            "source_lint_status": "blocked_relation_conflict",
+            "source_delta_candidate_status": "review_required",
+            "package_count": 1,
+            "accepted_term_count": 1,
+            "accepted_relation_count": 1,
+            "alias_count": 1,
+            "deprecated_term_count": 1,
+            "relation_conflict_count": 1,
+            "unresolved_gap_count": 1,
+            "governance_evidence_count": 1,
+        },
+        "display_sections": [
+            "grounding_summary",
+            "blocking_findings",
+            "review_required_findings",
+            "delta_candidates",
+            "review_actions",
+            "authority_boundary",
+        ],
+        "blocking_findings": [
+            {
+                "term": "allows policy",
+                "classification": "relation_conflict",
+                "suggested_action": "use_accepted_relation",
+            }
+        ],
+        "review_required_findings": [
+            {
+                "term": "CASFunction",
+                "classification": "candidate_delta_term",
+                "suggested_action": "emit_ontology_gap",
+            }
+        ],
+        "delta_candidates": [
+            {
+                "candidate_id": "ontology-delta-candidate-examcalc-casfunction",
+                "term": "examcalc:CASFunction",
+                "review_state": "needs_ontology_owner_review",
+            }
+        ],
+        "review_items": [
+            {
+                "item_id": "semantic-finding-allows-policy",
+                "item_kind": "semantic_finding",
+                "review_state": "blocked",
+                "source": "ontology_semantic_lint_report.blocking_findings",
+                "term": "allows policy",
+                "classification": "relation_conflict",
+                "suggested_action": "use_accepted_relation",
+            },
+            {
+                "item_id": "ontology-delta-candidate-examcalc-casfunction",
+                "item_kind": "ontology_delta_candidate",
+                "review_state": "needs_ontology_owner_review",
+                "source": "ontology_delta_candidate_review_packet.candidates",
+                "term": "examcalc:CASFunction",
+                "suggested_actions": [
+                    "approve_for_ontology_package_draft",
+                    "reject_candidate",
+                    "request_clarification",
+                ],
+            },
+        ],
+        "review_actions": [
+            {
+                "action": "use_accepted_relation",
+                "source": "ontology_semantic_lint_report.recommended_actions",
+                "term_count": 1,
+                "terms": ["allows policy"],
+                "writes_ontology_package": False,
+                "mutates_canonical_specs": False,
+            },
+            {
+                "action": "approve_for_ontology_package_draft",
+                "source": "ontology_delta_candidate_review_packet.review_actions",
+                "effect": "Allows Ontology owner to draft package changes outside SpecSpace.",
+                "candidate_count": 1,
+                "writes_ontology_package": False,
+                "mutates_canonical_specs": False,
+            },
+        ],
+        "consumer_boundary": {
+            "for_supervisor_gate_evidence": True,
+            "for_specspace_review_surface": True,
+            "may_execute_prompt_agent": False,
+            "may_write_ontology_package": False,
+            "may_update_ontology_lockfile": False,
+            "may_mutate_canonical_specs": False,
+            "may_mark_candidate_accepted": False,
+        },
+        "authority_boundary": {
+            "semantic_review_surface_is_authority": False,
+        },
+        "summary": {
+            "status": "blocked_relation_conflict",
+            "blocking_count": 1,
+            "review_required_count": 1,
+            "candidate_count": 1,
+            "review_item_count": 2,
+            "next_gap": "build_specspace_semantic_review_surface_consumer",
+        },
+        "output_artifact": "runs/ontology_semantic_review_surface.json",
+    }
+
+
 def _write_agent_surface_artifacts(runs_dir: Path) -> None:
     runs_dir.mkdir(parents=True, exist_ok=True)
     _write_json(
@@ -1517,6 +1644,106 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         evidence = entries["specgraph.supervisor.executor_adapter"]["runtime_enforcement_evidence"][0]
         self.assertEqual(evidence["detail_status"], "available")
         self.assertEqual(evidence["checks"][0]["check_id"], "executor_adapter_invocation_boundary")
+
+    def test_ontology_semantic_review_surface_v1_reads_file_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            _write_json(
+                runs_dir / "ontology_semantic_review_surface.json",
+                _ontology_semantic_review_surface(),
+            )
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-semantic-review-surface")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["data"]["artifact_kind"], "ontology_semantic_review_surface")
+        self.assertEqual(body["data"]["proposal_id"], "0108")
+        self.assertEqual(body["data"]["summary"]["review_item_count"], 2)
+        self.assertEqual(body["data"]["review_items"][0]["review_state"], "blocked")
+        self.assertFalse(body["data"]["canonical_mutations_allowed"])
+        self.assertFalse(body["data"]["tracked_artifacts_written"])
+        self.assertFalse(body["data"]["consumer_boundary"]["may_execute_prompt_agent"])
+        self.assertFalse(body["data"]["authority_boundary"]["semantic_review_surface_is_authority"])
+
+    def test_ontology_semantic_review_surface_v1_reports_missing_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-semantic-review-surface")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 404)
+        self.assertEqual(body["reason"], "missing_artifact")
+        self.assertEqual(body["artifact"], "runs/ontology_semantic_review_surface.json")
+        self.assertIn("make ontology-imports", body["build_hint"])
+
+    def test_ontology_semantic_review_surface_v1_rejects_authority_expansion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            surface = _ontology_semantic_review_surface()
+            surface["consumer_boundary"]["may_mutate_canonical_specs"] = True
+            _write_json(runs_dir / "ontology_semantic_review_surface.json", surface)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-semantic-review-surface")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "authority_expansion")
+        self.assertIn("may_mutate_canonical_specs", body["detail"])
+
+    def test_ontology_semantic_review_surface_v1_rejects_action_authority_expansion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            surface = _ontology_semantic_review_surface()
+            surface["review_actions"][0]["writes_ontology_package"] = True
+            _write_json(runs_dir / "ontology_semantic_review_surface.json", surface)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-semantic-review-surface")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "authority_expansion")
+        self.assertIn("review_actions[0].writes_ontology_package", body["detail"])
+
+    def test_ontology_semantic_review_surface_v1_reads_http_static_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifact-site"
+            runs_dir = artifact_root / "runs"
+            runs_dir.mkdir(parents=True)
+            _write_json(
+                runs_dir / "ontology_semantic_review_surface.json",
+                _ontology_semantic_review_surface(),
+            )
+            _write_manifest(artifact_root, ["runs/ontology_semantic_review_surface.json"])
+            static, static_thread, artifact_base_url = _start_static(artifact_root)
+            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base_url)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-semantic-review-surface")
+            finally:
+                _stop(httpd, thread)
+                _stop(static, static_thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["data"]["summary"]["status"], "blocked_relation_conflict")
+        self.assertTrue(body["path"].startswith(artifact_base_url))
 
     def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
