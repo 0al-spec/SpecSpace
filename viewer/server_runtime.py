@@ -37,6 +37,7 @@ class ViewerRuntimeServer(Protocol):
     artifact_base_url: str | None
     specpm_registry_url: str | None
     agent_workbench_dir: Path | None
+    specspace_state_dir: Path
     agent_available: bool
 
     def serve_forever(self) -> None: ...
@@ -50,6 +51,7 @@ def build_arg_parser(
     hyperprompt_work_dir_env = os.environ.get("SPECSPACE_HYPERPROMPT_WORK_DIR", "").strip()
     http_compile_enabled_env = os.environ.get("SPECSPACE_HYPERPROMPT_HTTP_COMPILE_ENABLED", "").strip()
     agent_workbench_dir_env = os.environ.get("SPECSPACE_AGENT_WORKBENCH_DIR", "").strip()
+    specspace_state_dir_env = os.environ.get("SPECSPACE_STATE_DIR", "").strip()
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--host",
@@ -151,6 +153,15 @@ def build_arg_parser(
             "Readonly APIs expect workbench/conversations/index.json and conversation artifacts."
         ),
     )
+    parser.add_argument(
+        "--specspace-state-dir",
+        type=Path,
+        default=Path(specspace_state_dir_env) if specspace_state_dir_env else None,
+        help=(
+            "SpecSpace-owned local state directory for operator workflow state. "
+            "Defaults to .specspace-dev/state under the repository root."
+        ),
+    )
     return parser
 
 
@@ -204,6 +215,12 @@ def configure_server(
     server.specpm_registry_url = specpm_registry_url.strip().rstrip("/") if specpm_registry_url else None
     agent_workbench_dir = getattr(args, "agent_workbench_dir", None)
     server.agent_workbench_dir = agent_workbench_dir.expanduser().resolve() if agent_workbench_dir else None
+    specspace_state_dir = getattr(args, "specspace_state_dir", None)
+    server.specspace_state_dir = (
+        specspace_state_dir.expanduser().resolve()
+        if specspace_state_dir
+        else repo_root / ".specspace-dev" / "state"
+    )
     server.agent_available = args.agent
 
 

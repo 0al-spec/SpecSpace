@@ -64,6 +64,16 @@ def test_route_table_resolves_ontology_owner_decision_review() -> None:
     assert route.handler == "handle_v1_ontology_owner_decision_review"
 
 
+def test_route_table_resolves_ontology_owner_decision_acknowledgements() -> None:
+    get_route = routes.route_for("GET", "/api/v1/ontology-owner-decision-acknowledgements")
+    post_route = routes.route_for("POST", "/api/v1/ontology-owner-decision-acknowledgements")
+
+    assert get_route is not None
+    assert get_route.handler == "handle_v1_ontology_owner_decision_acknowledgements"
+    assert post_route is not None
+    assert post_route.handler == "handle_v1_ontology_owner_decision_acknowledgement_post"
+
+
 def test_route_table_returns_none_for_unknown_route() -> None:
     assert routes.route_for("GET", "/api/not-a-real-route") is None
     assert routes.route_for("PATCH", "/api/file") is None

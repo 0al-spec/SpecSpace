@@ -6,7 +6,7 @@ from http import HTTPStatus
 from typing import Any, Protocol
 from urllib.parse import unquote
 
-from viewer import agent_workbench, spec_compile, specspace_provider
+from viewer import agent_workbench, ontology_acknowledgements, spec_compile, specspace_provider
 from viewer.http_response import JsonResponseHandler, json_response
 from viewer.request_query import query_params, query_value
 
@@ -380,6 +380,36 @@ def handle_v1_ontology_review_dashboard(handler: SpecSpaceV1Handler) -> None:
 def handle_v1_ontology_owner_decision_review(handler: SpecSpaceV1Handler) -> None:
     status, payload = _provider(handler).read_ontology_owner_decision_review()
     json_response(handler, status, payload)
+
+
+def handle_v1_ontology_owner_decision_acknowledgements(handler: SpecSpaceV1Handler) -> None:
+    status, payload = ontology_acknowledgements.read_state(handler.server)
+    json_response(handler, status, payload)
+
+
+def handle_v1_ontology_owner_decision_acknowledgement_post(handler: SpecSpaceV1Handler) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    review_status, review_payload = _provider(handler).read_ontology_owner_decision_review()
+    if review_status != HTTPStatus.OK:
+        json_response(
+            handler,
+            review_status,
+            {
+                "error": "Cannot acknowledge owner decision without readable review artifact.",
+                "reason": "source_review_unavailable",
+                "source_status": int(review_status),
+                "source": review_payload,
+            },
+        )
+        return
+    status, response = ontology_acknowledgements.acknowledge_owner_decision(
+        handler.server,
+        payload,
+        review_payload,
+    )
+    json_response(handler, status, response)
 
 
 def handle_v1_specpm_registry(handler: SpecSpaceV1Handler) -> None:

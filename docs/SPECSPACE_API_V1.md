@@ -318,6 +318,48 @@ Envelope shape:
 }
 ```
 
+### `GET /api/v1/ontology-owner-decision-review`
+
+Returns the SpecGraph-produced `ontology_decision_import_preview` envelope for
+SpecSpace inspection. The endpoint is readonly: SpecSpace treats accepted and
+rejected Ontology owner decisions as review material, linked evidence, affected
+review items, and before/after semantic status. It does not import decisions,
+close gates, update lockfiles, or mutate Ontology/SpecGraph canonical files.
+
+### `GET /api/v1/ontology-owner-decision-acknowledgements`
+
+Returns SpecSpace-owned local acknowledgement state for reviewed owner decision
+previews. Missing state is returned as an empty artifact and does not create a
+file. The artifact is intentionally non-authoritative:
+
+```json
+{
+  "artifact_kind": "specspace_ontology_owner_decision_acknowledgement_state",
+  "schema_version": 1,
+  "state_owner": "SpecSpace",
+  "canonical_mutations_allowed": false,
+  "tracked_artifacts_written": false,
+  "acknowledgements": []
+}
+```
+
+### `POST /api/v1/ontology-owner-decision-acknowledgements`
+
+Records or replaces one local operator acknowledgement:
+
+```json
+{
+  "preview_id": "ontology-decision-import-preview-accept-casfunction",
+  "acknowledged_by": "operator"
+}
+```
+
+The server first verifies that `preview_id` exists in the current
+`ontology_decision_import_preview` artifact. On success it writes only
+SpecSpace-owned state under the configured `--specspace-state-dir` and returns
+the complete acknowledgement artifact. It never writes `runs/`, `specs/nodes/`,
+Ontology packages, or SpecGraph import artifacts.
+
 ### `GET /api/v1/proposals`
 
 Returns a readonly SpecSpace proposal index for the new Proposal Viewer. The

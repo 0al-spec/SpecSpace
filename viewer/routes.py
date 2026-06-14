@@ -75,6 +75,9 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/v1/ontology-owner-decision-review": RouteSpec(
         "handle_v1_ontology_owner_decision_review"
     ),
+    "/api/v1/ontology-owner-decision-acknowledgements": RouteSpec(
+        "handle_v1_ontology_owner_decision_acknowledgements"
+    ),
     "/api/v1/specpm/registry": RouteSpec("handle_v1_specpm_registry"),
     "/api/v1/specpm/lifecycle": RouteSpec("handle_v1_specpm_lifecycle"),
     "/api/v1/agent-workbench/conversations": RouteSpec("handle_v1_agent_workbench_conversations"),
@@ -97,6 +100,9 @@ POST_ROUTES: dict[str, RouteSpec] = {
     "/api/export": RouteSpec("handle_export"),
     "/api/compile": RouteSpec("handle_compile"),
     "/api/v1/spec-markdown/compile": RouteSpec("handle_v1_spec_markdown_compile"),
+    "/api/v1/ontology-owner-decision-acknowledgements": RouteSpec(
+        "handle_v1_ontology_owner_decision_acknowledgement_post"
+    ),
     "/api/specpm/preview/build": RouteSpec("handle_specpm_preview_build"),
     "/api/specpm/build-export-preview": RouteSpec(
         "_handle_specpm_build",

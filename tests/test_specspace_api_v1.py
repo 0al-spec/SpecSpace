@@ -63,6 +63,7 @@ def _start(
     hyperprompt_max_input_bytes: str | None = None,
     hyperprompt_max_output_bytes: str | None = None,
     hyperprompt_bundle_retention_count: str | None = None,
+    specspace_state_dir: Path | None = None,
 ) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.ViewerHandler)
     httpd.repo_root = REPO_ROOT
@@ -87,6 +88,7 @@ def _start(
     httpd.artifact_base_url = artifact_base_url
     httpd.specpm_registry_url = specpm_registry_url
     httpd.agent_workbench_dir = agent_workbench_dir
+    httpd.specspace_state_dir = specspace_state_dir or (dialog_dir.parent / "specspace-state")
     httpd.agent_available = False
     thread = threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
@@ -2303,6 +2305,138 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(body["data"]["summary"]["next_gap"], "build_specspace_owner_decision_review_surface")
         self.assertTrue(body["path"].startswith(artifact_base_url))
+
+    def test_ontology_owner_decision_acknowledgements_v1_reads_empty_specspace_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(root / "dialogs", specspace_state_dir=state_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-acknowledgements")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["artifact_kind"], "specspace_ontology_owner_decision_acknowledgement_state")
+        self.assertEqual(body["summary"]["acknowledgement_count"], 0)
+        self.assertTrue(body["consumer_boundary"]["specspace_owned_state"])
+        self.assertFalse(body["consumer_boundary"]["may_import_into_specgraph"])
+        self.assertFalse(body["authority_boundary"]["acknowledgement_state_is_authority"])
+        self.assertFalse((state_dir / "ontology_owner_decision_acknowledgements.json").exists())
+
+    def test_ontology_owner_decision_acknowledgements_v1_posts_specspace_owned_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            runs_dir.mkdir()
+            review = _ontology_owner_decision_review()
+            review_path = runs_dir / "ontology_decision_import_preview.json"
+            _write_json(review_path, review)
+            before_review = review_path.read_text(encoding="utf-8")
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/ontology-owner-decision-acknowledgements",
+                    {
+                        "preview_id": "ontology-decision-import-preview-accept-casfunction",
+                        "acknowledged_by": "operator",
+                    },
+                )
+                get_status, get_body = _get(f"{base}/api/v1/ontology-owner-decision-acknowledgements")
+            finally:
+                _stop(httpd, thread)
+            state_path = state_dir / "ontology_owner_decision_acknowledgements.json"
+            state_exists = state_path.exists()
+            review_after = review_path.read_text(encoding="utf-8")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["acknowledgement_count"], 1)
+        self.assertEqual(get_status, 200)
+        self.assertEqual(
+            get_body["acknowledgements"][0]["preview_id"],
+            "ontology-decision-import-preview-accept-casfunction",
+        )
+        self.assertEqual(
+            get_body["acknowledgements"][0]["decision_id"],
+            "ontology-owner-decision-accept-casfunction",
+        )
+        self.assertFalse(get_body["acknowledgements"][0]["imports_into_specgraph"])
+        self.assertFalse(get_body["acknowledgements"][0]["closes_semantic_gate"])
+        self.assertTrue(state_exists)
+        self.assertEqual(review_after, before_review)
+
+    def test_ontology_owner_decision_acknowledgements_v1_rejects_unknown_preview(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            runs_dir.mkdir()
+            _write_json(
+                runs_dir / "ontology_decision_import_preview.json",
+                _ontology_owner_decision_review(),
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/ontology-owner-decision-acknowledgements",
+                    {"preview_id": "not-a-preview"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 404)
+        self.assertEqual(body["preview_id"], "not-a-preview")
+        self.assertFalse((state_dir / "ontology_owner_decision_acknowledgements.json").exists())
+
+    def test_ontology_owner_decision_acknowledgements_v1_rejects_mutation_claims(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            _write_json(
+                state_dir / "ontology_owner_decision_acknowledgements.json",
+                {
+                    "artifact_kind": "specspace_ontology_owner_decision_acknowledgement_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "consumer_boundary": {
+                        "specspace_owned_state": True,
+                        "for_operator_review_workflow": True,
+                        "may_import_into_specgraph": False,
+                    },
+                    "authority_boundary": {
+                        "acknowledgement_state_is_authority": False,
+                        "canonical_mutations_allowed": False,
+                    },
+                    "acknowledgements": [
+                        {
+                            "preview_id": "ontology-decision-import-preview-accept-casfunction",
+                            "decision_id": "ontology-owner-decision-accept-casfunction",
+                            "candidate_id": "ontology-delta-candidate-examcalc-casfunction",
+                            "imports_into_specgraph": True,
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(root / "dialogs", specspace_state_dir=state_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-owner-decision-acknowledgements")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertIn("imports_into_specgraph", body["error"])
 
     def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
