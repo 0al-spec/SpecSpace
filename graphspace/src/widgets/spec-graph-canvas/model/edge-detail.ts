@@ -21,7 +21,7 @@ export type SpecGraphCanvasEffectiveEdgeDetailMode = Exclude<
 >;
 
 export const DEFAULT_SPEC_GRAPH_CANVAS_EDGE_DETAIL_MODE: SpecGraphCanvasEdgeDetailMode =
-  "auto";
+  "hierarchy";
 
 export const SPEC_GRAPH_CANVAS_EDGE_DETAIL_LABELS: Record<
   SpecGraphCanvasEdgeDetailMode,
@@ -68,7 +68,7 @@ export type SpecGraphCanvasEdgeDetailStorage = Pick<
   "getItem" | "setItem"
 >;
 
-const EDGE_DETAIL_STORAGE_KEY = "specspace:spec-graph-canvas-edge-detail:v1";
+const EDGE_DETAIL_STORAGE_KEY = "specspace:spec-graph-canvas-edge-detail:v2";
 const EDGE_ROUTE_STORAGE_KEY = "specspace:spec-graph-canvas-edge-route:v1";
 const AUTO_STRUCTURAL_ZOOM = 0.36;
 const AUTO_FULL_ZOOM = 0.72;

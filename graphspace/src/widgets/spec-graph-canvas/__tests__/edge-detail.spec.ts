@@ -50,6 +50,13 @@ const edge = (
 });
 
 describe("SpecGraph canvas edge detail", () => {
+  it("defaults to Core edge detail mode", () => {
+    const storage = new MemoryStorage();
+
+    expect(DEFAULT_SPEC_GRAPH_CANVAS_EDGE_DETAIL_MODE).toBe("hierarchy");
+    expect(readSpecGraphCanvasEdgeDetailMode(storage)).toBe("hierarchy");
+  });
+
   it("normalizes and persists the selected edge detail mode", () => {
     const storage = new MemoryStorage();
 
