@@ -1,9 +1,9 @@
-import { useState } from "react";
 import type {
   OntologyIgnoredOwnerDecision,
   OntologyOwnerDecisionPreview,
   UseOntologyOwnerDecisionReviewState,
 } from "../model/use-ontology-owner-decision-review";
+import { useOntologyOwnerDecisionAcknowledgements } from "../model/use-ontology-owner-decision-acknowledgements";
 import { agentSurfaceTone, type AgentSurfaceTone } from "../model/agent-surface-tones";
 import { describeHttpErrorDetail } from "../model/live-artifacts";
 import styles from "./OntologySemanticReviewPanel.module.css";
@@ -72,7 +72,9 @@ function afterSemanticStatus(entry: OntologyOwnerDecisionPreview): string {
 }
 
 export function OntologyOwnerDecisionReviewPanel({ state }: Props) {
-  const [acknowledged, setAcknowledged] = useState<ReadonlySet<string>>(() => new Set());
+  const acknowledgementWorkflow = useOntologyOwnerDecisionAcknowledgements({
+    enabled: state.kind === "ok",
+  });
 
   if (state.kind === "idle" || state.kind === "loading") {
     return (
@@ -94,9 +96,13 @@ export function OntologyOwnerDecisionReviewPanel({ state }: Props) {
   }
 
   const { data, meta } = state;
+  const acknowledged = acknowledgementWorkflow.acknowledgedPreviewIds;
   const acknowledgedCount = data.decisionImportPreviews.filter((entry) =>
     acknowledged.has(entry.previewId),
   ).length;
+  const acknowledgementStatus = acknowledgementWorkflow.state.kind === "ok"
+    ? acknowledgementWorkflow.state.data.summary.status
+    : `ack_${acknowledgementWorkflow.state.kind}`;
 
   return (
     <section className={styles.panel} aria-label="Ontology owner decision review">
@@ -116,6 +122,7 @@ export function OntologyOwnerDecisionReviewPanel({ state }: Props) {
         </div>
         <div className={styles.statusGroup}>
           <Pill value={data.summary.status} />
+          <Pill value={acknowledgementStatus} />
           {data.summary.nextGap ? <Pill value={data.summary.nextGap} /> : null}
         </div>
       </div>
@@ -129,6 +136,11 @@ export function OntologyOwnerDecisionReviewPanel({ state }: Props) {
             {name.replace(/_/g, " ")}: {artifact}
           </span>
         ))}
+        {acknowledgementWorkflow.state.kind === "ok" ? (
+          <span className={styles.source} title={compact(acknowledgementWorkflow.state.data.statePath)}>
+            ack state: {compact(acknowledgementWorkflow.state.data.statePath)}
+          </span>
+        ) : null}
       </div>
 
       <div className={styles.postureStrip}>
@@ -162,15 +174,22 @@ export function OntologyOwnerDecisionReviewPanel({ state }: Props) {
           value={boolText(data.authorityBoundary.ontologyDecisionImportPreviewIsAuthority)}
           danger={data.authorityBoundary.ontologyDecisionImportPreviewIsAuthority}
         />
+        <PostureItem
+          label="Ack state"
+          value={acknowledgementWorkflow.state.kind === "ok" ? "specspace_owned" : acknowledgementWorkflow.state.kind}
+          danger={
+            acknowledgementWorkflow.state.kind === "ok" &&
+            acknowledgementWorkflow.state.data.authorityBoundary.acknowledgementStateIsAuthority
+          }
+        />
       </div>
 
       <div className={styles.entries}>
         <DecisionSection
           decisions={data.decisionImportPreviews}
           acknowledged={acknowledged}
-          onAcknowledge={(previewId) =>
-            setAcknowledged((current) => new Set([...current, previewId]))
-          }
+          acknowledgingPreviewId={acknowledgementWorkflow.pendingPreviewId}
+          onAcknowledge={(decision) => void acknowledgementWorkflow.acknowledge(decision)}
         />
         <IgnoredDecisionSection decisions={data.ignoredOwnerDecisions} />
       </div>
@@ -213,11 +232,13 @@ function PostureItem({
 function DecisionSection({
   decisions,
   acknowledged,
+  acknowledgingPreviewId,
   onAcknowledge,
 }: {
   decisions: readonly OntologyOwnerDecisionPreview[];
   acknowledged: ReadonlySet<string>;
-  onAcknowledge: (previewId: string) => void;
+  acknowledgingPreviewId: string | null;
+  onAcknowledge: (decision: OntologyOwnerDecisionPreview) => void;
 }) {
   return (
     <div className={styles.reviewSection}>
@@ -233,7 +254,8 @@ function DecisionSection({
             key={decision.previewId}
             decision={decision}
             acknowledged={acknowledged.has(decision.previewId)}
-            onAcknowledge={() => onAcknowledge(decision.previewId)}
+            acknowledging={acknowledgingPreviewId === decision.previewId}
+            onAcknowledge={() => onAcknowledge(decision)}
           />
         ))
       )}
@@ -266,10 +288,12 @@ function IgnoredDecisionSection({
 function DecisionRow({
   decision,
   acknowledged,
+  acknowledging,
   onAcknowledge,
 }: {
   decision: OntologyOwnerDecisionPreview;
   acknowledged: boolean;
+  acknowledging: boolean;
   onAcknowledge: () => void;
 }) {
   const before = compact(
@@ -302,10 +326,10 @@ function DecisionRow({
         <button
           type="button"
           className={styles.ackButton}
-          disabled={acknowledged}
+          disabled={acknowledged || acknowledging}
           onClick={onAcknowledge}
         >
-          {acknowledged ? "Acknowledged" : "Acknowledge"}
+          {acknowledged ? "Acknowledged" : acknowledging ? "Acknowledging" : "Acknowledge"}
         </button>
       </div>
     </article>
