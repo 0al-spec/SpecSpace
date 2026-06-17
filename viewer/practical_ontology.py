@@ -26,6 +26,17 @@ DOMAIN_KEYWORDS: tuple[tuple[str, str], ...] = (
     ("evidence", "Evidence"),
     ("hypercode", "Hypercode"),
 )
+DOMAIN_HEAD_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "or",
+    "the",
+    "this",
+    "that",
+    "these",
+    "those",
+}
 
 STRUCTURED_CONCEPT_PATHS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("core_attribute", ("specification", "core_attributes")),
@@ -83,7 +94,7 @@ def _at_path(root: dict[str, Any], path: tuple[str, ...]) -> Any:
 
 def _entry_label(key: str, value: Any) -> str:
     if isinstance(value, str):
-        return value
+        return value if key.isdigit() else key
     if isinstance(value, dict):
         for field in ("name", "id", "kind", "label", "title"):
             label = _text(value.get(field))
@@ -92,7 +103,9 @@ def _entry_label(key: str, value: Any) -> str:
     return "" if key.isdigit() else key
 
 
-def _entry_description(value: Any) -> str | None:
+def _entry_description(key: str, value: Any) -> str | None:
+    if isinstance(value, str) and not key.isdigit():
+        return value
     if isinstance(value, dict):
         for field in ("description", "summary", "purpose", "objective"):
             description = _text(value.get(field))
@@ -115,7 +128,10 @@ def infer_domain(label: str) -> str:
         if needle in lowered:
             return domain
     if " " in label:
-        return label.split(" ", 1)[0].strip(":-") or "SpecGraph"
+        head = label.split(" ", 1)[0].strip(":-")
+        if head.lower() in DOMAIN_HEAD_STOPWORDS:
+            return "SpecGraph"
+        return head or "SpecGraph"
     return "SpecGraph"
 
 
@@ -300,7 +316,7 @@ def _collect_spec_terms(
                     kind=concept_kind,
                     label=label,
                     source_ref=f"{source_ref}#{path_ref}",
-                    description=_entry_description(item),
+                    description=_entry_description(key, item),
                 )
 
 
