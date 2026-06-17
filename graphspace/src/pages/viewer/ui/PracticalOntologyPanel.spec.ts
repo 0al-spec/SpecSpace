@@ -12,86 +12,94 @@ const practicalOntology: PracticalOntology = {
   readOnly: true,
   canonicalMutationsAllowed: false,
   trackedArtifactsWritten: false,
-  source: { provider: "file" },
+  source: { provider: "file", ontology_mode: "curated_core_seed" },
   sources: {
-    spec_nodes: { available: true, entry_count: 1 },
-    proposal_markdown: { available: true, entry_count: 1 },
+    curated_seed: {
+      available: true,
+      id: "specgraph.core.v0",
+      title: "SpecGraph Core Ontology",
+      entry_count: 3,
+      relation_count: 2,
+    },
+    legacy_extraction: { available: false, reason: "removed_from_primary_ontology_surface" },
   },
   summary: {
-    termCount: 2,
-    relationCount: 0,
-    semanticRelationCount: 0,
-    topologyEdgeCount: 1,
-    proposalReferenceCount: 1,
+    termCount: 3,
+    relationCount: 2,
+    semanticRelationCount: 2,
+    topologyEdgeCount: 0,
+    proposalReferenceCount: 0,
     domainCount: 1,
-    sourceCount: 2,
+    sourceCount: 1,
   },
   domains: [
     {
       domainId: "domain.ontology",
-      label: "Ontology",
-      termCount: 2,
-      termKinds: ["spec_node", "proposal"],
+      label: "SpecGraph Core",
+      termCount: 3,
+      termKinds: ["ontology", "entity"],
       sourceRefs: ["specs/nodes/SG-SPEC-0001.yaml"],
     },
   ],
   terms: [
     {
-      termId: "spec_node.specgraph-ontology-boundary",
-      label: "SpecGraph Ontology Boundary",
-      kind: "spec_node",
-      domain: "Ontology",
+      termId: "ontology.specgraph",
+      label: "SpecGraph",
+      kind: "ontology",
+      domain: "SpecGraph Core",
       canonicalRef: "SG-SPEC-0001",
-      description: "Define vocabulary.",
+      description: "Executable product ontology.",
       sourceRefs: ["specs/nodes/SG-SPEC-0001.yaml"],
       evidenceCount: 1,
     },
     {
-      termId: "proposal.ontology-grounding",
-      label: "Ontology Grounding",
-      kind: "proposal",
-      domain: "Ontology",
-      canonicalRef: "0100",
-      description: null,
-      sourceRefs: ["docs/proposals/0100_ontology_grounding.md"],
-      evidenceCount: 1,
-    },
-  ],
-  relations: [],
-  topologyEdges: [
-    {
-      edgeId: "sg-spec-0001--depends-on--sg-spec-0002",
-      sourceId: "SG-SPEC-0001",
-      sourceTitle: "SpecGraph Ontology Boundary",
-      relation: "depends_on",
-      targetId: "SG-SPEC-0002",
-      targetTitle: "SpecSpace Review Surface",
-      displayLabel: "SG-SPEC-0001 depends_on SG-SPEC-0002",
+      termId: "entity.spec",
+      label: "Spec",
+      kind: "entity",
+      domain: "SpecGraph Core",
+      canonicalRef: "SG-SPEC-0001#specification.node_kinds.spec",
+      description: "Versioned specification artifact.",
       sourceRefs: ["specs/nodes/SG-SPEC-0001.yaml"],
       evidenceCount: 1,
-      authorityClass: "specgraph_topology",
     },
-  ],
-  proposalReferences: [
     {
-      referenceId: "0100--mentions-spec--sg-spec-0001",
-      proposalId: "0100",
-      proposalTitle: "Ontology Grounding",
-      relation: "mentions_spec",
-      targetSpecId: "SG-SPEC-0001",
-      displayLabel: "0100 mentions SG-SPEC-0001",
-      sourceRefs: ["docs/proposals/0100_ontology_grounding.md"],
+      termId: "entity.requirement",
+      label: "Requirement",
+      kind: "entity",
+      domain: "SpecGraph Core",
+      canonicalRef: "SG-SPEC-0001#specification.node_kinds.requirement",
+      description: "Verifiable obligation.",
+      sourceRefs: ["specs/nodes/SG-SPEC-0001.yaml"],
       evidenceCount: 1,
-      authorityClass: "proposal_reference",
     },
   ],
+  relations: [
+    {
+      relationId: "specgraph--contains--spec",
+      sourceTerm: "SpecGraph",
+      relation: "contains",
+      targetTerm: "Spec",
+      sourceRefs: ["specs/nodes/SG-SPEC-0001.yaml"],
+      evidenceCount: 1,
+    },
+    {
+      relationId: "spec--defines--requirement",
+      sourceTerm: "Spec",
+      relation: "defines",
+      targetTerm: "Requirement",
+      sourceRefs: ["specs/nodes/SG-SPEC-0001.yaml"],
+      evidenceCount: 1,
+    },
+  ],
+  topologyEdges: [],
+  proposalReferences: [],
   relationTaxonomy: {
-    relations: "semantic ontology relation observations only",
-    topology_edges: "SpecGraph graph topology facts",
+    relations: "curated semantic ontology relations",
+    topology_edges: "legacy topology extraction removed",
   },
   authorityBoundary: {
     practicalOntologyIsAuthority: false,
-    derivedFromSpecgraphSources: true,
+    derivedFromSpecgraphSources: false,
     mayWriteOntologyPackage: false,
     mayMutateCanonicalSpecs: false,
     mayMarkCandidateAccepted: false,
@@ -99,23 +107,22 @@ const practicalOntology: PracticalOntology = {
 };
 
 describe("PracticalOntologyPanel", () => {
-  it("renders readonly derived terms and relations", () => {
+  it("renders readonly curated core terms and relations", () => {
     const html = renderToStaticMarkup(
       createElement(PracticalOntologyPanel, {
         state: { kind: "ok", data: practicalOntology },
       }),
     );
 
-    expect(html).toContain("SpecGraph Ontology Boundary");
-    expect(html).toContain("Ontology Grounding");
-    expect(html).toContain("SG-SPEC-0001 depends_on SG-SPEC-0002");
-    expect(html).toContain("0100 mentions SG-SPEC-0001");
-    expect(html).toContain("mentions_spec");
-    expect(html).toContain("not_authority");
-    expect(html).toContain("Open demo graph");
+    expect(html).toContain("SpecGraph");
+    expect(html).toContain("Requirement");
+    expect(html).toContain("Spec → Requirement");
+    expect(html).toContain("curated_core_seed");
+    expect(html).toContain("working_draft");
+    expect(html).toContain("Open ontology graph");
   });
 
-  it("renders a clearly marked demo ontology graph lens", () => {
+  it("renders a curated ontology graph lens", () => {
     const html = renderToStaticMarkup(
       createElement(OntologyGraphDemoLens, {
         data: practicalOntology,
@@ -123,10 +130,10 @@ describe("PracticalOntologyPanel", () => {
       }),
     );
 
-    expect(html).toContain("Demo Ontology Graph Lens");
-    expect(html).toContain("DEMO - curated mock ontology graph over extracted inventory");
-    expect(html).toContain("demo_only_not_authority");
-    expect(html).toContain("mock/demo links");
-    expect(html).toContain("Ontology Binding");
+    expect(html).toContain("Ontology Graph Lens");
+    expect(html).toContain("SpecGraph Core Ontology v0");
+    expect(html).toContain("working_draft");
+    expect(html).toContain("curated seed links");
+    expect(html).toContain("SpecGraph");
   });
 });
