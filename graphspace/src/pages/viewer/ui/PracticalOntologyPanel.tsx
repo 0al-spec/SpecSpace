@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type {
   PracticalOntology,
@@ -592,6 +592,8 @@ export function OntologyGraphDemoLens({
 }) {
   const graph = useMemo(() => buildDemoGraph(data), [data]);
   const [selectedNodeId, setSelectedNodeId] = useState(graph.nodes[0]?.id ?? "");
+  const pointerDownRef = useRef<{ nodeId: string; x: number; y: number } | null>(null);
+  const pointerMovedRef = useRef(false);
   const selectedNode = graph.nodes.find((node) => node.id === selectedNodeId) ?? graph.nodes[0];
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
 
@@ -650,19 +652,56 @@ export function OntologyGraphDemoLens({
                 );
               })}
               {graph.nodes.map((node) => {
+                const selected = node.id === selectedNode?.id;
                 return (
                   <g
                     key={node.id}
-                    className={[styles.demoNodeGroup, NODE_TONE_CLASS[node.kind]].join(" ")}
+                    className={[
+                      styles.demoNodeGroup,
+                      NODE_TONE_CLASS[node.kind],
+                      selected ? styles.demoNodeSelected : "",
+                    ].join(" ")}
                     role="button"
                     tabIndex={0}
-                    onMouseDown={(event) => {
+                    onPointerDown={(event) => {
                       event.preventDefault();
+                      pointerDownRef.current = { nodeId: node.id, x: event.clientX, y: event.clientY };
+                      pointerMovedRef.current = false;
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                    }}
+                    onPointerMove={(event) => {
+                      const pointerDown = pointerDownRef.current;
+                      if (!pointerDown || pointerDown.nodeId !== node.id) return;
+                      const moved =
+                        Math.abs(event.clientX - pointerDown.x) > 4 ||
+                        Math.abs(event.clientY - pointerDown.y) > 4;
+                      if (moved) pointerMovedRef.current = true;
+                    }}
+                    onPointerUp={(event) => {
+                      event.preventDefault();
+                      const pointerDown = pointerDownRef.current;
+                      const moved =
+                        pointerMovedRef.current ||
+                        !pointerDown ||
+                        Math.abs(event.clientX - pointerDown.x) > 4 ||
+                        Math.abs(event.clientY - pointerDown.y) > 4;
+                      pointerDownRef.current = null;
+                      pointerMovedRef.current = false;
+                      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                        event.currentTarget.releasePointerCapture(event.pointerId);
+                      }
+                      if (!moved) setSelectedNodeId(node.id);
+                    }}
+                    onPointerCancel={(event) => {
+                      pointerDownRef.current = null;
+                      pointerMovedRef.current = false;
+                      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                        event.currentTarget.releasePointerCapture(event.pointerId);
+                      }
                     }}
                     onDragStart={(event) => {
                       event.preventDefault();
                     }}
-                    onClick={() => setSelectedNodeId(node.id)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();

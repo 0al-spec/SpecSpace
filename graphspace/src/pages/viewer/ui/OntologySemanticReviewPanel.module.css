@@ -85,9 +85,14 @@
 }
 
 .pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  box-sizing: border-box;
   border: 1px solid var(--gs-rule-soft);
-  padding: 3px 6px;
+  padding: 0 6px;
   background: var(--gs-panel);
+  line-height: 1;
   overflow-wrap: anywhere;
 }
 
@@ -137,7 +142,11 @@
 
 .actionButton,
 .closeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 30px;
+  box-sizing: border-box;
   border: 1px solid var(--gs-rule-mid);
   border-radius: 4px;
   padding: 0 var(--gs-space-4);
@@ -146,6 +155,7 @@
   font-family: var(--gs-mono);
   font-size: 11px;
   font-weight: 600;
+  line-height: 1;
   text-transform: uppercase;
   cursor: pointer;
 }
@@ -436,6 +446,10 @@
 .demoNodeGroup:focus-visible .demoNode {
   stroke: var(--gs-accent);
   stroke-width: 3;
+}
+
+.demoNodeSelected .demoNodeHalo {
+  stroke: var(--gs-accent);
 }
 
 .demoNodeLabel {
