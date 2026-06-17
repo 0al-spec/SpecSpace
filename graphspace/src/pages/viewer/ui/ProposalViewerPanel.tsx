@@ -356,6 +356,7 @@ function ProposalDetail({
     ["Next gap", entry.next_gap],
   ].filter((item): item is [string, string] => Boolean(item[1]));
   const preview = entry.markdown.content_preview ?? entry.markdown.content_excerpt ?? "";
+  const body = entry.markdown.content_body ?? "";
   const affectedSpecIds = proposalViewerSpecRefs(entry.affected_spec_ids);
 
   return (
@@ -422,7 +423,7 @@ function ProposalDetail({
       ) : null}
 
       <section className={styles.detailSection} aria-label="Proposal preview">
-        <span className={styles.detailSectionTitle}>Preview</span>
+        <span className={styles.detailSectionTitle}>Summary</span>
         {preview ? (
           <p className={styles.detailPreview}>
             <SpecIdText
@@ -436,6 +437,19 @@ function ProposalDetail({
           <p className={styles.detailMuted}>
             {entry.markdown.available
               ? "Markdown is available; no narrative preview was extracted."
+              : "Markdown body is not available for this proposal."}
+          </p>
+        )}
+      </section>
+
+      <section className={styles.detailSection} aria-label="Proposal markdown">
+        <span className={styles.detailSectionTitle}>Markdown</span>
+        {body ? (
+          <pre className={styles.markdownBody}>{body}</pre>
+        ) : (
+          <p className={styles.detailMuted}>
+            {entry.markdown.available
+              ? "Markdown metadata is available, but the full proposal body was not included."
               : "Markdown body is not available for this proposal."}
           </p>
         )}

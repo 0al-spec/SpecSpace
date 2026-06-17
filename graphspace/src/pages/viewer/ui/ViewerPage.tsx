@@ -88,6 +88,7 @@ import { AgentSurfacesPanel } from "./AgentSurfacesPanel";
 import { MetricsViewerPanel } from "./MetricsViewerPanel";
 import { OntologyOwnerDecisionReviewPanel } from "./OntologyOwnerDecisionReviewPanel";
 import { OntologyReviewDashboardPanel } from "./OntologyReviewDashboardPanel";
+import { PracticalOntologyPanel } from "./PracticalOntologyPanel";
 import { ProposalViewerPanel } from "./ProposalViewerPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
 import { SpecPMRegistryPanel } from "./SpecPMRegistryPanel";
@@ -100,6 +101,7 @@ import { useMetricsIndex } from "../model/use-metrics-index";
 import { useAgentSurfaces } from "../model/use-agent-surfaces";
 import { useOntologyOwnerDecisionReview } from "../model/use-ontology-owner-decision-review";
 import { useOntologyReviewDashboard } from "../model/use-ontology-review-dashboard";
+import { usePracticalOntology } from "../model/use-practical-ontology";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecSpaceCapabilities } from "../model/use-specspace-capabilities";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
@@ -151,6 +153,7 @@ export function ViewerPage() {
   const proposalIndexState = useProposalIndex({ refreshKey: runsWatchVersion });
   const metricsIndexState = useMetricsIndex({ refreshKey: runsWatchVersion });
   const agentSurfacesState = useAgentSurfaces({ refreshKey: runsWatchVersion });
+  const practicalOntologyState = usePracticalOntology({ refreshKey: runsWatchVersion });
   const ontologyReviewDashboardState = useOntologyReviewDashboard({
     refreshKey: runsWatchVersion,
   });
@@ -336,6 +339,10 @@ export function ViewerPage() {
     agentSurfacesState.kind === "ok"
       ? `${agentSurfacesState.data.entryCount} surfaces · ${agentSurfacesState.data.summary.handoffStatus}`
       : agentSurfacesState.kind;
+  const practicalOntologyCaption =
+    practicalOntologyState.kind === "ok"
+      ? `${practicalOntologyState.data.summary.termCount} terms · ${practicalOntologyState.data.summary.relationCount} relations`
+      : practicalOntologyState.kind;
   const ontologyReviewDashboardCaption =
     ontologyReviewDashboardState.kind === "ok"
       ? `${ontologyReviewDashboardState.data.statusSummary.evidenceEntryCount} entries · ${ontologyReviewDashboardState.data.statusSummary.status}`
@@ -608,6 +615,8 @@ export function ViewerPage() {
         return { title: "Metrics viewer", caption: metricsIndexCaption };
       case "agents":
         return { title: "Agent surfaces", caption: agentSurfacesCaption };
+      case "practical-ontology":
+        return { title: "Practical ontology", caption: practicalOntologyCaption };
       case "ontology-review":
         return {
           title: "Ontology review",
@@ -786,8 +795,21 @@ export function ViewerPage() {
               ⎈
             </PanelBtn>
             <PanelBtn
-              title="Open Ontology review"
-              aria-label="Open Ontology review"
+              title="Open Practical ontology"
+              aria-label="Open Practical ontology"
+              active={activeUtilityPanel === "practical-ontology"}
+              badge={
+                practicalOntologyState.kind === "ok"
+                  ? practicalOntologyState.data.summary.termCount
+                  : undefined
+              }
+              onClick={() => toggleUtilityPanel("practical-ontology")}
+            >
+              ⌘
+            </PanelBtn>
+            <PanelBtn
+              title="Open Ontology review dashboard"
+              aria-label="Open Ontology review dashboard"
               active={activeUtilityPanel === "ontology-review"}
               badge={
                 ontologyReviewDashboardState.kind === "ok"
@@ -991,6 +1013,10 @@ export function ViewerPage() {
 
           {activeUtilityPanel === "agents" ? (
             <AgentSurfacesPanel state={agentSurfacesState} />
+          ) : null}
+
+          {activeUtilityPanel === "practical-ontology" ? (
+            <PracticalOntologyPanel state={practicalOntologyState} />
           ) : null}
 
           {activeUtilityPanel === "ontology-review" ? (

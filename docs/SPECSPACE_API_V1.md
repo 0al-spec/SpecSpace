@@ -387,6 +387,12 @@ whole endpoint.
       "status": "Draft proposal",
       "runtime_state": "implemented",
       "authority_state": null,
+      "markdown": {
+        "available": true,
+        "content_excerpt": "Short list summary.",
+        "content_preview": "Longer detail summary.",
+        "content_body": "# Full proposal Markdown\n\n..."
+      },
       "affected_spec_ids": ["SG-SPEC-0001"]
     }
   ],
@@ -397,6 +403,55 @@ whole endpoint.
     "affected_spec_ids": ["SG-SPEC-0001"]
   },
   "sources": {}
+}
+```
+
+### `GET /api/v1/practical-ontology`
+
+Returns a readonly SpecSpace-derived practical ontology surface. The endpoint
+builds a working vocabulary from already available SpecGraph sources:
+
+- `specs/nodes/*.yaml`
+- `docs/proposals/*.md`
+
+It is not a canonical Ontology package, does not mark terms accepted, and does
+not mutate SpecGraph specs.
+
+```json
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_practical_ontology",
+  "schema_version": 1,
+  "read_only": true,
+  "canonical_mutations_allowed": false,
+  "summary": {
+    "term_count": 2,
+    "relation_count": 1,
+    "domain_count": 1,
+    "source_count": 2
+  },
+  "terms": [
+    {
+      "term_id": "spec_node.specgraph-ontology-boundary",
+      "label": "SpecGraph Ontology Boundary",
+      "kind": "spec_node",
+      "canonical_ref": "SG-SPEC-0001",
+      "source_refs": ["specs/nodes/SG-SPEC-0001.yaml"]
+    }
+  ],
+  "relations": [
+    {
+      "source_term": "Ontology Grounding",
+      "relation": "mentions_spec",
+      "target_term": "SG-SPEC-0001"
+    }
+  ],
+  "authority_boundary": {
+    "practical_ontology_is_authority": false,
+    "may_write_ontology_package": false,
+    "may_mutate_canonical_specs": false,
+    "may_mark_candidate_accepted": false
+  }
 }
 ```
 

@@ -23,6 +23,7 @@ from viewer import (
     agent_workbench,
     capabilities_api,
     metrics,
+    practical_ontology,
     proposals,
     spec_compile,
     specgraph,
@@ -97,6 +98,8 @@ class SpecSpaceProvider(Protocol):
     def read_proposal_spec_trace_index(self) -> tuple[int, dict[str, Any]]: ...
 
     def read_proposals(self) -> tuple[int, dict[str, Any]]: ...
+
+    def read_practical_ontology(self) -> tuple[int, dict[str, Any]]: ...
 
     def read_metrics(self) -> tuple[int, dict[str, Any]]: ...
 
@@ -501,6 +504,24 @@ class FileSpecGraphProvider:
         return proposals.read_file_proposal_index(
             runs_dir=self.runs_dir,
             specgraph_dir=self.specgraph_dir,
+        )
+
+    def read_practical_ontology(self) -> tuple[int, dict[str, Any]]:
+        unavailable = self._spec_nodes_unavailable()
+        if unavailable is not None:
+            return unavailable
+        assert self.spec_nodes_dir is not None
+        nodes, load_errors = specgraph.load_spec_nodes(self.spec_nodes_dir)
+        return HTTPStatus.OK, practical_ontology.build_practical_ontology(
+            nodes=nodes,
+            load_errors=load_errors,
+            proposal_markdown=proposals.collect_local_proposal_markdown(self.specgraph_dir),
+            source={
+                "provider": "file",
+                "read_only": True,
+                "spec_nodes": str(self.spec_nodes_dir),
+                "specgraph_dir": str(self.specgraph_dir) if self.specgraph_dir is not None else None,
+            },
         )
 
     def read_metrics(self) -> tuple[int, dict[str, Any]]:
@@ -1066,6 +1087,7 @@ class HttpSpecGraphProvider:
                 "status": proposals.extract_proposal_status(text) or "Unknown",
                 "content_excerpt": proposals.extract_proposal_excerpt(text),
                 "content_preview": proposals.extract_proposal_excerpt(text, max_length=1200),
+                "content_body": text,
                 "file_name": file_name,
                 "relative_path": path,
                 "path": self._artifact_url(path),
@@ -1100,6 +1122,26 @@ class HttpSpecGraphProvider:
                 "provider": "http",
                 "artifact_base_url": self.normalized_base_url,
                 "manifest": self.manifest_url,
+            },
+        )
+
+    def read_practical_ontology(self) -> tuple[int, dict[str, Any]]:
+        manifest, manifest_error = self._read_manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+        nodes, load_errors = self._load_spec_nodes(manifest)
+        return HTTPStatus.OK, practical_ontology.build_practical_ontology(
+            nodes=nodes,
+            load_errors=load_errors,
+            proposal_markdown=self._collect_http_proposal_markdown(manifest),
+            source={
+                "provider": "http",
+                "read_only": True,
+                "artifact_base_url": self.normalized_base_url,
+                "manifest": self.manifest_url,
+                "generated_at": manifest.get("generated_at"),
+                "git": manifest.get("git") if isinstance(manifest.get("git"), dict) else None,
             },
         )
 

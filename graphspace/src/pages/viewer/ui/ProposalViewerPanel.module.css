@@ -384,6 +384,21 @@
   font-size: 10px;
 }
 
+.markdownBody {
+  max-height: min(56vh, 640px);
+  margin: 0;
+  padding: var(--gs-space-5);
+  overflow: auto;
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .statusBox {
   display: grid;
   gap: var(--gs-space-3);

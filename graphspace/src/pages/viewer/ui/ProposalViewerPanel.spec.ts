@@ -17,6 +17,7 @@ const proposal0047: ProposalIndexEntry = {
   markdown: {
     available: true,
     content_excerpt: "This proposal distills the expert review captured in:",
+    content_body: "# Evidence-Backed Build Protocol\n\nFull Markdown body.",
   },
   authority_state: null,
   proposal_type: null,

@@ -125,6 +125,16 @@
   overflow-wrap: anywhere;
 }
 
+.source input {
+  min-width: 160px;
+  margin-left: var(--gs-space-2);
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+}
+
 .postureStrip {
   flex: 0 0 auto;
   display: grid;

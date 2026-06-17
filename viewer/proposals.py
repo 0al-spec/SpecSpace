@@ -231,6 +231,7 @@ def _proposal_markdown_entry(path: Path, content: str, stat: os.stat_result) -> 
         "status": extract_proposal_status(content) or "Unknown",
         "content_excerpt": content_excerpt,
         "content_preview": extract_proposal_excerpt(content, max_length=1200),
+        "content_body": content,
         "file_name": path.name,
         "relative_path": f"docs/proposals/{path.name}",
         "path": str(path),
@@ -347,6 +348,7 @@ def _merge_markdown(entries: dict[str, dict[str, Any]], markdown: dict[str, Any]
             "mtime_iso": item.get("mtime_iso"),
             "content_excerpt": item.get("content_excerpt"),
             "content_preview": item.get("content_preview"),
+            "content_body": item.get("content_body"),
         }
         _add_source(entry, "proposal_markdown")
 
