@@ -1519,6 +1519,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "objective": "Define vocabulary for SpecGraph ontology work.",
                         "node_kinds": [{"name": "OntologyBinding", "description": "Term binding."}],
                         "edge_kinds": [{"name": "USES_ONTOLOGY"}],
+                        "terminology": {
+                            404: "Not Found",
+                            "500": "Server Error",
+                            "provenance_record": (
+                                "A structured metadata envelope attached to a canonical node."
+                            )
+                        },
                     },
                 },
             )
@@ -1551,7 +1558,24 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         labels = {entry["label"] for entry in body["terms"]}
         self.assertIn("SpecGraph Ontology Boundary", labels)
         self.assertIn("OntologyBinding", labels)
+        self.assertIn("provenance_record", labels)
+        self.assertIn("404", labels)
+        self.assertIn("500", labels)
         self.assertIn("Ontology Grounding", labels)
+        by_label = {entry["label"]: entry for entry in body["terms"]}
+        self.assertEqual(
+            by_label["provenance_record"]["description"],
+            "A structured metadata envelope attached to a canonical node.",
+        )
+        self.assertEqual(by_label["404"]["description"], "Not Found")
+        self.assertEqual(by_label["500"]["description"], "Server Error")
+        self.assertNotIn(
+            "A structured metadata envelope attached to a canonical node.",
+            labels,
+        )
+        self.assertNotIn("Not Found", labels)
+        self.assertNotIn("Server Error", labels)
+        self.assertNotIn("domain.a", {entry["domain_id"] for entry in body["domains"]})
         topology_edges = {
             (entry["source_id"], entry["relation"], entry["target_id"])
             for entry in body["topology_edges"]

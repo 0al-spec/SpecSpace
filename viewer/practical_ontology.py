@@ -26,6 +26,17 @@ DOMAIN_KEYWORDS: tuple[tuple[str, str], ...] = (
     ("evidence", "Evidence"),
     ("hypercode", "Hypercode"),
 )
+DOMAIN_HEAD_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "or",
+    "the",
+    "this",
+    "that",
+    "these",
+    "those",
+}
 
 STRUCTURED_CONCEPT_PATHS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("core_attribute", ("specification", "core_attributes")),
@@ -81,18 +92,20 @@ def _at_path(root: dict[str, Any], path: tuple[str, ...]) -> Any:
     return current
 
 
-def _entry_label(key: str, value: Any) -> str:
+def _entry_label(key: str, value: Any, *, from_list: bool) -> str:
     if isinstance(value, str):
-        return value
+        return value if from_list else key
     if isinstance(value, dict):
         for field in ("name", "id", "kind", "label", "title"):
             label = _text(value.get(field))
             if label:
                 return label
-    return "" if key.isdigit() else key
+    return "" if from_list else key
 
 
-def _entry_description(value: Any) -> str | None:
+def _entry_description(key: str, value: Any, *, from_list: bool) -> str | None:
+    if isinstance(value, str) and not from_list:
+        return value
     if isinstance(value, dict):
         for field in ("description", "summary", "purpose", "objective"):
             description = _text(value.get(field))
@@ -101,11 +114,11 @@ def _entry_description(value: Any) -> str | None:
     return None
 
 
-def _entries_from_structured_value(value: Any) -> list[tuple[str, Any]]:
+def _entries_from_structured_value(value: Any) -> list[tuple[str, Any, bool]]:
     if isinstance(value, dict):
-        return list(value.items())
+        return [(str(key), item, False) for key, item in value.items()]
     if isinstance(value, list):
-        return [(str(index), item) for index, item in enumerate(value)]
+        return [(str(index), item, True) for index, item in enumerate(value)]
     return []
 
 
@@ -115,7 +128,10 @@ def infer_domain(label: str) -> str:
         if needle in lowered:
             return domain
     if " " in label:
-        return label.split(" ", 1)[0].strip(":-") or "SpecGraph"
+        head = label.split(" ", 1)[0].strip(":-")
+        if head.lower() in DOMAIN_HEAD_STOPWORDS:
+            return "SpecGraph"
+        return head or "SpecGraph"
     return "SpecGraph"
 
 
@@ -290,8 +306,8 @@ def _collect_spec_terms(
 
         for concept_kind, path in STRUCTURED_CONCEPT_PATHS:
             value = _at_path(node, path)
-            for key, item in _entries_from_structured_value(value):
-                label = _entry_label(key, item)
+            for key, item, from_list in _entries_from_structured_value(value):
+                label = _entry_label(key, item, from_list=from_list)
                 if not label:
                     continue
                 path_ref = ".".join(path)
@@ -300,7 +316,7 @@ def _collect_spec_terms(
                     kind=concept_kind,
                     label=label,
                     source_ref=f"{source_ref}#{path_ref}",
-                    description=_entry_description(item),
+                    description=_entry_description(key, item, from_list=from_list),
                 )
 
 
