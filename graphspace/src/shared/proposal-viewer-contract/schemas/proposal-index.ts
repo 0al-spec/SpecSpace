@@ -11,6 +11,7 @@ const markdownSchema = z
     mtime_iso: nullableString.optional(),
     content_excerpt: nullableString.optional(),
     content_preview: nullableString.optional(),
+    content_body: nullableString.optional(),
   })
   .passthrough();
 

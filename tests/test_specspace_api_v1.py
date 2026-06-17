@@ -1461,7 +1461,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             proposals_dir.mkdir(parents=True)
             (proposals_dir / "0042_agent_context.md").write_text(
                 "# Agent Context Bridge\n\n## Status\n\nDraft proposal\n\n"
-                "This proposal connects selected SpecGraph context to the Agent Workbench.\n",
+                "This proposal connects selected SpecGraph context to the Agent Workbench.\n"
+                "\n## Details\n\nFull proposal body stays visible in the detail panel.\n",
                 encoding="utf-8",
             )
             httpd, thread, base = _start(root / "dialogs", specgraph_dir=root)
@@ -1493,6 +1494,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             proposal["markdown"]["content_preview"],
             "This proposal connects selected SpecGraph context to the Agent Workbench.",
         )
+        self.assertIn("# Agent Context Bridge", proposal["markdown"]["content_body"])
+        self.assertIn("Full proposal body stays visible", proposal["markdown"]["content_body"])
         lane = by_key["lane::governance_proposal::SG-SPEC-0002::runtime"]
         self.assertEqual(lane["authority_state"], "under_review")
         self.assertEqual(lane["proposal_type"], "governance_proposal")
@@ -1500,6 +1503,64 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["filters"]["authority_state_counts"]["under_review"], 1)
         self.assertIn("SG-SPEC-0001", body["filters"]["affected_spec_ids"])
         self.assertEqual(body["sources"]["proposal_markdown"]["entry_count"], 1)
+
+    def test_practical_ontology_v1_derives_readonly_terms_and_relations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(
+                spec_dir / "SG-SPEC-0001.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "title": "SpecGraph Ontology Boundary",
+                    "depends_on": ["SG-SPEC-0002"],
+                    "specification": {
+                        "objective": "Define vocabulary for SpecGraph ontology work.",
+                        "node_kinds": [{"name": "OntologyBinding", "description": "Term binding."}],
+                        "edge_kinds": [{"name": "USES_ONTOLOGY"}],
+                    },
+                },
+            )
+            _write_yaml(
+                spec_dir / "SG-SPEC-0002.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-0002",
+                    "title": "SpecSpace Review Surface",
+                    "specification": {"objective": "Expose review vocabulary in SpecSpace."},
+                },
+            )
+            proposals_dir = root / "docs" / "proposals"
+            proposals_dir.mkdir(parents=True)
+            (proposals_dir / "0100_ontology_grounding.md").write_text(
+                "# Ontology Grounding\n\nMentions SG-SPEC-0001 and fixes accepted vocabulary.\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir, specgraph_dir=root)
+            try:
+                status, body = _get(f"{base}/api/v1/practical-ontology")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["artifact_kind"], "specspace_practical_ontology")
+        self.assertTrue(body["read_only"])
+        self.assertFalse(body["canonical_mutations_allowed"])
+        self.assertFalse(body["authority_boundary"]["practical_ontology_is_authority"])
+        labels = {entry["label"] for entry in body["terms"]}
+        self.assertIn("SpecGraph Ontology Boundary", labels)
+        self.assertIn("OntologyBinding", labels)
+        self.assertIn("Ontology Grounding", labels)
+        relation_pairs = {
+            (entry["source_term"], entry["relation"], entry["target_term"])
+            for entry in body["relations"]
+        }
+        self.assertIn(
+            ("SpecGraph Ontology Boundary", "depends_on", "SpecSpace Review Surface"),
+            relation_pairs,
+        )
+        self.assertIn(("Ontology Grounding", "mentions_spec", "SG-SPEC-0001"), relation_pairs)
 
     def test_proposals_v1_degrades_when_optional_artifacts_are_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3141,9 +3202,15 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             artifact_root = root / "artifact-site"
             spec_dir = artifact_root / "specs" / "nodes"
             runs_dir = artifact_root / "runs"
+            proposals_dir = artifact_root / "docs" / "proposals"
             spec_dir.mkdir(parents=True)
             runs_dir.mkdir()
+            proposals_dir.mkdir(parents=True)
             _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            (proposals_dir / "0042_agent_context.md").write_text(
+                "# Agent Context Bridge\n\nMentions SG-SPEC-0001 from static artifacts.\n",
+                encoding="utf-8",
+            )
             _write_json(
                 runs_dir / "spec_activity_feed.json",
                 {
@@ -3161,6 +3228,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 artifact_root,
                 [
                     "specs/nodes/SG-SPEC-0001.yaml",
+                    "docs/proposals/0042_agent_context.md",
                     "runs/spec_activity_feed.json",
                     "runs/proposal_spec_trace_index.json",
                     "runs/proposal_lane_overlay.json",
@@ -3185,6 +3253,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 activity_status, activity = _get(f"{base}/api/v1/spec-activity?limit=1")
                 trace_status, trace = _get(f"{base}/api/v1/proposal-spec-trace-index")
                 proposals_status, proposals = _get(f"{base}/api/v1/proposals")
+                ontology_status, ontology = _get(f"{base}/api/v1/practical-ontology")
                 metrics_status, metrics = _get(f"{base}/api/v1/metrics")
                 capabilities_status, capabilities = _get(f"{base}/api/v1/capabilities")
             finally:
@@ -3211,8 +3280,20 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(proposals_status, 200)
         self.assertEqual(proposals["source"]["provider"], "http")
         self.assertEqual(proposals["entry_count"], 2)
-        self.assertEqual(proposals["sources"]["proposal_markdown"]["available"], False)
+        self.assertEqual(proposals["sources"]["proposal_markdown"]["available"], True)
+        self.assertIn("# Agent Context Bridge", proposals["entries"][0]["markdown"]["content_body"])
         self.assertEqual(proposals["entries"][0]["affected_spec_ids"], ["SG-SPEC-0001"])
+        self.assertEqual(ontology_status, 200)
+        self.assertEqual(ontology["source"]["provider"], "http")
+        self.assertFalse(ontology["authority_boundary"]["practical_ontology_is_authority"])
+        self.assertGreaterEqual(ontology["summary"]["term_count"], 2)
+        self.assertIn(
+            ("Agent Context Bridge", "mentions_spec", "SG-SPEC-0001"),
+            {
+                (entry["source_term"], entry["relation"], entry["target_term"])
+                for entry in ontology["relations"]
+            },
+        )
         self.assertEqual(metrics_status, 200)
         self.assertEqual(metrics["source"]["provider"], "http")
         self.assertEqual(metrics["entry_count"], 7)
