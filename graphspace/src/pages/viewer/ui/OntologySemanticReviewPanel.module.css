@@ -427,9 +427,13 @@
 }
 
 .demoNodeGroup {
-  cursor: default;
+  cursor: grab;
   outline: none;
   user-select: none;
+}
+
+.demoNodeDragging {
+  cursor: grabbing;
 }
 
 .demoNodeHalo {
