@@ -185,10 +185,74 @@ def _add_relation(
     entry["evidence_count"] = len(entry["source_refs"])
 
 
+def _add_topology_edge(
+    topology_edges: dict[str, dict[str, Any]],
+    *,
+    source_id: str,
+    source_title: str,
+    relation: str,
+    target_id: str,
+    target_title: str,
+    source_ref: str,
+) -> None:
+    if not source_id or not relation or not target_id:
+        return
+    edge_id = f"{_slug(source_id)}--{_slug(relation)}--{_slug(target_id)}"
+    entry = topology_edges.get(edge_id)
+    if entry is None:
+        entry = {
+            "edge_id": edge_id,
+            "source_id": source_id,
+            "source_title": source_title or source_id,
+            "relation": relation,
+            "target_id": target_id,
+            "target_title": target_title or target_id,
+            "display_label": f"{source_id} {relation} {target_id}",
+            "source_refs": [],
+            "evidence_count": 0,
+            "authority_class": "specgraph_topology",
+        }
+        topology_edges[edge_id] = entry
+    if source_ref not in entry["source_refs"]:
+        entry["source_refs"].append(source_ref)
+    entry["evidence_count"] = len(entry["source_refs"])
+
+
+def _add_proposal_reference(
+    proposal_references: dict[str, dict[str, Any]],
+    *,
+    proposal_id: str,
+    proposal_title: str,
+    target_spec_id: str,
+    source_ref: str,
+) -> None:
+    if not proposal_id or not target_spec_id:
+        return
+    reference_id = f"{_slug(proposal_id)}--mentions-spec--{_slug(target_spec_id)}"
+    entry = proposal_references.get(reference_id)
+    if entry is None:
+        entry = {
+            "reference_id": reference_id,
+            "proposal_id": proposal_id,
+            "proposal_title": proposal_title or proposal_id,
+            "relation": "mentions_spec",
+            "target_spec_id": target_spec_id,
+            "display_label": f"{proposal_id} mentions {target_spec_id}",
+            "source_refs": [],
+            "evidence_count": 0,
+            "authority_class": "proposal_reference",
+        }
+        proposal_references[reference_id] = entry
+    if source_ref not in entry["source_refs"]:
+        entry["source_refs"].append(source_ref)
+    entry["evidence_count"] = len(entry["source_refs"])
+
+
 def _collect_spec_terms(
     nodes: list[dict[str, Any]],
     terms: dict[str, dict[str, Any]],
     relations: dict[str, dict[str, Any]],
+    topology_edges: dict[str, dict[str, Any]],
 ) -> None:
     node_titles = {
         _text(node.get("id")): _text(node.get("title"), _text(node.get("id")))
@@ -214,11 +278,13 @@ def _collect_spec_terms(
 
         for edge_kind in ("depends_on", "relates_to", "refines"):
             for target_id in _string_list(node.get(edge_kind)):
-                _add_relation(
-                    relations,
-                    source_term=title,
+                _add_topology_edge(
+                    topology_edges,
+                    source_id=node_id,
+                    source_title=title,
                     relation=edge_kind,
-                    target_term=node_titles.get(target_id, target_id),
+                    target_id=target_id,
+                    target_title=node_titles.get(target_id, target_id),
                     source_ref=source_ref,
                 )
 
@@ -242,6 +308,7 @@ def _collect_proposal_terms(
     proposal_markdown: dict[str, Any],
     terms: dict[str, dict[str, Any]],
     relations: dict[str, dict[str, Any]],
+    proposal_references: dict[str, dict[str, Any]],
 ) -> None:
     for item in _list(proposal_markdown.get("entries")):
         if not isinstance(item, dict):
@@ -261,11 +328,11 @@ def _collect_proposal_terms(
         )
         body = _text(item.get("content_body")) or _text(item.get("content_preview"))
         for spec_ref in sorted(set(SPEC_REF_RE.findall(body))):
-            _add_relation(
-                relations,
-                source_term=title,
-                relation="mentions_spec",
-                target_term=spec_ref,
+            _add_proposal_reference(
+                proposal_references,
+                proposal_id=proposal_id,
+                proposal_title=title,
+                target_spec_id=spec_ref,
                 source_ref=source_ref,
             )
 
@@ -304,9 +371,11 @@ def build_practical_ontology(
 ) -> dict[str, Any]:
     terms_by_key: dict[str, dict[str, Any]] = {}
     relations_by_id: dict[str, dict[str, Any]] = {}
+    topology_edges_by_id: dict[str, dict[str, Any]] = {}
+    proposal_references_by_id: dict[str, dict[str, Any]] = {}
 
-    _collect_spec_terms(nodes, terms_by_key, relations_by_id)
-    _collect_proposal_terms(proposal_markdown, terms_by_key, relations_by_id)
+    _collect_spec_terms(nodes, terms_by_key, relations_by_id, topology_edges_by_id)
+    _collect_proposal_terms(proposal_markdown, terms_by_key, relations_by_id, proposal_references_by_id)
 
     terms = sorted(
         terms_by_key.values(),
@@ -321,6 +390,21 @@ def build_practical_ontology(
             _text(item.get("relation")),
             _text(item.get("source_term")).lower(),
             _text(item.get("target_term")).lower(),
+        ),
+    )
+    topology_edges = sorted(
+        topology_edges_by_id.values(),
+        key=lambda item: (
+            _text(item.get("relation")),
+            _text(item.get("source_id")),
+            _text(item.get("target_id")),
+        ),
+    )
+    proposal_references = sorted(
+        proposal_references_by_id.values(),
+        key=lambda item: (
+            _text(item.get("proposal_id")),
+            _text(item.get("target_spec_id")),
         ),
     )
     domains = _domains_from_terms(terms)
@@ -352,12 +436,25 @@ def build_practical_ontology(
         "summary": {
             "term_count": len(terms),
             "relation_count": len(relations),
+            "semantic_relation_count": len(relations),
+            "topology_edge_count": len(topology_edges),
+            "proposal_reference_count": len(proposal_references),
             "domain_count": len(domains),
             "source_count": len(nodes) + int(proposal_markdown.get("entry_count", 0) or 0),
         },
         "domains": domains,
         "terms": terms,
         "relations": relations,
+        "topology_edges": topology_edges,
+        "proposal_references": proposal_references,
+        "relation_taxonomy": {
+            "relations": "semantic ontology relation observations only",
+            "topology_edges": "SpecGraph graph topology facts such as depends_on, relates_to, and refines",
+            "proposal_references": "Proposal markdown references to SpecGraph spec ids",
+            "semantic_relations_are_authority": False,
+            "topology_edges_are_ontology_relations": False,
+            "proposal_references_are_ontology_relations": False,
+        },
         "authority_boundary": {
             "practical_ontology_is_authority": False,
             "derived_from_specgraph_sources": True,

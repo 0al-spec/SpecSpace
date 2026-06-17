@@ -19,7 +19,10 @@ const practicalOntology: PracticalOntology = {
   },
   summary: {
     termCount: 2,
-    relationCount: 1,
+    relationCount: 0,
+    semanticRelationCount: 0,
+    topologyEdgeCount: 1,
+    proposalReferenceCount: 1,
     domainCount: 1,
     sourceCount: 2,
   },
@@ -54,16 +57,38 @@ const practicalOntology: PracticalOntology = {
       evidenceCount: 1,
     },
   ],
-  relations: [
+  relations: [],
+  topologyEdges: [
     {
-      relationId: "ontology-grounding--mentions-spec--sg-spec-0001",
-      sourceTerm: "Ontology Grounding",
-      relation: "mentions_spec",
-      targetTerm: "SG-SPEC-0001",
-      sourceRefs: ["docs/proposals/0100_ontology_grounding.md"],
+      edgeId: "sg-spec-0001--depends-on--sg-spec-0002",
+      sourceId: "SG-SPEC-0001",
+      sourceTitle: "SpecGraph Ontology Boundary",
+      relation: "depends_on",
+      targetId: "SG-SPEC-0002",
+      targetTitle: "SpecSpace Review Surface",
+      displayLabel: "SG-SPEC-0001 depends_on SG-SPEC-0002",
+      sourceRefs: ["specs/nodes/SG-SPEC-0001.yaml"],
       evidenceCount: 1,
+      authorityClass: "specgraph_topology",
     },
   ],
+  proposalReferences: [
+    {
+      referenceId: "0100--mentions-spec--sg-spec-0001",
+      proposalId: "0100",
+      proposalTitle: "Ontology Grounding",
+      relation: "mentions_spec",
+      targetSpecId: "SG-SPEC-0001",
+      displayLabel: "0100 mentions SG-SPEC-0001",
+      sourceRefs: ["docs/proposals/0100_ontology_grounding.md"],
+      evidenceCount: 1,
+      authorityClass: "proposal_reference",
+    },
+  ],
+  relationTaxonomy: {
+    relations: "semantic ontology relation observations only",
+    topology_edges: "SpecGraph graph topology facts",
+  },
   authorityBoundary: {
     practicalOntologyIsAuthority: false,
     derivedFromSpecgraphSources: true,
@@ -83,6 +108,8 @@ describe("PracticalOntologyPanel", () => {
 
     expect(html).toContain("SpecGraph Ontology Boundary");
     expect(html).toContain("Ontology Grounding");
+    expect(html).toContain("SG-SPEC-0001 depends_on SG-SPEC-0002");
+    expect(html).toContain("0100 mentions SG-SPEC-0001");
     expect(html).toContain("mentions_spec");
     expect(html).toContain("not_authority");
   });

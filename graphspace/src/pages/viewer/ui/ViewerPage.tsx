@@ -341,7 +341,7 @@ export function ViewerPage() {
       : agentSurfacesState.kind;
   const practicalOntologyCaption =
     practicalOntologyState.kind === "ok"
-      ? `${practicalOntologyState.data.summary.termCount} terms · ${practicalOntologyState.data.summary.relationCount} relations`
+      ? `${practicalOntologyState.data.summary.termCount} terms · ${practicalOntologyState.data.summary.topologyEdgeCount} topology · ${practicalOntologyState.data.summary.proposalReferenceCount} refs`
       : practicalOntologyState.kind;
   const ontologyReviewDashboardCaption =
     ontologyReviewDashboardState.kind === "ok"
