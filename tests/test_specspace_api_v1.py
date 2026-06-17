@@ -1552,15 +1552,38 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertIn("SpecGraph Ontology Boundary", labels)
         self.assertIn("OntologyBinding", labels)
         self.assertIn("Ontology Grounding", labels)
-        relation_pairs = {
+        topology_edges = {
+            (entry["source_id"], entry["relation"], entry["target_id"])
+            for entry in body["topology_edges"]
+        }
+        self.assertIn(("SG-SPEC-0001", "depends_on", "SG-SPEC-0002"), topology_edges)
+        self.assertIn(
+            "SG-SPEC-0001 depends_on SG-SPEC-0002",
+            {entry["display_label"] for entry in body["topology_edges"]},
+        )
+        proposal_references = {
+            (entry["proposal_id"], entry["relation"], entry["target_spec_id"])
+            for entry in body["proposal_references"]
+        }
+        self.assertIn(("0100", "mentions_spec", "SG-SPEC-0001"), proposal_references)
+        semantic_relation_pairs = {
             (entry["source_term"], entry["relation"], entry["target_term"])
             for entry in body["relations"]
         }
-        self.assertIn(
+        self.assertNotIn(
             ("SpecGraph Ontology Boundary", "depends_on", "SpecSpace Review Surface"),
-            relation_pairs,
+            semantic_relation_pairs,
         )
-        self.assertIn(("Ontology Grounding", "mentions_spec", "SG-SPEC-0001"), relation_pairs)
+        self.assertNotIn(
+            ("Ontology Grounding", "mentions_spec", "SG-SPEC-0001"),
+            semantic_relation_pairs,
+        )
+        self.assertEqual(body["summary"]["semantic_relation_count"], len(body["relations"]))
+        self.assertEqual(body["summary"]["topology_edge_count"], len(body["topology_edges"]))
+        self.assertEqual(
+            body["summary"]["proposal_reference_count"],
+            len(body["proposal_references"]),
+        )
 
     def test_proposals_v1_degrades_when_optional_artifacts_are_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3288,10 +3311,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(ontology["authority_boundary"]["practical_ontology_is_authority"])
         self.assertGreaterEqual(ontology["summary"]["term_count"], 2)
         self.assertIn(
-            ("Agent Context Bridge", "mentions_spec", "SG-SPEC-0001"),
+            ("0042", "mentions_spec", "SG-SPEC-0001"),
             {
-                (entry["source_term"], entry["relation"], entry["target_term"])
-                for entry in ontology["relations"]
+                (entry["proposal_id"], entry["relation"], entry["target_spec_id"])
+                for entry in ontology["proposal_references"]
             },
         )
         self.assertEqual(metrics_status, 200)

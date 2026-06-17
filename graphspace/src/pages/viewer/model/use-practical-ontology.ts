@@ -20,6 +20,31 @@ export type PracticalOntologyRelation = {
   evidenceCount: number;
 };
 
+export type PracticalOntologyTopologyEdge = {
+  edgeId: string;
+  sourceId: string;
+  sourceTitle: string;
+  relation: string;
+  targetId: string;
+  targetTitle: string;
+  displayLabel: string;
+  sourceRefs: readonly string[];
+  evidenceCount: number;
+  authorityClass: string;
+};
+
+export type PracticalOntologyProposalReference = {
+  referenceId: string;
+  proposalId: string;
+  proposalTitle: string;
+  relation: string;
+  targetSpecId: string;
+  displayLabel: string;
+  sourceRefs: readonly string[];
+  evidenceCount: number;
+  authorityClass: string;
+};
+
 export type PracticalOntologyDomain = {
   domainId: string;
   label: string;
@@ -41,12 +66,18 @@ export type PracticalOntology = {
   summary: {
     termCount: number;
     relationCount: number;
+    semanticRelationCount: number;
+    topologyEdgeCount: number;
+    proposalReferenceCount: number;
     domainCount: number;
     sourceCount: number;
   };
   domains: readonly PracticalOntologyDomain[];
   terms: readonly PracticalOntologyTerm[];
   relations: readonly PracticalOntologyRelation[];
+  topologyEdges: readonly PracticalOntologyTopologyEdge[];
+  proposalReferences: readonly PracticalOntologyProposalReference[];
+  relationTaxonomy: Record<string, unknown>;
   authorityBoundary: {
     practicalOntologyIsAuthority: false;
     derivedFromSpecgraphSources: boolean;
@@ -135,6 +166,47 @@ function parseRelation(raw: unknown): PracticalOntologyRelation | null {
   };
 }
 
+function parseTopologyEdge(raw: unknown): PracticalOntologyTopologyEdge | null {
+  if (!isRecord(raw)) return null;
+  const edgeId = optionalString(raw.edge_id);
+  const sourceId = optionalString(raw.source_id);
+  const relation = optionalString(raw.relation);
+  const targetId = optionalString(raw.target_id);
+  if (!edgeId || !sourceId || !relation || !targetId) return null;
+  return {
+    edgeId,
+    sourceId,
+    sourceTitle: stringValue(raw.source_title, sourceId),
+    relation,
+    targetId,
+    targetTitle: stringValue(raw.target_title, targetId),
+    displayLabel: stringValue(raw.display_label, `${sourceId} ${relation} ${targetId}`),
+    sourceRefs: stringList(raw.source_refs),
+    evidenceCount: numberValue(raw.evidence_count),
+    authorityClass: stringValue(raw.authority_class, "specgraph_topology"),
+  };
+}
+
+function parseProposalReference(raw: unknown): PracticalOntologyProposalReference | null {
+  if (!isRecord(raw)) return null;
+  const referenceId = optionalString(raw.reference_id);
+  const proposalId = optionalString(raw.proposal_id);
+  const relation = optionalString(raw.relation);
+  const targetSpecId = optionalString(raw.target_spec_id);
+  if (!referenceId || !proposalId || !relation || !targetSpecId) return null;
+  return {
+    referenceId,
+    proposalId,
+    proposalTitle: stringValue(raw.proposal_title, proposalId),
+    relation,
+    targetSpecId,
+    displayLabel: stringValue(raw.display_label, `${proposalId} ${relation} ${targetSpecId}`),
+    sourceRefs: stringList(raw.source_refs),
+    evidenceCount: numberValue(raw.evidence_count),
+    authorityClass: stringValue(raw.authority_class, "proposal_reference"),
+  };
+}
+
 function parseDomain(raw: unknown): PracticalOntologyDomain | null {
   if (!isRecord(raw)) return null;
   const domainId = optionalString(raw.domain_id);
@@ -180,6 +252,12 @@ function parsePracticalOntology(raw: unknown): UsePracticalOntologyState {
   const relations = Array.isArray(raw.relations)
     ? raw.relations.map(parseRelation).filter(isPresent)
     : [];
+  const topologyEdges = Array.isArray(raw.topology_edges)
+    ? raw.topology_edges.map(parseTopologyEdge).filter(isPresent)
+    : [];
+  const proposalReferences = Array.isArray(raw.proposal_references)
+    ? raw.proposal_references.map(parseProposalReference).filter(isPresent)
+    : [];
   const domains = Array.isArray(raw.domains) ? raw.domains.map(parseDomain).filter(isPresent) : [];
   const summary = recordValue(raw.summary);
 
@@ -198,12 +276,18 @@ function parsePracticalOntology(raw: unknown): UsePracticalOntologyState {
       summary: {
         termCount: numberValue(summary.term_count),
         relationCount: numberValue(summary.relation_count),
+        semanticRelationCount: numberValue(summary.semantic_relation_count),
+        topologyEdgeCount: numberValue(summary.topology_edge_count),
+        proposalReferenceCount: numberValue(summary.proposal_reference_count),
         domainCount: numberValue(summary.domain_count),
         sourceCount: numberValue(summary.source_count),
       },
       domains,
       terms,
       relations,
+      topologyEdges,
+      proposalReferences,
+      relationTaxonomy: recordValue(raw.relation_taxonomy),
       authorityBoundary: {
         practicalOntologyIsAuthority: false,
         derivedFromSpecgraphSources: boundary.derived_from_specgraph_sources === true,

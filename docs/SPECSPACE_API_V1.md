@@ -417,6 +417,16 @@ builds a working vocabulary from already available SpecGraph sources:
 It is not a canonical Ontology package, does not mark terms accepted, and does
 not mutate SpecGraph specs.
 
+The response separates relation-like evidence by authority class:
+
+- `relations` contains semantic ontology relation observations only;
+- `topology_edges` contains SpecGraph graph topology facts such as
+  `depends_on`, `relates_to`, and `refines`;
+- `proposal_references` contains proposal markdown references to spec ids.
+
+Topology and proposal references are useful evidence, but they are not accepted
+ontology relations.
+
 ```json
 {
   "api_version": "v1",
@@ -426,7 +436,10 @@ not mutate SpecGraph specs.
   "canonical_mutations_allowed": false,
   "summary": {
     "term_count": 2,
-    "relation_count": 1,
+    "relation_count": 0,
+    "semantic_relation_count": 0,
+    "topology_edge_count": 1,
+    "proposal_reference_count": 1,
     "domain_count": 1,
     "source_count": 2
   },
@@ -439,13 +452,38 @@ not mutate SpecGraph specs.
       "source_refs": ["specs/nodes/SG-SPEC-0001.yaml"]
     }
   ],
-  "relations": [
+  "relations": [],
+  "topology_edges": [
     {
-      "source_term": "Ontology Grounding",
-      "relation": "mentions_spec",
-      "target_term": "SG-SPEC-0001"
+      "edge_id": "sg-spec-0001--depends-on--sg-spec-0002",
+      "source_id": "SG-SPEC-0001",
+      "source_title": "SpecGraph Ontology Boundary",
+      "relation": "depends_on",
+      "target_id": "SG-SPEC-0002",
+      "target_title": "SpecSpace Review Surface",
+      "display_label": "SG-SPEC-0001 depends_on SG-SPEC-0002",
+      "authority_class": "specgraph_topology"
     }
   ],
+  "proposal_references": [
+    {
+      "reference_id": "0100--mentions-spec--sg-spec-0001",
+      "proposal_id": "0100",
+      "proposal_title": "Ontology Grounding",
+      "relation": "mentions_spec",
+      "target_spec_id": "SG-SPEC-0001",
+      "display_label": "0100 mentions SG-SPEC-0001",
+      "authority_class": "proposal_reference"
+    }
+  ],
+  "relation_taxonomy": {
+    "relations": "semantic ontology relation observations only",
+    "topology_edges": "SpecGraph graph topology facts such as depends_on, relates_to, and refines",
+    "proposal_references": "Proposal markdown references to SpecGraph spec ids",
+    "semantic_relations_are_authority": false,
+    "topology_edges_are_ontology_relations": false,
+    "proposal_references_are_ontology_relations": false
+  },
   "authority_boundary": {
     "practical_ontology_is_authority": false,
     "may_write_ontology_package": false,

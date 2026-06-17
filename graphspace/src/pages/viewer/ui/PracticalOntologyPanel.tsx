@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import type {
   PracticalOntologyDomain,
+  PracticalOntologyProposalReference,
   PracticalOntologyRelation,
   PracticalOntologyTerm,
+  PracticalOntologyTopologyEdge,
   UsePracticalOntologyState,
 } from "../model/use-practical-ontology";
 import { describeHttpErrorDetail } from "../model/live-artifacts";
@@ -46,11 +48,15 @@ export function PracticalOntologyPanel({ state }: Props) {
   const normalizedQuery = query.trim().toLowerCase();
 
   const visible = useMemo(() => {
-    if (state.kind !== "ok") return { terms: [], relations: [], domains: [] };
+    if (state.kind !== "ok") {
+      return { terms: [], relations: [], topologyEdges: [], proposalReferences: [], domains: [] };
+    }
     if (!normalizedQuery) {
       return {
         terms: state.data.terms,
         relations: state.data.relations,
+        topologyEdges: state.data.topologyEdges,
+        proposalReferences: state.data.proposalReferences,
         domains: state.data.domains,
       };
     }
@@ -71,6 +77,25 @@ export function PracticalOntologyPanel({ state }: Props) {
           matches(relation.relation) ||
           matches(relation.targetTerm) ||
           relation.sourceRefs.some(matches),
+      ),
+      topologyEdges: state.data.topologyEdges.filter(
+        (edge) =>
+          matches(edge.sourceId) ||
+          matches(edge.sourceTitle) ||
+          matches(edge.relation) ||
+          matches(edge.targetId) ||
+          matches(edge.targetTitle) ||
+          matches(edge.displayLabel) ||
+          edge.sourceRefs.some(matches),
+      ),
+      proposalReferences: state.data.proposalReferences.filter(
+        (reference) =>
+          matches(reference.proposalId) ||
+          matches(reference.proposalTitle) ||
+          matches(reference.relation) ||
+          matches(reference.targetSpecId) ||
+          matches(reference.displayLabel) ||
+          reference.sourceRefs.some(matches),
       ),
       domains: state.data.domains.filter(
         (domain) =>
@@ -103,7 +128,9 @@ export function PracticalOntologyPanel({ state }: Props) {
     <section className={styles.panel} aria-label="Practical ontology">
       <div className={styles.summary}>
         <Metric label="Terms" value={data.summary.termCount} />
-        <Metric label="Relations" value={data.summary.relationCount} />
+        <Metric label="Semantic" value={data.summary.semanticRelationCount} />
+        <Metric label="Topology" value={data.summary.topologyEdgeCount} />
+        <Metric label="Refs" value={data.summary.proposalReferenceCount} />
         <Metric label="Domains" value={data.summary.domainCount} />
         <Metric label="Sources" value={data.summary.sourceCount} />
       </div>
@@ -157,6 +184,8 @@ export function PracticalOntologyPanel({ state }: Props) {
         <DomainSection domains={visible.domains} />
         <TermSection terms={visible.terms} />
         <RelationSection relations={visible.relations} />
+        <TopologySection topologyEdges={visible.topologyEdges} />
+        <ProposalReferenceSection proposalReferences={visible.proposalReferences} />
       </div>
     </section>
   );
@@ -220,15 +249,64 @@ function RelationSection({ relations }: { relations: readonly PracticalOntologyR
   return (
     <div className={styles.reviewSection}>
       <div className={styles.sectionHeader}>
-        <span className={styles.kicker}>Relations</span>
+        <span className={styles.kicker}>Semantic Relations</span>
         <span className={styles.sectionCount}>{relations.length}</span>
       </div>
       {relations.length === 0 ? (
-        <Status label="No relations" detail="No relation rows match the current filter." />
+        <Status
+          label="No semantic relations"
+          detail="No accepted or candidate semantic relation rows match the current filter."
+        />
       ) : (
         relations.slice(0, 120).map((relation) => (
           <RelationRow key={relation.relationId} relation={relation} />
         ))
+      )}
+    </div>
+  );
+}
+
+function TopologySection({
+  topologyEdges,
+}: {
+  topologyEdges: readonly PracticalOntologyTopologyEdge[];
+}) {
+  return (
+    <div className={styles.reviewSection}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.kicker}>SpecGraph Topology</span>
+        <span className={styles.sectionCount}>{topologyEdges.length}</span>
+      </div>
+      {topologyEdges.length === 0 ? (
+        <Status label="No topology edges" detail="No topology rows match the current filter." />
+      ) : (
+        topologyEdges
+          .slice(0, 120)
+          .map((edge) => <TopologyRow key={edge.edgeId} edge={edge} />)
+      )}
+    </div>
+  );
+}
+
+function ProposalReferenceSection({
+  proposalReferences,
+}: {
+  proposalReferences: readonly PracticalOntologyProposalReference[];
+}) {
+  return (
+    <div className={styles.reviewSection}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.kicker}>Proposal References</span>
+        <span className={styles.sectionCount}>{proposalReferences.length}</span>
+      </div>
+      {proposalReferences.length === 0 ? (
+        <Status label="No proposal refs" detail="No proposal reference rows match the filter." />
+      ) : (
+        proposalReferences
+          .slice(0, 120)
+          .map((reference) => (
+            <ProposalReferenceRow key={reference.referenceId} reference={reference} />
+          ))
       )}
     </div>
   );
@@ -288,6 +366,55 @@ function RelationRow({ relation }: { relation: PracticalOntologyRelation }) {
       <div className={styles.metaGrid}>
         <Meta label="Evidence" value={`${relation.evidenceCount}`} />
         <Meta label="Sources" value={relation.sourceRefs.slice(0, 4).join(", ") || "unknown"} />
+      </div>
+    </article>
+  );
+}
+
+function TopologyRow({ edge }: { edge: PracticalOntologyTopologyEdge }) {
+  return (
+    <article className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{edge.displayLabel}</span>
+        <div className={styles.statusGroup}>
+          <Pill value={edge.relation} />
+          <Pill value={edge.authorityClass} />
+        </div>
+      </div>
+      <h3 className={styles.title}>
+        {edge.sourceId} → {edge.targetId}
+      </h3>
+      <div className={styles.metaGrid}>
+        <Meta label="Source title" value={edge.sourceTitle} />
+        <Meta label="Target title" value={edge.targetTitle} />
+        <Meta label="Evidence" value={`${edge.evidenceCount}`} />
+        <Meta label="Sources" value={edge.sourceRefs.slice(0, 4).join(", ") || "unknown"} />
+      </div>
+    </article>
+  );
+}
+
+function ProposalReferenceRow({
+  reference,
+}: {
+  reference: PracticalOntologyProposalReference;
+}) {
+  return (
+    <article className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{reference.displayLabel}</span>
+        <div className={styles.statusGroup}>
+          <Pill value={reference.relation} />
+          <Pill value={reference.authorityClass} />
+        </div>
+      </div>
+      <h3 className={styles.title}>
+        {reference.proposalId} → {reference.targetSpecId}
+      </h3>
+      <div className={styles.metaGrid}>
+        <Meta label="Proposal" value={reference.proposalTitle} />
+        <Meta label="Evidence" value={`${reference.evidenceCount}`} />
+        <Meta label="Sources" value={reference.sourceRefs.slice(0, 4).join(", ") || "unknown"} />
       </div>
     </article>
   );
