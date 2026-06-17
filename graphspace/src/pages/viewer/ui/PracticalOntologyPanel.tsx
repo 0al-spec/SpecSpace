@@ -650,17 +650,18 @@ export function OntologyGraphDemoLens({
                 );
               })}
               {graph.nodes.map((node) => {
-                const selected = node.id === selectedNode?.id;
                 return (
                   <g
                     key={node.id}
-                    className={[
-                      styles.demoNodeGroup,
-                      NODE_TONE_CLASS[node.kind],
-                      selected ? styles.demoNodeSelected : "",
-                    ].join(" ")}
+                    className={[styles.demoNodeGroup, NODE_TONE_CLASS[node.kind]].join(" ")}
                     role="button"
                     tabIndex={0}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                    }}
+                    onDragStart={(event) => {
+                      event.preventDefault();
+                    }}
                     onClick={() => setSelectedNodeId(node.id)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
