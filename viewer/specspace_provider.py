@@ -506,6 +506,77 @@ class FileSpecGraphProvider:
             specgraph_dir=self.specgraph_dir,
         )
 
+    def _read_local_runs_json(self, filename: str) -> dict[str, Any] | None:
+        if self.runs_dir is None:
+            return None
+        path = self.runs_dir / filename
+        if not path.exists() or not path.is_file():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        return data if isinstance(data, dict) else None
+
+    def _read_local_normalized_ir(self, package_index: dict[str, Any] | None) -> dict[str, Any] | None:
+        if not package_index:
+            return None
+        packages = package_index.get("packages")
+        package = (
+            packages[0]
+            if isinstance(packages, list) and packages and isinstance(packages[0], dict)
+            else None
+        )
+        if not package:
+            return None
+        raw_path = package.get("materialized_ir")
+        if not isinstance(raw_path, str):
+            return None
+        relative = PurePosixPath(raw_path)
+        if relative.is_absolute() or ".." in relative.parts:
+            return None
+        relative_path = Path(*relative.parts)
+        roots: list[Path] = []
+        if self.specgraph_dir is not None:
+            roots.append(self.specgraph_dir)
+        if self.runs_dir is not None:
+            roots.append(self.runs_dir.parent)
+        if (
+            self.spec_nodes_dir is not None
+            and self.spec_nodes_dir.name == "nodes"
+            and self.spec_nodes_dir.parent.name == "specs"
+        ):
+            roots.append(self.spec_nodes_dir.parent.parent)
+        for root in roots:
+            path = root / relative_path
+            if not path.exists() or not path.is_file():
+                continue
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                return None
+            return data if isinstance(data, dict) else None
+        return None
+
+    def _read_practical_ontology_artifacts(self) -> dict[str, Any]:
+        filenames = (
+            practical_ontology.PACKAGE_INDEX_ARTIFACT,
+            practical_ontology.BINDING_PREVIEW_ARTIFACT,
+            practical_ontology.GAP_INDEX_ARTIFACT,
+            practical_ontology.COMPATIBILITY_DIFF_PREVIEW_ARTIFACT,
+        )
+        artifacts = {
+            filename: payload
+            for filename in filenames
+            if (payload := self._read_local_runs_json(filename)) is not None
+        }
+        normalized_ir = self._read_local_normalized_ir(
+            artifacts.get(practical_ontology.PACKAGE_INDEX_ARTIFACT)
+        )
+        if normalized_ir is not None:
+            artifacts[practical_ontology.NORMALIZED_IR_ARTIFACT_KEY] = normalized_ir
+        return artifacts
+
     def read_practical_ontology(self) -> tuple[int, dict[str, Any]]:
         unavailable = self._spec_nodes_unavailable()
         if unavailable is not None:
@@ -528,6 +599,7 @@ class FileSpecGraphProvider:
                 "specgraph_dir": str(self.specgraph_dir) if self.specgraph_dir is not None else None,
                 "curated_seed_source_ref": curated_seed_source_ref,
             },
+            ontology_artifacts=self._read_practical_ontology_artifacts(),
         )
 
     def read_metrics(self) -> tuple[int, dict[str, Any]]:
@@ -1131,6 +1203,71 @@ class HttpSpecGraphProvider:
             },
         )
 
+    def _read_optional_runs_json_data(
+        self,
+        manifest: dict[str, Any],
+        filename: str,
+    ) -> dict[str, Any] | None:
+        path = f"runs/{filename}"
+        if not self._has_artifact(manifest, path):
+            return None
+        status, text, error = self._read_artifact_text(path)
+        if error is not None or status != HTTPStatus.OK or text is None:
+            return None
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            return None
+        return data if isinstance(data, dict) else None
+
+    def _read_http_normalized_ir(
+        self,
+        manifest: dict[str, Any],
+        package_index: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        if not package_index:
+            return None
+        packages = package_index.get("packages")
+        package = (
+            packages[0]
+            if isinstance(packages, list) and packages and isinstance(packages[0], dict)
+            else None
+        )
+        if not package:
+            return None
+        raw_path = package.get("materialized_ir")
+        path = safe_manifest_path(raw_path)
+        if path is None or not self._has_artifact(manifest, path):
+            return None
+        status, text, error = self._read_artifact_text(path)
+        if error is not None or status != HTTPStatus.OK or text is None:
+            return None
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            return None
+        return data if isinstance(data, dict) else None
+
+    def _read_practical_ontology_artifacts(self, manifest: dict[str, Any]) -> dict[str, Any]:
+        filenames = (
+            practical_ontology.PACKAGE_INDEX_ARTIFACT,
+            practical_ontology.BINDING_PREVIEW_ARTIFACT,
+            practical_ontology.GAP_INDEX_ARTIFACT,
+            practical_ontology.COMPATIBILITY_DIFF_PREVIEW_ARTIFACT,
+        )
+        artifacts = {
+            filename: payload
+            for filename in filenames
+            if (payload := self._read_optional_runs_json_data(manifest, filename)) is not None
+        }
+        normalized_ir = self._read_http_normalized_ir(
+            manifest,
+            artifacts.get(practical_ontology.PACKAGE_INDEX_ARTIFACT),
+        )
+        if normalized_ir is not None:
+            artifacts[practical_ontology.NORMALIZED_IR_ARTIFACT_KEY] = normalized_ir
+        return artifacts
+
     def read_practical_ontology(self) -> tuple[int, dict[str, Any]]:
         manifest, manifest_error = self._read_manifest()
         if manifest_error is not None:
@@ -1154,6 +1291,7 @@ class HttpSpecGraphProvider:
                 "git": manifest.get("git") if isinstance(manifest.get("git"), dict) else None,
                 "curated_seed_source_ref": curated_seed_source_ref,
             },
+            ontology_artifacts=self._read_practical_ontology_artifacts(manifest),
         )
 
     def _read_optional_metrics_artifact(

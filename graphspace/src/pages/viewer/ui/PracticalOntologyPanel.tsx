@@ -45,6 +45,27 @@ function sourceLabel(value: unknown): string {
   return "source";
 }
 
+function sourceMode(data: PracticalOntology): string {
+  const mode = data.source.ontology_mode;
+  return typeof mode === "string" && mode.length > 0 ? mode : "curated_core_seed";
+}
+
+function graphSourceLabel(data: PracticalOntology): string {
+  return sourceMode(data) === "compiler_artifact_projection"
+    ? "Compiler-backed ontology graph"
+    : "Curated ontology graph";
+}
+
+function relationSourceLabel(data: PracticalOntology): string {
+  return sourceMode(data) === "compiler_artifact_projection"
+    ? "compiler IR relations"
+    : "curated seed links";
+}
+
+function fallbackSourceRefLabel(data: PracticalOntology): string {
+  return sourceMode(data) === "compiler_artifact_projection" ? "compiler-ir" : "curated-seed";
+}
+
 type DemoNodeKind = "domain" | "term" | "evidence";
 
 type DemoNode = {
@@ -144,7 +165,7 @@ function buildDemoGraph(data: PracticalOntology): DemoGraph {
         x: layout?.x ?? fallback.x,
         y: layout?.y ?? fallback.y,
         radius: layout?.radius ?? 17,
-        description: compact(term.description, "Curated ontology term."),
+        description: compact(term.description, "Working ontology term."),
         evidenceCount: term.evidenceCount,
         sourceRefs: term.sourceRefs,
       };
@@ -245,6 +266,9 @@ export function PracticalOntologyPanel({ state }: Props) {
       <div className={styles.summary}>
         <Metric label="Terms" value={data.summary.termCount} />
         <Metric label="Semantic" value={data.summary.semanticRelationCount} />
+        <Metric label="Gaps" value={data.summary.gapCount} />
+        <Metric label="Diff +" value={data.summary.diffAddedClassCount} />
+        <Metric label="Diff !" value={data.summary.diffBreakingChangeCount} />
         <Metric label="Topology" value={data.summary.topologyEdgeCount} />
         <Metric label="Refs" value={data.summary.proposalReferenceCount} />
         <Metric label="Domains" value={data.summary.domainCount} />
@@ -253,11 +277,11 @@ export function PracticalOntologyPanel({ state }: Props) {
 
       <div className={styles.surfaceHeader}>
         <div className={styles.surfaceMain}>
-          <span className={styles.kicker}>Curated ontology</span>
+          <span className={styles.kicker}>{graphSourceLabel(data)}</span>
           <span className={styles.surfaceTitle}>{sourceLabel(data.source)} · readonly</span>
         </div>
         <div className={styles.statusGroup}>
-          <Pill value="curated_core_seed" />
+          <Pill value={sourceMode(data)} />
           <Pill value="working_draft" />
         </div>
       </div>
@@ -380,13 +404,14 @@ export function OntologyGraphDemoLens({
         <header className={styles.demoGraphHeader}>
           <div className={styles.surfaceMain}>
             <span className={styles.kicker}>Ontology Graph Lens</span>
-            <span className={styles.demoGraphTitle}>
-              SpecGraph Core Ontology v0
-            </span>
+            <span className={styles.demoGraphTitle}>SpecGraph Core Ontology v0</span>
           </div>
           <div className={styles.statusGroup}>
-            <Pill value={`${graph.nodes.length} curated nodes`} />
-            <Pill value={`${graph.links.length} curated links`} />
+            <Pill value={`${graph.nodes.length} ontology nodes`} />
+            <Pill value={`${graph.links.length} ontology links`} />
+            <Pill value={`${data.summary.gapCount} gaps`} />
+            <Pill value={`${data.summary.diffAddedClassCount} diff additions`} />
+            <Pill value={`${data.summary.diffBreakingChangeCount} breaking changes`} />
             <Pill value="session layout" />
             <button
               type="button"
@@ -402,17 +427,17 @@ export function OntologyGraphDemoLens({
         </header>
 
         <div className={styles.demoGraphNotice}>
-          Curated working ontology only. Layout changes are local to this session; source terms and
-          relations come from the SpecGraph Core Ontology v0 seed.
+          Read-only working ontology only. Layout changes are local to this session; source terms and
+          relations come from {sourceMode(data)}.
         </div>
 
         <div className={styles.demoGraphBody}>
-          <div className={styles.demoGraphCanvas} aria-label="Curated ontology graph">
+          <div className={styles.demoGraphCanvas} aria-label={graphSourceLabel(data)}>
             <svg
               ref={svgRef}
               viewBox={`0 0 ${DEMO_GRAPH_VIEWBOX.width} ${DEMO_GRAPH_VIEWBOX.height}`}
               role="img"
-              aria-label="Curated SpecGraph core ontology graph"
+              aria-label={graphSourceLabel(data)}
             >
               <defs>
                 <filter id="demo-node-shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -550,10 +575,10 @@ export function OntologyGraphDemoLens({
                   <Meta label="Evidence count" value={`${selectedNode.evidenceCount}`} />
                   <Meta
                     label="Source refs"
-                    value={selectedNode.sourceRefs.slice(0, 3).join(", ") || "curated-seed"}
+                    value={selectedNode.sourceRefs.slice(0, 3).join(", ") || fallbackSourceRefLabel(data)}
                   />
                   <Meta label="Authority" value="working_draft" />
-                  <Meta label="Relation type" value="curated seed links" />
+                  <Meta label="Relation type" value={relationSourceLabel(data)} />
                 </div>
               </>
             ) : (

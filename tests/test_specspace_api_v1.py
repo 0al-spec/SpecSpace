@@ -188,6 +188,101 @@ def _write_manifest(root: Path, paths: list[str]) -> None:
     )
 
 
+def _write_specgraph_core_ontology_artifacts(root: Path) -> None:
+    ir_path = root / "ontology" / "specgraph-core" / "ontology.normalized.json"
+    ir_path.parent.mkdir(parents=True)
+    _write_json(
+        ir_path,
+        {
+            "id": "org.0al.specgraph.core",
+            "namespace": "sgcore",
+            "version": "0.1.0",
+            "classes": [
+                {
+                    "id": "SpecGraph",
+                    "fqid": "sgcore:SpecGraph",
+                    "uri": "ontology://org.0al.specgraph.core/classes/SpecGraph",
+                    "description": "Executable product ontology.",
+                },
+                {
+                    "id": "Spec",
+                    "fqid": "sgcore:Spec",
+                    "uri": "ontology://org.0al.specgraph.core/classes/Spec",
+                    "description": "Versioned specification artifact.",
+                },
+                {
+                    "id": "Requirement",
+                    "fqid": "sgcore:Requirement",
+                    "uri": "ontology://org.0al.specgraph.core/classes/Requirement",
+                    "description": "Verifiable obligation.",
+                },
+            ],
+            "relations": [
+                {
+                    "id": "definesRequirement",
+                    "fqid": "sgcore:definesRequirement",
+                    "domain": "sgcore:Spec",
+                    "range": "sgcore:Requirement",
+                    "uri": "ontology://org.0al.specgraph.core/relations/definesRequirement",
+                }
+            ],
+        },
+    )
+
+    runs_dir = root / "runs"
+    runs_dir.mkdir()
+    _write_json(
+        runs_dir / "ontology_package_index.json",
+        {
+            "artifact_kind": "ontology_package_index",
+            "packages": [
+                {
+                    "package_id": "org.0al.specgraph.core",
+                    "namespace": "sgcore",
+                    "version": "0.1.0",
+                    "materialized_ir": "ontology/specgraph-core/ontology.normalized.json",
+                    "lock": {"package_ref": "org.0al.specgraph.core@0.1.0"},
+                }
+            ],
+            "summary": {"resolved_ref_count": 2, "unresolved_ref_count": 1},
+        },
+    )
+    _write_json(
+        runs_dir / "ontology_binding_preview.json",
+        {
+            "artifact_kind": "ontology_binding_preview",
+            "package_ref": "org.0al.specgraph.core@0.1.0",
+            "source_fixture": "tests/fixtures/ontology_import/specgraph-core/import-fixture.yaml",
+        },
+    )
+    _write_json(
+        runs_dir / "ontology_import_gap_index.json",
+        {
+            "artifact_kind": "ontology_import_gap_index",
+            "source_fixture": "tests/fixtures/ontology_import/specgraph-core/import-fixture.yaml",
+            "gaps": [{"gap_id": "ontology-gap-sgcore-claimcalibration"}],
+            "summary": {"gap_count": 1},
+        },
+    )
+    _write_json(
+        runs_dir / "ontology_compatibility_diff_preview.json",
+        {
+            "artifact_kind": "ontology_compatibility_diff_preview",
+            "source_report": (
+                "tests/fixtures/ontology_import/specgraph-core/compatibility/"
+                "compatibility-report.yaml"
+            ),
+            "compatible": True,
+            "from_ref": "org.0al.specgraph.core@0.1.0",
+            "to_ref": "org.0al.specgraph.core@0.2.0",
+            "changes": {
+                "added_classes": ["sgcore:ClaimCalibration"],
+                "breaking_changes": [],
+            },
+        },
+    )
+
+
 def _write_specpm_registry(root: Path) -> None:
     status_dir = root / "v0" / "status"
     packages_dir = root / "v0" / "packages"
@@ -1624,6 +1719,148 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["sources"]["curated_seed"]["source_ref"],
             "curated://specspace/specgraph-core-v0",
         )
+
+    def test_practical_ontology_v1_prefers_compiler_backed_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_specgraph_core_ontology_artifacts(root)
+
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=root / "runs",
+                specgraph_dir=root,
+            )
+            try:
+                status, body = _get(f"{base}/api/v1/practical-ontology")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["artifact_kind"], "specspace_practical_ontology")
+        self.assertTrue(body["read_only"])
+        self.assertFalse(body["canonical_mutations_allowed"])
+        self.assertEqual(body["source"]["ontology_mode"], "compiler_artifact_projection")
+        self.assertEqual(body["source"]["package_ref"], "org.0al.specgraph.core@0.1.0")
+        self.assertTrue(body["source"]["normalized_ir_available"])
+        self.assertFalse(body["authority_boundary"]["practical_ontology_is_authority"])
+        self.assertTrue(body["authority_boundary"]["compiler_artifact_backed"])
+        self.assertTrue(body["authority_boundary"]["derived_from_specgraph_sources"])
+        self.assertFalse(body["authority_boundary"]["may_write_ontology_package"])
+        self.assertFalse(body["authority_boundary"]["may_mutate_canonical_specs"])
+        self.assertEqual(body["summary"]["term_count"], 3)
+        self.assertEqual(body["summary"]["semantic_relation_count"], 1)
+        self.assertEqual(body["summary"]["topology_edge_count"], 0)
+        self.assertEqual(body["summary"]["proposal_reference_count"], 0)
+        self.assertEqual(body["summary"]["gap_count"], 1)
+        self.assertEqual(body["summary"]["diff_added_class_count"], 1)
+        self.assertEqual(body["summary"]["diff_breaking_change_count"], 0)
+        labels = {entry["label"] for entry in body["terms"]}
+        self.assertEqual(labels, {"Requirement", "Spec", "SpecGraph"})
+        relation_pairs = {
+            (entry["source_term"], entry["relation"], entry["target_term"])
+            for entry in body["relations"]
+        }
+        self.assertEqual(relation_pairs, {("Spec", "definesRequirement", "Requirement")})
+        self.assertEqual(body["sources"]["compiler_ir"]["class_count"], 3)
+        self.assertEqual(body["sources"]["compiler_ir"]["relation_count"], 1)
+        self.assertTrue(body["sources"]["ontology_import_gap_index"]["available"])
+        self.assertEqual(body["sources"]["ontology_import_gap_index"]["gap_count"], 1)
+        self.assertTrue(body["sources"]["ontology_compatibility_diff_preview"]["available"])
+        self.assertEqual(body["sources"]["ontology_compatibility_diff_preview"]["added_class_count"], 1)
+        self.assertFalse(body["sources"]["curated_seed"]["available"])
+        self.assertEqual(body["topology_edges"], [])
+        self.assertEqual(body["proposal_references"], [])
+
+    def test_practical_ontology_v1_reads_local_ir_without_specgraph_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_specgraph_core_ontology_artifacts(root)
+
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=root / "runs",
+            )
+            try:
+                status, body = _get(f"{base}/api/v1/practical-ontology")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["source"]["ontology_mode"], "compiler_artifact_projection")
+        self.assertEqual(body["summary"]["term_count"], 3)
+
+    def test_practical_ontology_v1_falls_back_to_binding_ref_for_non_object_lock(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_specgraph_core_ontology_artifacts(root)
+            package_index_path = root / "runs" / "ontology_package_index.json"
+            package_index = json.loads(package_index_path.read_text(encoding="utf-8"))
+            package_index["packages"][0]["lock"] = None
+            _write_json(package_index_path, package_index)
+
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=root / "runs",
+                specgraph_dir=root,
+            )
+            try:
+                status, body = _get(f"{base}/api/v1/practical-ontology")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["source"]["ontology_mode"], "compiler_artifact_projection")
+        self.assertEqual(body["source"]["package_ref"], "org.0al.specgraph.core@0.1.0")
+
+    def test_practical_ontology_v1_reads_compiler_artifacts_from_http_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifacts"
+            spec_dir = artifact_root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_specgraph_core_ontology_artifacts(artifact_root)
+            _write_manifest(
+                artifact_root,
+                [
+                    "specs/nodes/SG-SPEC-0001.yaml",
+                    "runs/ontology_package_index.json",
+                    "runs/ontology_binding_preview.json",
+                    "runs/ontology_import_gap_index.json",
+                    "runs/ontology_compatibility_diff_preview.json",
+                    "ontology/specgraph-core/ontology.normalized.json",
+                ],
+            )
+
+            static_httpd, static_thread, artifact_base = _start_static(artifact_root)
+            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base)
+            try:
+                status, body = _get(f"{base}/api/v1/practical-ontology")
+            finally:
+                _stop(httpd, thread)
+                _stop(static_httpd, static_thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["source"]["ontology_mode"], "compiler_artifact_projection")
+        self.assertEqual(body["source"]["provider"], "http")
+        self.assertEqual(body["source"]["package_ref"], "org.0al.specgraph.core@0.1.0")
+        self.assertTrue(body["authority_boundary"]["compiler_artifact_backed"])
+        self.assertEqual(body["summary"]["term_count"], 3)
+        self.assertEqual(body["summary"]["semantic_relation_count"], 1)
+        self.assertEqual(body["summary"]["gap_count"], 1)
+        self.assertEqual(body["summary"]["diff_added_class_count"], 1)
 
     def test_proposals_v1_degrades_when_optional_artifacts_are_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

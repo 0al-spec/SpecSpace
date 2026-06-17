@@ -408,24 +408,38 @@ whole endpoint.
 
 ### `GET /api/v1/practical-ontology`
 
-Returns a readonly curated SpecGraph Core Ontology seed. The endpoint no longer
-derives terms from every available `specs/nodes/*.yaml` or
-`docs/proposals/*.md` entry because that extraction produced noisy vocabulary
+Returns a readonly practical ontology surface for the SpecSpace utility panel.
+When SpecGraph publishes Ontology compiler artifacts, the endpoint projects the
+current Ontology normalized IR into UI-ready `terms` and `relations` and carries
+gap/diff counts from the companion artifacts:
+
+- `runs/ontology_package_index.json`
+- `runs/ontology_binding_preview.json`
+- `runs/ontology_import_gap_index.json`
+- `runs/ontology_compatibility_diff_preview.json`
+- the `materialized_ir` path declared by the package index
+
+If those artifacts or the normalized IR are unavailable, the endpoint falls back
+to a small curated SpecGraph Core Ontology seed. The fallback is intentionally
+close to the original SG-SPEC-0001 / Hypercode-style idea: a graph of
+declarative entities and typed relations around `SpecGraph`, `Spec`, `Node`,
+`Edge`, `Requirement`, and `AcceptanceCriterion`.
+
+The endpoint no longer derives terms from every available `specs/nodes/*.yaml`
+or `docs/proposals/*.md` entry because that extraction produced noisy vocabulary
 items such as articles, example-only terms, proposal titles, and topology facts.
 
-The seed is intentionally small and close to the original SG-SPEC-0001 /
-Hypercode-style idea: a graph of declarative entities and typed relations around
-`SpecGraph`, `Spec`, `Node`, `Edge`, `Requirement`, and
-`AcceptanceCriterion`.
-
 It is still not a canonical Ontology package, does not mark terms accepted, and
-does not mutate SpecGraph specs. Legacy extraction is reported only as disabled
-source metadata and is removed from the primary ontology surface.
+does not mutate SpecGraph specs. Compiler-backed projection and curated fallback
+are both readonly review/display surfaces.
 
 The response keeps the existing envelope shape:
 
-- `terms` contains curated seed entities;
-- `relations` contains curated semantic ontology relations;
+- `source.ontology_mode` is `compiler_artifact_projection` or
+  `curated_core_seed`;
+- `terms` contains compiler IR classes or curated seed entities;
+- `relations` contains compiler IR relations or curated semantic ontology
+  relations;
 - `topology_edges` is empty because SpecGraph topology extraction is no longer
   mixed into ontology;
 - `proposal_references` is empty because proposal markdown extraction is no
@@ -445,7 +459,10 @@ The response keeps the existing envelope shape:
     "topology_edge_count": 0,
     "proposal_reference_count": 0,
     "domain_count": 1,
-    "source_count": 1
+    "source_count": 1,
+    "gap_count": 0,
+    "diff_added_class_count": 0,
+    "diff_breaking_change_count": 0
   },
   "terms": [
     {
@@ -479,6 +496,7 @@ The response keeps the existing envelope shape:
     "practical_ontology_is_authority": false,
     "derived_from_specgraph_sources": false,
     "curated_from_specgraph_seed": true,
+    "compiler_artifact_backed": false,
     "may_write_ontology_package": false,
     "may_mutate_canonical_specs": false,
     "may_mark_candidate_accepted": false
