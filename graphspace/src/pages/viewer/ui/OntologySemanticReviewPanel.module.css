@@ -85,9 +85,14 @@
 }
 
 .pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  box-sizing: border-box;
   border: 1px solid var(--gs-rule-soft);
-  padding: 3px 6px;
+  padding: 0 6px;
   background: var(--gs-panel);
+  line-height: 1;
   overflow-wrap: anywhere;
 }
 
@@ -133,6 +138,32 @@
   color: var(--gs-ink);
   font-family: var(--gs-mono);
   font-size: 11px;
+}
+
+.actionButton,
+.closeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  box-sizing: border-box;
+  border: 1px solid var(--gs-rule-mid);
+  border-radius: 4px;
+  padding: 0 var(--gs-space-4);
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.actionButton:hover,
+.closeButton:hover {
+  border-color: var(--gs-accent);
+  color: var(--gs-accent);
 }
 
 .postureStrip {
@@ -296,4 +327,232 @@
   margin-top: var(--gs-space-2);
   font-family: var(--gs-mono);
   font-size: 11px;
+}
+
+.demoGraphOverlay {
+  position: fixed;
+  inset: var(--gs-space-6);
+  z-index: 1000;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--gs-rule-mid);
+  background: color-mix(in srgb, var(--gs-paper) 92%, transparent);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 24%);
+  user-select: none;
+}
+
+.demoGraphShell {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--gs-panel);
+}
+
+.demoGraphHeader {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gs-space-5);
+  padding: var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: color-mix(in srgb, var(--gs-accent) 7%, var(--gs-paper));
+}
+
+.demoGraphTitle {
+  display: block;
+  margin-top: 3px;
+  color: var(--gs-ink);
+  font-family: var(--gs-serif);
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.demoGraphNotice {
+  flex: 0 0 auto;
+  padding: var(--gs-space-4) var(--gs-space-6);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.demoGraphBody {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  min-height: 0;
+}
+
+.demoGraphCanvas {
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--gs-rule-soft);
+  background:
+    linear-gradient(var(--gs-rule-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--gs-rule-soft) 1px, transparent 1px),
+    var(--gs-paper);
+  background-size: 44px 44px;
+  user-select: none;
+}
+
+.demoGraphCanvas svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  user-select: none;
+}
+
+.demoEdge {
+  stroke: color-mix(in srgb, var(--gs-muted) 58%, transparent);
+  stroke-width: 1.4;
+}
+
+.demoEdgeLabel {
+  fill: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 8px;
+  text-anchor: middle;
+  text-transform: uppercase;
+  paint-order: stroke;
+  stroke: var(--gs-paper);
+  stroke-width: 4px;
+  user-select: none;
+}
+
+.demoNodeGroup {
+  cursor: default;
+  outline: none;
+  user-select: none;
+}
+
+.demoNodeHalo {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 2;
+}
+
+.demoNode {
+  stroke: var(--gs-panel);
+  stroke-width: 2;
+}
+
+.demoNodeGroup:focus-visible .demoNode {
+  stroke: var(--gs-accent);
+  stroke-width: 3;
+}
+
+.demoNodeSelected .demoNodeHalo {
+  stroke: var(--gs-accent);
+}
+
+.demoNodeLabel {
+  fill: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 8px;
+  font-weight: 700;
+  text-anchor: middle;
+  text-transform: uppercase;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--gs-panel);
+  stroke-width: 3px;
+  user-select: none;
+}
+
+.demoNodeDomain .demoNode {
+  fill: color-mix(in srgb, var(--gs-accent) 36%, var(--gs-panel));
+}
+
+.demoNodeTerm .demoNode {
+  fill: color-mix(in srgb, var(--gs-ok) 30%, var(--gs-panel));
+}
+
+.demoNodeSpec .demoNode {
+  fill: color-mix(in srgb, var(--gs-warn) 35%, var(--gs-panel));
+}
+
+.demoNodeProposal .demoNode {
+  fill: color-mix(in srgb, var(--gs-danger) 24%, var(--gs-panel));
+}
+
+.demoNodeEvidence .demoNode {
+  fill: color-mix(in srgb, var(--gs-muted) 28%, var(--gs-panel));
+}
+
+.demoGraphInspector {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--gs-space-6);
+  background: var(--gs-panel);
+}
+
+.demoInspectorTitle {
+  margin: var(--gs-space-3) 0 var(--gs-space-4);
+  color: var(--gs-ink);
+  font-family: var(--gs-serif);
+  font-size: 20px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.demoInspectorText {
+  margin: var(--gs-space-5) 0 0;
+  color: var(--gs-muted);
+  font-family: var(--gs-sans);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.demoLegend {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-2);
+  padding: var(--gs-space-4) var(--gs-space-6);
+  border-top: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+}
+
+.demoLegendItem {
+  border: 1px solid var(--gs-rule-soft);
+  padding: 3px 6px;
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+@media (max-width: 820px) {
+  .demoGraphOverlay {
+    inset: var(--gs-space-3);
+  }
+
+  .demoGraphHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .demoGraphBody {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+
+  .demoGraphCanvas {
+    min-height: 420px;
+    border-right: 0;
+    border-bottom: 1px solid var(--gs-rule-soft);
+  }
+
+  .demoGraphInspector {
+    min-height: 260px;
+  }
 }

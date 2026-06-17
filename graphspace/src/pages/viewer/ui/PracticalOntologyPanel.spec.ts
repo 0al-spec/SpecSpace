@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { PracticalOntology } from "../model/use-practical-ontology";
-import { PracticalOntologyPanel } from "./PracticalOntologyPanel";
+import { OntologyGraphDemoLens, PracticalOntologyPanel } from "./PracticalOntologyPanel";
 
 const practicalOntology: PracticalOntology = {
   apiVersion: "v1",
@@ -112,5 +112,21 @@ describe("PracticalOntologyPanel", () => {
     expect(html).toContain("0100 mentions SG-SPEC-0001");
     expect(html).toContain("mentions_spec");
     expect(html).toContain("not_authority");
+    expect(html).toContain("Open demo graph");
+  });
+
+  it("renders a clearly marked demo ontology graph lens", () => {
+    const html = renderToStaticMarkup(
+      createElement(OntologyGraphDemoLens, {
+        data: practicalOntology,
+        onClose: () => undefined,
+      }),
+    );
+
+    expect(html).toContain("Demo Ontology Graph Lens");
+    expect(html).toContain("DEMO - curated mock ontology graph over extracted inventory");
+    expect(html).toContain("demo_only_not_authority");
+    expect(html).toContain("mock/demo links");
+    expect(html).toContain("Ontology Binding");
   });
 });

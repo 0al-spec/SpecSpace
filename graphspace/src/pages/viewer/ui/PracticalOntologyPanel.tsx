@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type {
+  PracticalOntology,
   PracticalOntologyDomain,
   PracticalOntologyProposalReference,
   PracticalOntologyRelation,
@@ -43,8 +45,387 @@ function sourceLabel(value: unknown): string {
   return "source";
 }
 
+type DemoNodeKind = "domain" | "term" | "spec" | "proposal" | "evidence";
+
+type DemoNode = {
+  id: string;
+  label: string;
+  shortLabel: string;
+  kind: DemoNodeKind;
+  domain: string;
+  x: number;
+  y: number;
+  radius: number;
+  description: string;
+  evidenceCount: number;
+  sourceRefs: readonly string[];
+};
+
+type DemoLink = {
+  source: string;
+  target: string;
+  label: string;
+};
+
+type DemoGraph = {
+  nodes: readonly DemoNode[];
+  links: readonly DemoLink[];
+};
+
+const DEMO_NODE_SEEDS: readonly Omit<DemoNode, "evidenceCount" | "sourceRefs">[] = [
+  {
+    id: "domain.specgraph",
+    label: "SpecGraph",
+    shortLabel: "SpecGraph",
+    kind: "domain",
+    domain: "SpecGraph",
+    x: 420,
+    y: 260,
+    radius: 29,
+    description: "Main derived vocabulary domain for specifications and graph structure.",
+  },
+  {
+    id: "domain.ontology",
+    label: "Ontology",
+    shortLabel: "Ontology",
+    kind: "domain",
+    domain: "Ontology",
+    x: 260,
+    y: 180,
+    radius: 24,
+    description: "Demo domain for canonical vocabulary, gaps, and owner decisions.",
+  },
+  {
+    id: "domain.specspace",
+    label: "SpecSpace",
+    shortLabel: "SpecSpace",
+    kind: "domain",
+    domain: "SpecSpace",
+    x: 600,
+    y: 170,
+    radius: 23,
+    description: "Demo domain for review surfaces and visual inspection.",
+  },
+  {
+    id: "domain.agent-layer",
+    label: "Agent Layer",
+    shortLabel: "Agents",
+    kind: "domain",
+    domain: "Agent Layer",
+    x: 255,
+    y: 360,
+    radius: 22,
+    description: "Demo domain for prompt and authoring behavior.",
+  },
+  {
+    id: "domain.evidence",
+    label: "Evidence",
+    shortLabel: "Evidence",
+    kind: "domain",
+    domain: "Evidence",
+    x: 610,
+    y: 365,
+    radius: 22,
+    description: "Demo domain for source references and review evidence.",
+  },
+  {
+    id: "term.spec-node",
+    label: "Spec Node",
+    shortLabel: "Spec Node",
+    kind: "term",
+    domain: "SpecGraph",
+    x: 420,
+    y: 110,
+    radius: 18,
+    description: "A canonical specification node in the graph.",
+  },
+  {
+    id: "term.proposal",
+    label: "Proposal",
+    shortLabel: "Proposal",
+    kind: "term",
+    domain: "Proposal Workflow",
+    x: 470,
+    y: 150,
+    radius: 17,
+    description: "A proposed change or bounded design slice.",
+  },
+  {
+    id: "term.ontology-binding",
+    label: "Ontology Binding",
+    shortLabel: "Binding",
+    kind: "term",
+    domain: "Ontology",
+    x: 300,
+    y: 255,
+    radius: 18,
+    description: "Demo concept for mapping generated vocabulary to accepted ontology terms.",
+  },
+  {
+    id: "term.term-binding-policy",
+    label: "Term Binding Policy",
+    shortLabel: "Policy",
+    kind: "term",
+    domain: "Ontology",
+    x: 185,
+    y: 265,
+    radius: 17,
+    description: "Review-first policy for generated terms and ontology gaps.",
+  },
+  {
+    id: "term.generated-term",
+    label: "Generated Term",
+    shortLabel: "Generated",
+    kind: "term",
+    domain: "Ontology",
+    x: 185,
+    y: 135,
+    radius: 16,
+    description: "A term introduced by an authoring or review workflow.",
+  },
+  {
+    id: "term.ontology-gap",
+    label: "Ontology Gap",
+    shortLabel: "Gap",
+    kind: "term",
+    domain: "Ontology",
+    x: 315,
+    y: 110,
+    radius: 16,
+    description: "A missing or ambiguous vocabulary item requiring owner review.",
+  },
+  {
+    id: "term.owner-decision",
+    label: "Owner Decision",
+    shortLabel: "Decision",
+    kind: "term",
+    domain: "Ontology",
+    x: 135,
+    y: 210,
+    radius: 16,
+    description: "Accepted or rejected ontology owner decision evidence.",
+  },
+  {
+    id: "term.review-surface",
+    label: "Review Surface",
+    shortLabel: "Review",
+    kind: "term",
+    domain: "SpecSpace",
+    x: 665,
+    y: 250,
+    radius: 18,
+    description: "A readable UI/API artifact for inspecting ontology review items.",
+  },
+  {
+    id: "term.practical-ontology",
+    label: "Practical Ontology",
+    shortLabel: "Practical",
+    kind: "term",
+    domain: "SpecSpace",
+    x: 545,
+    y: 250,
+    radius: 18,
+    description: "Derived read-only vocabulary extracted from existing specifications.",
+  },
+  {
+    id: "term.semantic-gate",
+    label: "Semantic Gate",
+    shortLabel: "Gate",
+    kind: "term",
+    domain: "SpecGraph",
+    x: 520,
+    y: 320,
+    radius: 17,
+    description: "A review gate that blocks unsupported or unbound semantic changes.",
+  },
+  {
+    id: "term.source-ref",
+    label: "Source Ref",
+    shortLabel: "Source",
+    kind: "evidence",
+    domain: "Evidence",
+    x: 690,
+    y: 430,
+    radius: 15,
+    description: "Traceable evidence pointing back to spec nodes or proposal markdown.",
+  },
+  {
+    id: "term.evidence-ref",
+    label: "Evidence Ref",
+    shortLabel: "Evidence",
+    kind: "evidence",
+    domain: "Evidence",
+    x: 555,
+    y: 455,
+    radius: 15,
+    description: "Demo evidence handle for graph review and UI inspection.",
+  },
+  {
+    id: "term.claim-calibration",
+    label: "Claim Calibration",
+    shortLabel: "Claims",
+    kind: "term",
+    domain: "Agent Layer",
+    x: 315,
+    y: 440,
+    radius: 16,
+    description: "F/G/R-style bounded calibration for strong claims.",
+  },
+  {
+    id: "term.active-context",
+    label: "Active Context",
+    shortLabel: "Context",
+    kind: "term",
+    domain: "Agent Layer",
+    x: 205,
+    y: 445,
+    radius: 16,
+    description: "Resolved ontology/domain/context frame for spec authoring.",
+  },
+  {
+    id: "term.spec-author-agent",
+    label: "SpecAuthorAgent",
+    shortLabel: "Author",
+    kind: "term",
+    domain: "Agent Layer",
+    x: 130,
+    y: 345,
+    radius: 17,
+    description: "Demo agent that writes specs under ontology and claim calibration rules.",
+  },
+  {
+    id: "spec.0127",
+    label: "0127 Ontology Stdlib Discipline",
+    shortLabel: "0127",
+    kind: "spec",
+    domain: "Ontology",
+    x: 95,
+    y: 115,
+    radius: 14,
+    description: "Demo source slice for treating accepted ontology terms as base symbols.",
+  },
+  {
+    id: "spec.0128",
+    label: "0128 Term Binding Policy",
+    shortLabel: "0128",
+    kind: "spec",
+    domain: "Ontology",
+    x: 92,
+    y: 285,
+    radius: 14,
+    description: "Demo source slice for generated-term binding policy.",
+  },
+  {
+    id: "spec.0129",
+    label: "0129 Term Binding Gate",
+    shortLabel: "0129",
+    kind: "spec",
+    domain: "SpecGraph",
+    x: 440,
+    y: 410,
+    radius: 14,
+    description: "Demo source slice for executable review-warning gate behavior.",
+  },
+  {
+    id: "proposal.0100",
+    label: "0100 Ontology Grounding",
+    shortLabel: "0100",
+    kind: "proposal",
+    domain: "Ontology",
+    x: 735,
+    y: 140,
+    radius: 14,
+    description: "Demo proposal source for ontology-grounded semantic control.",
+  },
+  {
+    id: "proposal.0126",
+    label: "0126 Claim Calibration Contract",
+    shortLabel: "0126",
+    kind: "proposal",
+    domain: "Agent Layer",
+    x: 390,
+    y: 505,
+    radius: 14,
+    description: "Demo proposal source for calibrated spec-authoring claims.",
+  },
+];
+
+const DEMO_LINKS: readonly DemoLink[] = [
+  { source: "domain.specgraph", target: "term.spec-node", label: "contains" },
+  { source: "domain.specgraph", target: "term.proposal", label: "contains" },
+  { source: "domain.ontology", target: "term.ontology-binding", label: "focuses" },
+  { source: "domain.ontology", target: "term.term-binding-policy", label: "governs" },
+  { source: "domain.ontology", target: "term.generated-term", label: "reviews" },
+  { source: "domain.ontology", target: "term.ontology-gap", label: "routes" },
+  { source: "domain.ontology", target: "term.owner-decision", label: "accepts/rejects" },
+  { source: "domain.specspace", target: "term.review-surface", label: "renders" },
+  { source: "domain.specspace", target: "term.practical-ontology", label: "renders" },
+  { source: "domain.evidence", target: "term.source-ref", label: "contains" },
+  { source: "domain.evidence", target: "term.evidence-ref", label: "contains" },
+  { source: "domain.agent-layer", target: "term.spec-author-agent", label: "hosts" },
+  { source: "domain.agent-layer", target: "term.claim-calibration", label: "requires" },
+  { source: "domain.agent-layer", target: "term.active-context", label: "requires" },
+  { source: "term.spec-author-agent", target: "term.generated-term", label: "emits" },
+  { source: "term.generated-term", target: "term.ontology-binding", label: "binds_to" },
+  { source: "term.generated-term", target: "term.ontology-gap", label: "may_need" },
+  { source: "term.ontology-gap", target: "term.owner-decision", label: "awaits" },
+  { source: "term.owner-decision", target: "term.semantic-gate", label: "closes" },
+  { source: "term.semantic-gate", target: "term.review-surface", label: "feeds" },
+  { source: "term.practical-ontology", target: "term.review-surface", label: "supports" },
+  { source: "term.source-ref", target: "term.evidence-ref", label: "backs" },
+  { source: "term.evidence-ref", target: "term.review-surface", label: "explains" },
+  { source: "term.claim-calibration", target: "term.active-context", label: "scopes" },
+  { source: "term.active-context", target: "term.ontology-binding", label: "narrows" },
+  { source: "spec.0127", target: "term.ontology-binding", label: "motivates" },
+  { source: "spec.0128", target: "term.term-binding-policy", label: "defines" },
+  { source: "spec.0129", target: "term.semantic-gate", label: "implements" },
+  { source: "proposal.0100", target: "term.practical-ontology", label: "seeds" },
+  { source: "proposal.0126", target: "term.claim-calibration", label: "defines" },
+];
+
+const NODE_TONE_CLASS: Record<DemoNodeKind, string> = {
+  domain: styles.demoNodeDomain,
+  term: styles.demoNodeTerm,
+  spec: styles.demoNodeSpec,
+  proposal: styles.demoNodeProposal,
+  evidence: styles.demoNodeEvidence,
+};
+
+function findMatchingTerm(
+  data: PracticalOntology,
+  label: string,
+): PracticalOntologyTerm | undefined {
+  const normalized = label.toLowerCase();
+  return data.terms.find((term) => term.label.toLowerCase() === normalized);
+}
+
+function findMatchingDomain(
+  data: PracticalOntology,
+  label: string,
+): PracticalOntologyDomain | undefined {
+  const normalized = label.toLowerCase();
+  return data.domains.find((domain) => domain.label.toLowerCase() === normalized);
+}
+
+function buildDemoGraph(data: PracticalOntology): DemoGraph {
+  return {
+    nodes: DEMO_NODE_SEEDS.map((seed) => {
+      const matchingTerm = findMatchingTerm(data, seed.label);
+      const matchingDomain =
+        seed.kind === "domain" ? findMatchingDomain(data, seed.label) : undefined;
+      return {
+        ...seed,
+        evidenceCount: matchingTerm?.evidenceCount ?? matchingDomain?.termCount ?? 0,
+        sourceRefs: matchingTerm?.sourceRefs ?? matchingDomain?.sourceRefs.slice(0, 6) ?? [],
+      };
+    }),
+    links: DEMO_LINKS,
+  };
+}
+
 export function PracticalOntologyPanel({ state }: Props) {
   const [query, setQuery] = useState("");
+  const [demoLensOpen, setDemoLensOpen] = useState(false);
   const normalizedQuery = query.trim().toLowerCase();
 
   const visible = useMemo(() => {
@@ -178,6 +559,13 @@ export function PracticalOntologyPanel({ state }: Props) {
             placeholder="Ontology"
           />
         </label>
+        <button
+          type="button"
+          className={styles.actionButton}
+          onClick={() => setDemoLensOpen(true)}
+        >
+          Open demo graph
+        </button>
       </div>
 
       <div className={styles.entries}>
@@ -187,8 +575,204 @@ export function PracticalOntologyPanel({ state }: Props) {
         <TopologySection topologyEdges={visible.topologyEdges} />
         <ProposalReferenceSection proposalReferences={visible.proposalReferences} />
       </div>
+
+      {demoLensOpen ? (
+        <OntologyGraphDemoLens data={data} onClose={() => setDemoLensOpen(false)} />
+      ) : null}
     </section>
   );
+}
+
+export function OntologyGraphDemoLens({
+  data,
+  onClose,
+}: {
+  data: PracticalOntology;
+  onClose: () => void;
+}) {
+  const graph = useMemo(() => buildDemoGraph(data), [data]);
+  const [selectedNodeId, setSelectedNodeId] = useState(graph.nodes[0]?.id ?? "");
+  const pointerDownRef = useRef<{ nodeId: string; x: number; y: number } | null>(null);
+  const pointerMovedRef = useRef(false);
+  const selectedNode = graph.nodes.find((node) => node.id === selectedNodeId) ?? graph.nodes[0];
+  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+
+  const lens = (
+    <div className={styles.demoGraphOverlay} role="dialog" aria-modal="true">
+      <div className={styles.demoGraphShell}>
+        <header className={styles.demoGraphHeader}>
+          <div className={styles.surfaceMain}>
+            <span className={styles.kicker}>Demo Ontology Graph Lens</span>
+            <span className={styles.demoGraphTitle}>
+              DEMO - curated mock ontology graph over extracted inventory
+            </span>
+          </div>
+          <div className={styles.statusGroup}>
+            <Pill value={`${graph.nodes.length} demo nodes`} />
+            <Pill value={`${graph.links.length} demo links`} />
+            <Pill value={`${data.summary.termCount} extracted`} />
+            <button type="button" className={styles.closeButton} onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </header>
+
+        <div className={styles.demoGraphNotice}>
+          Demo lens only. Links are curated/mock relationships for presentation; semantic relations in
+          the derived source are {data.summary.semanticRelationCount}.
+        </div>
+
+        <div className={styles.demoGraphBody}>
+          <div className={styles.demoGraphCanvas} aria-label="Demo ontology force graph">
+            <svg viewBox="0 0 820 560" role="img" aria-label="Curated demo ontology graph">
+              <defs>
+                <filter id="demo-node-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0" dy="4" stdDeviation="5" floodOpacity="0.16" />
+                </filter>
+              </defs>
+              {graph.links.map((link) => {
+                const source = nodeById.get(link.source);
+                const target = nodeById.get(link.target);
+                if (!source || !target) return null;
+                const midX = (source.x + target.x) / 2;
+                const midY = (source.y + target.y) / 2;
+                return (
+                  <g key={`${link.source}-${link.target}-${link.label}`}>
+                    <line
+                      className={styles.demoEdge}
+                      x1={source.x}
+                      y1={source.y}
+                      x2={target.x}
+                      y2={target.y}
+                    />
+                    <text className={styles.demoEdgeLabel} x={midX} y={midY}>
+                      {link.label}
+                    </text>
+                  </g>
+                );
+              })}
+              {graph.nodes.map((node) => {
+                const selected = node.id === selectedNode?.id;
+                return (
+                  <g
+                    key={node.id}
+                    className={[
+                      styles.demoNodeGroup,
+                      NODE_TONE_CLASS[node.kind],
+                      selected ? styles.demoNodeSelected : "",
+                    ].join(" ")}
+                    role="button"
+                    tabIndex={0}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      pointerDownRef.current = { nodeId: node.id, x: event.clientX, y: event.clientY };
+                      pointerMovedRef.current = false;
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                    }}
+                    onPointerMove={(event) => {
+                      const pointerDown = pointerDownRef.current;
+                      if (!pointerDown || pointerDown.nodeId !== node.id) return;
+                      const moved =
+                        Math.abs(event.clientX - pointerDown.x) > 4 ||
+                        Math.abs(event.clientY - pointerDown.y) > 4;
+                      if (moved) pointerMovedRef.current = true;
+                    }}
+                    onPointerUp={(event) => {
+                      event.preventDefault();
+                      const pointerDown = pointerDownRef.current;
+                      const moved =
+                        pointerMovedRef.current ||
+                        !pointerDown ||
+                        Math.abs(event.clientX - pointerDown.x) > 4 ||
+                        Math.abs(event.clientY - pointerDown.y) > 4;
+                      pointerDownRef.current = null;
+                      pointerMovedRef.current = false;
+                      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                        event.currentTarget.releasePointerCapture(event.pointerId);
+                      }
+                      if (!moved) setSelectedNodeId(node.id);
+                    }}
+                    onPointerCancel={(event) => {
+                      pointerDownRef.current = null;
+                      pointerMovedRef.current = false;
+                      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                        event.currentTarget.releasePointerCapture(event.pointerId);
+                      }
+                    }}
+                    onDragStart={(event) => {
+                      event.preventDefault();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedNodeId(node.id);
+                      }
+                    }}
+                  >
+                    <title>{node.label}</title>
+                    <circle
+                      className={styles.demoNodeHalo}
+                      cx={node.x}
+                      cy={node.y}
+                      r={node.radius + 7}
+                    />
+                    <circle
+                      className={styles.demoNode}
+                      cx={node.x}
+                      cy={node.y}
+                      r={node.radius}
+                      filter="url(#demo-node-shadow)"
+                    />
+                    <text className={styles.demoNodeLabel} x={node.x} y={node.y + 3}>
+                      {node.shortLabel}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+
+          <aside className={styles.demoGraphInspector}>
+            {selectedNode ? (
+              <>
+                <span className={styles.kicker}>Selected demo node</span>
+                <h3 className={styles.demoInspectorTitle}>{selectedNode.label}</h3>
+                <div className={styles.statusGroup}>
+                  <Pill value={selectedNode.kind} />
+                  <Pill value={selectedNode.domain} />
+                  <Pill value={selectedNode.evidenceCount ? "has evidence" : "mock node"} />
+                </div>
+                <p className={styles.demoInspectorText}>{selectedNode.description}</p>
+                <div className={styles.metaGrid}>
+                  <Meta label="Evidence count" value={`${selectedNode.evidenceCount}`} />
+                  <Meta
+                    label="Source refs"
+                    value={selectedNode.sourceRefs.slice(0, 3).join(", ") || "demo-only"}
+                  />
+                  <Meta label="Authority" value="demo_only_not_authority" />
+                  <Meta label="Relation type" value="mock/demo links" />
+                </div>
+              </>
+            ) : (
+              <Status label="No node selected" detail="Select a demo node in the graph." />
+            )}
+          </aside>
+        </div>
+
+        <div className={styles.demoLegend}>
+          <span className={styles.demoLegendItem}>Domain</span>
+          <span className={styles.demoLegendItem}>Term</span>
+          <span className={styles.demoLegendItem}>Spec slice</span>
+          <span className={styles.demoLegendItem}>Proposal</span>
+          <span className={styles.demoLegendItem}>Evidence</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (typeof document === "undefined") return lens;
+
+  return createPortal(lens, document.body);
 }
 
 function Metric({ value, label }: { value: number; label: string }) {
