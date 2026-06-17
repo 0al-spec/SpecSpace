@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { type PointerEvent, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type {
   PracticalOntology,
@@ -70,6 +70,16 @@ type DemoLink = {
 type DemoGraph = {
   nodes: readonly DemoNode[];
   links: readonly DemoLink[];
+};
+
+type DemoNodePosition = Pick<DemoNode, "x" | "y">;
+
+type DemoPointerState = {
+  nodeId: string;
+  startClientX: number;
+  startClientY: number;
+  offsetX: number;
+  offsetY: number;
 };
 
 const DEMO_NODE_SEEDS: readonly Omit<DemoNode, "evidenceCount" | "sourceRefs">[] = [
@@ -391,6 +401,15 @@ const NODE_TONE_CLASS: Record<DemoNodeKind, string> = {
   evidence: styles.demoNodeEvidence,
 };
 
+const DEMO_GRAPH_VIEWBOX = {
+  width: 820,
+  height: 560,
+};
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
 function findMatchingTerm(
   data: PracticalOntology,
   label: string,
@@ -591,11 +610,53 @@ export function OntologyGraphDemoLens({
   onClose: () => void;
 }) {
   const graph = useMemo(() => buildDemoGraph(data), [data]);
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState(graph.nodes[0]?.id ?? "");
-  const pointerDownRef = useRef<{ nodeId: string; x: number; y: number } | null>(null);
+  const [nodePositions, setNodePositions] = useState<Record<string, DemoNodePosition>>({});
+  const [draggingNodeId, setDraggingNodeId] = useState("");
+  const pointerDownRef = useRef<DemoPointerState | null>(null);
   const pointerMovedRef = useRef(false);
-  const selectedNode = graph.nodes.find((node) => node.id === selectedNodeId) ?? graph.nodes[0];
-  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const graphNodes = useMemo(
+    () =>
+      graph.nodes.map((node) => {
+        const position = nodePositions[node.id];
+        return position ? { ...node, ...position } : node;
+      }),
+    [graph.nodes, nodePositions],
+  );
+  const selectedNode = graphNodes.find((node) => node.id === selectedNodeId) ?? graphNodes[0];
+  const nodeById = new Map(graphNodes.map((node) => [node.id, node]));
+
+  function pointerPoint(event: PointerEvent<SVGGElement>): DemoNodePosition | null {
+    const svg = svgRef.current;
+    const transform = svg?.getScreenCTM();
+    if (!svg || !transform) return null;
+    const point = svg.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+    const svgPoint = point.matrixTransform(transform.inverse());
+    return { x: svgPoint.x, y: svgPoint.y };
+  }
+
+  function updateNodePosition(node: DemoNode, event: PointerEvent<SVGGElement>): void {
+    const pointerDown = pointerDownRef.current;
+    const point = pointerPoint(event);
+    if (!pointerDown || !point) return;
+    const nextX = clamp(
+      point.x - pointerDown.offsetX,
+      node.radius,
+      DEMO_GRAPH_VIEWBOX.width - node.radius,
+    );
+    const nextY = clamp(
+      point.y - pointerDown.offsetY,
+      node.radius,
+      DEMO_GRAPH_VIEWBOX.height - node.radius,
+    );
+    setNodePositions((current) => ({
+      ...current,
+      [node.id]: { x: nextX, y: nextY },
+    }));
+  }
 
   const lens = (
     <div className={styles.demoGraphOverlay} role="dialog" aria-modal="true">
@@ -611,6 +672,13 @@ export function OntologyGraphDemoLens({
             <Pill value={`${graph.nodes.length} demo nodes`} />
             <Pill value={`${graph.links.length} demo links`} />
             <Pill value={`${data.summary.termCount} extracted`} />
+            <button
+              type="button"
+              className={styles.closeButton}
+              onClick={() => setNodePositions({})}
+            >
+              Reset layout
+            </button>
             <button type="button" className={styles.closeButton} onClick={onClose}>
               Close
             </button>
@@ -624,7 +692,12 @@ export function OntologyGraphDemoLens({
 
         <div className={styles.demoGraphBody}>
           <div className={styles.demoGraphCanvas} aria-label="Demo ontology force graph">
-            <svg viewBox="0 0 820 560" role="img" aria-label="Curated demo ontology graph">
+            <svg
+              ref={svgRef}
+              viewBox={`0 0 ${DEMO_GRAPH_VIEWBOX.width} ${DEMO_GRAPH_VIEWBOX.height}`}
+              role="img"
+              aria-label="Curated demo ontology graph"
+            >
               <defs>
                 <filter id="demo-node-shadow" x="-20%" y="-20%" width="140%" height="140%">
                   <feDropShadow dx="0" dy="4" stdDeviation="5" floodOpacity="0.16" />
@@ -651,7 +724,7 @@ export function OntologyGraphDemoLens({
                   </g>
                 );
               })}
-              {graph.nodes.map((node) => {
+              {graphNodes.map((node) => {
                 const selected = node.id === selectedNode?.id;
                 return (
                   <g
@@ -660,12 +733,20 @@ export function OntologyGraphDemoLens({
                       styles.demoNodeGroup,
                       NODE_TONE_CLASS[node.kind],
                       selected ? styles.demoNodeSelected : "",
+                      draggingNodeId === node.id ? styles.demoNodeDragging : "",
                     ].join(" ")}
                     role="button"
                     tabIndex={0}
                     onPointerDown={(event) => {
                       event.preventDefault();
-                      pointerDownRef.current = { nodeId: node.id, x: event.clientX, y: event.clientY };
+                      const point = pointerPoint(event);
+                      pointerDownRef.current = {
+                        nodeId: node.id,
+                        startClientX: event.clientX,
+                        startClientY: event.clientY,
+                        offsetX: point ? point.x - node.x : 0,
+                        offsetY: point ? point.y - node.y : 0,
+                      };
                       pointerMovedRef.current = false;
                       event.currentTarget.setPointerCapture(event.pointerId);
                     }}
@@ -673,9 +754,13 @@ export function OntologyGraphDemoLens({
                       const pointerDown = pointerDownRef.current;
                       if (!pointerDown || pointerDown.nodeId !== node.id) return;
                       const moved =
-                        Math.abs(event.clientX - pointerDown.x) > 4 ||
-                        Math.abs(event.clientY - pointerDown.y) > 4;
-                      if (moved) pointerMovedRef.current = true;
+                        Math.abs(event.clientX - pointerDown.startClientX) > 4 ||
+                        Math.abs(event.clientY - pointerDown.startClientY) > 4;
+                      if (moved) {
+                        pointerMovedRef.current = true;
+                        setDraggingNodeId(node.id);
+                        updateNodePosition(node, event);
+                      }
                     }}
                     onPointerUp={(event) => {
                       event.preventDefault();
@@ -683,10 +768,11 @@ export function OntologyGraphDemoLens({
                       const moved =
                         pointerMovedRef.current ||
                         !pointerDown ||
-                        Math.abs(event.clientX - pointerDown.x) > 4 ||
-                        Math.abs(event.clientY - pointerDown.y) > 4;
+                        Math.abs(event.clientX - pointerDown.startClientX) > 4 ||
+                        Math.abs(event.clientY - pointerDown.startClientY) > 4;
                       pointerDownRef.current = null;
                       pointerMovedRef.current = false;
+                      setDraggingNodeId("");
                       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
                         event.currentTarget.releasePointerCapture(event.pointerId);
                       }
@@ -695,6 +781,7 @@ export function OntologyGraphDemoLens({
                     onPointerCancel={(event) => {
                       pointerDownRef.current = null;
                       pointerMovedRef.current = false;
+                      setDraggingNodeId("");
                       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
                         event.currentTarget.releasePointerCapture(event.pointerId);
                       }
