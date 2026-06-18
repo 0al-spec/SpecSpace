@@ -310,6 +310,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_implementation_work_index = specspace_v1_api.handle_v1_implementation_work_index
     handle_v1_metrics = specspace_v1_api.handle_v1_metrics
     handle_v1_agent_surfaces = specspace_v1_api.handle_v1_agent_surfaces
+    handle_v1_artifact_content = specspace_v1_api.handle_v1_artifact_content
+    handle_v1_artifacts = specspace_v1_api.handle_v1_artifacts
     handle_v1_ontology_semantic_review_surface = (
         specspace_v1_api.handle_v1_ontology_semantic_review_surface
     )

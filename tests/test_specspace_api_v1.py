@@ -1862,6 +1862,92 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["gap_count"], 1)
         self.assertEqual(body["summary"]["diff_added_class_count"], 1)
 
+    def test_artifacts_v1_lists_file_runs_and_materialized_ontology_ir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_specgraph_core_ontology_artifacts(root)
+
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=root / "runs",
+                specgraph_dir=root,
+            )
+            try:
+                status, body = _get(f"{base}/api/v1/artifacts")
+                content_status, content = _get(
+                    f"{base}/api/v1/artifacts/content?"
+                    f"path={quote('ontology/specgraph-core/ontology.normalized.json')}"
+                )
+                unsafe_status, unsafe = _get(f"{base}/api/v1/artifacts/content?path=../secret.json")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["artifact_kind"], "specspace_artifact_catalog")
+        self.assertEqual(body["source"]["provider"], "file")
+        self.assertGreaterEqual(body["summary"]["runs_count"], 4)
+        self.assertEqual(body["summary"]["ontology_ir_count"], 1)
+        by_path = {entry["path"]: entry for entry in body["artifacts"]}
+        self.assertEqual(by_path["runs/ontology_package_index.json"]["group"], "ontology")
+        self.assertEqual(
+            by_path["ontology/specgraph-core/ontology.normalized.json"]["group"],
+            "ontology_ir",
+        )
+        self.assertEqual(content_status, 200)
+        self.assertEqual(content["artifact_kind"], "specspace_artifact_content")
+        self.assertEqual(content["content_kind"], "json")
+        self.assertEqual(content["data"]["id"], "org.0al.specgraph.core")
+        self.assertEqual(unsafe_status, 400)
+        self.assertEqual(unsafe["reason"], "invalid_artifact_path")
+
+    def test_artifacts_v1_lists_http_manifest_runs_and_materialized_ontology_ir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifacts"
+            spec_dir = artifact_root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_specgraph_core_ontology_artifacts(artifact_root)
+            _write_manifest(
+                artifact_root,
+                [
+                    "specs/nodes/SG-SPEC-0001.yaml",
+                    "runs/ontology_package_index.json",
+                    "runs/ontology_binding_preview.json",
+                    "runs/ontology_import_gap_index.json",
+                    "runs/ontology_compatibility_diff_preview.json",
+                    "ontology/specgraph-core/ontology.normalized.json",
+                ],
+            )
+
+            static_httpd, static_thread, artifact_base = _start_static(artifact_root)
+            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base)
+            try:
+                status, body = _get(f"{base}/api/v1/artifacts")
+                content_status, content = _get(
+                    f"{base}/api/v1/artifacts/content?"
+                    f"path={quote('ontology/specgraph-core/ontology.normalized.json')}"
+                )
+            finally:
+                _stop(httpd, thread)
+                _stop(static_httpd, static_thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["source"]["provider"], "http")
+        self.assertEqual(body["summary"]["artifact_count"], 6)
+        self.assertEqual(body["summary"]["ontology_artifact_count"], 4)
+        self.assertEqual(body["summary"]["ontology_ir_count"], 1)
+        by_path = {entry["path"]: entry for entry in body["artifacts"]}
+        self.assertTrue(by_path["ontology/specgraph-core/ontology.normalized.json"]["referenced_by_package_index"])
+        self.assertTrue(by_path["runs/ontology_package_index.json"]["url"].startswith(artifact_base))
+        self.assertEqual(content_status, 200)
+        self.assertEqual(content["source"]["provider"], "http")
+        self.assertEqual(content["data"]["namespace"], "sgcore")
+
     def test_proposals_v1_degrades_when_optional_artifacts_are_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

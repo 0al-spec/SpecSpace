@@ -357,6 +357,18 @@ def handle_v1_proposals(handler: SpecSpaceV1Handler) -> None:
     json_response(handler, status, payload)
 
 
+def handle_v1_artifacts(handler: SpecSpaceV1Handler) -> None:
+    status, payload = _provider(handler).read_artifact_catalog()
+    json_response(handler, status, payload)
+
+
+def handle_v1_artifact_content(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    params = query_params(parsed)
+    path = query_value(params, "path", "")
+    status, payload = _provider(handler).read_artifact_content(path or "")
+    json_response(handler, status, payload)
+
+
 def handle_v1_practical_ontology(handler: SpecSpaceV1Handler) -> None:
     status, payload = _provider(handler).read_practical_ontology()
     json_response(handler, status, payload)

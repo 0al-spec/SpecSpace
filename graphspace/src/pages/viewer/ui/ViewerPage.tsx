@@ -99,6 +99,7 @@ import {
 } from "./ViewerChrome";
 import { useMetricsIndex } from "../model/use-metrics-index";
 import { useAgentSurfaces } from "../model/use-agent-surfaces";
+import { useArtifactCatalog } from "../model/use-artifact-catalog";
 import { useOntologyOwnerDecisionReview } from "../model/use-ontology-owner-decision-review";
 import { useOntologyReviewDashboard } from "../model/use-ontology-review-dashboard";
 import { usePracticalOntology } from "../model/use-practical-ontology";
@@ -160,6 +161,7 @@ export function ViewerPage() {
   const ontologyOwnerDecisionReviewState = useOntologyOwnerDecisionReview({
     refreshKey: runsWatchVersion,
   });
+  const artifactCatalogState = useArtifactCatalog({ refreshKey: runsWatchVersion });
   const capabilitiesState = useSpecSpaceCapabilities();
   const specpmRegistryState = useSpecPMRegistrySummary();
   const specGraphState = useSpecGraph({ refreshKey: runsWatchVersion });
@@ -272,6 +274,9 @@ export function ViewerPage() {
     ...artifactDiagnostics.map(
       (artifact) => `${artifact.label}: ${artifact.status}; ${artifact.detail}`,
     ),
+    artifactCatalogState.kind === "ok"
+      ? `Published artifact catalog: live; ${artifactCatalogState.data.summary.artifactCount} files`
+      : `Published artifact catalog: ${artifactCatalogState.kind}`,
     ...capabilityDiagnostics.map(
       (artifact) => `${artifact.label}: ${artifact.status}; ${artifact.detail}`,
     ),
@@ -351,10 +356,17 @@ export function ViewerPage() {
     ontologyOwnerDecisionReviewState.kind === "ok"
       ? `${ontologyOwnerDecisionReviewState.data.summary.previewCount} decisions · ${ontologyOwnerDecisionReviewState.data.summary.status}`
       : ontologyOwnerDecisionReviewState.kind;
-  const artifactAttentionCount = artifactDiagnostics.filter(
-    (artifact) => artifact.tone !== "live",
-  ).length;
-  const artifactCaption = `runs tick ${runsWatchVersion}`;
+  const artifactAttentionCount =
+    artifactDiagnostics.filter((artifact) => artifact.tone !== "live").length +
+    (artifactCatalogState.kind === "http-error" ||
+    artifactCatalogState.kind === "network-error" ||
+    artifactCatalogState.kind === "parse-error"
+      ? 1
+      : 0);
+  const artifactCaption =
+    artifactCatalogState.kind === "ok"
+      ? `${artifactCatalogState.data.summary.artifactCount} files · ${artifactCatalogState.data.summary.ontologyArtifactCount} ontology`
+      : `runs tick ${runsWatchVersion}`;
   const lifecycleBadgesByNode: ReadonlyMap<string, SpecPMLifecycleBadge> | undefined =
     specpmLifecycleState.kind === "ok"
       ? specpmLifecycleState.badgesByNode
@@ -1060,6 +1072,7 @@ export function ViewerPage() {
             <LiveArtifactStatusPanel
               diagnostics={artifactDiagnostics}
               capabilityDiagnostics={capabilityDiagnostics}
+              artifactCatalogState={artifactCatalogState}
               runsWatchVersion={runsWatchVersion}
               showHeader={false}
             />

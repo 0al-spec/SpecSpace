@@ -37,6 +37,7 @@ HTTP_ARTIFACT_TIMEOUT_SECONDS = 10
 HTTP_ARTIFACT_CACHE_TTL_SECONDS = 30
 HTTP_ARTIFACT_MAX_BYTES = 10_000_000
 HTTP_ARTIFACT_PREFIX_BYTES = 4096
+ARTIFACT_CONTENT_MAX_BYTES = 1_000_000
 SPECSPACE_APP_VERSION = "0.0.1"
 SPECPM_REGISTRY_SOURCE_NAME = "specpm_registry"
 SPECPM_REGISTRY_API_VERSION = "specpm.registry/v0"
@@ -104,6 +105,10 @@ class SpecSpaceProvider(Protocol):
     def read_metrics(self) -> tuple[int, dict[str, Any]]: ...
 
     def read_agent_surfaces(self) -> tuple[int, dict[str, Any]]: ...
+
+    def read_artifact_catalog(self) -> tuple[int, dict[str, Any]]: ...
+
+    def read_artifact_content(self, path: str) -> tuple[int, dict[str, Any]]: ...
 
     def read_ontology_semantic_review_surface(self) -> tuple[int, dict[str, Any]]: ...
 
@@ -337,6 +342,111 @@ def compile_spec_markdown_with_provider(
     if compile_status != HTTPStatus.OK:
         response["error"] = compile_payload.get("error", "Hyperprompt compile failed.")
     return compile_status, response
+
+
+def artifact_group(path: str) -> str:
+    if path == "artifact_manifest.json":
+        return "manifest"
+    if path.endswith("ontology.normalized.json"):
+        return "ontology_ir"
+    if path.startswith("runs/ontology"):
+        return "ontology"
+    if path.startswith("runs/"):
+        return "runs"
+    if path.startswith("specs/"):
+        return "specs"
+    if path.startswith("tests/fixtures/ontology_import/"):
+        return "ontology_ir"
+    return path.split("/", 1)[0] if "/" in path else "root"
+
+
+def artifact_label(path: str) -> str:
+    name = PurePosixPath(path).name
+    if name.endswith(".json"):
+        name = name.removesuffix(".json")
+    return name.replace("_", " ")
+
+
+def artifact_catalog_summary(artifacts: list[dict[str, Any]]) -> dict[str, Any]:
+    root_counts: dict[str, int] = {}
+    group_counts: dict[str, int] = {}
+    for artifact in artifacts:
+        root = str(artifact.get("root") or "root")
+        group = str(artifact.get("group") or "root")
+        root_counts[root] = root_counts.get(root, 0) + 1
+        group_counts[group] = group_counts.get(group, 0) + 1
+    return {
+        "artifact_count": len(artifacts),
+        "runs_count": group_counts.get("runs", 0) + group_counts.get("ontology", 0),
+        "ontology_artifact_count": group_counts.get("ontology", 0),
+        "ontology_ir_count": group_counts.get("ontology_ir", 0),
+        "root_counts": root_counts,
+        "group_counts": group_counts,
+    }
+
+
+def build_artifact_catalog(
+    *,
+    source: dict[str, Any],
+    artifacts: list[dict[str, Any]],
+    manifest: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    ordered = sorted(
+        artifacts,
+        key=lambda item: (
+            0 if item.get("group") in {"ontology", "ontology_ir"} else 1,
+            str(item.get("group") or ""),
+            str(item.get("path") or ""),
+        ),
+    )
+    payload: dict[str, Any] = {
+        "api_version": SPECSPACE_API_VERSION,
+        "artifact_kind": "specspace_artifact_catalog",
+        "schema_version": 1,
+        "read_only": True,
+        "source": source,
+        "summary": artifact_catalog_summary(ordered),
+        "artifacts": ordered,
+    }
+    if manifest is not None:
+        payload["manifest"] = {
+            "generated_at": manifest.get("generated_at"),
+            "git": manifest.get("git") if isinstance(manifest.get("git"), dict) else None,
+            "safety_gate": manifest.get("safety_gate") if isinstance(manifest.get("safety_gate"), dict) else None,
+        }
+    return payload
+
+
+def decode_artifact_content(
+    *,
+    path: str,
+    text: str,
+    source: dict[str, Any],
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "api_version": SPECSPACE_API_VERSION,
+        "artifact_kind": "specspace_artifact_content",
+        "schema_version": 1,
+        "read_only": True,
+        "path": path,
+        "source": source,
+        "size_bytes": len(text.encode("utf-8")),
+    }
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        payload["content_kind"] = "text"
+        payload["text"] = text
+        return payload
+    payload["content_kind"] = "json"
+    payload["data"] = data
+    if isinstance(data, dict):
+        payload["json_summary"] = {
+            "artifact_kind": data.get("artifact_kind"),
+            "schema_version": data.get("schema_version"),
+            "top_level_keys": sorted(data.keys()),
+        }
+    return payload
 
 
 @dataclass(frozen=True)
@@ -607,6 +717,124 @@ class FileSpecGraphProvider:
 
     def read_agent_surfaces(self) -> tuple[int, dict[str, Any]]:
         return agent_surfaces.read_file_agent_surface_index(runs_dir=self.runs_dir)
+
+    def _local_materialized_ir_files(self) -> list[tuple[str, Path]]:
+        package_index = self._read_local_runs_json(practical_ontology.PACKAGE_INDEX_ARTIFACT)
+        if not package_index:
+            return []
+        packages = package_index.get("packages")
+        if not isinstance(packages, list):
+            return []
+        candidates: list[tuple[str, Path]] = []
+        roots: list[Path] = []
+        if self.specgraph_dir is not None:
+            roots.append(self.specgraph_dir)
+        if self.runs_dir is not None:
+            roots.append(self.runs_dir.parent)
+        if (
+            self.spec_nodes_dir is not None
+            and self.spec_nodes_dir.name == "nodes"
+            and self.spec_nodes_dir.parent.name == "specs"
+        ):
+            roots.append(self.spec_nodes_dir.parent.parent)
+        for package in packages:
+            if not isinstance(package, dict):
+                continue
+            raw_path = package.get("materialized_ir")
+            safe_path = safe_manifest_path(raw_path)
+            if safe_path is None:
+                continue
+            relative = Path(*PurePosixPath(safe_path).parts)
+            for root in roots:
+                path = root / relative
+                if path.exists() and path.is_file():
+                    candidates.append((safe_path, path))
+                    break
+        return candidates
+
+    def _file_artifact_map(self) -> dict[str, Path]:
+        artifact_map: dict[str, Path] = {}
+        if self.runs_dir is not None and self.runs_dir.exists():
+            for path in sorted(self.runs_dir.rglob("*.json")):
+                if not path.is_file():
+                    continue
+                rel = PurePosixPath("runs", path.relative_to(self.runs_dir).as_posix()).as_posix()
+                artifact_map[rel] = path
+        for rel, path in self._local_materialized_ir_files():
+            artifact_map[rel] = path
+        return artifact_map
+
+    def read_artifact_catalog(self) -> tuple[int, dict[str, Any]]:
+        artifact_map = self._file_artifact_map()
+        artifacts = [
+            {
+                "path": rel,
+                "root": rel.split("/", 1)[0],
+                "label": artifact_label(rel),
+                "group": artifact_group(rel),
+                "size_bytes": path.stat().st_size,
+            }
+            for rel, path in artifact_map.items()
+        ]
+        return HTTPStatus.OK, build_artifact_catalog(
+            source={
+                "provider": "file",
+                "read_only": True,
+                "runs_dir": str(self.runs_dir) if self.runs_dir is not None else None,
+                "specgraph_dir": str(self.specgraph_dir) if self.specgraph_dir is not None else None,
+            },
+            artifacts=artifacts,
+        )
+
+    def read_artifact_content(self, path: str) -> tuple[int, dict[str, Any]]:
+        safe_path = safe_manifest_path(path)
+        if safe_path is None:
+            return HTTPStatus.BAD_REQUEST, {
+                "error": "Invalid artifact path.",
+                "reason": "invalid_artifact_path",
+                "path": path,
+            }
+        artifact_map = self._file_artifact_map()
+        artifact_path = artifact_map.get(safe_path)
+        if artifact_path is None:
+            return HTTPStatus.NOT_FOUND, {
+                "error": "Artifact is not available from the configured provider.",
+                "reason": "missing_artifact",
+                "path": safe_path,
+            }
+        try:
+            size_bytes = artifact_path.stat().st_size
+        except OSError as exc:
+            return HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": "Artifact could not be inspected.",
+                "reason": "artifact_stat_failed",
+                "path": safe_path,
+                "detail": str(exc),
+            }
+        if size_bytes > ARTIFACT_CONTENT_MAX_BYTES:
+            return HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {
+                "error": "Artifact exceeds preview limit.",
+                "reason": "artifact_too_large",
+                "path": safe_path,
+                "max_bytes": ARTIFACT_CONTENT_MAX_BYTES,
+            }
+        try:
+            text = artifact_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            return HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": "Artifact could not be read.",
+                "reason": "artifact_read_failed",
+                "path": safe_path,
+                "detail": str(exc),
+            }
+        return HTTPStatus.OK, decode_artifact_content(
+            path=safe_path,
+            text=text,
+            source={
+                "provider": "file",
+                "read_only": True,
+            },
+        )
 
     def read_ontology_semantic_review_surface(self) -> tuple[int, dict[str, Any]]:
         return specgraph_surfaces.read_ontology_semantic_review_surface(
@@ -1466,6 +1694,120 @@ class HttpSpecGraphProvider:
                 "manifest": self.manifest_url,
             },
             runtime_evidence_details=runtime_evidence_details,
+        )
+
+    def _http_materialized_ir_refs(self, manifest: dict[str, Any]) -> set[str]:
+        package_index = self._read_optional_runs_json_data(
+            manifest,
+            practical_ontology.PACKAGE_INDEX_ARTIFACT,
+        )
+        if not package_index:
+            return set()
+        packages = package_index.get("packages")
+        if not isinstance(packages, list):
+            return set()
+        refs: set[str] = set()
+        for package in packages:
+            if not isinstance(package, dict):
+                continue
+            path = safe_manifest_path(package.get("materialized_ir"))
+            if path is not None:
+                refs.add(path)
+        return refs
+
+    def read_artifact_catalog(self) -> tuple[int, dict[str, Any]]:
+        manifest, manifest_error = self._read_manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+        materialized_ir_refs = self._http_materialized_ir_refs(manifest)
+        artifacts: list[dict[str, Any]] = []
+        for entry in self._manifest_files(manifest):
+            path = safe_manifest_path(entry.get("path"))
+            if path is None:
+                continue
+            group = "ontology_ir" if path in materialized_ir_refs else artifact_group(path)
+            artifacts.append(
+                {
+                    "path": path,
+                    "root": entry.get("root") if isinstance(entry.get("root"), str) else path.split("/", 1)[0],
+                    "label": artifact_label(path),
+                    "group": group,
+                    "size_bytes": entry.get("size_bytes") if isinstance(entry.get("size_bytes"), int) else None,
+                    "sha256": entry.get("sha256") if isinstance(entry.get("sha256"), str) else None,
+                    "url": self._artifact_url(path),
+                    "referenced_by_package_index": path in materialized_ir_refs,
+                }
+            )
+        return HTTPStatus.OK, build_artifact_catalog(
+            source={
+                "provider": "http",
+                "read_only": True,
+                "artifact_base_url": self.normalized_base_url,
+                "manifest": self.manifest_url,
+            },
+            artifacts=artifacts,
+            manifest=manifest,
+        )
+
+    def read_artifact_content(self, path: str) -> tuple[int, dict[str, Any]]:
+        safe_path = safe_manifest_path(path)
+        if safe_path is None:
+            return HTTPStatus.BAD_REQUEST, {
+                "error": "Invalid artifact path.",
+                "reason": "invalid_artifact_path",
+                "path": path,
+            }
+        manifest, manifest_error = self._read_manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+        if not self._has_artifact(manifest, safe_path):
+            return HTTPStatus.NOT_FOUND, {
+                "error": "Artifact is not listed in artifact_manifest.json.",
+                "reason": "missing_artifact",
+                "path": safe_path,
+                "manifest": self.manifest_url,
+            }
+        manifest_entry = next(
+            (
+                entry
+                for entry in self._manifest_files(manifest)
+                if safe_manifest_path(entry.get("path")) == safe_path
+            ),
+            None,
+        )
+        manifest_size = (
+            manifest_entry.get("size_bytes")
+            if isinstance(manifest_entry, dict) and isinstance(manifest_entry.get("size_bytes"), int)
+            else None
+        )
+        if manifest_size is not None and manifest_size > ARTIFACT_CONTENT_MAX_BYTES:
+            return HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {
+                "error": "Artifact exceeds preview limit.",
+                "reason": "artifact_too_large",
+                "path": safe_path,
+                "max_bytes": ARTIFACT_CONTENT_MAX_BYTES,
+            }
+        url = self._artifact_url(safe_path)
+        status, text, error = http_get_text(url, max_bytes=ARTIFACT_CONTENT_MAX_BYTES)
+        if error is not None or status != HTTPStatus.OK or text is None:
+            return status, {
+                "error": "Artifact could not be read.",
+                "reason": "artifact_fetch_failed",
+                "path": safe_path,
+                "url": url,
+                "detail": error["detail"] if error is not None else f"HTTP {int(status)}",
+            }
+        return HTTPStatus.OK, decode_artifact_content(
+            path=safe_path,
+            text=text,
+            source={
+                "provider": "http",
+                "read_only": True,
+                "url": url,
+                "manifest": self.manifest_url,
+            },
         )
 
     def read_ontology_semantic_review_surface(self) -> tuple[int, dict[str, Any]]:
