@@ -321,7 +321,9 @@ Envelope shape:
 ### `GET /api/v1/artifacts`
 
 Returns a readonly catalog of public-safe artifacts available to SpecSpace.
-For the file provider this is derived from local `runs/**/*.json` plus
+For the file provider this is derived from a local public artifact manifest
+when available. Without a local manifest, SpecSpace falls back to a
+conservative allowlist of known public root-level `runs/*.json` surfaces plus
 normalized ontology IR files referenced by `runs/ontology_package_index.json`.
 For the HTTP provider this is derived from `artifact_manifest.json`, including
 published `runs/*.json` and package-index referenced `materialized_ir` files.
@@ -379,8 +381,9 @@ Query parameters:
 - `path`: required safe relative artifact path.
 
 The provider rejects absolute paths, parent-directory traversal, unknown
-manifest paths, and artifacts larger than 1 MiB. JSON artifacts are parsed and
-returned as structured `data`; other artifacts are returned as `text`.
+manifest/catalog paths, non-public local runs artifacts, and artifacts larger
+than 1 MiB. JSON artifacts are parsed and returned as structured `data`; other
+artifacts are returned as `text`.
 
 Response shape:
 

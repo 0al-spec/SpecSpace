@@ -25,7 +25,10 @@ export function LiveArtifactStatusPanel({
 }: Props) {
   const [query, setQuery] = useState("");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const artifactContentState = useArtifactContent({ path: selectedPath });
+  const artifactContentState = useArtifactContent({
+    path: selectedPath,
+    refreshKey: runsWatchVersion,
+  });
   const artifacts = artifactCatalogState.kind === "ok" ? artifactCatalogState.data.artifacts : [];
   const normalizedQuery = query.trim().toLowerCase();
   const visibleArtifacts = useMemo(() => {
