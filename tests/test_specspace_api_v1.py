@@ -1587,11 +1587,42 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertIn(("SpecGraph", "contains", "Node"), semantic_relation_pairs)
         self.assertIn(("Spec", "defines", "Requirement"), semantic_relation_pairs)
         self.assertIn(("Requirement", "is_validated_by", "AcceptanceCriterion"), semantic_relation_pairs)
+        self.assertEqual(by_label["SpecGraph"]["source_refs"], ["specs/nodes/SG-SPEC-0001.yaml#specification.seed"])
         self.assertEqual(body["summary"]["semantic_relation_count"], len(body["relations"]))
         self.assertEqual(body["summary"]["topology_edge_count"], len(body["topology_edges"]))
         self.assertEqual(
             body["summary"]["proposal_reference_count"],
             len(body["proposal_references"]),
+        )
+
+    def test_practical_ontology_v1_uses_conceptual_seed_ref_when_seed_file_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(
+                spec_dir / "SG-SPEC-0002.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-0002",
+                    "title": "Unrelated Spec",
+                },
+            )
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir, specgraph_dir=root)
+            try:
+                status, body = _get(f"{base}/api/v1/practical-ontology")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        by_label = {entry["label"]: entry for entry in body["terms"]}
+        self.assertEqual(
+            by_label["SpecGraph"]["source_refs"],
+            ["curated://specspace/specgraph-core-v0"],
+        )
+        self.assertEqual(
+            body["sources"]["curated_seed"]["source_ref"],
+            "curated://specspace/specgraph-core-v0",
         )
 
     def test_proposals_v1_degrades_when_optional_artifacts_are_missing(self) -> None:

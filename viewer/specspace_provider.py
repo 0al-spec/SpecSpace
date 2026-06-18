@@ -511,16 +511,22 @@ class FileSpecGraphProvider:
         if unavailable is not None:
             return unavailable
         assert self.spec_nodes_dir is not None
-        nodes, load_errors = specgraph.load_spec_nodes(self.spec_nodes_dir)
+        seed_path = self.spec_nodes_dir / "SG-SPEC-0001.yaml"
+        curated_seed_source_ref = (
+            practical_ontology.CURATED_SOURCE_REF
+            if seed_path.exists() and seed_path.is_file()
+            else practical_ontology.CONCEPTUAL_CURATED_SOURCE_REF
+        )
         return HTTPStatus.OK, practical_ontology.build_practical_ontology(
-            nodes=nodes,
-            load_errors=load_errors,
-            proposal_markdown=proposals.collect_local_proposal_markdown(self.specgraph_dir),
+            nodes=[],
+            load_errors=[],
+            proposal_markdown={"entry_count": 0},
             source={
                 "provider": "file",
                 "read_only": True,
                 "spec_nodes": str(self.spec_nodes_dir),
                 "specgraph_dir": str(self.specgraph_dir) if self.specgraph_dir is not None else None,
+                "curated_seed_source_ref": curated_seed_source_ref,
             },
         )
 
@@ -1130,11 +1136,15 @@ class HttpSpecGraphProvider:
         if manifest_error is not None:
             return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
         assert manifest is not None
-        nodes, load_errors = self._load_spec_nodes(manifest)
+        curated_seed_source_ref = (
+            practical_ontology.CURATED_SOURCE_REF
+            if self._has_artifact(manifest, "specs/nodes/SG-SPEC-0001.yaml")
+            else practical_ontology.CONCEPTUAL_CURATED_SOURCE_REF
+        )
         return HTTPStatus.OK, practical_ontology.build_practical_ontology(
-            nodes=nodes,
-            load_errors=load_errors,
-            proposal_markdown=self._collect_http_proposal_markdown(manifest),
+            nodes=[],
+            load_errors=[],
+            proposal_markdown={"entry_count": 0},
             source={
                 "provider": "http",
                 "read_only": True,
@@ -1142,6 +1152,7 @@ class HttpSpecGraphProvider:
                 "manifest": self.manifest_url,
                 "generated_at": manifest.get("generated_at"),
                 "git": manifest.get("git") if isinstance(manifest.get("git"), dict) else None,
+                "curated_seed_source_ref": curated_seed_source_ref,
             },
         )
 

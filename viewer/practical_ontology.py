@@ -8,6 +8,7 @@ from typing import Any
 
 PRACTICAL_ONTOLOGY_ARTIFACT_KIND = "specspace_practical_ontology"
 CURATED_SOURCE_REF = "specs/nodes/SG-SPEC-0001.yaml#specification.seed"
+CONCEPTUAL_CURATED_SOURCE_REF = "curated://specspace/specgraph-core-v0"
 
 CURATED_CORE_TERMS: tuple[dict[str, str | None], ...] = (
     {
@@ -197,11 +198,13 @@ def build_practical_ontology(
     proposal_markdown: dict[str, Any],
     source: dict[str, Any],
 ) -> dict[str, Any]:
-    source_count = len(nodes) + int(proposal_markdown.get("entry_count", 0) or 0)
+    legacy_source_count = source.get("legacy_source_count")
+    source_count = legacy_source_count if isinstance(legacy_source_count, int) else 0
+    curated_source_ref = _text(source.get("curated_seed_source_ref"), CONCEPTUAL_CURATED_SOURCE_REF)
     terms = [
         {
             **term,
-            "source_refs": [CURATED_SOURCE_REF],
+            "source_refs": [curated_source_ref],
             "evidence_count": 1,
         }
         for term in CURATED_CORE_TERMS
@@ -212,7 +215,7 @@ def build_practical_ontology(
             "source_term": source_term,
             "relation": relation,
             "target_term": target_term,
-            "source_refs": [CURATED_SOURCE_REF],
+            "source_refs": [curated_source_ref],
             "evidence_count": 1,
         }
         for source_term, relation, target_term in CURATED_CORE_RELATIONS
@@ -240,7 +243,7 @@ def build_practical_ontology(
                 "available": True,
                 "id": "specgraph.core.v0",
                 "title": "SpecGraph Core Ontology",
-                "source_ref": CURATED_SOURCE_REF,
+                "source_ref": curated_source_ref,
                 "entry_count": len(terms),
                 "relation_count": len(relations),
             },
