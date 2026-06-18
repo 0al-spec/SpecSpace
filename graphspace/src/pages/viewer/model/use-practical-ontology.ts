@@ -71,6 +71,9 @@ export type PracticalOntology = {
     proposalReferenceCount: number;
     domainCount: number;
     sourceCount: number;
+    gapCount: number;
+    diffAddedClassCount: number;
+    diffBreakingChangeCount: number;
   };
   domains: readonly PracticalOntologyDomain[];
   terms: readonly PracticalOntologyTerm[];
@@ -81,6 +84,7 @@ export type PracticalOntology = {
   authorityBoundary: {
     practicalOntologyIsAuthority: false;
     derivedFromSpecgraphSources: boolean;
+    compilerArtifactBacked: boolean;
     mayWriteOntologyPackage: false;
     mayMutateCanonicalSpecs: false;
     mayMarkCandidateAccepted: false;
@@ -281,6 +285,9 @@ function parsePracticalOntology(raw: unknown): UsePracticalOntologyState {
         proposalReferenceCount: numberValue(summary.proposal_reference_count),
         domainCount: numberValue(summary.domain_count),
         sourceCount: numberValue(summary.source_count),
+        gapCount: numberValue(summary.gap_count),
+        diffAddedClassCount: numberValue(summary.diff_added_class_count),
+        diffBreakingChangeCount: numberValue(summary.diff_breaking_change_count),
       },
       domains,
       terms,
@@ -291,6 +298,7 @@ function parsePracticalOntology(raw: unknown): UsePracticalOntologyState {
       authorityBoundary: {
         practicalOntologyIsAuthority: false,
         derivedFromSpecgraphSources: boundary.derived_from_specgraph_sources === true,
+        compilerArtifactBacked: boundary.compiler_artifact_backed === true,
         mayWriteOntologyPackage: false,
         mayMutateCanonicalSpecs: false,
         mayMarkCandidateAccepted: false,

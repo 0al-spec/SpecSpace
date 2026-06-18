@@ -31,6 +31,9 @@ const practicalOntology: PracticalOntology = {
     proposalReferenceCount: 0,
     domainCount: 1,
     sourceCount: 1,
+    gapCount: 0,
+    diffAddedClassCount: 0,
+    diffBreakingChangeCount: 0,
   },
   domains: [
     {
@@ -100,6 +103,7 @@ const practicalOntology: PracticalOntology = {
   authorityBoundary: {
     practicalOntologyIsAuthority: false,
     derivedFromSpecgraphSources: false,
+    compilerArtifactBacked: false,
     mayWriteOntologyPackage: false,
     mayMutateCanonicalSpecs: false,
     mayMarkCandidateAccepted: false,
@@ -119,6 +123,7 @@ describe("PracticalOntologyPanel", () => {
     expect(html).toContain("Spec → Requirement");
     expect(html).toContain("curated_core_seed");
     expect(html).toContain("working_draft");
+    expect(html).toContain("Diff !");
     expect(html).toContain("Open ontology graph");
   });
 
@@ -133,6 +138,8 @@ describe("PracticalOntologyPanel", () => {
     expect(html).toContain("Ontology Graph Lens");
     expect(html).toContain("SpecGraph Core Ontology v0");
     expect(html).toContain("working_draft");
+    expect(html).toContain("ontology links");
+    expect(html).toContain("breaking changes");
     expect(html).toContain("curated seed links");
     expect(html).toContain("SpecGraph");
   });
