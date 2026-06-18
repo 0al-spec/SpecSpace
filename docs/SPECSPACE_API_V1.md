@@ -318,6 +318,93 @@ Envelope shape:
 }
 ```
 
+### `GET /api/v1/artifacts`
+
+Returns a readonly catalog of public-safe artifacts available to SpecSpace.
+For the file provider this is derived from local `runs/**/*.json` plus
+normalized ontology IR files referenced by `runs/ontology_package_index.json`.
+For the HTTP provider this is derived from `artifact_manifest.json`, including
+published `runs/*.json` and package-index referenced `materialized_ir` files.
+
+The endpoint does not imply artifact authority. It is an inspection surface:
+SpecSpace can show, search, and preview artifacts, but it does not write
+`runs/`, `specs/nodes/`, or Ontology packages.
+
+Response shape:
+
+```json
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_artifact_catalog",
+  "schema_version": 1,
+  "read_only": true,
+  "source": {
+    "provider": "http"
+  },
+  "summary": {
+    "artifact_count": 42,
+    "runs_count": 36,
+    "ontology_artifact_count": 5,
+    "ontology_ir_count": 1,
+    "root_counts": {
+      "runs": 36,
+      "tests": 1
+    },
+    "group_counts": {
+      "ontology": 5,
+      "ontology_ir": 1,
+      "runs": 31
+    }
+  },
+  "artifacts": [
+    {
+      "path": "runs/ontology_package_index.json",
+      "root": "runs",
+      "label": "ontology package index",
+      "group": "ontology",
+      "size_bytes": 1240,
+      "sha256": "abc123",
+      "url": "https://specgraph.tech/runs/ontology_package_index.json"
+    }
+  ]
+}
+```
+
+### `GET /api/v1/artifacts/content`
+
+Returns a bounded preview of one artifact from the catalog.
+
+Query parameters:
+
+- `path`: required safe relative artifact path.
+
+The provider rejects absolute paths, parent-directory traversal, unknown
+manifest paths, and artifacts larger than 1 MiB. JSON artifacts are parsed and
+returned as structured `data`; other artifacts are returned as `text`.
+
+Response shape:
+
+```json
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_artifact_content",
+  "schema_version": 1,
+  "read_only": true,
+  "path": "tests/fixtures/ontology_import/specgraph-core/ontology.normalized.json",
+  "source": {
+    "provider": "http"
+  },
+  "size_bytes": 2048,
+  "content_kind": "json",
+  "data": {},
+  "json_summary": {
+    "artifact_kind": "ontology_normalized_ir",
+    "schema_version": 1,
+    "top_level_keys": ["artifact_kind", "schema_version", "terms"]
+  }
+}
+```
+
 ### `GET /api/v1/ontology-owner-decision-review`
 
 Returns the SpecGraph-produced `ontology_decision_import_preview` envelope for
