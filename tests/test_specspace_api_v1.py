@@ -1504,7 +1504,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertIn("SG-SPEC-0001", body["filters"]["affected_spec_ids"])
         self.assertEqual(body["sources"]["proposal_markdown"]["entry_count"], 1)
 
-    def test_practical_ontology_v1_derives_readonly_terms_and_relations(self) -> None:
+    def test_practical_ontology_v1_returns_curated_core_seed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             spec_dir = root / "specs" / "nodes"
@@ -1555,58 +1555,74 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(body["read_only"])
         self.assertFalse(body["canonical_mutations_allowed"])
         self.assertFalse(body["authority_boundary"]["practical_ontology_is_authority"])
+        self.assertFalse(body["authority_boundary"]["derived_from_specgraph_sources"])
+        self.assertTrue(body["authority_boundary"]["curated_from_specgraph_seed"])
+        self.assertEqual(body["source"]["ontology_mode"], "curated_core_seed")
         labels = {entry["label"] for entry in body["terms"]}
-        self.assertIn("SpecGraph Ontology Boundary", labels)
-        self.assertIn("OntologyBinding", labels)
-        self.assertIn("provenance_record", labels)
-        self.assertIn("404", labels)
-        self.assertIn("500", labels)
-        self.assertIn("Ontology Grounding", labels)
+        self.assertIn("SpecGraph", labels)
+        self.assertIn("Spec", labels)
+        self.assertIn("Node", labels)
+        self.assertIn("Edge", labels)
+        self.assertIn("Requirement", labels)
+        self.assertIn("AcceptanceCriterion", labels)
+        self.assertIn("CodeSurface", labels)
+        self.assertNotIn("SpecGraph Ontology Boundary", labels)
+        self.assertNotIn("OntologyBinding", labels)
+        self.assertNotIn("provenance_record", labels)
+        self.assertNotIn("404", labels)
+        self.assertNotIn("500", labels)
+        self.assertNotIn("Ontology Grounding", labels)
         by_label = {entry["label"]: entry for entry in body["terms"]}
         self.assertEqual(
-            by_label["provenance_record"]["description"],
-            "A structured metadata envelope attached to a canonical node.",
+            by_label["SpecGraph"]["canonical_ref"],
+            "SG-SPEC-0001",
         )
-        self.assertEqual(by_label["404"]["description"], "Not Found")
-        self.assertEqual(by_label["500"]["description"], "Server Error")
-        self.assertNotIn(
-            "A structured metadata envelope attached to a canonical node.",
-            labels,
-        )
-        self.assertNotIn("Not Found", labels)
-        self.assertNotIn("Server Error", labels)
         self.assertNotIn("domain.a", {entry["domain_id"] for entry in body["domains"]})
-        topology_edges = {
-            (entry["source_id"], entry["relation"], entry["target_id"])
-            for entry in body["topology_edges"]
-        }
-        self.assertIn(("SG-SPEC-0001", "depends_on", "SG-SPEC-0002"), topology_edges)
-        self.assertIn(
-            "SG-SPEC-0001 depends_on SG-SPEC-0002",
-            {entry["display_label"] for entry in body["topology_edges"]},
-        )
-        proposal_references = {
-            (entry["proposal_id"], entry["relation"], entry["target_spec_id"])
-            for entry in body["proposal_references"]
-        }
-        self.assertIn(("0100", "mentions_spec", "SG-SPEC-0001"), proposal_references)
+        self.assertEqual(body["topology_edges"], [])
+        self.assertEqual(body["proposal_references"], [])
         semantic_relation_pairs = {
             (entry["source_term"], entry["relation"], entry["target_term"])
             for entry in body["relations"]
         }
-        self.assertNotIn(
-            ("SpecGraph Ontology Boundary", "depends_on", "SpecSpace Review Surface"),
-            semantic_relation_pairs,
-        )
-        self.assertNotIn(
-            ("Ontology Grounding", "mentions_spec", "SG-SPEC-0001"),
-            semantic_relation_pairs,
-        )
+        self.assertIn(("SpecGraph", "contains", "Node"), semantic_relation_pairs)
+        self.assertIn(("Spec", "defines", "Requirement"), semantic_relation_pairs)
+        self.assertIn(("Requirement", "is_validated_by", "AcceptanceCriterion"), semantic_relation_pairs)
+        self.assertEqual(by_label["SpecGraph"]["source_refs"], ["specs/nodes/SG-SPEC-0001.yaml#specification.seed"])
         self.assertEqual(body["summary"]["semantic_relation_count"], len(body["relations"]))
         self.assertEqual(body["summary"]["topology_edge_count"], len(body["topology_edges"]))
         self.assertEqual(
             body["summary"]["proposal_reference_count"],
             len(body["proposal_references"]),
+        )
+
+    def test_practical_ontology_v1_uses_conceptual_seed_ref_when_seed_file_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(
+                spec_dir / "SG-SPEC-0002.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-0002",
+                    "title": "Unrelated Spec",
+                },
+            )
+            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir, specgraph_dir=root)
+            try:
+                status, body = _get(f"{base}/api/v1/practical-ontology")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        by_label = {entry["label"]: entry for entry in body["terms"]}
+        self.assertEqual(
+            by_label["SpecGraph"]["source_refs"],
+            ["curated://specspace/specgraph-core-v0"],
+        )
+        self.assertEqual(
+            body["sources"]["curated_seed"]["source_ref"],
+            "curated://specspace/specgraph-core-v0",
         )
 
     def test_proposals_v1_degrades_when_optional_artifacts_are_missing(self) -> None:
@@ -3333,14 +3349,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(ontology_status, 200)
         self.assertEqual(ontology["source"]["provider"], "http")
         self.assertFalse(ontology["authority_boundary"]["practical_ontology_is_authority"])
-        self.assertGreaterEqual(ontology["summary"]["term_count"], 2)
-        self.assertIn(
-            ("0042", "mentions_spec", "SG-SPEC-0001"),
-            {
-                (entry["proposal_id"], entry["relation"], entry["target_spec_id"])
-                for entry in ontology["proposal_references"]
-            },
-        )
+        self.assertEqual(ontology["source"]["ontology_mode"], "curated_core_seed")
+        self.assertGreaterEqual(ontology["summary"]["term_count"], 10)
+        self.assertEqual(ontology["proposal_references"], [])
+        self.assertIn("SpecGraph", {entry["label"] for entry in ontology["terms"]})
         self.assertEqual(metrics_status, 200)
         self.assertEqual(metrics["source"]["provider"], "http")
         self.assertEqual(metrics["entry_count"], 7)

@@ -408,24 +408,28 @@ whole endpoint.
 
 ### `GET /api/v1/practical-ontology`
 
-Returns a readonly SpecSpace-derived practical ontology surface. The endpoint
-builds a working vocabulary from already available SpecGraph sources:
+Returns a readonly curated SpecGraph Core Ontology seed. The endpoint no longer
+derives terms from every available `specs/nodes/*.yaml` or
+`docs/proposals/*.md` entry because that extraction produced noisy vocabulary
+items such as articles, example-only terms, proposal titles, and topology facts.
 
-- `specs/nodes/*.yaml`
-- `docs/proposals/*.md`
+The seed is intentionally small and close to the original SG-SPEC-0001 /
+Hypercode-style idea: a graph of declarative entities and typed relations around
+`SpecGraph`, `Spec`, `Node`, `Edge`, `Requirement`, and
+`AcceptanceCriterion`.
 
-It is not a canonical Ontology package, does not mark terms accepted, and does
-not mutate SpecGraph specs.
+It is still not a canonical Ontology package, does not mark terms accepted, and
+does not mutate SpecGraph specs. Legacy extraction is reported only as disabled
+source metadata and is removed from the primary ontology surface.
 
-The response separates relation-like evidence by authority class:
+The response keeps the existing envelope shape:
 
-- `relations` contains semantic ontology relation observations only;
-- `topology_edges` contains SpecGraph graph topology facts such as
-  `depends_on`, `relates_to`, and `refines`;
-- `proposal_references` contains proposal markdown references to spec ids.
-
-Topology and proposal references are useful evidence, but they are not accepted
-ontology relations.
+- `terms` contains curated seed entities;
+- `relations` contains curated semantic ontology relations;
+- `topology_edges` is empty because SpecGraph topology extraction is no longer
+  mixed into ontology;
+- `proposal_references` is empty because proposal markdown extraction is no
+  longer mixed into ontology.
 
 ```json
 {
@@ -436,56 +440,45 @@ ontology relations.
   "canonical_mutations_allowed": false,
   "summary": {
     "term_count": 2,
-    "relation_count": 0,
-    "semantic_relation_count": 0,
-    "topology_edge_count": 1,
-    "proposal_reference_count": 1,
+    "relation_count": 1,
+    "semantic_relation_count": 1,
+    "topology_edge_count": 0,
+    "proposal_reference_count": 0,
     "domain_count": 1,
-    "source_count": 2
+    "source_count": 1
   },
   "terms": [
     {
-      "term_id": "spec_node.specgraph-ontology-boundary",
-      "label": "SpecGraph Ontology Boundary",
-      "kind": "spec_node",
+      "term_id": "ontology.specgraph",
+      "label": "SpecGraph",
+      "kind": "ontology",
       "canonical_ref": "SG-SPEC-0001",
-      "source_refs": ["specs/nodes/SG-SPEC-0001.yaml"]
+      "source_refs": ["specs/nodes/SG-SPEC-0001.yaml#specification.seed"]
     }
   ],
-  "relations": [],
-  "topology_edges": [
+  "relations": [
     {
-      "edge_id": "sg-spec-0001--depends-on--sg-spec-0002",
-      "source_id": "SG-SPEC-0001",
-      "source_title": "SpecGraph Ontology Boundary",
-      "relation": "depends_on",
-      "target_id": "SG-SPEC-0002",
-      "target_title": "SpecSpace Review Surface",
-      "display_label": "SG-SPEC-0001 depends_on SG-SPEC-0002",
-      "authority_class": "specgraph_topology"
+      "relation_id": "specgraph--contains--node",
+      "source_term": "SpecGraph",
+      "relation": "contains",
+      "target_term": "Node",
+      "source_refs": ["specs/nodes/SG-SPEC-0001.yaml#specification.seed"]
     }
   ],
-  "proposal_references": [
-    {
-      "reference_id": "0100--mentions-spec--sg-spec-0001",
-      "proposal_id": "0100",
-      "proposal_title": "Ontology Grounding",
-      "relation": "mentions_spec",
-      "target_spec_id": "SG-SPEC-0001",
-      "display_label": "0100 mentions SG-SPEC-0001",
-      "authority_class": "proposal_reference"
-    }
-  ],
+  "topology_edges": [],
+  "proposal_references": [],
   "relation_taxonomy": {
-    "relations": "semantic ontology relation observations only",
-    "topology_edges": "SpecGraph graph topology facts such as depends_on, relates_to, and refines",
-    "proposal_references": "Proposal markdown references to SpecGraph spec ids",
+    "relations": "curated semantic ontology relations for the SpecGraph core seed",
+    "topology_edges": "legacy SpecGraph topology extraction is removed from the primary ontology surface",
+    "proposal_references": "legacy proposal reference extraction is removed from the primary ontology surface",
     "semantic_relations_are_authority": false,
     "topology_edges_are_ontology_relations": false,
     "proposal_references_are_ontology_relations": false
   },
   "authority_boundary": {
     "practical_ontology_is_authority": false,
+    "derived_from_specgraph_sources": false,
+    "curated_from_specgraph_seed": true,
     "may_write_ontology_package": false,
     "may_mutate_canonical_specs": false,
     "may_mark_candidate_accepted": false

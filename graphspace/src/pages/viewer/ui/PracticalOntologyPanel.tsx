@@ -45,7 +45,7 @@ function sourceLabel(value: unknown): string {
   return "source";
 }
 
-type DemoNodeKind = "domain" | "term" | "spec" | "proposal" | "evidence";
+type DemoNodeKind = "domain" | "term" | "evidence";
 
 type DemoNode = {
   id: string;
@@ -82,322 +82,9 @@ type DemoPointerState = {
   offsetY: number;
 };
 
-const DEMO_NODE_SEEDS: readonly Omit<DemoNode, "evidenceCount" | "sourceRefs">[] = [
-  {
-    id: "domain.specgraph",
-    label: "SpecGraph",
-    shortLabel: "SpecGraph",
-    kind: "domain",
-    domain: "SpecGraph",
-    x: 420,
-    y: 260,
-    radius: 29,
-    description: "Main derived vocabulary domain for specifications and graph structure.",
-  },
-  {
-    id: "domain.ontology",
-    label: "Ontology",
-    shortLabel: "Ontology",
-    kind: "domain",
-    domain: "Ontology",
-    x: 260,
-    y: 180,
-    radius: 24,
-    description: "Demo domain for canonical vocabulary, gaps, and owner decisions.",
-  },
-  {
-    id: "domain.specspace",
-    label: "SpecSpace",
-    shortLabel: "SpecSpace",
-    kind: "domain",
-    domain: "SpecSpace",
-    x: 600,
-    y: 170,
-    radius: 23,
-    description: "Demo domain for review surfaces and visual inspection.",
-  },
-  {
-    id: "domain.agent-layer",
-    label: "Agent Layer",
-    shortLabel: "Agents",
-    kind: "domain",
-    domain: "Agent Layer",
-    x: 255,
-    y: 360,
-    radius: 22,
-    description: "Demo domain for prompt and authoring behavior.",
-  },
-  {
-    id: "domain.evidence",
-    label: "Evidence",
-    shortLabel: "Evidence",
-    kind: "domain",
-    domain: "Evidence",
-    x: 610,
-    y: 365,
-    radius: 22,
-    description: "Demo domain for source references and review evidence.",
-  },
-  {
-    id: "term.spec-node",
-    label: "Spec Node",
-    shortLabel: "Spec Node",
-    kind: "term",
-    domain: "SpecGraph",
-    x: 420,
-    y: 110,
-    radius: 18,
-    description: "A canonical specification node in the graph.",
-  },
-  {
-    id: "term.proposal",
-    label: "Proposal",
-    shortLabel: "Proposal",
-    kind: "term",
-    domain: "Proposal Workflow",
-    x: 470,
-    y: 150,
-    radius: 17,
-    description: "A proposed change or bounded design slice.",
-  },
-  {
-    id: "term.ontology-binding",
-    label: "Ontology Binding",
-    shortLabel: "Binding",
-    kind: "term",
-    domain: "Ontology",
-    x: 300,
-    y: 255,
-    radius: 18,
-    description: "Demo concept for mapping generated vocabulary to accepted ontology terms.",
-  },
-  {
-    id: "term.term-binding-policy",
-    label: "Term Binding Policy",
-    shortLabel: "Policy",
-    kind: "term",
-    domain: "Ontology",
-    x: 185,
-    y: 265,
-    radius: 17,
-    description: "Review-first policy for generated terms and ontology gaps.",
-  },
-  {
-    id: "term.generated-term",
-    label: "Generated Term",
-    shortLabel: "Generated",
-    kind: "term",
-    domain: "Ontology",
-    x: 185,
-    y: 135,
-    radius: 16,
-    description: "A term introduced by an authoring or review workflow.",
-  },
-  {
-    id: "term.ontology-gap",
-    label: "Ontology Gap",
-    shortLabel: "Gap",
-    kind: "term",
-    domain: "Ontology",
-    x: 315,
-    y: 110,
-    radius: 16,
-    description: "A missing or ambiguous vocabulary item requiring owner review.",
-  },
-  {
-    id: "term.owner-decision",
-    label: "Owner Decision",
-    shortLabel: "Decision",
-    kind: "term",
-    domain: "Ontology",
-    x: 135,
-    y: 210,
-    radius: 16,
-    description: "Accepted or rejected ontology owner decision evidence.",
-  },
-  {
-    id: "term.review-surface",
-    label: "Review Surface",
-    shortLabel: "Review",
-    kind: "term",
-    domain: "SpecSpace",
-    x: 665,
-    y: 250,
-    radius: 18,
-    description: "A readable UI/API artifact for inspecting ontology review items.",
-  },
-  {
-    id: "term.practical-ontology",
-    label: "Practical Ontology",
-    shortLabel: "Practical",
-    kind: "term",
-    domain: "SpecSpace",
-    x: 545,
-    y: 250,
-    radius: 18,
-    description: "Derived read-only vocabulary extracted from existing specifications.",
-  },
-  {
-    id: "term.semantic-gate",
-    label: "Semantic Gate",
-    shortLabel: "Gate",
-    kind: "term",
-    domain: "SpecGraph",
-    x: 520,
-    y: 320,
-    radius: 17,
-    description: "A review gate that blocks unsupported or unbound semantic changes.",
-  },
-  {
-    id: "term.source-ref",
-    label: "Source Ref",
-    shortLabel: "Source",
-    kind: "evidence",
-    domain: "Evidence",
-    x: 690,
-    y: 430,
-    radius: 15,
-    description: "Traceable evidence pointing back to spec nodes or proposal markdown.",
-  },
-  {
-    id: "term.evidence-ref",
-    label: "Evidence Ref",
-    shortLabel: "Evidence",
-    kind: "evidence",
-    domain: "Evidence",
-    x: 555,
-    y: 455,
-    radius: 15,
-    description: "Demo evidence handle for graph review and UI inspection.",
-  },
-  {
-    id: "term.claim-calibration",
-    label: "Claim Calibration",
-    shortLabel: "Claims",
-    kind: "term",
-    domain: "Agent Layer",
-    x: 315,
-    y: 440,
-    radius: 16,
-    description: "F/G/R-style bounded calibration for strong claims.",
-  },
-  {
-    id: "term.active-context",
-    label: "Active Context",
-    shortLabel: "Context",
-    kind: "term",
-    domain: "Agent Layer",
-    x: 205,
-    y: 445,
-    radius: 16,
-    description: "Resolved ontology/domain/context frame for spec authoring.",
-  },
-  {
-    id: "term.spec-author-agent",
-    label: "SpecAuthorAgent",
-    shortLabel: "Author",
-    kind: "term",
-    domain: "Agent Layer",
-    x: 130,
-    y: 345,
-    radius: 17,
-    description: "Demo agent that writes specs under ontology and claim calibration rules.",
-  },
-  {
-    id: "spec.0127",
-    label: "0127 Ontology Stdlib Discipline",
-    shortLabel: "0127",
-    kind: "spec",
-    domain: "Ontology",
-    x: 95,
-    y: 115,
-    radius: 14,
-    description: "Demo source slice for treating accepted ontology terms as base symbols.",
-  },
-  {
-    id: "spec.0128",
-    label: "0128 Term Binding Policy",
-    shortLabel: "0128",
-    kind: "spec",
-    domain: "Ontology",
-    x: 92,
-    y: 285,
-    radius: 14,
-    description: "Demo source slice for generated-term binding policy.",
-  },
-  {
-    id: "spec.0129",
-    label: "0129 Term Binding Gate",
-    shortLabel: "0129",
-    kind: "spec",
-    domain: "SpecGraph",
-    x: 440,
-    y: 410,
-    radius: 14,
-    description: "Demo source slice for executable review-warning gate behavior.",
-  },
-  {
-    id: "proposal.0100",
-    label: "0100 Ontology Grounding",
-    shortLabel: "0100",
-    kind: "proposal",
-    domain: "Ontology",
-    x: 735,
-    y: 140,
-    radius: 14,
-    description: "Demo proposal source for ontology-grounded semantic control.",
-  },
-  {
-    id: "proposal.0126",
-    label: "0126 Claim Calibration Contract",
-    shortLabel: "0126",
-    kind: "proposal",
-    domain: "Agent Layer",
-    x: 390,
-    y: 505,
-    radius: 14,
-    description: "Demo proposal source for calibrated spec-authoring claims.",
-  },
-];
-
-const DEMO_LINKS: readonly DemoLink[] = [
-  { source: "domain.specgraph", target: "term.spec-node", label: "contains" },
-  { source: "domain.specgraph", target: "term.proposal", label: "contains" },
-  { source: "domain.ontology", target: "term.ontology-binding", label: "focuses" },
-  { source: "domain.ontology", target: "term.term-binding-policy", label: "governs" },
-  { source: "domain.ontology", target: "term.generated-term", label: "reviews" },
-  { source: "domain.ontology", target: "term.ontology-gap", label: "routes" },
-  { source: "domain.ontology", target: "term.owner-decision", label: "accepts/rejects" },
-  { source: "domain.specspace", target: "term.review-surface", label: "renders" },
-  { source: "domain.specspace", target: "term.practical-ontology", label: "renders" },
-  { source: "domain.evidence", target: "term.source-ref", label: "contains" },
-  { source: "domain.evidence", target: "term.evidence-ref", label: "contains" },
-  { source: "domain.agent-layer", target: "term.spec-author-agent", label: "hosts" },
-  { source: "domain.agent-layer", target: "term.claim-calibration", label: "requires" },
-  { source: "domain.agent-layer", target: "term.active-context", label: "requires" },
-  { source: "term.spec-author-agent", target: "term.generated-term", label: "emits" },
-  { source: "term.generated-term", target: "term.ontology-binding", label: "binds_to" },
-  { source: "term.generated-term", target: "term.ontology-gap", label: "may_need" },
-  { source: "term.ontology-gap", target: "term.owner-decision", label: "awaits" },
-  { source: "term.owner-decision", target: "term.semantic-gate", label: "closes" },
-  { source: "term.semantic-gate", target: "term.review-surface", label: "feeds" },
-  { source: "term.practical-ontology", target: "term.review-surface", label: "supports" },
-  { source: "term.source-ref", target: "term.evidence-ref", label: "backs" },
-  { source: "term.evidence-ref", target: "term.review-surface", label: "explains" },
-  { source: "term.claim-calibration", target: "term.active-context", label: "scopes" },
-  { source: "term.active-context", target: "term.ontology-binding", label: "narrows" },
-  { source: "spec.0127", target: "term.ontology-binding", label: "motivates" },
-  { source: "spec.0128", target: "term.term-binding-policy", label: "defines" },
-  { source: "spec.0129", target: "term.semantic-gate", label: "implements" },
-  { source: "proposal.0100", target: "term.practical-ontology", label: "seeds" },
-  { source: "proposal.0126", target: "term.claim-calibration", label: "defines" },
-];
-
 const NODE_TONE_CLASS: Record<DemoNodeKind, string> = {
   domain: styles.demoNodeDomain,
   term: styles.demoNodeTerm,
-  spec: styles.demoNodeSpec,
-  proposal: styles.demoNodeProposal,
   evidence: styles.demoNodeEvidence,
 };
 
@@ -410,35 +97,64 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function findMatchingTerm(
-  data: PracticalOntology,
-  label: string,
-): PracticalOntologyTerm | undefined {
-  const normalized = label.toLowerCase();
-  return data.terms.find((term) => term.label.toLowerCase() === normalized);
+const CORE_GRAPH_LAYOUT: Record<string, DemoNodePosition & { radius: number; shortLabel: string }> =
+  {
+    SpecGraph: { x: 410, y: 265, radius: 31, shortLabel: "SpecGraph" },
+    Intent: { x: 170, y: 115, radius: 19, shortLabel: "Intent" },
+    Spec: { x: 305, y: 185, radius: 22, shortLabel: "Spec" },
+    Requirement: { x: 455, y: 125, radius: 20, shortLabel: "Req" },
+    AcceptanceCriterion: { x: 610, y: 160, radius: 20, shortLabel: "AC" },
+    Evidence: { x: 710, y: 265, radius: 18, shortLabel: "Evidence" },
+    Node: { x: 305, y: 350, radius: 21, shortLabel: "Node" },
+    Edge: { x: 510, y: 350, radius: 20, shortLabel: "Edge" },
+    Decision: { x: 185, y: 265, radius: 18, shortLabel: "Decision" },
+    Constraint: { x: 160, y: 420, radius: 18, shortLabel: "Constraint" },
+    Invariant: { x: 350, y: 485, radius: 18, shortLabel: "Invariant" },
+    CodeSurface: { x: 535, y: 455, radius: 19, shortLabel: "Code" },
+    Test: { x: 650, y: 420, radius: 17, shortLabel: "Test" },
+    Release: { x: 720, y: 505, radius: 17, shortLabel: "Release" },
+  };
+
+function fallbackNodePosition(index: number): DemoNodePosition {
+  const angle = (index / 12) * Math.PI * 2;
+  return {
+    x: 410 + Math.cos(angle) * 255,
+    y: 280 + Math.sin(angle) * 170,
+  };
 }
 
-function findMatchingDomain(
-  data: PracticalOntology,
-  label: string,
-): PracticalOntologyDomain | undefined {
-  const normalized = label.toLowerCase();
-  return data.domains.find((domain) => domain.label.toLowerCase() === normalized);
+function nodeKindForTerm(term: PracticalOntologyTerm): DemoNodeKind {
+  if (term.kind === "ontology") return "domain";
+  if (term.kind === "evidence") return "evidence";
+  return "term";
 }
 
 function buildDemoGraph(data: PracticalOntology): DemoGraph {
+  const nodeIdByLabel = new Map(data.terms.map((term) => [term.label, term.termId]));
   return {
-    nodes: DEMO_NODE_SEEDS.map((seed) => {
-      const matchingTerm = findMatchingTerm(data, seed.label);
-      const matchingDomain =
-        seed.kind === "domain" ? findMatchingDomain(data, seed.label) : undefined;
+    nodes: data.terms.map((term, index) => {
+      const layout = CORE_GRAPH_LAYOUT[term.label];
+      const fallback = fallbackNodePosition(index);
       return {
-        ...seed,
-        evidenceCount: matchingTerm?.evidenceCount ?? matchingDomain?.termCount ?? 0,
-        sourceRefs: matchingTerm?.sourceRefs ?? matchingDomain?.sourceRefs.slice(0, 6) ?? [],
+        id: term.termId,
+        label: term.label,
+        shortLabel: layout?.shortLabel ?? term.label,
+        kind: nodeKindForTerm(term),
+        domain: term.domain,
+        x: layout?.x ?? fallback.x,
+        y: layout?.y ?? fallback.y,
+        radius: layout?.radius ?? 17,
+        description: compact(term.description, "Curated ontology term."),
+        evidenceCount: term.evidenceCount,
+        sourceRefs: term.sourceRefs,
       };
     }),
-    links: DEMO_LINKS,
+    links: data.relations.flatMap((relation) => {
+      const source = nodeIdByLabel.get(relation.sourceTerm);
+      const target = nodeIdByLabel.get(relation.targetTerm);
+      if (!source || !target) return [];
+      return [{ source, target, label: relation.relation }];
+    }),
   };
 }
 
@@ -537,12 +253,12 @@ export function PracticalOntologyPanel({ state }: Props) {
 
       <div className={styles.surfaceHeader}>
         <div className={styles.surfaceMain}>
-          <span className={styles.kicker}>Derived ontology</span>
+          <span className={styles.kicker}>Curated ontology</span>
           <span className={styles.surfaceTitle}>{sourceLabel(data.source)} · readonly</span>
         </div>
         <div className={styles.statusGroup}>
-          <Pill value="derived" />
-          <Pill value="not_authority" />
+          <Pill value="curated_core_seed" />
+          <Pill value="working_draft" />
         </div>
       </div>
 
@@ -583,7 +299,7 @@ export function PracticalOntologyPanel({ state }: Props) {
           className={styles.actionButton}
           onClick={() => setDemoLensOpen(true)}
         >
-          Open demo graph
+          Open ontology graph
         </button>
       </div>
 
@@ -663,15 +379,15 @@ export function OntologyGraphDemoLens({
       <div className={styles.demoGraphShell}>
         <header className={styles.demoGraphHeader}>
           <div className={styles.surfaceMain}>
-            <span className={styles.kicker}>Demo Ontology Graph Lens</span>
+            <span className={styles.kicker}>Ontology Graph Lens</span>
             <span className={styles.demoGraphTitle}>
-              DEMO - curated mock ontology graph over extracted inventory
+              SpecGraph Core Ontology v0
             </span>
           </div>
           <div className={styles.statusGroup}>
-            <Pill value={`${graph.nodes.length} demo nodes`} />
-            <Pill value={`${graph.links.length} demo links`} />
-            <Pill value={`${data.summary.termCount} extracted`} />
+            <Pill value={`${graph.nodes.length} curated nodes`} />
+            <Pill value={`${graph.links.length} curated links`} />
+            <Pill value="session layout" />
             <button
               type="button"
               className={styles.closeButton}
@@ -686,17 +402,17 @@ export function OntologyGraphDemoLens({
         </header>
 
         <div className={styles.demoGraphNotice}>
-          Demo lens only. Links are curated/mock relationships for presentation; semantic relations in
-          the derived source are {data.summary.semanticRelationCount}.
+          Curated working ontology only. Layout changes are local to this session; source terms and
+          relations come from the SpecGraph Core Ontology v0 seed.
         </div>
 
         <div className={styles.demoGraphBody}>
-          <div className={styles.demoGraphCanvas} aria-label="Demo ontology force graph">
+          <div className={styles.demoGraphCanvas} aria-label="Curated ontology graph">
             <svg
               ref={svgRef}
               viewBox={`0 0 ${DEMO_GRAPH_VIEWBOX.width} ${DEMO_GRAPH_VIEWBOX.height}`}
               role="img"
-              aria-label="Curated demo ontology graph"
+              aria-label="Curated SpecGraph core ontology graph"
             >
               <defs>
                 <filter id="demo-node-shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -822,26 +538,26 @@ export function OntologyGraphDemoLens({
           <aside className={styles.demoGraphInspector}>
             {selectedNode ? (
               <>
-                <span className={styles.kicker}>Selected demo node</span>
+                <span className={styles.kicker}>Selected ontology node</span>
                 <h3 className={styles.demoInspectorTitle}>{selectedNode.label}</h3>
                 <div className={styles.statusGroup}>
                   <Pill value={selectedNode.kind} />
                   <Pill value={selectedNode.domain} />
-                  <Pill value={selectedNode.evidenceCount ? "has evidence" : "mock node"} />
+                  <Pill value={selectedNode.evidenceCount ? "has evidence" : "draft term"} />
                 </div>
                 <p className={styles.demoInspectorText}>{selectedNode.description}</p>
                 <div className={styles.metaGrid}>
                   <Meta label="Evidence count" value={`${selectedNode.evidenceCount}`} />
                   <Meta
                     label="Source refs"
-                    value={selectedNode.sourceRefs.slice(0, 3).join(", ") || "demo-only"}
+                    value={selectedNode.sourceRefs.slice(0, 3).join(", ") || "curated-seed"}
                   />
-                  <Meta label="Authority" value="demo_only_not_authority" />
-                  <Meta label="Relation type" value="mock/demo links" />
+                  <Meta label="Authority" value="working_draft" />
+                  <Meta label="Relation type" value="curated seed links" />
                 </div>
               </>
             ) : (
-              <Status label="No node selected" detail="Select a demo node in the graph." />
+              <Status label="No node selected" detail="Select a curated node in the graph." />
             )}
           </aside>
         </div>
@@ -849,8 +565,6 @@ export function OntologyGraphDemoLens({
         <div className={styles.demoLegend}>
           <span className={styles.demoLegendItem}>Domain</span>
           <span className={styles.demoLegendItem}>Term</span>
-          <span className={styles.demoLegendItem}>Spec slice</span>
-          <span className={styles.demoLegendItem}>Proposal</span>
           <span className={styles.demoLegendItem}>Evidence</span>
         </div>
       </div>
@@ -1013,7 +727,7 @@ function TermRow({ term }: { term: PracticalOntologyTerm }) {
       </div>
       <h3 className={styles.title}>{term.label}</h3>
       <div className={styles.metaGrid}>
-        <Meta label="Ref" value={compact(term.canonicalRef, "derived")} />
+        <Meta label="Ref" value={compact(term.canonicalRef, "curated")} />
         <Meta label="Evidence" value={`${term.evidenceCount}`} />
         <Meta label="Description" value={compact(term.description, "none")} />
         <Meta label="Sources" value={term.sourceRefs.slice(0, 4).join(", ") || "unknown"} />
