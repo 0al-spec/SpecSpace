@@ -73,6 +73,7 @@ type ContentOptions = {
   path: string | null;
   url?: string;
   fetcher?: typeof fetch;
+  refreshKey?: number;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -246,7 +247,7 @@ export function useArtifactCatalog(options: CatalogOptions = {}): ArtifactCatalo
 }
 
 export function useArtifactContent(options: ContentOptions): ArtifactContentState {
-  const { path, url = "/api/v1/artifacts/content", fetcher = fetch } = options;
+  const { path, url = "/api/v1/artifacts/content", fetcher = fetch, refreshKey = 0 } = options;
   const [state, setState] = useState<ArtifactContentState>({ kind: "idle" });
 
   useEffect(() => {
@@ -276,7 +277,7 @@ export function useArtifactContent(options: ContentOptions): ArtifactContentStat
       cancelled = true;
       controller.abort();
     };
-  }, [fetcher, path, url]);
+  }, [fetcher, path, refreshKey, url]);
 
   return state;
 }

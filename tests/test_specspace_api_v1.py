@@ -1869,11 +1869,16 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             spec_dir.mkdir(parents=True)
             _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
             _write_specgraph_core_ontology_artifacts(root)
+            runs_dir = root / "runs"
+            _write_json(runs_dir / "local_operator_debug.json", {"secret": "local-only"})
+            unsafe_dir = runs_dir / "agent_runtime_enforcement_evidence"
+            unsafe_dir.mkdir()
+            _write_json(unsafe_dir / "runtime-detail.json", {"secret": "runtime-detail"})
 
             httpd, thread, base = _start(
                 root / "dialogs",
                 spec_dir=spec_dir,
-                runs_dir=root / "runs",
+                runs_dir=runs_dir,
                 specgraph_dir=root,
             )
             try:
@@ -1883,6 +1888,14 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     f"path={quote('ontology/specgraph-core/ontology.normalized.json')}"
                 )
                 unsafe_status, unsafe = _get(f"{base}/api/v1/artifacts/content?path=../secret.json")
+                local_only_status, local_only = _get(
+                    f"{base}/api/v1/artifacts/content?"
+                    f"path={quote('runs/local_operator_debug.json')}"
+                )
+                nested_status, nested = _get(
+                    f"{base}/api/v1/artifacts/content?"
+                    f"path={quote('runs/agent_runtime_enforcement_evidence/runtime-detail.json')}"
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -1897,12 +1910,37 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             by_path["ontology/specgraph-core/ontology.normalized.json"]["group"],
             "ontology_ir",
         )
+        self.assertNotIn("runs/local_operator_debug.json", by_path)
+        self.assertNotIn("runs/agent_runtime_enforcement_evidence/runtime-detail.json", by_path)
         self.assertEqual(content_status, 200)
         self.assertEqual(content["artifact_kind"], "specspace_artifact_content")
         self.assertEqual(content["content_kind"], "json")
         self.assertEqual(content["data"]["id"], "org.0al.specgraph.core")
         self.assertEqual(unsafe_status, 400)
         self.assertEqual(unsafe["reason"], "invalid_artifact_path")
+        self.assertEqual(local_only_status, 404)
+        self.assertEqual(local_only["reason"], "missing_artifact")
+        self.assertEqual(nested_status, 404)
+        self.assertEqual(nested["reason"], "missing_artifact")
+
+    def test_artifacts_v1_file_catalog_skips_stat_races(self) -> None:
+        provider = specspace_provider.FileSpecGraphProvider(
+            spec_nodes_dir=None,
+            runs_dir=None,
+            specgraph_dir=None,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "missing.json"
+            with mock.patch.object(
+                specspace_provider.FileSpecGraphProvider,
+                "_file_artifact_map",
+                return_value={"runs/spec_activity_feed.json": missing},
+            ):
+                status, body = provider.read_artifact_catalog()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["artifact_count"], 0)
+        self.assertEqual(body["artifacts"], [])
 
     def test_artifacts_v1_lists_http_manifest_runs_and_materialized_ontology_ir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

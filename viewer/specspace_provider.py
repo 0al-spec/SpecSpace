@@ -449,6 +449,24 @@ def decode_artifact_content(
     return payload
 
 
+PUBLIC_SAFE_RUN_ARTIFACT_FILENAMES: frozenset[str] = frozenset(
+    {
+        "spec_activity_feed.json",
+        "implementation_work_index.json",
+        specgraph_surfaces.ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FILENAME,
+        specgraph_surfaces.ONTOLOGY_REVIEW_DASHBOARD_FILENAME,
+        specgraph_surfaces.ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME,
+        practical_ontology.PACKAGE_INDEX_ARTIFACT,
+        practical_ontology.BINDING_PREVIEW_ARTIFACT,
+        practical_ontology.GAP_INDEX_ARTIFACT,
+        practical_ontology.COMPATIBILITY_DIFF_PREVIEW_ARTIFACT,
+        *proposals.PROPOSAL_ARTIFACTS.values(),
+        *metrics.METRICS_ARTIFACTS.values(),
+        *agent_surfaces.AGENT_SURFACE_ARTIFACTS.values(),
+    }
+)
+
+
 @dataclass(frozen=True)
 class FileSpecGraphProvider:
     """Readonly file-backed provider over SpecGraph nodes and runs artifacts."""
@@ -752,30 +770,88 @@ class FileSpecGraphProvider:
                     break
         return candidates
 
+    def _local_artifact_roots(self) -> list[Path]:
+        roots: list[Path] = []
+        if self.specgraph_dir is not None:
+            roots.append(self.specgraph_dir)
+        if self.runs_dir is not None:
+            roots.append(self.runs_dir.parent)
+        if (
+            self.spec_nodes_dir is not None
+            and self.spec_nodes_dir.name == "nodes"
+            and self.spec_nodes_dir.parent.name == "specs"
+        ):
+            roots.append(self.spec_nodes_dir.parent.parent)
+        return list(dict.fromkeys(roots))
+
+    def _local_public_manifest(self) -> tuple[Path, dict[str, Any]] | None:
+        for root in self._local_artifact_roots():
+            for path in (
+                root / "dist" / "specgraph-public" / "artifact_manifest.json",
+                root / "artifact_manifest.json",
+            ):
+                if not path.exists() or not path.is_file():
+                    continue
+                try:
+                    data = json.loads(path.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError):
+                    continue
+                if not isinstance(data, dict):
+                    continue
+                if data.get("artifact_kind") != "specgraph_static_artifact_manifest":
+                    continue
+                files = data.get("files")
+                if not isinstance(files, list):
+                    continue
+                return path.parent, data
+        return None
+
     def _file_artifact_map(self) -> dict[str, Path]:
+        manifest = self._local_public_manifest()
+        if manifest is not None:
+            artifact_root, manifest_data = manifest
+            artifact_map: dict[str, Path] = {}
+            files = manifest_data.get("files")
+            assert isinstance(files, list)
+            for entry in files:
+                if not isinstance(entry, dict):
+                    continue
+                rel = safe_manifest_path(entry.get("path"))
+                if rel is None:
+                    continue
+                path = artifact_root / Path(*PurePosixPath(rel).parts)
+                if path.exists() and path.is_file():
+                    artifact_map[rel] = path
+            return artifact_map
+
         artifact_map: dict[str, Path] = {}
         if self.runs_dir is not None and self.runs_dir.exists():
-            for path in sorted(self.runs_dir.rglob("*.json")):
+            for filename in sorted(PUBLIC_SAFE_RUN_ARTIFACT_FILENAMES):
+                path = self.runs_dir / filename
                 if not path.is_file():
                     continue
-                rel = PurePosixPath("runs", path.relative_to(self.runs_dir).as_posix()).as_posix()
-                artifact_map[rel] = path
+                artifact_map[f"runs/{filename}"] = path
         for rel, path in self._local_materialized_ir_files():
             artifact_map[rel] = path
         return artifact_map
 
     def read_artifact_catalog(self) -> tuple[int, dict[str, Any]]:
         artifact_map = self._file_artifact_map()
-        artifacts = [
-            {
-                "path": rel,
-                "root": rel.split("/", 1)[0],
-                "label": artifact_label(rel),
-                "group": artifact_group(rel),
-                "size_bytes": path.stat().st_size,
-            }
-            for rel, path in artifact_map.items()
-        ]
+        artifacts: list[dict[str, Any]] = []
+        for rel, path in artifact_map.items():
+            try:
+                size_bytes = path.stat().st_size
+            except OSError:
+                continue
+            artifacts.append(
+                {
+                    "path": rel,
+                    "root": rel.split("/", 1)[0],
+                    "label": artifact_label(rel),
+                    "group": artifact_group(rel),
+                    "size_bytes": size_bytes,
+                }
+            )
         return HTTPStatus.OK, build_artifact_catalog(
             source={
                 "provider": "file",
