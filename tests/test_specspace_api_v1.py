@@ -260,7 +260,21 @@ def _write_specgraph_core_ontology_artifacts(root: Path) -> None:
         {
             "artifact_kind": "ontology_import_gap_index",
             "source_fixture": "tests/fixtures/ontology_import/specgraph-core/import-fixture.yaml",
-            "gaps": [{"gap_id": "ontology-gap-sgcore-claimcalibration"}],
+            "gaps": [
+                {
+                    "gap_id": "ontology-gap-sgcore-claimcalibration",
+                    "missing_concept": {
+                        "concept_hint": "ClaimCalibration",
+                        "namespace_hint": "sgcore",
+                        "ref": "sgcore:ClaimCalibration",
+                    },
+                    "needed_by": ["0060", "SG-RFC-0130"],
+                    "recommended_route": "ontology_package_draft",
+                    "severity": "medium",
+                    "subject": {"id": "SG-RFC-0130", "kind": "proposal"},
+                    "target_package": "org.0al.specgraph.core@0.1.0",
+                }
+            ],
             "summary": {"gap_count": 1},
         },
     )
@@ -279,6 +293,29 @@ def _write_specgraph_core_ontology_artifacts(root: Path) -> None:
                 "added_classes": ["sgcore:ClaimCalibration"],
                 "breaking_changes": [],
             },
+        },
+    )
+    _write_json(
+        runs_dir / "ontology_governance_evidence_index.json",
+        {
+            "artifact_kind": "ontology_governance_evidence_index",
+            "source_fixture": "tests/fixtures/ontology_import/specgraph-core/import-fixture.yaml",
+            "summary": {"evidence_count": 1, "next_gap": "none"},
+            "evidence": [
+                {
+                    "package_ref": "org.0al.specgraph.core@0.1.0",
+                    "lifecycle_state": "draft",
+                    "decision_ref": "https://github.com/0al-spec/Ontology/pull/57",
+                    "validation_report_ref": "Ontology:SPECS/INPROGRESS/ONT-038_Validation_Report.md",
+                    "repeatability_report_ref": (
+                        "Ontology:Tests/OntologyCompilerTests/"
+                        "SpecGraphCorePackageTests.swift"
+                    ),
+                    "trusted_registry_gate_ref": (
+                        "Ontology:SPECS/ontology/packages/specgraph-core/README.md#scope"
+                    ),
+                }
+            ],
         },
     )
 
@@ -1758,6 +1795,22 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["gap_count"], 1)
         self.assertEqual(body["summary"]["diff_added_class_count"], 1)
         self.assertEqual(body["summary"]["diff_breaking_change_count"], 0)
+        self.assertEqual(body["package"]["package_id"], "org.0al.specgraph.core")
+        self.assertEqual(body["package"]["namespace"], "sgcore")
+        self.assertEqual(body["package"]["version"], "0.1.0")
+        self.assertEqual(body["package"]["materialized_ir"], "ontology/specgraph-core/ontology.normalized.json")
+        self.assertEqual(body["gaps"][0]["gap_id"], "ontology-gap-sgcore-claimcalibration")
+        self.assertEqual(body["gaps"][0]["missing_concept"], "ClaimCalibration")
+        self.assertEqual(body["compatibility_diff"]["to_ref"], "org.0al.specgraph.core@0.2.0")
+        self.assertEqual(body["compatibility_diff"]["added_classes"], ["sgcore:ClaimCalibration"])
+        self.assertEqual(body["governance_evidence"][0]["lifecycle_state"], "draft")
+        self.assertEqual(
+            body["governance_evidence"][0]["decision_ref"],
+            "https://github.com/0al-spec/Ontology/pull/57",
+        )
+        raw_artifact_paths = {entry["path"] for entry in body["raw_artifacts"]}
+        self.assertIn("runs/ontology_package_index.json", raw_artifact_paths)
+        self.assertIn("ontology/specgraph-core/ontology.normalized.json", raw_artifact_paths)
         labels = {entry["label"] for entry in body["terms"]}
         self.assertEqual(labels, {"Requirement", "Spec", "SpecGraph"})
         relation_pairs = {
@@ -1840,6 +1893,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     "runs/ontology_binding_preview.json",
                     "runs/ontology_import_gap_index.json",
                     "runs/ontology_compatibility_diff_preview.json",
+                    "runs/ontology_governance_evidence_index.json",
                     "ontology/specgraph-core/ontology.normalized.json",
                 ],
             )
@@ -1861,6 +1915,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["semantic_relation_count"], 1)
         self.assertEqual(body["summary"]["gap_count"], 1)
         self.assertEqual(body["summary"]["diff_added_class_count"], 1)
+        self.assertEqual(body["governance_evidence"][0]["package_ref"], "org.0al.specgraph.core@0.1.0")
 
     def test_artifacts_v1_lists_file_runs_and_materialized_ontology_ir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

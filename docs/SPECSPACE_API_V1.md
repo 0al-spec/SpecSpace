@@ -501,12 +501,14 @@ whole endpoint.
 Returns a readonly practical ontology surface for the SpecSpace utility panel.
 When SpecGraph publishes Ontology compiler artifacts, the endpoint projects the
 current Ontology normalized IR into UI-ready `terms` and `relations` and carries
-gap/diff counts from the companion artifacts:
+package metadata, gap rows, diff summaries, governance evidence, and raw
+artifact refs from the companion artifacts:
 
 - `runs/ontology_package_index.json`
 - `runs/ontology_binding_preview.json`
 - `runs/ontology_import_gap_index.json`
 - `runs/ontology_compatibility_diff_preview.json`
+- `runs/ontology_governance_evidence_index.json`
 - the `materialized_ir` path declared by the package index
 
 If those artifacts or the normalized IR are unavailable, the endpoint falls back
@@ -530,6 +532,13 @@ The response keeps the existing envelope shape:
 - `terms` contains compiler IR classes or curated seed entities;
 - `relations` contains compiler IR relations or curated semantic ontology
   relations;
+- `package` contains package id, namespace, version, package ref, source, digest,
+  authority class, and `materialized_ir` when compiler artifacts are available;
+- `gaps` contains normalized ontology import gap rows;
+- `compatibility_diff` contains the companion diff preview;
+- `governance_evidence` contains owner/package governance evidence rows;
+- `raw_artifacts` points back to source artifacts for the Live artifacts
+  inspector;
 - `topology_edges` is empty because SpecGraph topology extraction is no longer
   mixed into ontology;
 - `proposal_references` is empty because proposal markdown extraction is no
@@ -570,6 +579,53 @@ The response keeps the existing envelope shape:
       "relation": "contains",
       "target_term": "Node",
       "source_refs": ["specs/nodes/SG-SPEC-0001.yaml#specification.seed"]
+    }
+  ],
+  "package": {
+    "package_id": "org.0al.specgraph.core",
+    "namespace": "sgcore",
+    "version": "0.1.0",
+    "package_ref": "org.0al.specgraph.core@0.1.0",
+    "authority_class": "draft_imported",
+    "source_ref": "codex/ont-038-specgraph-core-package",
+    "source_uri": "git+https://github.com/0al-spec/Ontology.git",
+    "digest": "sha256:...",
+    "materialized_ir": "tests/fixtures/ontology_import/specgraph-core/ontology.normalized.json",
+    "accepted_by_proposal": "SG-RFC-0130-smoke"
+  },
+  "gaps": [
+    {
+      "gap_id": "ontology-gap-sgcore-claimcalibration",
+      "severity": "medium",
+      "target_package": "org.0al.specgraph.core@0.1.0",
+      "recommended_route": "ontology_package_draft",
+      "missing_ref": "sgcore:ClaimCalibration",
+      "missing_concept": "ClaimCalibration",
+      "namespace_hint": "sgcore",
+      "subject": "proposal SG-RFC-0130",
+      "needed_by": ["0060", "SG-RFC-0130"],
+      "source_refs": ["tests/fixtures/ontology_import/specgraph-core/import-fixture.yaml"]
+    }
+  ],
+  "compatibility_diff": {
+    "compatible": true,
+    "from_ref": "org.0al.specgraph.core@0.1.0",
+    "to_ref": "org.0al.specgraph.core@0.2.0",
+    "added_classes": ["sgcore:ClaimCalibration"],
+    "breaking_changes": [],
+    "required_specgraph_actions": ["updateLockfile"]
+  },
+  "governance_evidence": [
+    {
+      "package_ref": "org.0al.specgraph.core@0.1.0",
+      "lifecycle_state": "draft",
+      "decision_ref": "https://github.com/0al-spec/Ontology/pull/57"
+    }
+  ],
+  "raw_artifacts": [
+    {
+      "artifact": "ontology_package_index",
+      "path": "runs/ontology_package_index.json"
     }
   ],
   "topology_edges": [],

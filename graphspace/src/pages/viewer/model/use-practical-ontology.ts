@@ -53,6 +53,62 @@ export type PracticalOntologyDomain = {
   sourceRefs: readonly string[];
 };
 
+export type PracticalOntologyPackage = {
+  packageId: string;
+  namespace: string;
+  version: string;
+  packageRef: string;
+  authorityClass: string;
+  sourceRef: string | null;
+  sourceUri: string | null;
+  digest: string | null;
+  materializedIr: string | null;
+  acceptedByProposal: string | null;
+};
+
+export type PracticalOntologyGap = {
+  gapId: string;
+  severity: string;
+  targetPackage: string | null;
+  recommendedRoute: string | null;
+  missingRef: string | null;
+  missingConcept: string;
+  namespaceHint: string | null;
+  subject: string | null;
+  neededBy: readonly string[];
+  sourceRefs: readonly string[];
+};
+
+export type PracticalOntologyCompatibilityDiff = {
+  compatible: boolean;
+  fromRef: string | null;
+  toRef: string | null;
+  packageRef: string | null;
+  status: string | null;
+  nextGap: string | null;
+  addedClasses: readonly string[];
+  addedRelations: readonly string[];
+  removedClasses: readonly string[];
+  removedRelations: readonly string[];
+  breakingChanges: readonly string[];
+  requiredSpecgraphActions: readonly string[];
+  sourceRefs: readonly string[];
+};
+
+export type PracticalOntologyGovernanceEvidence = {
+  packageRef: string | null;
+  lifecycleState: string;
+  decisionRef: string | null;
+  validationReportRef: string | null;
+  repeatabilityReportRef: string | null;
+  trustedRegistryGateRef: string | null;
+};
+
+export type PracticalOntologyRawArtifact = {
+  artifact: string;
+  path: string;
+};
+
 export type PracticalOntology = {
   apiVersion: "v1";
   artifactKind: "specspace_practical_ontology";
@@ -78,6 +134,11 @@ export type PracticalOntology = {
   domains: readonly PracticalOntologyDomain[];
   terms: readonly PracticalOntologyTerm[];
   relations: readonly PracticalOntologyRelation[];
+  package: PracticalOntologyPackage | null;
+  gaps: readonly PracticalOntologyGap[];
+  compatibilityDiff: PracticalOntologyCompatibilityDiff | null;
+  governanceEvidence: readonly PracticalOntologyGovernanceEvidence[];
+  rawArtifacts: readonly PracticalOntologyRawArtifact[];
   topologyEdges: readonly PracticalOntologyTopologyEdge[];
   proposalReferences: readonly PracticalOntologyProposalReference[];
   relationTaxonomy: Record<string, unknown>;
@@ -225,6 +286,81 @@ function parseDomain(raw: unknown): PracticalOntologyDomain | null {
   };
 }
 
+function parsePackage(raw: unknown): PracticalOntologyPackage | null {
+  if (!isRecord(raw)) return null;
+  const packageId = optionalString(raw.package_id);
+  if (!packageId) return null;
+  return {
+    packageId,
+    namespace: stringValue(raw.namespace, "unknown"),
+    version: stringValue(raw.version, "unknown"),
+    packageRef: stringValue(raw.package_ref, packageId),
+    authorityClass: stringValue(raw.authority_class, "unknown"),
+    sourceRef: optionalString(raw.source_ref),
+    sourceUri: optionalString(raw.source_uri),
+    digest: optionalString(raw.digest),
+    materializedIr: optionalString(raw.materialized_ir),
+    acceptedByProposal: optionalString(raw.accepted_by_proposal),
+  };
+}
+
+function parseGap(raw: unknown): PracticalOntologyGap | null {
+  if (!isRecord(raw)) return null;
+  const gapId = optionalString(raw.gap_id);
+  if (!gapId) return null;
+  return {
+    gapId,
+    severity: stringValue(raw.severity, "unknown"),
+    targetPackage: optionalString(raw.target_package),
+    recommendedRoute: optionalString(raw.recommended_route),
+    missingRef: optionalString(raw.missing_ref),
+    missingConcept: stringValue(raw.missing_concept, "unknown"),
+    namespaceHint: optionalString(raw.namespace_hint),
+    subject: optionalString(raw.subject),
+    neededBy: stringList(raw.needed_by),
+    sourceRefs: stringList(raw.source_refs),
+  };
+}
+
+function parseCompatibilityDiff(raw: unknown): PracticalOntologyCompatibilityDiff | null {
+  if (!isRecord(raw)) return null;
+  return {
+    compatible: raw.compatible === true,
+    fromRef: optionalString(raw.from_ref),
+    toRef: optionalString(raw.to_ref),
+    packageRef: optionalString(raw.package_ref),
+    status: optionalString(raw.status),
+    nextGap: optionalString(raw.next_gap),
+    addedClasses: stringList(raw.added_classes),
+    addedRelations: stringList(raw.added_relations),
+    removedClasses: stringList(raw.removed_classes),
+    removedRelations: stringList(raw.removed_relations),
+    breakingChanges: stringList(raw.breaking_changes),
+    requiredSpecgraphActions: stringList(raw.required_specgraph_actions),
+    sourceRefs: stringList(raw.source_refs),
+  };
+}
+
+function parseGovernanceEvidence(raw: unknown): PracticalOntologyGovernanceEvidence | null {
+  if (!isRecord(raw)) return null;
+  return {
+    packageRef: optionalString(raw.package_ref),
+    lifecycleState: stringValue(raw.lifecycle_state, "unknown"),
+    decisionRef: optionalString(raw.decision_ref),
+    validationReportRef: optionalString(raw.validation_report_ref),
+    repeatabilityReportRef: optionalString(raw.repeatability_report_ref),
+    trustedRegistryGateRef: optionalString(raw.trusted_registry_gate_ref),
+  };
+}
+
+function parseRawArtifact(raw: unknown): PracticalOntologyRawArtifact | null {
+  if (!isRecord(raw)) return null;
+  const artifact = optionalString(raw.artifact);
+  const path = optionalString(raw.path);
+  if (!artifact || !path) return null;
+  return { artifact, path };
+}
+
 function parsePracticalOntology(raw: unknown): UsePracticalOntologyState {
   if (!isRecord(raw)) {
     return { kind: "parse-error", reason: "response root is not an object", raw };
@@ -263,6 +399,13 @@ function parsePracticalOntology(raw: unknown): UsePracticalOntologyState {
     ? raw.proposal_references.map(parseProposalReference).filter(isPresent)
     : [];
   const domains = Array.isArray(raw.domains) ? raw.domains.map(parseDomain).filter(isPresent) : [];
+  const gaps = Array.isArray(raw.gaps) ? raw.gaps.map(parseGap).filter(isPresent) : [];
+  const governanceEvidence = Array.isArray(raw.governance_evidence)
+    ? raw.governance_evidence.map(parseGovernanceEvidence).filter(isPresent)
+    : [];
+  const rawArtifacts = Array.isArray(raw.raw_artifacts)
+    ? raw.raw_artifacts.map(parseRawArtifact).filter(isPresent)
+    : [];
   const summary = recordValue(raw.summary);
 
   return {
@@ -292,6 +435,11 @@ function parsePracticalOntology(raw: unknown): UsePracticalOntologyState {
       domains,
       terms,
       relations,
+      package: parsePackage(raw.package),
+      gaps,
+      compatibilityDiff: parseCompatibilityDiff(raw.compatibility_diff),
+      governanceEvidence,
+      rawArtifacts,
       topologyEdges,
       proposalReferences,
       relationTaxonomy: recordValue(raw.relation_taxonomy),

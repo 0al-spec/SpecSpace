@@ -2,8 +2,12 @@ import { type PointerEvent, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type {
   PracticalOntology,
+  PracticalOntologyCompatibilityDiff,
   PracticalOntologyDomain,
+  PracticalOntologyGap,
+  PracticalOntologyGovernanceEvidence,
   PracticalOntologyProposalReference,
+  PracticalOntologyRawArtifact,
   PracticalOntologyRelation,
   PracticalOntologyTerm,
   PracticalOntologyTopologyEdge,
@@ -186,7 +190,16 @@ export function PracticalOntologyPanel({ state }: Props) {
 
   const visible = useMemo(() => {
     if (state.kind !== "ok") {
-      return { terms: [], relations: [], topologyEdges: [], proposalReferences: [], domains: [] };
+      return {
+        terms: [],
+        relations: [],
+        topologyEdges: [],
+        proposalReferences: [],
+        domains: [],
+        gaps: [],
+        governanceEvidence: [],
+        rawArtifacts: [],
+      };
     }
     if (!normalizedQuery) {
       return {
@@ -195,6 +208,9 @@ export function PracticalOntologyPanel({ state }: Props) {
         topologyEdges: state.data.topologyEdges,
         proposalReferences: state.data.proposalReferences,
         domains: state.data.domains,
+        gaps: state.data.gaps,
+        governanceEvidence: state.data.governanceEvidence,
+        rawArtifacts: state.data.rawArtifacts,
       };
     }
     const matches = (value: string | null | undefined) =>
@@ -239,6 +255,31 @@ export function PracticalOntologyPanel({ state }: Props) {
           matches(domain.label) ||
           domain.termKinds.some(matches) ||
           domain.sourceRefs.some(matches),
+      ),
+      gaps: state.data.gaps.filter(
+        (gap) =>
+          matches(gap.gapId) ||
+          matches(gap.severity) ||
+          matches(gap.targetPackage) ||
+          matches(gap.recommendedRoute) ||
+          matches(gap.missingRef) ||
+          matches(gap.missingConcept) ||
+          matches(gap.namespaceHint) ||
+          matches(gap.subject) ||
+          gap.neededBy.some(matches) ||
+          gap.sourceRefs.some(matches),
+      ),
+      governanceEvidence: state.data.governanceEvidence.filter(
+        (evidence) =>
+          matches(evidence.packageRef) ||
+          matches(evidence.lifecycleState) ||
+          matches(evidence.decisionRef) ||
+          matches(evidence.validationReportRef) ||
+          matches(evidence.repeatabilityReportRef) ||
+          matches(evidence.trustedRegistryGateRef),
+      ),
+      rawArtifacts: state.data.rawArtifacts.filter(
+        (artifact) => matches(artifact.artifact) || matches(artifact.path),
       ),
     };
   }, [normalizedQuery, state]);
@@ -309,6 +350,8 @@ export function PracticalOntologyPanel({ state }: Props) {
         />
       </div>
 
+      <CompilerIrSummary data={data} />
+
       <div className={styles.sourceStrip}>
         <label className={styles.source}>
           Search{" "}
@@ -328,6 +371,10 @@ export function PracticalOntologyPanel({ state }: Props) {
       </div>
 
       <div className={styles.entries}>
+        <GapSection gaps={visible.gaps} />
+        <CompatibilityDiffSection diff={data.compatibilityDiff} />
+        <GovernanceEvidenceSection evidence={visible.governanceEvidence} />
+        <RawArtifactSection artifacts={visible.rawArtifacts} />
         <DomainSection domains={visible.domains} />
         <TermSection terms={visible.terms} />
         <RelationSection relations={visible.relations} />
@@ -623,6 +670,149 @@ function PostureItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+function CompilerIrSummary({ data }: { data: PracticalOntology }) {
+  const packageInfo = data.package;
+  if (!packageInfo) {
+    return (
+      <div className={styles.sourceStrip}>
+        <span className={styles.source}>Compiler IR unavailable</span>
+        <span className={styles.source}>Showing {sourceMode(data)}</span>
+      </div>
+    );
+  }
+  return (
+    <div className={styles.reviewSection}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.kicker}>Compiler IR package</span>
+        <div className={styles.statusGroup}>
+          <Pill value={packageInfo.authorityClass} />
+          <Pill value={packageInfo.namespace} />
+          <Pill value={packageInfo.version} />
+        </div>
+      </div>
+      <article className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>{packageInfo.packageRef}</span>
+          <div className={styles.statusGroup}>
+            <Pill value={data.authorityBoundary.compilerArtifactBacked ? "compiler-backed" : "fallback"} />
+            <Pill value="readonly" />
+          </div>
+        </div>
+        <h3 className={styles.title}>{packageInfo.packageId}</h3>
+        <div className={styles.metaGrid}>
+          <Meta label="Materialized IR" value={compact(packageInfo.materializedIr, "unknown")} />
+          <Meta label="Digest" value={compact(packageInfo.digest, "unknown")} />
+          <Meta label="Source ref" value={compact(packageInfo.sourceRef, "unknown")} />
+          <Meta label="Source URI" value={compact(packageInfo.sourceUri, "unknown")} />
+          <Meta label="Accepted by" value={compact(packageInfo.acceptedByProposal, "unknown")} />
+          <Meta label="Package ref" value={packageInfo.packageRef} />
+        </div>
+      </article>
+    </div>
+  );
+}
+
+function GapSection({ gaps }: { gaps: readonly PracticalOntologyGap[] }) {
+  return (
+    <div className={styles.reviewSection}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.kicker}>Import Gaps</span>
+        <span className={styles.sectionCount}>{gaps.length}</span>
+      </div>
+      {gaps.length === 0 ? (
+        <Status label="No import gaps" detail="No ontology import gap rows match the current filter." />
+      ) : (
+        gaps.slice(0, 40).map((gap) => <GapRow key={gap.gapId} gap={gap} />)
+      )}
+    </div>
+  );
+}
+
+function CompatibilityDiffSection({ diff }: { diff: PracticalOntologyCompatibilityDiff | null }) {
+  if (!diff) {
+    return (
+      <div className={styles.reviewSection}>
+        <div className={styles.sectionHeader}>
+          <span className={styles.kicker}>Compatibility Diff</span>
+          <span className={styles.sectionCount}>0</span>
+        </div>
+        <Status label="No compatibility diff" detail="No diff preview artifact is available." />
+      </div>
+    );
+  }
+  const additions = [...diff.addedClasses, ...diff.addedRelations];
+  const removals = [...diff.removedClasses, ...diff.removedRelations];
+  return (
+    <div className={styles.reviewSection}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.kicker}>Compatibility Diff</span>
+        <div className={styles.statusGroup}>
+          <Pill value={diff.compatible ? "compatible" : "review_required"} />
+          <Pill value={compact(diff.status, "unknown")} />
+        </div>
+      </div>
+      <article className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>{compact(diff.fromRef, "unknown")} → {compact(diff.toRef, "unknown")}</span>
+          <div className={styles.statusGroup}>
+            <Pill value={`${additions.length} additions`} />
+            <Pill value={`${diff.breakingChanges.length} breaking`} />
+          </div>
+        </div>
+        <h3 className={styles.title}>{compact(diff.packageRef, "Ontology package diff")}</h3>
+        <div className={styles.metaGrid}>
+          <Meta label="Added" value={additions.join(", ") || "none"} />
+          <Meta label="Removed" value={removals.join(", ") || "none"} />
+          <Meta label="Breaking" value={diff.breakingChanges.join(", ") || "none"} />
+          <Meta label="Actions" value={diff.requiredSpecgraphActions.join(", ") || "none"} />
+          <Meta label="Next gap" value={compact(diff.nextGap, "none")} />
+          <Meta label="Sources" value={diff.sourceRefs.slice(0, 3).join(", ") || "unknown"} />
+        </div>
+      </article>
+    </div>
+  );
+}
+
+function GovernanceEvidenceSection({
+  evidence,
+}: {
+  evidence: readonly PracticalOntologyGovernanceEvidence[];
+}) {
+  return (
+    <div className={styles.reviewSection}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.kicker}>Governance Evidence</span>
+        <span className={styles.sectionCount}>{evidence.length}</span>
+      </div>
+      {evidence.length === 0 ? (
+        <Status label="No governance evidence" detail="No governance evidence rows match the filter." />
+      ) : (
+        evidence
+          .slice(0, 40)
+          .map((item, index) => <GovernanceEvidenceRow key={`${item.packageRef}-${index}`} item={item} />)
+      )}
+    </div>
+  );
+}
+
+function RawArtifactSection({ artifacts }: { artifacts: readonly PracticalOntologyRawArtifact[] }) {
+  return (
+    <div className={styles.reviewSection}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.kicker}>Raw Artifacts</span>
+        <span className={styles.sectionCount}>{artifacts.length}</span>
+      </div>
+      {artifacts.length === 0 ? (
+        <Status label="No raw artifact refs" detail="No source artifact rows match the filter." />
+      ) : (
+        artifacts
+          .slice(0, 40)
+          .map((artifact) => <RawArtifactRow key={`${artifact.artifact}-${artifact.path}`} artifact={artifact} />)
+      )}
+    </div>
+  );
+}
+
 function DomainSection({ domains }: { domains: readonly PracticalOntologyDomain[] }) {
   return (
     <div className={styles.reviewSection}>
@@ -719,6 +909,63 @@ function ProposalReferenceSection({
           ))
       )}
     </div>
+  );
+}
+
+function GapRow({ gap }: { gap: PracticalOntologyGap }) {
+  return (
+    <article className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{gap.gapId}</span>
+        <div className={styles.statusGroup}>
+          <Pill value={gap.severity} />
+          <Pill value={compact(gap.recommendedRoute, "review")} />
+        </div>
+      </div>
+      <h3 className={styles.title}>{gap.missingConcept}</h3>
+      <div className={styles.metaGrid}>
+        <Meta label="Missing ref" value={compact(gap.missingRef, "unknown")} />
+        <Meta label="Namespace" value={compact(gap.namespaceHint, "unknown")} />
+        <Meta label="Target package" value={compact(gap.targetPackage, "unknown")} />
+        <Meta label="Subject" value={compact(gap.subject, "unknown")} />
+        <Meta label="Needed by" value={gap.neededBy.join(", ") || "unknown"} />
+        <Meta label="Sources" value={gap.sourceRefs.slice(0, 4).join(", ") || "unknown"} />
+      </div>
+    </article>
+  );
+}
+
+function GovernanceEvidenceRow({ item }: { item: PracticalOntologyGovernanceEvidence }) {
+  return (
+    <article className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{compact(item.packageRef, "ontology package")}</span>
+        <div className={styles.statusGroup}>
+          <Pill value={item.lifecycleState} />
+        </div>
+      </div>
+      <h3 className={styles.title}>{compact(item.decisionRef, "Governance evidence")}</h3>
+      <div className={styles.metaGrid}>
+        <Meta label="Validation" value={compact(item.validationReportRef, "unknown")} />
+        <Meta label="Repeatability" value={compact(item.repeatabilityReportRef, "unknown")} />
+        <Meta label="Registry gate" value={compact(item.trustedRegistryGateRef, "unknown")} />
+        <Meta label="Decision" value={compact(item.decisionRef, "unknown")} />
+      </div>
+    </article>
+  );
+}
+
+function RawArtifactRow({ artifact }: { artifact: PracticalOntologyRawArtifact }) {
+  return (
+    <article className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{artifact.path}</span>
+        <div className={styles.statusGroup}>
+          <Pill value={artifact.artifact} />
+        </div>
+      </div>
+      <h3 className={styles.title}>{artifact.artifact.replace(/_/g, " ")}</h3>
+    </article>
   );
 }
 
