@@ -319,6 +319,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_ontology_owner_decision_review = (
         specspace_v1_api.handle_v1_ontology_owner_decision_review
     )
+    handle_v1_ontology_compliance_review = (
+        specspace_v1_api.handle_v1_ontology_compliance_review
+    )
     handle_v1_ontology_owner_decision_acknowledgements = (
         specspace_v1_api.handle_v1_ontology_owner_decision_acknowledgements
     )

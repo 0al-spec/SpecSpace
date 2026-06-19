@@ -416,6 +416,26 @@ rejected Ontology owner decisions as review material, linked evidence, affected
 review items, and before/after semantic status. It does not import decisions,
 close gates, update lockfiles, or mutate Ontology/SpecGraph canonical files.
 
+### `GET /api/v1/ontology-compliance-review`
+
+Returns the SpecGraph-produced `spec_ontology_validation_report` envelope for
+SpecSpace inspection. The endpoint reads
+`runs/spec_ontology_validation_report.json` and exposes legacy spec ontology
+checks, report-only findings, ontology IR references, and the validation mode
+posture.
+
+This surface is intentionally readonly and review-only:
+
+- legacy `specs/nodes/*.yaml` findings are report-only;
+- generated artifacts remain `review_required`;
+- `hard_gate_enabled` must be `false`;
+- canonical SpecGraph mutations must be disabled;
+- tracked artifact writes must be disabled.
+
+The endpoint is meant for the utility panel and artifact review workflows. It
+does not approve ontology gaps, mutate package terms, import owner decisions, or
+block existing legacy specs.
+
 ### `GET /api/v1/ontology-owner-decision-acknowledgements`
 
 Returns SpecSpace-owned local acknowledgement state for reviewed owner decision

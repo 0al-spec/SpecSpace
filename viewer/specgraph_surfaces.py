@@ -26,6 +26,11 @@ ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME = "ontology_decision_import_preview.json
 ONTOLOGY_OWNER_DECISION_REVIEW_ARTIFACT = f"runs/{ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME}"
 ONTOLOGY_OWNER_DECISION_REVIEW_KIND = "ontology_decision_import_preview"
 ONTOLOGY_OWNER_DECISION_REVIEW_PROPOSAL_ID = "0115"
+SPEC_ONTOLOGY_VALIDATION_FILENAME = "spec_ontology_validation_report.json"
+SPEC_ONTOLOGY_VALIDATION_ARTIFACT = f"runs/{SPEC_ONTOLOGY_VALIDATION_FILENAME}"
+SPEC_ONTOLOGY_VALIDATION_BUILD_HINT = "`make spec-ontology-validation`"
+SPEC_ONTOLOGY_VALIDATION_KIND = "spec_ontology_validation_report"
+SPEC_ONTOLOGY_VALIDATION_PROPOSAL_ID = "0135"
 ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FALSE_BOUNDARY_FLAGS = (
     "may_execute_prompt_agent",
     "may_write_ontology_package",
@@ -263,6 +268,27 @@ def _ontology_owner_decision_review_contract_error(reason: str, detail: str) -> 
         "error": "ontology_decision_import_preview.json violates the SpecSpace read-only owner decision contract.",
         "reason": reason,
         "artifact": ONTOLOGY_OWNER_DECISION_REVIEW_ARTIFACT,
+        "detail": detail,
+    }
+
+
+def _spec_ontology_validation_missing_error() -> dict[str, Any]:
+    return {
+        "error": (
+            f"{SPEC_ONTOLOGY_VALIDATION_FILENAME} not found. "
+            f"Run {SPEC_ONTOLOGY_VALIDATION_BUILD_HINT} first."
+        ),
+        "reason": "missing_artifact",
+        "artifact": SPEC_ONTOLOGY_VALIDATION_ARTIFACT,
+        "build_hint": f"{SPEC_ONTOLOGY_VALIDATION_BUILD_HINT} in SpecGraph",
+    }
+
+
+def _spec_ontology_validation_contract_error(reason: str, detail: str) -> tuple[int, dict[str, Any]]:
+    return HTTPStatus.UNPROCESSABLE_ENTITY, {
+        "error": "spec_ontology_validation_report.json violates the SpecSpace read-only compliance contract.",
+        "reason": reason,
+        "artifact": SPEC_ONTOLOGY_VALIDATION_ARTIFACT,
         "detail": detail,
     }
 
@@ -547,6 +573,119 @@ def read_ontology_review_dashboard(
             **payload,
         }
     return validate_ontology_review_dashboard_envelope(payload)
+
+
+def validate_spec_ontology_validation_data(data: Any) -> tuple[int, dict[str, Any] | None]:
+    if not isinstance(data, dict):
+        return _spec_ontology_validation_contract_error(
+            "invalid_json_root",
+            "JSON root must be an object.",
+        )
+    if data.get("artifact_kind") != SPEC_ONTOLOGY_VALIDATION_KIND:
+        return _spec_ontology_validation_contract_error(
+            "wrong_artifact_kind",
+            "artifact_kind must be spec_ontology_validation_report.",
+        )
+    if data.get("schema_version") != 1:
+        return _spec_ontology_validation_contract_error(
+            "unsupported_schema_version",
+            "schema_version must be 1.",
+        )
+    if data.get("proposal_id") != SPEC_ONTOLOGY_VALIDATION_PROPOSAL_ID:
+        return _spec_ontology_validation_contract_error(
+            "wrong_proposal_id",
+            "proposal_id must be 0135.",
+        )
+    if data.get("canonical_mutations_allowed") is not False:
+        return _spec_ontology_validation_contract_error(
+            "authority_expansion",
+            "canonical_mutations_allowed must be false.",
+        )
+    if data.get("tracked_artifacts_written") is not False:
+        return _spec_ontology_validation_contract_error(
+            "authority_expansion",
+            "tracked_artifacts_written must be false.",
+        )
+    validation_modes = data.get("validation_modes")
+    if not isinstance(validation_modes, dict):
+        return _spec_ontology_validation_contract_error(
+            "missing_validation_modes",
+            "validation_modes must be an object.",
+        )
+    if validation_modes.get("legacy_specs") != "report_only":
+        return _spec_ontology_validation_contract_error(
+            "authority_expansion",
+            "validation_modes.legacy_specs must be report_only.",
+        )
+    if validation_modes.get("hard_gate_enabled") is not False:
+        return _spec_ontology_validation_contract_error(
+            "authority_expansion",
+            "validation_modes.hard_gate_enabled must be false.",
+        )
+    summary = data.get("summary")
+    entries = data.get("entries")
+    if not isinstance(summary, dict):
+        return _spec_ontology_validation_contract_error(
+            "invalid_summary",
+            "summary must be an object.",
+        )
+    if not isinstance(entries, list):
+        return _spec_ontology_validation_contract_error(
+            "invalid_entries",
+            "entries must be a list.",
+        )
+    if summary.get("spec_count") != len(entries):
+        return _spec_ontology_validation_contract_error(
+            "stale_summary",
+            "summary.spec_count must match entries length.",
+        )
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            return _spec_ontology_validation_contract_error(
+                "invalid_entries",
+                f"entries[{index}] must be an object.",
+            )
+        if not isinstance(entry.get("checks"), list):
+            return _spec_ontology_validation_contract_error(
+                "invalid_checks",
+                f"entries[{index}].checks must be a list.",
+            )
+        if not isinstance(entry.get("findings"), list):
+            return _spec_ontology_validation_contract_error(
+                "invalid_findings",
+                f"entries[{index}].findings must be a list.",
+            )
+    return HTTPStatus.OK, None
+
+
+def validate_spec_ontology_validation_envelope(payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    status, error = validate_spec_ontology_validation_data(payload.get("data"))
+    if error is not None:
+        return status, error
+    return HTTPStatus.OK, payload
+
+
+def read_spec_ontology_validation_report(
+    *,
+    spec_dir: Path | None,
+    runs_dir: Path | None,
+) -> tuple[int, dict[str, Any]]:
+    if runs_dir is None:
+        return HTTPStatus.NOT_FOUND, _spec_ontology_validation_missing_error()
+    path = runs_dir / SPEC_ONTOLOGY_VALIDATION_FILENAME
+    if not path.exists():
+        return HTTPStatus.NOT_FOUND, _spec_ontology_validation_missing_error()
+    status, payload = read_json_artifact(
+        path,
+        invalid_message=f"{SPEC_ONTOLOGY_VALIDATION_FILENAME} is not valid JSON",
+    )
+    if status != HTTPStatus.OK:
+        return status, {
+            "reason": "invalid_json",
+            "artifact": SPEC_ONTOLOGY_VALIDATION_ARTIFACT,
+            **payload,
+        }
+    return validate_spec_ontology_validation_envelope(payload)
 
 
 def validate_ontology_owner_decision_review_data(data: Any) -> tuple[int, dict[str, Any] | None]:
