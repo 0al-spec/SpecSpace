@@ -460,6 +460,7 @@ PUBLIC_SAFE_RUN_ARTIFACT_FILENAMES: frozenset[str] = frozenset(
         practical_ontology.BINDING_PREVIEW_ARTIFACT,
         practical_ontology.GAP_INDEX_ARTIFACT,
         practical_ontology.COMPATIBILITY_DIFF_PREVIEW_ARTIFACT,
+        practical_ontology.GOVERNANCE_EVIDENCE_INDEX_ARTIFACT,
         *proposals.PROPOSAL_ARTIFACTS.values(),
         *metrics.METRICS_ARTIFACTS.values(),
         *agent_surfaces.AGENT_SURFACE_ARTIFACTS.values(),
@@ -692,6 +693,7 @@ class FileSpecGraphProvider:
             practical_ontology.BINDING_PREVIEW_ARTIFACT,
             practical_ontology.GAP_INDEX_ARTIFACT,
             practical_ontology.COMPATIBILITY_DIFF_PREVIEW_ARTIFACT,
+            practical_ontology.GOVERNANCE_EVIDENCE_INDEX_ARTIFACT,
         )
         artifacts = {
             filename: payload
@@ -1558,6 +1560,7 @@ class HttpSpecGraphProvider:
             practical_ontology.BINDING_PREVIEW_ARTIFACT,
             practical_ontology.GAP_INDEX_ARTIFACT,
             practical_ontology.COMPATIBILITY_DIFF_PREVIEW_ARTIFACT,
+            practical_ontology.GOVERNANCE_EVIDENCE_INDEX_ARTIFACT,
         )
         artifacts = {
             filename: payload

@@ -94,6 +94,11 @@ const practicalOntology: PracticalOntology = {
       evidenceCount: 1,
     },
   ],
+  package: null,
+  gaps: [],
+  compatibilityDiff: null,
+  governanceEvidence: [],
+  rawArtifacts: [{ artifact: "curated_seed", path: "curated://specspace/specgraph-core-v0" }],
   topologyEdges: [],
   proposalReferences: [],
   relationTaxonomy: {
@@ -107,6 +112,84 @@ const practicalOntology: PracticalOntology = {
     mayWriteOntologyPackage: false,
     mayMutateCanonicalSpecs: false,
     mayMarkCandidateAccepted: false,
+  },
+};
+
+const compilerBackedOntology: PracticalOntology = {
+  ...practicalOntology,
+  source: {
+    provider: "http",
+    ontology_mode: "compiler_artifact_projection",
+    package_ref: "org.0al.specgraph.core@0.1.0",
+  },
+  summary: {
+    ...practicalOntology.summary,
+    gapCount: 1,
+    diffAddedClassCount: 1,
+    sourceCount: 5,
+  },
+  package: {
+    packageId: "org.0al.specgraph.core",
+    namespace: "sgcore",
+    version: "0.1.0",
+    packageRef: "org.0al.specgraph.core@0.1.0",
+    authorityClass: "draft_imported",
+    sourceRef: "codex/ont-038-specgraph-core-package",
+    sourceUri: "git+https://github.com/0al-spec/Ontology.git",
+    digest: "sha256:22022e3",
+    materializedIr: "ontology/specgraph-core/ontology.normalized.json",
+    acceptedByProposal: "SG-RFC-0130-smoke",
+  },
+  gaps: [
+    {
+      gapId: "ontology-gap-sgcore-claimcalibration",
+      severity: "medium",
+      targetPackage: "org.0al.specgraph.core@0.1.0",
+      recommendedRoute: "ontology_package_draft",
+      missingRef: "sgcore:ClaimCalibration",
+      missingConcept: "ClaimCalibration",
+      namespaceHint: "sgcore",
+      subject: "proposal SG-RFC-0130",
+      neededBy: ["0060", "SG-RFC-0130"],
+      sourceRefs: ["tests/fixtures/ontology_import/specgraph-core/import-fixture.yaml"],
+    },
+  ],
+  compatibilityDiff: {
+    compatible: true,
+    fromRef: "org.0al.specgraph.core@0.1.0",
+    toRef: "org.0al.specgraph.core@0.2.0",
+    packageRef: "org.0al.specgraph.core",
+    status: "compatible",
+    nextGap: "review_required_specgraph_actions",
+    addedClasses: ["sgcore:ClaimCalibration"],
+    addedRelations: [],
+    removedClasses: [],
+    removedRelations: [],
+    breakingChanges: [],
+    requiredSpecgraphActions: ["updateLockfile"],
+    sourceRefs: ["tests/fixtures/ontology_import/specgraph-core/compatibility-report.yaml"],
+  },
+  governanceEvidence: [
+    {
+      packageRef: "org.0al.specgraph.core@0.1.0",
+      lifecycleState: "draft",
+      decisionRef: "https://github.com/0al-spec/Ontology/pull/57",
+      validationReportRef: "Ontology:SPECS/INPROGRESS/ONT-038_Validation_Report.md",
+      repeatabilityReportRef: "Ontology:Tests/OntologyCompilerTests/SpecGraphCorePackageTests.swift",
+      trustedRegistryGateRef: "Ontology:SPECS/ontology/packages/specgraph-core/README.md#scope",
+    },
+  ],
+  rawArtifacts: [
+    { artifact: "ontology_package_index", path: "runs/ontology_package_index.json" },
+    {
+      artifact: "ontology_normalized_ir",
+      path: "ontology/specgraph-core/ontology.normalized.json",
+    },
+  ],
+  authorityBoundary: {
+    ...practicalOntology.authorityBoundary,
+    derivedFromSpecgraphSources: true,
+    compilerArtifactBacked: true,
   },
 };
 
@@ -125,6 +208,27 @@ describe("PracticalOntologyPanel", () => {
     expect(html).toContain("working_draft");
     expect(html).toContain("Diff !");
     expect(html).toContain("Open ontology graph");
+    expect(html).toContain("Compiler IR unavailable");
+  });
+
+  it("renders compiler package metadata with gaps, diffs, and governance evidence", () => {
+    const html = renderToStaticMarkup(
+      createElement(PracticalOntologyPanel, {
+        state: { kind: "ok", data: compilerBackedOntology },
+      }),
+    );
+
+    expect(html).toContain("Compiler IR package");
+    expect(html).toContain("org.0al.specgraph.core");
+    expect(html).toContain("ontology/specgraph-core/ontology.normalized.json");
+    expect(html).toContain("Import Gaps");
+    expect(html).toContain("ClaimCalibration");
+    expect(html).toContain("Compatibility Diff");
+    expect(html).toContain("sgcore:ClaimCalibration");
+    expect(html).toContain("Governance Evidence");
+    expect(html).toContain("https://github.com/0al-spec/Ontology/pull/57");
+    expect(html).toContain("Raw Artifacts");
+    expect(html).toContain("runs/ontology_package_index.json");
   });
 
   it("renders a curated ontology graph lens", () => {
