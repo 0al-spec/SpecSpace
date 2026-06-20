@@ -710,6 +710,98 @@ def _write_ontology_workbench_artifacts(root: Path) -> None:
             },
         },
     )
+    _write_json(
+        runs_dir / "specauthor_invocation_artifact.json",
+        {
+            "artifact_kind": "specauthor_invocation_artifact",
+            "schema_version": 1,
+            "contract_ref": "specgraph.specauthor.invocation-artifact.v0.1",
+            "source_ref": "memory://specauthor-authoring-flow-ready",
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "invocation": {
+                "invocation_id": "specauthor-invocation-0146-ready",
+                "agent_id": "SpecAuthorAgent",
+                "mode": "draft_authoring",
+                "prompt_contract_ref": (
+                    "docs/proposals/0126_specauthor_claim_calibration_prompt_contract.md"
+                ),
+                "user_intent": {
+                    "text": (
+                        "Draft a review-only proposal using existing SpecGraph ontology terms."
+                    ),
+                    "source_ref": "operator://local-intent/0146",
+                },
+            },
+            "active_frame": {
+                "project": "SpecGraph",
+                "subsystem": "Application.AgentLayer.SpecificationAuthoring",
+                "agent_layer": "SpecificationAuthoring",
+                "target_artifact": "Proposal",
+                "lifecycle_phase": "draft",
+                "ontology_refs": ["sgcore:Spec"],
+                "ontology_layer_refs": ["meta"],
+                "model_applicability_refs": [
+                    "org.0al.specgraph.core@0.1.0#modelApplicability"
+                ],
+                "domain_refs": ["domain.specification_authoring"],
+                "context_refs": ["context.specgraph.agent_layer"],
+            },
+            "model_applicability": {
+                "package_ref": "org.0al.specgraph.core@0.1.0",
+                "assumption_refs": [
+                    "modelApplicability.assumptions.project_local_authority",
+                    "modelApplicability.assumptions.human_review_required",
+                ],
+                "invalidation_trigger_refs": [
+                    "modelApplicability.invalidationTriggers.ontology_layer_contract_changed",
+                    "modelApplicability.invalidationTriggers.specgraph_core_vocabulary_changed",
+                ],
+            },
+            "operator_decision": {
+                "decision_state": "pending_review",
+                "reviewer": None,
+                "may_execute_prompt_agent": False,
+                "may_write_ontology_package": False,
+                "may_mutate_canonical_specs": False,
+            },
+        },
+    )
+    _write_json(
+        runs_dir / "specauthor_invocation_artifact_contract_report.json",
+        {
+            "artifact_kind": "specauthor_invocation_artifact_contract_report",
+            "schema_version": 1,
+            "proposal_id": "0145",
+            "ok": True,
+            "review_state": "ready_for_operator_review",
+            "invocation_ready": True,
+            "summary": {
+                "finding_count": 0,
+                "operator_decision_state": "pending_review",
+            },
+            "findings": [],
+        },
+    )
+    _write_json(
+        runs_dir / "specauthor_authoring_flow_report.json",
+        {
+            "artifact_kind": "specauthor_authoring_flow_report",
+            "schema_version": 1,
+            "proposal_id": "0146",
+            "ok": True,
+            "review_state": "ready_for_operator_review",
+            "validation_chain_summary": {
+                "generated_artifact_contract_ok": True,
+                "write_gate_ok": True,
+                "write_decision": "allow_graph_write",
+                "invocation_contract_ok": True,
+                "invocation_review_state": "ready_for_operator_review",
+            },
+            "summary": {"finding_count": 0},
+            "findings": [],
+        },
+    )
 
 
 def _write_specpm_registry(root: Path) -> None:
@@ -2500,6 +2592,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["gap_group_count"], 1)
         self.assertEqual(body["summary"]["compliance_finding_count"], 1)
         self.assertEqual(body["summary"]["write_gate_finding_count"], 2)
+        self.assertEqual(body["summary"]["specauthor_invocation_finding_count"], 0)
         self.assertEqual(body["summary"]["owner_decision_review_count"], 1)
         self.assertEqual(body["summary"]["legacy_small_pr_batch_count"], 1)
         self.assertEqual(body["package"]["package_id"], "org.0al.specgraph.core")
@@ -2532,6 +2625,20 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertEqual(
             body["diff_classification"]["summary"]["annotation_change_count"], 1
+        )
+        self.assertTrue(body["specauthor_invocation"]["available"])
+        self.assertEqual(
+            body["specauthor_invocation"]["invocation"]["invocation_id"],
+            "specauthor-invocation-0146-ready",
+        )
+        self.assertEqual(
+            body["specauthor_invocation"]["validation_chain"]["write_decision"],
+            "allow_graph_write",
+        )
+        self.assertFalse(
+            body["specauthor_invocation"]["operator_decision"][
+                "may_execute_prompt_agent"
+            ]
         )
         self.assertEqual(
             body["diff_classification"]["summary"]["applicability_change_count"], 1
@@ -2686,6 +2793,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     "runs/ontology_owner_decision_import_v2.json",
                     "runs/legacy_spec_ontology_backfill_plan.json",
                     "runs/specauthor_ontology_write_gate_report.json",
+                    "runs/specauthor_invocation_artifact.json",
+                    "runs/specauthor_invocation_artifact_contract_report.json",
+                    "runs/specauthor_authoring_flow_report.json",
                     "ontology/specgraph-core/ontology.normalized.json",
                 ],
             )

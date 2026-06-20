@@ -11,6 +11,7 @@ import type {
   OntologyWorkbenchLayers,
   OntologyWorkbenchLegacyBatch,
   OntologyWorkbenchOwnerDecisionReview,
+  OntologyWorkbenchSpecAuthorInvocation,
   OntologyWorkbenchWriteGateFinding,
   UseOntologyWorkbenchState,
 } from "../model/use-ontology-workbench";
@@ -79,6 +80,10 @@ export function OntologyWorkbenchPanel({ state }: Props) {
         <Metric label="Gaps" value={data.summary.gapGroupCount} />
         <Metric label="Findings" value={data.summary.complianceFindingCount} />
         <Metric label="Write gate" value={data.summary.writeGateFindingCount} />
+        <Metric
+          label="SpecAuthor"
+          value={data.summary.specAuthorInvocationFindingCount}
+        />
         <Metric label="Owner" value={data.summary.ownerDecisionReviewCount} />
         <Metric label="Backfill" value={data.summary.legacySmallPrBatchCount} />
         <Metric label="Missing" value={data.summary.missingArtifactCount} />
@@ -122,6 +127,7 @@ export function OntologyWorkbenchPanel({ state }: Props) {
         <GapReviewSection groups={data.gapReview.groups} />
         <ComplianceSection entries={data.compliance.entries} />
         <WriteGateSection data={data} findings={data.writeGate.findings} />
+        <SpecAuthorInvocationSection data={data.specAuthorInvocation} />
         <OwnerDecisionSection reviews={data.ownerDecisions.reviews} />
         <LegacyBackfillSection batches={data.legacyBackfill.smallPrBatches} />
       </div>
@@ -487,6 +493,98 @@ function WriteGateSection({
         <PostureItem label="Findings" value={findings.length.toString()} />
       </div>
       {findings.map((finding) => (
+        <div key={finding.findingId} className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{finding.findingId}</span>
+            <Pill value={finding.severity} />
+          </div>
+          <h3 className={styles.title}>{finding.message}</h3>
+          <div className={styles.metaGrid}>
+            <Meta label="Source" value={finding.sourceRef} />
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function SpecAuthorInvocationSection({
+  data,
+}: {
+  data: OntologyWorkbenchSpecAuthorInvocation;
+}) {
+  const frame = data.activeFrame;
+  const chain = data.validationChain;
+  const decision = data.operatorDecision;
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader title="SpecAuthor invocation" count={data.findings.length} />
+      <div className={styles.postureStrip}>
+        <PostureItem label="Available" value={boolText(data.available)} />
+        <PostureItem label="Status" value={data.summary.status} />
+        <PostureItem label="Flow ok" value={boolText(data.summary.authoringFlowOk)} />
+        <PostureItem
+          label="Contract ok"
+          value={boolText(data.summary.invocationContractOk)}
+        />
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>
+            {compact(data.invocation.invocationId, "specauthor-invocation")}
+          </span>
+          <Pill value={compact(data.invocation.mode, "missing mode")} />
+        </div>
+        <h3 className={styles.title}>
+          {compact(data.invocation.agentId, "SpecAuthorAgent")} ·{" "}
+          {compact(frame.targetArtifact, "target artifact")}
+        </h3>
+        <div className={styles.metaGrid}>
+          <Meta label="Project" value={frame.project} />
+          <Meta label="Subsystem" value={frame.subsystem} />
+          <Meta label="Layer" value={frame.agentLayer} />
+          <Meta label="Lifecycle" value={frame.lifecyclePhase} />
+          <Meta label="Ontology refs" value={joined(frame.ontologyRefs)} />
+          <Meta label="Ontology layers" value={joined(frame.ontologyLayerRefs)} />
+          <Meta label="Domains" value={joined(frame.domainRefs)} />
+          <Meta label="Contexts" value={joined(frame.contextRefs)} />
+          <Meta
+            label="Applicability"
+            value={joined(frame.modelApplicabilityRefs)}
+          />
+          <Meta
+            label="Assumptions"
+            value={joined(data.modelApplicability.assumptionRefs)}
+          />
+          <Meta
+            label="Invalidation"
+            value={joined(data.modelApplicability.invalidationTriggerRefs)}
+          />
+          <Meta label="Write gate" value={compact(chain.writeDecision)} />
+          <Meta
+            label="Generated contract"
+            value={boolText(chain.generatedArtifactContractOk)}
+          />
+          <Meta label="Write gate ok" value={boolText(chain.writeGateOk)} />
+          <Meta
+            label="Operator decision"
+            value={compact(decision.decisionState)}
+          />
+          <Meta
+            label="Prompt execution"
+            value={boolText(decision.mayExecutePromptAgent)}
+          />
+          <Meta
+            label="Ontology writes"
+            value={boolText(decision.mayWriteOntologyPackage)}
+          />
+          <Meta
+            label="Spec mutations"
+            value={boolText(decision.mayMutateCanonicalSpecs)}
+          />
+        </div>
+      </div>
+      {data.findings.map((finding) => (
         <div key={finding.findingId} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{finding.findingId}</span>
