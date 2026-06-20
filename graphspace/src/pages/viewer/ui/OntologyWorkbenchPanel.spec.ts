@@ -30,6 +30,15 @@ describe("OntologyWorkbenchPanel", () => {
     expect(html).toContain("objective");
     expect(html).toContain("meta");
     expect(html).toContain("Unassigned gaps");
+    expect(html).toContain("Model applicability");
+    expect(html).toContain("specgraph_core");
+    expect(html).toContain("SpecAuthorAgent");
+    expect(html).toContain("project_local_authority");
+    expect(html).toContain("specgraph_core_vocabulary_changed");
+    expect(html).toContain("Diff classification");
+    expect(html).toContain("sgcore:ClaimCalibration");
+    expect(html).toContain("layerChanged");
+    expect(html).toContain("invalidationTriggerAdded");
     expect(html).toContain("SpecGraph");
     expect(html).toContain("definesRequirement");
     expect(html).toContain("sgcore:Spec");
