@@ -23,6 +23,7 @@ from viewer import (
     agent_workbench,
     capabilities_api,
     metrics,
+    ontology_workbench,
     practical_ontology,
     proposals,
     spec_compile,
@@ -101,6 +102,8 @@ class SpecSpaceProvider(Protocol):
     def read_proposals(self) -> tuple[int, dict[str, Any]]: ...
 
     def read_practical_ontology(self) -> tuple[int, dict[str, Any]]: ...
+
+    def read_ontology_workbench(self) -> tuple[int, dict[str, Any]]: ...
 
     def read_metrics(self) -> tuple[int, dict[str, Any]]: ...
 
@@ -459,11 +462,7 @@ PUBLIC_SAFE_RUN_ARTIFACT_FILENAMES: frozenset[str] = frozenset(
         specgraph_surfaces.ONTOLOGY_REVIEW_DASHBOARD_FILENAME,
         specgraph_surfaces.ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME,
         specgraph_surfaces.SPEC_ONTOLOGY_VALIDATION_FILENAME,
-        practical_ontology.PACKAGE_INDEX_ARTIFACT,
-        practical_ontology.BINDING_PREVIEW_ARTIFACT,
-        practical_ontology.GAP_INDEX_ARTIFACT,
-        practical_ontology.COMPATIBILITY_DIFF_PREVIEW_ARTIFACT,
-        practical_ontology.GOVERNANCE_EVIDENCE_INDEX_ARTIFACT,
+        *ontology_workbench.WORKBENCH_PUBLIC_SAFE_RUN_ARTIFACTS,
         *proposals.PROPOSAL_ARTIFACTS.values(),
         *metrics.METRICS_ARTIFACTS.values(),
         *agent_surfaces.AGENT_SURFACE_ARTIFACTS.values(),
@@ -733,6 +732,31 @@ class FileSpecGraphProvider:
                 "curated_seed_source_ref": curated_seed_source_ref,
             },
             ontology_artifacts=self._read_practical_ontology_artifacts(),
+        )
+
+    def _read_ontology_workbench_artifacts(self) -> dict[str, Any]:
+        artifacts = self._read_practical_ontology_artifacts()
+        for filename in ontology_workbench.ADDITIONAL_RUN_ARTIFACTS:
+            if filename in artifacts:
+                continue
+            payload = self._read_local_runs_json(filename)
+            if payload is not None:
+                artifacts[filename] = payload
+        return artifacts
+
+    def read_ontology_workbench(self) -> tuple[int, dict[str, Any]]:
+        status, practical_payload = self.read_practical_ontology()
+        if status != HTTPStatus.OK:
+            return status, practical_payload
+        return HTTPStatus.OK, ontology_workbench.build_ontology_workbench(
+            practical=practical_payload,
+            artifacts=self._read_ontology_workbench_artifacts(),
+            source={
+                "provider": "file",
+                "read_only": True,
+                "runs_dir": str(self.runs_dir) if self.runs_dir is not None else None,
+                "specgraph_dir": str(self.specgraph_dir) if self.specgraph_dir is not None else None,
+            },
         )
 
     def read_metrics(self) -> tuple[int, dict[str, Any]]:
@@ -1608,6 +1632,37 @@ class HttpSpecGraphProvider:
                 "curated_seed_source_ref": curated_seed_source_ref,
             },
             ontology_artifacts=self._read_practical_ontology_artifacts(manifest),
+        )
+
+    def _read_ontology_workbench_artifacts(self, manifest: dict[str, Any]) -> dict[str, Any]:
+        artifacts = self._read_practical_ontology_artifacts(manifest)
+        for filename in ontology_workbench.ADDITIONAL_RUN_ARTIFACTS:
+            if filename in artifacts:
+                continue
+            payload = self._read_optional_runs_json_data(manifest, filename)
+            if payload is not None:
+                artifacts[filename] = payload
+        return artifacts
+
+    def read_ontology_workbench(self) -> tuple[int, dict[str, Any]]:
+        manifest, manifest_error = self._read_manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+        status, practical_payload = self.read_practical_ontology()
+        if status != HTTPStatus.OK:
+            return status, practical_payload
+        return HTTPStatus.OK, ontology_workbench.build_ontology_workbench(
+            practical=practical_payload,
+            artifacts=self._read_ontology_workbench_artifacts(manifest),
+            source={
+                "provider": "http",
+                "read_only": True,
+                "artifact_base_url": self.normalized_base_url,
+                "manifest": self.manifest_url,
+                "generated_at": manifest.get("generated_at"),
+                "git": manifest.get("git") if isinstance(manifest.get("git"), dict) else None,
+            },
         )
 
     def _read_optional_metrics_artifact(

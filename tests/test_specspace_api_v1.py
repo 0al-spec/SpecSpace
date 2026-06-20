@@ -320,6 +320,228 @@ def _write_specgraph_core_ontology_artifacts(root: Path) -> None:
     )
 
 
+def _write_ontology_workbench_artifacts(root: Path) -> None:
+    runs_dir = root / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(runs_dir / "spec_ontology_validation_report.json", _spec_ontology_validation_report())
+    _write_json(runs_dir / "ontology_decision_import_preview.json", _ontology_owner_decision_review())
+    _write_json(
+        runs_dir / "ontology_gap_review_workflow.json",
+        {
+            "artifact_kind": "ontology_gap_review_workflow",
+            "schema_version": 1,
+            "proposal_id": "0138",
+            "status": "review_required",
+            "review_state": "needs_owner_review",
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "source_artifacts": {
+                "spec_ontology_validation_report": "runs/spec_ontology_validation_report.json",
+            },
+            "validation_modes": {
+                "legacy_specs": "report_only",
+                "generated_artifacts": "review_required",
+            },
+            "summary": {
+                "gap_group_count": 1,
+                "source_spec_count": 1,
+                "affected_generated_artifact_count": 0,
+                "recommended_owner_action_counts": {
+                    "review_legacy_term_for_package_draft": 1,
+                },
+                "next_gap": "review_grouped_ontology_gaps",
+            },
+            "gap_groups": [
+                {
+                    "group_id": "ontology-gap-review-legacy-term-intent",
+                    "gap_key": "legacy_term:intent",
+                    "gap_kind": "legacy_term",
+                    "missing_ref": "ontology-gap-sg-spec-0001-intent",
+                    "proposed_term": "Intent",
+                    "proposed_relation": None,
+                    "recommended_owner_action": "review_legacy_term_for_package_draft",
+                    "recommended_route": "ontology_owner_review",
+                    "review_state": "needs_owner_review",
+                    "source_spec_count": 1,
+                    "affected_generated_artifact_count": 0,
+                    "source_specs": [
+                        {
+                            "spec_id": "SG-SPEC-0001",
+                            "path": "specs/nodes/SG-SPEC-0001.yaml",
+                            "source": "specification.terminology",
+                            "term": "intent",
+                            "classification": "unknown_legacy_term",
+                        }
+                    ],
+                }
+            ],
+            "operator_actions": [],
+            "authority_boundary": {
+                "ontology_gap_review_workflow_is_authority": False,
+                "may_write_ontology_package": False,
+                "may_mutate_canonical_specs": False,
+            },
+        },
+    )
+    _write_json(
+        runs_dir / "ontology_owner_decision_import_v2.json",
+        {
+            "artifact_kind": "ontology_owner_decision_import_v2",
+            "schema_version": 1,
+            "proposal_id": "0139",
+            "status": "ready_for_operator_review",
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "source_artifacts": {
+                "ontology_gap_review_workflow": "runs/ontology_gap_review_workflow.json",
+                "ontology_decision_import_preview": "runs/ontology_decision_import_preview.json",
+            },
+            "summary": {
+                "status": "ready_for_operator_review",
+                "review_count": 1,
+                "accepted_count": 1,
+                "rejected_count": 0,
+                "clarification_count": 0,
+                "importable_count": 1,
+                "matched_gap_group_count": 1,
+                "unmatched_decision_count": 0,
+                "unresolved_gap_group_count": 0,
+                "compliance_finding_count": 1,
+                "write_gate_finding_count": 2,
+                "next_gap": "review_owner_decision_import_v2",
+            },
+            "decision_import_reviews": [
+                {
+                    "review_id": "ontology-owner-decision-review-intent",
+                    "decision_id": "ontology-owner-decision-accept-intent",
+                    "decision_state": "accepted",
+                    "review_state": "ready_for_operator_review",
+                    "candidate_id": "ontology-delta-candidate-intent",
+                    "gap_group_id": "ontology-gap-review-legacy-term-intent",
+                    "matched_gap_group_id": "ontology-gap-review-legacy-term-intent",
+                    "before_semantic_status": "unknown_legacy_term",
+                    "after_semantic_status": "accepted_term",
+                    "required_human_action": "operator_acknowledge_owner_decision",
+                    "import_recommended": True,
+                    "evidence_refs": ["runs/ontology_closed_loop_evidence.json#intent"],
+                }
+            ],
+            "unresolved_gap_group_count": 0,
+            "operator_actions": [],
+            "authority_boundary": {
+                "ontology_owner_decision_import_v2_is_authority": False,
+                "may_write_ontology_package": False,
+                "may_mutate_canonical_specs": False,
+                "may_import_owner_decision": False,
+            },
+        },
+    )
+    _write_json(
+        runs_dir / "legacy_spec_ontology_backfill_plan.json",
+        {
+            "artifact_kind": "legacy_spec_ontology_backfill_plan",
+            "schema_version": 1,
+            "proposal_id": "0140",
+            "status": "review_required",
+            "review_state": "ready_for_review",
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "source_artifacts": {
+                "spec_ontology_validation_report": "runs/spec_ontology_validation_report.json",
+                "ontology_gap_review_workflow": "runs/ontology_gap_review_workflow.json",
+            },
+            "summary": {
+                "status": "review_required",
+                "spec_count": 1,
+                "clean_spec_count": 0,
+                "warning_only_spec_count": 1,
+                "review_required_spec_count": 1,
+                "finding_count": 1,
+                "unknown_term_count": 1,
+                "new_term_decision_spec_count": 1,
+                "large_new_term_decision_spec_count": 0,
+                "relation_review_spec_count": 0,
+                "small_pr_candidate_spec_count": 1,
+                "small_pr_batch_count": 1,
+                "next_gap": "review_legacy_spec_backfill_batches",
+            },
+            "planning_thresholds": {"small_pr_max_specs": 3},
+            "spec_reviews": [],
+            "small_pr_batches": [
+                {
+                    "batch_id": "legacy-spec-ontology-backfill-batch-001",
+                    "review_state": "ready_for_review",
+                    "recommended_pr_scope": "small_reviewed_terminology_backfill",
+                    "spec_count": 1,
+                    "finding_count": 1,
+                    "writes_ontology_package": False,
+                    "mutates_canonical_specs": False,
+                    "specs": [
+                        {
+                            "spec_id": "SG-SPEC-0001",
+                            "path": "specs/nodes/SG-SPEC-0001.yaml",
+                            "finding_count": 1,
+                            "unknown_terms": ["intent"],
+                        }
+                    ],
+                }
+            ],
+            "operator_actions": [],
+            "authority_boundary": {
+                "legacy_spec_ontology_backfill_plan_is_authority": False,
+                "may_write_ontology_package": False,
+                "may_mutate_canonical_specs": False,
+            },
+        },
+    )
+    _write_json(
+        runs_dir / "specauthor_ontology_write_gate_report.json",
+        {
+            "artifact_kind": "specauthor_ontology_write_gate_report",
+            "schema_version": 1,
+            "proposal_id": "0137",
+            "ok": False,
+            "review_state": "review_required",
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "would_reject_in_hard_gate": True,
+            "write_decision": "review_required",
+            "source_artifact": "memory://specauthor-review-required",
+            "validation_modes": {"generated_artifacts": "review_required"},
+            "summary": {
+                "finding_count": 2,
+                "warning_count": 0,
+                "active_frame_finding_count": 1,
+                "claim_finding_count": 1,
+                "term_binding_finding_count": 0,
+                "artifact_kind_finding_count": 0,
+            },
+            "findings": [
+                {
+                    "finding_id": "active_frame_incomplete",
+                    "severity": "review_required",
+                    "message": "active_frame must resolve ontology/domain/context.",
+                    "source_ref": "memory://specauthor-review-required",
+                },
+                {
+                    "finding_id": "claim_without_fgr",
+                    "severity": "review_required",
+                    "message": "Strong claim requires F/G/R calibration.",
+                    "source_ref": "memory://specauthor-review-required",
+                },
+            ],
+            "warnings": [],
+            "term_binding_gate": {},
+            "policy_refs": ["docs/proposals/0137_specauthor_generated_artifact_contract.md"],
+            "authority_boundary": {
+                "specauthor_ontology_write_gate_report_is_authority": False,
+                "may_write_ontology_package": False,
+                "may_mutate_canonical_specs": False,
+            },
+        },
+    )
+
+
 def _write_specpm_registry(root: Path) -> None:
     status_dir = root / "v0" / "status"
     packages_dir = root / "v0" / "packages"
@@ -1977,6 +2199,104 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["gap_count"], 1)
         self.assertEqual(body["summary"]["diff_added_class_count"], 1)
         self.assertEqual(body["governance_evidence"][0]["package_ref"], "org.0al.specgraph.core@0.1.0")
+
+    def test_ontology_workbench_v1_reads_file_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_specgraph_core_ontology_artifacts(root)
+            _write_ontology_workbench_artifacts(root)
+
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=root / "runs",
+                specgraph_dir=root,
+            )
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-workbench")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["artifact_kind"], "specspace_ontology_workbench")
+        self.assertTrue(body["read_only"])
+        self.assertFalse(body["canonical_mutations_allowed"])
+        self.assertFalse(body["authority_boundary"]["ontology_workbench_is_authority"])
+        self.assertFalse(body["authority_boundary"]["may_write_ontology_package"])
+        self.assertFalse(body["authority_boundary"]["may_mutate_canonical_specs"])
+        self.assertEqual(body["summary"]["term_count"], 3)
+        self.assertEqual(body["summary"]["relation_count"], 1)
+        self.assertEqual(body["summary"]["gap_group_count"], 1)
+        self.assertEqual(body["summary"]["compliance_finding_count"], 1)
+        self.assertEqual(body["summary"]["write_gate_finding_count"], 2)
+        self.assertEqual(body["summary"]["owner_decision_review_count"], 1)
+        self.assertEqual(body["summary"]["legacy_small_pr_batch_count"], 1)
+        self.assertEqual(body["package"]["package_id"], "org.0al.specgraph.core")
+        self.assertEqual(body["normalized_ir"]["classes"][0]["id"], "SpecGraph")
+        self.assertEqual(body["gap_review"]["groups"][0]["proposed_term"], "Intent")
+        self.assertEqual(body["compliance"]["entries"][0]["terms"], ["intent"])
+        self.assertEqual(body["write_gate"]["findings"][0]["finding_id"], "active_frame_incomplete")
+        self.assertTrue(body["write_gate"]["would_reject_in_hard_gate"])
+        self.assertEqual(
+            body["owner_decisions"]["reviews"][0]["after_semantic_status"],
+            "accepted_term",
+        )
+        self.assertFalse(body["legacy_backfill"]["small_pr_batches"][0]["mutates_canonical_specs"])
+        self.assertTrue(body["artifacts"]["gap_review_workflow"]["available"])
+        self.assertTrue(body["artifacts"]["owner_decision_import_v2"]["available"])
+
+    def test_ontology_workbench_v1_reads_http_static_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifact-site"
+            spec_dir = artifact_root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_specgraph_core_ontology_artifacts(artifact_root)
+            _write_ontology_workbench_artifacts(artifact_root)
+            _write_manifest(
+                artifact_root,
+                [
+                    "specs/nodes/SG-SPEC-0001.yaml",
+                    "runs/ontology_package_index.json",
+                    "runs/ontology_binding_preview.json",
+                    "runs/ontology_import_gap_index.json",
+                    "runs/ontology_compatibility_diff_preview.json",
+                    "runs/ontology_governance_evidence_index.json",
+                    "runs/spec_ontology_validation_report.json",
+                    "runs/ontology_decision_import_preview.json",
+                    "runs/ontology_gap_review_workflow.json",
+                    "runs/ontology_owner_decision_import_v2.json",
+                    "runs/legacy_spec_ontology_backfill_plan.json",
+                    "runs/specauthor_ontology_write_gate_report.json",
+                    "ontology/specgraph-core/ontology.normalized.json",
+                ],
+            )
+
+            static_httpd, static_thread, artifact_base = _start_static(artifact_root)
+            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-workbench")
+            finally:
+                _stop(httpd, thread)
+                _stop(static_httpd, static_thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["source"]["provider"], "http")
+        self.assertEqual(body["summary"]["status"], "ready")
+        self.assertEqual(body["summary"]["legacy_review_required_spec_count"], 1)
+        self.assertEqual(
+            body["artifacts"]["normalized_ir"]["path"],
+            "ontology/specgraph-core/ontology.normalized.json",
+        )
+        self.assertTrue(body["artifacts"]["write_gate"]["available"])
+        self.assertEqual(
+            body["legacy_backfill"]["small_pr_batches"][0]["batch_id"],
+            "legacy-spec-ontology-backfill-batch-001",
+        )
 
     def test_artifacts_v1_lists_file_runs_and_materialized_ontology_ir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
