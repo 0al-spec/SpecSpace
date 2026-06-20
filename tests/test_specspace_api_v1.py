@@ -2248,6 +2248,42 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(body["artifacts"]["gap_review_workflow"]["available"])
         self.assertTrue(body["artifacts"]["owner_decision_import_v2"]["available"])
 
+    def test_ontology_workbench_v1_omits_invalid_file_contract_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_specgraph_core_ontology_artifacts(root)
+            _write_ontology_workbench_artifacts(root)
+            runs_dir = root / "runs"
+            invalid_validation = _spec_ontology_validation_report()
+            invalid_validation["summary"]["finding_count"] = 0
+            _write_json(runs_dir / "spec_ontology_validation_report.json", invalid_validation)
+            invalid_review = _ontology_owner_decision_review()
+            invalid_review["decision_import_previews"][0]["imports_into_specgraph"] = True
+            _write_json(runs_dir / "ontology_decision_import_preview.json", invalid_review)
+            (runs_dir / "ontology_owner_decision_import_v2.json").unlink()
+
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=runs_dir,
+                specgraph_dir=root,
+            )
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-workbench")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["compliance_finding_count"], 0)
+        self.assertEqual(body["summary"]["owner_decision_review_count"], 0)
+        self.assertEqual(body["compliance"]["entries"], [])
+        self.assertEqual(body["owner_decisions"]["reviews"], [])
+        self.assertFalse(body["artifacts"]["compliance_review"]["available"])
+        self.assertFalse(body["artifacts"]["owner_decision_import_preview"]["available"])
+
     def test_ontology_workbench_v1_reads_http_static_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -2297,6 +2333,58 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["legacy_backfill"]["small_pr_batches"][0]["batch_id"],
             "legacy-spec-ontology-backfill-batch-001",
         )
+
+    def test_ontology_workbench_v1_omits_invalid_http_contract_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact_root = root / "artifact-site"
+            spec_dir = artifact_root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_specgraph_core_ontology_artifacts(artifact_root)
+            _write_ontology_workbench_artifacts(artifact_root)
+            runs_dir = artifact_root / "runs"
+            invalid_validation = _spec_ontology_validation_report()
+            invalid_validation["summary"]["finding_count"] = 0
+            _write_json(runs_dir / "spec_ontology_validation_report.json", invalid_validation)
+            invalid_review = _ontology_owner_decision_review()
+            invalid_review["decision_import_previews"][0]["imports_into_specgraph"] = True
+            _write_json(runs_dir / "ontology_decision_import_preview.json", invalid_review)
+            (runs_dir / "ontology_owner_decision_import_v2.json").unlink()
+            _write_manifest(
+                artifact_root,
+                [
+                    "specs/nodes/SG-SPEC-0001.yaml",
+                    "runs/ontology_package_index.json",
+                    "runs/ontology_binding_preview.json",
+                    "runs/ontology_import_gap_index.json",
+                    "runs/ontology_compatibility_diff_preview.json",
+                    "runs/ontology_governance_evidence_index.json",
+                    "runs/spec_ontology_validation_report.json",
+                    "runs/ontology_decision_import_preview.json",
+                    "runs/ontology_gap_review_workflow.json",
+                    "runs/legacy_spec_ontology_backfill_plan.json",
+                    "runs/specauthor_ontology_write_gate_report.json",
+                    "ontology/specgraph-core/ontology.normalized.json",
+                ],
+            )
+
+            static_httpd, static_thread, artifact_base = _start_static(artifact_root)
+            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-workbench")
+            finally:
+                _stop(httpd, thread)
+                _stop(static_httpd, static_thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["source"]["provider"], "http")
+        self.assertEqual(body["summary"]["compliance_finding_count"], 0)
+        self.assertEqual(body["summary"]["owner_decision_review_count"], 0)
+        self.assertEqual(body["compliance"]["entries"], [])
+        self.assertEqual(body["owner_decisions"]["reviews"], [])
+        self.assertFalse(body["artifacts"]["compliance_review"]["available"])
+        self.assertFalse(body["artifacts"]["owner_decision_import_preview"]["available"])
 
     def test_artifacts_v1_lists_file_runs_and_materialized_ontology_ir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

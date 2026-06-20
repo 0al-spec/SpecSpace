@@ -44,6 +44,20 @@ SPECPM_REGISTRY_SOURCE_NAME = "specpm_registry"
 SPECPM_REGISTRY_API_VERSION = "specpm.registry/v0"
 
 
+def _validated_ontology_workbench_artifact(
+    filename: str,
+    payload: dict[str, Any],
+) -> dict[str, Any] | None:
+    envelope = {"data": payload}
+    if filename == ontology_workbench.SPEC_ONTOLOGY_VALIDATION_ARTIFACT:
+        status, _ = specgraph_surfaces.validate_spec_ontology_validation_envelope(envelope)
+        return payload if status == HTTPStatus.OK else None
+    if filename == ontology_workbench.OWNER_DECISION_IMPORT_PREVIEW_ARTIFACT:
+        status, _ = specgraph_surfaces.validate_ontology_owner_decision_review_envelope(envelope)
+        return payload if status == HTTPStatus.OK else None
+    return payload
+
+
 class CapabilityContext(capabilities_api.CapabilitiesHandler, Protocol):
     """Viewer handler/server context needed for capability introspection."""
 
@@ -740,8 +754,11 @@ class FileSpecGraphProvider:
             if filename in artifacts:
                 continue
             payload = self._read_local_runs_json(filename)
-            if payload is not None:
-                artifacts[filename] = payload
+            if payload is None:
+                continue
+            validated = _validated_ontology_workbench_artifact(filename, payload)
+            if validated is not None:
+                artifacts[filename] = validated
         return artifacts
 
     def read_ontology_workbench(self) -> tuple[int, dict[str, Any]]:
@@ -1640,8 +1657,11 @@ class HttpSpecGraphProvider:
             if filename in artifacts:
                 continue
             payload = self._read_optional_runs_json_data(manifest, filename)
-            if payload is not None:
-                artifacts[filename] = payload
+            if payload is None:
+                continue
+            validated = _validated_ontology_workbench_artifact(filename, payload)
+            if validated is not None:
+                artifacts[filename] = validated
         return artifacts
 
     def read_ontology_workbench(self) -> tuple[int, dict[str, Any]]:

@@ -137,7 +137,7 @@ function PackageSection({ data }: { data: OntologyWorkbench }) {
           <Meta label="Digest" value={packageRef?.digest} />
         </div>
       </div>
-      {data.normalizedIr.classes.slice(0, 8).map((entry) => (
+      {data.normalizedIr.classes.map((entry) => (
         <div key={entry.id} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{entry.id}</span>
@@ -145,6 +145,20 @@ function PackageSection({ data }: { data: OntologyWorkbench }) {
           </div>
           <h3 className={styles.title}>{compact(entry.description, "Ontology class")}</h3>
           <div className={styles.metaGrid}>
+            <Meta label="URI" value={entry.uri} />
+          </div>
+        </div>
+      ))}
+      {data.normalizedIr.relations.map((entry) => (
+        <div key={entry.id} className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{entry.id}</span>
+            <Pill value={compact(entry.fqid, "relation")} />
+          </div>
+          <h3 className={styles.title}>{compact(entry.description, "Ontology relation")}</h3>
+          <div className={styles.metaGrid}>
+            <Meta label="Domain" value={entry.domain} />
+            <Meta label="Range" value={entry.range} />
             <Meta label="URI" value={entry.uri} />
           </div>
         </div>
