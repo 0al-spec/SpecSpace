@@ -1,7 +1,12 @@
 import type {
   OntologyWorkbench,
+  OntologyWorkbenchApplicability,
+  OntologyWorkbenchApplicabilityProfile,
+  OntologyWorkbenchApplicabilityRecord,
   OntologyWorkbenchArtifactStatus,
   OntologyWorkbenchComplianceEntry,
+  OntologyWorkbenchDiffClassification,
+  OntologyWorkbenchDiffClassificationChange,
   OntologyWorkbenchGapGroup,
   OntologyWorkbenchLayers,
   OntologyWorkbenchLegacyBatch,
@@ -36,6 +41,10 @@ function compact(value: string | null | undefined, fallback = "unknown"): string
 
 function boolText(value: boolean): string {
   return value ? "true" : "false";
+}
+
+function joined(values: readonly string[], fallback = "none"): string {
+  return values.length > 0 ? values.join(", ") : fallback;
 }
 
 function sourceLabel(data: OntologyWorkbench): string {
@@ -107,6 +116,8 @@ export function OntologyWorkbenchPanel({ state }: Props) {
       <div className={styles.entries}>
         <PackageSection data={data} />
         <LayerSection layers={data.layers} />
+        <ApplicabilitySection applicability={data.applicability} />
+        <DiffClassificationSection diffClassification={data.diffClassification} />
         <ArtifactSection artifacts={data.artifacts} />
         <GapReviewSection groups={data.gapReview.groups} />
         <ComplianceSection entries={data.compliance.entries} />
@@ -211,6 +222,164 @@ function LayerSection({ layers }: { layers: OntologyWorkbenchLayers }) {
         </div>
       ))}
     </section>
+  );
+}
+
+function ApplicabilitySection({
+  applicability,
+}: {
+  applicability: OntologyWorkbenchApplicability;
+}) {
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader
+        title="Model applicability"
+        count={applicability.summary.profileCount}
+      />
+      <div className={styles.postureStrip}>
+        <PostureItem
+          label="Assumptions"
+          value={applicability.summary.assumptionCount.toString()}
+        />
+        <PostureItem
+          label="Invalidation"
+          value={applicability.summary.invalidationTriggerCount.toString()}
+        />
+        <PostureItem label="Layers" value={joined(applicability.summary.usedLayers)} />
+      </div>
+      {applicability.profiles.length === 0 ? (
+        <Status label="No applicability profile" detail="Package index does not declare one." />
+      ) : null}
+      {applicability.profiles.map((profile) => (
+        <ApplicabilityProfileRows key={profile.packageRef} profile={profile} />
+      ))}
+    </section>
+  );
+}
+
+function ApplicabilityProfileRows({
+  profile,
+}: {
+  profile: OntologyWorkbenchApplicabilityProfile;
+}) {
+  return (
+    <>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>{profile.packageId}</span>
+          <Pill value={profile.status} />
+        </div>
+        <h3 className={styles.title}>{profile.packageRef}</h3>
+        <div className={styles.metaGrid}>
+          <Meta label="Applies domains" value={joined(profile.appliesTo.domains)} />
+          <Meta label="Agent types" value={joined(profile.appliesTo.agentTypes)} />
+          <Meta
+            label="Lifecycle phases"
+            value={joined(profile.appliesTo.lifecyclePhases)}
+          />
+          <Meta label="Excludes domains" value={joined(profile.excludes.domains)} />
+        </div>
+      </div>
+      {profile.assumptions.map((record) => (
+        <ApplicabilityRecordRow
+          key={`assumption:${record.id}`}
+          record={record}
+          kind="assumption"
+        />
+      ))}
+      {profile.invalidationTriggers.map((record) => (
+        <ApplicabilityRecordRow
+          key={`trigger:${record.id}`}
+          record={record}
+          kind="invalidation trigger"
+        />
+      ))}
+    </>
+  );
+}
+
+function ApplicabilityRecordRow({
+  record,
+  kind,
+}: {
+  record: OntologyWorkbenchApplicabilityRecord;
+  kind: string;
+}) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{record.id}</span>
+        <Pill value={record.layer ?? kind} />
+      </div>
+      <h3 className={styles.title}>{record.text}</h3>
+      <div className={styles.metaGrid}>
+        <Meta label="Kind" value={kind} />
+      </div>
+    </div>
+  );
+}
+
+function DiffClassificationSection({
+  diffClassification,
+}: {
+  diffClassification: OntologyWorkbenchDiffClassification;
+}) {
+  const summary = diffClassification.summary;
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader title="Diff classification" count={summary.totalChangeCount} />
+      <div className={styles.postureStrip}>
+        <PostureItem label="Structural" value={summary.structuralChangeCount.toString()} />
+        <PostureItem label="Annotation" value={summary.annotationChangeCount.toString()} />
+        <PostureItem
+          label="Applicability"
+          value={summary.applicabilityChangeCount.toString()}
+        />
+      </div>
+      {summary.totalChangeCount === 0 ? (
+        <Status label="No classified diff" detail="Compatibility diff has no buckets." />
+      ) : null}
+      <DiffChangeRows
+        label="structural"
+        changes={diffClassification.structuralChanges}
+      />
+      <DiffChangeRows
+        label="annotation"
+        changes={diffClassification.annotationChanges}
+      />
+      <DiffChangeRows
+        label="applicability"
+        changes={diffClassification.applicabilityChanges}
+      />
+    </section>
+  );
+}
+
+function DiffChangeRows({
+  label,
+  changes,
+}: {
+  label: string;
+  changes: readonly OntologyWorkbenchDiffClassificationChange[];
+}) {
+  return (
+    <>
+      {changes.map((change) => (
+        <div key={`${label}:${change.kind}:${change.ref}`} className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{change.ref}</span>
+            <Pill value={label} />
+          </div>
+          <h3 className={styles.title}>{change.kind}</h3>
+          <div className={styles.metaGrid}>
+            <Meta label="Target kind" value={change.targetKind} />
+            <Meta label="Before" value={change.before} />
+            <Meta label="After" value={change.after} />
+            <Meta label="Compatibility" value={change.compatibility} />
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
 

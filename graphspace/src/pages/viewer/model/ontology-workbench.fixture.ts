@@ -96,6 +96,84 @@ export const workbench = {
       diff_refs: [],
     },
   },
+  applicability: {
+    summary: {
+      profile_count: 1,
+      assumption_count: 2,
+      invalidation_trigger_count: 2,
+      used_layer_count: 3,
+      used_layers: ["mechanics", "execution", "meta"],
+      layer_counts: { mechanics: 1, execution: 1, meta: 2 },
+    },
+    profiles: [
+      {
+        package_id: "org.0al.specgraph.core",
+        package_ref: "org.0al.specgraph.core@0.1.0",
+        status: "declared",
+        applies_to: {
+          domains: ["specgraph_core"],
+          lifecycle_phases: ["draft_spec_authoring", "ontology_import_review"],
+          agent_types: ["SpecAuthorAgent", "SpecGraphSupervisor"],
+        },
+        excludes: { domains: ["unrelated_product_domain"] },
+        assumptions: [
+          {
+            id: "project_local_authority",
+            layer: "meta",
+            text: "SpecGraph core ontology packages remain project-local.",
+          },
+          {
+            id: "human_review_required",
+            layer: "execution",
+            text: "Generated ontology changes require human review before specs change.",
+          },
+        ],
+        invalidation_triggers: [
+          {
+            id: "ontology_layer_contract_changed",
+            layer: "meta",
+            text: "Re-review when ontology layer semantics change.",
+          },
+          {
+            id: "specgraph_core_vocabulary_changed",
+            layer: "mechanics",
+            text: "Re-review when core SpecGraph vocabulary changes.",
+          },
+        ],
+        summary: {
+          assumption_count: 2,
+          invalidation_trigger_count: 2,
+          used_layers: ["mechanics", "execution", "meta"],
+        },
+      },
+    ],
+  },
+  diff_classification: {
+    summary: {
+      structural_change_count: 1,
+      annotation_change_count: 1,
+      applicability_change_count: 1,
+      total_change_count: 3,
+    },
+    structural_changes: [{ kind: "classAdded", ref: "sgcore:ClaimCalibration" }],
+    annotation_changes: [
+      {
+        kind: "layerChanged",
+        ref: "sgcore:Spec",
+        target_kind: "class",
+        before: "objective",
+        after: "mechanics",
+        compatibility: "compatible",
+      },
+    ],
+    applicability_changes: [
+      {
+        kind: "invalidationTriggerAdded",
+        ref: "modelApplicability.invalidationTriggers.specgraph_core_vocabulary_changed",
+        compatibility: "compatible",
+      },
+    ],
+  },
   gap_review: {
     summary: { gap_group_count: 1 },
     groups: [

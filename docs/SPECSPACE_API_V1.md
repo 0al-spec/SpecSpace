@@ -677,6 +677,9 @@ utility panel. The endpoint aggregates the compiler-backed practical ontology
 projection with the surrounding review artifacts published by SpecGraph:
 
 - package metadata and normalized IR classes/relations;
+- model applicability profiles from `runs/ontology_package_index.json`;
+- compatibility diff classification buckets from
+  `runs/ontology_compatibility_diff_preview.json`;
 - grouped ontology gaps from `runs/ontology_gap_review_workflow.json`;
 - report-only legacy spec findings from
   `runs/spec_ontology_validation_report.json`;
@@ -715,6 +718,58 @@ in one UI-friendly payload.
     "owner_decision_review_count": 0,
     "legacy_small_pr_batch_count": 2,
     "next_gap": "review_legacy_spec_backfill_batches"
+  },
+  "applicability": {
+    "summary": {
+      "profile_count": 1,
+      "assumption_count": 2,
+      "invalidation_trigger_count": 2,
+      "used_layers": ["execution", "mechanics", "meta"]
+    },
+    "profiles": [
+      {
+        "package_id": "org.0al.specgraph.core",
+        "package_ref": "org.0al.specgraph.core@0.1.0",
+        "status": "declared",
+        "applies_to": {
+          "domains": ["specgraph_core"],
+          "agent_types": ["SpecAuthorAgent", "SpecGraphSupervisor"]
+        },
+        "excludes": {
+          "domains": ["unrelated_product_domain"]
+        },
+        "assumptions": [
+          {
+            "id": "human_review_required",
+            "layer": "execution",
+            "text": "Generated or imported ontology changes require human review before canonical specs are updated."
+          }
+        ],
+        "invalidation_triggers": [
+          {
+            "id": "specgraph_core_vocabulary_changed",
+            "layer": "mechanics",
+            "text": "Re-review applicability when core SpecGraph classes, relations, or validation semantics change."
+          }
+        ]
+      }
+    ]
+  },
+  "diff_classification": {
+    "summary": {
+      "structural_change_count": 1,
+      "annotation_change_count": 0,
+      "applicability_change_count": 0,
+      "total_change_count": 1
+    },
+    "structural_changes": [
+      {
+        "kind": "classAdded",
+        "ref": "sgcore:ClaimCalibration"
+      }
+    ],
+    "annotation_changes": [],
+    "applicability_changes": []
   }
 }
 ```

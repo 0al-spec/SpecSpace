@@ -21,6 +21,15 @@ ONTOLOGY_LAYERS: tuple[str, ...] = (
     "meta",
     "multi_agent",
 )
+APPLICABILITY_SCOPE_FIELDS: tuple[tuple[str, str], ...] = (
+    ("domains", "domains"),
+    ("lifecycle_phases", "lifecyclePhases"),
+    ("agent_types", "agentTypes"),
+    ("subsystems", "subsystems"),
+    ("runtimes", "runtimes"),
+    ("platforms", "platforms"),
+    ("contexts", "contexts"),
+)
 
 ADDITIONAL_RUN_ARTIFACTS: tuple[str, ...] = (
     GAP_REVIEW_WORKFLOW_ARTIFACT,
@@ -319,6 +328,14 @@ def _layer_lens(
     }
 
 
+def _package_ref(package: dict[str, Any]) -> str:
+    lock = _record(package.get("lock"))
+    return _text(lock.get("package_ref")) or _text(
+        package.get("package_ref"),
+        _text(package.get("package_id"), "unknown-package"),
+    )
+
+
 def _gap_group_rows(workflow: dict[str, Any] | None) -> list[dict[str, Any]]:
     if not workflow:
         return []
@@ -492,6 +509,130 @@ def _legacy_batch_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
     return rows
 
 
+def _applicability_scope(value: Any) -> dict[str, list[str]]:
+    scope = _record(value)
+    return {
+        output_key: values
+        for output_key, input_key in APPLICABILITY_SCOPE_FIELDS
+        if (values := _string_list(scope.get(input_key)))
+    }
+
+
+def _applicability_records(value: Any) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records(value):
+        record_id = _text(item.get("id"))
+        if not record_id:
+            continue
+        rows.append(
+            {
+                "id": record_id,
+                "layer": _optional_text(item.get("layer")),
+                "text": _text(item.get("text"), "No text supplied."),
+            }
+        )
+    return rows
+
+
+def _applicability_lens(package_index: dict[str, Any] | None) -> dict[str, Any]:
+    profiles = []
+    layer_counts: dict[str, int] = {}
+    for package in _records((package_index or {}).get("packages")):
+        profile = _record(package.get("model_applicability"))
+        summary = _record(package.get("model_applicability_summary"))
+        if not profile and _text(summary.get("status")) != "declared":
+            continue
+        assumptions = _applicability_records(profile.get("assumptions"))
+        invalidation_triggers = _applicability_records(
+            profile.get("invalidation_triggers")
+        )
+        for record in assumptions + invalidation_triggers:
+            layer = record.get("layer")
+            if isinstance(layer, str) and layer:
+                layer_counts[layer] = layer_counts.get(layer, 0) + 1
+        profiles.append(
+            {
+                "package_id": _text(package.get("package_id"), "unknown-package"),
+                "package_ref": _package_ref(package),
+                "status": _text(summary.get("status"), "declared"),
+                "applies_to": _applicability_scope(profile.get("applies_to")),
+                "excludes": _applicability_scope(profile.get("excludes")),
+                "assumptions": assumptions,
+                "invalidation_triggers": invalidation_triggers,
+                "summary": {
+                    "assumption_count": _number(summary.get("assumption_count"))
+                    or len(assumptions),
+                    "invalidation_trigger_count": _number(
+                        summary.get("invalidation_trigger_count")
+                    )
+                    or len(invalidation_triggers),
+                    "used_layers": _string_list(summary.get("used_layers")),
+                },
+            }
+        )
+    used_layers = sorted(layer_counts)
+    return {
+        "summary": {
+            "profile_count": len(profiles),
+            "assumption_count": sum(
+                len(profile["assumptions"]) for profile in profiles
+            ),
+            "invalidation_trigger_count": sum(
+                len(profile["invalidation_triggers"]) for profile in profiles
+            ),
+            "used_layer_count": len(used_layers),
+            "used_layers": used_layers,
+            "layer_counts": layer_counts,
+        },
+        "profiles": profiles,
+    }
+
+
+def _change_classification_rows(value: Any) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records(value):
+        ref = _text(item.get("ref"))
+        if not ref:
+            continue
+        rows.append(
+            {
+                "kind": _text(item.get("kind"), "unknown"),
+                "ref": ref,
+                "target_kind": _optional_text(item.get("target_kind")),
+                "before": _optional_text(item.get("before")),
+                "after": _optional_text(item.get("after")),
+                "compatibility": _optional_text(item.get("compatibility")),
+            }
+        )
+    return rows
+
+
+def _diff_classification_lens(compatibility_diff: dict[str, Any] | None) -> dict[str, Any]:
+    classification = _record((compatibility_diff or {}).get("change_classification"))
+    structural_changes = _change_classification_rows(
+        classification.get("structural_changes")
+    )
+    annotation_changes = _change_classification_rows(
+        classification.get("annotation_changes")
+    )
+    applicability_changes = _change_classification_rows(
+        classification.get("applicability_changes")
+    )
+    return {
+        "summary": {
+            "structural_change_count": len(structural_changes),
+            "annotation_change_count": len(annotation_changes),
+            "applicability_change_count": len(applicability_changes),
+            "total_change_count": len(structural_changes)
+            + len(annotation_changes)
+            + len(applicability_changes),
+        },
+        "structural_changes": structural_changes,
+        "annotation_changes": annotation_changes,
+        "applicability_changes": applicability_changes,
+    }
+
+
 def _summary(
     *,
     practical: dict[str, Any],
@@ -658,6 +799,8 @@ def build_ontology_workbench(
             gap_index=import_gap_index,
             compatibility_diff=compatibility_diff,
         ),
+        "applicability": _applicability_lens(package_index),
+        "diff_classification": _diff_classification_lens(compatibility_diff),
         "gap_review": {
             "summary": _record((gap_workflow or {}).get("summary")),
             "groups": _gap_group_rows(gap_workflow),

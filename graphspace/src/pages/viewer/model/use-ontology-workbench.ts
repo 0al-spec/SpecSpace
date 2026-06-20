@@ -154,6 +154,70 @@ export type OntologyWorkbenchLayers = {
   };
 };
 
+export type OntologyWorkbenchApplicabilityScope = {
+  domains: readonly string[];
+  lifecyclePhases: readonly string[];
+  agentTypes: readonly string[];
+  subsystems: readonly string[];
+  runtimes: readonly string[];
+  platforms: readonly string[];
+  contexts: readonly string[];
+};
+
+export type OntologyWorkbenchApplicabilityRecord = {
+  id: string;
+  layer: string | null;
+  text: string;
+};
+
+export type OntologyWorkbenchApplicabilityProfile = {
+  packageId: string;
+  packageRef: string;
+  status: string;
+  appliesTo: OntologyWorkbenchApplicabilityScope;
+  excludes: OntologyWorkbenchApplicabilityScope;
+  assumptions: readonly OntologyWorkbenchApplicabilityRecord[];
+  invalidationTriggers: readonly OntologyWorkbenchApplicabilityRecord[];
+  summary: {
+    assumptionCount: number;
+    invalidationTriggerCount: number;
+    usedLayers: readonly string[];
+  };
+};
+
+export type OntologyWorkbenchApplicability = {
+  summary: {
+    profileCount: number;
+    assumptionCount: number;
+    invalidationTriggerCount: number;
+    usedLayerCount: number;
+    usedLayers: readonly string[];
+    layerCounts: Record<string, number>;
+  };
+  profiles: readonly OntologyWorkbenchApplicabilityProfile[];
+};
+
+export type OntologyWorkbenchDiffClassificationChange = {
+  kind: string;
+  ref: string;
+  targetKind: string | null;
+  before: string | null;
+  after: string | null;
+  compatibility: string | null;
+};
+
+export type OntologyWorkbenchDiffClassification = {
+  summary: {
+    structuralChangeCount: number;
+    annotationChangeCount: number;
+    applicabilityChangeCount: number;
+    totalChangeCount: number;
+  };
+  structuralChanges: readonly OntologyWorkbenchDiffClassificationChange[];
+  annotationChanges: readonly OntologyWorkbenchDiffClassificationChange[];
+  applicabilityChanges: readonly OntologyWorkbenchDiffClassificationChange[];
+};
+
 export type OntologyWorkbenchArtifactStatus = {
   available: boolean;
   path: string;
@@ -185,6 +249,8 @@ export type OntologyWorkbench = {
   };
   domains: readonly Record<string, unknown>[];
   layers: OntologyWorkbenchLayers;
+  applicability: OntologyWorkbenchApplicability;
+  diffClassification: OntologyWorkbenchDiffClassification;
   gapReview: {
     summary: Record<string, unknown>;
     groups: readonly OntologyWorkbenchGapGroup[];
@@ -464,6 +530,115 @@ function parseLayers(raw: unknown): OntologyWorkbenchLayers {
   };
 }
 
+function parseApplicabilityScope(raw: unknown): OntologyWorkbenchApplicabilityScope {
+  const data = recordValue(raw);
+  return {
+    domains: stringList(data.domains),
+    lifecyclePhases: stringList(data.lifecycle_phases),
+    agentTypes: stringList(data.agent_types),
+    subsystems: stringList(data.subsystems),
+    runtimes: stringList(data.runtimes),
+    platforms: stringList(data.platforms),
+    contexts: stringList(data.contexts),
+  };
+}
+
+function parseApplicabilityRecord(
+  raw: Record<string, unknown>,
+): OntologyWorkbenchApplicabilityRecord | null {
+  const id = optionalString(raw.id);
+  if (!id) return null;
+  return {
+    id,
+    layer: optionalString(raw.layer),
+    text: stringValue(raw.text, "No text supplied."),
+  };
+}
+
+function parseApplicability(raw: unknown): OntologyWorkbenchApplicability {
+  const data = recordValue(raw);
+  const summary = recordValue(data.summary);
+  return {
+    summary: {
+      profileCount: numberValue(summary.profile_count),
+      assumptionCount: numberValue(summary.assumption_count),
+      invalidationTriggerCount: numberValue(summary.invalidation_trigger_count),
+      usedLayerCount: numberValue(summary.used_layer_count),
+      usedLayers: stringList(summary.used_layers),
+      layerCounts: Object.fromEntries(
+        Object.entries(recordValue(summary.layer_counts)).flatMap(([key, value]) =>
+          typeof value === "number" && Number.isFinite(value) && value >= 0
+            ? [[key, value]]
+            : [],
+        ),
+      ),
+    },
+    profiles: records(data.profiles).flatMap((profile) => {
+      const packageId = optionalString(profile.package_id);
+      if (!packageId) return [];
+      const profileSummary = recordValue(profile.summary);
+      return {
+        packageId,
+        packageRef: stringValue(profile.package_ref, packageId),
+        status: stringValue(profile.status, "unknown"),
+        appliesTo: parseApplicabilityScope(profile.applies_to),
+        excludes: parseApplicabilityScope(profile.excludes),
+        assumptions: records(profile.assumptions).flatMap((item) => {
+          const parsed = parseApplicabilityRecord(item);
+          return parsed ? [parsed] : [];
+        }),
+        invalidationTriggers: records(profile.invalidation_triggers).flatMap((item) => {
+          const parsed = parseApplicabilityRecord(item);
+          return parsed ? [parsed] : [];
+        }),
+        summary: {
+          assumptionCount: numberValue(profileSummary.assumption_count),
+          invalidationTriggerCount: numberValue(
+            profileSummary.invalidation_trigger_count,
+          ),
+          usedLayers: stringList(profileSummary.used_layers),
+        },
+      };
+    }),
+  };
+}
+
+function parseDiffClassificationChange(
+  raw: Record<string, unknown>,
+): OntologyWorkbenchDiffClassificationChange | null {
+  const ref = optionalString(raw.ref);
+  if (!ref) return null;
+  return {
+    kind: stringValue(raw.kind, "unknown"),
+    ref,
+    targetKind: optionalString(raw.target_kind),
+    before: optionalString(raw.before),
+    after: optionalString(raw.after),
+    compatibility: optionalString(raw.compatibility),
+  };
+}
+
+function parseDiffClassification(raw: unknown): OntologyWorkbenchDiffClassification {
+  const data = recordValue(raw);
+  const summary = recordValue(data.summary);
+  const parseChanges = (value: unknown) =>
+    records(value).flatMap((item) => {
+      const parsed = parseDiffClassificationChange(item);
+      return parsed ? [parsed] : [];
+    });
+  return {
+    summary: {
+      structuralChangeCount: numberValue(summary.structural_change_count),
+      annotationChangeCount: numberValue(summary.annotation_change_count),
+      applicabilityChangeCount: numberValue(summary.applicability_change_count),
+      totalChangeCount: numberValue(summary.total_change_count),
+    },
+    structuralChanges: parseChanges(data.structural_changes),
+    annotationChanges: parseChanges(data.annotation_changes),
+    applicabilityChanges: parseChanges(data.applicability_changes),
+  };
+}
+
 function parseArtifactStatus(raw: unknown): OntologyWorkbenchArtifactStatus | null {
   if (!isRecord(raw)) return null;
   const path = optionalString(raw.path);
@@ -581,6 +756,8 @@ export function parseOntologyWorkbench(raw: unknown): UseOntologyWorkbenchState 
       },
       domains: records(raw.domains),
       layers: parseLayers(raw.layers),
+      applicability: parseApplicability(raw.applicability),
+      diffClassification: parseDiffClassification(raw.diff_classification),
       gapReview: {
         summary: recordValue(gapReview.summary),
         groups: records(gapReview.groups).flatMap((item) => {

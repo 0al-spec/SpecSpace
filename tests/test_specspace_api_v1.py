@@ -268,6 +268,66 @@ def _write_specgraph_core_ontology_artifacts(root: Path) -> None:
                         "used_layers": ["objective", "mechanics"],
                         "layer_counts": {"objective": 1, "mechanics": 1},
                     },
+                    "model_applicability": {
+                        "applies_to": {
+                            "domains": ["specgraph_core"],
+                            "lifecyclePhases": [
+                                "draft_spec_authoring",
+                                "ontology_import_review",
+                            ],
+                            "agentTypes": [
+                                "SpecAuthorAgent",
+                                "SpecGraphSupervisor",
+                            ],
+                        },
+                        "excludes": {"domains": ["unrelated_product_domain"]},
+                        "assumptions": [
+                            {
+                                "id": "project_local_authority",
+                                "layer": "meta",
+                                "text": (
+                                    "SpecGraph core ontology packages remain "
+                                    "project-local unless explicitly published."
+                                ),
+                            },
+                            {
+                                "id": "human_review_required",
+                                "layer": "execution",
+                                "text": (
+                                    "Generated or imported ontology changes require "
+                                    "human review before canonical specs are updated."
+                                ),
+                            },
+                        ],
+                        "invalidation_triggers": [
+                            {
+                                "id": "ontology_layer_contract_changed",
+                                "layer": "meta",
+                                "text": (
+                                    "Re-review applicability when ontology layer "
+                                    "semantics change."
+                                ),
+                            },
+                            {
+                                "id": "specgraph_core_vocabulary_changed",
+                                "layer": "mechanics",
+                                "text": (
+                                    "Re-review applicability when core SpecGraph "
+                                    "classes or relations change."
+                                ),
+                            },
+                        ],
+                    },
+                    "model_applicability_summary": {
+                        "status": "declared",
+                        "applies_to_domains": ["specgraph_core"],
+                        "excluded_domains": ["unrelated_product_domain"],
+                        "assumption_count": 2,
+                        "invalidation_trigger_count": 2,
+                        "used_layer_count": 3,
+                        "used_layers": ["mechanics", "execution", "meta"],
+                        "layer_counts": {"mechanics": 1, "execution": 1, "meta": 2},
+                    },
                 }
             ],
             "summary": {
@@ -276,6 +336,9 @@ def _write_specgraph_core_ontology_artifacts(root: Path) -> None:
                 "layered_entry_count": 2,
                 "unlayered_entry_count": 2,
                 "used_layer_count": 2,
+                "model_applicability_profile_count": 1,
+                "applicability_assumption_count": 2,
+                "applicability_invalidation_trigger_count": 2,
             },
         },
     )
@@ -351,6 +414,31 @@ def _write_specgraph_core_ontology_artifacts(root: Path) -> None:
             "changes": {
                 "added_classes": ["sgcore:ClaimCalibration"],
                 "breaking_changes": [],
+            },
+            "change_classification": {
+                "structural_changes": [
+                    {"kind": "classAdded", "ref": "sgcore:ClaimCalibration"}
+                ],
+                "annotation_changes": [
+                    {
+                        "kind": "layerChanged",
+                        "ref": "sgcore:Spec",
+                        "target_kind": "class",
+                        "before": "objective",
+                        "after": "mechanics",
+                        "compatibility": "compatible",
+                    }
+                ],
+                "applicability_changes": [
+                    {
+                        "kind": "invalidationTriggerAdded",
+                        "ref": (
+                            "modelApplicability.invalidationTriggers."
+                            "specgraph_core_vocabulary_changed"
+                        ),
+                        "compatibility": "compatible",
+                    }
+                ],
             },
             "layer_review": {
                 "known_layers": [
@@ -2425,6 +2513,33 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(layer_rows["mechanics"]["package_entry_count"], 1)
         self.assertEqual(layer_rows["meta"]["gap_count"], 1)
         self.assertEqual(layer_rows["meta"]["diff_change_count"], 1)
+        self.assertEqual(body["applicability"]["summary"]["profile_count"], 1)
+        self.assertEqual(body["applicability"]["summary"]["assumption_count"], 2)
+        self.assertEqual(
+            body["applicability"]["profiles"][0]["applies_to"]["domains"],
+            ["specgraph_core"],
+        )
+        self.assertEqual(
+            body["applicability"]["profiles"][0]["applies_to"]["agent_types"],
+            ["SpecAuthorAgent", "SpecGraphSupervisor"],
+        )
+        self.assertEqual(
+            body["applicability"]["profiles"][0]["invalidation_triggers"][1]["id"],
+            "specgraph_core_vocabulary_changed",
+        )
+        self.assertEqual(
+            body["diff_classification"]["summary"]["structural_change_count"], 1
+        )
+        self.assertEqual(
+            body["diff_classification"]["summary"]["annotation_change_count"], 1
+        )
+        self.assertEqual(
+            body["diff_classification"]["summary"]["applicability_change_count"], 1
+        )
+        self.assertEqual(
+            body["diff_classification"]["annotation_changes"][0]["after"],
+            "mechanics",
+        )
         self.assertEqual(body["gap_review"]["groups"][0]["proposed_term"], "Intent")
         self.assertEqual(body["compliance"]["entries"][0]["terms"], ["intent"])
         self.assertEqual(
