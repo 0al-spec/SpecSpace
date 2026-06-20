@@ -3,6 +3,7 @@ import type {
   OntologyWorkbenchArtifactStatus,
   OntologyWorkbenchComplianceEntry,
   OntologyWorkbenchGapGroup,
+  OntologyWorkbenchLayers,
   OntologyWorkbenchLegacyBatch,
   OntologyWorkbenchOwnerDecisionReview,
   OntologyWorkbenchWriteGateFinding,
@@ -105,6 +106,7 @@ export function OntologyWorkbenchPanel({ state }: Props) {
 
       <div className={styles.entries}>
         <PackageSection data={data} />
+        <LayerSection layers={data.layers} />
         <ArtifactSection artifacts={data.artifacts} />
         <GapReviewSection groups={data.gapReview.groups} />
         <ComplianceSection entries={data.compliance.entries} />
@@ -161,6 +163,51 @@ function PackageSection({ data }: { data: OntologyWorkbench }) {
             <Meta label="Range" value={entry.range} />
             <Meta label="URI" value={entry.uri} />
           </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function LayerSection({ layers }: { layers: OntologyWorkbenchLayers }) {
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader title="Ontology layers" count={layers.summary.usedLayerCount} />
+      <div className={styles.postureStrip}>
+        <PostureItem label="Known layers" value={layers.summary.knownLayerCount.toString()} />
+        <PostureItem
+          label="Unassigned gaps"
+          value={layers.summary.gapUnassignedLayerCount.toString()}
+        />
+        <PostureItem
+          label="Unassigned diffs"
+          value={layers.summary.diffUnassignedChangeCount.toString()}
+        />
+      </div>
+      {layers.rows.length === 0 ? (
+        <Status label="No layer assignments" detail="Layer metadata is not present." />
+      ) : null}
+      {layers.rows.map((row) => (
+        <div key={row.layer} className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{row.layer}</span>
+            <Pill value={`${row.totalCount} linked`} />
+          </div>
+          <h3 className={styles.title}>{row.layer.replace(/_/g, " ")}</h3>
+          <div className={styles.metaGrid}>
+            <Meta label="Package entries" value={row.packageEntryCount.toString()} />
+            <Meta label="Gaps" value={row.gapCount.toString()} />
+            <Meta label="Diff changes" value={row.diffChangeCount.toString()} />
+          </div>
+        </div>
+      ))}
+      {layers.unassigned.diffRefs.map((ref) => (
+        <div key={`${ref.changeType}:${ref.ref}`} className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{ref.ref}</span>
+            <Pill value="unassigned layer" />
+          </div>
+          <h3 className={styles.title}>{ref.changeType.replace(/_/g, " ")}</h3>
         </div>
       ))}
     </section>

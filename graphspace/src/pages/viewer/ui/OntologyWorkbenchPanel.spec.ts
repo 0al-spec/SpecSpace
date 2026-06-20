@@ -26,6 +26,10 @@ describe("OntologyWorkbenchPanel", () => {
 
     expect(html).toContain("Ontology Workbench");
     expect(html).toContain("org.0al.specgraph.core@0.1.0");
+    expect(html).toContain("Ontology layers");
+    expect(html).toContain("objective");
+    expect(html).toContain("meta");
+    expect(html).toContain("Unassigned gaps");
     expect(html).toContain("SpecGraph");
     expect(html).toContain("definesRequirement");
     expect(html).toContain("sgcore:Spec");

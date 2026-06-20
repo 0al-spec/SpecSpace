@@ -123,6 +123,37 @@ export type OntologyWorkbenchLegacyBatch = {
   }[];
 };
 
+export type OntologyWorkbenchLayerRow = {
+  layer: string;
+  packageEntryCount: number;
+  gapCount: number;
+  diffChangeCount: number;
+  totalCount: number;
+};
+
+export type OntologyWorkbenchLayerDiffRef = {
+  changeType: string;
+  ref: string;
+};
+
+export type OntologyWorkbenchLayers = {
+  knownLayers: readonly string[];
+  rows: readonly OntologyWorkbenchLayerRow[];
+  summary: {
+    knownLayerCount: number;
+    usedLayerCount: number;
+    packageLayeredEntryCount: number;
+    packageUnlayeredEntryCount: number;
+    gapUnassignedLayerCount: number;
+    diffUnassignedChangeCount: number;
+  };
+  unassigned: {
+    gapCount: number;
+    diffChangeCount: number;
+    diffRefs: readonly OntologyWorkbenchLayerDiffRef[];
+  };
+};
+
 export type OntologyWorkbenchArtifactStatus = {
   available: boolean;
   path: string;
@@ -153,6 +184,7 @@ export type OntologyWorkbench = {
     relations: readonly OntologyWorkbenchIrRelation[];
   };
   domains: readonly Record<string, unknown>[];
+  layers: OntologyWorkbenchLayers;
   gapReview: {
     summary: Record<string, unknown>;
     groups: readonly OntologyWorkbenchGapGroup[];
@@ -392,6 +424,46 @@ function parseLegacyBatch(raw: Record<string, unknown>): OntologyWorkbenchLegacy
   };
 }
 
+function parseLayers(raw: unknown): OntologyWorkbenchLayers {
+  const data = recordValue(raw);
+  const summary = recordValue(data.summary);
+  const unassigned = recordValue(data.unassigned);
+  return {
+    knownLayers: stringList(data.known_layers),
+    rows: records(data.rows).flatMap((item) => {
+      const layer = optionalString(item.layer);
+      if (!layer) return [];
+      return {
+        layer,
+        packageEntryCount: numberValue(item.package_entry_count),
+        gapCount: numberValue(item.gap_count),
+        diffChangeCount: numberValue(item.diff_change_count),
+        totalCount: numberValue(item.total_count),
+      };
+    }),
+    summary: {
+      knownLayerCount: numberValue(summary.known_layer_count),
+      usedLayerCount: numberValue(summary.used_layer_count),
+      packageLayeredEntryCount: numberValue(summary.package_layered_entry_count),
+      packageUnlayeredEntryCount: numberValue(summary.package_unlayered_entry_count),
+      gapUnassignedLayerCount: numberValue(summary.gap_unassigned_layer_count),
+      diffUnassignedChangeCount: numberValue(summary.diff_unassigned_change_count),
+    },
+    unassigned: {
+      gapCount: numberValue(unassigned.gap_count),
+      diffChangeCount: numberValue(unassigned.diff_change_count),
+      diffRefs: records(unassigned.diff_refs).flatMap((item) => {
+        const ref = optionalString(item.ref);
+        if (!ref) return [];
+        return {
+          ref,
+          changeType: stringValue(item.change_type, "unknown"),
+        };
+      }),
+    },
+  };
+}
+
 function parseArtifactStatus(raw: unknown): OntologyWorkbenchArtifactStatus | null {
   if (!isRecord(raw)) return null;
   const path = optionalString(raw.path);
@@ -508,6 +580,7 @@ export function parseOntologyWorkbench(raw: unknown): UseOntologyWorkbenchState 
         }),
       },
       domains: records(raw.domains),
+      layers: parseLayers(raw.layers),
       gapReview: {
         summary: recordValue(gapReview.summary),
         groups: records(gapReview.groups).flatMap((item) => {

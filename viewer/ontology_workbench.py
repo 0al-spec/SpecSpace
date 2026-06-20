@@ -14,6 +14,13 @@ LEGACY_BACKFILL_PLAN_ARTIFACT = "legacy_spec_ontology_backfill_plan.json"
 SPECAUTHOR_WRITE_GATE_ARTIFACT = "specauthor_ontology_write_gate_report.json"
 SPEC_ONTOLOGY_VALIDATION_ARTIFACT = "spec_ontology_validation_report.json"
 OWNER_DECISION_IMPORT_PREVIEW_ARTIFACT = "ontology_decision_import_preview.json"
+ONTOLOGY_LAYERS: tuple[str, ...] = (
+    "objective",
+    "mechanics",
+    "execution",
+    "meta",
+    "multi_agent",
+)
 
 ADDITIONAL_RUN_ARTIFACTS: tuple[str, ...] = (
     GAP_REVIEW_WORKFLOW_ARTIFACT,
@@ -53,7 +60,11 @@ def _record(value: Any) -> dict[str, Any]:
 
 
 def _records(value: Any) -> list[dict[str, Any]]:
-    return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+    return (
+        [item for item in value if isinstance(item, dict)]
+        if isinstance(value, list)
+        else []
+    )
 
 
 def _text(value: Any, default: str = "") -> str:
@@ -79,6 +90,15 @@ def _string_list(value: Any) -> list[str]:
     return [item for item in value if isinstance(item, str) and item]
 
 
+def _layer_count_map(value: Any, layers: list[str]) -> dict[str, int]:
+    counts = _record(value)
+    return {
+        layer: _number(counts.get(layer))
+        for layer in layers
+        if _number(counts.get(layer)) > 0
+    }
+
+
 def _artifact_data(artifacts: dict[str, Any], key: str) -> dict[str, Any] | None:
     value = artifacts.get(key)
     if not isinstance(value, dict):
@@ -102,7 +122,9 @@ def _artifact_status(artifacts: dict[str, Any], key: str, path: str) -> dict[str
         "available": True,
         "path": path,
         "artifact_kind": _optional_text(data.get("artifact_kind")),
-        "schema_version": data.get("schema_version") if isinstance(data.get("schema_version"), int) else None,
+        "schema_version": data.get("schema_version")
+        if isinstance(data.get("schema_version"), int)
+        else None,
         "status": _optional_text(data.get("status") or _record(summary).get("status")),
         "summary": summary if isinstance(summary, dict) else None,
     }
@@ -112,10 +134,16 @@ def _run_artifact_status(artifacts: dict[str, Any], key: str) -> dict[str, Any]:
     return _artifact_status(artifacts, key, f"runs/{key}")
 
 
-def _normalized_ir_status(artifacts: dict[str, Any], practical: dict[str, Any]) -> dict[str, Any]:
+def _normalized_ir_status(
+    artifacts: dict[str, Any], practical: dict[str, Any]
+) -> dict[str, Any]:
     package = _record(practical.get("package"))
-    path = _text(package.get("materialized_ir"), practical_ontology.NORMALIZED_IR_ARTIFACT_KEY)
-    return _artifact_status(artifacts, practical_ontology.NORMALIZED_IR_ARTIFACT_KEY, path)
+    path = _text(
+        package.get("materialized_ir"), practical_ontology.NORMALIZED_IR_ARTIFACT_KEY
+    )
+    return _artifact_status(
+        artifacts, practical_ontology.NORMALIZED_IR_ARTIFACT_KEY, path
+    )
 
 
 def _package_summary(practical: dict[str, Any]) -> dict[str, Any] | None:
@@ -176,6 +204,84 @@ def _relation_rows(ir: dict[str, Any] | None) -> list[dict[str, Any]]:
     return rows
 
 
+def _layer_lens(
+    *,
+    package_index: dict[str, Any] | None,
+    gap_index: dict[str, Any] | None,
+    compatibility_diff: dict[str, Any] | None,
+) -> dict[str, Any]:
+    package = next(iter(_records((package_index or {}).get("packages"))), {})
+    package_layer_summary = _record(package.get("ontology_layer_summary"))
+    gap_layer_summary = _record(
+        _record((gap_index or {}).get("summary")).get("layer_review")
+    )
+    diff_layer_review = _record((compatibility_diff or {}).get("layer_review"))
+    known_layers = (
+        _string_list(package_layer_summary.get("known_layers"))
+        or _string_list(gap_layer_summary.get("known_layers"))
+        or _string_list(diff_layer_review.get("known_layers"))
+        or list(ONTOLOGY_LAYERS)
+    )
+    package_counts = _layer_count_map(
+        package_layer_summary.get("layer_counts"), known_layers
+    )
+    gap_counts = _layer_count_map(gap_layer_summary.get("layer_counts"), known_layers)
+    diff_counts = _layer_count_map(diff_layer_review.get("layer_counts"), known_layers)
+
+    rows = []
+    for layer in known_layers:
+        package_entry_count = package_counts.get(layer, 0)
+        gap_count = gap_counts.get(layer, 0)
+        diff_change_count = diff_counts.get(layer, 0)
+        total_count = package_entry_count + gap_count + diff_change_count
+        if total_count == 0:
+            continue
+        rows.append(
+            {
+                "layer": layer,
+                "package_entry_count": package_entry_count,
+                "gap_count": gap_count,
+                "diff_change_count": diff_change_count,
+                "total_count": total_count,
+            }
+        )
+
+    unassigned_diff_refs = [
+        {
+            "change_type": _text(item.get("change_type"), "unknown"),
+            "ref": _text(item.get("ref"), "unknown"),
+        }
+        for item in _records(diff_layer_review.get("unassigned_refs"))[:10]
+    ]
+    return {
+        "known_layers": known_layers,
+        "rows": rows,
+        "summary": {
+            "known_layer_count": len(known_layers),
+            "used_layer_count": len(rows),
+            "package_layered_entry_count": _number(
+                package_layer_summary.get("layered_entry_count")
+            ),
+            "package_unlayered_entry_count": _number(
+                package_layer_summary.get("unlayered_entry_count")
+            ),
+            "gap_unassigned_layer_count": _number(
+                gap_layer_summary.get("unassigned_layer_count")
+            ),
+            "diff_unassigned_change_count": _number(
+                diff_layer_review.get("unassigned_change_count")
+            ),
+        },
+        "unassigned": {
+            "gap_count": _number(gap_layer_summary.get("unassigned_layer_count")),
+            "diff_change_count": _number(
+                diff_layer_review.get("unassigned_change_count")
+            ),
+            "diff_refs": unassigned_diff_refs,
+        },
+    }
+
+
 def _gap_group_rows(workflow: dict[str, Any] | None) -> list[dict[str, Any]]:
     if not workflow:
         return []
@@ -187,7 +293,9 @@ def _gap_group_rows(workflow: dict[str, Any] | None) -> list[dict[str, Any]]:
                 "gap_kind": _text(item.get("gap_kind"), "unknown"),
                 "gap_key": _optional_text(item.get("gap_key")),
                 "review_state": _text(item.get("review_state"), "unknown"),
-                "recommended_owner_action": _optional_text(item.get("recommended_owner_action")),
+                "recommended_owner_action": _optional_text(
+                    item.get("recommended_owner_action")
+                ),
                 "recommended_route": _optional_text(item.get("recommended_route")),
                 "proposed_term": _optional_text(item.get("proposed_term")),
                 "proposed_relation": _optional_text(item.get("proposed_relation")),
@@ -237,10 +345,14 @@ def _compliance_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
                     {
                         "finding_id": _text(finding.get("finding_id")),
                         "severity": _text(finding.get("severity"), "unknown"),
-                        "classification": _text(finding.get("classification"), "unknown"),
+                        "classification": _text(
+                            finding.get("classification"), "unknown"
+                        ),
                         "term": _optional_text(finding.get("term")),
                         "gap_ref": _optional_text(finding.get("gap_ref")),
-                        "suggested_action": _optional_text(finding.get("suggested_action")),
+                        "suggested_action": _optional_text(
+                            finding.get("suggested_action")
+                        ),
                     }
                     for finding in findings[:6]
                     if _text(finding.get("finding_id"))
@@ -260,7 +372,9 @@ def _write_gate_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
             "message": _text(item.get("message"), "Write gate finding."),
             "source_ref": _optional_text(item.get("source_ref")),
         }
-        for item in _records(report.get("findings"))[: DISPLAY_LIMITS["write_gate_findings"]]
+        for item in _records(report.get("findings"))[
+            : DISPLAY_LIMITS["write_gate_findings"]
+        ]
     ]
 
 
@@ -276,18 +390,32 @@ def _owner_decision_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
             {
                 "review_id": _text(
                     item.get("review_id"),
-                    _text(item.get("preview_id"), _text(item.get("decision_id"), "owner-decision")),
+                    _text(
+                        item.get("preview_id"),
+                        _text(item.get("decision_id"), "owner-decision"),
+                    ),
                 ),
                 "decision_id": _optional_text(item.get("decision_id")),
                 "decision_state": _text(item.get("decision_state"), "unknown"),
-                "review_state": _text(item.get("review_state"), _text(item.get("preview_state"), "unknown")),
+                "review_state": _text(
+                    item.get("review_state"),
+                    _text(item.get("preview_state"), "unknown"),
+                ),
                 "candidate_id": _optional_text(item.get("candidate_id")),
                 "gap_group_id": _optional_text(item.get("gap_group_id")),
-                "matched_gap_group_id": _optional_text(item.get("matched_gap_group_id")),
+                "matched_gap_group_id": _optional_text(
+                    item.get("matched_gap_group_id")
+                ),
                 "import_recommended": item.get("import_recommended") is True,
-                "required_human_action": _optional_text(item.get("required_human_action")),
-                "before_semantic_status": _optional_text(item.get("before_semantic_status")),
-                "after_semantic_status": _optional_text(item.get("after_semantic_status")),
+                "required_human_action": _optional_text(
+                    item.get("required_human_action")
+                ),
+                "before_semantic_status": _optional_text(
+                    item.get("before_semantic_status")
+                ),
+                "after_semantic_status": _optional_text(
+                    item.get("after_semantic_status")
+                ),
                 "evidence_refs": _string_list(item.get("evidence_refs")),
             }
         )
@@ -298,12 +426,16 @@ def _legacy_batch_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
     if not report:
         return []
     rows: list[dict[str, Any]] = []
-    for item in _records(report.get("small_pr_batches"))[: DISPLAY_LIMITS["legacy_batches"]]:
+    for item in _records(report.get("small_pr_batches"))[
+        : DISPLAY_LIMITS["legacy_batches"]
+    ]:
         rows.append(
             {
                 "batch_id": _text(item.get("batch_id"), "legacy-backfill-batch"),
                 "review_state": _text(item.get("review_state"), "unknown"),
-                "recommended_pr_scope": _optional_text(item.get("recommended_pr_scope")),
+                "recommended_pr_scope": _optional_text(
+                    item.get("recommended_pr_scope")
+                ),
                 "spec_count": _number(item.get("spec_count")),
                 "finding_count": _number(item.get("finding_count")),
                 "writes_ontology_package": item.get("writes_ontology_package") is True,
@@ -356,7 +488,13 @@ def _summary(
         "term_count": _number(practical_summary.get("term_count")),
         "relation_count": _number(practical_summary.get("semantic_relation_count")),
         "domain_count": _number(practical_summary.get("domain_count")),
-        "package_count": _number(_record(_artifact_data(artifacts, practical_ontology.PACKAGE_INDEX_ARTIFACT)).get("summary", {}).get("package_count"))
+        "package_count": _number(
+            _record(
+                _artifact_data(artifacts, practical_ontology.PACKAGE_INDEX_ARTIFACT)
+            )
+            .get("summary", {})
+            .get("package_count")
+        )
         or (1 if practical.get("package") else 0),
         "gap_count": _number(practical_summary.get("gap_count")),
         "gap_group_count": _number(gap_summary.get("gap_group_count")),
@@ -365,12 +503,16 @@ def _summary(
         "write_gate_finding_count": _number(write_gate_summary.get("finding_count")),
         "owner_decision_review_count": _number(owner_summary.get("review_count"))
         or _number(owner_summary.get("preview_count")),
-        "owner_decision_importable_count": _number(owner_summary.get("importable_count")),
+        "owner_decision_importable_count": _number(
+            owner_summary.get("importable_count")
+        ),
         "legacy_spec_count": _number(legacy_summary.get("spec_count")),
         "legacy_review_required_spec_count": _number(
             legacy_summary.get("review_required_spec_count")
         ),
-        "legacy_small_pr_batch_count": _number(legacy_summary.get("small_pr_batch_count")),
+        "legacy_small_pr_batch_count": _number(
+            legacy_summary.get("small_pr_batch_count")
+        ),
         "missing_artifact_count": missing_artifact_count,
         "next_gap": _optional_text(
             legacy_summary.get("next_gap")
@@ -387,13 +529,20 @@ def build_ontology_workbench(
     artifacts: dict[str, Any],
     source: dict[str, Any],
 ) -> dict[str, Any]:
-    normalized_ir = _artifact_data(artifacts, practical_ontology.NORMALIZED_IR_ARTIFACT_KEY)
+    normalized_ir = _artifact_data(
+        artifacts, practical_ontology.NORMALIZED_IR_ARTIFACT_KEY
+    )
+    package_index = _artifact_data(artifacts, practical_ontology.PACKAGE_INDEX_ARTIFACT)
+    import_gap_index = _artifact_data(artifacts, practical_ontology.GAP_INDEX_ARTIFACT)
+    compatibility_diff = _artifact_data(
+        artifacts, practical_ontology.COMPATIBILITY_DIFF_PREVIEW_ARTIFACT
+    )
     gap_workflow = _artifact_data(artifacts, GAP_REVIEW_WORKFLOW_ARTIFACT)
     compliance = _artifact_data(artifacts, SPEC_ONTOLOGY_VALIDATION_ARTIFACT)
     write_gate = _artifact_data(artifacts, SPECAUTHOR_WRITE_GATE_ARTIFACT)
-    owner_decisions = _artifact_data(artifacts, OWNER_DECISION_IMPORT_V2_ARTIFACT) or _artifact_data(
-        artifacts, OWNER_DECISION_IMPORT_PREVIEW_ARTIFACT
-    )
+    owner_decisions = _artifact_data(
+        artifacts, OWNER_DECISION_IMPORT_V2_ARTIFACT
+    ) or _artifact_data(artifacts, OWNER_DECISION_IMPORT_PREVIEW_ARTIFACT)
     legacy_backfill = _artifact_data(artifacts, LEGACY_BACKFILL_PLAN_ARTIFACT)
     artifact_sources = {
         "practical_ontology": {
@@ -403,17 +552,27 @@ def build_ontology_workbench(
             "status": _record(practical.get("summary")).get("status"),
         },
         "normalized_ir": _normalized_ir_status(artifacts, practical),
-        "package_index": _run_artifact_status(artifacts, practical_ontology.PACKAGE_INDEX_ARTIFACT),
-        "binding_preview": _run_artifact_status(artifacts, practical_ontology.BINDING_PREVIEW_ARTIFACT),
-        "import_gap_index": _run_artifact_status(artifacts, practical_ontology.GAP_INDEX_ARTIFACT),
+        "package_index": _run_artifact_status(
+            artifacts, practical_ontology.PACKAGE_INDEX_ARTIFACT
+        ),
+        "binding_preview": _run_artifact_status(
+            artifacts, practical_ontology.BINDING_PREVIEW_ARTIFACT
+        ),
+        "import_gap_index": _run_artifact_status(
+            artifacts, practical_ontology.GAP_INDEX_ARTIFACT
+        ),
         "compatibility_diff": _run_artifact_status(
             artifacts, practical_ontology.COMPATIBILITY_DIFF_PREVIEW_ARTIFACT
         ),
         "governance_evidence": _run_artifact_status(
             artifacts, practical_ontology.GOVERNANCE_EVIDENCE_INDEX_ARTIFACT
         ),
-        "gap_review_workflow": _run_artifact_status(artifacts, GAP_REVIEW_WORKFLOW_ARTIFACT),
-        "compliance_review": _run_artifact_status(artifacts, SPEC_ONTOLOGY_VALIDATION_ARTIFACT),
+        "gap_review_workflow": _run_artifact_status(
+            artifacts, GAP_REVIEW_WORKFLOW_ARTIFACT
+        ),
+        "compliance_review": _run_artifact_status(
+            artifacts, SPEC_ONTOLOGY_VALIDATION_ARTIFACT
+        ),
         "write_gate": _run_artifact_status(artifacts, SPECAUTHOR_WRITE_GATE_ARTIFACT),
         "owner_decision_import_v2": _run_artifact_status(
             artifacts, OWNER_DECISION_IMPORT_V2_ARTIFACT
@@ -421,7 +580,9 @@ def build_ontology_workbench(
         "owner_decision_import_preview": _run_artifact_status(
             artifacts, OWNER_DECISION_IMPORT_PREVIEW_ARTIFACT
         ),
-        "legacy_backfill_plan": _run_artifact_status(artifacts, LEGACY_BACKFILL_PLAN_ARTIFACT),
+        "legacy_backfill_plan": _run_artifact_status(
+            artifacts, LEGACY_BACKFILL_PLAN_ARTIFACT
+        ),
     }
     return {
         "api_version": "v1",
@@ -451,8 +612,15 @@ def build_ontology_workbench(
             "relations": _relation_rows(normalized_ir),
         },
         "terms": _records(practical.get("terms"))[: DISPLAY_LIMITS["classes"]],
-        "relations": _records(practical.get("relations"))[: DISPLAY_LIMITS["relations"]],
+        "relations": _records(practical.get("relations"))[
+            : DISPLAY_LIMITS["relations"]
+        ],
         "domains": _records(practical.get("domains")),
+        "layers": _layer_lens(
+            package_index=package_index,
+            gap_index=import_gap_index,
+            compatibility_diff=compatibility_diff,
+        ),
         "gap_review": {
             "summary": _record((gap_workflow or {}).get("summary")),
             "groups": _gap_group_rows(gap_workflow),
@@ -464,7 +632,9 @@ def build_ontology_workbench(
         "write_gate": {
             "summary": _record((write_gate or {}).get("summary")),
             "findings": _write_gate_rows(write_gate),
-            "would_reject_in_hard_gate": (write_gate or {}).get("would_reject_in_hard_gate")
+            "would_reject_in_hard_gate": (write_gate or {}).get(
+                "would_reject_in_hard_gate"
+            )
             is True,
             "write_decision": _optional_text((write_gate or {}).get("write_decision")),
         },

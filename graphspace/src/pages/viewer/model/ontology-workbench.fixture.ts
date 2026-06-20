@@ -57,6 +57,45 @@ export const workbench = {
     ],
   },
   domains: [],
+  layers: {
+    known_layers: ["objective", "mechanics", "execution", "meta", "multi_agent"],
+    rows: [
+      {
+        layer: "objective",
+        package_entry_count: 1,
+        gap_count: 0,
+        diff_change_count: 0,
+        total_count: 1,
+      },
+      {
+        layer: "mechanics",
+        package_entry_count: 1,
+        gap_count: 0,
+        diff_change_count: 0,
+        total_count: 1,
+      },
+      {
+        layer: "meta",
+        package_entry_count: 0,
+        gap_count: 1,
+        diff_change_count: 1,
+        total_count: 2,
+      },
+    ],
+    summary: {
+      known_layer_count: 5,
+      used_layer_count: 3,
+      package_layered_entry_count: 2,
+      package_unlayered_entry_count: 2,
+      gap_unassigned_layer_count: 0,
+      diff_unassigned_change_count: 0,
+    },
+    unassigned: {
+      gap_count: 0,
+      diff_change_count: 0,
+      diff_refs: [],
+    },
+  },
   gap_review: {
     summary: { gap_group_count: 1 },
     groups: [
