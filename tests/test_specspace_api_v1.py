@@ -2441,6 +2441,76 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(body["artifacts"]["gap_review_workflow"]["available"])
         self.assertTrue(body["artifacts"]["owner_decision_import_v2"]["available"])
 
+    def test_ontology_workbench_v1_layer_lens_aggregates_packages_and_vocabularies(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_specgraph_core_ontology_artifacts(root)
+            _write_ontology_workbench_artifacts(root)
+            runs_dir = root / "runs"
+            package_index_path = runs_dir / "ontology_package_index.json"
+            package_index = json.loads(package_index_path.read_text(encoding="utf-8"))
+            package_index["packages"].append(
+                {
+                    "package_id": "org.0al.specgraph.product",
+                    "namespace": "sgproduct",
+                    "version": "0.1.0",
+                    "materialized_ir": "ontology/specgraph-product/ontology.normalized.json",
+                    "lock": {"package_ref": "org.0al.specgraph.product@0.1.0"},
+                    "ontology_layer_summary": {
+                        "known_layers": ["product"],
+                        "entry_count": 4,
+                        "layered_entry_count": 3,
+                        "unlayered_entry_count": 1,
+                        "used_layers": ["product"],
+                        "layer_counts": {"product": 3},
+                    },
+                }
+            )
+            package_index["summary"]["package_count"] = 2
+            _write_json(package_index_path, package_index)
+
+            gap_index_path = runs_dir / "ontology_import_gap_index.json"
+            gap_index = json.loads(gap_index_path.read_text(encoding="utf-8"))
+            gap_index["summary"]["layer_review"]["known_layers"] = ["governance"]
+            gap_index["summary"]["layer_review"]["used_layers"] = ["governance"]
+            gap_index["summary"]["layer_review"]["layer_counts"] = {"governance": 2}
+            _write_json(gap_index_path, gap_index)
+
+            diff_path = runs_dir / "ontology_compatibility_diff_preview.json"
+            compatibility_diff = json.loads(diff_path.read_text(encoding="utf-8"))
+            compatibility_diff["layer_review"]["known_layers"] = ["compatibility"]
+            compatibility_diff["layer_review"]["used_layers"] = ["compatibility"]
+            compatibility_diff["layer_review"]["layer_counts"] = {"compatibility": 4}
+            _write_json(diff_path, compatibility_diff)
+
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=runs_dir,
+                specgraph_dir=root,
+            )
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-workbench")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["package_count"], 2)
+        layer_rows = {row["layer"]: row for row in body["layers"]["rows"]}
+        self.assertEqual(body["layers"]["summary"]["package_layered_entry_count"], 5)
+        self.assertEqual(body["layers"]["summary"]["package_unlayered_entry_count"], 3)
+        self.assertEqual(body["layers"]["summary"]["used_layer_count"], 5)
+        self.assertEqual(layer_rows["objective"]["package_entry_count"], 1)
+        self.assertEqual(layer_rows["mechanics"]["package_entry_count"], 1)
+        self.assertEqual(layer_rows["product"]["package_entry_count"], 3)
+        self.assertEqual(layer_rows["governance"]["gap_count"], 2)
+        self.assertEqual(layer_rows["compatibility"]["diff_change_count"], 4)
+
     def test_ontology_workbench_v1_omits_invalid_file_contract_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

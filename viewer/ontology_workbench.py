@@ -90,12 +90,24 @@ def _string_list(value: Any) -> list[str]:
     return [item for item in value if isinstance(item, str) and item]
 
 
-def _layer_count_map(value: Any, layers: list[str]) -> dict[str, int]:
+def _append_unique_layers(
+    layers: list[str],
+    seen: set[str],
+    values: Any,
+) -> None:
+    for layer in _string_list(values):
+        if layer not in seen:
+            seen.add(layer)
+            layers.append(layer)
+
+
+def _layer_count_map(value: Any) -> dict[str, int]:
     counts = _record(value)
     return {
-        layer: _number(counts.get(layer))
-        for layer in layers
-        if _number(counts.get(layer)) > 0
+        layer: count
+        for layer, raw_count in counts.items()
+        if isinstance(layer, str)
+        if (count := _number(raw_count)) > 0
     }
 
 
@@ -210,23 +222,52 @@ def _layer_lens(
     gap_index: dict[str, Any] | None,
     compatibility_diff: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    package = next(iter(_records((package_index or {}).get("packages"))), {})
-    package_layer_summary = _record(package.get("ontology_layer_summary"))
+    package_layer_summaries = [
+        summary
+        for package in _records((package_index or {}).get("packages"))
+        if (summary := _record(package.get("ontology_layer_summary")))
+    ]
     gap_layer_summary = _record(
         _record((gap_index or {}).get("summary")).get("layer_review")
     )
     diff_layer_review = _record((compatibility_diff or {}).get("layer_review"))
-    known_layers = (
-        _string_list(package_layer_summary.get("known_layers"))
-        or _string_list(gap_layer_summary.get("known_layers"))
-        or _string_list(diff_layer_review.get("known_layers"))
-        or list(ONTOLOGY_LAYERS)
-    )
-    package_counts = _layer_count_map(
-        package_layer_summary.get("layer_counts"), known_layers
-    )
-    gap_counts = _layer_count_map(gap_layer_summary.get("layer_counts"), known_layers)
-    diff_counts = _layer_count_map(diff_layer_review.get("layer_counts"), known_layers)
+    known_layers: list[str] = []
+    seen_layers: set[str] = set()
+    package_counts: dict[str, int] = {}
+    package_layered_entry_count = 0
+    package_unlayered_entry_count = 0
+    for package_layer_summary in package_layer_summaries:
+        _append_unique_layers(
+            known_layers,
+            seen_layers,
+            package_layer_summary.get("known_layers"),
+        )
+        for layer, count in _layer_count_map(
+            package_layer_summary.get("layer_counts")
+        ).items():
+            if layer not in seen_layers:
+                seen_layers.add(layer)
+                known_layers.append(layer)
+            package_counts[layer] = package_counts.get(layer, 0) + count
+        package_layered_entry_count += _number(
+            package_layer_summary.get("layered_entry_count")
+        )
+        package_unlayered_entry_count += _number(
+            package_layer_summary.get("unlayered_entry_count")
+        )
+    gap_counts = _layer_count_map(gap_layer_summary.get("layer_counts"))
+    diff_counts = _layer_count_map(diff_layer_review.get("layer_counts"))
+    for layer_review, counts in (
+        (gap_layer_summary, gap_counts),
+        (diff_layer_review, diff_counts),
+    ):
+        _append_unique_layers(known_layers, seen_layers, layer_review.get("known_layers"))
+        for layer in counts:
+            if layer not in seen_layers:
+                seen_layers.add(layer)
+                known_layers.append(layer)
+    if not known_layers:
+        known_layers = list(ONTOLOGY_LAYERS)
 
     rows = []
     for layer in known_layers:
@@ -259,12 +300,8 @@ def _layer_lens(
         "summary": {
             "known_layer_count": len(known_layers),
             "used_layer_count": len(rows),
-            "package_layered_entry_count": _number(
-                package_layer_summary.get("layered_entry_count")
-            ),
-            "package_unlayered_entry_count": _number(
-                package_layer_summary.get("unlayered_entry_count")
-            ),
+            "package_layered_entry_count": package_layered_entry_count,
+            "package_unlayered_entry_count": package_unlayered_entry_count,
             "gap_unassigned_layer_count": _number(
                 gap_layer_summary.get("unassigned_layer_count")
             ),
