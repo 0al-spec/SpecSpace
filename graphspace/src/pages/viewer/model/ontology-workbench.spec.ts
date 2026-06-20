@@ -11,6 +11,9 @@ describe("parseOntologyWorkbench", () => {
     expect(result.data.summary.gapGroupCount).toBe(1);
     expect(result.data.package?.packageId).toBe("org.0al.specgraph.core");
     expect(result.data.normalizedIr.classes[0]?.id).toBe("SpecGraph");
+    expect(result.data.layers.summary.usedLayerCount).toBe(3);
+    expect(result.data.layers.rows.find((row) => row.layer === "meta")?.gapCount).toBe(1);
+    expect(result.data.layers.unassigned.diffChangeCount).toBe(0);
     expect(result.data.gapReview.groups[0]?.proposedTerm).toBe("Intent");
     expect(result.data.writeGate.wouldRejectInHardGate).toBe(true);
     expect(result.data.ownerDecisions.reviews[0]?.afterSemanticStatus).toBe("accepted_term");

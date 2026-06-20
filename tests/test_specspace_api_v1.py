@@ -20,7 +20,9 @@ from viewer import agent_surfaces, server, specspace_provider
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-AGENT_WORKBENCH_FIXTURES = Path(__file__).resolve().parent / "fixtures" / "agent_workbench"
+AGENT_WORKBENCH_FIXTURES = (
+    Path(__file__).resolve().parent / "fixtures" / "agent_workbench"
+)
 
 MINIMAL_SPEC = {
     "id": "SG-SPEC-0001",
@@ -71,7 +73,9 @@ def _start(
     httpd.hyperprompt_binary = hyperprompt_binary
     httpd.hyperprompt_resolved_binary = hyperprompt_resolved_binary
     httpd.hyperprompt_checked_paths = [hyperprompt_binary] if hyperprompt_binary else []
-    httpd.hyperprompt_resolution_source = "configured" if hyperprompt_resolved_binary else "missing"
+    httpd.hyperprompt_resolution_source = (
+        "configured" if hyperprompt_resolved_binary else "missing"
+    )
     httpd.hyperprompt_work_dir = hyperprompt_work_dir
     httpd.hyperprompt_http_compile_enabled = hyperprompt_http_compile_enabled
     httpd.hyperprompt_compile_timeout_seconds = hyperprompt_compile_timeout_seconds
@@ -88,9 +92,13 @@ def _start(
     httpd.artifact_base_url = artifact_base_url
     httpd.specpm_registry_url = specpm_registry_url
     httpd.agent_workbench_dir = agent_workbench_dir
-    httpd.specspace_state_dir = specspace_state_dir or (dialog_dir.parent / "specspace-state")
+    httpd.specspace_state_dir = specspace_state_dir or (
+        dialog_dir.parent / "specspace-state"
+    )
     httpd.agent_available = False
-    thread = threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
+    thread = threading.Thread(
+        target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True
+    )
     thread.start()
     return httpd, thread, f"http://127.0.0.1:{httpd.server_port}"
 
@@ -124,7 +132,9 @@ def _post(url: str, payload: dict) -> tuple[int, dict]:
         return exc.code, json.loads(exc.read())
 
 
-def _write_hyperprompt_stub(path: Path, *, exit_code: int = 0, sleep_seconds: int = 0) -> None:
+def _write_hyperprompt_stub(
+    path: Path, *, exit_code: int = 0, sleep_seconds: int = 0
+) -> None:
     if exit_code == 0:
         path.write_text(
             f"""#!/bin/sh
@@ -160,7 +170,9 @@ class QuietStaticHandler(SimpleHTTPRequestHandler):
 def _start_static(root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     handler = partial(QuietStaticHandler, directory=str(root))
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    thread = threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
+    thread = threading.Thread(
+        target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True
+    )
     thread.start()
     return httpd, thread, f"http://127.0.0.1:{httpd.server_port}"
 
@@ -242,9 +254,29 @@ def _write_specgraph_core_ontology_artifacts(root: Path) -> None:
                     "version": "0.1.0",
                     "materialized_ir": "ontology/specgraph-core/ontology.normalized.json",
                     "lock": {"package_ref": "org.0al.specgraph.core@0.1.0"},
+                    "ontology_layer_summary": {
+                        "known_layers": [
+                            "objective",
+                            "mechanics",
+                            "execution",
+                            "meta",
+                            "multi_agent",
+                        ],
+                        "entry_count": 4,
+                        "layered_entry_count": 2,
+                        "unlayered_entry_count": 2,
+                        "used_layers": ["objective", "mechanics"],
+                        "layer_counts": {"objective": 1, "mechanics": 1},
+                    },
                 }
             ],
-            "summary": {"resolved_ref_count": 2, "unresolved_ref_count": 1},
+            "summary": {
+                "resolved_ref_count": 2,
+                "unresolved_ref_count": 1,
+                "layered_entry_count": 2,
+                "unlayered_entry_count": 2,
+                "used_layer_count": 2,
+            },
         },
     )
     _write_json(
@@ -268,6 +300,18 @@ def _write_specgraph_core_ontology_artifacts(root: Path) -> None:
                         "namespace_hint": "sgcore",
                         "ref": "sgcore:ClaimCalibration",
                     },
+                    "layer_review": {
+                        "status": "assigned",
+                        "layer": "meta",
+                        "source": "fixture.binding.layerHints",
+                        "known_layers": [
+                            "objective",
+                            "mechanics",
+                            "execution",
+                            "meta",
+                            "multi_agent",
+                        ],
+                    },
                     "needed_by": ["0060", "SG-RFC-0130"],
                     "recommended_route": "ontology_package_draft",
                     "severity": "medium",
@@ -275,7 +319,22 @@ def _write_specgraph_core_ontology_artifacts(root: Path) -> None:
                     "target_package": "org.0al.specgraph.core@0.1.0",
                 }
             ],
-            "summary": {"gap_count": 1},
+            "summary": {
+                "gap_count": 1,
+                "layer_review": {
+                    "known_layers": [
+                        "objective",
+                        "mechanics",
+                        "execution",
+                        "meta",
+                        "multi_agent",
+                    ],
+                    "layer_counts": {"meta": 1},
+                    "used_layers": ["meta"],
+                    "status_counts": {"assigned": 1},
+                    "unassigned_layer_count": 0,
+                },
+            },
         },
     )
     _write_json(
@@ -292,6 +351,21 @@ def _write_specgraph_core_ontology_artifacts(root: Path) -> None:
             "changes": {
                 "added_classes": ["sgcore:ClaimCalibration"],
                 "breaking_changes": [],
+            },
+            "layer_review": {
+                "known_layers": [
+                    "objective",
+                    "mechanics",
+                    "execution",
+                    "meta",
+                    "multi_agent",
+                ],
+                "layered_change_count": 1,
+                "unassigned_change_count": 0,
+                "used_layers": ["meta"],
+                "layer_counts": {"meta": 1},
+                "by_layer": {"meta": {"added_classes": ["sgcore:ClaimCalibration"]}},
+                "unassigned_refs": [],
             },
         },
     )
@@ -323,8 +397,14 @@ def _write_specgraph_core_ontology_artifacts(root: Path) -> None:
 def _write_ontology_workbench_artifacts(root: Path) -> None:
     runs_dir = root / "runs"
     runs_dir.mkdir(parents=True, exist_ok=True)
-    _write_json(runs_dir / "spec_ontology_validation_report.json", _spec_ontology_validation_report())
-    _write_json(runs_dir / "ontology_decision_import_preview.json", _ontology_owner_decision_review())
+    _write_json(
+        runs_dir / "spec_ontology_validation_report.json",
+        _spec_ontology_validation_report(),
+    )
+    _write_json(
+        runs_dir / "ontology_decision_import_preview.json",
+        _ontology_owner_decision_review(),
+    )
     _write_json(
         runs_dir / "ontology_gap_review_workflow.json",
         {
@@ -532,7 +612,9 @@ def _write_ontology_workbench_artifacts(root: Path) -> None:
             ],
             "warnings": [],
             "term_binding_gate": {},
-            "policy_refs": ["docs/proposals/0137_specauthor_generated_artifact_contract.md"],
+            "policy_refs": [
+                "docs/proposals/0137_specauthor_generated_artifact_contract.md"
+            ],
             "authority_boundary": {
                 "specauthor_ontology_write_gate_report_is_authority": False,
                 "may_write_ontology_package": False,
@@ -579,7 +661,9 @@ def _write_specpm_registry(root: Path) -> None:
                 "license": "MIT",
                 "latest_version": "0.1.0",
                 "capabilities": ["specnode.typed_job_protocol"],
-                "versions": [{"version": "0.1.0", "yanked": False, "deprecated": False}],
+                "versions": [
+                    {"version": "0.1.0", "yanked": False, "deprecated": False}
+                ],
             }
         ],
     }
@@ -648,7 +732,9 @@ def _write_proposal_viewer_artifacts(runs_dir: Path) -> None:
                         "status": "bounded",
                         "trace_status": "bounded",
                         "next_gap": "none",
-                        "source_refs": ["docs/archive/proposal_sources/0042_agent_context.md"],
+                        "source_refs": [
+                            "docs/archive/proposal_sources/0042_agent_context.md"
+                        ],
                     },
                     "next_gap": "none",
                 }
@@ -662,7 +748,12 @@ def _write_proposal_viewer_artifacts(runs_dir: Path) -> None:
                 "authority_counts": {"textual_reference": 1},
                 "trace_status_counts": {"bounded": 1},
             },
-            "viewer_projection": {"spec_id": {}, "authority": {}, "trace_status": {}, "named_filters": {}},
+            "viewer_projection": {
+                "spec_id": {},
+                "authority": {},
+                "trace_status": {},
+                "named_filters": {},
+            },
             "viewer_contract": {"contract_doc": "test", "read_only": True},
             "canonical_mutations_allowed": False,
             "tracked_artifacts_written": False,
@@ -682,7 +773,10 @@ def _write_proposal_viewer_artifacts(runs_dir: Path) -> None:
                     "path": "docs/proposals/0042_agent_context.md",
                     "posture": "synchronous_runtime_slice",
                     "runtime_realization": {"status": "implemented"},
-                    "reflective_chain": {"runtime_realization": "implemented", "next_gap": "none"},
+                    "reflective_chain": {
+                        "runtime_realization": "implemented",
+                        "next_gap": "none",
+                    },
                 }
             ],
         },
@@ -880,7 +974,9 @@ def _write_metrics_viewer_artifacts(runs_dir: Path) -> None:
                     "title": "SIB metric pack run",
                     "run_status": "computed",
                     "review_state": "ready_for_review",
-                    "computed_values": [{"metric_id": "sib", "score": 0.74, "status": "healthy"}],
+                    "computed_values": [
+                        {"metric_id": "sib", "score": 0.74, "status": "healthy"}
+                    ],
                     "gaps": [],
                 }
             ],
@@ -1348,7 +1444,9 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
                     "smoke_status": "not_run",
                     "canonical_trial_allowed": False,
                     "safe_next_action": "run_in_intended_runtime_environment",
-                    "capability_gaps": [{"gap": "producer_environment_not_executor_runtime"}],
+                    "capability_gaps": [
+                        {"gap": "producer_environment_not_executor_runtime"}
+                    ],
                 }
             ],
         },
@@ -1466,7 +1564,7 @@ def _write_agent_surface_artifacts(runs_dir: Path) -> None:
                         "validation_state": "not_attempted",
                         "tool_status": "available",
                     },
-                }
+                },
             ],
         },
     )
@@ -1611,7 +1709,9 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
             populated = root / "populated"
             empty.mkdir()
             populated.mkdir()
-            (populated / "SG-SPEC-0001.yaml").write_text("id: SG-SPEC-0001\n", encoding="utf-8")
+            (populated / "SG-SPEC-0001.yaml").write_text(
+                "id: SG-SPEC-0001\n", encoding="utf-8"
+            )
 
             self.assertEqual(
                 specspace_provider.inspect_directory_source(
@@ -1640,7 +1740,9 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
     def test_directory_health_distinguishes_unreadable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp)
-            with mock.patch.object(Path, "glob", side_effect=OSError("permission denied")):
+            with mock.patch.object(
+                Path, "glob", side_effect=OSError("permission denied")
+            ):
                 source = specspace_provider.inspect_directory_source(
                     name="spec_nodes",
                     path=path,
@@ -1650,14 +1752,18 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
         self.assertEqual(source.status, "unreadable")
         self.assertIn("permission denied", source.detail or "")
 
-    def test_provider_health_degrades_when_configured_specgraph_root_is_missing(self) -> None:
+    def test_provider_health_degrades_when_configured_specgraph_root_is_missing(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             spec_dir = root / "specs" / "nodes"
             runs_dir = root / "runs"
             spec_dir.mkdir(parents=True)
             runs_dir.mkdir()
-            (spec_dir / "SG-SPEC-0001.yaml").write_text("id: SG-SPEC-0001\n", encoding="utf-8")
+            (spec_dir / "SG-SPEC-0001.yaml").write_text(
+                "id: SG-SPEC-0001\n", encoding="utf-8"
+            )
             (runs_dir / "artifact.json").write_text("{}", encoding="utf-8")
             provider = specspace_provider.FileSpecGraphProvider(
                 spec_nodes_dir=spec_dir,
@@ -1671,9 +1777,13 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
         self.assertEqual(health["sources"]["specgraph_root"]["status"], "missing")
 
     def test_safe_manifest_path_rejects_absolute_and_parent_paths(self) -> None:
-        self.assertIsNone(specspace_provider.safe_manifest_path("/specs/nodes/SG-SPEC-0001.yaml"))
+        self.assertIsNone(
+            specspace_provider.safe_manifest_path("/specs/nodes/SG-SPEC-0001.yaml")
+        )
         self.assertIsNone(specspace_provider.safe_manifest_path("specs/../secret.yaml"))
-        self.assertIsNone(specspace_provider.safe_manifest_path("https://example.test/spec.yaml"))
+        self.assertIsNone(
+            specspace_provider.safe_manifest_path("https://example.test/spec.yaml")
+        )
         self.assertEqual(
             specspace_provider.safe_manifest_path("specs/nodes/SG-SPEC-0001.yaml"),
             "specs/nodes/SG-SPEC-0001.yaml",
@@ -1773,7 +1883,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             runs_dir.mkdir()
             _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
             _write_json(runs_dir / "artifact.json", {"ok": True})
-            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir, runs_dir=runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs", spec_dir=spec_dir, runs_dir=runs_dir
+            )
             try:
                 status, body = _get(f"{base}/api/v1/health")
             finally:
@@ -1808,7 +1920,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertEqual(body["sources"]["specpm_registry"]["status"], "configured")
-        self.assertEqual(body["sources"]["specpm_registry"]["path"], "https://0al-spec.github.io/SpecPM")
+        self.assertEqual(
+            body["sources"]["specpm_registry"]["path"],
+            "https://0al-spec.github.io/SpecPM",
+        )
 
     def test_specpm_registry_v1_returns_status_and_packages(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1816,7 +1931,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             registry_root = root / "registry"
             _write_specpm_registry(registry_root)
             registry, registry_thread, registry_url = _start_static(registry_root)
-            httpd, thread, base = _start(root / "dialogs", specpm_registry_url=registry_url)
+            httpd, thread, base = _start(
+                root / "dialogs", specpm_registry_url=registry_url
+            )
             try:
                 status, body = _get(f"{base}/api/v1/specpm/registry")
             finally:
@@ -1835,9 +1952,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             registry_root = root / "registry"
             _write_specpm_registry(registry_root)
             registry, registry_thread, registry_url = _start_static(registry_root)
-            httpd, thread, base = _start(root / "dialogs", specpm_registry_url=registry_url)
+            httpd, thread, base = _start(
+                root / "dialogs", specpm_registry_url=registry_url
+            )
             try:
-                status, body = _get(f"{base}/api/v1/specpm/registry/packages/specnode.core")
+                status, body = _get(
+                    f"{base}/api/v1/specpm/registry/packages/specnode.core"
+                )
             finally:
                 _stop(httpd, thread)
                 _stop(registry, registry_thread)
@@ -1853,7 +1974,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             registry_root = root / "registry"
             _write_specpm_registry(registry_root)
             registry, registry_thread, registry_url = _start_static(registry_root)
-            httpd, thread, base = _start(root / "dialogs", specpm_registry_url=registry_url)
+            httpd, thread, base = _start(
+                root / "dialogs", specpm_registry_url=registry_url
+            )
             try:
                 status, body = _get(
                     f"{base}/api/v1/specpm/registry/packages/specnode.core/versions/0.1.0",
@@ -1910,7 +2033,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "This proposal connects selected SpecGraph context to the Agent Workbench.",
         )
         self.assertIn("# Agent Context Bridge", proposal["markdown"]["content_body"])
-        self.assertIn("Full proposal body stays visible", proposal["markdown"]["content_body"])
+        self.assertIn(
+            "Full proposal body stays visible", proposal["markdown"]["content_body"]
+        )
         lane = by_key["lane::governance_proposal::SG-SPEC-0002::runtime"]
         self.assertEqual(lane["authority_state"], "under_review")
         self.assertEqual(lane["proposal_type"], "governance_proposal")
@@ -1932,14 +2057,16 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     "depends_on": ["SG-SPEC-0002"],
                     "specification": {
                         "objective": "Define vocabulary for SpecGraph ontology work.",
-                        "node_kinds": [{"name": "OntologyBinding", "description": "Term binding."}],
+                        "node_kinds": [
+                            {"name": "OntologyBinding", "description": "Term binding."}
+                        ],
                         "edge_kinds": [{"name": "USES_ONTOLOGY"}],
                         "terminology": {
                             404: "Not Found",
                             "500": "Server Error",
                             "provenance_record": (
                                 "A structured metadata envelope attached to a canonical node."
-                            )
+                            ),
                         },
                     },
                 },
@@ -1950,7 +2077,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     **MINIMAL_SPEC,
                     "id": "SG-SPEC-0002",
                     "title": "SpecSpace Review Surface",
-                    "specification": {"objective": "Expose review vocabulary in SpecSpace."},
+                    "specification": {
+                        "objective": "Expose review vocabulary in SpecSpace."
+                    },
                 },
             )
             proposals_dir = root / "docs" / "proposals"
@@ -1959,7 +2088,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 "# Ontology Grounding\n\nMentions SG-SPEC-0001 and fixes accepted vocabulary.\n",
                 encoding="utf-8",
             )
-            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir, specgraph_dir=root)
+            httpd, thread, base = _start(
+                root / "dialogs", spec_dir=spec_dir, specgraph_dir=root
+            )
             try:
                 status, body = _get(f"{base}/api/v1/practical-ontology")
             finally:
@@ -2001,16 +2132,28 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         }
         self.assertIn(("SpecGraph", "contains", "Node"), semantic_relation_pairs)
         self.assertIn(("Spec", "defines", "Requirement"), semantic_relation_pairs)
-        self.assertIn(("Requirement", "is_validated_by", "AcceptanceCriterion"), semantic_relation_pairs)
-        self.assertEqual(by_label["SpecGraph"]["source_refs"], ["specs/nodes/SG-SPEC-0001.yaml#specification.seed"])
-        self.assertEqual(body["summary"]["semantic_relation_count"], len(body["relations"]))
-        self.assertEqual(body["summary"]["topology_edge_count"], len(body["topology_edges"]))
+        self.assertIn(
+            ("Requirement", "is_validated_by", "AcceptanceCriterion"),
+            semantic_relation_pairs,
+        )
+        self.assertEqual(
+            by_label["SpecGraph"]["source_refs"],
+            ["specs/nodes/SG-SPEC-0001.yaml#specification.seed"],
+        )
+        self.assertEqual(
+            body["summary"]["semantic_relation_count"], len(body["relations"])
+        )
+        self.assertEqual(
+            body["summary"]["topology_edge_count"], len(body["topology_edges"])
+        )
         self.assertEqual(
             body["summary"]["proposal_reference_count"],
             len(body["proposal_references"]),
         )
 
-    def test_practical_ontology_v1_uses_conceptual_seed_ref_when_seed_file_missing(self) -> None:
+    def test_practical_ontology_v1_uses_conceptual_seed_ref_when_seed_file_missing(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             spec_dir = root / "specs" / "nodes"
@@ -2023,7 +2166,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     "title": "Unrelated Spec",
                 },
             )
-            httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir, specgraph_dir=root)
+            httpd, thread, base = _start(
+                root / "dialogs", spec_dir=spec_dir, specgraph_dir=root
+            )
             try:
                 status, body = _get(f"{base}/api/v1/practical-ontology")
             finally:
@@ -2063,7 +2208,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["artifact_kind"], "specspace_practical_ontology")
         self.assertTrue(body["read_only"])
         self.assertFalse(body["canonical_mutations_allowed"])
-        self.assertEqual(body["source"]["ontology_mode"], "compiler_artifact_projection")
+        self.assertEqual(
+            body["source"]["ontology_mode"], "compiler_artifact_projection"
+        )
         self.assertEqual(body["source"]["package_ref"], "org.0al.specgraph.core@0.1.0")
         self.assertTrue(body["source"]["normalized_ir_available"])
         self.assertFalse(body["authority_boundary"]["practical_ontology_is_authority"])
@@ -2081,11 +2228,20 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["package"]["package_id"], "org.0al.specgraph.core")
         self.assertEqual(body["package"]["namespace"], "sgcore")
         self.assertEqual(body["package"]["version"], "0.1.0")
-        self.assertEqual(body["package"]["materialized_ir"], "ontology/specgraph-core/ontology.normalized.json")
-        self.assertEqual(body["gaps"][0]["gap_id"], "ontology-gap-sgcore-claimcalibration")
+        self.assertEqual(
+            body["package"]["materialized_ir"],
+            "ontology/specgraph-core/ontology.normalized.json",
+        )
+        self.assertEqual(
+            body["gaps"][0]["gap_id"], "ontology-gap-sgcore-claimcalibration"
+        )
         self.assertEqual(body["gaps"][0]["missing_concept"], "ClaimCalibration")
-        self.assertEqual(body["compatibility_diff"]["to_ref"], "org.0al.specgraph.core@0.2.0")
-        self.assertEqual(body["compatibility_diff"]["added_classes"], ["sgcore:ClaimCalibration"])
+        self.assertEqual(
+            body["compatibility_diff"]["to_ref"], "org.0al.specgraph.core@0.2.0"
+        )
+        self.assertEqual(
+            body["compatibility_diff"]["added_classes"], ["sgcore:ClaimCalibration"]
+        )
         self.assertEqual(body["governance_evidence"][0]["lifecycle_state"], "draft")
         self.assertEqual(
             body["governance_evidence"][0]["decision_ref"],
@@ -2093,20 +2249,29 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         raw_artifact_paths = {entry["path"] for entry in body["raw_artifacts"]}
         self.assertIn("runs/ontology_package_index.json", raw_artifact_paths)
-        self.assertIn("ontology/specgraph-core/ontology.normalized.json", raw_artifact_paths)
+        self.assertIn(
+            "ontology/specgraph-core/ontology.normalized.json", raw_artifact_paths
+        )
         labels = {entry["label"] for entry in body["terms"]}
         self.assertEqual(labels, {"Requirement", "Spec", "SpecGraph"})
         relation_pairs = {
             (entry["source_term"], entry["relation"], entry["target_term"])
             for entry in body["relations"]
         }
-        self.assertEqual(relation_pairs, {("Spec", "definesRequirement", "Requirement")})
+        self.assertEqual(
+            relation_pairs, {("Spec", "definesRequirement", "Requirement")}
+        )
         self.assertEqual(body["sources"]["compiler_ir"]["class_count"], 3)
         self.assertEqual(body["sources"]["compiler_ir"]["relation_count"], 1)
         self.assertTrue(body["sources"]["ontology_import_gap_index"]["available"])
         self.assertEqual(body["sources"]["ontology_import_gap_index"]["gap_count"], 1)
-        self.assertTrue(body["sources"]["ontology_compatibility_diff_preview"]["available"])
-        self.assertEqual(body["sources"]["ontology_compatibility_diff_preview"]["added_class_count"], 1)
+        self.assertTrue(
+            body["sources"]["ontology_compatibility_diff_preview"]["available"]
+        )
+        self.assertEqual(
+            body["sources"]["ontology_compatibility_diff_preview"]["added_class_count"],
+            1,
+        )
         self.assertFalse(body["sources"]["curated_seed"]["available"])
         self.assertEqual(body["topology_edges"], [])
         self.assertEqual(body["proposal_references"], [])
@@ -2130,10 +2295,14 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 _stop(httpd, thread)
 
         self.assertEqual(status, 200)
-        self.assertEqual(body["source"]["ontology_mode"], "compiler_artifact_projection")
+        self.assertEqual(
+            body["source"]["ontology_mode"], "compiler_artifact_projection"
+        )
         self.assertEqual(body["summary"]["term_count"], 3)
 
-    def test_practical_ontology_v1_falls_back_to_binding_ref_for_non_object_lock(self) -> None:
+    def test_practical_ontology_v1_falls_back_to_binding_ref_for_non_object_lock(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             spec_dir = root / "specs" / "nodes"
@@ -2157,10 +2326,14 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 _stop(httpd, thread)
 
         self.assertEqual(status, 200)
-        self.assertEqual(body["source"]["ontology_mode"], "compiler_artifact_projection")
+        self.assertEqual(
+            body["source"]["ontology_mode"], "compiler_artifact_projection"
+        )
         self.assertEqual(body["source"]["package_ref"], "org.0al.specgraph.core@0.1.0")
 
-    def test_practical_ontology_v1_reads_compiler_artifacts_from_http_manifest(self) -> None:
+    def test_practical_ontology_v1_reads_compiler_artifacts_from_http_manifest(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             artifact_root = root / "artifacts"
@@ -2182,7 +2355,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             )
 
             static_httpd, static_thread, artifact_base = _start_static(artifact_root)
-            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base)
+            httpd, thread, base = _start(
+                root / "dialogs", artifact_base_url=artifact_base
+            )
             try:
                 status, body = _get(f"{base}/api/v1/practical-ontology")
             finally:
@@ -2190,7 +2365,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 _stop(static_httpd, static_thread)
 
         self.assertEqual(status, 200)
-        self.assertEqual(body["source"]["ontology_mode"], "compiler_artifact_projection")
+        self.assertEqual(
+            body["source"]["ontology_mode"], "compiler_artifact_projection"
+        )
         self.assertEqual(body["source"]["provider"], "http")
         self.assertEqual(body["source"]["package_ref"], "org.0al.specgraph.core@0.1.0")
         self.assertTrue(body["authority_boundary"]["compiler_artifact_backed"])
@@ -2198,7 +2375,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["semantic_relation_count"], 1)
         self.assertEqual(body["summary"]["gap_count"], 1)
         self.assertEqual(body["summary"]["diff_added_class_count"], 1)
-        self.assertEqual(body["governance_evidence"][0]["package_ref"], "org.0al.specgraph.core@0.1.0")
+        self.assertEqual(
+            body["governance_evidence"][0]["package_ref"],
+            "org.0al.specgraph.core@0.1.0",
+        )
 
     def test_ontology_workbench_v1_reads_file_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2236,17 +2416,100 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["legacy_small_pr_batch_count"], 1)
         self.assertEqual(body["package"]["package_id"], "org.0al.specgraph.core")
         self.assertEqual(body["normalized_ir"]["classes"][0]["id"], "SpecGraph")
+        layer_rows = {row["layer"]: row for row in body["layers"]["rows"]}
+        self.assertEqual(body["layers"]["summary"]["used_layer_count"], 3)
+        self.assertEqual(body["layers"]["summary"]["package_layered_entry_count"], 2)
+        self.assertEqual(body["layers"]["summary"]["gap_unassigned_layer_count"], 0)
+        self.assertEqual(body["layers"]["summary"]["diff_unassigned_change_count"], 0)
+        self.assertEqual(layer_rows["objective"]["package_entry_count"], 1)
+        self.assertEqual(layer_rows["mechanics"]["package_entry_count"], 1)
+        self.assertEqual(layer_rows["meta"]["gap_count"], 1)
+        self.assertEqual(layer_rows["meta"]["diff_change_count"], 1)
         self.assertEqual(body["gap_review"]["groups"][0]["proposed_term"], "Intent")
         self.assertEqual(body["compliance"]["entries"][0]["terms"], ["intent"])
-        self.assertEqual(body["write_gate"]["findings"][0]["finding_id"], "active_frame_incomplete")
+        self.assertEqual(
+            body["write_gate"]["findings"][0]["finding_id"], "active_frame_incomplete"
+        )
         self.assertTrue(body["write_gate"]["would_reject_in_hard_gate"])
         self.assertEqual(
             body["owner_decisions"]["reviews"][0]["after_semantic_status"],
             "accepted_term",
         )
-        self.assertFalse(body["legacy_backfill"]["small_pr_batches"][0]["mutates_canonical_specs"])
+        self.assertFalse(
+            body["legacy_backfill"]["small_pr_batches"][0]["mutates_canonical_specs"]
+        )
         self.assertTrue(body["artifacts"]["gap_review_workflow"]["available"])
         self.assertTrue(body["artifacts"]["owner_decision_import_v2"]["available"])
+
+    def test_ontology_workbench_v1_layer_lens_aggregates_packages_and_vocabularies(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
+            _write_specgraph_core_ontology_artifacts(root)
+            _write_ontology_workbench_artifacts(root)
+            runs_dir = root / "runs"
+            package_index_path = runs_dir / "ontology_package_index.json"
+            package_index = json.loads(package_index_path.read_text(encoding="utf-8"))
+            package_index["packages"].append(
+                {
+                    "package_id": "org.0al.specgraph.product",
+                    "namespace": "sgproduct",
+                    "version": "0.1.0",
+                    "materialized_ir": "ontology/specgraph-product/ontology.normalized.json",
+                    "lock": {"package_ref": "org.0al.specgraph.product@0.1.0"},
+                    "ontology_layer_summary": {
+                        "known_layers": ["product"],
+                        "entry_count": 4,
+                        "layered_entry_count": 3,
+                        "unlayered_entry_count": 1,
+                        "used_layers": ["product"],
+                        "layer_counts": {"product": 3},
+                    },
+                }
+            )
+            package_index["summary"]["package_count"] = 2
+            _write_json(package_index_path, package_index)
+
+            gap_index_path = runs_dir / "ontology_import_gap_index.json"
+            gap_index = json.loads(gap_index_path.read_text(encoding="utf-8"))
+            gap_index["summary"]["layer_review"]["known_layers"] = ["governance"]
+            gap_index["summary"]["layer_review"]["used_layers"] = ["governance"]
+            gap_index["summary"]["layer_review"]["layer_counts"] = {"governance": 2}
+            _write_json(gap_index_path, gap_index)
+
+            diff_path = runs_dir / "ontology_compatibility_diff_preview.json"
+            compatibility_diff = json.loads(diff_path.read_text(encoding="utf-8"))
+            compatibility_diff["layer_review"]["known_layers"] = ["compatibility"]
+            compatibility_diff["layer_review"]["used_layers"] = ["compatibility"]
+            compatibility_diff["layer_review"]["layer_counts"] = {"compatibility": 4}
+            _write_json(diff_path, compatibility_diff)
+
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=runs_dir,
+                specgraph_dir=root,
+            )
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-workbench")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["package_count"], 2)
+        layer_rows = {row["layer"]: row for row in body["layers"]["rows"]}
+        self.assertEqual(body["layers"]["summary"]["package_layered_entry_count"], 5)
+        self.assertEqual(body["layers"]["summary"]["package_unlayered_entry_count"], 3)
+        self.assertEqual(body["layers"]["summary"]["used_layer_count"], 5)
+        self.assertEqual(layer_rows["objective"]["package_entry_count"], 1)
+        self.assertEqual(layer_rows["mechanics"]["package_entry_count"], 1)
+        self.assertEqual(layer_rows["product"]["package_entry_count"], 3)
+        self.assertEqual(layer_rows["governance"]["gap_count"], 2)
+        self.assertEqual(layer_rows["compatibility"]["diff_change_count"], 4)
 
     def test_ontology_workbench_v1_omits_invalid_file_contract_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2313,7 +2576,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             )
 
             static_httpd, static_thread, artifact_base = _start_static(artifact_root)
-            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base)
+            httpd, thread, base = _start(
+                root / "dialogs", artifact_base_url=artifact_base
+            )
             try:
                 status, body = _get(f"{base}/api/v1/ontology-workbench")
             finally:
@@ -2328,6 +2593,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["artifacts"]["normalized_ir"]["path"],
             "ontology/specgraph-core/ontology.normalized.json",
         )
+        self.assertEqual(body["layers"]["summary"]["used_layer_count"], 3)
+        self.assertEqual(body["layers"]["unassigned"]["diff_change_count"], 0)
         self.assertTrue(body["artifacts"]["write_gate"]["available"])
         self.assertEqual(
             body["legacy_backfill"]["small_pr_batches"][0]["batch_id"],
@@ -2394,10 +2661,14 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
             _write_specgraph_core_ontology_artifacts(root)
             runs_dir = root / "runs"
-            _write_json(runs_dir / "local_operator_debug.json", {"secret": "local-only"})
+            _write_json(
+                runs_dir / "local_operator_debug.json", {"secret": "local-only"}
+            )
             unsafe_dir = runs_dir / "agent_runtime_enforcement_evidence"
             unsafe_dir.mkdir()
-            _write_json(unsafe_dir / "runtime-detail.json", {"secret": "runtime-detail"})
+            _write_json(
+                unsafe_dir / "runtime-detail.json", {"secret": "runtime-detail"}
+            )
             _write_json(
                 runs_dir / "spec_ontology_validation_report.json",
                 _spec_ontology_validation_report(),
@@ -2415,7 +2686,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     f"{base}/api/v1/artifacts/content?"
                     f"path={quote('ontology/specgraph-core/ontology.normalized.json')}"
                 )
-                unsafe_status, unsafe = _get(f"{base}/api/v1/artifacts/content?path=../secret.json")
+                unsafe_status, unsafe = _get(
+                    f"{base}/api/v1/artifacts/content?path=../secret.json"
+                )
                 local_only_status, local_only = _get(
                     f"{base}/api/v1/artifacts/content?"
                     f"path={quote('runs/local_operator_debug.json')}"
@@ -2433,7 +2706,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertGreaterEqual(body["summary"]["runs_count"], 4)
         self.assertEqual(body["summary"]["ontology_ir_count"], 1)
         by_path = {entry["path"]: entry for entry in body["artifacts"]}
-        self.assertEqual(by_path["runs/ontology_package_index.json"]["group"], "ontology")
+        self.assertEqual(
+            by_path["runs/ontology_package_index.json"]["group"], "ontology"
+        )
         self.assertEqual(
             by_path["runs/spec_ontology_validation_report.json"]["group"],
             "runs",
@@ -2443,7 +2718,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "ontology_ir",
         )
         self.assertNotIn("runs/local_operator_debug.json", by_path)
-        self.assertNotIn("runs/agent_runtime_enforcement_evidence/runtime-detail.json", by_path)
+        self.assertNotIn(
+            "runs/agent_runtime_enforcement_evidence/runtime-detail.json", by_path
+        )
         self.assertEqual(content_status, 200)
         self.assertEqual(content["artifact_kind"], "specspace_artifact_content")
         self.assertEqual(content["content_kind"], "json")
@@ -2474,7 +2751,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["artifact_count"], 0)
         self.assertEqual(body["artifacts"], [])
 
-    def test_artifacts_v1_lists_http_manifest_runs_and_materialized_ontology_ir(self) -> None:
+    def test_artifacts_v1_lists_http_manifest_runs_and_materialized_ontology_ir(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             artifact_root = root / "artifacts"
@@ -2495,7 +2774,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             )
 
             static_httpd, static_thread, artifact_base = _start_static(artifact_root)
-            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base)
+            httpd, thread, base = _start(
+                root / "dialogs", artifact_base_url=artifact_base
+            )
             try:
                 status, body = _get(f"{base}/api/v1/artifacts")
                 content_status, content = _get(
@@ -2512,8 +2793,14 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["ontology_artifact_count"], 4)
         self.assertEqual(body["summary"]["ontology_ir_count"], 1)
         by_path = {entry["path"]: entry for entry in body["artifacts"]}
-        self.assertTrue(by_path["ontology/specgraph-core/ontology.normalized.json"]["referenced_by_package_index"])
-        self.assertTrue(by_path["runs/ontology_package_index.json"]["url"].startswith(artifact_base))
+        self.assertTrue(
+            by_path["ontology/specgraph-core/ontology.normalized.json"][
+                "referenced_by_package_index"
+            ]
+        )
+        self.assertTrue(
+            by_path["runs/ontology_package_index.json"]["url"].startswith(artifact_base)
+        )
         self.assertEqual(content_status, 200)
         self.assertEqual(content["source"]["provider"], "http")
         self.assertEqual(content["data"]["namespace"], "sgcore")
@@ -2553,7 +2840,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["entry_count"], 1)
         self.assertEqual(body["entries"][0]["proposal_id"], "0007")
         self.assertEqual(body["sources"]["proposal_runtime_index"]["available"], False)
-        self.assertEqual(body["sources"]["proposal_runtime_index"]["reason"], "missing_artifact")
+        self.assertEqual(
+            body["sources"]["proposal_runtime_index"]["reason"], "missing_artifact"
+        )
 
     def test_metrics_v1_combines_static_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2613,7 +2902,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["entries"][0]["category"], "metric_signal")
         self.assertEqual(body["entries"][0]["item_id"], "specification_verifiability")
         self.assertEqual(body["sources"]["graph_dashboard"]["available"], False)
-        self.assertEqual(body["sources"]["graph_dashboard"]["reason"], "missing_artifact")
+        self.assertEqual(
+            body["sources"]["graph_dashboard"]["reason"], "missing_artifact"
+        )
 
     def test_metrics_v1_rejects_non_object_file_artifact_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2631,7 +2922,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["entry_count"], 0)
         self.assertEqual(body["entries"], [])
         self.assertEqual(body["sources"]["metric_signals"]["available"], False)
-        self.assertEqual(body["sources"]["metric_signals"]["reason"], "invalid_json_root")
+        self.assertEqual(
+            body["sources"]["metric_signals"]["reason"], "invalid_json_root"
+        )
         self.assertEqual(
             body["sources"]["metric_signals"]["detail"],
             "JSON root is not an object",
@@ -2660,28 +2953,49 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["runtime_enforcement_policy_only_count"], 1)
         self.assertEqual(body["summary"]["runtime_enforcement_unknown_count"], 0)
         self.assertEqual(body["summary"]["runtime_enforcement_evidence_count"], 1)
-        self.assertEqual(body["summary"]["runtime_enforcement_evidence_passed_count"], 1)
-        self.assertEqual(body["summary"]["runtime_enforcement_evidence_failed_count"], 0)
-        self.assertEqual(body["summary"]["runtime_enforcement_evidence_missing_count"], 0)
+        self.assertEqual(
+            body["summary"]["runtime_enforcement_evidence_passed_count"], 1
+        )
+        self.assertEqual(
+            body["summary"]["runtime_enforcement_evidence_failed_count"], 0
+        )
+        self.assertEqual(
+            body["summary"]["runtime_enforcement_evidence_missing_count"], 0
+        )
         self.assertEqual(body["summary"]["agent_passport_cli_status"], "available")
         self.assertEqual(body["handoff"]["handoff_status"], "ready_for_handoff")
         self.assertEqual(body["handoff"]["review_state"], "ready_for_review")
         entries = {entry["surface_id"]: entry for entry in body["entries"]}
-        self.assertEqual(entries["specgraph.executor.codex"]["verification_state"], "V3_schema_valid")
-        self.assertEqual(entries["specgraph.executor.codex"]["verification_status"], "valid")
-        self.assertEqual(entries["specgraph.executor.codex"]["verification_tool_status"], "available")
-        self.assertEqual(entries["specgraph.executor.codex"]["runtime_enforcement_state"], "policy_only")
-        self.assertEqual(entries["specgraph.executor.codex"]["runtime_enforcement_observed"], False)
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["verification_state"], "V3_schema_valid"
+        )
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["verification_status"], "valid"
+        )
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["verification_tool_status"], "available"
+        )
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["runtime_enforcement_state"],
+            "policy_only",
+        )
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["runtime_enforcement_observed"], False
+        )
         self.assertEqual(
             entries["specgraph.executor.codex"]["backend_status"],
             "not_applicable_in_producer_environment",
         )
         self.assertEqual(
-            entries["specgraph.executor.codex"]["runtime_environment"]["producer_environment"],
+            entries["specgraph.executor.codex"]["runtime_environment"][
+                "producer_environment"
+            ],
             "static_publish_environment",
         )
         self.assertEqual(
-            entries["specgraph.executor.codex"]["runtime_environment"]["intended_environment"],
+            entries["specgraph.executor.codex"]["runtime_environment"][
+                "intended_environment"
+            ],
             "local_operator_environment",
         )
         self.assertEqual(
@@ -2702,7 +3016,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             ],
             True,
         )
-        self.assertEqual(entries["specgraph.executor.codex"]["next_action"], "define_runtime_enforcement_runtime")
+        self.assertEqual(
+            entries["specgraph.executor.codex"]["next_action"],
+            "define_runtime_enforcement_runtime",
+        )
         self.assertEqual(entries["specgraph.executor.codex"]["gap_count"], 1)
         self.assertEqual(
             entries["specgraph.executor.codex"]["gaps"][0]["next_action"],
@@ -2720,7 +3037,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "run_in_intended_runtime_environment",
         )
         self.assertEqual(supervisor_entry["runtime_enforcement_evidence_count"], 1)
-        self.assertEqual(supervisor_entry["runtime_enforcement_evidence"][0]["status"], "passed")
+        self.assertEqual(
+            supervisor_entry["runtime_enforcement_evidence"][0]["status"], "passed"
+        )
         self.assertEqual(
             supervisor_entry["runtime_enforcement_evidence"][0]["evidence_ref"],
             "runs/agent_runtime_enforcement_evidence/supervisor-executor-adapter-smoke.json",
@@ -2730,7 +3049,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "available",
         )
         self.assertEqual(
-            supervisor_entry["runtime_enforcement_evidence"][0]["checks"][0]["check_id"],
+            supervisor_entry["runtime_enforcement_evidence"][0]["checks"][0][
+                "check_id"
+            ],
             "executor_adapter_invocation_boundary",
         )
         self.assertEqual(
@@ -2758,19 +3079,27 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 200)
         entries = {entry["surface_id"]: entry for entry in body["entries"]}
-        evidence = entries["specgraph.supervisor.executor_adapter"]["runtime_enforcement_evidence"][0]
+        evidence = entries["specgraph.supervisor.executor_adapter"][
+            "runtime_enforcement_evidence"
+        ][0]
         self.assertIsNone(evidence["evidence_ref"])
         self.assertEqual(evidence["detail_status"], "invalid")
         self.assertEqual(evidence["detail_reason"], "unsafe_evidence_ref")
         self.assertEqual(evidence["checks"], [])
         self.assertNotIn("file:///Users/example/evidence.json", json.dumps(body))
 
-    def test_agent_surfaces_v1_keeps_aggregate_when_runtime_evidence_detail_missing(self) -> None:
+    def test_agent_surfaces_v1_keeps_aggregate_when_runtime_evidence_detail_missing(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
             _write_agent_surface_artifacts(runs_dir)
-            (runs_dir / "agent_runtime_enforcement_evidence" / "supervisor-executor-adapter-smoke.json").unlink()
+            (
+                runs_dir
+                / "agent_runtime_enforcement_evidence"
+                / "supervisor-executor-adapter-smoke.json"
+            ).unlink()
             httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
             try:
                 status, body = _get(f"{base}/api/v1/agent-surfaces")
@@ -2778,22 +3107,33 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 _stop(httpd, thread)
 
         self.assertEqual(status, 200)
-        self.assertEqual(body["summary"]["runtime_enforcement_evidence_passed_count"], 1)
+        self.assertEqual(
+            body["summary"]["runtime_enforcement_evidence_passed_count"], 1
+        )
         entries = {entry["surface_id"]: entry for entry in body["entries"]}
-        evidence = entries["specgraph.supervisor.executor_adapter"]["runtime_enforcement_evidence"][0]
+        evidence = entries["specgraph.supervisor.executor_adapter"][
+            "runtime_enforcement_evidence"
+        ][0]
         self.assertEqual(evidence["status"], "passed")
         self.assertEqual(evidence["detail_status"], "missing")
         self.assertEqual(evidence["detail_reason"], "missing_detail_artifact")
         self.assertEqual(evidence["checks"], [])
 
-    def test_agent_surfaces_v1_marks_malformed_runtime_evidence_detail_invalid(self) -> None:
+    def test_agent_surfaces_v1_marks_malformed_runtime_evidence_detail_invalid(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
             _write_agent_surface_artifacts(runs_dir)
             _write_json(
-                runs_dir / "agent_runtime_enforcement_evidence" / "supervisor-executor-adapter-smoke.json",
-                {"artifact_kind": "agent_runtime_enforcement_evidence", "checks": "not-a-list"},
+                runs_dir
+                / "agent_runtime_enforcement_evidence"
+                / "supervisor-executor-adapter-smoke.json",
+                {
+                    "artifact_kind": "agent_runtime_enforcement_evidence",
+                    "checks": "not-a-list",
+                },
             )
             httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
             try:
@@ -2803,12 +3143,16 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 200)
         entries = {entry["surface_id"]: entry for entry in body["entries"]}
-        evidence = entries["specgraph.supervisor.executor_adapter"]["runtime_enforcement_evidence"][0]
+        evidence = entries["specgraph.supervisor.executor_adapter"][
+            "runtime_enforcement_evidence"
+        ][0]
         self.assertEqual(evidence["detail_status"], "invalid")
         self.assertEqual(evidence["detail_reason"], "invalid_detail_artifact")
         self.assertEqual(evidence["checks"], [])
 
-    def test_agent_surfaces_v1_degrades_when_optional_artifacts_are_missing(self) -> None:
+    def test_agent_surfaces_v1_degrades_when_optional_artifacts_are_missing(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -2846,9 +3190,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["handoff"]["available"], False)
         self.assertEqual(body["handoff"]["handoff_status"], "missing")
         self.assertEqual(body["sources"]["external_handoffs"]["available"], False)
-        self.assertEqual(body["sources"]["external_handoffs"]["reason"], "missing_artifact")
+        self.assertEqual(
+            body["sources"]["external_handoffs"]["reason"], "missing_artifact"
+        )
         self.assertEqual(body["sources"]["runtime_evidence"]["available"], False)
-        self.assertEqual(body["sources"]["runtime_evidence"]["reason"], "missing_artifact")
+        self.assertEqual(
+            body["sources"]["runtime_evidence"]["reason"], "missing_artifact"
+        )
 
     def test_agent_surfaces_v1_reads_http_static_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2871,7 +3219,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 ],
             )
             static, static_thread, artifact_base_url = _start_static(artifact_root)
-            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base_url)
+            httpd, thread, base = _start(
+                root / "dialogs", artifact_base_url=artifact_base_url
+            )
             try:
                 status, body = _get(f"{base}/api/v1/agent-surfaces")
             finally:
@@ -2884,11 +3234,17 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["handoff_status"], "ready_for_handoff")
         self.assertTrue(body["sources"]["agent_surfaces"]["available"])
         self.assertTrue(body["sources"]["runtime_evidence"]["available"])
-        self.assertTrue(body["sources"]["external_handoffs"]["path"].startswith(artifact_base_url))
+        self.assertTrue(
+            body["sources"]["external_handoffs"]["path"].startswith(artifact_base_url)
+        )
         entries = {entry["surface_id"]: entry for entry in body["entries"]}
-        evidence = entries["specgraph.supervisor.executor_adapter"]["runtime_enforcement_evidence"][0]
+        evidence = entries["specgraph.supervisor.executor_adapter"][
+            "runtime_enforcement_evidence"
+        ][0]
         self.assertEqual(evidence["detail_status"], "available")
-        self.assertEqual(evidence["checks"][0]["check_id"], "executor_adapter_invocation_boundary")
+        self.assertEqual(
+            evidence["checks"][0]["check_id"], "executor_adapter_invocation_boundary"
+        )
 
     def test_ontology_semantic_review_surface_v1_reads_file_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2906,14 +3262,18 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 _stop(httpd, thread)
 
         self.assertEqual(status, 200)
-        self.assertEqual(body["data"]["artifact_kind"], "ontology_semantic_review_surface")
+        self.assertEqual(
+            body["data"]["artifact_kind"], "ontology_semantic_review_surface"
+        )
         self.assertEqual(body["data"]["proposal_id"], "0108")
         self.assertEqual(body["data"]["summary"]["review_item_count"], 2)
         self.assertEqual(body["data"]["review_items"][0]["review_state"], "blocked")
         self.assertFalse(body["data"]["canonical_mutations_allowed"])
         self.assertFalse(body["data"]["tracked_artifacts_written"])
         self.assertFalse(body["data"]["consumer_boundary"]["may_execute_prompt_agent"])
-        self.assertFalse(body["data"]["authority_boundary"]["semantic_review_surface_is_authority"])
+        self.assertFalse(
+            body["data"]["authority_boundary"]["semantic_review_surface_is_authority"]
+        )
 
     def test_ontology_semantic_review_surface_v1_reports_missing_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2931,7 +3291,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["artifact"], "runs/ontology_semantic_review_surface.json")
         self.assertIn("make ontology-imports", body["build_hint"])
 
-    def test_ontology_semantic_review_surface_v1_rejects_authority_expansion(self) -> None:
+    def test_ontology_semantic_review_surface_v1_rejects_authority_expansion(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -2949,7 +3311,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "authority_expansion")
         self.assertIn("may_mutate_canonical_specs", body["detail"])
 
-    def test_ontology_semantic_review_surface_v1_rejects_action_authority_expansion(self) -> None:
+    def test_ontology_semantic_review_surface_v1_rejects_action_authority_expansion(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -2967,7 +3331,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "authority_expansion")
         self.assertIn("review_actions[0].writes_ontology_package", body["detail"])
 
-    def test_ontology_semantic_review_surface_v1_reads_http_static_artifact(self) -> None:
+    def test_ontology_semantic_review_surface_v1_reads_http_static_artifact(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             artifact_root = root / "artifact-site"
@@ -2977,9 +3343,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 runs_dir / "ontology_semantic_review_surface.json",
                 _ontology_semantic_review_surface(),
             )
-            _write_manifest(artifact_root, ["runs/ontology_semantic_review_surface.json"])
+            _write_manifest(
+                artifact_root, ["runs/ontology_semantic_review_surface.json"]
+            )
             static, static_thread, artifact_base_url = _start_static(artifact_root)
-            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base_url)
+            httpd, thread, base = _start(
+                root / "dialogs", artifact_base_url=artifact_base_url
+            )
             try:
                 status, body = _get(f"{base}/api/v1/ontology-semantic-review-surface")
             finally:
@@ -3007,13 +3377,20 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(body["data"]["artifact_kind"], "ontology_review_dashboard")
         self.assertEqual(body["data"]["proposal_id"], "0113")
-        self.assertEqual(body["data"]["status_summary"]["status"], "blocked_by_semantic_gate")
+        self.assertEqual(
+            body["data"]["status_summary"]["status"], "blocked_by_semantic_gate"
+        )
         self.assertEqual(body["data"]["status_summary"]["pending_decision_count"], 0)
-        self.assertEqual(body["data"]["draft_requests"][0]["intake_state"], "blocked_by_semantic_gate")
+        self.assertEqual(
+            body["data"]["draft_requests"][0]["intake_state"],
+            "blocked_by_semantic_gate",
+        )
         self.assertFalse(body["data"]["canonical_mutations_allowed"])
         self.assertFalse(body["data"]["tracked_artifacts_written"])
         self.assertFalse(body["data"]["consumer_boundary"]["may_import_owner_decision"])
-        self.assertFalse(body["data"]["authority_boundary"]["ontology_review_dashboard_is_authority"])
+        self.assertFalse(
+            body["data"]["authority_boundary"]["ontology_review_dashboard_is_authority"]
+        )
 
     def test_ontology_review_dashboard_v1_reports_missing_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3049,7 +3426,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "authority_expansion")
         self.assertIn("may_import_owner_decision", body["detail"])
 
-    def test_ontology_review_dashboard_v1_rejects_closed_loop_authority_expansion(self) -> None:
+    def test_ontology_review_dashboard_v1_rejects_closed_loop_authority_expansion(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -3067,7 +3446,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "authority_expansion")
         self.assertIn("closed_loop_entries[0].accepted_ontology_delta", body["detail"])
 
-    def test_ontology_review_dashboard_v1_rejects_draft_request_authority_expansion(self) -> None:
+    def test_ontology_review_dashboard_v1_rejects_draft_request_authority_expansion(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -3115,7 +3496,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             )
             _write_manifest(artifact_root, ["runs/ontology_review_dashboard.json"])
             static, static_thread, artifact_base_url = _start_static(artifact_root)
-            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base_url)
+            httpd, thread, base = _start(
+                root / "dialogs", artifact_base_url=artifact_base_url
+            )
             try:
                 status, body = _get(f"{base}/api/v1/ontology-review-dashboard")
             finally:
@@ -3123,7 +3506,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 _stop(static, static_thread)
 
         self.assertEqual(status, 200)
-        self.assertEqual(body["data"]["status_summary"]["next_gap"], "build_specspace_rich_ontology_review_panel")
+        self.assertEqual(
+            body["data"]["status_summary"]["next_gap"],
+            "build_specspace_rich_ontology_review_panel",
+        )
         self.assertTrue(body["path"].startswith(artifact_base_url))
 
     def test_ontology_compliance_review_v1_reads_file_artifact(self) -> None:
@@ -3142,10 +3528,14 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 _stop(httpd, thread)
 
         self.assertEqual(status, 200)
-        self.assertEqual(body["data"]["artifact_kind"], "spec_ontology_validation_report")
+        self.assertEqual(
+            body["data"]["artifact_kind"], "spec_ontology_validation_report"
+        )
         self.assertEqual(body["data"]["proposal_id"], "0135")
         self.assertEqual(body["data"]["summary"]["spec_count"], 1)
-        self.assertEqual(body["data"]["entries"][0]["validation_status"], "report_only_findings")
+        self.assertEqual(
+            body["data"]["entries"][0]["validation_status"], "report_only_findings"
+        )
         self.assertFalse(body["data"]["validation_modes"]["hard_gate_enabled"])
 
     def test_ontology_compliance_review_v1_reports_missing_artifact(self) -> None:
@@ -3182,7 +3572,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "authority_expansion")
         self.assertIn("hard_gate_enabled", body["detail"])
 
-    def test_ontology_compliance_review_v1_rejects_generated_artifact_authority(self) -> None:
+    def test_ontology_compliance_review_v1_rejects_generated_artifact_authority(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -3218,7 +3610,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "stale_summary")
         self.assertIn("finding_count", body["detail"])
 
-    def test_ontology_compliance_review_v1_rejects_invalid_finding_records(self) -> None:
+    def test_ontology_compliance_review_v1_rejects_invalid_finding_records(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -3246,9 +3640,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 runs_dir / "spec_ontology_validation_report.json",
                 _spec_ontology_validation_report(),
             )
-            _write_manifest(artifact_root, ["runs/spec_ontology_validation_report.json"])
+            _write_manifest(
+                artifact_root, ["runs/spec_ontology_validation_report.json"]
+            )
             static, static_thread, artifact_base_url = _start_static(artifact_root)
-            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base_url)
+            httpd, thread, base = _start(
+                root / "dialogs", artifact_base_url=artifact_base_url
+            )
             try:
                 status, body = _get(f"{base}/api/v1/ontology-compliance-review")
             finally:
@@ -3275,20 +3673,26 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 _stop(httpd, thread)
 
         self.assertEqual(status, 200)
-        self.assertEqual(body["data"]["artifact_kind"], "ontology_decision_import_preview")
+        self.assertEqual(
+            body["data"]["artifact_kind"], "ontology_decision_import_preview"
+        )
         self.assertEqual(body["data"]["proposal_id"], "0115")
         self.assertEqual(body["data"]["summary"]["status"], "ready_for_operator_review")
         self.assertEqual(body["data"]["summary"]["accepted_count"], 1)
         self.assertEqual(body["data"]["summary"]["rejected_count"], 1)
         self.assertEqual(
-            body["data"]["decision_import_previews"][0]["matched_closed_loop_evidence_id"],
+            body["data"]["decision_import_previews"][0][
+                "matched_closed_loop_evidence_id"
+            ],
             "ontology-closed-loop-evidence-ontology-delta-candidate-examcalc-casfunction",
         )
         self.assertFalse(body["data"]["canonical_mutations_allowed"])
         self.assertFalse(body["data"]["tracked_artifacts_written"])
         self.assertFalse(body["data"]["consumer_boundary"]["may_apply_preview"])
         self.assertFalse(
-            body["data"]["authority_boundary"]["ontology_decision_import_preview_is_authority"]
+            body["data"]["authority_boundary"][
+                "ontology_decision_import_preview_is_authority"
+            ]
         )
 
     def test_ontology_owner_decision_review_v1_reports_missing_artifact(self) -> None:
@@ -3325,7 +3729,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "authority_expansion")
         self.assertIn("may_apply_preview", body["detail"])
 
-    def test_ontology_owner_decision_review_v1_rejects_preview_mutation_authority(self) -> None:
+    def test_ontology_owner_decision_review_v1_rejects_preview_mutation_authority(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -3341,15 +3747,21 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 422)
         self.assertEqual(body["reason"], "authority_expansion")
-        self.assertIn("decision_import_previews[0].imports_into_specgraph", body["detail"])
+        self.assertIn(
+            "decision_import_previews[0].imports_into_specgraph", body["detail"]
+        )
 
-    def test_ontology_owner_decision_review_v1_rejects_ready_without_evidence(self) -> None:
+    def test_ontology_owner_decision_review_v1_rejects_ready_without_evidence(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
             runs_dir.mkdir()
             review = _ontology_owner_decision_review()
-            review["decision_import_previews"][0]["matched_closed_loop_evidence_id"] = ""
+            review["decision_import_previews"][0]["matched_closed_loop_evidence_id"] = (
+                ""
+            )
             _write_json(runs_dir / "ontology_decision_import_preview.json", review)
             httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
             try:
@@ -3361,7 +3773,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "missing_evidence_link")
         self.assertIn("matched_closed_loop_evidence_id", body["detail"])
 
-    def test_ontology_owner_decision_review_v1_rejects_stale_summary_counts(self) -> None:
+    def test_ontology_owner_decision_review_v1_rejects_stale_summary_counts(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -3379,7 +3793,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "stale_summary")
         self.assertIn("preview_count", body["detail"])
 
-    def test_ontology_owner_decision_review_v1_rejects_stale_derived_counts(self) -> None:
+    def test_ontology_owner_decision_review_v1_rejects_stale_derived_counts(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -3397,7 +3813,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "stale_summary")
         self.assertIn("accepted_count", body["detail"])
 
-    def test_ontology_owner_decision_review_v1_rejects_malformed_ignored_decision(self) -> None:
+    def test_ontology_owner_decision_review_v1_rejects_malformed_ignored_decision(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -3415,7 +3833,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["reason"], "invalid_ignored_owner_decisions")
         self.assertIn("ignored_owner_decisions[0].decision_id", body["detail"])
 
-    def test_ontology_owner_decision_review_v1_rejects_no_decisions_with_previews(self) -> None:
+    def test_ontology_owner_decision_review_v1_rejects_no_decisions_with_previews(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -3443,9 +3863,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 runs_dir / "ontology_decision_import_preview.json",
                 _ontology_owner_decision_review(),
             )
-            _write_manifest(artifact_root, ["runs/ontology_decision_import_preview.json"])
+            _write_manifest(
+                artifact_root, ["runs/ontology_decision_import_preview.json"]
+            )
             static, static_thread, artifact_base_url = _start_static(artifact_root)
-            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base_url)
+            httpd, thread, base = _start(
+                root / "dialogs", artifact_base_url=artifact_base_url
+            )
             try:
                 status, body = _get(f"{base}/api/v1/ontology-owner-decision-review")
             finally:
@@ -3453,28 +3877,46 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 _stop(static, static_thread)
 
         self.assertEqual(status, 200)
-        self.assertEqual(body["data"]["summary"]["next_gap"], "build_specspace_owner_decision_review_surface")
+        self.assertEqual(
+            body["data"]["summary"]["next_gap"],
+            "build_specspace_owner_decision_review_surface",
+        )
         self.assertTrue(body["path"].startswith(artifact_base_url))
 
-    def test_ontology_owner_decision_acknowledgements_v1_reads_empty_specspace_state(self) -> None:
+    def test_ontology_owner_decision_acknowledgements_v1_reads_empty_specspace_state(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             state_dir = root / "specspace-state"
-            httpd, thread, base = _start(root / "dialogs", specspace_state_dir=state_dir)
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
             try:
-                status, body = _get(f"{base}/api/v1/ontology-owner-decision-acknowledgements")
+                status, body = _get(
+                    f"{base}/api/v1/ontology-owner-decision-acknowledgements"
+                )
             finally:
                 _stop(httpd, thread)
 
         self.assertEqual(status, 200)
-        self.assertEqual(body["artifact_kind"], "specspace_ontology_owner_decision_acknowledgement_state")
+        self.assertEqual(
+            body["artifact_kind"],
+            "specspace_ontology_owner_decision_acknowledgement_state",
+        )
         self.assertEqual(body["summary"]["acknowledgement_count"], 0)
         self.assertTrue(body["consumer_boundary"]["specspace_owned_state"])
         self.assertFalse(body["consumer_boundary"]["may_import_into_specgraph"])
-        self.assertFalse(body["authority_boundary"]["acknowledgement_state_is_authority"])
-        self.assertFalse((state_dir / "ontology_owner_decision_acknowledgements.json").exists())
+        self.assertFalse(
+            body["authority_boundary"]["acknowledgement_state_is_authority"]
+        )
+        self.assertFalse(
+            (state_dir / "ontology_owner_decision_acknowledgements.json").exists()
+        )
 
-    def test_ontology_owner_decision_acknowledgements_v1_posts_specspace_owned_state(self) -> None:
+    def test_ontology_owner_decision_acknowledgements_v1_posts_specspace_owned_state(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -3497,7 +3939,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "acknowledged_by": "operator",
                     },
                 )
-                get_status, get_body = _get(f"{base}/api/v1/ontology-owner-decision-acknowledgements")
+                get_status, get_body = _get(
+                    f"{base}/api/v1/ontology-owner-decision-acknowledgements"
+                )
             finally:
                 _stop(httpd, thread)
             state_path = state_dir / "ontology_owner_decision_acknowledgements.json"
@@ -3520,7 +3964,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(state_exists)
         self.assertEqual(review_after, before_review)
 
-    def test_ontology_owner_decision_acknowledgements_v1_rejects_unknown_preview(self) -> None:
+    def test_ontology_owner_decision_acknowledgements_v1_rejects_unknown_preview(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runs_dir = root / "runs"
@@ -3545,9 +3991,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 404)
         self.assertEqual(body["preview_id"], "not-a-preview")
-        self.assertFalse((state_dir / "ontology_owner_decision_acknowledgements.json").exists())
+        self.assertFalse(
+            (state_dir / "ontology_owner_decision_acknowledgements.json").exists()
+        )
 
-    def test_ontology_owner_decision_acknowledgements_v1_rejects_mutation_claims(self) -> None:
+    def test_ontology_owner_decision_acknowledgements_v1_rejects_mutation_claims(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             state_dir = root / "specspace-state"
@@ -3579,9 +4029,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     ],
                 },
             )
-            httpd, thread, base = _start(root / "dialogs", specspace_state_dir=state_dir)
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
             try:
-                status, body = _get(f"{base}/api/v1/ontology-owner-decision-acknowledgements")
+                status, body = _get(
+                    f"{base}/api/v1/ontology-owner-decision-acknowledgements"
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -3591,7 +4045,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
     def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            httpd, thread, base = _start(root / "dialogs", specpm_registry_url="https://example.invalid")
+            httpd, thread, base = _start(
+                root / "dialogs", specpm_registry_url="https://example.invalid"
+            )
             try:
                 status, body = _get(f"{base}/api/v1/specpm/registry/packages/")
             finally:
@@ -3603,38 +4059,56 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
     def test_specpm_registry_v1_version_endpoint_requires_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            httpd, thread, base = _start(root / "dialogs", specpm_registry_url="https://example.invalid")
+            httpd, thread, base = _start(
+                root / "dialogs", specpm_registry_url="https://example.invalid"
+            )
             try:
-                status, body = _get(f"{base}/api/v1/specpm/registry/packages/specnode.core/versions/")
+                status, body = _get(
+                    f"{base}/api/v1/specpm/registry/packages/specnode.core/versions/"
+                )
             finally:
                 _stop(httpd, thread)
 
         self.assertEqual(status, 400)
-        self.assertEqual(body["error"], "SpecPM package id and version are required in path.")
+        self.assertEqual(
+            body["error"], "SpecPM package id and version are required in path."
+        )
 
-    def test_specpm_registry_v1_version_endpoint_requires_version_without_trailing_slash(self) -> None:
+    def test_specpm_registry_v1_version_endpoint_requires_version_without_trailing_slash(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            httpd, thread, base = _start(root / "dialogs", specpm_registry_url="https://example.invalid")
+            httpd, thread, base = _start(
+                root / "dialogs", specpm_registry_url="https://example.invalid"
+            )
             try:
-                status, body = _get(f"{base}/api/v1/specpm/registry/packages/specnode.core/versions")
+                status, body = _get(
+                    f"{base}/api/v1/specpm/registry/packages/specnode.core/versions"
+                )
             finally:
                 _stop(httpd, thread)
 
         self.assertEqual(status, 400)
-        self.assertEqual(body["error"], "SpecPM package id and version are required in path.")
+        self.assertEqual(
+            body["error"], "SpecPM package id and version are required in path."
+        )
 
     def test_specpm_registry_v1_rejects_dot_segment_package_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            httpd, thread, base = _start(root / "dialogs", specpm_registry_url="https://example.invalid")
+            httpd, thread, base = _start(
+                root / "dialogs", specpm_registry_url="https://example.invalid"
+            )
             try:
                 status, body = _get(f"{base}/api/v1/specpm/registry/packages/%2E%2E")
             finally:
                 _stop(httpd, thread)
 
         self.assertEqual(status, 400)
-        self.assertEqual(body["error"], "SpecPM package id must not contain dot path segments.")
+        self.assertEqual(
+            body["error"], "SpecPM package id must not contain dot path segments."
+        )
 
     def test_specpm_registry_v1_reports_not_configured(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3653,8 +4127,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "SPECSPACE_VERSION": "0.0.7",
             "SPECSPACE_RELEASE_COMMIT": "c05f17df6bd3ae338f98a4694561d640bcfda6d1",
             "SPECSPACE_RELEASE_CREATED_AT": "2026-05-16T16:16:38Z",
-            "SPECSPACE_API_IMAGE_REF": "ghcr.io/0al-spec/specspace-api@sha256:" + "1" * 64,
-            "SPECSPACE_UI_IMAGE_REF": "ghcr.io/0al-spec/specspace-ui@sha256:" + "2" * 64,
+            "SPECSPACE_API_IMAGE_REF": "ghcr.io/0al-spec/specspace-api@sha256:"
+            + "1" * 64,
+            "SPECSPACE_UI_IMAGE_REF": "ghcr.io/0al-spec/specspace-ui@sha256:"
+            + "2" * 64,
         }
         with mock.patch.dict("os.environ", env, clear=False):
             with tempfile.TemporaryDirectory() as tmp:
@@ -3665,22 +4141,29 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 runs_dir.mkdir()
                 _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
                 _write_json(runs_dir / "artifact.json", {"ok": True})
-                httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir, runs_dir=runs_dir)
+                httpd, thread, base = _start(
+                    root / "dialogs", spec_dir=spec_dir, runs_dir=runs_dir
+                )
                 try:
                     status, body = _get(f"{base}/api/v1/health")
                 finally:
                     _stop(httpd, thread)
 
         self.assertEqual(status, 200)
-        self.assertEqual(body["deployment"], {
-            "version": "0.0.7",
-            "commit": "c05f17df6bd3ae338f98a4694561d640bcfda6d1",
-            "created_at": "2026-05-16T16:16:38Z",
-            "api_image_ref": "ghcr.io/0al-spec/specspace-api@sha256:" + "1" * 64,
-            "ui_image_ref": "ghcr.io/0al-spec/specspace-ui@sha256:" + "2" * 64,
-        })
+        self.assertEqual(
+            body["deployment"],
+            {
+                "version": "0.0.7",
+                "commit": "c05f17df6bd3ae338f98a4694561d640bcfda6d1",
+                "created_at": "2026-05-16T16:16:38Z",
+                "api_image_ref": "ghcr.io/0al-spec/specspace-api@sha256:" + "1" * 64,
+                "ui_image_ref": "ghcr.io/0al-spec/specspace-ui@sha256:" + "2" * 64,
+            },
+        )
 
-    def test_spec_graph_v1_returns_existing_graph_contract_with_version_metadata(self) -> None:
+    def test_spec_graph_v1_returns_existing_graph_contract_with_version_metadata(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             spec_dir = root / "specs" / "nodes"
@@ -3742,7 +4225,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             )
             httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
             try:
-                status, body = _get(f"{base}/api/v1/spec-markdown?root={quote('SG-SPEC-0001')}&depth=2")
+                status, body = _get(
+                    f"{base}/api/v1/spec-markdown?root={quote('SG-SPEC-0001')}&depth=2"
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -3754,7 +4239,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["scope"], "subtree")
         self.assertEqual(body["manifest"]["scope"], "subtree")
         self.assertEqual(body["manifest"]["node_count"], 2)
-        self.assertEqual(body["manifest"]["nodes_included"], ["SG-SPEC-0001", "SG-SPEC-0002"])
+        self.assertEqual(
+            body["manifest"]["nodes_included"], ["SG-SPEC-0001", "SG-SPEC-0002"]
+        )
         self.assertIn("# SG-SPEC-0001", body["markdown"])
         self.assertIn("## 1. SG-SPEC-0002", body["markdown"])
         self.assertIn("> Define the readonly export boundary.", body["markdown"])
@@ -3790,7 +4277,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertIn("# SG-SPEC-0001", body["markdown"])
         self.assertNotIn("SG-SPEC-0002", body["markdown"])
 
-    def test_capabilities_v1_distinguishes_markdown_export_from_hyperprompt_compile(self) -> None:
+    def test_capabilities_v1_distinguishes_markdown_export_from_hyperprompt_compile(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             spec_dir = root / "specs" / "nodes"
@@ -3805,8 +4294,12 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(body["capabilities"]["spec_markdown_export"])
         self.assertFalse(body["capabilities"]["hyperprompt_compile"])
-        self.assertEqual(body["diagnostics"]["spec_markdown_export"]["status"], "available")
-        self.assertEqual(body["diagnostics"]["hyperprompt_compile"]["status"], "compiler_missing")
+        self.assertEqual(
+            body["diagnostics"]["spec_markdown_export"]["status"], "available"
+        )
+        self.assertEqual(
+            body["diagnostics"]["hyperprompt_compile"]["status"], "compiler_missing"
+        )
 
     def test_capabilities_v1_reports_configured_hyperprompt_compile(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3834,8 +4327,12 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(body["capabilities"]["spec_markdown_export"])
         self.assertTrue(body["capabilities"]["hyperprompt_compile"])
-        self.assertEqual(body["diagnostics"]["hyperprompt_compile"]["status"], "available")
-        self.assertEqual(body["diagnostics"]["hyperprompt_compile"]["resolved_binary"], str(binary))
+        self.assertEqual(
+            body["diagnostics"]["hyperprompt_compile"]["status"], "available"
+        )
+        self.assertEqual(
+            body["diagnostics"]["hyperprompt_compile"]["resolved_binary"], str(binary)
+        )
 
     def test_spec_markdown_compile_v1_compiles_local_export_bundle(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3859,7 +4356,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             for index in range(25):
                 stale = scratch / f"specspace-stale-{index}"
                 stale.mkdir()
-                (stale / ".specspace-hyperprompt-bundle").write_text("old\n", encoding="utf-8")
+                (stale / ".specspace-hyperprompt-bundle").write_text(
+                    "old\n", encoding="utf-8"
+                )
                 os.utime(stale, (1000 + index, 1000 + index))
             httpd, thread, base = _start(
                 root / "dialogs",
@@ -3873,19 +4372,29 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     f"{base}/api/v1/spec-markdown/compile",
                     {"root": "SG-SPEC-0001", "scope": "subtree", "depth": 2},
                 )
-                root_hc_text = Path(body["compile"]["root_hc"]).read_text(encoding="utf-8") if status == 200 else ""
+                root_hc_text = (
+                    Path(body["compile"]["root_hc"]).read_text(encoding="utf-8")
+                    if status == 200
+                    else ""
+                )
                 export_manifest_data = (
-                    json.loads(Path(body["compile"]["export_manifest"]).read_text(encoding="utf-8"))
+                    json.loads(
+                        Path(body["compile"]["export_manifest"]).read_text(
+                            encoding="utf-8"
+                        )
+                    )
                     if status == 200
                     else {}
                 )
-                owned_bundle_count = len([
-                    path
-                    for path in scratch.iterdir()
-                    if path.is_dir()
-                    and path.name.startswith("specspace-")
-                    and (path / ".specspace-hyperprompt-bundle").is_file()
-                ])
+                owned_bundle_count = len(
+                    [
+                        path
+                        for path in scratch.iterdir()
+                        if path.is_dir()
+                        and path.name.startswith("specspace-")
+                        and (path / ".specspace-hyperprompt-bundle").is_file()
+                    ]
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -3897,7 +4406,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["export"]["manifest"]["scope"], "subtree")
         self.assertEqual(body["export"]["manifest"]["node_count"], 2)
         self.assertEqual(body["compile"]["exit_code"], 0)
-        self.assertIn("# Compiled SpecSpace export", body["compile"]["compiled_markdown"])
+        self.assertIn(
+            "# Compiled SpecSpace export", body["compile"]["compiled_markdown"]
+        )
         self.assertEqual(body["compile"]["compiler_manifest"], {"compiled": True})
         root_hc = Path(body["compile"]["root_hc"])
         export_manifest = Path(body["compile"]["export_manifest"])
@@ -3907,7 +4418,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(export_manifest_data["root_id"], "SG-SPEC-0001")
         self.assertLessEqual(owned_bundle_count, 20)
 
-    def test_spec_markdown_compile_v1_returns_capability_diagnostic_when_disabled(self) -> None:
+    def test_spec_markdown_compile_v1_returns_capability_diagnostic_when_disabled(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             spec_dir = root / "specs" / "nodes"
@@ -3996,7 +4509,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(capabilities_status, 200)
         self.assertTrue(capabilities["capabilities"]["hyperprompt_compile"])
-        self.assertEqual(capabilities["diagnostics"]["hyperprompt_compile"]["status"], "available")
+        self.assertEqual(
+            capabilities["diagnostics"]["hyperprompt_compile"]["status"], "available"
+        )
         self.assertEqual(status, 200)
         self.assertEqual(body["source"]["provider"], "http")
         self.assertEqual(body["source"]["artifact_base_url"], artifact_base_url)
@@ -4004,7 +4519,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["export"]["manifest"]["scope"], "subtree")
         self.assertEqual(body["compile"]["exit_code"], 0)
         self.assertEqual(body["compile"]["timeout_seconds"], 5)
-        self.assertIn("# Compiled SpecSpace export", body["compile"]["compiled_markdown"])
+        self.assertIn(
+            "# Compiled SpecSpace export", body["compile"]["compiled_markdown"]
+        )
         self.assertIsNotNone(root_hc)
         assert root_hc is not None
         self.assertTrue(root_hc.is_relative_to(scratch))
@@ -4077,7 +4594,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 503)
         self.assertEqual(body["diagnostic"]["status"], "invalid_limit")
-        self.assertEqual(body["diagnostic"]["limit_error"]["field"], "hyperprompt_compile_timeout_seconds")
+        self.assertEqual(
+            body["diagnostic"]["limit_error"]["field"],
+            "hyperprompt_compile_timeout_seconds",
+        )
 
     def test_spec_markdown_compile_v1_returns_compiler_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -4142,7 +4662,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
             httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
             try:
-                status, body = _get(f"{base}/api/v1/spec-markdown?root=SG-SPEC-0001&depth=deep")
+                status, body = _get(
+                    f"{base}/api/v1/spec-markdown?root=SG-SPEC-0001&depth=deep"
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -4157,7 +4679,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
             httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
             try:
-                status, body = _get(f"{base}/api/v1/spec-markdown?root=SG-SPEC-0001&scope=wide")
+                status, body = _get(
+                    f"{base}/api/v1/spec-markdown?root=SG-SPEC-0001&scope=wide"
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -4184,7 +4708,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             root = Path(tmp)
             spec_dir = root / "specs" / "nodes"
             spec_dir.mkdir(parents=True)
-            (spec_dir / "SG-SPEC-0001.yaml").write_text("- not\n- a\n- mapping\n", encoding="utf-8")
+            (spec_dir / "SG-SPEC-0001.yaml").write_text(
+                "- not\n- a\n- mapping\n", encoding="utf-8"
+            )
             httpd, thread, base = _start(root / "dialogs", spec_dir=spec_dir)
             try:
                 status, body = _get(f"{base}/api/v1/spec-markdown?root=SG-SPEC-0001")
@@ -4333,12 +4859,18 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 ],
             )
             static, static_thread, artifact_base_url = _start_static(artifact_root)
-            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base_url)
+            httpd, thread, base = _start(
+                root / "dialogs", artifact_base_url=artifact_base_url
+            )
             try:
                 health_status, health = _get(f"{base}/api/v1/health")
                 graph_status, graph = _get(f"{base}/api/v1/spec-graph")
-                node_status, node = _get(f"{base}/api/v1/spec-nodes/{quote('SG-SPEC-0001')}")
-                markdown_status, markdown = _get(f"{base}/api/v1/spec-markdown?root={quote('SG-SPEC-0001')}")
+                node_status, node = _get(
+                    f"{base}/api/v1/spec-nodes/{quote('SG-SPEC-0001')}"
+                )
+                markdown_status, markdown = _get(
+                    f"{base}/api/v1/spec-markdown?root={quote('SG-SPEC-0001')}"
+                )
                 activity_status, activity = _get(f"{base}/api/v1/spec-activity?limit=1")
                 trace_status, trace = _get(f"{base}/api/v1/proposal-spec-trace-index")
                 proposals_status, proposals = _get(f"{base}/api/v1/proposals")
@@ -4370,11 +4902,16 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(proposals["source"]["provider"], "http")
         self.assertEqual(proposals["entry_count"], 2)
         self.assertEqual(proposals["sources"]["proposal_markdown"]["available"], True)
-        self.assertIn("# Agent Context Bridge", proposals["entries"][0]["markdown"]["content_body"])
+        self.assertIn(
+            "# Agent Context Bridge",
+            proposals["entries"][0]["markdown"]["content_body"],
+        )
         self.assertEqual(proposals["entries"][0]["affected_spec_ids"], ["SG-SPEC-0001"])
         self.assertEqual(ontology_status, 200)
         self.assertEqual(ontology["source"]["provider"], "http")
-        self.assertFalse(ontology["authority_boundary"]["practical_ontology_is_authority"])
+        self.assertFalse(
+            ontology["authority_boundary"]["practical_ontology_is_authority"]
+        )
         self.assertEqual(ontology["source"]["ontology_mode"], "curated_core_seed")
         self.assertGreaterEqual(ontology["summary"]["term_count"], 10)
         self.assertEqual(ontology["proposal_references"], [])
@@ -4401,7 +4938,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             _write_yaml(spec_dir / "SG-SPEC-0001.yaml", MINIMAL_SPEC)
             _write_manifest(artifact_root, ["specs/nodes/SG-SPEC-0001.yaml"])
             static, static_thread, artifact_base_url = _start_static(artifact_root)
-            httpd, thread, base = _start(root / "dialogs", artifact_base_url=artifact_base_url)
+            httpd, thread, base = _start(
+                root / "dialogs", artifact_base_url=artifact_base_url
+            )
             try:
                 status, body = _get(f"{base}/api/v1/implementation-work-index")
             finally:
@@ -4434,7 +4973,9 @@ class AgentWorkbenchV1ApiTests(unittest.TestCase):
         self.assertFalse(capabilities["capabilities"]["agent_workbench_conversations"])
         self.assertFalse(capabilities["capabilities"]["agent_workbench_writes"])
         self.assertEqual(
-            capabilities["diagnostics"]["agent_workbench_conversations"]["source"]["status"],
+            capabilities["diagnostics"]["agent_workbench_conversations"]["source"][
+                "status"
+            ],
             "not_configured",
         )
         self.assertEqual(health_status, 200)
@@ -4449,14 +4990,20 @@ class AgentWorkbenchV1ApiTests(unittest.TestCase):
             workbench = root / "workbench"
             conversations = workbench / "conversations"
             conversations.mkdir(parents=True)
-            shutil.copyfile(AGENT_WORKBENCH_FIXTURES / "index-v1.json", conversations / "index.json")
+            shutil.copyfile(
+                AGENT_WORKBENCH_FIXTURES / "index-v1.json", conversations / "index.json"
+            )
             shutil.copyfile(
                 AGENT_WORKBENCH_FIXTURES / "conversation-v1.json",
                 conversations / "awb-conv-0001.json",
             )
-            httpd, thread, base = _start(root / "dialogs", agent_workbench_dir=workbench)
+            httpd, thread, base = _start(
+                root / "dialogs", agent_workbench_dir=workbench
+            )
             try:
-                index_status, index = _get(f"{base}/api/v1/agent-workbench/conversations")
+                index_status, index = _get(
+                    f"{base}/api/v1/agent-workbench/conversations"
+                )
                 conversation_status, conversation = _get(
                     f"{base}/api/v1/agent-workbench/conversations/awb-conv-0001",
                 )
@@ -4466,11 +5013,15 @@ class AgentWorkbenchV1ApiTests(unittest.TestCase):
 
         self.assertEqual(index_status, 200)
         self.assertEqual(index["source"]["status"], "ok")
-        self.assertEqual(index["data"]["artifact_kind"], "specspace_agent_conversation_index")
+        self.assertEqual(
+            index["data"]["artifact_kind"], "specspace_agent_conversation_index"
+        )
         self.assertEqual(index["data"]["entry_count"], 1)
         self.assertEqual(conversation_status, 200)
         self.assertEqual(conversation["conversation_id"], "awb-conv-0001")
-        self.assertEqual(conversation["data"]["artifact_kind"], "specspace_agent_conversation")
+        self.assertEqual(
+            conversation["data"]["artifact_kind"], "specspace_agent_conversation"
+        )
         self.assertEqual(capabilities_status, 200)
         self.assertTrue(capabilities["capabilities"]["agent_workbench_conversations"])
         self.assertFalse(capabilities["capabilities"]["agent_workbench_writes"])
