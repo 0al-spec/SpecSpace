@@ -458,6 +458,7 @@ PUBLIC_SAFE_RUN_ARTIFACT_FILENAMES: frozenset[str] = frozenset(
         specgraph_surfaces.ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FILENAME,
         specgraph_surfaces.ONTOLOGY_REVIEW_DASHBOARD_FILENAME,
         specgraph_surfaces.ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME,
+        specgraph_surfaces.SPEC_ONTOLOGY_VALIDATION_FILENAME,
         practical_ontology.PACKAGE_INDEX_ARTIFACT,
         practical_ontology.BINDING_PREVIEW_ARTIFACT,
         practical_ontology.GAP_INDEX_ARTIFACT,

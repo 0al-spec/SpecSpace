@@ -81,4 +81,20 @@ describe("parseOntologyComplianceReview", () => {
     if (result.kind !== "invariant-violation") return;
     expect(result.message).toContain("hard_gate_enabled");
   });
+
+  it("rejects generated artifact authority expansion", () => {
+    const expanded = {
+      ...report,
+      validation_modes: {
+        ...report.validation_modes,
+        generated_artifacts: "auto_apply",
+      },
+    };
+
+    const result = parseOntologyComplianceReview(expanded);
+
+    expect(result.kind).toBe("invariant-violation");
+    if (result.kind !== "invariant-violation") return;
+    expect(result.message).toContain("generated_artifacts");
+  });
 });

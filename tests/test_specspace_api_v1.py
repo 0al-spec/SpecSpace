@@ -1990,6 +1990,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             unsafe_dir = runs_dir / "agent_runtime_enforcement_evidence"
             unsafe_dir.mkdir()
             _write_json(unsafe_dir / "runtime-detail.json", {"secret": "runtime-detail"})
+            _write_json(
+                runs_dir / "spec_ontology_validation_report.json",
+                _spec_ontology_validation_report(),
+            )
 
             httpd, thread, base = _start(
                 root / "dialogs",
@@ -2022,6 +2026,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["ontology_ir_count"], 1)
         by_path = {entry["path"]: entry for entry in body["artifacts"]}
         self.assertEqual(by_path["runs/ontology_package_index.json"]["group"], "ontology")
+        self.assertEqual(
+            by_path["runs/spec_ontology_validation_report.json"]["group"],
+            "runs",
+        )
         self.assertEqual(
             by_path["ontology/specgraph-core/ontology.normalized.json"]["group"],
             "ontology_ir",
@@ -2765,6 +2773,60 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 422)
         self.assertEqual(body["reason"], "authority_expansion")
         self.assertIn("hard_gate_enabled", body["detail"])
+
+    def test_ontology_compliance_review_v1_rejects_generated_artifact_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            report = _spec_ontology_validation_report()
+            report["validation_modes"]["generated_artifacts"] = "auto_apply"
+            _write_json(runs_dir / "spec_ontology_validation_report.json", report)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-compliance-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "authority_expansion")
+        self.assertIn("generated_artifacts", body["detail"])
+
+    def test_ontology_compliance_review_v1_rejects_stale_summary_counters(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            report = _spec_ontology_validation_report()
+            report["summary"]["finding_count"] = 0
+            _write_json(runs_dir / "spec_ontology_validation_report.json", report)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-compliance-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "stale_summary")
+        self.assertIn("finding_count", body["detail"])
+
+    def test_ontology_compliance_review_v1_rejects_invalid_finding_records(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            report = _spec_ontology_validation_report()
+            del report["entries"][0]["findings"][0]["finding_id"]
+            _write_json(runs_dir / "spec_ontology_validation_report.json", report)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(f"{base}/api/v1/ontology-compliance-review")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["reason"], "invalid_findings")
+        self.assertIn("finding_id", body["detail"])
 
     def test_ontology_compliance_review_v1_reads_http_static_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -266,10 +266,10 @@ export function ViewerPage() {
       state: ontologyComplianceReviewState,
       liveCount:
         ontologyComplianceReviewState.kind === "ok"
-          ? ontologyComplianceReviewState.data.summary.findingCount
+          ? ontologyComplianceReviewState.data.summary.specCount
           : 0,
       sampleCount: 0,
-      noun: { singular: "finding", plural: "findings" },
+      noun: { singular: "spec", plural: "specs" },
       emptyDetail: "Artifact is live; all reported specs pass ontology compliance checks.",
     }),
     describeArtifact({

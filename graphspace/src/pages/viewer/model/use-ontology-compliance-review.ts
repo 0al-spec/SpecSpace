@@ -161,6 +161,9 @@ export function parseOntologyComplianceReview(
   if (validationModes.legacy_specs !== "report_only") {
     return invariantViolation("validation_modes.legacy_specs must be report_only", raw);
   }
+  if (validationModes.generated_artifacts !== "review_required") {
+    return invariantViolation("validation_modes.generated_artifacts must be review_required", raw);
+  }
   if (validationModes.hard_gate_enabled !== false) {
     return invariantViolation("validation_modes.hard_gate_enabled must be false", raw);
   }

@@ -617,6 +617,11 @@ def validate_spec_ontology_validation_data(data: Any) -> tuple[int, dict[str, An
             "authority_expansion",
             "validation_modes.legacy_specs must be report_only.",
         )
+    if validation_modes.get("generated_artifacts") != "review_required":
+        return _spec_ontology_validation_contract_error(
+            "authority_expansion",
+            "validation_modes.generated_artifacts must be review_required.",
+        )
     if validation_modes.get("hard_gate_enabled") is not False:
         return _spec_ontology_validation_contract_error(
             "authority_expansion",
@@ -639,6 +644,9 @@ def validate_spec_ontology_validation_data(data: Any) -> tuple[int, dict[str, An
             "stale_summary",
             "summary.spec_count must match entries length.",
         )
+    derived_finding_count = 0
+    derived_warning_count = 0
+    derived_passed_check_count = 0
     for index, entry in enumerate(entries):
         if not isinstance(entry, dict):
             return _spec_ontology_validation_contract_error(
@@ -650,11 +658,49 @@ def validate_spec_ontology_validation_data(data: Any) -> tuple[int, dict[str, An
                 "invalid_checks",
                 f"entries[{index}].checks must be a list.",
             )
-        if not isinstance(entry.get("findings"), list):
+        for check_index, check in enumerate(entry["checks"]):
+            if not isinstance(check, dict):
+                return _spec_ontology_validation_contract_error(
+                    "invalid_checks",
+                    f"entries[{index}].checks[{check_index}] must be an object.",
+                )
+            if check.get("status") == "passed":
+                derived_passed_check_count += 1
+        findings = entry.get("findings")
+        if not isinstance(findings, list):
             return _spec_ontology_validation_contract_error(
                 "invalid_findings",
                 f"entries[{index}].findings must be a list.",
             )
+        for finding_index, finding in enumerate(findings):
+            if not isinstance(finding, dict):
+                return _spec_ontology_validation_contract_error(
+                    "invalid_findings",
+                    f"entries[{index}].findings[{finding_index}] must be an object.",
+                )
+            if not isinstance(finding.get("finding_id"), str) or not finding["finding_id"]:
+                return _spec_ontology_validation_contract_error(
+                    "invalid_findings",
+                    f"entries[{index}].findings[{finding_index}].finding_id must be a non-empty string.",
+                )
+            derived_finding_count += 1
+            if finding.get("severity") == "warning":
+                derived_warning_count += 1
+    if summary.get("finding_count") != derived_finding_count:
+        return _spec_ontology_validation_contract_error(
+            "stale_summary",
+            "summary.finding_count must match derived findings length.",
+        )
+    if summary.get("warning_count") != derived_warning_count:
+        return _spec_ontology_validation_contract_error(
+            "stale_summary",
+            "summary.warning_count must match derived warning findings length.",
+        )
+    if summary.get("passed_check_count") != derived_passed_check_count:
+        return _spec_ontology_validation_contract_error(
+            "stale_summary",
+            "summary.passed_check_count must match derived passed checks.",
+        )
     return HTTPStatus.OK, None
 
 
