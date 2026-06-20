@@ -86,6 +86,7 @@ import {
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 import { AgentSurfacesPanel } from "./AgentSurfacesPanel";
 import { MetricsViewerPanel } from "./MetricsViewerPanel";
+import { OntologyComplianceReviewPanel } from "./OntologyComplianceReviewPanel";
 import { OntologyOwnerDecisionReviewPanel } from "./OntologyOwnerDecisionReviewPanel";
 import { OntologyReviewDashboardPanel } from "./OntologyReviewDashboardPanel";
 import { PracticalOntologyPanel } from "./PracticalOntologyPanel";
@@ -100,6 +101,7 @@ import {
 import { useMetricsIndex } from "../model/use-metrics-index";
 import { useAgentSurfaces } from "../model/use-agent-surfaces";
 import { useArtifactCatalog } from "../model/use-artifact-catalog";
+import { useOntologyComplianceReview } from "../model/use-ontology-compliance-review";
 import { useOntologyOwnerDecisionReview } from "../model/use-ontology-owner-decision-review";
 import { useOntologyReviewDashboard } from "../model/use-ontology-review-dashboard";
 import { usePracticalOntology } from "../model/use-practical-ontology";
@@ -156,6 +158,9 @@ export function ViewerPage() {
   const agentSurfacesState = useAgentSurfaces({ refreshKey: runsWatchVersion });
   const practicalOntologyState = usePracticalOntology({ refreshKey: runsWatchVersion });
   const ontologyReviewDashboardState = useOntologyReviewDashboard({
+    refreshKey: runsWatchVersion,
+  });
+  const ontologyComplianceReviewState = useOntologyComplianceReview({
     refreshKey: runsWatchVersion,
   });
   const ontologyOwnerDecisionReviewState = useOntologyOwnerDecisionReview({
@@ -255,6 +260,19 @@ export function ViewerPage() {
       emptyDetail: "Artifact is live but contains no evidence entries.",
     }),
     describeArtifact({
+      id: "ontology-compliance",
+      label: "Ontology compliance",
+      endpoint: "/api/v1/ontology-compliance-review",
+      state: ontologyComplianceReviewState,
+      liveCount:
+        ontologyComplianceReviewState.kind === "ok"
+          ? ontologyComplianceReviewState.data.summary.specCount
+          : 0,
+      sampleCount: 0,
+      noun: { singular: "spec", plural: "specs" },
+      emptyDetail: "Artifact is live; all reported specs pass ontology compliance checks.",
+    }),
+    describeArtifact({
       id: "ontology-owner-decisions",
       label: "Ontology owner decisions",
       endpoint: "/api/v1/ontology-owner-decision-review",
@@ -352,6 +370,10 @@ export function ViewerPage() {
     ontologyReviewDashboardState.kind === "ok"
       ? `${ontologyReviewDashboardState.data.statusSummary.evidenceEntryCount} entries · ${ontologyReviewDashboardState.data.statusSummary.status}`
       : ontologyReviewDashboardState.kind;
+  const ontologyComplianceReviewCaption =
+    ontologyComplianceReviewState.kind === "ok"
+      ? `${ontologyComplianceReviewState.data.summary.specCount} specs · ${ontologyComplianceReviewState.data.summary.findingCount} findings`
+      : ontologyComplianceReviewState.kind;
   const ontologyOwnerDecisionReviewCaption =
     ontologyOwnerDecisionReviewState.kind === "ok"
       ? `${ontologyOwnerDecisionReviewState.data.summary.previewCount} decisions · ${ontologyOwnerDecisionReviewState.data.summary.status}`
@@ -634,6 +656,11 @@ export function ViewerPage() {
           title: "Ontology review",
           caption: ontologyReviewDashboardCaption,
         };
+      case "ontology-compliance":
+        return {
+          title: "Ontology compliance",
+          caption: ontologyComplianceReviewCaption,
+        };
       case "ontology-owner-decisions":
         return {
           title: "Ontology owner decisions",
@@ -831,6 +858,19 @@ export function ViewerPage() {
               onClick={() => toggleUtilityPanel("ontology-review")}
             >
               ⌬
+            </PanelBtn>
+            <PanelBtn
+              title="Open Ontology compliance"
+              aria-label="Open Ontology compliance"
+              active={activeUtilityPanel === "ontology-compliance"}
+              badge={
+                ontologyComplianceReviewState.kind === "ok"
+                  ? ontologyComplianceReviewState.data.summary.findingCount
+                  : undefined
+              }
+              onClick={() => toggleUtilityPanel("ontology-compliance")}
+            >
+              ✓
             </PanelBtn>
             <PanelBtn
               title="Open Ontology owner decisions"
@@ -1033,6 +1073,10 @@ export function ViewerPage() {
 
           {activeUtilityPanel === "ontology-review" ? (
             <OntologyReviewDashboardPanel state={ontologyReviewDashboardState} />
+          ) : null}
+
+          {activeUtilityPanel === "ontology-compliance" ? (
+            <OntologyComplianceReviewPanel state={ontologyComplianceReviewState} />
           ) : null}
 
           {activeUtilityPanel === "ontology-owner-decisions" ? (

@@ -116,6 +116,8 @@ class SpecSpaceProvider(Protocol):
 
     def read_ontology_owner_decision_review(self) -> tuple[int, dict[str, Any]]: ...
 
+    def read_spec_ontology_validation_report(self) -> tuple[int, dict[str, Any]]: ...
+
     def read_specpm_lifecycle(self) -> tuple[int, dict[str, Any]]: ...
 
 
@@ -456,6 +458,7 @@ PUBLIC_SAFE_RUN_ARTIFACT_FILENAMES: frozenset[str] = frozenset(
         specgraph_surfaces.ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FILENAME,
         specgraph_surfaces.ONTOLOGY_REVIEW_DASHBOARD_FILENAME,
         specgraph_surfaces.ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME,
+        specgraph_surfaces.SPEC_ONTOLOGY_VALIDATION_FILENAME,
         practical_ontology.PACKAGE_INDEX_ARTIFACT,
         practical_ontology.BINDING_PREVIEW_ARTIFACT,
         practical_ontology.GAP_INDEX_ARTIFACT,
@@ -928,6 +931,12 @@ class FileSpecGraphProvider:
 
     def read_ontology_owner_decision_review(self) -> tuple[int, dict[str, Any]]:
         return specgraph_surfaces.read_ontology_owner_decision_review(
+            spec_dir=self.spec_nodes_dir,
+            runs_dir=self.runs_dir,
+        )
+
+    def read_spec_ontology_validation_report(self) -> tuple[int, dict[str, Any]]:
+        return specgraph_surfaces.read_spec_ontology_validation_report(
             spec_dir=self.spec_nodes_dir,
             runs_dir=self.runs_dir,
         )
@@ -1924,6 +1933,18 @@ class HttpSpecGraphProvider:
         if status != HTTPStatus.OK:
             return status, payload
         return specgraph_surfaces.validate_ontology_owner_decision_review_envelope(payload)
+
+    def read_spec_ontology_validation_report(self) -> tuple[int, dict[str, Any]]:
+        status, payload = self._read_json_artifact(
+            specgraph_surfaces.SPEC_ONTOLOGY_VALIDATION_FILENAME,
+            build_hint=(
+                f"{specgraph_surfaces.SPEC_ONTOLOGY_VALIDATION_BUILD_HINT} "
+                "in SpecGraph"
+            ),
+        )
+        if status != HTTPStatus.OK:
+            return status, payload
+        return specgraph_surfaces.validate_spec_ontology_validation_envelope(payload)
 
     def read_specpm_lifecycle(self) -> tuple[int, dict[str, Any]]:
         return HTTPStatus.SERVICE_UNAVAILABLE, {

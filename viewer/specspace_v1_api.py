@@ -399,6 +399,11 @@ def handle_v1_ontology_owner_decision_review(handler: SpecSpaceV1Handler) -> Non
     json_response(handler, status, payload)
 
 
+def handle_v1_ontology_compliance_review(handler: SpecSpaceV1Handler) -> None:
+    status, payload = _provider(handler).read_spec_ontology_validation_report()
+    json_response(handler, status, payload)
+
+
 def handle_v1_ontology_owner_decision_acknowledgements(handler: SpecSpaceV1Handler) -> None:
     status, payload = ontology_acknowledgements.read_state(handler.server)
     json_response(handler, status, payload)

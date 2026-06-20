@@ -14,6 +14,7 @@ export type ViewerUtilityPanelId =
   | "agents"
   | "practical-ontology"
   | "ontology-review"
+  | "ontology-compliance"
   | "ontology-owner-decisions"
   | "agent-context"
   | "agent-conversation"

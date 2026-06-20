@@ -78,6 +78,9 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/v1/ontology-owner-decision-review": RouteSpec(
         "handle_v1_ontology_owner_decision_review"
     ),
+    "/api/v1/ontology-compliance-review": RouteSpec(
+        "handle_v1_ontology_compliance_review"
+    ),
     "/api/v1/ontology-owner-decision-acknowledgements": RouteSpec(
         "handle_v1_ontology_owner_decision_acknowledgements"
     ),
