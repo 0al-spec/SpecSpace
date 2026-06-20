@@ -670,6 +670,55 @@ The response keeps the existing envelope shape:
 }
 ```
 
+### `GET /api/v1/ontology-workbench`
+
+Returns a consolidated readonly Ontology Workbench surface for the SpecSpace
+utility panel. The endpoint aggregates the compiler-backed practical ontology
+projection with the surrounding review artifacts published by SpecGraph:
+
+- package metadata and normalized IR classes/relations;
+- grouped ontology gaps from `runs/ontology_gap_review_workflow.json`;
+- report-only legacy spec findings from
+  `runs/spec_ontology_validation_report.json`;
+- SpecAuthor write-gate findings from
+  `runs/specauthor_ontology_write_gate_report.json`;
+- owner-decision import v2 review rows from
+  `runs/ontology_owner_decision_import_v2.json`;
+- legacy backfill batches from
+  `runs/legacy_spec_ontology_backfill_plan.json`;
+- artifact availability/status for the relevant `runs/*.json` files.
+
+This is a review dashboard, not an authority boundary. The response is always
+`read_only`, requires `canonical_mutations_allowed: false`, and rejects any
+contract expansion that would allow SpecSpace to write Ontology packages,
+update lockfiles, mutate SpecGraph specs, import owner decisions, or close
+semantic gates.
+
+Raw JSON remains available through the artifact inspector; the Workbench shows
+the current ontology package, gaps, diffs, decision reviews, and backfill plan
+in one UI-friendly payload.
+
+```json
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_ontology_workbench",
+  "schema_version": 1,
+  "read_only": true,
+  "canonical_mutations_allowed": false,
+  "summary": {
+    "status": "ready",
+    "term_count": 14,
+    "relation_count": 16,
+    "gap_group_count": 275,
+    "compliance_finding_count": 287,
+    "write_gate_finding_count": 3,
+    "owner_decision_review_count": 0,
+    "legacy_small_pr_batch_count": 2,
+    "next_gap": "review_legacy_spec_backfill_batches"
+  }
+}
+```
+
 ### `GET /api/v1/metrics`
 
 Returns a readonly SpecSpace metrics index for the Metrics Viewer. The payload

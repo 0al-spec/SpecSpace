@@ -374,6 +374,11 @@ def handle_v1_practical_ontology(handler: SpecSpaceV1Handler) -> None:
     json_response(handler, status, payload)
 
 
+def handle_v1_ontology_workbench(handler: SpecSpaceV1Handler) -> None:
+    status, payload = _provider(handler).read_ontology_workbench()
+    json_response(handler, status, payload)
+
+
 def handle_v1_metrics(handler: SpecSpaceV1Handler) -> None:
     status, payload = _provider(handler).read_metrics()
     json_response(handler, status, payload)

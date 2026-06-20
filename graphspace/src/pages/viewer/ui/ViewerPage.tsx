@@ -89,6 +89,7 @@ import { MetricsViewerPanel } from "./MetricsViewerPanel";
 import { OntologyComplianceReviewPanel } from "./OntologyComplianceReviewPanel";
 import { OntologyOwnerDecisionReviewPanel } from "./OntologyOwnerDecisionReviewPanel";
 import { OntologyReviewDashboardPanel } from "./OntologyReviewDashboardPanel";
+import { OntologyWorkbenchPanel } from "./OntologyWorkbenchPanel";
 import { PracticalOntologyPanel } from "./PracticalOntologyPanel";
 import { ProposalViewerPanel } from "./ProposalViewerPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
@@ -104,6 +105,7 @@ import { useArtifactCatalog } from "../model/use-artifact-catalog";
 import { useOntologyComplianceReview } from "../model/use-ontology-compliance-review";
 import { useOntologyOwnerDecisionReview } from "../model/use-ontology-owner-decision-review";
 import { useOntologyReviewDashboard } from "../model/use-ontology-review-dashboard";
+import { useOntologyWorkbench } from "../model/use-ontology-workbench";
 import { usePracticalOntology } from "../model/use-practical-ontology";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecSpaceCapabilities } from "../model/use-specspace-capabilities";
@@ -156,6 +158,7 @@ export function ViewerPage() {
   const proposalIndexState = useProposalIndex({ refreshKey: runsWatchVersion });
   const metricsIndexState = useMetricsIndex({ refreshKey: runsWatchVersion });
   const agentSurfacesState = useAgentSurfaces({ refreshKey: runsWatchVersion });
+  const ontologyWorkbenchState = useOntologyWorkbench({ refreshKey: runsWatchVersion });
   const practicalOntologyState = usePracticalOntology({ refreshKey: runsWatchVersion });
   const ontologyReviewDashboardState = useOntologyReviewDashboard({
     refreshKey: runsWatchVersion,
@@ -366,6 +369,10 @@ export function ViewerPage() {
     practicalOntologyState.kind === "ok"
       ? `${practicalOntologyState.data.summary.termCount} terms · ${practicalOntologyState.data.summary.topologyEdgeCount} topology · ${practicalOntologyState.data.summary.proposalReferenceCount} refs`
       : practicalOntologyState.kind;
+  const ontologyWorkbenchCaption =
+    ontologyWorkbenchState.kind === "ok"
+      ? `${ontologyWorkbenchState.data.summary.termCount} terms · ${ontologyWorkbenchState.data.summary.gapGroupCount} gaps · ${ontologyWorkbenchState.data.summary.complianceFindingCount} findings`
+      : ontologyWorkbenchState.kind;
   const ontologyReviewDashboardCaption =
     ontologyReviewDashboardState.kind === "ok"
       ? `${ontologyReviewDashboardState.data.statusSummary.evidenceEntryCount} entries · ${ontologyReviewDashboardState.data.statusSummary.status}`
@@ -649,6 +656,8 @@ export function ViewerPage() {
         return { title: "Metrics viewer", caption: metricsIndexCaption };
       case "agents":
         return { title: "Agent surfaces", caption: agentSurfacesCaption };
+      case "ontology-workbench":
+        return { title: "Ontology workbench", caption: ontologyWorkbenchCaption };
       case "practical-ontology":
         return { title: "Practical ontology", caption: practicalOntologyCaption };
       case "ontology-review":
@@ -832,6 +841,19 @@ export function ViewerPage() {
               onClick={() => toggleUtilityPanel("agents")}
             >
               ⎈
+            </PanelBtn>
+            <PanelBtn
+              title="Open Ontology workbench"
+              aria-label="Open Ontology workbench"
+              active={activeUtilityPanel === "ontology-workbench"}
+              badge={
+                ontologyWorkbenchState.kind === "ok"
+                  ? ontologyWorkbenchState.data.summary.gapGroupCount
+                  : undefined
+              }
+              onClick={() => toggleUtilityPanel("ontology-workbench")}
+            >
+              ⌾
             </PanelBtn>
             <PanelBtn
               title="Open Practical ontology"
@@ -1065,6 +1087,10 @@ export function ViewerPage() {
 
           {activeUtilityPanel === "agents" ? (
             <AgentSurfacesPanel state={agentSurfacesState} />
+          ) : null}
+
+          {activeUtilityPanel === "ontology-workbench" ? (
+            <OntologyWorkbenchPanel state={ontologyWorkbenchState} />
           ) : null}
 
           {activeUtilityPanel === "practical-ontology" ? (

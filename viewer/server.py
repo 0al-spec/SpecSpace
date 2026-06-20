@@ -330,6 +330,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
     )
     handle_v1_agent_workbench_conversation = specspace_v1_api.handle_v1_agent_workbench_conversation
     handle_v1_agent_workbench_conversations = specspace_v1_api.handle_v1_agent_workbench_conversations
+    handle_v1_ontology_workbench = specspace_v1_api.handle_v1_ontology_workbench
     handle_v1_practical_ontology = specspace_v1_api.handle_v1_practical_ontology
     handle_v1_proposals = specspace_v1_api.handle_v1_proposals
     handle_v1_proposal_spec_trace_index = specspace_v1_api.handle_v1_proposal_spec_trace_index
