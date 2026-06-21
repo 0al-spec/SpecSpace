@@ -9,14 +9,16 @@ export const ideaToSpecWorkspace = {
   source: { provider: "fixture", read_only: true },
   summary: {
     status: "ready",
-    available_artifact_count: 4,
+    available_artifact_count: 5,
     missing_artifact_count: 0,
     candidate_node_count: 2,
     candidate_edge_count: 1,
     pre_sib_finding_count: 1,
     repair_action_count: 2,
     repair_context_required_count: 1,
-    next_artifact: "runs/idea_to_spec_workspace_bundle.json",
+    materialized_file_count: 2,
+    promotion_path_count: 2,
+    next_artifact: "Platform graph-repository promotion-request",
   },
   intake: {
     available: true,
@@ -137,6 +139,43 @@ export const ideaToSpecWorkspace = {
       },
     ],
   },
+  materialization: {
+    available: true,
+    readiness: {
+      ready: true,
+      review_state: "materialized_candidate_review_ready",
+      next_artifact: "Platform graph-repository promotion-request",
+    },
+    summary: {
+      status: "materialized_candidate_review_ready",
+      materialized_file_count: 2,
+      candidate_node_count: 2,
+      finding_count: 0,
+    },
+    materialization_source: "repair_loop_preview",
+    files: [
+      {
+        candidate_node_id: "candidate-spec.calculator-product",
+        materialized_id: "CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT",
+        path: "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+        promotion_path: "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+      },
+      {
+        candidate_node_id: "candidate-spec.numeric-input",
+        materialized_id: "CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT",
+        path: "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
+        promotion_path: "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
+      },
+    ],
+    promotion_request: {
+      path_argument: "--path",
+      platform_artifact_kind: "platform_graph_repository_promotion_request",
+      paths: [
+        "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+        "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
+      ],
+    },
+  },
   artifacts: {
     event_storming_intake: {
       available: true,
@@ -170,11 +209,20 @@ export const ideaToSpecWorkspace = {
       proposal_id: "0152",
       contract_ref: "specgraph.idea-to-spec.candidate-repair-loop.v0.1",
     },
+    materialization: {
+      available: true,
+      path: "runs/candidate_spec_materialization_report.json",
+      artifact_kind: "candidate_spec_materialization_report",
+      status: "materialized_candidate_review_ready",
+      proposal_id: "0153",
+      contract_ref: "specgraph.idea-to-spec.candidate-spec-materialization.v0.1",
+    },
   },
   display_limits: {
     nodes: 40,
     findings: 40,
     repair_actions: 40,
+    materialized_files: 40,
   },
   authority_boundary: {
     idea_to_spec_workspace_is_authority: false,

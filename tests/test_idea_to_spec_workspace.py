@@ -148,12 +148,58 @@ def _repair_loop() -> dict:
     }
 
 
+def _materialization() -> dict:
+    return {
+        "artifact_kind": "candidate_spec_materialization_report",
+        "schema_version": 1,
+        "proposal_id": "0153",
+        "contract_ref": "specgraph.idea-to-spec.candidate-spec-materialization.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "materialized_candidate_review_ready",
+            "next_artifact": "Platform graph-repository promotion-request",
+        },
+        "materialization_source": "repair_loop_preview",
+        "materialized_files": [
+            {
+                "candidate_node_id": "candidate-spec.calculator-product",
+                "materialized_id": "CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT",
+                "path": "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+                "promotion_path": "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+            },
+            {
+                "candidate_node_id": "candidate-spec.numeric-input",
+                "materialized_id": "CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT",
+                "path": "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
+                "promotion_path": "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
+            },
+        ],
+        "promotion_request": {
+            "path_argument": "--path",
+            "paths": [
+                "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+                "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
+            ],
+            "platform_artifact_kind": "platform_graph_repository_promotion_request",
+        },
+        "summary": {
+            "status": "materialized_candidate_review_ready",
+            "materialized_file_count": 2,
+            "candidate_node_count": 2,
+            "finding_count": 0,
+        },
+    }
+
+
 def _workspace_artifacts() -> dict[str, dict]:
     return {
         idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT: _intake(),
         idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT: _candidate_graph(),
         idea_to_spec_workspace.PRE_SIB_COHERENCE_REPORT_ARTIFACT: _pre_sib(),
         idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: _repair_loop(),
+        idea_to_spec_workspace.CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: _materialization(),
     }
 
 
@@ -168,6 +214,8 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["status"], "ready")
         self.assertEqual(body["summary"]["candidate_node_count"], 2)
         self.assertEqual(body["summary"]["repair_action_count"], 1)
+        self.assertEqual(body["summary"]["materialized_file_count"], 2)
+        self.assertEqual(body["summary"]["promotion_path_count"], 2)
         self.assertEqual(body["intake"]["summary"]["actor_count"], 1)
         self.assertEqual(body["candidate_graph"]["summary"]["requirement_count"], 2)
         self.assertEqual(
@@ -181,6 +229,18 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["repair_loop"]["actions"][0]["status"],
             "requires_context",
+        )
+        self.assertEqual(
+            body["materialization"]["readiness"]["review_state"],
+            "materialized_candidate_review_ready",
+        )
+        self.assertEqual(
+            body["materialization"]["files"][1]["candidate_node_id"],
+            "candidate-spec.numeric-input",
+        )
+        self.assertEqual(
+            body["materialization"]["promotion_request"]["platform_artifact_kind"],
+            "platform_graph_repository_promotion_request",
         )
         self.assertEqual(
             body["artifacts"]["candidate_graph"]["status"],
@@ -265,13 +325,14 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["summary"]["status"], "partial")
-        self.assertEqual(body["summary"]["available_artifact_count"], 1)
+        self.assertEqual(body["summary"]["available_artifact_count"], 2)
         self.assertEqual(body["summary"]["missing_artifact_count"], 3)
         self.assertEqual(body["summary"]["candidate_node_count"], 0)
         self.assertEqual(body["summary"]["repair_action_count"], 0)
         self.assertFalse(body["intake"]["available"])
         self.assertFalse(body["candidate_graph"]["available"])
         self.assertFalse(body["repair_loop"]["available"])
+        self.assertTrue(body["materialization"]["available"])
         self.assertEqual(
             body["artifacts"]["candidate_graph"]["reason"],
             "invalid_artifact_contract",
@@ -291,7 +352,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
 
         self.assertEqual(body["summary"]["status"], "partial")
         self.assertEqual(body["summary"]["available_artifact_count"], 1)
-        self.assertEqual(body["summary"]["missing_artifact_count"], 3)
+        self.assertEqual(body["summary"]["missing_artifact_count"], 4)
         self.assertFalse(body["artifacts"]["event_storming_intake"]["available"])
         self.assertTrue(body["artifacts"]["candidate_graph"]["available"])
 
@@ -322,6 +383,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 runs_dir / idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT,
                 _repair_loop(),
             )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
+                _materialization(),
+            )
             provider = specspace_provider.FileSpecGraphProvider(
                 spec_nodes_dir=None,
                 runs_dir=runs_dir,
@@ -333,6 +399,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(status, HTTPStatus.OK)
         paths = {entry["path"] for entry in body["artifacts"]}
         self.assertIn("runs/candidate_repair_loop_report.json", paths)
+        self.assertIn("runs/candidate_spec_materialization_report.json", paths)
 
     def test_http_provider_reads_workspace_runs_from_manifest(self) -> None:
         manifest = {

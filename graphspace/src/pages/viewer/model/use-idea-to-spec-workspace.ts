@@ -50,6 +50,19 @@ export type IdeaToSpecRepairAction = {
   sourceFindings: readonly string[];
 };
 
+export type IdeaToSpecMaterializedFile = {
+  candidateNodeId: string;
+  materializedId: string;
+  path: string;
+  promotionPath: string;
+};
+
+export type IdeaToSpecPromotionRequest = {
+  pathArgument: string | null;
+  platformArtifactKind: string | null;
+  paths: readonly string[];
+};
+
 export type IdeaToSpecWorkspace = {
   apiVersion: "v1";
   artifactKind: "specspace_idea_to_spec_workspace";
@@ -67,6 +80,8 @@ export type IdeaToSpecWorkspace = {
     preSibFindingCount: number;
     repairActionCount: number;
     repairContextRequiredCount: number;
+    materializedFileCount: number;
+    promotionPathCount: number;
     nextArtifact: string | null;
   };
   intake: {
@@ -119,6 +134,19 @@ export type IdeaToSpecWorkspace = {
     summary: Record<string, unknown>;
     metricDeltaProjection: Record<string, unknown>;
     actions: readonly IdeaToSpecRepairAction[];
+  };
+  materialization: {
+    available: boolean;
+    readiness: {
+      ready: boolean;
+      reviewState: string | null;
+      blockedBy: readonly string[];
+      nextArtifact: string | null;
+    };
+    summary: Record<string, unknown>;
+    materializationSource: string | null;
+    files: readonly IdeaToSpecMaterializedFile[];
+    promotionRequest: IdeaToSpecPromotionRequest;
   };
   artifacts: Record<string, IdeaToSpecArtifactStatus>;
   authorityBoundary: {
@@ -260,6 +288,27 @@ function parseRepairAction(raw: unknown): IdeaToSpecRepairAction | null {
   };
 }
 
+function parseMaterializedFile(raw: unknown): IdeaToSpecMaterializedFile | null {
+  const file = recordValue(raw);
+  const path = optionalString(file.path);
+  if (!path) return null;
+  return {
+    candidateNodeId: stringValue(file.candidate_node_id, "candidate-node"),
+    materializedId: stringValue(file.materialized_id, "candidate-spec"),
+    path,
+    promotionPath: stringValue(file.promotion_path, path),
+  };
+}
+
+function parsePromotionRequest(raw: unknown): IdeaToSpecPromotionRequest {
+  const request = recordValue(raw);
+  return {
+    pathArgument: optionalString(request.path_argument),
+    platformArtifactKind: optionalString(request.platform_artifact_kind),
+    paths: strings(request.paths),
+  };
+}
+
 export function parseIdeaToSpecWorkspace(
   raw: unknown,
 ): UseIdeaToSpecWorkspaceState {
@@ -301,6 +350,7 @@ export function parseIdeaToSpecWorkspace(
   const candidateSummary = recordValue(candidateGraph.summary);
   const preSib = recordValue(raw.pre_sib);
   const repairLoop = recordValue(raw.repair_loop);
+  const materialization = recordValue(raw.materialization);
   const artifacts = Object.fromEntries(
     Object.entries(recordValue(raw.artifacts)).map(([key, value]) => [
       key,
@@ -328,6 +378,8 @@ export function parseIdeaToSpecWorkspace(
         repairContextRequiredCount: numberValue(
           summary.repair_context_required_count,
         ),
+        materializedFileCount: numberValue(summary.materialized_file_count),
+        promotionPathCount: numberValue(summary.promotion_path_count),
         nextArtifact: optionalString(summary.next_artifact),
       },
       intake: {
@@ -385,6 +437,21 @@ export function parseIdeaToSpecWorkspace(
           const parsed = parseRepairAction(item);
           return parsed ? [parsed] : [];
         }),
+      },
+      materialization: {
+        available: materialization.available === true,
+        readiness: parseReadiness(materialization.readiness),
+        summary: recordValue(materialization.summary),
+        materializationSource: optionalString(
+          materialization.materialization_source,
+        ),
+        files: records(materialization.files).flatMap((item) => {
+          const parsed = parseMaterializedFile(item);
+          return parsed ? [parsed] : [];
+        }),
+        promotionRequest: parsePromotionRequest(
+          materialization.promotion_request,
+        ),
       },
       artifacts,
       authorityBoundary: {
