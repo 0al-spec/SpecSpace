@@ -81,6 +81,7 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <Metric label="Context" value={data.summary.repairContextRequiredCount} />
         <Metric label="Specs" value={data.summary.materializedFileCount} />
         <Metric label="Promote" value={data.summary.promotionPathCount} />
+        <Metric label="Gate" value={data.summary.promotionGateBlockerCount} />
         <Metric label="Missing" value={data.summary.missingArtifactCount} />
       </div>
 
@@ -99,6 +100,12 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
             value={compact(
               data.materialization.readiness.reviewState,
               "no materialization",
+            )}
+          />
+          <Pill
+            value={compact(
+              data.promotionGate.readiness.reviewState,
+              "no promotion gate",
             )}
           />
         </div>
@@ -127,6 +134,7 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <PreSibSection state={state} />
         <RepairSection actions={data.repairLoop.actions} />
         <MaterializationSection state={state} />
+        <PromotionGateSection state={state} />
       </div>
     </section>
   );
@@ -367,6 +375,64 @@ function MaterializedFileRow({ file }: { file: IdeaToSpecMaterializedFile }) {
         <Meta label="Promotion path" value={file.promotionPath} />
       </div>
     </div>
+  );
+}
+
+function PromotionGateSection({
+  state,
+}: {
+  state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
+}) {
+  const gate = state.data.promotionGate;
+  const request = gate.promotionRequest;
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader title="Promotion gate" count={gate.findings.length} />
+      <div className={styles.postureStrip}>
+        <PostureItem label="Ready" value={boolText(gate.readiness.ready)} />
+        <PostureItem
+          label="Review state"
+          value={compact(gate.readiness.reviewState)}
+        />
+        <PostureItem
+          label="Blocked by"
+          value={joined(gate.readiness.blockedBy)}
+        />
+        <PostureItem
+          label="Promotion paths"
+          value={String(request.paths.length)}
+        />
+      </div>
+      {gate.findings.length === 0 ? (
+        <Status
+          label="Promotion gate clear"
+          detail={compact(gate.readiness.nextArtifact, "Platform handoff ready.")}
+        />
+      ) : null}
+      {gate.findings.map((finding) => (
+        <div key={finding.findingId} className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{finding.findingId}</span>
+            <Pill value={finding.severity} />
+          </div>
+          <h3 className={styles.title}>{finding.message}</h3>
+          <div className={styles.metaGrid}>
+            <Meta label="Source" value={finding.sourceRef} />
+          </div>
+        </div>
+      ))}
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Gate handoff</span>
+          <Pill value={compact(request.pathArgument, "--path")} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Platform request" value={request.platformArtifactKind} />
+          <Meta label="Promotion paths" value={joined(request.paths)} />
+          <Meta label="Next" value={gate.readiness.nextArtifact} />
+        </div>
+      </div>
+    </section>
   );
 }
 

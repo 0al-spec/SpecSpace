@@ -82,6 +82,7 @@ export type IdeaToSpecWorkspace = {
     repairContextRequiredCount: number;
     materializedFileCount: number;
     promotionPathCount: number;
+    promotionGateBlockerCount: number;
     nextArtifact: string | null;
   };
   intake: {
@@ -146,6 +147,19 @@ export type IdeaToSpecWorkspace = {
     summary: Record<string, unknown>;
     materializationSource: string | null;
     files: readonly IdeaToSpecMaterializedFile[];
+    promotionRequest: IdeaToSpecPromotionRequest;
+  };
+  promotionGate: {
+    available: boolean;
+    readiness: {
+      ready: boolean;
+      reviewState: string | null;
+      blockedBy: readonly string[];
+      nextArtifact: string | null;
+    };
+    summary: Record<string, unknown>;
+    metricSnapshot: Record<string, unknown>;
+    findings: readonly IdeaToSpecFinding[];
     promotionRequest: IdeaToSpecPromotionRequest;
   };
   artifacts: Record<string, IdeaToSpecArtifactStatus>;
@@ -351,6 +365,7 @@ export function parseIdeaToSpecWorkspace(
   const preSib = recordValue(raw.pre_sib);
   const repairLoop = recordValue(raw.repair_loop);
   const materialization = recordValue(raw.materialization);
+  const promotionGate = recordValue(raw.promotion_gate);
   const artifacts = Object.fromEntries(
     Object.entries(recordValue(raw.artifacts)).map(([key, value]) => [
       key,
@@ -380,6 +395,9 @@ export function parseIdeaToSpecWorkspace(
         ),
         materializedFileCount: numberValue(summary.materialized_file_count),
         promotionPathCount: numberValue(summary.promotion_path_count),
+        promotionGateBlockerCount: numberValue(
+          summary.promotion_gate_blocker_count,
+        ),
         nextArtifact: optionalString(summary.next_artifact),
       },
       intake: {
@@ -451,6 +469,19 @@ export function parseIdeaToSpecWorkspace(
         }),
         promotionRequest: parsePromotionRequest(
           materialization.promotion_request,
+        ),
+      },
+      promotionGate: {
+        available: promotionGate.available === true,
+        readiness: parseReadiness(promotionGate.readiness),
+        summary: recordValue(promotionGate.summary),
+        metricSnapshot: recordValue(promotionGate.metric_snapshot),
+        findings: records(promotionGate.findings).flatMap((item) => {
+          const parsed = parseFinding(item);
+          return parsed ? [parsed] : [];
+        }),
+        promotionRequest: parsePromotionRequest(
+          promotionGate.promotion_request,
         ),
       },
       artifacts,

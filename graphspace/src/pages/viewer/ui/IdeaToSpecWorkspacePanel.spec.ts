@@ -40,6 +40,9 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("materialized_candidate_review_ready");
     expect(html).toContain("CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT");
     expect(html).toContain("platform_graph_repository_promotion_request");
+    expect(html).toContain("Promotion gate");
+    expect(html).toContain("idea_to_spec_promotion_blocked");
+    expect(html).toContain("repair_context_required");
     expect(html).toContain("Spec mutations");
     expect(html).toContain("false");
     expect(html).not.toContain("<button");

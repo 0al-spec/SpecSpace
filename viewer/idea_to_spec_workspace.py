@@ -13,6 +13,7 @@ CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT = "candidate_repair_loop_report.json"
 CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT = (
     "candidate_spec_materialization_report.json"
 )
+IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT = "idea_to_spec_promotion_gate.json"
 
 WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT,
@@ -20,6 +21,7 @@ WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     PRE_SIB_COHERENCE_REPORT_ARTIFACT,
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT,
     CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
+    IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
 )
 
 ARTIFACT_KEYS: dict[str, str] = {
@@ -28,6 +30,7 @@ ARTIFACT_KEYS: dict[str, str] = {
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
     CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: "materialization",
+    IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: "promotion_gate",
 }
 
 EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
@@ -38,6 +41,7 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: (
         "candidate_spec_materialization_report"
     ),
+    IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: "idea_to_spec_promotion_gate",
 }
 
 DISPLAY_LIMITS = {
@@ -342,6 +346,7 @@ def build_idea_to_spec_workspace(
     materialization = _artifact_data(
         artifacts, CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT
     )
+    promotion_gate = _artifact_data(artifacts, IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT)
     statuses = {
         key: _artifact_status(artifacts, filename)
         for filename, key in ARTIFACT_KEYS.items()
@@ -353,11 +358,14 @@ def build_idea_to_spec_workspace(
     status = "ready"
     if missing_artifact_count:
         status = "partial" if available_count else "unavailable"
+    elif promotion_gate is not None and not _readiness(promotion_gate)["ready"]:
+        status = "blocked"
     candidate_counts = _candidate_counts(candidate_graph)
     pre_sib_findings = _findings(pre_sib)
     repair_actions = _repair_actions(repair_loop)
     materialized_files = _materialized_files(materialization)
-    promotion_request = _promotion_request(materialization)
+    promotion_gate_findings = _findings(promotion_gate)
+    promotion_request = _promotion_request(promotion_gate or materialization)
     return {
         "api_version": "v1",
         "artifact_kind": IDEA_TO_SPEC_WORKSPACE_ARTIFACT_KIND,
@@ -382,8 +390,12 @@ def build_idea_to_spec_workspace(
             ),
             "materialized_file_count": _materialized_file_count(materialization),
             "promotion_path_count": len(promotion_request["paths"]),
+            "promotion_gate_blocker_count": _finding_count(promotion_gate),
             "next_artifact": _optional_text(
-                _record((materialization or {}).get("readiness")).get("next_artifact")
+                _record((promotion_gate or {}).get("readiness")).get("next_artifact")
+                or _record((materialization or {}).get("readiness")).get(
+                    "next_artifact"
+                )
                 or _record((repair_loop or {}).get("readiness")).get("next_artifact")
             ),
         },
@@ -437,7 +449,15 @@ def build_idea_to_spec_workspace(
                 (materialization or {}).get("materialization_source")
             ),
             "files": materialized_files,
+            "promotion_request": _promotion_request(materialization),
+        },
+        "promotion_gate": {
+            "available": promotion_gate is not None,
+            "readiness": _readiness(promotion_gate),
+            "summary": _record((promotion_gate or {}).get("summary")),
+            "metric_snapshot": _record((promotion_gate or {}).get("metric_snapshot")),
             "promotion_request": promotion_request,
+            "findings": promotion_gate_findings,
         },
         "artifacts": statuses,
         "display_limits": DISPLAY_LIMITS,
