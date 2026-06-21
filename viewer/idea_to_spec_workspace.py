@@ -10,12 +10,16 @@ IDEA_EVENT_STORMING_INTAKE_ARTIFACT = "idea_event_storming_intake.json"
 CANDIDATE_SPEC_GRAPH_ARTIFACT = "candidate_spec_graph.json"
 PRE_SIB_COHERENCE_REPORT_ARTIFACT = "pre_sib_coherence_report.json"
 CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT = "candidate_repair_loop_report.json"
+CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT = (
+    "candidate_spec_materialization_report.json"
+)
 
 WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT,
     CANDIDATE_SPEC_GRAPH_ARTIFACT,
     PRE_SIB_COHERENCE_REPORT_ARTIFACT,
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT,
+    CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
 )
 
 ARTIFACT_KEYS: dict[str, str] = {
@@ -23,6 +27,7 @@ ARTIFACT_KEYS: dict[str, str] = {
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
+    CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: "materialization",
 }
 
 EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
@@ -30,12 +35,16 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_spec_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib_coherence_report",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "candidate_repair_loop_report",
+    CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: (
+        "candidate_spec_materialization_report"
+    ),
 }
 
 DISPLAY_LIMITS = {
     "nodes": 40,
     "findings": 40,
     "repair_actions": 40,
+    "materialized_files": 40,
 }
 
 
@@ -266,6 +275,39 @@ def _repair_action_count(report: dict[str, Any] | None) -> int:
     return len(_records((report or {}).get("repair_actions")))
 
 
+def _materialized_files(report: dict[str, Any] | None) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records((report or {}).get("materialized_files"))[
+        : DISPLAY_LIMITS["materialized_files"]
+    ]:
+        path = _text(item.get("path"))
+        promotion_path = _text(item.get("promotion_path")) or path
+        rows.append(
+            {
+                "candidate_node_id": _text(
+                    item.get("candidate_node_id"), "candidate-node"
+                ),
+                "materialized_id": _text(item.get("materialized_id"), "candidate-spec"),
+                "path": path,
+                "promotion_path": promotion_path,
+            }
+        )
+    return rows
+
+
+def _materialized_file_count(report: dict[str, Any] | None) -> int:
+    return len(_records((report or {}).get("materialized_files")))
+
+
+def _promotion_request(report: dict[str, Any] | None) -> dict[str, Any]:
+    request = _record((report or {}).get("promotion_request"))
+    return {
+        "path_argument": _optional_text(request.get("path_argument")),
+        "platform_artifact_kind": _optional_text(request.get("platform_artifact_kind")),
+        "paths": _string_list(request.get("paths")),
+    }
+
+
 def _readiness(payload: dict[str, Any] | None) -> dict[str, Any]:
     readiness = _record((payload or {}).get("readiness"))
     return {
@@ -297,6 +339,9 @@ def build_idea_to_spec_workspace(
     candidate_graph = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_ARTIFACT)
     pre_sib = _artifact_data(artifacts, PRE_SIB_COHERENCE_REPORT_ARTIFACT)
     repair_loop = _artifact_data(artifacts, CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT)
+    materialization = _artifact_data(
+        artifacts, CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT
+    )
     statuses = {
         key: _artifact_status(artifacts, filename)
         for filename, key in ARTIFACT_KEYS.items()
@@ -311,6 +356,8 @@ def build_idea_to_spec_workspace(
     candidate_counts = _candidate_counts(candidate_graph)
     pre_sib_findings = _findings(pre_sib)
     repair_actions = _repair_actions(repair_loop)
+    materialized_files = _materialized_files(materialization)
+    promotion_request = _promotion_request(materialization)
     return {
         "api_version": "v1",
         "artifact_kind": IDEA_TO_SPEC_WORKSPACE_ARTIFACT_KIND,
@@ -333,8 +380,11 @@ def build_idea_to_spec_workspace(
                     "context_required_count"
                 )
             ),
+            "materialized_file_count": _materialized_file_count(materialization),
+            "promotion_path_count": len(promotion_request["paths"]),
             "next_artifact": _optional_text(
-                _record((repair_loop or {}).get("readiness")).get("next_artifact")
+                _record((materialization or {}).get("readiness")).get("next_artifact")
+                or _record((repair_loop or {}).get("readiness")).get("next_artifact")
             ),
         },
         "intake": {
@@ -378,6 +428,16 @@ def build_idea_to_spec_workspace(
                 (repair_loop or {}).get("metric_delta_projection")
             ),
             "actions": repair_actions,
+        },
+        "materialization": {
+            "available": materialization is not None,
+            "readiness": _readiness(materialization),
+            "summary": _record((materialization or {}).get("summary")),
+            "materialization_source": _optional_text(
+                (materialization or {}).get("materialization_source")
+            ),
+            "files": materialized_files,
+            "promotion_request": promotion_request,
         },
         "artifacts": statuses,
         "display_limits": DISPLAY_LIMITS,

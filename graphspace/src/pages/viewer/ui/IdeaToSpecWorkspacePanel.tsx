@@ -1,5 +1,6 @@
 import type {
   IdeaToSpecCandidateNode,
+  IdeaToSpecMaterializedFile,
   IdeaToSpecRepairAction,
   IdeaToSpecWorkspace,
   UseIdeaToSpecWorkspaceState,
@@ -78,6 +79,8 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <Metric label="Findings" value={data.summary.preSibFindingCount} />
         <Metric label="Repairs" value={data.summary.repairActionCount} />
         <Metric label="Context" value={data.summary.repairContextRequiredCount} />
+        <Metric label="Specs" value={data.summary.materializedFileCount} />
+        <Metric label="Promote" value={data.summary.promotionPathCount} />
         <Metric label="Missing" value={data.summary.missingArtifactCount} />
       </div>
 
@@ -92,6 +95,12 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
           <Pill value={data.summary.status} />
           <Pill value={compact(data.preSib.readiness.reviewState, "no pre-SIB")} />
           <Pill value={compact(data.repairLoop.readiness.reviewState, "no repair")} />
+          <Pill
+            value={compact(
+              data.materialization.readiness.reviewState,
+              "no materialization",
+            )}
+          />
         </div>
       </div>
 
@@ -117,6 +126,7 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <CandidateGraphSection nodes={data.candidateGraph.nodes} />
         <PreSibSection state={state} />
         <RepairSection actions={data.repairLoop.actions} />
+        <MaterializationSection state={state} />
       </div>
     </section>
   );
@@ -287,6 +297,76 @@ function RepairSection({
         </div>
       ))}
     </section>
+  );
+}
+
+function MaterializationSection({
+  state,
+}: {
+  state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
+}) {
+  const materialization = state.data.materialization;
+  const request = materialization.promotionRequest;
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader
+        title="Promotion preview"
+        count={materialization.files.length}
+      />
+      <div className={styles.postureStrip}>
+        <PostureItem
+          label="Ready"
+          value={boolText(materialization.readiness.ready)}
+        />
+        <PostureItem
+          label="Review state"
+          value={compact(materialization.readiness.reviewState)}
+        />
+        <PostureItem
+          label="Source"
+          value={compact(materialization.materializationSource)}
+        />
+        <PostureItem
+          label="Platform request"
+          value={compact(request.platformArtifactKind)}
+        />
+      </div>
+      {materialization.files.length === 0 ? (
+        <Status
+          label="No materialized candidate specs"
+          detail="Candidate materialization report is missing or empty."
+        />
+      ) : null}
+      {materialization.files.map((file) => (
+        <MaterializedFileRow key={file.path} file={file} />
+      ))}
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Platform handoff</span>
+          <Pill value={compact(request.pathArgument, "--path")} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Promotion paths" value={joined(request.paths)} />
+          <Meta label="Next" value={materialization.readiness.nextArtifact} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MaterializedFileRow({ file }: { file: IdeaToSpecMaterializedFile }) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{file.materializedId}</span>
+        <Pill value="review-only" />
+      </div>
+      <div className={styles.metaGrid}>
+        <Meta label="Candidate node" value={file.candidateNodeId} />
+        <Meta label="Preview path" value={file.path} />
+        <Meta label="Promotion path" value={file.promotionPath} />
+      </div>
+    </div>
   );
 }
 

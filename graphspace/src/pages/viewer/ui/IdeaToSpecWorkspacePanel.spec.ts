@@ -36,6 +36,10 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Repair loop");
     expect(html).toContain("repair.add-ac.req-input-digits");
     expect(html).toContain("requires_context");
+    expect(html).toContain("Promotion preview");
+    expect(html).toContain("materialized_candidate_review_ready");
+    expect(html).toContain("CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT");
+    expect(html).toContain("platform_graph_repository_promotion_request");
     expect(html).toContain("Spec mutations");
     expect(html).toContain("false");
     expect(html).not.toContain("<button");
