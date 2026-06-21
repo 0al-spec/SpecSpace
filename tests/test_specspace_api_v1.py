@@ -789,8 +789,8 @@ def _write_ontology_workbench_artifacts(root: Path) -> None:
             "artifact_kind": "specauthor_authoring_flow_report",
             "schema_version": 1,
             "proposal_id": "0146",
-            "ok": True,
-            "review_state": "ready_for_operator_review",
+            "ok": False,
+            "review_state": "review_required",
             "validation_chain_summary": {
                 "generated_artifact_contract_ok": True,
                 "write_gate_ok": True,
@@ -798,8 +798,15 @@ def _write_ontology_workbench_artifacts(root: Path) -> None:
                 "invocation_contract_ok": True,
                 "invocation_review_state": "ready_for_operator_review",
             },
-            "summary": {"finding_count": 0},
-            "findings": [],
+            "summary": {"finding_count": 1},
+            "findings": [
+                {
+                    "finding_id": "active_frame_mismatch",
+                    "severity": "review_required",
+                    "message": "Context active frame does not match generated artifact.",
+                    "source_ref": "runs/specauthor_authoring_flow_report.json",
+                }
+            ],
         },
     )
 
@@ -2592,7 +2599,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["gap_group_count"], 1)
         self.assertEqual(body["summary"]["compliance_finding_count"], 1)
         self.assertEqual(body["summary"]["write_gate_finding_count"], 2)
-        self.assertEqual(body["summary"]["specauthor_invocation_finding_count"], 0)
+        self.assertEqual(body["summary"]["specauthor_invocation_finding_count"], 1)
         self.assertEqual(body["summary"]["owner_decision_review_count"], 1)
         self.assertEqual(body["summary"]["legacy_small_pr_batch_count"], 1)
         self.assertEqual(body["package"]["package_id"], "org.0al.specgraph.core")
@@ -2634,6 +2641,11 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(
             body["specauthor_invocation"]["validation_chain"]["write_decision"],
             "allow_graph_write",
+        )
+        self.assertFalse(body["specauthor_invocation"]["summary"]["authoring_flow_ok"])
+        self.assertEqual(
+            body["specauthor_invocation"]["findings"][0]["finding_id"],
+            "active_frame_mismatch",
         )
         self.assertFalse(
             body["specauthor_invocation"]["operator_decision"][

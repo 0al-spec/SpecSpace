@@ -442,21 +442,24 @@ def _write_gate_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
 
 
 def _specauthor_invocation_findings(
-    report: dict[str, Any] | None,
+    *reports: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
-    if not report:
-        return []
-    return [
-        {
-            "finding_id": _text(item.get("finding_id"), "specauthor-invocation-finding"),
-            "severity": _text(item.get("severity"), "unknown"),
-            "message": _text(item.get("message"), "SpecAuthor invocation finding."),
-            "source_ref": _optional_text(item.get("source_ref")),
-        }
-        for item in _records(report.get("findings"))[
-            : DISPLAY_LIMITS["specauthor_invocation_findings"]
-        ]
-    ]
+    findings: list[dict[str, Any]] = []
+    for report in reports:
+        for item in _records((report or {}).get("findings")):
+            findings.append(
+                {
+                    "finding_id": _text(
+                        item.get("finding_id"), "specauthor-invocation-finding"
+                    ),
+                    "severity": _text(item.get("severity"), "unknown"),
+                    "message": _text(
+                        item.get("message"), "SpecAuthor invocation finding."
+                    ),
+                    "source_ref": _optional_text(item.get("source_ref")),
+                }
+            )
+    return findings[: DISPLAY_LIMITS["specauthor_invocation_findings"]]
 
 
 def _specauthor_invocation_lens(
@@ -471,7 +474,7 @@ def _specauthor_invocation_lens(
     model_applicability = _record((invocation or {}).get("model_applicability"))
     operator_decision = _record((invocation or {}).get("operator_decision"))
     validation_summary = _record((flow_report or {}).get("validation_chain_summary"))
-    findings = _specauthor_invocation_findings(contract_report)
+    findings = _specauthor_invocation_findings(contract_report, flow_report)
     return {
         "available": invocation is not None,
         "summary": {
@@ -761,6 +764,7 @@ def _summary(
     write_gate: dict[str, Any] | None,
     specauthor_invocation: dict[str, Any] | None,
     specauthor_invocation_contract: dict[str, Any] | None,
+    specauthor_authoring_flow: dict[str, Any] | None,
     owner_decisions: dict[str, Any] | None,
     legacy_backfill: dict[str, Any] | None,
     artifacts: dict[str, Any],
@@ -769,8 +773,9 @@ def _summary(
     gap_summary = _record((gap_workflow or {}).get("summary"))
     compliance_summary = _record((compliance or {}).get("summary"))
     write_gate_summary = _record((write_gate or {}).get("summary"))
-    specauthor_invocation_summary = _record(
-        (specauthor_invocation_contract or {}).get("summary")
+    specauthor_invocation_findings = _specauthor_invocation_findings(
+        specauthor_invocation_contract,
+        specauthor_authoring_flow,
     )
     owner_summary = _record((owner_decisions or {}).get("summary"))
     legacy_summary = _record((legacy_backfill or {}).get("summary"))
@@ -804,9 +809,7 @@ def _summary(
         "compliance_spec_count": _number(compliance_summary.get("spec_count")),
         "compliance_finding_count": _number(compliance_summary.get("finding_count")),
         "write_gate_finding_count": _number(write_gate_summary.get("finding_count")),
-        "specauthor_invocation_finding_count": _number(
-            specauthor_invocation_summary.get("finding_count")
-        ),
+        "specauthor_invocation_finding_count": len(specauthor_invocation_findings),
         "owner_decision_review_count": _number(owner_summary.get("review_count"))
         or _number(owner_summary.get("preview_count")),
         "owner_decision_importable_count": _number(
@@ -922,6 +925,7 @@ def build_ontology_workbench(
             write_gate=write_gate,
             specauthor_invocation=specauthor_invocation,
             specauthor_invocation_contract=specauthor_invocation_contract,
+            specauthor_authoring_flow=specauthor_authoring_flow,
             owner_decisions=owner_decisions,
             legacy_backfill=legacy_backfill,
             artifacts=artifacts,
