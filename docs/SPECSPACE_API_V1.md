@@ -670,6 +670,55 @@ The response keeps the existing envelope shape:
 }
 ```
 
+### `GET /api/v1/idea-to-spec-workspace`
+
+Returns a consolidated readonly Idea-to-Spec Workspace surface for the
+SpecSpace utility panel. The endpoint aggregates the first autonomous
+idea-to-spec artifacts produced by SpecGraph:
+
+- `runs/idea_event_storming_intake.json`;
+- `runs/candidate_spec_graph.json`;
+- `runs/pre_sib_coherence_report.json`;
+- `runs/candidate_repair_loop_report.json`.
+
+The payload is designed for fast operator inspection: event-storming counts,
+active ontology/domain/context frame, candidate graph nodes, pre-SIB/coherence
+findings, repair-loop actions, metric deltas, and artifact availability.
+
+This surface is not a write boundary. The response is always `read_only`,
+requires `canonical_mutations_allowed: false`, and does not allow SpecSpace to
+execute prompt agents, mutate candidate source artifacts, mutate canonical
+specs, write Ontology packages, create Git branches/commits, or mark a
+candidate graph accepted.
+
+```json
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_idea_to_spec_workspace",
+  "schema_version": 1,
+  "read_only": true,
+  "canonical_mutations_allowed": false,
+  "summary": {
+    "status": "ready",
+    "available_artifact_count": 4,
+    "missing_artifact_count": 0,
+    "candidate_node_count": 12,
+    "pre_sib_finding_count": 2,
+    "repair_action_count": 5,
+    "repair_context_required_count": 1
+  },
+  "authority_boundary": {
+    "idea_to_spec_workspace_is_authority": false,
+    "may_execute_prompt_agent": false,
+    "may_mutate_candidate_source_artifacts": false,
+    "may_mutate_canonical_specs": false,
+    "may_write_ontology_package": false,
+    "may_create_branch_or_commit": false,
+    "may_mark_candidate_accepted": false
+  }
+}
+```
+
 ### `GET /api/v1/ontology-workbench`
 
 Returns a consolidated readonly Ontology Workbench surface for the SpecSpace

@@ -12,6 +12,7 @@ export type ViewerUtilityPanelId =
   | "proposals"
   | "metrics"
   | "agents"
+  | "idea-to-spec"
   | "ontology-workbench"
   | "practical-ontology"
   | "ontology-review"

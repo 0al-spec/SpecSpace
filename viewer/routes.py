@@ -68,6 +68,7 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/v1/proposals": RouteSpec("handle_v1_proposals"),
     "/api/v1/artifacts": RouteSpec("handle_v1_artifacts"),
     "/api/v1/artifacts/content": RouteSpec("handle_v1_artifact_content", pass_parsed=True),
+    "/api/v1/idea-to-spec-workspace": RouteSpec("handle_v1_idea_to_spec_workspace"),
     "/api/v1/practical-ontology": RouteSpec("handle_v1_practical_ontology"),
     "/api/v1/ontology-workbench": RouteSpec("handle_v1_ontology_workbench"),
     "/api/v1/metrics": RouteSpec("handle_v1_metrics"),

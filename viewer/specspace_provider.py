@@ -22,6 +22,7 @@ from viewer import (
     agent_surfaces,
     agent_workbench,
     capabilities_api,
+    idea_to_spec_workspace,
     metrics,
     ontology_workbench,
     practical_ontology,
@@ -118,6 +119,8 @@ class SpecSpaceProvider(Protocol):
     def read_practical_ontology(self) -> tuple[int, dict[str, Any]]: ...
 
     def read_ontology_workbench(self) -> tuple[int, dict[str, Any]]: ...
+
+    def read_idea_to_spec_workspace(self) -> tuple[int, dict[str, Any]]: ...
 
     def read_metrics(self) -> tuple[int, dict[str, Any]]: ...
 
@@ -472,6 +475,7 @@ PUBLIC_SAFE_RUN_ARTIFACT_FILENAMES: frozenset[str] = frozenset(
     {
         "spec_activity_feed.json",
         "implementation_work_index.json",
+        *idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS,
         specgraph_surfaces.ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FILENAME,
         specgraph_surfaces.ONTOLOGY_REVIEW_DASHBOARD_FILENAME,
         specgraph_surfaces.ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME,
@@ -768,6 +772,24 @@ class FileSpecGraphProvider:
         return HTTPStatus.OK, ontology_workbench.build_ontology_workbench(
             practical=practical_payload,
             artifacts=self._read_ontology_workbench_artifacts(),
+            source={
+                "provider": "file",
+                "read_only": True,
+                "runs_dir": str(self.runs_dir) if self.runs_dir is not None else None,
+                "specgraph_dir": str(self.specgraph_dir) if self.specgraph_dir is not None else None,
+            },
+        )
+
+    def _read_idea_to_spec_workspace_artifacts(self) -> dict[str, Any]:
+        return {
+            filename: payload
+            for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS
+            if (payload := self._read_local_runs_json(filename)) is not None
+        }
+
+    def read_idea_to_spec_workspace(self) -> tuple[int, dict[str, Any]]:
+        return HTTPStatus.OK, idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=self._read_idea_to_spec_workspace_artifacts(),
             source={
                 "provider": "file",
                 "read_only": True,
@@ -1675,6 +1697,34 @@ class HttpSpecGraphProvider:
         return HTTPStatus.OK, ontology_workbench.build_ontology_workbench(
             practical=practical_payload,
             artifacts=self._read_ontology_workbench_artifacts(manifest),
+            source={
+                "provider": "http",
+                "read_only": True,
+                "artifact_base_url": self.normalized_base_url,
+                "manifest": self.manifest_url,
+                "generated_at": manifest.get("generated_at"),
+                "git": manifest.get("git") if isinstance(manifest.get("git"), dict) else None,
+            },
+        )
+
+    def _read_idea_to_spec_workspace_artifacts(
+        self,
+        manifest: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            filename: payload
+            for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS
+            if (payload := self._read_optional_runs_json_data(manifest, filename))
+            is not None
+        }
+
+    def read_idea_to_spec_workspace(self) -> tuple[int, dict[str, Any]]:
+        manifest, manifest_error = self._read_manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+        return HTTPStatus.OK, idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=self._read_idea_to_spec_workspace_artifacts(manifest),
             source={
                 "provider": "http",
                 "read_only": True,
