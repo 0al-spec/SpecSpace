@@ -12,6 +12,11 @@ GAP_REVIEW_WORKFLOW_ARTIFACT = "ontology_gap_review_workflow.json"
 OWNER_DECISION_IMPORT_V2_ARTIFACT = "ontology_owner_decision_import_v2.json"
 LEGACY_BACKFILL_PLAN_ARTIFACT = "legacy_spec_ontology_backfill_plan.json"
 SPECAUTHOR_WRITE_GATE_ARTIFACT = "specauthor_ontology_write_gate_report.json"
+SPECAUTHOR_INVOCATION_ARTIFACT = "specauthor_invocation_artifact.json"
+SPECAUTHOR_INVOCATION_CONTRACT_ARTIFACT = (
+    "specauthor_invocation_artifact_contract_report.json"
+)
+SPECAUTHOR_AUTHORING_FLOW_ARTIFACT = "specauthor_authoring_flow_report.json"
 SPEC_ONTOLOGY_VALIDATION_ARTIFACT = "spec_ontology_validation_report.json"
 OWNER_DECISION_IMPORT_PREVIEW_ARTIFACT = "ontology_decision_import_preview.json"
 ONTOLOGY_LAYERS: tuple[str, ...] = (
@@ -36,6 +41,9 @@ ADDITIONAL_RUN_ARTIFACTS: tuple[str, ...] = (
     OWNER_DECISION_IMPORT_V2_ARTIFACT,
     LEGACY_BACKFILL_PLAN_ARTIFACT,
     SPECAUTHOR_WRITE_GATE_ARTIFACT,
+    SPECAUTHOR_INVOCATION_ARTIFACT,
+    SPECAUTHOR_INVOCATION_CONTRACT_ARTIFACT,
+    SPECAUTHOR_AUTHORING_FLOW_ARTIFACT,
     SPEC_ONTOLOGY_VALIDATION_ARTIFACT,
     OWNER_DECISION_IMPORT_PREVIEW_ARTIFACT,
 )
@@ -55,6 +63,7 @@ DISPLAY_LIMITS = {
     "gap_groups": 40,
     "compliance_entries": 30,
     "write_gate_findings": 30,
+    "specauthor_invocation_findings": 30,
     "owner_decisions": 30,
     "legacy_batches": 20,
 }
@@ -432,6 +441,120 @@ def _write_gate_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
     ]
 
 
+def _specauthor_invocation_findings(
+    *reports: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    findings: list[dict[str, Any]] = []
+    for report in reports:
+        for item in _records((report or {}).get("findings")):
+            findings.append(
+                {
+                    "finding_id": _text(
+                        item.get("finding_id"), "specauthor-invocation-finding"
+                    ),
+                    "severity": _text(item.get("severity"), "unknown"),
+                    "message": _text(
+                        item.get("message"), "SpecAuthor invocation finding."
+                    ),
+                    "source_ref": _optional_text(item.get("source_ref")),
+                }
+            )
+    return findings[: DISPLAY_LIMITS["specauthor_invocation_findings"]]
+
+
+def _specauthor_invocation_lens(
+    *,
+    invocation: dict[str, Any] | None,
+    contract_report: dict[str, Any] | None,
+    flow_report: dict[str, Any] | None,
+) -> dict[str, Any]:
+    invocation_record = _record((invocation or {}).get("invocation"))
+    user_intent = _record(invocation_record.get("user_intent"))
+    active_frame = _record((invocation or {}).get("active_frame"))
+    model_applicability = _record((invocation or {}).get("model_applicability"))
+    operator_decision = _record((invocation or {}).get("operator_decision"))
+    validation_summary = _record((flow_report or {}).get("validation_chain_summary"))
+    findings = _specauthor_invocation_findings(contract_report, flow_report)
+    return {
+        "available": invocation is not None,
+        "summary": {
+            "status": _text(
+                (flow_report or {}).get("review_state"),
+                _text((contract_report or {}).get("review_state"), "missing_artifact"),
+            ),
+            "finding_count": len(findings),
+            "operator_decision_state": _optional_text(
+                operator_decision.get("decision_state")
+            ),
+            "invocation_contract_ok": (contract_report or {}).get("ok") is True,
+            "authoring_flow_ok": (flow_report or {}).get("ok") is True,
+        },
+        "invocation": {
+            "invocation_id": _optional_text(invocation_record.get("invocation_id")),
+            "agent_id": _optional_text(invocation_record.get("agent_id")),
+            "mode": _optional_text(invocation_record.get("mode")),
+            "prompt_contract_ref": _optional_text(
+                invocation_record.get("prompt_contract_ref")
+            ),
+            "user_intent_text": _optional_text(user_intent.get("text")),
+            "user_intent_source_ref": _optional_text(user_intent.get("source_ref")),
+        },
+        "active_frame": {
+            "project": _optional_text(active_frame.get("project")),
+            "subsystem": _optional_text(active_frame.get("subsystem")),
+            "agent_layer": _optional_text(active_frame.get("agent_layer")),
+            "target_artifact": _optional_text(active_frame.get("target_artifact")),
+            "lifecycle_phase": _optional_text(active_frame.get("lifecycle_phase")),
+            "ontology_refs": _string_list(active_frame.get("ontology_refs")),
+            "ontology_layer_refs": _string_list(active_frame.get("ontology_layer_refs")),
+            "model_applicability_refs": _string_list(
+                active_frame.get("model_applicability_refs")
+            ),
+            "domain_refs": _string_list(active_frame.get("domain_refs")),
+            "context_refs": _string_list(active_frame.get("context_refs")),
+        },
+        "model_applicability": {
+            "package_ref": _optional_text(model_applicability.get("package_ref")),
+            "assumption_refs": _string_list(model_applicability.get("assumption_refs")),
+            "invalidation_trigger_refs": _string_list(
+                model_applicability.get("invalidation_trigger_refs")
+            ),
+        },
+        "validation_chain": {
+            "generated_artifact_contract_ok": validation_summary.get(
+                "generated_artifact_contract_ok"
+            )
+            is True,
+            "write_gate_ok": validation_summary.get("write_gate_ok") is True,
+            "write_decision": _optional_text(validation_summary.get("write_decision")),
+            "invocation_contract_ok": validation_summary.get(
+                "invocation_contract_ok"
+            )
+            is True,
+            "invocation_review_state": _optional_text(
+                validation_summary.get("invocation_review_state")
+            ),
+        },
+        "operator_decision": {
+            "decision_state": _optional_text(operator_decision.get("decision_state")),
+            "reviewer": _optional_text(operator_decision.get("reviewer")),
+            "may_execute_prompt_agent": operator_decision.get(
+                "may_execute_prompt_agent"
+            )
+            is True,
+            "may_write_ontology_package": operator_decision.get(
+                "may_write_ontology_package"
+            )
+            is True,
+            "may_mutate_canonical_specs": operator_decision.get(
+                "may_mutate_canonical_specs"
+            )
+            is True,
+        },
+        "findings": findings,
+    }
+
+
 def _owner_decision_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
     if not report:
         return []
@@ -639,6 +762,9 @@ def _summary(
     gap_workflow: dict[str, Any] | None,
     compliance: dict[str, Any] | None,
     write_gate: dict[str, Any] | None,
+    specauthor_invocation: dict[str, Any] | None,
+    specauthor_invocation_contract: dict[str, Any] | None,
+    specauthor_authoring_flow: dict[str, Any] | None,
     owner_decisions: dict[str, Any] | None,
     legacy_backfill: dict[str, Any] | None,
     artifacts: dict[str, Any],
@@ -647,6 +773,10 @@ def _summary(
     gap_summary = _record((gap_workflow or {}).get("summary"))
     compliance_summary = _record((compliance or {}).get("summary"))
     write_gate_summary = _record((write_gate or {}).get("summary"))
+    specauthor_invocation_findings = _specauthor_invocation_findings(
+        specauthor_invocation_contract,
+        specauthor_authoring_flow,
+    )
     owner_summary = _record((owner_decisions or {}).get("summary"))
     legacy_summary = _record((legacy_backfill or {}).get("summary"))
     expected_artifact_keys = {
@@ -679,6 +809,7 @@ def _summary(
         "compliance_spec_count": _number(compliance_summary.get("spec_count")),
         "compliance_finding_count": _number(compliance_summary.get("finding_count")),
         "write_gate_finding_count": _number(write_gate_summary.get("finding_count")),
+        "specauthor_invocation_finding_count": len(specauthor_invocation_findings),
         "owner_decision_review_count": _number(owner_summary.get("review_count"))
         or _number(owner_summary.get("preview_count")),
         "owner_decision_importable_count": _number(
@@ -718,6 +849,13 @@ def build_ontology_workbench(
     gap_workflow = _artifact_data(artifacts, GAP_REVIEW_WORKFLOW_ARTIFACT)
     compliance = _artifact_data(artifacts, SPEC_ONTOLOGY_VALIDATION_ARTIFACT)
     write_gate = _artifact_data(artifacts, SPECAUTHOR_WRITE_GATE_ARTIFACT)
+    specauthor_invocation = _artifact_data(artifacts, SPECAUTHOR_INVOCATION_ARTIFACT)
+    specauthor_invocation_contract = _artifact_data(
+        artifacts, SPECAUTHOR_INVOCATION_CONTRACT_ARTIFACT
+    )
+    specauthor_authoring_flow = _artifact_data(
+        artifacts, SPECAUTHOR_AUTHORING_FLOW_ARTIFACT
+    )
     owner_decisions = _artifact_data(
         artifacts, OWNER_DECISION_IMPORT_V2_ARTIFACT
     ) or _artifact_data(artifacts, OWNER_DECISION_IMPORT_PREVIEW_ARTIFACT)
@@ -752,6 +890,15 @@ def build_ontology_workbench(
             artifacts, SPEC_ONTOLOGY_VALIDATION_ARTIFACT
         ),
         "write_gate": _run_artifact_status(artifacts, SPECAUTHOR_WRITE_GATE_ARTIFACT),
+        "specauthor_invocation": _run_artifact_status(
+            artifacts, SPECAUTHOR_INVOCATION_ARTIFACT
+        ),
+        "specauthor_invocation_contract": _run_artifact_status(
+            artifacts, SPECAUTHOR_INVOCATION_CONTRACT_ARTIFACT
+        ),
+        "specauthor_authoring_flow": _run_artifact_status(
+            artifacts, SPECAUTHOR_AUTHORING_FLOW_ARTIFACT
+        ),
         "owner_decision_import_v2": _run_artifact_status(
             artifacts, OWNER_DECISION_IMPORT_V2_ARTIFACT
         ),
@@ -776,6 +923,9 @@ def build_ontology_workbench(
             gap_workflow=gap_workflow,
             compliance=compliance,
             write_gate=write_gate,
+            specauthor_invocation=specauthor_invocation,
+            specauthor_invocation_contract=specauthor_invocation_contract,
+            specauthor_authoring_flow=specauthor_authoring_flow,
             owner_decisions=owner_decisions,
             legacy_backfill=legacy_backfill,
             artifacts=artifacts,
@@ -818,6 +968,11 @@ def build_ontology_workbench(
             is True,
             "write_decision": _optional_text((write_gate or {}).get("write_decision")),
         },
+        "specauthor_invocation": _specauthor_invocation_lens(
+            invocation=specauthor_invocation,
+            contract_report=specauthor_invocation_contract,
+            flow_report=specauthor_authoring_flow,
+        ),
         "owner_decisions": {
             "summary": _record((owner_decisions or {}).get("summary")),
             "reviews": _owner_decision_rows(owner_decisions),

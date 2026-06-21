@@ -16,6 +16,14 @@ describe("parseOntologyWorkbench", () => {
     expect(result.data.layers.unassigned.diffChangeCount).toBe(0);
     expect(result.data.gapReview.groups[0]?.proposedTerm).toBe("Intent");
     expect(result.data.writeGate.wouldRejectInHardGate).toBe(true);
+    expect(result.data.specAuthorInvocation.available).toBe(true);
+    expect(result.data.specAuthorInvocation.invocation.invocationId).toBe(
+      "specauthor-invocation-0146-ready",
+    );
+    expect(result.data.specAuthorInvocation.validationChain.writeDecision).toBe(
+      "allow_graph_write",
+    );
+    expect(result.data.specAuthorInvocation.operatorDecision.mayExecutePromptAgent).toBe(false);
     expect(result.data.ownerDecisions.reviews[0]?.afterSemanticStatus).toBe("accepted_term");
     expect(result.data.legacyBackfill.smallPrBatches[0]?.mutatesCanonicalSpecs).toBe(false);
   });

@@ -11,6 +11,7 @@ export type OntologyWorkbenchSummary = {
   complianceSpecCount: number;
   complianceFindingCount: number;
   writeGateFindingCount: number;
+  specAuthorInvocationFindingCount: number;
   ownerDecisionReviewCount: number;
   ownerDecisionImportableCount: number;
   legacySpecCount: number;
@@ -90,6 +91,64 @@ export type OntologyWorkbenchWriteGateFinding = {
   severity: string;
   message: string;
   sourceRef: string | null;
+};
+
+export type OntologyWorkbenchSpecAuthorInvocationFinding = {
+  findingId: string;
+  severity: string;
+  message: string;
+  sourceRef: string | null;
+};
+
+export type OntologyWorkbenchSpecAuthorInvocation = {
+  available: boolean;
+  summary: {
+    status: string;
+    findingCount: number;
+    operatorDecisionState: string | null;
+    invocationContractOk: boolean;
+    authoringFlowOk: boolean;
+  };
+  invocation: {
+    invocationId: string | null;
+    agentId: string | null;
+    mode: string | null;
+    promptContractRef: string | null;
+    userIntentText: string | null;
+    userIntentSourceRef: string | null;
+  };
+  activeFrame: {
+    project: string | null;
+    subsystem: string | null;
+    agentLayer: string | null;
+    targetArtifact: string | null;
+    lifecyclePhase: string | null;
+    ontologyRefs: readonly string[];
+    ontologyLayerRefs: readonly string[];
+    modelApplicabilityRefs: readonly string[];
+    domainRefs: readonly string[];
+    contextRefs: readonly string[];
+  };
+  modelApplicability: {
+    packageRef: string | null;
+    assumptionRefs: readonly string[];
+    invalidationTriggerRefs: readonly string[];
+  };
+  validationChain: {
+    generatedArtifactContractOk: boolean;
+    writeGateOk: boolean;
+    writeDecision: string | null;
+    invocationContractOk: boolean;
+    invocationReviewState: string | null;
+  };
+  operatorDecision: {
+    decisionState: string | null;
+    reviewer: string | null;
+    mayExecutePromptAgent: boolean;
+    mayWriteOntologyPackage: boolean;
+    mayMutateCanonicalSpecs: boolean;
+  };
+  findings: readonly OntologyWorkbenchSpecAuthorInvocationFinding[];
 };
 
 export type OntologyWorkbenchOwnerDecisionReview = {
@@ -265,6 +324,7 @@ export type OntologyWorkbench = {
     wouldRejectInHardGate: boolean;
     writeDecision: string | null;
   };
+  specAuthorInvocation: OntologyWorkbenchSpecAuthorInvocation;
   ownerDecisions: {
     summary: Record<string, unknown>;
     reviews: readonly OntologyWorkbenchOwnerDecisionReview[];
@@ -442,6 +502,83 @@ function parseWriteGateFinding(
     severity: stringValue(raw.severity, "unknown"),
     message: stringValue(raw.message, "Write gate finding."),
     sourceRef: optionalString(raw.source_ref),
+  };
+}
+
+function parseSpecAuthorInvocationFinding(
+  raw: Record<string, unknown>,
+): OntologyWorkbenchSpecAuthorInvocationFinding | null {
+  const findingId = optionalString(raw.finding_id);
+  if (!findingId) return null;
+  return {
+    findingId,
+    severity: stringValue(raw.severity, "unknown"),
+    message: stringValue(raw.message, "SpecAuthor invocation finding."),
+    sourceRef: optionalString(raw.source_ref),
+  };
+}
+
+function parseSpecAuthorInvocation(raw: unknown): OntologyWorkbenchSpecAuthorInvocation {
+  const data = recordValue(raw);
+  const summary = recordValue(data.summary);
+  const invocation = recordValue(data.invocation);
+  const activeFrame = recordValue(data.active_frame);
+  const modelApplicability = recordValue(data.model_applicability);
+  const validationChain = recordValue(data.validation_chain);
+  const operatorDecision = recordValue(data.operator_decision);
+  return {
+    available: data.available === true,
+    summary: {
+      status: stringValue(summary.status, "missing_artifact"),
+      findingCount: numberValue(summary.finding_count),
+      operatorDecisionState: optionalString(summary.operator_decision_state),
+      invocationContractOk: summary.invocation_contract_ok === true,
+      authoringFlowOk: summary.authoring_flow_ok === true,
+    },
+    invocation: {
+      invocationId: optionalString(invocation.invocation_id),
+      agentId: optionalString(invocation.agent_id),
+      mode: optionalString(invocation.mode),
+      promptContractRef: optionalString(invocation.prompt_contract_ref),
+      userIntentText: optionalString(invocation.user_intent_text),
+      userIntentSourceRef: optionalString(invocation.user_intent_source_ref),
+    },
+    activeFrame: {
+      project: optionalString(activeFrame.project),
+      subsystem: optionalString(activeFrame.subsystem),
+      agentLayer: optionalString(activeFrame.agent_layer),
+      targetArtifact: optionalString(activeFrame.target_artifact),
+      lifecyclePhase: optionalString(activeFrame.lifecycle_phase),
+      ontologyRefs: stringList(activeFrame.ontology_refs),
+      ontologyLayerRefs: stringList(activeFrame.ontology_layer_refs),
+      modelApplicabilityRefs: stringList(activeFrame.model_applicability_refs),
+      domainRefs: stringList(activeFrame.domain_refs),
+      contextRefs: stringList(activeFrame.context_refs),
+    },
+    modelApplicability: {
+      packageRef: optionalString(modelApplicability.package_ref),
+      assumptionRefs: stringList(modelApplicability.assumption_refs),
+      invalidationTriggerRefs: stringList(modelApplicability.invalidation_trigger_refs),
+    },
+    validationChain: {
+      generatedArtifactContractOk:
+        validationChain.generated_artifact_contract_ok === true,
+      writeGateOk: validationChain.write_gate_ok === true,
+      writeDecision: optionalString(validationChain.write_decision),
+      invocationContractOk: validationChain.invocation_contract_ok === true,
+      invocationReviewState: optionalString(validationChain.invocation_review_state),
+    },
+    operatorDecision: {
+      decisionState: optionalString(operatorDecision.decision_state),
+      reviewer: optionalString(operatorDecision.reviewer),
+      mayExecutePromptAgent: operatorDecision.may_execute_prompt_agent === true,
+      mayWriteOntologyPackage: operatorDecision.may_write_ontology_package === true,
+      mayMutateCanonicalSpecs: operatorDecision.may_mutate_canonical_specs === true,
+    },
+    findings: records(data.findings).flatMap((item) => {
+      const parsed = parseSpecAuthorInvocationFinding(item);
+      return parsed ? [parsed] : [];
+    }),
   };
 }
 
@@ -706,6 +843,7 @@ export function parseOntologyWorkbench(raw: unknown): UseOntologyWorkbenchState 
   const gapReview = recordValue(raw.gap_review);
   const compliance = recordValue(raw.compliance);
   const writeGate = recordValue(raw.write_gate);
+  const specAuthorInvocation = recordValue(raw.specauthor_invocation);
   const ownerDecisions = recordValue(raw.owner_decisions);
   const legacyBackfill = recordValue(raw.legacy_backfill);
 
@@ -731,6 +869,9 @@ export function parseOntologyWorkbench(raw: unknown): UseOntologyWorkbenchState 
         complianceSpecCount: numberValue(summary.compliance_spec_count),
         complianceFindingCount: numberValue(summary.compliance_finding_count),
         writeGateFindingCount: numberValue(summary.write_gate_finding_count),
+        specAuthorInvocationFindingCount: numberValue(
+          summary.specauthor_invocation_finding_count,
+        ),
         ownerDecisionReviewCount: numberValue(summary.owner_decision_review_count),
         ownerDecisionImportableCount: numberValue(summary.owner_decision_importable_count),
         legacySpecCount: numberValue(summary.legacy_spec_count),
@@ -781,6 +922,7 @@ export function parseOntologyWorkbench(raw: unknown): UseOntologyWorkbenchState 
         wouldRejectInHardGate: writeGate.would_reject_in_hard_gate === true,
         writeDecision: optionalString(writeGate.write_decision),
       },
+      specAuthorInvocation: parseSpecAuthorInvocation(specAuthorInvocation),
       ownerDecisions: {
         summary: recordValue(ownerDecisions.summary),
         reviews: records(ownerDecisions.reviews).flatMap((item) => {

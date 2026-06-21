@@ -46,6 +46,11 @@ describe("OntologyWorkbenchPanel", () => {
     expect(html).toContain("ontology-gap-review-legacy-term-intent");
     expect(html).toContain("SG-SPEC-0001");
     expect(html).toContain("active_frame_incomplete");
+    expect(html).toContain("SpecAuthor invocation");
+    expect(html).toContain("specauthor-invocation-0146-ready");
+    expect(html).toContain("allow_graph_write");
+    expect(html).toContain("domain.specification_authoring");
+    expect(html).toContain("Prompt execution");
     expect(html).toContain("accepted_term");
     expect(html).toContain("legacy-spec-ontology-backfill-batch-001");
     expect(html).toContain("Ontology writes");
