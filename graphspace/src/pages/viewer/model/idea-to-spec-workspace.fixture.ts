@@ -19,6 +19,9 @@ export const ideaToSpecWorkspace = {
     materialized_file_count: 2,
     promotion_path_count: 0,
     promotion_gate_blocker_count: 1,
+    platform_missing_artifact_count: 0,
+    git_service_operation_count: 3,
+    git_service_error_count: 0,
     next_artifact: "owner/operator repair before promotion",
   },
   intake: {
@@ -213,6 +216,88 @@ export const ideaToSpecWorkspace = {
       paths: [],
     },
   },
+  controlled_promotion: {
+    available: true,
+    platform_request: {
+      available: true,
+      ok: true,
+      candidate_id: "idea-alpha",
+      candidate_branch: "graph-candidate/idea-alpha",
+      commit_paths: [
+        "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+        "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
+      ],
+      requested_operations: [
+        "prepare_branch",
+        "create_commit",
+        "open_review",
+      ],
+      review: {
+        title: "Add candidate spec graph",
+        base_branch: "main",
+      },
+      summary: {
+        error_count: 0,
+        commit_path_count: 2,
+        promotion_ready: true,
+      },
+    },
+    git_service_execution: {
+      available: true,
+      ok: true,
+      dry_run: false,
+      open_review_dry_run: true,
+      candidate_id: "idea-alpha",
+      candidate_ref: "graph-candidate/idea-alpha",
+      workspace_dir: ".platform/candidates/idea-alpha-worktree",
+      operation_count: 3,
+      completed_operation_count: 3,
+      error_count: 0,
+      copied_file_count: 1,
+      operations: [
+        {
+          name: "prepare_worktree",
+          status: "succeeded",
+          request_artifact_kind: "platform_git_service_prepare_worktree_request",
+          response_artifact_kind: "platform_git_service_prepare_worktree_response",
+          report_ref:
+            ".platform/candidates/idea-alpha-worktree/.platform/graph_repository_worktree_prepare_report.json",
+          diagnostic_count: 0,
+        },
+        {
+          name: "commit_candidate",
+          status: "succeeded",
+          request_artifact_kind: "platform_git_service_commit_candidate_request",
+          response_artifact_kind: "platform_git_service_commit_candidate_response",
+          report_ref:
+            ".platform/candidates/idea-alpha-worktree/.platform/graph_repository_review_commit_report.json",
+          diagnostic_count: 0,
+        },
+        {
+          name: "open_review",
+          status: "dry_run",
+          request_artifact_kind: "platform_git_service_open_review_request",
+          response_artifact_kind: "platform_git_service_open_review_response",
+          report_ref: null,
+          diagnostic_count: 0,
+        },
+      ],
+      report_refs: {
+        prepare_worktree:
+          ".platform/candidates/idea-alpha-worktree/.platform/graph_repository_worktree_prepare_report.json",
+        commit_candidate:
+          ".platform/candidates/idea-alpha-worktree/.platform/graph_repository_review_commit_report.json",
+      },
+    },
+    action_boundary: {
+      inspect_only: true,
+      acknowledge_only: true,
+      may_execute_git_service: false,
+      may_create_branch_or_commit: false,
+      may_merge_review: false,
+      may_mutate_specs: false,
+    },
+  },
   artifacts: {
     event_storming_intake: {
       available: true,
@@ -262,12 +347,29 @@ export const ideaToSpecWorkspace = {
       proposal_id: "0154",
       contract_ref: "specgraph.idea-to-spec.promotion-gate.v0.1",
     },
+    platform_promotion_request: {
+      available: true,
+      path: "runs/graph_repository_promotion_request.json",
+      artifact_kind: "platform_graph_repository_promotion_request",
+      status: null,
+      proposal_id: null,
+      contract_ref: null,
+    },
+    git_service_execution: {
+      available: true,
+      path: "runs/git_service_promotion_execution_report.json",
+      artifact_kind: "platform_git_service_promotion_execution_report",
+      status: null,
+      proposal_id: null,
+      contract_ref: null,
+    },
   },
   display_limits: {
     nodes: 40,
     findings: 40,
     repair_actions: 40,
     materialized_files: 40,
+    git_service_operations: 20,
   },
   authority_boundary: {
     idea_to_spec_workspace_is_authority: false,
@@ -276,6 +378,7 @@ export const ideaToSpecWorkspace = {
     may_mutate_canonical_specs: false,
     may_write_ontology_package: false,
     may_create_branch_or_commit: false,
+    may_execute_git_service_operation: false,
     may_mark_candidate_accepted: false,
   },
 };

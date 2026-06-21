@@ -1,5 +1,6 @@
 import type {
   IdeaToSpecCandidateNode,
+  IdeaToSpecGitServiceOperation,
   IdeaToSpecMaterializedFile,
   IdeaToSpecRepairAction,
   IdeaToSpecWorkspace,
@@ -82,6 +83,7 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <Metric label="Specs" value={data.summary.materializedFileCount} />
         <Metric label="Promote" value={data.summary.promotionPathCount} />
         <Metric label="Gate" value={data.summary.promotionGateBlockerCount} />
+        <Metric label="Git ops" value={data.summary.gitServiceOperationCount} />
         <Metric label="Missing" value={data.summary.missingArtifactCount} />
       </div>
 
@@ -124,6 +126,10 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
           label="Git writes"
           value={boolText(data.authorityBoundary.mayCreateBranchOrCommit)}
         />
+        <PostureItem
+          label="Git service"
+          value={boolText(data.authorityBoundary.mayExecuteGitServiceOperation)}
+        />
       </div>
 
       <div className={styles.entries}>
@@ -135,6 +141,7 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <RepairSection actions={data.repairLoop.actions} />
         <MaterializationSection state={state} />
         <PromotionGateSection state={state} />
+        <ControlledPromotionSection state={state} />
       </div>
     </section>
   );
@@ -433,6 +440,90 @@ function PromotionGateSection({
         </div>
       </div>
     </section>
+  );
+}
+
+function ControlledPromotionSection({
+  state,
+}: {
+  state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
+}) {
+  const promotion = state.data.controlledPromotion;
+  const request = promotion.platformRequest;
+  const execution = promotion.gitServiceExecution;
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader
+        title="Controlled promotion"
+        count={execution.operations.length}
+      />
+      <div className={styles.postureStrip}>
+        <PostureItem label="Inspect only" value={boolText(promotion.actionBoundary.inspectOnly)} />
+        <PostureItem label="Execute" value={boolText(promotion.actionBoundary.mayExecuteGitService)} />
+        <PostureItem label="Commit" value={boolText(promotion.actionBoundary.mayCreateBranchOrCommit)} />
+        <PostureItem label="Merge" value={boolText(promotion.actionBoundary.mayMergeReview)} />
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Platform promotion request</span>
+          <Pill value={request.available ? (request.ok ? "ready" : "blocked") : "missing"} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Candidate" value={request.candidateId} />
+          <Meta label="Branch" value={request.candidateBranch} />
+          <Meta label="Base" value={request.review.baseBranch} />
+          <Meta label="Title" value={request.review.title} />
+          <Meta label="Commit paths" value={joined(request.commitPaths)} />
+          <Meta label="Operations" value={joined(request.requestedOperations)} />
+        </div>
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Git Service execution</span>
+          <Pill value={execution.available ? (execution.ok ? "ok" : "blocked") : "missing"} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Candidate" value={execution.candidateId} />
+          <Meta label="Ref" value={execution.candidateRef} />
+          <Meta label="Workspace" value={execution.workspaceDir} />
+          <Meta label="Dry run" value={boolText(execution.dryRun)} />
+          <Meta label="Open review dry run" value={boolText(execution.openReviewDryRun)} />
+          <Meta label="Copied files" value={String(execution.copiedFileCount)} />
+          <Meta label="Completed ops" value={String(execution.completedOperationCount)} />
+          <Meta label="Errors" value={String(execution.errorCount)} />
+        </div>
+      </div>
+      {execution.operations.length === 0 ? (
+        <Status
+          label="No Git Service execution"
+          detail="Promotion can be inspected here after Platform publishes the execution report."
+        />
+      ) : null}
+      {execution.operations.map((operation) => (
+        <GitServiceOperationRow key={operation.name} operation={operation} />
+      ))}
+    </section>
+  );
+}
+
+function GitServiceOperationRow({
+  operation,
+}: {
+  operation: IdeaToSpecGitServiceOperation;
+}) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{operation.name.replace(/_/g, " ")}</span>
+        <Pill value={operation.status} />
+      </div>
+      <div className={styles.metaGrid}>
+        <Meta label="Request" value={operation.requestArtifactKind} />
+        <Meta label="Response" value={operation.responseArtifactKind} />
+        <Meta label="Report" value={operation.reportRef} />
+        <Meta label="Diagnostics" value={String(operation.diagnosticCount)} />
+      </div>
+    </div>
   );
 }
 

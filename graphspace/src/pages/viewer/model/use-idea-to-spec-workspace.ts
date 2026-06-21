@@ -63,6 +63,45 @@ export type IdeaToSpecPromotionRequest = {
   paths: readonly string[];
 };
 
+export type IdeaToSpecPlatformPromotionRequest = {
+  available: boolean;
+  ok: boolean;
+  candidateId: string | null;
+  candidateBranch: string | null;
+  commitPaths: readonly string[];
+  requestedOperations: readonly string[];
+  review: {
+    title: string | null;
+    baseBranch: string | null;
+  };
+  summary: Record<string, unknown>;
+};
+
+export type IdeaToSpecGitServiceOperation = {
+  name: string;
+  status: string;
+  requestArtifactKind: string | null;
+  responseArtifactKind: string | null;
+  reportRef: string | null;
+  diagnosticCount: number;
+};
+
+export type IdeaToSpecGitServiceExecution = {
+  available: boolean;
+  ok: boolean;
+  dryRun: boolean;
+  openReviewDryRun: boolean;
+  candidateId: string | null;
+  candidateRef: string | null;
+  workspaceDir: string | null;
+  operationCount: number;
+  completedOperationCount: number;
+  errorCount: number;
+  copiedFileCount: number;
+  operations: readonly IdeaToSpecGitServiceOperation[];
+  reportRefs: Record<string, unknown>;
+};
+
 export type IdeaToSpecWorkspace = {
   apiVersion: "v1";
   artifactKind: "specspace_idea_to_spec_workspace";
@@ -83,6 +122,9 @@ export type IdeaToSpecWorkspace = {
     materializedFileCount: number;
     promotionPathCount: number;
     promotionGateBlockerCount: number;
+    platformMissingArtifactCount: number;
+    gitServiceOperationCount: number;
+    gitServiceErrorCount: number;
     nextArtifact: string | null;
   };
   intake: {
@@ -162,6 +204,19 @@ export type IdeaToSpecWorkspace = {
     findings: readonly IdeaToSpecFinding[];
     promotionRequest: IdeaToSpecPromotionRequest;
   };
+  controlledPromotion: {
+    available: boolean;
+    platformRequest: IdeaToSpecPlatformPromotionRequest;
+    gitServiceExecution: IdeaToSpecGitServiceExecution;
+    actionBoundary: {
+      inspectOnly: true;
+      acknowledgeOnly: true;
+      mayExecuteGitService: false;
+      mayCreateBranchOrCommit: false;
+      mayMergeReview: false;
+      mayMutateSpecs: false;
+    };
+  };
   artifacts: Record<string, IdeaToSpecArtifactStatus>;
   authorityBoundary: {
     ideaToSpecWorkspaceIsAuthority: false;
@@ -170,6 +225,7 @@ export type IdeaToSpecWorkspace = {
     mayMutateCanonicalSpecs: false;
     mayWriteOntologyPackage: false;
     mayCreateBranchOrCommit: false;
+    mayExecuteGitServiceOperation: false;
     mayMarkCandidateAccepted: false;
   };
 };
@@ -323,6 +379,64 @@ function parsePromotionRequest(raw: unknown): IdeaToSpecPromotionRequest {
   };
 }
 
+function parsePlatformPromotionRequest(
+  raw: unknown,
+): IdeaToSpecPlatformPromotionRequest {
+  const request = recordValue(raw);
+  const review = recordValue(request.review);
+  return {
+    available: request.available === true,
+    ok: request.ok === true,
+    candidateId: optionalString(request.candidate_id),
+    candidateBranch: optionalString(request.candidate_branch),
+    commitPaths: strings(request.commit_paths),
+    requestedOperations: strings(request.requested_operations),
+    review: {
+      title: optionalString(review.title),
+      baseBranch: optionalString(review.base_branch),
+    },
+    summary: recordValue(request.summary),
+  };
+}
+
+function parseGitServiceOperation(
+  raw: unknown,
+): IdeaToSpecGitServiceOperation | null {
+  const operation = recordValue(raw);
+  const name = optionalString(operation.name);
+  if (!name) return null;
+  return {
+    name,
+    status: stringValue(operation.status, "unknown"),
+    requestArtifactKind: optionalString(operation.request_artifact_kind),
+    responseArtifactKind: optionalString(operation.response_artifact_kind),
+    reportRef: optionalString(operation.report_ref),
+    diagnosticCount: numberValue(operation.diagnostic_count),
+  };
+}
+
+function parseGitServiceExecution(raw: unknown): IdeaToSpecGitServiceExecution {
+  const execution = recordValue(raw);
+  return {
+    available: execution.available === true,
+    ok: execution.ok === true,
+    dryRun: execution.dry_run === true,
+    openReviewDryRun: execution.open_review_dry_run === true,
+    candidateId: optionalString(execution.candidate_id),
+    candidateRef: optionalString(execution.candidate_ref),
+    workspaceDir: optionalString(execution.workspace_dir),
+    operationCount: numberValue(execution.operation_count),
+    completedOperationCount: numberValue(execution.completed_operation_count),
+    errorCount: numberValue(execution.error_count),
+    copiedFileCount: numberValue(execution.copied_file_count),
+    operations: records(execution.operations).flatMap((item) => {
+      const parsed = parseGitServiceOperation(item);
+      return parsed ? [parsed] : [];
+    }),
+    reportRefs: recordValue(execution.report_refs),
+  };
+}
+
 export function parseIdeaToSpecWorkspace(
   raw: unknown,
 ): UseIdeaToSpecWorkspaceState {
@@ -350,6 +464,7 @@ export function parseIdeaToSpecWorkspace(
     "may_mutate_canonical_specs",
     "may_write_ontology_package",
     "may_create_branch_or_commit",
+    "may_execute_git_service_operation",
     "may_mark_candidate_accepted",
   ];
   for (const flag of falseFlags) {
@@ -366,6 +481,25 @@ export function parseIdeaToSpecWorkspace(
   const repairLoop = recordValue(raw.repair_loop);
   const materialization = recordValue(raw.materialization);
   const promotionGate = recordValue(raw.promotion_gate);
+  const controlledPromotion = recordValue(raw.controlled_promotion);
+  const actionBoundary = recordValue(controlledPromotion.action_boundary);
+  const controlledPromotionFalseFlags = [
+    "may_execute_git_service",
+    "may_create_branch_or_commit",
+    "may_merge_review",
+    "may_mutate_specs",
+  ];
+  for (const flag of controlledPromotionFalseFlags) {
+    if (actionBoundary[flag] !== false) {
+      return { kind: "parse-error", reason: `promotion action boundary expanded: ${flag}`, raw };
+    }
+  }
+  if (
+    actionBoundary.inspect_only !== true ||
+    actionBoundary.acknowledge_only !== true
+  ) {
+    return { kind: "parse-error", reason: "promotion action boundary must be inspect-only", raw };
+  }
   const artifacts = Object.fromEntries(
     Object.entries(recordValue(raw.artifacts)).map(([key, value]) => [
       key,
@@ -398,6 +532,13 @@ export function parseIdeaToSpecWorkspace(
         promotionGateBlockerCount: numberValue(
           summary.promotion_gate_blocker_count,
         ),
+        platformMissingArtifactCount: numberValue(
+          summary.platform_missing_artifact_count,
+        ),
+        gitServiceOperationCount: numberValue(
+          summary.git_service_operation_count,
+        ),
+        gitServiceErrorCount: numberValue(summary.git_service_error_count),
         nextArtifact: optionalString(summary.next_artifact),
       },
       intake: {
@@ -484,6 +625,23 @@ export function parseIdeaToSpecWorkspace(
           promotionGate.promotion_request,
         ),
       },
+      controlledPromotion: {
+        available: controlledPromotion.available === true,
+        platformRequest: parsePlatformPromotionRequest(
+          controlledPromotion.platform_request,
+        ),
+        gitServiceExecution: parseGitServiceExecution(
+          controlledPromotion.git_service_execution,
+        ),
+        actionBoundary: {
+          inspectOnly: true,
+          acknowledgeOnly: true,
+          mayExecuteGitService: false,
+          mayCreateBranchOrCommit: false,
+          mayMergeReview: false,
+          mayMutateSpecs: false,
+        },
+      },
       artifacts,
       authorityBoundary: {
         ideaToSpecWorkspaceIsAuthority: false,
@@ -492,6 +650,7 @@ export function parseIdeaToSpecWorkspace(
         mayMutateCanonicalSpecs: false,
         mayWriteOntologyPackage: false,
         mayCreateBranchOrCommit: false,
+        mayExecuteGitServiceOperation: false,
         mayMarkCandidateAccepted: false,
       },
     },
