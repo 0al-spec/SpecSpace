@@ -14,14 +14,26 @@ CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT = (
     "candidate_spec_materialization_report.json"
 )
 IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT = "idea_to_spec_promotion_gate.json"
+GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT = "graph_repository_promotion_request.json"
+GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT = (
+    "git_service_promotion_execution_report.json"
+)
 
-WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
+CORE_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT,
     CANDIDATE_SPEC_GRAPH_ARTIFACT,
     PRE_SIB_COHERENCE_REPORT_ARTIFACT,
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT,
     CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
     IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
+)
+PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
+    GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT,
+    GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+)
+WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
+    *CORE_WORKSPACE_RUN_ARTIFACTS,
+    *PLATFORM_PROMOTION_ARTIFACTS,
 )
 
 ARTIFACT_KEYS: dict[str, str] = {
@@ -31,6 +43,8 @@ ARTIFACT_KEYS: dict[str, str] = {
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
     CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: "materialization",
     IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: "promotion_gate",
+    GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: "platform_promotion_request",
+    GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: "git_service_execution",
 }
 
 EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
@@ -42,6 +56,12 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
         "candidate_spec_materialization_report"
     ),
     IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: "idea_to_spec_promotion_gate",
+    GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: (
+        "platform_graph_repository_promotion_request"
+    ),
+    GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: (
+        "platform_git_service_promotion_execution_report"
+    ),
 }
 
 DISPLAY_LIMITS = {
@@ -49,6 +69,7 @@ DISPLAY_LIMITS = {
     "findings": 40,
     "repair_actions": 40,
     "materialized_files": 40,
+    "git_service_operations": 20,
 }
 
 
@@ -109,6 +130,15 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             "detail": f"artifact_kind must be {expected_kind}.",
             "artifact_kind": _optional_text(value.get("artifact_kind")),
         }
+    if filename == GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "git service authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
     if value.get("canonical_mutations_allowed") is not False:
         return {
             "reason": "invalid_artifact_contract",
@@ -312,6 +342,66 @@ def _promotion_request(report: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def _platform_promotion_request(report: dict[str, Any] | None) -> dict[str, Any]:
+    review = _record((report or {}).get("review"))
+    return {
+        "available": report is not None,
+        "ok": (report or {}).get("ok") is True,
+        "candidate_id": _optional_text((report or {}).get("candidate_id")),
+        "candidate_branch": _optional_text((report or {}).get("candidate_branch")),
+        "commit_paths": _string_list((report or {}).get("commit_paths")),
+        "requested_operations": _string_list(
+            (report or {}).get("requested_operations")
+        ),
+        "review": {
+            "title": _optional_text(review.get("title")),
+            "base_branch": _optional_text(review.get("base_branch")),
+        },
+        "summary": _record((report or {}).get("summary")),
+    }
+
+
+def _git_service_operations(report: dict[str, Any] | None) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records((report or {}).get("operations"))[
+        : DISPLAY_LIMITS["git_service_operations"]
+    ]:
+        rows.append(
+            {
+                "name": _text(item.get("name"), "operation"),
+                "status": _text(item.get("status"), "unknown"),
+                "request_artifact_kind": _optional_text(
+                    item.get("request_artifact_kind")
+                ),
+                "response_artifact_kind": _optional_text(
+                    item.get("response_artifact_kind")
+                ),
+                "report_ref": _optional_text(item.get("report_ref")),
+                "diagnostic_count": len(_records(item.get("diagnostics"))),
+            }
+        )
+    return rows
+
+
+def _git_service_execution(report: dict[str, Any] | None) -> dict[str, Any]:
+    summary = _record((report or {}).get("summary"))
+    return {
+        "available": report is not None,
+        "ok": (report or {}).get("ok") is True,
+        "dry_run": (report or {}).get("dry_run") is True,
+        "open_review_dry_run": (report or {}).get("open_review_dry_run") is True,
+        "candidate_id": _optional_text((report or {}).get("candidate_id")),
+        "candidate_ref": _optional_text((report or {}).get("candidate_ref")),
+        "workspace_dir": _optional_text((report or {}).get("workspace_dir")),
+        "operation_count": _number(summary.get("operation_count")),
+        "completed_operation_count": _number(summary.get("completed_operation_count")),
+        "error_count": _number(summary.get("error_count")),
+        "copied_file_count": len(_records((report or {}).get("copied_materialized_files"))),
+        "operations": _git_service_operations(report),
+        "report_refs": _record((report or {}).get("report_refs")),
+    }
+
+
 def _readiness(payload: dict[str, Any] | None) -> dict[str, Any]:
     readiness = _record((payload or {}).get("readiness"))
     return {
@@ -330,6 +420,7 @@ def _authority_boundary() -> dict[str, bool]:
         "may_mutate_canonical_specs": False,
         "may_write_ontology_package": False,
         "may_create_branch_or_commit": False,
+        "may_execute_git_service_operation": False,
         "may_mark_candidate_accepted": False,
     }
 
@@ -347,16 +438,30 @@ def build_idea_to_spec_workspace(
         artifacts, CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT
     )
     promotion_gate = _artifact_data(artifacts, IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT)
+    platform_promotion = _artifact_data(
+        artifacts, GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT
+    )
+    git_service_execution = _artifact_data(
+        artifacts, GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+    )
     statuses = {
         key: _artifact_status(artifacts, filename)
         for filename, key in ARTIFACT_KEYS.items()
     }
-    missing_artifact_count = sum(
-        1 for status in statuses.values() if not status["available"]
+    core_missing_artifact_count = sum(
+        1
+        for filename in CORE_WORKSPACE_RUN_ARTIFACTS
+        if not statuses[ARTIFACT_KEYS[filename]]["available"]
     )
-    available_count = len(statuses) - missing_artifact_count
+    platform_missing_artifact_count = sum(
+        1
+        for filename in PLATFORM_PROMOTION_ARTIFACTS
+        if not statuses[ARTIFACT_KEYS[filename]]["available"]
+    )
+    missing_artifact_count = core_missing_artifact_count
+    available_count = sum(1 for status in statuses.values() if status["available"])
     status = "ready"
-    if missing_artifact_count:
+    if core_missing_artifact_count:
         status = "partial" if available_count else "unavailable"
     elif promotion_gate is not None and not _readiness(promotion_gate)["ready"]:
         status = "blocked"
@@ -379,6 +484,7 @@ def build_idea_to_spec_workspace(
             "status": status,
             "available_artifact_count": available_count,
             "missing_artifact_count": missing_artifact_count,
+            "platform_missing_artifact_count": platform_missing_artifact_count,
             "candidate_node_count": candidate_counts["node_count"],
             "candidate_edge_count": candidate_counts["edge_count"],
             "pre_sib_finding_count": _finding_count(pre_sib),
@@ -391,6 +497,16 @@ def build_idea_to_spec_workspace(
             "materialized_file_count": _materialized_file_count(materialization),
             "promotion_path_count": len(promotion_request["paths"]),
             "promotion_gate_blocker_count": _finding_count(promotion_gate),
+            "git_service_operation_count": _number(
+                _record((git_service_execution or {}).get("summary")).get(
+                    "operation_count"
+                )
+            ),
+            "git_service_error_count": _number(
+                _record((git_service_execution or {}).get("summary")).get(
+                    "error_count"
+                )
+            ),
             "next_artifact": _optional_text(
                 _record((promotion_gate or {}).get("readiness")).get("next_artifact")
                 or _record((materialization or {}).get("readiness")).get(
@@ -458,6 +574,20 @@ def build_idea_to_spec_workspace(
             "metric_snapshot": _record((promotion_gate or {}).get("metric_snapshot")),
             "promotion_request": promotion_request,
             "findings": promotion_gate_findings,
+        },
+        "controlled_promotion": {
+            "available": platform_promotion is not None
+            or git_service_execution is not None,
+            "platform_request": _platform_promotion_request(platform_promotion),
+            "git_service_execution": _git_service_execution(git_service_execution),
+            "action_boundary": {
+                "inspect_only": True,
+                "acknowledge_only": True,
+                "may_execute_git_service": False,
+                "may_create_branch_or_commit": False,
+                "may_merge_review": False,
+                "may_mutate_specs": False,
+            },
         },
         "artifacts": statuses,
         "display_limits": DISPLAY_LIMITS,

@@ -236,6 +236,122 @@ def _promotion_gate() -> dict:
     }
 
 
+def _platform_promotion_request() -> dict:
+    return {
+        "artifact_kind": "platform_graph_repository_promotion_request",
+        "schema_version": 1,
+        "generated_at": "2026-06-21T00:00:00Z",
+        "plan_ref": "runs/graph_repository_execution_plan.json",
+        "ok": True,
+        "dry_run": False,
+        "candidate_id": "idea-alpha",
+        "candidate_branch": "graph-candidate/idea-alpha",
+        "commit_paths": [
+            "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+            "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
+        ],
+        "review": {
+            "title": "Add candidate spec graph",
+            "body": "Review materialized candidate graph.",
+            "base_branch": "main",
+        },
+        "requested_operations": [
+            "prepare_branch",
+            "create_commit",
+            "open_review",
+        ],
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "write_actions_executed": [],
+        "git_commands_executed": [],
+        "pull_requests_opened": [],
+        "merges_performed": [],
+        "read_models_published": [],
+        "authority_boundary": {
+            "executes_git_commands": False,
+            "creates_commits": False,
+            "opens_pull_requests": False,
+            "merges_pull_requests": False,
+            "writes_ontology_packages": False,
+            "mutates_canonical_specs": False,
+            "publishes_read_models": False,
+        },
+        "summary": {
+            "error_count": 0,
+            "commit_path_count": 2,
+            "promotion_ready": True,
+        },
+    }
+
+
+def _git_service_execution() -> dict:
+    return {
+        "artifact_kind": "platform_git_service_promotion_execution_report",
+        "schema_version": 1,
+        "generated_at": "2026-06-21T00:00:00Z",
+        "contract_ref": "git-service-operation-contract.example.json",
+        "promotion_request_ref": "runs/graph_repository_promotion_request.json",
+        "ok": True,
+        "dry_run": False,
+        "open_review_dry_run": True,
+        "candidate_id": "idea-alpha",
+        "candidate_ref": "graph-candidate/idea-alpha",
+        "repository_dir": "../SpecGraph",
+        "workspace_dir": ".platform/candidates/idea-alpha-worktree",
+        "materialized_source_dir": "runs/materialized_candidate_specs",
+        "copied_materialized_files": [
+            {
+                "source": "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+                "target": ".platform/candidates/idea-alpha-worktree/runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+            }
+        ],
+        "operations": [
+            {
+                "name": "prepare_worktree",
+                "status": "succeeded",
+                "request_artifact_kind": "platform_git_service_prepare_worktree_request",
+                "response_artifact_kind": "platform_git_service_prepare_worktree_response",
+                "report_ref": ".platform/candidates/idea-alpha-worktree/.platform/graph_repository_worktree_prepare_report.json",
+                "diagnostics": [],
+            },
+            {
+                "name": "commit_candidate",
+                "status": "succeeded",
+                "request_artifact_kind": "platform_git_service_commit_candidate_request",
+                "response_artifact_kind": "platform_git_service_commit_candidate_response",
+                "report_ref": ".platform/candidates/idea-alpha-worktree/.platform/graph_repository_review_commit_report.json",
+                "diagnostics": [],
+            },
+            {
+                "name": "open_review",
+                "status": "dry_run",
+                "request_artifact_kind": "platform_git_service_open_review_request",
+                "response_artifact_kind": "platform_git_service_open_review_response",
+                "report_ref": None,
+                "diagnostics": [],
+            },
+        ],
+        "adapter_command_results": [],
+        "report_refs": {
+            "prepare_worktree": ".platform/candidates/idea-alpha-worktree/.platform/graph_repository_worktree_prepare_report.json",
+            "commit_candidate": ".platform/candidates/idea-alpha-worktree/.platform/graph_repository_review_commit_report.json",
+        },
+        "authority_boundary": {
+            "specspace_direct_git_write": False,
+            "canonical_spec_mutation_without_review": False,
+            "ontology_package_write": False,
+            "auto_merge": False,
+            "private_artifact_publication": False,
+        },
+        "diagnostics": [],
+        "summary": {
+            "error_count": 0,
+            "operation_count": 3,
+            "completed_operation_count": 3,
+        },
+    }
+
+
 def _workspace_artifacts() -> dict[str, dict]:
     return {
         idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT: _intake(),
@@ -244,6 +360,8 @@ def _workspace_artifacts() -> dict[str, dict]:
         idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: _repair_loop(),
         idea_to_spec_workspace.CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: _materialization(),
         idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: _promotion_gate(),
+        idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: _platform_promotion_request(),
+        idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: _git_service_execution(),
     }
 
 
@@ -261,6 +379,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["materialized_file_count"], 2)
         self.assertEqual(body["summary"]["promotion_path_count"], 0)
         self.assertEqual(body["summary"]["promotion_gate_blocker_count"], 1)
+        self.assertEqual(body["summary"]["platform_missing_artifact_count"], 0)
+        self.assertEqual(body["summary"]["git_service_operation_count"], 3)
+        self.assertEqual(body["summary"]["git_service_error_count"], 0)
         self.assertEqual(body["intake"]["summary"]["actor_count"], 1)
         self.assertEqual(body["candidate_graph"]["summary"]["requirement_count"], 2)
         self.assertEqual(
@@ -294,6 +415,22 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["promotion_gate"]["findings"][0]["finding_id"],
             "repair_context_required",
+        )
+        self.assertTrue(body["controlled_promotion"]["available"])
+        self.assertEqual(
+            body["controlled_promotion"]["platform_request"]["candidate_branch"],
+            "graph-candidate/idea-alpha",
+        )
+        self.assertEqual(
+            body["controlled_promotion"]["git_service_execution"]["operations"][2][
+                "status"
+            ],
+            "dry_run",
+        )
+        self.assertFalse(
+            body["controlled_promotion"]["action_boundary"][
+                "may_execute_git_service"
+            ]
         )
         self.assertEqual(
             body["artifacts"]["candidate_graph"]["status"],
@@ -378,7 +515,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["summary"]["status"], "partial")
-        self.assertEqual(body["summary"]["available_artifact_count"], 3)
+        self.assertEqual(body["summary"]["available_artifact_count"], 5)
         self.assertEqual(body["summary"]["missing_artifact_count"], 3)
         self.assertEqual(body["summary"]["candidate_node_count"], 0)
         self.assertEqual(body["summary"]["repair_action_count"], 0)
@@ -407,6 +544,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["status"], "partial")
         self.assertEqual(body["summary"]["available_artifact_count"], 1)
         self.assertEqual(body["summary"]["missing_artifact_count"], 5)
+        self.assertEqual(body["summary"]["platform_missing_artifact_count"], 2)
         self.assertFalse(body["artifacts"]["event_storming_intake"]["available"])
         self.assertTrue(body["artifacts"]["candidate_graph"]["available"])
 
@@ -446,6 +584,16 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 runs_dir / idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
                 _promotion_gate(),
             )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT,
+                _platform_promotion_request(),
+            )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+                _git_service_execution(),
+            )
             provider = specspace_provider.FileSpecGraphProvider(
                 spec_nodes_dir=None,
                 runs_dir=runs_dir,
@@ -459,6 +607,8 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertIn("runs/candidate_repair_loop_report.json", paths)
         self.assertIn("runs/candidate_spec_materialization_report.json", paths)
         self.assertIn("runs/idea_to_spec_promotion_gate.json", paths)
+        self.assertIn("runs/graph_repository_promotion_request.json", paths)
+        self.assertIn("runs/git_service_promotion_execution_report.json", paths)
 
     def test_http_provider_reads_workspace_runs_from_manifest(self) -> None:
         manifest = {
