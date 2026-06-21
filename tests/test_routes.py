@@ -71,6 +71,13 @@ def test_route_table_resolves_ontology_workbench() -> None:
     assert route.handler == "handle_v1_ontology_workbench"
 
 
+def test_route_table_resolves_idea_to_spec_workspace() -> None:
+    route = routes.route_for("GET", "/api/v1/idea-to-spec-workspace")
+
+    assert route is not None
+    assert route.handler == "handle_v1_idea_to_spec_workspace"
+
+
 def test_route_table_resolves_ontology_compliance_review() -> None:
     route = routes.route_for("GET", "/api/v1/ontology-compliance-review")
 
