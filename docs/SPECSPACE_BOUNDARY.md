@@ -82,6 +82,24 @@ SpecGraph and SpecPM remain upstream producers. If a future deployment switches
 from file-backed reads to an HTTP-backed producer provider, that provider should
 be added behind the same `/api/v1/*` SpecSpace API boundary.
 
+## Future Authoring Boundary
+
+SpecSpace may become the product surface for building a specification graph from
+an initial idea, but canonical graph writes should go through a managed Graph
+Repository Service rather than a writable SpecGraph mount.
+
+The intended production split is:
+
+- SpecSpace owns event-storming UX, candidate graph preview, metric display,
+  repair-loop history, and acknowledgement state.
+- Graph Repository Service owns candidate workspace allocation, validation,
+  branch/commit creation, review or merge policy, and read-model publication.
+- SpecGraph owns graph contracts, validators, candidate graph artifacts, and
+  canonical `specs/nodes` semantics.
+
+This lets SpecSpace support authoring without becoming the canonical graph
+storage engine or a direct `git commit` wrapper.
+
 ## Design Rule
 
 When a new feature is proposed for SpecSpace, first classify it:
@@ -89,6 +107,8 @@ When a new feature is proposed for SpecSpace, first classify it:
 - readonly artifact inspection: candidate for SpecSpace;
 - SpecSpace-owned Agent Workbench artifacts: candidate only behind an explicit
   workbench storage/capability boundary;
+- graph-authoring UX: candidate only when canonical writes are delegated to a
+  Graph Repository Service contract;
 - producer mutation, conversation editing, or legacy compile authoring: legacy
   ContextBuilder or a separate authoring product;
 - integration diagnostics: candidate only if it can be shown through readonly
