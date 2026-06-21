@@ -25,6 +25,13 @@ ARTIFACT_KEYS: dict[str, str] = {
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
 }
 
+EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
+    IDEA_EVENT_STORMING_INTAKE_ARTIFACT: "idea_event_storming_intake",
+    CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_spec_graph",
+    PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib_coherence_report",
+    CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "candidate_repair_loop_report",
+}
+
 DISPLAY_LIMITS = {
     "nodes": 40,
     "findings": 40,
@@ -71,25 +78,64 @@ def _number(value: Any) -> int:
     return value if isinstance(value, int) and value >= 0 else 0
 
 
+def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None:
+    if value is None:
+        return {
+            "reason": "missing_artifact",
+            "detail": f"{filename} was not provided.",
+        }
+    if not isinstance(value, dict):
+        return {
+            "reason": "invalid_artifact_contract",
+            "detail": "Artifact JSON root must be an object.",
+        }
+    expected_kind = EXPECTED_ARTIFACT_KINDS.get(filename)
+    if expected_kind is not None and value.get("artifact_kind") != expected_kind:
+        return {
+            "reason": "invalid_artifact_contract",
+            "detail": f"artifact_kind must be {expected_kind}.",
+            "artifact_kind": _optional_text(value.get("artifact_kind")),
+        }
+    if value.get("canonical_mutations_allowed") is not False:
+        return {
+            "reason": "invalid_artifact_contract",
+            "detail": "canonical_mutations_allowed must be false.",
+            "artifact_kind": _optional_text(value.get("artifact_kind")),
+        }
+    if value.get("tracked_artifacts_written") is not False:
+        return {
+            "reason": "invalid_artifact_contract",
+            "detail": "tracked_artifacts_written must be false.",
+            "artifact_kind": _optional_text(value.get("artifact_kind")),
+        }
+    return None
+
+
 def _artifact_data(artifacts: dict[str, Any], filename: str) -> dict[str, Any] | None:
     value = artifacts.get(filename)
-    return value if isinstance(value, dict) else None
+    if _artifact_contract_error(value, filename) is not None:
+        return None
+    return value
 
 
 def _artifact_status(
     artifacts: dict[str, Any],
     filename: str,
 ) -> dict[str, Any]:
-    data = _artifact_data(artifacts, filename)
     path = f"runs/{filename}"
-    if data is None:
+    value = artifacts.get(filename)
+    contract_error = _artifact_contract_error(value, filename)
+    if contract_error is not None:
         return {
             "available": False,
             "path": path,
-            "reason": "missing_artifact",
+            **contract_error,
         }
+    assert isinstance(value, dict)
+    data = value
     summary = _record(data.get("summary"))
     readiness = _record(data.get("readiness"))
+    pre_sib_readiness = _record(data.get("pre_sib_readiness"))
     return {
         "available": True,
         "path": path,
@@ -103,6 +149,7 @@ def _artifact_status(
             data.get("status")
             or summary.get("status")
             or readiness.get("review_state")
+            or pre_sib_readiness.get("review_state")
         ),
         "summary": summary or None,
     }
@@ -191,6 +238,12 @@ def _findings(payload: dict[str, Any] | None) -> list[dict[str, Any]]:
     return rows
 
 
+def _finding_count(payload: dict[str, Any] | None) -> int:
+    return len(_records((payload or {}).get("findings"))) + len(
+        _records((payload or {}).get("warnings"))
+    )
+
+
 def _repair_actions(report: dict[str, Any] | None) -> list[dict[str, Any]]:
     rows = []
     for item in _records((report or {}).get("repair_actions"))[
@@ -207,6 +260,10 @@ def _repair_actions(report: dict[str, Any] | None) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def _repair_action_count(report: dict[str, Any] | None) -> int:
+    return len(_records((report or {}).get("repair_actions")))
 
 
 def _readiness(payload: dict[str, Any] | None) -> dict[str, Any]:
@@ -269,8 +326,8 @@ def build_idea_to_spec_workspace(
             "missing_artifact_count": missing_artifact_count,
             "candidate_node_count": candidate_counts["node_count"],
             "candidate_edge_count": candidate_counts["edge_count"],
-            "pre_sib_finding_count": len(pre_sib_findings),
-            "repair_action_count": len(repair_actions),
+            "pre_sib_finding_count": _finding_count(pre_sib),
+            "repair_action_count": _repair_action_count(repair_loop),
             "repair_context_required_count": _number(
                 _record((repair_loop or {}).get("summary")).get(
                     "context_required_count"

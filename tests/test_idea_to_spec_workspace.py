@@ -182,11 +182,103 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["repair_loop"]["actions"][0]["status"],
             "requires_context",
         )
+        self.assertEqual(
+            body["artifacts"]["candidate_graph"]["status"],
+            "ready_for_pre_sib",
+        )
         self.assertFalse(
             body["authority_boundary"]["may_mutate_canonical_specs"]
         )
         self.assertFalse(
             body["authority_boundary"]["may_create_branch_or_commit"]
+        )
+
+    def test_summary_counts_raw_items_before_display_limits(self) -> None:
+        artifacts = _workspace_artifacts()
+        pre_sib = _pre_sib()
+        pre_sib["findings"] = [
+            {
+                "finding_id": f"finding.{index}",
+                "severity": "review_required",
+                "message": "Needs review.",
+            }
+            for index in range(45)
+        ]
+        pre_sib["warnings"] = [
+            {
+                "finding_id": f"warning.{index}",
+                "severity": "warning",
+                "message": "Needs attention.",
+            }
+            for index in range(2)
+        ]
+        repair_loop = _repair_loop()
+        repair_loop["repair_actions"] = [
+            {
+                "id": f"repair.{index}",
+                "kind": "add_ontology_gap",
+                "status": "requires_context",
+            }
+            for index in range(44)
+        ]
+        artifacts[idea_to_spec_workspace.PRE_SIB_COHERENCE_REPORT_ARTIFACT] = pre_sib
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["summary"]["pre_sib_finding_count"], 47)
+        self.assertEqual(body["summary"]["repair_action_count"], 44)
+        self.assertEqual(
+            len(body["pre_sib"]["findings"]),
+            idea_to_spec_workspace.DISPLAY_LIMITS["findings"],
+        )
+        self.assertEqual(
+            len(body["repair_loop"]["actions"]),
+            idea_to_spec_workspace.DISPLAY_LIMITS["repair_actions"],
+        )
+
+    def test_build_workspace_rejects_invalid_or_write_capable_artifacts(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT] = {
+            **_intake(),
+            "canonical_mutations_allowed": True,
+        }
+        artifacts[idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT] = {
+            **_candidate_graph(),
+            "artifact_kind": "stale_candidate_graph",
+        }
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = {
+            **_repair_loop(),
+            "tracked_artifacts_written": True,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["summary"]["status"], "partial")
+        self.assertEqual(body["summary"]["available_artifact_count"], 1)
+        self.assertEqual(body["summary"]["missing_artifact_count"], 3)
+        self.assertEqual(body["summary"]["candidate_node_count"], 0)
+        self.assertEqual(body["summary"]["repair_action_count"], 0)
+        self.assertFalse(body["intake"]["available"])
+        self.assertFalse(body["candidate_graph"]["available"])
+        self.assertFalse(body["repair_loop"]["available"])
+        self.assertEqual(
+            body["artifacts"]["candidate_graph"]["reason"],
+            "invalid_artifact_contract",
+        )
+        self.assertEqual(
+            body["artifacts"]["repair_loop"]["reason"],
+            "invalid_artifact_contract",
         )
 
     def test_build_workspace_degrades_when_artifacts_are_missing(self) -> None:
