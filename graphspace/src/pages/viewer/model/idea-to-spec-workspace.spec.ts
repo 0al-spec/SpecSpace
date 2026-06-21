@@ -8,8 +8,9 @@ describe("parseIdeaToSpecWorkspace", () => {
 
     expect(parsed.kind).toBe("ok");
     if (parsed.kind !== "ok") return;
-    expect(parsed.data.summary.status).toBe("ready");
+    expect(parsed.data.summary.status).toBe("blocked");
     expect(parsed.data.summary.candidateNodeCount).toBe(2);
+    expect(parsed.data.summary.promotionGateBlockerCount).toBe(1);
     expect(parsed.data.intake.activeFrame.project).toBe("DemoCalculator");
     expect(parsed.data.candidateGraph.nodes[1].id).toBe(
       "candidate-spec.numeric-input",
@@ -18,6 +19,9 @@ describe("parseIdeaToSpecWorkspace", () => {
       "pre_sib_ontology_coverage_gap",
     );
     expect(parsed.data.repairLoop.actions[1].status).toBe("requires_context");
+    expect(parsed.data.promotionGate.readiness.reviewState).toBe(
+      "idea_to_spec_promotion_blocked",
+    );
     expect(parsed.data.authorityBoundary.mayMutateCanonicalSpecs).toBe(false);
   });
 

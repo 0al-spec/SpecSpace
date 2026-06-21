@@ -8,8 +8,8 @@ export const ideaToSpecWorkspace = {
   tracked_artifacts_written: false,
   source: { provider: "fixture", read_only: true },
   summary: {
-    status: "ready",
-    available_artifact_count: 5,
+    status: "blocked",
+    available_artifact_count: 6,
     missing_artifact_count: 0,
     candidate_node_count: 2,
     candidate_edge_count: 1,
@@ -17,8 +17,9 @@ export const ideaToSpecWorkspace = {
     repair_action_count: 2,
     repair_context_required_count: 1,
     materialized_file_count: 2,
-    promotion_path_count: 2,
-    next_artifact: "Platform graph-repository promotion-request",
+    promotion_path_count: 0,
+    promotion_gate_blocker_count: 1,
+    next_artifact: "owner/operator repair before promotion",
   },
   intake: {
     available: true,
@@ -176,6 +177,42 @@ export const ideaToSpecWorkspace = {
       ],
     },
   },
+  promotion_gate: {
+    available: true,
+    readiness: {
+      ready: false,
+      review_state: "idea_to_spec_promotion_blocked",
+      blocked_by: ["repair_context_required"],
+      next_artifact: "owner/operator repair before promotion",
+    },
+    summary: {
+      status: "idea_to_spec_promotion_blocked",
+      finding_count: 1,
+      warning_count: 0,
+      promotion_path_count: 0,
+      materialized_file_count: 2,
+    },
+    metric_snapshot: {
+      pre_sib: {
+        ontology_coverage_ratio: 0.5,
+      },
+      materialized_file_count: 2,
+      promotion_path_count: 0,
+    },
+    findings: [
+      {
+        finding_id: "repair_context_required",
+        severity: "review_required",
+        message: "Owner/operator context is still required.",
+        source_ref: "idea_to_spec_promotion_gate",
+      },
+    ],
+    promotion_request: {
+      path_argument: "--path",
+      platform_artifact_kind: "platform_graph_repository_promotion_request",
+      paths: [],
+    },
+  },
   artifacts: {
     event_storming_intake: {
       available: true,
@@ -216,6 +253,14 @@ export const ideaToSpecWorkspace = {
       status: "materialized_candidate_review_ready",
       proposal_id: "0153",
       contract_ref: "specgraph.idea-to-spec.candidate-spec-materialization.v0.1",
+    },
+    promotion_gate: {
+      available: true,
+      path: "runs/idea_to_spec_promotion_gate.json",
+      artifact_kind: "idea_to_spec_promotion_gate",
+      status: "idea_to_spec_promotion_blocked",
+      proposal_id: "0154",
+      contract_ref: "specgraph.idea-to-spec.promotion-gate.v0.1",
     },
   },
   display_limits: {

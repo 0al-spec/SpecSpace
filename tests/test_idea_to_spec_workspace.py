@@ -193,6 +193,49 @@ def _materialization() -> dict:
     }
 
 
+def _promotion_gate() -> dict:
+    return {
+        "artifact_kind": "idea_to_spec_promotion_gate",
+        "schema_version": 1,
+        "proposal_id": "0154",
+        "contract_ref": "specgraph.idea-to-spec.promotion-gate.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": False,
+            "review_state": "idea_to_spec_promotion_blocked",
+            "blocked_by": ["repair_context_required"],
+            "next_artifact": "owner/operator repair before promotion",
+        },
+        "metric_snapshot": {
+            "pre_sib": {"ontology_coverage_ratio": 0.5},
+            "materialized_file_count": 2,
+            "promotion_path_count": 0,
+        },
+        "promotion_request": {
+            "path_argument": "--path",
+            "paths": [],
+            "platform_artifact_kind": "platform_graph_repository_promotion_request",
+        },
+        "findings": [
+            {
+                "finding_id": "repair_context_required",
+                "severity": "review_required",
+                "message": "Owner/operator context is still required.",
+                "source": "idea_to_spec_promotion_gate",
+            }
+        ],
+        "warnings": [],
+        "summary": {
+            "status": "idea_to_spec_promotion_blocked",
+            "finding_count": 1,
+            "warning_count": 0,
+            "promotion_path_count": 0,
+            "materialized_file_count": 2,
+        },
+    }
+
+
 def _workspace_artifacts() -> dict[str, dict]:
     return {
         idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT: _intake(),
@@ -200,6 +243,7 @@ def _workspace_artifacts() -> dict[str, dict]:
         idea_to_spec_workspace.PRE_SIB_COHERENCE_REPORT_ARTIFACT: _pre_sib(),
         idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: _repair_loop(),
         idea_to_spec_workspace.CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: _materialization(),
+        idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: _promotion_gate(),
     }
 
 
@@ -211,11 +255,12 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["artifact_kind"], "specspace_idea_to_spec_workspace")
-        self.assertEqual(body["summary"]["status"], "ready")
+        self.assertEqual(body["summary"]["status"], "blocked")
         self.assertEqual(body["summary"]["candidate_node_count"], 2)
         self.assertEqual(body["summary"]["repair_action_count"], 1)
         self.assertEqual(body["summary"]["materialized_file_count"], 2)
-        self.assertEqual(body["summary"]["promotion_path_count"], 2)
+        self.assertEqual(body["summary"]["promotion_path_count"], 0)
+        self.assertEqual(body["summary"]["promotion_gate_blocker_count"], 1)
         self.assertEqual(body["intake"]["summary"]["actor_count"], 1)
         self.assertEqual(body["candidate_graph"]["summary"]["requirement_count"], 2)
         self.assertEqual(
@@ -241,6 +286,14 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["materialization"]["promotion_request"]["platform_artifact_kind"],
             "platform_graph_repository_promotion_request",
+        )
+        self.assertEqual(
+            body["promotion_gate"]["readiness"]["review_state"],
+            "idea_to_spec_promotion_blocked",
+        )
+        self.assertEqual(
+            body["promotion_gate"]["findings"][0]["finding_id"],
+            "repair_context_required",
         )
         self.assertEqual(
             body["artifacts"]["candidate_graph"]["status"],
@@ -325,7 +378,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["summary"]["status"], "partial")
-        self.assertEqual(body["summary"]["available_artifact_count"], 2)
+        self.assertEqual(body["summary"]["available_artifact_count"], 3)
         self.assertEqual(body["summary"]["missing_artifact_count"], 3)
         self.assertEqual(body["summary"]["candidate_node_count"], 0)
         self.assertEqual(body["summary"]["repair_action_count"], 0)
@@ -333,6 +386,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(body["candidate_graph"]["available"])
         self.assertFalse(body["repair_loop"]["available"])
         self.assertTrue(body["materialization"]["available"])
+        self.assertTrue(body["promotion_gate"]["available"])
         self.assertEqual(
             body["artifacts"]["candidate_graph"]["reason"],
             "invalid_artifact_contract",
@@ -352,7 +406,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
 
         self.assertEqual(body["summary"]["status"], "partial")
         self.assertEqual(body["summary"]["available_artifact_count"], 1)
-        self.assertEqual(body["summary"]["missing_artifact_count"], 4)
+        self.assertEqual(body["summary"]["missing_artifact_count"], 5)
         self.assertFalse(body["artifacts"]["event_storming_intake"]["available"])
         self.assertTrue(body["artifacts"]["candidate_graph"]["available"])
 
@@ -372,7 +426,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
 
         self.assertEqual(status, HTTPStatus.OK)
         self.assertEqual(body["source"]["provider"], "file")
-        self.assertEqual(body["summary"]["status"], "ready")
+        self.assertEqual(body["summary"]["status"], "blocked")
         self.assertTrue(body["artifacts"]["repair_loop"]["available"])
 
     def test_file_artifact_catalog_lists_workspace_runs(self) -> None:
@@ -388,6 +442,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 / idea_to_spec_workspace.CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
                 _materialization(),
             )
+            _write_json(
+                runs_dir / idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
+                _promotion_gate(),
+            )
             provider = specspace_provider.FileSpecGraphProvider(
                 spec_nodes_dir=None,
                 runs_dir=runs_dir,
@@ -400,6 +458,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         paths = {entry["path"] for entry in body["artifacts"]}
         self.assertIn("runs/candidate_repair_loop_report.json", paths)
         self.assertIn("runs/candidate_spec_materialization_report.json", paths)
+        self.assertIn("runs/idea_to_spec_promotion_gate.json", paths)
 
     def test_http_provider_reads_workspace_runs_from_manifest(self) -> None:
         manifest = {
@@ -434,7 +493,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
 
         self.assertEqual(status, HTTPStatus.OK)
         self.assertEqual(body["source"]["provider"], "http")
-        self.assertEqual(body["summary"]["status"], "ready")
+        self.assertEqual(body["summary"]["status"], "blocked")
         self.assertTrue(body["artifacts"]["event_storming_intake"]["available"])
 
 
