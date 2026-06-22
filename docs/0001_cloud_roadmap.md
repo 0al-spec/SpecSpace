@@ -125,6 +125,14 @@ state from canonical state. Event-storming intake, candidate graph preview,
 pre-SIB/coherence metrics, and autonomous repair history may live in a
 workbench store; canonical graph writes must go through the repository service.
 
+**Public workspace routes.** The first public product pilot should not replace
+the SpecGraph showcase. `specgraph.space/` should continue to open the
+SpecGraph bootstrap/showcase workspace. `specgraph.space/team-decision-log`
+should open the Team Decision Log `product_idea_to_spec` workspace, using a
+separate artifact manifest and hiding bootstrap/self-evolution lanes. The route
+model is a Workspace Manager concern; SpecSpace renders whichever workspace the
+manager/provider selects, without gaining write authority.
+
 ---
 
 ## Рекомендация
@@ -137,6 +145,12 @@ workbench store; canonical graph writes must go through the repository service.
 Service. Workspace Manager отвечает за lifecycle инстансов, а Graph Repository
 Service отвечает за versioned graph writes: candidate workspaces, validation,
 branch/commit/review, merge policy, and read-model publication.
+
+Для публичной демонстрации это дает простой начальный маршрут: один SpecSpace
+deployment, один showcase route для SpecGraph, и один product pilot route для
+Team Decision Log. Это сохраняет ценность демонстрации SpecGraph на главной
+странице и одновременно показывает, как та же система строит спецификацию
+обычного продукта.
 
 **Долгосрочно (large-scale SaaS, тысячи WS, разреженная активность):** Вариант C. Но входить в него только когда экономика A становится больно — преждевременная оптимизация даст cold-start headache без пользы.
 
