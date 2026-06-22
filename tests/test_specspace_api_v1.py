@@ -48,6 +48,84 @@ def _write_json(path: Path, data: dict) -> None:
     path.write_text(json.dumps(data), encoding="utf-8")
 
 
+def _write_product_workspace_runs(runs_dir: Path) -> None:
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(
+        runs_dir / idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
+        {
+            "artifact_kind": "active_idea_to_spec_candidate",
+            "schema_version": 1,
+            "candidate": {
+                "candidate_id": "team-decision-log",
+                "display_name": "Team Decision Log",
+                "public_route": "/team-decision-log",
+                "workflow_lane": "product_idea_to_spec",
+                "target_repository_role": "product_spec_workspace",
+            },
+            "readiness": {
+                "ready": True,
+                "review_state": "active_candidate_ready",
+                "blocked_by": [],
+            },
+            "authority_boundary": {
+                "may_create_branch_or_commit": False,
+                "may_mutate_canonical_specs": False,
+            },
+            "canonical_mutations_allowed": False,
+        },
+    )
+    _write_json(
+        runs_dir / idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT,
+        {
+            "artifact_kind": "candidate_spec_graph",
+            "schema_version": 1,
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "active_frame": {
+                "project": "TeamDecisionLog",
+                "domain_refs": ["domain.team_decision_log"],
+                "context_refs": ["context.idea_to_spec"],
+                "ontology_refs": ["ontology://specgraph-core"],
+            },
+            "nodes": [
+                {
+                    "id": "candidate-spec.team-decision-log-product",
+                    "title": "Team Decision Log Product",
+                    "kind": "product_boundary",
+                    "description": "Product boundary for the pilot workspace.",
+                    "requirements": [
+                        {
+                            "id": "req.product.record-decision",
+                            "statement": "The product must capture reviewable decisions.",
+                        }
+                    ],
+                    "acceptance_criteria": [
+                        {
+                            "id": "ac.product.record-decision",
+                            "statement": "A reviewer can inspect a decision record.",
+                        }
+                    ],
+                },
+                {
+                    "id": "candidate-spec.decision-record",
+                    "title": "Decision Record",
+                    "kind": "domain_entity",
+                    "description": "Minimum structure of a decision record.",
+                    "requirements": [],
+                    "acceptance_criteria": [],
+                },
+            ],
+            "edges": [
+                {
+                    "source_id": "candidate-spec.decision-record",
+                    "target_id": "candidate-spec.team-decision-log-product",
+                    "edge_kind": "refines",
+                }
+            ],
+        },
+    )
+
+
 def _start(
     dialog_dir: Path,
     *,
@@ -2088,6 +2166,154 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
             team_graph["graph"]["nodes"][0]["node_id"],
             "SG-SPEC-TEAM-DECISION-LOG",
         )
+
+    def test_team_workspace_file_provider_uses_candidate_graph_not_bootstrap_specs(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            runs_dir = root / "runs"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(
+                spec_dir / "SG-SPEC-BOOTSTRAP.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-BOOTSTRAP",
+                    "title": "Bootstrap Graph",
+                },
+            )
+            _write_product_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=runs_dir,
+                specgraph_dir=root,
+            )
+            try:
+                default_status, default_graph = _get(f"{base}/api/v1/spec-graph")
+                team_status, team_graph = _get(
+                    f"{base}/api/v1/spec-graph?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(default_status, 200)
+        self.assertEqual(team_status, 200)
+        self.assertEqual(
+            default_graph["graph"]["nodes"][0]["node_id"],
+            "SG-SPEC-BOOTSTRAP",
+        )
+        team_node_ids = {
+            node["node_id"] for node in team_graph["graph"]["nodes"]
+        }
+        self.assertIn("candidate-spec.team-decision-log-product", team_node_ids)
+        self.assertIn("candidate-spec.decision-record", team_node_ids)
+        self.assertNotIn("SG-SPEC-BOOTSTRAP", team_node_ids)
+        self.assertEqual(team_graph["workspace_id"], "team-decision-log")
+        self.assertEqual(team_graph["source"]["surface"], "candidate_spec_graph")
+
+    def test_team_workspace_uses_candidate_graph_when_only_default_artifact_base_is_set(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            default_artifact_root = root / "default-artifacts"
+            default_spec_dir = default_artifact_root / "specs" / "nodes"
+            default_spec_dir.mkdir(parents=True)
+            _write_yaml(
+                default_spec_dir / "SG-SPEC-BOOTSTRAP.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-BOOTSTRAP",
+                    "title": "Bootstrap Graph",
+                },
+            )
+            _write_manifest(default_artifact_root, ["specs/nodes/SG-SPEC-BOOTSTRAP.yaml"])
+            default_static, default_thread, default_base_url = _start_static(
+                default_artifact_root
+            )
+
+            local_spec_dir = root / "specs" / "nodes"
+            local_runs_dir = root / "runs"
+            local_spec_dir.mkdir(parents=True)
+            _write_product_workspace_runs(local_runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=local_spec_dir,
+                runs_dir=local_runs_dir,
+                specgraph_dir=root,
+                artifact_base_url=default_base_url,
+            )
+            try:
+                status, team_graph = _get(
+                    f"{base}/api/v1/spec-graph?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+                _stop(default_static, default_thread)
+
+        self.assertEqual(status, 200)
+        node_ids = {node["node_id"] for node in team_graph["graph"]["nodes"]}
+        self.assertIn("candidate-spec.team-decision-log-product", node_ids)
+        self.assertNotIn("SG-SPEC-BOOTSTRAP", node_ids)
+        self.assertEqual(team_graph["source"]["provider"], "file-product-workspace")
+
+    def test_team_workspace_artifact_catalog_excludes_bootstrap_manifest_files(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            runs_dir = root / "runs"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(
+                spec_dir / "SG-SPEC-BOOTSTRAP.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-BOOTSTRAP",
+                    "title": "Bootstrap Graph",
+                },
+            )
+            _write_product_workspace_runs(runs_dir)
+            _write_json(
+                root / "artifact_manifest.json",
+                {
+                    "artifact_kind": "specgraph_static_artifact_manifest",
+                    "files": [
+                        {"path": "specs/nodes/SG-SPEC-BOOTSTRAP.yaml"},
+                        {
+                            "path": "runs/"
+                            + idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT
+                        },
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=runs_dir,
+                specgraph_dir=root,
+            )
+            try:
+                status, catalog = _get(
+                    f"{base}/api/v1/artifacts?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        paths = {entry["path"] for entry in catalog["artifacts"]}
+        self.assertIn(
+            "runs/" + idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
+            paths,
+        )
+        self.assertIn(
+            "runs/" + idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT,
+            paths,
+        )
+        self.assertNotIn("specs/nodes/SG-SPEC-BOOTSTRAP.yaml", paths)
+        self.assertEqual(catalog["source"]["workspace_id"], "team-decision-log")
 
     def test_directory_health_distinguishes_unreadable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
