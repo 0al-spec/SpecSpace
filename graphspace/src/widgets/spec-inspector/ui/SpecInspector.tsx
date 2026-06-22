@@ -45,6 +45,9 @@ type MarkdownCompileState =
 
 type Props = Omit<HTMLAttributes<HTMLElement>, "children"> & {
   selection: SpecInspectorSelection;
+  specNodeDetailUrl?: string;
+  specMarkdownUrl?: string;
+  specMarkdownCompileUrl?: string;
   onClose: () => void;
   resolveSpecRef?: SpecRefResolver;
   onSelectNodeId?: (nodeId: string) => void;
@@ -55,6 +58,9 @@ type Props = Omit<HTMLAttributes<HTMLElement>, "children"> & {
 
 export function SpecInspector({
   selection,
+  specNodeDetailUrl,
+  specMarkdownUrl,
+  specMarkdownCompileUrl,
   onClose,
   resolveSpecRef,
   onSelectNodeId,
@@ -77,7 +83,10 @@ export function SpecInspector({
   });
   const markdownAbortRef = useRef<AbortController | null>(null);
   const compileAbortRef = useRef<AbortController | null>(null);
-  const detailState = useSpecNodeDetail({ nodeId: selection.node.node_id });
+  const detailState = useSpecNodeDetail({
+    nodeId: selection.node.node_id,
+    url: specNodeDetailUrl,
+  });
   const detail =
     detailState.kind === "ok" ? detailState.data.data : null;
   const model = buildSpecInspectorModel(selection, detail);
@@ -138,6 +147,7 @@ export function SpecInspector({
     void fetchSpecMarkdownExport({
       rootId: requestRootId,
       scope: requestScope,
+      url: specMarkdownUrl,
       signal: controller.signal,
     })
       .then((result) => {
@@ -184,6 +194,7 @@ export function SpecInspector({
     void fetchSpecMarkdownCompile({
       rootId: requestRootId,
       scope: requestScope,
+      url: specMarkdownCompileUrl,
       signal: controller.signal,
     })
       .then((result) => {

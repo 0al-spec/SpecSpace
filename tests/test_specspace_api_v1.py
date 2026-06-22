@@ -2027,6 +2027,68 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
         self.assertEqual(body["workspace"]["id"], "team-decision-log")
         self.assertEqual(body["workspace"]["review_state"], "active_candidate_ready")
 
+    def test_workspace_query_scopes_spec_graph_to_team_artifact_base(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            default_artifact_root = root / "default-artifacts"
+            team_artifact_root = root / "team-artifacts"
+            default_spec_dir = default_artifact_root / "specs" / "nodes"
+            team_spec_dir = team_artifact_root / "specs" / "nodes"
+            default_spec_dir.mkdir(parents=True)
+            team_spec_dir.mkdir(parents=True)
+            _write_yaml(
+                default_spec_dir / "SG-SPEC-BOOTSTRAP.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-BOOTSTRAP",
+                    "title": "Bootstrap Graph",
+                },
+            )
+            _write_yaml(
+                team_spec_dir / "SG-SPEC-TEAM-DECISION-LOG.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-TEAM-DECISION-LOG",
+                    "title": "Team Decision Log",
+                },
+            )
+            _write_manifest(default_artifact_root, ["specs/nodes/SG-SPEC-BOOTSTRAP.yaml"])
+            _write_manifest(
+                team_artifact_root,
+                ["specs/nodes/SG-SPEC-TEAM-DECISION-LOG.yaml"],
+            )
+            default_static, default_thread, default_base_url = _start_static(
+                default_artifact_root
+            )
+            team_static, team_thread, team_base_url = _start_static(team_artifact_root)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                artifact_base_url=default_base_url,
+                team_decision_log_artifact_base_url=team_base_url,
+            )
+            try:
+                default_status, default_graph = _get(f"{base}/api/v1/spec-graph")
+                team_status, team_graph = _get(
+                    f"{base}/api/v1/spec-graph?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+                _stop(default_static, default_thread)
+                _stop(team_static, team_thread)
+
+        self.assertEqual(default_status, 200)
+        self.assertEqual(team_status, 200)
+        self.assertEqual(default_graph["artifact_base_url"], default_base_url)
+        self.assertEqual(team_graph["artifact_base_url"], team_base_url)
+        self.assertEqual(
+            default_graph["graph"]["nodes"][0]["node_id"],
+            "SG-SPEC-BOOTSTRAP",
+        )
+        self.assertEqual(
+            team_graph["graph"]["nodes"][0]["node_id"],
+            "SG-SPEC-TEAM-DECISION-LOG",
+        )
+
     def test_directory_health_distinguishes_unreadable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp)

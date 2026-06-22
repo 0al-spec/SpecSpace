@@ -22,6 +22,9 @@ describe("workspace route selection", () => {
     expect(workspaceApiUrl("/api/v1/idea-to-spec-workspace", route.workspace)).toBe(
       "/api/v1/idea-to-spec-workspace?workspace=team-decision-log",
     );
+    expect(workspaceApiUrl("/api/v1/spec-activity?limit=1", route.workspace)).toBe(
+      "/api/v1/spec-activity?limit=1&workspace=team-decision-log",
+    );
   });
 
   it("canonicalizes the underscore alias", () => {

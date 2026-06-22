@@ -169,37 +169,106 @@ export function ViewerPage({
   const runsWatchVersion = useRunsWatchVersion({
     enabled: shouldUseRunsWatch(apiDeploymentState),
   });
-  const feedState = useRecentChanges({ refreshKey: runsWatchVersion });
-  const workState = useImplementationWorkIndex({ refreshKey: runsWatchVersion });
-  const proposalTraceState = useProposalSpecTraceIndex({ refreshKey: runsWatchVersion });
-  const proposalIndexState = useProposalIndex({ refreshKey: runsWatchVersion });
-  const metricsIndexState = useMetricsIndex({ refreshKey: runsWatchVersion });
-  const agentSurfacesState = useAgentSurfaces({ refreshKey: runsWatchVersion });
-  const ideaToSpecWorkspaceUrl = useMemo(
-    () => workspaceApiUrl("/api/v1/idea-to-spec-workspace", workspace),
+  const workspaceApiUrls = useMemo(
+    () => ({
+      specGraph: workspaceApiUrl("/api/v1/spec-graph", workspace),
+      specNodes: workspaceApiUrl("/api/v1/spec-nodes", workspace),
+      specMarkdown: workspaceApiUrl("/api/v1/spec-markdown", workspace),
+      specMarkdownCompile: workspaceApiUrl("/api/v1/spec-markdown/compile", workspace),
+      specActivity: workspaceApiUrl("/api/v1/spec-activity", workspace),
+      implementationWork: workspaceApiUrl(
+        "/api/v1/implementation-work-index",
+        workspace,
+      ),
+      proposalTrace: workspaceApiUrl("/api/v1/proposal-spec-trace-index", workspace),
+      proposals: workspaceApiUrl("/api/v1/proposals", workspace),
+      metrics: workspaceApiUrl("/api/v1/metrics", workspace),
+      agentSurfaces: workspaceApiUrl("/api/v1/agent-surfaces", workspace),
+      ideaToSpecWorkspace: workspaceApiUrl(
+        "/api/v1/idea-to-spec-workspace",
+        workspace,
+      ),
+      ontologyWorkbench: workspaceApiUrl("/api/v1/ontology-workbench", workspace),
+      practicalOntology: workspaceApiUrl("/api/v1/practical-ontology", workspace),
+      ontologyReviewDashboard: workspaceApiUrl(
+        "/api/v1/ontology-review-dashboard",
+        workspace,
+      ),
+      ontologyComplianceReview: workspaceApiUrl(
+        "/api/v1/ontology-compliance-review",
+        workspace,
+      ),
+      ontologyOwnerDecisionReview: workspaceApiUrl(
+        "/api/v1/ontology-owner-decision-review",
+        workspace,
+      ),
+      artifacts: workspaceApiUrl("/api/v1/artifacts", workspace),
+      artifactContent: workspaceApiUrl("/api/v1/artifacts/content", workspace),
+      specpmLifecycle: workspaceApiUrl("/api/v1/specpm/lifecycle", workspace),
+    }),
     [workspace],
   );
-  const ideaToSpecWorkspaceState = useIdeaToSpecWorkspace({
-    url: ideaToSpecWorkspaceUrl,
+  const feedState = useRecentChanges({
+    url: workspaceApiUrls.specActivity,
     refreshKey: runsWatchVersion,
   });
-  const ontologyWorkbenchState = useOntologyWorkbench({ refreshKey: runsWatchVersion });
-  const practicalOntologyState = usePracticalOntology({ refreshKey: runsWatchVersion });
+  const workState = useImplementationWorkIndex({
+    url: workspaceApiUrls.implementationWork,
+    refreshKey: runsWatchVersion,
+  });
+  const proposalTraceState = useProposalSpecTraceIndex({
+    url: workspaceApiUrls.proposalTrace,
+    refreshKey: runsWatchVersion,
+  });
+  const proposalIndexState = useProposalIndex({
+    url: workspaceApiUrls.proposals,
+    refreshKey: runsWatchVersion,
+  });
+  const metricsIndexState = useMetricsIndex({
+    url: workspaceApiUrls.metrics,
+    refreshKey: runsWatchVersion,
+  });
+  const agentSurfacesState = useAgentSurfaces({
+    url: workspaceApiUrls.agentSurfaces,
+    refreshKey: runsWatchVersion,
+  });
+  const ideaToSpecWorkspaceState = useIdeaToSpecWorkspace({
+    url: workspaceApiUrls.ideaToSpecWorkspace,
+    refreshKey: runsWatchVersion,
+  });
+  const ontologyWorkbenchState = useOntologyWorkbench({
+    url: workspaceApiUrls.ontologyWorkbench,
+    refreshKey: runsWatchVersion,
+  });
+  const practicalOntologyState = usePracticalOntology({
+    url: workspaceApiUrls.practicalOntology,
+    refreshKey: runsWatchVersion,
+  });
   const ontologyReviewDashboardState = useOntologyReviewDashboard({
+    url: workspaceApiUrls.ontologyReviewDashboard,
     refreshKey: runsWatchVersion,
   });
   const ontologyComplianceReviewState = useOntologyComplianceReview({
+    url: workspaceApiUrls.ontologyComplianceReview,
     refreshKey: runsWatchVersion,
   });
   const ontologyOwnerDecisionReviewState = useOntologyOwnerDecisionReview({
+    url: workspaceApiUrls.ontologyOwnerDecisionReview,
     refreshKey: runsWatchVersion,
   });
-  const artifactCatalogState = useArtifactCatalog({ refreshKey: runsWatchVersion });
+  const artifactCatalogState = useArtifactCatalog({
+    url: workspaceApiUrls.artifacts,
+    refreshKey: runsWatchVersion,
+  });
   const capabilitiesState = useSpecSpaceCapabilities();
   const specpmRegistryState = useSpecPMRegistrySummary();
-  const specGraphState = useSpecGraph({ refreshKey: runsWatchVersion });
+  const specGraphState = useSpecGraph({
+    url: workspaceApiUrls.specGraph,
+    refreshKey: runsWatchVersion,
+  });
   const specpmLifecycleState = useSpecPMLifecycleBadges({
     enabled: shouldUseLocalSpecPMLifecycle(apiDeploymentState),
+    url: workspaceApiUrls.specpmLifecycle,
     refreshKey: runsWatchVersion,
   });
   const deploymentStatus = describeDeploymentStatus(uiDeploymentInfo, apiDeploymentState);
@@ -784,6 +853,7 @@ export function ViewerPage({
           .join(" ")}
         selectedNodeId={selectedSpecNodeId}
         selectedEdgeId={selectedSpecEdgeId}
+        specNodeDetailUrl={workspaceApiUrls.specNodes}
         lifecycleBadgesByNode={lifecycleBadgesByNode}
         overlays={canvasOverlays}
         onSelectedNodeIdChange={selectSpecNodeIdFromCanvas}
@@ -1232,6 +1302,7 @@ export function ViewerPage({
               diagnostics={artifactDiagnostics}
               capabilityDiagnostics={capabilityDiagnostics}
               artifactCatalogState={artifactCatalogState}
+              artifactContentUrl={workspaceApiUrls.artifactContent}
               runsWatchVersion={runsWatchVersion}
               showHeader={false}
             />
@@ -1247,6 +1318,9 @@ export function ViewerPage({
         <SpecInspector
           className={styles.inspectorRail}
           selection={selectedSpec}
+          specNodeDetailUrl={workspaceApiUrls.specNodes}
+          specMarkdownUrl={workspaceApiUrls.specMarkdown}
+          specMarkdownCompileUrl={workspaceApiUrls.specMarkdownCompile}
           onClose={clearSpecSelection}
           resolveSpecRef={resolveSpecRef}
           onSelectNodeId={selectSpecNodeId}

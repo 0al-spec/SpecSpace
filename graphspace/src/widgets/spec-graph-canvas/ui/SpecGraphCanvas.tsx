@@ -117,6 +117,7 @@ type Props = {
   className?: string;
   selectedNodeId?: string | null;
   selectedEdgeId?: string | null;
+  specNodeDetailUrl?: string;
   lifecycleBadgesByNode?: ReadonlyMap<string, SpecPMLifecycleBadge>;
   overlays?: SpecGraphCanvasOverlays;
   onSelectedNodeIdChange?: (nodeId: string | null) => void;
@@ -534,6 +535,7 @@ export function SpecGraphCanvas({
   className,
   selectedNodeId,
   selectedEdgeId,
+  specNodeDetailUrl,
   lifecycleBadgesByNode,
   overlays,
   onSelectedNodeIdChange,
@@ -550,6 +552,7 @@ export function SpecGraphCanvas({
         className={className}
         selectedNodeId={selectedNodeId}
         selectedEdgeId={selectedEdgeId}
+        specNodeDetailUrl={specNodeDetailUrl}
         lifecycleBadgesByNode={lifecycleBadgesByNode}
         overlays={overlays}
         onSelectedNodeIdChange={onSelectedNodeIdChange}
@@ -568,6 +571,7 @@ function SpecGraphCanvasInner({
   className,
   selectedNodeId,
   selectedEdgeId,
+  specNodeDetailUrl,
   lifecycleBadgesByNode,
   overlays,
   onSelectedNodeIdChange,
@@ -622,6 +626,7 @@ function SpecGraphCanvasInner({
   const focusedEdgeIdRef = useRef<string | null>(null);
   const previewDetailState = useSpecNodePreviewDetail({
     nodeId: hoverCandidate?.node.node_id ?? null,
+    url: specNodeDetailUrl,
   });
   const subtreeCollapseModel = useMemo(
     () =>
