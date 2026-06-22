@@ -35,6 +35,17 @@ describe("workspace route selection", () => {
     expect(route.shouldReplace).toBe(true);
   });
 
+  it("reserves bootstrap aliases before generic product routes", () => {
+    for (const pathname of ["/bootstrap", "/specgraph", "/specgraph-bootstrap"]) {
+      const route = resolveWorkspaceRoute(pathname);
+
+      expect(route.workspace.id).toBe("specgraph-bootstrap");
+      expect(route.workspace.surfaceMode).toBe("bootstrap_showcase");
+      expect(route.canonicalPath).toBe("/");
+      expect(route.shouldReplace).toBe(true);
+    }
+  });
+
   it("treats any safe top-level slug as a product workspace route", () => {
     const route = resolveWorkspaceRoute("/support-triage-log");
 

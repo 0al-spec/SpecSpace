@@ -12,7 +12,7 @@ export const SPECGRAPH_BOOTSTRAP_WORKSPACE: SpecSpaceWorkspace = {
   id: "specgraph-bootstrap",
   displayName: "SpecGraph",
   route: "/",
-  aliases: [],
+  aliases: ["/bootstrap", "/specgraph", "/specgraph-bootstrap"],
   workflowLane: "specgraph_bootstrap_showcase",
   targetRepositoryRole: "specgraph_bootstrap",
   surfaceMode: "bootstrap_showcase",

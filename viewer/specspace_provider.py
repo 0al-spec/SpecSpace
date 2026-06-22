@@ -2941,13 +2941,14 @@ class ProductWorkspaceHttpProvider:
                 "path": safe_path,
                 "max_bytes": ARTIFACT_CONTENT_MAX_BYTES,
             }
-        status, text, error = self.delegate._read_artifact_text(safe_path)
+        url = self.delegate._artifact_url(safe_path)
+        status, text, error = http_get_text(url, max_bytes=ARTIFACT_CONTENT_MAX_BYTES)
         if error is not None or status != HTTPStatus.OK or text is None:
             return status, {
                 "error": "Artifact could not be read.",
                 "reason": "artifact_fetch_failed",
                 "path": safe_path,
-                "url": self.delegate._artifact_url(safe_path),
+                "url": url,
                 "detail": error["detail"] if error is not None else f"HTTP {int(status)}",
             }
         return HTTPStatus.OK, decode_artifact_content(

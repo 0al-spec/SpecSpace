@@ -2411,6 +2411,47 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
         self.assertNotIn("specs/nodes/SG-SPEC-BOOTSTRAP.yaml", paths)
         self.assertEqual(catalog["source"]["workspace_id"], "team-decision-log")
 
+    def test_product_http_workspace_artifact_content_enforces_preview_limit(
+        self,
+    ) -> None:
+        artifact_path = (
+            "runs/" + idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT
+        )
+        manifest = {
+            "artifact_kind": "specgraph_static_artifact_manifest",
+            "files": [{"path": artifact_path}],
+        }
+        cache = specspace_provider.HttpArtifactCache(
+            manifest=manifest,
+            manifest_loaded_at=time.time(),
+        )
+        delegate = specspace_provider.HttpSpecGraphProvider(
+            base_url="https://artifact.test",
+            cache=cache,
+        )
+        provider = specspace_provider.ProductWorkspaceHttpProvider(
+            delegate=delegate,
+            workspace_id="team-decision-log",
+        )
+
+        with mock.patch.object(
+            specspace_provider,
+            "http_get_text",
+            return_value=(
+                HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                None,
+                {"detail": "artifact exceeds preview limit"},
+            ),
+        ) as get_text:
+            status, body = provider.read_artifact_content(artifact_path)
+
+        self.assertEqual(status, HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+        self.assertEqual(body["reason"], "artifact_fetch_failed")
+        get_text.assert_called_once_with(
+            "https://artifact.test/" + artifact_path,
+            max_bytes=specspace_provider.ARTIFACT_CONTENT_MAX_BYTES,
+        )
+
     def test_directory_health_distinguishes_unreadable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp)
