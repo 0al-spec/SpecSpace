@@ -102,6 +102,22 @@ export type IdeaToSpecGitServiceExecution = {
   reportRefs: Record<string, unknown>;
 };
 
+export type IdeaToSpecWorkspaceIdentity = {
+  available: boolean;
+  id: string | null;
+  displayName: string | null;
+  publicRoute: string | null;
+  workflowLane: string | null;
+  targetRepositoryRole: string | null;
+  governanceProfile: string | null;
+  authorityProfile: string | null;
+  sourceMode: string | null;
+  ready: boolean;
+  reviewState: string | null;
+  blockedBy: readonly string[];
+  nextArtifact: string | null;
+};
+
 export type IdeaToSpecWorkspace = {
   apiVersion: "v1";
   artifactKind: "specspace_idea_to_spec_workspace";
@@ -110,6 +126,8 @@ export type IdeaToSpecWorkspace = {
   canonicalMutationsAllowed: false;
   trackedArtifactsWritten: false;
   source: Record<string, unknown>;
+  selectedWorkspaceId: string | null;
+  workspace: IdeaToSpecWorkspaceIdentity;
   summary: {
     status: string;
     availableArtifactCount: number;
@@ -437,6 +455,25 @@ function parseGitServiceExecution(raw: unknown): IdeaToSpecGitServiceExecution {
   };
 }
 
+function parseWorkspaceIdentity(raw: unknown): IdeaToSpecWorkspaceIdentity {
+  const workspace = recordValue(raw);
+  return {
+    available: workspace.available === true,
+    id: optionalString(workspace.id),
+    displayName: optionalString(workspace.display_name),
+    publicRoute: optionalString(workspace.public_route),
+    workflowLane: optionalString(workspace.workflow_lane),
+    targetRepositoryRole: optionalString(workspace.target_repository_role),
+    governanceProfile: optionalString(workspace.governance_profile),
+    authorityProfile: optionalString(workspace.authority_profile),
+    sourceMode: optionalString(workspace.source_mode),
+    ready: workspace.ready === true,
+    reviewState: optionalString(workspace.review_state),
+    blockedBy: strings(workspace.blocked_by),
+    nextArtifact: optionalString(workspace.next_artifact),
+  };
+}
+
 export function parseIdeaToSpecWorkspace(
   raw: unknown,
 ): UseIdeaToSpecWorkspaceState {
@@ -516,6 +553,8 @@ export function parseIdeaToSpecWorkspace(
       canonicalMutationsAllowed: false,
       trackedArtifactsWritten: false,
       source: recordValue(raw.source),
+      selectedWorkspaceId: optionalString(raw.selected_workspace_id),
+      workspace: parseWorkspaceIdentity(raw.workspace),
       summary: {
         status: stringValue(summary.status, "unknown"),
         availableArtifactCount: numberValue(summary.available_artifact_count),

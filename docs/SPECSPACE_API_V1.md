@@ -670,16 +670,55 @@ The response keeps the existing envelope shape:
 }
 ```
 
+### `GET /api/v1/workspaces`
+
+Returns the readonly public workspace catalog used by route-level workspace
+selection. The initial catalog contains the SpecGraph bootstrap showcase and
+the Team Decision Log `product_idea_to_spec` pilot.
+
+```json
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_workspace_catalog",
+  "schema_version": 1,
+  "read_only": true,
+  "workspaces": [
+    {
+      "id": "specgraph-bootstrap",
+      "display_name": "SpecGraph",
+      "route": "/",
+      "workflow_lane": "specgraph_bootstrap_showcase",
+      "target_repository_role": "specgraph_bootstrap",
+      "surface_mode": "bootstrap_showcase"
+    },
+    {
+      "id": "team-decision-log",
+      "display_name": "Team Decision Log",
+      "route": "/team-decision-log",
+      "aliases": ["/team_decision_log"],
+      "workflow_lane": "product_idea_to_spec",
+      "target_repository_role": "product_spec_workspace",
+      "surface_mode": "product_idea_to_spec"
+    }
+  ]
+}
+```
+
 ### `GET /api/v1/idea-to-spec-workspace`
 
 Returns a consolidated readonly Idea-to-Spec Workspace surface for the
 SpecSpace utility panel. The endpoint aggregates the first autonomous
 idea-to-spec artifacts produced by SpecGraph:
 
+- `runs/active_idea_to_spec_candidate.json`;
 - `runs/idea_event_storming_intake.json`;
 - `runs/candidate_spec_graph.json`;
 - `runs/pre_sib_coherence_report.json`;
 - `runs/candidate_repair_loop_report.json`.
+
+The endpoint accepts `?workspace=team-decision-log` so a public product route
+can select a product artifact provider. If no product-specific provider is
+configured, the route reads the default artifact base.
 
 The payload is designed for fast operator inspection: event-storming counts,
 active ontology/domain/context frame, candidate graph nodes, pre-SIB/coherence
@@ -698,6 +737,18 @@ candidate graph accepted.
   "schema_version": 1,
   "read_only": true,
   "canonical_mutations_allowed": false,
+  "selected_workspace_id": "team-decision-log",
+  "workspace": {
+    "available": true,
+    "id": "team-decision-log",
+    "display_name": "Team Decision Log",
+    "public_route": "/team-decision-log",
+    "workflow_lane": "product_idea_to_spec",
+    "target_repository_role": "product_spec_workspace",
+    "source_mode": "active_candidate",
+    "ready": true,
+    "review_state": "active_candidate_ready"
+  },
   "summary": {
     "status": "ready",
     "available_artifact_count": 4,

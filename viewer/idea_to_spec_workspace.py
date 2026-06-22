@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 IDEA_TO_SPEC_WORKSPACE_ARTIFACT_KIND = "specspace_idea_to_spec_workspace"
+ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT = "active_idea_to_spec_candidate.json"
 IDEA_EVENT_STORMING_INTAKE_ARTIFACT = "idea_event_storming_intake.json"
 CANDIDATE_SPEC_GRAPH_ARTIFACT = "candidate_spec_graph.json"
 PRE_SIB_COHERENCE_REPORT_ARTIFACT = "pre_sib_coherence_report.json"
@@ -32,11 +33,13 @@ PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
 )
 WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
+    ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
     *CORE_WORKSPACE_RUN_ARTIFACTS,
     *PLATFORM_PROMOTION_ARTIFACTS,
 )
 
 ARTIFACT_KEYS: dict[str, str] = {
+    ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: "active_candidate",
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT: "event_storming_intake",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib",
@@ -48,6 +51,7 @@ ARTIFACT_KEYS: dict[str, str] = {
 }
 
 EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
+    ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: "active_idea_to_spec_candidate",
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT: "idea_event_storming_intake",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_spec_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib_coherence_report",
@@ -130,6 +134,21 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             "detail": f"artifact_kind must be {expected_kind}.",
             "artifact_kind": _optional_text(value.get("artifact_kind")),
         }
+    if filename == ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "active candidate authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_mutations_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
     if filename == GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT:
         authority_boundary = _record(value.get("authority_boundary"))
         if any(flag is True for flag in authority_boundary.values()):
@@ -342,6 +361,26 @@ def _promotion_request(report: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def _workspace(active_candidate: dict[str, Any] | None) -> dict[str, Any]:
+    candidate = _record((active_candidate or {}).get("candidate"))
+    readiness = _record((active_candidate or {}).get("readiness"))
+    return {
+        "available": active_candidate is not None,
+        "id": _optional_text(candidate.get("candidate_id")),
+        "display_name": _optional_text(candidate.get("display_name")),
+        "public_route": _optional_text(candidate.get("public_route")),
+        "workflow_lane": _optional_text(candidate.get("workflow_lane")),
+        "target_repository_role": _optional_text(candidate.get("target_repository_role")),
+        "governance_profile": _optional_text(candidate.get("governance_profile")),
+        "authority_profile": _optional_text(candidate.get("authority_profile")),
+        "source_mode": _optional_text((active_candidate or {}).get("source_mode")),
+        "ready": readiness.get("ready") is True,
+        "review_state": _optional_text(readiness.get("review_state")),
+        "blocked_by": _string_list(readiness.get("blocked_by")),
+        "next_artifact": _optional_text(readiness.get("next_artifact")),
+    }
+
+
 def _platform_promotion_request(report: dict[str, Any] | None) -> dict[str, Any]:
     review = _record((report or {}).get("review"))
     return {
@@ -430,6 +469,7 @@ def build_idea_to_spec_workspace(
     artifacts: dict[str, Any],
     source: dict[str, Any],
 ) -> dict[str, Any]:
+    active_candidate = _artifact_data(artifacts, ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT)
     intake = _artifact_data(artifacts, IDEA_EVENT_STORMING_INTAKE_ARTIFACT)
     candidate_graph = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_ARTIFACT)
     pre_sib = _artifact_data(artifacts, PRE_SIB_COHERENCE_REPORT_ARTIFACT)
@@ -480,6 +520,7 @@ def build_idea_to_spec_workspace(
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
         "source": source,
+        "workspace": _workspace(active_candidate),
         "summary": {
             "status": status,
             "available_artifact_count": available_count,

@@ -140,6 +140,12 @@ python viewer/server.py \
 ```
 
 The same value can be supplied through `SPECSPACE_ARTIFACT_BASE_URL`.
+The Team Decision Log product route can use a separate artifact base through
+`SPECSPACE_TEAM_DECISION_LOG_ARTIFACT_BASE_URL` or
+`--team-decision-log-artifact-base-url`. When omitted,
+`/team-decision-log` reads the default artifact base and expects
+`runs/active_idea_to_spec_candidate.json` plus the Idea-to-Spec run artifacts
+there.
 The SpecPM registry URL can be supplied through `SPECSPACE_SPECPM_REGISTRY_URL`.
 
 Optional Hyperprompt compile is disabled unless a deployment configures a

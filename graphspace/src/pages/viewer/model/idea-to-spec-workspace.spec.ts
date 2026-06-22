@@ -10,6 +10,11 @@ describe("parseIdeaToSpecWorkspace", () => {
     if (parsed.kind !== "ok") return;
     expect(parsed.data.summary.status).toBe("blocked");
     expect(parsed.data.summary.candidateNodeCount).toBe(2);
+    expect(parsed.data.selectedWorkspaceId).toBe("team-decision-log");
+    expect(parsed.data.workspace.id).toBe("team-decision-log");
+    expect(parsed.data.workspace.targetRepositoryRole).toBe(
+      "product_spec_workspace",
+    );
     expect(parsed.data.summary.promotionGateBlockerCount).toBe(1);
     expect(parsed.data.summary.gitServiceOperationCount).toBe(3);
     expect(parsed.data.intake.activeFrame.project).toBe("DemoCalculator");

@@ -113,6 +113,12 @@ import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecSpaceCapabilities } from "../model/use-specspace-capabilities";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
 import { proposalTraceEntriesForPanel } from "../model/proposal-trace-entries";
+import {
+  SPECGRAPH_BOOTSTRAP_WORKSPACE,
+  SPECSPACE_WORKSPACES,
+  workspaceApiUrl,
+  type SpecSpaceWorkspace,
+} from "../model/workspace-route";
 import type { MetricsViewerContextFilter } from "../model/metrics-filters";
 import type { ProposalViewerContextFilter } from "../model/proposal-filters";
 import styles from "./ViewerPage.module.css";
@@ -121,10 +127,19 @@ import styles from "./ViewerPage.module.css";
  * Viewer page shell: live data via graph contract hooks with sample fallback
  * when the backend is offline, not configured, or emits invalid artifacts.
  */
-export function ViewerPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+type ViewerPageProps = {
+  workspace?: SpecSpaceWorkspace;
+};
+
+export function ViewerPage({
+  workspace = SPECGRAPH_BOOTSTRAP_WORKSPACE,
+}: ViewerPageProps) {
+  const productWorkspace = workspace.surfaceMode === "product_idea_to_spec";
+  const [sidebarOpen, setSidebarOpen] = useState(productWorkspace);
   const [activeUtilityPanel, setActiveUtilityPanel] =
-    useState<ViewerUtilityPanelId | null>(null);
+    useState<ViewerUtilityPanelId | null>(
+      productWorkspace ? "idea-to-spec" : null,
+    );
   const [proposalContextFilter, setProposalContextFilter] =
     useState<ProposalViewerContextFilter | null>(null);
   const [metricsContextFilter, setMetricsContextFilter] =
@@ -160,7 +175,12 @@ export function ViewerPage() {
   const proposalIndexState = useProposalIndex({ refreshKey: runsWatchVersion });
   const metricsIndexState = useMetricsIndex({ refreshKey: runsWatchVersion });
   const agentSurfacesState = useAgentSurfaces({ refreshKey: runsWatchVersion });
+  const ideaToSpecWorkspaceUrl = useMemo(
+    () => workspaceApiUrl("/api/v1/idea-to-spec-workspace", workspace),
+    [workspace],
+  );
   const ideaToSpecWorkspaceState = useIdeaToSpecWorkspace({
+    url: ideaToSpecWorkspaceUrl,
     refreshKey: runsWatchVersion,
   });
   const ontologyWorkbenchState = useOntologyWorkbench({ refreshKey: runsWatchVersion });
@@ -296,6 +316,7 @@ export function ViewerPage() {
   ] as const;
   const capabilityDiagnostics = describeCapabilityDiagnostics(capabilitiesState);
   const liveStatusTooltip = [
+    `Workspace: ${workspace.displayName}; ${workspace.workflowLane}; ${workspace.targetRepositoryRole}`,
     deploymentStatus.title,
     ...artifactDiagnostics.map(
       (artifact) => `${artifact.label}: ${artifact.status}; ${artifact.detail}`,
@@ -712,6 +733,12 @@ export function ViewerPage() {
   })();
 
   useEffect(() => {
+    if (!productWorkspace) return;
+    setSidebarOpen(true);
+    setActiveUtilityPanel("idea-to-spec");
+  }, [productWorkspace, workspace.id]);
+
+  useEffect(() => {
     specSelectionHistoryRef.current = specSelectionHistory;
   }, [specSelectionHistory]);
 
@@ -791,68 +818,94 @@ export function ViewerPage() {
             </button>
           </div>
 
+          <nav className={styles.workspaceSwitcher} aria-label="Workspace">
+            {SPECSPACE_WORKSPACES.map((item) => (
+              <a
+                key={item.id}
+                className={[
+                  styles.workspaceLink,
+                  item.id === workspace.id ? styles.workspaceLinkActive : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                href={item.route}
+                aria-current={item.id === workspace.id ? "page" : undefined}
+              >
+                {item.displayName}
+              </a>
+            ))}
+          </nav>
+          <div className={styles.workspaceMeta}>
+            <span>{workspace.workflowLane}</span>
+            <span>{workspace.targetRepositoryRole}</span>
+          </div>
+
           <PanelBtnRow
             className={styles.sidebarDock}
             role="toolbar"
             aria-label="Utility panels"
           >
-            <PanelBtn
-              title="Open Recent changes"
-              aria-label="Open Recent changes"
-              active={activeUtilityPanel === "recent"}
-              badge={count}
-              onClick={() => toggleUtilityPanel("recent")}
-            >
-              ◷
-            </PanelBtn>
-            <PanelBtn
-              title="Open Implementation work"
-              aria-label="Open Implementation work"
-              active={activeUtilityPanel === "work"}
-              badge={liveWorkItems.length}
-              onClick={() => toggleUtilityPanel("work")}
-            >
-              ▤
-            </PanelBtn>
-            <PanelBtn
-              title="Open Proposal viewer"
-              aria-label="Open Proposal viewer"
-              active={activeUtilityPanel === "proposals"}
-              badge={
-                proposalIndexState.kind === "ok"
-                  ? proposalIndexState.data.entry_count
-                  : undefined
-              }
-              onClick={() => toggleUtilityPanel("proposals")}
-            >
-              ◈
-            </PanelBtn>
-            <PanelBtn
-              title="Open Metrics viewer"
-              aria-label="Open Metrics viewer"
-              active={activeUtilityPanel === "metrics"}
-              badge={
-                metricsIndexState.kind === "ok"
-                  ? metricsIndexState.data.entry_count
-                  : undefined
-              }
-              onClick={() => toggleUtilityPanel("metrics")}
-            >
-              ▥
-            </PanelBtn>
-            <PanelBtn
-              title="Open Agent surfaces"
-              aria-label="Open Agent surfaces"
-              active={activeUtilityPanel === "agents"}
-              badge={
-                agentSurfacesState.kind === "ok"
-                  ? agentSurfacesState.data.entryCount
-                  : undefined
-              }
-              onClick={() => toggleUtilityPanel("agents")}
-            >
-              ⎈
-            </PanelBtn>
+            {!productWorkspace ? (
+              <>
+                <PanelBtn
+                  title="Open Recent changes"
+                  aria-label="Open Recent changes"
+                  active={activeUtilityPanel === "recent"}
+                  badge={count}
+                  onClick={() => toggleUtilityPanel("recent")}
+                >
+                  ◷
+                </PanelBtn>
+                <PanelBtn
+                  title="Open Implementation work"
+                  aria-label="Open Implementation work"
+                  active={activeUtilityPanel === "work"}
+                  badge={liveWorkItems.length}
+                  onClick={() => toggleUtilityPanel("work")}
+                >
+                  ▤
+                </PanelBtn>
+                <PanelBtn
+                  title="Open Proposal viewer"
+                  aria-label="Open Proposal viewer"
+                  active={activeUtilityPanel === "proposals"}
+                  badge={
+                    proposalIndexState.kind === "ok"
+                      ? proposalIndexState.data.entry_count
+                      : undefined
+                  }
+                  onClick={() => toggleUtilityPanel("proposals")}
+                >
+                  ◈
+                </PanelBtn>
+                <PanelBtn
+                  title="Open Metrics viewer"
+                  aria-label="Open Metrics viewer"
+                  active={activeUtilityPanel === "metrics"}
+                  badge={
+                    metricsIndexState.kind === "ok"
+                      ? metricsIndexState.data.entry_count
+                      : undefined
+                  }
+                  onClick={() => toggleUtilityPanel("metrics")}
+                >
+                  ▥
+                </PanelBtn>
+                <PanelBtn
+                  title="Open Agent surfaces"
+                  aria-label="Open Agent surfaces"
+                  active={activeUtilityPanel === "agents"}
+                  badge={
+                    agentSurfacesState.kind === "ok"
+                      ? agentSurfacesState.data.entryCount
+                      : undefined
+                  }
+                  onClick={() => toggleUtilityPanel("agents")}
+                >
+                  ⎈
+                </PanelBtn>
+              </>
+            ) : null}
             <PanelBtn
               title="Open Idea-to-Spec workspace"
               aria-label="Open Idea-to-Spec workspace"
@@ -931,37 +984,41 @@ export function ViewerPage() {
             >
               ◇
             </PanelBtn>
-            <PanelBtn
-              title="Open Agent context"
-              aria-label="Open Agent context"
-              active={activeUtilityPanel === "agent-context"}
-              badge={agentContextDraft.items.length}
-              onClick={() => toggleUtilityPanel("agent-context")}
-            >
-              ⊕
-            </PanelBtn>
-            <PanelBtn
-              title="Open Agent conversation"
-              aria-label="Open Agent conversation"
-              active={activeUtilityPanel === "agent-conversation"}
-              badge={agentContextDraft.items.length}
-              onClick={() => toggleUtilityPanel("agent-conversation")}
-            >
-              ◌
-            </PanelBtn>
-            <PanelBtn
-              title="Open Proposal trace"
-              aria-label="Open Proposal trace"
-              active={activeUtilityPanel === "proposal-trace"}
-              badge={
-                proposalTraceState.kind === "ok"
-                  ? proposalTraceState.data.entry_count
-                  : liveProposalTraceEntries.length
-              }
-              onClick={() => toggleUtilityPanel("proposal-trace")}
-            >
-              ◇
-            </PanelBtn>
+            {!productWorkspace ? (
+              <>
+                <PanelBtn
+                  title="Open Agent context"
+                  aria-label="Open Agent context"
+                  active={activeUtilityPanel === "agent-context"}
+                  badge={agentContextDraft.items.length}
+                  onClick={() => toggleUtilityPanel("agent-context")}
+                >
+                  ⊕
+                </PanelBtn>
+                <PanelBtn
+                  title="Open Agent conversation"
+                  aria-label="Open Agent conversation"
+                  active={activeUtilityPanel === "agent-conversation"}
+                  badge={agentContextDraft.items.length}
+                  onClick={() => toggleUtilityPanel("agent-conversation")}
+                >
+                  ◌
+                </PanelBtn>
+                <PanelBtn
+                  title="Open Proposal trace"
+                  aria-label="Open Proposal trace"
+                  active={activeUtilityPanel === "proposal-trace"}
+                  badge={
+                    proposalTraceState.kind === "ok"
+                      ? proposalTraceState.data.entry_count
+                      : liveProposalTraceEntries.length
+                  }
+                  onClick={() => toggleUtilityPanel("proposal-trace")}
+                >
+                  ◇
+                </PanelBtn>
+              </>
+            ) : null}
             <PanelBtn
               title="Open Live artifacts"
               aria-label="Open Live artifacts"
@@ -971,27 +1028,31 @@ export function ViewerPage() {
             >
               ◎
             </PanelBtn>
-            <PanelBtn
-              title="Open SpecPM registry"
-              aria-label="Open SpecPM registry"
-              active={activeUtilityPanel === "registry"}
-              badge={
-                specpmRegistryState.kind === "ok"
-                  ? specpmRegistryState.data.packages.package_count
-                  : undefined
-              }
-              onClick={() => toggleUtilityPanel("registry")}
-            >
-              ⌁
-            </PanelBtn>
+            {!productWorkspace ? (
+              <PanelBtn
+                title="Open SpecPM registry"
+                aria-label="Open SpecPM registry"
+                active={activeUtilityPanel === "registry"}
+                badge={
+                  specpmRegistryState.kind === "ok"
+                    ? specpmRegistryState.data.packages.package_count
+                    : undefined
+                }
+                onClick={() => toggleUtilityPanel("registry")}
+              >
+                ⌁
+              </PanelBtn>
+            ) : null}
           </PanelBtnRow>
 
-          <SpecNodeNavigator
-            nodes={specGraphState.data.graph.nodes}
-            selectedNodeId={selectedSpecNodeId}
-            source={specGraphState.source}
-            onSelectNodeId={selectSpecNodeId}
-          />
+          {!productWorkspace ? (
+            <SpecNodeNavigator
+              nodes={specGraphState.data.graph.nodes}
+              selectedNodeId={selectedSpecNodeId}
+              source={specGraphState.source}
+              onSelectNodeId={selectSpecNodeId}
+            />
+          ) : null}
         </aside>
       ) : null}
 

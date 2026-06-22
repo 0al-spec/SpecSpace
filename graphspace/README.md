@@ -36,6 +36,10 @@ The route should select workspace metadata and the artifact manifest consumed by
 `/api/v1/*`. It must not grant write authority to the UI; candidate promotion
 continues through the Graph Repository Service boundary.
 
+The current UI resolves `/team_decision_log` to `/team-decision-log`, opens the
+Idea-to-Spec workspace panel by default, and passes
+`workspace=team-decision-log` to the Idea-to-Spec read model.
+
 ## Canvas layout
 
 The default SpecGraph canvas layout is **Refinement Ladder Layout**.

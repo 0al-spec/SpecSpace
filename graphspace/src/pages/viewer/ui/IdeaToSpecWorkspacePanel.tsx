@@ -95,6 +95,7 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
           </span>
         </div>
         <div className={styles.statusGroup}>
+          <Pill value={compact(data.workspace.reviewState, "no active candidate")} />
           <Pill value={data.summary.status} />
           <Pill value={compact(data.preSib.readiness.reviewState, "no pre-SIB")} />
           <Pill value={compact(data.repairLoop.readiness.reviewState, "no repair")} />
@@ -133,6 +134,7 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
       </div>
 
       <div className={styles.entries}>
+        <WorkspaceSection workspace={data.workspace} />
         <FrameSection project={frame.project} domains={frame.domainRefs} contexts={frame.contextRefs} />
         <ArtifactSection artifacts={data.artifacts} />
         <IntakeSection state={state} />
@@ -142,6 +144,28 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <MaterializationSection state={state} />
         <PromotionGateSection state={state} />
         <ControlledPromotionSection state={state} />
+      </div>
+    </section>
+  );
+}
+
+function WorkspaceSection({
+  workspace,
+}: {
+  workspace: IdeaToSpecWorkspace["workspace"];
+}) {
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader title="Active workspace" count={workspace.available ? 1 : 0} />
+      <div className={styles.row}>
+        <div className={styles.metaGrid}>
+          <Meta label="Candidate" value={workspace.displayName ?? workspace.id} />
+          <Meta label="Route" value={workspace.publicRoute} />
+          <Meta label="Lane" value={workspace.workflowLane} />
+          <Meta label="Role" value={workspace.targetRepositoryRole} />
+          <Meta label="Source" value={workspace.sourceMode} />
+          <Meta label="Ready" value={boolText(workspace.ready)} />
+        </div>
       </div>
     </section>
   );

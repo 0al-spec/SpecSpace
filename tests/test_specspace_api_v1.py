@@ -16,7 +16,7 @@ from urllib.request import Request, urlopen
 
 import yaml
 
-from viewer import agent_surfaces, server, specspace_provider
+from viewer import agent_surfaces, idea_to_spec_workspace, server, specspace_provider
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -55,6 +55,7 @@ def _start(
     runs_dir: Path | None = None,
     specgraph_dir: Path | None = None,
     artifact_base_url: str | None = None,
+    team_decision_log_artifact_base_url: str | None = None,
     specpm_registry_url: str | None = None,
     agent_workbench_dir: Path | None = None,
     hyperprompt_binary: str = "",
@@ -90,6 +91,7 @@ def _start(
     httpd.runs_dir = runs_dir
     httpd.runs_watcher = server.RunsWatcher(runs_dir) if runs_dir else None
     httpd.artifact_base_url = artifact_base_url
+    httpd.team_decision_log_artifact_base_url = team_decision_log_artifact_base_url
     httpd.specpm_registry_url = specpm_registry_url
     httpd.agent_workbench_dir = agent_workbench_dir
     httpd.specspace_state_dir = specspace_state_dir or (
@@ -1923,6 +1925,107 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
             )
             self.assertEqual(ok.status, "ok")
             self.assertEqual(ok.item_count, 1)
+
+    def test_workspaces_catalog_reports_public_product_route(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                artifact_base_url="https://specgraph.space/artifacts/specgraph",
+                team_decision_log_artifact_base_url=(
+                    "https://specgraph.space/artifacts/team-decision-log"
+                ),
+            )
+            try:
+                status, body = _get(f"{base}/api/v1/workspaces")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        workspaces = {item["id"]: item for item in body["workspaces"]}
+        self.assertEqual(workspaces["specgraph-bootstrap"]["route"], "/")
+        self.assertEqual(
+            workspaces["team-decision-log"]["route"],
+            "/team-decision-log",
+        )
+        self.assertEqual(
+            workspaces["team-decision-log"]["target_repository_role"],
+            "product_spec_workspace",
+        )
+        self.assertEqual(
+            workspaces["team-decision-log"]["artifact_base_url"],
+            "https://specgraph.space/artifacts/team-decision-log",
+        )
+
+    def test_idea_to_spec_workspace_query_selects_team_artifact_base(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            default_artifact_root = root / "default-artifacts"
+            team_artifact_root = root / "team-artifacts"
+            (default_artifact_root / "runs").mkdir(parents=True)
+            (team_artifact_root / "runs").mkdir(parents=True)
+            _write_json(
+                team_artifact_root
+                / "runs"
+                / idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
+                {
+                    "artifact_kind": "active_idea_to_spec_candidate",
+                    "schema_version": 1,
+                    "proposal_id": "0155",
+                    "contract_ref": (
+                        "specgraph.idea-to-spec.active-candidate-source.v0.1"
+                    ),
+                    "canonical_mutations_allowed": False,
+                    "source_mode": "active_candidate",
+                    "candidate": {
+                        "candidate_id": "team-decision-log",
+                        "display_name": "Team Decision Log",
+                        "public_route": "/team-decision-log",
+                        "workflow_lane": "product_idea_to_spec",
+                        "target_repository_role": "product_spec_workspace",
+                    },
+                    "readiness": {
+                        "ready": True,
+                        "review_state": "active_candidate_ready",
+                        "blocked_by": [],
+                    },
+                    "authority_boundary": {
+                        "may_create_branch_or_commit": False,
+                        "may_mutate_canonical_specs": False,
+                    },
+                },
+            )
+            _write_manifest(default_artifact_root, [])
+            _write_manifest(
+                team_artifact_root,
+                [
+                    "runs/"
+                    + idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+                ],
+            )
+            default_static, default_thread, default_base_url = _start_static(
+                default_artifact_root
+            )
+            team_static, team_thread, team_base_url = _start_static(team_artifact_root)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                artifact_base_url=default_base_url,
+                team_decision_log_artifact_base_url=team_base_url,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+                _stop(default_static, default_thread)
+                _stop(team_static, team_thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["selected_workspace_id"], "team-decision-log")
+        self.assertEqual(body["source"]["artifact_base_url"], team_base_url)
+        self.assertEqual(body["workspace"]["id"], "team-decision-log")
+        self.assertEqual(body["workspace"]["review_state"], "active_candidate_ready")
 
     def test_directory_health_distinguishes_unreadable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

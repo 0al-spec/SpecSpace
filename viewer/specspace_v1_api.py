@@ -27,8 +27,17 @@ class SpecSpaceV1Handler(JsonResponseHandler, Protocol):
     def handle_runs_watch(self) -> None: ...
 
 
-def _provider(handler: SpecSpaceV1Handler) -> specspace_provider.SpecSpaceProvider:
-    return specspace_provider.provider_from_server(handler.server)
+def _provider(
+    handler: SpecSpaceV1Handler,
+    workspace_id: str | None = None,
+) -> specspace_provider.SpecSpaceProvider:
+    return specspace_provider.provider_from_server(handler.server, workspace_id)
+
+
+def _query_workspace_id(parsed: Any) -> str | None:
+    return specspace_provider.normalize_workspace_id(
+        query_value(query_params(parsed), "workspace", None)
+    )
 
 
 def _query_limit(parsed: Any, *, default: int, minimum: int = 1, maximum: int = 500) -> int:
@@ -234,6 +243,10 @@ def handle_v1_capabilities(handler: SpecSpaceV1Handler) -> None:
     json_response(handler, HTTPStatus.OK, specspace_provider.versioned_capabilities(handler, provider))
 
 
+def handle_v1_workspaces(handler: SpecSpaceV1Handler) -> None:
+    json_response(handler, HTTPStatus.OK, specspace_provider.workspace_catalog(handler.server))
+
+
 def handle_v1_spec_graph(handler: SpecSpaceV1Handler) -> None:
     status, payload = _provider(handler).read_spec_graph()
     json_response(handler, status, payload)
@@ -379,8 +392,11 @@ def handle_v1_ontology_workbench(handler: SpecSpaceV1Handler) -> None:
     json_response(handler, status, payload)
 
 
-def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_idea_to_spec_workspace()
+def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    workspace_id = _query_workspace_id(parsed)
+    status, payload = _provider(handler, workspace_id).read_idea_to_spec_workspace()
+    if status == HTTPStatus.OK and workspace_id is not None:
+        payload["selected_workspace_id"] = workspace_id
     json_response(handler, status, payload)
 
 
