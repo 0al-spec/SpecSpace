@@ -258,6 +258,32 @@ def test_capability_diagnostics_report_available_hyperprompt_compile(tmp_path) -
     assert diagnostics["hyperprompt_compile"]["status"] == "available"
 
 
+def test_capability_diagnostics_treat_product_workspace_provider_as_file_like(
+    tmp_path,
+) -> None:
+    binary = tmp_path / "hyperprompt"
+    binary.write_text("#!/bin/sh\n", encoding="utf-8")
+    binary.chmod(0o755)
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+
+    diagnostics = build_capability_diagnostics(
+        FakeHandler(
+            spec_dir=object(),
+            hyperprompt_binary=str(binary),
+            hyperprompt_resolved_binary=str(binary),
+            hyperprompt_checked_paths=[str(binary)],
+            hyperprompt_resolution_source="configured",
+            hyperprompt_work_dir=scratch,
+        ),
+        provider_kind="file-product-workspace",
+        capabilities={"spec_markdown_export": True},
+    )
+
+    assert diagnostics["hyperprompt_compile"]["available"] is True
+    assert diagnostics["hyperprompt_compile"]["status"] == "available"
+
+
 def test_capability_diagnostics_report_invalid_hyperprompt_limit(tmp_path) -> None:
     binary = tmp_path / "hyperprompt"
     binary.write_text("#!/bin/sh\n", encoding="utf-8")

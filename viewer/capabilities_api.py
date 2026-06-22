@@ -213,7 +213,7 @@ def build_hyperprompt_compile_diagnostic(
             "detail": "Hyperprompt compile for HTTP artifact providers requires an explicit feature flag.",
         }
 
-    if provider_kind not in {"file", "http"}:
+    if provider_kind not in {"file", "file-product-workspace", "http"}:
         return {
             **base,
             "available": False,

@@ -490,6 +490,192 @@ PUBLIC_SAFE_RUN_ARTIFACT_FILENAMES: frozenset[str] = frozenset(
 )
 
 
+def _now_iso() -> str:
+    return datetime.now(tz=timezone.utc).isoformat()
+
+
+def _record(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _records(value: Any) -> list[dict[str, Any]]:
+    return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
+
+def _text(value: Any, default: str = "") -> str:
+    return value.strip() if isinstance(value, str) and value.strip() else default
+
+
+def _candidate_edge_kind(value: Any) -> str:
+    edge_kind = _text(value, "relates_to")
+    return edge_kind if edge_kind in specgraph.EDGE_KINDS else "relates_to"
+
+
+def _candidate_graph_to_spec_nodes(candidate_graph: dict[str, Any]) -> list[dict[str, Any]]:
+    by_id: dict[str, dict[str, Any]] = {}
+    for node in _records(candidate_graph.get("nodes")):
+        node_id = _text(node.get("id"))
+        if not node_id:
+            continue
+        requirements = _records(node.get("requirements"))
+        acceptance_criteria = _records(node.get("acceptance_criteria"))
+        by_id[node_id] = {
+            "id": node_id,
+            "_file_name": f"runs/{idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT}#{node_id}",
+            "title": _text(node.get("title"), node_id),
+            "kind": _text(node.get("kind"), "candidate_spec"),
+            "status": _text(node.get("status"), "candidate"),
+            "maturity": node.get("maturity") if isinstance(node.get("maturity"), (int, float)) else None,
+            "inputs": [f"runs/{idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT}"],
+            "outputs": [],
+            "acceptance": [
+                _text(item.get("statement"), _text(item.get("id"), "acceptance criterion"))
+                for item in acceptance_criteria
+            ],
+            "acceptance_evidence": [],
+            "depends_on": [],
+            "refines": [],
+            "relates_to": [],
+            "last_outcome": "candidate_graph_read_model",
+            "presence": {"state": "candidate_only"},
+            "authority_class": "candidate_product_spec",
+            "specification": {
+                "objective": _text(node.get("description"), _text(node.get("title"), node_id)),
+                "requirements": requirements,
+                "acceptance_criteria": acceptance_criteria,
+                "claims": _records(node.get("claims")),
+                "gaps": _records(node.get("gaps")),
+                "ontology_refs": [
+                    item
+                    for item in node.get("ontology_refs", [])
+                    if isinstance(item, str) and item
+                ]
+                if isinstance(node.get("ontology_refs"), list)
+                else [],
+            },
+        }
+
+    for edge in _records(candidate_graph.get("edges")):
+        source_id = _text(edge.get("source_id") or edge.get("source") or edge.get("from"))
+        target_id = _text(edge.get("target_id") or edge.get("target") or edge.get("to"))
+        if not source_id or not target_id or source_id not in by_id:
+            continue
+        edge_kind = _candidate_edge_kind(
+            edge.get("edge_kind") or edge.get("relation_kind") or edge.get("kind")
+        )
+        by_id[source_id][edge_kind].append(target_id)
+
+    return list(by_id.values())
+
+
+def _empty_spec_activity_feed(*, source: dict[str, Any]) -> dict[str, Any]:
+    prompt_overlay = {
+        "scope": "visible_entries",
+        "label": "No product workspace activity",
+        "status_counts": {},
+        "drift_group_count": 0,
+        "drift_groups": [],
+    }
+    return {
+        "api_version": SPECSPACE_API_VERSION,
+        "artifact_kind": "spec_activity_feed",
+        "schema_version": 1,
+        "generated_at": _now_iso(),
+        "source_artifacts": {},
+        "entry_count": 0,
+        "entries": [],
+        "summary": {
+            "entry_count": 0,
+            "event_type_counts": {},
+            "spec_event_counts": {},
+            "prompt_overlay": prompt_overlay,
+        },
+        "viewer_projection": {
+            "event_type": {},
+            "spec_id": {},
+            "named_filters": {},
+            "prompt_overlay": prompt_overlay,
+        },
+        "viewer_contract": {
+            "contract_doc": "product_workspace_read_model",
+            "recommended_endpoint": "/api/v1/spec-activity",
+            "source_artifact": idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT,
+        },
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "source": source,
+    }
+
+
+def _empty_implementation_work_index(*, source: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "api_version": SPECSPACE_API_VERSION,
+        "artifact_kind": "implementation_work_index",
+        "schema_version": 1,
+        "generated_at": _now_iso(),
+        "policy_reference": {
+            "artifact_path": "product_workspace_read_model",
+            "artifact_sha256": "0" * 64,
+            "version": 1,
+        },
+        "source_delta_snapshot": {
+            "artifact_path": idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT,
+            "generated_at": _now_iso(),
+            "status": "empty_delta",
+            "next_gap": "product_workspace_spec_only",
+        },
+        "entry_count": 0,
+        "entries": [],
+        "viewer_projection": {
+            "readiness": {},
+            "next_gap": {},
+            "named_filters": {},
+        },
+        "implementation_backlog": {
+            "entry_count": 0,
+            "grouped_by_next_gap": {},
+            "items": [],
+        },
+        "canonical_mutations_allowed": False,
+        "runtime_code_mutations_allowed": False,
+        "source": source,
+    }
+
+
+def _empty_proposal_spec_trace_index(*, source: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "api_version": SPECSPACE_API_VERSION,
+        "artifact_kind": "proposal_spec_trace_index",
+        "schema_version": 1,
+        "generated_at": _now_iso(),
+        "source_artifacts": {},
+        "entry_count": 0,
+        "entries": [],
+        "lane_ref_count": 0,
+        "lane_refs": [],
+        "summary": {
+            "entry_count": 0,
+            "lane_ref_count": 0,
+            "spec_ref_count": 0,
+            "authority_counts": {},
+            "trace_status_counts": {},
+        },
+        "viewer_projection": {
+            "spec_id": {},
+            "authority": {},
+            "trace_status": {},
+            "named_filters": {},
+        },
+        "viewer_contract": {
+            "contract_doc": "product_workspace_read_model",
+            "read_only": True,
+        },
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "source": source,
+    }
+
+
 @dataclass(frozen=True)
 class FileSpecGraphProvider:
     """Readonly file-backed provider over SpecGraph nodes and runs artifacts."""
@@ -1021,6 +1207,293 @@ class FileSpecGraphProvider:
             "api_version": SPECSPACE_API_VERSION,
             **_build_specpm_lifecycle(self.specgraph_dir),
         }
+
+
+@dataclass(frozen=True)
+class ProductWorkspaceFileProvider:
+    """Readonly product workspace provider over candidate idea-to-spec artifacts."""
+
+    delegate: FileSpecGraphProvider
+    workspace_id: str = TEAM_DECISION_LOG_WORKSPACE_ID
+
+    kind = "file-product-workspace"
+
+    def _source(self, *, surface: str) -> dict[str, Any]:
+        return {
+            "provider": self.kind,
+            "workspace_id": self.workspace_id,
+            "surface": surface,
+            "read_only": True,
+            "runs_dir": str(self.delegate.runs_dir)
+            if self.delegate.runs_dir is not None
+            else None,
+            "specgraph_dir": str(self.delegate.specgraph_dir)
+            if self.delegate.specgraph_dir is not None
+            else None,
+        }
+
+    def _workspace_unavailable(self, surface: str) -> tuple[HTTPStatus, dict[str, Any]]:
+        return (
+            HTTPStatus.NOT_FOUND,
+            {
+                "api_version": SPECSPACE_API_VERSION,
+                "error": "Product workspace surface is not available.",
+                "reason": "product_workspace_surface_unavailable",
+                "workspace_id": self.workspace_id,
+                "surface": surface,
+                "source": self._source(surface=surface),
+            },
+        )
+
+    def _workspace_artifacts(self) -> dict[str, Any]:
+        return self.delegate._read_idea_to_spec_workspace_artifacts()
+
+    def _candidate_spec_nodes(self) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        candidate_graph = self.delegate._read_local_runs_json(
+            idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT
+        )
+        if candidate_graph is None:
+            return [], [
+                {
+                    "file_name": f"runs/{idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT}",
+                    "message": "Candidate spec graph artifact is not available.",
+                }
+            ]
+        return _candidate_graph_to_spec_nodes(candidate_graph), []
+
+    def _artifact_map(self) -> dict[str, Path]:
+        if self.delegate.runs_dir is None:
+            return {}
+        artifact_map: dict[str, Path] = {}
+        for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS:
+            path = self.delegate.runs_dir / filename
+            if path.exists() and path.is_file():
+                artifact_map[f"runs/{filename}"] = path
+        return artifact_map
+
+    def health(self) -> dict[str, Any]:
+        base = self.delegate.health()
+        runs = self.delegate.runs_health()
+        candidate_graph = self.delegate._read_local_runs_json(
+            idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT
+        )
+        status = "ok" if source_is_readable(runs) and candidate_graph is not None else "degraded"
+        return {
+            **base,
+            "provider": self.kind,
+            "workspace_id": self.workspace_id,
+            "status": status,
+            "sources": {
+                "runs": runs.to_json(),
+                "candidate_spec_graph": {
+                    "name": "candidate_spec_graph",
+                    "path": str(self.delegate.runs_dir / idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT)
+                    if self.delegate.runs_dir is not None
+                    else None,
+                    "status": "ok" if candidate_graph is not None else "missing",
+                },
+            },
+        }
+
+    def capabilities(self, handler: CapabilityContext) -> dict[str, bool]:
+        return self.delegate.capabilities(handler)
+
+    def read_spec_graph(self) -> tuple[HTTPStatus, dict[str, Any]]:
+        nodes, load_errors = self._candidate_spec_nodes()
+        graph = specgraph.build_spec_graph(nodes, load_errors)
+        source = self._source(surface="candidate_spec_graph")
+        return HTTPStatus.OK, {
+            "api_version": SPECSPACE_API_VERSION,
+            "workspace_id": self.workspace_id,
+            "spec_dir": f"runs/{idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT}",
+            "source": source,
+            "graph": graph,
+            "summary": graph["summary"],
+        }
+
+    def read_spec_node(self, node_id: str) -> tuple[HTTPStatus, dict[str, Any]]:
+        nodes, _ = self._candidate_spec_nodes()
+        detail = specgraph.get_spec_node_detail(nodes, node_id)
+        if detail is None:
+            return HTTPStatus.NOT_FOUND, {
+                "error": f"Candidate spec node '{node_id}' not found",
+                "workspace_id": self.workspace_id,
+            }
+        return HTTPStatus.OK, {
+            "api_version": SPECSPACE_API_VERSION,
+            "workspace_id": self.workspace_id,
+            "node_id": node_id,
+            "data": detail,
+        }
+
+    def read_spec_markdown(
+        self,
+        root_id: str,
+        options: spec_compile.CompileOptions,
+    ) -> tuple[HTTPStatus, dict[str, Any]]:
+        nodes, load_errors = self._candidate_spec_nodes()
+        return build_spec_markdown_response(
+            nodes=nodes,
+            load_errors=load_errors,
+            root_id=root_id,
+            options=options,
+            source=self._source(surface="candidate_spec_markdown"),
+        )
+
+    def compile_spec_markdown(
+        self,
+        handler: CapabilityContext,
+        root_id: str,
+        options: spec_compile.CompileOptions,
+        *,
+        scope: str,
+    ) -> tuple[int, dict[str, Any]]:
+        return compile_spec_markdown_with_provider(self, handler, root_id, options, scope=scope)
+
+    def read_recent_runs(
+        self,
+        *,
+        limit: int,
+        since_iso: str | None,
+    ) -> tuple[int, dict[str, Any]]:
+        _ = (limit, since_iso)
+        return HTTPStatus.OK, {
+            "api_version": SPECSPACE_API_VERSION,
+            "workspace_id": self.workspace_id,
+            "runs": [],
+            "entry_count": 0,
+            "source": self._source(surface="recent_runs"),
+        }
+
+    def read_spec_activity(
+        self,
+        *,
+        limit_raw: str | None,
+        since_raw: str | None,
+    ) -> tuple[int, dict[str, Any]]:
+        _ = (limit_raw, since_raw)
+        return HTTPStatus.OK, _empty_spec_activity_feed(
+            source=self._source(surface="spec_activity")
+        )
+
+    def read_implementation_work_index(
+        self,
+        *,
+        limit_raw: str | None,
+    ) -> tuple[int, dict[str, Any]]:
+        _ = limit_raw
+        return HTTPStatus.OK, _empty_implementation_work_index(
+            source=self._source(surface="implementation_work")
+        )
+
+    def read_proposal_spec_trace_index(self) -> tuple[int, dict[str, Any]]:
+        return HTTPStatus.OK, _empty_proposal_spec_trace_index(
+            source=self._source(surface="proposal_spec_trace")
+        )
+
+    def read_proposals(self) -> tuple[int, dict[str, Any]]:
+        return proposals.read_file_proposal_index(runs_dir=None, specgraph_dir=None)
+
+    def read_practical_ontology(self) -> tuple[int, dict[str, Any]]:
+        return self._workspace_unavailable("practical_ontology")
+
+    def read_ontology_workbench(self) -> tuple[int, dict[str, Any]]:
+        return self._workspace_unavailable("ontology_workbench")
+
+    def read_idea_to_spec_workspace(self) -> tuple[int, dict[str, Any]]:
+        return HTTPStatus.OK, idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=self._workspace_artifacts(),
+            source=self._source(surface="idea_to_spec_workspace"),
+        )
+
+    def read_metrics(self) -> tuple[int, dict[str, Any]]:
+        return metrics.read_file_metrics_index(runs_dir=None)
+
+    def read_agent_surfaces(self) -> tuple[int, dict[str, Any]]:
+        return agent_surfaces.read_file_agent_surface_index(runs_dir=None)
+
+    def read_artifact_catalog(self) -> tuple[int, dict[str, Any]]:
+        artifacts: list[dict[str, Any]] = []
+        for rel, path in self._artifact_map().items():
+            try:
+                size_bytes = path.stat().st_size
+            except OSError:
+                continue
+            artifacts.append(
+                {
+                    "path": rel,
+                    "root": "runs",
+                    "label": artifact_label(rel),
+                    "group": "product_workspace",
+                    "size_bytes": size_bytes,
+                }
+            )
+        return HTTPStatus.OK, build_artifact_catalog(
+            source=self._source(surface="artifact_catalog"),
+            artifacts=artifacts,
+        )
+
+    def read_artifact_content(self, path: str) -> tuple[int, dict[str, Any]]:
+        safe_path = safe_manifest_path(path)
+        if safe_path is None:
+            return HTTPStatus.BAD_REQUEST, {
+                "error": "Invalid artifact path.",
+                "reason": "invalid_artifact_path",
+                "path": path,
+            }
+        artifact_path = self._artifact_map().get(safe_path)
+        if artifact_path is None:
+            return HTTPStatus.NOT_FOUND, {
+                "error": "Artifact is not available from the product workspace.",
+                "reason": "missing_product_workspace_artifact",
+                "path": safe_path,
+                "workspace_id": self.workspace_id,
+            }
+        try:
+            size_bytes = artifact_path.stat().st_size
+        except OSError as exc:
+            return HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": "Artifact could not be inspected.",
+                "reason": "artifact_stat_failed",
+                "path": safe_path,
+                "detail": str(exc),
+            }
+        if size_bytes > ARTIFACT_CONTENT_MAX_BYTES:
+            return HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {
+                "error": "Artifact exceeds preview limit.",
+                "reason": "artifact_too_large",
+                "path": safe_path,
+                "max_bytes": ARTIFACT_CONTENT_MAX_BYTES,
+            }
+        try:
+            text = artifact_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            return HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": "Artifact could not be read.",
+                "reason": "artifact_read_failed",
+                "path": safe_path,
+                "detail": str(exc),
+            }
+        return HTTPStatus.OK, decode_artifact_content(
+            path=safe_path,
+            text=text,
+            source=self._source(surface="artifact_content"),
+        )
+
+    def read_ontology_semantic_review_surface(self) -> tuple[int, dict[str, Any]]:
+        return self._workspace_unavailable("ontology_semantic_review")
+
+    def read_ontology_review_dashboard(self) -> tuple[int, dict[str, Any]]:
+        return self._workspace_unavailable("ontology_review_dashboard")
+
+    def read_ontology_owner_decision_review(self) -> tuple[int, dict[str, Any]]:
+        return self._workspace_unavailable("ontology_owner_decision_review")
+
+    def read_spec_ontology_validation_report(self) -> tuple[int, dict[str, Any]]:
+        return self._workspace_unavailable("ontology_compliance_review")
+
+    def read_specpm_lifecycle(self) -> tuple[HTTPStatus, dict[str, Any]]:
+        return self._workspace_unavailable("specpm_lifecycle")
 
 
 @dataclass
@@ -2194,11 +2667,13 @@ def artifact_base_url_for_workspace(server: Any, workspace_id: str | None) -> st
         workspace_url = getattr(server, "team_decision_log_artifact_base_url", None)
         if isinstance(workspace_url, str) and workspace_url.strip():
             return workspace_url.strip()
+        return None
     artifact_base_url = getattr(server, "artifact_base_url", None)
     return artifact_base_url.strip() if isinstance(artifact_base_url, str) and artifact_base_url.strip() else None
 
 
 def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSpaceProvider:
+    normalized_workspace_id = normalize_workspace_id(workspace_id)
     artifact_base_url = artifact_base_url_for_workspace(server, workspace_id)
     if isinstance(artifact_base_url, str) and artifact_base_url.strip():
         cache_by_url = getattr(server, "artifact_cache_by_url", None)
@@ -2216,11 +2691,14 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
     runs_dir = getattr(server, "runs_dir", None)
     if runs_dir is None:
         runs_dir = specgraph_surfaces.runs_dir_from_context(spec_dir, specgraph_dir)
-    return FileSpecGraphProvider(
+    file_provider = FileSpecGraphProvider(
         spec_nodes_dir=spec_dir,
         runs_dir=runs_dir,
         specgraph_dir=specgraph_dir,
     )
+    if normalized_workspace_id == TEAM_DECISION_LOG_WORKSPACE_ID:
+        return ProductWorkspaceFileProvider(delegate=file_provider)
+    return file_provider
 
 
 def workspace_catalog(server: Any) -> dict[str, Any]:
@@ -2256,7 +2734,7 @@ def workspace_catalog(server: Any) -> dict[str, Any]:
                 "target_repository_role": "product_spec_workspace",
                 "surface_mode": "product_idea_to_spec",
                 "artifact_base_url": team_artifact_base_url,
-                "provider": "http" if team_artifact_base_url else "file",
+                "provider": "http" if team_artifact_base_url else "file-product-workspace",
                 "selected_by_default": False,
                 "uses_default_artifact_base_url": (
                     bool(team_artifact_base_url)
