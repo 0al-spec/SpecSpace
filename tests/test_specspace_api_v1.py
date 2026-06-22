@@ -48,7 +48,17 @@ def _write_json(path: Path, data: dict) -> None:
     path.write_text(json.dumps(data), encoding="utf-8")
 
 
-def _write_product_workspace_runs(runs_dir: Path) -> None:
+def _write_product_workspace_runs(
+    runs_dir: Path,
+    *,
+    candidate_id: str = "team-decision-log",
+    display_name: str = "Team Decision Log",
+    public_route: str = "/team-decision-log",
+    project: str = "TeamDecisionLog",
+    domain_ref: str = "domain.team_decision_log",
+    root_node_id: str = "candidate-spec.team-decision-log-product",
+    root_title: str = "Team Decision Log Product",
+) -> None:
     runs_dir.mkdir(parents=True, exist_ok=True)
     _write_json(
         runs_dir / idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
@@ -56,9 +66,9 @@ def _write_product_workspace_runs(runs_dir: Path) -> None:
             "artifact_kind": "active_idea_to_spec_candidate",
             "schema_version": 1,
             "candidate": {
-                "candidate_id": "team-decision-log",
-                "display_name": "Team Decision Log",
-                "public_route": "/team-decision-log",
+                "candidate_id": candidate_id,
+                "display_name": display_name,
+                "public_route": public_route,
                 "workflow_lane": "product_idea_to_spec",
                 "target_repository_role": "product_spec_workspace",
             },
@@ -82,15 +92,15 @@ def _write_product_workspace_runs(runs_dir: Path) -> None:
             "canonical_mutations_allowed": False,
             "tracked_artifacts_written": False,
             "active_frame": {
-                "project": "TeamDecisionLog",
-                "domain_refs": ["domain.team_decision_log"],
+                "project": project,
+                "domain_refs": [domain_ref],
                 "context_refs": ["context.idea_to_spec"],
                 "ontology_refs": ["ontology://specgraph-core"],
             },
             "nodes": [
                 {
-                    "id": "candidate-spec.team-decision-log-product",
-                    "title": "Team Decision Log Product",
+                    "id": root_node_id,
+                    "title": root_title,
                     "kind": "product_boundary",
                     "description": "Product boundary for the pilot workspace.",
                     "requirements": [
@@ -118,7 +128,7 @@ def _write_product_workspace_runs(runs_dir: Path) -> None:
             "edges": [
                 {
                     "source_id": "candidate-spec.decision-record",
-                    "target_id": "candidate-spec.team-decision-log-product",
+                    "target_id": root_node_id,
                     "edge_kind": "refines",
                 }
             ],
@@ -134,6 +144,7 @@ def _start(
     specgraph_dir: Path | None = None,
     artifact_base_url: str | None = None,
     team_decision_log_artifact_base_url: str | None = None,
+    product_workspace_artifact_base_urls: dict[str, str] | None = None,
     specpm_registry_url: str | None = None,
     agent_workbench_dir: Path | None = None,
     hyperprompt_binary: str = "",
@@ -170,6 +181,9 @@ def _start(
     httpd.runs_watcher = server.RunsWatcher(runs_dir) if runs_dir else None
     httpd.artifact_base_url = artifact_base_url
     httpd.team_decision_log_artifact_base_url = team_decision_log_artifact_base_url
+    httpd.product_workspace_artifact_base_urls = (
+        dict(product_workspace_artifact_base_urls or {})
+    )
     httpd.specpm_registry_url = specpm_registry_url
     httpd.agent_workbench_dir = agent_workbench_dir
     httpd.specspace_state_dir = specspace_state_dir or (
@@ -2010,9 +2024,14 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
             httpd, thread, base = _start(
                 root / "dialogs",
                 artifact_base_url="https://specgraph.space/artifacts/specgraph",
-                team_decision_log_artifact_base_url=(
-                    "https://specgraph.space/artifacts/team-decision-log"
-                ),
+                product_workspace_artifact_base_urls={
+                    "team-decision-log": (
+                        "https://specgraph.space/artifacts/team-decision-log"
+                    ),
+                    "support-triage-log": (
+                        "https://specgraph.space/artifacts/support-triage-log"
+                    ),
+                },
             )
             try:
                 status, body = _get(f"{base}/api/v1/workspaces")
@@ -2033,6 +2052,22 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
         self.assertEqual(
             workspaces["team-decision-log"]["artifact_base_url"],
             "https://specgraph.space/artifacts/team-decision-log",
+        )
+        self.assertEqual(
+            workspaces["team-decision-log"]["provider"],
+            "http-product-workspace",
+        )
+        self.assertEqual(
+            workspaces["support-triage-log"]["route"],
+            "/support-triage-log",
+        )
+        self.assertEqual(
+            workspaces["support-triage-log"]["display_name"],
+            "Support Triage Log",
+        )
+        self.assertEqual(
+            workspaces["support-triage-log"]["provider"],
+            "http-product-workspace",
         )
 
     def test_idea_to_spec_workspace_query_selects_team_artifact_base(self) -> None:
@@ -2088,7 +2123,7 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
             httpd, thread, base = _start(
                 root / "dialogs",
                 artifact_base_url=default_base_url,
-                team_decision_log_artifact_base_url=team_base_url,
+                product_workspace_artifact_base_urls={"team-decision-log": team_base_url},
             )
             try:
                 status, body = _get(
@@ -2102,16 +2137,18 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(body["selected_workspace_id"], "team-decision-log")
         self.assertEqual(body["source"]["artifact_base_url"], team_base_url)
+        self.assertEqual(body["source"]["provider"], "http-product-workspace")
         self.assertEqual(body["workspace"]["id"], "team-decision-log")
         self.assertEqual(body["workspace"]["review_state"], "active_candidate_ready")
 
-    def test_workspace_query_scopes_spec_graph_to_team_artifact_base(self) -> None:
+    def test_workspace_query_scopes_spec_graph_to_product_http_candidate_graph(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             default_artifact_root = root / "default-artifacts"
             team_artifact_root = root / "team-artifacts"
             default_spec_dir = default_artifact_root / "specs" / "nodes"
             team_spec_dir = team_artifact_root / "specs" / "nodes"
+            team_runs_dir = team_artifact_root / "runs"
             default_spec_dir.mkdir(parents=True)
             team_spec_dir.mkdir(parents=True)
             _write_yaml(
@@ -2130,10 +2167,15 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
                     "title": "Team Decision Log",
                 },
             )
+            _write_product_workspace_runs(team_runs_dir)
             _write_manifest(default_artifact_root, ["specs/nodes/SG-SPEC-BOOTSTRAP.yaml"])
             _write_manifest(
                 team_artifact_root,
-                ["specs/nodes/SG-SPEC-TEAM-DECISION-LOG.yaml"],
+                [
+                    "specs/nodes/SG-SPEC-TEAM-DECISION-LOG.yaml",
+                    "runs/" + idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
+                    "runs/" + idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT,
+                ],
             )
             default_static, default_thread, default_base_url = _start_static(
                 default_artifact_root
@@ -2142,7 +2184,7 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
             httpd, thread, base = _start(
                 root / "dialogs",
                 artifact_base_url=default_base_url,
-                team_decision_log_artifact_base_url=team_base_url,
+                product_workspace_artifact_base_urls={"team-decision-log": team_base_url},
             )
             try:
                 default_status, default_graph = _get(f"{base}/api/v1/spec-graph")
@@ -2163,9 +2205,13 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
             "SG-SPEC-BOOTSTRAP",
         )
         self.assertEqual(
-            team_graph["graph"]["nodes"][0]["node_id"],
-            "SG-SPEC-TEAM-DECISION-LOG",
+            {node["node_id"] for node in team_graph["graph"]["nodes"]},
+            {
+                "candidate-spec.team-decision-log-product",
+                "candidate-spec.decision-record",
+            },
         )
+        self.assertEqual(team_graph["source"]["provider"], "http-product-workspace")
 
     def test_team_workspace_file_provider_uses_candidate_graph_not_bootstrap_specs(
         self,
@@ -2258,6 +2304,56 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
         self.assertIn("candidate-spec.team-decision-log-product", node_ids)
         self.assertNotIn("SG-SPEC-BOOTSTRAP", node_ids)
         self.assertEqual(team_graph["source"]["provider"], "file-product-workspace")
+
+    def test_generic_product_workspace_uses_candidate_graph_without_team_specific_logic(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            runs_dir = root / "runs"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(
+                spec_dir / "SG-SPEC-BOOTSTRAP.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-BOOTSTRAP",
+                    "title": "Bootstrap Graph",
+                },
+            )
+            _write_product_workspace_runs(
+                runs_dir,
+                candidate_id="support-triage-log",
+                display_name="Support Triage Log",
+                public_route="/support-triage-log",
+                project="SupportTriageLog",
+                domain_ref="domain.support_triage_log",
+                root_node_id="candidate-spec.support-triage-log-product",
+                root_title="Support Triage Log Product",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=runs_dir,
+                specgraph_dir=root,
+            )
+            try:
+                status, product_graph = _get(
+                    f"{base}/api/v1/spec-graph?workspace=support-triage-log"
+                )
+                workspace_status, workspace_body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=support-triage-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(workspace_status, 200)
+        node_ids = {node["node_id"] for node in product_graph["graph"]["nodes"]}
+        self.assertIn("candidate-spec.support-triage-log-product", node_ids)
+        self.assertNotIn("SG-SPEC-BOOTSTRAP", node_ids)
+        self.assertEqual(product_graph["workspace_id"], "support-triage-log")
+        self.assertEqual(workspace_body["workspace"]["id"], "support-triage-log")
 
     def test_team_workspace_artifact_catalog_excludes_bootstrap_manifest_files(
         self,
