@@ -23,6 +23,19 @@ See [`docs/SPECSPACE_BOUNDARY.md`](../docs/SPECSPACE_BOUNDARY.md) for the
 product boundary and [`docs/SPECSPACE_API_V1.md`](../docs/SPECSPACE_API_V1.md)
 for the HTTP contract.
 
+## Workspace routes
+
+The planned public deployment keeps one SpecSpace UI with route-level workspace
+selection:
+
+- `/` renders the SpecGraph bootstrap/showcase workspace.
+- `/team-decision-log` renders the Team Decision Log `product_idea_to_spec`
+  pilot workspace.
+
+The route should select workspace metadata and the artifact manifest consumed by
+`/api/v1/*`. It must not grant write authority to the UI; candidate promotion
+continues through the Graph Repository Service boundary.
+
 ## Canvas layout
 
 The default SpecGraph canvas layout is **Refinement Ladder Layout**.

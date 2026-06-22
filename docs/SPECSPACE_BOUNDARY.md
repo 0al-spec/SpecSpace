@@ -82,6 +82,27 @@ SpecGraph and SpecPM remain upstream producers. If a future deployment switches
 from file-backed reads to an HTTP-backed producer provider, that provider should
 be added behind the same `/api/v1/*` SpecSpace API boundary.
 
+## Workspace Routes
+
+SpecSpace may serve multiple readonly workspaces from one public deployment.
+The initial public routing target is:
+
+```text
+specgraph.space/
+  -> SpecGraph bootstrap/showcase workspace
+
+specgraph.space/team-decision-log
+  -> Team Decision Log product_idea_to_spec pilot workspace
+```
+
+The route selects workspace metadata, provider configuration, and artifact
+manifest. It does not change ownership: SpecGraph still produces artifacts,
+Platform owns deployment/profile coordination, and SpecSpace renders the active
+workspace. The Team Decision Log route should show product idea-to-spec
+surfaces and hide SpecGraph bootstrap/self-evolution surfaces. A
+`/team_decision_log` alias is acceptable, but `/team-decision-log` is the
+canonical route.
+
 ## Future Authoring Boundary
 
 SpecSpace may become the product surface for building a specification graph from

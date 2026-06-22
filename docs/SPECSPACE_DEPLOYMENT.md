@@ -46,6 +46,30 @@ SpecSpace API container
   +-- https://specpm.dev/v0/packages/
 ```
 
+## Public Workspace Routes
+
+A public SpecSpace deployment can expose multiple workspaces through route-level
+selection while staying one application:
+
+```text
+specgraph.space/
+  -> SpecGraph bootstrap/showcase workspace
+
+specgraph.space/team-decision-log
+  -> Team Decision Log product_idea_to_spec pilot workspace
+```
+
+Each route should resolve to a workspace record and an artifact manifest. The
+root route keeps the current SpecGraph showcase. The Team Decision Log route
+uses product workspace artifacts and should expose idea-to-spec surfaces:
+event-storming intake, ontology/domain/context frame, candidate graph,
+pre-SIB/coherence status, repair history, and promotion gate state.
+
+The route must not make SpecSpace a writer. Product routes remain readonly
+until a Graph Repository Service promotion request explicitly prepares a
+branch/review under `product_spec_workspace` authority. The
+`/team_decision_log` spelling may redirect to `/team-decision-log`.
+
 ## Ports
 
 - UI: host `5173` -> container `80`
