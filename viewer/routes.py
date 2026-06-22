@@ -59,35 +59,36 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/proposal-spec-trace-index": RouteSpec("handle_proposal_spec_trace_index_get"),
     "/api/v1/health": RouteSpec("handle_v1_health"),
     "/api/v1/capabilities": RouteSpec("handle_v1_capabilities"),
-    "/api/v1/spec-graph": RouteSpec("handle_v1_spec_graph"),
+    "/api/v1/workspaces": RouteSpec("handle_v1_workspaces"),
+    "/api/v1/spec-graph": RouteSpec("handle_v1_spec_graph", pass_parsed=True),
     "/api/v1/spec-markdown": RouteSpec("handle_v1_spec_markdown", pass_parsed=True),
     "/api/v1/runs/recent": RouteSpec("handle_v1_recent_runs", pass_parsed=True),
     "/api/v1/spec-activity": RouteSpec("handle_v1_spec_activity", pass_parsed=True),
     "/api/v1/implementation-work-index": RouteSpec("handle_v1_implementation_work_index", pass_parsed=True),
-    "/api/v1/proposal-spec-trace-index": RouteSpec("handle_v1_proposal_spec_trace_index"),
-    "/api/v1/proposals": RouteSpec("handle_v1_proposals"),
-    "/api/v1/artifacts": RouteSpec("handle_v1_artifacts"),
+    "/api/v1/proposal-spec-trace-index": RouteSpec("handle_v1_proposal_spec_trace_index", pass_parsed=True),
+    "/api/v1/proposals": RouteSpec("handle_v1_proposals", pass_parsed=True),
+    "/api/v1/artifacts": RouteSpec("handle_v1_artifacts", pass_parsed=True),
     "/api/v1/artifacts/content": RouteSpec("handle_v1_artifact_content", pass_parsed=True),
-    "/api/v1/idea-to-spec-workspace": RouteSpec("handle_v1_idea_to_spec_workspace"),
-    "/api/v1/practical-ontology": RouteSpec("handle_v1_practical_ontology"),
-    "/api/v1/ontology-workbench": RouteSpec("handle_v1_ontology_workbench"),
-    "/api/v1/metrics": RouteSpec("handle_v1_metrics"),
-    "/api/v1/agent-surfaces": RouteSpec("handle_v1_agent_surfaces"),
+    "/api/v1/idea-to-spec-workspace": RouteSpec("handle_v1_idea_to_spec_workspace", pass_parsed=True),
+    "/api/v1/practical-ontology": RouteSpec("handle_v1_practical_ontology", pass_parsed=True),
+    "/api/v1/ontology-workbench": RouteSpec("handle_v1_ontology_workbench", pass_parsed=True),
+    "/api/v1/metrics": RouteSpec("handle_v1_metrics", pass_parsed=True),
+    "/api/v1/agent-surfaces": RouteSpec("handle_v1_agent_surfaces", pass_parsed=True),
     "/api/v1/ontology-semantic-review-surface": RouteSpec(
-        "handle_v1_ontology_semantic_review_surface"
+        "handle_v1_ontology_semantic_review_surface", pass_parsed=True
     ),
-    "/api/v1/ontology-review-dashboard": RouteSpec("handle_v1_ontology_review_dashboard"),
+    "/api/v1/ontology-review-dashboard": RouteSpec("handle_v1_ontology_review_dashboard", pass_parsed=True),
     "/api/v1/ontology-owner-decision-review": RouteSpec(
-        "handle_v1_ontology_owner_decision_review"
+        "handle_v1_ontology_owner_decision_review", pass_parsed=True
     ),
     "/api/v1/ontology-compliance-review": RouteSpec(
-        "handle_v1_ontology_compliance_review"
+        "handle_v1_ontology_compliance_review", pass_parsed=True
     ),
     "/api/v1/ontology-owner-decision-acknowledgements": RouteSpec(
         "handle_v1_ontology_owner_decision_acknowledgements"
     ),
     "/api/v1/specpm/registry": RouteSpec("handle_v1_specpm_registry"),
-    "/api/v1/specpm/lifecycle": RouteSpec("handle_v1_specpm_lifecycle"),
+    "/api/v1/specpm/lifecycle": RouteSpec("handle_v1_specpm_lifecycle", pass_parsed=True),
     "/api/v1/agent-workbench/conversations": RouteSpec("handle_v1_agent_workbench_conversations"),
     "/api/v1/runs-watch": RouteSpec("handle_v1_runs_watch"),
 }
@@ -107,7 +108,10 @@ POST_ROUTES: dict[str, RouteSpec] = {
     "/api/file": RouteSpec("handle_write_file"),
     "/api/export": RouteSpec("handle_export"),
     "/api/compile": RouteSpec("handle_compile"),
-    "/api/v1/spec-markdown/compile": RouteSpec("handle_v1_spec_markdown_compile"),
+    "/api/v1/spec-markdown/compile": RouteSpec(
+        "handle_v1_spec_markdown_compile",
+        pass_parsed=True,
+    ),
     "/api/v1/ontology-owner-decision-acknowledgements": RouteSpec(
         "handle_v1_ontology_owner_decision_acknowledgement_post"
     ),

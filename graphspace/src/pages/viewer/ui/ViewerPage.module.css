@@ -145,6 +145,58 @@
   border-bottom: 1px solid var(--gs-rule-soft);
 }
 
+.workspaceSwitcher {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gs-space-2);
+}
+
+.workspaceLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  min-width: 0;
+  border: 1px solid var(--gs-rule-soft);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: var(--gs-space-2) var(--gs-space-3);
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.workspaceLink:hover {
+  border-color: var(--gs-rule-mid);
+  color: var(--gs-ink);
+}
+
+.workspaceLinkActive {
+  border-color: var(--gs-accent);
+  background: var(--gs-accent-soft);
+  color: var(--gs-accent);
+}
+
+.workspaceMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-2);
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.workspaceMeta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .utilityRail {
   top: var(--viewer-panel-top);
   right: var(--viewer-panel-edge);

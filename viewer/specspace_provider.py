@@ -43,6 +43,8 @@ ARTIFACT_CONTENT_MAX_BYTES = 1_000_000
 SPECSPACE_APP_VERSION = "0.0.1"
 SPECPM_REGISTRY_SOURCE_NAME = "specpm_registry"
 SPECPM_REGISTRY_API_VERSION = "specpm.registry/v0"
+BOOTSTRAP_WORKSPACE_ID = "specgraph-bootstrap"
+TEAM_DECISION_LOG_WORKSPACE_ID = "team-decision-log"
 
 
 def _validated_ontology_workbench_artifact(
@@ -2175,13 +2177,38 @@ def harvest_run_meta_text(text: str) -> dict[str, Any]:
     return out
 
 
-def provider_from_server(server: Any) -> SpecSpaceProvider:
+def normalize_workspace_id(value: Any) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    normalized = value.strip().lower().replace("_", "-")
+    if normalized == TEAM_DECISION_LOG_WORKSPACE_ID:
+        return TEAM_DECISION_LOG_WORKSPACE_ID
+    if normalized in {"specgraph", "bootstrap", BOOTSTRAP_WORKSPACE_ID}:
+        return BOOTSTRAP_WORKSPACE_ID
+    return None
+
+
+def artifact_base_url_for_workspace(server: Any, workspace_id: str | None) -> str | None:
+    normalized_workspace_id = normalize_workspace_id(workspace_id)
+    if normalized_workspace_id == TEAM_DECISION_LOG_WORKSPACE_ID:
+        workspace_url = getattr(server, "team_decision_log_artifact_base_url", None)
+        if isinstance(workspace_url, str) and workspace_url.strip():
+            return workspace_url.strip()
     artifact_base_url = getattr(server, "artifact_base_url", None)
+    return artifact_base_url.strip() if isinstance(artifact_base_url, str) and artifact_base_url.strip() else None
+
+
+def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSpaceProvider:
+    artifact_base_url = artifact_base_url_for_workspace(server, workspace_id)
     if isinstance(artifact_base_url, str) and artifact_base_url.strip():
-        cache = getattr(server, "artifact_cache", None)
+        cache_by_url = getattr(server, "artifact_cache_by_url", None)
+        if not isinstance(cache_by_url, dict):
+            cache_by_url = {}
+            setattr(server, "artifact_cache_by_url", cache_by_url)
+        cache = cache_by_url.get(artifact_base_url)
         if not isinstance(cache, HttpArtifactCache):
             cache = HttpArtifactCache()
-            setattr(server, "artifact_cache", cache)
+            cache_by_url[artifact_base_url] = cache
         return HttpSpecGraphProvider(base_url=artifact_base_url.strip(), cache=cache)
 
     spec_dir = getattr(server, "spec_dir", None)
@@ -2194,6 +2221,50 @@ def provider_from_server(server: Any) -> SpecSpaceProvider:
         runs_dir=runs_dir,
         specgraph_dir=specgraph_dir,
     )
+
+
+def workspace_catalog(server: Any) -> dict[str, Any]:
+    default_artifact_base_url = artifact_base_url_for_workspace(server, BOOTSTRAP_WORKSPACE_ID)
+    team_artifact_base_url = artifact_base_url_for_workspace(
+        server,
+        TEAM_DECISION_LOG_WORKSPACE_ID,
+    )
+    return {
+        "api_version": SPECSPACE_API_VERSION,
+        "artifact_kind": "specspace_workspace_catalog",
+        "schema_version": 1,
+        "read_only": True,
+        "workspaces": [
+            {
+                "id": BOOTSTRAP_WORKSPACE_ID,
+                "display_name": "SpecGraph",
+                "route": "/",
+                "aliases": [],
+                "workflow_lane": "specgraph_bootstrap_showcase",
+                "target_repository_role": "specgraph_bootstrap",
+                "surface_mode": "bootstrap_showcase",
+                "artifact_base_url": default_artifact_base_url,
+                "provider": "http" if default_artifact_base_url else "file",
+                "selected_by_default": True,
+            },
+            {
+                "id": TEAM_DECISION_LOG_WORKSPACE_ID,
+                "display_name": "Team Decision Log",
+                "route": "/team-decision-log",
+                "aliases": ["/team_decision_log"],
+                "workflow_lane": "product_idea_to_spec",
+                "target_repository_role": "product_spec_workspace",
+                "surface_mode": "product_idea_to_spec",
+                "artifact_base_url": team_artifact_base_url,
+                "provider": "http" if team_artifact_base_url else "file",
+                "selected_by_default": False,
+                "uses_default_artifact_base_url": (
+                    bool(team_artifact_base_url)
+                    and team_artifact_base_url == default_artifact_base_url
+                ),
+            },
+        ],
+    }
 
 
 def specpm_registry_url_from_server(server: Any) -> str | None:

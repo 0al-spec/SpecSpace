@@ -246,6 +246,11 @@ export function useArtifactCatalog(options: CatalogOptions = {}): ArtifactCatalo
   return state;
 }
 
+const contentUrl = (baseUrl: string, path: string): string => {
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  return `${baseUrl}${separator}path=${encodeURIComponent(path)}`;
+};
+
 export function useArtifactContent(options: ContentOptions): ArtifactContentState {
   const { path, url = "/api/v1/artifacts/content", fetcher = fetch, refreshKey = 0 } = options;
   const [state, setState] = useState<ArtifactContentState>({ kind: "idle" });
@@ -259,7 +264,7 @@ export function useArtifactContent(options: ContentOptions): ArtifactContentStat
     let cancelled = false;
     setState({ kind: "loading", path });
 
-    fetchJson(fetcher, `${url}?path=${encodeURIComponent(path)}`, controller.signal)
+    fetchJson(fetcher, contentUrl(url, path), controller.signal)
       .then(({ response, body }) => {
         if (cancelled) return;
         if (!response.ok) {

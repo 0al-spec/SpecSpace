@@ -25,6 +25,9 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
 
     expect(html).toContain("Idea-to-Spec Workspace");
+    expect(html).toContain("Active workspace");
+    expect(html).toContain("Team Decision Log");
+    expect(html).toContain("product_spec_workspace");
     expect(html).toContain("DemoCalculator");
     expect(html).toContain("Source artifacts");
     expect(html).toContain("runs/candidate_repair_loop_report.json");

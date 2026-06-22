@@ -27,8 +27,24 @@ class SpecSpaceV1Handler(JsonResponseHandler, Protocol):
     def handle_runs_watch(self) -> None: ...
 
 
-def _provider(handler: SpecSpaceV1Handler) -> specspace_provider.SpecSpaceProvider:
-    return specspace_provider.provider_from_server(handler.server)
+def _provider(
+    handler: SpecSpaceV1Handler,
+    workspace_id: str | None = None,
+) -> specspace_provider.SpecSpaceProvider:
+    return specspace_provider.provider_from_server(handler.server, workspace_id)
+
+
+def _query_workspace_id(parsed: Any) -> str | None:
+    return specspace_provider.normalize_workspace_id(
+        query_value(query_params(parsed), "workspace", None)
+    )
+
+
+def _query_provider(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> specspace_provider.SpecSpaceProvider:
+    return _provider(handler, _query_workspace_id(parsed))
 
 
 def _query_limit(parsed: Any, *, default: int, minimum: int = 1, maximum: int = 500) -> int:
@@ -234,8 +250,12 @@ def handle_v1_capabilities(handler: SpecSpaceV1Handler) -> None:
     json_response(handler, HTTPStatus.OK, specspace_provider.versioned_capabilities(handler, provider))
 
 
-def handle_v1_spec_graph(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_spec_graph()
+def handle_v1_workspaces(handler: SpecSpaceV1Handler) -> None:
+    json_response(handler, HTTPStatus.OK, specspace_provider.workspace_catalog(handler.server))
+
+
+def handle_v1_spec_graph(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_spec_graph()
     json_response(handler, status, payload)
 
 
@@ -245,7 +265,7 @@ def handle_v1_spec_node(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     if not node_id:
         json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing spec node id in path."})
         return
-    status, payload = _provider(handler).read_spec_node(node_id)
+    status, payload = _query_provider(handler, parsed).read_spec_node(node_id)
     json_response(handler, status, payload)
 
 
@@ -292,7 +312,7 @@ def handle_v1_spec_markdown(handler: SpecSpaceV1Handler, parsed: Any) -> None:
         include_prompt=bool(include_prompt),
         include_children=scope == "subtree",
     )
-    status, payload = _provider(handler).read_spec_markdown(root_id, options)
+    status, payload = _query_provider(handler, parsed).read_spec_markdown(root_id, options)
     if status == HTTPStatus.OK:
         payload["scope"] = scope
         if isinstance(payload.get("manifest"), dict):
@@ -300,7 +320,7 @@ def handle_v1_spec_markdown(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     json_response(handler, status, payload)
 
 
-def handle_v1_spec_markdown_compile(handler: SpecSpaceV1Handler) -> None:
+def handle_v1_spec_markdown_compile(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     payload = handler.read_json_body()
     if payload is None:
         return
@@ -317,13 +337,18 @@ def handle_v1_spec_markdown_compile(handler: SpecSpaceV1Handler) -> None:
         return
     assert options is not None and scope is not None
 
-    status, response = _provider(handler).compile_spec_markdown(handler, root_id, options, scope=scope)
+    status, response = _query_provider(handler, parsed).compile_spec_markdown(
+        handler,
+        root_id,
+        options,
+        scope=scope,
+    )
     json_response(handler, status, response)
 
 
 def handle_v1_recent_runs(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     params = query_params(parsed)
-    status, payload = _provider(handler).read_recent_runs(
+    status, payload = _query_provider(handler, parsed).read_recent_runs(
         limit=_query_limit(parsed, default=50, maximum=500),
         since_iso=query_value(params, "since", None),
     )
@@ -332,7 +357,7 @@ def handle_v1_recent_runs(handler: SpecSpaceV1Handler, parsed: Any) -> None:
 
 def handle_v1_spec_activity(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     params = query_params(parsed)
-    status, payload = _provider(handler).read_spec_activity(
+    status, payload = _query_provider(handler, parsed).read_spec_activity(
         limit_raw=query_value(params, "limit", None),
         since_raw=query_value(params, "since", None),
     )
@@ -341,76 +366,79 @@ def handle_v1_spec_activity(handler: SpecSpaceV1Handler, parsed: Any) -> None:
 
 def handle_v1_implementation_work_index(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     params = query_params(parsed)
-    status, payload = _provider(handler).read_implementation_work_index(
+    status, payload = _query_provider(handler, parsed).read_implementation_work_index(
         limit_raw=query_value(params, "limit", "50"),
     )
     json_response(handler, status, payload)
 
 
-def handle_v1_proposal_spec_trace_index(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_proposal_spec_trace_index()
+def handle_v1_proposal_spec_trace_index(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_proposal_spec_trace_index()
     json_response(handler, status, payload)
 
 
-def handle_v1_proposals(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_proposals()
+def handle_v1_proposals(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_proposals()
     json_response(handler, status, payload)
 
 
-def handle_v1_artifacts(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_artifact_catalog()
+def handle_v1_artifacts(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_artifact_catalog()
     json_response(handler, status, payload)
 
 
 def handle_v1_artifact_content(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     params = query_params(parsed)
     path = query_value(params, "path", "")
-    status, payload = _provider(handler).read_artifact_content(path or "")
+    status, payload = _query_provider(handler, parsed).read_artifact_content(path or "")
     json_response(handler, status, payload)
 
 
-def handle_v1_practical_ontology(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_practical_ontology()
+def handle_v1_practical_ontology(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_practical_ontology()
     json_response(handler, status, payload)
 
 
-def handle_v1_ontology_workbench(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_ontology_workbench()
+def handle_v1_ontology_workbench(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_ontology_workbench()
     json_response(handler, status, payload)
 
 
-def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_idea_to_spec_workspace()
+def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    workspace_id = _query_workspace_id(parsed)
+    status, payload = _provider(handler, workspace_id).read_idea_to_spec_workspace()
+    if status == HTTPStatus.OK and workspace_id is not None:
+        payload["selected_workspace_id"] = workspace_id
     json_response(handler, status, payload)
 
 
-def handle_v1_metrics(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_metrics()
+def handle_v1_metrics(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_metrics()
     json_response(handler, status, payload)
 
 
-def handle_v1_agent_surfaces(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_agent_surfaces()
+def handle_v1_agent_surfaces(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_agent_surfaces()
     json_response(handler, status, payload)
 
 
-def handle_v1_ontology_semantic_review_surface(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_ontology_semantic_review_surface()
+def handle_v1_ontology_semantic_review_surface(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_ontology_semantic_review_surface()
     json_response(handler, status, payload)
 
 
-def handle_v1_ontology_review_dashboard(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_ontology_review_dashboard()
+def handle_v1_ontology_review_dashboard(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_ontology_review_dashboard()
     json_response(handler, status, payload)
 
 
-def handle_v1_ontology_owner_decision_review(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_ontology_owner_decision_review()
+def handle_v1_ontology_owner_decision_review(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_ontology_owner_decision_review()
     json_response(handler, status, payload)
 
 
-def handle_v1_ontology_compliance_review(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_spec_ontology_validation_report()
+def handle_v1_ontology_compliance_review(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_spec_ontology_validation_report()
     json_response(handler, status, payload)
 
 
@@ -497,8 +525,8 @@ def handle_v1_specpm_registry_package(handler: SpecSpaceV1Handler, parsed: Any) 
     json_response(handler, status, payload)
 
 
-def handle_v1_specpm_lifecycle(handler: SpecSpaceV1Handler) -> None:
-    status, payload = _provider(handler).read_specpm_lifecycle()
+def handle_v1_specpm_lifecycle(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    status, payload = _query_provider(handler, parsed).read_specpm_lifecycle()
     json_response(handler, status, payload)
 
 

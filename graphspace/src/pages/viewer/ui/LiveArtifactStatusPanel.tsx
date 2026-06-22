@@ -12,6 +12,7 @@ type Props = {
   diagnostics: readonly ArtifactDiagnostic[];
   capabilityDiagnostics?: readonly ArtifactDiagnostic[];
   artifactCatalogState?: ArtifactCatalogState;
+  artifactContentUrl?: string;
   runsWatchVersion: number;
   showHeader?: boolean;
 };
@@ -20,6 +21,7 @@ export function LiveArtifactStatusPanel({
   diagnostics,
   capabilityDiagnostics = [],
   artifactCatalogState = { kind: "idle" },
+  artifactContentUrl,
   runsWatchVersion,
   showHeader = true,
 }: Props) {
@@ -27,6 +29,7 @@ export function LiveArtifactStatusPanel({
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const artifactContentState = useArtifactContent({
     path: selectedPath,
+    url: artifactContentUrl,
     refreshKey: runsWatchVersion,
   });
   const artifacts = artifactCatalogState.kind === "ok" ? artifactCatalogState.data.artifacts : [];

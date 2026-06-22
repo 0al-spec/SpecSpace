@@ -352,8 +352,44 @@ def _git_service_execution() -> dict:
     }
 
 
+def _active_candidate() -> dict:
+    return {
+        "artifact_kind": "active_idea_to_spec_candidate",
+        "schema_version": 1,
+        "proposal_id": "0155",
+        "contract_ref": "specgraph.idea-to-spec.active-candidate-source.v0.1",
+        "canonical_mutations_allowed": False,
+        "source_mode": "active_candidate",
+        "candidate": {
+            "candidate_id": "team-decision-log",
+            "display_name": "Team Decision Log",
+            "public_route": "/team-decision-log",
+            "workflow_lane": "product_idea_to_spec",
+            "target_repository_role": "product_spec_workspace",
+            "governance_profile": "product_workspace",
+            "authority_profile": "workspace_owner_controlled",
+        },
+        "readiness": {
+            "ready": True,
+            "review_state": "active_candidate_ready",
+            "blocked_by": [],
+            "next_artifact": "SpecSpace product workspace route",
+        },
+        "authority_boundary": {
+            "may_execute_prompt_agent": False,
+            "may_mutate_candidate_source_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_create_branch_or_commit": False,
+            "may_open_pull_request": False,
+            "may_mark_candidate_graph_accepted": False,
+        },
+    }
+
+
 def _workspace_artifacts() -> dict[str, dict]:
     return {
+        idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: _active_candidate(),
         idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT: _intake(),
         idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT: _candidate_graph(),
         idea_to_spec_workspace.PRE_SIB_COHERENCE_REPORT_ARTIFACT: _pre_sib(),
@@ -373,6 +409,13 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["artifact_kind"], "specspace_idea_to_spec_workspace")
+        self.assertEqual(body["workspace"]["id"], "team-decision-log")
+        self.assertEqual(body["workspace"]["display_name"], "Team Decision Log")
+        self.assertEqual(
+            body["workspace"]["target_repository_role"],
+            "product_spec_workspace",
+        )
+        self.assertTrue(body["workspace"]["ready"])
         self.assertEqual(body["summary"]["status"], "blocked")
         self.assertEqual(body["summary"]["candidate_node_count"], 2)
         self.assertEqual(body["summary"]["repair_action_count"], 1)
@@ -431,6 +474,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["controlled_promotion"]["action_boundary"][
                 "may_execute_git_service"
             ]
+        )
+        self.assertEqual(
+            body["artifacts"]["active_candidate"]["status"],
+            "active_candidate_ready",
         )
         self.assertEqual(
             body["artifacts"]["candidate_graph"]["status"],
@@ -508,6 +555,13 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             **_repair_loop(),
             "tracked_artifacts_written": True,
         }
+        artifacts[idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT] = {
+            **_active_candidate(),
+            "authority_boundary": {
+                **_active_candidate()["authority_boundary"],
+                "may_create_branch_or_commit": True,
+            },
+        }
 
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
             artifacts=artifacts,
@@ -520,6 +574,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["candidate_node_count"], 0)
         self.assertEqual(body["summary"]["repair_action_count"], 0)
         self.assertFalse(body["intake"]["available"])
+        self.assertFalse(body["workspace"]["available"])
         self.assertFalse(body["candidate_graph"]["available"])
         self.assertFalse(body["repair_loop"]["available"])
         self.assertTrue(body["materialization"]["available"])
@@ -635,7 +690,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             ),
         )
 
-        def fake_get(url: str, **_: object) -> tuple[HTTPStatus, str | None, None]:
+        def fake_get(url: str, **_: object):
             return HTTPStatus.OK, payloads[url], None
 
         with mock.patch.object(specspace_provider, "http_get_text", fake_get):

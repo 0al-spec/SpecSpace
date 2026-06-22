@@ -35,6 +35,7 @@ class ViewerRuntimeServer(Protocol):
     runs_dir: Path | None
     runs_watcher: Any
     artifact_base_url: str | None
+    team_decision_log_artifact_base_url: str | None
     specpm_registry_url: str | None
     agent_workbench_dir: Path | None
     specspace_state_dir: Path
@@ -52,6 +53,10 @@ def build_arg_parser(
     http_compile_enabled_env = os.environ.get("SPECSPACE_HYPERPROMPT_HTTP_COMPILE_ENABLED", "").strip()
     agent_workbench_dir_env = os.environ.get("SPECSPACE_AGENT_WORKBENCH_DIR", "").strip()
     specspace_state_dir_env = os.environ.get("SPECSPACE_STATE_DIR", "").strip()
+    team_decision_log_artifact_base_url_env = os.environ.get(
+        "SPECSPACE_TEAM_DECISION_LOG_ARTIFACT_BASE_URL",
+        "",
+    ).strip()
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--host",
@@ -127,6 +132,15 @@ def build_arg_parser(
         help=(
             "Base URL for a static SpecGraph artifact site. When set, SpecSpace "
             "reads artifact_manifest.json, specs/nodes/*.yaml, and runs/*.json over HTTP."
+        ),
+    )
+    parser.add_argument(
+        "--team-decision-log-artifact-base-url",
+        type=str,
+        default=team_decision_log_artifact_base_url_env or None,
+        help=(
+            "Optional static artifact base URL for the Team Decision Log product "
+            "workspace. When omitted, the route reads the default artifact base."
         ),
     )
     parser.add_argument(
@@ -211,6 +225,16 @@ def configure_server(
     server.runs_watcher = runs_watcher_factory(server.runs_dir) if server.runs_dir is not None else None
     artifact_base_url = getattr(args, "artifact_base_url", None)
     server.artifact_base_url = artifact_base_url.strip() if artifact_base_url else None
+    team_decision_log_artifact_base_url = getattr(
+        args,
+        "team_decision_log_artifact_base_url",
+        None,
+    )
+    server.team_decision_log_artifact_base_url = (
+        team_decision_log_artifact_base_url.strip()
+        if team_decision_log_artifact_base_url
+        else None
+    )
     specpm_registry_url = getattr(args, "specpm_registry_url", None)
     server.specpm_registry_url = specpm_registry_url.strip().rstrip("/") if specpm_registry_url else None
     agent_workbench_dir = getattr(args, "agent_workbench_dir", None)

@@ -307,6 +307,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_specpm_preview_get = specpm_exploration_api.handle_specpm_preview_get
     handle_v1_capabilities = specspace_v1_api.handle_v1_capabilities
     handle_v1_health = specspace_v1_api.handle_v1_health
+    handle_v1_workspaces = specspace_v1_api.handle_v1_workspaces
     handle_v1_implementation_work_index = specspace_v1_api.handle_v1_implementation_work_index
     handle_v1_metrics = specspace_v1_api.handle_v1_metrics
     handle_v1_agent_surfaces = specspace_v1_api.handle_v1_agent_surfaces
