@@ -17,8 +17,11 @@ describe("parseIdeaToSpecWorkspace", () => {
     );
     expect(parsed.data.summary.promotionGateBlockerCount).toBe(1);
     expect(parsed.data.summary.gitServiceOperationCount).toBe(3);
+    expect(parsed.data.summary.approvalReady).toBe(true);
+    expect(parsed.data.summary.reviewMerged).toBe(false);
+    expect(parsed.data.summary.readModelPublished).toBe(false);
     expect(parsed.data.workflow.stage).toBe("repair_required");
-    expect(parsed.data.workflow.items).toHaveLength(9);
+    expect(parsed.data.workflow.items).toHaveLength(12);
     expect(parsed.data.workflow.nextHandoff.kind).toBe("operator_repair_review");
     expect(parsed.data.workflow.nextHandoff.authorityBoundary).toBe("operator_only");
     expect(parsed.data.intake.activeFrame.project).toBe("DemoCalculator");
@@ -35,8 +38,15 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.controlledPromotion.platformRequest.candidateBranch).toBe(
       "graph-candidate/idea-alpha",
     );
+    expect(parsed.data.controlledPromotion.candidateApproval.decisionState).toBe(
+      "approved",
+    );
     expect(parsed.data.controlledPromotion.gitServiceExecution.operations[2].status).toBe(
       "dry_run",
+    );
+    expect(parsed.data.controlledPromotion.reviewStatus.reviewState).toBe("open");
+    expect(parsed.data.controlledPromotion.readModelPublication.published).toBe(
+      false,
     );
     expect(parsed.data.authorityBoundary.mayMutateCanonicalSpecs).toBe(false);
   });

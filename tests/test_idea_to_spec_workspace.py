@@ -284,6 +284,62 @@ def _platform_promotion_request() -> dict:
     }
 
 
+def _candidate_approval_decision() -> dict:
+    return {
+        "artifact_kind": "candidate_approval_decision",
+        "schema_version": 1,
+        "proposal_id": "0157",
+        "contract_ref": "specgraph.idea-to-spec.candidate-approval-decision.v0.1",
+        "canonical_mutations_allowed": False,
+        "ontology_writes_allowed": False,
+        "tracked_artifacts_written": False,
+        "workspace": {
+            "workspace_id": "team-decision-log",
+            "mode": "product_idea_to_spec",
+            "repository_role": "product_spec_workspace",
+            "public_route": "/team-decision-log",
+        },
+        "candidate": {
+            "candidate_id": "idea-alpha",
+            "display_name": "Team Decision Log",
+            "active_candidate_ref": "runs/active_idea_to_spec_candidate.json",
+            "promotion_gate_ref": "runs/idea_to_spec_promotion_gate.json",
+        },
+        "decision": {
+            "requested_state": "approved",
+            "state": "approved",
+            "operator_ref": "operator://workspace-owner",
+            "reason": "Approve review-ready product workspace candidate.",
+            "conditions": [],
+        },
+        "readiness": {
+            "ready": True,
+            "review_state": "candidate_approval_ready",
+            "blocked_by": [],
+            "next_artifact": "Platform graph-repository promotion-request",
+        },
+        "promotion_request": {
+            "platform_artifact_kind": "platform_graph_repository_promotion_request",
+            "paths": [
+                "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+                "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
+            ],
+            "requires_git_service_execution": True,
+        },
+        "authority_boundary": {
+            "may_execute_prompt_agent": False,
+            "may_mutate_candidate_source_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_write_ontology_lockfile": False,
+            "may_mark_candidate_graph_accepted": False,
+            "may_create_branch_or_commit": False,
+            "may_open_pull_request": False,
+            "may_publish_read_model": False,
+        },
+    }
+
+
 def _git_service_execution() -> dict:
     return {
         "artifact_kind": "platform_git_service_promotion_execution_report",
@@ -352,6 +408,102 @@ def _git_service_execution() -> dict:
     }
 
 
+def _review_status(review_state: str = "open") -> dict:
+    return {
+        "artifact_kind": "platform_graph_repository_review_status_report",
+        "schema_version": 1,
+        "ok": True,
+        "review_url": "https://github.com/example/product/pull/12",
+        "review_state": review_state,
+        "review_decision": "APPROVED",
+        "canonical_mutations_allowed": False,
+        "canonical_tracked_artifacts_written": False,
+        "merges_performed": [],
+        "read_models_published": [],
+        "authority_boundary": {
+            "specspace_direct_git_write": False,
+            "canonical_spec_mutation_without_review": False,
+            "ontology_package_write": False,
+            "auto_merge": False,
+            "private_artifact_publication": False,
+        },
+        "diagnostics": [],
+        "summary": {
+            "review_merged": review_state == "merged",
+        },
+    }
+
+
+def _read_model_publication(published: bool = False) -> dict:
+    return {
+        "artifact_kind": "platform_graph_repository_publish_read_model_report",
+        "schema_version": 1,
+        "ok": True,
+        "dry_run": False,
+        "review_state": "merged" if published else "open",
+        "manifest": "published-read-model/artifact_manifest.json",
+        "canonical_mutations_allowed": False,
+        "canonical_tracked_artifacts_written": False,
+        "ontology_packages_written": False,
+        "merges_performed": [],
+        "read_models_published": ["published-read-model/artifact_manifest.json"]
+        if published
+        else [],
+        "authority_boundary": {
+            "specspace_direct_git_write": False,
+            "canonical_spec_mutation_without_review": False,
+            "ontology_package_write": False,
+            "auto_merge": False,
+            "private_artifact_publication": False,
+        },
+        "diagnostics": [],
+        "summary": {
+            "error_count": 0,
+            "file_count": 7 if published else 0,
+            "published": published,
+        },
+    }
+
+
+def _promotion_finalization(read_model_published: bool = False) -> dict:
+    return {
+        "artifact_kind": "platform_git_service_promotion_finalization_report",
+        "schema_version": 1,
+        "ok": True,
+        "dry_run": False,
+        "review_state": "merged" if read_model_published else "open",
+        "canonical_mutations_allowed": False,
+        "canonical_tracked_artifacts_written": False,
+        "operations": [
+            {
+                "name": "review_status",
+                "status": "succeeded",
+                "request_artifact_kind": "platform_git_service_review_status_request",
+                "response_artifact_kind": "platform_git_service_review_status_response",
+                "report_ref": ".platform/graph_repository_review_status_report.json",
+                "diagnostics": [],
+            }
+        ],
+        "report_refs": {
+            "review_status": ".platform/graph_repository_review_status_report.json"
+        },
+        "authority_boundary": {
+            "specspace_direct_git_write": False,
+            "canonical_spec_mutation_without_review": False,
+            "ontology_package_write": False,
+            "auto_merge": False,
+            "private_artifact_publication": False,
+        },
+        "diagnostics": [],
+        "summary": {
+            "error_count": 0,
+            "operation_count": 1,
+            "completed_operation_count": 1,
+            "read_model_published": read_model_published,
+        },
+    }
+
+
 def _active_candidate() -> dict:
     return {
         "artifact_kind": "active_idea_to_spec_candidate",
@@ -396,8 +548,12 @@ def _workspace_artifacts() -> dict[str, dict]:
         idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: _repair_loop(),
         idea_to_spec_workspace.CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: _materialization(),
         idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: _promotion_gate(),
+        idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT: _candidate_approval_decision(),
         idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: _platform_promotion_request(),
         idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: _git_service_execution(),
+        idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT: _review_status(),
+        idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT: _read_model_publication(),
+        idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT: _promotion_finalization(),
     }
 
 
@@ -425,9 +581,12 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["platform_missing_artifact_count"], 0)
         self.assertEqual(body["summary"]["git_service_operation_count"], 3)
         self.assertEqual(body["summary"]["git_service_error_count"], 0)
+        self.assertTrue(body["summary"]["approval_ready"])
+        self.assertFalse(body["summary"]["review_merged"])
+        self.assertFalse(body["summary"]["read_model_published"])
         self.assertEqual(body["workflow"]["stage"], "repair_required")
         self.assertEqual(body["workflow"]["status"], "blocked")
-        self.assertEqual(len(body["workflow"]["items"]), 9)
+        self.assertEqual(len(body["workflow"]["items"]), 12)
         self.assertEqual(
             body["workflow"]["next_handoff"]["kind"],
             "operator_repair_review",
@@ -472,6 +631,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertTrue(body["controlled_promotion"]["available"])
         self.assertEqual(
+            body["controlled_promotion"]["candidate_approval"]["decision_state"],
+            "approved",
+        )
+        self.assertEqual(
             body["controlled_promotion"]["platform_request"]["candidate_branch"],
             "graph-candidate/idea-alpha",
         )
@@ -485,6 +648,13 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["controlled_promotion"]["action_boundary"][
                 "may_execute_git_service"
             ]
+        )
+        self.assertEqual(
+            body["controlled_promotion"]["review_status"]["review_state"],
+            "open",
+        )
+        self.assertFalse(
+            body["controlled_promotion"]["read_model_publication"]["published"]
         )
         self.assertEqual(
             body["artifacts"]["active_candidate"]["status"],
@@ -580,7 +750,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["summary"]["status"], "partial")
-        self.assertEqual(body["summary"]["available_artifact_count"], 5)
+        self.assertEqual(body["summary"]["available_artifact_count"], 9)
         self.assertEqual(body["summary"]["missing_artifact_count"], 3)
         self.assertEqual(body["summary"]["candidate_node_count"], 0)
         self.assertEqual(body["summary"]["repair_action_count"], 0)
@@ -610,7 +780,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["status"], "partial")
         self.assertEqual(body["summary"]["available_artifact_count"], 1)
         self.assertEqual(body["summary"]["missing_artifact_count"], 5)
-        self.assertEqual(body["summary"]["platform_missing_artifact_count"], 2)
+        self.assertEqual(body["summary"]["platform_missing_artifact_count"], 6)
         self.assertEqual(body["workflow"]["stage"], "candidate_artifacts_missing")
         self.assertEqual(
             body["workflow"]["next_handoff"]["kind"],
@@ -723,6 +893,218 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["workflow"]["next_handoff"]["kind"],
             "git_service_execution_repair",
+        )
+
+    def test_workflow_requires_candidate_approval_before_promotion_request(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+            "next_artifact": "candidate approval decision",
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts.pop(idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT)
+        artifacts.pop(idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT)
+        artifacts.pop(idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT)
+        artifacts.pop(
+            idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "approval_required")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "candidate_approval_decision",
+        )
+        self.assertIn(
+            "candidate-approval-decision",
+            body["workflow"]["next_handoff"]["command_template"],
+        )
+
+    def test_workflow_blocks_unapproved_candidate_decision(self) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        approval = _candidate_approval_decision()
+        approval["decision"]["state"] = "rejected"
+        approval["readiness"] = {
+            "ready": False,
+            "review_state": "candidate_approval_blocked",
+            "blocked_by": ["decision_rejected"],
+        }
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT
+        ] = approval
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "approval_blocked")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "candidate_approval_repair",
+        )
+        self.assertFalse(
+            body["controlled_promotion"]["candidate_approval"]["ready"]
+        )
+
+    def test_workflow_waits_for_review_merge_before_read_model_publish(self) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        execution = _git_service_execution()
+        execution["open_review_dry_run"] = False
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+        ] = execution
+        artifacts[
+            idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
+        ] = _review_status("open")
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "review_pending")
+        self.assertFalse(body["summary"]["review_merged"])
+
+    def test_workflow_requires_read_model_publish_after_merged_review(self) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        execution = _git_service_execution()
+        execution["open_review_dry_run"] = False
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+        ] = execution
+        artifacts[
+            idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
+        ] = _review_status("merged")
+        artifacts.pop(
+            idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "read_model_publish_required")
+        self.assertTrue(body["summary"]["review_merged"])
+        self.assertFalse(body["summary"]["read_model_published"])
+
+    def test_workflow_marks_published_read_model(self) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        execution = _git_service_execution()
+        execution["open_review_dry_run"] = False
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+        ] = execution
+        artifacts[
+            idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
+        ] = _review_status("merged")
+        artifacts[
+            idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
+        ] = _read_model_publication(published=True)
+        artifacts[
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
+        ] = _promotion_finalization(read_model_published=True)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "read_model_published")
+        self.assertTrue(body["summary"]["read_model_published"])
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "read_model_review",
         )
 
     def test_file_provider_reads_workspace_runs(self) -> None:

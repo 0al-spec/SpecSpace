@@ -586,19 +586,39 @@ function ControlledPromotionSection({
   state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
 }) {
   const promotion = state.data.controlledPromotion;
+  const approval = promotion.candidateApproval;
   const request = promotion.platformRequest;
   const execution = promotion.gitServiceExecution;
+  const reviewStatus = promotion.reviewStatus;
+  const readModel = promotion.readModelPublication;
+  const finalization = promotion.promotionFinalization;
+  const operationCount = execution.operations.length + finalization.operations.length;
   return (
     <section className={styles.reviewSection}>
       <SectionHeader
         title="Controlled promotion"
-        count={execution.operations.length}
+        count={operationCount}
       />
       <div className={styles.postureStrip}>
         <PostureItem label="Inspect only" value={boolText(promotion.actionBoundary.inspectOnly)} />
         <PostureItem label="Execute" value={boolText(promotion.actionBoundary.mayExecuteGitService)} />
         <PostureItem label="Commit" value={boolText(promotion.actionBoundary.mayCreateBranchOrCommit)} />
         <PostureItem label="Merge" value={boolText(promotion.actionBoundary.mayMergeReview)} />
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Candidate approval</span>
+          <Pill value={approval.available ? (approval.ready ? "approved" : "blocked") : "missing"} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Candidate" value={approval.candidateId} />
+          <Meta label="Decision" value={approval.decisionState} />
+          <Meta label="Review state" value={approval.reviewState} />
+          <Meta label="Operator" value={approval.operatorRef} />
+          <Meta label="Reason" value={approval.reason} />
+          <Meta label="Promotion paths" value={joined(approval.promotionPaths)} />
+          <Meta label="Blocked by" value={joined(approval.blockedBy)} />
+        </div>
       </div>
       <div className={styles.row}>
         <div className={styles.rowHeader}>
@@ -630,7 +650,35 @@ function ControlledPromotionSection({
           <Meta label="Errors" value={String(execution.errorCount)} />
         </div>
       </div>
-      {execution.operations.length === 0 ? (
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Review status</span>
+          <Pill value={reviewStatus.available ? (reviewStatus.reviewMerged ? "merged" : compact(reviewStatus.reviewState, "open")) : "missing"} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="State" value={reviewStatus.reviewState} />
+          <Meta label="Decision" value={reviewStatus.reviewDecision} />
+          <Meta label="URL" value={reviewStatus.reviewUrl} />
+          <Meta label="Merged" value={boolText(reviewStatus.reviewMerged)} />
+          <Meta label="Errors" value={String(reviewStatus.errorCount)} />
+        </div>
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Read-model publication</span>
+          <Pill value={readModel.available ? (readModel.published ? "published" : "blocked") : finalization.readModelPublished ? "published" : "missing"} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Review" value={readModel.reviewState ?? finalization.reviewState} />
+          <Meta label="Published" value={boolText(readModel.published || finalization.readModelPublished)} />
+          <Meta label="Dry run" value={boolText(readModel.dryRun || finalization.dryRun)} />
+          <Meta label="Manifest" value={readModel.manifest} />
+          <Meta label="Files" value={String(readModel.fileCount)} />
+          <Meta label="Finalization ops" value={String(finalization.operationCount)} />
+          <Meta label="Errors" value={String(readModel.errorCount + finalization.errorCount)} />
+        </div>
+      </div>
+      {operationCount === 0 ? (
         <Status
           label="No Git Service execution"
           detail="Promotion can be inspected here after Platform publishes the execution report."
@@ -638,6 +686,9 @@ function ControlledPromotionSection({
       ) : null}
       {execution.operations.map((operation) => (
         <GitServiceOperationRow key={operation.name} operation={operation} />
+      ))}
+      {finalization.operations.map((operation) => (
+        <GitServiceOperationRow key={`finalization.${operation.name}`} operation={operation} />
       ))}
     </section>
   );

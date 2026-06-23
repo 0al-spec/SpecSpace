@@ -63,7 +63,9 @@ Each route should resolve to a workspace record and an artifact manifest. The
 root route keeps the current SpecGraph showcase. The Team Decision Log route
 uses product workspace artifacts and should expose idea-to-spec surfaces:
 event-storming intake, ontology/domain/context frame, candidate graph,
-pre-SIB/coherence status, repair history, and promotion gate state.
+pre-SIB/coherence status, repair history, materialization, promotion gate,
+candidate approval, Git Service execution, repository review status, and
+read-model publication state.
 
 The route must not make SpecSpace a writer. Product routes remain readonly
 until a Graph Repository Service promotion request explicitly prepares a

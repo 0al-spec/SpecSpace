@@ -77,6 +77,19 @@ export type IdeaToSpecPlatformPromotionRequest = {
   summary: Record<string, unknown>;
 };
 
+export type IdeaToSpecCandidateApprovalDecision = {
+  available: boolean;
+  ready: boolean;
+  decisionState: string | null;
+  requestedState: string | null;
+  reviewState: string | null;
+  operatorRef: string | null;
+  reason: string | null;
+  candidateId: string | null;
+  promotionPaths: readonly string[];
+  blockedBy: readonly string[];
+};
+
 export type IdeaToSpecGitServiceOperation = {
   name: string;
   status: string;
@@ -98,6 +111,40 @@ export type IdeaToSpecGitServiceExecution = {
   completedOperationCount: number;
   errorCount: number;
   copiedFileCount: number;
+  operations: readonly IdeaToSpecGitServiceOperation[];
+  reportRefs: Record<string, unknown>;
+};
+
+export type IdeaToSpecReviewStatus = {
+  available: boolean;
+  ok: boolean;
+  reviewState: string | null;
+  reviewDecision: string | null;
+  reviewUrl: string | null;
+  reviewMerged: boolean;
+  errorCount: number;
+};
+
+export type IdeaToSpecReadModelPublication = {
+  available: boolean;
+  ok: boolean;
+  dryRun: boolean;
+  reviewState: string | null;
+  manifest: string | null;
+  published: boolean;
+  fileCount: number;
+  errorCount: number;
+};
+
+export type IdeaToSpecPromotionFinalization = {
+  available: boolean;
+  ok: boolean;
+  dryRun: boolean;
+  reviewState: string | null;
+  readModelPublished: boolean;
+  operationCount: number;
+  completedOperationCount: number;
+  errorCount: number;
   operations: readonly IdeaToSpecGitServiceOperation[];
   reportRefs: Record<string, unknown>;
 };
@@ -169,6 +216,9 @@ export type IdeaToSpecWorkspace = {
     platformMissingArtifactCount: number;
     gitServiceOperationCount: number;
     gitServiceErrorCount: number;
+    approvalReady: boolean;
+    reviewMerged: boolean;
+    readModelPublished: boolean;
     nextArtifact: string | null;
   };
   workflow: IdeaToSpecWorkflow;
@@ -251,8 +301,12 @@ export type IdeaToSpecWorkspace = {
   };
   controlledPromotion: {
     available: boolean;
+    candidateApproval: IdeaToSpecCandidateApprovalDecision;
     platformRequest: IdeaToSpecPlatformPromotionRequest;
     gitServiceExecution: IdeaToSpecGitServiceExecution;
+    reviewStatus: IdeaToSpecReviewStatus;
+    readModelPublication: IdeaToSpecReadModelPublication;
+    promotionFinalization: IdeaToSpecPromotionFinalization;
     actionBoundary: {
       inspectOnly: true;
       acknowledgeOnly: true;
@@ -444,6 +498,24 @@ function parsePlatformPromotionRequest(
   };
 }
 
+function parseCandidateApprovalDecision(
+  raw: unknown,
+): IdeaToSpecCandidateApprovalDecision {
+  const approval = recordValue(raw);
+  return {
+    available: approval.available === true,
+    ready: approval.ready === true,
+    decisionState: optionalString(approval.decision_state),
+    requestedState: optionalString(approval.requested_state),
+    reviewState: optionalString(approval.review_state),
+    operatorRef: optionalString(approval.operator_ref),
+    reason: optionalString(approval.reason),
+    candidateId: optionalString(approval.candidate_id),
+    promotionPaths: strings(approval.promotion_paths),
+    blockedBy: strings(approval.blocked_by),
+  };
+}
+
 function parseGitServiceOperation(
   raw: unknown,
 ): IdeaToSpecGitServiceOperation | null {
@@ -479,6 +551,54 @@ function parseGitServiceExecution(raw: unknown): IdeaToSpecGitServiceExecution {
       return parsed ? [parsed] : [];
     }),
     reportRefs: recordValue(execution.report_refs),
+  };
+}
+
+function parseReviewStatus(raw: unknown): IdeaToSpecReviewStatus {
+  const status = recordValue(raw);
+  return {
+    available: status.available === true,
+    ok: status.ok === true,
+    reviewState: optionalString(status.review_state),
+    reviewDecision: optionalString(status.review_decision),
+    reviewUrl: optionalString(status.review_url),
+    reviewMerged: status.review_merged === true,
+    errorCount: numberValue(status.error_count),
+  };
+}
+
+function parseReadModelPublication(raw: unknown): IdeaToSpecReadModelPublication {
+  const publication = recordValue(raw);
+  return {
+    available: publication.available === true,
+    ok: publication.ok === true,
+    dryRun: publication.dry_run === true,
+    reviewState: optionalString(publication.review_state),
+    manifest: optionalString(publication.manifest),
+    published: publication.published === true,
+    fileCount: numberValue(publication.file_count),
+    errorCount: numberValue(publication.error_count),
+  };
+}
+
+function parsePromotionFinalization(raw: unknown): IdeaToSpecPromotionFinalization {
+  const finalization = recordValue(raw);
+  return {
+    available: finalization.available === true,
+    ok: finalization.ok === true,
+    dryRun: finalization.dry_run === true,
+    reviewState: optionalString(finalization.review_state),
+    readModelPublished: finalization.read_model_published === true,
+    operationCount: numberValue(finalization.operation_count),
+    completedOperationCount: numberValue(
+      finalization.completed_operation_count,
+    ),
+    errorCount: numberValue(finalization.error_count),
+    operations: records(finalization.operations).flatMap((item) => {
+      const parsed = parseGitServiceOperation(item);
+      return parsed ? [parsed] : [];
+    }),
+    reportRefs: recordValue(finalization.report_refs),
   };
 }
 
@@ -645,6 +765,9 @@ export function parseIdeaToSpecWorkspace(
           summary.git_service_operation_count,
         ),
         gitServiceErrorCount: numberValue(summary.git_service_error_count),
+        approvalReady: summary.approval_ready === true,
+        reviewMerged: summary.review_merged === true,
+        readModelPublished: summary.read_model_published === true,
         nextArtifact: optionalString(summary.next_artifact),
       },
       workflow: parseWorkflow(raw.workflow),
@@ -734,11 +857,21 @@ export function parseIdeaToSpecWorkspace(
       },
       controlledPromotion: {
         available: controlledPromotion.available === true,
+        candidateApproval: parseCandidateApprovalDecision(
+          controlledPromotion.candidate_approval,
+        ),
         platformRequest: parsePlatformPromotionRequest(
           controlledPromotion.platform_request,
         ),
         gitServiceExecution: parseGitServiceExecution(
           controlledPromotion.git_service_execution,
+        ),
+        reviewStatus: parseReviewStatus(controlledPromotion.review_status),
+        readModelPublication: parseReadModelPublication(
+          controlledPromotion.read_model_publication,
+        ),
+        promotionFinalization: parsePromotionFinalization(
+          controlledPromotion.promotion_finalization,
         ),
         actionBoundary: {
           inspectOnly: true,
