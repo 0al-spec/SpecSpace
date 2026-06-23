@@ -205,7 +205,7 @@ def build_hyperprompt_compile_diagnostic(
         "limits": limits,
     }
 
-    if provider_kind == "http" and not http_compile_enabled:
+    if provider_kind in {"http", "http-product-workspace"} and not http_compile_enabled:
         return {
             **base,
             "available": False,
@@ -213,7 +213,7 @@ def build_hyperprompt_compile_diagnostic(
             "detail": "Hyperprompt compile for HTTP artifact providers requires an explicit feature flag.",
         }
 
-    if provider_kind not in {"file", "file-product-workspace", "http"}:
+    if provider_kind not in {"file", "file-product-workspace", "http", "http-product-workspace"}:
         return {
             **base,
             "available": False,

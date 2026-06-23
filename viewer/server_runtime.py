@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -36,6 +37,7 @@ class ViewerRuntimeServer(Protocol):
     runs_watcher: Any
     artifact_base_url: str | None
     team_decision_log_artifact_base_url: str | None
+    product_workspace_artifact_base_urls: dict[str, str]
     specpm_registry_url: str | None
     agent_workbench_dir: Path | None
     specspace_state_dir: Path
@@ -55,6 +57,10 @@ def build_arg_parser(
     specspace_state_dir_env = os.environ.get("SPECSPACE_STATE_DIR", "").strip()
     team_decision_log_artifact_base_url_env = os.environ.get(
         "SPECSPACE_TEAM_DECISION_LOG_ARTIFACT_BASE_URL",
+        "",
+    ).strip()
+    product_workspace_artifact_base_urls_env = os.environ.get(
+        "SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URLS",
         "",
     ).strip()
     parser = argparse.ArgumentParser(description=description)
@@ -139,8 +145,27 @@ def build_arg_parser(
         type=str,
         default=team_decision_log_artifact_base_url_env or None,
         help=(
-            "Optional static artifact base URL for the Team Decision Log product "
-            "workspace. When omitted, the route reads the default artifact base."
+            "Compatibility alias for --product-workspace-artifact-base-url "
+            "team-decision-log=URL."
+        ),
+    )
+    parser.add_argument(
+        "--product-workspace-artifact-base-url",
+        action="append",
+        default=[],
+        metavar="WORKSPACE_ID=URL",
+        help=(
+            "Static artifact base URL for one product workspace. Repeat for "
+            "multiple workspaces. Product workspaces never fall back to the "
+            "bootstrap artifact base URL."
+        ),
+    )
+    parser.add_argument(
+        "--product-workspace-artifact-base-urls-json",
+        default=product_workspace_artifact_base_urls_env or None,
+        help=(
+            "JSON object mapping product workspace ids to static artifact base "
+            "URLs. Defaults to SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URLS."
         ),
     )
     parser.add_argument(
@@ -177,6 +202,50 @@ def build_arg_parser(
         ),
     )
     return parser
+
+
+def _normalize_workspace_id_for_url_map(value: str) -> str | None:
+    normalized = value.strip().lower().replace("_", "-")
+    if (
+        len(normalized) < 3
+        or len(normalized) > 64
+        or not normalized[0].isalnum()
+        or not normalized[-1].isalnum()
+    ):
+        return None
+    if any(not (char.isalnum() or char == "-") for char in normalized):
+        return None
+    return normalized
+
+
+def product_workspace_artifact_base_urls_from_args(
+    args: argparse.Namespace,
+) -> dict[str, str]:
+    urls: dict[str, str] = {}
+    raw_json = getattr(args, "product_workspace_artifact_base_urls_json", None)
+    if isinstance(raw_json, str) and raw_json.strip():
+        try:
+            payload = json.loads(raw_json)
+        except json.JSONDecodeError:
+            payload = {}
+        if isinstance(payload, dict):
+            for key, value in payload.items():
+                workspace_id = _normalize_workspace_id_for_url_map(str(key))
+                if workspace_id is not None and isinstance(value, str) and value.strip():
+                    urls[workspace_id] = value.strip()
+
+    for entry in getattr(args, "product_workspace_artifact_base_url", []) or []:
+        if not isinstance(entry, str) or "=" not in entry:
+            continue
+        raw_workspace_id, raw_url = entry.split("=", 1)
+        workspace_id = _normalize_workspace_id_for_url_map(raw_workspace_id)
+        if workspace_id is not None and raw_url.strip():
+            urls[workspace_id] = raw_url.strip()
+
+    legacy_team_url = getattr(args, "team_decision_log_artifact_base_url", None)
+    if isinstance(legacy_team_url, str) and legacy_team_url.strip():
+        urls.setdefault("team-decision-log", legacy_team_url.strip())
+    return urls
 
 
 def runs_watch_path(spec_dir: Path | None, specgraph_dir: Path | None) -> Path | None:
@@ -234,6 +303,9 @@ def configure_server(
         team_decision_log_artifact_base_url.strip()
         if team_decision_log_artifact_base_url
         else None
+    )
+    server.product_workspace_artifact_base_urls = (
+        product_workspace_artifact_base_urls_from_args(args)
     )
     specpm_registry_url = getattr(args, "specpm_registry_url", None)
     server.specpm_registry_url = specpm_registry_url.strip().rstrip("/") if specpm_registry_url else None

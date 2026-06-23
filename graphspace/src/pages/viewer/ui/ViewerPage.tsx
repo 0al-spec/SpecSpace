@@ -135,6 +135,12 @@ export function ViewerPage({
   workspace = SPECGRAPH_BOOTSTRAP_WORKSPACE,
 }: ViewerPageProps) {
   const productWorkspace = workspace.surfaceMode === "product_idea_to_spec";
+  const workspaceSwitcherItems = useMemo(() => {
+    if (SPECSPACE_WORKSPACES.some((item) => item.id === workspace.id)) {
+      return SPECSPACE_WORKSPACES;
+    }
+    return [...SPECSPACE_WORKSPACES, workspace];
+  }, [workspace]);
   const [sidebarOpen, setSidebarOpen] = useState(productWorkspace);
   const [activeUtilityPanel, setActiveUtilityPanel] =
     useState<ViewerUtilityPanelId | null>(
@@ -889,7 +895,7 @@ export function ViewerPage({
           </div>
 
           <nav className={styles.workspaceSwitcher} aria-label="Workspace">
-            {SPECSPACE_WORKSPACES.map((item) => (
+            {workspaceSwitcherItems.map((item) => (
               <a
                 key={item.id}
                 className={[

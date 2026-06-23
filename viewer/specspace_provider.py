@@ -13,7 +13,7 @@ from http import HTTPStatus
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from urllib.request import Request, urlopen
 
 import yaml  # type: ignore[import-untyped]
@@ -44,7 +44,47 @@ SPECSPACE_APP_VERSION = "0.0.1"
 SPECPM_REGISTRY_SOURCE_NAME = "specpm_registry"
 SPECPM_REGISTRY_API_VERSION = "specpm.registry/v0"
 BOOTSTRAP_WORKSPACE_ID = "specgraph-bootstrap"
-TEAM_DECISION_LOG_WORKSPACE_ID = "team-decision-log"
+PRODUCT_WORKSPACE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$")
+BOOTSTRAP_WORKSPACE_ALIASES = {"specgraph", "bootstrap", BOOTSTRAP_WORKSPACE_ID}
+DEFAULT_PRODUCT_WORKSPACE_CATALOG: tuple[dict[str, Any], ...] = (
+    {
+        "id": "team-decision-log",
+        "display_name": "Team Decision Log",
+        "route": "/team-decision-log",
+        "aliases": ["/team_decision_log"],
+    },
+)
+
+
+def normalize_product_workspace_id(value: Any) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    normalized = value.strip().lower().replace("_", "-")
+    if PRODUCT_WORKSPACE_ID_RE.fullmatch(normalized):
+        return normalized
+    return None
+
+
+def product_workspace_display_name(workspace_id: str) -> str:
+    words = [part for part in workspace_id.split("-") if part]
+    return " ".join(word[:1].upper() + word[1:] for word in words) or workspace_id
+
+
+def product_workspace_route(workspace_id: str) -> str:
+    return f"/{workspace_id}"
+
+
+def product_workspace_artifact_base_url_map(server: Any) -> dict[str, str]:
+    raw = getattr(server, "product_workspace_artifact_base_urls", None)
+    if not isinstance(raw, dict):
+        return {}
+    urls: dict[str, str] = {}
+    for key, value in raw.items():
+        workspace_id = normalize_product_workspace_id(key)
+        if workspace_id is None or not isinstance(value, str) or not value.strip():
+            continue
+        urls[workspace_id] = value.strip()
+    return urls
 
 
 def _validated_ontology_workbench_artifact(
@@ -1214,7 +1254,7 @@ class ProductWorkspaceFileProvider:
     """Readonly product workspace provider over candidate idea-to-spec artifacts."""
 
     delegate: FileSpecGraphProvider
-    workspace_id: str = TEAM_DECISION_LOG_WORKSPACE_ID
+    workspace_id: str
 
     kind = "file-product-workspace"
 
@@ -2557,6 +2597,382 @@ class HttpSpecGraphProvider:
         }
 
 
+@dataclass(frozen=True)
+class ProductWorkspaceHttpProvider:
+    """Readonly HTTP product workspace provider over idea-to-spec artifacts."""
+
+    delegate: HttpSpecGraphProvider
+    workspace_id: str
+
+    kind = "http-product-workspace"
+
+    def _source(self, *, surface: str) -> dict[str, Any]:
+        return {
+            "provider": self.kind,
+            "workspace_id": self.workspace_id,
+            "surface": surface,
+            "read_only": True,
+            "artifact_base_url": self.delegate.normalized_base_url,
+            "manifest": self.delegate.manifest_url,
+        }
+
+    def _manifest(self) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+        return self.delegate._read_manifest()
+
+    def _workspace_unavailable(self, surface: str) -> tuple[HTTPStatus, dict[str, Any]]:
+        return (
+            HTTPStatus.NOT_FOUND,
+            {
+                "api_version": SPECSPACE_API_VERSION,
+                "error": "Product workspace surface is not available.",
+                "reason": "product_workspace_surface_unavailable",
+                "workspace_id": self.workspace_id,
+                "surface": surface,
+                "source": self._source(surface=surface),
+            },
+        )
+
+    def _workspace_artifacts(self, manifest: dict[str, Any]) -> dict[str, Any]:
+        return {
+            filename: payload
+            for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS
+            if (payload := self.delegate._read_optional_runs_json_data(manifest, filename))
+            is not None
+        }
+
+    def _candidate_spec_nodes(
+        self,
+        manifest: dict[str, Any],
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        candidate_graph = self.delegate._read_optional_runs_json_data(
+            manifest,
+            idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT,
+        )
+        if candidate_graph is None:
+            return [], [
+                {
+                    "file_name": f"runs/{idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT}",
+                    "message": "Candidate spec graph artifact is not available.",
+                }
+            ]
+        return _candidate_graph_to_spec_nodes(candidate_graph), []
+
+    def _artifact_paths(self, manifest: dict[str, Any]) -> set[str]:
+        manifest_paths = self.delegate._manifest_path_set(manifest)
+        return {
+            f"runs/{filename}"
+            for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS
+            if f"runs/{filename}" in manifest_paths
+        }
+
+    def health(self) -> dict[str, Any]:
+        manifest, manifest_error = self._manifest()
+        if manifest_error is not None:
+            return {
+                "api_version": SPECSPACE_API_VERSION,
+                "deployment": deployment_metadata(),
+                "provider": self.kind,
+                "workspace_id": self.workspace_id,
+                "read_only": True,
+                "status": "unavailable",
+                "sources": {
+                    "artifact_manifest": manifest_error["source"],
+                    "candidate_spec_graph": SourceHealth(
+                        name="candidate_spec_graph",
+                        path=None,
+                        status="not_configured",
+                    ).to_json(),
+                },
+            }
+        assert manifest is not None
+        candidate_path = f"runs/{idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT}"
+        candidate_graph = self.delegate._read_optional_runs_json_data(
+            manifest,
+            idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT,
+        )
+        return {
+            "api_version": SPECSPACE_API_VERSION,
+            "deployment": deployment_metadata(),
+            "provider": self.kind,
+            "workspace_id": self.workspace_id,
+            "read_only": True,
+            "status": "ok" if candidate_graph is not None else "degraded",
+            "artifact_base_url": self.delegate.normalized_base_url,
+            "generated_at": manifest.get("generated_at"),
+            "git": manifest.get("git") if isinstance(manifest.get("git"), dict) else None,
+            "sources": {
+                "artifact_manifest": SourceHealth(
+                    name="artifact_manifest",
+                    path=self.delegate.manifest_url,
+                    status="ok",
+                    item_count=len(self.delegate._manifest_files(manifest)),
+                ).to_json(),
+                "candidate_spec_graph": SourceHealth(
+                    name="candidate_spec_graph",
+                    path=self.delegate._artifact_url(candidate_path),
+                    status="ok" if candidate_graph is not None else "missing",
+                ).to_json(),
+            },
+        }
+
+    def capabilities(self, handler: CapabilityContext) -> dict[str, bool]:
+        capabilities = capabilities_api.build_capabilities(handler)
+        manifest, _ = self._manifest()
+        candidate_available = False
+        if manifest is not None:
+            candidate_available = self.delegate._has_artifact(
+                manifest,
+                f"runs/{idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT}",
+            )
+        capabilities.update(
+            {
+                "spec_graph": candidate_available,
+                "spec_markdown_export": candidate_available,
+                "spec_compile": False,
+                "graph_dashboard": False,
+                "spec_overlay": False,
+                "specpm_preview": False,
+                "exploration_preview": False,
+                "exploration_surfaces": False,
+                "exploration_preview_build": False,
+                "viewer_surfaces_build": False,
+            }
+        )
+        return capabilities
+
+    def read_spec_graph(self) -> tuple[int, dict[str, Any]]:
+        manifest, manifest_error = self._manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+        nodes, load_errors = self._candidate_spec_nodes(manifest)
+        graph = specgraph.build_spec_graph(nodes, load_errors)
+        return HTTPStatus.OK, {
+            "api_version": SPECSPACE_API_VERSION,
+            "workspace_id": self.workspace_id,
+            "spec_dir": f"runs/{idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT}",
+            "artifact_base_url": self.delegate.normalized_base_url,
+            "manifest": {
+                "generated_at": manifest.get("generated_at"),
+                "git": manifest.get("git") if isinstance(manifest.get("git"), dict) else None,
+            },
+            "source": self._source(surface="candidate_spec_graph"),
+            "graph": graph,
+            "summary": graph["summary"],
+        }
+
+    def read_spec_node(self, node_id: str) -> tuple[int, dict[str, Any]]:
+        manifest, manifest_error = self._manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+        nodes, _ = self._candidate_spec_nodes(manifest)
+        detail = specgraph.get_spec_node_detail(nodes, node_id)
+        if detail is None:
+            return HTTPStatus.NOT_FOUND, {
+                "error": f"Candidate spec node '{node_id}' not found",
+                "workspace_id": self.workspace_id,
+            }
+        return HTTPStatus.OK, {
+            "api_version": SPECSPACE_API_VERSION,
+            "workspace_id": self.workspace_id,
+            "node_id": node_id,
+            "data": detail,
+        }
+
+    def read_spec_markdown(
+        self,
+        root_id: str,
+        options: spec_compile.CompileOptions,
+    ) -> tuple[int, dict[str, Any]]:
+        manifest, manifest_error = self._manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+        nodes, load_errors = self._candidate_spec_nodes(manifest)
+        return build_spec_markdown_response(
+            nodes=nodes,
+            load_errors=load_errors,
+            root_id=root_id,
+            options=options,
+            source=self._source(surface="candidate_spec_markdown"),
+        )
+
+    def compile_spec_markdown(
+        self,
+        handler: CapabilityContext,
+        root_id: str,
+        options: spec_compile.CompileOptions,
+        *,
+        scope: str,
+    ) -> tuple[int, dict[str, Any]]:
+        return compile_spec_markdown_with_provider(self, handler, root_id, options, scope=scope)
+
+    def read_recent_runs(
+        self,
+        *,
+        limit: int,
+        since_iso: str | None,
+    ) -> tuple[int, dict[str, Any]]:
+        _ = (limit, since_iso)
+        return HTTPStatus.OK, {
+            "api_version": SPECSPACE_API_VERSION,
+            "workspace_id": self.workspace_id,
+            "runs": [],
+            "entry_count": 0,
+            "source": self._source(surface="recent_runs"),
+        }
+
+    def read_spec_activity(
+        self,
+        *,
+        limit_raw: str | None,
+        since_raw: str | None,
+    ) -> tuple[int, dict[str, Any]]:
+        _ = (limit_raw, since_raw)
+        return HTTPStatus.OK, _empty_spec_activity_feed(
+            source=self._source(surface="spec_activity")
+        )
+
+    def read_implementation_work_index(
+        self,
+        *,
+        limit_raw: str | None,
+    ) -> tuple[int, dict[str, Any]]:
+        _ = limit_raw
+        return HTTPStatus.OK, _empty_implementation_work_index(
+            source=self._source(surface="implementation_work")
+        )
+
+    def read_proposal_spec_trace_index(self) -> tuple[int, dict[str, Any]]:
+        return HTTPStatus.OK, _empty_proposal_spec_trace_index(
+            source=self._source(surface="proposal_spec_trace")
+        )
+
+    def read_proposals(self) -> tuple[int, dict[str, Any]]:
+        return proposals.read_file_proposal_index(runs_dir=None, specgraph_dir=None)
+
+    def read_practical_ontology(self) -> tuple[int, dict[str, Any]]:
+        return self._workspace_unavailable("practical_ontology")
+
+    def read_ontology_workbench(self) -> tuple[int, dict[str, Any]]:
+        return self._workspace_unavailable("ontology_workbench")
+
+    def read_idea_to_spec_workspace(self) -> tuple[int, dict[str, Any]]:
+        manifest, manifest_error = self._manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+        return HTTPStatus.OK, idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=self._workspace_artifacts(manifest),
+            source=self._source(surface="idea_to_spec_workspace"),
+        )
+
+    def read_metrics(self) -> tuple[int, dict[str, Any]]:
+        return metrics.read_file_metrics_index(runs_dir=None)
+
+    def read_agent_surfaces(self) -> tuple[int, dict[str, Any]]:
+        return agent_surfaces.read_file_agent_surface_index(runs_dir=None)
+
+    def read_artifact_catalog(self) -> tuple[int, dict[str, Any]]:
+        manifest, manifest_error = self._manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+        workspace_paths = self._artifact_paths(manifest)
+        artifacts: list[dict[str, Any]] = []
+        for entry in self.delegate._manifest_files(manifest):
+            path = safe_manifest_path(entry.get("path"))
+            if path is None or path not in workspace_paths:
+                continue
+            artifacts.append(
+                {
+                    "path": path,
+                    "root": "runs",
+                    "label": artifact_label(path),
+                    "group": "product_workspace",
+                    "size_bytes": entry.get("size_bytes") if isinstance(entry.get("size_bytes"), int) else None,
+                    "sha256": entry.get("sha256") if isinstance(entry.get("sha256"), str) else None,
+                    "url": self.delegate._artifact_url(path),
+                }
+            )
+        return HTTPStatus.OK, build_artifact_catalog(
+            source=self._source(surface="artifact_catalog"),
+            artifacts=artifacts,
+            manifest=manifest,
+        )
+
+    def read_artifact_content(self, path: str) -> tuple[int, dict[str, Any]]:
+        safe_path = safe_manifest_path(path)
+        if safe_path is None:
+            return HTTPStatus.BAD_REQUEST, {
+                "error": "Invalid artifact path.",
+                "reason": "invalid_artifact_path",
+                "path": path,
+            }
+        manifest, manifest_error = self._manifest()
+        if manifest_error is not None:
+            return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
+        assert manifest is not None
+        if safe_path not in self._artifact_paths(manifest):
+            return HTTPStatus.NOT_FOUND, {
+                "error": "Artifact is not available from the product workspace.",
+                "reason": "missing_product_workspace_artifact",
+                "path": safe_path,
+                "workspace_id": self.workspace_id,
+            }
+        manifest_entry = next(
+            (
+                entry
+                for entry in self.delegate._manifest_files(manifest)
+                if safe_manifest_path(entry.get("path")) == safe_path
+            ),
+            None,
+        )
+        manifest_size = (
+            manifest_entry.get("size_bytes")
+            if isinstance(manifest_entry, dict) and isinstance(manifest_entry.get("size_bytes"), int)
+            else None
+        )
+        if manifest_size is not None and manifest_size > ARTIFACT_CONTENT_MAX_BYTES:
+            return HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {
+                "error": "Artifact exceeds preview limit.",
+                "reason": "artifact_too_large",
+                "path": safe_path,
+                "max_bytes": ARTIFACT_CONTENT_MAX_BYTES,
+            }
+        url = self.delegate._artifact_url(safe_path)
+        status, text, error = http_get_text(url, max_bytes=ARTIFACT_CONTENT_MAX_BYTES)
+        if error is not None or status != HTTPStatus.OK or text is None:
+            return status, {
+                "error": "Artifact could not be read.",
+                "reason": "artifact_fetch_failed",
+                "path": safe_path,
+                "url": url,
+                "detail": error["detail"] if error is not None else f"HTTP {int(status)}",
+            }
+        return HTTPStatus.OK, decode_artifact_content(
+            path=safe_path,
+            text=text,
+            source=self._source(surface="artifact_content"),
+        )
+
+    def read_ontology_semantic_review_surface(self) -> tuple[int, dict[str, Any]]:
+        return self._workspace_unavailable("ontology_semantic_review")
+
+    def read_ontology_review_dashboard(self) -> tuple[int, dict[str, Any]]:
+        return self._workspace_unavailable("ontology_review_dashboard")
+
+    def read_ontology_owner_decision_review(self) -> tuple[int, dict[str, Any]]:
+        return self._workspace_unavailable("ontology_owner_decision_review")
+
+    def read_spec_ontology_validation_report(self) -> tuple[int, dict[str, Any]]:
+        return self._workspace_unavailable("ontology_compliance_review")
+
+    def read_specpm_lifecycle(self) -> tuple[HTTPStatus, dict[str, Any]]:
+        return self._workspace_unavailable("specpm_lifecycle")
+
+
 def safe_manifest_path(value: Any) -> str | None:
     if not isinstance(value, str) or not value:
         return None
@@ -2654,20 +3070,18 @@ def normalize_workspace_id(value: Any) -> str | None:
     if not isinstance(value, str) or not value.strip():
         return None
     normalized = value.strip().lower().replace("_", "-")
-    if normalized == TEAM_DECISION_LOG_WORKSPACE_ID:
-        return TEAM_DECISION_LOG_WORKSPACE_ID
-    if normalized in {"specgraph", "bootstrap", BOOTSTRAP_WORKSPACE_ID}:
+    if normalized in BOOTSTRAP_WORKSPACE_ALIASES:
         return BOOTSTRAP_WORKSPACE_ID
+    product_workspace_id = normalize_product_workspace_id(normalized)
+    if product_workspace_id is not None:
+        return product_workspace_id
     return None
 
 
 def artifact_base_url_for_workspace(server: Any, workspace_id: str | None) -> str | None:
     normalized_workspace_id = normalize_workspace_id(workspace_id)
-    if normalized_workspace_id == TEAM_DECISION_LOG_WORKSPACE_ID:
-        workspace_url = getattr(server, "team_decision_log_artifact_base_url", None)
-        if isinstance(workspace_url, str) and workspace_url.strip():
-            return workspace_url.strip()
-        return None
+    if normalized_workspace_id is not None and normalized_workspace_id != BOOTSTRAP_WORKSPACE_ID:
+        return product_workspace_artifact_base_url_map(server).get(normalized_workspace_id)
     artifact_base_url = getattr(server, "artifact_base_url", None)
     return artifact_base_url.strip() if isinstance(artifact_base_url, str) and artifact_base_url.strip() else None
 
@@ -2684,7 +3098,13 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
         if not isinstance(cache, HttpArtifactCache):
             cache = HttpArtifactCache()
             cache_by_url[artifact_base_url] = cache
-        return HttpSpecGraphProvider(base_url=artifact_base_url.strip(), cache=cache)
+        http_provider = HttpSpecGraphProvider(base_url=artifact_base_url.strip(), cache=cache)
+        if normalized_workspace_id is not None and normalized_workspace_id != BOOTSTRAP_WORKSPACE_ID:
+            return ProductWorkspaceHttpProvider(
+                delegate=http_provider,
+                workspace_id=normalized_workspace_id,
+            )
+        return http_provider
 
     spec_dir = getattr(server, "spec_dir", None)
     specgraph_dir = getattr(server, "specgraph_dir", None)
@@ -2696,17 +3116,59 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
         runs_dir=runs_dir,
         specgraph_dir=specgraph_dir,
     )
-    if normalized_workspace_id == TEAM_DECISION_LOG_WORKSPACE_ID:
-        return ProductWorkspaceFileProvider(delegate=file_provider)
+    if normalized_workspace_id is not None and normalized_workspace_id != BOOTSTRAP_WORKSPACE_ID:
+        return ProductWorkspaceFileProvider(
+            delegate=file_provider,
+            workspace_id=normalized_workspace_id,
+        )
     return file_provider
 
 
 def workspace_catalog(server: Any) -> dict[str, Any]:
     default_artifact_base_url = artifact_base_url_for_workspace(server, BOOTSTRAP_WORKSPACE_ID)
-    team_artifact_base_url = artifact_base_url_for_workspace(
-        server,
-        TEAM_DECISION_LOG_WORKSPACE_ID,
-    )
+    product_artifact_base_urls = product_workspace_artifact_base_url_map(server)
+    product_workspaces_by_id: dict[str, dict[str, Any]] = {
+        str(workspace["id"]): dict(workspace)
+        for workspace in DEFAULT_PRODUCT_WORKSPACE_CATALOG
+        if normalize_product_workspace_id(workspace.get("id")) is not None
+    }
+    for workspace_id in product_artifact_base_urls:
+        product_workspaces_by_id.setdefault(
+            workspace_id,
+            {
+                "id": workspace_id,
+                "display_name": product_workspace_display_name(workspace_id),
+                "route": product_workspace_route(workspace_id),
+                "aliases": [],
+            },
+        )
+    product_workspaces = []
+    for workspace_id in sorted(product_workspaces_by_id):
+        workspace = product_workspaces_by_id[workspace_id]
+        artifact_base_url = artifact_base_url_for_workspace(server, workspace_id)
+        product_workspaces.append(
+            {
+                "id": workspace_id,
+                "display_name": workspace.get("display_name")
+                if isinstance(workspace.get("display_name"), str)
+                else product_workspace_display_name(workspace_id),
+                "route": workspace.get("route")
+                if isinstance(workspace.get("route"), str)
+                else product_workspace_route(workspace_id),
+                "aliases": workspace.get("aliases")
+                if isinstance(workspace.get("aliases"), list)
+                else [],
+                "workflow_lane": "product_idea_to_spec",
+                "target_repository_role": "product_spec_workspace",
+                "surface_mode": "product_idea_to_spec",
+                "artifact_base_url": artifact_base_url,
+                "provider": "http-product-workspace"
+                if artifact_base_url
+                else "file-product-workspace",
+                "selected_by_default": False,
+                "uses_default_artifact_base_url": False,
+            }
+        )
     return {
         "api_version": SPECSPACE_API_VERSION,
         "artifact_kind": "specspace_workspace_catalog",
@@ -2725,22 +3187,7 @@ def workspace_catalog(server: Any) -> dict[str, Any]:
                 "provider": "http" if default_artifact_base_url else "file",
                 "selected_by_default": True,
             },
-            {
-                "id": TEAM_DECISION_LOG_WORKSPACE_ID,
-                "display_name": "Team Decision Log",
-                "route": "/team-decision-log",
-                "aliases": ["/team_decision_log"],
-                "workflow_lane": "product_idea_to_spec",
-                "target_repository_role": "product_spec_workspace",
-                "surface_mode": "product_idea_to_spec",
-                "artifact_base_url": team_artifact_base_url,
-                "provider": "http" if team_artifact_base_url else "file-product-workspace",
-                "selected_by_default": False,
-                "uses_default_artifact_base_url": (
-                    bool(team_artifact_base_url)
-                    and team_artifact_base_url == default_artifact_base_url
-                ),
-            },
+            *product_workspaces,
         ],
     }
 

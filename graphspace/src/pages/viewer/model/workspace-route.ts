@@ -1,5 +1,5 @@
 export type SpecSpaceWorkspace = {
-  id: "specgraph-bootstrap" | "team-decision-log";
+  id: string;
   displayName: string;
   route: string;
   aliases: readonly string[];
@@ -12,7 +12,7 @@ export const SPECGRAPH_BOOTSTRAP_WORKSPACE: SpecSpaceWorkspace = {
   id: "specgraph-bootstrap",
   displayName: "SpecGraph",
   route: "/",
-  aliases: [],
+  aliases: ["/bootstrap", "/specgraph", "/specgraph-bootstrap"],
   workflowLane: "specgraph_bootstrap_showcase",
   targetRepositoryRole: "specgraph_bootstrap",
   surfaceMode: "bootstrap_showcase",
@@ -45,6 +45,29 @@ function normalizePathname(pathname: string): string {
   return normalized.replace(/\/+$/, "");
 }
 
+function productWorkspaceDisplayName(workspaceId: string): string {
+  return workspaceId
+    .split("-")
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
+function productWorkspaceFromPath(pathname: string): SpecSpaceWorkspace | null {
+  const match = /^\/([a-z0-9][a-z0-9-]{1,62}[a-z0-9])$/.exec(pathname);
+  if (!match) return null;
+  const workspaceId = match[1];
+  return {
+    id: workspaceId,
+    displayName: productWorkspaceDisplayName(workspaceId),
+    route: `/${workspaceId}`,
+    aliases: [],
+    workflowLane: "product_idea_to_spec",
+    targetRepositoryRole: "product_spec_workspace",
+    surfaceMode: "product_idea_to_spec",
+  };
+}
+
 export function resolveWorkspaceRoute(pathname: string): WorkspaceRouteResolution {
   const normalized = normalizePathname(pathname);
   for (const workspace of SPECSPACE_WORKSPACES) {
@@ -62,6 +85,14 @@ export function resolveWorkspaceRoute(pathname: string): WorkspaceRouteResolutio
         shouldReplace: true,
       };
     }
+  }
+  const productWorkspace = productWorkspaceFromPath(normalized);
+  if (productWorkspace !== null) {
+    return {
+      workspace: productWorkspace,
+      canonicalPath: productWorkspace.route,
+      shouldReplace: false,
+    };
   }
   return {
     workspace: SPECGRAPH_BOOTSTRAP_WORKSPACE,
