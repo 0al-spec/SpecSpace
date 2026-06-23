@@ -55,10 +55,17 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("repair_context_required");
     expect(html).toContain("Controlled promotion");
     expect(html).toContain("Platform promotion request");
+    expect(html).toContain("Candidate approval");
+    expect(html).toContain("candidate_approval_ready");
+    expect(html).toContain("operator://workspace-owner");
     expect(html).toContain("Git Service execution");
     expect(html).toContain("prepare worktree");
     expect(html).toContain("commit candidate");
     expect(html).toContain("open review");
+    expect(html).toContain("Review status");
+    expect(html).toContain("Read-model publication");
+    expect(html).toContain("published-read-model/artifact_manifest.json");
+    expect(html).toContain("review status");
     expect(html).toContain("Spec mutations");
     expect(html).toContain("false");
     expect(html).not.toContain("<button");

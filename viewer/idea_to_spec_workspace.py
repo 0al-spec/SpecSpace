@@ -15,9 +15,19 @@ CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT = (
     "candidate_spec_materialization_report.json"
 )
 IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT = "idea_to_spec_promotion_gate.json"
+CANDIDATE_APPROVAL_DECISION_ARTIFACT = "candidate_approval_decision.json"
 GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT = "graph_repository_promotion_request.json"
 GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT = (
     "git_service_promotion_execution_report.json"
+)
+GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT = (
+    "graph_repository_review_status_report.json"
+)
+GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT = (
+    "graph_repository_publish_read_model_report.json"
+)
+GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT = (
+    "git_service_promotion_finalization_report.json"
 )
 
 CORE_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
@@ -29,8 +39,12 @@ CORE_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
 )
 PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
+    CANDIDATE_APPROVAL_DECISION_ARTIFACT,
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT,
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+    GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT,
+    GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT,
+    GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT,
 )
 WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
@@ -46,8 +60,12 @@ ARTIFACT_KEYS: dict[str, str] = {
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
     CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: "materialization",
     IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: "promotion_gate",
+    CANDIDATE_APPROVAL_DECISION_ARTIFACT: "candidate_approval",
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: "platform_promotion_request",
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: "git_service_execution",
+    GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT: "review_status",
+    GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT: "read_model_publication",
+    GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT: "promotion_finalization",
 }
 
 EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
@@ -60,11 +78,21 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
         "candidate_spec_materialization_report"
     ),
     IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: "idea_to_spec_promotion_gate",
+    CANDIDATE_APPROVAL_DECISION_ARTIFACT: "candidate_approval_decision",
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: (
         "platform_graph_repository_promotion_request"
     ),
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: (
         "platform_git_service_promotion_execution_report"
+    ),
+    GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT: (
+        "platform_graph_repository_review_status_report"
+    ),
+    GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT: (
+        "platform_graph_repository_publish_read_model_report"
+    ),
+    GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT: (
+        "platform_git_service_promotion_finalization_report"
     ),
 }
 
@@ -155,6 +183,52 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "git service authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == CANDIDATE_APPROVAL_DECISION_ARTIFACT:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "candidate approval authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_mutations_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename in {
+        GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT,
+        GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT,
+        GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT,
+    }:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "post-review authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_mutations_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_tracked_artifacts_written") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_tracked_artifacts_written must be false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
@@ -400,6 +474,26 @@ def _platform_promotion_request(report: dict[str, Any] | None) -> dict[str, Any]
     }
 
 
+def _candidate_approval_decision(report: dict[str, Any] | None) -> dict[str, Any]:
+    decision = _record((report or {}).get("decision"))
+    readiness = _record((report or {}).get("readiness"))
+    candidate = _record((report or {}).get("candidate"))
+    return {
+        "available": report is not None,
+        "ready": readiness.get("ready") is True,
+        "decision_state": _optional_text(decision.get("state")),
+        "requested_state": _optional_text(decision.get("requested_state")),
+        "review_state": _optional_text(readiness.get("review_state")),
+        "operator_ref": _optional_text(decision.get("operator_ref")),
+        "reason": _optional_text(decision.get("reason")),
+        "candidate_id": _optional_text(candidate.get("candidate_id")),
+        "promotion_paths": _string_list(
+            _record((report or {}).get("promotion_request")).get("paths")
+        ),
+        "blocked_by": _string_list(readiness.get("blocked_by")),
+    }
+
+
 def _git_service_operations(report: dict[str, Any] | None) -> list[dict[str, Any]]:
     rows = []
     for item in _records((report or {}).get("operations"))[
@@ -436,6 +530,50 @@ def _git_service_execution(report: dict[str, Any] | None) -> dict[str, Any]:
         "completed_operation_count": _number(summary.get("completed_operation_count")),
         "error_count": _number(summary.get("error_count")),
         "copied_file_count": len(_records((report or {}).get("copied_materialized_files"))),
+        "operations": _git_service_operations(report),
+        "report_refs": _record((report or {}).get("report_refs")),
+    }
+
+
+def _review_status(report: dict[str, Any] | None) -> dict[str, Any]:
+    summary = _record((report or {}).get("summary"))
+    return {
+        "available": report is not None,
+        "ok": (report or {}).get("ok") is True,
+        "review_state": _optional_text((report or {}).get("review_state")),
+        "review_decision": _optional_text((report or {}).get("review_decision")),
+        "review_url": _optional_text((report or {}).get("review_url")),
+        "review_merged": summary.get("review_merged") is True,
+        "error_count": _number(summary.get("error_count"))
+        or len(_records((report or {}).get("diagnostics"))),
+    }
+
+
+def _read_model_publication(report: dict[str, Any] | None) -> dict[str, Any]:
+    summary = _record((report or {}).get("summary"))
+    return {
+        "available": report is not None,
+        "ok": (report or {}).get("ok") is True,
+        "dry_run": (report or {}).get("dry_run") is True,
+        "review_state": _optional_text((report or {}).get("review_state")),
+        "manifest": _optional_text((report or {}).get("manifest")),
+        "published": summary.get("published") is True,
+        "file_count": _number(summary.get("file_count")),
+        "error_count": _number(summary.get("error_count")),
+    }
+
+
+def _promotion_finalization(report: dict[str, Any] | None) -> dict[str, Any]:
+    summary = _record((report or {}).get("summary"))
+    return {
+        "available": report is not None,
+        "ok": (report or {}).get("ok") is True,
+        "dry_run": (report or {}).get("dry_run") is True,
+        "review_state": _optional_text((report or {}).get("review_state")),
+        "read_model_published": summary.get("read_model_published") is True,
+        "operation_count": _number(summary.get("operation_count")),
+        "completed_operation_count": _number(summary.get("completed_operation_count")),
+        "error_count": _number(summary.get("error_count")),
         "operations": _git_service_operations(report),
         "report_refs": _record((report or {}).get("report_refs")),
     }
@@ -491,8 +629,12 @@ def _workflow(
     repair_loop: dict[str, Any] | None,
     materialization: dict[str, Any] | None,
     promotion_gate: dict[str, Any] | None,
+    candidate_approval: dict[str, Any] | None,
     platform_promotion: dict[str, Any] | None,
     git_service_execution: dict[str, Any] | None,
+    review_status: dict[str, Any] | None,
+    read_model_publication: dict[str, Any] | None,
+    promotion_finalization: dict[str, Any] | None,
 ) -> dict[str, Any]:
     pre_sib_readiness = _readiness(pre_sib)
     repair_readiness = _readiness(repair_loop)
@@ -503,6 +645,13 @@ def _workflow(
     context_required_count = _number(repair_summary.get("context_required_count"))
     promotion_blocker_count = _finding_count(promotion_gate)
     platform_ok = (platform_promotion or {}).get("ok") is True
+    approval_readiness = _record((candidate_approval or {}).get("readiness"))
+    approval_decision = _record((candidate_approval or {}).get("decision"))
+    approval_ready = (
+        candidate_approval is not None
+        and approval_readiness.get("ready") is True
+        and approval_decision.get("state") == "approved"
+    )
     git_summary = _record((git_service_execution or {}).get("summary"))
     git_error_count = _number(git_summary.get("error_count"))
     git_ok = (git_service_execution or {}).get("ok") is True
@@ -519,6 +668,25 @@ def _workflow(
     )
     platform_failed = platform_promotion is not None and not platform_ok
     git_service_failed = git_service_execution is not None and not git_ok
+    approval_failed = candidate_approval is not None and not approval_ready
+    review_status_summary = _record((review_status or {}).get("summary"))
+    review_merged = (
+        (review_status or {}).get("review_state") == "merged"
+        or review_status_summary.get("review_merged") is True
+    )
+    review_status_failed = review_status is not None and (review_status.get("ok") is not True)
+    publish_summary = _record((read_model_publication or {}).get("summary"))
+    read_model_published = (
+        publish_summary.get("published") is True
+        or _record((promotion_finalization or {}).get("summary")).get(
+            "read_model_published"
+        )
+        is True
+    )
+    finalization_failed = (
+        promotion_finalization is not None
+        and promotion_finalization.get("ok") is not True
+    )
 
     items = [
         _workflow_item(
@@ -613,6 +781,21 @@ def _workflow(
             detail=_optional_text(promotion_readiness["review_state"]),
         ),
         _workflow_item(
+            item_id="candidate_approval",
+            label="Candidate approval",
+            status=_available_status(
+                statuses,
+                "candidate_approval",
+                approval_ready,
+                blocked=approval_failed,
+            ),
+            artifact_key=CANDIDATE_APPROVAL_DECISION_ARTIFACT,
+            detail=_optional_text(
+                approval_readiness.get("review_state")
+                or approval_decision.get("state")
+            ),
+        ),
+        _workflow_item(
             item_id="platform_promotion_request",
             label="Platform promotion request",
             status=_available_status(
@@ -640,6 +823,40 @@ def _workflow(
                 if git_open_review_dry_run
                 else _optional_text((git_service_execution or {}).get("candidate_ref"))
             ),
+        ),
+        _workflow_item(
+            item_id="review_status",
+            label="Review status",
+            status=_available_status(
+                statuses,
+                "review_status",
+                review_merged,
+                blocked=review_status_failed,
+            ),
+            artifact_key=GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT,
+            detail=_optional_text((review_status or {}).get("review_state")),
+        ),
+        _workflow_item(
+            item_id="read_model_publication",
+            label="Read-model publication",
+            status=(
+                "ready"
+                if read_model_published
+                else _available_status(
+                    statuses,
+                    "read_model_publication",
+                    False,
+                    blocked=finalization_failed
+                    or (
+                        read_model_publication is not None
+                        and read_model_publication.get("ok") is not True
+                    ),
+                    dry_run=(read_model_publication or {}).get("dry_run") is True
+                    or (promotion_finalization or {}).get("dry_run") is True,
+                )
+            ),
+            artifact_key=GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT,
+            detail="published" if read_model_published else None,
         ),
     ]
 
@@ -695,6 +912,34 @@ def _workflow(
             ),
             "authority_boundary": "operator_only",
         }
+    elif promotion_readiness["ready"] and candidate_approval is None:
+        stage = "approval_required"
+        status = "operator_review_required"
+        next_handoff = {
+            "kind": "candidate_approval_decision",
+            "label": "Approve or reject the candidate before Git Service execution",
+            "status": "operator_review_required",
+            "artifact_key": "promotion_gate",
+            "artifact_path": f"runs/{IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT}",
+            "command_template": (
+                "cd <specgraph-repository> && make candidate-approval-decision "
+                "CANDIDATE_APPROVAL_DECISION_STATE=approved "
+                "CANDIDATE_APPROVAL_REASON='<public-safe rationale>'"
+            ),
+            "authority_boundary": "operator_only",
+        }
+    elif approval_failed:
+        stage = "approval_blocked"
+        status = "blocked"
+        next_handoff = {
+            "kind": "candidate_approval_repair",
+            "label": "Resolve candidate approval before Git Service execution",
+            "status": "blocked",
+            "artifact_key": "candidate_approval",
+            "artifact_path": f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}",
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
     elif git_service_failed:
         stage = "git_service_execution_failed"
         status = "blocked"
@@ -709,7 +954,7 @@ def _workflow(
             ),
             "authority_boundary": "operator_only",
         }
-    elif promotion_readiness["ready"] and platform_promotion is None:
+    elif promotion_readiness["ready"] and approval_ready and platform_promotion is None:
         stage = "promotion_request_required"
         status = "ready_for_handoff"
         next_handoff = {
@@ -721,7 +966,7 @@ def _workflow(
             "command_template": "scripts/platform.py graph-repository promotion-request <inputs>",
             "authority_boundary": "operator_only",
         }
-    elif platform_ok and git_service_execution is None:
+    elif platform_ok and approval_ready and git_service_execution is None:
         stage = "git_service_ready"
         status = "ready_for_handoff"
         next_handoff = {
@@ -733,6 +978,7 @@ def _workflow(
             "command_template": (
                 "scripts/platform.py git-service execute-promotion "
                 "--promotion-request runs/graph_repository_promotion_request.json "
+                "--approval-decision runs/candidate_approval_decision.json "
                 "--repository-dir <product-repository> "
                 "--workspace-dir <candidate-worktree> "
                 "--materialized-source-dir <public-bundle-root> "
@@ -752,13 +998,14 @@ def _workflow(
             "command_template": (
                 "scripts/platform.py git-service execute-promotion "
                 "--promotion-request runs/graph_repository_promotion_request.json "
+                "--approval-decision runs/candidate_approval_decision.json "
                 "--repository-dir <product-repository> "
                 "--workspace-dir <candidate-worktree> "
                 "--materialized-source-dir <public-bundle-root>"
             ),
             "authority_boundary": "operator_only",
         }
-    elif git_ok:
+    elif git_ok and review_status is None and promotion_finalization is None:
         stage = "review_status_required"
         status = "ready_for_handoff"
         next_handoff = {
@@ -769,6 +1016,58 @@ def _workflow(
             "artifact_path": f"runs/{GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT}",
             "command_template": "scripts/platform.py graph-repository review-status <open-review-report>",
             "authority_boundary": "operator_only",
+        }
+    elif review_status_failed or finalization_failed:
+        stage = "post_review_failed"
+        status = "blocked"
+        next_handoff = {
+            "kind": "post_review_repair",
+            "label": "Repair post-review closure before publishing read model",
+            "status": "blocked",
+            "artifact_key": "review_status",
+            "artifact_path": f"runs/{GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT}",
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
+    elif review_status is not None and not review_merged:
+        stage = "review_pending"
+        status = "operator_review_required"
+        next_handoff = {
+            "kind": "repository_review",
+            "label": "Wait for repository review merge before read-model publish",
+            "status": "operator_review_required",
+            "artifact_key": "review_status",
+            "artifact_path": f"runs/{GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT}",
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
+    elif review_merged and not read_model_published:
+        stage = "read_model_publish_required"
+        status = "ready_for_handoff"
+        next_handoff = {
+            "kind": "publish_read_model",
+            "label": "Publish read model after merged repository review",
+            "status": "ready",
+            "artifact_key": "review_status",
+            "artifact_path": f"runs/{GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT}",
+            "command_template": (
+                "scripts/platform.py git-service finalize-promotion "
+                "--open-review-report <open-review-report> "
+                "--bundle-dir <public-bundle> --output-dir <read-model-dir>"
+            ),
+            "authority_boundary": "operator_only",
+        }
+    elif read_model_published:
+        stage = "read_model_published"
+        status = "ready"
+        next_handoff = {
+            "kind": "read_model_review",
+            "label": "Inspect published read model",
+            "status": "ready",
+            "artifact_key": "read_model_publication",
+            "artifact_path": f"runs/{GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT}",
+            "command_template": None,
+            "authority_boundary": "read_only",
         }
 
     return {
@@ -816,11 +1115,21 @@ def build_idea_to_spec_workspace(
         artifacts, CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT
     )
     promotion_gate = _artifact_data(artifacts, IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT)
+    candidate_approval = _artifact_data(artifacts, CANDIDATE_APPROVAL_DECISION_ARTIFACT)
     platform_promotion = _artifact_data(
         artifacts, GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT
     )
     git_service_execution = _artifact_data(
         artifacts, GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+    )
+    review_status = _artifact_data(
+        artifacts, GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
+    )
+    read_model_publication = _artifact_data(
+        artifacts, GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
+    )
+    promotion_finalization = _artifact_data(
+        artifacts, GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
     )
     statuses = {
         key: _artifact_status(artifacts, filename)
@@ -859,8 +1168,12 @@ def build_idea_to_spec_workspace(
         repair_loop=repair_loop,
         materialization=materialization,
         promotion_gate=promotion_gate,
+        candidate_approval=candidate_approval,
         platform_promotion=platform_promotion,
         git_service_execution=git_service_execution,
+        review_status=review_status,
+        read_model_publication=read_model_publication,
+        promotion_finalization=promotion_finalization,
     )
     return {
         "api_version": "v1",
@@ -899,6 +1212,16 @@ def build_idea_to_spec_workspace(
                     "error_count"
                 )
             ),
+            "approval_ready": _candidate_approval_decision(candidate_approval)[
+                "ready"
+            ],
+            "review_merged": _review_status(review_status)["review_merged"],
+            "read_model_published": _read_model_publication(
+                read_model_publication
+            )["published"]
+            or _promotion_finalization(promotion_finalization)[
+                "read_model_published"
+            ],
             "next_artifact": _optional_text(
                 _record((promotion_gate or {}).get("readiness")).get("next_artifact")
                 or _record((materialization or {}).get("readiness")).get(
@@ -970,9 +1293,21 @@ def build_idea_to_spec_workspace(
         },
         "controlled_promotion": {
             "available": platform_promotion is not None
-            or git_service_execution is not None,
+            or git_service_execution is not None
+            or candidate_approval is not None
+            or review_status is not None
+            or read_model_publication is not None
+            or promotion_finalization is not None,
+            "candidate_approval": _candidate_approval_decision(candidate_approval),
             "platform_request": _platform_promotion_request(platform_promotion),
             "git_service_execution": _git_service_execution(git_service_execution),
+            "review_status": _review_status(review_status),
+            "read_model_publication": _read_model_publication(
+                read_model_publication
+            ),
+            "promotion_finalization": _promotion_finalization(
+                promotion_finalization
+            ),
             "action_boundary": {
                 "inspect_only": True,
                 "acknowledge_only": True,

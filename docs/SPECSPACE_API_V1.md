@@ -714,7 +714,15 @@ idea-to-spec artifacts produced by SpecGraph:
 - `runs/idea_event_storming_intake.json`;
 - `runs/candidate_spec_graph.json`;
 - `runs/pre_sib_coherence_report.json`;
-- `runs/candidate_repair_loop_report.json`.
+- `runs/candidate_repair_loop_report.json`;
+- `runs/candidate_spec_materialization_report.json`;
+- `runs/idea_to_spec_promotion_gate.json`;
+- `runs/candidate_approval_decision.json`;
+- `runs/graph_repository_promotion_request.json`;
+- `runs/git_service_promotion_execution_report.json`;
+- `runs/graph_repository_review_status_report.json`;
+- `runs/graph_repository_publish_read_model_report.json`;
+- `runs/git_service_promotion_finalization_report.json`.
 
 The endpoint accepts `?workspace=team-decision-log` so a public product route
 can select a product artifact provider. If no product-specific provider is
@@ -722,7 +730,9 @@ configured, the route reads the default artifact base.
 
 The payload is designed for fast operator inspection: event-storming counts,
 active ontology/domain/context frame, candidate graph nodes, pre-SIB/coherence
-findings, repair-loop actions, metric deltas, and artifact availability.
+findings, repair-loop actions, metric deltas, approval status, Git Service
+handoff state, repository review status, read-model publication status, and
+artifact availability.
 
 This surface is not a write boundary. The response is always `read_only`,
 requires `canonical_mutations_allowed: false`, and does not allow SpecSpace to
