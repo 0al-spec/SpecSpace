@@ -509,6 +509,16 @@ def _workflow(
     git_open_review_dry_run = (
         (git_service_execution or {}).get("open_review_dry_run") is True
     )
+    promotion_gate_blocked = (
+        promotion_gate is not None
+        and (
+            not promotion_readiness["ready"]
+            or bool(promotion_readiness["blocked_by"])
+            or promotion_blocker_count > 0
+        )
+    )
+    platform_failed = platform_promotion is not None and not platform_ok
+    git_service_failed = git_service_execution is not None and not git_ok
 
     items = [
         _workflow_item(
@@ -653,10 +663,13 @@ def _workflow(
             "status": "blocked",
             "artifact_key": "missing_core_artifacts",
             "artifact_path": None,
-            "command_template": "make product-workspace-active-candidate",
+            "command_template": (
+                "cd <specgraph-repository> && "
+                "make product-workspace-active-candidate"
+            ),
             "authority_boundary": "operator_only",
         }
-    elif context_required_count > 0 or promotion_blocker_count > 0:
+    elif context_required_count > 0 or promotion_gate_blocked:
         stage = "repair_required"
         status = "blocked"
         next_handoff = {
@@ -666,6 +679,34 @@ def _workflow(
             "artifact_key": "promotion_gate",
             "artifact_path": f"runs/{IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT}",
             "command_template": None,
+            "authority_boundary": "operator_only",
+        }
+    elif platform_failed:
+        stage = "promotion_request_failed"
+        status = "blocked"
+        next_handoff = {
+            "kind": "platform_promotion_request_repair",
+            "label": "Repair the Platform promotion request before Git Service execution",
+            "status": "blocked",
+            "artifact_key": "platform_promotion_request",
+            "artifact_path": f"runs/{GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT}",
+            "command_template": (
+                "scripts/platform.py graph-repository promotion-request <inputs>"
+            ),
+            "authority_boundary": "operator_only",
+        }
+    elif git_service_failed:
+        stage = "git_service_execution_failed"
+        status = "blocked"
+        next_handoff = {
+            "kind": "git_service_execution_repair",
+            "label": "Repair the Git Service execution report before continuing",
+            "status": "blocked",
+            "artifact_key": "git_service_execution",
+            "artifact_path": f"runs/{GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT}",
+            "command_template": (
+                "scripts/platform.py git-service execute-promotion <inputs>"
+            ),
             "authority_boundary": "operator_only",
         }
     elif promotion_readiness["ready"] and platform_promotion is None:

@@ -616,8 +616,114 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["workflow"]["next_handoff"]["kind"],
             "specgraph_candidate_generation",
         )
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["command_template"],
+            "cd <specgraph-repository> && make product-workspace-active-candidate",
+        )
         self.assertFalse(body["artifacts"]["event_storming_intake"]["available"])
         self.assertTrue(body["artifacts"]["candidate_graph"]["available"])
+
+    def test_workflow_uses_repair_stage_for_readiness_blockers_without_findings(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": False,
+            "review_state": "idea_to_spec_promotion_blocked",
+            "blocked_by": ["owner_decision_required"],
+            "next_artifact": "owner/operator repair before promotion",
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "repair_required")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "operator_repair_review",
+        )
+
+    def test_workflow_blocks_failed_promotion_request_artifact(self) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+            "next_artifact": "Platform graph-repository promotion-request",
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        promotion_request = _platform_promotion_request()
+        promotion_request["ok"] = False
+        promotion_request["summary"]["error_count"] = 1
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[
+            idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT
+        ] = promotion_request
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "promotion_request_failed")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "platform_promotion_request_repair",
+        )
+
+    def test_workflow_blocks_failed_git_service_execution_artifact(self) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+            "next_artifact": "Platform graph-repository promotion-request",
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        execution = _git_service_execution()
+        execution["ok"] = False
+        execution["summary"]["error_count"] = 1
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+        ] = execution
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "git_service_execution_failed")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "git_service_execution_repair",
+        )
 
     def test_file_provider_reads_workspace_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
