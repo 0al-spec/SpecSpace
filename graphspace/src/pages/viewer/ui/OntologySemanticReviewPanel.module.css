@@ -270,6 +270,53 @@
   margin-top: var(--gs-space-5);
 }
 
+.workflowGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: var(--gs-space-5);
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-rule-soft);
+}
+
+.workflowItem {
+  min-width: 0;
+  padding: var(--gs-space-4);
+  background: var(--gs-panel);
+}
+
+.workflowItemHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gs-space-3);
+}
+
+.ideaInput {
+  display: block;
+  width: 100%;
+  min-height: 112px;
+  box-sizing: border-box;
+  border: 1px solid var(--gs-rule-soft);
+  margin: 0 0 var(--gs-space-5);
+  padding: var(--gs-space-4);
+  resize: vertical;
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+  font-family: var(--gs-sans);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.ideaInput:focus {
+  border-color: var(--gs-accent);
+  outline: none;
+}
+
+.ideaInput::placeholder {
+  color: var(--gs-muted-2);
+}
+
 .rowActions {
   display: flex;
   justify-content: flex-end;
@@ -556,5 +603,9 @@
 
   .demoGraphInspector {
     min-height: 260px;
+  }
+
+  .workflowGrid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

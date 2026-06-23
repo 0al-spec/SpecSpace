@@ -25,6 +25,13 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
 
     expect(html).toContain("Idea-to-Spec Workspace");
+    expect(html).toContain("Workflow lane");
+    expect(html).toContain("repair required");
+    expect(html).toContain("Resolve context-required repairs before promotion");
+    expect(html).toContain("operator_only");
+    expect(html).toContain("Idea intake draft");
+    expect(html).toContain("No local idea draft");
+    expect(html).toContain("local_browser_draft");
     expect(html).toContain("Active workspace");
     expect(html).toContain("Team Decision Log");
     expect(html).toContain("product_spec_workspace");

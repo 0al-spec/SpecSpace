@@ -102,6 +102,32 @@ export type IdeaToSpecGitServiceExecution = {
   reportRefs: Record<string, unknown>;
 };
 
+export type IdeaToSpecWorkflowItem = {
+  id: string;
+  label: string;
+  status: string;
+  artifactKey: string | null;
+  artifactPath: string | null;
+  detail: string | null;
+};
+
+export type IdeaToSpecNextHandoff = {
+  kind: string;
+  label: string;
+  status: string;
+  artifactKey: string | null;
+  artifactPath: string | null;
+  commandTemplate: string | null;
+  authorityBoundary: string;
+};
+
+export type IdeaToSpecWorkflow = {
+  stage: string;
+  status: string;
+  items: readonly IdeaToSpecWorkflowItem[];
+  nextHandoff: IdeaToSpecNextHandoff;
+};
+
 export type IdeaToSpecWorkspaceIdentity = {
   available: boolean;
   id: string | null;
@@ -145,6 +171,7 @@ export type IdeaToSpecWorkspace = {
     gitServiceErrorCount: number;
     nextArtifact: string | null;
   };
+  workflow: IdeaToSpecWorkflow;
   intake: {
     available: boolean;
     activeFrame: IdeaToSpecActiveFrame;
@@ -455,6 +482,46 @@ function parseGitServiceExecution(raw: unknown): IdeaToSpecGitServiceExecution {
   };
 }
 
+function parseWorkflowItem(raw: unknown): IdeaToSpecWorkflowItem | null {
+  const item = recordValue(raw);
+  const id = optionalString(item.id);
+  if (!id) return null;
+  return {
+    id,
+    label: stringValue(item.label, id),
+    status: stringValue(item.status, "unknown"),
+    artifactKey: optionalString(item.artifact_key),
+    artifactPath: optionalString(item.artifact_path),
+    detail: optionalString(item.detail),
+  };
+}
+
+function parseNextHandoff(raw: unknown): IdeaToSpecNextHandoff {
+  const handoff = recordValue(raw);
+  return {
+    kind: stringValue(handoff.kind, "none"),
+    label: stringValue(handoff.label, "No operator handoff"),
+    status: stringValue(handoff.status, "idle"),
+    artifactKey: optionalString(handoff.artifact_key),
+    artifactPath: optionalString(handoff.artifact_path),
+    commandTemplate: optionalString(handoff.command_template),
+    authorityBoundary: stringValue(handoff.authority_boundary, "read_only"),
+  };
+}
+
+function parseWorkflow(raw: unknown): IdeaToSpecWorkflow {
+  const workflow = recordValue(raw);
+  return {
+    stage: stringValue(workflow.stage, "unknown"),
+    status: stringValue(workflow.status, "unknown"),
+    items: records(workflow.items).flatMap((item) => {
+      const parsed = parseWorkflowItem(item);
+      return parsed ? [parsed] : [];
+    }),
+    nextHandoff: parseNextHandoff(workflow.next_handoff),
+  };
+}
+
 function parseWorkspaceIdentity(raw: unknown): IdeaToSpecWorkspaceIdentity {
   const workspace = recordValue(raw);
   return {
@@ -580,6 +647,7 @@ export function parseIdeaToSpecWorkspace(
         gitServiceErrorCount: numberValue(summary.git_service_error_count),
         nextArtifact: optionalString(summary.next_artifact),
       },
+      workflow: parseWorkflow(raw.workflow),
       intake: {
         available: intake.available === true,
         activeFrame: parseActiveFrame(intake.active_frame),
