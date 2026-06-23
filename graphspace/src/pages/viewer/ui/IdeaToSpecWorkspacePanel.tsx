@@ -1,8 +1,12 @@
+import { useMemo, useState } from "react";
+import { buildIdeaToSpecIntakeDraft } from "../model/idea-to-spec-intake-draft";
 import type {
+  IdeaToSpecActiveFrame,
   IdeaToSpecCandidateNode,
   IdeaToSpecGitServiceOperation,
   IdeaToSpecMaterializedFile,
   IdeaToSpecRepairAction,
+  IdeaToSpecWorkflow,
   IdeaToSpecWorkspace,
   UseIdeaToSpecWorkspaceState,
 } from "../model/use-idea-to-spec-workspace";
@@ -134,6 +138,8 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
       </div>
 
       <div className={styles.entries}>
+        <WorkflowSection workflow={data.workflow} />
+        <IdeaIntakeDraftSection activeFrame={frame} />
         <WorkspaceSection workspace={data.workspace} />
         <FrameSection project={frame.project} domains={frame.domainRefs} contexts={frame.contextRefs} />
         <ArtifactSection artifacts={data.artifacts} />
@@ -144,6 +150,113 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <MaterializationSection state={state} />
         <PromotionGateSection state={state} />
         <ControlledPromotionSection state={state} />
+      </div>
+    </section>
+  );
+}
+
+function IdeaIntakeDraftSection({
+  activeFrame,
+}: {
+  activeFrame: IdeaToSpecActiveFrame;
+}) {
+  const [idea, setIdea] = useState("");
+  const draft = useMemo(
+    () => buildIdeaToSpecIntakeDraft({ idea, activeFrame }),
+    [idea, activeFrame],
+  );
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader title="Idea intake draft" count={draft ? 1 : 0} />
+      <div className={styles.row}>
+        <textarea
+          className={styles.ideaInput}
+          value={idea}
+          onChange={(event) => setIdea(event.currentTarget.value)}
+          placeholder="Product idea, actors, events, constraints"
+          rows={5}
+          aria-label="Product idea intake"
+        />
+        <div className={styles.postureStrip}>
+          <PostureItem label="Source" value={draft?.sourceMode ?? "local_browser_draft"} />
+          <PostureItem
+            label="Spec mutations"
+            value={boolText(draft?.canonicalMutationsAllowed ?? false)}
+          />
+          <PostureItem
+            label="Tracked writes"
+            value={boolText(draft?.trackedArtifactsWritten ?? false)}
+          />
+        </div>
+      </div>
+      {draft ? (
+        <div className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{draft.artifactKind}</span>
+            <Pill value={draft.sourceMode} />
+          </div>
+          <div className={styles.metaGrid}>
+            <Meta label="Project" value={draft.project} />
+            <Meta label="Actors" value={joined(draft.actors)} />
+            <Meta label="Events" value={joined(draft.domainEvents)} />
+            <Meta label="Commands" value={joined(draft.commands)} />
+            <Meta label="Policies" value={joined(draft.policies)} />
+            <Meta label="Constraints" value={joined(draft.constraints)} />
+            <Meta
+              label="Vocabulary"
+              value={joined(draft.vocabularyQuestions)}
+            />
+            <Meta
+              label="Context"
+              value={joined(draft.contextCompletionQuestions)}
+            />
+          </div>
+        </div>
+      ) : (
+        <Status
+          label="No local idea draft"
+          detail="Enter a product idea to preview event-storming intake candidates."
+        />
+      )}
+    </section>
+  );
+}
+
+function WorkflowSection({ workflow }: { workflow: IdeaToSpecWorkflow }) {
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader title="Workflow lane" count={workflow.items.length} />
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>{workflow.stage.replace(/_/g, " ")}</span>
+          <Pill value={workflow.status} />
+        </div>
+        <div className={styles.workflowGrid}>
+          {workflow.items.map((item) => (
+            <div key={item.id} className={styles.workflowItem}>
+              <div className={styles.workflowItemHeader}>
+                <span className={styles.metaLabel}>{item.label}</span>
+                <Pill value={item.status} />
+              </div>
+              <span className={styles.metaValue}>
+                {compact(item.detail ?? item.artifactPath, "no detail")}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Next handoff</span>
+          <Pill value={workflow.nextHandoff.status} />
+        </div>
+        <h3 className={styles.title}>{workflow.nextHandoff.label}</h3>
+        <div className={styles.metaGrid}>
+          <Meta label="Kind" value={workflow.nextHandoff.kind} />
+          <Meta label="Authority" value={workflow.nextHandoff.authorityBoundary} />
+          <Meta label="Artifact" value={workflow.nextHandoff.artifactPath} />
+          <Meta label="Command" value={workflow.nextHandoff.commandTemplate} />
+        </div>
       </div>
     </section>
   );

@@ -425,6 +425,17 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["platform_missing_artifact_count"], 0)
         self.assertEqual(body["summary"]["git_service_operation_count"], 3)
         self.assertEqual(body["summary"]["git_service_error_count"], 0)
+        self.assertEqual(body["workflow"]["stage"], "repair_required")
+        self.assertEqual(body["workflow"]["status"], "blocked")
+        self.assertEqual(len(body["workflow"]["items"]), 9)
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "operator_repair_review",
+        )
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["authority_boundary"],
+            "operator_only",
+        )
         self.assertEqual(body["intake"]["summary"]["actor_count"], 1)
         self.assertEqual(body["candidate_graph"]["summary"]["requirement_count"], 2)
         self.assertEqual(
@@ -600,6 +611,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["available_artifact_count"], 1)
         self.assertEqual(body["summary"]["missing_artifact_count"], 5)
         self.assertEqual(body["summary"]["platform_missing_artifact_count"], 2)
+        self.assertEqual(body["workflow"]["stage"], "candidate_artifacts_missing")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "specgraph_candidate_generation",
+        )
         self.assertFalse(body["artifacts"]["event_storming_intake"]["available"])
         self.assertTrue(body["artifacts"]["candidate_graph"]["available"])
 

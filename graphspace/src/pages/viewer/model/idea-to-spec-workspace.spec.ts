@@ -17,6 +17,10 @@ describe("parseIdeaToSpecWorkspace", () => {
     );
     expect(parsed.data.summary.promotionGateBlockerCount).toBe(1);
     expect(parsed.data.summary.gitServiceOperationCount).toBe(3);
+    expect(parsed.data.workflow.stage).toBe("repair_required");
+    expect(parsed.data.workflow.items).toHaveLength(9);
+    expect(parsed.data.workflow.nextHandoff.kind).toBe("operator_repair_review");
+    expect(parsed.data.workflow.nextHandoff.authorityBoundary).toBe("operator_only");
     expect(parsed.data.intake.activeFrame.project).toBe("DemoCalculator");
     expect(parsed.data.candidateGraph.nodes[1].id).toBe(
       "candidate-spec.numeric-input",
