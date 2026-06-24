@@ -37,8 +37,12 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("product_spec_workspace");
     expect(html).toContain("DemoCalculator");
     expect(html).toContain("Source artifacts");
+    expect(html).toContain("runs/candidate_spec_graph_seed.json");
     expect(html).toContain("runs/candidate_repair_loop_report.json");
     expect(html).toContain("Event-storming intake");
+    expect(html).toContain("Ontology-bound seed");
+    expect(html).toContain("ontology-gap.numeric-input");
+    expect(html).toContain("confirm_bind_or_promote_domain_term");
     expect(html).toContain("Candidate graph");
     expect(html).toContain("candidate-spec.numeric-input");
     expect(html).toContain("Pre-SIB coherence");

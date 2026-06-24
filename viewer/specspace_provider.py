@@ -513,11 +513,17 @@ def decode_artifact_content(
     return payload
 
 
+WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS: tuple[str, ...] = tuple(
+    filename
+    for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS
+    if filename != idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT
+)
+
 PUBLIC_SAFE_RUN_ARTIFACT_FILENAMES: frozenset[str] = frozenset(
     {
         "spec_activity_feed.json",
         "implementation_work_index.json",
-        *idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS,
+        *WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS,
         specgraph_surfaces.ONTOLOGY_SEMANTIC_REVIEW_SURFACE_FILENAME,
         specgraph_surfaces.ONTOLOGY_REVIEW_DASHBOARD_FILENAME,
         specgraph_surfaces.ONTOLOGY_OWNER_DECISION_REVIEW_FILENAME,
@@ -1305,7 +1311,7 @@ class ProductWorkspaceFileProvider:
         if self.delegate.runs_dir is None:
             return {}
         artifact_map: dict[str, Path] = {}
-        for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS:
+        for filename in WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS:
             path = self.delegate.runs_dir / filename
             if path.exists() and path.is_file():
                 artifact_map[f"runs/{filename}"] = path
@@ -2661,7 +2667,7 @@ class ProductWorkspaceHttpProvider:
         manifest_paths = self.delegate._manifest_path_set(manifest)
         return {
             f"runs/{filename}"
-            for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS
+            for filename in WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS
             if f"runs/{filename}" in manifest_paths
         }
 

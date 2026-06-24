@@ -10,6 +10,8 @@ describe("parseIdeaToSpecWorkspace", () => {
     if (parsed.kind !== "ok") return;
     expect(parsed.data.summary.status).toBe("blocked");
     expect(parsed.data.summary.candidateNodeCount).toBe(2);
+    expect(parsed.data.summary.ontologySeedGapCount).toBe(2);
+    expect(parsed.data.summary.ontologySeedBindingCount).toBe(5);
     expect(parsed.data.selectedWorkspaceId).toBe("team-decision-log");
     expect(parsed.data.workspace.id).toBe("team-decision-log");
     expect(parsed.data.workspace.targetRepositoryRole).toBe(
@@ -21,10 +23,15 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.summary.reviewMerged).toBe(false);
     expect(parsed.data.summary.readModelPublished).toBe(false);
     expect(parsed.data.workflow.stage).toBe("repair_required");
-    expect(parsed.data.workflow.items).toHaveLength(12);
+    expect(parsed.data.workflow.items).toHaveLength(13);
+    expect(parsed.data.workflow.items[2].id).toBe("ontology_seed");
     expect(parsed.data.workflow.nextHandoff.kind).toBe("operator_repair_review");
     expect(parsed.data.workflow.nextHandoff.authorityBoundary).toBe("operator_only");
     expect(parsed.data.intake.activeFrame.project).toBe("DemoCalculator");
+    expect(parsed.data.ontologySeed.readiness.ready).toBe(true);
+    expect(parsed.data.ontologySeed.summary.ontologyBindingCount).toBe(5);
+    expect(parsed.data.ontologySeed.gaps[0].id).toBe("ontology-gap.numeric-input");
+    expect(parsed.data.ontologySeed.bindings[0].term).toBe("Spec");
     expect(parsed.data.candidateGraph.nodes[1].id).toBe(
       "candidate-spec.numeric-input",
     );
