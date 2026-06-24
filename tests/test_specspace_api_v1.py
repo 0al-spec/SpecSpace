@@ -2532,6 +2532,34 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
             max_bytes=specspace_provider.ARTIFACT_CONTENT_MAX_BYTES,
         )
 
+    def test_product_http_workspace_does_not_preview_candidate_seed_raw_json(
+        self,
+    ) -> None:
+        artifact_path = (
+            "runs/" + idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT
+        )
+        manifest = {
+            "artifact_kind": "specgraph_static_artifact_manifest",
+            "files": [{"path": artifact_path}],
+        }
+        cache = specspace_provider.HttpArtifactCache(
+            manifest=manifest,
+            manifest_loaded_at=time.time(),
+        )
+        delegate = specspace_provider.HttpSpecGraphProvider(
+            base_url="https://artifact.test",
+            cache=cache,
+        )
+        provider = specspace_provider.ProductWorkspaceHttpProvider(
+            delegate=delegate,
+            workspace_id="team-decision-log",
+        )
+
+        status, body = provider.read_artifact_content(artifact_path)
+
+        self.assertEqual(status, HTTPStatus.NOT_FOUND)
+        self.assertEqual(body["reason"], "missing_product_workspace_artifact")
+
     def test_directory_health_distinguishes_unreadable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp)

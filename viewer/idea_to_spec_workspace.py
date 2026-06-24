@@ -207,6 +207,18 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "detail": "candidate seed privacy boundary flags must remain false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
+        if value.get("canonical_mutations_allowed") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must not be true.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must not be true.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
         return None
     if filename == GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT:
         authority_boundary = _record(value.get("authority_boundary"))
@@ -529,10 +541,15 @@ def _ontology_seed_blocked(seed: dict[str, Any] | None) -> bool:
         return False
     source_generation = _record(seed.get("source_generation"))
     readiness = _readiness(source_generation)
+    blocking_gap = any(
+        gap.get("blocks_candidate_graph") is True
+        for gap in _records(source_generation.get("ontology_gaps"))
+    )
     return (
         not readiness["ready"]
         or bool(readiness["blocked_by"])
         or _finding_count(source_generation) > 0
+        or blocking_gap
     )
 
 

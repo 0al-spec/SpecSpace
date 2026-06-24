@@ -1016,6 +1016,56 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "active_frame_ontology_context_missing",
         )
 
+    def test_workflow_blocks_ontology_seed_blocking_gaps(self) -> None:
+        artifacts = _workspace_artifacts()
+        seed = _candidate_seed()
+        source_generation = seed["source_generation"]
+        source_generation["ontology_gaps"][0]["blocks_candidate_graph"] = True
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        artifacts[idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT] = seed
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["summary"]["status"], "blocked")
+        self.assertEqual(body["workflow"]["stage"], "ontology_seed_review_required")
+        self.assertEqual(body["workflow"]["items"][2]["status"], "blocked")
+
+    def test_build_workspace_rejects_write_capable_ontology_seed(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT] = {
+            **_candidate_seed(),
+            "tracked_artifacts_written": True,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertFalse(body["ontology_seed"]["available"])
+        self.assertEqual(
+            body["artifacts"]["ontology_seed"]["reason"],
+            "invalid_artifact_contract",
+        )
+
     def test_workflow_uses_repair_stage_for_readiness_blockers_without_findings(
         self,
     ) -> None:
@@ -1354,6 +1404,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             root = Path(tmp)
             runs_dir = root / "runs"
             _write_json(
+                runs_dir / idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
+                _candidate_seed(),
+            )
+            _write_json(
                 runs_dir / idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT,
                 _repair_loop(),
             )
@@ -1391,6 +1445,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertIn("runs/idea_to_spec_promotion_gate.json", paths)
         self.assertIn("runs/graph_repository_promotion_request.json", paths)
         self.assertIn("runs/git_service_promotion_execution_report.json", paths)
+        self.assertNotIn("runs/candidate_spec_graph_seed.json", paths)
 
     def test_http_provider_reads_workspace_runs_from_manifest(self) -> None:
         manifest = {
