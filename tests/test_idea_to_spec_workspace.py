@@ -40,6 +40,138 @@ def _intake() -> dict:
     }
 
 
+def _candidate_seed() -> dict:
+    return {
+        "artifact_kind": "candidate_spec_graph_seed",
+        "schema_version": 1,
+        "contract_ref": "specgraph.idea-to-spec.candidate-spec-graph-seed.v0.1",
+        "source_ref": "product://demo-calculator/candidate-spec-graph-seed",
+        "candidate_graph": {"nodes": [], "edges": []},
+        "source_generation": {
+            "artifact_kind": "ontology_bound_candidate_graph_seed_generation",
+            "schema_version": 1,
+            "proposal_id": "0159",
+            "contract_ref": (
+                "specgraph.idea-to-spec.ontology-bound-candidate-graph-seed.v0.1"
+            ),
+            "ontology": {
+                "id": "org.0al.specgraph.core",
+                "namespace": "sgcore",
+                "version": "0.1.0",
+                "source_ref": (
+                    "ontology/packages/specgraph-core/generated/"
+                    "ontology.normalized.json"
+                ),
+                "source_digest": "sha256:fixture",
+                "class_count": 14,
+                "relation_count": 16,
+            },
+            "ontology_bindings": [
+                {
+                    "term": "Spec",
+                    "ontology_ref": (
+                        "ontology://org.0al.specgraph.core/0.1.0/classes/Spec"
+                    ),
+                    "binding_kind": "core_type",
+                    "authority": "ontology_ir",
+                    "reason": "Candidate product boundary maps to a proposed Spec.",
+                },
+                {
+                    "term": "Node",
+                    "ontology_ref": (
+                        "ontology://org.0al.specgraph.core/0.1.0/classes/Node"
+                    ),
+                    "binding_kind": "core_type",
+                    "authority": "ontology_ir",
+                    "reason": (
+                        "Each generated candidate item is represented as a "
+                        "SpecGraph node."
+                    ),
+                },
+                {
+                    "term": "Requirement",
+                    "ontology_ref": (
+                        "ontology://org.0al.specgraph.core/0.1.0/classes/"
+                        "Requirement"
+                    ),
+                    "binding_kind": "core_type",
+                    "authority": "ontology_ir",
+                    "reason": "Commands and constraints become proposed requirements.",
+                },
+                {
+                    "term": "AcceptanceCriterion",
+                    "ontology_ref": (
+                        "ontology://org.0al.specgraph.core/0.1.0/classes/"
+                        "AcceptanceCriterion"
+                    ),
+                    "binding_kind": "core_type",
+                    "authority": "ontology_ir",
+                    "reason": (
+                        "Each requirement carries reviewable acceptance criteria."
+                    ),
+                },
+                {
+                    "term": "Constraint",
+                    "ontology_ref": (
+                        "ontology://org.0al.specgraph.core/0.1.0/classes/"
+                        "Constraint"
+                    ),
+                    "binding_kind": "core_type",
+                    "authority": "ontology_ir",
+                    "reason": (
+                        "Event-storming constraints and policies remain "
+                        "constraint-shaped nodes."
+                    ),
+                },
+            ],
+            "ontology_gaps": [
+                {
+                    "id": "ontology-gap.numeric-input",
+                    "kind": "ontology_gap",
+                    "term": "Numeric Input",
+                    "source_ref": "command.enter_digit",
+                    "source_kind": "command",
+                    "suggested_action": "confirm_bind_or_promote_domain_term",
+                    "blocks_candidate_graph": False,
+                    "statement": (
+                        "Confirm whether `Numeric Input` should bind to an "
+                        "existing ontology term or remain a project-local domain term."
+                    ),
+                }
+            ],
+            "readiness": {
+                "ready": True,
+                "review_state": "ready_for_candidate_graph",
+                "blocked_by": [],
+            },
+            "authority_boundary": {
+                "may_execute_prompt_agent": False,
+                "may_mutate_canonical_specs": False,
+                "may_write_ontology_package": False,
+                "may_write_ontology_lockfile": False,
+                "may_accept_ontology_terms": False,
+                "may_mark_candidate_graph_accepted": False,
+                "may_create_branch_or_commit": False,
+            },
+            "privacy_boundary": {
+                "raw_intent_text_published": False,
+                "raw_prompt_published": False,
+                "raw_model_output_published": False,
+            },
+            "findings": [],
+            "warnings": [],
+            "summary": {
+                "status": "ready_for_candidate_graph",
+                "node_count": 2,
+                "edge_count": 1,
+                "ontology_binding_count": 5,
+                "ontology_gap_count": 1,
+                "finding_count": 0,
+            },
+        },
+    }
+
+
 def _candidate_graph() -> dict:
     return {
         "artifact_kind": "candidate_spec_graph",
@@ -543,6 +675,7 @@ def _workspace_artifacts() -> dict[str, dict]:
     return {
         idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: _active_candidate(),
         idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT: _intake(),
+        idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: _candidate_seed(),
         idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT: _candidate_graph(),
         idea_to_spec_workspace.PRE_SIB_COHERENCE_REPORT_ARTIFACT: _pre_sib(),
         idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: _repair_loop(),
@@ -574,6 +707,8 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertTrue(body["workspace"]["ready"])
         self.assertEqual(body["summary"]["status"], "blocked")
         self.assertEqual(body["summary"]["candidate_node_count"], 2)
+        self.assertEqual(body["summary"]["ontology_seed_gap_count"], 1)
+        self.assertEqual(body["summary"]["ontology_seed_binding_count"], 5)
         self.assertEqual(body["summary"]["repair_action_count"], 1)
         self.assertEqual(body["summary"]["materialized_file_count"], 2)
         self.assertEqual(body["summary"]["promotion_path_count"], 0)
@@ -586,7 +721,8 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(body["summary"]["read_model_published"])
         self.assertEqual(body["workflow"]["stage"], "repair_required")
         self.assertEqual(body["workflow"]["status"], "blocked")
-        self.assertEqual(len(body["workflow"]["items"]), 12)
+        self.assertEqual(len(body["workflow"]["items"]), 13)
+        self.assertEqual(body["workflow"]["items"][2]["id"], "ontology_seed")
         self.assertEqual(
             body["workflow"]["next_handoff"]["kind"],
             "operator_repair_review",
@@ -596,6 +732,19 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "operator_only",
         )
         self.assertEqual(body["intake"]["summary"]["actor_count"], 1)
+        self.assertTrue(body["ontology_seed"]["readiness"]["ready"])
+        self.assertEqual(
+            body["ontology_seed"]["ontology"]["id"],
+            "org.0al.specgraph.core",
+        )
+        self.assertEqual(
+            body["ontology_seed"]["bindings"][0]["term"],
+            "Spec",
+        )
+        self.assertEqual(
+            body["ontology_seed"]["gaps"][0]["id"],
+            "ontology-gap.numeric-input",
+        )
         self.assertEqual(body["candidate_graph"]["summary"]["requirement_count"], 2)
         self.assertEqual(
             body["candidate_graph"]["nodes"][1]["id"],
@@ -750,7 +899,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["summary"]["status"], "partial")
-        self.assertEqual(body["summary"]["available_artifact_count"], 9)
+        self.assertEqual(body["summary"]["available_artifact_count"], 10)
         self.assertEqual(body["summary"]["missing_artifact_count"], 3)
         self.assertEqual(body["summary"]["candidate_node_count"], 0)
         self.assertEqual(body["summary"]["repair_action_count"], 0)
@@ -779,7 +928,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
 
         self.assertEqual(body["summary"]["status"], "partial")
         self.assertEqual(body["summary"]["available_artifact_count"], 1)
-        self.assertEqual(body["summary"]["missing_artifact_count"], 5)
+        self.assertEqual(body["summary"]["missing_artifact_count"], 6)
         self.assertEqual(body["summary"]["platform_missing_artifact_count"], 6)
         self.assertEqual(body["workflow"]["stage"], "candidate_artifacts_missing")
         self.assertEqual(
@@ -792,6 +941,43 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertFalse(body["artifacts"]["event_storming_intake"]["available"])
         self.assertTrue(body["artifacts"]["candidate_graph"]["available"])
+
+    def test_workflow_blocks_ontology_seed_review_findings(self) -> None:
+        artifacts = _workspace_artifacts()
+        seed = _candidate_seed()
+        source_generation = seed["source_generation"]
+        source_generation["readiness"] = {
+            "ready": False,
+            "review_state": "ontology_seed_review_required",
+            "blocked_by": ["active_frame_ontology_context_missing"],
+        }
+        source_generation["findings"] = [
+            {
+                "finding_id": "active_frame_ontology_context_missing",
+                "severity": "blocking",
+                "message": "Active frame must include ontology layer refs.",
+                "source_ref": "runs/candidate_spec_graph_seed.json",
+            }
+        ]
+        source_generation["summary"]["status"] = "ontology_seed_review_required"
+        source_generation["summary"]["finding_count"] = 1
+        artifacts[idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT] = seed
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "ontology_seed_review_required")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "ontology_seed_review",
+        )
+        self.assertEqual(body["workflow"]["items"][2]["status"], "blocked")
+        self.assertEqual(
+            body["ontology_seed"]["findings"][0]["finding_id"],
+            "active_frame_ontology_context_missing",
+        )
 
     def test_workflow_uses_repair_stage_for_readiness_blockers_without_findings(
         self,

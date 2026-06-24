@@ -712,6 +712,7 @@ idea-to-spec artifacts produced by SpecGraph:
 
 - `runs/active_idea_to_spec_candidate.json`;
 - `runs/idea_event_storming_intake.json`;
+- `runs/candidate_spec_graph_seed.json`;
 - `runs/candidate_spec_graph.json`;
 - `runs/pre_sib_coherence_report.json`;
 - `runs/candidate_repair_loop_report.json`;
@@ -729,10 +730,10 @@ can select a product artifact provider. If no product-specific provider is
 configured, the route reads the default artifact base.
 
 The payload is designed for fast operator inspection: event-storming counts,
-active ontology/domain/context frame, candidate graph nodes, pre-SIB/coherence
-findings, repair-loop actions, metric deltas, approval status, Git Service
-handoff state, repository review status, read-model publication status, and
-artifact availability.
+active ontology/domain/context frame, ontology-bound seed readiness, seed
+bindings/gaps, candidate graph nodes, pre-SIB/coherence findings, repair-loop
+actions, metric deltas, approval status, Git Service handoff state, repository
+review status, read-model publication status, and artifact availability.
 
 This surface is not a write boundary. The response is always `read_only`,
 requires `canonical_mutations_allowed: false`, and does not allow SpecSpace to

@@ -85,6 +85,86 @@ def _write_product_workspace_runs(
         },
     )
     _write_json(
+        runs_dir / idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
+        {
+            "artifact_kind": "candidate_spec_graph_seed",
+            "schema_version": 1,
+            "contract_ref": "specgraph.idea-to-spec.candidate-spec-graph-seed.v0.1",
+            "source_ref": f"product://{candidate_id}/candidate-spec-graph-seed",
+            "candidate_graph": {"nodes": [], "edges": []},
+            "source_generation": {
+                "artifact_kind": "ontology_bound_candidate_graph_seed_generation",
+                "schema_version": 1,
+                "proposal_id": "0159",
+                "contract_ref": (
+                    "specgraph.idea-to-spec."
+                    "ontology-bound-candidate-graph-seed.v0.1"
+                ),
+                "ontology": {
+                    "id": "org.0al.specgraph.core",
+                    "namespace": "sgcore",
+                    "version": "0.1.0",
+                    "source_ref": (
+                        "ontology/packages/specgraph-core/generated/"
+                        "ontology.normalized.json"
+                    ),
+                    "class_count": 14,
+                    "relation_count": 16,
+                },
+                "ontology_bindings": [
+                    {
+                        "term": "Spec",
+                        "ontology_ref": (
+                            "ontology://org.0al.specgraph.core/0.1.0/classes/Spec"
+                        ),
+                        "binding_kind": "core_type",
+                        "authority": "ontology_ir",
+                    }
+                ],
+                "ontology_gaps": [
+                    {
+                        "id": "ontology-gap.decision-record",
+                        "kind": "ontology_gap",
+                        "term": "Decision Record",
+                        "source_ref": "candidate-spec.decision-record",
+                        "source_kind": "domain_entity",
+                        "suggested_action": "confirm_bind_or_promote_domain_term",
+                        "blocks_candidate_graph": False,
+                    }
+                ],
+                "readiness": {
+                    "ready": True,
+                    "review_state": "ready_for_candidate_graph",
+                    "blocked_by": [],
+                },
+                "authority_boundary": {
+                    "may_execute_prompt_agent": False,
+                    "may_mutate_canonical_specs": False,
+                    "may_write_ontology_package": False,
+                    "may_write_ontology_lockfile": False,
+                    "may_accept_ontology_terms": False,
+                    "may_mark_candidate_graph_accepted": False,
+                    "may_create_branch_or_commit": False,
+                },
+                "privacy_boundary": {
+                    "raw_intent_text_published": False,
+                    "raw_prompt_published": False,
+                    "raw_model_output_published": False,
+                },
+                "findings": [],
+                "warnings": [],
+                "summary": {
+                    "status": "ready_for_candidate_graph",
+                    "node_count": 2,
+                    "edge_count": 1,
+                    "ontology_binding_count": 1,
+                    "ontology_gap_count": 1,
+                    "finding_count": 0,
+                },
+            },
+        },
+    )
+    _write_json(
         runs_dir / idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT,
         {
             "artifact_kind": "candidate_spec_graph",

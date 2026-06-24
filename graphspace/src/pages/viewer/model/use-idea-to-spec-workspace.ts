@@ -41,6 +41,25 @@ export type IdeaToSpecFinding = {
   sourceRef: string | null;
 };
 
+export type IdeaToSpecOntologySeedBinding = {
+  term: string;
+  ontologyRef: string | null;
+  bindingKind: string | null;
+  authority: string | null;
+  reason: string | null;
+};
+
+export type IdeaToSpecOntologySeedGap = {
+  id: string;
+  kind: string;
+  term: string | null;
+  sourceRef: string | null;
+  sourceKind: string | null;
+  suggestedAction: string | null;
+  blocksCandidateGraph: boolean;
+  statement: string | null;
+};
+
 export type IdeaToSpecRepairAction = {
   id: string;
   kind: string;
@@ -207,6 +226,8 @@ export type IdeaToSpecWorkspace = {
     missingArtifactCount: number;
     candidateNodeCount: number;
     candidateEdgeCount: number;
+    ontologySeedGapCount: number;
+    ontologySeedBindingCount: number;
     preSibFindingCount: number;
     repairActionCount: number;
     repairContextRequiredCount: number;
@@ -249,6 +270,39 @@ export type IdeaToSpecWorkspace = {
     };
     preSibReadiness: Record<string, unknown>;
     nodes: readonly IdeaToSpecCandidateNode[];
+  };
+  ontologySeed: {
+    available: boolean;
+    sourceRef: string | null;
+    contractRef: string | null;
+    generationContractRef: string | null;
+    readiness: {
+      ready: boolean;
+      reviewState: string | null;
+      blockedBy: readonly string[];
+      nextArtifact: string | null;
+    };
+    summary: {
+      status: string | null;
+      nodeCount: number;
+      edgeCount: number;
+      ontologyBindingCount: number;
+      ontologyGapCount: number;
+      findingCount: number;
+    };
+    ontology: {
+      id: string | null;
+      namespace: string | null;
+      version: string | null;
+      sourceRef: string | null;
+      sourceDigest: string | null;
+      classCount: number;
+      relationCount: number;
+    };
+    bindings: readonly IdeaToSpecOntologySeedBinding[];
+    gaps: readonly IdeaToSpecOntologySeedGap[];
+    findings: readonly IdeaToSpecFinding[];
+    privacyBoundary: Record<string, unknown>;
   };
   preSib: {
     available: boolean;
@@ -440,6 +494,81 @@ function parseFinding(raw: unknown): IdeaToSpecFinding | null {
     severity: stringValue(finding.severity, "unknown"),
     message: stringValue(finding.message, "No message supplied."),
     sourceRef: optionalString(finding.source_ref),
+  };
+}
+
+function parseOntologySeedBinding(
+  raw: unknown,
+): IdeaToSpecOntologySeedBinding | null {
+  const binding = recordValue(raw);
+  const term = optionalString(binding.term);
+  const ontologyRef = optionalString(binding.ontology_ref);
+  if (!term && !ontologyRef) return null;
+  return {
+    term: stringValue(term, "ontology term"),
+    ontologyRef,
+    bindingKind: optionalString(binding.binding_kind),
+    authority: optionalString(binding.authority),
+    reason: optionalString(binding.reason),
+  };
+}
+
+function parseOntologySeedGap(raw: unknown): IdeaToSpecOntologySeedGap | null {
+  const gap = recordValue(raw);
+  const id = optionalString(gap.id);
+  if (!id) return null;
+  return {
+    id,
+    kind: stringValue(gap.kind, "ontology_gap"),
+    term: optionalString(gap.term),
+    sourceRef: optionalString(gap.source_ref),
+    sourceKind: optionalString(gap.source_kind),
+    suggestedAction: optionalString(gap.suggested_action),
+    blocksCandidateGraph: gap.blocks_candidate_graph === true,
+    statement: optionalString(gap.statement),
+  };
+}
+
+function parseOntologySeed(raw: unknown): IdeaToSpecWorkspace["ontologySeed"] {
+  const seed = recordValue(raw);
+  const summary = recordValue(seed.summary);
+  const ontology = recordValue(seed.ontology);
+  return {
+    available: seed.available === true,
+    sourceRef: optionalString(seed.source_ref),
+    contractRef: optionalString(seed.contract_ref),
+    generationContractRef: optionalString(seed.generation_contract_ref),
+    readiness: parseReadiness(seed.readiness),
+    summary: {
+      status: optionalString(summary.status),
+      nodeCount: numberValue(summary.node_count),
+      edgeCount: numberValue(summary.edge_count),
+      ontologyBindingCount: numberValue(summary.ontology_binding_count),
+      ontologyGapCount: numberValue(summary.ontology_gap_count),
+      findingCount: numberValue(summary.finding_count),
+    },
+    ontology: {
+      id: optionalString(ontology.id),
+      namespace: optionalString(ontology.namespace),
+      version: optionalString(ontology.version),
+      sourceRef: optionalString(ontology.source_ref),
+      sourceDigest: optionalString(ontology.source_digest),
+      classCount: numberValue(ontology.class_count),
+      relationCount: numberValue(ontology.relation_count),
+    },
+    bindings: records(seed.bindings).flatMap((item) => {
+      const parsed = parseOntologySeedBinding(item);
+      return parsed ? [parsed] : [];
+    }),
+    gaps: records(seed.gaps).flatMap((item) => {
+      const parsed = parseOntologySeedGap(item);
+      return parsed ? [parsed] : [];
+    }),
+    findings: records(seed.findings).flatMap((item) => {
+      const parsed = parseFinding(item);
+      return parsed ? [parsed] : [];
+    }),
+    privacyBoundary: recordValue(seed.privacy_boundary),
   };
 }
 
@@ -701,6 +830,7 @@ export function parseIdeaToSpecWorkspace(
   const intakeSummary = recordValue(intake.summary);
   const candidateGraph = recordValue(raw.candidate_graph);
   const candidateSummary = recordValue(candidateGraph.summary);
+  const ontologySeed = recordValue(raw.ontology_seed);
   const preSib = recordValue(raw.pre_sib);
   const repairLoop = recordValue(raw.repair_loop);
   const materialization = recordValue(raw.materialization);
@@ -748,6 +878,10 @@ export function parseIdeaToSpecWorkspace(
         missingArtifactCount: numberValue(summary.missing_artifact_count),
         candidateNodeCount: numberValue(summary.candidate_node_count),
         candidateEdgeCount: numberValue(summary.candidate_edge_count),
+        ontologySeedGapCount: numberValue(summary.ontology_seed_gap_count),
+        ontologySeedBindingCount: numberValue(
+          summary.ontology_seed_binding_count,
+        ),
         preSibFindingCount: numberValue(summary.pre_sib_finding_count),
         repairActionCount: numberValue(summary.repair_action_count),
         repairContextRequiredCount: numberValue(
@@ -808,6 +942,7 @@ export function parseIdeaToSpecWorkspace(
           return parsed ? [parsed] : [];
         }),
       },
+      ontologySeed: parseOntologySeed(ontologySeed),
       preSib: {
         available: preSib.available === true,
         readiness: parseReadiness(preSib.readiness),

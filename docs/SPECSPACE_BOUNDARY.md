@@ -100,9 +100,10 @@ manifest. It does not change ownership: SpecGraph still produces artifacts,
 Platform owns deployment/profile coordination, and SpecSpace renders the active
 workspace. The Team Decision Log route should show product idea-to-spec
 surfaces and hide SpecGraph bootstrap/self-evolution surfaces. The product
-workflow lane is a derived readonly chain across intake, candidate graph,
-pre-SIB, repair, materialization, promotion gate, candidate approval, Git
-Service execution, repository review, and read-model publication. A
+workflow lane is a derived readonly chain across intake, ontology-bound
+candidate graph seed, candidate graph, pre-SIB, repair, materialization,
+promotion gate, candidate approval, Git Service execution, repository review,
+and read-model publication. A
 `/team_decision_log` alias is acceptable, but `/team-decision-log` is the
 canonical route.
 
@@ -114,8 +115,8 @@ Repository Service rather than a writable SpecGraph mount.
 
 The intended production split is:
 
-- SpecSpace owns event-storming UX, candidate graph preview, metric display,
-  repair-loop history, and acknowledgement state.
+- SpecSpace owns event-storming UX, ontology-bound seed inspection, candidate
+  graph preview, metric display, repair-loop history, and acknowledgement state.
 - Graph Repository Service owns candidate workspace allocation, validation,
   branch/commit creation, review or merge policy, and read-model publication.
 - SpecGraph owns graph contracts, validators, candidate graph artifacts, and

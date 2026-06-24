@@ -8,6 +8,7 @@ from typing import Any
 IDEA_TO_SPEC_WORKSPACE_ARTIFACT_KIND = "specspace_idea_to_spec_workspace"
 ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT = "active_idea_to_spec_candidate.json"
 IDEA_EVENT_STORMING_INTAKE_ARTIFACT = "idea_event_storming_intake.json"
+CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT = "candidate_spec_graph_seed.json"
 CANDIDATE_SPEC_GRAPH_ARTIFACT = "candidate_spec_graph.json"
 PRE_SIB_COHERENCE_REPORT_ARTIFACT = "pre_sib_coherence_report.json"
 CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT = "candidate_repair_loop_report.json"
@@ -32,6 +33,7 @@ GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT = (
 
 CORE_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT,
+    CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
     CANDIDATE_SPEC_GRAPH_ARTIFACT,
     PRE_SIB_COHERENCE_REPORT_ARTIFACT,
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT,
@@ -55,6 +57,7 @@ WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
 ARTIFACT_KEYS: dict[str, str] = {
     ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: "active_candidate",
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT: "event_storming_intake",
+    CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "ontology_seed",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
@@ -71,6 +74,7 @@ ARTIFACT_KEYS: dict[str, str] = {
 EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: "active_idea_to_spec_candidate",
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT: "idea_event_storming_intake",
+    CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "candidate_spec_graph_seed",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_spec_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib_coherence_report",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "candidate_repair_loop_report",
@@ -100,6 +104,8 @@ DISPLAY_LIMITS = {
     "nodes": 40,
     "findings": 40,
     "repair_actions": 40,
+    "ontology_bindings": 20,
+    "ontology_gaps": 40,
     "materialized_files": 40,
     "git_service_operations": 20,
 }
@@ -174,6 +180,23 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "canonical_mutations_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT:
+        source_generation = _record(value.get("source_generation"))
+        authority_boundary = _record(source_generation.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "candidate seed authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        privacy_boundary = _record(source_generation.get("privacy_boundary"))
+        if any(flag is True for flag in privacy_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "candidate seed privacy boundary flags must remain false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
@@ -272,6 +295,9 @@ def _artifact_status(
     summary = _record(data.get("summary"))
     readiness = _record(data.get("readiness"))
     pre_sib_readiness = _record(data.get("pre_sib_readiness"))
+    source_generation = _record(data.get("source_generation"))
+    source_summary = _record(source_generation.get("summary"))
+    source_readiness = _record(source_generation.get("readiness"))
     return {
         "available": True,
         "path": path,
@@ -279,15 +305,21 @@ def _artifact_status(
         "schema_version": data.get("schema_version")
         if isinstance(data.get("schema_version"), int)
         else None,
-        "proposal_id": _optional_text(data.get("proposal_id")),
-        "contract_ref": _optional_text(data.get("contract_ref")),
+        "proposal_id": _optional_text(
+            data.get("proposal_id") or source_generation.get("proposal_id")
+        ),
+        "contract_ref": _optional_text(
+            data.get("contract_ref") or source_generation.get("contract_ref")
+        ),
         "status": _optional_text(
             data.get("status")
             or summary.get("status")
             or readiness.get("review_state")
             or pre_sib_readiness.get("review_state")
+            or source_summary.get("status")
+            or source_readiness.get("review_state")
         ),
-        "summary": summary or None,
+        "summary": summary or source_summary or None,
     }
 
 
@@ -352,6 +384,106 @@ def _candidate_counts(candidate_graph: dict[str, Any] | None) -> dict[str, int]:
         ),
         "claim_count": sum(len(_records(node.get("claims"))) for node in nodes),
         "gap_count": sum(len(_records(node.get("gaps"))) for node in nodes),
+    }
+
+
+def _summary_count(summary: dict[str, Any], key: str, rows: list[dict[str, Any]]) -> int:
+    if key in summary:
+        return _number(summary.get(key))
+    return len(rows)
+
+
+def _ontology_seed_bindings(seed: dict[str, Any] | None) -> list[dict[str, Any]]:
+    source_generation = _record((seed or {}).get("source_generation"))
+    rows = []
+    for item in _records(source_generation.get("ontology_bindings"))[
+        : DISPLAY_LIMITS["ontology_bindings"]
+    ]:
+        term = _text(item.get("term"))
+        ontology_ref = _text(item.get("ontology_ref"))
+        if not term and not ontology_ref:
+            continue
+        rows.append(
+            {
+                "term": term or "ontology term",
+                "ontology_ref": ontology_ref or None,
+                "binding_kind": _optional_text(item.get("binding_kind")),
+                "authority": _optional_text(item.get("authority")),
+                "reason": _optional_text(item.get("reason")),
+            }
+        )
+    return rows
+
+
+def _ontology_seed_gaps(seed: dict[str, Any] | None) -> list[dict[str, Any]]:
+    source_generation = _record((seed or {}).get("source_generation"))
+    rows = []
+    for item in _records(source_generation.get("ontology_gaps"))[
+        : DISPLAY_LIMITS["ontology_gaps"]
+    ]:
+        gap_id = _text(item.get("id"))
+        if not gap_id:
+            continue
+        rows.append(
+            {
+                "id": gap_id,
+                "kind": _text(item.get("kind"), "ontology_gap"),
+                "term": _optional_text(item.get("term")),
+                "source_ref": _optional_text(item.get("source_ref")),
+                "source_kind": _optional_text(item.get("source_kind")),
+                "suggested_action": _optional_text(item.get("suggested_action")),
+                "blocks_candidate_graph": item.get("blocks_candidate_graph") is True,
+                "statement": _optional_text(item.get("statement")),
+            }
+        )
+    return rows
+
+
+def _ontology_seed(seed: dict[str, Any] | None) -> dict[str, Any]:
+    source_generation = _record((seed or {}).get("source_generation"))
+    summary = _record(source_generation.get("summary"))
+    ontology = _record(source_generation.get("ontology"))
+    bindings = _ontology_seed_bindings(seed)
+    gaps = _ontology_seed_gaps(seed)
+    return {
+        "available": seed is not None,
+        "source_ref": _optional_text((seed or {}).get("source_ref")),
+        "contract_ref": _optional_text((seed or {}).get("contract_ref")),
+        "generation_contract_ref": _optional_text(source_generation.get("contract_ref")),
+        "readiness": _readiness(source_generation),
+        "summary": {
+            "status": _optional_text(summary.get("status")),
+            "node_count": _number(summary.get("node_count")),
+            "edge_count": _number(summary.get("edge_count")),
+            "ontology_binding_count": _summary_count(
+                summary,
+                "ontology_binding_count",
+                _records(source_generation.get("ontology_bindings")),
+            ),
+            "ontology_gap_count": _summary_count(
+                summary,
+                "ontology_gap_count",
+                _records(source_generation.get("ontology_gaps")),
+            ),
+            "finding_count": _summary_count(
+                summary,
+                "finding_count",
+                _records(source_generation.get("findings")),
+            ),
+        },
+        "ontology": {
+            "id": _optional_text(ontology.get("id")),
+            "namespace": _optional_text(ontology.get("namespace")),
+            "version": _optional_text(ontology.get("version")),
+            "source_ref": _optional_text(ontology.get("source_ref")),
+            "source_digest": _optional_text(ontology.get("source_digest")),
+            "class_count": _number(ontology.get("class_count")),
+            "relation_count": _number(ontology.get("relation_count")),
+        },
+        "bindings": bindings,
+        "gaps": gaps,
+        "findings": _findings(source_generation),
+        "privacy_boundary": _record(source_generation.get("privacy_boundary")),
     }
 
 
@@ -624,6 +756,7 @@ def _workflow(
     core_missing_artifact_count: int,
     active_candidate: dict[str, Any] | None,
     intake: dict[str, Any] | None,
+    candidate_seed: dict[str, Any] | None,
     candidate_graph: dict[str, Any] | None,
     pre_sib: dict[str, Any] | None,
     repair_loop: dict[str, Any] | None,
@@ -644,6 +777,16 @@ def _workflow(
     repair_summary = _record((repair_loop or {}).get("summary"))
     context_required_count = _number(repair_summary.get("context_required_count"))
     promotion_blocker_count = _finding_count(promotion_gate)
+    seed_source_generation = _record((candidate_seed or {}).get("source_generation"))
+    seed_readiness = _readiness(seed_source_generation)
+    seed_blocked = (
+        candidate_seed is not None
+        and (
+            not seed_readiness["ready"]
+            or bool(seed_readiness["blocked_by"])
+            or _finding_count(seed_source_generation) > 0
+        )
+    )
     platform_ok = (platform_promotion or {}).get("ok") is True
     approval_readiness = _record((candidate_approval or {}).get("readiness"))
     approval_decision = _record((candidate_approval or {}).get("decision"))
@@ -715,6 +858,18 @@ def _workflow(
             ),
             artifact_key=IDEA_EVENT_STORMING_INTAKE_ARTIFACT,
             detail=_optional_text(_record((intake or {}).get("summary")).get("status")),
+        ),
+        _workflow_item(
+            item_id="ontology_seed",
+            label="Ontology-bound seed",
+            status=_available_status(
+                statuses,
+                "ontology_seed",
+                seed_readiness["ready"],
+                blocked=seed_blocked,
+            ),
+            artifact_key=CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
+            detail=_optional_text(seed_readiness["review_state"]),
         ),
         _workflow_item(
             item_id="candidate_graph",
@@ -884,6 +1039,18 @@ def _workflow(
                 "cd <specgraph-repository> && "
                 "make product-workspace-active-candidate"
             ),
+            "authority_boundary": "operator_only",
+        }
+    elif seed_blocked:
+        stage = "ontology_seed_review_required"
+        status = "blocked"
+        next_handoff = {
+            "kind": "ontology_seed_review",
+            "label": "Resolve ontology-bound seed gaps before candidate graph promotion",
+            "status": "blocked",
+            "artifact_key": "ontology_seed",
+            "artifact_path": f"runs/{CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT}",
+            "command_template": None,
             "authority_boundary": "operator_only",
         }
     elif context_required_count > 0 or promotion_gate_blocked:
@@ -1108,6 +1275,7 @@ def build_idea_to_spec_workspace(
 ) -> dict[str, Any]:
     active_candidate = _artifact_data(artifacts, ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT)
     intake = _artifact_data(artifacts, IDEA_EVENT_STORMING_INTAKE_ARTIFACT)
+    candidate_seed = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT)
     candidate_graph = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_ARTIFACT)
     pre_sib = _artifact_data(artifacts, PRE_SIB_COHERENCE_REPORT_ARTIFACT)
     repair_loop = _artifact_data(artifacts, CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT)
@@ -1153,6 +1321,7 @@ def build_idea_to_spec_workspace(
     elif promotion_gate is not None and not _readiness(promotion_gate)["ready"]:
         status = "blocked"
     candidate_counts = _candidate_counts(candidate_graph)
+    ontology_seed = _ontology_seed(candidate_seed)
     pre_sib_findings = _findings(pre_sib)
     repair_actions = _repair_actions(repair_loop)
     materialized_files = _materialized_files(materialization)
@@ -1163,6 +1332,7 @@ def build_idea_to_spec_workspace(
         core_missing_artifact_count=core_missing_artifact_count,
         active_candidate=active_candidate,
         intake=intake,
+        candidate_seed=candidate_seed,
         candidate_graph=candidate_graph,
         pre_sib=pre_sib,
         repair_loop=repair_loop,
@@ -1192,6 +1362,12 @@ def build_idea_to_spec_workspace(
             "platform_missing_artifact_count": platform_missing_artifact_count,
             "candidate_node_count": candidate_counts["node_count"],
             "candidate_edge_count": candidate_counts["edge_count"],
+            "ontology_seed_gap_count": ontology_seed["summary"][
+                "ontology_gap_count"
+            ],
+            "ontology_seed_binding_count": ontology_seed["summary"][
+                "ontology_binding_count"
+            ],
             "pre_sib_finding_count": _finding_count(pre_sib),
             "repair_action_count": _repair_action_count(repair_loop),
             "repair_context_required_count": _number(
@@ -1258,6 +1434,7 @@ def build_idea_to_spec_workspace(
             ),
             "nodes": _candidate_nodes(candidate_graph),
         },
+        "ontology_seed": ontology_seed,
         "pre_sib": {
             "available": pre_sib is not None,
             "readiness": _readiness(pre_sib),

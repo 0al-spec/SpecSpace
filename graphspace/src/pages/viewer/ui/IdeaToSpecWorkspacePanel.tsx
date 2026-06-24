@@ -81,6 +81,8 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <Metric label="Artifacts" value={data.summary.availableArtifactCount} />
         <Metric label="Nodes" value={data.summary.candidateNodeCount} />
         <Metric label="Edges" value={data.summary.candidateEdgeCount} />
+        <Metric label="Seed gaps" value={data.summary.ontologySeedGapCount} />
+        <Metric label="Bindings" value={data.summary.ontologySeedBindingCount} />
         <Metric label="Findings" value={data.summary.preSibFindingCount} />
         <Metric label="Repairs" value={data.summary.repairActionCount} />
         <Metric label="Context" value={data.summary.repairContextRequiredCount} />
@@ -144,6 +146,7 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <FrameSection project={frame.project} domains={frame.domainRefs} contexts={frame.contextRefs} />
         <ArtifactSection artifacts={data.artifacts} />
         <IntakeSection state={state} />
+        <OntologySeedSection seed={data.ontologySeed} />
         <CandidateGraphSection nodes={data.candidateGraph.nodes} />
         <PreSibSection state={state} />
         <RepairSection actions={data.repairLoop.actions} />
@@ -349,6 +352,105 @@ function IntakeSection({ state }: { state: Extract<UseIdeaToSpecWorkspaceState, 
           value={String(summary.vocabularyQuestionCount)}
         />
       </div>
+    </section>
+  );
+}
+
+function OntologySeedSection({
+  seed,
+}: {
+  seed: IdeaToSpecWorkspace["ontologySeed"];
+}) {
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader
+        title="Ontology-bound seed"
+        count={seed.summary.ontologyGapCount}
+      />
+      <div className={styles.postureStrip}>
+        <PostureItem label="Ready" value={boolText(seed.readiness.ready)} />
+        <PostureItem
+          label="Review state"
+          value={compact(seed.readiness.reviewState)}
+        />
+        <PostureItem
+          label="Bindings"
+          value={String(seed.summary.ontologyBindingCount)}
+        />
+        <PostureItem label="Gaps" value={String(seed.summary.ontologyGapCount)} />
+        <PostureItem
+          label="Findings"
+          value={String(seed.summary.findingCount)}
+        />
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>
+            {compact(seed.ontology.id, "ontology package")}
+          </span>
+          <Pill value={seed.available ? "available" : "missing"} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Version" value={seed.ontology.version} />
+          <Meta label="Source" value={seed.ontology.sourceRef ?? seed.sourceRef} />
+          <Meta label="Classes" value={String(seed.ontology.classCount)} />
+          <Meta label="Relations" value={String(seed.ontology.relationCount)} />
+          <Meta label="Contract" value={seed.generationContractRef ?? seed.contractRef} />
+          <Meta label="Blocked by" value={joined(seed.readiness.blockedBy)} />
+        </div>
+      </div>
+      {seed.bindings.length === 0 ? (
+        <Status
+          label="No ontology bindings"
+          detail="Candidate seed has no visible ontology bindings."
+        />
+      ) : null}
+      {seed.bindings.map((binding) => (
+        <div key={`${binding.term}:${binding.ontologyRef ?? ""}`} className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{binding.term}</span>
+            <Pill value={compact(binding.bindingKind, "binding")} />
+          </div>
+          <div className={styles.metaGrid}>
+            <Meta label="Ontology ref" value={binding.ontologyRef} />
+            <Meta label="Authority" value={binding.authority} />
+            <Meta label="Reason" value={binding.reason} />
+          </div>
+        </div>
+      ))}
+      {seed.gaps.length === 0 ? (
+        <Status
+          label="No ontology gaps"
+          detail="Candidate seed did not surface project-local ontology gaps."
+        />
+      ) : null}
+      {seed.gaps.map((gap) => (
+        <div key={gap.id} className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{gap.id}</span>
+            <Pill value={gap.blocksCandidateGraph ? "blocks" : "review"} />
+          </div>
+          <h3 className={styles.title}>{compact(gap.term, gap.kind)}</h3>
+          <div className={styles.metaGrid}>
+            <Meta label="Source" value={gap.sourceRef} />
+            <Meta label="Kind" value={gap.sourceKind ?? gap.kind} />
+            <Meta label="Suggested" value={gap.suggestedAction} />
+            <Meta label="Statement" value={gap.statement} />
+          </div>
+        </div>
+      ))}
+      {seed.findings.map((finding) => (
+        <div key={finding.findingId} className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{finding.findingId}</span>
+            <Pill value={finding.severity} />
+          </div>
+          <h3 className={styles.title}>{finding.message}</h3>
+          <div className={styles.metaGrid}>
+            <Meta label="Source" value={finding.sourceRef} />
+          </div>
+        </div>
+      ))}
     </section>
   );
 }
