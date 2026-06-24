@@ -928,7 +928,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
 
         self.assertEqual(body["summary"]["status"], "partial")
         self.assertEqual(body["summary"]["available_artifact_count"], 1)
-        self.assertEqual(body["summary"]["missing_artifact_count"], 6)
+        self.assertEqual(body["summary"]["missing_artifact_count"], 5)
         self.assertEqual(body["summary"]["platform_missing_artifact_count"], 6)
         self.assertEqual(body["workflow"]["stage"], "candidate_artifacts_missing")
         self.assertEqual(
@@ -941,6 +941,26 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertFalse(body["artifacts"]["event_storming_intake"]["available"])
         self.assertTrue(body["artifacts"]["candidate_graph"]["available"])
+
+    def test_missing_ontology_seed_does_not_block_legacy_workspace_runs(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["summary"]["status"], "blocked")
+        self.assertEqual(body["summary"]["missing_artifact_count"], 0)
+        self.assertEqual(body["workflow"]["stage"], "repair_required")
+        self.assertEqual(body["workflow"]["items"][2]["id"], "ontology_seed")
+        self.assertEqual(body["workflow"]["items"][2]["status"], "missing")
+        self.assertFalse(body["ontology_seed"]["available"])
+        self.assertEqual(
+            body["artifacts"]["ontology_seed"]["reason"],
+            "missing_artifact",
+        )
 
     def test_workflow_blocks_ontology_seed_review_findings(self) -> None:
         artifacts = _workspace_artifacts()
@@ -961,13 +981,30 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         ]
         source_generation["summary"]["status"] = "ontology_seed_review_required"
         source_generation["summary"]["finding_count"] = 1
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
         artifacts[idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT] = seed
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
 
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
             artifacts=artifacts,
             source={"provider": "fixture", "read_only": True},
         )
 
+        self.assertEqual(body["summary"]["status"], "blocked")
         self.assertEqual(body["workflow"]["stage"], "ontology_seed_review_required")
         self.assertEqual(
             body["workflow"]["next_handoff"]["kind"],

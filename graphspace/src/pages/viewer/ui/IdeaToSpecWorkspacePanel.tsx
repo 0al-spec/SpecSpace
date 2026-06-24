@@ -405,8 +405,8 @@ function OntologySeedSection({
           detail="Candidate seed has no visible ontology bindings."
         />
       ) : null}
-      {seed.bindings.map((binding) => (
-        <div key={`${binding.term}:${binding.ontologyRef ?? ""}`} className={styles.row}>
+      {seed.bindings.map((binding, index) => (
+        <div key={`${index}:${binding.term}:${binding.ontologyRef ?? ""}`} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{binding.term}</span>
             <Pill value={compact(binding.bindingKind, "binding")} />

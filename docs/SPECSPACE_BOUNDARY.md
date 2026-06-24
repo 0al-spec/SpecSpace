@@ -101,9 +101,9 @@ Platform owns deployment/profile coordination, and SpecSpace renders the active
 workspace. The Team Decision Log route should show product idea-to-spec
 surfaces and hide SpecGraph bootstrap/self-evolution surfaces. The product
 workflow lane is a derived readonly chain across intake, ontology-bound
-candidate graph seed, candidate graph, pre-SIB, repair, materialization,
-promotion gate, candidate approval, Git Service execution, repository review,
-and read-model publication. A
+candidate graph seed when available, candidate graph, pre-SIB, repair,
+materialization, promotion gate, candidate approval, Git Service execution,
+repository review, and read-model publication. A
 `/team_decision_log` alias is acceptable, but `/team-decision-log` is the
 canonical route.
 

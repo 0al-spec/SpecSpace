@@ -33,12 +33,14 @@ GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT = (
 
 CORE_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT,
-    CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
     CANDIDATE_SPEC_GRAPH_ARTIFACT,
     PRE_SIB_COHERENCE_REPORT_ARTIFACT,
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT,
     CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
     IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
+)
+OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
+    CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
 )
 PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
     CANDIDATE_APPROVAL_DECISION_ARTIFACT,
@@ -50,7 +52,13 @@ PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
 )
 WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
-    *CORE_WORKSPACE_RUN_ARTIFACTS,
+    IDEA_EVENT_STORMING_INTAKE_ARTIFACT,
+    *OPTIONAL_WORKSPACE_RUN_ARTIFACTS,
+    CANDIDATE_SPEC_GRAPH_ARTIFACT,
+    PRE_SIB_COHERENCE_REPORT_ARTIFACT,
+    CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT,
+    CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
+    IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
     *PLATFORM_PROMOTION_ARTIFACTS,
 )
 
@@ -295,7 +303,11 @@ def _artifact_status(
     summary = _record(data.get("summary"))
     readiness = _record(data.get("readiness"))
     pre_sib_readiness = _record(data.get("pre_sib_readiness"))
-    source_generation = _record(data.get("source_generation"))
+    source_generation = (
+        _record(data.get("source_generation"))
+        if filename == CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT
+        else {}
+    )
     source_summary = _record(source_generation.get("summary"))
     source_readiness = _record(source_generation.get("readiness"))
     return {
@@ -509,6 +521,18 @@ def _findings(payload: dict[str, Any] | None) -> list[dict[str, Any]]:
 def _finding_count(payload: dict[str, Any] | None) -> int:
     return len(_records((payload or {}).get("findings"))) + len(
         _records((payload or {}).get("warnings"))
+    )
+
+
+def _ontology_seed_blocked(seed: dict[str, Any] | None) -> bool:
+    if seed is None:
+        return False
+    source_generation = _record(seed.get("source_generation"))
+    readiness = _readiness(source_generation)
+    return (
+        not readiness["ready"]
+        or bool(readiness["blocked_by"])
+        or _finding_count(source_generation) > 0
     )
 
 
@@ -779,14 +803,7 @@ def _workflow(
     promotion_blocker_count = _finding_count(promotion_gate)
     seed_source_generation = _record((candidate_seed or {}).get("source_generation"))
     seed_readiness = _readiness(seed_source_generation)
-    seed_blocked = (
-        candidate_seed is not None
-        and (
-            not seed_readiness["ready"]
-            or bool(seed_readiness["blocked_by"])
-            or _finding_count(seed_source_generation) > 0
-        )
-    )
+    seed_blocked = _ontology_seed_blocked(candidate_seed)
     platform_ok = (platform_promotion or {}).get("ok") is True
     approval_readiness = _record((candidate_approval or {}).get("readiness"))
     approval_decision = _record((candidate_approval or {}).get("decision"))
@@ -1318,6 +1335,8 @@ def build_idea_to_spec_workspace(
     status = "ready"
     if core_missing_artifact_count:
         status = "partial" if available_count else "unavailable"
+    elif _ontology_seed_blocked(candidate_seed):
+        status = "blocked"
     elif promotion_gate is not None and not _readiness(promotion_gate)["ready"]:
         status = "blocked"
     candidate_counts = _candidate_counts(candidate_graph)
