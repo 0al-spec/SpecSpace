@@ -280,6 +280,227 @@ def _repair_loop() -> dict:
     }
 
 
+def _clarification_requests() -> dict:
+    return {
+        "artifact_kind": "idea_to_spec_clarification_requests",
+        "schema_version": 1,
+        "proposal_id": "0163",
+        "contract_ref": "specgraph.idea-to-spec.clarification-requests.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": False,
+            "review_state": "clarification_required",
+            "blocked_by": ["clarification.candidate-gap.ontology-gap-numeric-input"],
+        },
+        "clarification_requests": [
+            {
+                "id": "clarification.candidate-gap.ontology-gap-numeric-input",
+                "kind": "ontology_gap",
+                "severity": "review_required",
+                "status": "open",
+                "target_ref": "candidate-spec.numeric-input.gaps.ontology-gap.numeric-input",
+                "question": "Should Numeric Input bind, alias, remain local, or be rejected?",
+                "suggested_actions": [
+                    "bind_existing_term",
+                    "alias",
+                    "propose_project_local_term",
+                    "reject",
+                    "defer",
+                ],
+            }
+        ],
+        "request_counts": {
+            "total": 1,
+            "by_kind": {"ontology_gap": 1},
+            "by_status": {"open": 1},
+        },
+    }
+
+
+def _clarification_answers() -> dict:
+    return {
+        "artifact_kind": "idea_to_spec_clarification_answers",
+        "schema_version": 1,
+        "proposal_id": "0164",
+        "contract_ref": "specgraph.idea-to-spec.clarification-answers.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "answers_ready_for_rerun",
+            "blocked_by": [],
+        },
+        "answers": [
+            {
+                "request_id": "clarification.candidate-gap.ontology-gap-numeric-input",
+                "answer_kind": "propose_project_local_term",
+                "status": "accepted_for_candidate",
+                "authority": "operator_approved",
+                "request_snapshot": {
+                    "kind": "ontology_gap",
+                    "target_artifact": "runs/candidate_spec_graph.json",
+                    "target_ref": "candidate-spec.numeric-input.gaps.ontology-gap.numeric-input",
+                },
+                "value": {"terms": ["Numeric Input"], "term_scope": "project_local"},
+            }
+        ],
+        "unresolved_blocking_requests": [],
+        "summary": {
+            "status": "answers_ready_for_rerun",
+            "answer_count": 1,
+            "accepted_answer_count": 1,
+            "unresolved_blocking_count": 0,
+        },
+    }
+
+
+def _ontology_decisions() -> dict:
+    return {
+        "artifact_kind": "product_ontology_gap_review_decisions",
+        "schema_version": 1,
+        "proposal_id": "0168",
+        "contract_ref": "specgraph.product-ontology.gap-review-decisions.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "ontology_gap_decisions_ready",
+            "blocked_by": [],
+        },
+        "decisions": [
+            {
+                "id": "product-ontology-decision.numeric-input.0",
+                "decision_type": "propose_project_local_term",
+                "status": "accepted_for_candidate_preview",
+                "term": "Numeric Input",
+                "term_scope": "project_local",
+                "request_id": "clarification.candidate-gap.ontology-gap-numeric-input",
+                "target_ref": "candidate-spec.numeric-input.gaps.ontology-gap.numeric-input",
+                "materialization_intent": "rerun_overlay_only",
+            }
+        ],
+        "summary": {
+            "status": "ontology_gap_decisions_ready",
+            "decision_count": 1,
+            "decision_counts": {"propose_project_local_term": 1},
+        },
+    }
+
+
+def _rerun_input() -> dict:
+    return {
+        "artifact_kind": "idea_to_spec_answer_rerun_input",
+        "schema_version": 1,
+        "proposal_id": "0169",
+        "contract_ref": "specgraph.idea-to-spec.answer-rerun-input.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "rerun_input_ready",
+            "blocked_by": [],
+        },
+        "rerun_input_overlay": {
+            "ontology_review_hints": {
+                "term_bindings": [],
+                "aliases": [],
+                "project_local_terms": [
+                    {
+                        "term": "Numeric Input",
+                        "term_scope": "project_local",
+                        "decision_id": "product-ontology-decision.numeric-input.0",
+                    }
+                ],
+                "rejected_terms": [],
+                "deferred_terms": [],
+            }
+        },
+        "summary": {
+            "status": "rerun_input_ready",
+            "ontology_decision_source": "product_ontology_gap_review_decisions",
+            "ontology_decision_count": 1,
+            "project_local_term_count": 1,
+        },
+    }
+
+
+def _rerun_preview() -> dict:
+    return {
+        "artifact_kind": "idea_to_spec_rerun_preview",
+        "schema_version": 1,
+        "proposal_id": "0169",
+        "contract_ref": "specgraph.idea-to-spec.rerun-preview.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "rerun_preview_ready",
+            "blocked_by": [],
+        },
+        "rerun_preview": {
+            "ontology_gap_preview": {
+                "resolved_ontology_gap_count": 1,
+                "unresolved_ontology_gap_count": 0,
+                "resolved_ontology_gaps": [
+                    {
+                        "gap_id": "ontology-gap.numeric-input",
+                        "node_id": "candidate-spec.numeric-input",
+                        "term": "Numeric Input",
+                        "source_ref": "command.enter_digit",
+                        "resolution_preview": {
+                            "decision": "project_local_term",
+                            "target_ref": "candidate-spec.numeric-input.gaps.ontology-gap.numeric-input",
+                        },
+                    }
+                ],
+            },
+            "candidate_quality_preview": {
+                "review_state": "candidate_quality_improved",
+                "ontology_gap_state": "all_preview_resolved",
+                "resolved_ontology_gap_count": 1,
+                "unresolved_ontology_gap_count": 0,
+            },
+        },
+        "summary": {
+            "status": "rerun_preview_ready",
+            "resolved_ontology_gap_count": 1,
+            "unresolved_ontology_gap_count": 0,
+            "candidate_quality_review_state": "candidate_quality_improved",
+        },
+    }
+
+
+def _rerun_materialization() -> dict:
+    return {
+        "artifact_kind": "idea_to_spec_rerun_materialization",
+        "schema_version": 1,
+        "proposal_id": "0167",
+        "contract_ref": "specgraph.idea-to-spec.rerun-materialization.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "rerun_materialization_ready",
+            "blocked_by": [],
+        },
+        "materialization_preview": {
+            "delta": {
+                "removed_gap_ids": ["ontology-gap.numeric-input"],
+                "unresolved_ontology_gap_ids": [],
+                "resolved_ontology_gap_count": 1,
+                "unresolved_ontology_gap_count": 0,
+            }
+        },
+        "summary": {
+            "status": "rerun_materialization_ready",
+            "resolved_ontology_gap_count": 1,
+            "unresolved_ontology_gap_count": 0,
+            "removed_gap_count": 1,
+        },
+    }
+
+
 def _materialization() -> dict:
     return {
         "artifact_kind": "candidate_spec_materialization_report",
@@ -679,6 +900,12 @@ def _workspace_artifacts() -> dict[str, dict]:
         idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT: _candidate_graph(),
         idea_to_spec_workspace.PRE_SIB_COHERENCE_REPORT_ARTIFACT: _pre_sib(),
         idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: _repair_loop(),
+        idea_to_spec_workspace.IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: _clarification_requests(),
+        idea_to_spec_workspace.IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT: _clarification_answers(),
+        idea_to_spec_workspace.PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT: _ontology_decisions(),
+        idea_to_spec_workspace.IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT: _rerun_input(),
+        idea_to_spec_workspace.IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT: _rerun_preview(),
+        idea_to_spec_workspace.IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT: _rerun_materialization(),
         idea_to_spec_workspace.CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: _materialization(),
         idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: _promotion_gate(),
         idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT: _candidate_approval_decision(),
@@ -710,6 +937,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["ontology_seed_gap_count"], 1)
         self.assertEqual(body["summary"]["ontology_seed_binding_count"], 5)
         self.assertEqual(body["summary"]["repair_action_count"], 1)
+        self.assertEqual(body["summary"]["clarification_request_count"], 1)
+        self.assertEqual(body["summary"]["ontology_decision_count"], 1)
+        self.assertEqual(body["summary"]["resolved_ontology_gap_count"], 1)
+        self.assertEqual(body["summary"]["unresolved_ontology_gap_count"], 0)
+        self.assertEqual(body["summary"]["rerun_removed_gap_count"], 1)
         self.assertEqual(body["summary"]["materialized_file_count"], 2)
         self.assertEqual(body["summary"]["promotion_path_count"], 0)
         self.assertEqual(body["summary"]["promotion_gate_blocker_count"], 1)
@@ -757,6 +989,31 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["repair_loop"]["actions"][0]["status"],
             "requires_context",
+        )
+        self.assertEqual(
+            body["repair_review"]["clarification_requests"]["requests"][0]["kind"],
+            "ontology_gap",
+        )
+        self.assertEqual(
+            body["repair_review"]["ontology_decisions"]["decisions"][0][
+                "decision_type"
+            ],
+            "propose_project_local_term",
+        )
+        self.assertEqual(
+            body["repair_review"]["rerun_preview"]["candidate_quality_preview"][
+                "review_state"
+            ],
+            "candidate_quality_improved",
+        )
+        self.assertEqual(
+            body["repair_review"]["rerun_materialization"]["delta"][
+                "removed_gap_ids"
+            ],
+            ["ontology-gap.numeric-input"],
+        )
+        self.assertFalse(
+            body["repair_review"]["action_boundary"]["may_accept_ontology_terms"]
         )
         self.assertEqual(
             body["materialization"]["readiness"]["review_state"],
@@ -899,7 +1156,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["summary"]["status"], "partial")
-        self.assertEqual(body["summary"]["available_artifact_count"], 10)
+        self.assertEqual(body["summary"]["available_artifact_count"], 16)
         self.assertEqual(body["summary"]["missing_artifact_count"], 3)
         self.assertEqual(body["summary"]["candidate_node_count"], 0)
         self.assertEqual(body["summary"]["repair_action_count"], 0)

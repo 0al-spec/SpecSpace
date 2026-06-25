@@ -69,6 +69,37 @@ export type IdeaToSpecRepairAction = {
   sourceFindings: readonly string[];
 };
 
+export type IdeaToSpecClarificationRequest = {
+  id: string;
+  kind: string;
+  severity: string;
+  status: string;
+  targetRef: string | null;
+  question: string | null;
+  suggestedActions: readonly string[];
+};
+
+export type IdeaToSpecOntologyDecision = {
+  id: string;
+  decisionType: string;
+  status: string;
+  term: string | null;
+  ontologyRef: string | null;
+  aliasOf: string | null;
+  targetRef: string | null;
+  requestId: string | null;
+  materializationIntent: string | null;
+};
+
+export type IdeaToSpecResolvedOntologyGap = {
+  gapId: string;
+  nodeId: string | null;
+  term: string | null;
+  sourceRef: string | null;
+  decision: string | null;
+  targetRef: string | null;
+};
+
 export type IdeaToSpecMaterializedFile = {
   candidateNodeId: string;
   materializedId: string;
@@ -230,6 +261,11 @@ export type IdeaToSpecWorkspace = {
     ontologySeedBindingCount: number;
     preSibFindingCount: number;
     repairActionCount: number;
+    clarificationRequestCount: number;
+    ontologyDecisionCount: number;
+    resolvedOntologyGapCount: number;
+    unresolvedOntologyGapCount: number;
+    rerunRemovedGapCount: number;
     repairContextRequiredCount: number;
     materializedFileCount: number;
     promotionPathCount: number;
@@ -326,6 +362,100 @@ export type IdeaToSpecWorkspace = {
     summary: Record<string, unknown>;
     metricDeltaProjection: Record<string, unknown>;
     actions: readonly IdeaToSpecRepairAction[];
+  };
+  repairReview: {
+    available: boolean;
+    clarificationRequests: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+      requests: readonly IdeaToSpecClarificationRequest[];
+      requestCount: number;
+      ontologyGapRequestCount: number;
+    };
+    clarificationAnswers: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+      answerCount: number;
+      unresolvedBlockingCount: number;
+    };
+    ontologyDecisions: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+      decisions: readonly IdeaToSpecOntologyDecision[];
+      decisionCount: number;
+    };
+    rerunInput: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+      ontologyHintCounts: Record<string, number>;
+    };
+    rerunPreview: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+      candidateQualityPreview: {
+        reviewState: string | null;
+        ontologyGapState: string | null;
+        resolvedOntologyGapCount: number;
+        unresolvedOntologyGapCount: number;
+      };
+      resolvedGaps: readonly IdeaToSpecResolvedOntologyGap[];
+      unresolvedOntologyGapCount: number;
+    };
+    rerunMaterialization: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+      delta: {
+        removedGapIds: readonly string[];
+        unresolvedOntologyGapIds: readonly string[];
+        resolvedOntologyGapCount: number;
+        unresolvedOntologyGapCount: number;
+      };
+    };
+    actionBoundary: {
+      inspectOnly: true;
+      acknowledgeOnly: true;
+      mayApplyAnswers: false;
+      mayMutateCandidateArtifacts: false;
+      mayAcceptOntologyTerms: false;
+      mayWriteOntologyPackage: false;
+      mayCreateBranchOrCommit: false;
+    };
   };
   materialization: {
     available: boolean;
@@ -586,6 +716,170 @@ function parseRepairAction(raw: unknown): IdeaToSpecRepairAction | null {
   };
 }
 
+function parseClarificationRequest(
+  raw: unknown,
+): IdeaToSpecClarificationRequest | null {
+  const request = recordValue(raw);
+  const id = optionalString(request.id);
+  if (!id) return null;
+  return {
+    id,
+    kind: stringValue(request.kind, "clarification"),
+    severity: stringValue(request.severity, "review_required"),
+    status: stringValue(request.status, "open"),
+    targetRef: optionalString(request.target_ref),
+    question: optionalString(request.question),
+    suggestedActions: strings(request.suggested_actions),
+  };
+}
+
+function parseOntologyDecision(raw: unknown): IdeaToSpecOntologyDecision | null {
+  const decision = recordValue(raw);
+  const id = optionalString(decision.id);
+  if (!id) return null;
+  return {
+    id,
+    decisionType: stringValue(decision.decision_type, "unknown"),
+    status: stringValue(decision.status, "unknown"),
+    term: optionalString(decision.term),
+    ontologyRef: optionalString(decision.ontology_ref),
+    aliasOf: optionalString(decision.alias_of),
+    targetRef: optionalString(decision.target_ref),
+    requestId: optionalString(decision.request_id),
+    materializationIntent: optionalString(decision.materialization_intent),
+  };
+}
+
+function parseResolvedOntologyGap(
+  raw: unknown,
+): IdeaToSpecResolvedOntologyGap | null {
+  const gap = recordValue(raw);
+  const gapId = optionalString(gap.gap_id);
+  if (!gapId) return null;
+  return {
+    gapId,
+    nodeId: optionalString(gap.node_id),
+    term: optionalString(gap.term),
+    sourceRef: optionalString(gap.source_ref),
+    decision: optionalString(gap.decision),
+    targetRef: optionalString(gap.target_ref),
+  };
+}
+
+function parseNumberRecord(raw: unknown): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(recordValue(raw)).map(([key, value]) => [
+      key,
+      numberValue(value),
+    ]),
+  );
+}
+
+function parseRepairReview(
+  raw: unknown,
+): IdeaToSpecWorkspace["repairReview"] {
+  const lane = recordValue(raw);
+  const clarificationRequests = recordValue(lane.clarification_requests);
+  const clarificationAnswers = recordValue(lane.clarification_answers);
+  const ontologyDecisions = recordValue(lane.ontology_decisions);
+  const rerunInput = recordValue(lane.rerun_input);
+  const rerunPreview = recordValue(lane.rerun_preview);
+  const candidateQualityPreview = recordValue(
+    rerunPreview.candidate_quality_preview,
+  );
+  const rerunMaterialization = recordValue(lane.rerun_materialization);
+  const delta = recordValue(rerunMaterialization.delta);
+  return {
+    available: lane.available === true,
+    clarificationRequests: {
+      available: clarificationRequests.available === true,
+      readiness: parseReadiness(clarificationRequests.readiness),
+      summary: recordValue(clarificationRequests.summary),
+      requests: records(clarificationRequests.requests).flatMap((item) => {
+        const parsed = parseClarificationRequest(item);
+        return parsed ? [parsed] : [];
+      }),
+      requestCount: numberValue(clarificationRequests.request_count),
+      ontologyGapRequestCount: numberValue(
+        clarificationRequests.ontology_gap_request_count,
+      ),
+    },
+    clarificationAnswers: {
+      available: clarificationAnswers.available === true,
+      readiness: parseReadiness(clarificationAnswers.readiness),
+      summary: recordValue(clarificationAnswers.summary),
+      answerCount: numberValue(clarificationAnswers.answer_count),
+      unresolvedBlockingCount: numberValue(
+        clarificationAnswers.unresolved_blocking_count,
+      ),
+    },
+    ontologyDecisions: {
+      available: ontologyDecisions.available === true,
+      readiness: parseReadiness(ontologyDecisions.readiness),
+      summary: recordValue(ontologyDecisions.summary),
+      decisions: records(ontologyDecisions.decisions).flatMap((item) => {
+        const parsed = parseOntologyDecision(item);
+        return parsed ? [parsed] : [];
+      }),
+      decisionCount: numberValue(ontologyDecisions.decision_count),
+    },
+    rerunInput: {
+      available: rerunInput.available === true,
+      readiness: parseReadiness(rerunInput.readiness),
+      summary: recordValue(rerunInput.summary),
+      ontologyHintCounts: parseNumberRecord(rerunInput.ontology_hint_counts),
+    },
+    rerunPreview: {
+      available: rerunPreview.available === true,
+      readiness: parseReadiness(rerunPreview.readiness),
+      summary: recordValue(rerunPreview.summary),
+      candidateQualityPreview: {
+        reviewState: optionalString(candidateQualityPreview.review_state),
+        ontologyGapState: optionalString(
+          candidateQualityPreview.ontology_gap_state,
+        ),
+        resolvedOntologyGapCount: numberValue(
+          candidateQualityPreview.resolved_ontology_gap_count,
+        ),
+        unresolvedOntologyGapCount: numberValue(
+          candidateQualityPreview.unresolved_ontology_gap_count,
+        ),
+      },
+      resolvedGaps: records(rerunPreview.resolved_gaps).flatMap((item) => {
+        const parsed = parseResolvedOntologyGap(item);
+        return parsed ? [parsed] : [];
+      }),
+      unresolvedOntologyGapCount: numberValue(
+        rerunPreview.unresolved_ontology_gap_count,
+      ),
+    },
+    rerunMaterialization: {
+      available: rerunMaterialization.available === true,
+      readiness: parseReadiness(rerunMaterialization.readiness),
+      summary: recordValue(rerunMaterialization.summary),
+      delta: {
+        removedGapIds: strings(delta.removed_gap_ids),
+        unresolvedOntologyGapIds: strings(delta.unresolved_ontology_gap_ids),
+        resolvedOntologyGapCount: numberValue(
+          delta.resolved_ontology_gap_count,
+        ),
+        unresolvedOntologyGapCount: numberValue(
+          delta.unresolved_ontology_gap_count,
+        ),
+      },
+    },
+    actionBoundary: {
+      inspectOnly: true,
+      acknowledgeOnly: true,
+      mayApplyAnswers: false,
+      mayMutateCandidateArtifacts: false,
+      mayAcceptOntologyTerms: false,
+      mayWriteOntologyPackage: false,
+      mayCreateBranchOrCommit: false,
+    },
+  };
+}
+
 function parseMaterializedFile(raw: unknown): IdeaToSpecMaterializedFile | null {
   const file = recordValue(raw);
   const path = optionalString(file.path);
@@ -833,6 +1127,26 @@ export function parseIdeaToSpecWorkspace(
   const ontologySeed = recordValue(raw.ontology_seed);
   const preSib = recordValue(raw.pre_sib);
   const repairLoop = recordValue(raw.repair_loop);
+  const repairReview = recordValue(raw.repair_review);
+  const repairReviewBoundary = recordValue(repairReview.action_boundary);
+  const repairReviewFalseFlags = [
+    "may_apply_answers",
+    "may_mutate_candidate_artifacts",
+    "may_accept_ontology_terms",
+    "may_write_ontology_package",
+    "may_create_branch_or_commit",
+  ];
+  for (const flag of repairReviewFalseFlags) {
+    if (repairReviewBoundary[flag] !== false) {
+      return { kind: "parse-error", reason: `repair review boundary expanded: ${flag}`, raw };
+    }
+  }
+  if (
+    repairReviewBoundary.inspect_only !== true ||
+    repairReviewBoundary.acknowledge_only !== true
+  ) {
+    return { kind: "parse-error", reason: "repair review boundary must be inspect-only", raw };
+  }
   const materialization = recordValue(raw.materialization);
   const promotionGate = recordValue(raw.promotion_gate);
   const controlledPromotion = recordValue(raw.controlled_promotion);
@@ -884,6 +1198,17 @@ export function parseIdeaToSpecWorkspace(
         ),
         preSibFindingCount: numberValue(summary.pre_sib_finding_count),
         repairActionCount: numberValue(summary.repair_action_count),
+        clarificationRequestCount: numberValue(
+          summary.clarification_request_count,
+        ),
+        ontologyDecisionCount: numberValue(summary.ontology_decision_count),
+        resolvedOntologyGapCount: numberValue(
+          summary.resolved_ontology_gap_count,
+        ),
+        unresolvedOntologyGapCount: numberValue(
+          summary.unresolved_ontology_gap_count,
+        ),
+        rerunRemovedGapCount: numberValue(summary.rerun_removed_gap_count),
         repairContextRequiredCount: numberValue(
           summary.repair_context_required_count,
         ),
@@ -962,6 +1287,7 @@ export function parseIdeaToSpecWorkspace(
           return parsed ? [parsed] : [];
         }),
       },
+      repairReview: parseRepairReview(repairReview),
       materialization: {
         available: materialization.available === true,
         readiness: parseReadiness(materialization.readiness),

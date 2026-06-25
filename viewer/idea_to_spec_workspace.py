@@ -12,6 +12,20 @@ CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT = "candidate_spec_graph_seed.json"
 CANDIDATE_SPEC_GRAPH_ARTIFACT = "candidate_spec_graph.json"
 PRE_SIB_COHERENCE_REPORT_ARTIFACT = "pre_sib_coherence_report.json"
 CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT = "candidate_repair_loop_report.json"
+IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT = (
+    "idea_to_spec_clarification_requests.json"
+)
+IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT = (
+    "idea_to_spec_clarification_answers.json"
+)
+PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT = (
+    "product_ontology_gap_review_decisions.json"
+)
+IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT = "idea_to_spec_answer_rerun_input.json"
+IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT = "idea_to_spec_rerun_preview.json"
+IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT = (
+    "idea_to_spec_rerun_materialization.json"
+)
 CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT = (
     "candidate_spec_materialization_report.json"
 )
@@ -41,6 +55,12 @@ CORE_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
 )
 OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
+    IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT,
+    IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT,
+    PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT,
+    IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT,
+    IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT,
+    IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT,
 )
 PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
     CANDIDATE_APPROVAL_DECISION_ARTIFACT,
@@ -66,6 +86,12 @@ ARTIFACT_KEYS: dict[str, str] = {
     ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: "active_candidate",
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT: "event_storming_intake",
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "ontology_seed",
+    IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: "clarification_requests",
+    IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT: "clarification_answers",
+    PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT: "ontology_decisions",
+    IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT: "rerun_input",
+    IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT: "rerun_preview",
+    IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT: "rerun_materialization",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
@@ -83,6 +109,20 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: "active_idea_to_spec_candidate",
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT: "idea_event_storming_intake",
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "candidate_spec_graph_seed",
+    IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: (
+        "idea_to_spec_clarification_requests"
+    ),
+    IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT: (
+        "idea_to_spec_clarification_answers"
+    ),
+    PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT: (
+        "product_ontology_gap_review_decisions"
+    ),
+    IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT: "idea_to_spec_answer_rerun_input",
+    IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT: "idea_to_spec_rerun_preview",
+    IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT: (
+        "idea_to_spec_rerun_materialization"
+    ),
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_spec_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib_coherence_report",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "candidate_repair_loop_report",
@@ -114,6 +154,9 @@ DISPLAY_LIMITS = {
     "repair_actions": 40,
     "ontology_bindings": 20,
     "ontology_gaps": 40,
+    "clarification_requests": 40,
+    "ontology_decisions": 40,
+    "resolved_gaps": 40,
     "materialized_files": 40,
     "git_service_operations": 20,
 }
@@ -573,6 +616,208 @@ def _repair_actions(report: dict[str, Any] | None) -> list[dict[str, Any]]:
 
 def _repair_action_count(report: dict[str, Any] | None) -> int:
     return len(_records((report or {}).get("repair_actions")))
+
+
+def _clarification_request_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records((report or {}).get("clarification_requests"))[
+        : DISPLAY_LIMITS["clarification_requests"]
+    ]:
+        request_id = _text(item.get("id"))
+        if not request_id:
+            continue
+        rows.append(
+            {
+                "id": request_id,
+                "kind": _text(item.get("kind"), "clarification"),
+                "severity": _text(item.get("severity"), "review_required"),
+                "status": _text(item.get("status"), "open"),
+                "target_ref": _optional_text(item.get("target_ref")),
+                "question": _optional_text(item.get("question")),
+                "suggested_actions": _string_list(item.get("suggested_actions")),
+            }
+        )
+    return rows
+
+
+def _clarification_answer_count(report: dict[str, Any] | None) -> int:
+    return len(_records((report or {}).get("answers")))
+
+
+def _ontology_decision_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records((report or {}).get("decisions"))[
+        : DISPLAY_LIMITS["ontology_decisions"]
+    ]:
+        decision_id = _text(item.get("id"))
+        if not decision_id:
+            continue
+        rows.append(
+            {
+                "id": decision_id,
+                "decision_type": _text(item.get("decision_type"), "unknown"),
+                "status": _text(item.get("status"), "unknown"),
+                "term": _optional_text(item.get("term")),
+                "ontology_ref": _optional_text(item.get("ontology_ref")),
+                "alias_of": _optional_text(item.get("alias_of")),
+                "target_ref": _optional_text(item.get("target_ref")),
+                "request_id": _optional_text(item.get("request_id")),
+                "materialization_intent": _optional_text(
+                    item.get("materialization_intent")
+                ),
+            }
+        )
+    return rows
+
+
+def _ontology_hint_counts(rerun_input: dict[str, Any] | None) -> dict[str, int]:
+    overlay = _record((rerun_input or {}).get("rerun_input_overlay"))
+    hints = _record(overlay.get("ontology_review_hints"))
+    return {
+        "term_binding_count": len(_records(hints.get("term_bindings"))),
+        "alias_count": len(_records(hints.get("aliases"))),
+        "project_local_term_count": len(_records(hints.get("project_local_terms"))),
+        "rejected_term_count": len(_records(hints.get("rejected_terms"))),
+        "deferred_term_count": len(_records(hints.get("deferred_terms"))),
+    }
+
+
+def _resolved_gap_rows(rerun_preview: dict[str, Any] | None) -> list[dict[str, Any]]:
+    preview = _record((rerun_preview or {}).get("rerun_preview"))
+    gap_preview = _record(preview.get("ontology_gap_preview"))
+    rows = []
+    for item in _records(gap_preview.get("resolved_ontology_gaps"))[
+        : DISPLAY_LIMITS["resolved_gaps"]
+    ]:
+        gap_id = _text(item.get("gap_id"))
+        if not gap_id:
+            continue
+        resolution = _record(item.get("resolution_preview"))
+        rows.append(
+            {
+                "gap_id": gap_id,
+                "node_id": _optional_text(item.get("node_id")),
+                "term": _optional_text(item.get("term")),
+                "source_ref": _optional_text(item.get("source_ref")),
+                "decision": _optional_text(resolution.get("decision")),
+                "target_ref": _optional_text(resolution.get("target_ref")),
+            }
+        )
+    return rows
+
+
+def _repair_review_lane(
+    *,
+    clarification_requests: dict[str, Any] | None,
+    clarification_answers: dict[str, Any] | None,
+    ontology_decisions: dict[str, Any] | None,
+    rerun_input: dict[str, Any] | None,
+    rerun_preview: dict[str, Any] | None,
+    rerun_materialization: dict[str, Any] | None,
+) -> dict[str, Any]:
+    requests = _clarification_request_rows(clarification_requests)
+    decisions = _ontology_decision_rows(ontology_decisions)
+    rerun_preview_body = _record((rerun_preview or {}).get("rerun_preview"))
+    gap_preview = _record(rerun_preview_body.get("ontology_gap_preview"))
+    quality_preview = _record(rerun_preview_body.get("candidate_quality_preview"))
+    materialization_preview = _record(
+        (rerun_materialization or {}).get("materialization_preview")
+    )
+    delta = _record(materialization_preview.get("delta"))
+    return {
+        "available": any(
+            artifact is not None
+            for artifact in (
+                clarification_requests,
+                clarification_answers,
+                ontology_decisions,
+                rerun_input,
+                rerun_preview,
+                rerun_materialization,
+            )
+        ),
+        "clarification_requests": {
+            "available": clarification_requests is not None,
+            "readiness": _readiness(clarification_requests),
+            "summary": _record((clarification_requests or {}).get("request_counts")),
+            "requests": requests,
+            "request_count": len(
+                _records((clarification_requests or {}).get("clarification_requests"))
+            ),
+            "ontology_gap_request_count": sum(
+                1 for request in requests if request["kind"] == "ontology_gap"
+            ),
+        },
+        "clarification_answers": {
+            "available": clarification_answers is not None,
+            "readiness": _readiness(clarification_answers),
+            "summary": _record((clarification_answers or {}).get("summary")),
+            "answer_count": _clarification_answer_count(clarification_answers),
+            "unresolved_blocking_count": len(
+                _records((clarification_answers or {}).get("unresolved_blocking_requests"))
+            ),
+        },
+        "ontology_decisions": {
+            "available": ontology_decisions is not None,
+            "readiness": _readiness(ontology_decisions),
+            "summary": _record((ontology_decisions or {}).get("summary")),
+            "decisions": decisions,
+            "decision_count": len(_records((ontology_decisions or {}).get("decisions"))),
+        },
+        "rerun_input": {
+            "available": rerun_input is not None,
+            "readiness": _readiness(rerun_input),
+            "summary": _record((rerun_input or {}).get("summary")),
+            "ontology_hint_counts": _ontology_hint_counts(rerun_input),
+        },
+        "rerun_preview": {
+            "available": rerun_preview is not None,
+            "readiness": _readiness(rerun_preview),
+            "summary": _record((rerun_preview or {}).get("summary")),
+            "candidate_quality_preview": {
+                "review_state": _optional_text(quality_preview.get("review_state")),
+                "ontology_gap_state": _optional_text(
+                    quality_preview.get("ontology_gap_state")
+                ),
+                "resolved_ontology_gap_count": _number(
+                    quality_preview.get("resolved_ontology_gap_count")
+                ),
+                "unresolved_ontology_gap_count": _number(
+                    quality_preview.get("unresolved_ontology_gap_count")
+                ),
+            },
+            "resolved_gaps": _resolved_gap_rows(rerun_preview),
+            "unresolved_ontology_gap_count": _number(
+                gap_preview.get("unresolved_ontology_gap_count")
+            ),
+        },
+        "rerun_materialization": {
+            "available": rerun_materialization is not None,
+            "readiness": _readiness(rerun_materialization),
+            "summary": _record((rerun_materialization or {}).get("summary")),
+            "delta": {
+                "removed_gap_ids": _string_list(delta.get("removed_gap_ids")),
+                "unresolved_ontology_gap_ids": _string_list(
+                    delta.get("unresolved_ontology_gap_ids")
+                ),
+                "resolved_ontology_gap_count": _number(
+                    delta.get("resolved_ontology_gap_count")
+                ),
+                "unresolved_ontology_gap_count": _number(
+                    delta.get("unresolved_ontology_gap_count")
+                ),
+            },
+        },
+        "action_boundary": {
+            "inspect_only": True,
+            "acknowledge_only": True,
+            "may_apply_answers": False,
+            "may_mutate_candidate_artifacts": False,
+            "may_accept_ontology_terms": False,
+            "may_write_ontology_package": False,
+            "may_create_branch_or_commit": False,
+        },
+    }
 
 
 def _materialized_files(report: dict[str, Any] | None) -> list[dict[str, Any]]:
@@ -1313,6 +1558,20 @@ def build_idea_to_spec_workspace(
     candidate_graph = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_ARTIFACT)
     pre_sib = _artifact_data(artifacts, PRE_SIB_COHERENCE_REPORT_ARTIFACT)
     repair_loop = _artifact_data(artifacts, CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT)
+    clarification_requests = _artifact_data(
+        artifacts, IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT
+    )
+    clarification_answers = _artifact_data(
+        artifacts, IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT
+    )
+    ontology_decisions = _artifact_data(
+        artifacts, PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT
+    )
+    rerun_input = _artifact_data(artifacts, IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT)
+    rerun_preview = _artifact_data(artifacts, IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT)
+    rerun_materialization = _artifact_data(
+        artifacts, IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT
+    )
     materialization = _artifact_data(
         artifacts, CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT
     )
@@ -1360,6 +1619,14 @@ def build_idea_to_spec_workspace(
     ontology_seed = _ontology_seed(candidate_seed)
     pre_sib_findings = _findings(pre_sib)
     repair_actions = _repair_actions(repair_loop)
+    repair_review = _repair_review_lane(
+        clarification_requests=clarification_requests,
+        clarification_answers=clarification_answers,
+        ontology_decisions=ontology_decisions,
+        rerun_input=rerun_input,
+        rerun_preview=rerun_preview,
+        rerun_materialization=rerun_materialization,
+    )
     materialized_files = _materialized_files(materialization)
     promotion_gate_findings = _findings(promotion_gate)
     promotion_request = _promotion_request(promotion_gate or materialization)
@@ -1406,6 +1673,21 @@ def build_idea_to_spec_workspace(
             ],
             "pre_sib_finding_count": _finding_count(pre_sib),
             "repair_action_count": _repair_action_count(repair_loop),
+            "clarification_request_count": repair_review["clarification_requests"][
+                "request_count"
+            ],
+            "ontology_decision_count": repair_review["ontology_decisions"][
+                "decision_count"
+            ],
+            "resolved_ontology_gap_count": repair_review["rerun_preview"][
+                "candidate_quality_preview"
+            ]["resolved_ontology_gap_count"],
+            "unresolved_ontology_gap_count": repair_review["rerun_preview"][
+                "candidate_quality_preview"
+            ]["unresolved_ontology_gap_count"],
+            "rerun_removed_gap_count": len(
+                repair_review["rerun_materialization"]["delta"]["removed_gap_ids"]
+            ),
             "repair_context_required_count": _number(
                 _record((repair_loop or {}).get("summary")).get(
                     "context_required_count"
@@ -1486,6 +1768,7 @@ def build_idea_to_spec_workspace(
             ),
             "actions": repair_actions,
         },
+        "repair_review": repair_review,
         "materialization": {
             "available": materialization is not None,
             "readiness": _readiness(materialization),

@@ -18,6 +18,10 @@ describe("parseIdeaToSpecWorkspace", () => {
       "product_spec_workspace",
     );
     expect(parsed.data.summary.promotionGateBlockerCount).toBe(1);
+    expect(parsed.data.summary.clarificationRequestCount).toBe(1);
+    expect(parsed.data.summary.ontologyDecisionCount).toBe(1);
+    expect(parsed.data.summary.resolvedOntologyGapCount).toBe(1);
+    expect(parsed.data.summary.rerunRemovedGapCount).toBe(1);
     expect(parsed.data.summary.gitServiceOperationCount).toBe(3);
     expect(parsed.data.summary.approvalReady).toBe(true);
     expect(parsed.data.summary.reviewMerged).toBe(false);
@@ -39,6 +43,18 @@ describe("parseIdeaToSpecWorkspace", () => {
       "pre_sib_ontology_coverage_gap",
     );
     expect(parsed.data.repairLoop.actions[1].status).toBe("requires_context");
+    expect(parsed.data.repairReview.clarificationRequests.requests[0].kind).toBe(
+      "ontology_gap",
+    );
+    expect(parsed.data.repairReview.ontologyDecisions.decisions[0].decisionType).toBe(
+      "propose_project_local_term",
+    );
+    expect(
+      parsed.data.repairReview.rerunPreview.candidateQualityPreview.reviewState,
+    ).toBe("candidate_quality_improved");
+    expect(
+      parsed.data.repairReview.rerunMaterialization.delta.removedGapIds,
+    ).toEqual(["ontology-gap.numeric-input"]);
     expect(parsed.data.promotionGate.readiness.reviewState).toBe(
       "idea_to_spec_promotion_blocked",
     );
@@ -78,6 +94,21 @@ describe("parseIdeaToSpecWorkspace", () => {
         action_boundary: {
           ...ideaToSpecWorkspace.controlled_promotion.action_boundary,
           may_execute_git_service: true,
+        },
+      },
+    });
+
+    expect(parsed.kind).toBe("parse-error");
+  });
+
+  it("rejects repair review action expansion", () => {
+    const parsed = parseIdeaToSpecWorkspace({
+      ...ideaToSpecWorkspace,
+      repair_review: {
+        ...ideaToSpecWorkspace.repair_review,
+        action_boundary: {
+          ...ideaToSpecWorkspace.repair_review.action_boundary,
+          may_accept_ontology_terms: true,
         },
       },
     });
