@@ -3,9 +3,12 @@ import { buildIdeaToSpecIntakeDraft } from "../model/idea-to-spec-intake-draft";
 import type {
   IdeaToSpecActiveFrame,
   IdeaToSpecCandidateNode,
+  IdeaToSpecClarificationRequest,
   IdeaToSpecGitServiceOperation,
   IdeaToSpecMaterializedFile,
+  IdeaToSpecOntologyDecision,
   IdeaToSpecRepairAction,
+  IdeaToSpecResolvedOntologyGap,
   IdeaToSpecWorkflow,
   IdeaToSpecWorkspace,
   UseIdeaToSpecWorkspaceState,
@@ -85,6 +88,9 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <Metric label="Bindings" value={data.summary.ontologySeedBindingCount} />
         <Metric label="Findings" value={data.summary.preSibFindingCount} />
         <Metric label="Repairs" value={data.summary.repairActionCount} />
+        <Metric label="Requests" value={data.summary.clarificationRequestCount} />
+        <Metric label="Decisions" value={data.summary.ontologyDecisionCount} />
+        <Metric label="Resolved" value={data.summary.resolvedOntologyGapCount} />
         <Metric label="Context" value={data.summary.repairContextRequiredCount} />
         <Metric label="Specs" value={data.summary.materializedFileCount} />
         <Metric label="Promote" value={data.summary.promotionPathCount} />
@@ -150,6 +156,7 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <CandidateGraphSection nodes={data.candidateGraph.nodes} />
         <PreSibSection state={state} />
         <RepairSection actions={data.repairLoop.actions} />
+        <ProductRepairReviewSection state={state} />
         <MaterializationSection state={state} />
         <PromotionGateSection state={state} />
         <ControlledPromotionSection state={state} />
@@ -551,6 +558,146 @@ function RepairSection({
         </div>
       ))}
     </section>
+  );
+}
+
+function ProductRepairReviewSection({
+  state,
+}: {
+  state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
+}) {
+  const lane = state.data.repairReview;
+  const quality = lane.rerunPreview.candidateQualityPreview;
+  const delta = lane.rerunMaterialization.delta;
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader
+        title="Product repair review"
+        count={
+          lane.clarificationRequests.requestCount +
+          lane.ontologyDecisions.decisionCount
+        }
+      />
+      <div className={styles.postureStrip}>
+        <PostureItem
+          label="Requests"
+          value={String(lane.clarificationRequests.requestCount)}
+        />
+        <PostureItem
+          label="Answers"
+          value={String(lane.clarificationAnswers.answerCount)}
+        />
+        <PostureItem
+          label="Decisions"
+          value={String(lane.ontologyDecisions.decisionCount)}
+        />
+        <PostureItem
+          label="Quality"
+          value={compact(quality.reviewState, "not previewed")}
+        />
+        <PostureItem
+          label="Removed"
+          value={String(delta.removedGapIds.length)}
+        />
+      </div>
+      {!lane.available ? (
+        <Status
+          label="No repair review lane"
+          detail="Clarification and rerun preview artifacts are not published for this workspace."
+        />
+      ) : null}
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Ontology gap quality</span>
+          <Pill value={compact(quality.ontologyGapState, "unknown")} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta
+            label="Resolved"
+            value={String(quality.resolvedOntologyGapCount)}
+          />
+          <Meta
+            label="Unresolved"
+            value={String(quality.unresolvedOntologyGapCount)}
+          />
+          <Meta label="Removed gaps" value={joined(delta.removedGapIds)} />
+          <Meta
+            label="Still open"
+            value={joined(delta.unresolvedOntologyGapIds)}
+          />
+        </div>
+      </div>
+      {lane.clarificationRequests.requests.map((request) => (
+        <ClarificationRequestRow key={request.id} request={request} />
+      ))}
+      {lane.ontologyDecisions.decisions.map((decision) => (
+        <OntologyDecisionRow key={decision.id} decision={decision} />
+      ))}
+      {lane.rerunPreview.resolvedGaps.map((gap) => (
+        <ResolvedGapRow key={gap.gapId} gap={gap} />
+      ))}
+    </section>
+  );
+}
+
+function ClarificationRequestRow({
+  request,
+}: {
+  request: IdeaToSpecClarificationRequest;
+}) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{request.id}</span>
+        <Pill value={request.status} />
+      </div>
+      <h3 className={styles.title}>{compact(request.question, request.kind)}</h3>
+      <div className={styles.metaGrid}>
+        <Meta label="Severity" value={request.severity} />
+        <Meta label="Target" value={request.targetRef} />
+        <Meta label="Actions" value={joined(request.suggestedActions)} />
+      </div>
+    </div>
+  );
+}
+
+function OntologyDecisionRow({
+  decision,
+}: {
+  decision: IdeaToSpecOntologyDecision;
+}) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{decision.id}</span>
+        <Pill value={decision.decisionType} />
+      </div>
+      <h3 className={styles.title}>{compact(decision.term, "ontology decision")}</h3>
+      <div className={styles.metaGrid}>
+        <Meta label="Status" value={decision.status} />
+        <Meta label="Ontology ref" value={decision.ontologyRef} />
+        <Meta label="Alias of" value={decision.aliasOf} />
+        <Meta label="Target" value={decision.targetRef} />
+        <Meta label="Intent" value={decision.materializationIntent} />
+      </div>
+    </div>
+  );
+}
+
+function ResolvedGapRow({ gap }: { gap: IdeaToSpecResolvedOntologyGap }) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{gap.gapId}</span>
+        <Pill value={compact(gap.decision, "resolved")} />
+      </div>
+      <h3 className={styles.title}>{compact(gap.term, "Resolved ontology gap")}</h3>
+      <div className={styles.metaGrid}>
+        <Meta label="Node" value={gap.nodeId} />
+        <Meta label="Source" value={gap.sourceRef} />
+        <Meta label="Target" value={gap.targetRef} />
+      </div>
+    </div>
   );
 }
 
