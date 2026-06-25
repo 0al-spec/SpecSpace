@@ -666,6 +666,22 @@ def _repair_session_journal() -> dict:
     }
 
 
+def _promotion_ready_repair_session_journal() -> dict:
+    journal = _repair_session_journal()
+    journal["readiness_impact"] = {
+        **journal["readiness_impact"],
+        "ready_for_candidate_approval": True,
+        "ready_for_platform_promotion": True,
+        "blocked_by": [],
+        "platform_promotion_blocked_by": [],
+    }
+    journal["summary"] = {
+        **journal["summary"],
+        "ready_for_candidate_approval": True,
+    }
+    return journal
+
+
 def _materialization() -> dict:
     return {
         "artifact_kind": "candidate_spec_materialization_report",
@@ -1213,6 +1229,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(
             body["repair_review"]["action_boundary"]["may_accept_ontology_terms"]
         )
+        self.assertFalse(
+            body["repair_review"]["action_boundary"]["may_apply_decisions"]
+        )
         self.assertEqual(
             body["materialization"]["readiness"]["review_state"],
             "materialized_candidate_review_ready",
@@ -1299,6 +1318,47 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             ],
             ["ontology-gap.numeric-input"],
         )
+
+    def test_repair_review_counts_journal_decisions_without_legacy_artifact(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertFalse(body["repair_review"]["ontology_decisions"]["available"])
+        self.assertEqual(
+            body["repair_review"]["ontology_decisions"]["decision_count"],
+            1,
+        )
+        self.assertEqual(body["summary"]["ontology_decision_count"], 1)
+        self.assertEqual(
+            body["repair_review"]["ontology_decisions"]["decisions"][0][
+                "decision_type"
+            ],
+            "propose_project_local_term",
+        )
+
+    def test_repair_session_stage_index_rejects_boolean_values(self) -> None:
+        artifacts = _workspace_artifacts()
+        repair_session = _repair_session_journal()
+        repair_session["workflow_journal"]["stages"][0]["index"] = True
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            repair_session
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertIsNone(body["repair_session"]["stages"][0]["index"])
 
     def test_summary_counts_raw_items_before_display_limits(self) -> None:
         artifacts = _workspace_artifacts()
@@ -1423,6 +1483,36 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(body["repair_session"]["available"])
         self.assertEqual(body["repair_session"]["source_mode"], "legacy_artifacts")
         self.assertEqual(body["summary"]["resolved_ontology_gap_count"], 1)
+
+    def test_build_workspace_rejects_write_capable_repair_session_action_boundary(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        repair_session = _repair_session_journal()
+        repair_session["action_boundary"] = {
+            "inspect_only": True,
+            "acknowledge_only": True,
+            "may_apply_answers": False,
+            "may_apply_decisions": False,
+            "may_mutate_candidate_artifacts": False,
+            "may_accept_ontology_terms": False,
+            "may_write_ontology_package": False,
+            "may_create_branch_or_commit": True,
+        }
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            repair_session
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["artifacts"]["repair_session"]["reason"],
+            "invalid_artifact_contract",
+        )
+        self.assertFalse(body["repair_session"]["available"])
 
     def test_build_workspace_degrades_when_artifacts_are_missing(self) -> None:
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
@@ -1622,6 +1712,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts[
             idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
         ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
         artifacts[
             idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT
         ] = promotion_request
@@ -1659,6 +1752,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts[
             idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
         ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
         artifacts[
             idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
         ] = execution
@@ -1695,6 +1791,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts[
             idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
         ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
         artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
         artifacts.pop(idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT)
         artifacts.pop(idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT)
@@ -1746,6 +1845,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts[
             idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
         ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
         artifacts[
             idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT
         ] = approval
@@ -1762,6 +1864,42 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertFalse(
             body["controlled_promotion"]["candidate_approval"]["ready"]
+        )
+
+    def test_workflow_blocks_stale_promotion_when_repair_session_not_ready(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "repair_session_review_required")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["artifact_key"],
+            "repair_session",
+        )
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "operator_repair_review",
         )
 
     def test_workflow_waits_for_review_merge_before_read_model_publish(self) -> None:
@@ -1784,6 +1922,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts[
             idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
         ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
         artifacts[
             idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
         ] = execution
@@ -1819,6 +1960,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts[
             idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
         ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
         artifacts[
             idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
         ] = execution
@@ -1861,6 +2005,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts[
             idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
         ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
         artifacts[
             idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
         ] = execution

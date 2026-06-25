@@ -159,6 +159,7 @@ DISPLAY_LIMITS = {
     "ontology_bindings": 20,
     "ontology_gaps": 40,
     "clarification_requests": 40,
+    "accepted_answers": 40,
     "ontology_decisions": 40,
     "resolved_gaps": 40,
     "materialized_files": 40,
@@ -254,6 +255,33 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "repair session privacy boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        action_boundary = _record(value.get("action_boundary"))
+        unsafe_action_flags = {
+            "may_apply_answers",
+            "may_apply_decisions",
+            "may_mutate_candidate_artifacts",
+            "may_accept_ontology_terms",
+            "may_write_ontology_package",
+            "may_create_branch_or_commit",
+        }
+        if any(action_boundary.get(flag) is True for flag in unsafe_action_flags):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "repair session action boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if (
+            action_boundary
+            and (
+                action_boundary.get("inspect_only") is not True
+                or action_boundary.get("acknowledge_only") is not True
+            )
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "repair session action boundary must be inspect-only.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         if value.get("canonical_mutations_allowed") is not False:
@@ -693,7 +721,7 @@ def _accepted_answer_rows(
             if _text(answer.get("status")) == "accepted_for_candidate"
         ]
     rows = []
-    for item in source[: DISPLAY_LIMITS["clarification_requests"]]:
+    for item in source[: DISPLAY_LIMITS["accepted_answers"]]:
         request_id = _text(item.get("request_id"))
         if not request_id:
             continue
@@ -757,10 +785,16 @@ def _repair_session_stage_rows(
         stage = _text(item.get("stage"))
         if not stage:
             continue
+        stage_index = item.get("index")
         rows.append(
             {
                 "stage": stage,
-                "index": item.get("index") if isinstance(item.get("index"), int) else None,
+                "index": (
+                    stage_index
+                    if isinstance(stage_index, int)
+                    and not isinstance(stage_index, bool)
+                    else None
+                ),
                 "artifact_kind": _optional_text(item.get("artifact_kind")),
                 "source_ref": _optional_text(item.get("source_ref")),
                 "ready": item.get("ready") is True,
@@ -1035,7 +1069,7 @@ def _repair_review_lane(
             "readiness": _readiness(ontology_decisions),
             "summary": _record((ontology_decisions or {}).get("summary")),
             "decisions": decisions,
-            "decision_count": len(_records((ontology_decisions or {}).get("decisions"))),
+            "decision_count": len(decisions),
         },
         "rerun_input": {
             "available": rerun_input is not None,
@@ -1104,6 +1138,7 @@ def _repair_review_lane(
             "inspect_only": True,
             "acknowledge_only": True,
             "may_apply_answers": False,
+            "may_apply_decisions": False,
             "may_mutate_candidate_artifacts": False,
             "may_accept_ontology_terms": False,
             "may_write_ontology_package": False,
@@ -1338,6 +1373,7 @@ def _workflow(
     candidate_graph: dict[str, Any] | None,
     pre_sib: dict[str, Any] | None,
     repair_loop: dict[str, Any] | None,
+    repair_session: dict[str, Any] | None,
     materialization: dict[str, Any] | None,
     promotion_gate: dict[str, Any] | None,
     candidate_approval: dict[str, Any] | None,
@@ -1349,6 +1385,8 @@ def _workflow(
 ) -> dict[str, Any]:
     pre_sib_readiness = _readiness(pre_sib)
     repair_readiness = _readiness(repair_loop)
+    repair_session_view = _repair_session(repair_session)
+    repair_session_impact = repair_session_view["readiness_impact"]
     materialization_readiness = _readiness(materialization)
     promotion_readiness = _readiness(promotion_gate)
     candidate_readiness = _record((candidate_graph or {}).get("pre_sib_readiness"))
@@ -1383,6 +1421,15 @@ def _workflow(
     platform_failed = platform_promotion is not None and not platform_ok
     git_service_failed = git_service_execution is not None and not git_ok
     approval_failed = candidate_approval is not None and not approval_ready
+    journal_blocks_candidate_approval = (
+        repair_session is not None
+        and repair_session_impact["ready_for_candidate_approval"] is not True
+    )
+    journal_blocks_platform_promotion = (
+        repair_session is not None
+        and candidate_approval is not None
+        and repair_session_impact["ready_for_platform_promotion"] is not True
+    )
     review_status_summary = _record((review_status or {}).get("summary"))
     review_merged = (
         (review_status or {}).get("review_state") == "merged"
@@ -1636,6 +1683,18 @@ def _workflow(
             "command_template": None,
             "authority_boundary": "operator_only",
         }
+    elif journal_blocks_candidate_approval:
+        stage = "repair_session_review_required"
+        status = "blocked"
+        next_handoff = {
+            "kind": "operator_repair_review",
+            "label": "Resolve repair session blockers before candidate approval",
+            "status": "blocked",
+            "artifact_key": "repair_session",
+            "artifact_path": f"runs/{IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
     elif platform_failed:
         stage = "promotion_request_failed"
         status = "blocked"
@@ -1675,6 +1734,18 @@ def _workflow(
             "status": "blocked",
             "artifact_key": "candidate_approval",
             "artifact_path": f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}",
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
+    elif journal_blocks_platform_promotion:
+        stage = "repair_session_review_required"
+        status = "blocked"
+        next_handoff = {
+            "kind": "operator_repair_review",
+            "label": "Resolve repair session blockers before Platform promotion",
+            "status": "blocked",
+            "artifact_key": "repair_session",
+            "artifact_path": f"runs/{IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
             "command_template": None,
             "authority_boundary": "operator_only",
         }
@@ -1915,6 +1986,15 @@ def build_idea_to_spec_workspace(
     pre_sib_findings = _findings(pre_sib)
     repair_actions = _repair_actions(repair_loop)
     repair_session = _repair_session(repair_session_journal)
+    if (
+        status != "partial"
+        and repair_session_journal is not None
+        and (
+            not repair_session["readiness_impact"]["ready_for_candidate_approval"]
+            or not repair_session["readiness_impact"]["ready_for_platform_promotion"]
+        )
+    ):
+        status = "blocked"
     repair_review = _repair_review_lane(
         repair_session=repair_session_journal,
         clarification_requests=clarification_requests,
@@ -1936,6 +2016,7 @@ def build_idea_to_spec_workspace(
         candidate_graph=candidate_graph,
         pre_sib=pre_sib,
         repair_loop=repair_loop,
+        repair_session=repair_session_journal,
         materialization=materialization,
         promotion_gate=promotion_gate,
         candidate_approval=candidate_approval,

@@ -899,7 +899,6 @@ function parseRepairSession(
   const sessionRoot = recordValue(raw);
   const session = recordValue(sessionRoot.session);
   const readinessImpact = recordValue(sessionRoot.readiness_impact);
-  const actionBoundary = recordValue(sessionRoot.action_boundary);
   return {
     available: sessionRoot.available === true,
     sourceMode: stringValue(sessionRoot.source_mode, "legacy_artifacts"),
@@ -987,17 +986,12 @@ function parseRepairSession(
     actionBoundary: {
       inspectOnly: true,
       acknowledgeOnly: true,
-      mayApplyAnswers: actionBoundary.may_apply_answers === false ? false : false,
-      mayApplyDecisions:
-        actionBoundary.may_apply_decisions === false ? false : false,
-      mayMutateCandidateArtifacts:
-        actionBoundary.may_mutate_candidate_artifacts === false ? false : false,
-      mayAcceptOntologyTerms:
-        actionBoundary.may_accept_ontology_terms === false ? false : false,
-      mayWriteOntologyPackage:
-        actionBoundary.may_write_ontology_package === false ? false : false,
-      mayCreateBranchOrCommit:
-        actionBoundary.may_create_branch_or_commit === false ? false : false,
+      mayApplyAnswers: false,
+      mayApplyDecisions: false,
+      mayMutateCandidateArtifacts: false,
+      mayAcceptOntologyTerms: false,
+      mayWriteOntologyPackage: false,
+      mayCreateBranchOrCommit: false,
     },
   };
 }
@@ -1386,26 +1380,29 @@ export function parseIdeaToSpecWorkspace(
   const ontologySeed = recordValue(raw.ontology_seed);
   const preSib = recordValue(raw.pre_sib);
   const repairLoop = recordValue(raw.repair_loop);
+  const hasRepairSession = isRecord(raw.repair_session);
   const repairSession = recordValue(raw.repair_session);
-  const repairSessionBoundary = recordValue(repairSession.action_boundary);
-  const repairSessionFalseFlags = [
-    "may_apply_answers",
-    "may_apply_decisions",
-    "may_mutate_candidate_artifacts",
-    "may_accept_ontology_terms",
-    "may_write_ontology_package",
-    "may_create_branch_or_commit",
-  ];
-  for (const flag of repairSessionFalseFlags) {
-    if (repairSessionBoundary[flag] !== false) {
-      return { kind: "parse-error", reason: `repair session boundary expanded: ${flag}`, raw };
+  if (hasRepairSession) {
+    const repairSessionBoundary = recordValue(repairSession.action_boundary);
+    const repairSessionFalseFlags = [
+      "may_apply_answers",
+      "may_apply_decisions",
+      "may_mutate_candidate_artifacts",
+      "may_accept_ontology_terms",
+      "may_write_ontology_package",
+      "may_create_branch_or_commit",
+    ];
+    for (const flag of repairSessionFalseFlags) {
+      if (repairSessionBoundary[flag] !== false) {
+        return { kind: "parse-error", reason: `repair session boundary expanded: ${flag}`, raw };
+      }
     }
-  }
-  if (
-    repairSessionBoundary.inspect_only !== true ||
-    repairSessionBoundary.acknowledge_only !== true
-  ) {
-    return { kind: "parse-error", reason: "repair session boundary must be inspect-only", raw };
+    if (
+      repairSessionBoundary.inspect_only !== true ||
+      repairSessionBoundary.acknowledge_only !== true
+    ) {
+      return { kind: "parse-error", reason: "repair session boundary must be inspect-only", raw };
+    }
   }
   const repairReview = recordValue(raw.repair_review);
   const repairReviewBoundary = recordValue(repairReview.action_boundary);

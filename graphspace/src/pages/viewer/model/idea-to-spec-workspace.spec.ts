@@ -136,6 +136,17 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.kind).toBe("parse-error");
   });
 
+  it("parses legacy responses without a repair session surface", () => {
+    const legacyWorkspace: Record<string, unknown> = { ...ideaToSpecWorkspace };
+    delete legacyWorkspace.repair_session;
+    const parsed = parseIdeaToSpecWorkspace(legacyWorkspace);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.repairSession.available).toBe(false);
+    expect(parsed.data.repairSession.sourceMode).toBe("legacy_artifacts");
+  });
+
   it("rejects repair review action expansion", () => {
     const parsed = parseIdeaToSpecWorkspace({
       ...ideaToSpecWorkspace,
