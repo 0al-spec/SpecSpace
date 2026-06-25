@@ -82,8 +82,12 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Read-model publication");
     expect(html).toContain("published-read-model/artifact_manifest.json");
     expect(html).toContain("review status");
+    expect(html).toContain("Repair drafts loading");
+    expect(html).toContain("Save draft");
     expect(html).toContain("Spec mutations");
     expect(html).toContain("false");
-    expect(html).not.toContain("<button");
+    expect(html).not.toContain("Apply to SpecGraph");
+    expect(html).not.toContain("Accept ontology term");
+    expect(html).not.toContain("Create branch");
   });
 });

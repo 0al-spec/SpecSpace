@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { buildIdeaToSpecIntakeDraft } from "../model/idea-to-spec-intake-draft";
 import type {
   IdeaToSpecActiveFrame,
@@ -16,11 +16,19 @@ import type {
   IdeaToSpecWorkspace,
   UseIdeaToSpecWorkspaceState,
 } from "../model/use-idea-to-spec-workspace";
+import {
+  useIdeaToSpecRepairDrafts,
+  type IdeaToSpecRepairDraft,
+  type IdeaToSpecRepairDraftInput,
+  type IdeaToSpecRepairDraftSaveError,
+  type UseIdeaToSpecRepairDraftsState,
+} from "../model/use-idea-to-spec-repair-drafts";
 import { describeHttpErrorDetail } from "../model/live-artifacts";
 import styles from "./OntologySemanticReviewPanel.module.css";
 
 type Props = {
   state: UseIdeaToSpecWorkspaceState;
+  repairDraftsUrl?: string;
 };
 
 function errorDetail(
@@ -56,7 +64,12 @@ function metricValue(value: unknown): string {
   return "n/a";
 }
 
-export function IdeaToSpecWorkspacePanel({ state }: Props) {
+export function IdeaToSpecWorkspacePanel({ state, repairDraftsUrl }: Props) {
+  const repairDrafts = useIdeaToSpecRepairDrafts({
+    url: repairDraftsUrl,
+    enabled: state.kind === "ok",
+  });
+
   if (state.kind === "idle" || state.kind === "loading") {
     return (
       <section className={styles.panel} aria-label="Idea-to-spec workspace">
@@ -160,7 +173,11 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <PreSibSection state={state} />
         <RepairSection actions={data.repairLoop.actions} />
         <RepairSessionSection state={state} />
-        <ProductRepairReviewSection state={state} />
+        <ProductRepairReviewSection
+          state={state}
+          repairDrafts={repairDrafts}
+          workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+        />
         <MaterializationSection state={state} />
         <PromotionGateSection state={state} />
         <ControlledPromotionSection state={state} />
@@ -730,19 +747,28 @@ function AcceptedAnswerRow({
 
 function ProductRepairReviewSection({
   state,
+  repairDrafts,
+  workspaceId,
 }: {
   state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
+  repairDrafts: ReturnType<typeof useIdeaToSpecRepairDrafts>;
+  workspaceId: string | null;
 }) {
   const lane = state.data.repairReview;
   const quality = lane.rerunPreview.candidateQualityPreview;
   const delta = lane.rerunMaterialization.delta;
+  const draftCount =
+    repairDrafts.state.kind === "ok"
+      ? repairDrafts.state.data.summary.draftCount
+      : 0;
   return (
     <section className={styles.reviewSection}>
       <SectionHeader
         title="Product repair review"
         count={
           lane.clarificationRequests.requestCount +
-          lane.ontologyDecisions.decisionCount
+          lane.ontologyDecisions.decisionCount +
+          draftCount
         }
       />
       <div className={styles.postureStrip}>
@@ -758,6 +784,7 @@ function ProductRepairReviewSection({
           label="Decisions"
           value={String(lane.ontologyDecisions.decisionCount)}
         />
+        <PostureItem label="Drafts" value={String(draftCount)} />
         <PostureItem
           label="Quality"
           value={compact(quality.reviewState, "not previewed")}
@@ -773,6 +800,7 @@ function ProductRepairReviewSection({
           detail="Clarification and rerun preview artifacts are not published for this workspace."
         />
       ) : null}
+      <RepairDraftStatus state={repairDrafts.state} />
       <div className={styles.row}>
         <div className={styles.rowHeader}>
           <span className={styles.rowId}>Ontology gap quality</span>
@@ -795,7 +823,24 @@ function ProductRepairReviewSection({
         </div>
       </div>
       {lane.clarificationRequests.requests.map((request) => (
-        <ClarificationRequestRow key={request.id} request={request} />
+        <ClarificationRequestRow
+          key={request.id}
+          request={request}
+          draft={repairDrafts.draftsByRequestId.get(request.id)}
+          pending={repairDrafts.pendingRequestId === request.id}
+          saveError={
+            repairDrafts.saveError?.requestId === request.id
+              ? repairDrafts.saveError
+              : null
+          }
+          onSave={(input) =>
+            repairDrafts.saveDraft({
+              ...input,
+              workspaceId,
+              operatorRef: "operator://specspace-local",
+            })
+          }
+        />
       ))}
       {lane.ontologyDecisions.decisions.map((decision) => (
         <OntologyDecisionRow key={decision.id} decision={decision} />
@@ -807,11 +852,75 @@ function ProductRepairReviewSection({
   );
 }
 
+function RepairDraftStatus({
+  state,
+}: {
+  state: UseIdeaToSpecRepairDraftsState;
+}) {
+  if (state.kind === "idle" || state.kind === "loading") {
+    return (
+      <Status
+        label="Repair drafts loading"
+        detail="Reading SpecSpace-owned repair draft state."
+      />
+    );
+  }
+  if (state.kind === "ok") {
+    return (
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>SpecSpace repair drafts</span>
+          <Pill value={state.data.summary.status} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Drafts" value={String(state.data.summary.draftCount)} />
+          <Meta label="State owner" value={state.data.stateOwner} />
+          <Meta
+            label="SpecGraph authority"
+            value={boolText(state.data.authorityBoundary.specgraphArtifactAuthority)}
+          />
+          <Meta
+            label="Ontology writes"
+            value={boolText(state.data.consumerBoundary.mayWriteOntologyPackage)}
+          />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <Status
+      label="Repair drafts unavailable"
+      detail={repairDraftStateDetail(state)}
+    />
+  );
+}
+
 function ClarificationRequestRow({
   request,
+  draft,
+  pending,
+  saveError,
+  onSave,
 }: {
   request: IdeaToSpecClarificationRequest;
+  draft: IdeaToSpecRepairDraft | undefined;
+  pending: boolean;
+  saveError: IdeaToSpecRepairDraftSaveError | null;
+  onSave: (input: IdeaToSpecRepairDraftInput) => void;
 }) {
+  const defaultAction = request.suggestedActions[0] ?? "";
+  const [selectedAction, setSelectedAction] = useState(
+    () => draft?.allowedAction ?? defaultAction,
+  );
+  const [draftText, setDraftText] = useState(() => repairDraftText(draft) ?? "");
+
+  useEffect(() => {
+    setSelectedAction(draft?.allowedAction ?? defaultAction);
+    setDraftText(repairDraftText(draft) ?? "");
+  }, [defaultAction, draft]);
+
+  const answerValue = answerValueForDraftAction(selectedAction, draftText);
+  const canSave = !!selectedAction && draftText.trim().length > 0 && !pending;
   return (
     <div className={styles.row}>
       <div className={styles.rowHeader}>
@@ -824,8 +933,115 @@ function ClarificationRequestRow({
         <Meta label="Target" value={request.targetRef} />
         <Meta label="Actions" value={joined(request.suggestedActions)} />
       </div>
+      <form
+        className={styles.draftForm}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!canSave) return;
+          onSave({
+            requestId: request.id,
+            action: selectedAction,
+            answerValue,
+            targetRef: request.targetRef,
+          });
+        }}
+      >
+        <div className={styles.draftControls}>
+          <select
+            className={styles.draftSelect}
+            value={selectedAction}
+            onChange={(event) => setSelectedAction(event.currentTarget.value)}
+            aria-label="Repair draft action"
+          >
+            {request.suggestedActions.map((action) => (
+              <option key={action} value={action}>
+                {action.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+          <button className={styles.ackButton} type="submit" disabled={!canSave}>
+            {pending ? "Saving" : draft ? "Update draft" : "Save draft"}
+          </button>
+        </div>
+        <textarea
+          className={styles.draftTextarea}
+          value={draftText}
+          onChange={(event) => setDraftText(event.currentTarget.value)}
+          placeholder={draftPlaceholder(selectedAction)}
+          rows={3}
+          aria-label="Repair draft value"
+        />
+        {draft ? (
+          <span className={styles.statusDetail}>
+            Draft saved · {draft.allowedAction.replace(/_/g, " ")} · {draft.updatedAt}
+          </span>
+        ) : null}
+        {saveError ? (
+          <span className={styles.statusDetail}>
+            Draft save failed · {repairDraftSaveErrorText(saveError)}
+          </span>
+        ) : null}
+      </form>
     </div>
   );
+}
+
+function repairDraftStateDetail(
+  state: Exclude<UseIdeaToSpecRepairDraftsState, { kind: "ok" | "idle" | "loading" }>,
+): string {
+  if (state.kind === "http-error") {
+    return `HTTP ${state.status}: ${state.statusText}`;
+  }
+  if (state.kind === "network-error") {
+    return "SpecSpace repair draft endpoint is unreachable from the browser.";
+  }
+  return state.message;
+}
+
+function answerValueForDraftAction(
+  action: string,
+  text: string,
+): Record<string, unknown> {
+  const value = text.trim();
+  if (action === "bind_existing_term") return { ontology_ref: value };
+  if (action === "alias") return { alias_of: value };
+  if (action === "propose_project_local_term") {
+    return {
+      terms: value
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      term_scope: "project_local",
+    };
+  }
+  if (action === "reject" || action === "defer") return { reason: value };
+  return { text: value };
+}
+
+function repairDraftText(draft: IdeaToSpecRepairDraft | undefined): string | null {
+  if (!draft) return null;
+  const value = draft.answerValue;
+  if (typeof value.ontology_ref === "string") return value.ontology_ref;
+  if (typeof value.alias_of === "string") return value.alias_of;
+  if (typeof value.reason === "string") return value.reason;
+  if (Array.isArray(value.terms)) {
+    return value.terms.filter((item): item is string => typeof item === "string").join(", ");
+  }
+  if (typeof value.text === "string") return value.text;
+  return null;
+}
+
+function draftPlaceholder(action: string): string {
+  if (action === "bind_existing_term") return "ontology://...";
+  if (action === "alias") return "accepted term";
+  if (action === "propose_project_local_term") return "Project-local term";
+  if (action === "reject" || action === "defer") return "Reason";
+  return "Draft answer";
+}
+
+function repairDraftSaveErrorText(error: IdeaToSpecRepairDraftSaveError): string {
+  if (error.kind === "http-error") return `HTTP ${error.status}: ${error.statusText}`;
+  return "network error";
 }
 
 function OntologyDecisionRow({

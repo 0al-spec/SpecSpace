@@ -6,7 +6,13 @@ from http import HTTPStatus
 from typing import Any, Protocol
 from urllib.parse import unquote
 
-from viewer import agent_workbench, ontology_acknowledgements, spec_compile, specspace_provider
+from viewer import (
+    agent_workbench,
+    idea_to_spec_repair_drafts,
+    ontology_acknowledgements,
+    spec_compile,
+    specspace_provider,
+)
 from viewer.http_response import JsonResponseHandler, json_response
 from viewer.request_query import query_params, query_value
 
@@ -410,6 +416,61 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
     if status == HTTPStatus.OK and workspace_id is not None:
         payload["selected_workspace_id"] = workspace_id
     json_response(handler, status, payload)
+
+
+def handle_v1_idea_to_spec_repair_drafts(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    workspace_id = _query_workspace_id(parsed)
+    status, payload = idea_to_spec_repair_drafts.read_state(
+        handler.server,
+        workspace_id=workspace_id,
+    )
+    json_response(handler, status, payload)
+
+
+def handle_v1_idea_to_spec_repair_draft_post(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    query_workspace_id = _query_workspace_id(parsed)
+    payload_workspace_id = specspace_provider.normalize_workspace_id(
+        payload.get("workspace_id")
+        if isinstance(payload.get("workspace_id"), str)
+        else None
+    )
+    if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
+        json_response(
+            handler,
+            HTTPStatus.CONFLICT,
+            {
+                "error": "Repair draft workspace_id does not match selected workspace.",
+                "expected": query_workspace_id,
+                "actual": payload_workspace_id,
+            },
+        )
+        return
+    workspace_id = query_workspace_id or payload_workspace_id
+    workspace_status, workspace_payload = (
+        _provider(handler, workspace_id).read_idea_to_spec_workspace()
+    )
+    if workspace_status != HTTPStatus.OK:
+        json_response(
+            handler,
+            workspace_status,
+            {
+                "error": "Cannot save repair draft without readable idea-to-spec workspace.",
+                "reason": "source_workspace_unavailable",
+                "source_status": int(workspace_status),
+                "source": workspace_payload,
+            },
+        )
+        return
+    status, response = idea_to_spec_repair_drafts.save_repair_draft(
+        handler.server,
+        payload,
+        workspace_payload,
+        workspace_id=workspace_id,
+    )
+    json_response(handler, status, response)
 
 
 def handle_v1_metrics(handler: SpecSpaceV1Handler, parsed: Any) -> None:
