@@ -26,6 +26,7 @@ IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT = "idea_to_spec_rerun_preview.json"
 IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT = (
     "idea_to_spec_rerun_materialization.json"
 )
+IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT = "idea_to_spec_repair_session.json"
 CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT = (
     "candidate_spec_materialization_report.json"
 )
@@ -61,6 +62,7 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT,
     IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT,
     IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT,
+    IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
 )
 PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
     CANDIDATE_APPROVAL_DECISION_ARTIFACT,
@@ -92,6 +94,7 @@ ARTIFACT_KEYS: dict[str, str] = {
     IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT: "rerun_input",
     IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT: "rerun_preview",
     IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT: "rerun_materialization",
+    IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT: "repair_session",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
@@ -123,6 +126,7 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT: (
         "idea_to_spec_rerun_materialization"
     ),
+    IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT: "idea_to_spec_repair_session_journal",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_spec_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib_coherence_report",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "candidate_repair_loop_report",
@@ -155,6 +159,7 @@ DISPLAY_LIMITS = {
     "ontology_bindings": 20,
     "ontology_gaps": 40,
     "clarification_requests": 40,
+    "accepted_answers": 40,
     "ontology_decisions": 40,
     "resolved_gaps": 40,
     "materialized_files": 40,
@@ -231,6 +236,64 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "canonical_mutations_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "repair session authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        privacy_boundary = _record(value.get("privacy_boundary"))
+        if any(
+            key.startswith("raw_") and key.endswith("_published") and flag is True
+            for key, flag in privacy_boundary.items()
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "repair session privacy boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        action_boundary = _record(value.get("action_boundary"))
+        unsafe_action_flags = {
+            "may_apply_answers",
+            "may_apply_decisions",
+            "may_mutate_candidate_artifacts",
+            "may_accept_ontology_terms",
+            "may_write_ontology_package",
+            "may_create_branch_or_commit",
+        }
+        if any(action_boundary.get(flag) is True for flag in unsafe_action_flags):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "repair session action boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if (
+            action_boundary
+            and (
+                action_boundary.get("inspect_only") is not True
+                or action_boundary.get("acknowledge_only") is not True
+            )
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "repair session action boundary must be inspect-only.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_mutations_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must be false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
@@ -644,6 +707,49 @@ def _clarification_answer_count(report: dict[str, Any] | None) -> int:
     return len(_records((report or {}).get("answers")))
 
 
+def _accepted_answer_rows(
+    *,
+    repair_session: dict[str, Any] | None,
+    clarification_answers: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    workflow_journal = _record((repair_session or {}).get("workflow_journal"))
+    source = _records(workflow_journal.get("accepted_answers"))
+    if not source:
+        source = [
+            answer
+            for answer in _records((clarification_answers or {}).get("answers"))
+            if _text(answer.get("status")) == "accepted_for_candidate"
+        ]
+    rows = []
+    for item in source[: DISPLAY_LIMITS["accepted_answers"]]:
+        request_id = _text(item.get("request_id"))
+        if not request_id:
+            continue
+        value = _record(item.get("value"))
+        rows.append(
+            {
+                "request_id": request_id,
+                "answer_kind": _text(item.get("answer_kind"), "answer"),
+                "status": _text(item.get("status"), "accepted_for_candidate"),
+                "request_kind": _optional_text(
+                    item.get("request_kind")
+                    or _record(item.get("request_snapshot")).get("kind")
+                ),
+                "target_artifact": _optional_text(
+                    item.get("target_artifact")
+                    or _record(item.get("request_snapshot")).get("target_artifact")
+                ),
+                "target_ref": _optional_text(
+                    item.get("target_ref")
+                    or _record(item.get("request_snapshot")).get("target_ref")
+                ),
+                "terms": _string_list(value.get("terms")),
+                "term_scope": _optional_text(value.get("term_scope")),
+            }
+        )
+    return rows
+
+
 def _ontology_decision_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
     rows = []
     for item in _records((report or {}).get("decisions"))[
@@ -668,6 +774,179 @@ def _ontology_decision_rows(report: dict[str, Any] | None) -> list[dict[str, Any
             }
         )
     return rows
+
+
+def _repair_session_stage_rows(
+    repair_session: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    workflow_journal = _record((repair_session or {}).get("workflow_journal"))
+    rows = []
+    for item in _records(workflow_journal.get("stages")):
+        stage = _text(item.get("stage"))
+        if not stage:
+            continue
+        stage_index = item.get("index")
+        rows.append(
+            {
+                "stage": stage,
+                "index": (
+                    stage_index
+                    if isinstance(stage_index, int)
+                    and not isinstance(stage_index, bool)
+                    else None
+                ),
+                "artifact_kind": _optional_text(item.get("artifact_kind")),
+                "source_ref": _optional_text(item.get("source_ref")),
+                "ready": item.get("ready") is True,
+                "review_state": _optional_text(item.get("review_state")),
+                "status": _optional_text(item.get("status")),
+                "blocked_by": _string_list(item.get("blocked_by")),
+                "next_artifact": _optional_text(item.get("next_artifact")),
+            }
+        )
+    return rows
+
+
+def _repair_session_open_blockers(
+    repair_session: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    readiness_impact = _record((repair_session or {}).get("readiness_impact"))
+    rows = [
+        {"kind": "repair_session", "id": blocker}
+        for blocker in _string_list(readiness_impact.get("blocked_by"))
+    ]
+    rows.extend(
+        {"kind": "platform_promotion", "id": blocker}
+        for blocker in _string_list(readiness_impact.get("platform_promotion_blocked_by"))
+    )
+    seen = set()
+    unique_rows = []
+    for row in rows:
+        key = (row["kind"], row["id"])
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_rows.append(row)
+    return unique_rows
+
+
+def _repair_session(
+    repair_session: dict[str, Any] | None,
+) -> dict[str, Any]:
+    summary = _record((repair_session or {}).get("summary"))
+    session = _record((repair_session or {}).get("session"))
+    readiness_impact = _record((repair_session or {}).get("readiness_impact"))
+    workflow_journal = _record((repair_session or {}).get("workflow_journal"))
+    rerun_overlay_refs = _record(workflow_journal.get("rerun_overlay_refs"))
+    preview_refs = _record(workflow_journal.get("preview_refs"))
+    return {
+        "available": repair_session is not None,
+        "source_mode": "journal" if repair_session is not None else "legacy_artifacts",
+        "readiness": _readiness(repair_session),
+        "summary": summary,
+        "session": {
+            "session_id": _optional_text(session.get("session_id")),
+            "candidate_id": _optional_text(session.get("candidate_id")),
+            "workflow_lane": _optional_text(session.get("workflow_lane")),
+            "workspace_route": _optional_text(session.get("workspace_route")),
+            "target_repository_role": _optional_text(
+                session.get("target_repository_role")
+            ),
+            "governance_profile": _optional_text(session.get("governance_profile")),
+            "operator_ref": _optional_text(session.get("operator_ref")),
+        },
+        "readiness_impact": {
+            "ready_for_candidate_approval": readiness_impact.get(
+                "ready_for_candidate_approval"
+            )
+            is True
+            or summary.get("ready_for_candidate_approval") is True,
+            "ready_for_platform_promotion": readiness_impact.get(
+                "ready_for_platform_promotion"
+            )
+            is True,
+            "intermediate_artifacts_ready": readiness_impact.get(
+                "intermediate_artifacts_ready"
+            )
+            is True,
+            "candidate_quality_review_state": _optional_text(
+                readiness_impact.get("candidate_quality_review_state")
+            ),
+            "promotion_gate_review_state": _optional_text(
+                readiness_impact.get("promotion_gate_review_state")
+            ),
+            "active_candidate_review_state": _optional_text(
+                readiness_impact.get("active_candidate_review_state")
+            ),
+            "resolved_ontology_gap_count": _number(
+                readiness_impact.get("resolved_ontology_gap_count")
+                if "resolved_ontology_gap_count" in readiness_impact
+                else summary.get("resolved_ontology_gap_count")
+            ),
+            "unresolved_ontology_gap_count": _number(
+                readiness_impact.get("unresolved_ontology_gap_count")
+                if "unresolved_ontology_gap_count" in readiness_impact
+                else summary.get("unresolved_ontology_gap_count")
+            ),
+            "rerun_removed_gap_count": _number(
+                readiness_impact.get("rerun_removed_gap_count")
+            ),
+            "clarification_request_count": _number(
+                readiness_impact.get("clarification_request_count")
+                if "clarification_request_count" in readiness_impact
+                else summary.get("clarification_request_count")
+            ),
+            "accepted_answer_count": _number(
+                readiness_impact.get("accepted_answer_count")
+                if "accepted_answer_count" in readiness_impact
+                else summary.get("accepted_answer_count")
+            ),
+            "ontology_decision_count": _number(
+                readiness_impact.get("ontology_decision_count")
+                if "ontology_decision_count" in readiness_impact
+                else summary.get("ontology_decision_count")
+            ),
+            "promotion_path_count": _number(
+                readiness_impact.get("promotion_path_count")
+            ),
+            "blocked_by": _string_list(readiness_impact.get("blocked_by")),
+            "platform_promotion_blocked_by": _string_list(
+                readiness_impact.get("platform_promotion_blocked_by")
+            ),
+        },
+        "stages": _repair_session_stage_rows(repair_session),
+        "open_blockers": _repair_session_open_blockers(repair_session),
+        "accepted_answers": _accepted_answer_rows(
+            repair_session=repair_session,
+            clarification_answers=None,
+        ),
+        "ontology_decisions": _ontology_decision_rows(
+            {"decisions": _records(workflow_journal.get("ontology_decisions"))}
+        ),
+        "rerun_overlay": {
+            "source_ref": _optional_text(rerun_overlay_refs.get("source_ref")),
+            "summary": _record(rerun_overlay_refs.get("summary")),
+        },
+        "preview_refs": {
+            "rerun_preview": _record(preview_refs.get("rerun_preview")),
+            "rerun_materialization": _record(
+                preview_refs.get("rerun_materialization")
+            ),
+        },
+        "findings": _findings(repair_session),
+        "authority_boundary": _record((repair_session or {}).get("authority_boundary")),
+        "privacy_boundary": _record((repair_session or {}).get("privacy_boundary")),
+        "action_boundary": {
+            "inspect_only": True,
+            "acknowledge_only": True,
+            "may_apply_answers": False,
+            "may_apply_decisions": False,
+            "may_mutate_candidate_artifacts": False,
+            "may_accept_ontology_terms": False,
+            "may_write_ontology_package": False,
+            "may_create_branch_or_commit": False,
+        },
+    }
 
 
 def _ontology_hint_counts(rerun_input: dict[str, Any] | None) -> dict[str, int]:
@@ -708,6 +987,7 @@ def _resolved_gap_rows(rerun_preview: dict[str, Any] | None) -> list[dict[str, A
 
 def _repair_review_lane(
     *,
+    repair_session: dict[str, Any] | None,
     clarification_requests: dict[str, Any] | None,
     clarification_answers: dict[str, Any] | None,
     ontology_decisions: dict[str, Any] | None,
@@ -715,8 +995,19 @@ def _repair_review_lane(
     rerun_preview: dict[str, Any] | None,
     rerun_materialization: dict[str, Any] | None,
 ) -> dict[str, Any]:
+    session_view = _repair_session(repair_session)
+    readiness_impact = session_view["readiness_impact"]
+    workflow_journal = _record((repair_session or {}).get("workflow_journal"))
     requests = _clarification_request_rows(clarification_requests)
-    decisions = _ontology_decision_rows(ontology_decisions)
+    accepted_answers = _accepted_answer_rows(
+        repair_session=repair_session,
+        clarification_answers=clarification_answers,
+    )
+    decisions = (
+        session_view["ontology_decisions"]
+        if repair_session is not None
+        else _ontology_decision_rows(ontology_decisions)
+    )
     rerun_preview_body = _record((rerun_preview or {}).get("rerun_preview"))
     gap_preview = _record(rerun_preview_body.get("ontology_gap_preview"))
     quality_preview = _record(rerun_preview_body.get("candidate_quality_preview"))
@@ -724,10 +1015,27 @@ def _repair_review_lane(
         (rerun_materialization or {}).get("materialization_preview")
     )
     delta = _record(materialization_preview.get("delta"))
+    rerun_overlay_refs = _record(workflow_journal.get("rerun_overlay_refs"))
+    preview_refs = _record(workflow_journal.get("preview_refs"))
+    journal_rerun_preview_summary = _record(
+        _record(preview_refs.get("rerun_preview")).get("summary")
+    )
+    journal_rerun_materialization_summary = _record(
+        _record(preview_refs.get("rerun_materialization")).get("summary")
+    )
+    request_count = len(
+        _records((clarification_requests or {}).get("clarification_requests"))
+    )
+    if request_count == 0:
+        request_count = _number(readiness_impact.get("clarification_request_count"))
+    answer_count = _clarification_answer_count(clarification_answers)
+    if answer_count == 0:
+        answer_count = len(accepted_answers)
     return {
         "available": any(
             artifact is not None
             for artifact in (
+                repair_session,
                 clarification_requests,
                 clarification_answers,
                 ontology_decisions,
@@ -741,9 +1049,7 @@ def _repair_review_lane(
             "readiness": _readiness(clarification_requests),
             "summary": _record((clarification_requests or {}).get("request_counts")),
             "requests": requests,
-            "request_count": len(
-                _records((clarification_requests or {}).get("clarification_requests"))
-            ),
+            "request_count": request_count,
             "ontology_gap_request_count": sum(
                 1 for request in requests if request["kind"] == "ontology_gap"
             ),
@@ -752,7 +1058,8 @@ def _repair_review_lane(
             "available": clarification_answers is not None,
             "readiness": _readiness(clarification_answers),
             "summary": _record((clarification_answers or {}).get("summary")),
-            "answer_count": _clarification_answer_count(clarification_answers),
+            "answer_count": answer_count,
+            "accepted_answers": accepted_answers,
             "unresolved_blocking_count": len(
                 _records((clarification_answers or {}).get("unresolved_blocking_requests"))
             ),
@@ -762,39 +1069,54 @@ def _repair_review_lane(
             "readiness": _readiness(ontology_decisions),
             "summary": _record((ontology_decisions or {}).get("summary")),
             "decisions": decisions,
-            "decision_count": len(_records((ontology_decisions or {}).get("decisions"))),
+            "decision_count": len(decisions),
         },
         "rerun_input": {
             "available": rerun_input is not None,
             "readiness": _readiness(rerun_input),
-            "summary": _record((rerun_input or {}).get("summary")),
+            "summary": _record((rerun_input or {}).get("summary"))
+            or _record(rerun_overlay_refs.get("summary")),
             "ontology_hint_counts": _ontology_hint_counts(rerun_input),
         },
         "rerun_preview": {
             "available": rerun_preview is not None,
             "readiness": _readiness(rerun_preview),
-            "summary": _record((rerun_preview or {}).get("summary")),
+            "summary": _record((rerun_preview or {}).get("summary"))
+            or journal_rerun_preview_summary,
             "candidate_quality_preview": {
-                "review_state": _optional_text(quality_preview.get("review_state")),
+                "review_state": _optional_text(
+                    quality_preview.get("review_state")
+                    or readiness_impact.get("candidate_quality_review_state")
+                    or journal_rerun_preview_summary.get(
+                        "candidate_quality_review_state"
+                    )
+                ),
                 "ontology_gap_state": _optional_text(
                     quality_preview.get("ontology_gap_state")
                 ),
                 "resolved_ontology_gap_count": _number(
                     quality_preview.get("resolved_ontology_gap_count")
+                    if "resolved_ontology_gap_count" in quality_preview
+                    else readiness_impact.get("resolved_ontology_gap_count")
                 ),
                 "unresolved_ontology_gap_count": _number(
                     quality_preview.get("unresolved_ontology_gap_count")
+                    if "unresolved_ontology_gap_count" in quality_preview
+                    else readiness_impact.get("unresolved_ontology_gap_count")
                 ),
             },
             "resolved_gaps": _resolved_gap_rows(rerun_preview),
             "unresolved_ontology_gap_count": _number(
                 gap_preview.get("unresolved_ontology_gap_count")
+                if "unresolved_ontology_gap_count" in gap_preview
+                else readiness_impact.get("unresolved_ontology_gap_count")
             ),
         },
         "rerun_materialization": {
             "available": rerun_materialization is not None,
             "readiness": _readiness(rerun_materialization),
-            "summary": _record((rerun_materialization or {}).get("summary")),
+            "summary": _record((rerun_materialization or {}).get("summary"))
+            or journal_rerun_materialization_summary,
             "delta": {
                 "removed_gap_ids": _string_list(delta.get("removed_gap_ids")),
                 "unresolved_ontology_gap_ids": _string_list(
@@ -802,9 +1124,13 @@ def _repair_review_lane(
                 ),
                 "resolved_ontology_gap_count": _number(
                     delta.get("resolved_ontology_gap_count")
+                    if "resolved_ontology_gap_count" in delta
+                    else readiness_impact.get("resolved_ontology_gap_count")
                 ),
                 "unresolved_ontology_gap_count": _number(
                     delta.get("unresolved_ontology_gap_count")
+                    if "unresolved_ontology_gap_count" in delta
+                    else readiness_impact.get("unresolved_ontology_gap_count")
                 ),
             },
         },
@@ -812,6 +1138,7 @@ def _repair_review_lane(
             "inspect_only": True,
             "acknowledge_only": True,
             "may_apply_answers": False,
+            "may_apply_decisions": False,
             "may_mutate_candidate_artifacts": False,
             "may_accept_ontology_terms": False,
             "may_write_ontology_package": False,
@@ -1046,6 +1373,7 @@ def _workflow(
     candidate_graph: dict[str, Any] | None,
     pre_sib: dict[str, Any] | None,
     repair_loop: dict[str, Any] | None,
+    repair_session: dict[str, Any] | None,
     materialization: dict[str, Any] | None,
     promotion_gate: dict[str, Any] | None,
     candidate_approval: dict[str, Any] | None,
@@ -1057,6 +1385,8 @@ def _workflow(
 ) -> dict[str, Any]:
     pre_sib_readiness = _readiness(pre_sib)
     repair_readiness = _readiness(repair_loop)
+    repair_session_view = _repair_session(repair_session)
+    repair_session_impact = repair_session_view["readiness_impact"]
     materialization_readiness = _readiness(materialization)
     promotion_readiness = _readiness(promotion_gate)
     candidate_readiness = _record((candidate_graph or {}).get("pre_sib_readiness"))
@@ -1091,6 +1421,15 @@ def _workflow(
     platform_failed = platform_promotion is not None and not platform_ok
     git_service_failed = git_service_execution is not None and not git_ok
     approval_failed = candidate_approval is not None and not approval_ready
+    journal_blocks_candidate_approval = (
+        repair_session is not None
+        and repair_session_impact["ready_for_candidate_approval"] is not True
+    )
+    journal_blocks_platform_promotion = (
+        repair_session is not None
+        and candidate_approval is not None
+        and repair_session_impact["ready_for_platform_promotion"] is not True
+    )
     review_status_summary = _record((review_status or {}).get("summary"))
     review_merged = (
         (review_status or {}).get("review_state") == "merged"
@@ -1344,6 +1683,18 @@ def _workflow(
             "command_template": None,
             "authority_boundary": "operator_only",
         }
+    elif journal_blocks_candidate_approval:
+        stage = "repair_session_review_required"
+        status = "blocked"
+        next_handoff = {
+            "kind": "operator_repair_review",
+            "label": "Resolve repair session blockers before candidate approval",
+            "status": "blocked",
+            "artifact_key": "repair_session",
+            "artifact_path": f"runs/{IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
     elif platform_failed:
         stage = "promotion_request_failed"
         status = "blocked"
@@ -1383,6 +1734,18 @@ def _workflow(
             "status": "blocked",
             "artifact_key": "candidate_approval",
             "artifact_path": f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}",
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
+    elif journal_blocks_platform_promotion:
+        stage = "repair_session_review_required"
+        status = "blocked"
+        next_handoff = {
+            "kind": "operator_repair_review",
+            "label": "Resolve repair session blockers before Platform promotion",
+            "status": "blocked",
+            "artifact_key": "repair_session",
+            "artifact_path": f"runs/{IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
             "command_template": None,
             "authority_boundary": "operator_only",
         }
@@ -1572,6 +1935,9 @@ def build_idea_to_spec_workspace(
     rerun_materialization = _artifact_data(
         artifacts, IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT
     )
+    repair_session_journal = _artifact_data(
+        artifacts, IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+    )
     materialization = _artifact_data(
         artifacts, CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT
     )
@@ -1619,7 +1985,18 @@ def build_idea_to_spec_workspace(
     ontology_seed = _ontology_seed(candidate_seed)
     pre_sib_findings = _findings(pre_sib)
     repair_actions = _repair_actions(repair_loop)
+    repair_session = _repair_session(repair_session_journal)
+    if (
+        status != "partial"
+        and repair_session_journal is not None
+        and (
+            not repair_session["readiness_impact"]["ready_for_candidate_approval"]
+            or not repair_session["readiness_impact"]["ready_for_platform_promotion"]
+        )
+    ):
+        status = "blocked"
     repair_review = _repair_review_lane(
+        repair_session=repair_session_journal,
         clarification_requests=clarification_requests,
         clarification_answers=clarification_answers,
         ontology_decisions=ontology_decisions,
@@ -1639,6 +2016,7 @@ def build_idea_to_spec_workspace(
         candidate_graph=candidate_graph,
         pre_sib=pre_sib,
         repair_loop=repair_loop,
+        repair_session=repair_session_journal,
         materialization=materialization,
         promotion_gate=promotion_gate,
         candidate_approval=candidate_approval,
@@ -1679,14 +2057,28 @@ def build_idea_to_spec_workspace(
             "ontology_decision_count": repair_review["ontology_decisions"][
                 "decision_count"
             ],
-            "resolved_ontology_gap_count": repair_review["rerun_preview"][
-                "candidate_quality_preview"
-            ]["resolved_ontology_gap_count"],
-            "unresolved_ontology_gap_count": repair_review["rerun_preview"][
-                "candidate_quality_preview"
-            ]["unresolved_ontology_gap_count"],
-            "rerun_removed_gap_count": len(
-                repair_review["rerun_materialization"]["delta"]["removed_gap_ids"]
+            "resolved_ontology_gap_count": (
+                repair_session["readiness_impact"]["resolved_ontology_gap_count"]
+                if repair_session_journal is not None
+                else repair_review["rerun_preview"]["candidate_quality_preview"][
+                    "resolved_ontology_gap_count"
+                ]
+            ),
+            "unresolved_ontology_gap_count": (
+                repair_session["readiness_impact"]["unresolved_ontology_gap_count"]
+                if repair_session_journal is not None
+                else repair_review["rerun_preview"]["candidate_quality_preview"][
+                    "unresolved_ontology_gap_count"
+                ]
+            ),
+            "rerun_removed_gap_count": (
+                repair_session["readiness_impact"]["rerun_removed_gap_count"]
+                if repair_session_journal is not None
+                else len(
+                    repair_review["rerun_materialization"]["delta"][
+                        "removed_gap_ids"
+                    ]
+                )
             ),
             "repair_context_required_count": _number(
                 _record((repair_loop or {}).get("summary")).get(
@@ -1709,6 +2101,12 @@ def build_idea_to_spec_workspace(
             "approval_ready": _candidate_approval_decision(candidate_approval)[
                 "ready"
             ],
+            "repair_session_ready_for_candidate_approval": repair_session[
+                "readiness_impact"
+            ]["ready_for_candidate_approval"],
+            "repair_session_ready_for_platform_promotion": repair_session[
+                "readiness_impact"
+            ]["ready_for_platform_promotion"],
             "review_merged": _review_status(review_status)["review_merged"],
             "read_model_published": _read_model_publication(
                 read_model_publication
@@ -1768,6 +2166,7 @@ def build_idea_to_spec_workspace(
             ),
             "actions": repair_actions,
         },
+        "repair_session": repair_session,
         "repair_review": repair_review,
         "materialization": {
             "available": materialization is not None,

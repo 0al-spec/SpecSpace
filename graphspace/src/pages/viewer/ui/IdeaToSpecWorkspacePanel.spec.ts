@@ -50,6 +50,13 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Repair loop");
     expect(html).toContain("repair.add-ac.req-input-digits");
     expect(html).toContain("requires_context");
+    expect(html).toContain("Repair session");
+    expect(html).toContain("repair-session.team-decision-log");
+    expect(html).toContain("repair_session_journal_ready");
+    expect(html).toContain("candidate_quality_partially_improved");
+    expect(html).toContain("candidate_not_ready_for_approval");
+    expect(html).toContain("active_candidate_review_required");
+    expect(html).toContain("propose_project_local_term");
     expect(html).toContain("Product repair review");
     expect(html).toContain("Ontology gap quality");
     expect(html).toContain("candidate_quality_improved");

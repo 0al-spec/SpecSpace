@@ -100,6 +100,34 @@ export type IdeaToSpecResolvedOntologyGap = {
   targetRef: string | null;
 };
 
+export type IdeaToSpecAcceptedAnswer = {
+  requestId: string;
+  answerKind: string;
+  status: string;
+  requestKind: string | null;
+  targetArtifact: string | null;
+  targetRef: string | null;
+  terms: readonly string[];
+  termScope: string | null;
+};
+
+export type IdeaToSpecRepairSessionStage = {
+  stage: string;
+  index: number | null;
+  artifactKind: string | null;
+  sourceRef: string | null;
+  ready: boolean;
+  reviewState: string | null;
+  status: string | null;
+  blockedBy: readonly string[];
+  nextArtifact: string | null;
+};
+
+export type IdeaToSpecRepairSessionBlocker = {
+  kind: string;
+  id: string;
+};
+
 export type IdeaToSpecMaterializedFile = {
   candidateNodeId: string;
   materializedId: string;
@@ -274,6 +302,8 @@ export type IdeaToSpecWorkspace = {
     gitServiceOperationCount: number;
     gitServiceErrorCount: number;
     approvalReady: boolean;
+    repairSessionReadyForCandidateApproval: boolean;
+    repairSessionReadyForPlatformPromotion: boolean;
     reviewMerged: boolean;
     readModelPublished: boolean;
     nextArtifact: string | null;
@@ -363,6 +393,68 @@ export type IdeaToSpecWorkspace = {
     metricDeltaProjection: Record<string, unknown>;
     actions: readonly IdeaToSpecRepairAction[];
   };
+  repairSession: {
+    available: boolean;
+    sourceMode: string;
+    readiness: {
+      ready: boolean;
+      reviewState: string | null;
+      blockedBy: readonly string[];
+      nextArtifact: string | null;
+    };
+    summary: Record<string, unknown>;
+    session: {
+      sessionId: string | null;
+      candidateId: string | null;
+      workflowLane: string | null;
+      workspaceRoute: string | null;
+      targetRepositoryRole: string | null;
+      governanceProfile: string | null;
+      operatorRef: string | null;
+    };
+    readinessImpact: {
+      readyForCandidateApproval: boolean;
+      readyForPlatformPromotion: boolean;
+      intermediateArtifactsReady: boolean;
+      candidateQualityReviewState: string | null;
+      promotionGateReviewState: string | null;
+      activeCandidateReviewState: string | null;
+      resolvedOntologyGapCount: number;
+      unresolvedOntologyGapCount: number;
+      rerunRemovedGapCount: number;
+      clarificationRequestCount: number;
+      acceptedAnswerCount: number;
+      ontologyDecisionCount: number;
+      promotionPathCount: number;
+      blockedBy: readonly string[];
+      platformPromotionBlockedBy: readonly string[];
+    };
+    stages: readonly IdeaToSpecRepairSessionStage[];
+    openBlockers: readonly IdeaToSpecRepairSessionBlocker[];
+    acceptedAnswers: readonly IdeaToSpecAcceptedAnswer[];
+    ontologyDecisions: readonly IdeaToSpecOntologyDecision[];
+    rerunOverlay: {
+      sourceRef: string | null;
+      summary: Record<string, unknown>;
+    };
+    previewRefs: {
+      rerunPreview: Record<string, unknown>;
+      rerunMaterialization: Record<string, unknown>;
+    };
+    findings: readonly IdeaToSpecFinding[];
+    authorityBoundary: Record<string, unknown>;
+    privacyBoundary: Record<string, unknown>;
+    actionBoundary: {
+      inspectOnly: true;
+      acknowledgeOnly: true;
+      mayApplyAnswers: false;
+      mayApplyDecisions: false;
+      mayMutateCandidateArtifacts: false;
+      mayAcceptOntologyTerms: false;
+      mayWriteOntologyPackage: false;
+      mayCreateBranchOrCommit: false;
+    };
+  };
   repairReview: {
     available: boolean;
     clarificationRequests: {
@@ -387,6 +479,7 @@ export type IdeaToSpecWorkspace = {
         nextArtifact: string | null;
       };
       summary: Record<string, unknown>;
+      acceptedAnswers: readonly IdeaToSpecAcceptedAnswer[];
       answerCount: number;
       unresolvedBlockingCount: number;
     };
@@ -451,6 +544,7 @@ export type IdeaToSpecWorkspace = {
       inspectOnly: true;
       acknowledgeOnly: true;
       mayApplyAnswers: false;
+      mayApplyDecisions: false;
       mayMutateCandidateArtifacts: false;
       mayAcceptOntologyTerms: false;
       mayWriteOntologyPackage: false;
@@ -733,6 +827,22 @@ function parseClarificationRequest(
   };
 }
 
+function parseAcceptedAnswer(raw: unknown): IdeaToSpecAcceptedAnswer | null {
+  const answer = recordValue(raw);
+  const requestId = optionalString(answer.request_id);
+  if (!requestId) return null;
+  return {
+    requestId,
+    answerKind: stringValue(answer.answer_kind, "answer"),
+    status: stringValue(answer.status, "accepted_for_candidate"),
+    requestKind: optionalString(answer.request_kind),
+    targetArtifact: optionalString(answer.target_artifact),
+    targetRef: optionalString(answer.target_ref),
+    terms: strings(answer.terms),
+    termScope: optionalString(answer.term_scope),
+  };
+}
+
 function parseOntologyDecision(raw: unknown): IdeaToSpecOntologyDecision | null {
   const decision = recordValue(raw);
   const id = optionalString(decision.id);
@@ -747,6 +857,142 @@ function parseOntologyDecision(raw: unknown): IdeaToSpecOntologyDecision | null 
     targetRef: optionalString(decision.target_ref),
     requestId: optionalString(decision.request_id),
     materializationIntent: optionalString(decision.materialization_intent),
+  };
+}
+
+function parseRepairSessionStage(
+  raw: unknown,
+): IdeaToSpecRepairSessionStage | null {
+  const stage = recordValue(raw);
+  const stageId = optionalString(stage.stage);
+  if (!stageId) return null;
+  return {
+    stage: stageId,
+    index: typeof stage.index === "number" && Number.isFinite(stage.index)
+      ? stage.index
+      : null,
+    artifactKind: optionalString(stage.artifact_kind),
+    sourceRef: optionalString(stage.source_ref),
+    ready: stage.ready === true,
+    reviewState: optionalString(stage.review_state),
+    status: optionalString(stage.status),
+    blockedBy: strings(stage.blocked_by),
+    nextArtifact: optionalString(stage.next_artifact),
+  };
+}
+
+function parseRepairSessionBlocker(
+  raw: unknown,
+): IdeaToSpecRepairSessionBlocker | null {
+  const blocker = recordValue(raw);
+  const id = optionalString(blocker.id);
+  if (!id) return null;
+  return {
+    kind: stringValue(blocker.kind, "repair_session"),
+    id,
+  };
+}
+
+function parseRepairSession(
+  raw: unknown,
+): IdeaToSpecWorkspace["repairSession"] {
+  const sessionRoot = recordValue(raw);
+  const session = recordValue(sessionRoot.session);
+  const readinessImpact = recordValue(sessionRoot.readiness_impact);
+  return {
+    available: sessionRoot.available === true,
+    sourceMode: stringValue(sessionRoot.source_mode, "legacy_artifacts"),
+    readiness: parseReadiness(sessionRoot.readiness),
+    summary: recordValue(sessionRoot.summary),
+    session: {
+      sessionId: optionalString(session.session_id),
+      candidateId: optionalString(session.candidate_id),
+      workflowLane: optionalString(session.workflow_lane),
+      workspaceRoute: optionalString(session.workspace_route),
+      targetRepositoryRole: optionalString(session.target_repository_role),
+      governanceProfile: optionalString(session.governance_profile),
+      operatorRef: optionalString(session.operator_ref),
+    },
+    readinessImpact: {
+      readyForCandidateApproval:
+        readinessImpact.ready_for_candidate_approval === true,
+      readyForPlatformPromotion:
+        readinessImpact.ready_for_platform_promotion === true,
+      intermediateArtifactsReady:
+        readinessImpact.intermediate_artifacts_ready === true,
+      candidateQualityReviewState: optionalString(
+        readinessImpact.candidate_quality_review_state,
+      ),
+      promotionGateReviewState: optionalString(
+        readinessImpact.promotion_gate_review_state,
+      ),
+      activeCandidateReviewState: optionalString(
+        readinessImpact.active_candidate_review_state,
+      ),
+      resolvedOntologyGapCount: numberValue(
+        readinessImpact.resolved_ontology_gap_count,
+      ),
+      unresolvedOntologyGapCount: numberValue(
+        readinessImpact.unresolved_ontology_gap_count,
+      ),
+      rerunRemovedGapCount: numberValue(
+        readinessImpact.rerun_removed_gap_count,
+      ),
+      clarificationRequestCount: numberValue(
+        readinessImpact.clarification_request_count,
+      ),
+      acceptedAnswerCount: numberValue(readinessImpact.accepted_answer_count),
+      ontologyDecisionCount: numberValue(
+        readinessImpact.ontology_decision_count,
+      ),
+      promotionPathCount: numberValue(readinessImpact.promotion_path_count),
+      blockedBy: strings(readinessImpact.blocked_by),
+      platformPromotionBlockedBy: strings(
+        readinessImpact.platform_promotion_blocked_by,
+      ),
+    },
+    stages: records(sessionRoot.stages).flatMap((item) => {
+      const parsed = parseRepairSessionStage(item);
+      return parsed ? [parsed] : [];
+    }),
+    openBlockers: records(sessionRoot.open_blockers).flatMap((item) => {
+      const parsed = parseRepairSessionBlocker(item);
+      return parsed ? [parsed] : [];
+    }),
+    acceptedAnswers: records(sessionRoot.accepted_answers).flatMap((item) => {
+      const parsed = parseAcceptedAnswer(item);
+      return parsed ? [parsed] : [];
+    }),
+    ontologyDecisions: records(sessionRoot.ontology_decisions).flatMap((item) => {
+      const parsed = parseOntologyDecision(item);
+      return parsed ? [parsed] : [];
+    }),
+    rerunOverlay: {
+      sourceRef: optionalString(recordValue(sessionRoot.rerun_overlay).source_ref),
+      summary: recordValue(recordValue(sessionRoot.rerun_overlay).summary),
+    },
+    previewRefs: {
+      rerunPreview: recordValue(recordValue(sessionRoot.preview_refs).rerun_preview),
+      rerunMaterialization: recordValue(
+        recordValue(sessionRoot.preview_refs).rerun_materialization,
+      ),
+    },
+    findings: records(sessionRoot.findings).flatMap((item) => {
+      const parsed = parseFinding(item);
+      return parsed ? [parsed] : [];
+    }),
+    authorityBoundary: recordValue(sessionRoot.authority_boundary),
+    privacyBoundary: recordValue(sessionRoot.privacy_boundary),
+    actionBoundary: {
+      inspectOnly: true,
+      acknowledgeOnly: true,
+      mayApplyAnswers: false,
+      mayApplyDecisions: false,
+      mayMutateCandidateArtifacts: false,
+      mayAcceptOntologyTerms: false,
+      mayWriteOntologyPackage: false,
+      mayCreateBranchOrCommit: false,
+    },
   };
 }
 
@@ -808,6 +1054,12 @@ function parseRepairReview(
       available: clarificationAnswers.available === true,
       readiness: parseReadiness(clarificationAnswers.readiness),
       summary: recordValue(clarificationAnswers.summary),
+      acceptedAnswers: records(clarificationAnswers.accepted_answers).flatMap(
+        (item) => {
+          const parsed = parseAcceptedAnswer(item);
+          return parsed ? [parsed] : [];
+        },
+      ),
       answerCount: numberValue(clarificationAnswers.answer_count),
       unresolvedBlockingCount: numberValue(
         clarificationAnswers.unresolved_blocking_count,
@@ -872,6 +1124,7 @@ function parseRepairReview(
       inspectOnly: true,
       acknowledgeOnly: true,
       mayApplyAnswers: false,
+      mayApplyDecisions: false,
       mayMutateCandidateArtifacts: false,
       mayAcceptOntologyTerms: false,
       mayWriteOntologyPackage: false,
@@ -1127,10 +1380,35 @@ export function parseIdeaToSpecWorkspace(
   const ontologySeed = recordValue(raw.ontology_seed);
   const preSib = recordValue(raw.pre_sib);
   const repairLoop = recordValue(raw.repair_loop);
+  const hasRepairSession = isRecord(raw.repair_session);
+  const repairSession = recordValue(raw.repair_session);
+  if (hasRepairSession) {
+    const repairSessionBoundary = recordValue(repairSession.action_boundary);
+    const repairSessionFalseFlags = [
+      "may_apply_answers",
+      "may_apply_decisions",
+      "may_mutate_candidate_artifacts",
+      "may_accept_ontology_terms",
+      "may_write_ontology_package",
+      "may_create_branch_or_commit",
+    ];
+    for (const flag of repairSessionFalseFlags) {
+      if (repairSessionBoundary[flag] !== false) {
+        return { kind: "parse-error", reason: `repair session boundary expanded: ${flag}`, raw };
+      }
+    }
+    if (
+      repairSessionBoundary.inspect_only !== true ||
+      repairSessionBoundary.acknowledge_only !== true
+    ) {
+      return { kind: "parse-error", reason: "repair session boundary must be inspect-only", raw };
+    }
+  }
   const repairReview = recordValue(raw.repair_review);
   const repairReviewBoundary = recordValue(repairReview.action_boundary);
   const repairReviewFalseFlags = [
     "may_apply_answers",
+    "may_apply_decisions",
     "may_mutate_candidate_artifacts",
     "may_accept_ontology_terms",
     "may_write_ontology_package",
@@ -1225,6 +1503,10 @@ export function parseIdeaToSpecWorkspace(
         ),
         gitServiceErrorCount: numberValue(summary.git_service_error_count),
         approvalReady: summary.approval_ready === true,
+        repairSessionReadyForCandidateApproval:
+          summary.repair_session_ready_for_candidate_approval === true,
+        repairSessionReadyForPlatformPromotion:
+          summary.repair_session_ready_for_platform_promotion === true,
         reviewMerged: summary.review_merged === true,
         readModelPublished: summary.read_model_published === true,
         nextArtifact: optionalString(summary.next_artifact),
@@ -1287,6 +1569,7 @@ export function parseIdeaToSpecWorkspace(
           return parsed ? [parsed] : [];
         }),
       },
+      repairSession: parseRepairSession(repairSession),
       repairReview: parseRepairReview(repairReview),
       materialization: {
         available: materialization.available === true,
