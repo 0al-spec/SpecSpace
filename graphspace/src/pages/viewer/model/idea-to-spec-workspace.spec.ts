@@ -21,9 +21,16 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.summary.clarificationRequestCount).toBe(1);
     expect(parsed.data.summary.ontologyDecisionCount).toBe(1);
     expect(parsed.data.summary.resolvedOntologyGapCount).toBe(1);
+    expect(parsed.data.summary.unresolvedOntologyGapCount).toBe(7);
     expect(parsed.data.summary.rerunRemovedGapCount).toBe(1);
     expect(parsed.data.summary.gitServiceOperationCount).toBe(3);
     expect(parsed.data.summary.approvalReady).toBe(true);
+    expect(parsed.data.summary.repairSessionReadyForCandidateApproval).toBe(
+      false,
+    );
+    expect(parsed.data.summary.repairSessionReadyForPlatformPromotion).toBe(
+      false,
+    );
     expect(parsed.data.summary.reviewMerged).toBe(false);
     expect(parsed.data.summary.readModelPublished).toBe(false);
     expect(parsed.data.workflow.stage).toBe("repair_required");
@@ -43,6 +50,19 @@ describe("parseIdeaToSpecWorkspace", () => {
       "pre_sib_ontology_coverage_gap",
     );
     expect(parsed.data.repairLoop.actions[1].status).toBe("requires_context");
+    expect(parsed.data.repairSession.sourceMode).toBe("journal");
+    expect(parsed.data.repairSession.session.sessionId).toBe(
+      "repair-session.team-decision-log",
+    );
+    expect(
+      parsed.data.repairSession.readinessImpact.unresolvedOntologyGapCount,
+    ).toBe(7);
+    expect(parsed.data.repairSession.openBlockers[2].id).toBe(
+      "candidate_not_ready_for_approval",
+    );
+    expect(parsed.data.repairSession.acceptedAnswers[0].answerKind).toBe(
+      "propose_project_local_term",
+    );
     expect(parsed.data.repairReview.clarificationRequests.requests[0].kind).toBe(
       "ontology_gap",
     );
@@ -94,6 +114,21 @@ describe("parseIdeaToSpecWorkspace", () => {
         action_boundary: {
           ...ideaToSpecWorkspace.controlled_promotion.action_boundary,
           may_execute_git_service: true,
+        },
+      },
+    });
+
+    expect(parsed.kind).toBe("parse-error");
+  });
+
+  it("rejects repair session action expansion", () => {
+    const parsed = parseIdeaToSpecWorkspace({
+      ...ideaToSpecWorkspace,
+      repair_session: {
+        ...ideaToSpecWorkspace.repair_session,
+        action_boundary: {
+          ...ideaToSpecWorkspace.repair_session.action_boundary,
+          may_apply_decisions: true,
         },
       },
     });

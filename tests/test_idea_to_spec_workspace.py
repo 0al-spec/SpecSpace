@@ -501,6 +501,171 @@ def _rerun_materialization() -> dict:
     }
 
 
+def _repair_session_journal() -> dict:
+    return {
+        "artifact_kind": "idea_to_spec_repair_session_journal",
+        "schema_version": 1,
+        "proposal_id": "0171",
+        "contract_ref": "specgraph.idea-to-spec.repair-session-journal.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "repair_session_journal_ready",
+            "blocked_by": [],
+            "next_artifact": "SpecSpace product repair workspace",
+        },
+        "session": {
+            "session_id": "repair-session.team-decision-log",
+            "candidate_id": "team-decision-log",
+            "workspace_route": "/team-decision-log",
+            "workflow_lane": "product_idea_to_spec",
+            "target_repository_role": "product_spec_workspace",
+            "governance_profile": "product_workspace",
+            "operator_ref": "operator://workspace-owner",
+        },
+        "readiness_impact": {
+            "ready_for_candidate_approval": False,
+            "ready_for_platform_promotion": False,
+            "intermediate_artifacts_ready": True,
+            "candidate_quality_review_state": "candidate_quality_partially_improved",
+            "promotion_gate_review_state": "idea_to_spec_promotion_blocked",
+            "active_candidate_review_state": "active_candidate_review_required",
+            "resolved_ontology_gap_count": 1,
+            "unresolved_ontology_gap_count": 7,
+            "rerun_removed_gap_count": 1,
+            "clarification_request_count": 1,
+            "accepted_answer_count": 1,
+            "ontology_decision_count": 1,
+            "promotion_path_count": 0,
+            "blocked_by": [
+                "repair_context_required",
+                "unresolved_ontology_gaps",
+            ],
+            "platform_promotion_blocked_by": [
+                "candidate_not_ready_for_approval",
+            ],
+        },
+        "workflow_journal": {
+            "stages": [
+                {
+                    "index": 1,
+                    "stage": "active_candidate",
+                    "artifact_kind": "active_idea_to_spec_candidate",
+                    "source_ref": "runs/active_idea_to_spec_candidate.json",
+                    "ready": False,
+                    "review_state": "active_candidate_review_required",
+                    "status": "active_candidate_review_required",
+                    "blocked_by": ["promotion_gate_not_ready"],
+                    "next_artifact": "repair active candidate source before public handoff",
+                },
+                {
+                    "index": 8,
+                    "stage": "promotion_gate",
+                    "artifact_kind": "idea_to_spec_promotion_gate",
+                    "source_ref": "runs/idea_to_spec_promotion_gate.json",
+                    "ready": False,
+                    "review_state": "idea_to_spec_promotion_blocked",
+                    "status": "idea_to_spec_promotion_blocked",
+                    "blocked_by": ["repair_context_required"],
+                    "next_artifact": "owner/operator repair before promotion",
+                },
+            ],
+            "accepted_answers": [
+                {
+                    "request_id": "clarification.candidate-gap.ontology-gap-numeric-input",
+                    "request_kind": "ontology_gap",
+                    "answer_kind": "propose_project_local_term",
+                    "status": "accepted_for_candidate",
+                    "target_artifact": "runs/candidate_spec_graph.json",
+                    "target_ref": "candidate-spec.numeric-input.gaps.ontology-gap.numeric-input",
+                    "value": {
+                        "terms": ["Numeric Input"],
+                        "term_scope": "project_local",
+                    },
+                }
+            ],
+            "ontology_decisions": [
+                {
+                    "id": "product-ontology-decision.numeric-input.0",
+                    "decision_type": "propose_project_local_term",
+                    "status": "accepted_for_candidate_preview",
+                    "term": "Numeric Input",
+                    "term_scope": "project_local",
+                    "request_id": "clarification.candidate-gap.ontology-gap-numeric-input",
+                    "target_ref": "candidate-spec.numeric-input.gaps.ontology-gap.numeric-input",
+                    "materialization_intent": "rerun_overlay_only",
+                }
+            ],
+            "rerun_overlay_refs": {
+                "source_ref": "runs/idea_to_spec_answer_rerun_input.json",
+                "summary": {
+                    "status": "rerun_input_ready",
+                    "ontology_decision_source": "product_ontology_gap_review_decisions",
+                    "ontology_decision_count": 1,
+                    "project_local_term_count": 1,
+                },
+            },
+            "preview_refs": {
+                "rerun_preview": {
+                    "source_ref": "runs/idea_to_spec_rerun_preview.json",
+                    "summary": {
+                        "status": "rerun_preview_ready",
+                        "candidate_quality_review_state": "candidate_quality_partially_improved",
+                        "resolved_ontology_gap_count": 1,
+                        "unresolved_ontology_gap_count": 7,
+                    },
+                },
+                "rerun_materialization": {
+                    "source_ref": "runs/idea_to_spec_rerun_materialization.json",
+                    "summary": {
+                        "status": "rerun_materialization_ready",
+                        "removed_gap_count": 1,
+                        "resolved_ontology_gap_count": 1,
+                        "unresolved_ontology_gap_count": 7,
+                    },
+                },
+            },
+        },
+        "source_artifacts": {},
+        "summary": {
+            "status": "repair_session_journal_ready",
+            "candidate_id": "team-decision-log",
+            "workflow_lane": "product_idea_to_spec",
+            "source_artifact_count": 8,
+            "accepted_answer_count": 1,
+            "ontology_decision_count": 1,
+            "resolved_ontology_gap_count": 1,
+            "unresolved_ontology_gap_count": 7,
+            "ready_for_candidate_approval": False,
+            "finding_count": 0,
+        },
+        "authority_boundary": {
+            "may_execute_prompt_agent": False,
+            "may_apply_answers_to_source_artifacts": False,
+            "may_apply_decisions_to_source_artifacts": False,
+            "may_mutate_candidate_source_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_write_ontology_lockfile": False,
+            "may_accept_ontology_terms": False,
+            "may_mark_candidate_graph_accepted": False,
+            "may_create_branch_or_commit": False,
+            "may_open_pull_request": False,
+            "may_publish_read_model": False,
+        },
+        "privacy_boundary": {
+            "raw_idea_text_published": False,
+            "raw_prompt_published": False,
+            "raw_model_output_published": False,
+            "raw_operator_note_published": False,
+            "static_flags_are_asserted_invariants": True,
+            "redaction_enforced_by": "recursive_public_safe_field_filter",
+        },
+        "findings": [],
+    }
+
+
 def _materialization() -> dict:
     return {
         "artifact_kind": "candidate_spec_materialization_report",
@@ -906,6 +1071,7 @@ def _workspace_artifacts() -> dict[str, dict]:
         idea_to_spec_workspace.IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT: _rerun_input(),
         idea_to_spec_workspace.IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT: _rerun_preview(),
         idea_to_spec_workspace.IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT: _rerun_materialization(),
+        idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT: _repair_session_journal(),
         idea_to_spec_workspace.CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: _materialization(),
         idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: _promotion_gate(),
         idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT: _candidate_approval_decision(),
@@ -940,7 +1106,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["clarification_request_count"], 1)
         self.assertEqual(body["summary"]["ontology_decision_count"], 1)
         self.assertEqual(body["summary"]["resolved_ontology_gap_count"], 1)
-        self.assertEqual(body["summary"]["unresolved_ontology_gap_count"], 0)
+        self.assertEqual(body["summary"]["unresolved_ontology_gap_count"], 7)
         self.assertEqual(body["summary"]["rerun_removed_gap_count"], 1)
         self.assertEqual(body["summary"]["materialized_file_count"], 2)
         self.assertEqual(body["summary"]["promotion_path_count"], 0)
@@ -949,6 +1115,8 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["git_service_operation_count"], 3)
         self.assertEqual(body["summary"]["git_service_error_count"], 0)
         self.assertTrue(body["summary"]["approval_ready"])
+        self.assertFalse(body["summary"]["repair_session_ready_for_candidate_approval"])
+        self.assertFalse(body["summary"]["repair_session_ready_for_platform_promotion"])
         self.assertFalse(body["summary"]["review_merged"])
         self.assertFalse(body["summary"]["read_model_published"])
         self.assertEqual(body["workflow"]["stage"], "repair_required")
@@ -989,6 +1157,36 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["repair_loop"]["actions"][0]["status"],
             "requires_context",
+        )
+        self.assertTrue(body["repair_session"]["available"])
+        self.assertEqual(body["repair_session"]["source_mode"], "journal")
+        self.assertEqual(
+            body["repair_session"]["session"]["session_id"],
+            "repair-session.team-decision-log",
+        )
+        self.assertEqual(
+            body["repair_session"]["readiness_impact"][
+                "candidate_quality_review_state"
+            ],
+            "candidate_quality_partially_improved",
+        )
+        self.assertEqual(
+            body["repair_session"]["readiness_impact"][
+                "platform_promotion_blocked_by"
+            ],
+            ["candidate_not_ready_for_approval"],
+        )
+        self.assertEqual(
+            body["repair_session"]["open_blockers"][0]["id"],
+            "repair_context_required",
+        )
+        self.assertEqual(
+            body["repair_session"]["stages"][1]["stage"],
+            "promotion_gate",
+        )
+        self.assertEqual(
+            body["repair_session"]["accepted_answers"][0]["answer_kind"],
+            "propose_project_local_term",
         )
         self.assertEqual(
             body["repair_review"]["clarification_requests"]["requests"][0]["kind"],
@@ -1077,6 +1275,31 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["authority_boundary"]["may_create_branch_or_commit"]
         )
 
+    def test_repair_review_falls_back_to_legacy_artifacts_without_journal(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertFalse(body["repair_session"]["available"])
+        self.assertEqual(body["repair_session"]["source_mode"], "legacy_artifacts")
+        self.assertEqual(body["summary"]["unresolved_ontology_gap_count"], 0)
+        self.assertEqual(
+            body["repair_review"]["rerun_preview"]["candidate_quality_preview"][
+                "review_state"
+            ],
+            "candidate_quality_improved",
+        )
+        self.assertEqual(
+            body["repair_review"]["rerun_materialization"]["delta"][
+                "removed_gap_ids"
+            ],
+            ["ontology-gap.numeric-input"],
+        )
+
     def test_summary_counts_raw_items_before_display_limits(self) -> None:
         artifacts = _workspace_artifacts()
         pre_sib = _pre_sib()
@@ -1156,7 +1379,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["summary"]["status"], "partial")
-        self.assertEqual(body["summary"]["available_artifact_count"], 16)
+        self.assertEqual(body["summary"]["available_artifact_count"], 17)
         self.assertEqual(body["summary"]["missing_artifact_count"], 3)
         self.assertEqual(body["summary"]["candidate_node_count"], 0)
         self.assertEqual(body["summary"]["repair_action_count"], 0)

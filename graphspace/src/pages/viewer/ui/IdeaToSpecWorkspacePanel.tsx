@@ -2,12 +2,15 @@ import { useMemo, useState } from "react";
 import { buildIdeaToSpecIntakeDraft } from "../model/idea-to-spec-intake-draft";
 import type {
   IdeaToSpecActiveFrame,
+  IdeaToSpecAcceptedAnswer,
   IdeaToSpecCandidateNode,
   IdeaToSpecClarificationRequest,
   IdeaToSpecGitServiceOperation,
   IdeaToSpecMaterializedFile,
   IdeaToSpecOntologyDecision,
   IdeaToSpecRepairAction,
+  IdeaToSpecRepairSessionBlocker,
+  IdeaToSpecRepairSessionStage,
   IdeaToSpecResolvedOntologyGap,
   IdeaToSpecWorkflow,
   IdeaToSpecWorkspace,
@@ -156,6 +159,7 @@ export function IdeaToSpecWorkspacePanel({ state }: Props) {
         <CandidateGraphSection nodes={data.candidateGraph.nodes} />
         <PreSibSection state={state} />
         <RepairSection actions={data.repairLoop.actions} />
+        <RepairSessionSection state={state} />
         <ProductRepairReviewSection state={state} />
         <MaterializationSection state={state} />
         <PromotionGateSection state={state} />
@@ -558,6 +562,165 @@ function RepairSection({
         </div>
       ))}
     </section>
+  );
+}
+
+function RepairSessionSection({
+  state,
+}: {
+  state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
+}) {
+  const session = state.data.repairSession;
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader
+        title="Repair session"
+        count={session.stages.length + session.openBlockers.length}
+      />
+      <div className={styles.postureStrip}>
+        <PostureItem label="Source" value={session.sourceMode} />
+        <PostureItem
+          label="Ready"
+          value={boolText(session.readiness.ready)}
+        />
+        <PostureItem
+          label="Candidate approval"
+          value={boolText(session.readinessImpact.readyForCandidateApproval)}
+        />
+        <PostureItem
+          label="Platform promotion"
+          value={boolText(session.readinessImpact.readyForPlatformPromotion)}
+        />
+        <PostureItem
+          label="Unresolved gaps"
+          value={String(session.readinessImpact.unresolvedOntologyGapCount)}
+        />
+        <PostureItem
+          label="Promotion paths"
+          value={String(session.readinessImpact.promotionPathCount)}
+        />
+      </div>
+      {!session.available ? (
+        <Status
+          label="No repair session journal"
+          detail="Using legacy repair artifacts until runs/idea_to_spec_repair_session.json is published."
+        />
+      ) : null}
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>
+            {compact(session.session.sessionId, "repair-session")}
+          </span>
+          <Pill value={compact(session.readiness.reviewState, "unknown")} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Candidate" value={session.session.candidateId} />
+          <Meta label="Lane" value={session.session.workflowLane} />
+          <Meta label="Route" value={session.session.workspaceRoute} />
+          <Meta label="Operator" value={session.session.operatorRef} />
+          <Meta
+            label="Quality"
+            value={session.readinessImpact.candidateQualityReviewState}
+          />
+          <Meta
+            label="Promotion gate"
+            value={session.readinessImpact.promotionGateReviewState}
+          />
+          <Meta
+            label="Active candidate"
+            value={session.readinessImpact.activeCandidateReviewState}
+          />
+          <Meta
+            label="Blocked by"
+            value={joined(session.readinessImpact.blockedBy)}
+          />
+          <Meta
+            label="Platform blocked"
+            value={joined(session.readinessImpact.platformPromotionBlockedBy)}
+          />
+          <Meta label="Rerun overlay" value={session.rerunOverlay.sourceRef} />
+        </div>
+      </div>
+      {session.openBlockers.map((blocker) => (
+        <RepairSessionBlockerRow
+          key={`${blocker.kind}:${blocker.id}`}
+          blocker={blocker}
+        />
+      ))}
+      {session.stages.map((stage) => (
+        <RepairSessionStageRow
+          key={`${stage.index ?? "stage"}:${stage.stage}:${stage.sourceRef ?? ""}`}
+          stage={stage}
+        />
+      ))}
+      {session.acceptedAnswers.map((answer) => (
+        <AcceptedAnswerRow
+          key={`${answer.requestId}:${answer.answerKind}`}
+          answer={answer}
+        />
+      ))}
+    </section>
+  );
+}
+
+function RepairSessionBlockerRow({
+  blocker,
+}: {
+  blocker: IdeaToSpecRepairSessionBlocker;
+}) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{blocker.id}</span>
+        <Pill value={blocker.kind} />
+      </div>
+    </div>
+  );
+}
+
+function RepairSessionStageRow({
+  stage,
+}: {
+  stage: IdeaToSpecRepairSessionStage;
+}) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{stage.stage}</span>
+        <Pill value={stage.ready ? "ready" : "blocked"} />
+      </div>
+      <div className={styles.metaGrid}>
+        <Meta label="Artifact kind" value={stage.artifactKind} />
+        <Meta label="Source" value={stage.sourceRef} />
+        <Meta label="Review state" value={stage.reviewState} />
+        <Meta label="Status" value={stage.status} />
+        <Meta label="Blocked by" value={joined(stage.blockedBy)} />
+        <Meta label="Next" value={stage.nextArtifact} />
+      </div>
+    </div>
+  );
+}
+
+function AcceptedAnswerRow({
+  answer,
+}: {
+  answer: IdeaToSpecAcceptedAnswer;
+}) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{answer.requestId}</span>
+        <Pill value={answer.answerKind} />
+      </div>
+      <div className={styles.metaGrid}>
+        <Meta label="Status" value={answer.status} />
+        <Meta label="Request kind" value={answer.requestKind} />
+        <Meta label="Target artifact" value={answer.targetArtifact} />
+        <Meta label="Target" value={answer.targetRef} />
+        <Meta label="Terms" value={joined(answer.terms)} />
+        <Meta label="Scope" value={answer.termScope} />
+      </div>
+    </div>
   );
 }
 
