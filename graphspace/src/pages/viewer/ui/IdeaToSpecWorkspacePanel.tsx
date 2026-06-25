@@ -20,6 +20,7 @@ import {
   useIdeaToSpecRepairDrafts,
   type IdeaToSpecRepairDraft,
   type IdeaToSpecRepairDraftInput,
+  type IdeaToSpecRepairDraftSaveError,
   type UseIdeaToSpecRepairDraftsState,
 } from "../model/use-idea-to-spec-repair-drafts";
 import { describeHttpErrorDetail } from "../model/live-artifacts";
@@ -827,6 +828,11 @@ function ProductRepairReviewSection({
           request={request}
           draft={repairDrafts.draftsByRequestId.get(request.id)}
           pending={repairDrafts.pendingRequestId === request.id}
+          saveError={
+            repairDrafts.saveError?.requestId === request.id
+              ? repairDrafts.saveError
+              : null
+          }
           onSave={(input) =>
             repairDrafts.saveDraft({
               ...input,
@@ -893,11 +899,13 @@ function ClarificationRequestRow({
   request,
   draft,
   pending,
+  saveError,
   onSave,
 }: {
   request: IdeaToSpecClarificationRequest;
   draft: IdeaToSpecRepairDraft | undefined;
   pending: boolean;
+  saveError: IdeaToSpecRepairDraftSaveError | null;
   onSave: (input: IdeaToSpecRepairDraftInput) => void;
 }) {
   const defaultAction = request.suggestedActions[0] ?? "";
@@ -968,6 +976,11 @@ function ClarificationRequestRow({
             Draft saved · {draft.allowedAction.replace(/_/g, " ")} · {draft.updatedAt}
           </span>
         ) : null}
+        {saveError ? (
+          <span className={styles.statusDetail}>
+            Draft save failed · {repairDraftSaveErrorText(saveError)}
+          </span>
+        ) : null}
       </form>
     </div>
   );
@@ -1024,6 +1037,11 @@ function draftPlaceholder(action: string): string {
   if (action === "propose_project_local_term") return "Project-local term";
   if (action === "reject" || action === "defer") return "Reason";
   return "Draft answer";
+}
+
+function repairDraftSaveErrorText(error: IdeaToSpecRepairDraftSaveError): string {
+  if (error.kind === "http-error") return `HTTP ${error.status}: ${error.statusText}`;
+  return "network error";
 }
 
 function OntologyDecisionRow({

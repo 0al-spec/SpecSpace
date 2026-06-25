@@ -9,6 +9,8 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
+from viewer import specspace_provider
+
 REPAIR_DRAFT_ARTIFACT_KIND = "specspace_idea_to_spec_repair_draft_state"
 REPAIR_DRAFT_SCHEMA_VERSION = 1
 REPAIR_DRAFT_FILENAME = "idea_to_spec_repair_drafts.json"
@@ -164,7 +166,7 @@ def normalize_state(raw: Any, path: Path) -> tuple[dict[str, Any] | None, dict[s
             drafts.append(draft)
     drafts.sort(key=lambda entry: (entry["workspace_id"], entry["request_id"]))
     state["drafts"] = drafts
-    state["source_artifacts"] = raw.get("source_artifacts") if isinstance(raw.get("source_artifacts"), dict) else {}
+    state["source_artifacts"] = _string_map(raw.get("source_artifacts"))
     _refresh_summary(state)
     return state, None
 
@@ -242,7 +244,9 @@ def save_repair_draft(
         return HTTPStatus.BAD_REQUEST, value_error
 
     selected_workspace_id = workspace_id or _text(workspace.get("id")) or _text(payload.get("workspace_id"))
-    payload_workspace_id = _text(payload.get("workspace_id"))
+    payload_workspace_id = specspace_provider.normalize_workspace_id(
+        payload.get("workspace_id")
+    )
     if payload_workspace_id and selected_workspace_id and payload_workspace_id != selected_workspace_id:
         return HTTPStatus.CONFLICT, {
             "error": "Repair draft workspace_id does not match selected workspace.",
@@ -424,6 +428,16 @@ def _records(value: Any) -> list[dict[str, Any]]:
 
 def _string_list(value: Any) -> list[str]:
     return [item for item in value if isinstance(item, str) and item] if isinstance(value, list) else []
+
+
+def _string_map(value: Any) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        key: item
+        for key, item in value.items()
+        if isinstance(key, str) and isinstance(item, str) and item
+    }
 
 
 def _text(value: Any) -> str | None:

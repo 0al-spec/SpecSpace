@@ -86,6 +86,20 @@ export type IdeaToSpecRepairDraftInput = {
   operatorRef?: string | null;
 };
 
+export type IdeaToSpecRepairDraftSaveError =
+  | {
+      kind: "http-error";
+      requestId: string;
+      status: number;
+      statusText: string;
+      body?: unknown;
+    }
+  | {
+      kind: "network-error";
+      requestId: string;
+      error: unknown;
+    };
+
 type Options = {
   url?: string;
   fetcher?: typeof fetch;
@@ -301,6 +315,8 @@ export function useIdeaToSpecRepairDrafts(options: Options = {}) {
   } = options;
   const [state, setState] = useState<UseIdeaToSpecRepairDraftsState>({ kind: "idle" });
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [saveError, setSaveError] =
+    useState<IdeaToSpecRepairDraftSaveError | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     let response: Response;
@@ -340,6 +356,7 @@ export function useIdeaToSpecRepairDrafts(options: Options = {}) {
 
   const saveDraft = useCallback(async (input: IdeaToSpecRepairDraftInput) => {
     setPendingRequestId(input.requestId);
+    setSaveError(null);
     try {
       const response = await fetcher(url, {
         method: "POST",
@@ -361,12 +378,18 @@ export function useIdeaToSpecRepairDrafts(options: Options = {}) {
         } catch {
           body = undefined;
         }
-        setState({ kind: "http-error", status: response.status, statusText: response.statusText, body });
+        setSaveError({
+          kind: "http-error",
+          requestId: input.requestId,
+          status: response.status,
+          statusText: response.statusText,
+          body,
+        });
         return;
       }
       setState(parseIdeaToSpecRepairDraftState(await response.json()));
     } catch (error) {
-      setState({ kind: "network-error", error });
+      setSaveError({ kind: "network-error", requestId: input.requestId, error });
     } finally {
       setPendingRequestId(null);
     }
@@ -377,5 +400,5 @@ export function useIdeaToSpecRepairDrafts(options: Options = {}) {
     return new Map(state.data.drafts.map((draft) => [draft.requestId, draft]));
   }, [state]);
 
-  return { state, draftsByRequestId, pendingRequestId, saveDraft };
+  return { state, draftsByRequestId, pendingRequestId, saveError, saveDraft };
 }

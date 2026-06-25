@@ -5092,6 +5092,53 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(body["authority_boundary"]["repair_draft_state_is_authority"])
         self.assertFalse((state_dir / "idea_to_spec_repair_drafts.json").exists())
 
+    def test_idea_to_spec_repair_drafts_v1_filters_source_artifacts_to_string_map(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            _write_json(
+                state_dir / "idea_to_spec_repair_drafts.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_repair_draft_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "source_artifacts": {
+                        "idea_to_spec_repair_session": "runs/idea_to_spec_repair_session.json",
+                        "bad_number": 42,
+                        "bad_empty": "",
+                    },
+                    "consumer_boundary": {
+                        "specspace_owned_state": True,
+                        "for_product_repair_workflow": True,
+                    },
+                    "authority_boundary": {
+                        "repair_draft_state_is_authority": False,
+                        "canonical_mutations_allowed": False,
+                    },
+                    "drafts": [],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            body["source_artifacts"],
+            {
+                "idea_to_spec_repair_session": "runs/idea_to_spec_repair_session.json",
+            },
+        )
+
     def test_idea_to_spec_repair_drafts_v1_posts_specspace_owned_draft(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -5143,6 +5190,34 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(draft["mutates_canonical_specs"])
         self.assertTrue(state_exists)
         self.assertEqual(candidate_graph_after, before_candidate_graph)
+
+    def test_idea_to_spec_repair_drafts_v1_accepts_normalized_workspace_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team_decision_log",
+                        "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                        "action": "propose_project_local_term",
+                        "answer_value": {"terms": ["Decision Record"]},
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["selected_workspace_id"], "team-decision-log")
+        self.assertEqual(body["drafts"][0]["workspace_id"], "team-decision-log")
 
     def test_idea_to_spec_repair_drafts_v1_preserves_concurrent_draft_posts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
