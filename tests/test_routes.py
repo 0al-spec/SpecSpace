@@ -78,6 +78,18 @@ def test_route_table_resolves_idea_to_spec_workspace() -> None:
     assert route.handler == "handle_v1_idea_to_spec_workspace"
 
 
+def test_route_table_resolves_idea_to_spec_repair_drafts() -> None:
+    get_route = routes.route_for("GET", "/api/v1/idea-to-spec-repair-drafts")
+    post_route = routes.route_for("POST", "/api/v1/idea-to-spec-repair-drafts")
+
+    assert get_route is not None
+    assert get_route.handler == "handle_v1_idea_to_spec_repair_drafts"
+    assert get_route.pass_parsed is True
+    assert post_route is not None
+    assert post_route.handler == "handle_v1_idea_to_spec_repair_draft_post"
+    assert post_route.pass_parsed is True
+
+
 def test_route_table_resolves_ontology_compliance_review() -> None:
     route = routes.route_for("GET", "/api/v1/ontology-compliance-review")
 

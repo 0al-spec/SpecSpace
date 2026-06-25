@@ -216,6 +216,133 @@ def _write_product_workspace_runs(
     )
 
 
+def _write_repair_draft_workspace_runs(runs_dir: Path) -> None:
+    _write_product_workspace_runs(runs_dir)
+    _write_json(
+        runs_dir / idea_to_spec_workspace.IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT,
+        {
+            "artifact_kind": "idea_to_spec_clarification_requests",
+            "schema_version": 1,
+            "proposal_id": "0163",
+            "contract_ref": "specgraph.idea-to-spec.clarification-requests.v0.1",
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "readiness": {
+                "ready": False,
+                "review_state": "clarification_required",
+                "blocked_by": ["clarification.candidate-gap.ontology-gap-decision-record"],
+            },
+            "clarification_requests": [
+                {
+                    "id": "clarification.candidate-gap.ontology-gap-decision-record",
+                    "kind": "ontology_gap",
+                    "severity": "review_required",
+                    "status": "open",
+                    "target_ref": "candidate-spec.decision-record.gaps.ontology-gap.decision-record",
+                    "question": "Should Decision Record bind, alias, remain local, or be rejected?",
+                    "suggested_actions": [
+                        "bind_existing_term",
+                        "alias",
+                        "propose_project_local_term",
+                        "reject",
+                        "defer",
+                    ],
+                }
+            ],
+            "request_counts": {
+                "total": 1,
+                "by_kind": {"ontology_gap": 1},
+                "by_status": {"open": 1},
+            },
+        },
+    )
+    _write_json(
+        runs_dir / idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
+        {
+            "artifact_kind": "idea_to_spec_repair_session_journal",
+            "schema_version": 1,
+            "proposal_id": "0171",
+            "contract_ref": "specgraph.idea-to-spec.repair-session-journal.v0.1",
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "readiness": {
+                "ready": True,
+                "review_state": "repair_session_journal_ready",
+                "blocked_by": [],
+                "next_artifact": "SpecSpace product repair workspace",
+            },
+            "session": {
+                "session_id": "repair-session.team-decision-log",
+                "candidate_id": "team-decision-log",
+                "workspace_route": "/team-decision-log",
+                "workflow_lane": "product_idea_to_spec",
+                "target_repository_role": "product_spec_workspace",
+                "governance_profile": "product_workspace",
+                "operator_ref": "operator://workspace-owner",
+            },
+            "readiness_impact": {
+                "ready_for_candidate_approval": False,
+                "ready_for_platform_promotion": False,
+                "intermediate_artifacts_ready": True,
+                "candidate_quality_review_state": "candidate_quality_partially_improved",
+                "promotion_gate_review_state": "idea_to_spec_promotion_blocked",
+                "active_candidate_review_state": "active_candidate_review_required",
+                "resolved_ontology_gap_count": 0,
+                "unresolved_ontology_gap_count": 1,
+                "rerun_removed_gap_count": 0,
+                "clarification_request_count": 1,
+                "accepted_answer_count": 0,
+                "ontology_decision_count": 0,
+                "promotion_path_count": 0,
+                "blocked_by": ["unresolved_ontology_gaps"],
+                "platform_promotion_blocked_by": ["candidate_not_ready_for_approval"],
+            },
+            "workflow_journal": {
+                "stages": [],
+                "accepted_answers": [],
+                "ontology_decisions": [],
+                "rerun_overlay_refs": {},
+                "preview_refs": {},
+            },
+            "source_artifacts": {},
+            "summary": {
+                "status": "repair_session_journal_ready",
+                "candidate_id": "team-decision-log",
+                "workflow_lane": "product_idea_to_spec",
+                "accepted_answer_count": 0,
+                "ontology_decision_count": 0,
+                "resolved_ontology_gap_count": 0,
+                "unresolved_ontology_gap_count": 1,
+                "ready_for_candidate_approval": False,
+                "finding_count": 0,
+            },
+            "authority_boundary": {
+                "may_execute_prompt_agent": False,
+                "may_apply_answers_to_source_artifacts": False,
+                "may_apply_decisions_to_source_artifacts": False,
+                "may_mutate_candidate_source_artifacts": False,
+                "may_mutate_canonical_specs": False,
+                "may_write_ontology_package": False,
+                "may_write_ontology_lockfile": False,
+                "may_accept_ontology_terms": False,
+                "may_mark_candidate_graph_accepted": False,
+                "may_create_branch_or_commit": False,
+                "may_open_pull_request": False,
+                "may_publish_read_model": False,
+            },
+            "privacy_boundary": {
+                "raw_idea_text_published": False,
+                "raw_prompt_published": False,
+                "raw_model_output_published": False,
+                "raw_operator_note_published": False,
+                "static_flags_are_asserted_invariants": True,
+                "redaction_enforced_by": "recursive_public_safe_field_filter",
+            },
+            "findings": [],
+        },
+    )
+
+
 def _start(
     dialog_dir: Path,
     *,
@@ -4914,6 +5041,186 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 422)
         self.assertIn("imports_into_specgraph", body["error"])
+
+    def test_idea_to_spec_repair_drafts_v1_reads_empty_specspace_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            body["artifact_kind"],
+            "specspace_idea_to_spec_repair_draft_state",
+        )
+        self.assertEqual(body["selected_workspace_id"], "team-decision-log")
+        self.assertEqual(body["summary"]["draft_count"], 0)
+        self.assertTrue(body["consumer_boundary"]["specspace_owned_state"])
+        self.assertFalse(body["consumer_boundary"]["may_apply_to_specgraph"])
+        self.assertFalse(body["authority_boundary"]["repair_draft_state_is_authority"])
+        self.assertFalse((state_dir / "idea_to_spec_repair_drafts.json").exists())
+
+    def test_idea_to_spec_repair_drafts_v1_posts_specspace_owned_draft(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            candidate_graph_path = runs_dir / idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT
+            before_candidate_graph = candidate_graph_path.read_text(encoding="utf-8")
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                        "action": "propose_project_local_term",
+                        "answer_value": {
+                            "terms": ["Decision Record"],
+                            "term_scope": "project_local",
+                        },
+                        "operator_ref": "operator://local-reviewer",
+                    },
+                )
+                get_status, get_body = _get(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+            state_path = state_dir / "idea_to_spec_repair_drafts.json"
+            state_exists = state_path.exists()
+            candidate_graph_after = candidate_graph_path.read_text(encoding="utf-8")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["draft_count"], 1)
+        self.assertEqual(get_status, 200)
+        draft = get_body["drafts"][0]
+        self.assertEqual(
+            draft["request_id"],
+            "clarification.candidate-gap.ontology-gap-decision-record",
+        )
+        self.assertEqual(draft["allowed_action"], "propose_project_local_term")
+        self.assertEqual(draft["answer_value"]["terms"], ["Decision Record"])
+        self.assertEqual(draft["candidate_id"], "team-decision-log")
+        self.assertFalse(draft["applies_to_specgraph"])
+        self.assertFalse(draft["mutates_canonical_specs"])
+        self.assertTrue(state_exists)
+        self.assertEqual(candidate_graph_after, before_candidate_graph)
+
+    def test_idea_to_spec_repair_drafts_v1_rejects_unknown_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "request_id": "clarification.unknown",
+                        "action": "defer",
+                        "answer_value": {"reason": "needs review"},
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 404)
+        self.assertEqual(body["request_id"], "clarification.unknown")
+        self.assertFalse((state_dir / "idea_to_spec_repair_drafts.json").exists())
+
+    def test_idea_to_spec_repair_drafts_v1_rejects_disallowed_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                        "action": "apply_to_specgraph",
+                        "answer_value": {"text": "do it"},
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertIn("not allowed", body["error"])
+        self.assertIn("propose_project_local_term", body["allowed_actions"])
+        self.assertFalse((state_dir / "idea_to_spec_repair_drafts.json").exists())
+
+    def test_idea_to_spec_repair_drafts_v1_rejects_mutation_claims(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            _write_json(
+                state_dir / "idea_to_spec_repair_drafts.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_repair_draft_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "consumer_boundary": {
+                        "specspace_owned_state": True,
+                        "for_product_repair_workflow": True,
+                        "may_apply_to_specgraph": False,
+                    },
+                    "authority_boundary": {
+                        "repair_draft_state_is_authority": False,
+                        "canonical_mutations_allowed": False,
+                    },
+                    "drafts": [
+                        {
+                            "workspace_id": "team-decision-log",
+                            "candidate_id": "team-decision-log",
+                            "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                            "allowed_action": "propose_project_local_term",
+                            "answer_value": {"terms": ["Decision Record"]},
+                            "applies_to_specgraph": True,
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertIn("applies_to_specgraph", body["error"])
 
     def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

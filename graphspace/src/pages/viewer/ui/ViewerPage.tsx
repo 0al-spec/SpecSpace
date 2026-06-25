@@ -194,6 +194,10 @@ export function ViewerPage({
         "/api/v1/idea-to-spec-workspace",
         workspace,
       ),
+      ideaToSpecRepairDrafts: workspaceApiUrl(
+        "/api/v1/idea-to-spec-repair-drafts",
+        workspace,
+      ),
       ontologyWorkbench: workspaceApiUrl("/api/v1/ontology-workbench", workspace),
       practicalOntology: workspaceApiUrl("/api/v1/practical-ontology", workspace),
       ontologyReviewDashboard: workspaceApiUrl(
@@ -1251,7 +1255,10 @@ export function ViewerPage({
           ) : null}
 
           {activeUtilityPanel === "idea-to-spec" ? (
-            <IdeaToSpecWorkspacePanel state={ideaToSpecWorkspaceState} />
+            <IdeaToSpecWorkspacePanel
+              state={ideaToSpecWorkspaceState}
+              repairDraftsUrl={workspaceApiUrls.ideaToSpecRepairDrafts}
+            />
           ) : null}
 
           {activeUtilityPanel === "ontology-workbench" ? (

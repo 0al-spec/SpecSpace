@@ -317,6 +317,61 @@
   color: var(--gs-muted-2);
 }
 
+.draftForm {
+  display: grid;
+  gap: var(--gs-space-3);
+  margin-top: var(--gs-space-5);
+  border-top: 1px solid var(--gs-rule-soft);
+  padding-top: var(--gs-space-5);
+}
+
+.draftControls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gs-space-3);
+}
+
+.draftSelect {
+  min-width: 0;
+  flex: 1 1 auto;
+  height: 30px;
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+}
+
+.draftSelect:focus {
+  border-color: var(--gs-accent);
+  outline: none;
+}
+
+.draftTextarea {
+  display: block;
+  width: 100%;
+  min-height: 78px;
+  box-sizing: border-box;
+  border: 1px solid var(--gs-rule-soft);
+  padding: var(--gs-space-4);
+  resize: vertical;
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+  font-family: var(--gs-sans);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.draftTextarea:focus {
+  border-color: var(--gs-accent);
+  outline: none;
+}
+
+.draftTextarea::placeholder {
+  color: var(--gs-muted-2);
+}
+
 .rowActions {
   display: flex;
   justify-content: flex-end;
