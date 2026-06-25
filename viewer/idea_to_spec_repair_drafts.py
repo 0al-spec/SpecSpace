@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
@@ -52,6 +53,7 @@ ONTOLOGY_ACTIONS = {
     "reject",
     "defer",
 }
+_STATE_LOCK = threading.Lock()
 
 
 def state_path(server: Any) -> Path:
@@ -256,58 +258,62 @@ def save_repair_draft(
     repair_session_ref = _text(repair_session_artifact.get("path")) or "runs/idea_to_spec_repair_session.json"
     now = now_iso()
 
-    status, state = read_state(server)
-    if status != HTTPStatus.OK:
-        return status, state
-    path = state_path(server)
-    existing_by_key = {
-        (entry["workspace_id"], entry["request_id"]): entry
-        for entry in state.get("drafts", [])
-        if isinstance(entry, dict)
-        and isinstance(entry.get("workspace_id"), str)
-        and isinstance(entry.get("request_id"), str)
-    }
-    existing = existing_by_key.get((workspace_id_value, request_id))
-    created_at = _text(existing.get("created_at")) if isinstance(existing, dict) else None
-    record = {
-        "draft_id": f"specspace-repair-draft::{workspace_id_value}::{request_id}",
-        "workspace_id": workspace_id_value,
-        "candidate_id": candidate_id,
-        "repair_session_id": repair_session_id,
-        "repair_session_ref": repair_session_ref,
-        "request_id": request_id,
-        "request_kind": _text(request.get("kind")) or "clarification",
-        "request_status": _text(request.get("status")) or "open",
-        "target_ref": target_ref,
-        "target_artifact": _text(payload.get("target_artifact")),
-        "allowed_action": action,
-        "answer_value": answer_value,
-        "operator_ref": _text(payload.get("operator_ref")) or "local_operator",
-        "created_at": created_at or now,
-        "updated_at": now,
-        "source_artifact": repair_session_ref,
-        "canonical_mutations_allowed": False,
-        "tracked_artifacts_written": False,
-        "applies_to_specgraph": False,
-        "applies_to_candidate_artifacts": False,
-        "mutates_canonical_specs": False,
-        "writes_ontology_package": False,
-        "accepts_ontology_terms": False,
-        "creates_branch_or_commit": False,
-        "opens_pull_request": False,
-    }
-    existing_by_key[(workspace_id_value, request_id)] = record
-    state["drafts"] = sorted(existing_by_key.values(), key=lambda entry: (entry["workspace_id"], entry["request_id"]))
-    state["source_artifacts"] = {
-        **_record(state.get("source_artifacts")),
-        "idea_to_spec_repair_session": repair_session_ref,
-    }
-    _refresh_summary(state)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(f"{path.suffix}.tmp")
-    tmp.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    tmp.replace(path)
-    return HTTPStatus.OK, _filtered_state(state, workspace_id)
+    with _STATE_LOCK:
+        status, state = read_state(server)
+        if status != HTTPStatus.OK:
+            return status, state
+        path = state_path(server)
+        existing_by_key = {
+            (entry["workspace_id"], entry["request_id"]): entry
+            for entry in state.get("drafts", [])
+            if isinstance(entry, dict)
+            and isinstance(entry.get("workspace_id"), str)
+            and isinstance(entry.get("request_id"), str)
+        }
+        existing = existing_by_key.get((workspace_id_value, request_id))
+        created_at = _text(existing.get("created_at")) if isinstance(existing, dict) else None
+        record = {
+            "draft_id": f"specspace-repair-draft::{workspace_id_value}::{request_id}",
+            "workspace_id": workspace_id_value,
+            "candidate_id": candidate_id,
+            "repair_session_id": repair_session_id,
+            "repair_session_ref": repair_session_ref,
+            "request_id": request_id,
+            "request_kind": _text(request.get("kind")) or "clarification",
+            "request_status": _text(request.get("status")) or "open",
+            "target_ref": target_ref,
+            "target_artifact": _text(payload.get("target_artifact")),
+            "allowed_action": action,
+            "answer_value": answer_value,
+            "operator_ref": _text(payload.get("operator_ref")) or "local_operator",
+            "created_at": created_at or now,
+            "updated_at": now,
+            "source_artifact": repair_session_ref,
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "applies_to_specgraph": False,
+            "applies_to_candidate_artifacts": False,
+            "mutates_canonical_specs": False,
+            "writes_ontology_package": False,
+            "accepts_ontology_terms": False,
+            "creates_branch_or_commit": False,
+            "opens_pull_request": False,
+        }
+        existing_by_key[(workspace_id_value, request_id)] = record
+        state["drafts"] = sorted(
+            existing_by_key.values(),
+            key=lambda entry: (entry["workspace_id"], entry["request_id"]),
+        )
+        state["source_artifacts"] = {
+            **_record(state.get("source_artifacts")),
+            "idea_to_spec_repair_session": repair_session_ref,
+        }
+        _refresh_summary(state)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(f"{path.suffix}.tmp")
+        tmp.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        tmp.replace(path)
+        return HTTPStatus.OK, _filtered_state(state, workspace_id)
 
 
 def _filtered_state(state: dict[str, Any], workspace_id: str | None) -> dict[str, Any]:

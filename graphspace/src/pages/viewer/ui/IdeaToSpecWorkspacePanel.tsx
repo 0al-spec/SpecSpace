@@ -900,16 +900,16 @@ function ClarificationRequestRow({
   pending: boolean;
   onSave: (input: IdeaToSpecRepairDraftInput) => void;
 }) {
+  const defaultAction = request.suggestedActions[0] ?? "";
   const [selectedAction, setSelectedAction] = useState(
-    () => draft?.allowedAction ?? request.suggestedActions[0] ?? "",
+    () => draft?.allowedAction ?? defaultAction,
   );
   const [draftText, setDraftText] = useState(() => repairDraftText(draft) ?? "");
 
   useEffect(() => {
-    if (!draft) return;
-    setSelectedAction(draft.allowedAction);
+    setSelectedAction(draft?.allowedAction ?? defaultAction);
     setDraftText(repairDraftText(draft) ?? "");
-  }, [draft]);
+  }, [defaultAction, draft]);
 
   const answerValue = answerValueForDraftAction(selectedAction, draftText);
   const canSave = !!selectedAction && draftText.trim().length > 0 && !pending;

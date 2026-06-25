@@ -5,6 +5,7 @@ import tempfile
 import threading
 import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -216,8 +217,47 @@ def _write_product_workspace_runs(
     )
 
 
-def _write_repair_draft_workspace_runs(runs_dir: Path) -> None:
+def _write_repair_draft_workspace_runs(
+    runs_dir: Path,
+    *,
+    include_secondary_request: bool = False,
+) -> None:
     _write_product_workspace_runs(runs_dir)
+    clarification_requests = [
+        {
+            "id": "clarification.candidate-gap.ontology-gap-decision-record",
+            "kind": "ontology_gap",
+            "severity": "review_required",
+            "status": "open",
+            "target_ref": "candidate-spec.decision-record.gaps.ontology-gap.decision-record",
+            "question": "Should Decision Record bind, alias, remain local, or be rejected?",
+            "suggested_actions": [
+                "bind_existing_term",
+                "alias",
+                "propose_project_local_term",
+                "reject",
+                "defer",
+            ],
+        }
+    ]
+    if include_secondary_request:
+        clarification_requests.append(
+            {
+                "id": "clarification.candidate-gap.ontology-gap-decision-owner",
+                "kind": "ontology_gap",
+                "severity": "review_required",
+                "status": "open",
+                "target_ref": "candidate-spec.decision-record.gaps.ontology-gap.decision-owner",
+                "question": "Should Decision Owner bind, alias, remain local, or be rejected?",
+                "suggested_actions": [
+                    "bind_existing_term",
+                    "alias",
+                    "propose_project_local_term",
+                    "reject",
+                    "defer",
+                ],
+            }
+        )
     _write_json(
         runs_dir / idea_to_spec_workspace.IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT,
         {
@@ -230,29 +270,13 @@ def _write_repair_draft_workspace_runs(runs_dir: Path) -> None:
             "readiness": {
                 "ready": False,
                 "review_state": "clarification_required",
-                "blocked_by": ["clarification.candidate-gap.ontology-gap-decision-record"],
+                "blocked_by": [item["id"] for item in clarification_requests],
             },
-            "clarification_requests": [
-                {
-                    "id": "clarification.candidate-gap.ontology-gap-decision-record",
-                    "kind": "ontology_gap",
-                    "severity": "review_required",
-                    "status": "open",
-                    "target_ref": "candidate-spec.decision-record.gaps.ontology-gap.decision-record",
-                    "question": "Should Decision Record bind, alias, remain local, or be rejected?",
-                    "suggested_actions": [
-                        "bind_existing_term",
-                        "alias",
-                        "propose_project_local_term",
-                        "reject",
-                        "defer",
-                    ],
-                }
-            ],
+            "clarification_requests": clarification_requests,
             "request_counts": {
-                "total": 1,
-                "by_kind": {"ontology_gap": 1},
-                "by_status": {"open": 1},
+                "total": len(clarification_requests),
+                "by_kind": {"ontology_gap": len(clarification_requests)},
+                "by_status": {"open": len(clarification_requests)},
             },
         },
     )
@@ -5119,6 +5143,61 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(draft["mutates_canonical_specs"])
         self.assertTrue(state_exists)
         self.assertEqual(candidate_graph_after, before_candidate_graph)
+
+    def test_idea_to_spec_repair_drafts_v1_preserves_concurrent_draft_posts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_secondary_request=True,
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            url = f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log"
+            payloads = [
+                {
+                    "workspace_id": "team-decision-log",
+                    "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                    "action": "propose_project_local_term",
+                    "answer_value": {"terms": ["Decision Record"]},
+                },
+                {
+                    "workspace_id": "team-decision-log",
+                    "request_id": "clarification.candidate-gap.ontology-gap-decision-owner",
+                    "action": "propose_project_local_term",
+                    "answer_value": {"terms": ["Decision Owner"]},
+                },
+            ]
+            try:
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    results = list(pool.map(lambda payload: _post(url, payload), payloads))
+                get_status, get_body = _get(url)
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual([status for status, _body in results], [200, 200])
+        self.assertEqual(get_status, 200)
+        self.assertEqual(get_body["summary"]["draft_count"], 2)
+        draft_terms = {
+            draft["request_id"]: draft["answer_value"]["terms"]
+            for draft in get_body["drafts"]
+        }
+        self.assertEqual(
+            draft_terms,
+            {
+                "clarification.candidate-gap.ontology-gap-decision-record": [
+                    "Decision Record"
+                ],
+                "clarification.candidate-gap.ontology-gap-decision-owner": [
+                    "Decision Owner"
+                ],
+            },
+        )
 
     def test_idea_to_spec_repair_drafts_v1_rejects_unknown_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
