@@ -1398,6 +1398,32 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "invalid_artifact_contract",
         )
 
+    def test_build_workspace_rejects_unknown_raw_repair_session_privacy_flag(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        repair_session = _repair_session_journal()
+        repair_session["privacy_boundary"] = {
+            **repair_session["privacy_boundary"],
+            "raw_clarification_text_published": True,
+        }
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            repair_session
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["artifacts"]["repair_session"]["reason"],
+            "invalid_artifact_contract",
+        )
+        self.assertFalse(body["repair_session"]["available"])
+        self.assertEqual(body["repair_session"]["source_mode"], "legacy_artifacts")
+        self.assertEqual(body["summary"]["resolved_ontology_gap_count"], 1)
+
     def test_build_workspace_degrades_when_artifacts_are_missing(self) -> None:
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
             artifacts={

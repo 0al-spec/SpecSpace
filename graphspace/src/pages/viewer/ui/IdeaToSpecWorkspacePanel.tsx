@@ -575,7 +575,11 @@ function RepairSessionSection({
     <section className={styles.reviewSection}>
       <SectionHeader
         title="Repair session"
-        count={session.stages.length + session.openBlockers.length}
+        count={
+          session.stages.length +
+          session.openBlockers.length +
+          session.acceptedAnswers.length
+        }
       />
       <div className={styles.postureStrip}>
         <PostureItem label="Source" value={session.sourceMode} />

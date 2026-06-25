@@ -247,14 +247,10 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         privacy_boundary = _record(value.get("privacy_boundary"))
-        unsafe_privacy_flags = {
-            "raw_idea_text_published",
-            "raw_intent_text_published",
-            "raw_prompt_published",
-            "raw_model_output_published",
-            "raw_operator_note_published",
-        }
-        if any(privacy_boundary.get(flag) is True for flag in unsafe_privacy_flags):
+        if any(
+            key.startswith("raw_") and key.endswith("_published") and flag is True
+            for key, flag in privacy_boundary.items()
+        ):
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "repair session privacy boundary flags must remain false.",
@@ -1994,10 +1990,15 @@ def build_idea_to_spec_workspace(
                     "unresolved_ontology_gap_count"
                 ]
             ),
-            "rerun_removed_gap_count": len(
-                repair_review["rerun_materialization"]["delta"]["removed_gap_ids"]
-            )
-            or repair_session["readiness_impact"]["rerun_removed_gap_count"],
+            "rerun_removed_gap_count": (
+                repair_session["readiness_impact"]["rerun_removed_gap_count"]
+                if repair_session_journal is not None
+                else len(
+                    repair_review["rerun_materialization"]["delta"][
+                        "removed_gap_ids"
+                    ]
+                )
+            ),
             "repair_context_required_count": _number(
                 _record((repair_loop or {}).get("summary")).get(
                     "context_required_count"
