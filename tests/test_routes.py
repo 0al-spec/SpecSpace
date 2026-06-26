@@ -102,6 +102,18 @@ def test_route_table_resolves_idea_to_spec_repair_rerun_requests() -> None:
     assert post_route.pass_parsed is True
 
 
+def test_route_table_resolves_idea_to_spec_candidate_approval_intents() -> None:
+    get_route = routes.route_for("GET", "/api/v1/idea-to-spec-candidate-approval-intents")
+    post_route = routes.route_for("POST", "/api/v1/idea-to-spec-candidate-approval-intents")
+
+    assert get_route is not None
+    assert get_route.handler == "handle_v1_idea_to_spec_candidate_approval_intents"
+    assert get_route.pass_parsed is True
+    assert post_route is not None
+    assert post_route.handler == "handle_v1_idea_to_spec_candidate_approval_intent_post"
+    assert post_route.pass_parsed is True
+
+
 def test_route_table_resolves_ontology_compliance_review() -> None:
     route = routes.route_for("GET", "/api/v1/ontology-compliance-review")
 

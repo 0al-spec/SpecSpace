@@ -29,6 +29,11 @@ import {
   type IdeaToSpecRepairRerunRequestError,
   type UseIdeaToSpecRepairRerunRequestsState,
 } from "../model/use-idea-to-spec-repair-rerun-requests";
+import {
+  useIdeaToSpecCandidateApprovalIntents,
+  type IdeaToSpecCandidateApprovalIntentError,
+  type UseIdeaToSpecCandidateApprovalIntentsState,
+} from "../model/use-idea-to-spec-candidate-approval-intents";
 import { describeHttpErrorDetail } from "../model/live-artifacts";
 import styles from "./OntologySemanticReviewPanel.module.css";
 
@@ -36,6 +41,7 @@ type Props = {
   state: UseIdeaToSpecWorkspaceState;
   repairDraftsUrl?: string;
   repairRerunRequestsUrl?: string;
+  candidateApprovalIntentsUrl?: string;
   repairRerunRequestsRefreshKey?: number | string;
 };
 
@@ -76,6 +82,7 @@ export function IdeaToSpecWorkspacePanel({
   state,
   repairDraftsUrl,
   repairRerunRequestsUrl,
+  candidateApprovalIntentsUrl,
   repairRerunRequestsRefreshKey = 0,
 }: Props) {
   const repairDrafts = useIdeaToSpecRepairDrafts({
@@ -90,6 +97,11 @@ export function IdeaToSpecWorkspacePanel({
   }, [repairDrafts.state]);
   const repairRerunRequests = useIdeaToSpecRepairRerunRequests({
     url: repairRerunRequestsUrl,
+    enabled: state.kind === "ok",
+    refreshKey: `${repairDraftRefreshKey}:${repairRerunRequestsRefreshKey}`,
+  });
+  const candidateApprovalIntents = useIdeaToSpecCandidateApprovalIntents({
+    url: candidateApprovalIntentsUrl,
     enabled: state.kind === "ok",
     refreshKey: `${repairDraftRefreshKey}:${repairRerunRequestsRefreshKey}`,
   });
@@ -205,6 +217,18 @@ export function IdeaToSpecWorkspacePanel({
         />
         <MaterializationSection state={state} />
         <PromotionGateSection state={state} />
+        <CandidateApprovalIntentSection
+          state={candidateApprovalIntents.state}
+          pending={candidateApprovalIntents.pending}
+          requestError={candidateApprovalIntents.requestError}
+          onRequest={() =>
+            candidateApprovalIntents.requestApprovalIntent({
+              workspaceId: data.selectedWorkspaceId ?? data.workspace.id,
+              operatorRef: "operator://specspace-local",
+              reason: "Approve candidate for promotion review.",
+            })
+          }
+        />
         <ControlledPromotionSection state={state} />
       </div>
     </section>
@@ -1077,6 +1101,125 @@ function ProductRepairRerunExecutionStatus({
   );
 }
 
+function CandidateApprovalIntentSection({
+  state,
+  pending,
+  requestError,
+  onRequest,
+}: {
+  state: UseIdeaToSpecCandidateApprovalIntentsState;
+  pending: boolean;
+  requestError: IdeaToSpecCandidateApprovalIntentError | null;
+  onRequest: () => void;
+}) {
+  if (state.kind === "idle" || state.kind === "loading") {
+    return (
+      <Status
+        label="Candidate approval intent loading"
+        detail="Reading SpecSpace-owned candidate approval intent state."
+      />
+    );
+  }
+  if (state.kind !== "ok") {
+    return (
+      <Status
+        label="Candidate approval intent unavailable"
+        detail={candidateApprovalIntentStateDetail(state)}
+      />
+    );
+  }
+  const workflow = state.data.workflowStatus;
+  const activeIntent = [...state.data.intents]
+    .reverse()
+    .find((intent) => intent.status === "requested");
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader
+        title="Candidate approval intent"
+        count={state.data.summary.activeIntentCount}
+      />
+      <div className={styles.postureStrip}>
+        <PostureItem
+          label="Session"
+          value={compact(workflow.repairSessionStatus, "missing")}
+        />
+        <PostureItem
+          label="Approval ready"
+          value={boolText(workflow.candidateApprovalReady)}
+        />
+        <PostureItem
+          label="Blockers"
+          value={String(workflow.openBlockerCount)}
+        />
+        <PostureItem
+          label="Execution"
+          value={compact(workflow.platformExecutionStatus, "missing")}
+        />
+        <PostureItem
+          label="Publication"
+          value={compact(workflow.platformPublicationStatus, "missing")}
+        />
+        <PostureItem
+          label="Git authority"
+          value={boolText(state.data.authorityBoundary.gitServiceAuthority)}
+        />
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>SpecSpace approval intent</span>
+          <Pill value={state.data.summary.status} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Repair session" value={workflow.repairSessionRef} />
+          <Meta label="Promotion gate" value={workflow.promotionGateRef} />
+          <Meta label="Journal" value={workflow.latestJournalState} />
+          <Meta label="Platform promotion" value={boolText(workflow.readyForPlatformPromotion)} />
+          <Meta label="Intents" value={String(state.data.summary.activeIntentCount)} />
+          <Meta
+            label="Candidate authority"
+            value={boolText(state.data.authorityBoundary.candidateApprovalAuthority)}
+          />
+          <Meta
+            label="SpecGraph authority"
+            value={boolText(state.data.authorityBoundary.specgraphArtifactAuthority)}
+          />
+          <Meta
+            label="Ontology writes"
+            value={boolText(state.data.consumerBoundary.mayWriteOntologyPackage)}
+          />
+        </div>
+        {activeIntent ? (
+          <div className={styles.subRow}>
+            <span>{activeIntent.id}</span>
+            <Pill value={activeIntent.status} />
+            <span className={styles.statusDetail}>
+              {compact(activeIntent.reason, activeIntent.requestedBy)}
+            </span>
+          </div>
+        ) : null}
+        <div className={styles.draftControls}>
+          <button
+            className={styles.ackButton}
+            type="button"
+            disabled={!workflow.requestReady || pending}
+            onClick={onRequest}
+          >
+            {pending ? "Requesting" : "Approve candidate for promotion review"}
+          </button>
+          <span className={styles.statusDetail}>
+            Intent records operator approval only; Platform still owns promotion decision and Git Service execution.
+          </span>
+        </div>
+        {requestError ? (
+          <span className={styles.statusDetail}>
+            Candidate approval intent failed · {candidateApprovalIntentErrorText(requestError)}
+          </span>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function productRepairRerunStatus(
   execution: IdeaToSpecProductRepairRerunPlatformExecution["execution"],
   publication: IdeaToSpecProductRepairRerunPlatformExecution["publication"],
@@ -1205,6 +1348,18 @@ function repairRerunRequestStateDetail(
   return state.message;
 }
 
+function candidateApprovalIntentStateDetail(
+  state: Exclude<UseIdeaToSpecCandidateApprovalIntentsState, { kind: "ok" | "idle" | "loading" }>,
+): string {
+  if (state.kind === "http-error") {
+    return `HTTP ${state.status}: ${state.statusText}`;
+  }
+  if (state.kind === "network-error") {
+    return "SpecSpace candidate approval intent endpoint is unreachable from the browser.";
+  }
+  return state.message;
+}
+
 function answerValueForDraftAction(
   action: string,
   text: string,
@@ -1252,6 +1407,13 @@ function repairDraftSaveErrorText(error: IdeaToSpecRepairDraftSaveError): string
 }
 
 function repairRerunRequestErrorText(error: IdeaToSpecRepairRerunRequestError): string {
+  if (error.kind === "http-error") return `HTTP ${error.status}: ${error.statusText}`;
+  return "network error";
+}
+
+function candidateApprovalIntentErrorText(
+  error: IdeaToSpecCandidateApprovalIntentError,
+): string {
   if (error.kind === "http-error") return `HTTP ${error.status}: ${error.statusText}`;
   return "network error";
 }
