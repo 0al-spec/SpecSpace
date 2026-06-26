@@ -818,6 +818,97 @@ def _platform_promotion_request() -> dict:
     }
 
 
+def _product_repair_rerun_execution_report(
+    *, ok: bool = True, dry_run: bool = False
+) -> dict:
+    return {
+        "artifact_kind": "platform_product_repair_rerun_execution_report",
+        "schema_version": 1,
+        "ok": ok,
+        "dry_run": dry_run,
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "authority_boundary": {
+            "executes_specgraph_make_target": True,
+            "executes_git_commands": False,
+            "opens_pull_requests": False,
+            "merges_pull_requests": False,
+            "writes_ontology_packages": False,
+            "accepts_ontology_terms": False,
+            "mutates_canonical_specs": False,
+            "publishes_private_artifacts": False,
+        },
+        "operations": [
+            {
+                "name": "execute_specgraph_requested_rerun",
+                "status": "succeeded" if ok else "failed",
+                "reason": "SpecGraph requested rerun target executed",
+                "evidence": ["product-workspace-requested-repair-draft-rerun"],
+            }
+        ],
+        "output_artifacts": {
+            "rerun_report": {
+                "path": "runs/specspace_repair_draft_rerun_report.json",
+                "present": ok,
+                "artifact_kind": "specspace_repair_draft_rerun_report",
+                "contract_ref": (
+                    "specgraph.idea-to-spec.specspace-repair-draft-rerun.v0.1"
+                ),
+                "status": "repair_draft_rerun_ready" if ok else "blocked",
+                "ready": ok,
+                "sha256": "sha256:rerun",
+            }
+        },
+        "diagnostics": [] if ok else [{"level": "error", "message": "failed"}],
+        "summary": {
+            "status": "completed" if ok else "failed",
+            "error_count": 0 if ok else 1,
+            "output_artifact_count": 1,
+            "rerun_report_digest": "sha256:rerun" if ok else None,
+            "repair_session_digest": "sha256:session" if ok else None,
+        },
+    }
+
+
+def _product_repair_rerun_publication_report(
+    *, ok: bool = True, dry_run: bool = False
+) -> dict:
+    return {
+        "artifact_kind": "platform_product_repair_rerun_publication_report",
+        "schema_version": 1,
+        "ok": ok,
+        "dry_run": dry_run,
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "authority_boundary": {
+            "executes_specgraph_make_target": True,
+            "executes_git_commands": False,
+            "opens_pull_requests": False,
+            "merges_pull_requests": False,
+            "writes_ontology_packages": False,
+            "accepts_ontology_terms": False,
+            "mutates_canonical_specs": False,
+            "publishes_private_artifacts": False,
+        },
+        "manifest": {
+            "path": "dist/specgraph-public/artifact_manifest.json",
+            "present": ok,
+            "sha256": "sha256:manifest",
+        },
+        "published_artifacts": (
+            ["runs/specspace_repair_draft_rerun_report.json"] if ok else []
+        ),
+        "missing_artifacts": [] if ok else ["runs/idea_to_spec_repair_session.json"],
+        "diagnostics": [] if ok else [{"level": "error", "message": "missing"}],
+        "summary": {
+            "status": "published" if ok else "blocked",
+            "error_count": 0 if ok else 1,
+            "published_artifact_count": 1 if ok else 0,
+            "missing_artifact_count": 0 if ok else 1,
+        },
+    }
+
+
 def _candidate_approval_decision() -> dict:
     return {
         "artifact_kind": "candidate_approval_decision",
@@ -1137,8 +1228,16 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(body["summary"]["read_model_published"])
         self.assertEqual(body["workflow"]["stage"], "repair_required")
         self.assertEqual(body["workflow"]["status"], "blocked")
-        self.assertEqual(len(body["workflow"]["items"]), 13)
+        self.assertEqual(len(body["workflow"]["items"]), 15)
         self.assertEqual(body["workflow"]["items"][2]["id"], "ontology_seed")
+        self.assertEqual(
+            body["workflow"]["items"][6]["id"],
+            "product_repair_rerun_execution",
+        )
+        self.assertEqual(
+            body["workflow"]["items"][7]["id"],
+            "product_repair_rerun_publication",
+        )
         self.assertEqual(
             body["workflow"]["next_handoff"]["kind"],
             "operator_repair_review",
@@ -1923,6 +2022,211 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["workflow"]["next_handoff"]["kind"],
             "operator_repair_review",
         )
+
+    def test_repair_rerun_publication_does_not_override_journal_blocker(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "repair_session_review_required")
+        self.assertEqual(body["workflow"]["status"], "blocked")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "operator_repair_review",
+        )
+
+    def test_repair_rerun_dry_run_execution_does_not_prompt_publish(self) -> None:
+        artifacts = self._repair_rerun_ready_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report(dry_run=True)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "repair_rerun_execution_dry_run")
+        self.assertEqual(body["workflow"]["status"], "operator_review_required")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "product_repair_rerun_execution",
+        )
+        self.assertIsNone(body["workflow"]["next_handoff"]["command_template"])
+
+    def test_repair_rerun_execution_requires_publication_when_unblocked(self) -> None:
+        artifacts = self._repair_rerun_ready_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "repair_rerun_publication_required")
+        self.assertEqual(body["workflow"]["status"], "ready_for_handoff")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "product_repair_rerun_publication",
+        )
+
+    def test_repair_rerun_dry_run_publication_still_requires_publication(
+        self,
+    ) -> None:
+        artifacts = self._repair_rerun_ready_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_publication_report(dry_run=True)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "repair_rerun_publication_required")
+        self.assertEqual(body["workflow"]["status"], "ready_for_handoff")
+        self.assertEqual(
+            body["workflow"]["items"][7]["status"],
+            "dry_run",
+        )
+
+    def test_repair_rerun_publication_failure_blocks_workflow(self) -> None:
+        artifacts = self._repair_rerun_ready_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_publication_report(ok=False)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "repair_rerun_publication_failed")
+        self.assertEqual(body["workflow"]["status"], "blocked")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "product_repair_rerun_publication_repair",
+        )
+
+    def test_platform_repair_rerun_reports_are_optional(self) -> None:
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=_workspace_artifacts(),
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertFalse(body["repair_review"]["platform_execution"]["available"])
+        self.assertFalse(
+            body["artifacts"]["product_repair_rerun_execution"]["available"]
+        )
+
+    def test_platform_repair_rerun_authority_expansion_drops_report(self) -> None:
+        artifacts = _workspace_artifacts()
+        execution = _product_repair_rerun_execution_report()
+        execution["authority_boundary"]["executes_git_commands"] = True
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = execution
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertFalse(body["repair_review"]["platform_execution"]["available"])
+        self.assertFalse(
+            body["artifacts"]["product_repair_rerun_execution"]["available"]
+        )
+
+    def test_platform_repair_rerun_output_artifacts_are_limited(self) -> None:
+        artifacts = _workspace_artifacts()
+        execution = _product_repair_rerun_execution_report()
+        execution["output_artifacts"] = {
+            f"artifact_{index}": {
+                "path": f"runs/artifact_{index}.json",
+                "present": True,
+                "ready": True,
+            }
+            for index in range(
+                idea_to_spec_workspace.DISPLAY_LIMITS[
+                    "product_repair_rerun_output_artifacts"
+                ]
+                + 5
+            )
+        }
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = execution
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            len(
+                body["repair_review"]["platform_execution"]["execution"][
+                    "output_artifacts"
+                ]
+            ),
+            idea_to_spec_workspace.DISPLAY_LIMITS[
+                "product_repair_rerun_output_artifacts"
+            ],
+        )
+
+    def _repair_rerun_ready_artifacts(self) -> dict[str, dict]:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
+        return artifacts
 
     def test_workflow_waits_for_review_merge_before_read_model_publish(self) -> None:
         artifacts = _workspace_artifacts()

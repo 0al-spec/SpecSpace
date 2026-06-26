@@ -231,6 +231,7 @@ def _write_repair_draft_workspace_runs(
     import_preview_ready: bool = True,
     accepted_for_rerun_count: int | None = None,
     include_rerun_report: bool = False,
+    include_platform_rerun_reports: bool = False,
 ) -> None:
     _write_product_workspace_runs(runs_dir)
     clarification_requests = [
@@ -450,6 +451,105 @@ def _write_repair_draft_workspace_runs(
                     "raw_model_output_published": False,
                 },
                 "findings": [] if import_ready else [{"finding_id": "invalid_repair_drafts"}],
+            },
+        )
+    if include_platform_rerun_reports:
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT,
+            {
+                "artifact_kind": "platform_product_repair_rerun_execution_report",
+                "schema_version": 1,
+                "ok": True,
+                "dry_run": False,
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
+                "authority_boundary": {
+                    "executes_specgraph_make_target": True,
+                    "executes_git_commands": False,
+                    "opens_pull_requests": False,
+                    "merges_pull_requests": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                    "mutates_canonical_specs": False,
+                    "publishes_private_artifacts": False,
+                },
+                "operations": [
+                    {
+                        "name": "execute_specgraph_requested_rerun",
+                        "status": "succeeded",
+                        "reason": "SpecGraph requested rerun target executed",
+                        "evidence": [
+                            "product-workspace-requested-repair-draft-rerun"
+                        ],
+                    }
+                ],
+                "output_artifacts": {
+                    "rerun_report": {
+                        "path": "runs/specspace_repair_draft_rerun_report.json",
+                        "present": True,
+                        "artifact_kind": "specspace_repair_draft_rerun_report",
+                        "contract_ref": "specgraph.idea-to-spec.specspace-repair-draft-rerun.v0.1",
+                        "status": "repair_draft_rerun_ready",
+                        "ready": True,
+                        "sha256": "sha256:rerun",
+                    },
+                    "repair_session": {
+                        "path": "runs/idea_to_spec_repair_session.json",
+                        "present": True,
+                        "artifact_kind": "idea_to_spec_repair_session_journal",
+                        "status": "repair_session_journal_ready",
+                        "ready": True,
+                        "sha256": "sha256:session",
+                    },
+                },
+                "diagnostics": [],
+                "summary": {
+                    "status": "completed",
+                    "error_count": 0,
+                    "output_artifact_count": 2,
+                    "rerun_report_digest": "sha256:rerun",
+                    "repair_session_digest": "sha256:session",
+                },
+            },
+        )
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT,
+            {
+                "artifact_kind": "platform_product_repair_rerun_publication_report",
+                "schema_version": 1,
+                "ok": True,
+                "dry_run": False,
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
+                "authority_boundary": {
+                    "executes_specgraph_make_target": True,
+                    "executes_git_commands": False,
+                    "opens_pull_requests": False,
+                    "merges_pull_requests": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                    "mutates_canonical_specs": False,
+                    "publishes_private_artifacts": False,
+                },
+                "manifest": {
+                    "path": "dist/specgraph-public/artifact_manifest.json",
+                    "present": True,
+                    "sha256": "sha256:manifest",
+                },
+                "published_artifacts": [
+                    "runs/idea_to_spec_repair_session.json",
+                    "runs/specspace_repair_draft_rerun_report.json",
+                ],
+                "missing_artifacts": [],
+                "diagnostics": [],
+                "summary": {
+                    "status": "published",
+                    "error_count": 0,
+                    "published_artifact_count": 2,
+                    "missing_artifact_count": 0,
+                },
             },
         )
     if include_rerun_report:
@@ -2494,6 +2594,54 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
         self.assertEqual(body["source"]["provider"], "http-product-workspace")
         self.assertEqual(body["workspace"]["id"], "team-decision-log")
         self.assertEqual(body["workspace"]["review_state"], "active_candidate_ready")
+
+    def test_idea_to_spec_workspace_surfaces_platform_repair_rerun_status(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_import_preview=True,
+                include_rerun_report=True,
+                include_platform_rerun_reports=True,
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specgraph_dir=root,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        repair_execution = body["repair_review"]["platform_execution"]
+        self.assertTrue(repair_execution["available"])
+        self.assertTrue(repair_execution["execution"]["ok"])
+        self.assertEqual(repair_execution["execution"]["status"], "completed")
+        self.assertEqual(
+            repair_execution["execution"]["operations"][0]["name"],
+            "execute_specgraph_requested_rerun",
+        )
+        self.assertTrue(repair_execution["publication"]["ok"])
+        self.assertEqual(repair_execution["publication"]["status"], "published")
+        self.assertFalse(
+            repair_execution["action_boundary"]["may_execute_platform_adapter"]
+        )
+        self.assertFalse(
+            repair_execution["action_boundary"]["may_run_specgraph_make_target"]
+        )
+        self.assertTrue(
+            body["artifacts"]["product_repair_rerun_execution"]["available"]
+        )
+        workflow_ids = {item["id"] for item in body["workflow"]["items"]}
+        self.assertIn("product_repair_rerun_execution", workflow_ids)
+        self.assertIn("product_repair_rerun_publication", workflow_ids)
 
     def test_workspace_query_scopes_spec_graph_to_product_http_candidate_graph(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

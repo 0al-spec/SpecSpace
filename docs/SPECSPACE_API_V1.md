@@ -717,6 +717,8 @@ idea-to-spec artifacts produced by SpecGraph:
 - `runs/candidate_spec_graph.json`;
 - `runs/pre_sib_coherence_report.json`;
 - `runs/candidate_repair_loop_report.json`;
+- `runs/platform_product_repair_rerun_execution_report.json`;
+- `runs/platform_product_repair_rerun_publication_report.json`;
 - `runs/candidate_spec_materialization_report.json`;
 - `runs/idea_to_spec_promotion_gate.json`;
 - `runs/candidate_approval_decision.json`;
@@ -738,14 +740,23 @@ still block the workflow before promotion.
 The payload is designed for fast operator inspection: event-storming counts,
 active ontology/domain/context frame, ontology-bound seed readiness, seed
 bindings/gaps, candidate graph nodes, pre-SIB/coherence findings, repair-loop
-actions, metric deltas, approval status, Git Service handoff state, repository
-review status, read-model publication status, and artifact availability.
+actions, SpecSpace draft repair handoff state, Product Repair Rerun
+execution/publication status, metric deltas, approval status, Git Service
+handoff state, repository review status, read-model publication status, and
+artifact availability.
 
 This surface is not a write boundary. The response is always `read_only`,
 requires `canonical_mutations_allowed: false`, and does not allow SpecSpace to
 execute prompt agents, mutate candidate source artifacts, mutate canonical
 specs, write Ontology packages, create Git branches/commits, or mark a
 candidate graph accepted.
+
+When the optional Product Repair Rerun reports are present, the response adds
+`repair_review.platform_execution`. That lane summarizes Platform execution and
+publication reports as read-only evidence only. Its action boundary keeps
+`may_execute_platform_adapter`, `may_run_specgraph_make_target`,
+`may_publish_bundle`, Git writes, ontology writes, and canonical spec mutation
+false.
 
 ```json
 {

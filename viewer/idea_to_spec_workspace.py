@@ -33,6 +33,12 @@ SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT = (
 SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT = (
     "specspace_repair_draft_rerun_report.json"
 )
+PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT = (
+    "platform_product_repair_rerun_execution_report.json"
+)
+PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT = (
+    "platform_product_repair_rerun_publication_report.json"
+)
 CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT = (
     "candidate_spec_materialization_report.json"
 )
@@ -71,6 +77,8 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
     SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT,
     SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT,
+    PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT,
+    PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT,
 )
 PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
     CANDIDATE_APPROVAL_DECISION_ARTIFACT,
@@ -109,6 +117,8 @@ ARTIFACT_KEYS: dict[str, str] = {
     IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT: "repair_session",
     SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT: "specspace_repair_draft_import_preview",
     SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT: "specspace_repair_draft_rerun_report",
+    PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT: "product_repair_rerun_execution",
+    PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT: "product_repair_rerun_publication",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
@@ -143,6 +153,12 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT: "idea_to_spec_repair_session_journal",
     SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT: "specspace_repair_draft_import_preview",
     SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT: "specspace_repair_draft_rerun_report",
+    PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT: (
+        "platform_product_repair_rerun_execution_report"
+    ),
+    PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT: (
+        "platform_product_repair_rerun_publication_report"
+    ),
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_spec_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib_coherence_report",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "candidate_repair_loop_report",
@@ -180,6 +196,7 @@ DISPLAY_LIMITS = {
     "resolved_gaps": 40,
     "materialized_files": 40,
     "git_service_operations": 20,
+    "product_repair_rerun_output_artifacts": 20,
 }
 
 
@@ -359,6 +376,36 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "detail": "candidate approval authority boundary flags must remain false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
+        if value.get("canonical_mutations_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename in {
+        PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT,
+        PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT,
+    }:
+        authority_boundary = _record(value.get("authority_boundary"))
+        for flag, enabled in authority_boundary.items():
+            if flag == "executes_specgraph_make_target":
+                continue
+            if enabled is True:
+                return {
+                    "reason": "invalid_artifact_contract",
+                    "detail": (
+                        "product repair rerun authority boundary flags must "
+                        "remain false except executes_specgraph_make_target."
+                    ),
+                    "artifact_kind": _optional_text(value.get("artifact_kind")),
+                }
         if value.get("canonical_mutations_allowed") is not False:
             return {
                 "reason": "invalid_artifact_contract",
@@ -1030,6 +1077,8 @@ def _repair_review_lane(
     rerun_input: dict[str, Any] | None,
     rerun_preview: dict[str, Any] | None,
     rerun_materialization: dict[str, Any] | None,
+    product_repair_rerun_execution: dict[str, Any] | None,
+    product_repair_rerun_publication: dict[str, Any] | None,
 ) -> dict[str, Any]:
     session_view = _repair_session(repair_session)
     readiness_impact = session_view["readiness_impact"]
@@ -1078,6 +1127,8 @@ def _repair_review_lane(
                 rerun_input,
                 rerun_preview,
                 rerun_materialization,
+                product_repair_rerun_execution,
+                product_repair_rerun_publication,
             )
         ),
         "clarification_requests": {
@@ -1170,6 +1221,10 @@ def _repair_review_lane(
                 ),
             },
         },
+        "platform_execution": _product_repair_rerun_execution_lane(
+            execution_report=product_repair_rerun_execution,
+            publication_report=product_repair_rerun_publication,
+        ),
         "action_boundary": {
             "inspect_only": True,
             "acknowledge_only": True,
@@ -1360,6 +1415,113 @@ def _promotion_finalization(report: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def _product_repair_rerun_operations(
+    report: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records((report or {}).get("operations"))[
+        : DISPLAY_LIMITS["git_service_operations"]
+    ]:
+        rows.append(
+            {
+                "name": _text(item.get("name"), "operation"),
+                "status": _text(item.get("status"), "unknown"),
+                "reason": _optional_text(item.get("reason")),
+                "evidence": _string_list(item.get("evidence")),
+            }
+        )
+    return rows
+
+
+def _product_repair_rerun_output_artifacts(
+    report: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    rows = []
+    output_artifacts = _record((report or {}).get("output_artifacts"))
+    for key, item in output_artifacts.items():
+        if not isinstance(item, dict):
+            continue
+        if len(rows) >= DISPLAY_LIMITS["product_repair_rerun_output_artifacts"]:
+            break
+        rows.append(
+            {
+                "key": _text(key, "artifact"),
+                "path": _optional_text(item.get("path")),
+                "present": item.get("present") is True,
+                "artifact_kind": _optional_text(item.get("artifact_kind")),
+                "contract_ref": _optional_text(item.get("contract_ref")),
+                "status": _optional_text(item.get("status")),
+                "ready": item.get("ready") is True,
+                "sha256": _optional_text(item.get("sha256")),
+            }
+        )
+    return rows
+
+
+def _product_repair_rerun_execution(
+    report: dict[str, Any] | None,
+) -> dict[str, Any]:
+    summary = _record((report or {}).get("summary"))
+    return {
+        "available": report is not None,
+        "ok": (report or {}).get("ok") is True,
+        "dry_run": (report or {}).get("dry_run") is True,
+        "status": _optional_text(summary.get("status")),
+        "error_count": _number(summary.get("error_count")),
+        "output_artifact_count": _number(summary.get("output_artifact_count")),
+        "rerun_report_digest": _optional_text(summary.get("rerun_report_digest")),
+        "repair_session_digest": _optional_text(summary.get("repair_session_digest")),
+        "operations": _product_repair_rerun_operations(report),
+        "output_artifacts": _product_repair_rerun_output_artifacts(report),
+        "diagnostic_count": len(_records((report or {}).get("diagnostics"))),
+    }
+
+
+def _product_repair_rerun_publication(
+    report: dict[str, Any] | None,
+) -> dict[str, Any]:
+    summary = _record((report or {}).get("summary"))
+    manifest = _record((report or {}).get("manifest"))
+    return {
+        "available": report is not None,
+        "ok": (report or {}).get("ok") is True,
+        "dry_run": (report or {}).get("dry_run") is True,
+        "status": _optional_text(summary.get("status")),
+        "error_count": _number(summary.get("error_count")),
+        "published_artifact_count": _number(summary.get("published_artifact_count")),
+        "missing_artifact_count": _number(summary.get("missing_artifact_count")),
+        "manifest_path": _optional_text(manifest.get("path")),
+        "manifest_present": manifest.get("present") is True,
+        "published_artifacts": _string_list((report or {}).get("published_artifacts")),
+        "missing_artifacts": _string_list((report or {}).get("missing_artifacts")),
+        "diagnostic_count": len(_records((report or {}).get("diagnostics"))),
+    }
+
+
+def _product_repair_rerun_execution_lane(
+    *,
+    execution_report: dict[str, Any] | None,
+    publication_report: dict[str, Any] | None,
+) -> dict[str, Any]:
+    return {
+        "available": execution_report is not None or publication_report is not None,
+        "execution": _product_repair_rerun_execution(execution_report),
+        "publication": _product_repair_rerun_publication(publication_report),
+        "action_boundary": {
+            "inspect_only": True,
+            "acknowledge_only": True,
+            "may_execute_platform_adapter": False,
+            "may_run_specgraph_make_target": False,
+            "may_publish_bundle": False,
+            "may_create_branch_or_commit": False,
+            "may_open_pull_request": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_mutate_canonical_specs": False,
+        },
+    }
+
+
 def _workflow_item(
     *,
     item_id: str,
@@ -1412,6 +1574,8 @@ def _workflow(
     repair_session: dict[str, Any] | None,
     materialization: dict[str, Any] | None,
     promotion_gate: dict[str, Any] | None,
+    product_repair_rerun_execution: dict[str, Any] | None,
+    product_repair_rerun_publication: dict[str, Any] | None,
     candidate_approval: dict[str, Any] | None,
     platform_promotion: dict[str, Any] | None,
     git_service_execution: dict[str, Any] | None,
@@ -1429,6 +1593,32 @@ def _workflow(
     repair_summary = _record((repair_loop or {}).get("summary"))
     context_required_count = _number(repair_summary.get("context_required_count"))
     promotion_blocker_count = _finding_count(promotion_gate)
+    product_repair_execution_view = _product_repair_rerun_execution(
+        product_repair_rerun_execution
+    )
+    product_repair_publication_view = _product_repair_rerun_publication(
+        product_repair_rerun_publication
+    )
+    product_repair_execution_failed = (
+        product_repair_rerun_execution is not None
+        and not product_repair_execution_view["ok"]
+    )
+    product_repair_publication_failed = (
+        product_repair_rerun_publication is not None
+        and not product_repair_publication_view["ok"]
+    )
+    product_repair_execution_ready = (
+        product_repair_execution_view["ok"]
+        and not product_repair_execution_view["dry_run"]
+    )
+    product_repair_execution_dry_run = (
+        product_repair_execution_view["ok"]
+        and product_repair_execution_view["dry_run"]
+    )
+    product_repair_publication_dry_run = (
+        product_repair_publication_view["ok"]
+        and product_repair_publication_view["dry_run"]
+    )
     seed_source_generation = _record((candidate_seed or {}).get("source_generation"))
     seed_readiness = _readiness(seed_source_generation)
     seed_blocked = _ontology_seed_blocked(candidate_seed)
@@ -1465,6 +1655,12 @@ def _workflow(
         repair_session is not None
         and candidate_approval is not None
         and repair_session_impact["ready_for_platform_promotion"] is not True
+    )
+    product_repair_downstream_blocked = (
+        context_required_count > 0
+        or promotion_gate_blocked
+        or journal_blocks_candidate_approval
+        or journal_blocks_platform_promotion
     )
     review_status_summary = _record((review_status or {}).get("summary"))
     review_merged = (
@@ -1563,6 +1759,32 @@ def _workflow(
                 if context_required_count > 0
                 else _optional_text(repair_readiness["review_state"])
             ),
+        ),
+        _workflow_item(
+            item_id="product_repair_rerun_execution",
+            label="Repair rerun execution",
+            status=_available_status(
+                statuses,
+                "product_repair_rerun_execution",
+                product_repair_execution_view["ok"],
+                blocked=product_repair_execution_failed,
+                dry_run=product_repair_execution_view["dry_run"],
+            ),
+            artifact_key=PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT,
+            detail=product_repair_execution_view["status"],
+        ),
+        _workflow_item(
+            item_id="product_repair_rerun_publication",
+            label="Repair rerun publication",
+            status=_available_status(
+                statuses,
+                "product_repair_rerun_publication",
+                product_repair_publication_view["ok"],
+                blocked=product_repair_publication_failed,
+                dry_run=product_repair_publication_view["dry_run"],
+            ),
+            artifact_key=PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT,
+            detail=product_repair_publication_view["status"],
         ),
         _workflow_item(
             item_id="materialization",
@@ -1707,6 +1929,34 @@ def _workflow(
             "command_template": None,
             "authority_boundary": "operator_only",
         }
+    elif product_repair_execution_failed:
+        stage = "repair_rerun_execution_failed"
+        status = "blocked"
+        next_handoff = {
+            "kind": "product_repair_rerun_execution_repair",
+            "label": "Repair the Product Repair Rerun execution report",
+            "status": "blocked",
+            "artifact_key": "product_repair_rerun_execution",
+            "artifact_path": (
+                f"runs/{PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT}"
+            ),
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
+    elif product_repair_publication_failed:
+        stage = "repair_rerun_publication_failed"
+        status = "blocked"
+        next_handoff = {
+            "kind": "product_repair_rerun_publication_repair",
+            "label": "Repair public-safe repair rerun publication",
+            "status": "blocked",
+            "artifact_key": "product_repair_rerun_publication",
+            "artifact_path": (
+                f"runs/{PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT}"
+            ),
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
     elif context_required_count > 0 or promotion_gate_blocked:
         stage = "repair_required"
         status = "blocked"
@@ -1729,6 +1979,40 @@ def _workflow(
             "artifact_key": "repair_session",
             "artifact_path": f"runs/{IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
             "command_template": None,
+            "authority_boundary": "operator_only",
+        }
+    elif product_repair_execution_dry_run and not product_repair_downstream_blocked:
+        stage = "repair_rerun_execution_dry_run"
+        status = "operator_review_required"
+        next_handoff = {
+            "kind": "product_repair_rerun_execution",
+            "label": "Run non-dry-run Product Repair Rerun execution",
+            "status": "operator_review_required",
+            "artifact_key": "product_repair_rerun_execution",
+            "artifact_path": (
+                f"runs/{PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT}"
+            ),
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
+    elif product_repair_execution_ready and (
+        product_repair_rerun_publication is None or product_repair_publication_dry_run
+    ) and not product_repair_downstream_blocked:
+        stage = "repair_rerun_publication_required"
+        status = "ready_for_handoff"
+        next_handoff = {
+            "kind": "product_repair_rerun_publication",
+            "label": "Publish public-safe repair rerun artifacts",
+            "status": "ready",
+            "artifact_key": "product_repair_rerun_execution",
+            "artifact_path": (
+                f"runs/{PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT}"
+            ),
+            "command_template": (
+                "scripts/platform.py product-repair-rerun publish "
+                "--execution-report "
+                "runs/platform_product_repair_rerun_execution_report.json"
+            ),
             "authority_boundary": "operator_only",
         }
     elif platform_failed:
@@ -1974,6 +2258,12 @@ def build_idea_to_spec_workspace(
     repair_session_journal = _artifact_data(
         artifacts, IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
     )
+    product_repair_rerun_execution = _artifact_data(
+        artifacts, PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+    )
+    product_repair_rerun_publication = _artifact_data(
+        artifacts, PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+    )
     materialization = _artifact_data(
         artifacts, CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT
     )
@@ -2039,6 +2329,8 @@ def build_idea_to_spec_workspace(
         rerun_input=rerun_input,
         rerun_preview=rerun_preview,
         rerun_materialization=rerun_materialization,
+        product_repair_rerun_execution=product_repair_rerun_execution,
+        product_repair_rerun_publication=product_repair_rerun_publication,
     )
     materialized_files = _materialized_files(materialization)
     promotion_gate_findings = _findings(promotion_gate)
@@ -2055,6 +2347,8 @@ def build_idea_to_spec_workspace(
         repair_session=repair_session_journal,
         materialization=materialization,
         promotion_gate=promotion_gate,
+        product_repair_rerun_execution=product_repair_rerun_execution,
+        product_repair_rerun_publication=product_repair_rerun_publication,
         candidate_approval=candidate_approval,
         platform_promotion=platform_promotion,
         git_service_execution=git_service_execution,

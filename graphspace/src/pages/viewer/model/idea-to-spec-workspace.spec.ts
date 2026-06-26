@@ -34,8 +34,14 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.summary.reviewMerged).toBe(false);
     expect(parsed.data.summary.readModelPublished).toBe(false);
     expect(parsed.data.workflow.stage).toBe("repair_required");
-    expect(parsed.data.workflow.items).toHaveLength(13);
+    expect(parsed.data.workflow.items).toHaveLength(15);
     expect(parsed.data.workflow.items[2].id).toBe("ontology_seed");
+    expect(parsed.data.workflow.items[6].id).toBe(
+      "product_repair_rerun_execution",
+    );
+    expect(parsed.data.workflow.items[7].id).toBe(
+      "product_repair_rerun_publication",
+    );
     expect(parsed.data.workflow.nextHandoff.kind).toBe("operator_repair_review");
     expect(parsed.data.workflow.nextHandoff.authorityBoundary).toBe("operator_only");
     expect(parsed.data.intake.activeFrame.project).toBe("DemoCalculator");
@@ -75,6 +81,20 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(
       parsed.data.repairReview.rerunMaterialization.delta.removedGapIds,
     ).toEqual(["ontology-gap.numeric-input"]);
+    expect(parsed.data.repairReview.platformExecution.available).toBe(true);
+    expect(parsed.data.repairReview.platformExecution.execution.status).toBe(
+      "completed",
+    );
+    expect(
+      parsed.data.repairReview.platformExecution.execution.operations[0].name,
+    ).toBe("execute_specgraph_requested_rerun");
+    expect(parsed.data.repairReview.platformExecution.publication.status).toBe(
+      "published",
+    );
+    expect(
+      parsed.data.repairReview.platformExecution.actionBoundary
+        .mayExecutePlatformAdapter,
+    ).toBe(false);
     expect(parsed.data.promotionGate.readiness.reviewState).toBe(
       "idea_to_spec_promotion_blocked",
     );

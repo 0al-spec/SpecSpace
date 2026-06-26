@@ -58,6 +58,12 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("active_candidate_review_required");
     expect(html).toContain("propose_project_local_term");
     expect(html).toContain("Product repair review");
+    expect(html).toContain("Repair rerun execution");
+    expect(html).toContain("Repair rerun publication");
+    expect(html).toContain("Platform repair rerun");
+    expect(html).toContain("execute_specgraph_requested_rerun");
+    expect(html).toContain("specspace_repair_draft_rerun_report");
+    expect(html).toContain("dist/specgraph-public/artifact_manifest.json");
     expect(html).toContain("Ontology gap quality");
     expect(html).toContain("candidate_quality_improved");
     expect(html).toContain("product-ontology-decision.numeric-input.0");

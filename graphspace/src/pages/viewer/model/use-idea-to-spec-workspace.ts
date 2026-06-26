@@ -227,6 +227,71 @@ export type IdeaToSpecPromotionFinalization = {
   reportRefs: Record<string, unknown>;
 };
 
+export type IdeaToSpecProductRepairRerunOperation = {
+  name: string;
+  status: string;
+  reason: string | null;
+  evidence: readonly string[];
+};
+
+export type IdeaToSpecProductRepairRerunOutputArtifact = {
+  key: string;
+  path: string | null;
+  present: boolean;
+  artifactKind: string | null;
+  contractRef: string | null;
+  status: string | null;
+  ready: boolean;
+  sha256: string | null;
+};
+
+export type IdeaToSpecProductRepairRerunExecution = {
+  available: boolean;
+  ok: boolean;
+  dryRun: boolean;
+  status: string | null;
+  errorCount: number;
+  outputArtifactCount: number;
+  rerunReportDigest: string | null;
+  repairSessionDigest: string | null;
+  diagnosticCount: number;
+  operations: readonly IdeaToSpecProductRepairRerunOperation[];
+  outputArtifacts: readonly IdeaToSpecProductRepairRerunOutputArtifact[];
+};
+
+export type IdeaToSpecProductRepairRerunPublication = {
+  available: boolean;
+  ok: boolean;
+  dryRun: boolean;
+  status: string | null;
+  errorCount: number;
+  publishedArtifactCount: number;
+  missingArtifactCount: number;
+  manifestPath: string | null;
+  manifestPresent: boolean;
+  publishedArtifacts: readonly string[];
+  missingArtifacts: readonly string[];
+  diagnosticCount: number;
+};
+
+export type IdeaToSpecProductRepairRerunPlatformExecution = {
+  available: boolean;
+  execution: IdeaToSpecProductRepairRerunExecution;
+  publication: IdeaToSpecProductRepairRerunPublication;
+  actionBoundary: {
+    inspectOnly: true;
+    acknowledgeOnly: true;
+    mayExecutePlatformAdapter: false;
+    mayRunSpecgraphMakeTarget: false;
+    mayPublishBundle: false;
+    mayCreateBranchOrCommit: false;
+    mayOpenPullRequest: false;
+    mayWriteOntologyPackage: false;
+    mayAcceptOntologyTerms: false;
+    mayMutateCanonicalSpecs: false;
+  };
+};
+
 export type IdeaToSpecWorkflowItem = {
   id: string;
   label: string;
@@ -540,6 +605,7 @@ export type IdeaToSpecWorkspace = {
         unresolvedOntologyGapCount: number;
       };
     };
+    platformExecution: IdeaToSpecProductRepairRerunPlatformExecution;
     actionBoundary: {
       inspectOnly: true;
       acknowledgeOnly: true;
@@ -1035,6 +1101,7 @@ function parseRepairReview(
   );
   const rerunMaterialization = recordValue(lane.rerun_materialization);
   const delta = recordValue(rerunMaterialization.delta);
+  const platformExecution = recordValue(lane.platform_execution);
   return {
     available: lane.available === true,
     clarificationRequests: {
@@ -1120,6 +1187,7 @@ function parseRepairReview(
         ),
       },
     },
+    platformExecution: parseProductRepairRerunPlatformExecution(platformExecution),
     actionBoundary: {
       inspectOnly: true,
       acknowledgeOnly: true,
@@ -1278,6 +1346,106 @@ function parsePromotionFinalization(raw: unknown): IdeaToSpecPromotionFinalizati
   };
 }
 
+function parseProductRepairRerunOperation(
+  raw: unknown,
+): IdeaToSpecProductRepairRerunOperation | null {
+  const operation = recordValue(raw);
+  const name = optionalString(operation.name);
+  if (!name) return null;
+  return {
+    name,
+    status: stringValue(operation.status, "unknown"),
+    reason: optionalString(operation.reason),
+    evidence: strings(operation.evidence),
+  };
+}
+
+function parseProductRepairRerunOutputArtifact(
+  raw: unknown,
+): IdeaToSpecProductRepairRerunOutputArtifact | null {
+  const artifact = recordValue(raw);
+  const key = optionalString(artifact.key);
+  if (!key) return null;
+  return {
+    key,
+    path: optionalString(artifact.path),
+    present: artifact.present === true,
+    artifactKind: optionalString(artifact.artifact_kind),
+    contractRef: optionalString(artifact.contract_ref),
+    status: optionalString(artifact.status),
+    ready: artifact.ready === true,
+    sha256: optionalString(artifact.sha256),
+  };
+}
+
+function parseProductRepairRerunExecution(
+  raw: unknown,
+): IdeaToSpecProductRepairRerunExecution {
+  const execution = recordValue(raw);
+  return {
+    available: execution.available === true,
+    ok: execution.ok === true,
+    dryRun: execution.dry_run === true,
+    status: optionalString(execution.status),
+    errorCount: numberValue(execution.error_count),
+    outputArtifactCount: numberValue(execution.output_artifact_count),
+    rerunReportDigest: optionalString(execution.rerun_report_digest),
+    repairSessionDigest: optionalString(execution.repair_session_digest),
+    diagnosticCount: numberValue(execution.diagnostic_count),
+    operations: records(execution.operations).flatMap((item) => {
+      const parsed = parseProductRepairRerunOperation(item);
+      return parsed ? [parsed] : [];
+    }),
+    outputArtifacts: records(execution.output_artifacts).flatMap((item) => {
+      const parsed = parseProductRepairRerunOutputArtifact(item);
+      return parsed ? [parsed] : [];
+    }),
+  };
+}
+
+function parseProductRepairRerunPublication(
+  raw: unknown,
+): IdeaToSpecProductRepairRerunPublication {
+  const publication = recordValue(raw);
+  return {
+    available: publication.available === true,
+    ok: publication.ok === true,
+    dryRun: publication.dry_run === true,
+    status: optionalString(publication.status),
+    errorCount: numberValue(publication.error_count),
+    publishedArtifactCount: numberValue(publication.published_artifact_count),
+    missingArtifactCount: numberValue(publication.missing_artifact_count),
+    manifestPath: optionalString(publication.manifest_path),
+    manifestPresent: publication.manifest_present === true,
+    publishedArtifacts: strings(publication.published_artifacts),
+    missingArtifacts: strings(publication.missing_artifacts),
+    diagnosticCount: numberValue(publication.diagnostic_count),
+  };
+}
+
+function parseProductRepairRerunPlatformExecution(
+  raw: unknown,
+): IdeaToSpecProductRepairRerunPlatformExecution {
+  const platformExecution = recordValue(raw);
+  return {
+    available: platformExecution.available === true,
+    execution: parseProductRepairRerunExecution(platformExecution.execution),
+    publication: parseProductRepairRerunPublication(platformExecution.publication),
+    actionBoundary: {
+      inspectOnly: true,
+      acknowledgeOnly: true,
+      mayExecutePlatformAdapter: false,
+      mayRunSpecgraphMakeTarget: false,
+      mayPublishBundle: false,
+      mayCreateBranchOrCommit: false,
+      mayOpenPullRequest: false,
+      mayWriteOntologyPackage: false,
+      mayAcceptOntologyTerms: false,
+      mayMutateCanonicalSpecs: false,
+    },
+  };
+}
+
 function parseWorkflowItem(raw: unknown): IdeaToSpecWorkflowItem | null {
   const item = recordValue(raw);
   const id = optionalString(item.id);
@@ -1424,6 +1592,29 @@ export function parseIdeaToSpecWorkspace(
     repairReviewBoundary.acknowledge_only !== true
   ) {
     return { kind: "parse-error", reason: "repair review boundary must be inspect-only", raw };
+  }
+  const platformExecution = recordValue(repairReview.platform_execution);
+  const platformExecutionBoundary = recordValue(platformExecution.action_boundary);
+  const platformExecutionFalseFlags = [
+    "may_execute_platform_adapter",
+    "may_run_specgraph_make_target",
+    "may_publish_bundle",
+    "may_create_branch_or_commit",
+    "may_open_pull_request",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_mutate_canonical_specs",
+  ];
+  for (const flag of platformExecutionFalseFlags) {
+    if (platformExecutionBoundary[flag] !== false) {
+      return { kind: "parse-error", reason: `repair rerun execution boundary expanded: ${flag}`, raw };
+    }
+  }
+  if (
+    platformExecutionBoundary.inspect_only !== true ||
+    platformExecutionBoundary.acknowledge_only !== true
+  ) {
+    return { kind: "parse-error", reason: "repair rerun execution boundary must be inspect-only", raw };
   }
   const materialization = recordValue(raw.materialization);
   const promotionGate = recordValue(raw.promotion_gate);
