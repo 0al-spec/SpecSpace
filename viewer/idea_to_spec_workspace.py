@@ -196,6 +196,7 @@ DISPLAY_LIMITS = {
     "resolved_gaps": 40,
     "materialized_files": 40,
     "git_service_operations": 20,
+    "product_repair_rerun_output_artifacts": 20,
 }
 
 
@@ -1440,6 +1441,8 @@ def _product_repair_rerun_output_artifacts(
     for key, item in output_artifacts.items():
         if not isinstance(item, dict):
             continue
+        if len(rows) >= DISPLAY_LIMITS["product_repair_rerun_output_artifacts"]:
+            break
         rows.append(
             {
                 "key": _text(key, "artifact"),
@@ -1604,6 +1607,18 @@ def _workflow(
         product_repair_rerun_publication is not None
         and not product_repair_publication_view["ok"]
     )
+    product_repair_execution_ready = (
+        product_repair_execution_view["ok"]
+        and not product_repair_execution_view["dry_run"]
+    )
+    product_repair_execution_dry_run = (
+        product_repair_execution_view["ok"]
+        and product_repair_execution_view["dry_run"]
+    )
+    product_repair_publication_dry_run = (
+        product_repair_publication_view["ok"]
+        and product_repair_publication_view["dry_run"]
+    )
     seed_source_generation = _record((candidate_seed or {}).get("source_generation"))
     seed_readiness = _readiness(seed_source_generation)
     seed_blocked = _ontology_seed_blocked(candidate_seed)
@@ -1640,6 +1655,12 @@ def _workflow(
         repair_session is not None
         and candidate_approval is not None
         and repair_session_impact["ready_for_platform_promotion"] is not True
+    )
+    product_repair_downstream_blocked = (
+        context_required_count > 0
+        or promotion_gate_blocked
+        or journal_blocks_candidate_approval
+        or journal_blocks_platform_promotion
     )
     review_status_summary = _record((review_status or {}).get("summary"))
     review_merged = (
@@ -1922,24 +1943,6 @@ def _workflow(
             "command_template": None,
             "authority_boundary": "operator_only",
         }
-    elif product_repair_execution_view["ok"] and product_repair_rerun_publication is None:
-        stage = "repair_rerun_publication_required"
-        status = "ready_for_handoff"
-        next_handoff = {
-            "kind": "product_repair_rerun_publication",
-            "label": "Publish public-safe repair rerun artifacts",
-            "status": "ready",
-            "artifact_key": "product_repair_rerun_execution",
-            "artifact_path": (
-                f"runs/{PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT}"
-            ),
-            "command_template": (
-                "scripts/platform.py product-repair-rerun publish "
-                "--execution-report "
-                "runs/platform_product_repair_rerun_execution_report.json"
-            ),
-            "authority_boundary": "operator_only",
-        }
     elif product_repair_publication_failed:
         stage = "repair_rerun_publication_failed"
         status = "blocked"
@@ -1976,6 +1979,40 @@ def _workflow(
             "artifact_key": "repair_session",
             "artifact_path": f"runs/{IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
             "command_template": None,
+            "authority_boundary": "operator_only",
+        }
+    elif product_repair_execution_dry_run and not product_repair_downstream_blocked:
+        stage = "repair_rerun_execution_dry_run"
+        status = "operator_review_required"
+        next_handoff = {
+            "kind": "product_repair_rerun_execution",
+            "label": "Run non-dry-run Product Repair Rerun execution",
+            "status": "operator_review_required",
+            "artifact_key": "product_repair_rerun_execution",
+            "artifact_path": (
+                f"runs/{PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT}"
+            ),
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
+    elif product_repair_execution_ready and (
+        product_repair_rerun_publication is None or product_repair_publication_dry_run
+    ) and not product_repair_downstream_blocked:
+        stage = "repair_rerun_publication_required"
+        status = "ready_for_handoff"
+        next_handoff = {
+            "kind": "product_repair_rerun_publication",
+            "label": "Publish public-safe repair rerun artifacts",
+            "status": "ready",
+            "artifact_key": "product_repair_rerun_execution",
+            "artifact_path": (
+                f"runs/{PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT}"
+            ),
+            "command_template": (
+                "scripts/platform.py product-repair-rerun publish "
+                "--execution-report "
+                "runs/platform_product_repair_rerun_execution_report.json"
+            ),
             "authority_boundary": "operator_only",
         }
     elif platform_failed:

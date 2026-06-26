@@ -1021,6 +1021,7 @@ function ProductRepairRerunExecutionStatus({
 }) {
   const execution = platformExecution.execution;
   const publication = platformExecution.publication;
+  const rerunStatus = productRepairRerunStatus(execution, publication);
   if (!platformExecution.available) {
     return (
       <Status
@@ -1033,9 +1034,7 @@ function ProductRepairRerunExecutionStatus({
     <div className={styles.row}>
       <div className={styles.rowHeader}>
         <span className={styles.rowId}>Platform repair rerun</span>
-        <Pill
-          value={execution.ok ? "executed" : execution.available ? "blocked" : "missing"}
-        />
+        <Pill value={rerunStatus} />
       </div>
       <div className={styles.metaGrid}>
         <Meta label="Execution" value={compact(execution.status, "missing")} />
@@ -1076,6 +1075,19 @@ function ProductRepairRerunExecutionStatus({
       ))}
     </div>
   );
+}
+
+function productRepairRerunStatus(
+  execution: IdeaToSpecProductRepairRerunPlatformExecution["execution"],
+  publication: IdeaToSpecProductRepairRerunPlatformExecution["publication"],
+) {
+  if (!execution.available) return "missing";
+  if (!execution.ok) return "blocked";
+  if (execution.dryRun) return "dry_run";
+  if (!publication.available) return "publication_required";
+  if (!publication.ok) return "publication_blocked";
+  if (publication.dryRun) return "publication_dry_run";
+  return "published";
 }
 
 function ClarificationRequestRow({
