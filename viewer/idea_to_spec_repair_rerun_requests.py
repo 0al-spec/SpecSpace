@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import uuid
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
@@ -72,6 +73,16 @@ def state_path(server: Any) -> Path:
 
 def now_iso() -> str:
     return datetime.now(tz=timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def request_id_for(workspace_id: str, timestamp: str) -> str:
+    safe_timestamp = (
+        timestamp.replace(":", "")
+        .replace("-", "")
+        .replace(".", "")
+        .replace("+", "")
+    )
+    return f"repair-rerun-request.{workspace_id}.{safe_timestamp}.{uuid.uuid4().hex[:12]}"
 
 
 def empty_state(path: Path) -> dict[str, Any]:
@@ -248,18 +259,29 @@ def save_rerun_request(
             "review_state": session_readiness.get("review_state"),
         }
 
-    drafts = [
+    artifacts = _record(workspace_payload.get("artifacts"))
+    session = _record(repair_session.get("session"))
+    candidate_id = _text(session.get("candidate_id")) or _text(workspace.get("id")) or workspace_id_value
+    repair_session_id = _text(session.get("session_id"))
+    repair_session_artifact = _record(artifacts.get("repair_session"))
+    repair_session_ref = _text(repair_session_artifact.get("path")) or REPAIR_SESSION_PATH
+    workspace_drafts = [
         draft
         for draft in _records(repair_draft_state.get("drafts"))
         if draft.get("workspace_id") == workspace_id_value
     ]
+    drafts = _current_session_drafts(
+        workspace_drafts,
+        repair_session_id=repair_session_id,
+        repair_session_ref=repair_session_ref,
+    )
     if not drafts:
+        stale_reason = "repair_drafts_stale" if workspace_drafts else "repair_drafts_missing"
         return HTTPStatus.CONFLICT, {
-            "error": "Repair rerun request requires saved SpecSpace repair drafts.",
-            "reason": "repair_drafts_missing",
+            "error": "Repair rerun request requires saved SpecSpace repair drafts for the current repair session.",
+            "reason": stale_reason,
         }
 
-    artifacts = _record(workspace_payload.get("artifacts"))
     import_preview_status = _record(artifacts.get(IMPORT_PREVIEW_ARTIFACT_KEY))
     if import_preview_status.get("available") is not True:
         return HTTPStatus.CONFLICT, {
@@ -280,16 +302,11 @@ def save_rerun_request(
             "reason": "accepted_draft_imports_missing",
         }
 
-    session = _record(repair_session.get("session"))
-    candidate_id = _text(session.get("candidate_id")) or _text(workspace.get("id")) or workspace_id_value
-    repair_session_id = _text(session.get("session_id"))
-    repair_session_artifact = _record(artifacts.get("repair_session"))
-    repair_session_ref = _text(repair_session_artifact.get("path")) or REPAIR_SESSION_PATH
     import_preview_ref = _text(import_preview_status.get("path")) or IMPORT_PREVIEW_PATH
     operator_ref = _text(payload.get("operator_ref")) or "operator://specspace-local"
     now = now_iso()
 
-    request_id = f"repair-rerun-request.{workspace_id_value}.{now.replace(':', '').replace('-', '')}"
+    request_id = request_id_for(workspace_id_value, now)
     request = {
         "id": request_id,
         "status": "requested",
@@ -408,23 +425,61 @@ def _with_workflow_status(
             if rerun_report.get("status") == "repair_draft_rerun_ready"
             else "not_ready"
         )
-    draft_count = _number(_record((repair_draft_state or {}).get("summary")).get("draft_count"))
+    repair_session_ready = (
+        repair_session.get("available") is True
+        and repair_session.get("source_mode") == "journal"
+        and _record(repair_session.get("readiness")).get("ready") is True
+    )
+    accepted_for_rerun_count = _number(
+        _record(import_preview.get("summary")).get("accepted_for_rerun_count")
+    )
+    drafts = [
+        draft
+        for draft in _records((repair_draft_state or {}).get("drafts"))
+        if draft.get("workspace_id") == state.get("selected_workspace_id")
+    ]
+    current_drafts = _current_session_drafts(
+        drafts,
+        repair_session_id=current_session_id,
+        repair_session_ref=current_session_ref,
+    )
+    draft_count = len(current_drafts)
     command = _operator_command(_text(import_preview.get("path")) or IMPORT_PREVIEW_PATH)
     state["workflow_status"] = {
         "drafts_saved": draft_count > 0,
         "draft_count": draft_count,
+        "repair_session_status": "ready" if repair_session_ready else "not_ready",
         "import_preview_status": import_preview_status,
         "import_preview_ref": _text(import_preview.get("path")) or IMPORT_PREVIEW_PATH,
-        "accepted_for_rerun_count": _number(
-            _record(import_preview.get("summary")).get("accepted_for_rerun_count")
-        ),
+        "accepted_for_rerun_count": accepted_for_rerun_count,
         "rerun_status": rerun_status,
         "rerun_report_ref": _text(rerun_report.get("path")) or RERUN_REPORT_PATH,
         "latest_journal_state": latest_journal_state,
         "operator_command": command,
-        "request_ready": draft_count > 0 and import_preview_status == "ready",
+        "request_ready": (
+            draft_count > 0
+            and repair_session_ready
+            and import_preview_status == "ready"
+            and accepted_for_rerun_count > 0
+        ),
     }
     return state
+
+
+def _current_session_drafts(
+    drafts: list[dict[str, Any]],
+    *,
+    repair_session_id: str | None,
+    repair_session_ref: str | None,
+) -> list[dict[str, Any]]:
+    return [
+        draft
+        for draft in drafts
+        if (
+            (not repair_session_id or draft.get("repair_session_id") == repair_session_id)
+            and (not repair_session_ref or draft.get("repair_session_ref") == repair_session_ref)
+        )
+    ]
 
 
 def _refresh_summary(state: dict[str, Any]) -> None:

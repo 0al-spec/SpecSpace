@@ -35,6 +35,7 @@ type Props = {
   state: UseIdeaToSpecWorkspaceState;
   repairDraftsUrl?: string;
   repairRerunRequestsUrl?: string;
+  repairRerunRequestsRefreshKey?: number | string;
 };
 
 function errorDetail(
@@ -74,6 +75,7 @@ export function IdeaToSpecWorkspacePanel({
   state,
   repairDraftsUrl,
   repairRerunRequestsUrl,
+  repairRerunRequestsRefreshKey = 0,
 }: Props) {
   const repairDrafts = useIdeaToSpecRepairDrafts({
     url: repairDraftsUrl,
@@ -88,7 +90,7 @@ export function IdeaToSpecWorkspacePanel({
   const repairRerunRequests = useIdeaToSpecRepairRerunRequests({
     url: repairRerunRequestsUrl,
     enabled: state.kind === "ok",
-    refreshKey: repairDraftRefreshKey,
+    refreshKey: `${repairDraftRefreshKey}:${repairRerunRequestsRefreshKey}`,
   });
 
   if (state.kind === "idle" || state.kind === "loading") {

@@ -1263,6 +1263,7 @@ export function ViewerPage({
               state={ideaToSpecWorkspaceState}
               repairDraftsUrl={workspaceApiUrls.ideaToSpecRepairDrafts}
               repairRerunRequestsUrl={workspaceApiUrls.ideaToSpecRepairRerunRequests}
+              repairRerunRequestsRefreshKey={runsWatchVersion}
             />
           ) : null}
 
