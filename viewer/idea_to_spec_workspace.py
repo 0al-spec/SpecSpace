@@ -27,6 +27,12 @@ IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT = (
     "idea_to_spec_rerun_materialization.json"
 )
 IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT = "idea_to_spec_repair_session.json"
+SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT = (
+    "specspace_repair_draft_import_preview.json"
+)
+SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT = (
+    "specspace_repair_draft_rerun_report.json"
+)
 CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT = (
     "candidate_spec_materialization_report.json"
 )
@@ -63,6 +69,8 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT,
     IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT,
     IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
+    SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT,
+    SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT,
 )
 PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
     CANDIDATE_APPROVAL_DECISION_ARTIFACT,
@@ -71,6 +79,10 @@ PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
     GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT,
     GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT,
     GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT,
+)
+SPECSPACE_REPAIR_DRAFT_HANDOFF_ARTIFACTS: tuple[str, ...] = (
+    SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT,
+    SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT,
 )
 WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
@@ -95,6 +107,8 @@ ARTIFACT_KEYS: dict[str, str] = {
     IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT: "rerun_preview",
     IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT: "rerun_materialization",
     IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT: "repair_session",
+    SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT: "specspace_repair_draft_import_preview",
+    SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT: "specspace_repair_draft_rerun_report",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
@@ -127,6 +141,8 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
         "idea_to_spec_rerun_materialization"
     ),
     IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT: "idea_to_spec_repair_session_journal",
+    SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT: "specspace_repair_draft_import_preview",
+    SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT: "specspace_repair_draft_rerun_report",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_spec_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib_coherence_report",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "candidate_repair_loop_report",
@@ -378,6 +394,26 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "canonical_tracked_artifacts_written must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename in SPECSPACE_REPAIR_DRAFT_HANDOFF_ARTIFACTS:
+        if value.get("canonical_mutations_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": (
+                    "SpecSpace repair draft handoff artifacts must declare "
+                    "canonical_mutations_allowed false."
+                ),
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": (
+                    "SpecSpace repair draft handoff artifacts must declare "
+                    "tracked_artifacts_written false."
+                ),
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None

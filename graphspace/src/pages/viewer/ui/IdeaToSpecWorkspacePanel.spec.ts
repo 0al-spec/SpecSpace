@@ -83,6 +83,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("published-read-model/artifact_manifest.json");
     expect(html).toContain("review status");
     expect(html).toContain("Repair drafts loading");
+    expect(html).toContain("Repair rerun request loading");
     expect(html).toContain("Save draft");
     expect(html).toContain("Spec mutations");
     expect(html).toContain("false");

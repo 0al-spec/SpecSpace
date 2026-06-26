@@ -372,6 +372,20 @@
   color: var(--gs-muted-2);
 }
 
+.codeBlock {
+  overflow-x: auto;
+  border: 1px solid var(--gs-rule-soft);
+  margin: var(--gs-space-4) 0;
+  padding: var(--gs-space-4);
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .rowActions {
   display: flex;
   justify-content: flex-end;

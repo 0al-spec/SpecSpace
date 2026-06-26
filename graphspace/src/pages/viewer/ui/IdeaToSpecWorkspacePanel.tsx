@@ -23,12 +23,19 @@ import {
   type IdeaToSpecRepairDraftSaveError,
   type UseIdeaToSpecRepairDraftsState,
 } from "../model/use-idea-to-spec-repair-drafts";
+import {
+  useIdeaToSpecRepairRerunRequests,
+  type IdeaToSpecRepairRerunRequestError,
+  type UseIdeaToSpecRepairRerunRequestsState,
+} from "../model/use-idea-to-spec-repair-rerun-requests";
 import { describeHttpErrorDetail } from "../model/live-artifacts";
 import styles from "./OntologySemanticReviewPanel.module.css";
 
 type Props = {
   state: UseIdeaToSpecWorkspaceState;
   repairDraftsUrl?: string;
+  repairRerunRequestsUrl?: string;
+  repairRerunRequestsRefreshKey?: number | string;
 };
 
 function errorDetail(
@@ -64,10 +71,26 @@ function metricValue(value: unknown): string {
   return "n/a";
 }
 
-export function IdeaToSpecWorkspacePanel({ state, repairDraftsUrl }: Props) {
+export function IdeaToSpecWorkspacePanel({
+  state,
+  repairDraftsUrl,
+  repairRerunRequestsUrl,
+  repairRerunRequestsRefreshKey = 0,
+}: Props) {
   const repairDrafts = useIdeaToSpecRepairDrafts({
     url: repairDraftsUrl,
     enabled: state.kind === "ok",
+  });
+  const repairDraftRefreshKey = useMemo(() => {
+    if (repairDrafts.state.kind !== "ok") return "repair-drafts-unavailable";
+    return repairDrafts.state.data.drafts
+      .map((draft) => `${draft.draftId}:${draft.updatedAt}:${draft.allowedAction}`)
+      .join("|");
+  }, [repairDrafts.state]);
+  const repairRerunRequests = useIdeaToSpecRepairRerunRequests({
+    url: repairRerunRequestsUrl,
+    enabled: state.kind === "ok",
+    refreshKey: `${repairDraftRefreshKey}:${repairRerunRequestsRefreshKey}`,
   });
 
   if (state.kind === "idle" || state.kind === "loading") {
@@ -176,6 +199,7 @@ export function IdeaToSpecWorkspacePanel({ state, repairDraftsUrl }: Props) {
         <ProductRepairReviewSection
           state={state}
           repairDrafts={repairDrafts}
+          repairRerunRequests={repairRerunRequests}
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
         />
         <MaterializationSection state={state} />
@@ -748,10 +772,12 @@ function AcceptedAnswerRow({
 function ProductRepairReviewSection({
   state,
   repairDrafts,
+  repairRerunRequests,
   workspaceId,
 }: {
   state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
   repairDrafts: ReturnType<typeof useIdeaToSpecRepairDrafts>;
+  repairRerunRequests: ReturnType<typeof useIdeaToSpecRepairRerunRequests>;
   workspaceId: string | null;
 }) {
   const lane = state.data.repairReview;
@@ -801,6 +827,17 @@ function ProductRepairReviewSection({
         />
       ) : null}
       <RepairDraftStatus state={repairDrafts.state} />
+      <RepairRerunRequestStatus
+        state={repairRerunRequests.state}
+        pending={repairRerunRequests.pending}
+        requestError={repairRerunRequests.requestError}
+        onRequest={() =>
+          repairRerunRequests.requestRerun({
+            workspaceId,
+            operatorRef: "operator://specspace-local",
+          })
+        }
+      />
       <div className={styles.row}>
         <div className={styles.rowHeader}>
           <span className={styles.rowId}>Ontology gap quality</span>
@@ -892,6 +929,77 @@ function RepairDraftStatus({
       label="Repair drafts unavailable"
       detail={repairDraftStateDetail(state)}
     />
+  );
+}
+
+function RepairRerunRequestStatus({
+  state,
+  pending,
+  requestError,
+  onRequest,
+}: {
+  state: UseIdeaToSpecRepairRerunRequestsState;
+  pending: boolean;
+  requestError: IdeaToSpecRepairRerunRequestError | null;
+  onRequest: () => void;
+}) {
+  if (state.kind === "idle" || state.kind === "loading") {
+    return (
+      <Status
+        label="Repair rerun request loading"
+        detail="Reading SpecSpace-owned rerun request state."
+      />
+    );
+  }
+  if (state.kind !== "ok") {
+    return (
+      <Status
+        label="Repair rerun request unavailable"
+        detail={repairRerunRequestStateDetail(state)}
+      />
+    );
+  }
+  const workflow = state.data.workflowStatus;
+  const command = workflow.operatorCommand ?? "make product-workspace-repair-draft-rerun";
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>Repair draft rerun</span>
+        <Pill value={state.data.summary.status} />
+      </div>
+      <div className={styles.metaGrid}>
+        <Meta label="Drafts saved" value={boolText(workflow.draftsSaved)} />
+        <Meta label="Drafts" value={String(workflow.draftCount)} />
+        <Meta label="Import preview" value={workflow.importPreviewStatus} />
+        <Meta label="Accepted" value={String(workflow.acceptedForRerunCount)} />
+        <Meta label="Rerun" value={workflow.rerunStatus} />
+        <Meta label="Journal" value={workflow.latestJournalState} />
+        <Meta label="Requests" value={String(state.data.summary.activeRequestCount)} />
+        <Meta
+          label="Exec authority"
+          value={boolText(state.data.consumerBoundary.mayExecuteSpecgraph)}
+        />
+      </div>
+      <pre className={styles.codeBlock}>{command}</pre>
+      <div className={styles.draftControls}>
+        <button
+          className={styles.ackButton}
+          type="button"
+          disabled={!workflow.requestReady || pending}
+          onClick={onRequest}
+        >
+          {pending ? "Requesting" : "Request rerun preview"}
+        </button>
+        <span className={styles.statusDetail}>
+          Request records operator intent only; execute the SpecGraph target in a controlled environment.
+        </span>
+      </div>
+      {requestError ? (
+        <span className={styles.statusDetail}>
+          Rerun request failed · {repairRerunRequestErrorText(requestError)}
+        </span>
+      ) : null}
+    </div>
   );
 }
 
@@ -998,6 +1106,18 @@ function repairDraftStateDetail(
   return state.message;
 }
 
+function repairRerunRequestStateDetail(
+  state: Exclude<UseIdeaToSpecRepairRerunRequestsState, { kind: "ok" | "idle" | "loading" }>,
+): string {
+  if (state.kind === "http-error") {
+    return `HTTP ${state.status}: ${state.statusText}`;
+  }
+  if (state.kind === "network-error") {
+    return "SpecSpace repair rerun request endpoint is unreachable from the browser.";
+  }
+  return state.message;
+}
+
 function answerValueForDraftAction(
   action: string,
   text: string,
@@ -1040,6 +1160,11 @@ function draftPlaceholder(action: string): string {
 }
 
 function repairDraftSaveErrorText(error: IdeaToSpecRepairDraftSaveError): string {
+  if (error.kind === "http-error") return `HTTP ${error.status}: ${error.statusText}`;
+  return "network error";
+}
+
+function repairRerunRequestErrorText(error: IdeaToSpecRepairRerunRequestError): string {
   if (error.kind === "http-error") return `HTTP ${error.status}: ${error.statusText}`;
   return "network error";
 }

@@ -9,6 +9,7 @@ from urllib.parse import unquote
 from viewer import (
     agent_workbench,
     idea_to_spec_repair_drafts,
+    idea_to_spec_repair_rerun_requests,
     ontology_acknowledgements,
     spec_compile,
     specspace_provider,
@@ -427,6 +428,34 @@ def handle_v1_idea_to_spec_repair_drafts(handler: SpecSpaceV1Handler, parsed: An
     json_response(handler, status, payload)
 
 
+def handle_v1_idea_to_spec_repair_rerun_requests(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    workspace_id = _query_workspace_id(parsed)
+    workspace_payload: dict[str, Any] | None = None
+    repair_draft_state: dict[str, Any] | None = None
+    if workspace_id is not None:
+        workspace_status, workspace_payload_candidate = (
+            _provider(handler, workspace_id).read_idea_to_spec_workspace()
+        )
+        if workspace_status == HTTPStatus.OK:
+            workspace_payload = workspace_payload_candidate
+        draft_status, draft_payload = idea_to_spec_repair_drafts.read_state(
+            handler.server,
+            workspace_id=workspace_id,
+        )
+        if draft_status == HTTPStatus.OK:
+            repair_draft_state = draft_payload
+    status, payload = idea_to_spec_repair_rerun_requests.read_state(
+        handler.server,
+        workspace_id=workspace_id,
+        workspace_payload=workspace_payload,
+        repair_draft_state=repair_draft_state,
+    )
+    json_response(handler, status, payload)
+
+
 def handle_v1_idea_to_spec_repair_draft_post(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     payload = handler.read_json_body()
     if payload is None:
@@ -468,6 +497,72 @@ def handle_v1_idea_to_spec_repair_draft_post(handler: SpecSpaceV1Handler, parsed
         handler.server,
         payload,
         workspace_payload,
+        workspace_id=workspace_id,
+    )
+    json_response(handler, status, response)
+
+
+def handle_v1_idea_to_spec_repair_rerun_request_post(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    query_workspace_id = _query_workspace_id(parsed)
+    payload_workspace_id = specspace_provider.normalize_workspace_id(
+        payload.get("workspace_id")
+        if isinstance(payload.get("workspace_id"), str)
+        else None
+    )
+    if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
+        json_response(
+            handler,
+            HTTPStatus.CONFLICT,
+            {
+                "error": "Repair rerun request workspace_id does not match selected workspace.",
+                "expected": query_workspace_id,
+                "actual": payload_workspace_id,
+            },
+        )
+        return
+    workspace_id = query_workspace_id or payload_workspace_id
+    workspace_status, workspace_payload = (
+        _provider(handler, workspace_id).read_idea_to_spec_workspace()
+    )
+    if workspace_status != HTTPStatus.OK:
+        json_response(
+            handler,
+            workspace_status,
+            {
+                "error": "Cannot request repair rerun without readable idea-to-spec workspace.",
+                "reason": "source_workspace_unavailable",
+                "source_status": int(workspace_status),
+                "source": workspace_payload,
+            },
+        )
+        return
+    draft_status, draft_state = idea_to_spec_repair_drafts.read_state(
+        handler.server,
+        workspace_id=workspace_id,
+    )
+    if draft_status != HTTPStatus.OK:
+        json_response(
+            handler,
+            draft_status,
+            {
+                "error": "Cannot request repair rerun without readable repair draft state.",
+                "reason": "repair_draft_state_unavailable",
+                "source_status": int(draft_status),
+                "source": draft_state,
+            },
+        )
+        return
+    status, response = idea_to_spec_repair_rerun_requests.save_rerun_request(
+        handler.server,
+        payload,
+        workspace_payload,
+        draft_state,
         workspace_id=workspace_id,
     )
     json_response(handler, status, response)
