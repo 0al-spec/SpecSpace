@@ -2101,6 +2101,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertNotIn("runs/candidate_spec_graph_seed.json", paths)
 
     def test_http_provider_reads_workspace_runs_from_manifest(self) -> None:
+        workspace_artifacts = _workspace_artifacts()
         manifest = {
             "artifact_kind": "specgraph_static_artifact_manifest",
             "files": [
@@ -2110,12 +2111,12 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                     "sha256": "0" * 64,
                     "size_bytes": 100,
                 }
-                for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS
+                for filename in workspace_artifacts
             ],
         }
         payloads = {
             f"https://artifact.test/runs/{filename}": json.dumps(payload)
-            for filename, payload in _workspace_artifacts().items()
+            for filename, payload in workspace_artifacts.items()
         }
         provider = specspace_provider.HttpSpecGraphProvider(
             base_url="https://artifact.test",

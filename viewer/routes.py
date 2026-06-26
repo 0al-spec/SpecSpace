@@ -74,6 +74,10 @@ GET_ROUTES: dict[str, RouteSpec] = {
         "handle_v1_idea_to_spec_repair_drafts",
         pass_parsed=True,
     ),
+    "/api/v1/idea-to-spec-repair-rerun-requests": RouteSpec(
+        "handle_v1_idea_to_spec_repair_rerun_requests",
+        pass_parsed=True,
+    ),
     "/api/v1/practical-ontology": RouteSpec("handle_v1_practical_ontology", pass_parsed=True),
     "/api/v1/ontology-workbench": RouteSpec("handle_v1_ontology_workbench", pass_parsed=True),
     "/api/v1/metrics": RouteSpec("handle_v1_metrics", pass_parsed=True),
@@ -121,6 +125,10 @@ POST_ROUTES: dict[str, RouteSpec] = {
     ),
     "/api/v1/idea-to-spec-repair-drafts": RouteSpec(
         "handle_v1_idea_to_spec_repair_draft_post",
+        pass_parsed=True,
+    ),
+    "/api/v1/idea-to-spec-repair-rerun-requests": RouteSpec(
+        "handle_v1_idea_to_spec_repair_rerun_request_post",
         pass_parsed=True,
     ),
     "/api/specpm/preview/build": RouteSpec("handle_specpm_preview_build"),
