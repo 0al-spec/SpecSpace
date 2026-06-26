@@ -1161,7 +1161,7 @@ function CandidateApprovalIntentSection({
         />
         <PostureItem
           label="Git authority"
-          value={boolText(state.data.consumerBoundary.mayExecuteGitServiceOperation)}
+          value={boolText(state.data.authorityBoundary.gitServiceAuthority)}
         />
       </div>
       <div className={styles.row}>

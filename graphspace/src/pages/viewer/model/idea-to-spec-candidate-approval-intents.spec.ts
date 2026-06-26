@@ -120,6 +120,17 @@ describe("parseIdeaToSpecCandidateApprovalIntentState", () => {
     expect(parsed.message).toContain("candidate_approval_authority");
   });
 
+  it("rejects consumer boundary candidate acceptance aliases", () => {
+    const expanded = structuredClone(approvalIntentState);
+    expanded.consumer_boundary.may_mark_candidate_accepted = true;
+
+    const parsed = parseIdeaToSpecCandidateApprovalIntentState(expanded);
+
+    expect(parsed.kind).toBe("parse-error");
+    if (parsed.kind !== "parse-error") return;
+    expect(parsed.message).toContain("may_mark_candidate_accepted");
+  });
+
   it("rejects intent records that claim Git Service execution", () => {
     const expanded = structuredClone(approvalIntentState);
     expanded.intents[0].may_execute_git_service_operation = true;
@@ -129,5 +140,16 @@ describe("parseIdeaToSpecCandidateApprovalIntentState", () => {
     expect(parsed.kind).toBe("parse-error");
     if (parsed.kind !== "parse-error") return;
     expect(parsed.message).toContain("may_execute_git_service_operation");
+  });
+
+  it("rejects intent records that claim candidate acceptance aliases", () => {
+    const expanded = structuredClone(approvalIntentState);
+    expanded.intents[0].may_mark_candidate_accepted = true;
+
+    const parsed = parseIdeaToSpecCandidateApprovalIntentState(expanded);
+
+    expect(parsed.kind).toBe("parse-error");
+    if (parsed.kind !== "parse-error") return;
+    expect(parsed.message).toContain("may_mark_candidate_accepted");
   });
 });

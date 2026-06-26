@@ -30,14 +30,18 @@ CONSUMER_FALSE_FIELDS = (
     "may_mutate_canonical_specs",
     "may_write_ontology_package",
     "may_accept_ontology_terms",
+    "may_mark_candidate_accepted",
     "may_mark_candidate_graph_accepted",
     "may_create_branch_or_commit",
     "may_open_pull_request",
     "may_execute_git_service_operation",
 )
 AUTHORITY_FALSE_FIELDS = (
+    "approval_intent_state_is_authority",
     "candidate_approval_intent_state_is_authority",
+    "candidate_approval_authority",
     "candidate_approval_decision_authority",
+    "specgraph_execution_authority",
     "specgraph_artifact_authority",
     "ontology_authority",
     "git_service_authority",
@@ -45,10 +49,13 @@ AUTHORITY_FALSE_FIELDS = (
 )
 INTENT_FALSE_FIELDS = (
     "may_execute_specgraph",
+    "may_execute_prompt_agent",
+    "may_apply_to_specgraph",
     "may_mutate_candidate_source_artifacts",
     "may_mutate_canonical_specs",
     "may_write_ontology_package",
     "may_accept_ontology_terms",
+    "may_mark_candidate_accepted",
     "may_mark_candidate_graph_accepted",
     "may_create_branch_or_commit",
     "may_open_pull_request",
@@ -283,10 +290,13 @@ def save_candidate_approval_intent(
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
         "may_execute_specgraph": False,
+        "may_execute_prompt_agent": False,
+        "may_apply_to_specgraph": False,
         "may_mutate_candidate_source_artifacts": False,
         "may_mutate_canonical_specs": False,
         "may_write_ontology_package": False,
         "may_accept_ontology_terms": False,
+        "may_mark_candidate_accepted": False,
         "may_mark_candidate_graph_accepted": False,
         "may_create_branch_or_commit": False,
         "may_open_pull_request": False,
@@ -388,8 +398,9 @@ def _workflow_status(workspace_payload: dict[str, Any], workspace_id: str | None
         not execution_available
         or (execution_status.get("ok") is True and execution_status.get("dry_run") is not True)
     )
+    publication_required = execution_available and execution_ok
     publication_ok = (
-        not publication_available
+        (not publication_available and not publication_required)
         or (publication_status.get("ok") is True and publication_status.get("dry_run") is not True)
     )
     blocked_by = []
@@ -407,6 +418,7 @@ def _workflow_status(workspace_payload: dict[str, Any], workspace_id: str | None
         blocked_by.append("platform_rerun_publication_not_successful")
     return {
         "repair_session_status": "ready" if repair_session_ready else "not_ready",
+        "repair_session_ready": repair_session_ready,
         "repair_session_ref": (
             _text(_record(_record(workspace_payload.get("artifacts")).get("repair_session")).get("path"))
             or REPAIR_SESSION_PATH
@@ -482,11 +494,13 @@ def _normalize_existing_intent(entry: dict[str, Any]) -> dict[str, Any] | None:
     workspace_id = _text(entry.get("workspace_id"))
     candidate_id = _text(entry.get("candidate_id"))
     requested_action = _text(entry.get("requested_action"))
+    created_at = _text(entry.get("created_at"))
     if (
         intent_id is None
         or workspace_id is None
         or candidate_id is None
         or requested_action != REQUESTED_ACTION
+        or created_at is None
     ):
         return None
     return {
@@ -496,15 +510,20 @@ def _normalize_existing_intent(entry: dict[str, Any]) -> dict[str, Any] | None:
         "requested_action": REQUESTED_ACTION,
         "workspace_id": workspace_id,
         "candidate_id": candidate_id,
+        "created_at": created_at,
+        "updated_at": _text(entry.get("updated_at")) or created_at,
         "repair_session_ref": _text(entry.get("repair_session_ref")) or REPAIR_SESSION_PATH,
         "promotion_gate_ref": _text(entry.get("promotion_gate_ref")) or PROMOTION_GATE_PATH,
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
         "may_execute_specgraph": False,
+        "may_execute_prompt_agent": False,
+        "may_apply_to_specgraph": False,
         "may_mutate_candidate_source_artifacts": False,
         "may_mutate_canonical_specs": False,
         "may_write_ontology_package": False,
         "may_accept_ontology_terms": False,
+        "may_mark_candidate_accepted": False,
         "may_mark_candidate_graph_accepted": False,
         "may_create_branch_or_commit": False,
         "may_open_pull_request": False,

@@ -233,6 +233,7 @@ def _write_repair_draft_workspace_runs(
     accepted_for_rerun_count: int | None = None,
     include_rerun_report: bool = False,
     include_platform_rerun_reports: bool = False,
+    include_platform_publication_report: bool = True,
     ready_for_candidate_approval: bool = False,
     platform_reports_ok: bool = True,
 ) -> None:
@@ -524,45 +525,46 @@ def _write_repair_draft_workspace_runs(
                 },
             },
         )
-        _write_json(
-            runs_dir
-            / idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT,
-            {
-                "artifact_kind": "platform_product_repair_rerun_publication_report",
-                "schema_version": 1,
-                "ok": platform_reports_ok,
-                "dry_run": False,
-                "canonical_mutations_allowed": False,
-                "tracked_artifacts_written": False,
-                "authority_boundary": {
-                    "executes_specgraph_make_target": True,
-                    "executes_git_commands": False,
-                    "opens_pull_requests": False,
-                    "merges_pull_requests": False,
-                    "writes_ontology_packages": False,
-                    "accepts_ontology_terms": False,
-                    "mutates_canonical_specs": False,
-                    "publishes_private_artifacts": False,
+        if include_platform_publication_report:
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": "platform_product_repair_rerun_publication_report",
+                    "schema_version": 1,
+                    "ok": platform_reports_ok,
+                    "dry_run": False,
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "authority_boundary": {
+                        "executes_specgraph_make_target": True,
+                        "executes_git_commands": False,
+                        "opens_pull_requests": False,
+                        "merges_pull_requests": False,
+                        "writes_ontology_packages": False,
+                        "accepts_ontology_terms": False,
+                        "mutates_canonical_specs": False,
+                        "publishes_private_artifacts": False,
+                    },
+                    "manifest": {
+                        "path": "dist/specgraph-public/artifact_manifest.json",
+                        "present": platform_reports_ok,
+                        "sha256": "sha256:manifest" if platform_reports_ok else None,
+                    },
+                    "published_artifacts": [
+                        "runs/idea_to_spec_repair_session.json",
+                        "runs/specspace_repair_draft_rerun_report.json",
+                    ] if platform_reports_ok else [],
+                    "missing_artifacts": [] if platform_reports_ok else ["runs/idea_to_spec_repair_session.json"],
+                    "diagnostics": [] if platform_reports_ok else [{"level": "error", "message": "missing"}],
+                    "summary": {
+                        "status": "published" if platform_reports_ok else "blocked",
+                        "error_count": 0 if platform_reports_ok else 1,
+                        "published_artifact_count": 2 if platform_reports_ok else 0,
+                        "missing_artifact_count": 0 if platform_reports_ok else 1,
+                    },
                 },
-                "manifest": {
-                    "path": "dist/specgraph-public/artifact_manifest.json",
-                    "present": platform_reports_ok,
-                    "sha256": "sha256:manifest" if platform_reports_ok else None,
-                },
-                "published_artifacts": [
-                    "runs/idea_to_spec_repair_session.json",
-                    "runs/specspace_repair_draft_rerun_report.json",
-                ] if platform_reports_ok else [],
-                "missing_artifacts": [] if platform_reports_ok else ["runs/idea_to_spec_repair_session.json"],
-                "diagnostics": [] if platform_reports_ok else [{"level": "error", "message": "missing"}],
-                "summary": {
-                    "status": "published" if platform_reports_ok else "blocked",
-                    "error_count": 0 if platform_reports_ok else 1,
-                    "published_artifact_count": 2 if platform_reports_ok else 0,
-                    "missing_artifact_count": 0 if platform_reports_ok else 1,
-                },
-            },
-        )
+            )
     if include_rerun_report:
         _write_json(
             runs_dir / idea_to_spec_workspace.SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT,
@@ -6152,6 +6154,15 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["active_intent_count"], 1)
         self.assertEqual(get_status, 200)
         self.assertTrue(get_body["workflow_status"]["request_ready"])
+        self.assertTrue(get_body["workflow_status"]["repair_session_ready"])
+        self.assertEqual(
+            get_body["workflow_status"]["platform_rerun_execution_status"],
+            "successful",
+        )
+        self.assertEqual(
+            get_body["workflow_status"]["platform_rerun_publication_status"],
+            "published",
+        )
         self.assertEqual(get_body["workflow_status"]["latest_journal_state"], "fresh")
         intent = get_body["intents"][0]
         self.assertEqual(
@@ -6163,6 +6174,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(intent["reason"], "Review-ready candidate.")
         self.assertFalse(intent["may_create_branch_or_commit"])
         self.assertFalse(intent["may_execute_git_service_operation"])
+        self.assertFalse(intent["may_execute_prompt_agent"])
+        self.assertFalse(intent["may_apply_to_specgraph"])
+        self.assertFalse(intent["may_mark_candidate_accepted"])
         self.assertTrue(state_exists)
 
     def test_idea_to_spec_candidate_approval_intents_v1_rejects_unready_journal(
@@ -6234,6 +6248,46 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["workflow_status"]["blocked_by"],
         )
 
+    def test_idea_to_spec_candidate_approval_intents_v1_requires_publication_after_execution(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_platform_publication_report=False,
+                ready_for_candidate_approval=True,
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-candidate-approval-intents?workspace=team-decision-log",
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(
+            body["workflow_status"]["platform_rerun_execution_status"],
+            "successful",
+        )
+        self.assertEqual(
+            body["workflow_status"]["platform_rerun_publication_status"],
+            "missing",
+        )
+        self.assertIn(
+            "platform_rerun_publication_not_successful",
+            body["workflow_status"]["blocked_by"],
+        )
+
     def test_idea_to_spec_candidate_approval_intents_v1_rejects_mutation_claims(
         self,
     ) -> None:
@@ -6275,6 +6329,160 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 422)
         self.assertIn("may_create_branch_or_commit", body["error"])
+
+    def test_idea_to_spec_candidate_approval_intents_v1_rejects_intent_authority_aliases(
+        self,
+    ) -> None:
+        for field in (
+            "may_execute_prompt_agent",
+            "may_apply_to_specgraph",
+            "may_mark_candidate_accepted",
+        ):
+            with self.subTest(field=field):
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    state_dir = root / "specspace-state"
+                    state_dir.mkdir()
+                    _write_json(
+                        state_dir
+                        / idea_to_spec_candidate_approval_intents.APPROVAL_INTENT_FILENAME,
+                        {
+                            "artifact_kind": (
+                                "specspace_idea_to_spec_candidate_approval_intent_state"
+                            ),
+                            "schema_version": 1,
+                            "state_owner": "SpecSpace",
+                            "canonical_mutations_allowed": False,
+                            "tracked_artifacts_written": False,
+                            "consumer_boundary": {
+                                "specspace_owned_state": True,
+                            },
+                            "authority_boundary": {
+                                "candidate_approval_intent_state_is_authority": False,
+                                "canonical_mutations_allowed": False,
+                            },
+                            "intents": [
+                                {
+                                    "id": "candidate-approval-intent.team-decision-log.1",
+                                    "status": "requested",
+                                    "requested_action": "approve_candidate_for_promotion_review",
+                                    "workspace_id": "team-decision-log",
+                                    "candidate_id": "team-decision-log",
+                                    "created_at": "2026-06-26T10:00:00Z",
+                                    field: True,
+                                }
+                            ],
+                        },
+                    )
+                    httpd, thread, base = _start(
+                        root / "dialogs", specspace_state_dir=state_dir
+                    )
+                    try:
+                        status, body = _get(
+                            f"{base}/api/v1/idea-to-spec-candidate-approval-intents?workspace=team-decision-log"
+                        )
+                    finally:
+                        _stop(httpd, thread)
+
+                self.assertEqual(status, 422)
+                self.assertIn(field, body["error"])
+
+    def test_idea_to_spec_candidate_approval_intents_v1_rejects_authority_aliases(
+        self,
+    ) -> None:
+        for field in (
+            "approval_intent_state_is_authority",
+            "candidate_approval_authority",
+            "specgraph_execution_authority",
+        ):
+            with self.subTest(field=field):
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    state_dir = root / "specspace-state"
+                    state_dir.mkdir()
+                    _write_json(
+                        state_dir
+                        / idea_to_spec_candidate_approval_intents.APPROVAL_INTENT_FILENAME,
+                        {
+                            "artifact_kind": (
+                                "specspace_idea_to_spec_candidate_approval_intent_state"
+                            ),
+                            "schema_version": 1,
+                            "state_owner": "SpecSpace",
+                            "canonical_mutations_allowed": False,
+                            "tracked_artifacts_written": False,
+                            "consumer_boundary": {
+                                "specspace_owned_state": True,
+                            },
+                            "authority_boundary": {
+                                "candidate_approval_intent_state_is_authority": False,
+                                "canonical_mutations_allowed": False,
+                                field: True,
+                            },
+                            "intents": [],
+                        },
+                    )
+                    httpd, thread, base = _start(
+                        root / "dialogs", specspace_state_dir=state_dir
+                    )
+                    try:
+                        status, body = _get(
+                            f"{base}/api/v1/idea-to-spec-candidate-approval-intents?workspace=team-decision-log"
+                        )
+                    finally:
+                        _stop(httpd, thread)
+
+                self.assertEqual(status, 422)
+                self.assertIn(field, body["error"])
+
+    def test_idea_to_spec_candidate_approval_intents_v1_skips_malformed_intent_timestamp(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            _write_json(
+                state_dir
+                / idea_to_spec_candidate_approval_intents.APPROVAL_INTENT_FILENAME,
+                {
+                    "artifact_kind": (
+                        "specspace_idea_to_spec_candidate_approval_intent_state"
+                    ),
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "consumer_boundary": {
+                        "specspace_owned_state": True,
+                    },
+                    "authority_boundary": {
+                        "candidate_approval_intent_state_is_authority": False,
+                        "canonical_mutations_allowed": False,
+                    },
+                    "intents": [
+                        {
+                            "id": "candidate-approval-intent.team-decision-log.1",
+                            "status": "requested",
+                            "requested_action": "approve_candidate_for_promotion_review",
+                            "workspace_id": "team-decision-log",
+                            "candidate_id": "team-decision-log",
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-candidate-approval-intents?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["intent_count"], 0)
 
     def test_specpm_registry_v1_package_endpoint_requires_package_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
