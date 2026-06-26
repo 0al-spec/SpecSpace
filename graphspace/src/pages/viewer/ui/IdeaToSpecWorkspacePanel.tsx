@@ -8,6 +8,7 @@ import type {
   IdeaToSpecGitServiceOperation,
   IdeaToSpecMaterializedFile,
   IdeaToSpecOntologyDecision,
+  IdeaToSpecProductRepairRerunPlatformExecution,
   IdeaToSpecRepairAction,
   IdeaToSpecRepairSessionBlocker,
   IdeaToSpecRepairSessionStage,
@@ -783,6 +784,7 @@ function ProductRepairReviewSection({
   const lane = state.data.repairReview;
   const quality = lane.rerunPreview.candidateQualityPreview;
   const delta = lane.rerunMaterialization.delta;
+  const platformExecution = lane.platformExecution;
   const draftCount =
     repairDrafts.state.kind === "ok"
       ? repairDrafts.state.data.summary.draftCount
@@ -819,6 +821,14 @@ function ProductRepairReviewSection({
           label="Removed"
           value={String(delta.removedGapIds.length)}
         />
+        <PostureItem
+          label="Exec"
+          value={compact(platformExecution.execution.status, "missing")}
+        />
+        <PostureItem
+          label="Publish"
+          value={compact(platformExecution.publication.status, "missing")}
+        />
       </div>
       {!lane.available ? (
         <Status
@@ -838,6 +848,7 @@ function ProductRepairReviewSection({
           })
         }
       />
+      <ProductRepairRerunExecutionStatus platformExecution={platformExecution} />
       <div className={styles.row}>
         <div className={styles.rowHeader}>
           <span className={styles.rowId}>Ontology gap quality</span>
@@ -999,6 +1010,70 @@ function RepairRerunRequestStatus({
           Rerun request failed · {repairRerunRequestErrorText(requestError)}
         </span>
       ) : null}
+    </div>
+  );
+}
+
+function ProductRepairRerunExecutionStatus({
+  platformExecution,
+}: {
+  platformExecution: IdeaToSpecProductRepairRerunPlatformExecution;
+}) {
+  const execution = platformExecution.execution;
+  const publication = platformExecution.publication;
+  if (!platformExecution.available) {
+    return (
+      <Status
+        label="Platform repair rerun not executed"
+        detail="No platform_product_repair_rerun_execution_report.json artifact is published for this workspace."
+      />
+    );
+  }
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>Platform repair rerun</span>
+        <Pill
+          value={execution.ok ? "executed" : execution.available ? "blocked" : "missing"}
+        />
+      </div>
+      <div className={styles.metaGrid}>
+        <Meta label="Execution" value={compact(execution.status, "missing")} />
+        <Meta label="Execution dry run" value={boolText(execution.dryRun)} />
+        <Meta label="Execution errors" value={String(execution.errorCount)} />
+        <Meta label="Outputs" value={String(execution.outputArtifactCount)} />
+        <Meta label="Rerun digest" value={execution.rerunReportDigest} />
+        <Meta label="Session digest" value={execution.repairSessionDigest} />
+        <Meta label="Publication" value={compact(publication.status, "missing")} />
+        <Meta label="Publication dry run" value={boolText(publication.dryRun)} />
+        <Meta label="Published" value={String(publication.publishedArtifactCount)} />
+        <Meta label="Missing public" value={String(publication.missingArtifactCount)} />
+        <Meta label="Manifest" value={publication.manifestPath} />
+        <Meta
+          label="Exec authority"
+          value={boolText(
+            platformExecution.actionBoundary.mayExecutePlatformAdapter,
+          )}
+        />
+      </div>
+      {execution.operations.map((operation) => (
+        <div key={operation.name} className={styles.subRow}>
+          <span>{operation.name}</span>
+          <Pill value={operation.status} />
+          <span className={styles.statusDetail}>
+            {compact(operation.reason, joined(operation.evidence))}
+          </span>
+        </div>
+      ))}
+      {execution.outputArtifacts.map((artifact) => (
+        <div key={artifact.key} className={styles.subRow}>
+          <span>{artifact.key}</span>
+          <Pill value={artifact.ready ? "ready" : artifact.present ? "present" : "missing"} />
+          <span className={styles.statusDetail}>
+            {artifact.path ?? compact(artifact.artifactKind)}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

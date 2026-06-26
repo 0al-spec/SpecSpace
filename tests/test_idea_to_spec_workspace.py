@@ -1137,8 +1137,16 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(body["summary"]["read_model_published"])
         self.assertEqual(body["workflow"]["stage"], "repair_required")
         self.assertEqual(body["workflow"]["status"], "blocked")
-        self.assertEqual(len(body["workflow"]["items"]), 13)
+        self.assertEqual(len(body["workflow"]["items"]), 15)
         self.assertEqual(body["workflow"]["items"][2]["id"], "ontology_seed")
+        self.assertEqual(
+            body["workflow"]["items"][6]["id"],
+            "product_repair_rerun_execution",
+        )
+        self.assertEqual(
+            body["workflow"]["items"][7]["id"],
+            "product_repair_rerun_publication",
+        )
         self.assertEqual(
             body["workflow"]["next_handoff"]["kind"],
             "operator_repair_review",
