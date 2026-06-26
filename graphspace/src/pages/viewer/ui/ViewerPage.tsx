@@ -202,6 +202,10 @@ export function ViewerPage({
         "/api/v1/idea-to-spec-repair-rerun-requests",
         workspace,
       ),
+      ideaToSpecCandidateApprovalIntents: workspaceApiUrl(
+        "/api/v1/idea-to-spec-candidate-approval-intents",
+        workspace,
+      ),
       ontologyWorkbench: workspaceApiUrl("/api/v1/ontology-workbench", workspace),
       practicalOntology: workspaceApiUrl("/api/v1/practical-ontology", workspace),
       ontologyReviewDashboard: workspaceApiUrl(
@@ -1263,6 +1267,7 @@ export function ViewerPage({
               state={ideaToSpecWorkspaceState}
               repairDraftsUrl={workspaceApiUrls.ideaToSpecRepairDrafts}
               repairRerunRequestsUrl={workspaceApiUrls.ideaToSpecRepairRerunRequests}
+              candidateApprovalIntentsUrl={workspaceApiUrls.ideaToSpecCandidateApprovalIntents}
               repairRerunRequestsRefreshKey={runsWatchVersion}
             />
           ) : null}

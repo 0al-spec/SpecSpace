@@ -75,6 +75,9 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Promotion gate");
     expect(html).toContain("idea_to_spec_promotion_blocked");
     expect(html).toContain("repair_context_required");
+    expect(html).toContain("Candidate approval intent");
+    expect(html).toContain("Candidate approval intent loading");
+    expect(html).toContain("SpecSpace-owned candidate approval intent state");
     expect(html).toContain("Controlled promotion");
     expect(html).toContain("Platform promotion request");
     expect(html).toContain("Candidate approval");
