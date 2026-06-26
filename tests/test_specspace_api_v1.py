@@ -5670,6 +5670,34 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(post_status, 409)
         self.assertEqual(post_body["reason"], "accepted_draft_imports_missing")
 
+    def test_idea_to_spec_repair_rerun_requests_v1_clamps_negative_accepted_preview(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_import_preview=True,
+                accepted_for_rerun_count=-2,
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                get_status, get_body = _get(
+                    f"{base}/api/v1/idea-to-spec-repair-rerun-requests?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(get_status, 200)
+        self.assertEqual(get_body["workflow_status"]["accepted_for_rerun_count"], 0)
+        self.assertFalse(get_body["workflow_status"]["request_ready"])
+
     def test_idea_to_spec_repair_rerun_requests_v1_rejects_stale_drafts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

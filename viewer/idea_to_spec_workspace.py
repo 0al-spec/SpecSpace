@@ -80,6 +80,10 @@ PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
     GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT,
     GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT,
 )
+SPECSPACE_REPAIR_DRAFT_HANDOFF_ARTIFACTS: tuple[str, ...] = (
+    SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT,
+    SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT,
+)
 WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT,
@@ -390,6 +394,26 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "canonical_tracked_artifacts_written must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename in SPECSPACE_REPAIR_DRAFT_HANDOFF_ARTIFACTS:
+        if value.get("canonical_mutations_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": (
+                    "SpecSpace repair draft handoff artifacts must declare "
+                    "canonical_mutations_allowed false."
+                ),
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": (
+                    "SpecSpace repair draft handoff artifacts must declare "
+                    "tracked_artifacts_written false."
+                ),
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None

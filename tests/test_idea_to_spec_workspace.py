@@ -1662,6 +1662,28 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "invalid_artifact_contract",
         )
 
+    def test_build_workspace_reports_repair_handoff_contract_errors(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[
+            idea_to_spec_workspace.SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT
+        ] = {
+            "artifact_kind": "specspace_repair_draft_import_preview",
+            "schema_version": 1,
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": True,
+            "summary": {"status": "repair_draft_import_preview_ready"},
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        artifact = body["artifacts"]["specspace_repair_draft_import_preview"]
+        self.assertFalse(artifact["available"])
+        self.assertEqual(artifact["reason"], "invalid_artifact_contract")
+        self.assertIn("SpecSpace repair draft handoff", artifact["detail"])
+
     def test_workflow_uses_repair_stage_for_readiness_blockers_without_findings(
         self,
     ) -> None:

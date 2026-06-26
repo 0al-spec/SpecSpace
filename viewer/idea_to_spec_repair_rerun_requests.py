@@ -135,13 +135,20 @@ def read_state(
     workspace_payload: dict[str, Any] | None = None,
     repair_draft_state: dict[str, Any] | None = None,
 ) -> tuple[HTTPStatus, dict[str, Any]]:
+    status, state = _read_persisted_state(server)
+    if status != HTTPStatus.OK:
+        return status, state
+    return HTTPStatus.OK, _with_workflow_status(
+        _filtered_state(state, workspace_id),
+        workspace_payload=workspace_payload,
+        repair_draft_state=repair_draft_state,
+    )
+
+
+def _read_persisted_state(server: Any) -> tuple[HTTPStatus, dict[str, Any]]:
     path = state_path(server)
     if not path.exists():
-        return HTTPStatus.OK, _with_workflow_status(
-            _filtered_state(empty_state(path), workspace_id),
-            workspace_payload=workspace_payload,
-            repair_draft_state=repair_draft_state,
-        )
+        return HTTPStatus.OK, empty_state(path)
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -155,11 +162,7 @@ def read_state(
         error["path"] = str(path)
         return HTTPStatus.UNPROCESSABLE_ENTITY, error
     assert state is not None
-    return HTTPStatus.OK, _with_workflow_status(
-        _filtered_state(state, workspace_id),
-        workspace_payload=workspace_payload,
-        repair_draft_state=repair_draft_state,
-    )
+    return HTTPStatus.OK, state
 
 
 def normalize_state(raw: Any, path: Path) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
@@ -338,11 +341,10 @@ def save_rerun_request(
     }
 
     with _STATE_LOCK:
-        status, state = read_state(server)
+        status, state = _read_persisted_state(server)
         if status != HTTPStatus.OK:
             return status, state
         path = state_path(server)
-        state.pop("workflow_status", None)
         requests = _records(state.get("requests"))
         for existing in requests:
             if existing.get("workspace_id") == workspace_id_value and existing.get("status") == "requested":
@@ -582,9 +584,7 @@ def _text(value: Any) -> str | None:
 def _number(value: Any) -> int:
     if isinstance(value, bool):
         return 0
-    if isinstance(value, int):
-        return value
-    return 0
+    return value if isinstance(value, int) and value >= 0 else 0
 
 
 def _first_true(value: Any, fields: tuple[str, ...]) -> str | None:
