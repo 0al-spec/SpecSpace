@@ -16,7 +16,7 @@ viewer. Those surfaces are useful but not a standalone ontology product:
   routing unless it is explicitly reserved;
 - Ontology packages are produced outside SpecSpace by `ontologyc`.
 
-The desired product surface is a dedicated page at `SpecGraph.space/ontology`
+The desired product surface is a dedicated page at `specgraph.space/ontology`
 where a user can drag and drop Ontology artifacts and inspect their graph
 locally.
 
