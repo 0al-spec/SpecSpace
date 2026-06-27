@@ -157,8 +157,10 @@ describe("local ontology artifact loading", () => {
       file("ontology-viewer-archive-manifest.json", viewerManifest()),
     ]);
 
-    expect(selected?.manifest.package.id).toBe("example.local");
-    expect(selected?.manifest.artifacts.map((artifact) => artifact.role)).toEqual([
+    expect(selected?.kind).toBe("selected");
+    if (selected?.kind !== "selected") return;
+    expect(selected.manifest.package.id).toBe("example.local");
+    expect(selected.manifest.artifacts.map((artifact) => artifact.role)).toEqual([
       "package_source",
       "normalized_ir",
       "generated_sdk",
@@ -340,7 +342,99 @@ describe("local ontology artifact loading", () => {
     if (result.kind !== "failed") return;
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
       "viewer_manifest_required_artifact_missing",
-      "normalized_ir_missing",
+    ]);
+  });
+
+  it("rejects malformed named viewer manifests instead of guessing legacy IR", () => {
+    const result = loadLocalOntologyArtifact([
+      file("ontology-viewer-archive-manifest.json", "{"),
+      file("generated/ontology.normalized.json", validIr),
+    ]);
+
+    expect(result.kind).toBe("failed");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      "viewer_manifest_invalid_json",
+    ]);
+  });
+
+  it("does not fallback to legacy normalized IR when manifest declares a missing IR path", () => {
+    const result = loadLocalOntologyArtifact([
+      file(
+        "ontology-viewer-archive-manifest.json",
+        viewerManifest([
+          {
+            path: "generated/current.normalized.json",
+            role: "normalized_ir",
+            required: true,
+          },
+        ]),
+      ),
+      file("generated/ontology.normalized.json", validIr),
+    ]);
+
+    expect(result.kind).toBe("failed");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      "viewer_manifest_required_artifact_missing",
+    ]);
+  });
+
+  it("does not fallback to legacy package metadata when manifest declares package source", () => {
+    const result = loadLocalOntologyArtifact([
+      file(
+        "ontology-viewer-archive-manifest.json",
+        viewerManifest([
+          {
+            path: "package/domain-ontology-package.yaml",
+            role: "package_source",
+            required: false,
+          },
+          {
+            path: "generated/ontology.normalized.json",
+            role: "normalized_ir",
+            required: true,
+          },
+        ]),
+      ),
+      file("domain-ontology-package.yaml", packageYaml),
+      file("generated/ontology.normalized.json", validIr),
+    ]);
+
+    expect(result.kind).toBe("loaded");
+    if (result.kind !== "loaded") return;
+    expect(result.packageMetadata?.path).toBe("ontology-viewer-archive-manifest.json");
+    expect(result.packageShape.packageMetadataPath).toBeNull();
+  });
+
+  it("fails manifest imports when required package source is missing even if IR exists", () => {
+    const result = loadLocalOntologyArtifact([
+      file("ontology-viewer-archive-manifest.json", viewerManifest()),
+      file("generated/ontology.normalized.json", validIr),
+    ]);
+
+    expect(result.kind).toBe("failed");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      "viewer_manifest_required_artifact_missing",
+    ]);
+  });
+
+  it("rejects viewer manifest paths that escape the manifest directory", () => {
+    const result = loadLocalOntologyArtifact([
+      file(
+        "bundle/ontology-viewer-archive-manifest.json",
+        viewerManifest([
+          {
+            path: "../generated/ontology.normalized.json",
+            role: "normalized_ir",
+            required: true,
+          },
+        ]),
+      ),
+      file("generated/ontology.normalized.json", validIr),
+    ]);
+
+    expect(result.kind).toBe("failed");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      "viewer_manifest_required_artifact_missing",
     ]);
   });
 

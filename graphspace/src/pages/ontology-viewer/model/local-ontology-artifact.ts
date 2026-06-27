@@ -53,6 +53,31 @@ type LocalOntologyViewerArchiveManifest = {
   }[];
 };
 
+type ViewerArchiveManifestParseResult =
+  | {
+      kind: "parsed";
+      manifest: LocalOntologyViewerArchiveManifest;
+    }
+  | {
+      kind: "ignored";
+    }
+  | {
+      kind: "invalid";
+      diagnostic: LocalOntologyArtifactDiagnostic;
+    };
+
+type ViewerArchiveManifestSelection =
+  | {
+      kind: "selected";
+      file: LocalOntologyArtifactFile;
+      manifest: LocalOntologyViewerArchiveManifest;
+    }
+  | {
+      kind: "invalid";
+      file: LocalOntologyArtifactFile;
+      diagnostics: readonly LocalOntologyArtifactDiagnostic[];
+    };
+
 export type LocalOntologyArtifactLoadResult =
   | {
       kind: "loaded";
@@ -153,17 +178,51 @@ function objectField(value: unknown): Record<string, unknown> | null {
 
 function parseViewerArchiveManifest(
   file: LocalOntologyArtifactFile,
-): LocalOntologyViewerArchiveManifest | null {
+  strict: boolean,
+): ViewerArchiveManifestParseResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(file.text);
   } catch {
-    return null;
+    return strict
+      ? {
+          kind: "invalid",
+          diagnostic: {
+            severity: "error",
+            code: "viewer_manifest_invalid_json",
+            message: "ontology-viewer-archive-manifest.json is not valid JSON.",
+            path: file.path,
+          },
+        }
+      : { kind: "ignored" };
   }
 
   const root = objectField(parsed);
-  if (!root || root.artifact_kind !== "ontology_viewer_archive_manifest") return null;
-  if (root.schema_version !== 1) return null;
+  if (!root || root.artifact_kind !== "ontology_viewer_archive_manifest") {
+    return strict
+      ? {
+          kind: "invalid",
+          diagnostic: {
+            severity: "error",
+            code: "viewer_manifest_invalid_contract",
+            message:
+              "ontology-viewer-archive-manifest.json must declare artifact_kind ontology_viewer_archive_manifest.",
+            path: file.path,
+          },
+        }
+      : { kind: "ignored" };
+  }
+  if (root.schema_version !== 1) {
+    return {
+      kind: "invalid",
+      diagnostic: {
+        severity: "error",
+        code: "viewer_manifest_unsupported_schema",
+        message: "ontology viewer archive manifest schema_version must be 1.",
+        path: file.path,
+      },
+    };
+  }
 
   const packageObject = objectField(root.package) ?? {};
   const artifactRecords = Array.isArray(root.artifacts) ? root.artifacts : [];
@@ -183,37 +242,48 @@ function parseViewerArchiveManifest(
   });
 
   return {
-    path: file.path,
-    package: {
-      id: stringField(packageObject.id),
-      namespace: stringField(packageObject.namespace),
-      version: stringField(packageObject.version),
+    kind: "parsed",
+    manifest: {
+      path: file.path,
+      package: {
+        id: stringField(packageObject.id),
+        namespace: stringField(packageObject.namespace),
+        version: stringField(packageObject.version),
+      },
+      artifacts,
     },
-    artifacts,
   };
 }
 
 export function selectViewerArchiveManifest(
   files: readonly LocalOntologyArtifactFile[],
-): {
-  file: LocalOntologyArtifactFile;
-  manifest: LocalOntologyViewerArchiveManifest;
-} | null {
+): ViewerArchiveManifestSelection | null {
   const candidates = files
     .filter((file) => isViewerArchiveManifestPath(file.path) || isViewerArchiveManifestPath(file.name))
     .sort(byShortestPath);
 
   for (const file of candidates) {
-    const manifest = parseViewerArchiveManifest(file);
-    if (manifest) return { file, manifest };
+    const parsed = parseViewerArchiveManifest(file, true);
+    if (parsed.kind === "parsed") return { kind: "selected", file, manifest: parsed.manifest };
+    if (parsed.kind === "invalid") return { kind: "invalid", file, diagnostics: [parsed.diagnostic] };
   }
 
   for (const file of files.filter((file) => file.name.endsWith(".json") || file.path.endsWith(".json"))) {
-    const manifest = parseViewerArchiveManifest(file);
-    if (manifest) return { file, manifest };
+    if (!maybeContainsViewerArchiveManifestKind(file)) continue;
+    const parsed = parseViewerArchiveManifest(file, false);
+    if (parsed.kind === "parsed") return { kind: "selected", file, manifest: parsed.manifest };
+    if (parsed.kind === "invalid") return { kind: "invalid", file, diagnostics: [parsed.diagnostic] };
   }
 
   return null;
+}
+
+function maybeContainsViewerArchiveManifestKind(file: LocalOntologyArtifactFile): boolean {
+  const prefix = file.text.slice(0, 8192);
+  return (
+    prefix.includes("artifact_kind") &&
+    prefix.includes("ontology_viewer_archive_manifest")
+  );
 }
 
 function unquoteYamlScalar(value: string): string {
@@ -311,7 +381,8 @@ function resolveRelativePath(basePath: string, relativePath: string): string | n
   if (
     relativePath.startsWith("/") ||
     /^[A-Za-z]:[\\/]/.test(relativePath) ||
-    relativePath.includes("\\")
+    relativePath.includes("\\") ||
+    relativePath.split("/").includes("..")
   ) {
     return null;
   }
@@ -324,15 +395,17 @@ function resolveRelativePath(basePath: string, relativePath: string): string | n
 
   for (const part of relativePath.split("/")) {
     if (!part || part === ".") continue;
-    if (part === "..") {
-      if (parts.length === 0) return null;
-      parts.pop();
-      continue;
-    }
     parts.push(part);
   }
 
   return `${archivePrefix}${parts.join("/")}`;
+}
+
+function manifestDeclaresRole(
+  manifest: LocalOntologyViewerArchiveManifest | null,
+  role: string,
+): boolean {
+  return manifest?.artifacts.some((item) => item.role === role) ?? false;
 }
 
 function findManifestArtifactFile(
@@ -384,18 +457,19 @@ export function loadLocalOntologyArtifact(
   files: readonly LocalOntologyArtifactFile[],
 ): LocalOntologyArtifactLoadResult {
   const manifestSelection = selectViewerArchiveManifest(files);
-  const manifest = manifestSelection?.manifest ?? null;
+  const manifest = manifestSelection?.kind === "selected" ? manifestSelection.manifest : null;
   const normalizedIr =
     findManifestArtifactFile(files, manifest, "normalized_ir") ??
-    selectOntologyNormalizedIrFile(files);
+    (manifestDeclaresRole(manifest, "normalized_ir") ? null : selectOntologyNormalizedIrFile(files));
   const metadataFile =
     findManifestArtifactFile(files, manifest, "package_source") ??
-    selectDomainOntologyPackageFile(files);
+    (manifestDeclaresRole(manifest, "package_source") ? null : selectDomainOntologyPackageFile(files));
   const parsedMetadata = metadataFile
     ? parseDomainOntologyPackageMetadata(metadataFile)
     : { metadata: metadataFromManifest(manifest), diagnostics: [] };
   const packageShape = buildPackageShape(files, manifest, normalizedIr, metadataFile);
-  const shapeDiagnostics: LocalOntologyArtifactDiagnostic[] = [];
+  const shapeDiagnostics: LocalOntologyArtifactDiagnostic[] =
+    manifestSelection?.kind === "invalid" ? [...manifestSelection.diagnostics] : [];
 
   if (manifest) {
     const requiredMissing = manifest.artifacts
@@ -414,7 +488,7 @@ export function loadLocalOntologyArtifact(
     }
   }
 
-  if (!metadataFile && !manifest) {
+  if (!metadataFile && !manifest && manifestSelection?.kind !== "invalid") {
     shapeDiagnostics.push({
       severity: "warning",
       code: "package_metadata_missing",
@@ -430,6 +504,10 @@ export function loadLocalOntologyArtifact(
       message: "No generated/ compiler output folder was detected.",
       path: null,
     });
+  }
+
+  if (shapeDiagnostics.some((diagnostic) => diagnostic.severity === "error")) {
+    return failedResult(shapeDiagnostics, parsedMetadata.metadata, packageShape);
   }
 
   if (!normalizedIr) {
