@@ -88,6 +88,9 @@ Validation:
 
 ## Phase 4: Ontology Graph Workbench
 
+Status: implemented for normalized IR graph rendering, search, selection, and
+inspector.
+
 Goal: render the projection as a navigable graph.
 
 Steps:
