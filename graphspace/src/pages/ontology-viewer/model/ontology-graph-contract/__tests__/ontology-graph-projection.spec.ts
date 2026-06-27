@@ -52,8 +52,8 @@ describe("ontology graph projection", () => {
     ]);
     expect(result.data.edges.map((edge) => edge.id)).toEqual([
       "extends:sgcore:Requirement->sgcore:Spec",
-      "relation:sgcore:containsSpec",
-      "relation:sgcore:definesRequirement",
+      "relation:sgcore:containsSpec->sgcore:Spec",
+      "relation:sgcore:definesRequirement->sgcore:Requirement",
     ]);
     expect(result.data.diagnostics).toEqual([]);
     expect(result.data.sourceFiles).toEqual([
@@ -128,7 +128,9 @@ describe("ontology graph projection", () => {
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
     expect(result.data.nodes.map((node) => node.id)).toEqual(["dup:Thing"]);
-    expect(result.data.edges.map((edge) => edge.id)).toEqual(["relation:dup:same"]);
+    expect(result.data.edges.map((edge) => edge.id)).toEqual([
+      "relation:dup:same->dup:Thing",
+    ]);
     expect(result.data.diagnostics).toEqual([
       {
         severity: "error",
@@ -141,6 +143,69 @@ describe("ontology graph projection", () => {
         code: "duplicate_relation_id",
         message: "dup:same appears more than once in the normalized ontology IR.",
         ref: "dup:same",
+      },
+    ]);
+  });
+
+  it("projects oneOf relation ranges into one edge per target class", () => {
+    const result = projectOntologyNormalizedIr({
+      id: "example.union",
+      namespace: "union",
+      classes: [
+        { id: "AuditLogEntry", fqid: "union:AuditLogEntry" },
+        { id: "ExamModeSession", fqid: "union:ExamModeSession" },
+        { id: "PolicyViolation", fqid: "union:PolicyViolation" },
+      ],
+      relations: [
+        {
+          id: "records",
+          fqid: "union:records",
+          domain: "union:AuditLogEntry",
+          range: {
+            oneOf: ["union:ExamModeSession", "union:PolicyViolation"],
+          },
+        },
+      ],
+    });
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+    expect(result.data.edges.map((edge) => edge.id)).toEqual([
+      "relation:union:records->union:ExamModeSession",
+      "relation:union:records->union:PolicyViolation",
+    ]);
+    expect(result.data.diagnostics).toEqual([]);
+  });
+
+  it("reports one diagnostic for a union relation with a missing domain", () => {
+    const result = projectOntologyNormalizedIr({
+      id: "example.union",
+      namespace: "union",
+      classes: [
+        { id: "ExamModeSession", fqid: "union:ExamModeSession" },
+        { id: "PolicyViolation", fqid: "union:PolicyViolation" },
+      ],
+      relations: [
+        {
+          id: "records",
+          fqid: "union:records",
+          domain: "union:AuditLogEntry",
+          range: {
+            oneOf: ["union:ExamModeSession", "union:PolicyViolation"],
+          },
+        },
+      ],
+    });
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+    expect(result.data.edges).toEqual([]);
+    expect(result.data.diagnostics).toEqual([
+      {
+        severity: "error",
+        code: "relation_endpoint_missing",
+        message: "union:records references a missing domain or range class.",
+        ref: "union:records",
       },
     ]);
   });

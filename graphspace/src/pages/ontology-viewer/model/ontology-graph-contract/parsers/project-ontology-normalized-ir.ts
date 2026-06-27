@@ -27,7 +27,14 @@ const normalizedRelationSchema = z
     id: z.string().min(1),
     fqid: z.string().min(1).optional(),
     domain: z.string().min(1),
-    range: z.string().min(1),
+    range: z.union([
+      z.string().min(1),
+      z
+        .object({
+          oneOf: z.array(z.string().min(1)).min(1),
+        })
+        .passthrough(),
+    ]),
     description: z.string().optional(),
     uri: z.string().optional(),
     cardinality: z
@@ -80,6 +87,10 @@ function relationRef(item: NormalizedRelation, namespace: string): string {
 
 function relationLabel(item: NormalizedRelation): string {
   return item.id;
+}
+
+function relationRanges(item: NormalizedRelation): readonly string[] {
+  return typeof item.range === "string" ? [item.range] : item.range.oneOf;
 }
 
 function makeNode(item: NormalizedClass, namespace: string): OntologyGraphNode {
@@ -150,9 +161,8 @@ function relationEdges(
   const edges: OntologyGraphEdge[] = [];
   for (const relation of relations) {
     const source = nodeIndex.get(relation.domain);
-    const target = nodeIndex.get(relation.range);
     const relationId = relationRef(relation, namespace);
-    if (!source || !target) {
+    if (!source) {
       diagnostics.push({
         severity: "error",
         code: "relation_endpoint_missing",
@@ -161,17 +171,29 @@ function relationEdges(
       });
       continue;
     }
-    edges.push({
-      id: `relation:${relationId}`,
-      kind: "relation",
-      label: relationLabel(relation),
-      source: source.id,
-      target: target.id,
-      relationFqid: relationId,
-      description: relation.description ?? null,
-      uri: relation.uri ?? null,
-      cardinality: relation.cardinality ?? null,
-    });
+    for (const range of relationRanges(relation)) {
+      const target = nodeIndex.get(range);
+      if (!target) {
+        diagnostics.push({
+          severity: "error",
+          code: "relation_endpoint_missing",
+          message: `${relationId} references a missing domain or range class.`,
+          ref: relationId,
+        });
+        continue;
+      }
+      edges.push({
+        id: `relation:${relationId}->${target.id}`,
+        kind: "relation",
+        label: relationLabel(relation),
+        source: source.id,
+        target: target.id,
+        relationFqid: relationId,
+        description: relation.description ?? null,
+        uri: relation.uri ?? null,
+        cardinality: relation.cardinality ?? null,
+      });
+    }
   }
   return edges;
 }
