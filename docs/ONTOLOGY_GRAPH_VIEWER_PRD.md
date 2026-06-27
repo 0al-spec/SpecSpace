@@ -35,6 +35,11 @@ The refactoring should preserve the mature SpecGraph canvas while extracting
 only reusable graph workbench primitives where there is an actual shared
 technical boundary.
 
+The existing ontology panels are still canonical SpecSpace observation surfaces
+for the active SpecGraph workspace. The standalone `/ontology` route must be an
+additional local artifact viewer, not a replacement for workspace-level
+ontology observation.
+
 ## Users
 
 - Ontology maintainer validating `DomainOntologyPackage` outputs.
@@ -52,6 +57,8 @@ technical boundary.
 - Keep all archive parsing local in the browser for the MVP.
 - Reuse current design language and React Flow infrastructure where appropriate.
 - Keep SpecGraph and Ontology authority boundaries explicit.
+- Preserve existing canonical SpecSpace ontology observation inside the
+  SpecGraph workspace viewer.
 
 ## Non-Goals
 
@@ -60,8 +67,8 @@ technical boundary.
 - No server-side archive upload in the first slice.
 - No browser execution of `ontologyc`.
 - No dependency solving across remote ontology registries.
-- No replacement of existing SpecGraph ontology workbench panels in the first
-  slice.
+- No removal, downgrade, or replacement of existing SpecGraph workspace
+  ontology observation panels.
 
 ## Product Requirements
 
@@ -73,6 +80,18 @@ technical boundary.
   workspace surfaces by default.
 - The route must keep static deployment compatibility with the current
   single-page app fallback.
+
+### Canonical SpecSpace Observation
+
+- Existing ontology API surfaces such as `/api/v1/practical-ontology` and
+  `/api/v1/ontology-workbench` remain part of the canonical SpecSpace workspace
+  observation model.
+- Existing ViewerPage ontology panels remain available for SpecGraph workspace
+  users.
+- `/ontology` must not force the canonical workspace viewer to depend on local
+  drag/drop state.
+- Future shared projection work must preserve the current read-only API
+  contracts until an explicit migration PRD/ADR replaces them.
 
 ### Import
 
@@ -146,6 +165,8 @@ Any future write or publish flow must be introduced behind a separate PRD/ADR.
   and edges.
 - `/ontology` does not route through `ViewerPage` or generic product workspace
   handling.
+- Existing canonical ontology panels in the SpecGraph workspace remain
+  reachable and tested.
 - Dropping an invalid artifact shows deterministic diagnostics.
 - Frontend tests cover projection, route selection, and import error handling.
 - `npm run build`, `npm run test`, and `npm run lint:fsd` pass for `graphspace`.

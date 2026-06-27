@@ -30,12 +30,14 @@ Steps:
 - Reserve `/ontology` before generic product workspace routing.
 - Add `pages/ontology-viewer` with an empty but functional shell.
 - Add route tests proving `/ontology` does not call `ViewerPage` workspace flow.
+- Keep existing ViewerPage ontology panels and hooks in place.
 - Document route in `SPECSPACE_BOUNDARY.md`.
 
 Validation:
 
 - `workspace-route` tests include `/ontology`.
 - The page renders without fetching `/api/v1/spec-graph`.
+- Existing workspace ontology panel tests still pass.
 - `npm run test`, `npm run build`, `npm run lint:fsd`.
 
 ## Phase 2: Ontology Projection Contract
@@ -89,6 +91,7 @@ Steps:
 - Add search, fit view, selected node/edge inspector, and diagnostics rail.
 - Reuse generic controls only when they do not import SpecGraph semantics.
 - Keep existing `SpecGraphCanvas` tests green.
+- Keep existing ontology utility panel tests green.
 
 Validation:
 
@@ -116,6 +119,8 @@ Validation:
 - Current Ontology package folder/ZIP loads.
 - Unsupported archives show actionable messages.
 - Bundle impact is reviewed if a ZIP/YAML parser is added.
+- Canonical workspace ontology observation remains available independently of
+  local archive import.
 
 ## Phase 6: Cross-Repo Stabilization
 
@@ -143,6 +148,7 @@ Validation:
 - Registry-backed trusted package browsing.
 - Publishing or promoting ontology packages.
 - SpecGraph canonical mutation or semantic import apply.
+- Removing existing SpecSpace ontology workspace panels.
 - Server-side upload/storage.
 - Running `ontologyc` in browser or on SpecSpace server.
 

@@ -25,6 +25,9 @@ locally.
 Implement `/ontology` as a standalone SpecSpace page with a dedicated ontology
 projection model and a read-only local import flow.
 
+This is an additive product surface. The existing canonical SpecSpace ontology
+observation panels inside the SpecGraph workspace viewer remain supported.
+
 The implementation should extract reusable graph workbench primitives only where
 they are truly generic. It should not turn the existing `SpecGraphCanvas` into a
 fake ontology canvas by wrapping ontology data in `SpecNode`/`SpecEdge` shapes.
@@ -104,6 +107,9 @@ operator's machine.
 
 - The first implementation needs route plumbing before UI work.
 - A small ontology projection contract is required before canvas work.
+- SpecSpace will intentionally have two ontology entry points at first:
+  canonical workspace observation panels and the local `/ontology` artifact
+  viewer.
 - Some React Flow code may be duplicated temporarily to avoid premature shared
   abstractions.
 - Later cross-repo work should ask Ontology to publish a stable archive layout

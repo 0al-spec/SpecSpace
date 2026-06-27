@@ -107,6 +107,9 @@ is tracked in
 [`ONTOLOGY_GRAPH_VIEWER_PRD.md`](ONTOLOGY_GRAPH_VIEWER_PRD.md),
 [`ADR_ONTOLOGY_GRAPH_VIEWER_EXTRACTION.md`](ADR_ONTOLOGY_GRAPH_VIEWER_EXTRACTION.md),
 and [`ONTOLOGY_GRAPH_VIEWER_WORKPLAN.md`](ONTOLOGY_GRAPH_VIEWER_WORKPLAN.md).
+The existing SpecGraph workspace ontology panels remain canonical SpecSpace
+observation surfaces; `/ontology` complements them with local Ontology artifact
+inspection.
 
 The route selects workspace metadata, provider configuration, and artifact
 manifest. It does not change ownership: SpecGraph still produces artifacts,
