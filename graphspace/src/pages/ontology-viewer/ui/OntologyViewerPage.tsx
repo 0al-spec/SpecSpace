@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
-import type { OntologyGraphDiagnostic } from "@/shared/ontology-graph-contract";
+import type { OntologyGraphDiagnostic } from "../model/ontology-graph-contract";
 import {
   loadLocalOntologyArtifact,
   type LocalOntologyArtifactDiagnostic,
