@@ -136,6 +136,9 @@ Validation:
 
 ## Phase 6: Cross-Repo Stabilization
 
+Status: producer manifest PR opened in Ontology; SpecSpace consumes
+`ontology_viewer_archive_manifest` when present and keeps direct IR fallback.
+
 Goal: avoid SpecSpace guessing package shape forever.
 
 Steps for Ontology:
