@@ -682,6 +682,111 @@ def _promotion_ready_repair_session_journal() -> dict:
     return journal
 
 
+def _repaired_repair_session_journal() -> dict:
+    journal = _promotion_ready_repair_session_journal()
+    journal["session"]["session_id"] = "repaired-session.team-decision-log"
+    journal["readiness_impact"] = {
+        **journal["readiness_impact"],
+        "ready_for_candidate_approval": True,
+        "ready_for_platform_promotion": False,
+        "candidate_quality_review_state": "candidate_quality_repaired",
+        "promotion_gate_review_state": "ready_for_platform_promotion_request",
+        "active_candidate_review_state": "active_candidate_ready",
+        "resolved_ontology_gap_count": 11,
+        "unresolved_ontology_gap_count": 0,
+        "resolved_candidate_gap_count": 4,
+        "unresolved_candidate_gap_count": 0,
+        "rerun_removed_gap_count": 15,
+        "promotion_path_count": 2,
+        "blocked_by": [],
+        "platform_promotion_blocked_by": [],
+    }
+    journal["summary"] = {
+        **journal["summary"],
+        "status": "repair_session_journal_ready",
+        "resolved_ontology_gap_count": 11,
+        "unresolved_ontology_gap_count": 0,
+        "ready_for_candidate_approval": True,
+    }
+    return journal
+
+
+def _repaired_promotion_gate() -> dict:
+    gate = _promotion_gate()
+    gate["readiness"] = {
+        "ready": True,
+        "review_state": "ready_for_platform_promotion_request",
+        "blocked_by": [],
+        "next_artifact": "candidate_approval_decision",
+    }
+    gate["promotion_request"] = {
+        "path_argument": "--path",
+        "paths": [
+            "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+            "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
+        ],
+        "platform_artifact_kind": "platform_graph_repository_promotion_request",
+    }
+    gate["findings"] = []
+    gate["summary"] = {
+        **gate["summary"],
+        "status": "ready_for_platform_promotion_request",
+        "finding_count": 0,
+        "promotion_path_count": 2,
+    }
+    return gate
+
+
+def _repaired_handoff_report() -> dict:
+    return {
+        "artifact_kind": "repaired_candidate_promotion_handoff_report",
+        "schema_version": 1,
+        "proposal_id": "0177",
+        "contract_ref": "specgraph.idea-to-spec.repaired-candidate-promotion-handoff.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "repaired_candidate_promotion_handoff_ready",
+            "blocked_by": [],
+            "next_artifact": "candidate_approval_decision",
+        },
+        "authority_boundary": {
+            "may_execute_prompt_agent": False,
+            "may_apply_answers_to_source_artifacts": False,
+            "may_apply_decisions_to_source_artifacts": False,
+            "may_mutate_candidate_source_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_write_ontology_lockfile": False,
+            "may_accept_ontology_terms": False,
+            "may_mark_candidate_graph_accepted": False,
+            "may_create_branch_or_commit": False,
+            "may_open_pull_request": False,
+            "may_publish_read_model": False,
+        },
+        "privacy_boundary": {
+            "raw_idea_text_published": False,
+            "raw_prompt_published": False,
+            "raw_model_output_published": False,
+            "raw_operator_note_published": False,
+        },
+        "findings": [],
+        "summary": {
+            "status": "repaired_candidate_promotion_handoff_ready",
+            "finding_count": 0,
+            "generated_artifact_count": 7,
+            "removed_gap_count": 15,
+            "resolved_ontology_gap_count": 11,
+            "unresolved_ontology_gap_count": 0,
+            "resolved_candidate_gap_count": 4,
+            "unresolved_candidate_gap_count": 0,
+            "ready_for_candidate_approval": True,
+            "ready_for_platform_promotion": False,
+        },
+    }
+
+
 def _materialization() -> dict:
     return {
         "artifact_kind": "candidate_spec_materialization_report",
@@ -1391,6 +1496,224 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertFalse(
             body["authority_boundary"]["may_create_branch_or_commit"]
+        )
+
+    def test_approval_readiness_prefers_repaired_handoff(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+        publication = _product_repair_rerun_publication_report()
+        publication["published_artifacts"] = [
+            "runs/repaired_candidate_promotion_handoff_report.json",
+            "runs/repaired_active_idea_to_spec_candidate.json",
+            "runs/repaired_idea_to_spec_repair_session.json",
+            "runs/repaired_idea_to_spec_promotion_gate.json",
+        ]
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = publication
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+        ] = _active_candidate()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = _repaired_repair_session_journal()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertEqual(readiness["source_mode"], "repaired_handoff")
+        self.assertEqual(readiness["status"], "approval_ready")
+        self.assertTrue(readiness["candidate_repaired"])
+        self.assertTrue(readiness["ready_for_candidate_approval"])
+        self.assertFalse(readiness["ready_for_platform_promotion"])
+        self.assertTrue(readiness["promotion_review_can_be_requested"])
+        self.assertTrue(
+            readiness["platform_approval_gate_can_materialize_decision"]
+        )
+        self.assertTrue(readiness["platform_rerun_executed"])
+        self.assertTrue(readiness["platform_rerun_published"])
+        self.assertTrue(readiness["repaired_artifacts_published"])
+        self.assertEqual(readiness["resolved_ontology_gap_count"], 11)
+        self.assertEqual(readiness["resolved_candidate_gap_count"], 4)
+        self.assertEqual(readiness["unresolved_ontology_gap_count"], 0)
+        self.assertEqual(readiness["unresolved_candidate_gap_count"], 0)
+        self.assertEqual(readiness["remaining_blocker_count"], 0)
+        self.assertEqual(readiness["promotion_path_count"], 2)
+        self.assertFalse(
+            readiness["action_boundary"][
+                "may_materialize_candidate_approval_decision"
+            ]
+        )
+
+    def test_approval_readiness_allows_legacy_missing_rerun_reports(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts.pop(
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT,
+            None,
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT,
+            None,
+        )
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _repaired_repair_session_journal()
+        )
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT] = (
+            _repaired_promotion_gate()
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertEqual(readiness["source_mode"], "standard")
+        self.assertTrue(readiness["platform_rerun_executed"])
+        self.assertTrue(readiness["platform_rerun_published"])
+        self.assertTrue(readiness["promotion_review_can_be_requested"])
+        self.assertTrue(
+            readiness["platform_approval_gate_can_materialize_decision"]
+        )
+
+    def test_approval_readiness_blocks_unpublished_repaired_artifacts(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_publication_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = _repaired_repair_session_journal()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertFalse(readiness["repaired_artifacts_published"])
+        self.assertFalse(readiness["promotion_review_can_be_requested"])
+        self.assertIn("repaired_artifacts_not_published", readiness["blockers"])
+
+    def test_approval_readiness_blocks_empty_promotion_paths(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        publication = _product_repair_rerun_publication_report()
+        publication["published_artifacts"] = [
+            "runs/repaired_candidate_promotion_handoff_report.json",
+            "runs/repaired_active_idea_to_spec_candidate.json",
+            "runs/repaired_idea_to_spec_repair_session.json",
+            "runs/repaired_idea_to_spec_promotion_gate.json",
+        ]
+        repaired_session = _repaired_repair_session_journal()
+        repaired_session["readiness_impact"]["promotion_path_count"] = 0
+        repaired_gate = _repaired_promotion_gate()
+        repaired_gate["promotion_request"]["paths"] = []
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = publication
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = repaired_session
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = repaired_gate
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertEqual(readiness["promotion_path_count"], 0)
+        self.assertFalse(readiness["promotion_review_can_be_requested"])
+        self.assertIn("promotion_paths_missing", readiness["blockers"])
+
+    def test_approval_readiness_uses_fallback_for_invalid_handoff_counts(self) -> None:
+        artifacts = _workspace_artifacts()
+        handoff = _repaired_handoff_report()
+        handoff["summary"] = {
+            **handoff["summary"],
+            "resolved_ontology_gap_count": None,
+            "unresolved_ontology_gap_count": None,
+            "removed_gap_count": None,
+            "resolved_candidate_gap_count": None,
+            "unresolved_candidate_gap_count": None,
+        }
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = handoff
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = _repaired_repair_session_journal()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertEqual(readiness["resolved_ontology_gap_count"], 11)
+        self.assertEqual(readiness["unresolved_ontology_gap_count"], 0)
+        self.assertEqual(readiness["removed_gap_count"], 15)
+        self.assertEqual(readiness["resolved_candidate_gap_count"], 0)
+        self.assertEqual(readiness["unresolved_candidate_gap_count"], 0)
+
+    def test_approval_readiness_marks_partial_repaired_source_mode(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = _repaired_repair_session_journal()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertEqual(readiness["source_mode"], "partial_repaired")
+        self.assertEqual(
+            readiness["source_refs"]["repair_session"],
+            "runs/repaired_idea_to_spec_repair_session.json",
+        )
+        self.assertEqual(
+            readiness["source_refs"]["promotion_gate"],
+            "runs/repaired_idea_to_spec_promotion_gate.json",
         )
 
     def test_repair_review_falls_back_to_legacy_artifacts_without_journal(self) -> None:

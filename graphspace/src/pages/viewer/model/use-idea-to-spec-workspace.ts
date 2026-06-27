@@ -292,6 +292,54 @@ export type IdeaToSpecProductRepairRerunPlatformExecution = {
   };
 };
 
+export type IdeaToSpecApprovalReadiness = {
+  available: boolean;
+  sourceMode: string;
+  status: string;
+  candidateRepaired: boolean;
+  readyForCandidateApproval: boolean;
+  readyForPlatformPromotion: boolean;
+  promotionReviewCanBeRequested: boolean;
+  platformApprovalGateCanMaterializeDecision: boolean;
+  candidateApprovalDecisionReady: boolean;
+  platformRerunExecuted: boolean;
+  platformRerunPublished: boolean;
+  repairedArtifactsPublished: boolean;
+  resolvedOntologyGapCount: number;
+  resolvedCandidateGapCount: number;
+  unresolvedOntologyGapCount: number;
+  unresolvedCandidateGapCount: number;
+  removedGapCount: number;
+  remainingBlockerCount: number;
+  promotionPathCount: number;
+  blockers: readonly string[];
+  sourceRefs: {
+    handoff: string | null;
+    activeCandidate: string | null;
+    repairSession: string | null;
+    promotionGate: string | null;
+  };
+  reviewStates: {
+    handoff: string | null;
+    activeCandidate: string | null;
+    repairSession: string | null;
+    promotionGate: string | null;
+    execution: string | null;
+    publication: string | null;
+  };
+  actionBoundary: {
+    inspectOnly: true;
+    acknowledgeOnly: true;
+    mayMaterializeCandidateApprovalDecision: false;
+    mayExecutePlatformGate: false;
+    mayExecuteGitService: false;
+    mayCreateBranchOrCommit: false;
+    mayMutateSpecs: false;
+    mayWriteOntologyPackage: false;
+    mayAcceptOntologyTerms: false;
+  };
+};
+
 export type IdeaToSpecWorkflowItem = {
   id: string;
   label: string;
@@ -617,6 +665,7 @@ export type IdeaToSpecWorkspace = {
       mayCreateBranchOrCommit: false;
     };
   };
+  approvalReadiness: IdeaToSpecApprovalReadiness;
   materialization: {
     available: boolean;
     readiness: {
@@ -1446,6 +1495,73 @@ function parseProductRepairRerunPlatformExecution(
   };
 }
 
+function parseApprovalReadiness(raw: unknown): IdeaToSpecApprovalReadiness {
+  const readiness = recordValue(raw);
+  const sourceRefs = recordValue(readiness.source_refs);
+  const reviewStates = recordValue(readiness.review_states);
+  return {
+    available: readiness.available === true,
+    sourceMode: stringValue(readiness.source_mode, "standard"),
+    status: stringValue(readiness.status, "unknown"),
+    candidateRepaired: readiness.candidate_repaired === true,
+    readyForCandidateApproval:
+      readiness.ready_for_candidate_approval === true,
+    readyForPlatformPromotion:
+      readiness.ready_for_platform_promotion === true,
+    promotionReviewCanBeRequested:
+      readiness.promotion_review_can_be_requested === true,
+    platformApprovalGateCanMaterializeDecision:
+      readiness.platform_approval_gate_can_materialize_decision === true,
+    candidateApprovalDecisionReady:
+      readiness.candidate_approval_decision_ready === true,
+    platformRerunExecuted: readiness.platform_rerun_executed === true,
+    platformRerunPublished: readiness.platform_rerun_published === true,
+    repairedArtifactsPublished:
+      readiness.repaired_artifacts_published === true,
+    resolvedOntologyGapCount: numberValue(
+      readiness.resolved_ontology_gap_count,
+    ),
+    resolvedCandidateGapCount: numberValue(
+      readiness.resolved_candidate_gap_count,
+    ),
+    unresolvedOntologyGapCount: numberValue(
+      readiness.unresolved_ontology_gap_count,
+    ),
+    unresolvedCandidateGapCount: numberValue(
+      readiness.unresolved_candidate_gap_count,
+    ),
+    removedGapCount: numberValue(readiness.removed_gap_count),
+    remainingBlockerCount: numberValue(readiness.remaining_blocker_count),
+    promotionPathCount: numberValue(readiness.promotion_path_count),
+    blockers: strings(readiness.blockers),
+    sourceRefs: {
+      handoff: optionalString(sourceRefs.handoff),
+      activeCandidate: optionalString(sourceRefs.active_candidate),
+      repairSession: optionalString(sourceRefs.repair_session),
+      promotionGate: optionalString(sourceRefs.promotion_gate),
+    },
+    reviewStates: {
+      handoff: optionalString(reviewStates.handoff),
+      activeCandidate: optionalString(reviewStates.active_candidate),
+      repairSession: optionalString(reviewStates.repair_session),
+      promotionGate: optionalString(reviewStates.promotion_gate),
+      execution: optionalString(reviewStates.execution),
+      publication: optionalString(reviewStates.publication),
+    },
+    actionBoundary: {
+      inspectOnly: true,
+      acknowledgeOnly: true,
+      mayMaterializeCandidateApprovalDecision: false,
+      mayExecutePlatformGate: false,
+      mayExecuteGitService: false,
+      mayCreateBranchOrCommit: false,
+      mayMutateSpecs: false,
+      mayWriteOntologyPackage: false,
+      mayAcceptOntologyTerms: false,
+    },
+  };
+}
+
 function parseWorkflowItem(raw: unknown): IdeaToSpecWorkflowItem | null {
   const item = recordValue(raw);
   const id = optionalString(item.id);
@@ -1616,6 +1732,31 @@ export function parseIdeaToSpecWorkspace(
   ) {
     return { kind: "parse-error", reason: "repair rerun execution boundary must be inspect-only", raw };
   }
+  const hasApprovalReadiness = isRecord(raw.approval_readiness);
+  const approvalReadiness = recordValue(raw.approval_readiness);
+  if (hasApprovalReadiness) {
+    const approvalReadinessBoundary = recordValue(approvalReadiness.action_boundary);
+    const approvalReadinessFalseFlags = [
+      "may_materialize_candidate_approval_decision",
+      "may_execute_platform_gate",
+      "may_execute_git_service",
+      "may_create_branch_or_commit",
+      "may_mutate_specs",
+      "may_write_ontology_package",
+      "may_accept_ontology_terms",
+    ];
+    for (const flag of approvalReadinessFalseFlags) {
+      if (approvalReadinessBoundary[flag] !== false) {
+        return { kind: "parse-error", reason: `approval readiness boundary expanded: ${flag}`, raw };
+      }
+    }
+    if (
+      approvalReadinessBoundary.inspect_only !== true ||
+      approvalReadinessBoundary.acknowledge_only !== true
+    ) {
+      return { kind: "parse-error", reason: "approval readiness boundary must be inspect-only", raw };
+    }
+  }
   const materialization = recordValue(raw.materialization);
   const promotionGate = recordValue(raw.promotion_gate);
   const controlledPromotion = recordValue(raw.controlled_promotion);
@@ -1762,6 +1903,7 @@ export function parseIdeaToSpecWorkspace(
       },
       repairSession: parseRepairSession(repairSession),
       repairReview: parseRepairReview(repairReview),
+      approvalReadiness: parseApprovalReadiness(approvalReadiness),
       materialization: {
         available: materialization.available === true,
         readiness: parseReadiness(materialization.readiness),

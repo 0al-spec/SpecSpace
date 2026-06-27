@@ -261,12 +261,8 @@ def save_candidate_approval_intent(
     candidate_id = _text(session.get("candidate_id")) or _text(workspace.get("id")) or workspace_id_value
     repair_session_id = _text(session.get("session_id"))
     artifacts = _record(workspace_payload.get("artifacts"))
-    repair_session_ref = (
-        _text(_record(artifacts.get("repair_session")).get("path")) or REPAIR_SESSION_PATH
-    )
-    promotion_gate_ref = (
-        _text(_record(artifacts.get("promotion_gate")).get("path")) or PROMOTION_GATE_PATH
-    )
+    repair_session_ref = workflow_status["repair_session_ref"]
+    promotion_gate_ref = workflow_status["promotion_gate_ref"]
     operator_ref = _text(payload.get("operator_ref")) or _text(session.get("operator_ref")) or "operator://specspace-local"
     reason = _text(payload.get("reason")) or "Approve candidate for promotion review."
     now = now_iso()
@@ -360,9 +356,7 @@ def _with_workflow_status(
     latest_intent = _latest_active_intent(state)
     session = _record(_record((workspace_payload or {}).get("repair_session")).get("session"))
     current_session_id = _text(session.get("session_id"))
-    current_session_ref = _text(
-        _record(_record((workspace_payload or {}).get("artifacts")).get("repair_session")).get("path")
-    ) or REPAIR_SESSION_PATH
+    current_session_ref = state["workflow_status"]["repair_session_ref"]
     latest_journal_state = "not_requested"
     if latest_intent is not None:
         latest_journal_state = (
@@ -381,6 +375,9 @@ def _workflow_status(workspace_payload: dict[str, Any], workspace_id: str | None
     repair_session = _record(workspace_payload.get("repair_session"))
     readiness = _record(repair_session.get("readiness"))
     readiness_impact = _record(repair_session.get("readiness_impact"))
+    approval_readiness = _record(workspace_payload.get("approval_readiness"))
+    approval_available = approval_readiness.get("available") is True
+    approval_refs = _record(approval_readiness.get("source_refs"))
     repair_session_ready = (
         repair_session.get("available") is True
         and repair_session.get("source_mode") == "journal"
@@ -404,6 +401,35 @@ def _workflow_status(workspace_payload: dict[str, Any], workspace_id: str | None
         or (publication_status.get("ok") is True and publication_status.get("dry_run") is not True)
     )
     blocked_by = []
+    repair_session_ref = (
+        _text(_record(_record(workspace_payload.get("artifacts")).get("repair_session")).get("path"))
+        or REPAIR_SESSION_PATH
+    )
+    promotion_gate_ref = (
+        _text(_record(_record(workspace_payload.get("artifacts")).get("promotion_gate")).get("path"))
+        or PROMOTION_GATE_PATH
+    )
+    if approval_available:
+        repair_session_ref = _text(approval_refs.get("repair_session")) or repair_session_ref
+        promotion_gate_ref = _text(approval_refs.get("promotion_gate")) or promotion_gate_ref
+        ready_for_candidate_approval = (
+            approval_readiness.get("ready_for_candidate_approval") is True
+        )
+        ready_for_platform_promotion = (
+            approval_readiness.get("ready_for_platform_promotion") is True
+        )
+        approval_ready = (
+            approval_readiness.get("promotion_review_can_be_requested") is True
+            and approval_readiness.get("platform_approval_gate_can_materialize_decision")
+            is True
+        )
+        repair_session_ready = repair_session_ready or approval_ready
+        execution_ok = approval_readiness.get("platform_rerun_executed") is True
+        publication_ok = approval_readiness.get("platform_rerun_published") is True
+        open_blockers = [
+            {"id": blocker}
+            for blocker in _strings(approval_readiness.get("blockers"))
+        ]
     if workspace_id is None:
         blocked_by.append("workspace_required")
     if not repair_session_ready:
@@ -419,17 +445,11 @@ def _workflow_status(workspace_payload: dict[str, Any], workspace_id: str | None
     return {
         "repair_session_status": "ready" if repair_session_ready else "not_ready",
         "repair_session_ready": repair_session_ready,
-        "repair_session_ref": (
-            _text(_record(_record(workspace_payload.get("artifacts")).get("repair_session")).get("path"))
-            or REPAIR_SESSION_PATH
-        ),
+        "repair_session_ref": repair_session_ref,
         "ready_for_candidate_approval": ready_for_candidate_approval,
         "ready_for_platform_promotion": ready_for_platform_promotion,
         "open_blocker_count": len(open_blockers),
-        "promotion_gate_ref": (
-            _text(_record(_record(workspace_payload.get("artifacts")).get("promotion_gate")).get("path"))
-            or PROMOTION_GATE_PATH
-        ),
+        "promotion_gate_ref": promotion_gate_ref,
         "platform_rerun_execution_status": _availability_status(
             execution_status,
             ready_label="successful",
@@ -544,6 +564,14 @@ def _record(value: Any) -> dict[str, Any]:
 
 def _records(value: Any) -> list[dict[str, Any]]:
     return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
+
+def _strings(value: Any) -> list[str]:
+    return [
+        item
+        for item in value
+        if isinstance(item, str) and item
+    ] if isinstance(value, list) else []
 
 
 def _string_map(value: Any) -> dict[str, str]:

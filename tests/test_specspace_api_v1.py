@@ -236,6 +236,8 @@ def _write_repair_draft_workspace_runs(
     include_platform_publication_report: bool = True,
     ready_for_candidate_approval: bool = False,
     platform_reports_ok: bool = True,
+    include_repaired_handoff: bool = False,
+    repaired_artifacts_published: bool = True,
 ) -> None:
     _write_product_workspace_runs(runs_dir)
     clarification_requests = [
@@ -388,6 +390,198 @@ def _write_repair_draft_workspace_runs(
             "findings": [],
         },
     )
+    if include_repaired_handoff:
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT,
+            {
+                "artifact_kind": "repaired_candidate_promotion_handoff_report",
+                "schema_version": 1,
+                "proposal_id": "0177",
+                "contract_ref": "specgraph.idea-to-spec.repaired-candidate-promotion-handoff.v0.1",
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
+                "readiness": {
+                    "ready": True,
+                    "review_state": "repaired_candidate_promotion_handoff_ready",
+                    "blocked_by": [],
+                    "next_artifact": "candidate_approval_decision",
+                },
+                "authority_boundary": {
+                    "may_execute_prompt_agent": False,
+                    "may_mutate_candidate_source_artifacts": False,
+                    "may_mutate_canonical_specs": False,
+                    "may_write_ontology_package": False,
+                    "may_write_ontology_lockfile": False,
+                    "may_accept_ontology_terms": False,
+                    "may_mark_candidate_graph_accepted": False,
+                    "may_create_branch_or_commit": False,
+                    "may_open_pull_request": False,
+                    "may_publish_read_model": False,
+                },
+                "privacy_boundary": {
+                    "raw_idea_text_published": False,
+                    "raw_prompt_published": False,
+                    "raw_model_output_published": False,
+                    "raw_operator_note_published": False,
+                },
+                "findings": [],
+                "summary": {
+                    "status": "repaired_candidate_promotion_handoff_ready",
+                    "finding_count": 0,
+                    "removed_gap_count": 2,
+                    "resolved_ontology_gap_count": 1,
+                    "unresolved_ontology_gap_count": 0,
+                    "resolved_candidate_gap_count": 1,
+                    "unresolved_candidate_gap_count": 0,
+                    "ready_for_candidate_approval": True,
+                    "ready_for_platform_promotion": False,
+                },
+            },
+        )
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
+            {
+                "artifact_kind": "active_idea_to_spec_candidate",
+                "schema_version": 1,
+                "canonical_mutations_allowed": False,
+                "candidate": {
+                    "candidate_id": "team-decision-log",
+                    "display_name": "Team Decision Log",
+                    "public_route": "/team-decision-log",
+                    "workflow_lane": "product_idea_to_spec",
+                    "target_repository_role": "product_spec_workspace",
+                    "governance_profile": "product_workspace",
+                    "authority_profile": "workspace_owner_controlled",
+                },
+                "readiness": {
+                    "ready": True,
+                    "review_state": "active_candidate_ready",
+                    "blocked_by": [],
+                },
+                "authority_boundary": {
+                    "may_execute_prompt_agent": False,
+                    "may_mutate_candidate_source_artifacts": False,
+                    "may_mutate_canonical_specs": False,
+                    "may_write_ontology_package": False,
+                    "may_create_branch_or_commit": False,
+                    "may_open_pull_request": False,
+                    "may_mark_candidate_graph_accepted": False,
+                },
+            },
+        )
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
+            {
+                "artifact_kind": "idea_to_spec_repair_session_journal",
+                "schema_version": 1,
+                "proposal_id": "0171",
+                "contract_ref": "specgraph.idea-to-spec.repair-session-journal.v0.1",
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
+                "readiness": {
+                    "ready": True,
+                    "review_state": "repair_session_journal_ready",
+                    "blocked_by": [],
+                },
+                "session": {
+                    "session_id": "repaired-session.team-decision-log",
+                    "candidate_id": "team-decision-log",
+                    "workspace_route": "/team-decision-log",
+                    "workflow_lane": "product_idea_to_spec",
+                    "target_repository_role": "product_spec_workspace",
+                    "governance_profile": "product_workspace",
+                    "operator_ref": "operator://workspace-owner",
+                },
+                "readiness_impact": {
+                    "ready_for_candidate_approval": True,
+                    "ready_for_platform_promotion": False,
+                    "intermediate_artifacts_ready": True,
+                    "candidate_quality_review_state": "candidate_quality_repaired",
+                    "promotion_gate_review_state": "ready_for_platform_promotion_request",
+                    "active_candidate_review_state": "active_candidate_ready",
+                    "resolved_ontology_gap_count": 1,
+                    "unresolved_ontology_gap_count": 0,
+                    "resolved_candidate_gap_count": 1,
+                    "unresolved_candidate_gap_count": 0,
+                    "rerun_removed_gap_count": 2,
+                    "promotion_path_count": 1,
+                    "blocked_by": [],
+                    "platform_promotion_blocked_by": [],
+                },
+                "workflow_journal": {
+                    "stages": [],
+                    "accepted_answers": [],
+                    "ontology_decisions": [],
+                    "rerun_overlay_refs": {},
+                    "preview_refs": {},
+                },
+                "summary": {
+                    "status": "repair_session_journal_ready",
+                    "candidate_id": "team-decision-log",
+                    "workflow_lane": "product_idea_to_spec",
+                    "resolved_ontology_gap_count": 1,
+                    "unresolved_ontology_gap_count": 0,
+                    "ready_for_candidate_approval": True,
+                    "finding_count": 0,
+                },
+                "authority_boundary": {
+                    "may_execute_prompt_agent": False,
+                    "may_mutate_candidate_source_artifacts": False,
+                    "may_mutate_canonical_specs": False,
+                    "may_write_ontology_package": False,
+                    "may_write_ontology_lockfile": False,
+                    "may_accept_ontology_terms": False,
+                    "may_mark_candidate_graph_accepted": False,
+                    "may_create_branch_or_commit": False,
+                    "may_open_pull_request": False,
+                    "may_publish_read_model": False,
+                },
+                "privacy_boundary": {
+                    "raw_idea_text_published": False,
+                    "raw_prompt_published": False,
+                    "raw_model_output_published": False,
+                    "raw_operator_note_published": False,
+                },
+                "findings": [],
+            },
+        )
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
+            {
+                "artifact_kind": "idea_to_spec_promotion_gate",
+                "schema_version": 1,
+                "proposal_id": "0154",
+                "contract_ref": "specgraph.idea-to-spec.promotion-gate.v0.1",
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
+                "readiness": {
+                    "ready": True,
+                    "review_state": "ready_for_platform_promotion_request",
+                    "blocked_by": [],
+                    "next_artifact": "candidate_approval_decision",
+                },
+                "promotion_request": {
+                    "path_argument": "--path",
+                    "paths": [
+                        "runs/materialized_candidate_specs/CANDIDATE-TEAM-DECISION-LOG.yaml"
+                    ],
+                    "platform_artifact_kind": "platform_graph_repository_promotion_request",
+                },
+                "metric_snapshot": {"promotion_path_count": 1},
+                "findings": [],
+                "warnings": [],
+                "summary": {
+                    "status": "ready_for_platform_promotion_request",
+                    "finding_count": 0,
+                    "promotion_path_count": 1,
+                    "materialized_file_count": 1,
+                },
+            },
+        )
     if include_import_preview:
         import_ready = import_preview_ready
         accepted_count = (
@@ -551,16 +745,35 @@ def _write_repair_draft_workspace_runs(
                         "present": platform_reports_ok,
                         "sha256": "sha256:manifest" if platform_reports_ok else None,
                     },
-                    "published_artifacts": [
-                        "runs/idea_to_spec_repair_session.json",
-                        "runs/specspace_repair_draft_rerun_report.json",
-                    ] if platform_reports_ok else [],
+                    "published_artifacts": (
+                        [
+                            "runs/idea_to_spec_repair_session.json",
+                            "runs/specspace_repair_draft_rerun_report.json",
+                        ]
+                        + (
+                            [
+                                "runs/repaired_candidate_promotion_handoff_report.json",
+                                "runs/repaired_active_idea_to_spec_candidate.json",
+                                "runs/repaired_idea_to_spec_repair_session.json",
+                                "runs/repaired_idea_to_spec_promotion_gate.json",
+                            ]
+                            if include_repaired_handoff
+                            and repaired_artifacts_published
+                            else []
+                        )
+                    ) if platform_reports_ok else [],
                     "missing_artifacts": [] if platform_reports_ok else ["runs/idea_to_spec_repair_session.json"],
                     "diagnostics": [] if platform_reports_ok else [{"level": "error", "message": "missing"}],
                     "summary": {
                         "status": "published" if platform_reports_ok else "blocked",
                         "error_count": 0 if platform_reports_ok else 1,
-                        "published_artifact_count": 2 if platform_reports_ok else 0,
+                        "published_artifact_count": (
+                            6
+                            if platform_reports_ok
+                            and include_repaired_handoff
+                            and repaired_artifacts_published
+                            else 2 if platform_reports_ok else 0
+                        ),
                         "missing_artifact_count": 0 if platform_reports_ok else 1,
                     },
                 },
@@ -6178,6 +6391,63 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(intent["may_apply_to_specgraph"])
         self.assertFalse(intent["may_mark_candidate_accepted"])
         self.assertTrue(state_exists)
+
+    def test_idea_to_spec_candidate_approval_intents_v1_posts_repaired_intent(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                ready_for_candidate_approval=False,
+                include_repaired_handoff=True,
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-candidate-approval-intents?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "requested_action": "approve_candidate_for_promotion_review",
+                        "operator_ref": "operator://workspace-owner",
+                        "reason": "Review repaired candidate.",
+                    },
+                )
+                get_status, get_body = _get(
+                    f"{base}/api/v1/idea-to-spec-candidate-approval-intents?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["active_intent_count"], 1)
+        self.assertEqual(get_status, 200)
+        self.assertTrue(get_body["workflow_status"]["request_ready"])
+        self.assertEqual(
+            get_body["workflow_status"]["repair_session_ref"],
+            "runs/repaired_idea_to_spec_repair_session.json",
+        )
+        self.assertEqual(
+            get_body["workflow_status"]["promotion_gate_ref"],
+            "runs/repaired_idea_to_spec_promotion_gate.json",
+        )
+        intent = get_body["intents"][0]
+        self.assertEqual(
+            intent["repair_session_ref"],
+            "runs/repaired_idea_to_spec_repair_session.json",
+        )
+        self.assertEqual(
+            intent["promotion_gate_ref"],
+            "runs/repaired_idea_to_spec_promotion_gate.json",
+        )
+        self.assertEqual(intent["reason"], "Review repaired candidate.")
 
     def test_idea_to_spec_candidate_approval_intents_v1_rejects_unready_journal(
         self,
