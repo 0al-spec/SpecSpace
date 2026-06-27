@@ -46,6 +46,11 @@ const normalizedIrSchema = z
     version: z.string().min(1).optional(),
     classes: z.array(normalizedClassSchema),
     relations: z.array(normalizedRelationSchema).optional(),
+    imports: z.unknown().optional(),
+    policies: z.unknown().optional(),
+    protocols: z.unknown().optional(),
+    stateMachines: z.unknown().optional(),
+    compatibility: z.unknown().optional(),
   })
   .passthrough();
 
@@ -109,6 +114,21 @@ function duplicateDiagnostics(
     message: `${ref} appears more than once in the normalized ontology IR.`,
     ref,
   }));
+}
+
+function uniqueBy<T>(
+  values: readonly T[],
+  key: (value: T) => string,
+): T[] {
+  const seen = new Set<string>();
+  const unique: T[] = [];
+  for (const value of values) {
+    const id = key(value);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    unique.push(value);
+  }
+  return unique;
 }
 
 function buildNodeIndex(nodes: readonly OntologyGraphNode[]): Map<string, OntologyGraphNode> {
@@ -185,10 +205,15 @@ function buildProjection(
   options: ProjectOntologyNormalizedIrOptions,
 ): OntologyGraphProjection {
   const namespace = text(ir.namespace, "ontology");
-  const nodes = ir.classes.map((item) => makeNode(item, namespace));
+  const uniqueClasses = uniqueBy(ir.classes, (item) => classRef(item, namespace));
+  const nodes = uniqueClasses.map((item) => makeNode(item, namespace));
   const relations = ir.relations ?? [];
+  const uniqueRelations = uniqueBy(relations, (item) => relationRef(item, namespace));
   const diagnostics: OntologyGraphDiagnostic[] = [
-    ...duplicateDiagnostics(nodes.map((node) => node.id), "duplicate_class_id"),
+    ...duplicateDiagnostics(
+      ir.classes.map((item) => classRef(item, namespace)),
+      "duplicate_class_id",
+    ),
     ...duplicateDiagnostics(
       relations.map((relation) => relationRef(relation, namespace)),
       "duplicate_relation_id",
@@ -196,7 +221,7 @@ function buildProjection(
   ];
   const nodeIndex = buildNodeIndex(nodes);
   const edges = [
-    ...relationEdges(relations, nodeIndex, namespace, diagnostics),
+    ...relationEdges(uniqueRelations, nodeIndex, namespace, diagnostics),
     ...inheritanceEdges(nodes, nodeIndex),
   ].sort((left, right) => left.id.localeCompare(right.id));
 
@@ -207,6 +232,13 @@ function buildProjection(
       id: ir.id ?? null,
       namespace: ir.namespace ?? null,
       version: ir.version ?? null,
+    },
+    metadata: {
+      imports: ir.imports ?? null,
+      policies: ir.policies ?? null,
+      protocols: ir.protocols ?? null,
+      stateMachines: ir.stateMachines ?? null,
+      compatibility: ir.compatibility ?? null,
     },
     nodes: [...nodes].sort((left, right) => left.id.localeCompare(right.id)),
     edges,

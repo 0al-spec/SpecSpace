@@ -11,6 +11,7 @@ export {
   type OntologyGraphDiagnostic,
   type OntologyGraphEdge,
   type OntologyGraphEdgeKind,
+  type OntologyGraphMetadata,
   type OntologyGraphNode,
   type OntologyGraphPackage,
   type OntologyGraphProjection,
