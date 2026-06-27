@@ -28,6 +28,21 @@ projection model and a read-only local import flow.
 This is an additive product surface. The existing canonical SpecSpace ontology
 observation panels inside the SpecGraph workspace viewer remain supported.
 
+The standalone route and the workspace utility panels are separate contracts:
+
+- `UTILITY PANEL -> Practical ontology` remains a workspace observation surface
+  under `graphspace/src/pages/viewer`, backed by `/api/v1/practical-ontology`
+  and `viewer/practical_ontology.py`.
+- `/ontology` remains a local artifact viewer under
+  `graphspace/src/pages/ontology-viewer`, backed by browser-local file/ZIP
+  import and `ontology_graph_projection/v1`.
+
+Future refactors should not move local drop/import state into the workspace
+viewer, and should not make `/ontology` depend on the practical ontology API.
+If a common graph renderer, parser helper, or projection primitive becomes
+useful to both, extract it through a separate surface-neutral contract with
+tests proving both consumers still keep their distinct authority boundaries.
+
 The implementation should extract reusable graph workbench primitives only where
 they are truly generic. It should not turn the existing `SpecGraphCanvas` into a
 fake ontology canvas by wrapping ontology data in `SpecNode`/`SpecEdge` shapes.
