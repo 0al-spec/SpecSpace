@@ -282,6 +282,7 @@ export function OntologyViewerPage() {
                         "unknown",
                     ],
                     ["Approval", packageMetadata?.approvalStatus ?? "unknown"],
+                    ["Manifest", packageShape?.manifestPath ?? "not found"],
                     ["Metadata", packageMetadata?.path ?? "not found"],
                     ["Normalized IR", packageShape?.normalizedIrPath ?? "not found"],
                     ["Generated files", (packageShape?.generatedFileCount ?? 0).toString()],

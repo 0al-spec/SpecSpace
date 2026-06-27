@@ -4,6 +4,7 @@ import {
   loadLocalOntologyArtifact,
   selectDomainOntologyPackageFile,
   selectOntologyNormalizedIrFile,
+  selectViewerArchiveManifest,
 } from "./local-ontology-artifact";
 
 const validIr = JSON.stringify({
@@ -50,6 +51,46 @@ const packageYaml = [
   "spec:",
   "  imports: []",
 ].join("\n");
+
+function viewerManifest(
+  artifacts: readonly Record<string, unknown>[] = [
+    {
+      path: "domain-ontology-package.yaml",
+      role: "package_source",
+      required: true,
+      media_type: "application/yaml",
+    },
+    {
+      path: "generated/ontology.normalized.json",
+      role: "normalized_ir",
+      required: true,
+      media_type: "application/json",
+    },
+    {
+      path: "generated/refs.ts",
+      role: "generated_sdk",
+      required: false,
+      media_type: "text/typescript",
+    },
+  ],
+) {
+  return JSON.stringify({
+    artifact_kind: "ontology_viewer_archive_manifest",
+    schema_version: 1,
+    package: {
+      id: "example.local",
+      namespace: "local",
+      version: "0.1.0",
+    },
+    artifacts,
+    authority_boundary: {
+      viewer_manifest_is_authority: false,
+      may_write_ontology_package: false,
+      may_publish_registry_entry: false,
+      may_mutate_specgraph: false,
+    },
+  });
+}
 
 function zipStore(entries: readonly (readonly [string, string])[]) {
   const encoder = new TextEncoder();
@@ -111,6 +152,19 @@ describe("local ontology artifact loading", () => {
     expect(selected?.path).toBe("nested/domain-ontology-package.yaml");
   });
 
+  it("selects a viewer archive manifest by artifact kind", () => {
+    const selected = selectViewerArchiveManifest([
+      file("ontology-viewer-archive-manifest.json", viewerManifest()),
+    ]);
+
+    expect(selected?.manifest.package.id).toBe("example.local");
+    expect(selected?.manifest.artifacts.map((artifact) => artifact.role)).toEqual([
+      "package_source",
+      "normalized_ir",
+      "generated_sdk",
+    ]);
+  });
+
   it("loads valid normalized IR into an ontology graph projection", () => {
     const result = loadLocalOntologyArtifact([
       file("domain-ontology-package.yaml", packageYaml),
@@ -153,6 +207,7 @@ describe("local ontology artifact loading", () => {
     expect(result.packageShape).toMatchObject({
       normalizedIrPath: "generated/ontology.normalized.json",
       packageMetadataPath: "domain-ontology-package.yaml",
+      manifestPath: null,
       generatedFileCount: 2,
       sdkFileCount: 1,
       compatibilityArtifactCount: 1,
@@ -230,6 +285,63 @@ describe("local ontology artifact loading", () => {
     expect(result.packageShape.normalizedIrPath).toBe(
       "package.zip!/package/generated/ontology.normalized.json",
     );
+  });
+
+  it("uses viewer archive manifest paths when present", () => {
+    const result = loadLocalOntologyArtifact([
+      file("bundle/ontology-viewer-archive-manifest.json", viewerManifest()),
+      file("bundle/domain-ontology-package.yaml", packageYaml),
+      file("bundle/generated/ontology.normalized.json", validIr),
+      file("bundle/generated/refs.ts", "export {};"),
+    ]);
+
+    expect(result.kind).toBe("loaded");
+    if (result.kind !== "loaded") return;
+    expect(result.packageShape.manifestPath).toBe(
+      "bundle/ontology-viewer-archive-manifest.json",
+    );
+    expect(result.packageShape.packageMetadataPath).toBe(
+      "bundle/domain-ontology-package.yaml",
+    );
+    expect(result.packageShape.normalizedIrPath).toBe(
+      "bundle/generated/ontology.normalized.json",
+    );
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  it("resolves viewer manifest paths inside ZIP archive members", async () => {
+    const bytes = zipStore([
+      ["package/ontology-viewer-archive-manifest.json", viewerManifest()],
+      ["package/domain-ontology-package.yaml", packageYaml],
+      ["package/generated/ontology.normalized.json", validIr],
+    ]);
+    const expanded = await expandLocalOntologyArtifactFiles([
+      { name: "package.zip", path: "package.zip", text: "", bytes },
+    ]);
+    const result = loadLocalOntologyArtifact(expanded.files);
+
+    expect(result.kind).toBe("loaded");
+    if (result.kind !== "loaded") return;
+    expect(result.packageShape.manifestPath).toBe(
+      "package.zip!/package/ontology-viewer-archive-manifest.json",
+    );
+    expect(result.packageShape.normalizedIrPath).toBe(
+      "package.zip!/package/generated/ontology.normalized.json",
+    );
+  });
+
+  it("reports missing required viewer manifest artifacts", () => {
+    const result = loadLocalOntologyArtifact([
+      file("ontology-viewer-archive-manifest.json", viewerManifest()),
+      file("domain-ontology-package.yaml", packageYaml),
+    ]);
+
+    expect(result.kind).toBe("failed");
+    if (result.kind !== "failed") return;
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      "viewer_manifest_required_artifact_missing",
+      "normalized_ir_missing",
+    ]);
   });
 
   it("reports unsupported archive layouts with actionable diagnostics", async () => {
