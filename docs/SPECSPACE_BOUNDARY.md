@@ -95,6 +95,19 @@ specgraph.space/team-decision-log
   -> Team Decision Log product_idea_to_spec pilot workspace
 ```
 
+A future standalone ontology route is planned separately:
+
+```text
+specgraph.space/ontology
+  -> local Ontology package graph viewer
+```
+
+That route is a SpecSpace product surface, not a SpecGraph workspace alias. It
+is tracked in
+[`ONTOLOGY_GRAPH_VIEWER_PRD.md`](ONTOLOGY_GRAPH_VIEWER_PRD.md),
+[`ADR_ONTOLOGY_GRAPH_VIEWER_EXTRACTION.md`](ADR_ONTOLOGY_GRAPH_VIEWER_EXTRACTION.md),
+and [`ONTOLOGY_GRAPH_VIEWER_WORKPLAN.md`](ONTOLOGY_GRAPH_VIEWER_WORKPLAN.md).
+
 The route selects workspace metadata, provider configuration, and artifact
 manifest. It does not change ownership: SpecGraph still produces artifacts,
 Platform owns deployment/profile coordination, and SpecSpace renders the active
