@@ -162,9 +162,18 @@ function relationEdges(
   for (const relation of relations) {
     const source = nodeIndex.get(relation.domain);
     const relationId = relationRef(relation, namespace);
+    if (!source) {
+      diagnostics.push({
+        severity: "error",
+        code: "relation_endpoint_missing",
+        message: `${relationId} references a missing domain or range class.`,
+        ref: relationId,
+      });
+      continue;
+    }
     for (const range of relationRanges(relation)) {
       const target = nodeIndex.get(range);
-      if (!source || !target) {
+      if (!target) {
         diagnostics.push({
           severity: "error",
           code: "relation_endpoint_missing",

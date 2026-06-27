@@ -176,4 +176,37 @@ describe("ontology graph projection", () => {
     ]);
     expect(result.data.diagnostics).toEqual([]);
   });
+
+  it("reports one diagnostic for a union relation with a missing domain", () => {
+    const result = projectOntologyNormalizedIr({
+      id: "example.union",
+      namespace: "union",
+      classes: [
+        { id: "ExamModeSession", fqid: "union:ExamModeSession" },
+        { id: "PolicyViolation", fqid: "union:PolicyViolation" },
+      ],
+      relations: [
+        {
+          id: "records",
+          fqid: "union:records",
+          domain: "union:AuditLogEntry",
+          range: {
+            oneOf: ["union:ExamModeSession", "union:PolicyViolation"],
+          },
+        },
+      ],
+    });
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+    expect(result.data.edges).toEqual([]);
+    expect(result.data.diagnostics).toEqual([
+      {
+        severity: "error",
+        code: "relation_endpoint_missing",
+        message: "union:records references a missing domain or range class.",
+        ref: "union:records",
+      },
+    ]);
+  });
 });
