@@ -22,6 +22,8 @@ Validation:
 
 ## Phase 1: Standalone Route Shell
 
+Status: implemented by the route shell slice.
+
 Goal: `/ontology` is a real route, not a product workspace slug.
 
 Steps:

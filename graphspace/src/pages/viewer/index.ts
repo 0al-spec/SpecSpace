@@ -6,4 +6,5 @@ export {
   TEAM_DECISION_LOG_WORKSPACE,
   SPECSPACE_WORKSPACES,
   type SpecSpaceWorkspace,
+  type WorkspaceRouteResolution,
 } from "./model/workspace-route";

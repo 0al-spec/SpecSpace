@@ -95,7 +95,7 @@ specgraph.space/team-decision-log
   -> Team Decision Log product_idea_to_spec pilot workspace
 ```
 
-A future standalone ontology route is planned separately:
+The standalone ontology route is reserved separately:
 
 ```text
 specgraph.space/ontology
