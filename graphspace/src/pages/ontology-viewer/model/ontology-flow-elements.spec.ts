@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { OntologyGraphProjection } from "@/shared/ontology-graph-contract";
+import type { OntologyGraphProjection } from "./ontology-graph-contract";
 import { toOntologyFlowElements } from "./ontology-flow-elements";
 
 const projection: OntologyGraphProjection = {
@@ -9,6 +9,13 @@ const projection: OntologyGraphProjection = {
     id: "example.graph",
     namespace: "graph",
     version: "0.1.0",
+  },
+  metadata: {
+    imports: [],
+    policies: [],
+    protocols: [],
+    stateMachines: [],
+    compatibility: [],
   },
   nodes: [
     {

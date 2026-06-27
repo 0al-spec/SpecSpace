@@ -23,6 +23,28 @@ describe("ontology graph projection", () => {
       namespace: "sgcore",
       version: "0.1.0",
     });
+    expect(result.data.metadata).toEqual({
+      imports: [
+        {
+          id: "specgraph.foundation",
+          namespace: "sg",
+          version: "0.1.0",
+        },
+      ],
+      policies: [
+        {
+          id: "DraftAuthorityBoundary",
+          fqid: "sgcore:DraftAuthorityBoundary",
+        },
+      ],
+      protocols: [],
+      stateMachines: [],
+      compatibility: {
+        major: {
+          requires: ["remove class"],
+        },
+      },
+    });
     expect(result.data.nodes.map((node) => node.id)).toEqual([
       "sgcore:Requirement",
       "sgcore:Spec",
@@ -105,6 +127,8 @@ describe("ontology graph projection", () => {
 
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
+    expect(result.data.nodes.map((node) => node.id)).toEqual(["dup:Thing"]);
+    expect(result.data.edges.map((edge) => edge.id)).toEqual(["relation:dup:same"]);
     expect(result.data.diagnostics).toEqual([
       {
         severity: "error",

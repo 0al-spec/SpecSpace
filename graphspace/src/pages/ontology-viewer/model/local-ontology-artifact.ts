@@ -1,7 +1,7 @@
 import {
   projectOntologyNormalizedIr,
   type OntologyGraphProjection,
-} from "@/shared/ontology-graph-contract";
+} from "./ontology-graph-contract";
 
 export type LocalOntologyArtifactFile = {
   name: string;

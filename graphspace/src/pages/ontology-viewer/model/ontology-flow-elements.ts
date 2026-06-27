@@ -3,7 +3,7 @@ import type {
   OntologyGraphEdge,
   OntologyGraphNode,
   OntologyGraphProjection,
-} from "@/shared/ontology-graph-contract";
+} from "./ontology-graph-contract";
 
 export type OntologyFlowNodeData = {
   label: string;

@@ -8,7 +8,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import type { OntologyGraphDiagnostic } from "@/shared/ontology-graph-contract";
+import type { OntologyGraphDiagnostic } from "../model/ontology-graph-contract";
 import {
   loadLocalOntologyArtifact,
   type LocalOntologyArtifactDiagnostic,
