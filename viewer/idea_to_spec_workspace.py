@@ -55,6 +55,9 @@ CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT = (
     "candidate_spec_materialization_report.json"
 )
 IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT = "idea_to_spec_promotion_gate.json"
+PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT = (
+    "platform_candidate_approval_execution_report.json"
+)
 CANDIDATE_APPROVAL_DECISION_ARTIFACT = "candidate_approval_decision.json"
 GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT = "graph_repository_promotion_request.json"
 GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT = (
@@ -97,6 +100,7 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
 )
 PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
+    PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT,
     CANDIDATE_APPROVAL_DECISION_ARTIFACT,
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT,
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
@@ -144,6 +148,7 @@ ARTIFACT_KEYS: dict[str, str] = {
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
     CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: "materialization",
     IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: "promotion_gate",
+    PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT: "candidate_approval_execution",
     CANDIDATE_APPROVAL_DECISION_ARTIFACT: "candidate_approval",
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: "platform_promotion_request",
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: "git_service_execution",
@@ -196,6 +201,9 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
         "candidate_spec_materialization_report"
     ),
     IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: "idea_to_spec_promotion_gate",
+    PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT: (
+        "platform_candidate_approval_execution_report"
+    ),
     CANDIDATE_APPROVAL_DECISION_ARTIFACT: "candidate_approval_decision",
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: (
         "platform_graph_repository_promotion_request"
@@ -1397,6 +1405,36 @@ def _candidate_approval_decision(report: dict[str, Any] | None) -> dict[str, Any
     }
 
 
+def _candidate_approval_execution(report: dict[str, Any] | None) -> dict[str, Any]:
+    summary = _record((report or {}).get("summary"))
+    output_artifacts = _product_repair_rerun_output_artifacts(report)
+    return {
+        "available": report is not None,
+        "ok": (report or {}).get("ok") is True,
+        "dry_run": (report or {}).get("dry_run") is True,
+        "status": _optional_text((report or {}).get("status"))
+        or _optional_text(summary.get("status")),
+        "candidate_id": _optional_text((report or {}).get("candidate_id"))
+        or _optional_text(summary.get("candidate_id")),
+        "workspace_id": _optional_text((report or {}).get("workspace_id"))
+        or _optional_text(summary.get("workspace_id")),
+        "gate_report_ref": _optional_text((report or {}).get("gate_report_ref")),
+        "candidate_approval_decision_ref": _optional_text(
+            (report or {}).get("candidate_approval_decision_ref")
+        ),
+        "approval_intent_ref": _optional_text(
+            (report or {}).get("approval_intent_ref")
+        ),
+        "approved_path_count": _number(summary.get("approved_path_count")),
+        "decision_written": summary.get("decision_written") is True,
+        "gate_ready": summary.get("gate_ready") is True,
+        "error_count": _number(summary.get("error_count")),
+        "operations": _product_repair_rerun_operations(report),
+        "output_artifacts": output_artifacts,
+        "diagnostic_count": len(_records((report or {}).get("diagnostics"))),
+    }
+
+
 def _git_service_operations(report: dict[str, Any] | None) -> list[dict[str, Any]]:
     rows = []
     for item in _records((report or {}).get("operations"))[
@@ -1884,6 +1922,7 @@ def _workflow(
     promotion_gate: dict[str, Any] | None,
     product_repair_rerun_execution: dict[str, Any] | None,
     product_repair_rerun_publication: dict[str, Any] | None,
+    candidate_approval_execution: dict[str, Any] | None,
     candidate_approval: dict[str, Any] | None,
     platform_promotion: dict[str, Any] | None,
     git_service_execution: dict[str, Any] | None,
@@ -1926,6 +1965,13 @@ def _workflow(
     product_repair_publication_dry_run = (
         product_repair_publication_view["ok"]
         and product_repair_publication_view["dry_run"]
+    )
+    candidate_approval_execution_view = _candidate_approval_execution(
+        candidate_approval_execution
+    )
+    candidate_approval_execution_failed = (
+        candidate_approval_execution is not None
+        and not candidate_approval_execution_view["ok"]
     )
     seed_source_generation = _record((candidate_seed or {}).get("source_generation"))
     seed_readiness = _readiness(seed_source_generation)
@@ -2118,6 +2164,19 @@ def _workflow(
             ),
             artifact_key=IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
             detail=_optional_text(promotion_readiness["review_state"]),
+        ),
+        _workflow_item(
+            item_id="candidate_approval_execution",
+            label="Approval materialization",
+            status=_available_status(
+                statuses,
+                "candidate_approval_execution",
+                candidate_approval_execution_view["ok"],
+                blocked=candidate_approval_execution_failed,
+                dry_run=candidate_approval_execution_view["dry_run"],
+            ),
+            artifact_key=PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT,
+            detail=candidate_approval_execution_view["status"],
         ),
         _workflow_item(
             item_id="candidate_approval",
@@ -2337,19 +2396,35 @@ def _workflow(
             ),
             "authority_boundary": "operator_only",
         }
+    elif candidate_approval_execution_failed:
+        stage = "approval_execution_failed"
+        status = "blocked"
+        next_handoff = {
+            "kind": "candidate_approval_execution_repair",
+            "label": "Repair Platform candidate approval materialization",
+            "status": "blocked",
+            "artifact_key": "candidate_approval_execution",
+            "artifact_path": (
+                f"runs/{PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT}"
+            ),
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
     elif promotion_readiness["ready"] and candidate_approval is None:
         stage = "approval_required"
         status = "operator_review_required"
         next_handoff = {
             "kind": "candidate_approval_decision",
-            "label": "Approve or reject the candidate before Git Service execution",
+            "label": "Materialize candidate approval through Platform",
             "status": "operator_review_required",
-            "artifact_key": "promotion_gate",
-            "artifact_path": f"runs/{IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT}",
+            "artifact_key": "candidate_approval_execution",
+            "artifact_path": (
+                f"runs/{PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT}"
+            ),
             "command_template": (
-                "cd <specgraph-repository> && make candidate-approval-decision "
-                "CANDIDATE_APPROVAL_DECISION_STATE=approved "
-                "CANDIDATE_APPROVAL_REASON='<public-safe rationale>'"
+                "scripts/platform.py product-candidate-approval approve "
+                "--specgraph-dir <specgraph-repository> "
+                "--approval-intents <specspace-state>/idea_to_spec_candidate_approval_intents.json"
             ),
             "authority_boundary": "operator_only",
         }
@@ -2588,6 +2663,9 @@ def build_idea_to_spec_workspace(
         artifacts, CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT
     )
     promotion_gate = _artifact_data(artifacts, IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT)
+    candidate_approval_execution = _artifact_data(
+        artifacts, PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+    )
     candidate_approval = _artifact_data(artifacts, CANDIDATE_APPROVAL_DECISION_ARTIFACT)
     platform_promotion = _artifact_data(
         artifacts, GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT
@@ -2681,6 +2759,7 @@ def build_idea_to_spec_workspace(
         promotion_gate=promotion_gate,
         product_repair_rerun_execution=product_repair_rerun_execution,
         product_repair_rerun_publication=product_repair_rerun_publication,
+        candidate_approval_execution=candidate_approval_execution,
         candidate_approval=candidate_approval,
         platform_promotion=platform_promotion,
         git_service_execution=git_service_execution,
@@ -2852,10 +2931,14 @@ def build_idea_to_spec_workspace(
         "controlled_promotion": {
             "available": platform_promotion is not None
             or git_service_execution is not None
+            or candidate_approval_execution is not None
             or candidate_approval is not None
             or review_status is not None
             or read_model_publication is not None
             or promotion_finalization is not None,
+            "candidate_approval_execution": _candidate_approval_execution(
+                candidate_approval_execution
+            ),
             "candidate_approval": _candidate_approval_decision(candidate_approval),
             "platform_request": _platform_promotion_request(platform_promotion),
             "git_service_execution": _git_service_execution(git_service_execution),

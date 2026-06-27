@@ -86,6 +86,9 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("SpecSpace-owned candidate approval intent state");
     expect(html).toContain("Controlled promotion");
     expect(html).toContain("Platform promotion request");
+    expect(html).toContain("Candidate approval execution");
+    expect(html).toContain("candidate_approval_materialized");
+    expect(html).toContain("materialize_candidate_approval_decision");
     expect(html).toContain("Candidate approval");
     expect(html).toContain("candidate_approval_ready");
     expect(html).toContain("operator://workspace-owner");

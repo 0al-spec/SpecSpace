@@ -168,6 +168,25 @@ export type IdeaToSpecCandidateApprovalDecision = {
   blockedBy: readonly string[];
 };
 
+export type IdeaToSpecCandidateApprovalExecution = {
+  available: boolean;
+  ok: boolean;
+  dryRun: boolean;
+  status: string | null;
+  candidateId: string | null;
+  workspaceId: string | null;
+  gateReportRef: string | null;
+  candidateApprovalDecisionRef: string | null;
+  approvalIntentRef: string | null;
+  approvedPathCount: number;
+  decisionWritten: boolean;
+  gateReady: boolean;
+  errorCount: number;
+  diagnosticCount: number;
+  operations: readonly IdeaToSpecProductRepairRerunOperation[];
+  outputArtifacts: readonly IdeaToSpecProductRepairRerunOutputArtifact[];
+};
+
 export type IdeaToSpecGitServiceOperation = {
   name: string;
   status: string;
@@ -694,6 +713,7 @@ export type IdeaToSpecWorkspace = {
   };
   controlledPromotion: {
     available: boolean;
+    candidateApprovalExecution: IdeaToSpecCandidateApprovalExecution;
     candidateApproval: IdeaToSpecCandidateApprovalDecision;
     platformRequest: IdeaToSpecPlatformPromotionRequest;
     gitServiceExecution: IdeaToSpecGitServiceExecution;
@@ -1306,6 +1326,38 @@ function parseCandidateApprovalDecision(
     candidateId: optionalString(approval.candidate_id),
     promotionPaths: strings(approval.promotion_paths),
     blockedBy: strings(approval.blocked_by),
+  };
+}
+
+function parseCandidateApprovalExecution(
+  raw: unknown,
+): IdeaToSpecCandidateApprovalExecution {
+  const execution = recordValue(raw);
+  return {
+    available: execution.available === true,
+    ok: execution.ok === true,
+    dryRun: execution.dry_run === true,
+    status: optionalString(execution.status),
+    candidateId: optionalString(execution.candidate_id),
+    workspaceId: optionalString(execution.workspace_id),
+    gateReportRef: optionalString(execution.gate_report_ref),
+    candidateApprovalDecisionRef: optionalString(
+      execution.candidate_approval_decision_ref,
+    ),
+    approvalIntentRef: optionalString(execution.approval_intent_ref),
+    approvedPathCount: numberValue(execution.approved_path_count),
+    decisionWritten: execution.decision_written === true,
+    gateReady: execution.gate_ready === true,
+    errorCount: numberValue(execution.error_count),
+    diagnosticCount: numberValue(execution.diagnostic_count),
+    operations: records(execution.operations).flatMap((item) => {
+      const parsed = parseProductRepairRerunOperation(item);
+      return parsed ? [parsed] : [];
+    }),
+    outputArtifacts: records(execution.output_artifacts).flatMap((item) => {
+      const parsed = parseProductRepairRerunOutputArtifact(item);
+      return parsed ? [parsed] : [];
+    }),
   };
 }
 
@@ -1934,6 +1986,9 @@ export function parseIdeaToSpecWorkspace(
       },
       controlledPromotion: {
         available: controlledPromotion.available === true,
+        candidateApprovalExecution: parseCandidateApprovalExecution(
+          controlledPromotion.candidate_approval_execution,
+        ),
         candidateApproval: parseCandidateApprovalDecision(
           controlledPromotion.candidate_approval,
         ),

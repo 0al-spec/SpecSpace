@@ -1070,6 +1070,83 @@ def _candidate_approval_decision() -> dict:
     }
 
 
+def _candidate_approval_execution() -> dict:
+    return {
+        "artifact_kind": "platform_candidate_approval_execution_report",
+        "schema_version": 1,
+        "generated_at": "2026-06-28T00:00:00Z",
+        "ok": True,
+        "dry_run": False,
+        "status": "candidate_approval_materialized",
+        "canonical_mutations_allowed": False,
+        "ontology_writes_allowed": False,
+        "tracked_artifacts_written": False,
+        "gate_report_ref": "runs/platform_candidate_approval_intent_gate_report.json",
+        "candidate_approval_decision_ref": "runs/candidate_approval_decision.json",
+        "execution_report_ref": "runs/platform_candidate_approval_execution_report.json",
+        "candidate_id": "idea-alpha",
+        "workspace_id": "team-decision-log",
+        "repair_session_ref": "runs/repaired_idea_to_spec_repair_session.json",
+        "approval_intent_ref": "approval-intent-1",
+        "approved_paths": [
+            "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
+            "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
+        ],
+        "operations": [
+            {
+                "name": "build_candidate_approval_gate",
+                "status": "ready",
+                "reason": "candidate approval gate is ready",
+                "evidence": ["platform_candidate_approval_intent_gate_report"],
+            },
+            {
+                "name": "materialize_candidate_approval_decision",
+                "status": "succeeded",
+                "reason": "candidate approval decision written",
+                "evidence": ["candidate_approval_decision"],
+            },
+        ],
+        "diagnostics": [],
+        "output_artifacts": {
+            "gate_report": {
+                "path": "runs/platform_candidate_approval_intent_gate_report.json",
+                "artifact_kind": "platform_candidate_approval_intent_gate_report",
+                "present": True,
+                "sha256": "sha256:gate",
+            },
+            "candidate_approval_decision": {
+                "path": "runs/candidate_approval_decision.json",
+                "artifact_kind": "candidate_approval_decision",
+                "present": True,
+                "ready": True,
+                "sha256": "sha256:decision",
+            },
+        },
+        "authority_boundary": {
+            "may_execute_prompt_agent": False,
+            "may_mutate_candidate_source_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_write_ontology_lockfile": False,
+            "may_mark_candidate_graph_accepted": False,
+            "may_create_branch_or_commit": False,
+            "may_open_pull_request": False,
+            "may_publish_read_model": False,
+        },
+        "summary": {
+            "status": "candidate_approval_materialized",
+            "candidate_id": "idea-alpha",
+            "workspace_id": "team-decision-log",
+            "selected_intent_id": "approval-intent-1",
+            "gate_ready": True,
+            "decision_written": True,
+            "approved_path_count": 2,
+            "error_count": 0,
+            "next_artifact": "runs/graph_repository_promotion_request.json",
+        },
+    }
+
+
 def _git_service_execution() -> dict:
     return {
         "artifact_kind": "platform_git_service_promotion_execution_report",
@@ -1286,6 +1363,7 @@ def _workspace_artifacts() -> dict[str, dict]:
         idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT: _repair_session_journal(),
         idea_to_spec_workspace.CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: _materialization(),
         idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: _promotion_gate(),
+        idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT: _candidate_approval_execution(),
         idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT: _candidate_approval_decision(),
         idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: _platform_promotion_request(),
         idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: _git_service_execution(),
@@ -1333,7 +1411,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(body["summary"]["read_model_published"])
         self.assertEqual(body["workflow"]["stage"], "repair_required")
         self.assertEqual(body["workflow"]["status"], "blocked")
-        self.assertEqual(len(body["workflow"]["items"]), 15)
+        self.assertEqual(len(body["workflow"]["items"]), 16)
         self.assertEqual(body["workflow"]["items"][2]["id"], "ontology_seed")
         self.assertEqual(
             body["workflow"]["items"][6]["id"],
@@ -1342,6 +1420,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["workflow"]["items"][7]["id"],
             "product_repair_rerun_publication",
+        )
+        self.assertEqual(
+            body["workflow"]["items"][10]["id"],
+            "candidate_approval_execution",
         )
         self.assertEqual(
             body["workflow"]["next_handoff"]["kind"],
@@ -1457,6 +1539,21 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "repair_context_required",
         )
         self.assertTrue(body["controlled_promotion"]["available"])
+        self.assertEqual(
+            body["controlled_promotion"]["candidate_approval_execution"]["status"],
+            "candidate_approval_materialized",
+        )
+        self.assertTrue(
+            body["controlled_promotion"]["candidate_approval_execution"][
+                "decision_written"
+            ]
+        )
+        self.assertEqual(
+            body["controlled_promotion"]["candidate_approval_execution"][
+                "operations"
+            ][1]["status"],
+            "succeeded",
+        )
         self.assertEqual(
             body["controlled_promotion"]["candidate_approval"]["decision_state"],
             "approved",
@@ -1861,7 +1958,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["summary"]["status"], "partial")
-        self.assertEqual(body["summary"]["available_artifact_count"], 17)
+        self.assertEqual(body["summary"]["available_artifact_count"], 18)
         self.assertEqual(body["summary"]["missing_artifact_count"], 3)
         self.assertEqual(body["summary"]["candidate_node_count"], 0)
         self.assertEqual(body["summary"]["repair_action_count"], 0)
@@ -1947,7 +2044,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["status"], "partial")
         self.assertEqual(body["summary"]["available_artifact_count"], 1)
         self.assertEqual(body["summary"]["missing_artifact_count"], 5)
-        self.assertEqual(body["summary"]["platform_missing_artifact_count"], 6)
+        self.assertEqual(body["summary"]["platform_missing_artifact_count"], 7)
         self.assertEqual(body["workflow"]["stage"], "candidate_artifacts_missing")
         self.assertEqual(
             body["workflow"]["next_handoff"]["kind"],
@@ -2238,6 +2335,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
             _promotion_ready_repair_session_journal()
         )
+        artifacts.pop(
+            idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+        )
         artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
         artifacts.pop(idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT)
         artifacts.pop(idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT)
@@ -2259,8 +2359,12 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["workflow"]["next_handoff"]["kind"],
             "candidate_approval_decision",
         )
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["artifact_key"],
+            "candidate_approval_execution",
+        )
         self.assertIn(
-            "candidate-approval-decision",
+            "product-candidate-approval approve",
             body["workflow"]["next_handoff"]["command_template"],
         )
 
