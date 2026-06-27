@@ -189,7 +189,7 @@ describe("local ontology artifact loading", () => {
     ]);
     expect(result.projection.edges.map((edge) => edge.id)).toEqual([
       "extends:local:Leaf->local:Root",
-      "relation:local:hasLeaf",
+      "relation:local:hasLeaf->local:Leaf",
     ]);
     expect(result.projection.sourceFiles).toEqual([
       {
