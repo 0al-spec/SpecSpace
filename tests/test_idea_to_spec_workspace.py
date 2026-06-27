@@ -1557,6 +1557,64 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             ]
         )
 
+    def test_approval_readiness_uses_fallback_for_invalid_handoff_counts(self) -> None:
+        artifacts = _workspace_artifacts()
+        handoff = _repaired_handoff_report()
+        handoff["summary"] = {
+            **handoff["summary"],
+            "resolved_ontology_gap_count": None,
+            "unresolved_ontology_gap_count": None,
+            "removed_gap_count": None,
+            "resolved_candidate_gap_count": None,
+            "unresolved_candidate_gap_count": None,
+        }
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = handoff
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = _repaired_repair_session_journal()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertEqual(readiness["resolved_ontology_gap_count"], 11)
+        self.assertEqual(readiness["unresolved_ontology_gap_count"], 0)
+        self.assertEqual(readiness["removed_gap_count"], 15)
+        self.assertEqual(readiness["resolved_candidate_gap_count"], 0)
+        self.assertEqual(readiness["unresolved_candidate_gap_count"], 0)
+
+    def test_approval_readiness_marks_partial_repaired_source_mode(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = _repaired_repair_session_journal()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertEqual(readiness["source_mode"], "partial_repaired")
+        self.assertEqual(
+            readiness["source_refs"]["repair_session"],
+            "runs/repaired_idea_to_spec_repair_session.json",
+        )
+        self.assertEqual(
+            readiness["source_refs"]["promotion_gate"],
+            "runs/repaired_idea_to_spec_promotion_gate.json",
+        )
+
     def test_repair_review_falls_back_to_legacy_artifacts_without_journal(self) -> None:
         artifacts = _workspace_artifacts()
         artifacts.pop(idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT)

@@ -1124,9 +1124,11 @@ function ApprovalReadinessSection({
     readiness.promotionReviewCanBeRequested &&
     readiness.platformApprovalGateCanMaterializeDecision &&
     !pending;
-  const title = readiness.readyForCandidateApproval
+  const title = readiness.candidateRepaired
     ? "Candidate repaired"
-    : "Candidate not approval-ready";
+    : readiness.readyForCandidateApproval
+      ? "Candidate approval-ready"
+      : "Candidate not approval-ready";
   return (
     <section className={styles.reviewSection}>
       <SectionHeader

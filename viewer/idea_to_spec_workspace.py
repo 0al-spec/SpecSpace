@@ -1594,7 +1594,12 @@ def _summary_number(
     key: str,
     fallback: int = 0,
 ) -> int:
-    return _number(summary.get(key)) if key in summary else fallback
+    if key not in summary:
+        return fallback
+    value = summary.get(key)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return fallback
+    return value
 
 
 def _publication_has_repaired_artifacts(
@@ -1626,7 +1631,18 @@ def _approval_readiness(
     selected_active_candidate = repaired_active_candidate or active_candidate
     selected_repair_session = repaired_repair_session or repair_session
     selected_promotion_gate = repaired_promotion_gate or promotion_gate
-    selected_mode = "repaired_handoff" if repaired_handoff is not None else "standard"
+    selected_mode = "standard"
+    if repaired_handoff is not None:
+        selected_mode = "repaired_handoff"
+    elif any(
+        artifact is not None
+        for artifact in (
+            repaired_active_candidate,
+            repaired_repair_session,
+            repaired_promotion_gate,
+        )
+    ):
+        selected_mode = "partial_repaired"
     session_view = _repair_session(selected_repair_session)
     readiness_impact = session_view["readiness_impact"]
     handoff_readiness = _readiness(repaired_handoff)
