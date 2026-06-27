@@ -23,19 +23,20 @@ function normalizePathname(pathname: string): string {
 
 export function resolveSpecSpaceAppRoute(pathname: string): SpecSpaceAppRoute {
   const normalized = normalizePathname(pathname);
+  const appPathWasNormalized = normalized !== pathname;
   if (normalized === ONTOLOGY_VIEWER_ROUTE) {
     return {
       kind: "ontology-viewer",
       canonicalPath: ONTOLOGY_VIEWER_ROUTE,
-      shouldReplace: pathname !== ONTOLOGY_VIEWER_ROUTE,
+      shouldReplace: appPathWasNormalized,
     };
   }
 
-  const workspaceRoute = resolveWorkspaceRoute(pathname);
+  const workspaceRoute = resolveWorkspaceRoute(normalized);
   return {
     kind: "workspace-viewer",
     workspaceRoute,
     canonicalPath: workspaceRoute.canonicalPath,
-    shouldReplace: workspaceRoute.shouldReplace,
+    shouldReplace: appPathWasNormalized || workspaceRoute.shouldReplace,
   };
 }

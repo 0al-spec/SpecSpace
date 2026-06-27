@@ -26,6 +26,26 @@ describe("SpecSpace app route selection", () => {
     expect(route.workspaceRoute.workspace.id).toBe("support-triage-log");
   });
 
+  it("canonicalizes trailing slash product workspaces", () => {
+    const route = resolveSpecSpaceAppRoute("/support-triage-log/");
+
+    expect(route.kind).toBe("workspace-viewer");
+    if (route.kind !== "workspace-viewer") return;
+    expect(route.workspaceRoute.workspace.id).toBe("support-triage-log");
+    expect(route.canonicalPath).toBe("/support-triage-log");
+    expect(route.shouldReplace).toBe(true);
+  });
+
+  it("canonicalizes padded workspace paths before workspace routing", () => {
+    const route = resolveSpecSpaceAppRoute(" /team-decision-log ");
+
+    expect(route.kind).toBe("workspace-viewer");
+    if (route.kind !== "workspace-viewer") return;
+    expect(route.workspaceRoute.workspace.id).toBe("team-decision-log");
+    expect(route.canonicalPath).toBe("/team-decision-log");
+    expect(route.shouldReplace).toBe(true);
+  });
+
   it("keeps the root SpecGraph workspace on the workspace viewer", () => {
     const route = resolveSpecSpaceAppRoute("/");
 
