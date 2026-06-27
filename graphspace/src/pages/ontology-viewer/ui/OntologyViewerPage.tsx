@@ -10,6 +10,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import type { OntologyGraphDiagnostic } from "../model/ontology-graph-contract";
 import {
+  expandLocalOntologyArtifactFiles,
   loadLocalOntologyArtifact,
   type LocalOntologyArtifactDiagnostic,
   type LocalOntologyArtifactFile,
@@ -39,6 +40,7 @@ type ImportState =
   | {
       kind: "failed";
       diagnostics: readonly LocalOntologyArtifactDiagnostic[];
+      result: Extract<LocalOntologyArtifactLoadResult, { kind: "failed" }> | null;
     };
 
 type DisplayDiagnostic = LocalOntologyArtifactDiagnostic | OntologyGraphDiagnostic;
@@ -50,11 +52,15 @@ function filePath(file: File): string {
 
 async function filesFromList(fileList: FileList): Promise<LocalOntologyArtifactFile[]> {
   return Promise.all(
-    [...fileList].map(async (file) => ({
-      name: file.name,
-      path: filePath(file),
-      text: await file.text(),
-    })),
+    [...fileList].map(async (file) => {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      return {
+        name: file.name,
+        path: filePath(file),
+        text: await file.text(),
+        bytes,
+      };
+    }),
   );
 }
 
@@ -78,12 +84,14 @@ export function OntologyViewerPage() {
     if (!fileList || fileList.length === 0) return;
     setImportState({ kind: "loading" });
     const files = await filesFromList(fileList);
-    const result = loadLocalOntologyArtifact(files);
+    const expanded = await expandLocalOntologyArtifactFiles(files);
+    const result = loadLocalOntologyArtifact(expanded.files);
+    const diagnostics = [...expanded.diagnostics, ...result.diagnostics];
     if (result.kind === "loaded") {
-      setImportState({ kind: "loaded", result });
+      setImportState({ kind: "loaded", result: { ...result, diagnostics } });
       return;
     }
-    setImportState({ kind: "failed", diagnostics: result.diagnostics });
+    setImportState({ kind: "failed", diagnostics, result });
   };
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -102,6 +110,11 @@ export function OntologyViewerPage() {
 
   const loadedProjection =
     importState.kind === "loaded" ? importState.result.projection : null;
+  const loadedResult = importState.kind === "loaded" ? importState.result : null;
+  const failedResult = importState.kind === "failed" ? importState.result : null;
+  const packageMetadata =
+    loadedResult?.packageMetadata ?? failedResult?.packageMetadata ?? null;
+  const packageShape = loadedResult?.packageShape ?? failedResult?.packageShape ?? null;
   const flowElements = useMemo(
     () => (loadedProjection ? toOntologyFlowElements(loadedProjection, query) : null),
     [loadedProjection, query],
@@ -190,10 +203,11 @@ export function OntologyViewerPage() {
                   O
                 </span>
                 <span className={styles.dropTitle}>
-                  Drop ontology.normalized.json
+                  Drop ontology package files or ZIP
                 </span>
                 <span className={styles.dropCaption}>
-                  Local browser-only import. No upload is performed.
+                  Supports generated/ontology.normalized.json and package metadata.
+                  No upload is performed.
                 </span>
               </button>
             )}
@@ -201,7 +215,7 @@ export function OntologyViewerPage() {
               ref={inputRef}
               className={styles.fileInput}
               type="file"
-              accept="application/json,.json"
+              accept="application/json,.json,.yaml,.yml,.zip,application/zip"
               multiple
               onChange={handleInputChange}
             />
@@ -244,6 +258,41 @@ export function OntologyViewerPage() {
                     ]}
                   />
                 )}
+              </div>
+            </>
+          ) : null}
+
+          {packageMetadata || packageShape ? (
+            <>
+              <span className={styles.panelKicker}>Package artifact</span>
+              <div className={styles.statusCard}>
+                <DetailRows
+                  rows={[
+                    ["Package", packageMetadata?.id ?? loadedProjection?.package.id ?? "unknown"],
+                    [
+                      "Namespace",
+                      packageMetadata?.namespace ??
+                        loadedProjection?.package.namespace ??
+                        "unknown",
+                    ],
+                    [
+                      "Version",
+                      packageMetadata?.version ??
+                        loadedProjection?.package.version ??
+                        "unknown",
+                    ],
+                    ["Approval", packageMetadata?.approvalStatus ?? "unknown"],
+                    ["Metadata", packageMetadata?.path ?? "not found"],
+                    ["Normalized IR", packageShape?.normalizedIrPath ?? "not found"],
+                    ["Generated files", (packageShape?.generatedFileCount ?? 0).toString()],
+                    ["SDK files", (packageShape?.sdkFileCount ?? 0).toString()],
+                    [
+                      "Compatibility",
+                      (packageShape?.compatibilityArtifactCount ?? 0).toString(),
+                    ],
+                    ["Governance", (packageShape?.governanceArtifactCount ?? 0).toString()],
+                  ]}
+                />
               </div>
             </>
           ) : null}
