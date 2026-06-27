@@ -111,6 +111,28 @@ The existing SpecGraph workspace ontology panels remain canonical SpecSpace
 observation surfaces; `/ontology` complements them with local Ontology artifact
 inspection.
 
+### Ontology Surface Boundary
+
+SpecSpace intentionally has two ontology-related UI surfaces with different
+contracts:
+
+- `UTILITY PANEL -> Practical ontology` is a canonical workspace observation
+  panel. It lives under `graphspace/src/pages/viewer`, reads
+  `/api/v1/practical-ontology`, and is backed by `viewer/practical_ontology.py`.
+  It presents SpecGraph/Ontology compiler artifacts or the curated fallback seed
+  for the active workspace.
+- `/ontology` is a standalone local artifact viewer. It lives under
+  `graphspace/src/pages/ontology-viewer`, reads files dropped in the browser,
+  and projects Ontology packages or normalized IR into
+  `ontology_graph_projection/v1`.
+
+These surfaces must not be refactored through each other by accident. Changes to
+workspace observation should not add browser-local drop/import state to
+`ViewerPage` or the practical ontology endpoint. Changes to `/ontology` should
+not depend on `/api/v1/practical-ontology` or mutate workspace utility-panel
+state. Shared components are acceptable only after a PR explicitly extracts a
+surface-neutral contract with tests for both call sites.
+
 The route selects workspace metadata, provider configuration, and artifact
 manifest. It does not change ownership: SpecGraph still produces artifacts,
 Platform owns deployment/profile coordination, and SpecSpace renders the active
