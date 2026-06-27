@@ -111,6 +111,9 @@ Validation:
 
 ## Phase 5: Archive and Package Metadata
 
+Status: implemented for local folder/ZIP package imports, metadata summary, and
+compiler output shape diagnostics.
+
 Goal: make real Ontology package archives ergonomic.
 
 Steps:
