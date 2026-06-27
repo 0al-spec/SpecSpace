@@ -226,6 +226,10 @@ export function IdeaToSpecWorkspacePanel({
         <PromotionGateSection state={state} />
         <ApprovalReadinessSection
           readiness={data.approvalReadiness}
+          intentRequestReady={
+            candidateApprovalIntents.state.kind === "ok" &&
+            candidateApprovalIntents.state.data.workflowStatus.requestReady
+          }
           pending={candidateApprovalIntents.pending}
           requestError={candidateApprovalIntents.requestError}
           onRequest={requestCandidateApprovalIntent}
@@ -1111,11 +1115,13 @@ function ProductRepairRerunExecutionStatus({
 
 function ApprovalReadinessSection({
   readiness,
+  intentRequestReady,
   pending,
   requestError,
   onRequest,
 }: {
   readiness: IdeaToSpecApprovalReadiness;
+  intentRequestReady: boolean;
   pending: boolean;
   requestError: IdeaToSpecCandidateApprovalIntentError | null;
   onRequest: () => void;
@@ -1123,6 +1129,7 @@ function ApprovalReadinessSection({
   const canRequest =
     readiness.promotionReviewCanBeRequested &&
     readiness.platformApprovalGateCanMaterializeDecision &&
+    intentRequestReady &&
     !pending;
   const title = readiness.candidateRepaired
     ? "Candidate repaired"
@@ -1194,6 +1201,7 @@ function ApprovalReadinessSection({
             label="Approval decision"
             value={boolText(readiness.candidateApprovalDecisionReady)}
           />
+          <Meta label="Intent request" value={boolText(intentRequestReady)} />
           <Meta
             label="Platform promotion"
             value={boolText(readiness.readyForPlatformPromotion)}

@@ -1692,10 +1692,20 @@ def _approval_readiness(
         and handoff_readiness["ready"]
         and removed_gap_count > 0
     )
-    platform_rerun_executed = execution_view["ok"] and not execution_view["dry_run"]
-    platform_rerun_published = publication_view["ok"] and not publication_view["dry_run"]
+    platform_rerun_executed = (
+        not execution_view["available"]
+        or (execution_view["ok"] and not execution_view["dry_run"])
+    )
+    publication_required = execution_view["available"] and platform_rerun_executed
+    platform_rerun_published = (
+        (not publication_view["available"] and not publication_required)
+        or (publication_view["ok"] and not publication_view["dry_run"])
+    )
     repaired_artifacts_published = _publication_has_repaired_artifacts(
         product_repair_rerun_publication
+    )
+    promotion_path_count = (
+        len(promotion_request["paths"]) or readiness_impact["promotion_path_count"]
     )
     blockers = []
     blockers.extend(readiness_impact["blocked_by"])
@@ -1708,6 +1718,10 @@ def _approval_readiness(
         blockers.append("unresolved_ontology_gaps")
     if unresolved_candidate_gap_count:
         blockers.append("unresolved_candidate_gaps")
+    if promotion_path_count == 0:
+        blockers.append("promotion_paths_missing")
+    if repaired_handoff is not None and not repaired_artifacts_published:
+        blockers.append("repaired_artifacts_not_published")
     if not platform_rerun_executed and product_repair_rerun_execution is not None:
         blockers.append("repair_rerun_execution_not_complete")
     if not platform_rerun_published and product_repair_rerun_publication is not None:
@@ -1726,6 +1740,7 @@ def _approval_readiness(
         and unresolved_candidate_gap_count == 0
         and platform_rerun_executed
         and platform_rerun_published
+        and promotion_path_count > 0
         and not approval_decision["ready"]
         and not unique_blockers
     )
@@ -1769,8 +1784,7 @@ def _approval_readiness(
         "unresolved_candidate_gap_count": unresolved_candidate_gap_count,
         "removed_gap_count": removed_gap_count,
         "remaining_blocker_count": len(unique_blockers),
-        "promotion_path_count": len(promotion_request["paths"])
-        or readiness_impact["promotion_path_count"],
+        "promotion_path_count": promotion_path_count,
         "blockers": unique_blockers[: DISPLAY_LIMITS["findings"]],
         "source_refs": {
             "handoff": (
