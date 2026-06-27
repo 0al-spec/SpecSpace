@@ -67,6 +67,8 @@ Validation:
 
 ## Phase 3: Local File Import
 
+Status: implemented for direct local normalized IR file import.
+
 Goal: drag/drop a local Ontology artifact and build a projection in-browser.
 
 Steps:
