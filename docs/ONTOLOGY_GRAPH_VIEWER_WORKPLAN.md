@@ -44,6 +44,8 @@ Validation:
 
 ## Phase 2: Ontology Projection Contract
 
+Status: implemented by the projection contract slice.
+
 Goal: create a typed UI contract independent from SpecGraph node contracts.
 
 Steps:

@@ -1,0 +1,22 @@
+{
+  "id": "example.invalid",
+  "namespace": "invalid",
+  "version": "0.1.0",
+  "classes": [
+    {
+      "id": "KnownClass",
+      "fqid": "invalid:KnownClass",
+      "kind": "DomainEntity",
+      "description": "Known class in the invalid fixture."
+    }
+  ],
+  "relations": [
+    {
+      "id": "pointsToMissing",
+      "fqid": "invalid:pointsToMissing",
+      "domain": "invalid:KnownClass",
+      "range": "invalid:MissingClass",
+      "description": "Relation with a missing range endpoint."
+    }
+  ]
+}
