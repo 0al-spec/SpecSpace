@@ -1,9 +1,11 @@
 import { useEffect, useMemo } from "react";
-import { ViewerPage, resolveWorkspaceRoute } from "@/pages/viewer";
+import { OntologyViewerPage } from "@/pages/ontology-viewer";
+import { ViewerPage } from "@/pages/viewer";
+import { resolveSpecSpaceAppRoute } from "./model/app-route";
 
 export function App() {
   const route = useMemo(
-    () => resolveWorkspaceRoute(window.location.pathname),
+    () => resolveSpecSpaceAppRoute(window.location.pathname),
     [],
   );
 
@@ -12,5 +14,9 @@ export function App() {
     window.history.replaceState(null, "", route.canonicalPath);
   }, [route]);
 
-  return <ViewerPage workspace={route.workspace} />;
+  if (route.kind === "ontology-viewer") {
+    return <OntologyViewerPage />;
+  }
+
+  return <ViewerPage workspace={route.workspaceRoute.workspace} />;
 }

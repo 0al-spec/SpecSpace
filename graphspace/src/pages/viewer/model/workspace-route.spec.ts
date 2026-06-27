@@ -60,6 +60,14 @@ describe("workspace route selection", () => {
     );
   });
 
+  it("keeps /ontology available to the app-level route reservation", () => {
+    const route = resolveWorkspaceRoute("/ontology");
+
+    expect(route.workspace.id).toBe("ontology");
+    expect(route.workspace.displayName).toBe("Ontology");
+    expect(route.workspace.targetRepositoryRole).toBe("product_spec_workspace");
+  });
+
   it("keeps unsafe or nested paths on the bootstrap workspace", () => {
     const route = resolveWorkspaceRoute("/support-triage-log/details");
 
