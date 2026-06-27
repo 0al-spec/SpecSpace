@@ -3,6 +3,7 @@ import { buildIdeaToSpecIntakeDraft } from "../model/idea-to-spec-intake-draft";
 import type {
   IdeaToSpecActiveFrame,
   IdeaToSpecAcceptedAnswer,
+  IdeaToSpecApprovalReadiness,
   IdeaToSpecCandidateNode,
   IdeaToSpecClarificationRequest,
   IdeaToSpecGitServiceOperation,
@@ -129,6 +130,12 @@ export function IdeaToSpecWorkspacePanel({
   const frame = data.candidateGraph.activeFrame.project
     ? data.candidateGraph.activeFrame
     : data.intake.activeFrame;
+  const requestCandidateApprovalIntent = () =>
+    candidateApprovalIntents.requestApprovalIntent({
+      workspaceId: data.selectedWorkspaceId ?? data.workspace.id,
+      operatorRef: "operator://specspace-local",
+      reason: "Approve candidate for promotion review.",
+    });
 
   return (
     <section className={styles.panel} aria-label="Idea-to-spec workspace">
@@ -217,17 +224,18 @@ export function IdeaToSpecWorkspacePanel({
         />
         <MaterializationSection state={state} />
         <PromotionGateSection state={state} />
+        <ApprovalReadinessSection
+          readiness={data.approvalReadiness}
+          pending={candidateApprovalIntents.pending}
+          requestError={candidateApprovalIntents.requestError}
+          onRequest={requestCandidateApprovalIntent}
+        />
         <CandidateApprovalIntentSection
           state={candidateApprovalIntents.state}
           pending={candidateApprovalIntents.pending}
           requestError={candidateApprovalIntents.requestError}
-          onRequest={() =>
-            candidateApprovalIntents.requestApprovalIntent({
-              workspaceId: data.selectedWorkspaceId ?? data.workspace.id,
-              operatorRef: "operator://specspace-local",
-              reason: "Approve candidate for promotion review.",
-            })
-          }
+          onRequest={requestCandidateApprovalIntent}
+          showRequestButton={false}
         />
         <ControlledPromotionSection state={state} />
       </div>
@@ -1101,16 +1109,135 @@ function ProductRepairRerunExecutionStatus({
   );
 }
 
+function ApprovalReadinessSection({
+  readiness,
+  pending,
+  requestError,
+  onRequest,
+}: {
+  readiness: IdeaToSpecApprovalReadiness;
+  pending: boolean;
+  requestError: IdeaToSpecCandidateApprovalIntentError | null;
+  onRequest: () => void;
+}) {
+  const canRequest =
+    readiness.promotionReviewCanBeRequested &&
+    readiness.platformApprovalGateCanMaterializeDecision &&
+    !pending;
+  const title = readiness.readyForCandidateApproval
+    ? "Candidate repaired"
+    : "Candidate not approval-ready";
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader
+        title="Approval readiness"
+        count={readiness.remainingBlockerCount}
+      />
+      <div className={styles.postureStrip}>
+        <PostureItem
+          label="Candidate repaired"
+          value={boolText(readiness.candidateRepaired)}
+        />
+        <PostureItem
+          label="Approval-ready"
+          value={boolText(readiness.readyForCandidateApproval)}
+        />
+        <PostureItem
+          label="Promotion review"
+          value={boolText(readiness.promotionReviewCanBeRequested)}
+        />
+        <PostureItem
+          label="Platform gate"
+          value={boolText(readiness.platformApprovalGateCanMaterializeDecision)}
+        />
+        <PostureItem
+          label="Ontology gaps"
+          value={`${readiness.resolvedOntologyGapCount}/${readiness.unresolvedOntologyGapCount}`}
+        />
+        <PostureItem
+          label="Product gaps"
+          value={`${readiness.resolvedCandidateGapCount}/${readiness.unresolvedCandidateGapCount}`}
+        />
+        <PostureItem label="Removed" value={String(readiness.removedGapCount)} />
+        <PostureItem label="Paths" value={String(readiness.promotionPathCount)} />
+        <PostureItem
+          label="Blockers"
+          value={String(readiness.remainingBlockerCount)}
+        />
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>{title}</span>
+          <Pill value={readiness.status} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Source" value={readiness.sourceMode} />
+          <Meta label="Handoff" value={readiness.sourceRefs.handoff} />
+          <Meta label="Active candidate" value={readiness.sourceRefs.activeCandidate} />
+          <Meta label="Repair session" value={readiness.sourceRefs.repairSession} />
+          <Meta label="Promotion gate" value={readiness.sourceRefs.promotionGate} />
+          <Meta
+            label="Execution"
+            value={compact(readiness.reviewStates.execution, "missing")}
+          />
+          <Meta
+            label="Publication"
+            value={compact(readiness.reviewStates.publication, "missing")}
+          />
+          <Meta
+            label="Repaired public"
+            value={boolText(readiness.repairedArtifactsPublished)}
+          />
+          <Meta
+            label="Approval decision"
+            value={boolText(readiness.candidateApprovalDecisionReady)}
+          />
+          <Meta
+            label="Platform promotion"
+            value={boolText(readiness.readyForPlatformPromotion)}
+          />
+        </div>
+        {readiness.blockers.map((blocker) => (
+          <div key={blocker} className={styles.subRow}>
+            <span>{blocker}</span>
+            <Pill value="blocked" />
+          </div>
+        ))}
+        <div className={styles.draftControls}>
+          <button
+            className={styles.ackButton}
+            type="button"
+            disabled={!canRequest}
+            onClick={onRequest}
+          >
+            {pending ? "Requesting" : "Approve candidate for promotion review"}
+          </button>
+          <span className={styles.statusDetail}>
+            Platform approval gate · {boolText(readiness.platformApprovalGateCanMaterializeDecision)}
+          </span>
+        </div>
+        {requestError ? (
+          <span className={styles.statusDetail}>
+            Candidate approval intent failed · {candidateApprovalIntentErrorText(requestError)}
+          </span>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function CandidateApprovalIntentSection({
   state,
   pending,
   requestError,
   onRequest,
+  showRequestButton = true,
 }: {
   state: UseIdeaToSpecCandidateApprovalIntentsState;
   pending: boolean;
   requestError: IdeaToSpecCandidateApprovalIntentError | null;
   onRequest: () => void;
+  showRequestButton?: boolean;
 }) {
   if (state.kind === "idle" || state.kind === "loading") {
     return (
@@ -1197,19 +1324,21 @@ function CandidateApprovalIntentSection({
             </span>
           </div>
         ) : null}
-        <div className={styles.draftControls}>
-          <button
-            className={styles.ackButton}
-            type="button"
-            disabled={!workflow.requestReady || pending}
-            onClick={onRequest}
-          >
-            {pending ? "Requesting" : "Approve candidate for promotion review"}
-          </button>
-          <span className={styles.statusDetail}>
-            Intent records operator approval only; Platform still owns promotion decision and Git Service execution.
-          </span>
-        </div>
+        {showRequestButton ? (
+          <div className={styles.draftControls}>
+            <button
+              className={styles.ackButton}
+              type="button"
+              disabled={!workflow.requestReady || pending}
+              onClick={onRequest}
+            >
+              {pending ? "Requesting" : "Approve candidate for promotion review"}
+            </button>
+            <span className={styles.statusDetail}>
+              Intent records operator approval only; Platform still owns promotion decision and Git Service execution.
+            </span>
+          </div>
+        ) : null}
         {requestError ? (
           <span className={styles.statusDetail}>
             Candidate approval intent failed · {candidateApprovalIntentErrorText(requestError)}

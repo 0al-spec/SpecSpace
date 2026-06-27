@@ -39,6 +39,18 @@ PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT = (
 PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT = (
     "platform_product_repair_rerun_publication_report.json"
 )
+REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT = (
+    "repaired_candidate_promotion_handoff_report.json"
+)
+REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT = (
+    "repaired_active_idea_to_spec_candidate.json"
+)
+REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT = (
+    "repaired_idea_to_spec_repair_session.json"
+)
+REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT = (
+    "repaired_idea_to_spec_promotion_gate.json"
+)
 CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT = (
     "candidate_spec_materialization_report.json"
 )
@@ -79,6 +91,10 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT,
     PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT,
     PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT,
+    REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT,
+    REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
+    REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
+    REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
 )
 PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
     CANDIDATE_APPROVAL_DECISION_ARTIFACT,
@@ -119,6 +135,10 @@ ARTIFACT_KEYS: dict[str, str] = {
     SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT: "specspace_repair_draft_rerun_report",
     PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT: "product_repair_rerun_execution",
     PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT: "product_repair_rerun_publication",
+    REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT: "repaired_handoff",
+    REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: "repaired_active_candidate",
+    REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT: "repaired_repair_session",
+    REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: "repaired_promotion_gate",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
@@ -159,6 +179,16 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT: (
         "platform_product_repair_rerun_publication_report"
     ),
+    REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT: (
+        "repaired_candidate_promotion_handoff_report"
+    ),
+    REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: (
+        "active_idea_to_spec_candidate"
+    ),
+    REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT: (
+        "idea_to_spec_repair_session_journal"
+    ),
+    REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: "idea_to_spec_promotion_gate",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_spec_graph",
     PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib_coherence_report",
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "candidate_repair_loop_report",
@@ -257,7 +287,10 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             "detail": f"artifact_kind must be {expected_kind}.",
             "artifact_kind": _optional_text(value.get("artifact_kind")),
         }
-    if filename == ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT:
+    if filename in {
+        ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
+        REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
+    }:
         authority_boundary = _record(value.get("authority_boundary"))
         if any(flag is True for flag in authority_boundary.values()):
             return {
@@ -272,7 +305,10 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
-    if filename == IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT:
+    if filename in {
+        IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
+        REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
+    }:
         authority_boundary = _record(value.get("authority_boundary"))
         if any(flag is True for flag in authority_boundary.values()):
             return {
@@ -315,6 +351,37 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "repair session action boundary must be inspect-only.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_mutations_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "repaired handoff authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        privacy_boundary = _record(value.get("privacy_boundary"))
+        if any(
+            key.startswith("raw_") and key.endswith("_published") and flag is True
+            for key, flag in privacy_boundary.items()
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "repaired handoff privacy boundary flags must remain false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         if value.get("canonical_mutations_allowed") is not False:
@@ -1522,6 +1589,217 @@ def _product_repair_rerun_execution_lane(
     }
 
 
+def _summary_number(
+    summary: dict[str, Any],
+    key: str,
+    fallback: int = 0,
+) -> int:
+    return _number(summary.get(key)) if key in summary else fallback
+
+
+def _publication_has_repaired_artifacts(
+    publication_report: dict[str, Any] | None,
+) -> bool:
+    published = set(_string_list((publication_report or {}).get("published_artifacts")))
+    required = {
+        f"runs/{REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT}",
+        f"runs/{REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT}",
+        f"runs/{REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
+        f"runs/{REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT}",
+    }
+    return required.issubset(published)
+
+
+def _approval_readiness(
+    *,
+    active_candidate: dict[str, Any] | None,
+    repair_session: dict[str, Any] | None,
+    promotion_gate: dict[str, Any] | None,
+    repaired_handoff: dict[str, Any] | None,
+    repaired_active_candidate: dict[str, Any] | None,
+    repaired_repair_session: dict[str, Any] | None,
+    repaired_promotion_gate: dict[str, Any] | None,
+    product_repair_rerun_execution: dict[str, Any] | None,
+    product_repair_rerun_publication: dict[str, Any] | None,
+    candidate_approval: dict[str, Any] | None,
+) -> dict[str, Any]:
+    selected_active_candidate = repaired_active_candidate or active_candidate
+    selected_repair_session = repaired_repair_session or repair_session
+    selected_promotion_gate = repaired_promotion_gate or promotion_gate
+    selected_mode = "repaired_handoff" if repaired_handoff is not None else "standard"
+    session_view = _repair_session(selected_repair_session)
+    readiness_impact = session_view["readiness_impact"]
+    handoff_readiness = _readiness(repaired_handoff)
+    handoff_summary = _record((repaired_handoff or {}).get("summary"))
+    active_readiness = _record((selected_active_candidate or {}).get("readiness"))
+    promotion_readiness = _readiness(selected_promotion_gate)
+    promotion_request = _promotion_request(selected_promotion_gate)
+    execution_view = _product_repair_rerun_execution(product_repair_rerun_execution)
+    publication_view = _product_repair_rerun_publication(
+        product_repair_rerun_publication
+    )
+    approval_decision = _candidate_approval_decision(candidate_approval)
+
+    resolved_ontology_gap_count = _summary_number(
+        handoff_summary,
+        "resolved_ontology_gap_count",
+        readiness_impact["resolved_ontology_gap_count"],
+    )
+    unresolved_ontology_gap_count = _summary_number(
+        handoff_summary,
+        "unresolved_ontology_gap_count",
+        readiness_impact["unresolved_ontology_gap_count"],
+    )
+    resolved_candidate_gap_count = _summary_number(
+        handoff_summary,
+        "resolved_candidate_gap_count",
+    )
+    unresolved_candidate_gap_count = _summary_number(
+        handoff_summary,
+        "unresolved_candidate_gap_count",
+    )
+    removed_gap_count = _summary_number(
+        handoff_summary,
+        "removed_gap_count",
+        readiness_impact["rerun_removed_gap_count"],
+    )
+    ready_for_candidate_approval = (
+        handoff_summary.get("ready_for_candidate_approval") is True
+        or readiness_impact["ready_for_candidate_approval"] is True
+    )
+    ready_for_platform_promotion = (
+        handoff_summary.get("ready_for_platform_promotion") is True
+        or readiness_impact["ready_for_platform_promotion"] is True
+    )
+    candidate_repaired = (
+        repaired_handoff is not None
+        and handoff_readiness["ready"]
+        and removed_gap_count > 0
+    )
+    platform_rerun_executed = execution_view["ok"] and not execution_view["dry_run"]
+    platform_rerun_published = publication_view["ok"] and not publication_view["dry_run"]
+    repaired_artifacts_published = _publication_has_repaired_artifacts(
+        product_repair_rerun_publication
+    )
+    blockers = []
+    blockers.extend(readiness_impact["blocked_by"])
+    blockers.extend(readiness_impact["platform_promotion_blocked_by"])
+    blockers.extend(handoff_readiness["blocked_by"])
+    blockers.extend(promotion_readiness["blocked_by"])
+    blockers.extend(finding["finding_id"] for finding in _findings(repaired_handoff))
+    blockers.extend(finding["finding_id"] for finding in _findings(selected_promotion_gate))
+    if unresolved_ontology_gap_count:
+        blockers.append("unresolved_ontology_gaps")
+    if unresolved_candidate_gap_count:
+        blockers.append("unresolved_candidate_gaps")
+    if not platform_rerun_executed and product_repair_rerun_execution is not None:
+        blockers.append("repair_rerun_execution_not_complete")
+    if not platform_rerun_published and product_repair_rerun_publication is not None:
+        blockers.append("repair_rerun_publication_not_complete")
+    unique_blockers = []
+    seen = set()
+    for blocker in blockers:
+        if not blocker or blocker in seen:
+            continue
+        seen.add(blocker)
+        unique_blockers.append(blocker)
+
+    promotion_review_can_be_requested = (
+        ready_for_candidate_approval
+        and unresolved_ontology_gap_count == 0
+        and unresolved_candidate_gap_count == 0
+        and platform_rerun_executed
+        and platform_rerun_published
+        and not approval_decision["ready"]
+        and not unique_blockers
+    )
+    platform_approval_gate_can_materialize_decision = (
+        promotion_review_can_be_requested
+        and (repaired_handoff is None or handoff_readiness["ready"])
+    )
+    if approval_decision["ready"]:
+        status = "approval_decision_materialized"
+    elif promotion_review_can_be_requested:
+        status = "approval_ready"
+    elif repaired_handoff is not None and not handoff_readiness["ready"]:
+        status = "repaired_handoff_review_required"
+    elif ready_for_candidate_approval:
+        status = "approval_blocked_by_handoff"
+    else:
+        status = "blocked"
+
+    return {
+        "available": (
+            repaired_handoff is not None
+            or selected_repair_session is not None
+            or selected_promotion_gate is not None
+        ),
+        "source_mode": selected_mode,
+        "status": status,
+        "candidate_repaired": candidate_repaired,
+        "ready_for_candidate_approval": ready_for_candidate_approval,
+        "ready_for_platform_promotion": ready_for_platform_promotion,
+        "promotion_review_can_be_requested": promotion_review_can_be_requested,
+        "platform_approval_gate_can_materialize_decision": (
+            platform_approval_gate_can_materialize_decision
+        ),
+        "candidate_approval_decision_ready": approval_decision["ready"],
+        "platform_rerun_executed": platform_rerun_executed,
+        "platform_rerun_published": platform_rerun_published,
+        "repaired_artifacts_published": repaired_artifacts_published,
+        "resolved_ontology_gap_count": resolved_ontology_gap_count,
+        "resolved_candidate_gap_count": resolved_candidate_gap_count,
+        "unresolved_ontology_gap_count": unresolved_ontology_gap_count,
+        "unresolved_candidate_gap_count": unresolved_candidate_gap_count,
+        "removed_gap_count": removed_gap_count,
+        "remaining_blocker_count": len(unique_blockers),
+        "promotion_path_count": len(promotion_request["paths"])
+        or readiness_impact["promotion_path_count"],
+        "blockers": unique_blockers[: DISPLAY_LIMITS["findings"]],
+        "source_refs": {
+            "handoff": (
+                f"runs/{REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT}"
+                if repaired_handoff is not None
+                else None
+            ),
+            "active_candidate": (
+                f"runs/{REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT}"
+                if repaired_active_candidate is not None
+                else f"runs/{ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT}"
+            ),
+            "repair_session": (
+                f"runs/{REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}"
+                if repaired_repair_session is not None
+                else f"runs/{IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}"
+            ),
+            "promotion_gate": (
+                f"runs/{REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT}"
+                if repaired_promotion_gate is not None
+                else f"runs/{IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT}"
+            ),
+        },
+        "review_states": {
+            "handoff": handoff_readiness["review_state"],
+            "active_candidate": _optional_text(active_readiness.get("review_state")),
+            "repair_session": session_view["readiness"]["review_state"],
+            "promotion_gate": promotion_readiness["review_state"],
+            "execution": execution_view["status"],
+            "publication": publication_view["status"],
+        },
+        "action_boundary": {
+            "inspect_only": True,
+            "acknowledge_only": True,
+            "may_materialize_candidate_approval_decision": False,
+            "may_execute_platform_gate": False,
+            "may_execute_git_service": False,
+            "may_create_branch_or_commit": False,
+            "may_mutate_specs": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+        },
+    }
+
+
 def _workflow_item(
     *,
     item_id: str,
@@ -2264,6 +2542,18 @@ def build_idea_to_spec_workspace(
     product_repair_rerun_publication = _artifact_data(
         artifacts, PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
     )
+    repaired_handoff = _artifact_data(
+        artifacts, REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+    )
+    repaired_active_candidate = _artifact_data(
+        artifacts, REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+    )
+    repaired_repair_session = _artifact_data(
+        artifacts, REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+    )
+    repaired_promotion_gate = _artifact_data(
+        artifacts, REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+    )
     materialization = _artifact_data(
         artifacts, CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT
     )
@@ -2335,6 +2625,18 @@ def build_idea_to_spec_workspace(
     materialized_files = _materialized_files(materialization)
     promotion_gate_findings = _findings(promotion_gate)
     promotion_request = _promotion_request(promotion_gate or materialization)
+    approval_readiness = _approval_readiness(
+        active_candidate=active_candidate,
+        repair_session=repair_session_journal,
+        promotion_gate=promotion_gate,
+        repaired_handoff=repaired_handoff,
+        repaired_active_candidate=repaired_active_candidate,
+        repaired_repair_session=repaired_repair_session,
+        repaired_promotion_gate=repaired_promotion_gate,
+        product_repair_rerun_execution=product_repair_rerun_execution,
+        product_repair_rerun_publication=product_repair_rerun_publication,
+        candidate_approval=candidate_approval,
+    )
     workflow = _workflow(
         statuses=statuses,
         core_missing_artifact_count=core_missing_artifact_count,
@@ -2498,6 +2800,7 @@ def build_idea_to_spec_workspace(
         },
         "repair_session": repair_session,
         "repair_review": repair_review,
+        "approval_readiness": approval_readiness,
         "materialization": {
             "available": materialization is not None,
             "readiness": _readiness(materialization),

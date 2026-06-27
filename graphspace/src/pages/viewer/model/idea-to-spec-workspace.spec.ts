@@ -95,6 +95,20 @@ describe("parseIdeaToSpecWorkspace", () => {
       parsed.data.repairReview.platformExecution.actionBoundary
         .mayExecutePlatformAdapter,
     ).toBe(false);
+    expect(parsed.data.approvalReadiness.status).toBe("blocked");
+    expect(parsed.data.approvalReadiness.readyForCandidateApproval).toBe(false);
+    expect(parsed.data.approvalReadiness.promotionReviewCanBeRequested).toBe(
+      false,
+    );
+    expect(parsed.data.approvalReadiness.resolvedOntologyGapCount).toBe(1);
+    expect(parsed.data.approvalReadiness.unresolvedOntologyGapCount).toBe(7);
+    expect(parsed.data.approvalReadiness.blockers[0]).toBe(
+      "repair_context_required",
+    );
+    expect(
+      parsed.data.approvalReadiness.actionBoundary
+        .mayMaterializeCandidateApprovalDecision,
+    ).toBe(false);
     expect(parsed.data.promotionGate.readiness.reviewState).toBe(
       "idea_to_spec_promotion_blocked",
     );
@@ -167,6 +181,17 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.repairSession.sourceMode).toBe("legacy_artifacts");
   });
 
+  it("parses legacy responses without approval readiness", () => {
+    const legacyWorkspace: Record<string, unknown> = { ...ideaToSpecWorkspace };
+    delete legacyWorkspace.approval_readiness;
+    const parsed = parseIdeaToSpecWorkspace(legacyWorkspace);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.approvalReadiness.available).toBe(false);
+    expect(parsed.data.approvalReadiness.sourceMode).toBe("standard");
+  });
+
   it("rejects repair review action expansion", () => {
     const parsed = parseIdeaToSpecWorkspace({
       ...ideaToSpecWorkspace,
@@ -175,6 +200,21 @@ describe("parseIdeaToSpecWorkspace", () => {
         action_boundary: {
           ...ideaToSpecWorkspace.repair_review.action_boundary,
           may_accept_ontology_terms: true,
+        },
+      },
+    });
+
+    expect(parsed.kind).toBe("parse-error");
+  });
+
+  it("rejects approval readiness action expansion", () => {
+    const parsed = parseIdeaToSpecWorkspace({
+      ...ideaToSpecWorkspace,
+      approval_readiness: {
+        ...ideaToSpecWorkspace.approval_readiness,
+        action_boundary: {
+          ...ideaToSpecWorkspace.approval_readiness.action_boundary,
+          may_execute_git_service: true,
         },
       },
     });
