@@ -9,6 +9,14 @@ export type OntologyGraphPackage = {
   version: string | null;
 };
 
+export type OntologyGraphMetadata = {
+  imports: unknown;
+  policies: unknown;
+  protocols: unknown;
+  stateMachines: unknown;
+  compatibility: unknown;
+};
+
 export type OntologyGraphEdgeKind = "relation" | "extends";
 
 export type OntologyGraphNode = {
@@ -58,6 +66,7 @@ export type OntologyGraphProjection = {
   artifactKind: typeof ONTOLOGY_GRAPH_PROJECTION_ARTIFACT_KIND;
   schemaVersion: typeof ONTOLOGY_GRAPH_PROJECTION_SCHEMA_VERSION;
   package: OntologyGraphPackage;
+  metadata: OntologyGraphMetadata;
   nodes: readonly OntologyGraphNode[];
   edges: readonly OntologyGraphEdge[];
   diagnostics: readonly OntologyGraphDiagnostic[];
