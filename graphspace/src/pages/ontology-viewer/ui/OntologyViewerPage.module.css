@@ -95,6 +95,25 @@
   padding: var(--gs-space-10);
 }
 
+.dropTarget {
+  display: grid;
+  place-items: center;
+  gap: var(--gs-space-5);
+  width: min(460px, 100%);
+  min-width: 0;
+  padding: var(--gs-space-10);
+  border: 1px dashed var(--gs-rule-mid);
+  background: rgba(244, 242, 237, 0.56);
+  color: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+
+.dropTarget:hover {
+  border-color: var(--gs-accent);
+  background: var(--gs-accent-soft);
+}
+
 .mark {
   display: grid;
   width: min(260px, 60vw);
@@ -104,6 +123,65 @@
   color: var(--gs-muted);
   font-family: var(--gs-serif);
   font-size: 84px;
+  line-height: 1;
+}
+
+.dropTitle,
+.loadedTitle {
+  color: var(--gs-ink);
+  font-family: var(--gs-serif);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.dropCaption,
+.loadedMeta {
+  max-width: 36ch;
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.loadedSummary {
+  display: grid;
+  justify-items: start;
+  width: min(560px, 100%);
+  gap: var(--gs-space-6);
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--gs-space-4);
+  width: 100%;
+}
+
+.summaryMetric {
+  display: grid;
+  min-width: 0;
+  gap: var(--gs-space-2);
+  padding: var(--gs-space-5);
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+}
+
+.summaryValue {
+  color: var(--gs-ink);
+  font-family: var(--gs-serif);
+  font-size: 38px;
   line-height: 1;
 }
 
@@ -163,5 +241,9 @@
 
   .surface {
     min-height: 420px;
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr;
   }
 }
