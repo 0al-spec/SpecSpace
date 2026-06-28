@@ -98,6 +98,21 @@ describe("parseIdeaToSpecWorkspace", () => {
       parsed.data.repairReview.platformExecution.actionBoundary
         .mayExecutePlatformAdapter,
     ).toBe(false);
+    expect(parsed.data.ideaMaturity.status).toBe("available");
+    expect(parsed.data.ideaMaturity.trusted).toBe(true);
+    expect(parsed.data.ideaMaturity.report.derivedState.lifecycleState).toBe(
+      "repair_required",
+    );
+    expect(
+      parsed.data.ideaMaturity.report.metrics.ontologyGapResolutionRate,
+    ).toBe(1);
+    expect(
+      parsed.data.ideaMaturity.report.metrics.timeToApprovalReadySeconds,
+    ).toBeNull();
+    expect(parsed.data.ideaMaturity.validation.reports[0].status).toBe("ok");
+    expect(
+      parsed.data.ideaMaturity.actionBoundary.mayRecalculateMetrics,
+    ).toBe(false);
     expect(parsed.data.approvalReadiness.status).toBe("blocked");
     expect(parsed.data.approvalReadiness.readyForCandidateApproval).toBe(false);
     expect(parsed.data.approvalReadiness.promotionReviewCanBeRequested).toBe(
@@ -239,6 +254,18 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.approvalReadiness.sourceMode).toBe("standard");
   });
 
+  it("parses legacy responses without idea maturity", () => {
+    const legacyWorkspace: Record<string, unknown> = { ...ideaToSpecWorkspace };
+    delete legacyWorkspace.idea_maturity;
+    const parsed = parseIdeaToSpecWorkspace(legacyWorkspace);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.ideaMaturity.available).toBe(false);
+    expect(parsed.data.ideaMaturity.status).toBe("missing");
+    expect(parsed.data.ideaMaturity.trusted).toBe(false);
+  });
+
   it("rejects repair review action expansion", () => {
     const parsed = parseIdeaToSpecWorkspace({
       ...ideaToSpecWorkspace,
@@ -262,6 +289,21 @@ describe("parseIdeaToSpecWorkspace", () => {
         action_boundary: {
           ...ideaToSpecWorkspace.approval_readiness.action_boundary,
           may_execute_git_service: true,
+        },
+      },
+    });
+
+    expect(parsed.kind).toBe("parse-error");
+  });
+
+  it("rejects idea maturity action expansion", () => {
+    const parsed = parseIdeaToSpecWorkspace({
+      ...ideaToSpecWorkspace,
+      idea_maturity: {
+        ...ideaToSpecWorkspace.idea_maturity,
+        action_boundary: {
+          ...ideaToSpecWorkspace.idea_maturity.action_boundary,
+          may_execute_metrics_validator: true,
         },
       },
     });

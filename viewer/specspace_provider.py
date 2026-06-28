@@ -517,6 +517,7 @@ WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS: tuple[str, ...] = tuple(
     filename
     for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS
     if filename != idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT
+    and filename not in idea_to_spec_workspace.IDEA_MATURITY_ARTIFACTS
 )
 
 PUBLIC_SAFE_RUN_ARTIFACT_FILENAMES: frozenset[str] = frozenset(

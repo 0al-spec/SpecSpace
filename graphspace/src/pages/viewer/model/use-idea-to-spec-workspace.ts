@@ -417,6 +417,121 @@ export type IdeaToSpecApprovalReadiness = {
   };
 };
 
+export type IdeaToSpecIdeaMaturityMetrics = {
+  candidateNodeCount: number;
+  clarificationQuestionCount: number;
+  reviewRequiredQuestionCount: number;
+  blockingQuestionCount: number;
+  answeredQuestionCount: number;
+  acceptedAnswerCount: number;
+  deferredAnswerCount: number;
+  invalidAnswerCount: number;
+  materializedAnswerCount: number;
+  unmaterializedAnswerCount: number;
+  answerMaterializationRate: number | null;
+  ontologyGapCountInitial: number;
+  ontologyGapResolvedCount: number;
+  ontologyGapUnresolvedCount: number;
+  ontologyGapResolutionRate: number | null;
+  candidateGapCountInitial: number;
+  candidateGapResolvedCount: number;
+  candidateGapUnresolvedCount: number;
+  candidateGapClosureRate: number | null;
+  remainingBlockerCount: number;
+  staleRefCount: number;
+  failedGateCount: number;
+  dryRunCount: number;
+  rerunCount: number;
+  rerunRequestCount: number;
+  manualHandoffCount: number;
+  operatorCommandCount: number;
+  promotionPathCount: number;
+  publishedFileCount: number;
+  timeToFirstCandidateSeconds: number | null;
+  timeToApprovalReadySeconds: number | null;
+  timeToFirstMaterializationSeconds: number | null;
+  lastProgressAt: string | null;
+  stalledPhase: string | null;
+};
+
+export type IdeaToSpecIdeaMaturityFinding = {
+  findingId: string;
+  severity: string;
+  message: string;
+  source: string | null;
+};
+
+export type IdeaToSpecIdeaMaturityValidationReport = {
+  path: string | null;
+  status: string;
+  diagnosticCount: number;
+};
+
+export type IdeaToSpecIdeaMaturity = {
+  available: boolean;
+  status: string;
+  trusted: boolean;
+  sourceRefs: readonly string[];
+  report: {
+    available: boolean;
+    artifactKind: string | null;
+    generatedAt: string | null;
+    status: string | null;
+    proposalId: string | null;
+    contractRef: string | null;
+    metricPackId: string | null;
+    metricPackRef: string | null;
+    metricsRfcRef: string | null;
+    authorityState: string | null;
+    candidate: {
+      candidateId: string | null;
+      workspaceRoute: string | null;
+      workflowLane: string | null;
+      targetRepositoryRole: string | null;
+      governanceProfile: string | null;
+    };
+    derivedState: {
+      lifecycleState: string | null;
+      candidateApprovalState: string | null;
+      platformPromotionState: string | null;
+      reviewStatus: string | null;
+      readModelPublicationState: string | null;
+      blockers: readonly string[];
+    };
+    metrics: IdeaToSpecIdeaMaturityMetrics;
+    findings: readonly IdeaToSpecIdeaMaturityFinding[];
+    sourceArtifacts: readonly string[];
+  };
+  validation: {
+    available: boolean;
+    artifactKind: string | null;
+    generatedAt: string | null;
+    metricPackId: string | null;
+    summary: Record<string, unknown>;
+    validator: {
+      id: string | null;
+      rfcRef: string | null;
+      schemaRef: string | null;
+      scriptRef: string | null;
+    };
+    reports: readonly IdeaToSpecIdeaMaturityValidationReport[];
+  };
+  reportError: Record<string, unknown>;
+  validationError: Record<string, unknown>;
+  actionBoundary: {
+    inspectOnly: true;
+    acknowledgeOnly: true;
+    mayRecalculateMetrics: false;
+    mayExecuteMetricsValidator: false;
+    mayMutateCandidateArtifacts: false;
+    mayMutateCanonicalSpecs: false;
+    mayWriteOntologyPackage: false;
+    mayAcceptOntologyTerms: false;
+    mayExecuteGitService: false;
+    mayCreateBranchOrCommit: false;
+  };
+};
+
 export type IdeaToSpecWorkflowItem = {
   id: string;
   label: string;
@@ -742,6 +857,7 @@ export type IdeaToSpecWorkspace = {
       mayCreateBranchOrCommit: false;
     };
   };
+  ideaMaturity: IdeaToSpecIdeaMaturity;
   approvalReadiness: IdeaToSpecApprovalReadiness;
   materialization: {
     available: boolean;
@@ -840,6 +956,12 @@ function numberValue(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
     : 0;
+}
+
+function optionalNumberValue(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : null;
 }
 
 function strings(value: unknown): string[] {
@@ -1762,6 +1884,178 @@ function parseApprovalReadiness(raw: unknown): IdeaToSpecApprovalReadiness {
   };
 }
 
+function parseIdeaMaturityMetrics(raw: unknown): IdeaToSpecIdeaMaturityMetrics {
+  const metrics = recordValue(raw);
+  return {
+    candidateNodeCount: numberValue(metrics.candidate_node_count),
+    clarificationQuestionCount: numberValue(
+      metrics.clarification_question_count,
+    ),
+    reviewRequiredQuestionCount: numberValue(
+      metrics.review_required_question_count,
+    ),
+    blockingQuestionCount: numberValue(metrics.blocking_question_count),
+    answeredQuestionCount: numberValue(metrics.answered_question_count),
+    acceptedAnswerCount: numberValue(metrics.accepted_answer_count),
+    deferredAnswerCount: numberValue(metrics.deferred_answer_count),
+    invalidAnswerCount: numberValue(metrics.invalid_answer_count),
+    materializedAnswerCount: numberValue(metrics.materialized_answer_count),
+    unmaterializedAnswerCount: numberValue(metrics.unmaterialized_answer_count),
+    answerMaterializationRate: optionalNumberValue(
+      metrics.answer_materialization_rate,
+    ),
+    ontologyGapCountInitial: numberValue(metrics.ontology_gap_count_initial),
+    ontologyGapResolvedCount: numberValue(metrics.ontology_gap_resolved_count),
+    ontologyGapUnresolvedCount: numberValue(
+      metrics.ontology_gap_unresolved_count,
+    ),
+    ontologyGapResolutionRate: optionalNumberValue(
+      metrics.ontology_gap_resolution_rate,
+    ),
+    candidateGapCountInitial: numberValue(metrics.candidate_gap_count_initial),
+    candidateGapResolvedCount: numberValue(metrics.candidate_gap_resolved_count),
+    candidateGapUnresolvedCount: numberValue(
+      metrics.candidate_gap_unresolved_count,
+    ),
+    candidateGapClosureRate: optionalNumberValue(
+      metrics.candidate_gap_closure_rate,
+    ),
+    remainingBlockerCount: numberValue(metrics.remaining_blocker_count),
+    staleRefCount: numberValue(metrics.stale_ref_count),
+    failedGateCount: numberValue(metrics.failed_gate_count),
+    dryRunCount: numberValue(metrics.dry_run_count),
+    rerunCount: numberValue(metrics.rerun_count),
+    rerunRequestCount: numberValue(metrics.rerun_request_count),
+    manualHandoffCount: numberValue(metrics.manual_handoff_count),
+    operatorCommandCount: numberValue(metrics.operator_command_count),
+    promotionPathCount: numberValue(metrics.promotion_path_count),
+    publishedFileCount: numberValue(metrics.published_file_count),
+    timeToFirstCandidateSeconds: optionalNumberValue(
+      metrics.time_to_first_candidate_seconds,
+    ),
+    timeToApprovalReadySeconds: optionalNumberValue(
+      metrics.time_to_approval_ready_seconds,
+    ),
+    timeToFirstMaterializationSeconds: optionalNumberValue(
+      metrics.time_to_first_materialization_seconds,
+    ),
+    lastProgressAt: optionalString(metrics.last_progress_at),
+    stalledPhase: optionalString(metrics.stalled_phase),
+  };
+}
+
+function parseIdeaMaturityFinding(
+  raw: unknown,
+): IdeaToSpecIdeaMaturityFinding | null {
+  const finding = recordValue(raw);
+  const findingId = optionalString(finding.finding_id);
+  if (!findingId) return null;
+  return {
+    findingId,
+    severity: stringValue(finding.severity, "unknown"),
+    message: stringValue(finding.message, "No message supplied."),
+    source: optionalString(finding.source),
+  };
+}
+
+function parseIdeaMaturityValidationReport(
+  raw: unknown,
+): IdeaToSpecIdeaMaturityValidationReport | null {
+  const report = recordValue(raw);
+  const status = optionalString(report.status);
+  if (!status) return null;
+  return {
+    path: optionalString(report.path),
+    status,
+    diagnosticCount: numberValue(report.diagnostic_count),
+  };
+}
+
+function parseIdeaMaturity(raw: unknown): IdeaToSpecIdeaMaturity {
+  const maturity = recordValue(raw);
+  const report = recordValue(maturity.report);
+  const validation = recordValue(maturity.validation);
+  const candidate = recordValue(report.candidate);
+  const derivedState = recordValue(report.derived_state);
+  const validator = recordValue(validation.validator);
+  return {
+    available: maturity.available === true,
+    status: stringValue(maturity.status, "missing"),
+    trusted: maturity.trusted === true,
+    sourceRefs: strings(maturity.source_refs),
+    report: {
+      available: report.available === true,
+      artifactKind: optionalString(report.artifact_kind),
+      generatedAt: optionalString(report.generated_at),
+      status: optionalString(report.status),
+      proposalId: optionalString(report.proposal_id),
+      contractRef: optionalString(report.contract_ref),
+      metricPackId: optionalString(report.metric_pack_id),
+      metricPackRef: optionalString(report.metric_pack_ref),
+      metricsRfcRef: optionalString(report.metrics_rfc_ref),
+      authorityState: optionalString(report.authority_state),
+      candidate: {
+        candidateId: optionalString(candidate.candidate_id),
+        workspaceRoute: optionalString(candidate.workspace_route),
+        workflowLane: optionalString(candidate.workflow_lane),
+        targetRepositoryRole: optionalString(candidate.target_repository_role),
+        governanceProfile: optionalString(candidate.governance_profile),
+      },
+      derivedState: {
+        lifecycleState: optionalString(derivedState.lifecycle_state),
+        candidateApprovalState: optionalString(
+          derivedState.candidate_approval_state,
+        ),
+        platformPromotionState: optionalString(
+          derivedState.platform_promotion_state,
+        ),
+        reviewStatus: optionalString(derivedState.review_status),
+        readModelPublicationState: optionalString(
+          derivedState.read_model_publication_state,
+        ),
+        blockers: strings(derivedState.blockers),
+      },
+      metrics: parseIdeaMaturityMetrics(report.metrics),
+      findings: records(report.findings).flatMap((item) => {
+        const parsed = parseIdeaMaturityFinding(item);
+        return parsed ? [parsed] : [];
+      }),
+      sourceArtifacts: strings(report.source_artifacts),
+    },
+    validation: {
+      available: validation.available === true,
+      artifactKind: optionalString(validation.artifact_kind),
+      generatedAt: optionalString(validation.generated_at),
+      metricPackId: optionalString(validation.metric_pack_id),
+      summary: recordValue(validation.summary),
+      validator: {
+        id: optionalString(validator.id),
+        rfcRef: optionalString(validator.rfc_ref),
+        schemaRef: optionalString(validator.schema_ref),
+        scriptRef: optionalString(validator.script_ref),
+      },
+      reports: records(validation.reports).flatMap((item) => {
+        const parsed = parseIdeaMaturityValidationReport(item);
+        return parsed ? [parsed] : [];
+      }),
+    },
+    reportError: recordValue(maturity.report_error),
+    validationError: recordValue(maturity.validation_error),
+    actionBoundary: {
+      inspectOnly: true,
+      acknowledgeOnly: true,
+      mayRecalculateMetrics: false,
+      mayExecuteMetricsValidator: false,
+      mayMutateCandidateArtifacts: false,
+      mayMutateCanonicalSpecs: false,
+      mayWriteOntologyPackage: false,
+      mayAcceptOntologyTerms: false,
+      mayExecuteGitService: false,
+      mayCreateBranchOrCommit: false,
+    },
+  };
+}
+
 function parseWorkflowItem(raw: unknown): IdeaToSpecWorkflowItem | null {
   const item = recordValue(raw);
   const id = optionalString(item.id);
@@ -1931,6 +2225,32 @@ export function parseIdeaToSpecWorkspace(
     platformExecutionBoundary.acknowledge_only !== true
   ) {
     return { kind: "parse-error", reason: "repair rerun execution boundary must be inspect-only", raw };
+  }
+  const hasIdeaMaturity = isRecord(raw.idea_maturity);
+  const ideaMaturity = recordValue(raw.idea_maturity);
+  if (hasIdeaMaturity) {
+    const ideaMaturityBoundary = recordValue(ideaMaturity.action_boundary);
+    const ideaMaturityFalseFlags = [
+      "may_recalculate_metrics",
+      "may_execute_metrics_validator",
+      "may_mutate_candidate_artifacts",
+      "may_mutate_canonical_specs",
+      "may_write_ontology_package",
+      "may_accept_ontology_terms",
+      "may_execute_git_service",
+      "may_create_branch_or_commit",
+    ];
+    for (const flag of ideaMaturityFalseFlags) {
+      if (ideaMaturityBoundary[flag] !== false) {
+        return { kind: "parse-error", reason: `idea maturity boundary expanded: ${flag}`, raw };
+      }
+    }
+    if (
+      ideaMaturityBoundary.inspect_only !== true ||
+      ideaMaturityBoundary.acknowledge_only !== true
+    ) {
+      return { kind: "parse-error", reason: "idea maturity boundary must be inspect-only", raw };
+    }
   }
   const hasApprovalReadiness = isRecord(raw.approval_readiness);
   const approvalReadiness = recordValue(raw.approval_readiness);
@@ -2103,6 +2423,7 @@ export function parseIdeaToSpecWorkspace(
       },
       repairSession: parseRepairSession(repairSession),
       repairReview: parseRepairReview(repairReview),
+      ideaMaturity: parseIdeaMaturity(ideaMaturity),
       approvalReadiness: parseApprovalReadiness(approvalReadiness),
       materialization: {
         available: materialization.available === true,
