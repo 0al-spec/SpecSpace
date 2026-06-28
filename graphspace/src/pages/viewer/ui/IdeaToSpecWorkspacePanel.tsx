@@ -7,6 +7,7 @@ import type {
   IdeaToSpecCandidateNode,
   IdeaToSpecClarificationRequest,
   IdeaToSpecGitServiceOperation,
+  IdeaToSpecIdeaMaturity,
   IdeaToSpecMaterializedFile,
   IdeaToSpecOntologyDecision,
   IdeaToSpecProductRepairRerunPlatformExecution,
@@ -77,6 +78,26 @@ function metricValue(value: unknown): string {
   if (typeof value === "string") return value;
   if (typeof value === "boolean") return boolText(value);
   return "n/a";
+}
+
+function recordText(
+  record: Record<string, unknown>,
+  key: string,
+  fallback = "unknown",
+): string {
+  return metricValue(record[key]) === "n/a" ? fallback : metricValue(record[key]);
+}
+
+function rateText(value: number | null): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "n/a";
+  return `${Math.round(value * 100)}%`;
+}
+
+function durationText(value: number | null): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "n/a";
+  if (value < 1) return `${value.toFixed(3)}s`;
+  if (value < 60) return `${value.toFixed(1)}s`;
+  return `${Math.round(value / 60)}m`;
 }
 
 export function IdeaToSpecWorkspacePanel({
@@ -216,6 +237,7 @@ export function IdeaToSpecWorkspacePanel({
         <PreSibSection state={state} />
         <RepairSection actions={data.repairLoop.actions} />
         <RepairSessionSection state={state} />
+        <IdeaMaturitySection maturity={data.ideaMaturity} />
         <ProductRepairReviewSection
           state={state}
           repairDrafts={repairDrafts}
@@ -803,6 +825,254 @@ function AcceptedAnswerRow({
         <Meta label="Scope" value={answer.termScope} />
       </div>
     </div>
+  );
+}
+
+function IdeaMaturitySection({
+  maturity,
+}: {
+  maturity: IdeaToSpecIdeaMaturity;
+}) {
+  if (!maturity.available) {
+    return (
+      <section className={styles.reviewSection}>
+        <SectionHeader title="Idea maturity" count={0} />
+        <Status
+          label="Idea maturity metrics unavailable"
+          detail="Run make idea-maturity-metrics in SpecGraph."
+        />
+        <div className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>Metrics contract</span>
+            <Pill value={maturity.status.replace(/_/g, " ")} />
+          </div>
+          <div className={styles.metaGrid}>
+            <Meta
+              label="Report reason"
+              value={recordText(maturity.reportError, "reason", maturity.status)}
+            />
+            <Meta
+              label="Report detail"
+              value={recordText(
+                maturity.reportError,
+                "detail",
+                "missing report",
+              )}
+            />
+            <Meta label="Source refs" value={joined(maturity.sourceRefs)} />
+          </div>
+        </div>
+      </section>
+    );
+  }
+  const metrics = maturity.report.metrics;
+  const derived = maturity.report.derivedState;
+  const validationStatus = maturity.validation.available
+    ? recordText(maturity.validation.summary, "status", "unknown")
+    : "unavailable";
+  const validationTone =
+    maturity.status === "available"
+      ? "trusted"
+      : maturity.status === "validation_unavailable"
+        ? "validation unavailable"
+        : maturity.status.replace(/_/g, " ");
+  return (
+    <section className={styles.reviewSection}>
+      <SectionHeader
+        title="Idea maturity"
+        count={
+          maturity.report.sourceArtifacts.length +
+          maturity.report.findings.length +
+          maturity.validation.reports.length
+        }
+      />
+      <div className={styles.postureStrip}>
+        <PostureItem label="Metrics contract" value={validationStatus} />
+        <PostureItem label="Trusted" value={boolText(maturity.trusted)} />
+        <PostureItem
+          label="Lifecycle"
+          value={compact(derived.lifecycleState, maturity.status)}
+        />
+        <PostureItem
+          label="Candidate approval"
+          value={compact(derived.candidateApprovalState, "not_available")}
+        />
+        <PostureItem
+          label="Promotion"
+          value={compact(derived.platformPromotionState, "not_reached")}
+        />
+        <PostureItem
+          label="Publication"
+          value={compact(derived.readModelPublicationState, "not_reached")}
+        />
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Metrics contract</span>
+          <Pill value={validationTone} />
+        </div>
+        <h3 className={styles.title}>
+          {compact(derived.lifecycleState, "lifecycle unavailable").replace(/_/g, " ")}
+        </h3>
+        <div className={styles.metaGrid}>
+          <Meta label="Report status" value={maturity.report.status} />
+          <Meta label="Contract" value={maturity.report.contractRef} />
+          <Meta label="Metrics RFC" value={maturity.report.metricsRfcRef} />
+          <Meta label="Validator" value={maturity.validation.validator.id} />
+          <Meta label="Workspace" value={maturity.report.candidate.workspaceRoute} />
+          <Meta label="Candidate" value={maturity.report.candidate.candidateId} />
+          <Meta label="Review" value={derived.reviewStatus} />
+          <Meta label="Blockers" value={joined(derived.blockers)} />
+        </div>
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Clarification and answers</span>
+          <Pill value={maturity.trusted ? "validated" : maturity.status} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta
+            label="Questions"
+            value={String(metrics.clarificationQuestionCount)}
+          />
+          <Meta
+            label="Review required"
+            value={String(metrics.reviewRequiredQuestionCount)}
+          />
+          <Meta label="Blocking" value={String(metrics.blockingQuestionCount)} />
+          <Meta label="Accepted answers" value={String(metrics.acceptedAnswerCount)} />
+          <Meta
+            label="Materialized"
+            value={`${metrics.materializedAnswerCount} / ${metrics.answeredQuestionCount}`}
+          />
+          <Meta
+            label="Unmaterialized"
+            value={String(metrics.unmaterializedAnswerCount)}
+          />
+          <Meta label="Deferred" value={String(metrics.deferredAnswerCount)} />
+          <Meta
+            label="Materialization rate"
+            value={rateText(metrics.answerMaterializationRate)}
+          />
+        </div>
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Ontology grounding</span>
+          <Pill value={rateText(metrics.ontologyGapResolutionRate)} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Initial gaps" value={String(metrics.ontologyGapCountInitial)} />
+          <Meta label="Resolved" value={String(metrics.ontologyGapResolvedCount)} />
+          <Meta
+            label="Unresolved"
+            value={String(metrics.ontologyGapUnresolvedCount)}
+          />
+          <Meta
+            label="Resolution rate"
+            value={rateText(metrics.ontologyGapResolutionRate)}
+          />
+        </div>
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Candidate repair</span>
+          <Pill value={rateText(metrics.candidateGapClosureRate)} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Initial gaps" value={String(metrics.candidateGapCountInitial)} />
+          <Meta label="Resolved" value={String(metrics.candidateGapResolvedCount)} />
+          <Meta
+            label="Unresolved"
+            value={String(metrics.candidateGapUnresolvedCount)}
+          />
+          <Meta label="Remaining blockers" value={String(metrics.remainingBlockerCount)} />
+          <Meta
+            label="Closure rate"
+            value={rateText(metrics.candidateGapClosureRate)}
+          />
+          <Meta label="Candidate nodes" value={String(metrics.candidateNodeCount)} />
+        </div>
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Workflow friction and promotion</span>
+          <Pill value={compact(derived.platformPromotionState, "not_reached")} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Stale refs" value={String(metrics.staleRefCount)} />
+          <Meta label="Failed gates" value={String(metrics.failedGateCount)} />
+          <Meta label="Dry runs" value={String(metrics.dryRunCount)} />
+          <Meta label="Reruns" value={String(metrics.rerunCount)} />
+          <Meta label="Rerun requests" value={String(metrics.rerunRequestCount)} />
+          <Meta label="Manual handoffs" value={String(metrics.manualHandoffCount)} />
+          <Meta
+            label="Operator commands"
+            value={String(metrics.operatorCommandCount)}
+          />
+          <Meta label="Promotion paths" value={String(metrics.promotionPathCount)} />
+        </div>
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Temporal progress</span>
+          <Pill value={compact(metrics.stalledPhase, "not_stalled")} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Last progress" value={metrics.lastProgressAt} />
+          <Meta
+            label="First candidate"
+            value={durationText(metrics.timeToFirstCandidateSeconds)}
+          />
+          <Meta
+            label="Approval ready"
+            value={durationText(metrics.timeToApprovalReadySeconds)}
+          />
+          <Meta
+            label="First materialization"
+            value={durationText(metrics.timeToFirstMaterializationSeconds)}
+          />
+          <Meta
+            label="Published files"
+            value={String(metrics.publishedFileCount)}
+          />
+          <Meta
+            label="Sources"
+            value={String(maturity.report.sourceArtifacts.length)}
+          />
+        </div>
+      </div>
+
+      {maturity.validation.reports.map((report) => (
+        <div key={`${report.path ?? "validation"}:${report.status}`} className={styles.subRow}>
+          <span className={styles.rowId}>Validation report</span>
+          <Pill value={report.status} />
+          <span className={styles.statusDetail}>
+            {compact(report.path, "validation report")} · diagnostics{" "}
+            {report.diagnosticCount}
+          </span>
+        </div>
+      ))}
+
+      {maturity.report.findings.map((finding) => (
+        <div key={finding.findingId} className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{finding.findingId}</span>
+            <Pill value={finding.severity} />
+          </div>
+          <h3 className={styles.title}>{finding.message}</h3>
+          <div className={styles.metaGrid}>
+            <Meta label="Source" value={finding.source} />
+          </div>
+        </div>
+      ))}
+    </section>
   );
 }
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from viewer import idea_maturity
+
 IDEA_TO_SPEC_WORKSPACE_ARTIFACT_KIND = "specspace_idea_to_spec_workspace"
 ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT = "active_idea_to_spec_candidate.json"
 IDEA_EVENT_STORMING_INTAKE_ARTIFACT = "idea_event_storming_intake.json"
@@ -132,6 +134,10 @@ PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
     GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT,
     GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT,
 )
+IDEA_MATURITY_ARTIFACTS: tuple[str, ...] = (
+    idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT,
+    idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT,
+)
 SPECSPACE_REPAIR_DRAFT_HANDOFF_ARTIFACTS: tuple[str, ...] = (
     SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT,
     SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT,
@@ -146,6 +152,7 @@ WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
     IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
     *PLATFORM_PROMOTION_ARTIFACTS,
+    *IDEA_MATURITY_ARTIFACTS,
 )
 
 ARTIFACT_KEYS: dict[str, str] = {
@@ -192,6 +199,10 @@ ARTIFACT_KEYS: dict[str, str] = {
     GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT: "review_status",
     GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT: "read_model_publication",
     GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT: "promotion_finalization",
+    idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT: "idea_maturity_metrics",
+    idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT: (
+        "idea_maturity_validation"
+    ),
 }
 
 EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
@@ -272,6 +283,12 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT: (
         "platform_git_service_promotion_finalization_report"
     ),
+    idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT: (
+        idea_maturity.REPORT_ARTIFACT_KIND
+    ),
+    idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT: (
+        idea_maturity.VALIDATION_ARTIFACT_KIND
+    ),
 }
 
 DISPLAY_LIMITS = {
@@ -346,6 +363,8 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             "reason": "invalid_artifact_contract",
             "detail": "Artifact JSON root must be an object.",
         }
+    if filename in idea_maturity.IDEA_MATURITY_ARTIFACTS:
+        return idea_maturity.artifact_contract_error(value, filename)
     expected_kind = EXPECTED_ARTIFACT_KINDS.get(filename)
     if expected_kind is not None and value.get("artifact_kind") != expected_kind:
         return {
@@ -736,7 +755,11 @@ def _artifact_status(
         }
     assert isinstance(value, dict)
     data = value
-    summary = _record(data.get("summary"))
+    summary = (
+        idea_maturity.safe_json_record(data.get("summary"))
+        if filename in IDEA_MATURITY_ARTIFACTS
+        else _record(data.get("summary"))
+    )
     readiness = _record(data.get("readiness"))
     pre_sib_readiness = _record(data.get("pre_sib_readiness"))
     source_generation = (
@@ -3207,6 +3230,20 @@ def build_idea_to_spec_workspace(
     promotion_finalization = _artifact_data(
         artifacts, GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
     )
+    idea_maturity_report_error = _artifact_contract_error(
+        artifacts.get(idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT),
+        idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT,
+    )
+    idea_maturity_validation_error = _artifact_contract_error(
+        artifacts.get(idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT),
+        idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT,
+    )
+    idea_maturity_report = _artifact_data(
+        artifacts, idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT
+    )
+    idea_maturity_validation = _artifact_data(
+        artifacts, idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT
+    )
     statuses = {
         key: _artifact_status(artifacts, filename)
         for filename, key in ARTIFACT_KEYS.items()
@@ -3480,6 +3517,12 @@ def build_idea_to_spec_workspace(
         },
         "repair_session": repair_session,
         "repair_review": repair_review,
+        "idea_maturity": idea_maturity.build_surface(
+            report=idea_maturity_report,
+            validation=idea_maturity_validation,
+            report_error=idea_maturity_report_error,
+            validation_error=idea_maturity_validation_error,
+        ),
         "approval_readiness": approval_readiness,
         "materialization": {
             "available": selected_materialization is not None,

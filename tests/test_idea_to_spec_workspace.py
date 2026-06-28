@@ -1,4 +1,5 @@
 import json
+import math
 import tempfile
 import time
 import unittest
@@ -6,7 +7,7 @@ from http import HTTPStatus
 from pathlib import Path
 from unittest import mock
 
-from viewer import idea_to_spec_workspace, specspace_provider
+from viewer import idea_maturity, idea_to_spec_workspace, specspace_provider
 
 
 def _write_json(path: Path, data: dict) -> None:
@@ -1622,6 +1623,209 @@ def _active_candidate() -> dict:
     }
 
 
+def _idea_maturity_metrics_report() -> dict:
+    return {
+        "artifact_kind": "idea_maturity_metrics_report",
+        "schema_version": 1,
+        "proposal_id": "0178",
+        "contract_ref": "specgraph.idea-to-spec.maturity-metrics-report.v0.1",
+        "metric_pack_id": "idea_to_spec_maturity",
+        "metric_pack_ref": "metrics.idea_to_spec_maturity.v0.1",
+        "metrics_rfc_ref": "Metrics/IDEA_MATURITY_METRICS.md",
+        "generated_at": "2026-06-28T15:20:21+00:00",
+        "status": "blocked",
+        "authority_state": "draft_reference",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "candidate": {
+            "candidate_id": "team-decision-log",
+            "workspace_route": "/team-decision-log",
+            "workflow_lane": "product_idea_to_spec",
+            "target_repository_role": "product_spec_workspace",
+            "governance_profile": "product_workspace",
+        },
+        "derived_state": {
+            "lifecycle_state": "repair_required",
+            "candidate_approval_state": "blocked",
+            "platform_promotion_state": "not_reached",
+            "review_status": "not_available",
+            "read_model_publication_state": "not_reached",
+            "blockers": ["repair_context_required"],
+        },
+        "groups": {
+            "clarification_load": {
+                "clarification_question_count": 22,
+                "review_required_question_count": 14,
+                "blocking_question_count": 1,
+            },
+            "answer_materialization": {
+                "answered_question_count": 5,
+                "accepted_answer_count": 5,
+                "materialized_answer_count": 5,
+                "unmaterialized_answer_count": 0,
+                "deferred_answer_count": 0,
+                "invalid_answer_count": 0,
+                "answer_materialization_rate": 1.0,
+            },
+            "ontology_grounding": {
+                "ontology_gap_count_initial": 11,
+                "ontology_gap_resolved_count": 11,
+                "ontology_gap_unresolved_count": 0,
+                "ontology_gap_resolution_rate": 1.0,
+            },
+            "candidate_repair": {
+                "candidate_gap_count_initial": 4,
+                "candidate_gap_resolved_count": 4,
+                "candidate_gap_unresolved_count": 0,
+                "candidate_gap_closure_rate": 1.0,
+                "remaining_blocker_count": 0,
+            },
+            "workflow_friction": {
+                "stale_ref_count": 0,
+                "failed_gate_count": 0,
+                "dry_run_count": 1,
+                "rerun_count": 1,
+                "rerun_request_count": 1,
+                "manual_handoff_count": 6,
+                "operator_command_count": 11,
+            },
+            "promotion_readiness": {
+                "candidate_approval_intent_state": "requested",
+                "candidate_approval_decision_state": "materialized",
+                "candidate_approval_state": "ready",
+                "promotion_request_state": "not_reached",
+                "promotion_execution_state": "not_reached",
+                "platform_promotion_state": "not_reached",
+                "promotion_path_count": 2,
+            },
+            "review_publication": {
+                "review_status": "not_available",
+                "review_pr_number": None,
+                "review_merge_commit_sha": None,
+                "read_model_publication_state": "not_reached",
+                "published_file_count": 0,
+                "published_manifest_digest": None,
+            },
+            "temporal_progress": {
+                "last_progress_at": "2026-06-28T15:20:21+00:00",
+                "stalled_phase": None,
+                "time_to_first_candidate_seconds": 0.052,
+                "time_to_approval_ready_seconds": None,
+                "time_to_first_materialization_seconds": None,
+            },
+        },
+        "metrics": {
+            "candidate_node_count": 2,
+            "clarification_question_count": 22,
+            "review_required_question_count": 14,
+            "blocking_question_count": 1,
+            "answered_question_count": 5,
+            "accepted_answer_count": 5,
+            "deferred_answer_count": 0,
+            "invalid_answer_count": 0,
+            "materialized_answer_count": 5,
+            "unmaterialized_answer_count": 0,
+            "answer_materialization_rate": 1.0,
+            "ontology_gap_count_initial": 11,
+            "ontology_gap_resolved_count": 11,
+            "ontology_gap_unresolved_count": 0,
+            "ontology_gap_resolution_rate": 1.0,
+            "candidate_gap_count_initial": 4,
+            "candidate_gap_resolved_count": 4,
+            "candidate_gap_unresolved_count": 0,
+            "candidate_gap_closure_rate": 1.0,
+            "remaining_blocker_count": 0,
+            "stale_ref_count": 0,
+            "failed_gate_count": 0,
+            "dry_run_count": 1,
+            "rerun_count": 1,
+            "rerun_request_count": 1,
+            "manual_handoff_count": 6,
+            "operator_command_count": 11,
+            "promotion_path_count": 2,
+            "published_file_count": 0,
+            "last_progress_at": "2026-06-28T15:20:21+00:00",
+        },
+        "summary": {
+            "lifecycle_state": "repair_required",
+            "candidate_node_count": 2,
+            "clarification_question_count": 22,
+            "ontology_gap_resolution_rate": 1.0,
+            "candidate_gap_closure_rate": 1.0,
+            "candidate_approval_state": "ready",
+            "platform_promotion_state": "not_reached",
+            "review_status": "not_available",
+            "read_model_publication_state": "not_reached",
+            "stale_ref_count": 0,
+            "failed_gate_count": 0,
+            "dry_run_count": 1,
+        },
+        "source_artifacts": [
+            "runs/idea_event_storming_intake.json",
+            "runs/candidate_spec_graph.json",
+        ],
+        "findings": [],
+        "invariant_findings": [],
+        "policy_findings": [],
+        "authority_boundary": {
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+            "may_execute_prompt_agent": False,
+            "may_merge_pull_request": False,
+            "may_mutate_canonical_specs": False,
+            "may_open_pull_request": False,
+            "may_publish_read_model": False,
+            "may_write_ontology_package": False,
+        },
+        "privacy_boundary": {
+            "contains_human_operator_identity": False,
+            "join_to_identity_allowed": False,
+            "minimum_aggregation_subject": "candidate_run",
+            "raw_prompt_or_operator_text_included": False,
+        },
+    }
+
+
+def _idea_maturity_validation_report(*, status: str = "ok") -> dict:
+    return {
+        "artifact_kind": "idea_maturity_metrics_validation_report",
+        "schema_version": 1,
+        "generated_at": "2026-06-28T15:20:22+00:00",
+        "metric_pack_id": "idea_to_spec_maturity",
+        "validator": {
+            "id": "metrics.idea_maturity_metrics.validator.v0.1",
+            "rfc_ref": "IDEA_MATURITY_METRICS.md",
+            "schema_ref": "schemas/idea_maturity_metrics_report.schema.json",
+            "script_ref": "scripts/metrics.py",
+        },
+        "summary": {
+            "status": status,
+            "report_count": 1,
+            "valid_count": 1 if status == "ok" else 0,
+            "invalid_count": 0 if status == "ok" else 1,
+        },
+        "authority_boundary": {
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+            "may_open_pull_request": False,
+            "may_merge_pull_request": False,
+            "may_publish_read_model": False,
+            "may_execute_prompt_agent": False,
+        },
+        "reports": [
+            {
+                "path": "/tmp/runs/idea_maturity_metrics_report.json",
+                "status": status,
+                "diagnostics": []
+                if status == "ok"
+                else [{"level": "error", "message": "invalid"}],
+            }
+        ],
+    }
+
+
 def _workspace_artifacts() -> dict[str, dict]:
     return {
         idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: _active_candidate(),
@@ -1649,6 +1853,8 @@ def _workspace_artifacts() -> dict[str, dict]:
         idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT: _review_status(),
         idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT: _read_model_publication(),
         idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT: _promotion_finalization(),
+        idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT: _idea_maturity_metrics_report(),
+        idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT: _idea_maturity_validation_report(),
     }
 
 
@@ -1790,6 +1996,25 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 "removed_gap_ids"
             ],
             ["ontology-gap.numeric-input"],
+        )
+        self.assertEqual(body["idea_maturity"]["status"], "available")
+        self.assertTrue(body["idea_maturity"]["trusted"])
+        self.assertEqual(
+            body["idea_maturity"]["report"]["derived_state"]["lifecycle_state"],
+            "repair_required",
+        )
+        self.assertEqual(
+            body["idea_maturity"]["report"]["metrics"][
+                "ontology_gap_resolution_rate"
+            ],
+            1.0,
+        )
+        self.assertEqual(
+            body["idea_maturity"]["validation"]["summary"]["status"],
+            "ok",
+        )
+        self.assertFalse(
+            body["idea_maturity"]["action_boundary"]["may_recalculate_metrics"]
         )
         self.assertFalse(
             body["repair_review"]["action_boundary"]["may_accept_ontology_terms"]
@@ -1938,6 +2163,150 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(
             body["authority_boundary"]["may_create_branch_or_commit"]
         )
+
+    def test_idea_maturity_allows_missing_validation_as_untrusted_surface(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        maturity = body["idea_maturity"]
+        self.assertEqual(maturity["status"], "validation_unavailable")
+        self.assertFalse(maturity["trusted"])
+        self.assertTrue(maturity["report"]["available"])
+        self.assertFalse(maturity["validation"]["available"])
+
+    def test_idea_maturity_surfaces_validation_failure(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT] = (
+            _idea_maturity_validation_report(status="invalid")
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        maturity = body["idea_maturity"]
+        self.assertEqual(maturity["status"], "validation_failed")
+        self.assertFalse(maturity["trusted"])
+        self.assertEqual(maturity["validation"]["reports"][0]["status"], "invalid")
+
+    def test_idea_maturity_trust_uses_full_validation_report_list(self) -> None:
+        artifacts = _workspace_artifacts()
+        validation = _idea_maturity_validation_report(status="ok")
+        validation["summary"]["report_count"] = 9
+        validation["summary"]["valid_count"] = 8
+        validation["summary"]["invalid_count"] = 1
+        validation["reports"] = [
+            {
+                "path": f"/tmp/runs/ok-{index}.json",
+                "status": "ok",
+                "diagnostics": [],
+            }
+            for index in range(8)
+        ]
+        validation["reports"].append(
+            {
+                "path": "/tmp/runs/idea_maturity_metrics_report.json",
+                "status": "invalid",
+                "diagnostics": [{"level": "error", "message": "late invalid report"}],
+            }
+        )
+        artifacts[idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT] = (
+            validation
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        maturity = body["idea_maturity"]
+        self.assertEqual(maturity["status"], "validation_failed")
+        self.assertFalse(maturity["trusted"])
+        self.assertEqual(len(maturity["validation"]["reports"]), 8)
+
+    def test_idea_maturity_normalizes_validation_paths(self) -> None:
+        artifacts = _workspace_artifacts()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["idea_maturity"]["validation"]["reports"][0]["path"],
+            "runs/idea_maturity_metrics_report.json",
+        )
+
+    def test_idea_maturity_reads_temporal_metrics_from_group(self) -> None:
+        artifacts = _workspace_artifacts()
+        report = _idea_maturity_metrics_report()
+        report["metrics"].pop("time_to_first_candidate_seconds", None)
+        report["groups"]["temporal_progress"][
+            "time_to_first_candidate_seconds"
+        ] = 0.125
+        artifacts[idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT] = report
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["idea_maturity"]["report"]["metrics"][
+                "time_to_first_candidate_seconds"
+            ],
+            0.125,
+        )
+
+    def test_idea_maturity_sanitizes_non_finite_group_and_summary_values(self) -> None:
+        artifacts = _workspace_artifacts()
+        report = _idea_maturity_metrics_report()
+        report["groups"]["temporal_progress"][
+            "time_to_first_candidate_seconds"
+        ] = math.inf
+        report["summary"]["candidate_gap_closure_rate"] = math.nan
+        artifacts[idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT] = report
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertIsNone(
+            body["idea_maturity"]["report"]["groups"]["temporal_progress"][
+                "time_to_first_candidate_seconds"
+            ]
+        )
+        self.assertIsNone(
+            body["idea_maturity"]["report"]["summary"]["candidate_gap_closure_rate"]
+        )
+        json.dumps(body, allow_nan=False)
+
+    def test_idea_maturity_quarantines_authority_expansion(self) -> None:
+        artifacts = _workspace_artifacts()
+        report = _idea_maturity_metrics_report()
+        report["authority_boundary"]["may_mutate_canonical_specs"] = "true"
+        artifacts[idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT] = report
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        maturity = body["idea_maturity"]
+        self.assertEqual(maturity["status"], "invalid")
+        self.assertFalse(maturity["trusted"])
+        self.assertEqual(
+            maturity["report_error"]["reason"],
+            "invalid_artifact_contract",
+        )
+        self.assertFalse(body["artifacts"]["idea_maturity_metrics"]["available"])
 
     def test_approval_readiness_prefers_repaired_handoff(self) -> None:
         artifacts = _workspace_artifacts()
@@ -2426,7 +2795,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["summary"]["status"], "partial")
-        self.assertEqual(body["summary"]["available_artifact_count"], 21)
+        self.assertEqual(body["summary"]["available_artifact_count"], 23)
         self.assertEqual(body["summary"]["missing_artifact_count"], 3)
         self.assertEqual(body["summary"]["candidate_node_count"], 0)
         self.assertEqual(body["summary"]["repair_action_count"], 0)
@@ -3723,6 +4092,15 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 / idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
                 _git_service_execution(),
             )
+            _write_json(
+                runs_dir / idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT,
+                _idea_maturity_metrics_report(),
+            )
+            _write_json(
+                runs_dir
+                / idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT,
+                _idea_maturity_validation_report(),
+            )
             provider = specspace_provider.FileSpecGraphProvider(
                 spec_nodes_dir=None,
                 runs_dir=runs_dir,
@@ -3730,6 +4108,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             )
 
             status, body = provider.read_artifact_catalog()
+            content_status, content_body = provider.read_artifact_content(
+                "runs/idea_maturity_metrics_report.json"
+            )
 
         self.assertEqual(status, HTTPStatus.OK)
         paths = {entry["path"] for entry in body["artifacts"]}
@@ -3739,6 +4120,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertIn("runs/graph_repository_promotion_request.json", paths)
         self.assertIn("runs/git_service_promotion_execution_report.json", paths)
         self.assertNotIn("runs/candidate_spec_graph_seed.json", paths)
+        self.assertNotIn("runs/idea_maturity_metrics_report.json", paths)
+        self.assertNotIn("runs/idea_maturity_metrics_validation_report.json", paths)
+        self.assertEqual(content_status, HTTPStatus.NOT_FOUND)
+        self.assertEqual(content_body["reason"], "missing_artifact")
 
     def test_http_provider_reads_workspace_runs_from_manifest(self) -> None:
         workspace_artifacts = _workspace_artifacts()
