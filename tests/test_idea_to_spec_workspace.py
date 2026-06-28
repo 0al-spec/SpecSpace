@@ -1014,6 +1014,19 @@ def _product_repair_rerun_publication_report(
     }
 
 
+def _published_repaired_artifacts() -> list[str]:
+    return [
+        f"runs/{idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT}",
+    ]
+
+
 def _candidate_approval_decision() -> dict:
     return {
         "artifact_kind": "candidate_approval_decision",
@@ -1933,12 +1946,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
         ] = _product_repair_rerun_execution_report()
         publication = _product_repair_rerun_publication_report()
-        publication["published_artifacts"] = [
-            "runs/repaired_candidate_promotion_handoff_report.json",
-            "runs/repaired_active_idea_to_spec_candidate.json",
-            "runs/repaired_idea_to_spec_repair_session.json",
-            "runs/repaired_idea_to_spec_promotion_gate.json",
-        ]
+        publication["published_artifacts"] = _published_repaired_artifacts()
         artifacts[
             idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
         ] = publication
@@ -1984,6 +1992,140 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 "may_materialize_candidate_approval_decision"
             ]
         )
+
+    def test_repaired_handoff_selects_repaired_workspace_surface(self) -> None:
+        artifacts = _workspace_artifacts()
+        repaired_active = _active_candidate()
+        repaired_active["candidate"] = {
+            **repaired_active["candidate"],
+            "candidate_id": "local-subscription-control",
+            "display_name": "Local Subscription Control",
+            "public_route": "/local-subscription-control",
+        }
+        repaired_graph = {
+            **_candidate_graph(),
+            "active_frame": {
+                "project": "LocalSubscriptionControl",
+                "ontology_refs": ["ontology://specgraph-core"],
+                "domain_refs": ["domain.local_subscription_control"],
+                "context_refs": ["context.idea_to_spec"],
+            },
+            "nodes": [
+                {
+                    "id": "candidate-spec.subscription-product",
+                    "title": "Subscription Product",
+                    "kind": "product_boundary",
+                    "ontology_refs": ["ontology://specgraph-core#Spec"],
+                    "requirements": [{"id": "req.subscription.result"}],
+                    "acceptance_criteria": [{"id": "ac.subscription.result"}],
+                    "claims": [],
+                    "gaps": [],
+                }
+            ],
+            "edges": [],
+        }
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+        ] = repaired_active
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT
+        ] = repaired_graph
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT
+        ] = {
+            **_pre_sib(),
+            "readiness": {"ready": True, "review_state": "pre_sib_ready"},
+            "findings": [],
+        }
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = {
+            **_repair_loop(),
+            "readiness": {"ready": True, "review_state": "repair_preview_ready"},
+            "summary": {"context_required_count": 0},
+            "actions": [],
+        }
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT
+        ] = _materialization()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = _repaired_repair_session_journal()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workspace"]["id"], "local-subscription-control")
+        self.assertEqual(body["workspace"]["display_name"], "Local Subscription Control")
+        self.assertEqual(body["workspace"]["public_route"], "/local-subscription-control")
+        self.assertEqual(body["candidate_graph"]["source_mode"], "repaired_handoff")
+        self.assertEqual(
+            body["candidate_graph"]["active_frame"]["project"],
+            "LocalSubscriptionControl",
+        )
+        self.assertEqual(body["candidate_graph"]["summary"]["node_count"], 1)
+        self.assertEqual(
+            body["candidate_graph"]["nodes"][0]["id"],
+            "candidate-spec.subscription-product",
+        )
+        self.assertEqual(
+            body["repair_review"]["rerun_preview"]["candidate_quality_preview"][
+                "unresolved_ontology_gap_count"
+            ],
+            0,
+        )
+        self.assertEqual(body["summary"]["promotion_path_count"], 2)
+
+    def test_approval_readiness_requires_all_rendered_repaired_artifacts_published(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+        publication = _product_repair_rerun_publication_report()
+        publication["published_artifacts"] = [
+            artifact
+            for artifact in _published_repaired_artifacts()
+            if artifact
+            != f"runs/{idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT}"
+        ]
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = publication
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+        ] = _active_candidate()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT
+        ] = _candidate_graph()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = _repaired_repair_session_journal()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertFalse(readiness["repaired_artifacts_published"])
+        self.assertIn("repaired_artifacts_not_published", readiness["blockers"])
 
     def test_approval_readiness_allows_legacy_missing_rerun_reports(self) -> None:
         artifacts = _workspace_artifacts()
@@ -2050,12 +2192,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts = _workspace_artifacts()
         artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
         publication = _product_repair_rerun_publication_report()
-        publication["published_artifacts"] = [
-            "runs/repaired_candidate_promotion_handoff_report.json",
-            "runs/repaired_active_idea_to_spec_candidate.json",
-            "runs/repaired_idea_to_spec_repair_session.json",
-            "runs/repaired_idea_to_spec_promotion_gate.json",
-        ]
+        publication["published_artifacts"] = _published_repaired_artifacts()
         repaired_session = _repaired_repair_session_journal()
         repaired_session["readiness_impact"]["promotion_path_count"] = 0
         repaired_gate = _repaired_promotion_gate()

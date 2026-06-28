@@ -472,6 +472,81 @@ def _write_repair_draft_workspace_runs(
             },
         )
         _write_json(
+            runs_dir / idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT,
+            {
+                "artifact_kind": "candidate_spec_graph",
+                "schema_version": 1,
+                "readiness": {
+                    "ready": True,
+                    "review_state": "candidate_graph_ready",
+                    "blocked_by": [],
+                },
+                "nodes": [],
+                "edges": [],
+                "summary": {
+                    "candidate_id": "team-decision-log",
+                    "node_count": 0,
+                    "edge_count": 0,
+                },
+                "authority_boundary": {
+                    "may_mutate_canonical_specs": False,
+                    "may_write_ontology_package": False,
+                    "may_accept_ontology_terms": False,
+                },
+            },
+        )
+        _write_json(
+            runs_dir / idea_to_spec_workspace.REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT,
+            {
+                "artifact_kind": "pre_sib_coherence_report",
+                "schema_version": 1,
+                "readiness": {
+                    "ready": True,
+                    "review_state": "pre_sib_ready",
+                    "blocked_by": [],
+                },
+                "findings": [],
+                "summary": {"finding_count": 0},
+            },
+        )
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT,
+            {
+                "artifact_kind": "candidate_repair_loop_report",
+                "schema_version": 1,
+                "readiness": {
+                    "ready": True,
+                    "review_state": "repair_preview_ready",
+                    "blocked_by": [],
+                },
+                "actions": [],
+                "summary": {"context_required_count": 0},
+            },
+        )
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
+            {
+                "artifact_kind": "candidate_spec_materialization_report",
+                "schema_version": 1,
+                "readiness": {
+                    "ready": True,
+                    "review_state": "materialized_candidate_review_ready",
+                    "blocked_by": [],
+                },
+                "materialized_files": [
+                    {
+                        "promotion_path": (
+                            "runs/materialized_candidate_specs/"
+                            "CANDIDATE-TEAM-DECISION-LOG.yaml"
+                        )
+                    }
+                ],
+                "summary": {"materialized_file_count": 1},
+            },
+        )
+        _write_json(
             runs_dir
             / idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
             {
@@ -754,6 +829,13 @@ def _write_repair_draft_workspace_runs(
                             [
                                 "runs/repaired_candidate_promotion_handoff_report.json",
                                 "runs/repaired_active_idea_to_spec_candidate.json",
+                                "runs/repaired_candidate_spec_graph.json",
+                                "runs/repaired_pre_sib_coherence_report.json",
+                                "runs/repaired_candidate_repair_loop_report.json",
+                                (
+                                    "runs/"
+                                    "repaired_candidate_spec_materialization_report.json"
+                                ),
                                 "runs/repaired_idea_to_spec_repair_session.json",
                                 "runs/repaired_idea_to_spec_promotion_gate.json",
                             ]

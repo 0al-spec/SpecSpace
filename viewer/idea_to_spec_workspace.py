@@ -45,6 +45,14 @@ REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT = (
 REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT = (
     "repaired_active_idea_to_spec_candidate.json"
 )
+REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT = "repaired_candidate_spec_graph.json"
+REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT = "repaired_pre_sib_coherence_report.json"
+REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT = (
+    "repaired_candidate_repair_loop_report.json"
+)
+REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT = (
+    "repaired_candidate_spec_materialization_report.json"
+)
 REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT = (
     "repaired_idea_to_spec_repair_session.json"
 )
@@ -105,6 +113,10 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT,
     REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT,
     REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
+    REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT,
+    REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT,
+    REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT,
+    REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
     REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
     REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
 )
@@ -153,6 +165,12 @@ ARTIFACT_KEYS: dict[str, str] = {
     PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT: "product_repair_rerun_publication",
     REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT: "repaired_handoff",
     REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: "repaired_active_candidate",
+    REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT: "repaired_candidate_graph",
+    REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT: "repaired_pre_sib",
+    REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repaired_repair_loop",
+    REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: (
+        "repaired_materialization"
+    ),
     REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT: "repaired_repair_session",
     REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: "repaired_promotion_gate",
     CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_graph",
@@ -208,6 +226,12 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ),
     REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: (
         "active_idea_to_spec_candidate"
+    ),
+    REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT: "candidate_spec_graph",
+    REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT: "pre_sib_coherence_report",
+    REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "candidate_repair_loop_report",
+    REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: (
+        "candidate_spec_materialization_report"
     ),
     REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT: (
         "idea_to_spec_repair_session_journal"
@@ -1948,6 +1972,10 @@ def _publication_has_repaired_artifacts(
     required = {
         f"runs/{REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT}",
         f"runs/{REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT}",
+        f"runs/{REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT}",
+        f"runs/{REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT}",
+        f"runs/{REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT}",
+        f"runs/{REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT}",
         f"runs/{REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
         f"runs/{REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT}",
     }
@@ -3125,6 +3153,18 @@ def build_idea_to_spec_workspace(
     repaired_active_candidate = _artifact_data(
         artifacts, REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
     )
+    repaired_candidate_graph = _artifact_data(
+        artifacts, REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT
+    )
+    repaired_pre_sib = _artifact_data(
+        artifacts, REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT
+    )
+    repaired_repair_loop = _artifact_data(
+        artifacts, REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+    )
+    repaired_materialization = _artifact_data(
+        artifacts, REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT
+    )
     repaired_repair_session = _artifact_data(
         artifacts, REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
     )
@@ -3171,6 +3211,42 @@ def build_idea_to_spec_workspace(
         key: _artifact_status(artifacts, filename)
         for filename, key in ARTIFACT_KEYS.items()
     }
+    repaired_surface_selected = repaired_handoff is not None
+    selected_active_candidate = (
+        repaired_active_candidate
+        if repaired_surface_selected and repaired_active_candidate is not None
+        else active_candidate
+    )
+    selected_candidate_graph = (
+        repaired_candidate_graph
+        if repaired_surface_selected and repaired_candidate_graph is not None
+        else candidate_graph
+    )
+    selected_pre_sib = (
+        repaired_pre_sib
+        if repaired_surface_selected and repaired_pre_sib is not None
+        else pre_sib
+    )
+    selected_repair_loop = (
+        repaired_repair_loop
+        if repaired_surface_selected and repaired_repair_loop is not None
+        else repair_loop
+    )
+    selected_materialization = (
+        repaired_materialization
+        if repaired_surface_selected and repaired_materialization is not None
+        else materialization
+    )
+    selected_repair_session_journal = (
+        repaired_repair_session
+        if repaired_surface_selected and repaired_repair_session is not None
+        else repair_session_journal
+    )
+    selected_promotion_gate = (
+        repaired_promotion_gate
+        if repaired_surface_selected and repaired_promotion_gate is not None
+        else promotion_gate
+    )
     core_missing_artifact_count = sum(
         1
         for filename in CORE_WORKSPACE_RUN_ARTIFACTS
@@ -3188,16 +3264,16 @@ def build_idea_to_spec_workspace(
         status = "partial" if available_count else "unavailable"
     elif _ontology_seed_blocked(candidate_seed):
         status = "blocked"
-    elif promotion_gate is not None and not _readiness(promotion_gate)["ready"]:
+    elif selected_promotion_gate is not None and not _readiness(selected_promotion_gate)["ready"]:
         status = "blocked"
-    candidate_counts = _candidate_counts(candidate_graph)
+    candidate_counts = _candidate_counts(selected_candidate_graph)
     ontology_seed = _ontology_seed(candidate_seed)
-    pre_sib_findings = _findings(pre_sib)
-    repair_actions = _repair_actions(repair_loop)
-    repair_session = _repair_session(repair_session_journal)
+    pre_sib_findings = _findings(selected_pre_sib)
+    repair_actions = _repair_actions(selected_repair_loop)
+    repair_session = _repair_session(selected_repair_session_journal)
     if (
         status != "partial"
-        and repair_session_journal is not None
+        and selected_repair_session_journal is not None
         and (
             not repair_session["readiness_impact"]["ready_for_candidate_approval"]
             or not repair_session["readiness_impact"]["ready_for_platform_promotion"]
@@ -3205,7 +3281,7 @@ def build_idea_to_spec_workspace(
     ):
         status = "blocked"
     repair_review = _repair_review_lane(
-        repair_session=repair_session_journal,
+        repair_session=selected_repair_session_journal,
         clarification_requests=clarification_requests,
         clarification_answers=clarification_answers,
         ontology_decisions=ontology_decisions,
@@ -3215,9 +3291,9 @@ def build_idea_to_spec_workspace(
         product_repair_rerun_execution=product_repair_rerun_execution,
         product_repair_rerun_publication=product_repair_rerun_publication,
     )
-    materialized_files = _materialized_files(materialization)
-    promotion_gate_findings = _findings(promotion_gate)
-    promotion_request = _promotion_request(promotion_gate or materialization)
+    materialized_files = _materialized_files(selected_materialization)
+    promotion_gate_findings = _findings(selected_promotion_gate)
+    promotion_request = _promotion_request(selected_promotion_gate or selected_materialization)
     approval_readiness = _approval_readiness(
         active_candidate=active_candidate,
         repair_session=repair_session_journal,
@@ -3233,15 +3309,15 @@ def build_idea_to_spec_workspace(
     workflow = _workflow(
         statuses=statuses,
         core_missing_artifact_count=core_missing_artifact_count,
-        active_candidate=active_candidate,
+        active_candidate=selected_active_candidate,
         intake=intake,
         candidate_seed=candidate_seed,
-        candidate_graph=candidate_graph,
-        pre_sib=pre_sib,
-        repair_loop=repair_loop,
-        repair_session=repair_session_journal,
-        materialization=materialization,
-        promotion_gate=promotion_gate,
+        candidate_graph=selected_candidate_graph,
+        pre_sib=selected_pre_sib,
+        repair_loop=selected_repair_loop,
+        repair_session=selected_repair_session_journal,
+        materialization=selected_materialization,
+        promotion_gate=selected_promotion_gate,
         product_repair_rerun_execution=product_repair_rerun_execution,
         product_repair_rerun_publication=product_repair_rerun_publication,
         candidate_approval_execution=candidate_approval_execution,
@@ -3262,7 +3338,7 @@ def build_idea_to_spec_workspace(
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
         "source": source,
-        "workspace": _workspace(active_candidate),
+        "workspace": _workspace(selected_active_candidate),
         "summary": {
             "status": status,
             "available_artifact_count": available_count,
@@ -3286,21 +3362,21 @@ def build_idea_to_spec_workspace(
             ],
             "resolved_ontology_gap_count": (
                 repair_session["readiness_impact"]["resolved_ontology_gap_count"]
-                if repair_session_journal is not None
+                if selected_repair_session_journal is not None
                 else repair_review["rerun_preview"]["candidate_quality_preview"][
                     "resolved_ontology_gap_count"
                 ]
             ),
             "unresolved_ontology_gap_count": (
                 repair_session["readiness_impact"]["unresolved_ontology_gap_count"]
-                if repair_session_journal is not None
+                if selected_repair_session_journal is not None
                 else repair_review["rerun_preview"]["candidate_quality_preview"][
                     "unresolved_ontology_gap_count"
                 ]
             ),
             "rerun_removed_gap_count": (
                 repair_session["readiness_impact"]["rerun_removed_gap_count"]
-                if repair_session_journal is not None
+                if selected_repair_session_journal is not None
                 else len(
                     repair_review["rerun_materialization"]["delta"][
                         "removed_gap_ids"
@@ -3308,13 +3384,13 @@ def build_idea_to_spec_workspace(
                 )
             ),
             "repair_context_required_count": _number(
-                _record((repair_loop or {}).get("summary")).get(
+                _record((selected_repair_loop or {}).get("summary")).get(
                     "context_required_count"
                 )
             ),
-            "materialized_file_count": _materialized_file_count(materialization),
+            "materialized_file_count": _materialized_file_count(selected_materialization),
             "promotion_path_count": len(promotion_request["paths"]),
-            "promotion_gate_blocker_count": _finding_count(promotion_gate),
+            "promotion_gate_blocker_count": _finding_count(selected_promotion_gate),
             "git_service_operation_count": _number(
                 _record((git_service_execution or {}).get("summary")).get(
                     "operation_count"
@@ -3342,11 +3418,15 @@ def build_idea_to_spec_workspace(
                 "read_model_published"
             ],
             "next_artifact": _optional_text(
-                _record((promotion_gate or {}).get("readiness")).get("next_artifact")
-                or _record((materialization or {}).get("readiness")).get(
+                _record((selected_promotion_gate or {}).get("readiness")).get(
                     "next_artifact"
                 )
-                or _record((repair_loop or {}).get("readiness")).get("next_artifact")
+                or _record((selected_materialization or {}).get("readiness")).get(
+                    "next_artifact"
+                )
+                or _record((selected_repair_loop or {}).get("readiness")).get(
+                    "next_artifact"
+                )
             ),
         },
         "workflow": workflow,
@@ -3369,27 +3449,32 @@ def build_idea_to_spec_workspace(
             },
         },
         "candidate_graph": {
-            "available": candidate_graph is not None,
-            "active_frame": _active_frame((candidate_graph or {}).get("active_frame")),
+            "available": selected_candidate_graph is not None,
+            "source_mode": "repaired_handoff"
+            if repaired_surface_selected and repaired_candidate_graph is not None
+            else "standard",
+            "active_frame": _active_frame(
+                (selected_candidate_graph or {}).get("active_frame")
+            ),
             "summary": candidate_counts,
             "pre_sib_readiness": _record(
-                (candidate_graph or {}).get("pre_sib_readiness")
+                (selected_candidate_graph or {}).get("pre_sib_readiness")
             ),
-            "nodes": _candidate_nodes(candidate_graph),
+            "nodes": _candidate_nodes(selected_candidate_graph),
         },
         "ontology_seed": ontology_seed,
         "pre_sib": {
-            "available": pre_sib is not None,
-            "readiness": _readiness(pre_sib),
-            "metrics": _record((pre_sib or {}).get("metrics")),
+            "available": selected_pre_sib is not None,
+            "readiness": _readiness(selected_pre_sib),
+            "metrics": _record((selected_pre_sib or {}).get("metrics")),
             "findings": pre_sib_findings,
         },
         "repair_loop": {
-            "available": repair_loop is not None,
-            "readiness": _readiness(repair_loop),
-            "summary": _record((repair_loop or {}).get("summary")),
+            "available": selected_repair_loop is not None,
+            "readiness": _readiness(selected_repair_loop),
+            "summary": _record((selected_repair_loop or {}).get("summary")),
             "metric_delta_projection": _record(
-                (repair_loop or {}).get("metric_delta_projection")
+                (selected_repair_loop or {}).get("metric_delta_projection")
             ),
             "actions": repair_actions,
         },
@@ -3397,20 +3482,22 @@ def build_idea_to_spec_workspace(
         "repair_review": repair_review,
         "approval_readiness": approval_readiness,
         "materialization": {
-            "available": materialization is not None,
-            "readiness": _readiness(materialization),
-            "summary": _record((materialization or {}).get("summary")),
+            "available": selected_materialization is not None,
+            "readiness": _readiness(selected_materialization),
+            "summary": _record((selected_materialization or {}).get("summary")),
             "materialization_source": _optional_text(
-                (materialization or {}).get("materialization_source")
+                (selected_materialization or {}).get("materialization_source")
             ),
             "files": materialized_files,
-            "promotion_request": _promotion_request(materialization),
+            "promotion_request": _promotion_request(selected_materialization),
         },
         "promotion_gate": {
-            "available": promotion_gate is not None,
-            "readiness": _readiness(promotion_gate),
-            "summary": _record((promotion_gate or {}).get("summary")),
-            "metric_snapshot": _record((promotion_gate or {}).get("metric_snapshot")),
+            "available": selected_promotion_gate is not None,
+            "readiness": _readiness(selected_promotion_gate),
+            "summary": _record((selected_promotion_gate or {}).get("summary")),
+            "metric_snapshot": _record(
+                (selected_promotion_gate or {}).get("metric_snapshot")
+            ),
             "promotion_request": promotion_request,
             "findings": promotion_gate_findings,
         },
