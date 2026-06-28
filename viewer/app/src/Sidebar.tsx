@@ -6,13 +6,7 @@ import PanelBtn from "./PanelBtn";
 import { useToast } from "./Toast";
 import KindBadge from "./KindBadge";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faArrowUpRightFromSquare,
-  faArrowsRotate,
-  faGauge,
-  faMagnifyingGlassChart,
-  faXmark,
-} from "@fortawesome/free-solid-svg-icons";
+import { faArrowsRotate, faXmark, faGauge, faMagnifyingGlassChart } from "@fortawesome/free-solid-svg-icons";
 import type { GraphMode, SpecViewOptions, SpecLensMode } from "./types";
 import { LENS_LABELS } from "./specLens";
 
@@ -28,13 +22,6 @@ interface SpecEntry {
   kind: string;
   status: string;
   maturity: number | null;
-}
-
-interface ProductWorkspaceLink {
-  id: string;
-  displayName: string;
-  route: string;
-  source: "catalog" | "active";
 }
 
 interface SidebarProps {
@@ -66,51 +53,6 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024).toFixed(0)} KB`;
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-function asString(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value : null;
-}
-
-function normalizeProductWorkspaceLink(value: unknown, source: ProductWorkspaceLink["source"]): ProductWorkspaceLink | null {
-  const record = asRecord(value);
-  const id = asString(record.id);
-  const route = asString(record.route) ?? asString(record.public_route);
-  const displayName = asString(record.display_name) ?? id;
-  const surfaceMode = asString(record.surface_mode);
-  const workflowLane = asString(record.workflow_lane);
-  if (!id || !route || !displayName) {
-    return null;
-  }
-  if (surfaceMode && surfaceMode !== "product_idea_to_spec") {
-    return null;
-  }
-  if (workflowLane && workflowLane !== "product_idea_to_spec") {
-    return null;
-  }
-  if (!route.startsWith("/") || route === "/") {
-    return null;
-  }
-  return { id, displayName, route, source };
-}
-
-function mergeProductWorkspaceLinks(links: ProductWorkspaceLink[]): ProductWorkspaceLink[] {
-  const byId = new Map<string, ProductWorkspaceLink>();
-  for (const link of links) {
-    const existing = byId.get(link.id);
-    if (!existing || existing.source === "catalog") {
-      byId.set(link.id, link);
-    }
-  }
-  return Array.from(byId.values()).sort((left, right) =>
-    left.displayName.localeCompare(right.displayName),
-  );
-}
-
 export default function Sidebar({
   onSelectFile,
   selectedFile,
@@ -132,7 +74,6 @@ export default function Sidebar({
 }: SidebarProps) {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [specNodes, setSpecNodes] = useState<SpecEntry[]>([]);
-  const [productWorkspaces, setProductWorkspaces] = useState<ProductWorkspaceLink[]>([]);
   const [dialogDir, setDialogDir] = useState("");
   const [specDir, setSpecDir] = useState("");
   const [loading, setLoading] = useState(true);
@@ -179,34 +120,6 @@ export default function Sidebar({
     }
   }, [specAvailable]);
 
-  const fetchProductWorkspaces = useCallback(async () => {
-    const links: ProductWorkspaceLink[] = [];
-    try {
-      const res = await fetch("/api/v1/workspaces");
-      if (res.ok) {
-        const data = asRecord(await res.json());
-        const workspaces = Array.isArray(data.workspaces) ? data.workspaces : [];
-        for (const workspace of workspaces) {
-          const link = normalizeProductWorkspaceLink(workspace, "catalog");
-          if (link) links.push(link);
-        }
-      }
-    } catch {
-      // Sidebar navigation remains optional when the catalog is unavailable.
-    }
-    try {
-      const res = await fetch("/api/v1/idea-to-spec-workspace");
-      if (res.ok) {
-        const data = asRecord(await res.json());
-        const workspace = normalizeProductWorkspaceLink(data.workspace, "active");
-        if (workspace) links.push(workspace);
-      }
-    } catch {
-      // Active candidate route is best-effort only.
-    }
-    setProductWorkspaces(mergeProductWorkspaceLinks(links));
-  }, []);
-
   useEffect(() => {
     if (graphMode === "conversations") {
       fetchFiles();
@@ -215,21 +128,15 @@ export default function Sidebar({
     }
   }, [graphMode, fetchFiles, fetchSpecNodes]);
 
-  useEffect(() => {
-    fetchProductWorkspaces();
-  }, [fetchProductWorkspaces]);
-
   const handleRefresh = useCallback(() => {
     if (graphMode === "conversations") {
       fetchFiles();
-      fetchProductWorkspaces();
       onRefresh?.();
     } else {
       fetchSpecNodes();
-      fetchProductWorkspaces();
       onRefresh?.();
     }
-  }, [graphMode, fetchFiles, fetchProductWorkspaces, fetchSpecNodes, onRefresh]);
+  }, [graphMode, fetchFiles, fetchSpecNodes, onRefresh]);
 
   const handleModeChange = useCallback(
     (mode: GraphMode) => {
@@ -460,22 +367,6 @@ export default function Sidebar({
             <div className="sidebar-workspace-stats">
               {itemCount} {itemLabel}
             </div>
-            {productWorkspaces.length > 0 && (
-              <div className="sidebar-product-workspaces">
-                <div className="sidebar-section-label">PRODUCT ROUTES</div>
-                {productWorkspaces.map((workspace) => (
-                  <a
-                    key={workspace.id}
-                    className="sidebar-product-workspace-link"
-                    href={workspace.route}
-                    title={`Open ${workspace.displayName}`}
-                  >
-                    <span>{workspace.displayName}</span>
-                    <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
-                  </a>
-                ))}
-              </div>
-            )}
           </div>
 
           {graphMode === "conversations" && (
