@@ -1731,13 +1731,18 @@ function ControlledPromotionSection({
   state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
 }) {
   const promotion = state.data.controlledPromotion;
+  const approvalExecution = promotion.candidateApprovalExecution;
   const approval = promotion.candidateApproval;
   const request = promotion.platformRequest;
   const execution = promotion.gitServiceExecution;
   const reviewStatus = promotion.reviewStatus;
   const readModel = promotion.readModelPublication;
   const finalization = promotion.promotionFinalization;
-  const operationCount = execution.operations.length + finalization.operations.length;
+  const gitOperationCount =
+    execution.operations.length + finalization.operations.length;
+  const operationCount =
+    approvalExecution.operations.length +
+    gitOperationCount;
   return (
     <section className={styles.reviewSection}>
       <SectionHeader
@@ -1749,6 +1754,41 @@ function ControlledPromotionSection({
         <PostureItem label="Execute" value={boolText(promotion.actionBoundary.mayExecuteGitService)} />
         <PostureItem label="Commit" value={boolText(promotion.actionBoundary.mayCreateBranchOrCommit)} />
         <PostureItem label="Merge" value={boolText(promotion.actionBoundary.mayMergeReview)} />
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Candidate approval execution</span>
+          <Pill
+            value={
+              approvalExecution.available
+                ? !approvalExecution.ok
+                  ? "blocked"
+                  : approvalExecution.dryRun
+                    ? "dry_run"
+                    : "ok"
+                : "missing"
+            }
+          />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Status" value={approvalExecution.status} />
+          <Meta label="Candidate" value={approvalExecution.candidateId} />
+          <Meta label="Workspace" value={approvalExecution.workspaceId} />
+          <Meta label="Gate ready" value={boolText(approvalExecution.gateReady)} />
+          <Meta
+            label="Decision written"
+            value={boolText(approvalExecution.decisionWritten)}
+          />
+          <Meta label="Dry run" value={boolText(approvalExecution.dryRun)} />
+          <Meta label="Approved paths" value={String(approvalExecution.approvedPathCount)} />
+          <Meta label="Gate report" value={approvalExecution.gateReportRef} />
+          <Meta
+            label="Decision ref"
+            value={approvalExecution.candidateApprovalDecisionRef}
+          />
+          <Meta label="Intent" value={approvalExecution.approvalIntentRef} />
+          <Meta label="Errors" value={String(approvalExecution.errorCount)} />
+        </div>
       </div>
       <div className={styles.row}>
         <div className={styles.rowHeader}>
@@ -1823,12 +1863,30 @@ function ControlledPromotionSection({
           <Meta label="Errors" value={String(readModel.errorCount + finalization.errorCount)} />
         </div>
       </div>
-      {operationCount === 0 ? (
+      {gitOperationCount === 0 ? (
         <Status
           label="No Git Service execution"
           detail="Promotion can be inspected here after Platform publishes the execution report."
         />
       ) : null}
+      {approvalExecution.operations.map((operation) => (
+        <div key={`candidate-approval.${operation.name}`} className={styles.subRow}>
+          <span>{operation.name}</span>
+          <Pill value={operation.status} />
+          <span className={styles.statusDetail}>
+            {compact(operation.reason, joined(operation.evidence))}
+          </span>
+        </div>
+      ))}
+      {approvalExecution.outputArtifacts.map((artifact) => (
+        <div key={`candidate-approval-artifact.${artifact.key}`} className={styles.subRow}>
+          <span>{artifact.key}</span>
+          <Pill value={artifact.ready ? "ready" : artifact.present ? "present" : "missing"} />
+          <span className={styles.statusDetail}>
+            {artifact.path ?? compact(artifact.artifactKind)}
+          </span>
+        </div>
+      ))}
       {execution.operations.map((operation) => (
         <GitServiceOperationRow key={operation.name} operation={operation} />
       ))}

@@ -34,13 +34,16 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.summary.reviewMerged).toBe(false);
     expect(parsed.data.summary.readModelPublished).toBe(false);
     expect(parsed.data.workflow.stage).toBe("repair_required");
-    expect(parsed.data.workflow.items).toHaveLength(15);
+    expect(parsed.data.workflow.items).toHaveLength(16);
     expect(parsed.data.workflow.items[2].id).toBe("ontology_seed");
     expect(parsed.data.workflow.items[6].id).toBe(
       "product_repair_rerun_execution",
     );
     expect(parsed.data.workflow.items[7].id).toBe(
       "product_repair_rerun_publication",
+    );
+    expect(parsed.data.workflow.items[10].id).toBe(
+      "candidate_approval_execution",
     );
     expect(parsed.data.workflow.nextHandoff.kind).toBe("operator_repair_review");
     expect(parsed.data.workflow.nextHandoff.authorityBoundary).toBe("operator_only");
@@ -115,6 +118,17 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.controlledPromotion.platformRequest.candidateBranch).toBe(
       "graph-candidate/idea-alpha",
     );
+    expect(
+      parsed.data.controlledPromotion.candidateApprovalExecution.status,
+    ).toBe("candidate_approval_materialized");
+    expect(
+      parsed.data.controlledPromotion.candidateApprovalExecution
+        .decisionWritten,
+    ).toBe(true);
+    expect(
+      parsed.data.controlledPromotion.candidateApprovalExecution.operations[1]
+        .status,
+    ).toBe("succeeded");
     expect(parsed.data.controlledPromotion.candidateApproval.decisionState).toBe(
       "approved",
     );

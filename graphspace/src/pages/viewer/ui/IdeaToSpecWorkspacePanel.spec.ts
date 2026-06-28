@@ -86,6 +86,9 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("SpecSpace-owned candidate approval intent state");
     expect(html).toContain("Controlled promotion");
     expect(html).toContain("Platform promotion request");
+    expect(html).toContain("Candidate approval execution");
+    expect(html).toContain("candidate_approval_materialized");
+    expect(html).toContain("materialize_candidate_approval_decision");
     expect(html).toContain("Candidate approval");
     expect(html).toContain("candidate_approval_ready");
     expect(html).toContain("operator://workspace-owner");
@@ -105,5 +108,31 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).not.toContain("Apply to SpecGraph");
     expect(html).not.toContain("Accept ontology term");
     expect(html).not.toContain("Create branch");
+  });
+
+  it("renders failed dry-run approval execution as blocked", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.controlled_promotion.candidate_approval_execution.ok = false;
+    raw.controlled_promotion.candidate_approval_execution.dry_run = true;
+    raw.controlled_promotion.candidate_approval_execution.status =
+      "candidate_approval_blocked";
+    const parsedBlocked = parseIdeaToSpecWorkspace(raw);
+    if (parsedBlocked.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedBlocked.data },
+      }),
+    );
+    const approvalExecutionStart = html.indexOf("Candidate approval execution");
+    const approvalExecutionSnippet = html.slice(
+      approvalExecutionStart,
+      approvalExecutionStart + 240,
+    );
+
+    expect(approvalExecutionSnippet).toContain("blocked");
+    expect(approvalExecutionSnippet).not.toContain("dry_run");
   });
 });
