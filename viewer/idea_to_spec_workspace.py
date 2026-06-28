@@ -1972,6 +1972,10 @@ def _publication_has_repaired_artifacts(
     required = {
         f"runs/{REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT}",
         f"runs/{REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT}",
+        f"runs/{REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT}",
+        f"runs/{REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT}",
+        f"runs/{REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT}",
+        f"runs/{REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT}",
         f"runs/{REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
         f"runs/{REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT}",
     }
@@ -3277,7 +3281,7 @@ def build_idea_to_spec_workspace(
     ):
         status = "blocked"
     repair_review = _repair_review_lane(
-        repair_session=repair_session_journal,
+        repair_session=selected_repair_session_journal,
         clarification_requests=clarification_requests,
         clarification_answers=clarification_answers,
         ontology_decisions=ontology_decisions,

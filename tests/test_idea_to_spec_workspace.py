@@ -1014,6 +1014,19 @@ def _product_repair_rerun_publication_report(
     }
 
 
+def _published_repaired_artifacts() -> list[str]:
+    return [
+        f"runs/{idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
+        f"runs/{idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT}",
+    ]
+
+
 def _candidate_approval_decision() -> dict:
     return {
         "artifact_kind": "candidate_approval_decision",
@@ -1933,12 +1946,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
         ] = _product_repair_rerun_execution_report()
         publication = _product_repair_rerun_publication_report()
-        publication["published_artifacts"] = [
-            "runs/repaired_candidate_promotion_handoff_report.json",
-            "runs/repaired_active_idea_to_spec_candidate.json",
-            "runs/repaired_idea_to_spec_repair_session.json",
-            "runs/repaired_idea_to_spec_promotion_gate.json",
-        ]
+        publication["published_artifacts"] = _published_repaired_artifacts()
         artifacts[
             idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
         ] = publication
@@ -2068,7 +2076,56 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["candidate_graph"]["nodes"][0]["id"],
             "candidate-spec.subscription-product",
         )
+        self.assertEqual(
+            body["repair_review"]["rerun_preview"]["candidate_quality_preview"][
+                "unresolved_ontology_gap_count"
+            ],
+            0,
+        )
         self.assertEqual(body["summary"]["promotion_path_count"], 2)
+
+    def test_approval_readiness_requires_all_rendered_repaired_artifacts_published(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+        publication = _product_repair_rerun_publication_report()
+        publication["published_artifacts"] = [
+            artifact
+            for artifact in _published_repaired_artifacts()
+            if artifact
+            != f"runs/{idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT}"
+        ]
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = publication
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+        ] = _active_candidate()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT
+        ] = _candidate_graph()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = _repaired_repair_session_journal()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertFalse(readiness["repaired_artifacts_published"])
+        self.assertIn("repaired_artifacts_not_published", readiness["blockers"])
 
     def test_approval_readiness_allows_legacy_missing_rerun_reports(self) -> None:
         artifacts = _workspace_artifacts()
@@ -2135,12 +2192,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts = _workspace_artifacts()
         artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
         publication = _product_repair_rerun_publication_report()
-        publication["published_artifacts"] = [
-            "runs/repaired_candidate_promotion_handoff_report.json",
-            "runs/repaired_active_idea_to_spec_candidate.json",
-            "runs/repaired_idea_to_spec_repair_session.json",
-            "runs/repaired_idea_to_spec_promotion_gate.json",
-        ]
+        publication["published_artifacts"] = _published_repaired_artifacts()
         repaired_session = _repaired_repair_session_journal()
         repaired_session["readiness_impact"]["promotion_path_count"] = 0
         repaired_gate = _repaired_promotion_gate()
