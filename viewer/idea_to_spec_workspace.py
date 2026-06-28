@@ -60,6 +60,9 @@ PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT = (
 )
 CANDIDATE_APPROVAL_DECISION_ARTIFACT = "candidate_approval_decision.json"
 GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT = "graph_repository_promotion_request.json"
+PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT = (
+    "product_candidate_promotion_execution_report.json"
+)
 GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT = (
     "git_service_promotion_execution_report.json"
 )
@@ -103,6 +106,7 @@ PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
     PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT,
     CANDIDATE_APPROVAL_DECISION_ARTIFACT,
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT,
+    PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
     GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT,
     GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT,
@@ -151,6 +155,7 @@ ARTIFACT_KEYS: dict[str, str] = {
     PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT: "candidate_approval_execution",
     CANDIDATE_APPROVAL_DECISION_ARTIFACT: "candidate_approval",
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: "platform_promotion_request",
+    PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT: "product_promotion_execution",
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: "git_service_execution",
     GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT: "review_status",
     GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT: "read_model_publication",
@@ -207,6 +212,9 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     CANDIDATE_APPROVAL_DECISION_ARTIFACT: "candidate_approval_decision",
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: (
         "platform_graph_repository_promotion_request"
+    ),
+    PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT: (
+        "platform_product_candidate_promotion_execution_report"
     ),
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: (
         "platform_git_service_promotion_execution_report"
@@ -440,6 +448,30 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "git service authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT:
+        if value.get("workflow_lane") != "product_idea_to_spec":
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "product promotion execution workflow_lane must be product_idea_to_spec.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        authority_boundary = _record(value.get("authority_boundary"))
+        allowed_true_flags = {
+            "controlled_git_service_execution",
+            "creates_candidate_worktree_or_branch",
+            "creates_candidate_commit",
+            "opens_pull_requests",
+        }
+        if any(
+            flag is True and key not in allowed_true_flags
+            for key, flag in authority_boundary.items()
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "product promotion execution may only claim controlled Git review authority.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
@@ -1503,6 +1535,56 @@ def _git_service_execution(report: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def _product_promotion_execution(report: dict[str, Any] | None) -> dict[str, Any]:
+    summary = _record((report or {}).get("summary"))
+    git_review = _record((report or {}).get("git_review"))
+    git_service_execution = _record((report or {}).get("git_service_execution"))
+    operations = _product_repair_rerun_operations(report)
+    return {
+        "available": report is not None,
+        "ok": (report or {}).get("ok") is True,
+        "dry_run": (report or {}).get("dry_run") is True,
+        "open_review_dry_run": (report or {}).get("open_review_dry_run") is True,
+        "status": _optional_text(summary.get("status")),
+        "candidate_id": _optional_text((report or {}).get("candidate_id")),
+        "candidate_branch": _optional_text((report or {}).get("candidate_branch"))
+        or _optional_text(git_review.get("candidate_branch")),
+        "workspace_dir": _optional_text((report or {}).get("workspace_dir"))
+        or _optional_text(git_review.get("worktree_dir")),
+        "repository_dir": _optional_text((report or {}).get("repository_dir")),
+        "materialized_source_dir": _optional_text(
+            (report or {}).get("materialized_source_dir")
+        ),
+        "promotion_request_ref": _optional_text(
+            (report or {}).get("promotion_request_ref")
+        ),
+        "approval_decision_ref": _optional_text(
+            (report or {}).get("approval_decision_ref")
+        ),
+        "git_service_execution_report_ref": _optional_text(
+            (report or {}).get("git_service_execution_report_ref")
+        ),
+        "commit_sha": _optional_text(git_review.get("commit_sha")),
+        "review_url": _optional_text(git_review.get("review_url")),
+        "review_number": _number(git_review.get("review_number")),
+        "review_opened": git_review.get("review_opened") is True,
+        "worktree_prepared": summary.get("worktree_prepared") is True,
+        "commit_created": summary.get("commit_created") is True,
+        "copied_file_count": _number(git_review.get("copied_file_count")),
+        "child_operation_count": _number(summary.get("child_operation_count")),
+        "completed_operation_count": sum(
+            1
+            for operation in _records(git_service_execution.get("operations"))
+            if operation.get("status") in {"succeeded", "dry_run"}
+        ),
+        "error_count": _number(summary.get("error_count"))
+        or len(_records((report or {}).get("diagnostics"))),
+        "operations": operations,
+        "git_service_operations": _git_service_operations(git_service_execution),
+        "child_report_refs": _record((report or {}).get("child_report_refs")),
+    }
+
+
 def _review_status(report: dict[str, Any] | None) -> dict[str, Any]:
     summary = _record((report or {}).get("summary"))
     return {
@@ -1952,6 +2034,7 @@ def _workflow(
     candidate_approval_execution: dict[str, Any] | None,
     candidate_approval: dict[str, Any] | None,
     platform_promotion: dict[str, Any] | None,
+    product_promotion_execution: dict[str, Any] | None,
     git_service_execution: dict[str, Any] | None,
     review_status: dict[str, Any] | None,
     read_model_publication: dict[str, Any] | None,
@@ -2011,11 +2094,32 @@ def _workflow(
         and approval_readiness.get("ready") is True
         and approval_decision.get("state") == "approved"
     )
+    product_promotion_execution_view = _product_promotion_execution(
+        product_promotion_execution
+    )
     git_summary = _record((git_service_execution or {}).get("summary"))
     git_error_count = _number(git_summary.get("error_count"))
-    git_ok = (git_service_execution or {}).get("ok") is True
-    git_open_review_dry_run = (
+    legacy_git_ok = (git_service_execution or {}).get("ok") is True
+    legacy_git_open_review_dry_run = (
         (git_service_execution or {}).get("open_review_dry_run") is True
+    )
+    promotion_execution_available = (
+        product_promotion_execution is not None or git_service_execution is not None
+    )
+    promotion_execution_ok = (
+        product_promotion_execution_view["ok"]
+        if product_promotion_execution is not None
+        else legacy_git_ok
+    )
+    promotion_execution_error_count = (
+        product_promotion_execution_view["error_count"]
+        if product_promotion_execution is not None
+        else git_error_count
+    )
+    promotion_execution_open_review_dry_run = (
+        product_promotion_execution_view["open_review_dry_run"]
+        if product_promotion_execution is not None
+        else legacy_git_open_review_dry_run
     )
     promotion_gate_blocked = (
         promotion_gate is not None
@@ -2026,7 +2130,9 @@ def _workflow(
         )
     )
     platform_failed = platform_promotion is not None and not platform_ok
-    git_service_failed = git_service_execution is not None and not git_ok
+    promotion_execution_failed = (
+        promotion_execution_available and not promotion_execution_ok
+    )
     approval_failed = candidate_approval is not None and not approval_ready
     journal_blocks_candidate_approval = (
         repair_session is not None
@@ -2233,19 +2339,39 @@ def _workflow(
             detail=_optional_text((platform_promotion or {}).get("candidate_branch")),
         ),
         _workflow_item(
+            item_id="product_promotion_execution",
+            label="Product promotion execution",
+            status=_available_status(
+                statuses,
+                "product_promotion_execution",
+                product_promotion_execution_view["ok"]
+                and product_promotion_execution_view["error_count"] == 0,
+                blocked=product_promotion_execution is not None
+                and not product_promotion_execution_view["ok"],
+                dry_run=product_promotion_execution_view["open_review_dry_run"]
+                or product_promotion_execution_view["dry_run"],
+            ),
+            artifact_key=PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+            detail=(
+                "open_review_dry_run"
+                if product_promotion_execution_view["open_review_dry_run"]
+                else _optional_text(product_promotion_execution_view["candidate_branch"])
+            ),
+        ),
+        _workflow_item(
             item_id="git_service_execution",
             label="Git Service execution",
             status=_available_status(
                 statuses,
                 "git_service_execution",
-                git_ok and git_error_count == 0,
-                blocked=git_service_execution is not None and not git_ok,
-                dry_run=git_ok and git_open_review_dry_run,
+                legacy_git_ok and git_error_count == 0,
+                blocked=git_service_execution is not None and not legacy_git_ok,
+                dry_run=legacy_git_ok and legacy_git_open_review_dry_run,
             ),
             artifact_key=GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
             detail=(
                 "open_review_dry_run"
-                if git_open_review_dry_run
+                if legacy_git_open_review_dry_run
                 else _optional_text((git_service_execution or {}).get("candidate_ref"))
             ),
         ),
@@ -2479,17 +2605,40 @@ def _workflow(
             "command_template": None,
             "authority_boundary": "operator_only",
         }
-    elif git_service_failed:
-        stage = "git_service_execution_failed"
+    elif promotion_execution_failed:
+        product_execution_available = product_promotion_execution is not None
+        stage = (
+            "product_promotion_execution_failed"
+            if product_execution_available
+            else "git_service_execution_failed"
+        )
         status = "blocked"
         next_handoff = {
-            "kind": "git_service_execution_repair",
-            "label": "Repair the Git Service execution report before continuing",
+            "kind": (
+                "product_promotion_execution_repair"
+                if product_execution_available
+                else "git_service_execution_repair"
+            ),
+            "label": (
+                "Repair the Product Promotion execution report before continuing"
+                if product_execution_available
+                else "Repair the Git Service execution report before continuing"
+            ),
             "status": "blocked",
-            "artifact_key": "git_service_execution",
-            "artifact_path": f"runs/{GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT}",
+            "artifact_key": (
+                "product_promotion_execution"
+                if product_execution_available
+                else "git_service_execution"
+            ),
+            "artifact_path": (
+                f"runs/{PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT}"
+                if product_execution_available
+                else f"runs/{GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT}"
+            ),
             "command_template": (
-                "scripts/platform.py git-service execute-promotion <inputs>"
+                "scripts/platform.py product-candidate-promotion execute <inputs>"
+                if product_execution_available
+                else "scripts/platform.py git-service execute-promotion <inputs>"
             ),
             "authority_boundary": "operator_only",
         }
@@ -2505,17 +2654,17 @@ def _workflow(
             "command_template": "scripts/platform.py graph-repository promotion-request <inputs>",
             "authority_boundary": "operator_only",
         }
-    elif platform_ok and approval_ready and git_service_execution is None:
-        stage = "git_service_ready"
+    elif platform_ok and approval_ready and not promotion_execution_available:
+        stage = "product_promotion_execution_ready"
         status = "ready_for_handoff"
         next_handoff = {
-            "kind": "git_service_execute_promotion",
-            "label": "Run Git Service promotion execution",
+            "kind": "product_candidate_promotion_execute",
+            "label": "Run product candidate promotion execution",
             "status": "ready",
             "artifact_key": "platform_promotion_request",
             "artifact_path": f"runs/{GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT}",
             "command_template": (
-                "scripts/platform.py git-service execute-promotion "
+                "scripts/platform.py product-candidate-promotion execute "
                 "--promotion-request runs/graph_repository_promotion_request.json "
                 "--approval-decision runs/candidate_approval_decision.json "
                 "--repository-dir <product-repository> "
@@ -2525,17 +2674,19 @@ def _workflow(
             ),
             "authority_boundary": "operator_only",
         }
-    elif git_ok and git_open_review_dry_run:
+    elif promotion_execution_ok and promotion_execution_open_review_dry_run:
         stage = "review_dry_run_ready"
         status = "operator_review_required"
         next_handoff = {
-            "kind": "git_service_open_review",
+            "kind": "product_candidate_promotion_open_review",
             "label": "Approve non-dry-run review creation",
             "status": "operator_review_required",
-            "artifact_key": "git_service_execution",
-            "artifact_path": f"runs/{GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT}",
+            "artifact_key": "product_promotion_execution",
+            "artifact_path": (
+                f"runs/{PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT}"
+            ),
             "command_template": (
-                "scripts/platform.py git-service execute-promotion "
+                "scripts/platform.py product-candidate-promotion execute "
                 "--promotion-request runs/graph_repository_promotion_request.json "
                 "--approval-decision runs/candidate_approval_decision.json "
                 "--repository-dir <product-repository> "
@@ -2544,15 +2695,22 @@ def _workflow(
             ),
             "authority_boundary": "operator_only",
         }
-    elif git_ok and review_status is None and promotion_finalization is None:
+    elif (
+        promotion_execution_ok
+        and promotion_execution_error_count == 0
+        and review_status is None
+        and promotion_finalization is None
+    ):
         stage = "review_status_required"
         status = "ready_for_handoff"
         next_handoff = {
             "kind": "git_service_review_status",
             "label": "Inspect review status before read-model publish",
             "status": "ready",
-            "artifact_key": "git_service_execution",
-            "artifact_path": f"runs/{GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT}",
+            "artifact_key": "product_promotion_execution",
+            "artifact_path": (
+                f"runs/{PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT}"
+            ),
             "command_template": "scripts/platform.py graph-repository review-status <open-review-report>",
             "authority_boundary": "operator_only",
         }
@@ -2697,6 +2855,9 @@ def build_idea_to_spec_workspace(
     platform_promotion = _artifact_data(
         artifacts, GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT
     )
+    product_promotion_execution = _artifact_data(
+        artifacts, PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+    )
     git_service_execution = _artifact_data(
         artifacts, GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
     )
@@ -2789,6 +2950,7 @@ def build_idea_to_spec_workspace(
         candidate_approval_execution=candidate_approval_execution,
         candidate_approval=candidate_approval,
         platform_promotion=platform_promotion,
+        product_promotion_execution=product_promotion_execution,
         git_service_execution=git_service_execution,
         review_status=review_status,
         read_model_publication=read_model_publication,
@@ -2957,6 +3119,7 @@ def build_idea_to_spec_workspace(
         },
         "controlled_promotion": {
             "available": platform_promotion is not None
+            or product_promotion_execution is not None
             or git_service_execution is not None
             or candidate_approval_execution is not None
             or candidate_approval is not None
@@ -2968,6 +3131,9 @@ def build_idea_to_spec_workspace(
             ),
             "candidate_approval": _candidate_approval_decision(candidate_approval),
             "platform_request": _platform_promotion_request(platform_promotion),
+            "product_promotion_execution": _product_promotion_execution(
+                product_promotion_execution
+            ),
             "git_service_execution": _git_service_execution(git_service_execution),
             "review_status": _review_status(review_status),
             "read_model_publication": _read_model_publication(

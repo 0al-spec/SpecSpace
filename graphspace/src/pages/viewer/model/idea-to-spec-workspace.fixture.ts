@@ -25,7 +25,7 @@ export const ideaToSpecWorkspace = {
   },
   summary: {
     status: "blocked",
-    available_artifact_count: 16,
+    available_artifact_count: 17,
     missing_artifact_count: 0,
     candidate_node_count: 2,
     candidate_edge_count: 1,
@@ -159,6 +159,14 @@ export const ideaToSpecWorkspace = {
         artifact_key: "graph_repository_promotion_request.json",
         artifact_path: "runs/graph_repository_promotion_request.json",
         detail: "graph-candidate/idea-alpha",
+      },
+      {
+        id: "product_promotion_execution",
+        label: "Product promotion execution",
+        status: "dry_run",
+        artifact_key: "product_candidate_promotion_execution_report.json",
+        artifact_path: "runs/product_candidate_promotion_execution_report.json",
+        detail: "open_review_dry_run",
       },
       {
         id: "git_service_execution",
@@ -1021,6 +1029,72 @@ export const ideaToSpecWorkspace = {
         promotion_ready: true,
       },
     },
+    product_promotion_execution: {
+      available: true,
+      ok: true,
+      dry_run: false,
+      open_review_dry_run: true,
+      status: "completed",
+      candidate_id: "idea-alpha",
+      candidate_branch: "graph-candidate/idea-alpha",
+      workspace_dir: ".platform/candidates/idea-alpha-worktree",
+      repository_dir: "../SpecGraph",
+      materialized_source_dir: "runs/materialized_candidate_specs",
+      promotion_request_ref: "runs/graph_repository_promotion_request.json",
+      approval_decision_ref: "runs/candidate_approval_decision.json",
+      git_service_execution_report_ref:
+        "runs/git_service_promotion_execution_report.json",
+      commit_sha: "abc1234",
+      review_url: null,
+      review_number: 0,
+      review_opened: false,
+      worktree_prepared: true,
+      commit_created: true,
+      copied_file_count: 1,
+      child_operation_count: 3,
+      completed_operation_count: 3,
+      error_count: 0,
+      operations: [
+        {
+          name: "validate_product_promotion_handoff",
+          status: "ready",
+          reason: "promotion request and candidate approval decision are valid",
+          evidence: [
+            "runs/graph_repository_promotion_request.json",
+            "runs/candidate_approval_decision.json",
+          ],
+        },
+        {
+          name: "execute_git_service_promotion",
+          status: "succeeded",
+          reason: "Git Service promotion executor completed",
+          evidence: ["git-service execute-promotion"],
+        },
+        {
+          name: "publish_read_model",
+          status: "blocked_until_review_merge",
+          reason: "read model publication is a separate post-review step",
+          evidence: ["git-service finalize-promotion"],
+        },
+      ],
+      git_service_operations: [
+        {
+          name: "prepare_worktree",
+          status: "succeeded",
+          request_artifact_kind: "platform_git_service_prepare_worktree_request",
+          response_artifact_kind: "platform_git_service_prepare_worktree_response",
+          report_ref:
+            ".platform/candidates/idea-alpha-worktree/.platform/graph_repository_worktree_prepare_report.json",
+          diagnostic_count: 0,
+        },
+      ],
+      child_report_refs: {
+        prepare_worktree:
+          ".platform/candidates/idea-alpha-worktree/.platform/graph_repository_worktree_prepare_report.json",
+        commit_candidate:
+          ".platform/candidates/idea-alpha-worktree/.platform/graph_repository_review_commit_report.json",
+      },
+    },
     git_service_execution: {
       available: true,
       ok: true,
@@ -1261,6 +1335,14 @@ export const ideaToSpecWorkspace = {
       path: "runs/graph_repository_promotion_request.json",
       artifact_kind: "platform_graph_repository_promotion_request",
       status: null,
+      proposal_id: null,
+      contract_ref: null,
+    },
+    product_promotion_execution: {
+      available: true,
+      path: "runs/product_candidate_promotion_execution_report.json",
+      artifact_kind: "platform_product_candidate_promotion_execution_report",
+      status: "completed",
       proposal_id: null,
       contract_ref: null,
     },

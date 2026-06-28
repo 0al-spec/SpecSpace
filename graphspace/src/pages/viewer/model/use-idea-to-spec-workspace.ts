@@ -212,6 +212,35 @@ export type IdeaToSpecGitServiceExecution = {
   reportRefs: Record<string, unknown>;
 };
 
+export type IdeaToSpecProductPromotionExecution = {
+  available: boolean;
+  ok: boolean;
+  dryRun: boolean;
+  openReviewDryRun: boolean;
+  status: string | null;
+  candidateId: string | null;
+  candidateBranch: string | null;
+  workspaceDir: string | null;
+  repositoryDir: string | null;
+  materializedSourceDir: string | null;
+  promotionRequestRef: string | null;
+  approvalDecisionRef: string | null;
+  gitServiceExecutionReportRef: string | null;
+  commitSha: string | null;
+  reviewUrl: string | null;
+  reviewNumber: number;
+  reviewOpened: boolean;
+  worktreePrepared: boolean;
+  commitCreated: boolean;
+  copiedFileCount: number;
+  childOperationCount: number;
+  completedOperationCount: number;
+  errorCount: number;
+  operations: readonly IdeaToSpecProductRepairRerunOperation[];
+  gitServiceOperations: readonly IdeaToSpecGitServiceOperation[];
+  childReportRefs: Record<string, unknown>;
+};
+
 export type IdeaToSpecReviewStatus = {
   available: boolean;
   ok: boolean;
@@ -716,6 +745,7 @@ export type IdeaToSpecWorkspace = {
     candidateApprovalExecution: IdeaToSpecCandidateApprovalExecution;
     candidateApproval: IdeaToSpecCandidateApprovalDecision;
     platformRequest: IdeaToSpecPlatformPromotionRequest;
+    productPromotionExecution: IdeaToSpecProductPromotionExecution;
     gitServiceExecution: IdeaToSpecGitServiceExecution;
     reviewStatus: IdeaToSpecReviewStatus;
     readModelPublication: IdeaToSpecReadModelPublication;
@@ -1399,6 +1429,50 @@ function parseGitServiceExecution(raw: unknown): IdeaToSpecGitServiceExecution {
   };
 }
 
+function parseProductPromotionExecution(
+  raw: unknown,
+): IdeaToSpecProductPromotionExecution {
+  const execution = recordValue(raw);
+  return {
+    available: execution.available === true,
+    ok: execution.ok === true,
+    dryRun: execution.dry_run === true,
+    openReviewDryRun: execution.open_review_dry_run === true,
+    status: optionalString(execution.status),
+    candidateId: optionalString(execution.candidate_id),
+    candidateBranch: optionalString(execution.candidate_branch),
+    workspaceDir: optionalString(execution.workspace_dir),
+    repositoryDir: optionalString(execution.repository_dir),
+    materializedSourceDir: optionalString(execution.materialized_source_dir),
+    promotionRequestRef: optionalString(execution.promotion_request_ref),
+    approvalDecisionRef: optionalString(execution.approval_decision_ref),
+    gitServiceExecutionReportRef: optionalString(
+      execution.git_service_execution_report_ref,
+    ),
+    commitSha: optionalString(execution.commit_sha),
+    reviewUrl: optionalString(execution.review_url),
+    reviewNumber: numberValue(execution.review_number),
+    reviewOpened: execution.review_opened === true,
+    worktreePrepared: execution.worktree_prepared === true,
+    commitCreated: execution.commit_created === true,
+    copiedFileCount: numberValue(execution.copied_file_count),
+    childOperationCount: numberValue(execution.child_operation_count),
+    completedOperationCount: numberValue(execution.completed_operation_count),
+    errorCount: numberValue(execution.error_count),
+    operations: records(execution.operations).flatMap((item) => {
+      const parsed = parseProductRepairRerunOperation(item);
+      return parsed ? [parsed] : [];
+    }),
+    gitServiceOperations: records(execution.git_service_operations).flatMap(
+      (item) => {
+        const parsed = parseGitServiceOperation(item);
+        return parsed ? [parsed] : [];
+      },
+    ),
+    childReportRefs: recordValue(execution.child_report_refs),
+  };
+}
+
 function parseReviewStatus(raw: unknown): IdeaToSpecReviewStatus {
   const status = recordValue(raw);
   return {
@@ -1994,6 +2068,9 @@ export function parseIdeaToSpecWorkspace(
         ),
         platformRequest: parsePlatformPromotionRequest(
           controlledPromotion.platform_request,
+        ),
+        productPromotionExecution: parseProductPromotionExecution(
+          controlledPromotion.product_promotion_execution,
         ),
         gitServiceExecution: parseGitServiceExecution(
           controlledPromotion.git_service_execution,

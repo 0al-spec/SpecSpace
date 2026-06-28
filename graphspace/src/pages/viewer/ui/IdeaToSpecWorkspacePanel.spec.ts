@@ -92,6 +92,9 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Candidate approval");
     expect(html).toContain("candidate_approval_ready");
     expect(html).toContain("operator://workspace-owner");
+    expect(html).toContain("Product promotion execution");
+    expect(html).toContain("abc1234");
+    expect(html).toContain("execute_git_service_promotion");
     expect(html).toContain("Git Service execution");
     expect(html).toContain("prepare worktree");
     expect(html).toContain("commit candidate");
