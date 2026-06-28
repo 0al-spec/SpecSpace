@@ -2466,6 +2466,162 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "product_promotion_execution_repair",
         )
 
+    def test_workflow_preserves_legacy_git_service_open_review_handoff(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+            "next_artifact": "repository review",
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "review_dry_run_ready")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "git_service_open_review",
+        )
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["artifact_key"],
+            "git_service_execution",
+        )
+
+    def test_product_promotion_diagnostics_do_not_count_as_errors(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        product_execution = _product_promotion_execution()
+        product_execution["open_review_dry_run"] = False
+        product_execution["git_review"]["open_review_dry_run"] = False
+        product_execution["git_review"]["review_opened"] = True
+        product_execution["summary"]["error_count"] = 0
+        product_execution["diagnostics"] = [
+            {
+                "level": "WARNING",
+                "code": "non_blocking_note",
+                "subject": "product_promotion_execution",
+                "message": "non-error diagnostic",
+            }
+        ]
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+        ] = product_execution
+        artifacts.pop(
+            idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "review_status_required")
+        self.assertEqual(
+            body["controlled_promotion"]["product_promotion_execution"][
+                "error_count"
+            ],
+            0,
+        )
+        self.assertEqual(
+            body["controlled_promotion"]["product_promotion_execution"][
+                "diagnostic_count"
+            ],
+            1,
+        )
+
+    def test_product_promotion_dry_run_requires_non_dry_run_execution(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        product_execution = _product_promotion_execution()
+        product_execution["dry_run"] = True
+        product_execution["open_review_dry_run"] = False
+        product_execution["git_review"]["open_review_dry_run"] = False
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+        ] = product_execution
+        artifacts.pop(
+            idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "review_dry_run_ready")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "product_candidate_promotion_open_review",
+        )
+
     def test_workflow_requires_candidate_approval_before_promotion_request(
         self,
     ) -> None:

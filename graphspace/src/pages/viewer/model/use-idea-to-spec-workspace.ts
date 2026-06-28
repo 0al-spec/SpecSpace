@@ -236,6 +236,7 @@ export type IdeaToSpecProductPromotionExecution = {
   childOperationCount: number;
   completedOperationCount: number;
   errorCount: number;
+  diagnosticCount: number;
   operations: readonly IdeaToSpecProductRepairRerunOperation[];
   gitServiceOperations: readonly IdeaToSpecGitServiceOperation[];
   childReportRefs: Record<string, unknown>;
@@ -1459,6 +1460,7 @@ function parseProductPromotionExecution(
     childOperationCount: numberValue(execution.child_operation_count),
     completedOperationCount: numberValue(execution.completed_operation_count),
     errorCount: numberValue(execution.error_count),
+    diagnosticCount: numberValue(execution.diagnostic_count),
     operations: records(execution.operations).flatMap((item) => {
       const parsed = parseProductRepairRerunOperation(item);
       return parsed ? [parsed] : [];

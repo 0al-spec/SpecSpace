@@ -1740,11 +1740,13 @@ function ControlledPromotionSection({
   const readModel = promotion.readModelPublication;
   const finalization = promotion.promotionFinalization;
   const gitOperationCount =
-    productExecution.operations.length +
+    productExecution.gitServiceOperations.length +
     execution.operations.length +
     finalization.operations.length;
+  const promotionOperationCount = productExecution.operations.length;
   const operationCount =
     approvalExecution.operations.length +
+    promotionOperationCount +
     gitOperationCount;
   return (
     <section className={styles.reviewSection}>
@@ -1828,7 +1830,7 @@ function ControlledPromotionSection({
           <Pill
             value={
               productExecution.available
-                ? !productExecution.ok
+                ? !productExecution.ok || productExecution.errorCount > 0
                   ? "blocked"
                   : productExecution.dryRun || productExecution.openReviewDryRun
                     ? "dry_run"
@@ -1852,6 +1854,7 @@ function ControlledPromotionSection({
           <Meta label="Copied files" value={String(productExecution.copiedFileCount)} />
           <Meta label="Completed ops" value={String(productExecution.completedOperationCount)} />
           <Meta label="Errors" value={String(productExecution.errorCount)} />
+          <Meta label="Diagnostics" value={String(productExecution.diagnosticCount)} />
         </div>
       </div>
       <div className={styles.row}>
@@ -1930,6 +1933,12 @@ function ControlledPromotionSection({
             {compact(operation.reason, joined(operation.evidence))}
           </span>
         </div>
+      ))}
+      {productExecution.gitServiceOperations.map((operation) => (
+        <GitServiceOperationRow
+          key={`product-promotion-git.${operation.name}`}
+          operation={operation}
+        />
       ))}
       {execution.operations.map((operation) => (
         <GitServiceOperationRow key={operation.name} operation={operation} />

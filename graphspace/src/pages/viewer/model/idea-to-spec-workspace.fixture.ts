@@ -1054,6 +1054,7 @@ export const ideaToSpecWorkspace = {
       child_operation_count: 3,
       completed_operation_count: 3,
       error_count: 0,
+      diagnostic_count: 0,
       operations: [
         {
           name: "validate_product_promotion_handoff",

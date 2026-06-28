@@ -138,6 +138,9 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(
       parsed.data.controlledPromotion.productPromotionExecution.openReviewDryRun,
     ).toBe(true);
+    expect(
+      parsed.data.controlledPromotion.productPromotionExecution.diagnosticCount,
+    ).toBe(0);
     expect(parsed.data.controlledPromotion.gitServiceExecution.operations[2].status).toBe(
       "dry_run",
     );
