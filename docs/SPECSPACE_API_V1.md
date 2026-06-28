@@ -724,6 +724,8 @@ idea-to-spec artifacts produced by SpecGraph:
 - `runs/candidate_approval_decision.json`;
 - `runs/graph_repository_promotion_request.json`;
 - `runs/git_service_promotion_execution_report.json`;
+- `runs/product_candidate_promotion_review_status_report.json`;
+- `runs/product_candidate_promotion_read_model_publication_report.json`;
 - `runs/graph_repository_review_status_report.json`;
 - `runs/graph_repository_publish_read_model_report.json`;
 - `runs/git_service_promotion_finalization_report.json`.
@@ -744,6 +746,12 @@ actions, SpecSpace draft repair handoff state, Product Repair Rerun
 execution/publication status, metric deltas, approval status, Git Service
 handoff state, repository review status, read-model publication status, and
 artifact availability.
+
+For promotion review and publication, product wrapper reports are preferred
+when present. SpecSpace falls back to the legacy `graph_repository_*` reports
+for older in-flight workspaces, but the product surface exposes the selected
+candidate, branch, pull request metadata, child report refs, lifecycle
+operations, and the next operator handoff.
 
 This surface is not a write boundary. The response is always `read_only`,
 requires `canonical_mutations_allowed: false`, and does not allow SpecSpace to

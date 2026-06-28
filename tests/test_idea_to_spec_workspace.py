@@ -1330,6 +1330,89 @@ def _review_status(review_state: str = "open") -> dict:
     }
 
 
+def _product_review_status(review_state: str = "open") -> dict:
+    review_merged = review_state == "merged"
+    return {
+        "artifact_kind": (
+            "platform_product_candidate_promotion_review_status_report"
+        ),
+        "schema_version": 1,
+        "ok": True,
+        "workflow_lane": "product_idea_to_spec",
+        "candidate_id": "team-decision-log",
+        "candidate_branch": "graph-candidate/idea-alpha",
+        "promotion_execution_report_ref": (
+            "runs/product_candidate_promotion_execution_report.json"
+        ),
+        "graph_repository_review_status_report_ref": (
+            "/tmp/team-decision-log-worktree/.platform/"
+            "graph_repository_review_status_report.json"
+        ),
+        "review_state": review_state,
+        "review_decision": "APPROVED",
+        "pull_request": {
+            "number": 12,
+            "url": "https://github.com/example/product/pull/12",
+            "state": "MERGED" if review_merged else "OPEN",
+            "isDraft": False,
+            "mergedAt": "2026-06-21T16:00:00Z" if review_merged else None,
+            "mergeCommit": {"oid": "abc123"},
+            "headRefName": "graph-candidate/idea-alpha",
+            "baseRefName": "main",
+            "reviewDecision": "APPROVED",
+        },
+        "graph_repository_review_status": {
+            "artifact_kind": "platform_graph_repository_review_status_report",
+            "ok": True,
+            "review_url": "https://github.com/example/product/pull/12",
+            "review_state": review_state,
+            "summary": {"review_merged": review_merged},
+        },
+        "operations": [
+            {
+                "name": "validate_product_promotion_execution",
+                "status": "ready",
+                "reason": "product promotion execution is ready for review status",
+                "evidence": ["runs/product_candidate_promotion_execution_report.json"],
+            },
+            {
+                "name": "inspect_review_status",
+                "status": "succeeded",
+                "reason": "graph repository review status inspected",
+                "evidence": ["graph-repository review-status"],
+            },
+            {
+                "name": "publish_read_model",
+                "status": "ready"
+                if review_merged
+                else "blocked_until_review_merge",
+                "reason": "review gate status",
+                "evidence": ["/tmp/team-decision-log-worktree/.platform/report.json"],
+            },
+        ],
+        "authority_boundary": {
+            "specspace_direct_git_write": False,
+            "executes_git_commands": False,
+            "opens_pull_requests": False,
+            "merges_pull_requests": False,
+            "publishes_read_models": False,
+            "canonical_spec_mutation_without_review": False,
+            "ontology_package_write": False,
+            "ontology_term_acceptance": False,
+            "private_artifact_publication": False,
+        },
+        "diagnostics": [],
+        "summary": {
+            "status": "ready_for_read_model_publication"
+            if review_merged
+            else "waiting_for_review_merge",
+            "error_count": 0,
+            "review_merged": review_merged,
+            "read_model_published": False,
+        },
+    }
+
+
 def _read_model_publication(published: bool = False) -> dict:
     return {
         "artifact_kind": "platform_graph_repository_publish_read_model_report",
@@ -1357,6 +1440,97 @@ def _read_model_publication(published: bool = False) -> dict:
             "error_count": 0,
             "file_count": 7 if published else 0,
             "published": published,
+        },
+    }
+
+
+def _product_read_model_publication(
+    *,
+    published: bool = False,
+    dry_run: bool | None = None,
+) -> dict:
+    effective_dry_run = (not published) if dry_run is None else dry_run
+    return {
+        "artifact_kind": (
+            "platform_product_candidate_promotion_read_model_publication_report"
+        ),
+        "schema_version": 1,
+        "ok": True,
+        "dry_run": effective_dry_run,
+        "workflow_lane": "product_idea_to_spec",
+        "candidate_id": "team-decision-log",
+        "candidate_branch": "graph-candidate/idea-alpha",
+        "review_state": "merged",
+        "product_review_status_report_ref": (
+            "runs/product_candidate_promotion_review_status_report.json"
+        ),
+        "graph_repository_review_status_report_ref": (
+            "/tmp/team-decision-log-worktree/.platform/"
+            "graph_repository_review_status_report.json"
+        ),
+        "graph_repository_publish_read_model_report_ref": (
+            "/tmp/published-read-model/.platform/"
+            "graph_repository_publish_read_model_report.json"
+        )
+        if published
+        else None,
+        "bundle_dir": "/tmp/public-bundle",
+        "output_dir": "/tmp/published-read-model",
+        "manifest_name": "artifact_manifest.json",
+        "graph_repository_publish_read_model": {
+            "artifact_kind": "platform_graph_repository_publish_read_model_report",
+            "ok": True,
+            "dry_run": effective_dry_run,
+            "review_state": "merged",
+            "read_models_published": [
+                "/tmp/published-read-model/artifact_manifest.json"
+            ]
+            if published
+            else [],
+            "summary": {"published": published, "file_count": 7 if published else 0},
+        },
+        "operations": [
+            {
+                "name": "validate_product_review_status",
+                "status": "ready",
+                "reason": "product review is merged and ready for read-model publication",
+                "evidence": [
+                    "runs/product_candidate_promotion_review_status_report.json"
+                ],
+            },
+            {
+                "name": "publish_read_model",
+                "status": "succeeded" if published else "dry_run",
+                "reason": "public-safe read model published"
+                if published
+                else "dry_run",
+                "evidence": ["graph-repository publish-read-model"],
+            },
+        ],
+        "authority_boundary": {
+            "specspace_direct_git_write": False,
+            "executes_git_commands": False,
+            "opens_pull_requests": False,
+            "merges_pull_requests": False,
+            "publishes_read_models": published,
+            "canonical_spec_mutation_without_review": False,
+            "ontology_package_write": False,
+            "ontology_term_acceptance": False,
+            "private_artifact_publication": False,
+        },
+        "diagnostics": [],
+        "summary": {
+            "status": "published"
+            if published
+            else "dry_run"
+            if effective_dry_run
+            else "failed",
+            "error_count": 0,
+            "review_merged": True,
+            "read_model_published": published,
+            "published_manifest": "/tmp/published-read-model/artifact_manifest.json"
+            if published
+            else None,
         },
     }
 
@@ -1457,6 +1631,8 @@ def _workspace_artifacts() -> dict[str, dict]:
         idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: _platform_promotion_request(),
         idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT: _product_promotion_execution(),
         idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: _git_service_execution(),
+        idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT: _product_review_status(),
+        idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT: _product_read_model_publication(),
         idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT: _review_status(),
         idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT: _read_model_publication(),
         idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT: _promotion_finalization(),
@@ -1684,8 +1860,56 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["controlled_promotion"]["review_status"]["review_state"],
             "open",
         )
+        self.assertEqual(
+            body["controlled_promotion"]["review_status"]["source_mode"],
+            "product",
+        )
+        self.assertEqual(
+            body["controlled_promotion"]["review_status"]["review_number"],
+            12,
+        )
+        self.assertEqual(
+            body["controlled_promotion"]["review_status"]["base_branch"],
+            "main",
+        )
+        self.assertEqual(
+            body["controlled_promotion"]["review_status"]["next_action"],
+            "wait_for_review_merge",
+        )
+        self.assertEqual(
+            body["controlled_promotion"]["review_status"]["operations"][1][
+                "name"
+            ],
+            "inspect_review_status",
+        )
+        self.assertEqual(
+            body["workflow"]["items"][15]["artifact_key"],
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT,
+        )
         self.assertFalse(
             body["controlled_promotion"]["read_model_publication"]["published"]
+        )
+        self.assertEqual(
+            body["controlled_promotion"]["read_model_publication"]["source_mode"],
+            "product",
+        )
+        self.assertEqual(
+            body["controlled_promotion"]["read_model_publication"]["status"],
+            "dry_run",
+        )
+        self.assertEqual(
+            body["controlled_promotion"]["read_model_publication"]["next_action"],
+            "run_real_read_model_publication",
+        )
+        self.assertEqual(
+            body["controlled_promotion"]["read_model_publication"][
+                "product_review_status_report_ref"
+            ],
+            "runs/product_candidate_promotion_review_status_report.json",
+        )
+        self.assertEqual(
+            body["workflow"]["items"][16]["artifact_key"],
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT,
         )
         self.assertEqual(
             body["artifacts"]["active_candidate"]["status"],
@@ -2065,7 +2289,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["summary"]["status"], "partial")
-        self.assertEqual(body["summary"]["available_artifact_count"], 19)
+        self.assertEqual(body["summary"]["available_artifact_count"], 21)
         self.assertEqual(body["summary"]["missing_artifact_count"], 3)
         self.assertEqual(body["summary"]["candidate_node_count"], 0)
         self.assertEqual(body["summary"]["repair_action_count"], 0)
@@ -2151,7 +2375,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["status"], "partial")
         self.assertEqual(body["summary"]["available_artifact_count"], 1)
         self.assertEqual(body["summary"]["missing_artifact_count"], 5)
-        self.assertEqual(body["summary"]["platform_missing_artifact_count"], 8)
+        self.assertEqual(body["summary"]["platform_missing_artifact_count"], 10)
         self.assertEqual(body["workflow"]["stage"], "candidate_artifacts_missing")
         self.assertEqual(
             body["workflow"]["next_handoff"]["kind"],
@@ -2309,6 +2533,45 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(artifact["available"])
         self.assertEqual(artifact["reason"], "invalid_artifact_contract")
         self.assertIn("SpecSpace repair draft handoff", artifact["detail"])
+
+    def test_build_workspace_allows_product_read_model_publication_only(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        ] = _product_read_model_publication(published=True)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertTrue(
+            body["artifacts"]["product_read_model_publication"]["available"]
+        )
+        self.assertTrue(
+            body["controlled_promotion"]["read_model_publication"][
+                "read_model_published"
+            ]
+        )
+
+        unsafe_artifacts = _workspace_artifacts()
+        unsafe_report = _product_read_model_publication(published=True)
+        unsafe_report["authority_boundary"] = {
+            **unsafe_report["authority_boundary"],
+            "private_artifact_publication": True,
+        }
+        unsafe_artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        ] = unsafe_report
+
+        unsafe_body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=unsafe_artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        artifact = unsafe_body["artifacts"]["product_read_model_publication"]
+        self.assertFalse(artifact["available"])
+        self.assertEqual(artifact["reason"], "invalid_artifact_contract")
 
     def test_workflow_uses_repair_stage_for_readiness_blockers_without_findings(
         self,
@@ -2549,7 +2812,16 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
         ] = product_execution
         artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        )
+        artifacts.pop(
             idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
         )
         artifacts.pop(
             idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
@@ -2605,6 +2877,12 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
         ] = product_execution
         artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        )
+        artifacts.pop(
             idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
         )
         artifacts.pop(
@@ -2652,6 +2930,12 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
         artifacts.pop(idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT)
         artifacts.pop(idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT)
+        artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        )
         artifacts.pop(idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT)
         artifacts.pop(
             idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
@@ -3058,6 +3342,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts[
             idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
         ] = _review_status("open")
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        ] = _product_review_status("open")
 
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
             artifacts=artifacts,
@@ -3103,6 +3390,12 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts[
             idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
         ] = _review_status("merged")
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        ] = _product_review_status("merged")
+        artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        )
         artifacts.pop(
             idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
         )
@@ -3156,8 +3449,14 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
         ] = _review_status("merged")
         artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        ] = _product_review_status("merged")
+        artifacts[
             idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
         ] = _read_model_publication(published=True)
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        ] = _product_read_model_publication(published=True)
         artifacts[
             idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
         ] = _promotion_finalization(read_model_published=True)

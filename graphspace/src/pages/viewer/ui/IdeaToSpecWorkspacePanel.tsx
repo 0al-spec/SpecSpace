@@ -1744,10 +1744,13 @@ function ControlledPromotionSection({
     execution.operations.length +
     finalization.operations.length;
   const promotionOperationCount = productExecution.operations.length;
+  const postReviewOperationCount =
+    reviewStatus.operations.length + readModel.operations.length;
   const operationCount =
     approvalExecution.operations.length +
     promotionOperationCount +
-    gitOperationCount;
+    gitOperationCount +
+    postReviewOperationCount;
   return (
     <section className={styles.reviewSection}>
       <SectionHeader
@@ -1876,27 +1879,101 @@ function ControlledPromotionSection({
       <div className={styles.row}>
         <div className={styles.rowHeader}>
           <span className={styles.rowId}>Review status</span>
-          <Pill value={reviewStatus.available ? (reviewStatus.reviewMerged ? "merged" : compact(reviewStatus.reviewState, "open")) : "missing"} />
+          <Pill
+            value={
+              reviewStatus.available
+                ? !reviewStatus.ok
+                  ? "blocked"
+                  : reviewStatus.reviewMerged
+                    ? "merged"
+                    : compact(reviewStatus.reviewState, "open")
+                : "missing"
+            }
+          />
         </div>
         <div className={styles.metaGrid}>
+          <Meta label="Source" value={reviewStatus.sourceMode} />
+          <Meta label="Status" value={reviewStatus.status} />
+          <Meta label="Next" value={reviewStatus.nextAction} />
+          <Meta label="Candidate" value={reviewStatus.candidateId} />
+          <Meta label="Branch" value={reviewStatus.candidateBranch} />
           <Meta label="State" value={reviewStatus.reviewState} />
           <Meta label="Decision" value={reviewStatus.reviewDecision} />
           <Meta label="URL" value={reviewStatus.reviewUrl} />
+          <Meta
+            label="Review #"
+            value={reviewStatus.reviewNumber ? String(reviewStatus.reviewNumber) : null}
+          />
+          <Meta label="Base" value={reviewStatus.baseBranch} />
+          <Meta label="Head" value={reviewStatus.headBranch} />
           <Meta label="Merged" value={boolText(reviewStatus.reviewMerged)} />
+          <Meta label="Merged at" value={reviewStatus.mergedAt} />
+          <Meta label="Merge commit" value={reviewStatus.mergeCommit} />
+          <Meta
+            label="Product execution"
+            value={reviewStatus.promotionExecutionReportRef}
+          />
+          <Meta
+            label="Child review report"
+            value={reviewStatus.graphRepositoryReviewStatusReportRef}
+          />
+          <Meta label="Operations" value={String(reviewStatus.operationCount)} />
           <Meta label="Errors" value={String(reviewStatus.errorCount)} />
         </div>
       </div>
       <div className={styles.row}>
         <div className={styles.rowHeader}>
           <span className={styles.rowId}>Read-model publication</span>
-          <Pill value={readModel.available ? (readModel.published ? "published" : "blocked") : finalization.readModelPublished ? "published" : "missing"} />
+          <Pill
+            value={
+              readModel.available
+                ? !readModel.ok
+                  ? "blocked"
+                  : readModel.dryRun
+                    ? "dry_run"
+                    : readModel.published || readModel.readModelPublished
+                      ? "published"
+                      : compact(readModel.status, "review_required")
+                : finalization.readModelPublished
+                  ? "published"
+                  : "missing"
+            }
+          />
         </div>
         <div className={styles.metaGrid}>
+          <Meta label="Source" value={readModel.sourceMode} />
+          <Meta label="Status" value={readModel.status} />
+          <Meta label="Next" value={readModel.nextAction} />
+          <Meta label="Candidate" value={readModel.candidateId} />
+          <Meta label="Branch" value={readModel.candidateBranch} />
           <Meta label="Review" value={readModel.reviewState ?? finalization.reviewState} />
-          <Meta label="Published" value={boolText(readModel.published || finalization.readModelPublished)} />
+          <Meta
+            label="Published"
+            value={boolText(
+              readModel.published ||
+                readModel.readModelPublished ||
+                finalization.readModelPublished,
+            )}
+          />
           <Meta label="Dry run" value={boolText(readModel.dryRun || finalization.dryRun)} />
           <Meta label="Manifest" value={readModel.manifest} />
+          <Meta label="Manifest name" value={readModel.manifestName} />
+          <Meta label="Bundle" value={readModel.bundleDir} />
+          <Meta label="Output" value={readModel.outputDir} />
           <Meta label="Files" value={String(readModel.fileCount)} />
+          <Meta
+            label="Product review"
+            value={readModel.productReviewStatusReportRef}
+          />
+          <Meta
+            label="Child review report"
+            value={readModel.graphRepositoryReviewStatusReportRef}
+          />
+          <Meta
+            label="Child publish report"
+            value={readModel.graphRepositoryPublishReadModelReportRef}
+          />
+          <Meta label="Operations" value={String(readModel.operationCount)} />
           <Meta label="Finalization ops" value={String(finalization.operationCount)} />
           <Meta label="Errors" value={String(readModel.errorCount + finalization.errorCount)} />
         </div>
@@ -1927,6 +2004,24 @@ function ControlledPromotionSection({
       ))}
       {productExecution.operations.map((operation) => (
         <div key={`product-promotion.${operation.name}`} className={styles.subRow}>
+          <span>{operation.name}</span>
+          <Pill value={operation.status} />
+          <span className={styles.statusDetail}>
+            {compact(operation.reason, joined(operation.evidence))}
+          </span>
+        </div>
+      ))}
+      {reviewStatus.operations.map((operation) => (
+        <div key={`product-review-status.${operation.name}`} className={styles.subRow}>
+          <span>{operation.name}</span>
+          <Pill value={operation.status} />
+          <span className={styles.statusDetail}>
+            {compact(operation.reason, joined(operation.evidence))}
+          </span>
+        </div>
+      ))}
+      {readModel.operations.map((operation) => (
+        <div key={`product-read-model.${operation.name}`} className={styles.subRow}>
           <span>{operation.name}</span>
           <Pill value={operation.status} />
           <span className={styles.statusDetail}>

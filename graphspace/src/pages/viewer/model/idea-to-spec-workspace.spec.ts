@@ -145,9 +145,33 @@ describe("parseIdeaToSpecWorkspace", () => {
       "dry_run",
     );
     expect(parsed.data.controlledPromotion.reviewStatus.reviewState).toBe("open");
+    expect(parsed.data.controlledPromotion.reviewStatus.sourceMode).toBe(
+      "product",
+    );
+    expect(parsed.data.controlledPromotion.reviewStatus.reviewNumber).toBe(12);
+    expect(parsed.data.controlledPromotion.reviewStatus.baseBranch).toBe("main");
+    expect(parsed.data.controlledPromotion.reviewStatus.nextAction).toBe(
+      "wait_for_review_merge",
+    );
+    expect(
+      parsed.data.controlledPromotion.reviewStatus.operations[1].name,
+    ).toBe("inspect_review_status");
     expect(parsed.data.controlledPromotion.readModelPublication.published).toBe(
       false,
     );
+    expect(parsed.data.controlledPromotion.readModelPublication.sourceMode).toBe(
+      "product",
+    );
+    expect(parsed.data.controlledPromotion.readModelPublication.status).toBe(
+      "dry_run",
+    );
+    expect(parsed.data.controlledPromotion.readModelPublication.nextAction).toBe(
+      "run_real_read_model_publication",
+    );
+    expect(
+      parsed.data.controlledPromotion.readModelPublication
+        .productReviewStatusReportRef,
+    ).toBe("runs/product_candidate_promotion_review_status_report.json");
     expect(parsed.data.authorityBoundary.mayMutateCanonicalSpecs).toBe(false);
   });
 

@@ -245,22 +245,50 @@ export type IdeaToSpecProductPromotionExecution = {
 export type IdeaToSpecReviewStatus = {
   available: boolean;
   ok: boolean;
+  sourceMode: string | null;
+  status: string | null;
+  candidateId: string | null;
+  candidateBranch: string | null;
   reviewState: string | null;
   reviewDecision: string | null;
   reviewUrl: string | null;
+  reviewNumber: number;
+  baseBranch: string | null;
+  headBranch: string | null;
+  mergedAt: string | null;
+  mergeCommit: string | null;
   reviewMerged: boolean;
+  promotionExecutionReportRef: string | null;
+  graphRepositoryReviewStatusReportRef: string | null;
+  operationCount: number;
+  operations: readonly IdeaToSpecProductRepairRerunOperation[];
   errorCount: number;
+  nextAction: string | null;
 };
 
 export type IdeaToSpecReadModelPublication = {
   available: boolean;
   ok: boolean;
+  sourceMode: string | null;
+  status: string | null;
   dryRun: boolean;
+  candidateId: string | null;
+  candidateBranch: string | null;
   reviewState: string | null;
   manifest: string | null;
+  manifestName: string | null;
+  bundleDir: string | null;
+  outputDir: string | null;
   published: boolean;
+  readModelPublished: boolean;
   fileCount: number;
+  productReviewStatusReportRef: string | null;
+  graphRepositoryReviewStatusReportRef: string | null;
+  graphRepositoryPublishReadModelReportRef: string | null;
+  operationCount: number;
+  operations: readonly IdeaToSpecProductRepairRerunOperation[];
   errorCount: number;
+  nextAction: string | null;
 };
 
 export type IdeaToSpecPromotionFinalization = {
@@ -1480,11 +1508,32 @@ function parseReviewStatus(raw: unknown): IdeaToSpecReviewStatus {
   return {
     available: status.available === true,
     ok: status.ok === true,
+    sourceMode: optionalString(status.source_mode),
+    status: optionalString(status.status),
+    candidateId: optionalString(status.candidate_id),
+    candidateBranch: optionalString(status.candidate_branch),
     reviewState: optionalString(status.review_state),
     reviewDecision: optionalString(status.review_decision),
     reviewUrl: optionalString(status.review_url),
+    reviewNumber: numberValue(status.review_number),
+    baseBranch: optionalString(status.base_branch),
+    headBranch: optionalString(status.head_branch),
+    mergedAt: optionalString(status.merged_at),
+    mergeCommit: optionalString(status.merge_commit),
     reviewMerged: status.review_merged === true,
+    promotionExecutionReportRef: optionalString(
+      status.promotion_execution_report_ref,
+    ),
+    graphRepositoryReviewStatusReportRef: optionalString(
+      status.graph_repository_review_status_report_ref,
+    ),
+    operationCount: numberValue(status.operation_count),
+    operations: records(status.operations).flatMap((item) => {
+      const parsed = parseProductRepairRerunOperation(item);
+      return parsed ? [parsed] : [];
+    }),
     errorCount: numberValue(status.error_count),
+    nextAction: optionalString(status.next_action),
   };
 }
 
@@ -1493,12 +1542,35 @@ function parseReadModelPublication(raw: unknown): IdeaToSpecReadModelPublication
   return {
     available: publication.available === true,
     ok: publication.ok === true,
+    sourceMode: optionalString(publication.source_mode),
+    status: optionalString(publication.status),
     dryRun: publication.dry_run === true,
+    candidateId: optionalString(publication.candidate_id),
+    candidateBranch: optionalString(publication.candidate_branch),
     reviewState: optionalString(publication.review_state),
     manifest: optionalString(publication.manifest),
+    manifestName: optionalString(publication.manifest_name),
+    bundleDir: optionalString(publication.bundle_dir),
+    outputDir: optionalString(publication.output_dir),
     published: publication.published === true,
+    readModelPublished: publication.read_model_published === true,
     fileCount: numberValue(publication.file_count),
+    productReviewStatusReportRef: optionalString(
+      publication.product_review_status_report_ref,
+    ),
+    graphRepositoryReviewStatusReportRef: optionalString(
+      publication.graph_repository_review_status_report_ref,
+    ),
+    graphRepositoryPublishReadModelReportRef: optionalString(
+      publication.graph_repository_publish_read_model_report_ref,
+    ),
+    operationCount: numberValue(publication.operation_count),
+    operations: records(publication.operations).flatMap((item) => {
+      const parsed = parseProductRepairRerunOperation(item);
+      return parsed ? [parsed] : [];
+    }),
     errorCount: numberValue(publication.error_count),
+    nextAction: optionalString(publication.next_action),
   };
 }
 
