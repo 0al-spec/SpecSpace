@@ -1761,11 +1761,11 @@ function ControlledPromotionSection({
           <Pill
             value={
               approvalExecution.available
-                ? approvalExecution.dryRun
-                  ? "dry_run"
-                  : approvalExecution.ok
-                    ? "ok"
-                    : "blocked"
+                ? !approvalExecution.ok
+                  ? "blocked"
+                  : approvalExecution.dryRun
+                    ? "dry_run"
+                    : "ok"
                 : "missing"
             }
           />

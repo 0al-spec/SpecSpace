@@ -2596,6 +2596,34 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["artifacts"]["product_repair_rerun_execution"]["available"]
         )
 
+    def test_candidate_approval_execution_authority_expansion_drops_report(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        execution = _candidate_approval_execution()
+        execution["authority_boundary"]["may_create_branch_or_commit"] = True
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+        ] = execution
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertFalse(
+            body["controlled_promotion"]["candidate_approval_execution"][
+                "available"
+            ]
+        )
+        self.assertFalse(
+            body["artifacts"]["candidate_approval_execution"]["available"]
+        )
+        self.assertEqual(
+            body["artifacts"]["candidate_approval_execution"]["reason"],
+            "invalid_artifact_contract",
+        )
+
     def test_platform_repair_rerun_output_artifacts_are_limited(self) -> None:
         artifacts = _workspace_artifacts()
         execution = _product_repair_rerun_execution_report()

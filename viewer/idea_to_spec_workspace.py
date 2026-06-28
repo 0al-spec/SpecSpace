@@ -443,6 +443,33 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
+    if filename == PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "candidate approval execution authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_mutations_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("ontology_writes_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "ontology_writes_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
     if filename == CANDIDATE_APPROVAL_DECISION_ARTIFACT:
         authority_boundary = _record(value.get("authority_boundary"))
         if any(flag is True for flag in authority_boundary.values()):
