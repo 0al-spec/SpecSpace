@@ -177,10 +177,6 @@ function ProductWorkspacePage({ workspaceId }: { workspaceId: string }) {
   }, [state.data]);
 
   const displayName = asString(view.workspace.display_name, titleFromId(workspaceId));
-  const payloadWorkspaceId = asString(view.workspace.id, "");
-  const payloadRoute = asString(view.workspace.public_route, "");
-  const routeMatchesPayload =
-    payloadWorkspaceId === workspaceId || payloadRoute === `/${workspaceId}`;
   const workspaceStatus = asString(view.workspace.review_state, "workspace");
   const graphSource = asString(view.candidateGraph.source_mode, "candidate");
   const approvalReady =
@@ -209,16 +205,6 @@ function ProductWorkspacePage({ workspaceId }: { workspaceId: string }) {
       <main className="pws-page">
         <div className="pws-center-state is-error">
           Product workspace unavailable: {state.error}
-        </div>
-      </main>
-    );
-  }
-
-  if (!routeMatchesPayload) {
-    return (
-      <main className="pws-page">
-        <div className="pws-center-state is-error">
-          Product workspace route mismatch: /{workspaceId}
         </div>
       </main>
     );

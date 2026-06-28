@@ -11,15 +11,12 @@ import AppShell from "./AppShell";
 import ProductWorkspacePage from "./ProductWorkspacePage";
 import { useViewerAppController } from "./useViewerAppController";
 
-function productWorkspaceSlugFromPath(pathname: string): string | null {
+function productWorkspaceIdFromPath(pathname: string): string | null {
   const trimmed = pathname.replace(/^\/+|\/+$/g, "");
   if (!trimmed || trimmed === "index.html") {
     return null;
   }
   if (trimmed.includes("/")) {
-    return null;
-  }
-  if (!/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/.test(trimmed)) {
     return null;
   }
   return decodeURIComponent(trimmed);
@@ -31,7 +28,7 @@ function LegacyAppShell() {
 }
 
 function AppInner() {
-  const workspaceId = productWorkspaceSlugFromPath(window.location.pathname);
+  const workspaceId = productWorkspaceIdFromPath(window.location.pathname);
   if (workspaceId) {
     return <ProductWorkspacePage workspaceId={workspaceId} />;
   }
