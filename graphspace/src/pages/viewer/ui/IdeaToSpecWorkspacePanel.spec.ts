@@ -92,6 +92,9 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Candidate approval");
     expect(html).toContain("candidate_approval_ready");
     expect(html).toContain("operator://workspace-owner");
+    expect(html).toContain("Product promotion execution");
+    expect(html).toContain("abc1234");
+    expect(html).toContain("execute_git_service_promotion");
     expect(html).toContain("Git Service execution");
     expect(html).toContain("prepare worktree");
     expect(html).toContain("commit candidate");
@@ -134,5 +137,51 @@ describe("IdeaToSpecWorkspacePanel", () => {
 
     expect(approvalExecutionSnippet).toContain("blocked");
     expect(approvalExecutionSnippet).not.toContain("dry_run");
+  });
+
+  it("renders product child Git operations without a standalone legacy report", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.controlled_promotion.git_service_execution.operations = [];
+    raw.controlled_promotion.git_service_execution.operation_count = 0;
+    raw.controlled_promotion.git_service_execution.completed_operation_count = 0;
+    const parsedProductOnly = parseIdeaToSpecWorkspace(raw);
+    if (parsedProductOnly.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedProductOnly.data },
+      }),
+    );
+
+    expect(html).toContain("Product promotion execution");
+    expect(html).toContain("platform_git_service_prepare_worktree_request");
+  });
+
+  it("renders product promotion execution with errors as blocked", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.controlled_promotion.product_promotion_execution.error_count = 1;
+    const parsedBlocked = parseIdeaToSpecWorkspace(raw);
+    if (parsedBlocked.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedBlocked.data },
+      }),
+    );
+    const controlledPromotionStart = html.indexOf("Controlled promotion");
+    const productExecutionStart = html.indexOf(
+      "Product promotion execution",
+      controlledPromotionStart,
+    );
+    const productExecutionSnippet = html.slice(
+      productExecutionStart,
+      productExecutionStart + 240,
+    );
+
+    expect(productExecutionSnippet).toContain("blocked");
   });
 });

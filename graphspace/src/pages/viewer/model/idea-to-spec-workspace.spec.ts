@@ -34,7 +34,7 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.summary.reviewMerged).toBe(false);
     expect(parsed.data.summary.readModelPublished).toBe(false);
     expect(parsed.data.workflow.stage).toBe("repair_required");
-    expect(parsed.data.workflow.items).toHaveLength(16);
+    expect(parsed.data.workflow.items).toHaveLength(17);
     expect(parsed.data.workflow.items[2].id).toBe("ontology_seed");
     expect(parsed.data.workflow.items[6].id).toBe(
       "product_repair_rerun_execution",
@@ -132,6 +132,15 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.controlledPromotion.candidateApproval.decisionState).toBe(
       "approved",
     );
+    expect(parsed.data.controlledPromotion.productPromotionExecution.commitSha).toBe(
+      "abc1234",
+    );
+    expect(
+      parsed.data.controlledPromotion.productPromotionExecution.openReviewDryRun,
+    ).toBe(true);
+    expect(
+      parsed.data.controlledPromotion.productPromotionExecution.diagnosticCount,
+    ).toBe(0);
     expect(parsed.data.controlledPromotion.gitServiceExecution.operations[2].status).toBe(
       "dry_run",
     );

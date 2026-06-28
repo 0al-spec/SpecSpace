@@ -1,4 +1,5 @@
-PYTHON ?= python3
+LOCAL_PYTHON := .venv/bin/python
+PYTHON ?= $(if $(wildcard $(LOCAL_PYTHON)),$(LOCAL_PYTHON),python)
 PORT ?= 8000
 API_PORT ?= 8001
 UI_PORT ?= 5173

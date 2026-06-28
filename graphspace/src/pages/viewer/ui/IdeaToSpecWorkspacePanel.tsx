@@ -1734,14 +1734,19 @@ function ControlledPromotionSection({
   const approvalExecution = promotion.candidateApprovalExecution;
   const approval = promotion.candidateApproval;
   const request = promotion.platformRequest;
+  const productExecution = promotion.productPromotionExecution;
   const execution = promotion.gitServiceExecution;
   const reviewStatus = promotion.reviewStatus;
   const readModel = promotion.readModelPublication;
   const finalization = promotion.promotionFinalization;
   const gitOperationCount =
-    execution.operations.length + finalization.operations.length;
+    productExecution.gitServiceOperations.length +
+    execution.operations.length +
+    finalization.operations.length;
+  const promotionOperationCount = productExecution.operations.length;
   const operationCount =
     approvalExecution.operations.length +
+    promotionOperationCount +
     gitOperationCount;
   return (
     <section className={styles.reviewSection}>
@@ -1821,6 +1826,39 @@ function ControlledPromotionSection({
       </div>
       <div className={styles.row}>
         <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Product promotion execution</span>
+          <Pill
+            value={
+              productExecution.available
+                ? !productExecution.ok || productExecution.errorCount > 0
+                  ? "blocked"
+                  : productExecution.dryRun || productExecution.openReviewDryRun
+                    ? "dry_run"
+                    : "ok"
+                : "missing"
+            }
+          />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Status" value={productExecution.status} />
+          <Meta label="Candidate" value={productExecution.candidateId} />
+          <Meta label="Branch" value={productExecution.candidateBranch} />
+          <Meta label="Commit" value={productExecution.commitSha} />
+          <Meta label="Review URL" value={productExecution.reviewUrl} />
+          <Meta label="Review #" value={productExecution.reviewNumber ? String(productExecution.reviewNumber) : null} />
+          <Meta label="Workspace" value={productExecution.workspaceDir} />
+          <Meta label="Dry run" value={boolText(productExecution.dryRun)} />
+          <Meta label="Open review dry run" value={boolText(productExecution.openReviewDryRun)} />
+          <Meta label="Worktree" value={boolText(productExecution.worktreePrepared)} />
+          <Meta label="Commit created" value={boolText(productExecution.commitCreated)} />
+          <Meta label="Copied files" value={String(productExecution.copiedFileCount)} />
+          <Meta label="Completed ops" value={String(productExecution.completedOperationCount)} />
+          <Meta label="Errors" value={String(productExecution.errorCount)} />
+          <Meta label="Diagnostics" value={String(productExecution.diagnosticCount)} />
+        </div>
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
           <span className={styles.rowId}>Git Service execution</span>
           <Pill value={execution.available ? (execution.ok ? "ok" : "blocked") : "missing"} />
         </div>
@@ -1886,6 +1924,21 @@ function ControlledPromotionSection({
             {artifact.path ?? compact(artifact.artifactKind)}
           </span>
         </div>
+      ))}
+      {productExecution.operations.map((operation) => (
+        <div key={`product-promotion.${operation.name}`} className={styles.subRow}>
+          <span>{operation.name}</span>
+          <Pill value={operation.status} />
+          <span className={styles.statusDetail}>
+            {compact(operation.reason, joined(operation.evidence))}
+          </span>
+        </div>
+      ))}
+      {productExecution.gitServiceOperations.map((operation) => (
+        <GitServiceOperationRow
+          key={`product-promotion-git.${operation.name}`}
+          operation={operation}
+        />
       ))}
       {execution.operations.map((operation) => (
         <GitServiceOperationRow key={operation.name} operation={operation} />
