@@ -62,9 +62,16 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Maturity navigation");
     expect(html).toContain("#idea-to-spec-repair-review");
     expect(html).toContain("#idea-to-spec-pre-sib");
+    expect(html).toContain("#idea-to-spec-repair-session");
     expect(html).toContain("#idea-to-spec-materialization");
     expect(html).toContain("#idea-to-spec-approval-readiness");
     expect(html).toContain("#idea-to-spec-controlled-promotion");
+    expect(html).toContain('id="idea-to-spec-repair-review"');
+    expect(html).toContain('id="idea-to-spec-pre-sib"');
+    expect(html).toContain('id="idea-to-spec-repair-session"');
+    expect(html).toContain('id="idea-to-spec-materialization"');
+    expect(html).toContain('id="idea-to-spec-approval-readiness"');
+    expect(html).toContain('id="idea-to-spec-controlled-promotion"');
     expect(html).toContain("metrics.idea_maturity_metrics.validator.v0.1");
     expect(html).toContain("repair required");
     expect(html).toContain("Ontology grounding");
@@ -214,6 +221,34 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Candidate is blocked by Pre-SIB finding.");
     expect(html).toContain("Next action");
     expect(html).toContain("Inspect Pre-SIB coherence findings.");
+  });
+
+  it("derives idea maturity finding next actions when absent", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.idea_maturity.report.findings = [
+      {
+        finding_id: "maturity.promotion_gate.blocker",
+        severity: "warning",
+        message: "Candidate is blocked by promotion gate finding.",
+        source: "promotion_gate",
+      },
+    ];
+    const parsedWithFinding = parseIdeaToSpecWorkspace(raw);
+    if (parsedWithFinding.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWithFinding.data },
+      }),
+    );
+
+    expect(html).toContain("maturity.promotion_gate.blocker");
+    expect(html).toContain("Next action");
+    expect(html).toContain(
+      "Inspect promotion gates and controlled promotion reports.",
+    );
   });
 
   it("renders product child Git operations without a standalone legacy report", () => {

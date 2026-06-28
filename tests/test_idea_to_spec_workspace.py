@@ -2243,6 +2243,31 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "runs/idea_maturity_metrics_report.json",
         )
 
+    def test_idea_maturity_preserves_finding_next_action(self) -> None:
+        artifacts = _workspace_artifacts()
+        report = _idea_maturity_metrics_report()
+        report["findings"] = [
+            {
+                "finding_id": "maturity.pre_sib.blocker",
+                "severity": "warning",
+                "message": "Candidate is blocked by Pre-SIB finding.",
+                "source": "pre_sib",
+                "next_action": "Inspect Pre-SIB coherence findings.",
+            }
+        ]
+        artifacts[idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT] = report
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        finding = body["idea_maturity"]["report"]["findings"][0]
+        self.assertEqual(
+            finding["next_action"],
+            "Inspect Pre-SIB coherence findings.",
+        )
+
     def test_idea_maturity_reads_temporal_metrics_from_group(self) -> None:
         artifacts = _workspace_artifacts()
         report = _idea_maturity_metrics_report()
