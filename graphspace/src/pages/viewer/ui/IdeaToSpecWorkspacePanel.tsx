@@ -1191,33 +1191,31 @@ function IdeaMaturitySection({
             <Pill value={`${maturity.report.readinessExplainers.length} reasons`} />
           </div>
           <div className={styles.navGrid}>
-            {maturity.report.readinessExplainers.map((explainer) => (
-              <div key={explainer.id} className={styles.subRow}>
-                <span className={styles.rowId}>{explainer.id}</span>
-                <Pill value={explainer.severity} />
-                <span className={styles.statusDetail}>
-                  {explainer.message} · {explainer.kind}
-                </span>
-                <div className={styles.metaGrid}>
-                  <Meta label="Source" value={explainer.source} />
-                  <Meta label="Blocks" value={joined(explainer.blocks)} />
-                  <Meta
-                    label="Next action"
-                    value={maturityExplainerNextAction(explainer)}
-                  />
-                  <Meta label="Evidence" value={joined(explainer.evidenceRefs)} />
-                  <a
-                    className={styles.navLink}
-                    href={maturityExplainerHref(explainer)}
-                  >
-                    <span className={styles.navLabel}>Linked section</span>
-                    <span className={styles.navHint}>
-                      {maturityExplainerHref(explainer)}
-                    </span>
-                  </a>
+            {maturity.report.readinessExplainers.map((explainer) => {
+              const explainerHref = maturityExplainerHref(explainer);
+              return (
+                <div key={explainer.id} className={styles.subRow}>
+                  <span className={styles.rowId}>{explainer.id}</span>
+                  <Pill value={explainer.severity} />
+                  <span className={styles.statusDetail}>
+                    {explainer.message} · {explainer.kind}
+                  </span>
+                  <div className={styles.metaGrid}>
+                    <Meta label="Source" value={explainer.source} />
+                    <Meta label="Blocks" value={joined(explainer.blocks)} />
+                    <Meta
+                      label="Next action"
+                      value={maturityExplainerNextAction(explainer)}
+                    />
+                    <Meta label="Evidence" value={joined(explainer.evidenceRefs)} />
+                    <a className={styles.navLink} href={explainerHref}>
+                      <span className={styles.navLabel}>Linked section</span>
+                      <span className={styles.navHint}>{explainerHref}</span>
+                    </a>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : null}
