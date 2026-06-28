@@ -305,6 +305,12 @@ def _number(value: Any) -> int:
     return value if isinstance(value, int) and value >= 0 else 0
 
 
+def _optional_number(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    return value if isinstance(value, int) and value >= 0 else None
+
+
 def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None:
     if value is None:
         return {
@@ -596,20 +602,31 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         authority_boundary = _record(value.get("authority_boundary"))
-        forbidden_flags = {
-            "specspace_direct_git_write",
-            "executes_git_commands",
-            "opens_pull_requests",
-            "merges_pull_requests",
-            "canonical_spec_mutation_without_review",
-            "ontology_package_write",
-            "ontology_term_acceptance",
-            "private_artifact_publication",
-        }
-        if any(authority_boundary.get(flag) is True for flag in forbidden_flags):
+        if any(
+            flag is True and key != "publishes_read_models"
+            for key, flag in authority_boundary.items()
+        ):
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "product read-model publication may only claim public read-model publication authority.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_mutations_allowed") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must not be true.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_tracked_artifacts_written") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_tracked_artifacts_written must not be true.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must not be true.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
@@ -1746,8 +1763,11 @@ def _read_model_publication(report: dict[str, Any] | None) -> dict[str, Any]:
         next_action = "read_model_live"
     else:
         next_action = "publish_read_model_after_review_merge"
-    file_count = _number(summary.get("file_count")) or _number(
-        child_summary.get("file_count")
+    summary_file_count = _optional_number(summary.get("file_count"))
+    file_count = (
+        summary_file_count
+        if summary_file_count is not None
+        else _number(child_summary.get("file_count"))
     )
     return {
         "available": report is not None,
@@ -2335,9 +2355,15 @@ def _workflow(
     )
     review_status_failed = review_status is not None and (review_status.get("ok") is not True)
     publish_summary = _record((read_model_publication or {}).get("summary"))
+    publish_child_summary = _record(
+        _record(
+            (read_model_publication or {}).get("graph_repository_publish_read_model")
+        ).get("summary")
+    )
     read_model_published = (
         publish_summary.get("published") is True
         or publish_summary.get("read_model_published") is True
+        or publish_child_summary.get("published") is True
         or _record((promotion_finalization or {}).get("summary")).get(
             "read_model_published"
         )

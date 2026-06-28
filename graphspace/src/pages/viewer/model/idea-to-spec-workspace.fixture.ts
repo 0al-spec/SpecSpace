@@ -1186,7 +1186,7 @@ export const ideaToSpecWorkspace = {
       ok: true,
       source_mode: "product",
       status: "dry_run",
-      dry_run: false,
+      dry_run: true,
       candidate_id: "team-decision-log",
       candidate_branch: "graph-candidate/idea-alpha",
       review_state: "open",

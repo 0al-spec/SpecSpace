@@ -2554,6 +2554,28 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             ]
         )
 
+        zero_file_count_artifacts = _workspace_artifacts()
+        zero_file_count_report = _product_read_model_publication(published=True)
+        zero_file_count_report["summary"]["file_count"] = 0
+        zero_file_count_report["graph_repository_publish_read_model"]["summary"][
+            "file_count"
+        ] = 7
+        zero_file_count_artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        ] = zero_file_count_report
+
+        zero_file_count_body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=zero_file_count_artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            zero_file_count_body["controlled_promotion"][
+                "read_model_publication"
+            ]["file_count"],
+            0,
+        )
+
         unsafe_artifacts = _workspace_artifacts()
         unsafe_report = _product_read_model_publication(published=True)
         unsafe_report["authority_boundary"] = {
@@ -2572,6 +2594,45 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifact = unsafe_body["artifacts"]["product_read_model_publication"]
         self.assertFalse(artifact["available"])
         self.assertEqual(artifact["reason"], "invalid_artifact_contract")
+
+        unknown_flag_artifacts = _workspace_artifacts()
+        unknown_flag_report = _product_read_model_publication(published=True)
+        unknown_flag_report["authority_boundary"] = {
+            **unknown_flag_report["authority_boundary"],
+            "future_write_capability": True,
+        }
+        unknown_flag_artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        ] = unknown_flag_report
+
+        unknown_flag_body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=unknown_flag_artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertFalse(
+            unknown_flag_body["artifacts"]["product_read_model_publication"][
+                "available"
+            ]
+        )
+
+        canonical_write_artifacts = _workspace_artifacts()
+        canonical_write_report = _product_read_model_publication(published=True)
+        canonical_write_report["canonical_mutations_allowed"] = True
+        canonical_write_artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        ] = canonical_write_report
+
+        canonical_write_body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=canonical_write_artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertFalse(
+            canonical_write_body["artifacts"]["product_read_model_publication"][
+                "available"
+            ]
+        )
 
     def test_workflow_uses_repair_stage_for_readiness_blockers_without_findings(
         self,
@@ -3454,9 +3515,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts[
             idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
         ] = _read_model_publication(published=True)
+        product_publication = _product_read_model_publication(published=True)
+        product_publication["summary"].pop("read_model_published")
         artifacts[
             idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
-        ] = _product_read_model_publication(published=True)
+        ] = product_publication
         artifacts[
             idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
         ] = _promotion_finalization(read_model_published=True)
