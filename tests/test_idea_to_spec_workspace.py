@@ -1985,6 +1985,91 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             ]
         )
 
+    def test_repaired_handoff_selects_repaired_workspace_surface(self) -> None:
+        artifacts = _workspace_artifacts()
+        repaired_active = _active_candidate()
+        repaired_active["candidate"] = {
+            **repaired_active["candidate"],
+            "candidate_id": "local-subscription-control",
+            "display_name": "Local Subscription Control",
+            "public_route": "/local-subscription-control",
+        }
+        repaired_graph = {
+            **_candidate_graph(),
+            "active_frame": {
+                "project": "LocalSubscriptionControl",
+                "ontology_refs": ["ontology://specgraph-core"],
+                "domain_refs": ["domain.local_subscription_control"],
+                "context_refs": ["context.idea_to_spec"],
+            },
+            "nodes": [
+                {
+                    "id": "candidate-spec.subscription-product",
+                    "title": "Subscription Product",
+                    "kind": "product_boundary",
+                    "ontology_refs": ["ontology://specgraph-core#Spec"],
+                    "requirements": [{"id": "req.subscription.result"}],
+                    "acceptance_criteria": [{"id": "ac.subscription.result"}],
+                    "claims": [],
+                    "gaps": [],
+                }
+            ],
+            "edges": [],
+        }
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+        ] = repaired_active
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT
+        ] = repaired_graph
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT
+        ] = {
+            **_pre_sib(),
+            "readiness": {"ready": True, "review_state": "pre_sib_ready"},
+            "findings": [],
+        }
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = {
+            **_repair_loop(),
+            "readiness": {"ready": True, "review_state": "repair_preview_ready"},
+            "summary": {"context_required_count": 0},
+            "actions": [],
+        }
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT
+        ] = _materialization()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = _repaired_repair_session_journal()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workspace"]["id"], "local-subscription-control")
+        self.assertEqual(body["workspace"]["display_name"], "Local Subscription Control")
+        self.assertEqual(body["workspace"]["public_route"], "/local-subscription-control")
+        self.assertEqual(body["candidate_graph"]["source_mode"], "repaired_handoff")
+        self.assertEqual(
+            body["candidate_graph"]["active_frame"]["project"],
+            "LocalSubscriptionControl",
+        )
+        self.assertEqual(body["candidate_graph"]["summary"]["node_count"], 1)
+        self.assertEqual(
+            body["candidate_graph"]["nodes"][0]["id"],
+            "candidate-spec.subscription-product",
+        )
+        self.assertEqual(body["summary"]["promotion_path_count"], 2)
+
     def test_approval_readiness_allows_legacy_missing_rerun_reports(self) -> None:
         artifacts = _workspace_artifacts()
         artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
