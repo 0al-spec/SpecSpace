@@ -89,6 +89,49 @@
   color: var(--muted);
 }
 
+.sidebar-product-workspaces {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.sidebar-product-workspaces .sidebar-section-label {
+  margin-bottom: 6px;
+}
+
+.sidebar-product-workspace-link {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--panel);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.sidebar-product-workspace-link + .sidebar-product-workspace-link {
+  margin-top: 6px;
+}
+
+.sidebar-product-workspace-link:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.sidebar-product-workspace-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Files / Spec Nodes list container — no card chrome, items align flush
    with the sidebar's own padding. The section label remains the only
    visual anchor for the group. */
