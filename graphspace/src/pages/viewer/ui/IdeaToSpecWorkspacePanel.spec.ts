@@ -100,7 +100,13 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("commit candidate");
     expect(html).toContain("open review");
     expect(html).toContain("Review status");
+    expect(html).toContain("waiting_for_review_merge");
+    expect(html).toContain("wait_for_review_merge");
+    expect(html).toContain("inspect_review_status");
     expect(html).toContain("Read-model publication");
+    expect(html).toContain("run_real_read_model_publication");
+    expect(html).toContain("product_candidate_promotion_review_status_report.json");
+    expect(html).toContain("graph_repository_publish_read_model");
     expect(html).toContain("published-read-model/artifact_manifest.json");
     expect(html).toContain("review status");
     expect(html).toContain("Repair drafts loading");

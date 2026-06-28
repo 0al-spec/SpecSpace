@@ -72,6 +72,12 @@ GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT = (
 GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT = (
     "graph_repository_publish_read_model_report.json"
 )
+PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT = (
+    "product_candidate_promotion_review_status_report.json"
+)
+PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT = (
+    "product_candidate_promotion_read_model_publication_report.json"
+)
 GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT = (
     "git_service_promotion_finalization_report.json"
 )
@@ -108,6 +114,8 @@ PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT,
     PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+    PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT,
+    PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT,
     GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT,
     GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT,
     GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT,
@@ -157,6 +165,12 @@ ARTIFACT_KEYS: dict[str, str] = {
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: "platform_promotion_request",
     PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT: "product_promotion_execution",
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: "git_service_execution",
+    PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT: (
+        "product_review_status"
+    ),
+    PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT: (
+        "product_read_model_publication"
+    ),
     GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT: "review_status",
     GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT: "read_model_publication",
     GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT: "promotion_finalization",
@@ -218,6 +232,12 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ),
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: (
         "platform_git_service_promotion_execution_report"
+    ),
+    PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT: (
+        "platform_product_candidate_promotion_review_status_report"
+    ),
+    PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT: (
+        "platform_product_candidate_promotion_read_model_publication_report"
     ),
     GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT: (
         "platform_graph_repository_review_status_report"
@@ -283,6 +303,12 @@ def _number(value: Any) -> int:
     if isinstance(value, bool):
         return 0
     return value if isinstance(value, int) and value >= 0 else 0
+
+
+def _optional_number(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    return value if isinstance(value, int) and value >= 0 else None
 
 
 def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None:
@@ -550,6 +576,57 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "tracked_artifacts_written must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT:
+        if value.get("workflow_lane") != "product_idea_to_spec":
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "product review status workflow_lane must be product_idea_to_spec.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "product review status authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT:
+        if value.get("workflow_lane") != "product_idea_to_spec":
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "product read-model publication workflow_lane must be product_idea_to_spec.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(
+            flag is True and key != "publishes_read_models"
+            for key, flag in authority_boundary.items()
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "product read-model publication may only claim public read-model publication authority.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_mutations_allowed") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must not be true.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_tracked_artifacts_written") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_tracked_artifacts_written must not be true.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must not be true.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
@@ -1595,29 +1672,136 @@ def _product_promotion_execution(report: dict[str, Any] | None) -> dict[str, Any
 
 def _review_status(report: dict[str, Any] | None) -> dict[str, Any]:
     summary = _record((report or {}).get("summary"))
+    artifact_kind = _optional_text((report or {}).get("artifact_kind"))
+    is_product = (
+        artifact_kind
+        == EXPECTED_ARTIFACT_KINDS[
+            PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        ]
+    )
+    pull_request = _record((report or {}).get("pull_request"))
+    graph_review = _record((report or {}).get("graph_repository_review_status"))
+    graph_summary = _record(graph_review.get("summary"))
+    review_state = _optional_text((report or {}).get("review_state"))
+    review_merged = (
+        review_state == "merged"
+        or summary.get("review_merged") is True
+        or graph_summary.get("review_merged") is True
+        or _optional_text(pull_request.get("mergedAt")) is not None
+    )
+    error_count = (
+        _number(summary.get("error_count"))
+        or len(_records((report or {}).get("diagnostics")))
+    )
+    ok = (report or {}).get("ok") is True
+    if report is None:
+        next_action = "run_product_candidate_promotion_review_status"
+    elif not ok:
+        next_action = "repair_review_status_report"
+    elif review_merged:
+        next_action = "ready_to_publish_read_model"
+    else:
+        next_action = "wait_for_review_merge"
     return {
         "available": report is not None,
-        "ok": (report or {}).get("ok") is True,
-        "review_state": _optional_text((report or {}).get("review_state")),
+        "ok": ok,
+        "source_mode": "product" if is_product else "legacy" if report else None,
+        "status": _optional_text(summary.get("status")),
+        "candidate_id": _optional_text((report or {}).get("candidate_id")),
+        "candidate_branch": _optional_text((report or {}).get("candidate_branch")),
+        "review_state": review_state,
         "review_decision": _optional_text((report or {}).get("review_decision")),
-        "review_url": _optional_text((report or {}).get("review_url")),
-        "review_merged": summary.get("review_merged") is True,
-        "error_count": _number(summary.get("error_count"))
-        or len(_records((report or {}).get("diagnostics"))),
+        "review_url": _optional_text(
+            (report or {}).get("review_url")
+            or graph_review.get("review_url")
+            or pull_request.get("url")
+        ),
+        "review_number": _number(pull_request.get("number")),
+        "base_branch": _optional_text(pull_request.get("baseRefName")),
+        "head_branch": _optional_text(pull_request.get("headRefName")),
+        "merged_at": _optional_text(pull_request.get("mergedAt")),
+        "merge_commit": _optional_text(_record(pull_request.get("mergeCommit")).get("oid")),
+        "review_merged": review_merged,
+        "promotion_execution_report_ref": _optional_text(
+            (report or {}).get("promotion_execution_report_ref")
+        ),
+        "graph_repository_review_status_report_ref": _optional_text(
+            (report or {}).get("graph_repository_review_status_report_ref")
+        ),
+        "operation_count": len(_records((report or {}).get("operations"))),
+        "operations": _product_repair_rerun_operations(report),
+        "error_count": error_count,
+        "next_action": next_action,
     }
 
 
 def _read_model_publication(report: dict[str, Any] | None) -> dict[str, Any]:
     summary = _record((report or {}).get("summary"))
+    artifact_kind = _optional_text((report or {}).get("artifact_kind"))
+    is_product = (
+        artifact_kind
+        == EXPECTED_ARTIFACT_KINDS[
+            PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        ]
+    )
+    child = _record((report or {}).get("graph_repository_publish_read_model"))
+    child_summary = _record(child.get("summary"))
+    published = (
+        summary.get("published") is True
+        or summary.get("read_model_published") is True
+        or child_summary.get("published") is True
+    )
+    ok = (report or {}).get("ok") is True
+    dry_run = (report or {}).get("dry_run") is True
+    if report is None:
+        next_action = "run_product_candidate_promotion_publish_read_model"
+    elif not ok:
+        next_action = "repair_read_model_publication"
+    elif dry_run:
+        next_action = "run_real_read_model_publication"
+    elif published:
+        next_action = "read_model_live"
+    else:
+        next_action = "publish_read_model_after_review_merge"
+    summary_file_count = _optional_number(summary.get("file_count"))
+    file_count = (
+        summary_file_count
+        if summary_file_count is not None
+        else _number(child_summary.get("file_count"))
+    )
     return {
         "available": report is not None,
-        "ok": (report or {}).get("ok") is True,
-        "dry_run": (report or {}).get("dry_run") is True,
+        "ok": ok,
+        "source_mode": "product" if is_product else "legacy" if report else None,
+        "status": _optional_text(summary.get("status")),
+        "dry_run": dry_run,
+        "candidate_id": _optional_text((report or {}).get("candidate_id")),
+        "candidate_branch": _optional_text((report or {}).get("candidate_branch")),
         "review_state": _optional_text((report or {}).get("review_state")),
-        "manifest": _optional_text((report or {}).get("manifest")),
-        "published": summary.get("published") is True,
-        "file_count": _number(summary.get("file_count")),
+        "manifest": _optional_text(
+            summary.get("published_manifest")
+            or (report or {}).get("manifest")
+            or (report or {}).get("manifest_name")
+        ),
+        "manifest_name": _optional_text((report or {}).get("manifest_name")),
+        "bundle_dir": _optional_text((report or {}).get("bundle_dir")),
+        "output_dir": _optional_text((report or {}).get("output_dir")),
+        "published": published,
+        "read_model_published": published,
+        "file_count": file_count,
+        "product_review_status_report_ref": _optional_text(
+            (report or {}).get("product_review_status_report_ref")
+        ),
+        "graph_repository_review_status_report_ref": _optional_text(
+            (report or {}).get("graph_repository_review_status_report_ref")
+        ),
+        "graph_repository_publish_read_model_report_ref": _optional_text(
+            (report or {}).get("graph_repository_publish_read_model_report_ref")
+        ),
+        "operation_count": len(_records((report or {}).get("operations"))),
+        "operations": _product_repair_rerun_operations(report),
         "error_count": _number(summary.get("error_count")),
+        "next_action": next_action,
     }
 
 
@@ -2171,8 +2355,15 @@ def _workflow(
     )
     review_status_failed = review_status is not None and (review_status.get("ok") is not True)
     publish_summary = _record((read_model_publication or {}).get("summary"))
+    publish_child_summary = _record(
+        _record(
+            (read_model_publication or {}).get("graph_repository_publish_read_model")
+        ).get("summary")
+    )
     read_model_published = (
         publish_summary.get("published") is True
+        or publish_summary.get("read_model_published") is True
+        or publish_child_summary.get("published") is True
         or _record((promotion_finalization or {}).get("summary")).get(
             "read_model_published"
         )
@@ -2182,6 +2373,34 @@ def _workflow(
         promotion_finalization is not None
         and promotion_finalization.get("ok") is not True
     )
+    review_status_is_product = (
+        (review_status or {}).get("artifact_kind")
+        == EXPECTED_ARTIFACT_KINDS[
+            PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        ]
+    )
+    review_status_artifact_key = (
+        PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        if review_status_is_product
+        or (review_status is None and product_execution_available)
+        else GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
+    )
+    review_status_status_key = ARTIFACT_KEYS[review_status_artifact_key]
+    read_model_publication_is_product = (
+        (read_model_publication or {}).get("artifact_kind")
+        == EXPECTED_ARTIFACT_KINDS[
+            PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        ]
+    )
+    read_model_publication_artifact_key = (
+        PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        if read_model_publication_is_product
+        or (read_model_publication is None and product_execution_available)
+        else GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
+    )
+    read_model_publication_status_key = ARTIFACT_KEYS[
+        read_model_publication_artifact_key
+    ]
 
     items = [
         _workflow_item(
@@ -2395,11 +2614,11 @@ def _workflow(
             label="Review status",
             status=_available_status(
                 statuses,
-                "review_status",
+                review_status_status_key,
                 review_merged,
                 blocked=review_status_failed,
             ),
-            artifact_key=GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT,
+            artifact_key=review_status_artifact_key,
             detail=_optional_text((review_status or {}).get("review_state")),
         ),
         _workflow_item(
@@ -2410,7 +2629,7 @@ def _workflow(
                 if read_model_published
                 else _available_status(
                     statuses,
-                    "read_model_publication",
+                    read_model_publication_status_key,
                     False,
                     blocked=finalization_failed
                     or (
@@ -2421,7 +2640,7 @@ def _workflow(
                     or (promotion_finalization or {}).get("dry_run") is True,
                 )
             ),
-            artifact_key=GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT,
+            artifact_key=read_model_publication_artifact_key,
             detail="published" if read_model_published else None,
         ),
     ]
@@ -2762,7 +2981,15 @@ def _workflow(
                 if product_execution_available
                 else f"runs/{GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT}"
             ),
-            "command_template": "scripts/platform.py graph-repository review-status <open-review-report>",
+            "command_template": (
+                (
+                    "scripts/platform.py product-candidate-promotion review-status "
+                    "--execution-report "
+                    "runs/product_candidate_promotion_execution_report.json"
+                )
+                if product_execution_available
+                else "scripts/platform.py graph-repository review-status <open-review-report>"
+            ),
             "authority_boundary": "operator_only",
         }
     elif review_status_failed or finalization_failed:
@@ -2772,8 +2999,8 @@ def _workflow(
             "kind": "post_review_repair",
             "label": "Repair post-review closure before publishing read model",
             "status": "blocked",
-            "artifact_key": "review_status",
-            "artifact_path": f"runs/{GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT}",
+            "artifact_key": review_status_status_key,
+            "artifact_path": f"runs/{review_status_artifact_key}",
             "command_template": None,
             "authority_boundary": "operator_only",
         }
@@ -2784,8 +3011,8 @@ def _workflow(
             "kind": "repository_review",
             "label": "Wait for repository review merge before read-model publish",
             "status": "operator_review_required",
-            "artifact_key": "review_status",
-            "artifact_path": f"runs/{GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT}",
+            "artifact_key": review_status_status_key,
+            "artifact_path": f"runs/{review_status_artifact_key}",
             "command_template": None,
             "authority_boundary": "operator_only",
         }
@@ -2796,12 +3023,21 @@ def _workflow(
             "kind": "publish_read_model",
             "label": "Publish read model after merged repository review",
             "status": "ready",
-            "artifact_key": "review_status",
-            "artifact_path": f"runs/{GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT}",
+            "artifact_key": review_status_status_key,
+            "artifact_path": f"runs/{review_status_artifact_key}",
             "command_template": (
-                "scripts/platform.py git-service finalize-promotion "
-                "--open-review-report <open-review-report> "
-                "--bundle-dir <public-bundle> --output-dir <read-model-dir>"
+                (
+                    "scripts/platform.py product-candidate-promotion publish-read-model "
+                    "--review-status-report "
+                    "runs/product_candidate_promotion_review_status_report.json "
+                    "--bundle-dir <public-bundle> --output-dir <read-model-dir>"
+                )
+                if review_status_is_product
+                else (
+                    "scripts/platform.py git-service finalize-promotion "
+                    "--open-review-report <open-review-report> "
+                    "--bundle-dir <public-bundle> --output-dir <read-model-dir>"
+                )
             ),
             "authority_boundary": "operator_only",
         }
@@ -2812,8 +3048,8 @@ def _workflow(
             "kind": "read_model_review",
             "label": "Inspect published read model",
             "status": "ready",
-            "artifact_key": "read_model_publication",
-            "artifact_path": f"runs/{GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT}",
+            "artifact_key": read_model_publication_status_key,
+            "artifact_path": f"runs/{read_model_publication_artifact_key}",
             "command_template": None,
             "authority_boundary": "read_only",
         }
@@ -2912,11 +3148,21 @@ def build_idea_to_spec_workspace(
     git_service_execution = _artifact_data(
         artifacts, GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
     )
-    review_status = _artifact_data(
+    product_review_status = _artifact_data(
+        artifacts, PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+    )
+    legacy_review_status = _artifact_data(
         artifacts, GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
     )
-    read_model_publication = _artifact_data(
+    review_status = product_review_status or legacy_review_status
+    product_read_model_publication = _artifact_data(
+        artifacts, PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+    )
+    legacy_read_model_publication = _artifact_data(
         artifacts, GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
+    )
+    read_model_publication = (
+        product_read_model_publication or legacy_read_model_publication
     )
     promotion_finalization = _artifact_data(
         artifacts, GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT

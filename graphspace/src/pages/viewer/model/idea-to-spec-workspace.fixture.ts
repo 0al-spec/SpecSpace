@@ -941,7 +941,7 @@ export const ideaToSpecWorkspace = {
     candidate_approval_execution: {
       available: true,
       ok: true,
-      dry_run: false,
+      dry_run: true,
       status: "candidate_approval_materialized",
       candidate_id: "idea-alpha",
       workspace_id: "team-decision-log",
@@ -1146,21 +1146,81 @@ export const ideaToSpecWorkspace = {
     review_status: {
       available: true,
       ok: true,
+      source_mode: "product",
+      status: "waiting_for_review_merge",
+      candidate_id: "team-decision-log",
+      candidate_branch: "graph-candidate/idea-alpha",
       review_state: "open",
       review_decision: "APPROVED",
       review_url: "https://github.com/example/product/pull/12",
+      review_number: 12,
+      base_branch: "main",
+      head_branch: "graph-candidate/idea-alpha",
+      merged_at: null,
+      merge_commit: "abc123",
       review_merged: false,
+      promotion_execution_report_ref:
+        "runs/product_candidate_promotion_execution_report.json",
+      graph_repository_review_status_report_ref:
+        "/tmp/team-decision-log-worktree/.platform/graph_repository_review_status_report.json",
+      operation_count: 3,
+      operations: [
+        {
+          name: "validate_product_promotion_execution",
+          status: "ready",
+          reason: "product promotion execution is ready for review status",
+          evidence: ["runs/product_candidate_promotion_execution_report.json"],
+        },
+        {
+          name: "inspect_review_status",
+          status: "succeeded",
+          reason: "graph repository review status inspected",
+          evidence: ["graph-repository review-status"],
+        },
+      ],
       error_count: 0,
+      next_action: "wait_for_review_merge",
     },
     read_model_publication: {
       available: true,
       ok: true,
-      dry_run: false,
+      source_mode: "product",
+      status: "dry_run",
+      dry_run: true,
+      candidate_id: "team-decision-log",
+      candidate_branch: "graph-candidate/idea-alpha",
       review_state: "open",
       manifest: "published-read-model/artifact_manifest.json",
+      manifest_name: "artifact_manifest.json",
+      bundle_dir: "/tmp/public-bundle",
+      output_dir: "/tmp/published-read-model",
       published: false,
+      read_model_published: false,
       file_count: 0,
+      product_review_status_report_ref:
+        "runs/product_candidate_promotion_review_status_report.json",
+      graph_repository_review_status_report_ref:
+        "/tmp/team-decision-log-worktree/.platform/graph_repository_review_status_report.json",
+      graph_repository_publish_read_model_report_ref: null,
+      operation_count: 2,
+      operations: [
+        {
+          name: "validate_product_review_status",
+          status: "ready",
+          reason: "product review is merged and ready for read-model publication",
+          evidence: [
+            "runs/product_candidate_promotion_review_status_report.json",
+          ],
+        },
+        {
+          name: "publish_read_model",
+          status: "dry_run",
+          reason: "dry_run",
+          evidence: ["graph-repository publish-read-model"],
+        },
+      ],
       error_count: 0,
+      next_action: "run_real_read_model_publication",
     },
     promotion_finalization: {
       available: true,
@@ -1352,6 +1412,25 @@ export const ideaToSpecWorkspace = {
       path: "runs/git_service_promotion_execution_report.json",
       artifact_kind: "platform_git_service_promotion_execution_report",
       status: null,
+      proposal_id: null,
+      contract_ref: null,
+    },
+    product_review_status: {
+      available: true,
+      path: "runs/product_candidate_promotion_review_status_report.json",
+      artifact_kind:
+        "platform_product_candidate_promotion_review_status_report",
+      status: "waiting_for_review_merge",
+      proposal_id: null,
+      contract_ref: null,
+    },
+    product_read_model_publication: {
+      available: true,
+      path:
+        "runs/product_candidate_promotion_read_model_publication_report.json",
+      artifact_kind:
+        "platform_product_candidate_promotion_read_model_publication_report",
+      status: "dry_run",
       proposal_id: null,
       contract_ref: null,
     },
