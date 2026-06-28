@@ -8,6 +8,7 @@ import type {
   IdeaToSpecClarificationRequest,
   IdeaToSpecGitServiceOperation,
   IdeaToSpecIdeaMaturity,
+  IdeaToSpecIdeaMaturityFinding,
   IdeaToSpecMaterializedFile,
   IdeaToSpecOntologyDecision,
   IdeaToSpecProductRepairRerunPlatformExecution,
@@ -98,6 +99,67 @@ function durationText(value: number | null): string {
   if (value < 1) return `${value.toFixed(3)}s`;
   if (value < 60) return `${value.toFixed(1)}s`;
   return `${Math.round(value / 60)}m`;
+}
+
+const MATURITY_NAV_ITEMS = [
+  {
+    label: "Clarification",
+    href: "#idea-to-spec-repair-review",
+    detail: "Open repair questions and saved answers.",
+  },
+  {
+    label: "Ontology grounding",
+    href: "#idea-to-spec-repair-review",
+    detail: "Inspect gap decisions and resolved ontology terms.",
+  },
+  {
+    label: "Pre-SIB",
+    href: "#idea-to-spec-pre-sib",
+    detail: "Review coherence and policy findings.",
+  },
+  {
+    label: "Candidate repair",
+    href: "#idea-to-spec-repair-session",
+    detail: "Inspect blockers, stages, and accepted answers.",
+  },
+  {
+    label: "Promotion preview",
+    href: "#idea-to-spec-materialization",
+    detail: "Inspect materialized review-only candidate files.",
+  },
+  {
+    label: "Approval readiness",
+    href: "#idea-to-spec-approval-readiness",
+    detail: "Check whether promotion review can be requested.",
+  },
+  {
+    label: "Controlled promotion",
+    href: "#idea-to-spec-controlled-promotion",
+    detail: "Inspect Platform and Git Service handoffs.",
+  },
+] as const;
+
+function maturityFindingNextAction(
+  finding: IdeaToSpecIdeaMaturityFinding,
+): string {
+  if (finding.nextAction) return finding.nextAction;
+  const source = `${finding.source ?? ""} ${finding.findingId}`.toLowerCase();
+  if (source.includes("ontology")) {
+    return "Review ontology grounding decisions.";
+  }
+  if (source.includes("pre_sib") || source.includes("pre-sib")) {
+    return "Inspect Pre-SIB coherence findings.";
+  }
+  if (source.includes("approval")) {
+    return "Inspect approval readiness.";
+  }
+  if (source.includes("promotion") || source.includes("gate")) {
+    return "Inspect promotion gates and controlled promotion reports.";
+  }
+  if (source.includes("rerun") || source.includes("repair")) {
+    return "Review repair rerun state and rerun metrics after changes.";
+  }
+  return "Inspect the source artifact and rerun metrics after repair.";
 }
 
 export function IdeaToSpecWorkspacePanel({
@@ -600,7 +662,7 @@ function CandidateGraphSection({
 function PreSibSection({ state }: { state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }> }) {
   const data = state.data;
   return (
-    <section className={styles.reviewSection}>
+    <section id="idea-to-spec-pre-sib" className={styles.reviewSection}>
       <SectionHeader title="Pre-SIB coherence" count={data.preSib.findings.length} />
       <div className={styles.postureStrip}>
         <PostureItem label="Ready" value={boolText(data.preSib.readiness.ready)} />
@@ -672,7 +734,7 @@ function RepairSessionSection({
 }) {
   const session = state.data.repairSession;
   return (
-    <section className={styles.reviewSection}>
+    <section id="idea-to-spec-repair-session" className={styles.reviewSection}>
       <SectionHeader
         title="Repair session"
         count={
@@ -835,7 +897,7 @@ function IdeaMaturitySection({
 }) {
   if (!maturity.available) {
     return (
-      <section className={styles.reviewSection}>
+      <section id="idea-to-spec-idea-maturity" className={styles.reviewSection}>
         <SectionHeader title="Idea maturity" count={0} />
         <Status
           label="Idea maturity metrics unavailable"
@@ -877,7 +939,7 @@ function IdeaMaturitySection({
         ? "validation unavailable"
         : maturity.status.replace(/_/g, " ");
   return (
-    <section className={styles.reviewSection}>
+    <section id="idea-to-spec-idea-maturity" className={styles.reviewSection}>
       <SectionHeader
         title="Idea maturity"
         count={
@@ -924,6 +986,21 @@ function IdeaMaturitySection({
           <Meta label="Candidate" value={maturity.report.candidate.candidateId} />
           <Meta label="Review" value={derived.reviewStatus} />
           <Meta label="Blockers" value={joined(derived.blockers)} />
+        </div>
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Maturity navigation</span>
+          <Pill value="lifecycle links" />
+        </div>
+        <div className={styles.navGrid}>
+          {MATURITY_NAV_ITEMS.map((item) => (
+            <a key={item.label} className={styles.navLink} href={item.href}>
+              <span className={styles.navLabel}>{item.label}</span>
+              <span className={styles.navHint}>{item.detail}</span>
+            </a>
+          ))}
         </div>
       </div>
 
@@ -1001,6 +1078,30 @@ function IdeaMaturitySection({
 
       <div className={styles.row}>
         <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Rerun trend</span>
+          <Pill value={metrics.rerunCount > 0 ? "after rerun" : "before rerun"} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta
+            label="Ontology gaps resolved"
+            value={`${metrics.ontologyGapResolvedCount} / ${metrics.ontologyGapCountInitial}`}
+          />
+          <Meta
+            label="Candidate gaps resolved"
+            value={`${metrics.candidateGapResolvedCount} / ${metrics.candidateGapCountInitial}`}
+          />
+          <Meta
+            label="Remaining blockers"
+            value={String(metrics.remainingBlockerCount)}
+          />
+          <Meta label="Stale refs" value={String(metrics.staleRefCount)} />
+          <Meta label="Failed gates" value={String(metrics.failedGateCount)} />
+          <Meta label="Reruns" value={String(metrics.rerunCount)} />
+        </div>
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
           <span className={styles.rowId}>Workflow friction and promotion</span>
           <Pill value={compact(derived.platformPromotionState, "not_reached")} />
         </div>
@@ -1069,6 +1170,10 @@ function IdeaMaturitySection({
           <h3 className={styles.title}>{finding.message}</h3>
           <div className={styles.metaGrid}>
             <Meta label="Source" value={finding.source} />
+            <Meta
+              label="Next action"
+              value={maturityFindingNextAction(finding)}
+            />
           </div>
         </div>
       ))}
@@ -1096,7 +1201,7 @@ function ProductRepairReviewSection({
       ? repairDrafts.state.data.summary.draftCount
       : 0;
   return (
-    <section className={styles.reviewSection}>
+    <section id="idea-to-spec-repair-review" className={styles.reviewSection}>
       <SectionHeader
         title="Product repair review"
         count={
@@ -1407,7 +1512,10 @@ function ApprovalReadinessSection({
       ? "Candidate approval-ready"
       : "Candidate not approval-ready";
   return (
-    <section className={styles.reviewSection}>
+    <section
+      id="idea-to-spec-approval-readiness"
+      className={styles.reviewSection}
+    >
       <SectionHeader
         title="Approval readiness"
         count={readiness.remainingBlockerCount}
@@ -1875,7 +1983,7 @@ function MaterializationSection({
   const materialization = state.data.materialization;
   const request = materialization.promotionRequest;
   return (
-    <section className={styles.reviewSection}>
+    <section id="idea-to-spec-materialization" className={styles.reviewSection}>
       <SectionHeader
         title="Promotion preview"
         count={materialization.files.length}
@@ -2022,7 +2130,10 @@ function ControlledPromotionSection({
     gitOperationCount +
     postReviewOperationCount;
   return (
-    <section className={styles.reviewSection}>
+    <section
+      id="idea-to-spec-controlled-promotion"
+      className={styles.reviewSection}
+    >
       <SectionHeader
         title="Controlled promotion"
         count={operationCount}

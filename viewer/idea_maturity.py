@@ -206,6 +206,7 @@ def _finding_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
                 "severity": _text(item.get("severity"), "unknown"),
                 "message": _text(item.get("message"), "No message supplied."),
                 "source": _optional_text(item.get("source")),
+                "next_action": _optional_text(item.get("next_action")),
             }
         )
     return rows
