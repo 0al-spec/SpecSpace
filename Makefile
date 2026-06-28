@@ -15,7 +15,7 @@ SPECGRAPH_DIR ?= $(CLAUDE_SPECGRAPH_DIR)
 HYPERPROMPT_BINARY ?= $(CLAUDE_HYPERPROMPT_BINARY)
 AGENT ?= 1
 
-.PHONY: help serve api ui dev start stop specspace-start specspace-stop specspace-restart specspace-status test lint canonicalize canon quickstart
+.PHONY: help serve api ui legacy-ui dev legacy-dev start stop specspace-start specspace-stop specspace-restart specspace-status test lint canonicalize canon quickstart
 
 help:
 	@echo "Targets:"
@@ -24,9 +24,11 @@ help:
 	@echo "  make canonicalize DIALOG_DIR=/path/to/import_json OUTPUT_DIR=/path/to/canonical_json"
 	@echo "  make canon DIALOG_DIR=/path/to/import_json [OUTPUT_DIR=/tmp/canonical_json]"
 	@echo "  make api [DIALOG_DIR=/tmp/canonical_json] [API_PORT=8001]"
-	@echo "  make ui [UI_PORT=5173]"
-	@echo "  make start                  Run API + UI using .claude launch defaults"
+	@echo "  make ui [UI_PORT=5173]     Run GraphSpace SpecSpace UI"
+	@echo "  make legacy-ui [UI_PORT=5173] Run deprecated ContextBuilder UI"
+	@echo "  make start                  Run API + GraphSpace UI using launch defaults"
 	@echo "  make dev [DIALOG_DIR=...] [API_PORT=8001] [UI_PORT=5173]"
+	@echo "  make legacy-dev [...]       Run API + deprecated ContextBuilder UI"
 	@echo "  make stop [API_PORT=8001] [UI_PORT=5173]"
 	@echo "  make specspace-restart     Restart SpecSpace API + GraphSpace dev UI in detached screen sessions"
 	@echo "  make specspace-status      Show SpecSpace dev screen sessions and port listeners"
@@ -56,9 +58,19 @@ api:
 	@$(MAKE) serve PORT="$(API_PORT)" DIALOG_DIR="$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))"
 
 ui:
+	@npm run dev --prefix graphspace -- --host 127.0.0.1 --port "$(UI_PORT)"
+
+legacy-ui:
 	@npm run dev --prefix viewer/app -- --host 127.0.0.1 --port "$(UI_PORT)"
 
 dev:
+	@npm install --prefix graphspace
+	@$(PYTHON) viewer/server.py --port "$(API_PORT)" --dialog-dir "$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",) $(if $(strip $(SPECGRAPH_DIR)),--specgraph-dir "$(SPECGRAPH_DIR)",) $(if $(strip $(HYPERPROMPT_BINARY)),--hyperprompt-binary "$(HYPERPROMPT_BINARY)",) $(if $(filter 1 true yes,$(AGENT)),--agent,) & \
+	api_pid=$$!; \
+	trap 'kill $$api_pid 2>/dev/null || true' EXIT INT TERM; \
+	npm run dev --prefix graphspace -- --host 127.0.0.1 --port "$(UI_PORT)"
+
+legacy-dev:
 	@npm install --prefix viewer/app
 	@$(PYTHON) viewer/server.py --port "$(API_PORT)" --dialog-dir "$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",) $(if $(strip $(SPECGRAPH_DIR)),--specgraph-dir "$(SPECGRAPH_DIR)",) $(if $(strip $(HYPERPROMPT_BINARY)),--hyperprompt-binary "$(HYPERPROMPT_BINARY)",) $(if $(filter 1 true yes,$(AGENT)),--agent,) & \
 	api_pid=$$!; \
@@ -66,12 +78,12 @@ dev:
 	npm run dev --prefix viewer/app -- --host 127.0.0.1 --port "$(UI_PORT)"
 
 start:
-	@npm install --prefix viewer/app
+	@npm install --prefix graphspace
 	@$(MAKE) stop API_PORT="$(API_PORT)" UI_PORT="$(UI_PORT)" >/dev/null
 	@$(PYTHON) viewer/server.py --port "$(API_PORT)" --dialog-dir "$(if $(strip $(DIALOG_DIR)),$(DIALOG_DIR),$(CANONICAL_DIR))" $(if $(strip $(SPEC_DIR)),--spec-dir "$(SPEC_DIR)",) $(if $(strip $(SPECGRAPH_DIR)),--specgraph-dir "$(SPECGRAPH_DIR)",) $(if $(strip $(HYPERPROMPT_BINARY)),--hyperprompt-binary "$(HYPERPROMPT_BINARY)",) $(if $(filter 1 true yes,$(AGENT)),--agent,) & \
 	api_pid=$$!; \
 	trap 'kill $$api_pid 2>/dev/null || true' EXIT INT TERM; \
-	npm run dev --prefix viewer/app -- --port "$(UI_PORT)"
+	npm run dev --prefix graphspace -- --port "$(UI_PORT)"
 
 stop:
 	@lsof -ti:$(API_PORT) | xargs kill 2>/dev/null || true

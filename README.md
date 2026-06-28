@@ -44,12 +44,16 @@ python3 viewer/server.py --port 8000 --dialog-dir /path/to/dialogs \
   --hyperprompt-binary /path/to/hyperprompt
 ```
 
-### Development Mode (React UI + API)
+### Development Mode (SpecSpace UI + API)
 
 ```bash
 make dev DIALOG_DIR=/path/to/dialogs
-# API on :8001, React UI on :5173 → http://localhost:5173/
+# API on :8001, GraphSpace SpecSpace UI on :5173 → http://localhost:5173/
 ```
+
+The deprecated ContextBuilder conversation UI is still available for legacy
+debugging through `make legacy-dev` or `make legacy-ui`, but product workspace
+work should use the GraphSpace SpecSpace UI.
 
 ---
 
