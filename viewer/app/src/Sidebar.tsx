@@ -258,11 +258,11 @@ export default function Sidebar({
         className="sidebar-toggle"
       />
       <div className="sidebar-header">
-        <h1 className="sidebar-title">ContextBuilder</h1>
+        <h1 className="sidebar-title">SpecSpace</h1>
         <p className="sidebar-description">
           {graphMode === "conversations"
-            ? "Graph-first navigation for local conversation lineages."
-            : "Specification graph viewer."}
+            ? "Workspace graph for local agent and conversation traces."
+            : "SpecGraph workspace and product routes."}
         </p>
       </div>
 
