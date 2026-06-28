@@ -82,6 +82,13 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Remaining blockers");
     expect(html).toContain("Workflow friction and promotion");
     expect(html).toContain("Temporal progress");
+    expect(html).toContain("Readiness explainers");
+    expect(html).toContain("readiness-explainer.pre-sib-ontology-coverage-gap");
+    expect(html).toContain("Ontology coverage is incomplete");
+    expect(html).toContain("Inspect Pre-SIB coherence findings");
+    expect(html).toContain(
+      "runs/repaired_pre_sib_coherence_report.json#findings.pre-sib-ontology-coverage-gap",
+    );
     expect(html).toContain("100%");
     expect(html).not.toContain("NaN");
     expect(html).toContain("Product repair review");

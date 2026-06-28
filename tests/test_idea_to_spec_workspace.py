@@ -1764,6 +1764,24 @@ def _idea_maturity_metrics_report() -> dict:
             "runs/idea_event_storming_intake.json",
             "runs/candidate_spec_graph.json",
         ],
+        "readiness_explainers": [
+            {
+                "id": "readiness-explainer.pre-sib-ontology-coverage-gap",
+                "proposal_id": "0180",
+                "kind": "pre_sib_finding",
+                "source": "repaired_pre_sib",
+                "severity": "high",
+                "blocks": ["pre_sib_review", "candidate_approval"],
+                "message": "Ontology coverage is incomplete for the candidate graph.",
+                "next_action": (
+                    "Inspect Pre-SIB coherence findings and close the referenced "
+                    "candidate graph condition."
+                ),
+                "evidence_refs": [
+                    "runs/repaired_pre_sib_coherence_report.json#findings.pre-sib-ontology-coverage-gap"
+                ],
+            }
+        ],
         "findings": [],
         "invariant_findings": [],
         "policy_findings": [],
@@ -2008,6 +2026,20 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 "ontology_gap_resolution_rate"
             ],
             1.0,
+        )
+        self.assertEqual(
+            body["idea_maturity"]["report"]["readiness_explainers"][0]["kind"],
+            "pre_sib_finding",
+        )
+        self.assertEqual(
+            body["idea_maturity"]["report"]["readiness_explainers"][0]["blocks"],
+            ["pre_sib_review", "candidate_approval"],
+        )
+        self.assertEqual(
+            body["idea_maturity"]["report"]["readiness_explainers"][0][
+                "proposal_id"
+            ],
+            "0180",
         )
         self.assertEqual(
             body["idea_maturity"]["validation"]["summary"]["status"],

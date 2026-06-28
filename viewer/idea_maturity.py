@@ -20,6 +20,7 @@ METRIC_PACK_ID = "idea_to_spec_maturity"
 
 DISPLAY_LIMITS = {
     "findings": 12,
+    "readiness_explainers": 16,
     "source_artifacts": 24,
     "validation_reports": 8,
 }
@@ -207,6 +208,30 @@ def _finding_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
                 "message": _text(item.get("message"), "No message supplied."),
                 "source": _optional_text(item.get("source")),
                 "next_action": _optional_text(item.get("next_action")),
+            }
+        )
+    return rows
+
+
+def _readiness_explainer_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records((report or {}).get("readiness_explainers"))[
+        : DISPLAY_LIMITS["readiness_explainers"]
+    ]:
+        explainer_id = _text(item.get("id"))
+        if not explainer_id:
+            continue
+        rows.append(
+            {
+                "id": explainer_id,
+                "proposal_id": _optional_text(item.get("proposal_id")),
+                "kind": _text(item.get("kind"), "unknown"),
+                "source": _optional_text(item.get("source")),
+                "severity": _text(item.get("severity"), "unknown"),
+                "blocks": _string_list(item.get("blocks")),
+                "message": _text(item.get("message"), "No message supplied."),
+                "next_action": _optional_text(item.get("next_action")),
+                "evidence_refs": _string_list(item.get("evidence_refs")),
             }
         )
     return rows
@@ -425,6 +450,7 @@ def _report_surface(report: dict[str, Any] | None) -> dict[str, Any]:
         },
         "summary": _safe_record((report or {}).get("summary")),
         "findings": _finding_rows(report),
+        "readiness_explainers": _readiness_explainer_rows(report),
         "source_artifacts": _string_list((report or {}).get("source_artifacts"))[
             : DISPLAY_LIMITS["source_artifacts"]
         ],
