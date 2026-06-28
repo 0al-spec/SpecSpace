@@ -59,10 +59,20 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("propose_project_local_term");
     expect(html).toContain("Idea maturity");
     expect(html).toContain("Metrics contract");
+    expect(html).toContain("Maturity navigation");
+    expect(html).toContain("#idea-to-spec-repair-review");
+    expect(html).toContain("#idea-to-spec-pre-sib");
+    expect(html).toContain("#idea-to-spec-materialization");
+    expect(html).toContain("#idea-to-spec-approval-readiness");
+    expect(html).toContain("#idea-to-spec-controlled-promotion");
     expect(html).toContain("metrics.idea_maturity_metrics.validator.v0.1");
     expect(html).toContain("repair required");
     expect(html).toContain("Ontology grounding");
     expect(html).toContain("Candidate repair");
+    expect(html).toContain("Rerun trend");
+    expect(html).toContain("Ontology gaps resolved");
+    expect(html).toContain("Candidate gaps resolved");
+    expect(html).toContain("Remaining blockers");
     expect(html).toContain("Workflow friction and promotion");
     expect(html).toContain("Temporal progress");
     expect(html).toContain("100%");
@@ -176,6 +186,34 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Idea maturity");
     expect(html).toContain("validation failed");
     expect(html).toContain("diagnostics 2");
+  });
+
+  it("renders idea maturity finding next actions", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.idea_maturity.report.findings = [
+      {
+        finding_id: "maturity.pre_sib.blocker",
+        severity: "warning",
+        message: "Candidate is blocked by Pre-SIB finding.",
+        source: "pre_sib",
+        next_action: "Inspect Pre-SIB coherence findings.",
+      },
+    ];
+    const parsedWithFinding = parseIdeaToSpecWorkspace(raw);
+    if (parsedWithFinding.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWithFinding.data },
+      }),
+    );
+
+    expect(html).toContain("maturity.pre_sib.blocker");
+    expect(html).toContain("Candidate is blocked by Pre-SIB finding.");
+    expect(html).toContain("Next action");
+    expect(html).toContain("Inspect Pre-SIB coherence findings.");
   });
 
   it("renders product child Git operations without a standalone legacy report", () => {

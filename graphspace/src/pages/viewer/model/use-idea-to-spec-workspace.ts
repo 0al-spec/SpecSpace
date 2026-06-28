@@ -459,6 +459,7 @@ export type IdeaToSpecIdeaMaturityFinding = {
   severity: string;
   message: string;
   source: string | null;
+  nextAction: string | null;
 };
 
 export type IdeaToSpecIdeaMaturityValidationReport = {
@@ -1955,6 +1956,7 @@ function parseIdeaMaturityFinding(
     severity: stringValue(finding.severity, "unknown"),
     message: stringValue(finding.message, "No message supplied."),
     source: optionalString(finding.source),
+    nextAction: optionalString(finding.next_action),
   };
 }
 

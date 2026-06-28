@@ -266,6 +266,33 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.ideaMaturity.trusted).toBe(false);
   });
 
+  it("parses idea maturity finding next actions", () => {
+    const parsed = parseIdeaToSpecWorkspace({
+      ...ideaToSpecWorkspace,
+      idea_maturity: {
+        ...ideaToSpecWorkspace.idea_maturity,
+        report: {
+          ...ideaToSpecWorkspace.idea_maturity.report,
+          findings: [
+            {
+              finding_id: "maturity.pre_sib.blocker",
+              severity: "warning",
+              message: "Candidate is blocked by Pre-SIB finding.",
+              source: "pre_sib",
+              next_action: "Inspect Pre-SIB coherence findings.",
+            },
+          ],
+        },
+      },
+    });
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.ideaMaturity.report.findings[0].nextAction).toBe(
+      "Inspect Pre-SIB coherence findings.",
+    );
+  });
+
   it("rejects repair review action expansion", () => {
     const parsed = parseIdeaToSpecWorkspace({
       ...ideaToSpecWorkspace,

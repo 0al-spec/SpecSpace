@@ -280,6 +280,49 @@
   margin-top: var(--gs-space-5);
 }
 
+.navGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: var(--gs-space-5);
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-rule-soft);
+}
+
+.navLink {
+  min-width: 0;
+  padding: var(--gs-space-4);
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+  text-decoration: none;
+}
+
+.navLink:hover,
+.navLink:focus-visible {
+  color: var(--gs-accent);
+}
+
+.navLabel,
+.navHint {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.navLabel {
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.navHint {
+  margin-top: var(--gs-space-2);
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .workflowGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -684,6 +727,7 @@
     min-height: 260px;
   }
 
+  .navGrid,
   .workflowGrid {
     grid-template-columns: minmax(0, 1fr);
   }
