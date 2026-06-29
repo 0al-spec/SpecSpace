@@ -2455,12 +2455,25 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts[
             idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
         ] = _active_candidate()
+        repaired_session = _repaired_repair_session_journal()
+        repaired_session["readiness_impact"]["platform_promotion_blocked_by"] = [
+            "candidate_approval_decision_missing"
+        ]
         artifacts[
             idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
-        ] = _repaired_repair_session_journal()
+        ] = repaired_session
+        repaired_gate = _repaired_promotion_gate()
+        repaired_gate["warnings"] = [
+            {
+                "finding_id": "pre_sib_findings_repaired_by_preview",
+                "severity": "warning",
+                "message": "Original pre-SIB findings are allowed because repair preview was used.",
+                "source": "idea_to_spec_promotion_gate",
+            }
+        ]
         artifacts[
             idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
-        ] = _repaired_promotion_gate()
+        ] = repaired_gate
 
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
             artifacts=artifacts,
@@ -2485,6 +2498,8 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(readiness["unresolved_ontology_gap_count"], 0)
         self.assertEqual(readiness["unresolved_candidate_gap_count"], 0)
         self.assertEqual(readiness["remaining_blocker_count"], 0)
+        self.assertNotIn("candidate_approval_decision_missing", readiness["blockers"])
+        self.assertNotIn("pre_sib_findings_repaired_by_preview", readiness["blockers"])
         self.assertEqual(readiness["promotion_path_count"], 2)
         self.assertFalse(
             readiness["action_boundary"][
