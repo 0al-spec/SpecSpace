@@ -25,6 +25,13 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
 
     expect(html).toContain("Idea-to-Spec Workspace");
+    expect(html).toContain("Guided product flow");
+    expect(html).toContain("Replace the rerun request for the current workspace and repair session.");
+    expect(html).toContain("#idea-to-spec-workspace-state-hygiene");
+    expect(html).toContain("#idea-to-spec-idea-intake");
+    expect(html).toContain("#idea-to-spec-candidate-graph");
+    expect(html).toContain("Git dry-run");
+    expect(html).toContain("scripts/platform.py product-repair-rerun smoke --profile happy-path-promotion-dry-run");
     expect(html).toContain("Workflow lane");
     expect(html).toContain("repair required");
     expect(html).toContain("Resolve context-required repairs before promotion");

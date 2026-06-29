@@ -627,6 +627,55 @@ export type IdeaToSpecWorkflow = {
   nextHandoff: IdeaToSpecNextHandoff;
 };
 
+export type IdeaToSpecGuidedFlowBoundary = {
+  inspectOnly: true;
+  acknowledgeOnly: true;
+  mayExecuteSpecgraph: false;
+  mayExecutePlatform: false;
+  mayExecuteGitService: false;
+  mayMutateCandidateArtifacts: false;
+  mayMutateCanonicalSpecs: false;
+  mayWriteOntologyPackage: false;
+  mayAcceptOntologyTerms: false;
+  mayCreateBranchOrCommit: false;
+  mayOpenPullRequest: false;
+  mayMergeReview: false;
+};
+
+export type IdeaToSpecGuidedFlowStage = {
+  id: string;
+  label: string;
+  status: string;
+  primaryNextAction: string;
+  blockers: readonly string[];
+  evidenceRefs: readonly string[];
+  targetSection: string | null;
+  commandTemplate: string | null;
+  authorityBoundary: IdeaToSpecGuidedFlowBoundary;
+};
+
+export type IdeaToSpecGuidedFlowNextAction = {
+  id: string;
+  label: string;
+  status: string;
+  targetSection: string | null;
+  commandTemplate: string | null;
+  evidenceRefs: readonly string[];
+  authorityBoundary: IdeaToSpecGuidedFlowBoundary;
+};
+
+export type IdeaToSpecGuidedFlow = {
+  currentStage: string;
+  currentStageLabel: string;
+  overallStatus: string;
+  workflowStage: string;
+  workflowStatus: string;
+  nextHandoff: IdeaToSpecNextHandoff;
+  nextActions: readonly IdeaToSpecGuidedFlowNextAction[];
+  stages: readonly IdeaToSpecGuidedFlowStage[];
+  authorityBoundary: IdeaToSpecGuidedFlowBoundary;
+};
+
 export type IdeaToSpecWorkspaceIdentity = {
   available: boolean;
   id: string | null;
@@ -683,6 +732,7 @@ export type IdeaToSpecWorkspace = {
     nextArtifact: string | null;
   };
   workflow: IdeaToSpecWorkflow;
+  guidedFlow: IdeaToSpecGuidedFlow;
   intake: {
     available: boolean;
     activeFrame: IdeaToSpecActiveFrame;
@@ -2211,6 +2261,116 @@ function parseWorkflow(raw: unknown): IdeaToSpecWorkflow {
   };
 }
 
+function parseGuidedFlowBoundary(): IdeaToSpecGuidedFlowBoundary {
+  return {
+    inspectOnly: true,
+    acknowledgeOnly: true,
+    mayExecuteSpecgraph: false,
+    mayExecutePlatform: false,
+    mayExecuteGitService: false,
+    mayMutateCandidateArtifacts: false,
+    mayMutateCanonicalSpecs: false,
+    mayWriteOntologyPackage: false,
+    mayAcceptOntologyTerms: false,
+    mayCreateBranchOrCommit: false,
+    mayOpenPullRequest: false,
+    mayMergeReview: false,
+  };
+}
+
+function parseGuidedFlowStage(
+  raw: unknown,
+): IdeaToSpecGuidedFlowStage | null {
+  const stage = recordValue(raw);
+  const id = optionalString(stage.id);
+  if (!id) return null;
+  return {
+    id,
+    label: stringValue(stage.label, id),
+    status: stringValue(stage.status, "unknown"),
+    primaryNextAction: stringValue(
+      stage.primary_next_action,
+      "Inspect this lifecycle stage.",
+    ),
+    blockers: strings(stage.blockers),
+    evidenceRefs: strings(stage.evidence_refs),
+    targetSection: optionalString(stage.target_section),
+    commandTemplate: optionalString(stage.command_template),
+    authorityBoundary: parseGuidedFlowBoundary(),
+  };
+}
+
+function parseGuidedFlowNextAction(
+  raw: unknown,
+): IdeaToSpecGuidedFlowNextAction | null {
+  const action = recordValue(raw);
+  const id = optionalString(action.id);
+  if (!id) return null;
+  return {
+    id,
+    label: stringValue(action.label, "Inspect current stage."),
+    status: stringValue(action.status, "unknown"),
+    targetSection: optionalString(action.target_section),
+    commandTemplate: optionalString(action.command_template),
+    evidenceRefs: strings(action.evidence_refs),
+    authorityBoundary: parseGuidedFlowBoundary(),
+  };
+}
+
+function parseGuidedFlow(raw: unknown): IdeaToSpecGuidedFlow {
+  const flow = recordValue(raw);
+  return {
+    currentStage: stringValue(flow.current_stage, "unknown"),
+    currentStageLabel: stringValue(flow.current_stage_label, "Current stage"),
+    overallStatus: stringValue(flow.overall_status, "unknown"),
+    workflowStage: stringValue(flow.workflow_stage, "unknown"),
+    workflowStatus: stringValue(flow.workflow_status, "unknown"),
+    nextHandoff: parseNextHandoff(flow.next_handoff),
+    nextActions: records(flow.next_actions).flatMap((item) => {
+      const parsed = parseGuidedFlowNextAction(item);
+      return parsed ? [parsed] : [];
+    }),
+    stages: records(flow.stages).flatMap((item) => {
+      const parsed = parseGuidedFlowStage(item);
+      return parsed ? [parsed] : [];
+    }),
+    authorityBoundary: parseGuidedFlowBoundary(),
+  };
+}
+
+function guidedFlowBoundaryIsSafe(raw: unknown): boolean {
+  const boundary = recordValue(raw);
+  const falseFlags = [
+    "may_execute_specgraph",
+    "may_execute_platform",
+    "may_execute_git_service",
+    "may_mutate_candidate_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_branch_or_commit",
+    "may_open_pull_request",
+    "may_merge_review",
+  ];
+  return (
+    boundary.inspect_only === true &&
+    boundary.acknowledge_only === true &&
+    falseFlags.every((flag) => boundary[flag] === false)
+  );
+}
+
+function guidedFlowBoundariesAreSafe(raw: unknown): boolean {
+  if (!isRecord(raw)) return true;
+  if (!guidedFlowBoundaryIsSafe(raw.authority_boundary)) return false;
+  for (const stage of records(raw.stages)) {
+    if (!guidedFlowBoundaryIsSafe(stage.authority_boundary)) return false;
+  }
+  for (const action of records(raw.next_actions)) {
+    if (!guidedFlowBoundaryIsSafe(action.authority_boundary)) return false;
+  }
+  return true;
+}
+
 function parseWorkspaceIdentity(raw: unknown): IdeaToSpecWorkspaceIdentity {
   const workspace = recordValue(raw);
   return {
@@ -2319,6 +2479,12 @@ export function parseIdeaToSpecWorkspace(
     if (boundary[flag] !== false) {
       return { kind: "parse-error", reason: `authority boundary expanded: ${flag}`, raw };
     }
+  }
+  if (
+    isRecord(raw.guided_flow) &&
+    !guidedFlowBoundariesAreSafe(raw.guided_flow)
+  ) {
+    return { kind: "parse-error", reason: "guided flow boundary expanded", raw };
   }
   const summary = recordValue(raw.summary);
   const intake = recordValue(raw.intake);
@@ -2575,6 +2741,7 @@ export function parseIdeaToSpecWorkspace(
         nextArtifact: optionalString(summary.next_artifact),
       },
       workflow: parseWorkflow(raw.workflow),
+      guidedFlow: parseGuidedFlow(raw.guided_flow),
       intake: {
         available: intake.available === true,
         activeFrame: parseActiveFrame(intake.active_frame),

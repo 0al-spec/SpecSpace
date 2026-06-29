@@ -11,6 +11,7 @@ from viewer import (
     idea_to_spec_candidate_approval_intents,
     idea_to_spec_repair_drafts,
     idea_to_spec_repair_rerun_requests,
+    idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
     ontology_acknowledgements,
     spec_compile,
@@ -425,6 +426,7 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
             workspace_payload=payload,
         )
         payload["workspace_state_hygiene"] = hygiene
+        idea_to_spec_workspace.attach_guided_flow(payload)
     json_response(handler, status, payload)
 
 

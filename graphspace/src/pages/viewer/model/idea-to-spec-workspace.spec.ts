@@ -47,6 +47,21 @@ describe("parseIdeaToSpecWorkspace", () => {
     );
     expect(parsed.data.workflow.nextHandoff.kind).toBe("operator_repair_review");
     expect(parsed.data.workflow.nextHandoff.authorityBoundary).toBe("operator_only");
+    expect(parsed.data.guidedFlow.currentStage).toBe("repair_review");
+    expect(parsed.data.guidedFlow.overallStatus).toBe("blocked");
+    expect(parsed.data.guidedFlow.nextActions[0].targetSection).toBe(
+      "idea-to-spec-workspace-state-hygiene",
+    );
+    expect(parsed.data.guidedFlow.nextActions[0].label).toBe(
+      "Replace the rerun request for the current workspace and repair session.",
+    );
+    expect(parsed.data.guidedFlow.stages).toHaveLength(11);
+    expect(parsed.data.guidedFlow.stages[2].blockers).toEqual([
+      "workspace_id_mismatch",
+    ]);
+    expect(
+      parsed.data.guidedFlow.authorityBoundary.mayExecutePlatform,
+    ).toBe(false);
     expect(parsed.data.intake.activeFrame.project).toBe("DemoCalculator");
     expect(parsed.data.ontologySeed.readiness.ready).toBe(true);
     expect(parsed.data.ontologySeed.summary.ontologyBindingCount).toBe(5);
@@ -398,6 +413,17 @@ describe("parseIdeaToSpecWorkspace", () => {
     });
 
     expect(parsed.kind).toBe("parse-error");
+  });
+
+  it("rejects guided flow action expansion", () => {
+    const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    payload.guided_flow.authority_boundary.may_execute_platform = true;
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("parse-error");
+    if (parsed.kind !== "parse-error") return;
+    expect(parsed.reason).toBe("guided flow boundary expanded");
   });
 
   it("rejects workspace state hygiene without explicit boundary false flags", () => {

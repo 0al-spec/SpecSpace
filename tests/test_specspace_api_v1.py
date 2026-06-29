@@ -5731,6 +5731,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 status, body = _get(
                     f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
                 )
+                workspace_status, workspace_body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -5806,6 +5809,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 status, body = _get(
                     f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
                 )
+                workspace_status, workspace_body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -5820,6 +5826,20 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(stale["reason"], "workspace_id_mismatch")
         self.assertEqual(stale["stored_workspace_id"], "local-subscription-control")
         self.assertIn("repair_rerun_smoke", stale["blocks"])
+        self.assertEqual(workspace_status, 200)
+        repair_review_stage = [
+            stage
+            for stage in workspace_body["guided_flow"]["stages"]
+            if stage["id"] == "repair_review"
+        ][0]
+        self.assertIn(
+            "workspace_id_mismatch",
+            repair_review_stage["blockers"],
+        )
+        self.assertEqual(
+            repair_review_stage["target_section"],
+            "idea-to-spec-workspace-state-hygiene",
+        )
 
     def test_idea_to_spec_workspace_state_hygiene_v1_uses_repaired_session_ref(
         self,
