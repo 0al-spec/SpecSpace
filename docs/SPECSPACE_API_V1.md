@@ -719,6 +719,8 @@ idea-to-spec artifacts produced by SpecGraph:
 - `runs/candidate_repair_loop_report.json`;
 - `runs/platform_product_repair_rerun_execution_report.json`;
 - `runs/platform_product_repair_rerun_publication_report.json`;
+- `runs/idea_maturity_metrics_report.json`;
+- `runs/idea_maturity_metrics_validation_report.json`;
 - `runs/candidate_spec_materialization_report.json`;
 - `runs/idea_to_spec_promotion_gate.json`;
 - `runs/candidate_approval_decision.json`;
@@ -752,6 +754,12 @@ when present. SpecSpace falls back to the legacy `graph_repository_*` reports
 for older in-flight workspaces, but the product surface exposes the selected
 candidate, branch, pull request metadata, child report refs, lifecycle
 operations, and the next operator handoff.
+
+When Idea Maturity artifacts are present, `idea_maturity.report.contract`
+surfaces the Metrics-owned schema refs, validation-report schema ref, validator
+id/version, and compatibility-policy refs emitted by SpecGraph. SpecSpace
+displays this as contract evidence only; Metrics remains the schema/validator
+authority and SpecSpace does not execute the Metrics validator.
 
 This surface is not a write boundary. The response is always `read_only`,
 requires `canonical_mutations_allowed: false`, and does not allow SpecSpace to

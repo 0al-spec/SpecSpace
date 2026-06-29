@@ -1629,6 +1629,19 @@ def _idea_maturity_metrics_report() -> dict:
         "schema_version": 1,
         "proposal_id": "0178",
         "contract_ref": "specgraph.idea-to-spec.maturity-metrics-report.v0.1",
+        "contract": {
+            "schema_version": 1,
+            "schema_ref": "schemas/idea_maturity_metrics_report.schema.json",
+            "validation_report_schema_ref": (
+                "schemas/idea_maturity_metrics_validation_report.schema.json"
+            ),
+            "validator_id": "metrics.idea_maturity_metrics.validator.v0.1",
+            "validator_version": "0.1.0",
+            "compatibility_policy": "additive_v1",
+            "compatibility_policy_ref": "VALIDATOR_CONTRACT.md#compatibility-policy",
+            "metrics_rfc_ref": "Metrics/IDEA_MATURITY_METRICS.md",
+            "proposal_id": "0181",
+        },
         "metric_pack_id": "idea_to_spec_maturity",
         "metric_pack_ref": "metrics.idea_to_spec_maturity.v0.1",
         "metrics_rfc_ref": "Metrics/IDEA_MATURITY_METRICS.md",
@@ -1816,9 +1829,14 @@ def _idea_maturity_validation_report(*, status: str = "ok") -> dict:
         "metric_pack_id": "idea_to_spec_maturity",
         "validator": {
             "id": "metrics.idea_maturity_metrics.validator.v0.1",
+            "version": "0.1.0",
             "rfc_ref": "IDEA_MATURITY_METRICS.md",
             "schema_ref": "schemas/idea_maturity_metrics_report.schema.json",
+            "validation_report_schema_ref": (
+                "schemas/idea_maturity_metrics_validation_report.schema.json"
+            ),
             "script_ref": "scripts/metrics.py",
+            "compatibility_policy_ref": "VALIDATOR_CONTRACT.md#compatibility-policy",
         },
         "summary": {
             "status": status,
@@ -2030,6 +2048,30 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 "ontology_gap_resolution_rate"
             ],
             1.0,
+        )
+        self.assertEqual(
+            body["idea_maturity"]["report"]["contract"]["schema_ref"],
+            "schemas/idea_maturity_metrics_report.schema.json",
+        )
+        self.assertEqual(
+            body["idea_maturity"]["report"]["contract"][
+                "validation_report_schema_ref"
+            ],
+            "schemas/idea_maturity_metrics_validation_report.schema.json",
+        )
+        self.assertEqual(
+            body["idea_maturity"]["report"]["contract"]["validator_version"],
+            "0.1.0",
+        )
+        self.assertEqual(
+            body["idea_maturity"]["validation"]["validator"]["version"],
+            "0.1.0",
+        )
+        self.assertEqual(
+            body["idea_maturity"]["validation"]["validator"][
+                "validation_report_schema_ref"
+            ],
+            "schemas/idea_maturity_metrics_validation_report.schema.json",
         )
         self.assertEqual(
             body["idea_maturity"]["report"]["readiness_explainers"][0]["kind"],

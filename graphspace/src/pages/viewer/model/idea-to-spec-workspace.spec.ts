@@ -109,6 +109,23 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(
       parsed.data.ideaMaturity.report.metrics.timeToApprovalReadySeconds,
     ).toBeNull();
+    expect(parsed.data.ideaMaturity.report.contract.schemaRef).toBe(
+      "schemas/idea_maturity_metrics_report.schema.json",
+    );
+    expect(
+      parsed.data.ideaMaturity.report.contract.validationReportSchemaRef,
+    ).toBe("schemas/idea_maturity_metrics_validation_report.schema.json");
+    expect(parsed.data.ideaMaturity.report.contract.validatorVersion).toBe("0.1.0");
+    expect(parsed.data.ideaMaturity.report.contract.compatibilityPolicy).toBe(
+      "additive_v1",
+    );
+    expect(parsed.data.ideaMaturity.validation.validator.version).toBe("0.1.0");
+    expect(parsed.data.ideaMaturity.validation.validator.schemaRef).toBe(
+      "schemas/idea_maturity_metrics_report.schema.json",
+    );
+    expect(
+      parsed.data.ideaMaturity.validation.validator.validationReportSchemaRef,
+    ).toBe("schemas/idea_maturity_metrics_validation_report.schema.json");
     expect(parsed.data.ideaMaturity.report.readinessExplainers[0].id).toBe(
       "readiness-explainer.pre-sib-ontology-coverage-gap",
     );
@@ -274,6 +291,33 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.ideaMaturity.available).toBe(false);
     expect(parsed.data.ideaMaturity.status).toBe("missing");
     expect(parsed.data.ideaMaturity.trusted).toBe(false);
+  });
+
+  it("parses legacy idea maturity reports without contract metadata", () => {
+    const legacyIdeaMaturity: Record<string, unknown> = {
+      ...ideaToSpecWorkspace.idea_maturity,
+    };
+    const legacyReport: Record<string, unknown> = {
+      ...ideaToSpecWorkspace.idea_maturity.report,
+    };
+    delete legacyReport.contract;
+    legacyIdeaMaturity.report = legacyReport;
+    const legacyWorkspace: Record<string, unknown> = {
+      ...ideaToSpecWorkspace,
+      idea_maturity: legacyIdeaMaturity,
+    };
+    const parsed = parseIdeaToSpecWorkspace(legacyWorkspace);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.ideaMaturity.status).toBe("available");
+    expect(parsed.data.ideaMaturity.report.contract.schemaRef).toBeNull();
+    expect(
+      parsed.data.ideaMaturity.report.contract.validationReportSchemaRef,
+    ).toBeNull();
+    expect(parsed.data.ideaMaturity.validation.validator.schemaRef).toBe(
+      "schemas/idea_maturity_metrics_report.schema.json",
+    );
   });
 
   it("parses idea maturity finding next actions", () => {
