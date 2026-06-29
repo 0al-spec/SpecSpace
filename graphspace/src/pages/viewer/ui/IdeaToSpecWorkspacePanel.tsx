@@ -7,6 +7,7 @@ import type {
   IdeaToSpecCandidateNode,
   IdeaToSpecClarificationRequest,
   IdeaToSpecGitServiceOperation,
+  IdeaToSpecGuidedFlow,
   IdeaToSpecIdeaMaturity,
   IdeaToSpecIdeaMaturityFinding,
   IdeaToSpecIdeaMaturityReadinessExplainer,
@@ -327,6 +328,7 @@ export function IdeaToSpecWorkspacePanel({
       </div>
 
       <div className={styles.entries}>
+        <GuidedFlowSection flow={data.guidedFlow} />
         <WorkflowSection workflow={data.workflow} />
         <IdeaIntakeDraftSection activeFrame={frame} />
         <WorkspaceSection workspace={data.workspace} />
@@ -382,7 +384,7 @@ function IdeaIntakeDraftSection({
     [idea, activeFrame],
   );
   return (
-    <section className={styles.reviewSection}>
+    <section id="idea-to-spec-idea-intake" className={styles.reviewSection}>
       <SectionHeader title="Idea intake draft" count={draft ? 1 : 0} />
       <div className={styles.row}>
         <textarea
@@ -474,6 +476,87 @@ function WorkflowSection({ workflow }: { workflow: IdeaToSpecWorkflow }) {
           <Meta label="Command" value={workflow.nextHandoff.commandTemplate} />
         </div>
       </div>
+    </section>
+  );
+}
+
+function GuidedFlowSection({ flow }: { flow: IdeaToSpecGuidedFlow }) {
+  const nextAction = flow.nextActions[0] ?? null;
+  const commandStages = flow.stages.filter((stage) => stage.commandTemplate);
+  return (
+    <section id="idea-to-spec-guided-flow" className={styles.reviewSection}>
+      <SectionHeader title="Guided product flow" count={flow.stages.length} />
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>{flow.currentStageLabel}</span>
+          <Pill value={flow.overallStatus.replace(/_/g, " ")} />
+        </div>
+        <h3 className={styles.title}>
+          {nextAction?.label ?? "Inspect the current idea-to-spec lifecycle stage."}
+        </h3>
+        <div className={styles.metaGrid}>
+          <Meta label="Current stage" value={flow.currentStage} />
+          <Meta label="Workflow stage" value={flow.workflowStage} />
+          <Meta label="Workflow status" value={flow.workflowStatus} />
+          <Meta label="Next handoff" value={flow.nextHandoff.label} />
+          <Meta label="Target section" value={nextAction?.targetSection} />
+          <Meta label="Evidence" value={joined(nextAction?.evidenceRefs ?? [])} />
+        </div>
+        {nextAction?.commandTemplate ? (
+          <pre className={styles.codeBlock}>{nextAction.commandTemplate}</pre>
+        ) : null}
+      </div>
+      <div className={styles.guidedRail}>
+        {flow.stages.map((stage, index) => {
+          const href = stage.targetSection ? `#${stage.targetSection}` : undefined;
+          const label = `${index + 1}. ${stage.label}`;
+          const content = (
+            <>
+              <span className={styles.navLabel}>{label}</span>
+              <span className={styles.navHint}>{stage.primaryNextAction}</span>
+              <span className={styles.guidedStageMeta}>
+                {stage.status.replace(/_/g, " ")}
+                {stage.blockers.length > 0
+                  ? ` · blockers ${stage.blockers.length}`
+                  : ""}
+              </span>
+            </>
+          );
+          return href ? (
+            <a key={stage.id} className={styles.guidedStage} href={href}>
+              {content}
+            </a>
+          ) : (
+            <div key={stage.id} className={styles.guidedStage}>
+              {content}
+            </div>
+          );
+        })}
+      </div>
+      {commandStages.length > 0 ? (
+        <div className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>Command hints</span>
+            <span className={styles.sectionCount}>{commandStages.length}</span>
+          </div>
+          {commandStages.slice(0, 3).map((stage) => (
+            <div key={`${stage.id}:command`}>
+              <span className={styles.metaLabel}>{stage.label}</span>
+              <pre className={styles.codeBlock}>{stage.commandTemplate}</pre>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {flow.stages
+        .filter((stage) => stage.blockers.length > 0)
+        .slice(0, 6)
+        .map((stage) => (
+          <div key={`${stage.id}:blockers`} className={styles.subRow}>
+            <span>{stage.label}</span>
+            <Pill value={stage.status} />
+            <span className={styles.statusDetail}>{joined(stage.blockers)}</span>
+          </div>
+        ))}
     </section>
   );
 }
@@ -674,7 +757,7 @@ function CandidateGraphSection({
   nodes: readonly IdeaToSpecCandidateNode[];
 }) {
   return (
-    <section className={styles.reviewSection}>
+    <section id="idea-to-spec-candidate-graph" className={styles.reviewSection}>
       <SectionHeader title="Candidate graph" count={nodes.length} />
       {nodes.length === 0 ? (
         <Status label="No candidate nodes" detail="Candidate graph artifact is empty." />

@@ -1958,6 +1958,16 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["workflow"]["next_handoff"]["authority_boundary"],
             "operator_only",
         )
+        self.assertEqual(body["guided_flow"]["current_stage"], "repair_review")
+        self.assertEqual(body["guided_flow"]["overall_status"], "blocked")
+        self.assertEqual(len(body["guided_flow"]["stages"]), 11)
+        self.assertEqual(
+            body["guided_flow"]["next_actions"][0]["target_section"],
+            "idea-to-spec-repair-review",
+        )
+        self.assertFalse(
+            body["guided_flow"]["authority_boundary"]["may_execute_platform"]
+        )
         self.assertEqual(body["intake"]["summary"]["actor_count"], 1)
         self.assertTrue(body["ontology_seed"]["readiness"]["ready"])
         self.assertEqual(

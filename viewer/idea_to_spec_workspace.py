@@ -850,7 +850,7 @@ def _session_projection(value: Any) -> dict[str, Any]:
 
 def _active_frame(value: Any) -> dict[str, Any]:
     frame = _record(value)
-    return {
+    payload = {
         "project": _optional_text(frame.get("project")),
         "subsystem": _optional_text(frame.get("subsystem")),
         "agent_layer": _optional_text(frame.get("agent_layer")),
@@ -864,6 +864,7 @@ def _active_frame(value: Any) -> dict[str, Any]:
         "domain_refs": _string_list(frame.get("domain_refs")),
         "context_refs": _string_list(frame.get("context_refs")),
     }
+    return {key: item for key, item in payload.items() if item is not None}
 
 
 def _list_count(payload: dict[str, Any] | None, key: str) -> int:
@@ -3190,6 +3191,441 @@ def _authority_boundary() -> dict[str, bool]:
     }
 
 
+def _guided_flow_boundary() -> dict[str, bool]:
+    return {
+        "inspect_only": True,
+        "acknowledge_only": True,
+        "may_execute_specgraph": False,
+        "may_execute_platform": False,
+        "may_execute_git_service": False,
+        "may_mutate_candidate_artifacts": False,
+        "may_mutate_canonical_specs": False,
+        "may_write_ontology_package": False,
+        "may_accept_ontology_terms": False,
+        "may_create_branch_or_commit": False,
+        "may_open_pull_request": False,
+        "may_merge_review": False,
+    }
+
+
+def _guided_stage(
+    *,
+    stage_id: str,
+    label: str,
+    status: str,
+    next_action: str,
+    target_section: str,
+    blockers: list[str] | None = None,
+    evidence_refs: list[str] | None = None,
+    command_template: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "id": stage_id,
+        "label": label,
+        "status": status,
+        "primary_next_action": next_action,
+        "blockers": blockers or [],
+        "evidence_refs": evidence_refs or [],
+        "target_section": target_section,
+        "command_template": command_template,
+        "authority_boundary": _guided_flow_boundary(),
+    }
+
+
+def _stage_status_from_item(workflow: dict[str, Any], item_id: str) -> str:
+    for item in _records(workflow.get("items")):
+        if item.get("id") == item_id:
+            return _text(item.get("status"), "unknown")
+    return "missing"
+
+
+def _stage_path_from_item(workflow: dict[str, Any], item_id: str) -> str | None:
+    for item in _records(workflow.get("items")):
+        if item.get("id") == item_id:
+            return _optional_text(item.get("artifact_path"))
+    return None
+
+
+def _stage_done(status: str) -> bool:
+    return status in {"ready", "completed", "published", "dry_run"}
+
+
+def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
+    workflow = _record(payload.get("workflow"))
+    repair_review = _record(payload.get("repair_review"))
+    repair_session = _record(payload.get("repair_session"))
+    repair_session_impact = _record(repair_session.get("readiness_impact"))
+    hygiene = _record(payload.get("workspace_state_hygiene"))
+    hygiene_summary = _record(hygiene.get("summary"))
+    approval = _record(payload.get("approval_readiness"))
+    controlled = _record(payload.get("controlled_promotion"))
+    candidate_approval = _record(controlled.get("candidate_approval"))
+    candidate_approval_execution = _record(
+        controlled.get("candidate_approval_execution")
+    )
+    promotion_request = _record(controlled.get("platform_request"))
+    product_execution = _record(controlled.get("product_promotion_execution"))
+    git_execution = _record(controlled.get("git_service_execution"))
+    review_status = _record(controlled.get("review_status"))
+    read_model_publication = _record(controlled.get("read_model_publication"))
+    next_handoff = _record(workflow.get("next_handoff"))
+
+    hygiene_blockers = [
+        _text(state.get("reason"), _text(state.get("kind"), "stale_state"))
+        for state in _records(hygiene.get("states"))
+        if _text(state.get("status")) in {"stale", "invalid"}
+    ]
+    hygiene_blocked = _number(hygiene_summary.get("blocking_state_count")) > 0
+    repair_review_section = (
+        "idea-to-spec-workspace-state-hygiene"
+        if hygiene_blocked
+        else "idea-to-spec-repair-review"
+    )
+    repair_review_action = (
+        _optional_text(hygiene_summary.get("next_action"))
+        if hygiene_blocked
+        else "Answer open repair requests and review ontology decisions."
+    )
+
+    repair_session_ready = repair_session_impact.get(
+        "ready_for_candidate_approval"
+    ) is True
+    approval_ready = approval.get("ready_for_candidate_approval") is True
+    approval_request_ready = approval.get("promotion_review_can_be_requested") is True
+    approval_decision_ready = candidate_approval.get("ready") is True
+    approval_execution_ready = (
+        candidate_approval_execution.get("ok") is True
+        and candidate_approval_execution.get("decision_written") is True
+    )
+    promotion_request_ready = promotion_request.get("ok") is True
+    promotion_execution_available = (
+        product_execution.get("available") is True
+        or git_execution.get("available") is True
+    )
+    promotion_execution_ok = (
+        product_execution.get("ok") is True or git_execution.get("ok") is True
+    )
+    review_available = review_status.get("available") is True
+    review_merged = review_status.get("review_merged") is True
+    read_model_published = read_model_publication.get("published") is True
+
+    stages = [
+        _guided_stage(
+            stage_id="idea_intake",
+            label="Idea intake",
+            status=(
+                "completed"
+                if _stage_done(_stage_status_from_item(workflow, "event_storming_intake"))
+                else "missing"
+            ),
+            next_action="Capture product idea as event-storming intake.",
+            target_section="idea-to-spec-idea-intake",
+            evidence_refs=[
+                ref
+                for ref in [
+                    _stage_path_from_item(workflow, "event_storming_intake"),
+                ]
+                if ref
+            ],
+        ),
+        _guided_stage(
+            stage_id="candidate_graph",
+            label="Candidate graph",
+            status=(
+                "completed"
+                if _stage_done(_stage_status_from_item(workflow, "candidate_graph"))
+                else _stage_status_from_item(workflow, "candidate_graph")
+            ),
+            next_action="Inspect generated candidate graph and active ontology frame.",
+            target_section="idea-to-spec-candidate-graph",
+            evidence_refs=[
+                ref
+                for ref in [
+                    _stage_path_from_item(workflow, "candidate_graph"),
+                    _stage_path_from_item(workflow, "ontology_seed"),
+                ]
+                if ref
+            ],
+        ),
+        _guided_stage(
+            stage_id="repair_review",
+            label="Repair review",
+            status=(
+                "blocked"
+                if hygiene_blocked
+                else "completed"
+                if repair_session_ready or approval_ready
+                else "available"
+            ),
+            next_action=repair_review_action
+            or "Answer open repair requests and review ontology decisions.",
+            target_section=repair_review_section,
+            blockers=hygiene_blockers,
+            evidence_refs=[
+                ref
+                for ref in [
+                    _stage_path_from_item(workflow, "repair_loop"),
+                    "workspace_state_hygiene",
+                ]
+                if ref
+            ],
+        ),
+        _guided_stage(
+            stage_id="ontology_decisions",
+            label="Ontology decisions",
+            status=(
+                "completed"
+                if _number(approval.get("unresolved_ontology_gap_count")) == 0
+                and (
+                    _number(approval.get("resolved_ontology_gap_count")) > 0
+                    or repair_session_ready
+                    or approval_ready
+                )
+                else "available"
+                if _record(repair_review.get("ontology_decisions")).get("available")
+                or _number(approval.get("unresolved_ontology_gap_count")) > 0
+                else "missing"
+            ),
+            next_action="Bind, alias, propose, reject, or defer product ontology gaps.",
+            target_section="idea-to-spec-repair-review",
+            blockers=(
+                ["unresolved_ontology_gaps"]
+                if _number(approval.get("unresolved_ontology_gap_count")) > 0
+                else []
+            ),
+            evidence_refs=[
+                ref
+                for ref in [
+                    _stage_path_from_item(workflow, "ontology_seed"),
+                    "runs/product_ontology_gap_review_decisions.json",
+                ]
+                if ref
+            ],
+        ),
+        _guided_stage(
+            stage_id="rerun_request",
+            label="Repair rerun request",
+            status=(
+                "blocked"
+                if hygiene_blocked
+                else "completed"
+                if _stage_done(
+                    _stage_status_from_item(
+                        workflow, "product_repair_rerun_execution"
+                    )
+                )
+                or repair_session_ready
+                or approval_ready
+                else "available"
+            ),
+            next_action="Request rerun preview after drafts and import preview are ready.",
+            target_section="idea-to-spec-repair-review",
+            blockers=hygiene_blockers,
+            evidence_refs=[
+                ref
+                for ref in [
+                    "runs/specspace_repair_draft_import_preview.json",
+                    "runs/specspace_repair_rerun_request_gate.json",
+                    _stage_path_from_item(workflow, "product_repair_rerun_execution"),
+                ]
+                if ref
+            ],
+            command_template="scripts/platform.py product-repair-rerun smoke --profile happy-path-promotion-dry-run",
+        ),
+        _guided_stage(
+            stage_id="repaired_handoff",
+            label="Repaired handoff",
+            status=(
+                "completed"
+                if approval_ready
+                else "blocked"
+                if _number(approval.get("remaining_blocker_count")) > 0
+                else "available"
+            ),
+            next_action="Build or inspect the repaired candidate promotion handoff.",
+            target_section="idea-to-spec-approval-readiness",
+            blockers=_string_list(approval.get("blockers")),
+            evidence_refs=[
+                ref
+                for ref in [
+                    _optional_text(_record(approval.get("source_refs")).get("handoff")),
+                    _optional_text(
+                        _record(approval.get("source_refs")).get("repair_session")
+                    ),
+                    _optional_text(
+                        _record(approval.get("source_refs")).get("promotion_gate")
+                    ),
+                ]
+                if ref
+            ],
+            command_template="make product-workspace-repaired-promotion-handoff",
+        ),
+        _guided_stage(
+            stage_id="candidate_approval_intent",
+            label="Candidate approval intent",
+            status=(
+                "completed"
+                if approval_decision_ready or approval_execution_ready
+                else "available"
+                if approval_request_ready
+                else "blocked"
+            ),
+            next_action="Record owner intent to approve candidate for promotion review.",
+            target_section="idea-to-spec-approval-readiness",
+            blockers=[] if approval_request_ready else _string_list(approval.get("blockers")),
+            evidence_refs=[
+                ref
+                for ref in [
+                    _optional_text(_record(approval.get("source_refs")).get("handoff")),
+                    "specspace-state://idea_to_spec_candidate_approval_intents.json",
+                ]
+                if ref
+            ],
+        ),
+        _guided_stage(
+            stage_id="platform_approval_decision",
+            label="Platform approval decision",
+            status=(
+                "completed"
+                if approval_decision_ready or approval_execution_ready
+                else "available"
+                if approval_request_ready
+                else "blocked"
+            ),
+            next_action="Materialize candidate approval through Platform.",
+            target_section="idea-to-spec-controlled-promotion",
+            blockers=[] if approval_request_ready else _string_list(approval.get("blockers")),
+            evidence_refs=[
+                ref
+                for ref in [
+                    _stage_path_from_item(workflow, "candidate_approval_execution"),
+                    _stage_path_from_item(workflow, "candidate_approval"),
+                ]
+                if ref
+            ],
+            command_template=(
+                "scripts/platform.py product-candidate-approval approve "
+                "--specgraph-dir <specgraph-repository>"
+            ),
+        ),
+        _guided_stage(
+            stage_id="promotion_request",
+            label="Promotion request",
+            status=(
+                "completed"
+                if promotion_request_ready
+                else "available"
+                if approval_decision_ready or approval_execution_ready
+                else "blocked"
+            ),
+            next_action="Create report-only graph repository promotion request.",
+            target_section="idea-to-spec-controlled-promotion",
+            blockers=[] if approval_decision_ready or approval_execution_ready else ["candidate_approval_required"],
+            evidence_refs=[
+                ref
+                for ref in [
+                    _stage_path_from_item(workflow, "platform_promotion_request"),
+                    _stage_path_from_item(workflow, "candidate_approval"),
+                ]
+                if ref
+            ],
+            command_template="scripts/platform.py product-candidate-promotion request <inputs>",
+        ),
+        _guided_stage(
+            stage_id="git_dry_run",
+            label="Git dry-run",
+            status=(
+                "completed"
+                if promotion_execution_available and promotion_execution_ok
+                else "available"
+                if promotion_request_ready
+                else "blocked"
+            ),
+            next_action="Run controlled product promotion execution in dry-run mode.",
+            target_section="idea-to-spec-controlled-promotion",
+            blockers=[] if promotion_request_ready else ["promotion_request_required"],
+            evidence_refs=[
+                ref
+                for ref in [
+                    _stage_path_from_item(workflow, "product_promotion_execution"),
+                    _stage_path_from_item(workflow, "git_service_execution"),
+                ]
+                if ref
+            ],
+            command_template=(
+                "scripts/platform.py product-candidate-promotion execute "
+                "--open-review-dry-run"
+            ),
+        ),
+        _guided_stage(
+            stage_id="review_publication",
+            label="Review and publication",
+            status=(
+                "completed"
+                if read_model_published
+                else "waiting_for_operator"
+                if review_available and not review_merged
+                else "available"
+                if promotion_execution_available and promotion_execution_ok
+                else "blocked"
+            ),
+            next_action="Inspect repository review status and publish public read model after merge.",
+            target_section="idea-to-spec-controlled-promotion",
+            blockers=[] if promotion_execution_available and promotion_execution_ok else ["git_dry_run_required"],
+            evidence_refs=[
+                ref
+                for ref in [
+                    _stage_path_from_item(workflow, "review_status"),
+                    _stage_path_from_item(workflow, "read_model_publication"),
+                ]
+                if ref
+            ],
+        ),
+    ]
+
+    current = next(
+        (
+            stage
+            for stage in stages
+            if stage["status"] not in {"completed", "ready"}
+        ),
+        stages[-1],
+    )
+    if any(stage["status"] == "blocked" for stage in stages):
+        overall_status = "blocked"
+    elif read_model_published:
+        overall_status = "completed"
+    elif current["status"] in {"available", "waiting_for_operator"}:
+        overall_status = "waiting_for_operator"
+    else:
+        overall_status = _text(workflow.get("status"), "ready")
+    next_action = {
+        "id": f"next.{current['id']}",
+        "label": current["primary_next_action"],
+        "status": current["status"],
+        "target_section": current["target_section"],
+        "command_template": current["command_template"],
+        "evidence_refs": current["evidence_refs"],
+        "authority_boundary": _guided_flow_boundary(),
+    }
+    return {
+        "current_stage": current["id"],
+        "current_stage_label": current["label"],
+        "overall_status": overall_status,
+        "workflow_stage": _text(workflow.get("stage"), "unknown"),
+        "workflow_status": _text(workflow.get("status"), "unknown"),
+        "next_handoff": next_handoff,
+        "next_actions": [next_action],
+        "stages": stages,
+        "authority_boundary": _guided_flow_boundary(),
+    }
+
+
+def attach_guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
+    payload["guided_flow"] = _guided_flow(payload)
+    return payload
+
+
 def build_idea_to_spec_workspace(
     *,
     artifacts: dict[str, Any],
@@ -3420,7 +3856,7 @@ def build_idea_to_spec_workspace(
         read_model_publication=read_model_publication,
         promotion_finalization=promotion_finalization,
     )
-    return {
+    payload = {
         "api_version": "v1",
         "artifact_kind": IDEA_TO_SPEC_WORKSPACE_ARTIFACT_KIND,
         "schema_version": 1,
@@ -3636,3 +4072,4 @@ def build_idea_to_spec_workspace(
         "display_limits": DISPLAY_LIMITS,
         "authority_boundary": _authority_boundary(),
     }
+    return attach_guided_flow(payload)
