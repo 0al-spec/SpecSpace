@@ -59,6 +59,12 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("propose_project_local_term");
     expect(html).toContain("Idea maturity");
     expect(html).toContain("Metrics contract");
+    expect(html).toContain("schemas/idea_maturity_metrics_report.schema.json");
+    expect(html).toContain(
+      "schemas/idea_maturity_metrics_validation_report.schema.json",
+    );
+    expect(html).toContain("additive_v1");
+    expect(html).toContain("VALIDATOR_CONTRACT.md#compatibility-policy");
     expect(html).toContain("Maturity navigation");
     expect(html).toContain("#idea-to-spec-repair-review");
     expect(html).toContain("#idea-to-spec-pre-sib");

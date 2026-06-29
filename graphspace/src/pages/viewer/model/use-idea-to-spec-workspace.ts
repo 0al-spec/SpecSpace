@@ -480,6 +480,18 @@ export type IdeaToSpecIdeaMaturityValidationReport = {
   diagnosticCount: number;
 };
 
+export type IdeaToSpecIdeaMaturityContract = {
+  schemaVersion: number | null;
+  schemaRef: string | null;
+  validationReportSchemaRef: string | null;
+  validatorId: string | null;
+  validatorVersion: string | null;
+  compatibilityPolicy: string | null;
+  compatibilityPolicyRef: string | null;
+  metricsRfcRef: string | null;
+  proposalId: string | null;
+};
+
 export type IdeaToSpecIdeaMaturity = {
   available: boolean;
   status: string;
@@ -492,6 +504,7 @@ export type IdeaToSpecIdeaMaturity = {
     status: string | null;
     proposalId: string | null;
     contractRef: string | null;
+    contract: IdeaToSpecIdeaMaturityContract;
     metricPackId: string | null;
     metricPackRef: string | null;
     metricsRfcRef: string | null;
@@ -524,9 +537,12 @@ export type IdeaToSpecIdeaMaturity = {
     summary: Record<string, unknown>;
     validator: {
       id: string | null;
+      version: string | null;
       rfcRef: string | null;
       schemaRef: string | null;
+      validationReportSchemaRef: string | null;
       scriptRef: string | null;
+      compatibilityPolicyRef: string | null;
     };
     reports: readonly IdeaToSpecIdeaMaturityValidationReport[];
   };
@@ -2010,6 +2026,7 @@ function parseIdeaMaturity(raw: unknown): IdeaToSpecIdeaMaturity {
   const report = recordValue(maturity.report);
   const validation = recordValue(maturity.validation);
   const candidate = recordValue(report.candidate);
+  const contract = recordValue(report.contract);
   const derivedState = recordValue(report.derived_state);
   const validator = recordValue(validation.validator);
   return {
@@ -2024,6 +2041,19 @@ function parseIdeaMaturity(raw: unknown): IdeaToSpecIdeaMaturity {
       status: optionalString(report.status),
       proposalId: optionalString(report.proposal_id),
       contractRef: optionalString(report.contract_ref),
+      contract: {
+        schemaVersion: optionalNumberValue(contract.schema_version),
+        schemaRef: optionalString(contract.schema_ref),
+        validationReportSchemaRef: optionalString(
+          contract.validation_report_schema_ref,
+        ),
+        validatorId: optionalString(contract.validator_id),
+        validatorVersion: optionalString(contract.validator_version),
+        compatibilityPolicy: optionalString(contract.compatibility_policy),
+        compatibilityPolicyRef: optionalString(contract.compatibility_policy_ref),
+        metricsRfcRef: optionalString(contract.metrics_rfc_ref),
+        proposalId: optionalString(contract.proposal_id),
+      },
       metricPackId: optionalString(report.metric_pack_id),
       metricPackRef: optionalString(report.metric_pack_ref),
       metricsRfcRef: optionalString(report.metrics_rfc_ref),
@@ -2068,9 +2098,16 @@ function parseIdeaMaturity(raw: unknown): IdeaToSpecIdeaMaturity {
       summary: recordValue(validation.summary),
       validator: {
         id: optionalString(validator.id),
+        version: optionalString(validator.version),
         rfcRef: optionalString(validator.rfc_ref),
         schemaRef: optionalString(validator.schema_ref),
+        validationReportSchemaRef: optionalString(
+          validator.validation_report_schema_ref,
+        ),
         scriptRef: optionalString(validator.script_ref),
+        compatibilityPolicyRef: optionalString(
+          validator.compatibility_policy_ref,
+        ),
       },
       reports: records(validation.reports).flatMap((item) => {
         const parsed = parseIdeaMaturityValidationReport(item);

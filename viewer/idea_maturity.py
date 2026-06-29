@@ -65,6 +65,12 @@ def _number(value: Any) -> int:
     return value if isinstance(value, int) and value >= 0 else 0
 
 
+def _optional_number(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    return value if isinstance(value, int) and value >= 0 else None
+
+
 def _metric_number(value: Any) -> int | float | None:
     if isinstance(value, bool):
         return None
@@ -423,6 +429,7 @@ def _metrics(report: dict[str, Any] | None) -> dict[str, Any]:
 
 def _report_surface(report: dict[str, Any] | None) -> dict[str, Any]:
     candidate = _record((report or {}).get("candidate"))
+    contract = _record((report or {}).get("contract"))
     derived_state = _record((report or {}).get("derived_state"))
     return {
         "available": report is not None,
@@ -431,6 +438,23 @@ def _report_surface(report: dict[str, Any] | None) -> dict[str, Any]:
         "status": _optional_text((report or {}).get("status")),
         "proposal_id": _optional_text((report or {}).get("proposal_id")),
         "contract_ref": _optional_text((report or {}).get("contract_ref")),
+        "contract": {
+            "schema_version": _optional_number(contract.get("schema_version")),
+            "schema_ref": _optional_text(contract.get("schema_ref")),
+            "validation_report_schema_ref": _optional_text(
+                contract.get("validation_report_schema_ref")
+            ),
+            "validator_id": _optional_text(contract.get("validator_id")),
+            "validator_version": _optional_text(contract.get("validator_version")),
+            "compatibility_policy": _optional_text(
+                contract.get("compatibility_policy")
+            ),
+            "compatibility_policy_ref": _optional_text(
+                contract.get("compatibility_policy_ref")
+            ),
+            "metrics_rfc_ref": _optional_text(contract.get("metrics_rfc_ref")),
+            "proposal_id": _optional_text(contract.get("proposal_id")),
+        },
         "metric_pack_id": _optional_text((report or {}).get("metric_pack_id")),
         "metric_pack_ref": _optional_text((report or {}).get("metric_pack_ref")),
         "metrics_rfc_ref": _optional_text((report or {}).get("metrics_rfc_ref")),
@@ -488,9 +512,16 @@ def _validation_surface(validation: dict[str, Any] | None) -> dict[str, Any]:
         "summary": _safe_record((validation or {}).get("summary")),
         "validator": {
             "id": _optional_text(validator.get("id")),
+            "version": _optional_text(validator.get("version")),
             "rfc_ref": _optional_text(validator.get("rfc_ref")),
             "schema_ref": _optional_text(validator.get("schema_ref")),
+            "validation_report_schema_ref": _optional_text(
+                validator.get("validation_report_schema_ref")
+            ),
             "script_ref": _optional_text(validator.get("script_ref")),
+            "compatibility_policy_ref": _optional_text(
+                validator.get("compatibility_policy_ref")
+            ),
         },
         "reports": _validation_report_rows(validation),
     }

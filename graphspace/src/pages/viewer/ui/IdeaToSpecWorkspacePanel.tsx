@@ -63,8 +63,12 @@ function errorDetail(
   }
 }
 
-function compact(value: string | null | undefined, fallback = "unknown"): string {
-  return value && value.length > 0 ? value : fallback;
+function compact(
+  value: string | null | undefined,
+  fallback: string | null | undefined = "unknown",
+): string {
+  if (value && value.length > 0) return value;
+  return fallback && fallback.length > 0 ? fallback : "unknown";
 }
 
 function boolText(value: boolean): string {
@@ -963,6 +967,7 @@ function IdeaMaturitySection({
   }
   const metrics = maturity.report.metrics;
   const derived = maturity.report.derivedState;
+  const contract = maturity.report.contract;
   const validationStatus = maturity.validation.available
     ? recordText(maturity.validation.summary, "status", "unknown")
     : "unavailable";
@@ -1013,9 +1018,43 @@ function IdeaMaturitySection({
         </h3>
         <div className={styles.metaGrid}>
           <Meta label="Report status" value={maturity.report.status} />
-          <Meta label="Contract" value={maturity.report.contractRef} />
-          <Meta label="Metrics RFC" value={maturity.report.metricsRfcRef} />
-          <Meta label="Validator" value={maturity.validation.validator.id} />
+          <Meta label="SpecGraph contract" value={maturity.report.contractRef} />
+          <Meta label="Metrics schema" value={contract.schemaRef} />
+          <Meta
+            label="Validation schema"
+            value={contract.validationReportSchemaRef}
+          />
+          <Meta
+            label="Compatibility"
+            value={compact(contract.compatibilityPolicy, "not_declared")}
+          />
+          <Meta
+            label="Validator"
+            value={compact(contract.validatorId, maturity.validation.validator.id)}
+          />
+          <Meta
+            label="Validator version"
+            value={compact(
+              contract.validatorVersion,
+              maturity.validation.validator.version,
+            )}
+          />
+          <Meta
+            label="Validator schema"
+            value={maturity.validation.validator.validationReportSchemaRef}
+          />
+          <Meta
+            label="Policy ref"
+            value={compact(
+              contract.compatibilityPolicyRef,
+              maturity.validation.validator.compatibilityPolicyRef,
+            )}
+          />
+          <Meta
+            label="Metrics RFC"
+            value={compact(contract.metricsRfcRef, maturity.report.metricsRfcRef)}
+          />
+          <Meta label="Contract proposal" value={contract.proposalId} />
           <Meta label="Workspace" value={maturity.report.candidate.workspaceRoute} />
           <Meta label="Candidate" value={maturity.report.candidate.candidateId} />
           <Meta label="Review" value={derived.reviewStatus} />
