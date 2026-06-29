@@ -1038,6 +1038,15 @@ def _finding_count(payload: dict[str, Any] | None) -> int:
     )
 
 
+def _blocking_finding_ids(payload: dict[str, Any] | None) -> list[str]:
+    finding_ids = []
+    for item in _records((payload or {}).get("findings")):
+        finding_id = _text(item.get("finding_id"))
+        if finding_id:
+            finding_ids.append(finding_id)
+    return finding_ids
+
+
 def _ontology_seed_blocked(seed: dict[str, Any] | None) -> bool:
     if seed is None:
         return False
@@ -2154,11 +2163,15 @@ def _approval_readiness(
     )
     blockers = []
     blockers.extend(readiness_impact["blocked_by"])
-    blockers.extend(readiness_impact["platform_promotion_blocked_by"])
+    blockers.extend(
+        blocker
+        for blocker in readiness_impact["platform_promotion_blocked_by"]
+        if blocker != "candidate_approval_decision_missing"
+    )
     blockers.extend(handoff_readiness["blocked_by"])
     blockers.extend(promotion_readiness["blocked_by"])
-    blockers.extend(finding["finding_id"] for finding in _findings(repaired_handoff))
-    blockers.extend(finding["finding_id"] for finding in _findings(selected_promotion_gate))
+    blockers.extend(_blocking_finding_ids(repaired_handoff))
+    blockers.extend(_blocking_finding_ids(selected_promotion_gate))
     if unresolved_ontology_gap_count:
         blockers.append("unresolved_ontology_gaps")
     if unresolved_candidate_gap_count:
