@@ -749,6 +749,12 @@ execution/publication status, metric deltas, approval status, Git Service
 handoff state, repository review status, read-model publication status, and
 artifact availability.
 
+The response embeds `workspace_state_hygiene`, the same read-only preflight
+surface returned by `/api/v1/idea-to-spec-workspace-state-hygiene`. This lets
+the Product Workspace warn when SpecSpace-owned state such as repair drafts,
+rerun requests, or approval intents belongs to a different workspace,
+candidate, or repair session before Platform consumes it.
+
 For promotion review and publication, product wrapper reports are preferred
 when present. SpecSpace falls back to the legacy `graph_repository_*` reports
 for older in-flight workspaces, but the product surface exposes the selected
@@ -810,6 +816,60 @@ false.
     "may_write_ontology_package": false,
     "may_create_branch_or_commit": false,
     "may_mark_candidate_accepted": false
+  }
+}
+```
+
+### `GET /api/v1/idea-to-spec-workspace-state-hygiene`
+
+Returns a readonly preflight report for SpecSpace-owned Idea-to-Spec state in
+the selected product workspace. The endpoint compares stored repair drafts,
+repair rerun requests, candidate approval intents, and SpecGraph handoff
+artifacts against the currently selected workspace, candidate, and repair
+session.
+
+The endpoint accepts the same optional `?workspace=team-decision-log` selector
+as `/api/v1/idea-to-spec-workspace`. It reports state as `usable`, `missing`,
+`stale`, or `invalid`; stale and invalid entries are blockers for downstream
+repair rerun, candidate approval, or promotion review flows.
+
+This is a diagnostics surface only. It does not clear local state, apply repair
+answers, accept ontology terms, run SpecGraph, run Platform, create Git
+branches/commits, or mutate canonical specifications.
+
+```json
+{
+  "api_version": "v1",
+  "artifact_kind": "specspace_idea_to_spec_workspace_state_hygiene",
+  "schema_version": 1,
+  "workspace_id": "team-decision-log",
+  "summary": {
+    "status": "blocked",
+    "stale_state_count": 1,
+    "invalid_state_count": 0,
+    "blocking_state_count": 1,
+    "next_action": "Replace stale SpecSpace-owned state before rerun or approval."
+  },
+  "states": [
+    {
+      "kind": "repair_rerun_request",
+      "status": "stale",
+      "reason": "workspace_id_mismatch",
+      "blocks": ["repair_rerun_smoke"]
+    }
+  ],
+  "authority_boundary": {
+    "workspace_state_hygiene_is_authority": false,
+    "may_execute_specgraph": false,
+    "may_execute_platform": false,
+    "may_execute_git_service": false
+  },
+  "action_boundary": {
+    "inspect_only": true,
+    "acknowledge_only": true,
+    "may_clear_state": false,
+    "may_apply_state": false,
+    "may_delete_state": false
   }
 }
 ```

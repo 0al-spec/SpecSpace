@@ -94,6 +94,14 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.repairReview.platformExecution.publication.status).toBe(
       "published",
     );
+    expect(parsed.data.workspaceStateHygiene.status).toBe("blocked");
+    expect(parsed.data.workspaceStateHygiene.staleStateCount).toBe(1);
+    expect(parsed.data.workspaceStateHygiene.states[1].kind).toBe(
+      "repair_rerun_request",
+    );
+    expect(parsed.data.workspaceStateHygiene.states[1].reason).toBe(
+      "workspace_id_mismatch",
+    );
     expect(
       parsed.data.repairReview.platformExecution.actionBoundary
         .mayExecutePlatformAdapter,

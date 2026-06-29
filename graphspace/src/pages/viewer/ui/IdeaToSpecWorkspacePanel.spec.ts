@@ -105,6 +105,12 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("100%");
     expect(html).not.toContain("NaN");
     expect(html).toContain("Product repair review");
+    expect(html).toContain("Workspace state preflight");
+    expect(html).toContain("Current workspace state");
+    expect(html).toContain("repair rerun request");
+    expect(html).toContain("workspace_id_mismatch");
+    expect(html).toContain("local-subscription-control");
+    expect(html).toContain("Replace the rerun request");
     expect(html).toContain("Repair rerun execution");
     expect(html).toContain("Repair rerun publication");
     expect(html).toContain("Platform repair rerun");

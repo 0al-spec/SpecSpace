@@ -11,6 +11,7 @@ from viewer import (
     idea_to_spec_candidate_approval_intents,
     idea_to_spec_repair_drafts,
     idea_to_spec_repair_rerun_requests,
+    idea_to_spec_workspace_state_hygiene,
     ontology_acknowledgements,
     spec_compile,
     specspace_provider,
@@ -417,6 +418,41 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
     status, payload = _provider(handler, workspace_id).read_idea_to_spec_workspace()
     if status == HTTPStatus.OK and workspace_id is not None:
         payload["selected_workspace_id"] = workspace_id
+    if status == HTTPStatus.OK:
+        _, hygiene = idea_to_spec_workspace_state_hygiene.build_hygiene(
+            handler.server,
+            workspace_id=workspace_id,
+            workspace_payload=payload,
+        )
+        payload["workspace_state_hygiene"] = hygiene
+    json_response(handler, status, payload)
+
+
+def handle_v1_idea_to_spec_workspace_state_hygiene(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    workspace_id = _query_workspace_id(parsed)
+    workspace_status, workspace_payload = (
+        _provider(handler, workspace_id).read_idea_to_spec_workspace()
+    )
+    if workspace_status != HTTPStatus.OK:
+        json_response(
+            handler,
+            workspace_status,
+            {
+                "error": "Cannot build workspace state hygiene without readable idea-to-spec workspace.",
+                "reason": "source_workspace_unavailable",
+                "source_status": int(workspace_status),
+                "source": workspace_payload,
+            },
+        )
+        return
+    status, payload = idea_to_spec_workspace_state_hygiene.build_hygiene(
+        handler.server,
+        workspace_id=workspace_id,
+        workspace_payload=workspace_payload,
+    )
     json_response(handler, status, payload)
 
 

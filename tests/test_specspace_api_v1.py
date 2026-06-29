@@ -5671,6 +5671,128 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(body["authority_boundary"]["repair_draft_state_is_authority"])
         self.assertFalse((state_dir / "idea_to_spec_repair_drafts.json").exists())
 
+    def test_idea_to_spec_workspace_state_hygiene_v1_reports_missing_state(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+                workspace_status, workspace_body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            body["artifact_kind"],
+            "specspace_idea_to_spec_workspace_state_hygiene",
+        )
+        self.assertEqual(body["workspace_id"], "team-decision-log")
+        self.assertEqual(body["summary"]["status"], "partial")
+        self.assertGreater(body["summary"]["missing_state_count"], 0)
+        self.assertEqual(body["summary"]["stale_state_count"], 0)
+        self.assertFalse(body["authority_boundary"]["may_execute_platform"])
+        self.assertFalse(body["action_boundary"]["may_clear_state"])
+        self.assertEqual(workspace_status, 200)
+        self.assertEqual(
+            workspace_body["workspace_state_hygiene"]["summary"]["status"],
+            "partial",
+        )
+
+    def test_idea_to_spec_workspace_state_hygiene_v1_reports_stale_state(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            _write_repair_draft_workspace_runs(runs_dir)
+            _write_json(
+                state_dir / "idea_to_spec_repair_rerun_requests.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_repair_rerun_request_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "source_artifacts": {},
+                    "consumer_boundary": {
+                        "specspace_owned_state": True,
+                        "may_execute_specgraph": False,
+                    },
+                    "authority_boundary": {
+                        "rerun_request_state_is_authority": False,
+                        "canonical_mutations_allowed": False,
+                    },
+                    "requests": [
+                        {
+                            "id": "repair-rerun-request.local-subscription-control.1",
+                            "status": "requested",
+                            "requested_action": "prepare_repair_draft_rerun",
+                            "workspace_id": "local-subscription-control",
+                            "candidate_id": "local-subscription-control",
+                            "repair_session_id": "repair-session.local-subscription-control",
+                            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                            "draft_state_ref": "specspace-state://idea_to_spec_repair_drafts.json",
+                            "import_preview_ref": "runs/specspace_repair_draft_import_preview.json",
+                            "rerun_report_ref": "runs/specspace_repair_draft_rerun_report.json",
+                            "requested_by": "operator://specspace-local",
+                            "created_at": "2026-06-29T10:00:00Z",
+                            "updated_at": "2026-06-29T10:00:00Z",
+                            "draft_count": 1,
+                            "accepted_for_rerun_count": 1,
+                            "canonical_mutations_allowed": False,
+                            "tracked_artifacts_written": False,
+                            "may_execute_specgraph": False,
+                            "may_run_make_target": False,
+                            "may_mutate_candidate_source_artifacts": False,
+                            "may_mutate_canonical_specs": False,
+                            "may_write_ontology_package": False,
+                            "may_accept_ontology_terms": False,
+                            "may_create_branch_or_commit": False,
+                            "may_open_pull_request": False,
+                            "may_execute_git_service_operation": False,
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["status"], "blocked")
+        stale = [
+            item
+            for item in body["states"]
+            if item["kind"] == "repair_rerun_request"
+        ][0]
+        self.assertEqual(stale["status"], "stale")
+        self.assertEqual(stale["reason"], "workspace_id_mismatch")
+        self.assertEqual(stale["stored_workspace_id"], "local-subscription-control")
+        self.assertIn("repair_rerun_smoke", stale["blocks"])
+
     def test_idea_to_spec_repair_drafts_v1_filters_source_artifacts_to_string_map(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
