@@ -882,6 +882,22 @@ export const ideaToSpecWorkspace = {
         last_progress_at: "2026-06-28T15:20:21+00:00",
         stalled_phase: null,
       },
+      readiness_explainers: [
+        {
+          id: "readiness-explainer.pre-sib-ontology-coverage-gap",
+          proposal_id: "0180",
+          kind: "pre_sib_finding",
+          source: "repaired_pre_sib",
+          severity: "high",
+          blocks: ["pre_sib_review", "candidate_approval"],
+          message: "Ontology coverage is incomplete for the candidate graph.",
+          next_action:
+            "Inspect Pre-SIB coherence findings and close the referenced candidate graph condition.",
+          evidence_refs: [
+            "runs/repaired_pre_sib_coherence_report.json#findings.pre-sib-ontology-coverage-gap",
+          ],
+        },
+      ],
       findings: [],
       source_artifacts: [
         "runs/idea_event_storming_intake.json",

@@ -9,6 +9,7 @@ import type {
   IdeaToSpecGitServiceOperation,
   IdeaToSpecIdeaMaturity,
   IdeaToSpecIdeaMaturityFinding,
+  IdeaToSpecIdeaMaturityReadinessExplainer,
   IdeaToSpecMaterializedFile,
   IdeaToSpecOntologyDecision,
   IdeaToSpecProductRepairRerunPlatformExecution,
@@ -160,6 +161,39 @@ function maturityFindingNextAction(
     return "Review repair rerun state and rerun metrics after changes.";
   }
   return "Inspect the source artifact and rerun metrics after repair.";
+}
+
+function maturityExplainerHref(
+  explainer: IdeaToSpecIdeaMaturityReadinessExplainer,
+): string {
+  const source = `${explainer.source ?? ""} ${explainer.kind} ${explainer.blocks.join(
+    " ",
+  )}`.toLowerCase();
+  if (source.includes("pre_sib") || source.includes("pre-sib")) {
+    return "#idea-to-spec-pre-sib";
+  }
+  if (source.includes("repair_session") || source.includes("repair-session")) {
+    return "#idea-to-spec-repair-session";
+  }
+  if (source.includes("candidate_approval")) {
+    return "#idea-to-spec-approval-readiness";
+  }
+  if (source.includes("promotion")) {
+    return "#idea-to-spec-controlled-promotion";
+  }
+  if (source.includes("repair")) {
+    return "#idea-to-spec-repair-review";
+  }
+  return "#idea-to-spec-idea-maturity";
+}
+
+function maturityExplainerNextAction(
+  explainer: IdeaToSpecIdeaMaturityReadinessExplainer,
+): string {
+  return (
+    explainer.nextAction ??
+    "Inspect the linked lifecycle section and source evidence for this blocker."
+  );
 }
 
 export function IdeaToSpecWorkspacePanel({
@@ -1149,6 +1183,42 @@ function IdeaMaturitySection({
           />
         </div>
       </div>
+
+      {maturity.report.readinessExplainers.length > 0 ? (
+        <div className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>Readiness explainers</span>
+            <Pill value={`${maturity.report.readinessExplainers.length} reasons`} />
+          </div>
+          <div className={styles.navGrid}>
+            {maturity.report.readinessExplainers.map((explainer) => {
+              const explainerHref = maturityExplainerHref(explainer);
+              return (
+                <div key={explainer.id} className={styles.subRow}>
+                  <span className={styles.rowId}>{explainer.id}</span>
+                  <Pill value={explainer.severity} />
+                  <span className={styles.statusDetail}>
+                    {explainer.message} · {explainer.kind}
+                  </span>
+                  <div className={styles.metaGrid}>
+                    <Meta label="Source" value={explainer.source} />
+                    <Meta label="Blocks" value={joined(explainer.blocks)} />
+                    <Meta
+                      label="Next action"
+                      value={maturityExplainerNextAction(explainer)}
+                    />
+                    <Meta label="Evidence" value={joined(explainer.evidenceRefs)} />
+                    <a className={styles.navLink} href={explainerHref}>
+                      <span className={styles.navLabel}>Linked section</span>
+                      <span className={styles.navHint}>{explainerHref}</span>
+                    </a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {maturity.validation.reports.map((report) => (
         <div key={`${report.path ?? "validation"}:${report.status}`} className={styles.subRow}>

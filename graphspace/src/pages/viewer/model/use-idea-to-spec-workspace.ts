@@ -462,6 +462,18 @@ export type IdeaToSpecIdeaMaturityFinding = {
   nextAction: string | null;
 };
 
+export type IdeaToSpecIdeaMaturityReadinessExplainer = {
+  id: string;
+  proposalId: string | null;
+  kind: string;
+  source: string | null;
+  severity: string;
+  blocks: readonly string[];
+  message: string;
+  nextAction: string | null;
+  evidenceRefs: readonly string[];
+};
+
 export type IdeaToSpecIdeaMaturityValidationReport = {
   path: string | null;
   status: string;
@@ -501,6 +513,7 @@ export type IdeaToSpecIdeaMaturity = {
     };
     metrics: IdeaToSpecIdeaMaturityMetrics;
     findings: readonly IdeaToSpecIdeaMaturityFinding[];
+    readinessExplainers: readonly IdeaToSpecIdeaMaturityReadinessExplainer[];
     sourceArtifacts: readonly string[];
   };
   validation: {
@@ -1960,6 +1973,25 @@ function parseIdeaMaturityFinding(
   };
 }
 
+function parseIdeaMaturityReadinessExplainer(
+  raw: unknown,
+): IdeaToSpecIdeaMaturityReadinessExplainer | null {
+  const explainer = recordValue(raw);
+  const id = optionalString(explainer.id);
+  if (!id) return null;
+  return {
+    id,
+    proposalId: optionalString(explainer.proposal_id),
+    kind: stringValue(explainer.kind, "unknown"),
+    source: optionalString(explainer.source),
+    severity: stringValue(explainer.severity, "unknown"),
+    blocks: strings(explainer.blocks),
+    message: stringValue(explainer.message, "No message supplied."),
+    nextAction: optionalString(explainer.next_action),
+    evidenceRefs: strings(explainer.evidence_refs),
+  };
+}
+
 function parseIdeaMaturityValidationReport(
   raw: unknown,
 ): IdeaToSpecIdeaMaturityValidationReport | null {
@@ -2020,6 +2052,10 @@ function parseIdeaMaturity(raw: unknown): IdeaToSpecIdeaMaturity {
       metrics: parseIdeaMaturityMetrics(report.metrics),
       findings: records(report.findings).flatMap((item) => {
         const parsed = parseIdeaMaturityFinding(item);
+        return parsed ? [parsed] : [];
+      }),
+      readinessExplainers: records(report.readiness_explainers).flatMap((item) => {
+        const parsed = parseIdeaMaturityReadinessExplainer(item);
         return parsed ? [parsed] : [];
       }),
       sourceArtifacts: strings(report.source_artifacts),

@@ -109,6 +109,16 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(
       parsed.data.ideaMaturity.report.metrics.timeToApprovalReadySeconds,
     ).toBeNull();
+    expect(parsed.data.ideaMaturity.report.readinessExplainers[0].id).toBe(
+      "readiness-explainer.pre-sib-ontology-coverage-gap",
+    );
+    expect(parsed.data.ideaMaturity.report.readinessExplainers[0].kind).toBe(
+      "pre_sib_finding",
+    );
+    expect(parsed.data.ideaMaturity.report.readinessExplainers[0].blocks).toEqual([
+      "pre_sib_review",
+      "candidate_approval",
+    ]);
     expect(parsed.data.ideaMaturity.validation.reports[0].status).toBe("ok");
     expect(
       parsed.data.ideaMaturity.actionBoundary.mayRecalculateMetrics,
