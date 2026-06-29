@@ -24,6 +24,10 @@ DISPLAY_LIMITS = {
     "source_artifacts": 24,
     "validation_reports": 8,
 }
+UNSAFE_ARTIFACT_REF_PREFIXES = ("runs/local_operator_",)
+UNSAFE_ARTIFACT_REF_NAMES = {
+    "ontology_term_binding_gate_report.json",
+}
 
 
 def _record(value: Any) -> dict[str, Any]:
@@ -231,7 +235,7 @@ def _readiness_explainer_rows(report: dict[str, Any] | None) -> list[dict[str, A
                 "blocks": _string_list(item.get("blocks")),
                 "message": _text(item.get("message"), "No message supplied."),
                 "next_action": _optional_text(item.get("next_action")),
-                "evidence_refs": _string_list(item.get("evidence_refs")),
+                "evidence_refs": _safe_artifact_refs(item.get("evidence_refs")),
             }
         )
     return rows
@@ -259,10 +263,27 @@ def _safe_artifact_ref(value: Any) -> str | None:
     normalized = text.replace("\\", "/")
     marker = "/runs/"
     if normalized.startswith("runs/"):
-        return normalized
-    if marker in normalized:
-        return f"runs/{normalized.rsplit(marker, 1)[1]}"
-    return None
+        candidate = normalized
+    elif marker in normalized:
+        candidate = f"runs/{normalized.rsplit(marker, 1)[1]}"
+    else:
+        return None
+    artifact_path = candidate.split("#", 1)[0]
+    artifact_name = artifact_path.rsplit("/", 1)[-1]
+    if artifact_name in UNSAFE_ARTIFACT_REF_NAMES:
+        return None
+    if any(artifact_path.startswith(prefix) for prefix in UNSAFE_ARTIFACT_REF_PREFIXES):
+        return None
+    return candidate
+
+
+def _safe_artifact_refs(value: Any) -> list[str]:
+    refs = []
+    for item in _string_list(value):
+        ref = _safe_artifact_ref(item)
+        if ref is not None:
+            refs.append(ref)
+    return refs
 
 
 def _validation_report_rows(

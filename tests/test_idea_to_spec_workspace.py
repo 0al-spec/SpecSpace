@@ -1778,7 +1778,11 @@ def _idea_maturity_metrics_report() -> dict:
                     "candidate graph condition."
                 ),
                 "evidence_refs": [
-                    "runs/repaired_pre_sib_coherence_report.json#findings.pre-sib-ontology-coverage-gap"
+                    "runs/repaired_pre_sib_coherence_report.json#findings.pre-sib-ontology-coverage-gap",
+                    "/Users/egor/Development/GitHub/0AL/SpecGraph/runs/repaired_idea_to_spec_repair_session.json#blockers.0",
+                    "runs/local_operator_diagnostics.json",
+                    "runs/ontology_term_binding_gate_report.json",
+                    "/tmp/private_operator_notes.json",
                 ],
             }
         ],
@@ -2040,6 +2044,15 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 "proposal_id"
             ],
             "0180",
+        )
+        self.assertEqual(
+            body["idea_maturity"]["report"]["readiness_explainers"][0][
+                "evidence_refs"
+            ],
+            [
+                "runs/repaired_pre_sib_coherence_report.json#findings.pre-sib-ontology-coverage-gap",
+                "runs/repaired_idea_to_spec_repair_session.json#blockers.0",
+            ],
         )
         self.assertEqual(
             body["idea_maturity"]["validation"]["summary"]["status"],
