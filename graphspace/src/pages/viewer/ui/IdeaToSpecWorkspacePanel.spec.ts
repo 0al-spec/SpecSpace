@@ -172,6 +172,8 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Repair drafts loading");
     expect(html).toContain("Repair rerun request loading");
     expect(html).toContain("Save draft");
+    expect(html).toContain("Ontology gap term");
+    expect(html).toContain("Term");
     expect(html).toContain("Spec mutations");
     expect(html).toContain("false");
     expect(html).not.toContain("Apply to SpecGraph");

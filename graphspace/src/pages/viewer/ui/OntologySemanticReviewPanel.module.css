@@ -435,6 +435,39 @@
   outline: none;
 }
 
+.ontologyDraftGrid {
+  display: grid;
+  gap: var(--gs-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.draftField {
+  display: grid;
+  gap: var(--gs-space-2);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.draftInput {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid var(--gs-rule-soft);
+  padding: 0 var(--gs-space-3);
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+  font-family: var(--gs-sans);
+  font-size: 13px;
+}
+
+.draftInput:focus {
+  border-color: var(--gs-accent);
+  outline: none;
+}
+
 .draftTextarea {
   display: block;
   width: 100%;
