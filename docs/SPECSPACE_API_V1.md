@@ -761,7 +761,11 @@ operator action, stage statuses, blockers, evidence refs, target UI sections,
 and optional Platform/SpecGraph command templates. This projection is a
 navigation and explainability layer only: it does not grant SpecSpace authority
 to run SpecGraph, run Platform, run Git Service, mutate canonical specs, accept
-Ontology terms, or clear SpecSpace-owned state.
+Ontology terms, or clear SpecSpace-owned state. The root `guided_flow`, every
+stage, and every next action include an `authority_boundary` object with
+`inspect_only: true`, `acknowledge_only: true`, and all execution/mutation
+capabilities set to `false`; consumers should treat any expanded authority as
+invalid.
 
 For promotion review and publication, product wrapper reports are preferred
 when present. SpecSpace falls back to the legacy `graph_repository_*` reports
@@ -826,7 +830,21 @@ false.
         "label": "Replace the rerun request for the current workspace and repair session.",
         "status": "blocked",
         "target_section": "idea-to-spec-workspace-state-hygiene",
-        "evidence_refs": ["workspace_state_hygiene"]
+        "evidence_refs": ["workspace_state_hygiene"],
+        "authority_boundary": {
+          "inspect_only": true,
+          "acknowledge_only": true,
+          "may_execute_specgraph": false,
+          "may_execute_platform": false,
+          "may_execute_git_service": false,
+          "may_mutate_candidate_artifacts": false,
+          "may_mutate_canonical_specs": false,
+          "may_write_ontology_package": false,
+          "may_accept_ontology_terms": false,
+          "may_create_branch_or_commit": false,
+          "may_open_pull_request": false,
+          "may_merge_review": false
+        }
       }
     ],
     "stages": [
@@ -836,9 +854,37 @@ false.
         "status": "blocked",
         "primary_next_action": "Replace stale SpecSpace-owned state before rerun.",
         "target_section": "idea-to-spec-workspace-state-hygiene",
-        "blockers": ["workspace_id_mismatch"]
+        "blockers": ["workspace_id_mismatch"],
+        "authority_boundary": {
+          "inspect_only": true,
+          "acknowledge_only": true,
+          "may_execute_specgraph": false,
+          "may_execute_platform": false,
+          "may_execute_git_service": false,
+          "may_mutate_candidate_artifacts": false,
+          "may_mutate_canonical_specs": false,
+          "may_write_ontology_package": false,
+          "may_accept_ontology_terms": false,
+          "may_create_branch_or_commit": false,
+          "may_open_pull_request": false,
+          "may_merge_review": false
+        }
       }
-    ]
+    ],
+    "authority_boundary": {
+      "inspect_only": true,
+      "acknowledge_only": true,
+      "may_execute_specgraph": false,
+      "may_execute_platform": false,
+      "may_execute_git_service": false,
+      "may_mutate_candidate_artifacts": false,
+      "may_mutate_canonical_specs": false,
+      "may_write_ontology_package": false,
+      "may_accept_ontology_terms": false,
+      "may_create_branch_or_commit": false,
+      "may_open_pull_request": false,
+      "may_merge_review": false
+    }
   },
   "authority_boundary": {
     "idea_to_spec_workspace_is_authority": false,

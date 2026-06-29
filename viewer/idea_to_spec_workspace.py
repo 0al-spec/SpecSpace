@@ -3308,6 +3308,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     review_available = review_status.get("available") is True
     review_merged = review_status.get("review_merged") is True
     read_model_published = read_model_publication.get("published") is True
+    idea_intake_status = _stage_status_from_item(workflow, "event_storming_intake")
 
     stages = [
         _guided_stage(
@@ -3315,8 +3316,8 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             label="Idea intake",
             status=(
                 "completed"
-                if _stage_done(_stage_status_from_item(workflow, "event_storming_intake"))
-                else "missing"
+                if _stage_done(idea_intake_status)
+                else idea_intake_status
             ),
             next_action="Capture product idea as event-storming intake.",
             target_section="idea-to-spec-idea-intake",
