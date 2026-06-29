@@ -898,6 +898,40 @@ false.
 }
 ```
 
+### `GET/POST /api/v1/idea-to-spec-repair-drafts`
+
+Stores SpecSpace-owned draft answers for the selected product workspace. The
+state is a handoff artifact for SpecGraph import preview only: it does not
+apply answers, accept Ontology terms, write Ontology packages, run SpecGraph,
+run Platform, create Git branches/commits, or mutate canonical specs.
+
+For `ontology_gap` clarification requests, the Product Workspace UI emits
+action-specific payloads:
+
+```json
+{
+  "workspace_id": "team-decision-log",
+  "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+  "action": "bind_existing_term",
+  "answer_value": {
+    "term": "Decision Record",
+    "ontology_ref": "ontology://specgraph-core/classes/Spec"
+  }
+}
+```
+
+Supported ontology-gap actions are:
+
+- `bind_existing_term`: requires `answer_value.term` and `ontology_ref`;
+- `alias`: requires `answer_value.term` and `alias_of`;
+- `propose_project_local_term`: requires `answer_value.terms` or `term`;
+- `reject`: requires `answer_value.reason`, with optional `term`;
+- `defer`: requires `answer_value.reason`.
+
+SpecGraph later validates these drafts through
+`runs/specspace_repair_draft_import_preview.json`; invalid or incomplete drafts
+remain visible as draft state but are not accepted for rerun.
+
 ### `GET /api/v1/idea-to-spec-workspace-state-hygiene`
 
 Returns a readonly preflight report for SpecSpace-owned Idea-to-Spec state in

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { buildIdeaToSpecIntakeDraft } from "../model/idea-to-spec-intake-draft";
 import type {
   IdeaToSpecActiveFrame,
@@ -2029,18 +2029,30 @@ function ClarificationRequestRow({
   onSave: (input: IdeaToSpecRepairDraftInput) => void;
 }) {
   const defaultAction = request.suggestedActions[0] ?? "";
+  const ontologyGapRequest = request.kind === "ontology_gap";
   const [selectedAction, setSelectedAction] = useState(
     () => draft?.allowedAction ?? defaultAction,
   );
   const [draftText, setDraftText] = useState(() => repairDraftText(draft) ?? "");
+  const [ontologyDraft, setOntologyDraft] = useState(() =>
+    ontologyDraftFields(draft),
+  );
 
   useEffect(() => {
     setSelectedAction(draft?.allowedAction ?? defaultAction);
     setDraftText(repairDraftText(draft) ?? "");
+    setOntologyDraft(ontologyDraftFields(draft));
   }, [defaultAction, draft]);
 
-  const answerValue = answerValueForDraftAction(selectedAction, draftText);
-  const canSave = !!selectedAction && draftText.trim().length > 0 && !pending;
+  const answerValue = ontologyGapRequest
+    ? answerValueForOntologyGapAction(selectedAction, ontologyDraft)
+    : answerValueForDraftAction(selectedAction, draftText);
+  const canSave =
+    !!selectedAction &&
+    (ontologyGapRequest
+      ? ontologyGapDraftCanSave(selectedAction, ontologyDraft)
+      : draftText.trim().length > 0) &&
+    !pending;
   return (
     <div className={styles.row}>
       <div className={styles.rowHeader}>
@@ -2083,14 +2095,22 @@ function ClarificationRequestRow({
             {pending ? "Saving" : draft ? "Update draft" : "Save draft"}
           </button>
         </div>
-        <textarea
-          className={styles.draftTextarea}
-          value={draftText}
-          onChange={(event) => setDraftText(event.currentTarget.value)}
-          placeholder={draftPlaceholder(selectedAction)}
-          rows={3}
-          aria-label="Repair draft value"
-        />
+        {ontologyGapRequest ? (
+          <OntologyGapDraftFields
+            action={selectedAction}
+            fields={ontologyDraft}
+            onChange={setOntologyDraft}
+          />
+        ) : (
+          <textarea
+            className={styles.draftTextarea}
+            value={draftText}
+            onChange={(event) => setDraftText(event.currentTarget.value)}
+            placeholder={draftPlaceholder(selectedAction)}
+            rows={3}
+            aria-label="Repair draft value"
+          />
+        )}
         {draft ? (
           <span className={styles.statusDetail}>
             Draft saved · {draft.allowedAction.replace(/_/g, " ")} · {draft.updatedAt}
@@ -2102,6 +2122,81 @@ function ClarificationRequestRow({
           </span>
         ) : null}
       </form>
+    </div>
+  );
+}
+
+type OntologyGapDraftFieldState = {
+  term: string;
+  ontologyRef: string;
+  aliasOf: string;
+  reason: string;
+};
+
+function OntologyGapDraftFields({
+  action,
+  fields,
+  onChange,
+}: {
+  action: string;
+  fields: OntologyGapDraftFieldState;
+  onChange: (fields: OntologyGapDraftFieldState) => void;
+}) {
+  const update =
+    (key: keyof OntologyGapDraftFieldState) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      onChange({ ...fields, [key]: event.currentTarget.value });
+  return (
+    <div className={styles.ontologyDraftGrid}>
+      {action !== "defer" ? (
+        <label className={styles.draftField}>
+          <span>Term</span>
+          <input
+            className={styles.draftInput}
+            value={fields.term}
+            onChange={update("term")}
+            placeholder="Decision Record"
+            aria-label="Ontology gap term"
+          />
+        </label>
+      ) : null}
+      {action === "bind_existing_term" ? (
+        <label className={styles.draftField}>
+          <span>Ontology ref</span>
+          <input
+            className={styles.draftInput}
+            value={fields.ontologyRef}
+            onChange={update("ontologyRef")}
+            placeholder="ontology://specgraph-core/classes/Spec"
+            aria-label="Existing ontology reference"
+          />
+        </label>
+      ) : null}
+      {action === "alias" ? (
+        <label className={styles.draftField}>
+          <span>Alias of</span>
+          <input
+            className={styles.draftInput}
+            value={fields.aliasOf}
+            onChange={update("aliasOf")}
+            placeholder="Accepted Decision"
+            aria-label="Accepted ontology term alias target"
+          />
+        </label>
+      ) : null}
+      {action === "reject" || action === "defer" ? (
+        <label className={styles.draftField}>
+          <span>Reason</span>
+          <textarea
+            className={styles.draftTextarea}
+            value={fields.reason}
+            onChange={update("reason")}
+            placeholder="Reason"
+            rows={3}
+            aria-label="Ontology gap decision reason"
+          />
+        </label>
+      ) : null}
     </div>
   );
 }
@@ -2160,6 +2255,70 @@ function answerValueForDraftAction(
   }
   if (action === "reject" || action === "defer") return { reason: value };
   return { text: value };
+}
+
+function answerValueForOntologyGapAction(
+  action: string,
+  fields: OntologyGapDraftFieldState,
+): Record<string, unknown> {
+  const term = fields.term.trim();
+  const ontologyRef = fields.ontologyRef.trim();
+  const aliasOf = fields.aliasOf.trim();
+  const reason = fields.reason.trim();
+  if (action === "bind_existing_term") {
+    return { term, ontology_ref: ontologyRef };
+  }
+  if (action === "alias") return { term, alias_of: aliasOf };
+  if (action === "propose_project_local_term") {
+    return {
+      terms: term
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      term_scope: "project_local",
+    };
+  }
+  if (action === "reject") return { term, reason };
+  if (action === "defer") return { reason };
+  return { term, reason };
+}
+
+function ontologyGapDraftCanSave(
+  action: string,
+  fields: OntologyGapDraftFieldState,
+): boolean {
+  const term = fields.term.trim();
+  if (action === "bind_existing_term") {
+    return term.length > 0 && fields.ontologyRef.trim().length > 0;
+  }
+  if (action === "alias") {
+    return term.length > 0 && fields.aliasOf.trim().length > 0;
+  }
+  if (action === "propose_project_local_term") return term.length > 0;
+  if (action === "reject" || action === "defer") {
+    return fields.reason.trim().length > 0;
+  }
+  return term.length > 0 || fields.reason.trim().length > 0;
+}
+
+function ontologyDraftFields(
+  draft: IdeaToSpecRepairDraft | undefined,
+): OntologyGapDraftFieldState {
+  const value = draft?.answerValue ?? {};
+  const terms = Array.isArray(value.terms)
+    ? value.terms.filter((item): item is string => typeof item === "string")
+    : [];
+  return {
+    term:
+      typeof value.term === "string"
+        ? value.term
+        : terms.length > 0
+          ? terms.join(", ")
+          : "",
+    ontologyRef: typeof value.ontology_ref === "string" ? value.ontology_ref : "",
+    aliasOf: typeof value.alias_of === "string" ? value.alias_of : "",
+    reason: typeof value.reason === "string" ? value.reason : "",
+  };
 }
 
 function repairDraftText(draft: IdeaToSpecRepairDraft | undefined): string | null {
