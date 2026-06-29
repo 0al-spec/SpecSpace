@@ -1898,6 +1898,14 @@ def _workspace_artifacts() -> dict[str, dict]:
     }
 
 
+def _guided_stage(body: dict, stage_id: str) -> dict:
+    return [
+        stage
+        for stage in body["guided_flow"]["stages"]
+        if stage["id"] == stage_id
+    ][0]
+
+
 class IdeaToSpecWorkspaceTests(unittest.TestCase):
     def test_build_workspace_summarizes_candidate_graph_and_repairs(self) -> None:
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
@@ -3417,6 +3425,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["workflow"]["next_handoff"]["kind"],
             "product_promotion_execution_repair",
         )
+        self.assertEqual(_guided_stage(body, "git_dry_run")["status"], "blocked")
+        self.assertIn(
+            "promotion_execution_failed",
+            _guided_stage(body, "git_dry_run")["blockers"],
+        )
 
     def test_workflow_preserves_legacy_git_service_open_review_handoff(
         self,
@@ -3588,6 +3601,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["workflow"]["next_handoff"]["kind"],
             "product_candidate_promotion_open_review",
         )
+        self.assertEqual(_guided_stage(body, "git_dry_run")["status"], "available")
+        self.assertEqual(
+            _guided_stage(body, "review_publication")["status"],
+            "blocked",
+        )
 
     def test_workflow_requires_candidate_approval_before_promotion_request(
         self,
@@ -3696,6 +3714,14 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertFalse(
             body["controlled_promotion"]["candidate_approval"]["ready"]
+        )
+        self.assertEqual(
+            _guided_stage(body, "candidate_approval_intent")["status"],
+            "blocked",
+        )
+        self.assertIn(
+            "decision_rejected",
+            _guided_stage(body, "candidate_approval_intent")["blockers"],
         )
 
     def test_workflow_blocks_stale_promotion_when_repair_session_not_ready(
@@ -4101,6 +4127,65 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertTrue(body["summary"]["review_merged"])
         self.assertFalse(body["summary"]["read_model_published"])
 
+    def test_guided_flow_blocks_failed_review_status(self) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        product_execution = _product_promotion_execution()
+        product_execution["open_review_dry_run"] = False
+        product_execution["git_review"]["open_review_dry_run"] = False
+        product_execution["git_review"]["review_opened"] = True
+        review_status = _product_review_status("open")
+        review_status["ok"] = False
+        review_status["summary"]["error_count"] = 1
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+        ] = product_execution
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        ] = review_status
+        artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "post_review_failed")
+        self.assertEqual(
+            _guided_stage(body, "review_publication")["status"],
+            "blocked",
+        )
+        self.assertIn(
+            "review_status_failed",
+            _guided_stage(body, "review_publication")["blockers"],
+        )
+
     def test_workflow_marks_published_read_model(self) -> None:
         artifacts = _workspace_artifacts()
         promotion_gate = _promotion_gate()
@@ -4162,6 +4247,65 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["workflow"]["next_handoff"]["kind"],
             "read_model_review",
+        )
+        self.assertEqual(body["guided_flow"]["overall_status"], "completed")
+        self.assertEqual(
+            _guided_stage(body, "review_publication")["status"],
+            "completed",
+        )
+
+    def test_guided_flow_marks_finalization_only_publication_completed(self) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        product_execution = _product_promotion_execution()
+        product_execution["open_review_dry_run"] = False
+        product_execution["git_review"]["open_review_dry_run"] = False
+        product_execution["git_review"]["review_opened"] = True
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        artifacts[idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT] = (
+            _promotion_ready_repair_session_journal()
+        )
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+        ] = product_execution
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        ] = _product_review_status("merged")
+        artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
+        )
+        artifacts[
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
+        ] = _promotion_finalization(read_model_published=True)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "read_model_published")
+        self.assertTrue(body["summary"]["read_model_published"])
+        self.assertEqual(body["guided_flow"]["overall_status"], "completed")
+        self.assertEqual(
+            _guided_stage(body, "review_publication")["status"],
+            "completed",
         )
 
     def test_file_provider_reads_workspace_runs(self) -> None:

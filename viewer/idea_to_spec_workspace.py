@@ -3268,6 +3268,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     git_execution = _record(controlled.get("git_service_execution"))
     review_status = _record(controlled.get("review_status"))
     read_model_publication = _record(controlled.get("read_model_publication"))
+    promotion_finalization = _record(controlled.get("promotion_finalization"))
     next_handoff = _record(workflow.get("next_handoff"))
 
     hygiene_blockers = [
@@ -3292,22 +3293,31 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     ) is True
     approval_ready = approval.get("ready_for_candidate_approval") is True
     approval_request_ready = approval.get("promotion_review_can_be_requested") is True
+    approval_decision_available = candidate_approval.get("available") is True
     approval_decision_ready = candidate_approval.get("ready") is True
     approval_execution_ready = (
         candidate_approval_execution.get("ok") is True
         and candidate_approval_execution.get("decision_written") is True
     )
     promotion_request_ready = promotion_request.get("ok") is True
-    promotion_execution_available = (
-        product_execution.get("available") is True
-        or git_execution.get("available") is True
+    product_execution_available = product_execution.get("available") is True
+    promotion_execution_status = (
+        _stage_status_from_item(workflow, "product_promotion_execution")
+        if product_execution_available
+        else _stage_status_from_item(workflow, "git_service_execution")
     )
-    promotion_execution_ok = (
-        product_execution.get("ok") is True or git_execution.get("ok") is True
+    promotion_execution_available = product_execution_available or (
+        git_execution.get("available") is True
     )
+    promotion_execution_ready_for_review = promotion_execution_status == "ready"
+    promotion_execution_blocked = promotion_execution_status == "blocked"
     review_available = review_status.get("available") is True
+    review_ok = review_status.get("ok") is True
     review_merged = review_status.get("review_merged") is True
-    read_model_published = read_model_publication.get("published") is True
+    read_model_published = (
+        read_model_publication.get("published") is True
+        or promotion_finalization.get("read_model_published") is True
+    )
     idea_intake_status = _stage_status_from_item(workflow, "event_storming_intake")
 
     stages = [
@@ -3466,14 +3476,20 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             label="Candidate approval intent",
             status=(
                 "completed"
-                if approval_decision_ready or approval_execution_ready
+                if approval_decision_ready
+                else "blocked"
+                if approval_decision_available and not approval_decision_ready
                 else "available"
                 if approval_request_ready
                 else "blocked"
             ),
             next_action="Record owner intent to approve candidate for promotion review.",
             target_section="idea-to-spec-approval-readiness",
-            blockers=[] if approval_request_ready else _string_list(approval.get("blockers")),
+            blockers=(
+                _string_list(candidate_approval.get("blocked_by"))
+                if approval_decision_available and not approval_decision_ready
+                else [] if approval_request_ready else _string_list(approval.get("blockers"))
+            ),
             evidence_refs=[
                 ref
                 for ref in [
@@ -3488,14 +3504,20 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             label="Platform approval decision",
             status=(
                 "completed"
-                if approval_decision_ready or approval_execution_ready
+                if approval_decision_ready
+                else "blocked"
+                if approval_decision_available and not approval_decision_ready
                 else "available"
                 if approval_request_ready
                 else "blocked"
             ),
             next_action="Materialize candidate approval through Platform.",
             target_section="idea-to-spec-controlled-promotion",
-            blockers=[] if approval_request_ready else _string_list(approval.get("blockers")),
+            blockers=(
+                _string_list(candidate_approval.get("blocked_by"))
+                if approval_decision_available and not approval_decision_ready
+                else [] if approval_request_ready else _string_list(approval.get("blockers"))
+            ),
             evidence_refs=[
                 ref
                 for ref in [
@@ -3516,12 +3538,12 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
                 "completed"
                 if promotion_request_ready
                 else "available"
-                if approval_decision_ready or approval_execution_ready
+                if approval_decision_ready
                 else "blocked"
             ),
             next_action="Create report-only graph repository promotion request.",
             target_section="idea-to-spec-controlled-promotion",
-            blockers=[] if approval_decision_ready or approval_execution_ready else ["candidate_approval_required"],
+            blockers=[] if approval_decision_ready else ["candidate_approval_required"],
             evidence_refs=[
                 ref
                 for ref in [
@@ -3537,14 +3559,20 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             label="Git dry-run",
             status=(
                 "completed"
-                if promotion_execution_available and promotion_execution_ok
+                if promotion_execution_ready_for_review
+                else "blocked"
+                if promotion_execution_blocked
                 else "available"
                 if promotion_request_ready
                 else "blocked"
             ),
             next_action="Run controlled product promotion execution in dry-run mode.",
             target_section="idea-to-spec-controlled-promotion",
-            blockers=[] if promotion_request_ready else ["promotion_request_required"],
+            blockers=(
+                ["promotion_execution_failed"]
+                if promotion_execution_blocked
+                else [] if promotion_request_ready else ["promotion_request_required"]
+            ),
             evidence_refs=[
                 ref
                 for ref in [
@@ -3564,15 +3592,23 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             status=(
                 "completed"
                 if read_model_published
+                else "blocked"
+                if review_available and not review_ok
                 else "waiting_for_operator"
                 if review_available and not review_merged
                 else "available"
-                if promotion_execution_available and promotion_execution_ok
+                if promotion_execution_ready_for_review
                 else "blocked"
             ),
             next_action="Inspect repository review status and publish public read model after merge.",
             target_section="idea-to-spec-controlled-promotion",
-            blockers=[] if promotion_execution_available and promotion_execution_ok else ["git_dry_run_required"],
+            blockers=(
+                ["review_status_failed"]
+                if review_available and not review_ok
+                else []
+                if promotion_execution_ready_for_review
+                else ["git_dry_run_required"]
+            ),
             evidence_refs=[
                 ref
                 for ref in [
