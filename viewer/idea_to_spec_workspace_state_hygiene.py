@@ -135,7 +135,7 @@ def _state_status(
         "kind": kind,
         "artifact_type": "specspace_owned_state",
         "status": "unknown",
-        "path": _text(state.get("state_path")),
+        "path": _text(state.get("state_path")) or _text(state.get("path")),
         "stored_workspace_id": None,
         "stored_candidate_id": None,
         "stored_repair_session_id": None,

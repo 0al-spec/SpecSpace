@@ -2378,7 +2378,7 @@ export function parseIdeaToSpecWorkspace(
   if (hasWorkspaceStateHygiene) {
     const hygieneAuthority = recordValue(workspaceStateHygiene.authority_boundary);
     const hygieneAction = recordValue(workspaceStateHygiene.action_boundary);
-    const hygieneFalseFlags = [
+    const hygieneAuthorityFalseFlags = [
       "workspace_state_hygiene_is_authority",
       "may_execute_specgraph",
       "may_execute_platform",
@@ -2391,12 +2391,19 @@ export function parseIdeaToSpecWorkspace(
       "may_accept_ontology_terms",
       "may_create_branch_or_commit",
       "may_open_pull_request",
+    ];
+    const hygieneActionFalseFlags = [
       "may_clear_state",
       "may_apply_state",
       "may_delete_state",
     ];
-    for (const flag of hygieneFalseFlags) {
-      if (hygieneAuthority[flag] === true || hygieneAction[flag] === true) {
+    for (const flag of hygieneAuthorityFalseFlags) {
+      if (hygieneAuthority[flag] !== false) {
+        return { kind: "parse-error", reason: `workspace state hygiene boundary must explicitly disable: ${flag}`, raw };
+      }
+    }
+    for (const flag of hygieneActionFalseFlags) {
+      if (hygieneAction[flag] !== false) {
         return { kind: "parse-error", reason: `workspace state hygiene boundary expanded: ${flag}`, raw };
       }
     }

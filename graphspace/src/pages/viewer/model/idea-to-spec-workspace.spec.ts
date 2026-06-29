@@ -399,4 +399,17 @@ describe("parseIdeaToSpecWorkspace", () => {
 
     expect(parsed.kind).toBe("parse-error");
   });
+
+  it("rejects workspace state hygiene without explicit boundary false flags", () => {
+    const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    delete payload.workspace_state_hygiene.authority_boundary.may_execute_platform;
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("parse-error");
+    if (parsed.kind !== "parse-error") return;
+    expect(parsed.reason).toContain(
+      "workspace state hygiene boundary must explicitly disable: may_execute_platform",
+    );
+  });
 });

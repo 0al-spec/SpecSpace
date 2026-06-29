@@ -5711,6 +5711,34 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "partial",
         )
 
+    def test_idea_to_spec_workspace_state_hygiene_v1_preserves_invalid_state_path(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            _write_repair_draft_workspace_runs(runs_dir)
+            draft_path = state_dir / "idea_to_spec_repair_drafts.json"
+            draft_path.write_text("{", encoding="utf-8")
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        invalid = [item for item in body["states"] if item["kind"] == "repair_drafts"][0]
+        self.assertEqual(invalid["status"], "invalid")
+        self.assertEqual(invalid["path"], str(draft_path))
+
     def test_idea_to_spec_workspace_state_hygiene_v1_reports_stale_state(
         self,
     ) -> None:
