@@ -94,6 +94,14 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.repairReview.platformExecution.publication.status).toBe(
       "published",
     );
+    expect(parsed.data.workspaceStateHygiene.status).toBe("blocked");
+    expect(parsed.data.workspaceStateHygiene.staleStateCount).toBe(1);
+    expect(parsed.data.workspaceStateHygiene.states[1].kind).toBe(
+      "repair_rerun_request",
+    );
+    expect(parsed.data.workspaceStateHygiene.states[1].reason).toBe(
+      "workspace_id_mismatch",
+    );
     expect(
       parsed.data.repairReview.platformExecution.actionBoundary
         .mayExecutePlatformAdapter,
@@ -390,5 +398,18 @@ describe("parseIdeaToSpecWorkspace", () => {
     });
 
     expect(parsed.kind).toBe("parse-error");
+  });
+
+  it("rejects workspace state hygiene without explicit boundary false flags", () => {
+    const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    delete payload.workspace_state_hygiene.authority_boundary.may_execute_platform;
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("parse-error");
+    if (parsed.kind !== "parse-error") return;
+    expect(parsed.reason).toContain(
+      "workspace state hygiene boundary must explicitly disable: may_execute_platform",
+    );
   });
 });

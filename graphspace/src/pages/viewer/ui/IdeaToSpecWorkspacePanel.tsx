@@ -17,6 +17,7 @@ import type {
   IdeaToSpecRepairSessionBlocker,
   IdeaToSpecRepairSessionStage,
   IdeaToSpecResolvedOntologyGap,
+  IdeaToSpecWorkspaceStateHygiene,
   IdeaToSpecWorkflow,
   IdeaToSpecWorkspace,
   UseIdeaToSpecWorkspaceState,
@@ -338,6 +339,7 @@ export function IdeaToSpecWorkspacePanel({
         <RepairSection actions={data.repairLoop.actions} />
         <RepairSessionSection state={state} />
         <IdeaMaturitySection maturity={data.ideaMaturity} />
+        <WorkspaceStateHygieneSection hygiene={data.workspaceStateHygiene} />
         <ProductRepairReviewSection
           state={state}
           repairDrafts={repairDrafts}
@@ -1283,6 +1285,77 @@ function IdeaMaturitySection({
               label="Next action"
               value={maturityFindingNextAction(finding)}
             />
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function WorkspaceStateHygieneSection({
+  hygiene,
+}: {
+  hygiene: IdeaToSpecWorkspaceStateHygiene;
+}) {
+  if (!hygiene.available) {
+    return (
+      <section id="idea-to-spec-workspace-state-hygiene" className={styles.reviewSection}>
+        <SectionHeader title="Workspace state preflight" count={0} />
+        <Status
+          label="Workspace state preflight unavailable"
+          detail="SpecSpace did not publish workspace_state_hygiene for this workspace."
+        />
+      </section>
+    );
+  }
+  return (
+    <section id="idea-to-spec-workspace-state-hygiene" className={styles.reviewSection}>
+      <SectionHeader
+        title="Workspace state preflight"
+        count={hygiene.blockingStateCount}
+      />
+      <div className={styles.postureStrip}>
+        <PostureItem label="Status" value={hygiene.status} />
+        <PostureItem label="Usable" value={String(hygiene.usableStateCount)} />
+        <PostureItem label="Missing" value={String(hygiene.missingStateCount)} />
+        <PostureItem label="Stale" value={String(hygiene.staleStateCount)} />
+        <PostureItem label="Invalid" value={String(hygiene.invalidStateCount)} />
+        <PostureItem label="Blocking" value={String(hygiene.blockingStateCount)} />
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Current workspace state</span>
+          <Pill value={hygiene.status} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Workspace" value={hygiene.workspaceId} />
+          <Meta label="Candidate" value={hygiene.candidateId} />
+          <Meta label="Repair session" value={hygiene.repairSessionId} />
+          <Meta label="Repair session ref" value={hygiene.repairSessionRef} />
+          <Meta label="Next action" value={hygiene.nextAction} />
+          <Meta
+            label="Can clear state"
+            value={boolText(hygiene.actionBoundary.may_clear_state === true)}
+          />
+        </div>
+      </div>
+      {hygiene.states.map((item) => (
+        <div key={`${item.kind}:${item.path ?? "state"}`} className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{item.kind.replace(/_/g, " ")}</span>
+            <Pill value={item.status} />
+          </div>
+          <div className={styles.metaGrid}>
+            <Meta label="Reason" value={item.reason} />
+            <Meta label="Records" value={String(item.recordCount)} />
+            <Meta label="Current" value={String(item.currentRecordCount)} />
+            <Meta label="Stale" value={String(item.staleRecordCount)} />
+            <Meta label="Stored workspace" value={item.storedWorkspaceId} />
+            <Meta label="Stored candidate" value={item.storedCandidateId} />
+            <Meta label="Stored session" value={item.storedRepairSessionId} />
+            <Meta label="Stored session ref" value={item.storedRepairSessionRef} />
+            <Meta label="Blocks" value={joined(item.blocks)} />
+            <Meta label="Next action" value={item.nextAction} />
           </div>
         </div>
       ))}

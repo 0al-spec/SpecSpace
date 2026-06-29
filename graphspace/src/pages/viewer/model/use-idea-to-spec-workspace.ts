@@ -128,6 +128,45 @@ export type IdeaToSpecRepairSessionBlocker = {
   id: string;
 };
 
+export type IdeaToSpecWorkspaceStateHygieneItem = {
+  kind: string;
+  artifactType: string | null;
+  status: string;
+  reason: string | null;
+  path: string | null;
+  storedWorkspaceId: string | null;
+  storedCandidateId: string | null;
+  storedRepairSessionId: string | null;
+  storedRepairSessionRef: string | null;
+  currentWorkspaceId: string | null;
+  currentCandidateId: string | null;
+  currentRepairSessionId: string | null;
+  currentRepairSessionRef: string | null;
+  recordCount: number;
+  currentRecordCount: number;
+  staleRecordCount: number;
+  blocks: readonly string[];
+  nextAction: string | null;
+};
+
+export type IdeaToSpecWorkspaceStateHygiene = {
+  available: boolean;
+  status: string;
+  workspaceId: string | null;
+  candidateId: string | null;
+  repairSessionId: string | null;
+  repairSessionRef: string | null;
+  usableStateCount: number;
+  missingStateCount: number;
+  staleStateCount: number;
+  invalidStateCount: number;
+  blockingStateCount: number;
+  nextAction: string | null;
+  states: readonly IdeaToSpecWorkspaceStateHygieneItem[];
+  authorityBoundary: Record<string, unknown>;
+  actionBoundary: Record<string, unknown>;
+};
+
 export type IdeaToSpecMaterializedFile = {
   candidateNodeId: string;
   materializedId: string;
@@ -887,6 +926,7 @@ export type IdeaToSpecWorkspace = {
       mayCreateBranchOrCommit: false;
     };
   };
+  workspaceStateHygiene: IdeaToSpecWorkspaceStateHygiene;
   ideaMaturity: IdeaToSpecIdeaMaturity;
   approvalReadiness: IdeaToSpecApprovalReadiness;
   materialization: {
@@ -2190,6 +2230,61 @@ function parseWorkspaceIdentity(raw: unknown): IdeaToSpecWorkspaceIdentity {
   };
 }
 
+function parseWorkspaceStateHygieneItem(
+  raw: unknown,
+): IdeaToSpecWorkspaceStateHygieneItem | null {
+  const item = recordValue(raw);
+  const kind = optionalString(item.kind);
+  if (!kind) return null;
+  return {
+    kind,
+    artifactType: optionalString(item.artifact_type),
+    status: stringValue(item.status, "unknown"),
+    reason: optionalString(item.reason),
+    path: optionalString(item.path),
+    storedWorkspaceId: optionalString(item.stored_workspace_id),
+    storedCandidateId: optionalString(item.stored_candidate_id),
+    storedRepairSessionId: optionalString(item.stored_repair_session_id),
+    storedRepairSessionRef: optionalString(item.stored_repair_session_ref),
+    currentWorkspaceId: optionalString(item.current_workspace_id),
+    currentCandidateId: optionalString(item.current_candidate_id),
+    currentRepairSessionId: optionalString(item.current_repair_session_id),
+    currentRepairSessionRef: optionalString(item.current_repair_session_ref),
+    recordCount: numberValue(item.record_count),
+    currentRecordCount: numberValue(item.current_record_count),
+    staleRecordCount: numberValue(item.stale_record_count),
+    blocks: strings(item.blocks),
+    nextAction: optionalString(item.next_action),
+  };
+}
+
+function parseWorkspaceStateHygiene(
+  raw: unknown,
+): IdeaToSpecWorkspaceStateHygiene {
+  const hygiene = recordValue(raw);
+  const summary = recordValue(hygiene.summary);
+  return {
+    available: hygiene.artifact_kind === "specspace_idea_to_spec_workspace_state_hygiene",
+    status: stringValue(summary.status, "missing"),
+    workspaceId: optionalString(hygiene.workspace_id),
+    candidateId: optionalString(hygiene.candidate_id),
+    repairSessionId: optionalString(hygiene.repair_session_id),
+    repairSessionRef: optionalString(hygiene.repair_session_ref),
+    usableStateCount: numberValue(summary.usable_state_count),
+    missingStateCount: numberValue(summary.missing_state_count),
+    staleStateCount: numberValue(summary.stale_state_count),
+    invalidStateCount: numberValue(summary.invalid_state_count),
+    blockingStateCount: numberValue(summary.blocking_state_count),
+    nextAction: optionalString(summary.next_action),
+    states: records(hygiene.states).flatMap((item) => {
+      const parsed = parseWorkspaceStateHygieneItem(item);
+      return parsed ? [parsed] : [];
+    }),
+    authorityBoundary: recordValue(hygiene.authority_boundary),
+    actionBoundary: recordValue(hygiene.action_boundary),
+  };
+}
+
 export function parseIdeaToSpecWorkspace(
   raw: unknown,
 ): UseIdeaToSpecWorkspaceState {
@@ -2277,6 +2372,47 @@ export function parseIdeaToSpecWorkspace(
     repairReviewBoundary.acknowledge_only !== true
   ) {
     return { kind: "parse-error", reason: "repair review boundary must be inspect-only", raw };
+  }
+  const hasWorkspaceStateHygiene = isRecord(raw.workspace_state_hygiene);
+  const workspaceStateHygiene = recordValue(raw.workspace_state_hygiene);
+  if (hasWorkspaceStateHygiene) {
+    const hygieneAuthority = recordValue(workspaceStateHygiene.authority_boundary);
+    const hygieneAction = recordValue(workspaceStateHygiene.action_boundary);
+    const hygieneAuthorityFalseFlags = [
+      "workspace_state_hygiene_is_authority",
+      "may_execute_specgraph",
+      "may_execute_platform",
+      "may_execute_git_service",
+      "may_apply_answers",
+      "may_apply_decisions",
+      "may_mutate_candidate_artifacts",
+      "may_mutate_canonical_specs",
+      "may_write_ontology_package",
+      "may_accept_ontology_terms",
+      "may_create_branch_or_commit",
+      "may_open_pull_request",
+    ];
+    const hygieneActionFalseFlags = [
+      "may_clear_state",
+      "may_apply_state",
+      "may_delete_state",
+    ];
+    for (const flag of hygieneAuthorityFalseFlags) {
+      if (hygieneAuthority[flag] !== false) {
+        return { kind: "parse-error", reason: `workspace state hygiene boundary must explicitly disable: ${flag}`, raw };
+      }
+    }
+    for (const flag of hygieneActionFalseFlags) {
+      if (hygieneAction[flag] !== false) {
+        return { kind: "parse-error", reason: `workspace state hygiene boundary expanded: ${flag}`, raw };
+      }
+    }
+    if (
+      hygieneAction.inspect_only !== true ||
+      hygieneAction.acknowledge_only !== true
+    ) {
+      return { kind: "parse-error", reason: "workspace state hygiene boundary must be inspect-only", raw };
+    }
   }
   const platformExecution = recordValue(repairReview.platform_execution);
   const platformExecutionBoundary = recordValue(platformExecution.action_boundary);
@@ -2498,6 +2634,7 @@ export function parseIdeaToSpecWorkspace(
       },
       repairSession: parseRepairSession(repairSession),
       repairReview: parseRepairReview(repairReview),
+      workspaceStateHygiene: parseWorkspaceStateHygiene(workspaceStateHygiene),
       ideaMaturity: parseIdeaMaturity(ideaMaturity),
       approvalReadiness: parseApprovalReadiness(approvalReadiness),
       materialization: {
