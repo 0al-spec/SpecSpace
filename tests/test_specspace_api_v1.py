@@ -5821,6 +5821,227 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(stale["stored_workspace_id"], "local-subscription-control")
         self.assertIn("repair_rerun_smoke", stale["blocks"])
 
+    def test_idea_to_spec_workspace_state_hygiene_v1_uses_repaired_session_ref(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_json(
+                state_dir / "idea_to_spec_candidate_approval_intents.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_candidate_approval_intent_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "source_artifacts": {},
+                    "consumer_boundary": {
+                        "specspace_owned_state": True,
+                        "may_execute_specgraph": False,
+                    },
+                    "authority_boundary": {
+                        "candidate_approval_intent_state_is_authority": False,
+                        "canonical_mutations_allowed": False,
+                    },
+                    "intents": [
+                        {
+                            "id": "candidate-approval-intent.team-decision-log.1",
+                            "status": "requested",
+                            "requested_action": "approve_candidate_for_promotion_review",
+                            "workspace_id": "team-decision-log",
+                            "candidate_id": "team-decision-log",
+                            "repair_session_id": "repaired-session.team-decision-log",
+                            "repair_session_ref": "runs/repaired_idea_to_spec_repair_session.json",
+                            "created_at": "2026-06-29T10:00:00Z",
+                            "updated_at": "2026-06-29T10:00:00Z",
+                            "canonical_mutations_allowed": False,
+                            "tracked_artifacts_written": False,
+                            "may_execute_specgraph": False,
+                            "may_execute_prompt_agent": False,
+                            "may_apply_to_specgraph": False,
+                            "may_mutate_candidate_source_artifacts": False,
+                            "may_mutate_canonical_specs": False,
+                            "may_write_ontology_package": False,
+                            "may_accept_ontology_terms": False,
+                            "may_mark_candidate_accepted": False,
+                            "may_mark_candidate_graph_accepted": False,
+                            "may_create_branch_or_commit": False,
+                            "may_open_pull_request": False,
+                            "may_execute_git_service_operation": False,
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            body["repair_session_ref"],
+            "runs/repaired_idea_to_spec_repair_session.json",
+        )
+        intent = [
+            item
+            for item in body["states"]
+            if item["kind"] == "candidate_approval_intent"
+        ][0]
+        self.assertEqual(intent["status"], "usable")
+
+    def test_idea_to_spec_workspace_state_hygiene_v1_detects_stale_handoff_source_ref(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir, include_import_preview=True)
+            preview_path = (
+                runs_dir
+                / idea_to_spec_workspace.SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT
+            )
+            preview = json.loads(preview_path.read_text(encoding="utf-8"))
+            preview["source_artifacts"] = {
+                "idea_to_spec_repair_session": "runs/old_repair_session.json"
+            }
+            _write_json(preview_path, preview)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        preview_state = [
+            item
+            for item in body["states"]
+            if item["kind"] == "repair_draft_import_preview"
+        ][0]
+        self.assertEqual(preview_state["status"], "stale")
+        self.assertEqual(preview_state["reason"], "repair_session_ref_mismatch")
+        self.assertEqual(
+            preview_state["stored_repair_session_ref"],
+            "runs/old_repair_session.json",
+        )
+
+    def test_idea_to_spec_workspace_state_hygiene_v1_detects_candidate_mismatch(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT,
+                {
+                    "artifact_kind": "specspace_repair_rerun_request_gate",
+                    "schema_version": 1,
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "status": "specspace_repair_rerun_request_gate_ready",
+                    "summary": {
+                        "status": "specspace_repair_rerun_request_gate_ready",
+                        "workspace_id": "team-decision-log",
+                        "candidate_id": "old-candidate",
+                    },
+                    "source_artifacts": {
+                        "idea_to_spec_repair_session": "runs/idea_to_spec_repair_session.json"
+                    },
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        gate = [
+            item
+            for item in body["states"]
+            if item["kind"] == "repair_rerun_request_gate"
+        ][0]
+        self.assertEqual(gate["status"], "stale")
+        self.assertEqual(gate["reason"], "candidate_id_mismatch")
+
+    def test_idea_to_spec_workspace_state_hygiene_v1_validates_ready_status_by_kind(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT,
+                {
+                    "artifact_kind": "specspace_repair_rerun_request_gate",
+                    "schema_version": 1,
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "status": "repair_draft_import_preview_ready",
+                    "summary": {
+                        "status": "repair_draft_import_preview_ready",
+                        "workspace_id": "team-decision-log",
+                        "candidate_id": "team-decision-log",
+                    },
+                    "source_artifacts": {
+                        "idea_to_spec_repair_session": "runs/idea_to_spec_repair_session.json"
+                    },
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        gate = [
+            item
+            for item in body["states"]
+            if item["kind"] == "repair_rerun_request_gate"
+        ][0]
+        self.assertEqual(gate["status"], "invalid")
+        self.assertEqual(gate["reason"], "repair_draft_import_preview_ready")
+
     def test_idea_to_spec_repair_drafts_v1_filters_source_artifacts_to_string_map(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

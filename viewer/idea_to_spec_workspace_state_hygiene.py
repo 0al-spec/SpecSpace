@@ -96,14 +96,28 @@ def _current_identity(
 ) -> dict[str, str | None]:
     workspace = _record(workspace_payload.get("workspace"))
     repair_session = _record(workspace_payload.get("repair_session"))
-    session = _record(repair_session.get("session"))
     artifacts = _record(workspace_payload.get("artifacts"))
-    repaired_selected = _text(repair_session.get("source_mode")) == "repaired_handoff"
+    approval_readiness = _record(workspace_payload.get("approval_readiness"))
+    approval_source_refs = _record(approval_readiness.get("source_refs"))
+    repaired_repair_session = _record(artifacts.get("repaired_repair_session"))
+    standard_repair_session = _record(artifacts.get("repair_session"))
+    repaired_selected = (
+        _text(approval_readiness.get("source_mode"))
+        in {"repaired_handoff", "partial_repaired"}
+        or repaired_repair_session.get("available") is True
+    )
     repair_session_key = (
         "repaired_repair_session" if repaired_selected else "repair_session"
     )
     repair_session_artifact = _record(artifacts.get(repair_session_key))
-    repair_session_ref = _text(repair_session_artifact.get("path"))
+    session = _record(repair_session_artifact.get("session"))
+    if not session:
+        session = _record(repair_session.get("session"))
+    repair_session_ref = (
+        _text(approval_source_refs.get("repair_session"))
+        or _text(repair_session_artifact.get("path"))
+        or _text(standard_repair_session.get("path"))
+    )
     if repair_session_ref is None:
         repair_session_ref = (
             "runs/repaired_idea_to_spec_repair_session.json"
@@ -239,18 +253,41 @@ def _artifact_state_status(
     status = _text(artifact.get("status"))
     available = artifact.get("available") is True
     source_refs = _record(artifact.get("source_artifacts"))
-    session_ref = _source_ref(source_refs, "idea_to_spec_repair_session")
+    session_ref = _source_ref_any(
+        source_refs,
+        (
+            "idea_to_spec_repair_session",
+            "repair_session",
+            "repair_session_journal",
+            "repaired_idea_to_spec_repair_session",
+        ),
+    )
     summary = _record(artifact.get("summary"))
-    stored_workspace_id = _text(summary.get("workspace_id"))
+    stored_workspace_id = _text(artifact.get("workspace_id")) or _text(
+        summary.get("workspace_id")
+    )
+    stored_candidate_id = _text(artifact.get("candidate_id")) or _text(
+        summary.get("candidate_id")
+    )
+    stored_repair_session_id = (
+        _text(artifact.get("repair_session_id"))
+        or _text(summary.get("repair_session_id"))
+        or _text(summary.get("session_id"))
+    )
     current_ref = current["repair_session_ref"]
+    session_ref = (
+        session_ref
+        or _text(artifact.get("repair_session_ref"))
+        or _text(summary.get("repair_session_ref"))
+    )
     base = {
         "kind": kind,
         "artifact_type": "specgraph_handoff_artifact",
         "status": "missing",
         "path": _text(artifact.get("path")),
         "stored_workspace_id": stored_workspace_id,
-        "stored_candidate_id": _text(summary.get("candidate_id")),
-        "stored_repair_session_id": None,
+        "stored_candidate_id": stored_candidate_id,
+        "stored_repair_session_id": stored_repair_session_id,
         "stored_repair_session_ref": session_ref,
         "current_workspace_id": current["workspace_id"],
         "current_candidate_id": current["candidate_id"],
@@ -272,7 +309,11 @@ def _artifact_state_status(
             "stale_record_count": 1,
             "next_action": f"Rebuild {kind} for the current repair session.",
         }
-    if stored_workspace_id and current["workspace_id"] and stored_workspace_id != current["workspace_id"]:
+    if (
+        stored_workspace_id
+        and current["workspace_id"]
+        and stored_workspace_id != current["workspace_id"]
+    ):
         return {
             **base,
             "status": "stale",
@@ -280,11 +321,31 @@ def _artifact_state_status(
             "stale_record_count": 1,
             "next_action": f"Rebuild {kind} for the selected workspace.",
         }
-    ready_statuses = {
-        "repair_draft_import_preview_ready",
-        "specspace_repair_rerun_request_gate_ready",
-        "repair_rerun_request_gate_ready",
-    }
+    if (
+        stored_candidate_id
+        and current["candidate_id"]
+        and stored_candidate_id != current["candidate_id"]
+    ):
+        return {
+            **base,
+            "status": "stale",
+            "reason": "candidate_id_mismatch",
+            "stale_record_count": 1,
+            "next_action": f"Rebuild {kind} for the selected candidate.",
+        }
+    if (
+        stored_repair_session_id
+        and current["repair_session_id"]
+        and stored_repair_session_id != current["repair_session_id"]
+    ):
+        return {
+            **base,
+            "status": "stale",
+            "reason": "repair_session_id_mismatch",
+            "stale_record_count": 1,
+            "next_action": f"Rebuild {kind} for the current repair session.",
+        }
+    ready_statuses = _ready_statuses_for_artifact(kind)
     if status not in ready_statuses:
         return {
             **base,
@@ -299,6 +360,17 @@ def _artifact_state_status(
         "current_record_count": 1,
         "next_action": "Continue with the current idea-to-spec workflow.",
     }
+
+
+def _ready_statuses_for_artifact(kind: str) -> set[str]:
+    if kind == "repair_draft_import_preview":
+        return {"repair_draft_import_preview_ready"}
+    if kind == "repair_rerun_request_gate":
+        return {
+            "specspace_repair_rerun_request_gate_ready",
+            "repair_rerun_request_gate_ready",
+        }
+    return set()
 
 
 def _summary(states: list[dict[str, Any]]) -> dict[str, Any]:
@@ -376,6 +448,14 @@ def _source_ref(source_refs: dict[str, Any], key: str) -> str | None:
         return _text(value)
     if isinstance(value, dict):
         return _text(value.get("source_ref") or value.get("path"))
+    return None
+
+
+def _source_ref_any(source_refs: dict[str, Any], keys: tuple[str, ...]) -> str | None:
+    for key in keys:
+        ref = _source_ref(source_refs, key)
+        if ref:
+            return ref
     return None
 
 

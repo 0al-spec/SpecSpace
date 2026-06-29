@@ -775,7 +775,7 @@ def _artifact_status(
     )
     source_summary = _record(source_generation.get("summary"))
     source_readiness = _record(source_generation.get("readiness"))
-    return {
+    status_payload = {
         "available": True,
         "path": path,
         "artifact_kind": _optional_text(data.get("artifact_kind")),
@@ -798,6 +798,54 @@ def _artifact_status(
         ),
         "summary": summary or source_summary or None,
     }
+    source_artifacts = _safe_source_artifacts(data.get("source_artifacts"))
+    if source_artifacts:
+        status_payload["source_artifacts"] = source_artifacts
+    workspace_id = _optional_text(data.get("workspace_id") or summary.get("workspace_id"))
+    candidate_id = _optional_text(data.get("candidate_id") or summary.get("candidate_id"))
+    repair_session_ref = _optional_text(
+        data.get("repair_session_ref") or summary.get("repair_session_ref")
+    )
+    if workspace_id:
+        status_payload["workspace_id"] = workspace_id
+    if candidate_id:
+        status_payload["candidate_id"] = candidate_id
+    if repair_session_ref:
+        status_payload["repair_session_ref"] = repair_session_ref
+    session = _session_projection(data.get("session"))
+    if session:
+        status_payload["session"] = session
+    return status_payload
+
+
+def _safe_source_artifacts(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    safe: dict[str, Any] = {}
+    for key, ref in value.items():
+        key_text = _optional_text(key)
+        if key_text is None:
+            continue
+        if isinstance(ref, str):
+            ref_text = _optional_text(ref)
+        elif isinstance(ref, dict):
+            ref_text = _optional_text(ref.get("source_ref") or ref.get("path"))
+        else:
+            ref_text = None
+        if ref_text is None or ref_text.startswith("/") or ".." in ref_text.split("/"):
+            continue
+        safe[key_text] = ref_text
+    return safe
+
+
+def _session_projection(value: Any) -> dict[str, Any]:
+    session = _record(value)
+    projected = {
+        "session_id": _optional_text(session.get("session_id")),
+        "candidate_id": _optional_text(session.get("candidate_id")),
+        "workspace_route": _optional_text(session.get("workspace_route")),
+    }
+    return {key: item for key, item in projected.items() if item is not None}
 
 
 def _active_frame(value: Any) -> dict[str, Any]:
