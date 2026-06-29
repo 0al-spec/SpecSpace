@@ -1041,7 +1041,7 @@ function IdeaMaturitySection({
           />
           <Meta
             label="Validator schema"
-            value={maturity.validation.validator.validationReportSchemaRef}
+            value={maturity.validation.validator.schemaRef}
           />
           <Meta
             label="Policy ref"

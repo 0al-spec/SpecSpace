@@ -120,6 +120,9 @@ describe("parseIdeaToSpecWorkspace", () => {
       "additive_v1",
     );
     expect(parsed.data.ideaMaturity.validation.validator.version).toBe("0.1.0");
+    expect(parsed.data.ideaMaturity.validation.validator.schemaRef).toBe(
+      "schemas/idea_maturity_metrics_report.schema.json",
+    );
     expect(
       parsed.data.ideaMaturity.validation.validator.validationReportSchemaRef,
     ).toBe("schemas/idea_maturity_metrics_validation_report.schema.json");

@@ -63,6 +63,13 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain(
       "schemas/idea_maturity_metrics_validation_report.schema.json",
     );
+    expect(
+      html.split("schemas/idea_maturity_metrics_report.schema.json").length - 1,
+    ).toBe(2);
+    expect(
+      html.split("schemas/idea_maturity_metrics_validation_report.schema.json")
+        .length - 1,
+    ).toBe(1);
     expect(html).toContain("additive_v1");
     expect(html).toContain("VALIDATOR_CONTRACT.md#compatibility-policy");
     expect(html).toContain("Maturity navigation");
