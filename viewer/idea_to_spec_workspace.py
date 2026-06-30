@@ -1101,11 +1101,83 @@ def _clarification_request_rows(report: dict[str, Any] | None) -> list[dict[str,
                 "severity": _text(item.get("severity"), "review_required"),
                 "status": _text(item.get("status"), "open"),
                 "target_ref": _optional_text(item.get("target_ref")),
+                "target_artifact": _optional_text(item.get("target_artifact")),
                 "question": _optional_text(item.get("question")),
                 "suggested_actions": _string_list(item.get("suggested_actions")),
             }
         )
     return rows
+
+
+def _repair_target_for_request(request: dict[str, Any]) -> dict[str, Any] | None:
+    if request["kind"] == "ontology_gap":
+        return None
+    accepted_actions = [
+        action
+        for action in _string_list(request.get("suggested_actions"))
+        if action in {"answer_question", "provide_candidate_context", "reject", "defer"}
+    ]
+    if not accepted_actions:
+        return None
+    haystack = " ".join(
+        _text(value)
+        for value in (
+            request.get("kind"),
+            request.get("id"),
+            request.get("target_ref"),
+            request.get("question"),
+        )
+        if _text(value)
+    ).casefold()
+    if "risk" in haystack:
+        kind = "risk_requires_review"
+        label = "Risk review"
+        expected_effect = "risk_accepted"
+        recommended_action = "Record the owner risk decision and mitigation context."
+    elif "enforcement" in haystack:
+        kind = "missing_enforcement_mechanism"
+        label = "Enforcement mechanism"
+        expected_effect = "enforcement_mechanism_added"
+        recommended_action = "Describe the concrete enforcement mechanism and its owner."
+    elif "required-field" in haystack or "required field" in haystack:
+        kind = "missing_required_fields"
+        label = "Required fields"
+        expected_effect = "candidate_context_added"
+        recommended_action = "Provide the required field set and validation scope."
+    elif "policy" in haystack or "validation" in haystack:
+        kind = "policy_or_validation_gap"
+        label = "Policy / validation"
+        expected_effect = "candidate_context_added"
+        recommended_action = "Provide the policy or validation context needed for rerun."
+    elif "constraint" in haystack:
+        kind = "ambiguous_product_constraint"
+        label = "Product constraint"
+        expected_effect = "candidate_context_added"
+        recommended_action = "Clarify the bounded product constraint and its scope."
+    else:
+        kind = "unknown"
+        label = "Product/spec gap"
+        expected_effect = "candidate_context_added"
+        recommended_action = "Provide bounded product/spec context for the rerun."
+    return {
+        "request_id": request["id"],
+        "kind": kind,
+        "label": label,
+        "target_ref": request.get("target_ref"),
+        "source_ref": request.get("target_artifact"),
+        "statement": request.get("question"),
+        "recommended_action": recommended_action,
+        "accepted_actions": accepted_actions,
+        "expected_effect": expected_effect,
+    }
+
+
+def _product_spec_repair_targets(requests: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        target
+        for request in requests
+        if (target := _repair_target_for_request(request)) is not None
+    ]
 
 
 def _clarification_answer_count(report: dict[str, Any] | None) -> int:
@@ -1458,6 +1530,7 @@ def _repair_review_lane(
             "readiness": _readiness(clarification_requests),
             "summary": _record((clarification_requests or {}).get("request_counts")),
             "requests": requests,
+            "repair_targets": _product_spec_repair_targets(requests),
             "request_count": request_count,
             "ontology_gap_request_count": sum(
                 1 for request in requests if request["kind"] == "ontology_gap"

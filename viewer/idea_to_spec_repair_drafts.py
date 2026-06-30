@@ -55,6 +55,38 @@ ONTOLOGY_ACTIONS = {
     "reject",
     "defer",
 }
+PRODUCT_REPAIR_FALSE_FIELDS = (
+    "may_execute_specgraph",
+    "may_execute_platform",
+    "may_execute_git_service",
+    "may_apply_state",
+    "may_clear_state",
+    "may_apply_to_specgraph",
+    "may_apply_to_candidate_artifacts",
+    "may_mutate_candidate_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_branch_or_commit",
+    "may_open_pull_request",
+)
+PRODUCT_CONTEXT_FIELDS = (
+    "resolution_intent",
+    "mechanism",
+    "owner",
+    "scope",
+    "risk_decision",
+    "mitigation",
+    "affected_ref",
+    "follow_up",
+)
+SUBSTANTIVE_PRODUCT_CONTEXT_FIELDS = (
+    "mechanism",
+    "owner",
+    "scope",
+    "risk_decision",
+    "mitigation",
+)
 _STATE_LOCK = threading.Lock()
 
 
@@ -388,6 +420,9 @@ def _normalize_existing_draft(entry: dict[str, Any]) -> dict[str, Any] | None:
 
 def _normalize_answer_value(action: str, raw: Any) -> tuple[dict[str, Any], dict[str, Any] | None]:
     value = raw if isinstance(raw, dict) else {}
+    mutation_field = _first_true(value, PRODUCT_REPAIR_FALSE_FIELDS)
+    if mutation_field is not None:
+        return {}, {"error": f"repair draft answer_value cannot claim {mutation_field}"}
     if action == "bind_existing_term":
         term = _text(value.get("term"))
         if term is None:
@@ -420,13 +455,66 @@ def _normalize_answer_value(action: str, raw: Any) -> tuple[dict[str, Any], dict
         term = _text(value.get("term"))
         if action == "reject" and term is not None:
             result["term"] = term
+        follow_up = _text(value.get("follow_up"))
+        if action == "defer" and follow_up is not None:
+            result["follow_up"] = follow_up
         return result, None
+    if action == "answer_question":
+        text = _text(value.get("text") or value.get("answer"))
+        if text is None:
+            return {}, {"error": "answer_question requires answer_value.text"}
+        result = {"text": text}
+        affected_ref = _text(value.get("affected_ref"))
+        if affected_ref is not None:
+            result["affected_ref"] = affected_ref
+        return result, None
+    if action == "provide_candidate_context":
+        structured = {
+            key: text
+            for key in PRODUCT_CONTEXT_FIELDS
+            if (text := _text(value.get(key))) is not None
+        }
+        text = _text(value.get("text") or value.get("context"))
+        has_substantive_context = any(
+            structured.get(key) for key in SUBSTANTIVE_PRODUCT_CONTEXT_FIELDS
+        )
+        if text is None and not has_substantive_context:
+            return {}, {
+                "error": (
+                    "provide_candidate_context requires answer_value.text or "
+                    "substantive structured context"
+                )
+            }
+        if text is None:
+            text = _product_context_text(structured)
+        return {"text": text, **structured}, None
     if action not in ONTOLOGY_ACTIONS:
         text = _text(value.get("text"))
         if text is None:
             return {}, {"error": "repair draft requires a non-empty answer_value"}
         return {"text": text}, None
     return {}, {"error": f"Unsupported repair draft action: {action}"}
+
+
+def _product_context_text(value: dict[str, str]) -> str | None:
+    if not value:
+        return None
+    parts = []
+    labels = {
+        "resolution_intent": "Resolution",
+        "mechanism": "Mechanism",
+        "owner": "Owner",
+        "scope": "Scope",
+        "risk_decision": "Risk decision",
+        "mitigation": "Mitigation",
+        "affected_ref": "Affected ref",
+        "follow_up": "Follow-up",
+    }
+    for key in PRODUCT_CONTEXT_FIELDS:
+        text = value.get(key)
+        if text:
+            parts.append(f"{labels[key]}: {text}")
+    return "; ".join(parts) if parts else None
 
 
 def _record(value: Any) -> dict[str, Any]:
