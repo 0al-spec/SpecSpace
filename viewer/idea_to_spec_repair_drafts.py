@@ -80,6 +80,13 @@ PRODUCT_CONTEXT_FIELDS = (
     "affected_ref",
     "follow_up",
 )
+SUBSTANTIVE_PRODUCT_CONTEXT_FIELDS = (
+    "mechanism",
+    "owner",
+    "scope",
+    "risk_decision",
+    "mitigation",
+)
 _STATE_LOCK = threading.Lock()
 
 
@@ -448,6 +455,9 @@ def _normalize_answer_value(action: str, raw: Any) -> tuple[dict[str, Any], dict
         term = _text(value.get("term"))
         if action == "reject" and term is not None:
             result["term"] = term
+        follow_up = _text(value.get("follow_up"))
+        if action == "defer" and follow_up is not None:
+            result["follow_up"] = follow_up
         return result, None
     if action == "answer_question":
         text = _text(value.get("text") or value.get("answer"))
@@ -465,10 +475,18 @@ def _normalize_answer_value(action: str, raw: Any) -> tuple[dict[str, Any], dict
             if (text := _text(value.get(key))) is not None
         }
         text = _text(value.get("text") or value.get("context"))
+        has_substantive_context = any(
+            structured.get(key) for key in SUBSTANTIVE_PRODUCT_CONTEXT_FIELDS
+        )
+        if text is None and not has_substantive_context:
+            return {}, {
+                "error": (
+                    "provide_candidate_context requires answer_value.text or "
+                    "substantive structured context"
+                )
+            }
         if text is None:
             text = _product_context_text(structured)
-        if text is None:
-            return {}, {"error": "provide_candidate_context requires answer_value.text or structured context"}
         return {"text": text, **structured}, None
     if action not in ONTOLOGY_ACTIONS:
         text = _text(value.get("text"))

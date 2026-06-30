@@ -6709,6 +6709,81 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertIn("Mechanism:", draft["answer_value"]["text"])
         self.assertFalse(draft["applies_to_candidate_artifacts"])
 
+    def test_idea_to_spec_repair_drafts_v1_preserves_product_defer_follow_up(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            request_id = _append_product_repair_request(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": request_id,
+                        "action": "defer",
+                        "answer_value": {
+                            "reason": "Needs owner review.",
+                            "follow_up": "Ask the subscription owner for validation evidence.",
+                        },
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        draft = body["drafts"][0]
+        self.assertEqual(draft["allowed_action"], "defer")
+        self.assertEqual(draft["answer_value"]["reason"], "Needs owner review.")
+        self.assertEqual(
+            draft["answer_value"]["follow_up"],
+            "Ask the subscription owner for validation evidence.",
+        )
+
+    def test_idea_to_spec_repair_drafts_v1_rejects_empty_product_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            request_id = _append_product_repair_request(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": request_id,
+                        "action": "provide_candidate_context",
+                        "answer_value": {
+                            "resolution_intent": "enforcement_mechanism_added",
+                            "affected_ref": "candidate-spec.subscription-payment",
+                        },
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(
+            body["error"],
+            (
+                "provide_candidate_context requires answer_value.text or "
+                "substantive structured context"
+            ),
+        )
+        self.assertFalse((state_dir / "idea_to_spec_repair_drafts.json").exists())
+
     def test_idea_to_spec_workspace_v1_projects_product_repair_targets(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

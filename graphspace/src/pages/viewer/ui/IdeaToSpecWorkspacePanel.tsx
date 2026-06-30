@@ -2678,13 +2678,27 @@ function productSpecDraftFields(
 ): ProductSpecGapDraftFieldState {
   const value = draft?.answerValue ?? {};
   const target = productSpecRepairTarget(request, repairTarget);
+  const text = typeof value.text === "string" ? value.text : "";
+  const hasStructuredContext =
+    typeof value.mechanism === "string" ||
+    typeof value.owner === "string" ||
+    typeof value.scope === "string" ||
+    typeof value.risk_decision === "string" ||
+    typeof value.mitigation === "string";
   return {
     resolutionIntent:
       typeof value.resolution_intent === "string" && value.resolution_intent.length > 0
         ? value.resolution_intent
         : target.defaultIntent,
-    answer: typeof value.text === "string" ? value.text : "",
-    mechanism: typeof value.mechanism === "string" ? value.mechanism : "",
+    answer: text,
+    mechanism:
+      typeof value.mechanism === "string"
+        ? value.mechanism
+        : draft?.allowedAction === "provide_candidate_context" &&
+            text.length > 0 &&
+            !hasStructuredContext
+          ? text
+          : "",
     owner: typeof value.owner === "string" ? value.owner : "",
     scope: typeof value.scope === "string" ? value.scope : "",
     riskDecision: typeof value.risk_decision === "string" ? value.risk_decision : "",
