@@ -55,6 +55,19 @@ def build_hygiene(
         ),
     ]
     states.extend(_artifact_state_statuses(payload, current))
+    summary = _summary(states)
+    recommended_actions = _recommended_actions(
+        states=states,
+        current=current,
+        workspace_payload=payload,
+    )
+    summary = {
+        **summary,
+        "recommended_action_count": len(recommended_actions),
+        "enabled_recommended_action_count": sum(
+            1 for action in recommended_actions if action.get("enabled") is True
+        ),
+    }
     return HTTPStatus.OK, {
         "api_version": "v1",
         "artifact_kind": ARTIFACT_KIND,
@@ -63,8 +76,9 @@ def build_hygiene(
         "candidate_id": current["candidate_id"],
         "repair_session_id": current["repair_session_id"],
         "repair_session_ref": current["repair_session_ref"],
-        "summary": _summary(states),
+        "summary": summary,
         "states": states,
+        "recommended_actions": recommended_actions,
         "authority_boundary": {
             "workspace_state_hygiene_is_authority": False,
             "may_execute_specgraph": False,
@@ -87,6 +101,259 @@ def build_hygiene(
             "may_delete_state": False,
         },
     }
+
+
+def _recommended_actions(
+    *,
+    states: list[dict[str, Any]],
+    current: dict[str, str | None],
+    workspace_payload: dict[str, Any],
+) -> list[dict[str, Any]]:
+    by_kind = {
+        _text(state.get("kind")): state
+        for state in states
+        if _text(state.get("kind"))
+    }
+    approval_readiness = _record(workspace_payload.get("approval_readiness"))
+    approval_ready = (
+        approval_readiness.get("ready_for_candidate_approval") is True
+        or approval_readiness.get("promotion_review_can_be_requested") is True
+    )
+    actions: list[dict[str, Any]] = []
+
+    repair_drafts = by_kind.get("repair_drafts", {})
+    if _text(repair_drafts.get("status")) != "usable":
+        actions.append(
+            _recommended_action(
+                action_id="workspace_state.save_repair_drafts",
+                label="Save repair drafts for the current repair session",
+                reason=_state_action_reason(repair_drafts),
+                target_state="repair_drafts",
+                target_section="idea-to-spec-repair-review",
+                current=current,
+                enabled=True,
+                blockers=[],
+                ui_intent="open_repair_draft_editor",
+                command_hint=None,
+                evidence_refs=_state_evidence_refs(repair_drafts),
+            )
+        )
+
+    import_preview = by_kind.get("repair_draft_import_preview", {})
+    if _text(import_preview.get("status")) != "usable":
+        blockers = _missing_prerequisites(
+            by_kind,
+            (("repair_drafts", "Save repair drafts first."),),
+        )
+        actions.append(
+            _recommended_action(
+                action_id="workspace_state.rebuild_repair_draft_import_preview",
+                label="Rebuild repair draft import preview",
+                reason=_state_action_reason(import_preview),
+                target_state="repair_draft_import_preview",
+                target_section="idea-to-spec-workspace-state-hygiene",
+                current=current,
+                enabled=not blockers,
+                blockers=blockers,
+                ui_intent="show_specgraph_import_preview_command",
+                command_hint=(
+                    "make specspace-repair-draft-import-preview "
+                    "SPECSPACE_REPAIR_DRAFT_IMPORT_DRAFTS=<specspace-state/"
+                    "idea_to_spec_repair_drafts.json> "
+                    f"SPECSPACE_REPAIR_DRAFT_IMPORT_REPAIR_SESSION="
+                    f"{current['repair_session_ref'] or '<repair-session>'} "
+                    f"SPECSPACE_REPAIR_DRAFT_IMPORT_WORKSPACE_ID="
+                    f"{current['workspace_id'] or '<workspace>'}"
+                ),
+                evidence_refs=_state_evidence_refs(import_preview),
+            )
+        )
+
+    rerun_request = by_kind.get("repair_rerun_request", {})
+    if _text(rerun_request.get("status")) != "usable":
+        blockers = _missing_prerequisites(
+            by_kind,
+            (
+                ("repair_drafts", "Save repair drafts first."),
+                (
+                    "repair_draft_import_preview",
+                    "Rebuild repair draft import preview first.",
+                ),
+            ),
+        )
+        actions.append(
+            _recommended_action(
+                action_id="workspace_state.recreate_repair_rerun_request",
+                label="Recreate repair rerun request",
+                reason=_state_action_reason(rerun_request),
+                target_state="repair_rerun_request",
+                target_section="idea-to-spec-repair-review",
+                current=current,
+                enabled=not blockers,
+                blockers=blockers,
+                ui_intent="create_repair_rerun_request",
+                command_hint=None,
+                evidence_refs=_state_evidence_refs(rerun_request),
+            )
+        )
+
+    request_gate = by_kind.get("repair_rerun_request_gate", {})
+    if _text(request_gate.get("status")) != "usable":
+        blockers = _missing_prerequisites(
+            by_kind,
+            (
+                (
+                    "repair_draft_import_preview",
+                    "Rebuild repair draft import preview first.",
+                ),
+                ("repair_rerun_request", "Recreate repair rerun request first."),
+            ),
+        )
+        actions.append(
+            _recommended_action(
+                action_id="workspace_state.rebuild_repair_rerun_request_gate",
+                label="Rebuild repair rerun request gate",
+                reason=_state_action_reason(request_gate),
+                target_state="repair_rerun_request_gate",
+                target_section="idea-to-spec-workspace-state-hygiene",
+                current=current,
+                enabled=not blockers,
+                blockers=blockers,
+                ui_intent="show_specgraph_rerun_request_gate_command",
+                command_hint=(
+                    "make product-workspace-requested-repair-draft-rerun "
+                    f"SPECSPACE_REPAIR_RERUN_REQUEST_REPAIR_SESSION="
+                    f"{current['repair_session_ref'] or '<repair-session>'} "
+                    f"SPECSPACE_REPAIR_RERUN_REQUEST_WORKSPACE_ID="
+                    f"{current['workspace_id'] or '<workspace>'}"
+                ),
+                evidence_refs=_state_evidence_refs(request_gate),
+            )
+        )
+
+    approval_intent = by_kind.get("candidate_approval_intent", {})
+    if _text(approval_intent.get("status")) != "usable":
+        blockers = _missing_prerequisites(
+            by_kind,
+            (
+                ("repair_drafts", "Save repair drafts first."),
+                (
+                    "repair_draft_import_preview",
+                    "Rebuild repair draft import preview first.",
+                ),
+                ("repair_rerun_request", "Recreate repair rerun request first."),
+                (
+                    "repair_rerun_request_gate",
+                    "Rebuild repair rerun request gate first.",
+                ),
+            ),
+        )
+        if not approval_ready:
+            blockers.append("Candidate is not approval-ready yet.")
+        actions.append(
+            _recommended_action(
+                action_id="workspace_state.recreate_candidate_approval_intent",
+                label="Recreate candidate approval intent",
+                reason=_state_action_reason(approval_intent),
+                target_state="candidate_approval_intent",
+                target_section="idea-to-spec-approval-readiness",
+                current=current,
+                enabled=not blockers,
+                blockers=blockers,
+                ui_intent="create_candidate_approval_intent",
+                command_hint=None,
+                evidence_refs=_state_evidence_refs(approval_intent),
+            )
+        )
+    return actions
+
+
+def _recommended_action(
+    *,
+    action_id: str,
+    label: str,
+    reason: str,
+    target_state: str,
+    target_section: str,
+    current: dict[str, str | None],
+    enabled: bool,
+    blockers: list[str],
+    ui_intent: str,
+    command_hint: str | None,
+    evidence_refs: list[str],
+) -> dict[str, Any]:
+    return {
+        "id": action_id,
+        "label": label,
+        "reason": reason,
+        "target_state": target_state,
+        "target_section": target_section,
+        "requires_current_repair_session": True,
+        "workspace_id": current["workspace_id"],
+        "candidate_id": current["candidate_id"],
+        "repair_session_id": current["repair_session_id"],
+        "repair_session_ref": current["repair_session_ref"],
+        "enabled": enabled,
+        "blockers": blockers,
+        "ui_intent": ui_intent,
+        "command_hint": command_hint,
+        "evidence_refs": evidence_refs,
+        "authority_boundary": _recommended_action_boundary(),
+    }
+
+
+def _recommended_action_boundary() -> dict[str, bool]:
+    return {
+        "inspect_only": True,
+        "operator_intent_only": True,
+        "may_execute_specgraph": False,
+        "may_execute_platform": False,
+        "may_execute_git_service": False,
+        "may_apply_answers": False,
+        "may_apply_decisions": False,
+        "may_mutate_candidate_artifacts": False,
+        "may_mutate_canonical_specs": False,
+        "may_write_ontology_package": False,
+        "may_accept_ontology_terms": False,
+        "may_clear_state": False,
+        "may_delete_state": False,
+        "may_create_branch_or_commit": False,
+        "may_open_pull_request": False,
+    }
+
+
+def _state_action_reason(state: dict[str, Any]) -> str:
+    status = _text(state.get("status")) or "missing"
+    reason = _text(state.get("reason"))
+    kind = _text(state.get("kind")) or "workspace state"
+    if reason:
+        return f"{kind} is {status}: {reason}."
+    return f"{kind} is {status}."
+
+
+def _state_evidence_refs(state: dict[str, Any]) -> list[str]:
+    refs = []
+    path = _text(state.get("path"))
+    current_ref = _text(state.get("current_repair_session_ref"))
+    stored_ref = _text(state.get("stored_repair_session_ref"))
+    if path:
+        refs.append(path)
+    if current_ref:
+        refs.append(current_ref)
+    if stored_ref and stored_ref != current_ref:
+        refs.append(stored_ref)
+    return refs
+
+
+def _missing_prerequisites(
+    by_kind: dict[str | None, dict[str, Any]],
+    prerequisites: tuple[tuple[str, str], ...],
+) -> list[str]:
+    blockers = []
+    for kind, message in prerequisites:
+        if _text(by_kind.get(kind, {}).get("status")) != "usable":
+            blockers.append(message)
+    return blockers
 
 
 def _current_identity(

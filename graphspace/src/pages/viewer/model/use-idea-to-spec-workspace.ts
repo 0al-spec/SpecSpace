@@ -149,6 +149,25 @@ export type IdeaToSpecWorkspaceStateHygieneItem = {
   nextAction: string | null;
 };
 
+export type IdeaToSpecWorkspaceStateRecommendedAction = {
+  id: string;
+  label: string;
+  reason: string | null;
+  targetState: string | null;
+  targetSection: string | null;
+  requiresCurrentRepairSession: boolean;
+  workspaceId: string | null;
+  candidateId: string | null;
+  repairSessionId: string | null;
+  repairSessionRef: string | null;
+  enabled: boolean;
+  blockers: readonly string[];
+  uiIntent: string | null;
+  commandHint: string | null;
+  evidenceRefs: readonly string[];
+  authorityBoundary: Record<string, unknown>;
+};
+
 export type IdeaToSpecWorkspaceStateHygiene = {
   available: boolean;
   status: string;
@@ -161,8 +180,11 @@ export type IdeaToSpecWorkspaceStateHygiene = {
   staleStateCount: number;
   invalidStateCount: number;
   blockingStateCount: number;
+  recommendedActionCount: number;
+  enabledRecommendedActionCount: number;
   nextAction: string | null;
   states: readonly IdeaToSpecWorkspaceStateHygieneItem[];
+  recommendedActions: readonly IdeaToSpecWorkspaceStateRecommendedAction[];
   authorityBoundary: Record<string, unknown>;
   actionBoundary: Record<string, unknown>;
 };
@@ -2418,6 +2440,32 @@ function parseWorkspaceStateHygieneItem(
   };
 }
 
+function parseWorkspaceStateRecommendedAction(
+  raw: unknown,
+): IdeaToSpecWorkspaceStateRecommendedAction | null {
+  const action = recordValue(raw);
+  const id = optionalString(action.id);
+  if (!id) return null;
+  return {
+    id,
+    label: stringValue(action.label, id),
+    reason: optionalString(action.reason),
+    targetState: optionalString(action.target_state),
+    targetSection: optionalString(action.target_section),
+    requiresCurrentRepairSession: action.requires_current_repair_session === true,
+    workspaceId: optionalString(action.workspace_id),
+    candidateId: optionalString(action.candidate_id),
+    repairSessionId: optionalString(action.repair_session_id),
+    repairSessionRef: optionalString(action.repair_session_ref),
+    enabled: action.enabled === true,
+    blockers: strings(action.blockers),
+    uiIntent: optionalString(action.ui_intent),
+    commandHint: optionalString(action.command_hint),
+    evidenceRefs: strings(action.evidence_refs),
+    authorityBoundary: recordValue(action.authority_boundary),
+  };
+}
+
 function parseWorkspaceStateHygiene(
   raw: unknown,
 ): IdeaToSpecWorkspaceStateHygiene {
@@ -2435,9 +2483,17 @@ function parseWorkspaceStateHygiene(
     staleStateCount: numberValue(summary.stale_state_count),
     invalidStateCount: numberValue(summary.invalid_state_count),
     blockingStateCount: numberValue(summary.blocking_state_count),
+    recommendedActionCount: numberValue(summary.recommended_action_count),
+    enabledRecommendedActionCount: numberValue(
+      summary.enabled_recommended_action_count,
+    ),
     nextAction: optionalString(summary.next_action),
     states: records(hygiene.states).flatMap((item) => {
       const parsed = parseWorkspaceStateHygieneItem(item);
+      return parsed ? [parsed] : [];
+    }),
+    recommendedActions: records(hygiene.recommended_actions).flatMap((item) => {
+      const parsed = parseWorkspaceStateRecommendedAction(item);
       return parsed ? [parsed] : [];
     }),
     authorityBoundary: recordValue(hygiene.authority_boundary),
@@ -2578,6 +2634,35 @@ export function parseIdeaToSpecWorkspace(
       hygieneAction.acknowledge_only !== true
     ) {
       return { kind: "parse-error", reason: "workspace state hygiene boundary must be inspect-only", raw };
+    }
+    for (const action of records(workspaceStateHygiene.recommended_actions)) {
+      const actionBoundary = recordValue(action.authority_boundary);
+      const actionFalseFlags = [
+        "may_execute_specgraph",
+        "may_execute_platform",
+        "may_execute_git_service",
+        "may_apply_answers",
+        "may_apply_decisions",
+        "may_mutate_candidate_artifacts",
+        "may_mutate_canonical_specs",
+        "may_write_ontology_package",
+        "may_accept_ontology_terms",
+        "may_clear_state",
+        "may_delete_state",
+        "may_create_branch_or_commit",
+        "may_open_pull_request",
+      ];
+      if (
+        actionBoundary.inspect_only !== true ||
+        actionBoundary.operator_intent_only !== true
+      ) {
+        return { kind: "parse-error", reason: "workspace state hygiene recommended action must be inspect-only", raw };
+      }
+      for (const flag of actionFalseFlags) {
+        if (actionBoundary[flag] !== false) {
+          return { kind: "parse-error", reason: `workspace state hygiene recommended action boundary expanded: ${flag}`, raw };
+        }
+      }
     }
   }
   const platformExecution = recordValue(repairReview.platform_execution);

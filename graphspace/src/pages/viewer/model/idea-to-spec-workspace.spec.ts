@@ -370,6 +370,22 @@ describe("parseIdeaToSpecWorkspace", () => {
     );
   });
 
+  it("parses workspace state recommended actions", () => {
+    const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(
+      parsed.data.workspaceStateHygiene.enabledRecommendedActionCount,
+    ).toBe(1);
+    expect(parsed.data.workspaceStateHygiene.recommendedActions[0]).toMatchObject({
+      id: "workspace_state.recreate_repair_rerun_request",
+      enabled: true,
+      targetState: "repair_rerun_request",
+      uiIntent: "create_repair_rerun_request",
+    });
+  });
+
   it("rejects repair review action expansion", () => {
     const parsed = parseIdeaToSpecWorkspace({
       ...ideaToSpecWorkspace,
@@ -436,6 +452,19 @@ describe("parseIdeaToSpecWorkspace", () => {
     if (parsed.kind !== "parse-error") return;
     expect(parsed.reason).toContain(
       "workspace state hygiene boundary must explicitly disable: may_execute_platform",
+    );
+  });
+
+  it("rejects workspace state recommended action authority expansion", () => {
+    const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    payload.workspace_state_hygiene.recommended_actions[0].authority_boundary.may_execute_platform = true;
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("parse-error");
+    if (parsed.kind !== "parse-error") return;
+    expect(parsed.reason).toBe(
+      "workspace state hygiene recommended action boundary expanded: may_execute_platform",
     );
   });
 });

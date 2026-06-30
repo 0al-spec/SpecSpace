@@ -1404,6 +1404,10 @@ function WorkspaceStateHygieneSection({
         <PostureItem label="Stale" value={String(hygiene.staleStateCount)} />
         <PostureItem label="Invalid" value={String(hygiene.invalidStateCount)} />
         <PostureItem label="Blocking" value={String(hygiene.blockingStateCount)} />
+        <PostureItem
+          label="Actions"
+          value={`${hygiene.enabledRecommendedActionCount}/${hygiene.recommendedActionCount}`}
+        />
       </div>
       <div className={styles.row}>
         <div className={styles.rowHeader}>
@@ -1422,6 +1426,40 @@ function WorkspaceStateHygieneSection({
           />
         </div>
       </div>
+      {hygiene.recommendedActions.length > 0 ? (
+        <div className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>Recommended state actions</span>
+            <span className={styles.sectionCount}>
+              {hygiene.enabledRecommendedActionCount}/
+              {hygiene.recommendedActionCount}
+            </span>
+          </div>
+          {hygiene.recommendedActions.map((action) => (
+            <div key={action.id} className={styles.subRow}>
+              <div className={styles.rowHeader}>
+                <span className={styles.rowId}>{action.label}</span>
+                <Pill value={action.enabled ? "enabled" : "blocked"} />
+              </div>
+              <div className={styles.metaGrid}>
+                <Meta label="Reason" value={action.reason} />
+                <Meta label="Target state" value={action.targetState} />
+                <Meta label="Target section" value={action.targetSection} />
+                <Meta
+                  label="Requires current session"
+                  value={boolText(action.requiresCurrentRepairSession)}
+                />
+                <Meta label="UI intent" value={action.uiIntent} />
+                <Meta label="Blockers" value={joined(action.blockers)} />
+                <Meta label="Evidence" value={joined(action.evidenceRefs)} />
+              </div>
+              {action.commandHint ? (
+                <pre className={styles.codeBlock}>{action.commandHint}</pre>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
       {hygiene.states.map((item) => (
         <div key={`${item.kind}:${item.path ?? "state"}`} className={styles.row}>
           <div className={styles.rowHeader}>
