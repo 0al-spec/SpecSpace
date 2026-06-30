@@ -17,6 +17,7 @@ import type {
   IdeaToSpecRepairAction,
   IdeaToSpecRepairSessionBlocker,
   IdeaToSpecRepairSessionStage,
+  IdeaToSpecRepairTarget,
   IdeaToSpecResolvedOntologyGap,
   IdeaToSpecWorkspaceStateHygiene,
   IdeaToSpecWorkflow,
@@ -1499,6 +1500,12 @@ function ProductRepairReviewSection({
   const quality = lane.rerunPreview.candidateQualityPreview;
   const delta = lane.rerunMaterialization.delta;
   const platformExecution = lane.platformExecution;
+  const repairTargetsByRequestId = new Map(
+    lane.clarificationRequests.repairTargets.map((target) => [
+      target.requestId,
+      target,
+    ]),
+  );
   const draftCount =
     repairDrafts.state.kind === "ok"
       ? repairDrafts.state.data.summary.draftCount
@@ -1588,6 +1595,7 @@ function ProductRepairReviewSection({
         <ClarificationRequestRow
           key={request.id}
           request={request}
+          repairTarget={repairTargetsByRequestId.get(request.id)}
           draft={repairDrafts.draftsByRequestId.get(request.id)}
           pending={repairDrafts.pendingRequestId === request.id}
           saveError={
@@ -2055,12 +2063,14 @@ function productRepairRerunStatus(
 
 function ClarificationRequestRow({
   request,
+  repairTarget,
   draft,
   pending,
   saveError,
   onSave,
 }: {
   request: IdeaToSpecClarificationRequest;
+  repairTarget: IdeaToSpecRepairTarget | undefined;
   draft: IdeaToSpecRepairDraft | undefined;
   pending: boolean;
   saveError: IdeaToSpecRepairDraftSaveError | null;
@@ -2077,15 +2087,15 @@ function ClarificationRequestRow({
     ontologyDraftFields(draft),
   );
   const [productSpecDraft, setProductSpecDraft] = useState(() =>
-    productSpecDraftFields(draft, request),
+    productSpecDraftFields(draft, request, repairTarget),
   );
 
   useEffect(() => {
     setSelectedAction(draft?.allowedAction ?? defaultAction);
     setDraftText(repairDraftText(draft) ?? "");
     setOntologyDraft(ontologyDraftFields(draft));
-    setProductSpecDraft(productSpecDraftFields(draft, request));
-  }, [defaultAction, draft, request]);
+    setProductSpecDraft(productSpecDraftFields(draft, request, repairTarget));
+  }, [defaultAction, draft, request, repairTarget]);
 
   const structuredOntologyGapRequest =
     ontologyGapRequest && isStructuredOntologyGapAction(selectedAction);
@@ -2104,7 +2114,9 @@ function ClarificationRequestRow({
         ? productSpecGapDraftCanSave(selectedAction, productSpecDraft)
       : draftText.trim().length > 0) &&
     !pending;
-  const productTarget = productSpecGapRequest ? productSpecRepairTarget(request) : null;
+  const productTarget = productSpecGapRequest
+    ? productSpecRepairTarget(request, repairTarget)
+    : null;
   return (
     <div className={styles.row}>
       <div className={styles.rowHeader}>
@@ -2662,9 +2674,10 @@ function ontologyDraftFields(
 function productSpecDraftFields(
   draft: IdeaToSpecRepairDraft | undefined,
   request: IdeaToSpecClarificationRequest,
+  repairTarget: IdeaToSpecRepairTarget | undefined,
 ): ProductSpecGapDraftFieldState {
   const value = draft?.answerValue ?? {};
-  const target = productSpecRepairTarget(request);
+  const target = productSpecRepairTarget(request, repairTarget);
   return {
     resolutionIntent:
       typeof value.resolution_intent === "string" && value.resolution_intent.length > 0
@@ -2700,7 +2713,16 @@ function repairDraftText(draft: IdeaToSpecRepairDraft | undefined): string | nul
 
 function productSpecRepairTarget(
   request: IdeaToSpecClarificationRequest,
+  repairTarget: IdeaToSpecRepairTarget | undefined,
 ): ProductSpecRepairTarget & { defaultIntent: string } {
+  if (repairTarget) {
+    return {
+      kind: repairTarget.kind,
+      label: repairTarget.label,
+      expectedEffect: repairTarget.expectedEffect,
+      defaultIntent: productSpecDefaultIntent(repairTarget.expectedEffect),
+    };
+  }
   const haystack = [
     request.kind,
     request.id,
@@ -2753,6 +2775,14 @@ function productSpecRepairTarget(
     expectedEffect: "candidate_context_added",
     defaultIntent: "candidate_context_added",
   };
+}
+
+function productSpecDefaultIntent(expectedEffect: string): string {
+  if (expectedEffect === "risk_accepted") return "risk_accepted";
+  if (expectedEffect === "enforcement_mechanism_added") {
+    return "enforcement_mechanism_added";
+  }
+  return "candidate_context_added";
 }
 
 function draftPlaceholder(action: string): string {

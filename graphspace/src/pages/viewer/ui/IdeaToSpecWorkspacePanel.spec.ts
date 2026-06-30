@@ -350,6 +350,26 @@ describe("IdeaToSpecWorkspacePanel", () => {
         "defer",
       ],
     });
+    raw.repair_review.clarification_requests.repair_targets = [
+      ...(raw.repair_review.clarification_requests.repair_targets ?? []),
+      {
+        request_id: "clarification.candidate-gap.subscription-payment-enforcement",
+        kind: "missing_enforcement_mechanism",
+        label: "Backend enforcement target",
+        target_ref:
+          "candidate-spec.subscription-payment.gaps.subscription-payment.enforcement-mechanism",
+        source_ref: "runs/candidate_spec_graph.json",
+        statement: "How should subscription payment enforcement be described?",
+        recommended_action: "Describe the concrete enforcement mechanism and its owner.",
+        accepted_actions: [
+          "provide_candidate_context",
+          "answer_question",
+          "reject",
+          "defer",
+        ],
+        expected_effect: "enforcement_mechanism_added",
+      },
+    ];
     raw.repair_review.clarification_requests.request_count += 1;
     const parsedProductGap = parseIdeaToSpecWorkspace(raw);
     if (parsedProductGap.kind !== "ok") {
@@ -364,7 +384,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
 
     expect(html).toContain("How should subscription payment enforcement be described?");
     expect(html).toContain("Repair target");
-    expect(html).toContain("Enforcement mechanism");
+    expect(html).toContain("Backend enforcement target");
     expect(html).toContain("Expected effect");
     expect(html).toContain("enforcement_mechanism_added");
     expect(html).toContain("Resolution intent");

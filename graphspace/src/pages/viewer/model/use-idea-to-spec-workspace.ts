@@ -80,6 +80,18 @@ export type IdeaToSpecClarificationRequest = {
   suggestedActions: readonly string[];
 };
 
+export type IdeaToSpecRepairTarget = {
+  requestId: string;
+  kind: string;
+  label: string;
+  targetRef: string | null;
+  sourceRef: string | null;
+  statement: string | null;
+  recommendedAction: string | null;
+  acceptedActions: readonly string[];
+  expectedEffect: string;
+};
+
 export type IdeaToSpecOntologyDecision = {
   id: string;
   decisionType: string;
@@ -914,6 +926,7 @@ export type IdeaToSpecWorkspace = {
       };
       summary: Record<string, unknown>;
       requests: readonly IdeaToSpecClarificationRequest[];
+      repairTargets: readonly IdeaToSpecRepairTarget[];
       requestCount: number;
       ontologyGapRequestCount: number;
     };
@@ -1287,6 +1300,23 @@ function parseClarificationRequest(
   };
 }
 
+function parseRepairTarget(raw: unknown): IdeaToSpecRepairTarget | null {
+  const target = recordValue(raw);
+  const requestId = optionalString(target.request_id);
+  if (!requestId) return null;
+  return {
+    requestId,
+    kind: stringValue(target.kind, "unknown"),
+    label: stringValue(target.label, "Product/spec gap"),
+    targetRef: optionalString(target.target_ref),
+    sourceRef: optionalString(target.source_ref),
+    statement: optionalString(target.statement),
+    recommendedAction: optionalString(target.recommended_action),
+    acceptedActions: strings(target.accepted_actions),
+    expectedEffect: stringValue(target.expected_effect, "candidate_context_added"),
+  };
+}
+
 function parseAcceptedAnswer(raw: unknown): IdeaToSpecAcceptedAnswer | null {
   const answer = recordValue(raw);
   const requestId = optionalString(answer.request_id);
@@ -1504,6 +1534,10 @@ function parseRepairReview(
       summary: recordValue(clarificationRequests.summary),
       requests: records(clarificationRequests.requests).flatMap((item) => {
         const parsed = parseClarificationRequest(item);
+        return parsed ? [parsed] : [];
+      }),
+      repairTargets: records(clarificationRequests.repair_targets).flatMap((item) => {
+        const parsed = parseRepairTarget(item);
         return parsed ? [parsed] : [];
       }),
       requestCount: numberValue(clarificationRequests.request_count),

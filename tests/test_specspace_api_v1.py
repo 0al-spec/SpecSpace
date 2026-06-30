@@ -6709,6 +6709,31 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertIn("Mechanism:", draft["answer_value"]["text"])
         self.assertFalse(draft["applies_to_candidate_artifacts"])
 
+    def test_idea_to_spec_workspace_v1_projects_product_repair_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            _write_repair_draft_workspace_runs(runs_dir)
+            request_id = _append_product_repair_request(runs_dir)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        targets = body["repair_review"]["clarification_requests"]["repair_targets"]
+        target = [item for item in targets if item["request_id"] == request_id][0]
+        self.assertEqual(target["kind"], "missing_enforcement_mechanism")
+        self.assertEqual(target["label"], "Enforcement mechanism")
+        self.assertEqual(target["expected_effect"], "enforcement_mechanism_added")
+        self.assertEqual(
+            target["accepted_actions"],
+            ["answer_question", "provide_candidate_context", "reject", "defer"],
+        )
+
     def test_idea_to_spec_repair_drafts_v1_preserves_answer_question_context(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
