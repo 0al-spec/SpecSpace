@@ -2044,12 +2044,14 @@ function ClarificationRequestRow({
     setOntologyDraft(ontologyDraftFields(draft));
   }, [defaultAction, draft]);
 
-  const answerValue = ontologyGapRequest
+  const structuredOntologyGapRequest =
+    ontologyGapRequest && isStructuredOntologyGapAction(selectedAction);
+  const answerValue = structuredOntologyGapRequest
     ? answerValueForOntologyGapAction(selectedAction, ontologyDraft)
-    : answerValueForDraftAction(selectedAction, draftText);
+    : answerValueForDraftAction(selectedAction, draftText || ontologyDraft.term);
   const canSave =
     !!selectedAction &&
-    (ontologyGapRequest
+    (structuredOntologyGapRequest
       ? ontologyGapDraftCanSave(selectedAction, ontologyDraft)
       : draftText.trim().length > 0) &&
     !pending;
@@ -2095,7 +2097,7 @@ function ClarificationRequestRow({
             {pending ? "Saving" : draft ? "Update draft" : "Save draft"}
           </button>
         </div>
-        {ontologyGapRequest ? (
+        {structuredOntologyGapRequest ? (
           <OntologyGapDraftFields
             action={selectedAction}
             fields={ontologyDraft}
@@ -2132,6 +2134,18 @@ type OntologyGapDraftFieldState = {
   aliasOf: string;
   reason: string;
 };
+
+const STRUCTURED_ONTOLOGY_GAP_ACTIONS = new Set([
+  "bind_existing_term",
+  "alias",
+  "propose_project_local_term",
+  "reject",
+  "defer",
+]);
+
+function isStructuredOntologyGapAction(action: string): boolean {
+  return STRUCTURED_ONTOLOGY_GAP_ACTIONS.has(action);
+}
 
 function OntologyGapDraftFields({
   action,
@@ -2271,16 +2285,20 @@ function answerValueForOntologyGapAction(
   if (action === "alias") return { term, alias_of: aliasOf };
   if (action === "propose_project_local_term") {
     return {
-      terms: term
-        .split(/[\n,]/)
-        .map((item) => item.trim())
-        .filter(Boolean),
+      terms: ontologyGapDraftTerms(term),
       term_scope: "project_local",
     };
   }
   if (action === "reject") return { term, reason };
   if (action === "defer") return { reason };
-  return { term, reason };
+  return { text: reason || term };
+}
+
+function ontologyGapDraftTerms(term: string): string[] {
+  return term
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function ontologyGapDraftCanSave(
@@ -2294,7 +2312,9 @@ function ontologyGapDraftCanSave(
   if (action === "alias") {
     return term.length > 0 && fields.aliasOf.trim().length > 0;
   }
-  if (action === "propose_project_local_term") return term.length > 0;
+  if (action === "propose_project_local_term") {
+    return ontologyGapDraftTerms(term).length > 0;
+  }
   if (action === "reject" || action === "defer") {
     return fields.reason.trim().length > 0;
   }

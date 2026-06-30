@@ -6161,6 +6161,164 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(state_exists)
         self.assertEqual(candidate_graph_after, before_candidate_graph)
 
+    def test_idea_to_spec_repair_drafts_v1_preserves_bind_term(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                        "action": "bind_existing_term",
+                        "answer_value": {
+                            "term": "Decision Record",
+                            "ontology_ref": "ontology://specgraph-core/classes/Spec",
+                        },
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        draft = body["drafts"][0]
+        self.assertEqual(draft["allowed_action"], "bind_existing_term")
+        self.assertEqual(draft["answer_value"]["term"], "Decision Record")
+        self.assertEqual(
+            draft["answer_value"]["ontology_ref"],
+            "ontology://specgraph-core/classes/Spec",
+        )
+
+    def test_idea_to_spec_repair_drafts_v1_rejects_bind_without_term(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                        "action": "bind_existing_term",
+                        "answer_value": {
+                            "ontology_ref": "ontology://specgraph-core/classes/Spec",
+                        },
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "bind_existing_term requires answer_value.term")
+        self.assertFalse((state_dir / "idea_to_spec_repair_drafts.json").exists())
+
+    def test_idea_to_spec_repair_drafts_v1_preserves_alias_term(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                        "action": "alias",
+                        "answer_value": {
+                            "term": "Decision Record",
+                            "alias_of": "Spec",
+                        },
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        draft = body["drafts"][0]
+        self.assertEqual(draft["allowed_action"], "alias")
+        self.assertEqual(draft["answer_value"]["term"], "Decision Record")
+        self.assertEqual(draft["answer_value"]["alias_of"], "Spec")
+
+    def test_idea_to_spec_repair_drafts_v1_rejects_alias_without_term(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                        "action": "alias",
+                        "answer_value": {"alias_of": "Spec"},
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "alias requires answer_value.term")
+        self.assertFalse((state_dir / "idea_to_spec_repair_drafts.json").exists())
+
+    def test_idea_to_spec_repair_drafts_v1_rejects_empty_project_terms(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                        "action": "propose_project_local_term",
+                        "answer_value": {"terms": [" ", ""]},
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(
+            body["error"],
+            "propose_project_local_term requires at least one term",
+        )
+        self.assertFalse((state_dir / "idea_to_spec_repair_drafts.json").exists())
+
     def test_idea_to_spec_repair_drafts_v1_accepts_normalized_workspace_alias(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -6243,6 +6401,55 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 ],
             },
         )
+
+    def test_idea_to_spec_repair_drafts_v1_skips_stored_bind_without_term(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            _write_json(
+                state_dir / "idea_to_spec_repair_drafts.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_repair_draft_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "consumer_boundary": {
+                        "specspace_owned_state": True,
+                        "for_product_repair_workflow": True,
+                        "may_apply_to_specgraph": False,
+                    },
+                    "authority_boundary": {
+                        "repair_draft_state_is_authority": False,
+                        "canonical_mutations_allowed": False,
+                    },
+                    "drafts": [
+                        {
+                            "workspace_id": "team-decision-log",
+                            "candidate_id": "team-decision-log",
+                            "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                            "allowed_action": "bind_existing_term",
+                            "answer_value": {
+                                "ontology_ref": "ontology://specgraph-core/classes/Spec"
+                            },
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["draft_count"], 0)
+        self.assertEqual(body["drafts"], [])
 
     def test_idea_to_spec_repair_drafts_v1_rejects_unknown_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
