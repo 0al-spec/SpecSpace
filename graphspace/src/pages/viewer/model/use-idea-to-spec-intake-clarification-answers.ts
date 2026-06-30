@@ -45,6 +45,7 @@ export type IdeaToSpecIntakeClarificationAnswerState = {
     status: string;
     answerCount: number;
     acceptedAnswerCount: number;
+    invalidAnswerCount: number;
     workspaceCount: number;
     nextGap: string | null;
   };
@@ -284,6 +285,7 @@ export function parseIdeaToSpecIntakeClarificationAnswerState(
         status: stringValue(summary.status, answers.length > 0 ? "intake_clarification_answers_recorded" : "no_intake_clarification_answers"),
         answerCount: numberValue(summary.answer_count),
         acceptedAnswerCount: numberValue(summary.accepted_answer_count),
+        invalidAnswerCount: numberValue(summary.invalid_answer_count),
         workspaceCount: numberValue(summary.workspace_count),
         nextGap: optionalString(summary.next_gap),
       },

@@ -239,6 +239,9 @@ ARTIFACT_KEYS: dict[str, str] = {
 EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: "active_idea_to_spec_candidate",
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT: "idea_event_storming_intake",
+    # Intake-stage and product repair-stage clarification artifacts intentionally
+    # reuse the same SpecGraph clarification contracts; the filename separates
+    # lifecycle stage while artifact_kind identifies the shared schema.
     IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: (
         "idea_to_spec_clarification_requests"
     ),

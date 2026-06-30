@@ -837,7 +837,7 @@ function IntakeClarificationRequestRow({
     setAnswerText(intakeAnswerText(draft, publishedAnswer) ?? "");
   }, [defaultAction, draft, publishedAnswer]);
   const canSave = selectedAction.length > 0 && answerText.trim().length > 0 && !pending;
-  const value = intakeClarificationValueForRequest(request, answerText);
+  const value = intakeClarificationValueForRequest(request, selectedAction, answerText);
   return (
     <div className={styles.row}>
       <div className={styles.rowHeader}>
@@ -2812,26 +2812,30 @@ function splitIntakeAnswerList(text: string): string[] {
 
 function intakeClarificationValueForRequest(
   request: IdeaToSpecClarificationRequest,
+  action: string,
   text: string,
 ): Record<string, unknown> {
   const value = text.trim();
+  if (action === "reject" || action === "defer" || action === "defer_candidate") {
+    return { reason: value };
+  }
   const haystack = `${request.id} ${request.targetRef ?? ""} ${request.question ?? ""}`.toLowerCase();
+  if (haystack.includes("actors") || haystack.includes("domain-events") || haystack.includes("domain_events") || haystack.includes("commands") || haystack.includes("constraints")) {
+    return { entries: splitIntakeAnswerList(value) };
+  }
   if (haystack.includes("refs") || haystack.includes("ontology") || haystack.includes("domain") || haystack.includes("context") || haystack.includes("applicability")) {
     return { refs: splitIntakeAnswerList(value) };
-  }
-  if (haystack.includes("actors") || haystack.includes("domain-events") || haystack.includes("commands") || haystack.includes("constraints")) {
-    return { entries: splitIntakeAnswerList(value) };
   }
   return { text: value };
 }
 
 function intakeClarificationPlaceholder(request: IdeaToSpecClarificationRequest): string {
   const haystack = `${request.id} ${request.targetRef ?? ""} ${request.question ?? ""}`.toLowerCase();
+  if (haystack.includes("actors") || haystack.includes("domain-events") || haystack.includes("domain_events") || haystack.includes("commands") || haystack.includes("constraints")) {
+    return "One entry per line";
+  }
   if (haystack.includes("refs") || haystack.includes("ontology") || haystack.includes("domain") || haystack.includes("context") || haystack.includes("applicability")) {
     return "Comma-separated refs";
-  }
-  if (haystack.includes("actors") || haystack.includes("domain-events") || haystack.includes("commands") || haystack.includes("constraints")) {
-    return "One entry per line";
   }
   return "Bounded answer for intake rerun";
 }

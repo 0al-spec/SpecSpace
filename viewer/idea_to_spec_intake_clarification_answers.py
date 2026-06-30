@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import threading
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -94,6 +95,7 @@ def empty_state(path: Path) -> dict[str, Any]:
         "schema_version": INTAKE_ANSWER_SCHEMA_VERSION,
         "state_owner": "SpecSpace",
         "state_path": str(path),
+        "selected_workspace_id": None,
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
         "source_artifacts": {},
@@ -108,6 +110,7 @@ def empty_state(path: Path) -> dict[str, Any]:
             "status": "no_intake_clarification_answers",
             "answer_count": 0,
             "accepted_answer_count": 0,
+            "invalid_answer_count": 0,
             "workspace_count": 0,
             "next_gap": "export_intake_clarification_answers_for_specgraph_rerun",
         },
@@ -182,8 +185,10 @@ def normalize_state(raw: Any, path: Path) -> tuple[dict[str, Any] | None, dict[s
 
     state = empty_state(path)
     answers = []
+    invalid_answer_count = 0
     for entry in raw.get("answers", []):
         if not isinstance(entry, dict):
+            invalid_answer_count += 1
             continue
         mutation_field = _first_true(entry, ANSWER_FALSE_FIELDS)
         if mutation_field is not None:
@@ -191,10 +196,12 @@ def normalize_state(raw: Any, path: Path) -> tuple[dict[str, Any] | None, dict[s
         answer = _normalize_existing_answer(entry)
         if answer is not None:
             answers.append(answer)
+        else:
+            invalid_answer_count += 1
     answers.sort(key=lambda entry: (entry["workspace_id"], entry["request_id"]))
     state["answers"] = answers
     state["source_artifacts"] = _string_map(raw.get("source_artifacts"))
-    _refresh_summary(state)
+    _refresh_summary(state, invalid_answer_count=invalid_answer_count)
     return state, None
 
 
@@ -232,7 +239,13 @@ def save_intake_answer(
             "error": "Intake clarification answer requires published clarification requests.",
             "reason": "intake_clarification_requests_required",
         }
-    requests = _records(request_lane.get("requests"))
+    requests_payload, requests_error = _published_requests_payload(
+        server,
+        workspace_id=workspace_id,
+    )
+    if requests_error is not None:
+        return HTTPStatus.CONFLICT, requests_error
+    requests = _records(requests_payload.get("clarification_requests"))
     request = next((item for item in requests if item.get("id") == request_id), None)
     if request is None:
         return HTTPStatus.NOT_FOUND, {
@@ -278,6 +291,8 @@ def save_intake_answer(
             "actual": payload_workspace_id,
         }
     workspace_id_value = selected_workspace_id or payload_workspace_id or "default"
+    # Product workspaces currently model one active candidate per workspace; keep
+    # candidate_id aligned until the workspace projection exposes a separate id.
     candidate_id = _text(workspace.get("id")) or workspace_id_value
     artifacts = _record(workspace_payload.get("artifacts"))
     requests_artifact = _record(artifacts.get(REQUESTS_ARTIFACT_KEY))
@@ -338,10 +353,44 @@ def save_intake_answer(
         }
         _refresh_summary(state)
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(f"{path.suffix}.tmp")
-        tmp.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        with tempfile.NamedTemporaryFile(
+            "w",
+            dir=path.parent,
+            encoding="utf-8",
+            prefix=f"{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as tmp_file:
+            tmp_file.write(json.dumps(state, indent=2, sort_keys=True) + "\n")
+            tmp = Path(tmp_file.name)
         tmp.replace(path)
         return HTTPStatus.OK, _filtered_state(state, workspace_id)
+
+
+def _published_requests_payload(
+    server: Any,
+    *,
+    workspace_id: str | None,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    status, content = specspace_provider.provider_from_server(
+        server,
+        workspace_id,
+    ).read_artifact_content(REQUESTS_PATH)
+    if status != HTTPStatus.OK:
+        return {}, {
+            "error": "Intake clarification requests artifact is not readable.",
+            "reason": "intake_clarification_requests_unavailable",
+            "source_status": int(status),
+            "source": content,
+        }
+    data = _record(content.get("data"))
+    if data.get("artifact_kind") != "idea_to_spec_clarification_requests":
+        return {}, {
+            "error": "Intake clarification requests artifact has invalid artifact_kind.",
+            "reason": "intake_clarification_requests_invalid_contract",
+            "artifact_kind": data.get("artifact_kind"),
+        }
+    return data, None
 
 
 def _filtered_state(state: dict[str, Any], workspace_id: str | None) -> dict[str, Any]:
@@ -358,7 +407,11 @@ def _filtered_state(state: dict[str, Any], workspace_id: str | None) -> dict[str
     return filtered
 
 
-def _refresh_summary(state: dict[str, Any]) -> None:
+def _refresh_summary(
+    state: dict[str, Any],
+    *,
+    invalid_answer_count: int | None = None,
+) -> None:
     answers = [entry for entry in state.get("answers", []) if isinstance(entry, dict)]
     workspaces = {
         entry["workspace_id"]
@@ -371,6 +424,8 @@ def _refresh_summary(state: dict[str, Any]) -> None:
         if entry.get("status") in ACCEPTED_STATUSES
         and entry.get("answer_kind") not in NON_RESOLVING_ANSWER_KINDS
     ]
+    if invalid_answer_count is None:
+        invalid_answer_count = _number(_record(state.get("summary")).get("invalid_answer_count"))
     state["answer_set"] = {
         "artifact_kind": "idea_to_spec_clarification_answer_set",
         "schema_version": 1,
@@ -393,6 +448,7 @@ def _refresh_summary(state: dict[str, Any]) -> None:
         else "no_intake_clarification_answers",
         "answer_count": len(answers),
         "accepted_answer_count": len(accepted),
+        "invalid_answer_count": invalid_answer_count,
         "workspace_count": len(workspaces),
         "next_gap": "export_intake_clarification_answers_for_specgraph_rerun",
     }
@@ -494,6 +550,10 @@ def _string_map(value: Any) -> dict[str, str]:
         for key, item in value.items()
         if isinstance(key, str) and isinstance(item, str) and item
     }
+
+
+def _number(value: Any) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
 
 
 def _text(value: Any) -> str | None:
