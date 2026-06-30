@@ -356,6 +356,121 @@ def _clarification_answers() -> dict:
     }
 
 
+def _intake_clarification_requests() -> dict:
+    return {
+        "artifact_kind": "idea_to_spec_clarification_requests",
+        "schema_version": 1,
+        "proposal_id": "0186",
+        "contract_ref": "specgraph.idea-to-spec.clarification-requests.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": False,
+            "review_state": "clarification_required",
+            "blocked_by": ["clarification.intake.question-active-frame-domain-refs"],
+        },
+        "clarification_requests": [
+            {
+                "id": "clarification.intake.question-active-frame-domain-refs",
+                "kind": "intake_context_gap",
+                "severity": "blocking",
+                "status": "open",
+                "target_artifact": "user_idea_intake_session",
+                "target_ref": "active_frame.domain_refs",
+                "question": "Which product domain refs bound this idea?",
+                "suggested_actions": ["answer_question", "defer"],
+            }
+        ],
+        "request_counts": {
+            "total": 1,
+            "blocking": 1,
+            "by_kind": {"intake_context_gap": 1},
+            "by_status": {"open": 1},
+        },
+    }
+
+
+def _intake_clarification_answers() -> dict:
+    return {
+        "artifact_kind": "idea_to_spec_clarification_answers",
+        "schema_version": 1,
+        "proposal_id": "0164",
+        "contract_ref": "specgraph.idea-to-spec.clarification-answers.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "answers_ready_for_rerun",
+            "blocked_by": [],
+        },
+        "answers": [
+            {
+                "request_id": "clarification.intake.question-active-frame-domain-refs",
+                "answer_kind": "answer_question",
+                "status": "accepted_for_candidate",
+                "authority": "operator_approved",
+                "request_snapshot": {
+                    "kind": "intake_context_gap",
+                    "target_artifact": "user_idea_intake_session",
+                    "target_ref": "active_frame.domain_refs",
+                },
+                "value": {"refs": ["domain.team_decision_log"]},
+            }
+        ],
+        "summary": {
+            "status": "answers_ready_for_rerun",
+            "answer_count": 1,
+            "accepted_answer_count": 1,
+            "blocking_request_count": 1,
+            "unresolved_blocking_count": 0,
+            "finding_count": 0,
+        },
+    }
+
+
+def _intake_answer_rerun_input() -> dict:
+    return {
+        "artifact_kind": "idea_intake_answer_rerun_input",
+        "schema_version": 1,
+        "proposal_id": "0186",
+        "contract_ref": "specgraph.idea-to-spec.intake-answer-rerun-input.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "intake_answer_rerun_ready",
+            "blocked_by": [],
+        },
+        "summary": {
+            "status": "intake_answer_rerun_ready",
+            "accepted_answer_count": 1,
+            "accepted_target_count": 1,
+            "finding_count": 0,
+        },
+    }
+
+
+def _intake_clarification_rerun_report() -> dict:
+    return {
+        "artifact_kind": "idea_intake_clarification_rerun_report",
+        "schema_version": 1,
+        "proposal_id": "0186",
+        "contract_ref": "specgraph.idea-to-spec.intake-clarification-rerun.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "intake_clarification_rerun_ready",
+            "blocked_by": [],
+        },
+        "summary": {
+            "status": "intake_clarification_rerun_ready",
+            "accepted_target_count": 1,
+            "finding_count": 0,
+        },
+    }
+
+
 def _ontology_decisions() -> dict:
     return {
         "artifact_kind": "product_ontology_gap_review_decisions",
@@ -2268,6 +2383,33 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(
             body["authority_boundary"]["may_create_branch_or_commit"]
         )
+
+    def test_build_workspace_projects_intake_clarification_lane(self) -> None:
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_ANSWERS_ARTIFACT: _intake_clarification_answers(),
+            idea_to_spec_workspace.IDEA_INTAKE_ANSWER_RERUN_INPUT_ARTIFACT: _intake_answer_rerun_input(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT: _intake_clarification_rerun_report(),
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        lane = body["intake_clarification"]
+        self.assertTrue(lane["available"])
+        self.assertEqual(lane["clarification_requests"]["request_count"], 1)
+        self.assertEqual(lane["clarification_requests"]["blocking_request_count"], 1)
+        self.assertEqual(lane["clarification_answers"]["accepted_answer_count"], 1)
+        self.assertEqual(
+            lane["clarification_answers"]["answers"][0]["refs"],
+            ["domain.team_decision_log"],
+        )
+        self.assertEqual(lane["rerun_input"]["accepted_target_count"], 1)
+        self.assertEqual(lane["rerun_report"]["accepted_target_count"], 1)
+        self.assertFalse(lane["action_boundary"]["may_execute_specgraph"])
 
     def test_idea_maturity_allows_missing_validation_as_untrusted_surface(self) -> None:
         artifacts = _workspace_artifacts()

@@ -124,6 +124,18 @@ export type IdeaToSpecAcceptedAnswer = {
   termScope: string | null;
 };
 
+export type IdeaToSpecIntakeAnswer = {
+  requestId: string;
+  answerKind: string;
+  status: string;
+  authority: string | null;
+  targetArtifact: string | null;
+  targetRef: string | null;
+  refs: readonly string[];
+  entries: readonly string[];
+  text: string | null;
+};
+
 export type IdeaToSpecRepairSessionStage = {
   stage: string;
   index: number | null;
@@ -782,6 +794,90 @@ export type IdeaToSpecWorkspace = {
       contextCompletionQuestionCount: number;
     };
   };
+  intakeClarification: {
+    available: boolean;
+    clarificationRequests: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+      requests: readonly IdeaToSpecClarificationRequest[];
+      requestCount: number;
+      blockingRequestCount: number;
+    };
+    clarificationAnswers: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+      answers: readonly IdeaToSpecIntakeAnswer[];
+      answerCount: number;
+      acceptedAnswerCount: number;
+      unresolvedBlockingCount: number;
+    };
+    rerunInput: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+      acceptedTargetCount: number;
+    };
+    clarifiedSession: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+    };
+    clarifiedSource: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+    };
+    rerunReport: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+      acceptedTargetCount: number;
+    };
+    actionBoundary: {
+      inspectOnly: true;
+      acknowledgeOnly: true;
+      mayExecuteSpecgraph: false;
+      mayExecutePromptAgent: false;
+      mayApplyAnswers: false;
+      mayMutateCandidateSourceArtifacts: false;
+      mayMutateCanonicalSpecs: false;
+      mayWriteOntologyPackage: false;
+      mayAcceptOntologyTerms: false;
+      mayCreateBranchOrCommit: false;
+    };
+  };
   candidateGraph: {
     available: boolean;
     activeFrame: IdeaToSpecActiveFrame;
@@ -1333,6 +1429,23 @@ function parseAcceptedAnswer(raw: unknown): IdeaToSpecAcceptedAnswer | null {
   };
 }
 
+function parseIntakeAnswer(raw: unknown): IdeaToSpecIntakeAnswer | null {
+  const answer = recordValue(raw);
+  const requestId = optionalString(answer.request_id);
+  if (!requestId) return null;
+  return {
+    requestId,
+    answerKind: stringValue(answer.answer_kind, "answer"),
+    status: stringValue(answer.status, "proposed"),
+    authority: optionalString(answer.authority),
+    targetArtifact: optionalString(answer.target_artifact),
+    targetRef: optionalString(answer.target_ref),
+    refs: strings(answer.refs),
+    entries: strings(answer.entries),
+    text: optionalString(answer.text),
+  };
+}
+
 function parseOntologyDecision(raw: unknown): IdeaToSpecOntologyDecision | null {
   const decision = recordValue(raw);
   const id = optionalString(decision.id);
@@ -1509,6 +1622,84 @@ function parseNumberRecord(raw: unknown): Record<string, number> {
       numberValue(value),
     ]),
   );
+}
+
+function parseIntakeClarification(
+  raw: unknown,
+): IdeaToSpecWorkspace["intakeClarification"] {
+  const lane = recordValue(raw);
+  const clarificationRequests = recordValue(lane.clarification_requests);
+  const clarificationAnswers = recordValue(lane.clarification_answers);
+  const rerunInput = recordValue(lane.rerun_input);
+  const clarifiedSession = recordValue(lane.clarified_session);
+  const clarifiedSource = recordValue(lane.clarified_source);
+  const rerunReport = recordValue(lane.rerun_report);
+  return {
+    available: lane.available === true,
+    clarificationRequests: {
+      available: clarificationRequests.available === true,
+      readiness: parseReadiness(clarificationRequests.readiness),
+      summary: recordValue(clarificationRequests.summary),
+      requests: records(clarificationRequests.requests).flatMap((item) => {
+        const parsed = parseClarificationRequest(item);
+        return parsed ? [parsed] : [];
+      }),
+      requestCount: numberValue(clarificationRequests.request_count),
+      blockingRequestCount: numberValue(
+        clarificationRequests.blocking_request_count,
+      ),
+    },
+    clarificationAnswers: {
+      available: clarificationAnswers.available === true,
+      readiness: parseReadiness(clarificationAnswers.readiness),
+      summary: recordValue(clarificationAnswers.summary),
+      answers: records(clarificationAnswers.answers).flatMap((item) => {
+        const parsed = parseIntakeAnswer(item);
+        return parsed ? [parsed] : [];
+      }),
+      answerCount: numberValue(clarificationAnswers.answer_count),
+      acceptedAnswerCount: numberValue(
+        clarificationAnswers.accepted_answer_count,
+      ),
+      unresolvedBlockingCount: numberValue(
+        clarificationAnswers.unresolved_blocking_count,
+      ),
+    },
+    rerunInput: {
+      available: rerunInput.available === true,
+      readiness: parseReadiness(rerunInput.readiness),
+      summary: recordValue(rerunInput.summary),
+      acceptedTargetCount: numberValue(rerunInput.accepted_target_count),
+    },
+    clarifiedSession: {
+      available: clarifiedSession.available === true,
+      readiness: parseReadiness(clarifiedSession.readiness),
+      summary: recordValue(clarifiedSession.summary),
+    },
+    clarifiedSource: {
+      available: clarifiedSource.available === true,
+      readiness: parseReadiness(clarifiedSource.readiness),
+      summary: recordValue(clarifiedSource.summary),
+    },
+    rerunReport: {
+      available: rerunReport.available === true,
+      readiness: parseReadiness(rerunReport.readiness),
+      summary: recordValue(rerunReport.summary),
+      acceptedTargetCount: numberValue(rerunReport.accepted_target_count),
+    },
+    actionBoundary: {
+      inspectOnly: true,
+      acknowledgeOnly: true,
+      mayExecuteSpecgraph: false,
+      mayExecutePromptAgent: false,
+      mayApplyAnswers: false,
+      mayMutateCandidateSourceArtifacts: false,
+      mayMutateCanonicalSpecs: false,
+      mayWriteOntologyPackage: false,
+      mayAcceptOntologyTerms: false,
+      mayCreateBranchOrCommit: false,
+    },
+  };
 }
 
 function parseRepairReview(
@@ -2586,6 +2777,33 @@ export function parseIdeaToSpecWorkspace(
   const ontologySeed = recordValue(raw.ontology_seed);
   const preSib = recordValue(raw.pre_sib);
   const repairLoop = recordValue(raw.repair_loop);
+  const intakeClarification = recordValue(raw.intake_clarification);
+  const intakeClarificationBoundary = recordValue(
+    intakeClarification.action_boundary,
+  );
+  const intakeClarificationFalseFlags = [
+    "may_execute_specgraph",
+    "may_execute_prompt_agent",
+    "may_apply_answers",
+    "may_mutate_candidate_source_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_branch_or_commit",
+  ];
+  if (isRecord(raw.intake_clarification)) {
+    for (const flag of intakeClarificationFalseFlags) {
+      if (intakeClarificationBoundary[flag] !== false) {
+        return { kind: "parse-error", reason: `intake clarification boundary expanded: ${flag}`, raw };
+      }
+    }
+    if (
+      intakeClarificationBoundary.inspect_only !== true ||
+      intakeClarificationBoundary.acknowledge_only !== true
+    ) {
+      return { kind: "parse-error", reason: "intake clarification boundary must be inspect-only", raw };
+    }
+  }
   const hasRepairSession = isRecord(raw.repair_session);
   const repairSession = recordValue(raw.repair_session);
   if (hasRepairSession) {
@@ -2881,6 +3099,7 @@ export function parseIdeaToSpecWorkspace(
           ),
         },
       },
+      intakeClarification: parseIntakeClarification(intakeClarification),
       candidateGraph: {
         available: candidateGraph.available === true,
         activeFrame: parseActiveFrame(candidateGraph.active_frame),

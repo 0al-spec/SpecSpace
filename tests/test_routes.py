@@ -98,6 +98,18 @@ def test_route_table_resolves_idea_to_spec_repair_drafts() -> None:
     assert post_route.pass_parsed is True
 
 
+def test_route_table_resolves_idea_to_spec_intake_clarification_answers() -> None:
+    get_route = routes.route_for("GET", "/api/v1/idea-to-spec-intake-clarification-answers")
+    post_route = routes.route_for("POST", "/api/v1/idea-to-spec-intake-clarification-answers")
+
+    assert get_route is not None
+    assert get_route.handler == "handle_v1_idea_to_spec_intake_clarification_answers"
+    assert get_route.pass_parsed is True
+    assert post_route is not None
+    assert post_route.handler == "handle_v1_idea_to_spec_intake_clarification_answer_post"
+    assert post_route.pass_parsed is True
+
+
 def test_route_table_resolves_idea_to_spec_repair_rerun_requests() -> None:
     get_route = routes.route_for("GET", "/api/v1/idea-to-spec-repair-rerun-requests")
     post_route = routes.route_for("POST", "/api/v1/idea-to-spec-repair-rerun-requests")

@@ -198,6 +198,10 @@ export function ViewerPage({
         "/api/v1/idea-to-spec-repair-drafts",
         workspace,
       ),
+      ideaToSpecIntakeClarificationAnswers: workspaceApiUrl(
+        "/api/v1/idea-to-spec-intake-clarification-answers",
+        workspace,
+      ),
       ideaToSpecRepairRerunRequests: workspaceApiUrl(
         "/api/v1/idea-to-spec-repair-rerun-requests",
         workspace,
@@ -1266,6 +1270,9 @@ export function ViewerPage({
             <IdeaToSpecWorkspacePanel
               state={ideaToSpecWorkspaceState}
               repairDraftsUrl={workspaceApiUrls.ideaToSpecRepairDrafts}
+              intakeClarificationAnswersUrl={
+                workspaceApiUrls.ideaToSpecIntakeClarificationAnswers
+              }
               repairRerunRequestsUrl={workspaceApiUrls.ideaToSpecRepairRerunRequests}
               candidateApprovalIntentsUrl={workspaceApiUrls.ideaToSpecCandidateApprovalIntents}
               repairRerunRequestsRefreshKey={runsWatchVersion}

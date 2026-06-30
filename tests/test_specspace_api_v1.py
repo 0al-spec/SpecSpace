@@ -20,6 +20,7 @@ import yaml
 from viewer import (
     agent_surfaces,
     idea_to_spec_candidate_approval_intents,
+    idea_to_spec_intake_clarification_answers,
     idea_to_spec_repair_rerun_requests,
     idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
@@ -930,6 +931,47 @@ def _append_product_repair_request(runs_dir: Path) -> str:
     }
     _write_json(path, payload)
     return request_id
+
+
+def _write_intake_clarification_workspace_runs(runs_dir: Path) -> None:
+    _write_product_workspace_runs(runs_dir)
+    _write_json(
+        runs_dir / idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT,
+        {
+            "artifact_kind": "idea_to_spec_clarification_requests",
+            "schema_version": 1,
+            "proposal_id": "0186",
+            "contract_ref": "specgraph.idea-to-spec.clarification-requests.v0.1",
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "readiness": {
+                "ready": False,
+                "review_state": "clarification_required",
+                "blocked_by": [
+                    "clarification.intake.question-active-frame-domain-refs"
+                ],
+                "next_artifact": "idea_intake_clarification_answers",
+            },
+            "clarification_requests": [
+                {
+                    "id": "clarification.intake.question-active-frame-domain-refs",
+                    "kind": "intake_context_gap",
+                    "severity": "blocking",
+                    "status": "open",
+                    "target_artifact": "user_idea_intake_session",
+                    "target_ref": "active_frame.domain_refs",
+                    "question": "Which product domain refs bound this idea?",
+                    "suggested_actions": ["answer_question", "defer"],
+                }
+            ],
+            "request_counts": {
+                "total": 1,
+                "blocking": 1,
+                "by_kind": {"intake_context_gap": 1},
+                "by_status": {"open": 1},
+            },
+        },
+    )
 
 
 def _start(
@@ -5704,6 +5746,224 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(body["consumer_boundary"]["may_apply_to_specgraph"])
         self.assertFalse(body["authority_boundary"]["repair_draft_state_is_authority"])
         self.assertFalse((state_dir / "idea_to_spec_repair_drafts.json").exists())
+
+    def test_idea_to_spec_intake_clarification_answers_v1_reads_empty_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            body["artifact_kind"],
+            "specspace_idea_intake_clarification_answer_state",
+        )
+        self.assertEqual(body["selected_workspace_id"], "team-decision-log")
+        self.assertEqual(body["summary"]["answer_count"], 0)
+        self.assertTrue(body["consumer_boundary"]["specspace_owned_state"])
+        self.assertFalse(body["consumer_boundary"]["may_apply_answers"])
+        self.assertFalse(body["authority_boundary"]["intake_answer_state_is_authority"])
+        self.assertFalse(
+            (state_dir / "idea_to_spec_intake_clarification_answers.json").exists()
+        )
+
+    def test_idea_to_spec_intake_clarification_answers_v1_reads_empty_global_state(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertIsNone(body["selected_workspace_id"])
+
+    def test_idea_to_spec_intake_clarification_answers_v1_posts_answer(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_intake_clarification_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.intake.question-active-frame-domain-refs",
+                        "answer_kind": "answer_question",
+                        "value": {"refs": ["domain.team_decision_log"]},
+                    },
+                )
+                state_written = (
+                    state_dir / "idea_to_spec_intake_clarification_answers.json"
+                ).exists()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["answer_count"], 1)
+        self.assertEqual(body["summary"]["accepted_answer_count"], 1)
+        self.assertEqual(
+            body["answer_set"]["artifact_kind"],
+            "idea_to_spec_clarification_answer_set",
+        )
+        answer = body["answer_set"]["answers"][0]
+        self.assertEqual(
+            answer["request_id"],
+            "clarification.intake.question-active-frame-domain-refs",
+        )
+        self.assertEqual(answer["value"]["refs"], ["domain.team_decision_log"])
+        self.assertTrue(state_written)
+
+    def test_idea_to_spec_intake_clarification_answers_v1_uses_full_request_artifact(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_intake_clarification_workspace_runs(runs_dir)
+            requests_path = (
+                runs_dir
+                / idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT
+            )
+            requests = json.loads(requests_path.read_text(encoding="utf-8"))
+            for index in range(45):
+                requests["clarification_requests"].append(
+                    {
+                        "id": f"clarification.intake.question-extra-{index}",
+                        "kind": "intake_context_gap",
+                        "severity": "blocking",
+                        "status": "open",
+                        "target_artifact": "user_idea_intake_session",
+                        "target_ref": f"active_frame.context_refs.{index}",
+                        "question": f"Which context ref {index} applies?",
+                        "suggested_actions": ["answer_question", "defer"],
+                    }
+                )
+            _write_json(requests_path, requests)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.intake.question-extra-44",
+                        "answer_kind": "answer_question",
+                        "value": {"refs": ["context.team_decision_log"]},
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["answer_count"], 1)
+        self.assertEqual(
+            body["answer_set"]["answers"][0]["request_id"],
+            "clarification.intake.question-extra-44",
+        )
+
+    def test_idea_to_spec_intake_clarification_answers_v1_reports_invalid_stored_rows(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            state_dir.mkdir(parents=True)
+            _write_json(
+                state_dir / "idea_to_spec_intake_clarification_answers.json",
+                {
+                    "artifact_kind": "specspace_idea_intake_clarification_answer_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "consumer_boundary": {"may_apply_answers": False},
+                    "authority_boundary": {"intake_answer_state_is_authority": False},
+                    "answers": [
+                        {
+                            "workspace_id": "team-decision-log",
+                            "request_id": "clarification.intake.invalid",
+                            "answer_kind": "answer_question",
+                            "status": "accepted_for_candidate",
+                            "authority": "operator_approved",
+                            "value": {"text": "missing candidate id"},
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["answer_count"], 0)
+        self.assertEqual(body["summary"]["invalid_answer_count"], 1)
+
+    def test_idea_to_spec_intake_clarification_answers_v1_rejects_mutation_claims(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_intake_clarification_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.intake.question-active-frame-domain-refs",
+                        "answer_kind": "answer_question",
+                        "value": {"refs": ["domain.team_decision_log"]},
+                        "applies_to_specgraph": True,
+                    },
+                )
+                state_written = (
+                    state_dir / "idea_to_spec_intake_clarification_answers.json"
+                ).exists()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertIn("applies_to_specgraph", body["error"])
+        self.assertFalse(state_written)
 
     def test_idea_to_spec_workspace_state_hygiene_v1_reports_missing_state(
         self,
