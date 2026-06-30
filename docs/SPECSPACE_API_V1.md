@@ -945,6 +945,14 @@ as `/api/v1/idea-to-spec-workspace`. It reports state as `usable`, `missing`,
 `stale`, or `invalid`; stale and invalid entries are blockers for downstream
 repair rerun, candidate approval, or promotion review flows.
 
+The response also includes `recommended_actions`: typed operator-facing steps
+for rebuilding or recreating stale/missing SpecSpace-owned state for the current
+workspace and repair session. These actions are not execution authority. They
+can include UI intents and command hints, but every action carries an
+`authority_boundary` with SpecGraph, Platform, Git Service, state-clear,
+candidate-mutation, canonical-spec, Ontology-write, and PR capabilities set to
+`false`.
+
 This is a diagnostics surface only. It does not clear local state, apply repair
 answers, accept ontology terms, run SpecGraph, run Platform, create Git
 branches/commits, or mutate canonical specifications.
@@ -960,8 +968,29 @@ branches/commits, or mutate canonical specifications.
     "stale_state_count": 1,
     "invalid_state_count": 0,
     "blocking_state_count": 1,
+    "recommended_action_count": 1,
+    "enabled_recommended_action_count": 0,
     "next_action": "Replace stale SpecSpace-owned state before rerun or approval."
   },
+  "recommended_actions": [
+    {
+      "id": "workspace_state.recreate_repair_rerun_request",
+      "label": "Recreate repair rerun request",
+      "target_state": "repair_rerun_request",
+      "target_section": "idea-to-spec-repair-review",
+      "requires_current_repair_session": true,
+      "enabled": false,
+      "blockers": ["Rebuild repair draft import preview first."],
+      "ui_intent": "create_repair_rerun_request",
+      "command_hint": null,
+      "authority_boundary": {
+        "inspect_only": true,
+        "operator_intent_only": true,
+        "may_execute_platform": false,
+        "may_clear_state": false
+      }
+    }
+  ],
   "states": [
     {
       "kind": "repair_rerun_request",

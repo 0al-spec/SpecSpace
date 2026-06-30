@@ -5703,12 +5703,23 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["summary"]["status"], "partial")
         self.assertGreater(body["summary"]["missing_state_count"], 0)
         self.assertEqual(body["summary"]["stale_state_count"], 0)
+        self.assertGreater(body["summary"]["recommended_action_count"], 0)
+        self.assertGreater(body["summary"]["enabled_recommended_action_count"], 0)
+        first_action = body["recommended_actions"][0]
+        self.assertEqual(first_action["id"], "workspace_state.save_repair_drafts")
+        self.assertTrue(first_action["enabled"])
+        self.assertFalse(first_action["authority_boundary"]["may_execute_platform"])
+        self.assertFalse(first_action["authority_boundary"]["may_clear_state"])
         self.assertFalse(body["authority_boundary"]["may_execute_platform"])
         self.assertFalse(body["action_boundary"]["may_clear_state"])
         self.assertEqual(workspace_status, 200)
         self.assertEqual(
             workspace_body["workspace_state_hygiene"]["summary"]["status"],
             "partial",
+        )
+        self.assertEqual(
+            workspace_body["workspace_state_hygiene"]["recommended_actions"][0]["id"],
+            "workspace_state.save_repair_drafts",
         )
 
     def test_idea_to_spec_workspace_state_hygiene_v1_preserves_invalid_state_path(
@@ -5826,6 +5837,17 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(stale["reason"], "workspace_id_mismatch")
         self.assertEqual(stale["stored_workspace_id"], "local-subscription-control")
         self.assertIn("repair_rerun_smoke", stale["blocks"])
+        rerun_action = [
+            item
+            for item in body["recommended_actions"]
+            if item["target_state"] == "repair_rerun_request"
+        ][0]
+        self.assertEqual(
+            rerun_action["id"],
+            "workspace_state.recreate_repair_rerun_request",
+        )
+        self.assertFalse(rerun_action["enabled"])
+        self.assertIn("Save repair drafts first.", rerun_action["blockers"])
         self.assertEqual(workspace_status, 200)
         repair_review_stage = [
             stage
