@@ -75,6 +75,7 @@ export type IdeaToSpecClarificationRequest = {
   severity: string;
   status: string;
   targetRef: string | null;
+  targetArtifact: string | null;
   question: string | null;
   suggestedActions: readonly string[];
 };
@@ -1280,6 +1281,7 @@ function parseClarificationRequest(
     severity: stringValue(request.severity, "review_required"),
     status: stringValue(request.status, "open"),
     targetRef: optionalString(request.target_ref),
+    targetArtifact: optionalString(request.target_artifact),
     question: optionalString(request.question),
     suggestedActions: strings(request.suggested_actions),
   };

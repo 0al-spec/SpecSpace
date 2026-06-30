@@ -2068,6 +2068,7 @@ function ClarificationRequestRow({
 }) {
   const defaultAction = request.suggestedActions[0] ?? "";
   const ontologyGapRequest = request.kind === "ontology_gap";
+  const productSpecGapRequest = isProductSpecRepairRequest(request);
   const [selectedAction, setSelectedAction] = useState(
     () => draft?.allowedAction ?? defaultAction,
   );
@@ -2075,24 +2076,35 @@ function ClarificationRequestRow({
   const [ontologyDraft, setOntologyDraft] = useState(() =>
     ontologyDraftFields(draft),
   );
+  const [productSpecDraft, setProductSpecDraft] = useState(() =>
+    productSpecDraftFields(draft, request),
+  );
 
   useEffect(() => {
     setSelectedAction(draft?.allowedAction ?? defaultAction);
     setDraftText(repairDraftText(draft) ?? "");
     setOntologyDraft(ontologyDraftFields(draft));
-  }, [defaultAction, draft]);
+    setProductSpecDraft(productSpecDraftFields(draft, request));
+  }, [defaultAction, draft, request]);
 
   const structuredOntologyGapRequest =
     ontologyGapRequest && isStructuredOntologyGapAction(selectedAction);
+  const structuredProductSpecRequest =
+    productSpecGapRequest && isStructuredProductSpecAction(selectedAction);
   const answerValue = structuredOntologyGapRequest
     ? answerValueForOntologyGapAction(selectedAction, ontologyDraft)
+    : structuredProductSpecRequest
+      ? answerValueForProductSpecAction(selectedAction, productSpecDraft)
     : answerValueForDraftAction(selectedAction, draftText || ontologyDraft.term);
   const canSave =
     !!selectedAction &&
     (structuredOntologyGapRequest
       ? ontologyGapDraftCanSave(selectedAction, ontologyDraft)
+      : structuredProductSpecRequest
+        ? productSpecGapDraftCanSave(selectedAction, productSpecDraft)
       : draftText.trim().length > 0) &&
     !pending;
+  const productTarget = productSpecGapRequest ? productSpecRepairTarget(request) : null;
   return (
     <div className={styles.row}>
       <div className={styles.rowHeader}>
@@ -2103,7 +2115,14 @@ function ClarificationRequestRow({
       <div className={styles.metaGrid}>
         <Meta label="Severity" value={request.severity} />
         <Meta label="Target" value={request.targetRef} />
+        <Meta label="Target artifact" value={request.targetArtifact} />
         <Meta label="Actions" value={joined(request.suggestedActions)} />
+        {productTarget ? (
+          <>
+            <Meta label="Repair target" value={productTarget.label} />
+            <Meta label="Expected effect" value={productTarget.expectedEffect} />
+          </>
+        ) : null}
       </div>
       <form
         className={styles.draftForm}
@@ -2115,6 +2134,7 @@ function ClarificationRequestRow({
             action: selectedAction,
             answerValue,
             targetRef: request.targetRef,
+            targetArtifact: request.targetArtifact,
           });
         }}
       >
@@ -2141,6 +2161,13 @@ function ClarificationRequestRow({
             fields={ontologyDraft}
             onChange={setOntologyDraft}
           />
+        ) : structuredProductSpecRequest ? (
+          <ProductSpecGapDraftFields
+            action={selectedAction}
+            fields={productSpecDraft}
+            target={productTarget}
+            onChange={setProductSpecDraft}
+          />
         ) : (
           <textarea
             className={styles.draftTextarea}
@@ -2151,6 +2178,11 @@ function ClarificationRequestRow({
             aria-label="Repair draft value"
           />
         )}
+        {structuredProductSpecRequest && productTarget ? (
+          <span className={styles.statusDetail}>
+            Expected rerun effect · {productTarget.expectedEffect}
+          </span>
+        ) : null}
         {draft ? (
           <span className={styles.statusDetail}>
             Draft saved · {draft.allowedAction.replace(/_/g, " ")} · {draft.updatedAt}
@@ -2173,6 +2205,25 @@ type OntologyGapDraftFieldState = {
   reason: string;
 };
 
+type ProductSpecGapDraftFieldState = {
+  resolutionIntent: string;
+  answer: string;
+  mechanism: string;
+  owner: string;
+  scope: string;
+  riskDecision: string;
+  mitigation: string;
+  affectedRef: string;
+  reason: string;
+  followUp: string;
+};
+
+type ProductSpecRepairTarget = {
+  kind: string;
+  label: string;
+  expectedEffect: string;
+};
+
 const STRUCTURED_ONTOLOGY_GAP_ACTIONS = new Set([
   "bind_existing_term",
   "alias",
@@ -2183,6 +2234,21 @@ const STRUCTURED_ONTOLOGY_GAP_ACTIONS = new Set([
 
 function isStructuredOntologyGapAction(action: string): boolean {
   return STRUCTURED_ONTOLOGY_GAP_ACTIONS.has(action);
+}
+
+const STRUCTURED_PRODUCT_SPEC_ACTIONS = new Set([
+  "answer_question",
+  "provide_candidate_context",
+  "reject",
+  "defer",
+]);
+
+function isStructuredProductSpecAction(action: string): boolean {
+  return STRUCTURED_PRODUCT_SPEC_ACTIONS.has(action);
+}
+
+function isProductSpecRepairRequest(request: IdeaToSpecClarificationRequest): boolean {
+  return request.kind !== "ontology_gap" && request.suggestedActions.some(isStructuredProductSpecAction);
 }
 
 function OntologyGapDraftFields({
@@ -2249,6 +2315,147 @@ function OntologyGapDraftFields({
           />
         </label>
       ) : null}
+    </div>
+  );
+}
+
+function ProductSpecGapDraftFields({
+  action,
+  fields,
+  target,
+  onChange,
+}: {
+  action: string;
+  fields: ProductSpecGapDraftFieldState;
+  target: ProductSpecRepairTarget | null;
+  onChange: (fields: ProductSpecGapDraftFieldState) => void;
+}) {
+  const update =
+    (key: keyof ProductSpecGapDraftFieldState) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      onChange({ ...fields, [key]: event.currentTarget.value });
+  if (action === "reject" || action === "defer") {
+    return (
+      <div className={styles.ontologyDraftGrid}>
+        <label className={styles.draftField}>
+          <span>{action === "reject" ? "Reject reason" : "Deferral reason"}</span>
+          <textarea
+            className={styles.draftTextarea}
+            value={fields.reason}
+            onChange={update("reason")}
+            placeholder={action === "reject" ? "Why this gap is not valid" : "What must happen before this can be resolved"}
+            rows={3}
+            aria-label="Product gap decision reason"
+          />
+        </label>
+        {action === "defer" ? (
+          <label className={styles.draftField}>
+            <span>Required follow-up</span>
+            <input
+              className={styles.draftInput}
+              value={fields.followUp}
+              onChange={update("followUp")}
+              placeholder="Owner review, evidence, or product decision"
+              aria-label="Product gap deferral follow-up"
+            />
+          </label>
+        ) : null}
+      </div>
+    );
+  }
+  if (action === "answer_question") {
+    return (
+      <div className={styles.ontologyDraftGrid}>
+        <label className={styles.draftField}>
+          <span>Answer</span>
+          <textarea
+            className={styles.draftTextarea}
+            value={fields.answer}
+            onChange={update("answer")}
+            placeholder="Answer the product/spec question with the bounded context needed for rerun."
+            rows={3}
+            aria-label="Product repair answer"
+          />
+        </label>
+        <label className={styles.draftField}>
+          <span>Affected ref</span>
+          <input
+            className={styles.draftInput}
+            value={fields.affectedRef}
+            onChange={update("affectedRef")}
+            placeholder="candidate-spec..."
+            aria-label="Affected product repair reference"
+          />
+        </label>
+      </div>
+    );
+  }
+  return (
+    <div className={styles.ontologyDraftGrid}>
+      <label className={styles.draftField}>
+        <span>Resolution intent</span>
+        <select
+          className={styles.draftSelect}
+          value={fields.resolutionIntent}
+          onChange={update("resolutionIntent")}
+          aria-label="Product gap resolution intent"
+        >
+          <option value="candidate_context_added">Add candidate context</option>
+          <option value="enforcement_mechanism_added">Add enforcement mechanism</option>
+          <option value="risk_accepted">Accept reviewed risk</option>
+        </select>
+      </label>
+      <label className={styles.draftField}>
+        <span>Mechanism / context</span>
+        <textarea
+          className={styles.draftTextarea}
+          value={fields.mechanism}
+          onChange={update("mechanism")}
+          placeholder={target?.kind === "risk_requires_review" ? "Risk review decision and rationale" : "Concrete mechanism, validation, or policy context"}
+          rows={3}
+          aria-label="Product gap mechanism or context"
+        />
+      </label>
+      <label className={styles.draftField}>
+        <span>Owner</span>
+        <input
+          className={styles.draftInput}
+          value={fields.owner}
+          onChange={update("owner")}
+          placeholder="Product owner, system owner, or operator"
+          aria-label="Product gap owner"
+        />
+      </label>
+      <label className={styles.draftField}>
+        <span>Scope</span>
+        <input
+          className={styles.draftInput}
+          value={fields.scope}
+          onChange={update("scope")}
+          placeholder="Workspace, subsystem, lifecycle phase"
+          aria-label="Product gap scope"
+        />
+      </label>
+      <label className={styles.draftField}>
+        <span>Risk decision</span>
+        <input
+          className={styles.draftInput}
+          value={fields.riskDecision}
+          onChange={update("riskDecision")}
+          placeholder="Accepted, mitigated, transferred, or not applicable"
+          aria-label="Product gap risk decision"
+        />
+      </label>
+      <label className={styles.draftField}>
+        <span>Mitigation</span>
+        <input
+          className={styles.draftInput}
+          value={fields.mitigation}
+          onChange={update("mitigation")}
+          placeholder="Mitigation or validation evidence"
+          aria-label="Product gap mitigation"
+        />
+      </label>
     </div>
   );
 }
@@ -2332,6 +2539,57 @@ function answerValueForOntologyGapAction(
   return { text: reason || term };
 }
 
+function answerValueForProductSpecAction(
+  action: string,
+  fields: ProductSpecGapDraftFieldState,
+): Record<string, unknown> {
+  if (action === "answer_question") {
+    return {
+      text: fields.answer.trim(),
+      affected_ref: fields.affectedRef.trim(),
+    };
+  }
+  if (action === "reject") {
+    return { reason: fields.reason.trim() };
+  }
+  if (action === "defer") {
+    return {
+      reason: fields.reason.trim(),
+      follow_up: fields.followUp.trim(),
+    };
+  }
+  const structured: Record<string, string> = {
+    resolution_intent: fields.resolutionIntent.trim(),
+    mechanism: fields.mechanism.trim(),
+    owner: fields.owner.trim(),
+    scope: fields.scope.trim(),
+    risk_decision: fields.riskDecision.trim(),
+    mitigation: fields.mitigation.trim(),
+    affected_ref: fields.affectedRef.trim(),
+  };
+  const text = productSpecDraftTextSummary(structured);
+  return {
+    text,
+    ...structured,
+  };
+}
+
+function productSpecDraftTextSummary(value: Record<string, string>): string {
+  const labels: Record<string, string> = {
+    resolution_intent: "Resolution",
+    mechanism: "Mechanism",
+    owner: "Owner",
+    scope: "Scope",
+    risk_decision: "Risk decision",
+    mitigation: "Mitigation",
+    affected_ref: "Affected ref",
+  };
+  return Object.entries(value)
+    .filter(([, item]) => item.trim().length > 0)
+    .map(([key, item]) => `${labels[key] ?? key}: ${item}`)
+    .join("; ");
+}
+
 function ontologyGapDraftTerms(term: string): string[] {
   return term
     .split(/[\n,]/)
@@ -2359,6 +2617,28 @@ function ontologyGapDraftCanSave(
   return term.length > 0 || fields.reason.trim().length > 0;
 }
 
+function productSpecGapDraftCanSave(
+  action: string,
+  fields: ProductSpecGapDraftFieldState,
+): boolean {
+  if (action === "answer_question") {
+    return fields.answer.trim().length > 0;
+  }
+  if (action === "reject") {
+    return fields.reason.trim().length > 0;
+  }
+  if (action === "defer") {
+    return fields.reason.trim().length > 0;
+  }
+  return (
+    fields.mechanism.trim().length > 0 ||
+    fields.riskDecision.trim().length > 0 ||
+    fields.mitigation.trim().length > 0 ||
+    fields.owner.trim().length > 0 ||
+    fields.scope.trim().length > 0
+  );
+}
+
 function ontologyDraftFields(
   draft: IdeaToSpecRepairDraft | undefined,
 ): OntologyGapDraftFieldState {
@@ -2379,6 +2659,32 @@ function ontologyDraftFields(
   };
 }
 
+function productSpecDraftFields(
+  draft: IdeaToSpecRepairDraft | undefined,
+  request: IdeaToSpecClarificationRequest,
+): ProductSpecGapDraftFieldState {
+  const value = draft?.answerValue ?? {};
+  const target = productSpecRepairTarget(request);
+  return {
+    resolutionIntent:
+      typeof value.resolution_intent === "string" && value.resolution_intent.length > 0
+        ? value.resolution_intent
+        : target.defaultIntent,
+    answer: typeof value.text === "string" ? value.text : "",
+    mechanism: typeof value.mechanism === "string" ? value.mechanism : "",
+    owner: typeof value.owner === "string" ? value.owner : "",
+    scope: typeof value.scope === "string" ? value.scope : "",
+    riskDecision: typeof value.risk_decision === "string" ? value.risk_decision : "",
+    mitigation: typeof value.mitigation === "string" ? value.mitigation : "",
+    affectedRef:
+      typeof value.affected_ref === "string"
+        ? value.affected_ref
+        : request.targetRef ?? "",
+    reason: typeof value.reason === "string" ? value.reason : "",
+    followUp: typeof value.follow_up === "string" ? value.follow_up : "",
+  };
+}
+
 function repairDraftText(draft: IdeaToSpecRepairDraft | undefined): string | null {
   if (!draft) return null;
   const value = draft.answerValue;
@@ -2390,6 +2696,63 @@ function repairDraftText(draft: IdeaToSpecRepairDraft | undefined): string | nul
   }
   if (typeof value.text === "string") return value.text;
   return null;
+}
+
+function productSpecRepairTarget(
+  request: IdeaToSpecClarificationRequest,
+): ProductSpecRepairTarget & { defaultIntent: string } {
+  const haystack = [
+    request.kind,
+    request.id,
+    request.targetRef ?? "",
+    request.question ?? "",
+  ].join(" ").toLowerCase();
+  if (haystack.includes("risk")) {
+    return {
+      kind: "risk_requires_review",
+      label: "Risk review",
+      expectedEffect: "risk_accepted",
+      defaultIntent: "risk_accepted",
+    };
+  }
+  if (haystack.includes("enforcement")) {
+    return {
+      kind: "missing_enforcement_mechanism",
+      label: "Enforcement mechanism",
+      expectedEffect: "enforcement_mechanism_added",
+      defaultIntent: "enforcement_mechanism_added",
+    };
+  }
+  if (haystack.includes("required-field") || haystack.includes("required field")) {
+    return {
+      kind: "missing_required_fields",
+      label: "Required fields",
+      expectedEffect: "candidate_context_added",
+      defaultIntent: "candidate_context_added",
+    };
+  }
+  if (haystack.includes("policy") || haystack.includes("validation")) {
+    return {
+      kind: "policy_or_validation_gap",
+      label: "Policy / validation",
+      expectedEffect: "candidate_context_added",
+      defaultIntent: "candidate_context_added",
+    };
+  }
+  if (haystack.includes("constraint")) {
+    return {
+      kind: "ambiguous_product_constraint",
+      label: "Product constraint",
+      expectedEffect: "candidate_context_added",
+      defaultIntent: "candidate_context_added",
+    };
+  }
+  return {
+    kind: "unknown",
+    label: "Product/spec gap",
+    expectedEffect: "candidate_context_added",
+    defaultIntent: "candidate_context_added",
+  };
 }
 
 function draftPlaceholder(action: string): string {

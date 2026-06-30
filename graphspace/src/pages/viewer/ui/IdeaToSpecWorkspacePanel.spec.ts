@@ -331,4 +331,47 @@ describe("IdeaToSpecWorkspacePanel", () => {
 
     expect(productExecutionSnippet).toContain("blocked");
   });
+
+  it("renders structured product/spec gap repair controls", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.repair_review.clarification_requests.requests.push({
+      id: "clarification.candidate-gap.subscription-payment-enforcement",
+      kind: "candidate_gap",
+      severity: "blocking",
+      status: "open",
+      target_ref:
+        "candidate-spec.subscription-payment.gaps.subscription-payment.enforcement-mechanism",
+      target_artifact: "runs/candidate_spec_graph.json",
+      question: "How should subscription payment enforcement be described?",
+      suggested_actions: [
+        "provide_candidate_context",
+        "answer_question",
+        "reject",
+        "defer",
+      ],
+    });
+    raw.repair_review.clarification_requests.request_count += 1;
+    const parsedProductGap = parseIdeaToSpecWorkspace(raw);
+    if (parsedProductGap.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedProductGap.data },
+      }),
+    );
+
+    expect(html).toContain("How should subscription payment enforcement be described?");
+    expect(html).toContain("Repair target");
+    expect(html).toContain("Enforcement mechanism");
+    expect(html).toContain("Expected effect");
+    expect(html).toContain("enforcement_mechanism_added");
+    expect(html).toContain("Resolution intent");
+    expect(html).toContain("Mechanism / context");
+    expect(html).toContain("Owner");
+    expect(html).toContain("Scope");
+    expect(html).toContain("Risk decision");
+    expect(html).toContain("Mitigation");
+  });
 });
