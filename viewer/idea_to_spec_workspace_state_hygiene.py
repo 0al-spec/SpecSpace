@@ -550,13 +550,20 @@ def _artifact_state_status(
     stored_workspace_id = _text(artifact.get("workspace_id")) or _text(
         summary.get("workspace_id")
     )
-    stored_candidate_id = _text(artifact.get("candidate_id")) or _text(
-        summary.get("candidate_id")
+    session = _record(artifact.get("session"))
+    selected_request = _record(artifact.get("selected_request"))
+    stored_candidate_id = (
+        _text(artifact.get("candidate_id"))
+        or _text(summary.get("candidate_id"))
+        or _text(session.get("candidate_id"))
+        or _text(selected_request.get("candidate_id"))
     )
     stored_repair_session_id = (
         _text(artifact.get("repair_session_id"))
         or _text(summary.get("repair_session_id"))
         or _text(summary.get("session_id"))
+        or _text(session.get("session_id"))
+        or _text(selected_request.get("repair_session_id"))
     )
     current_ref = current["repair_session_ref"]
     session_ref = (
@@ -668,6 +675,7 @@ def _ready_statuses_for_artifact(kind: str) -> set[str]:
         return {"repair_draft_import_preview_ready"}
     if kind == "repair_rerun_request_gate":
         return {
+            "specspace_repair_rerun_request_ready",
             "specspace_repair_rerun_request_gate_ready",
             "repair_rerun_request_gate_ready",
         }
@@ -776,7 +784,8 @@ def _source_repair_artifact_consumed_by_repaired_handoff(
         and status in ready_statuses
         and session_ref == current.get("source_repair_session_ref")
         and (
-            not current.get("source_repair_session_id")
+            not stored_repair_session_id
+            or not current.get("source_repair_session_id")
             or stored_repair_session_id == current.get("source_repair_session_id")
         )
         and (
