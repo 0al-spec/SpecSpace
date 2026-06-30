@@ -368,9 +368,10 @@ def _current_identity(
     approval_source_refs = _record(approval_readiness.get("source_refs"))
     repaired_repair_session = _record(artifacts.get("repaired_repair_session"))
     standard_repair_session = _record(artifacts.get("repair_session"))
+    repaired_source_mode = _text(approval_readiness.get("source_mode"))
+    repaired_handoff_selected = repaired_source_mode == "repaired_handoff"
     repaired_selected = (
-        _text(approval_readiness.get("source_mode"))
-        in {"repaired_handoff", "partial_repaired"}
+        repaired_source_mode in {"repaired_handoff", "partial_repaired"}
         or repaired_repair_session.get("available") is True
     )
     repair_session_key = (
@@ -397,6 +398,13 @@ def _current_identity(
         "candidate_id": _text(session.get("candidate_id")) or selected_workspace,
         "repair_session_id": _text(session.get("session_id")),
         "repair_session_ref": repair_session_ref,
+        "source_repair_session_id": _text(
+            _record(standard_repair_session.get("session")).get("session_id")
+        ),
+        "source_repair_session_ref": _text(standard_repair_session.get("path"))
+        or "runs/idea_to_spec_repair_session.json",
+        "repaired_selected": "true" if repaired_selected else None,
+        "repaired_handoff_selected": "true" if repaired_handoff_selected else None,
     }
 
 
@@ -477,6 +485,15 @@ def _state_status(
             "status": "usable",
             "reason": "current_workspace_session_state_present",
             "next_action": "Continue with the current idea-to-spec workflow.",
+        }
+    if _source_repair_state_consumed_by_repaired_handoff(kind, latest, current):
+        return {
+            **result,
+            "status": "usable",
+            "reason": "source_repair_state_consumed_by_repaired_handoff",
+            "current_record_count": len(workspace_matches) or len(records_for_current),
+            "stale_record_count": 0,
+            "next_action": "Continue with the repaired idea-to-spec workflow.",
         }
     return {
         **result,
@@ -568,7 +585,25 @@ def _artifact_state_status(
     }
     if not available:
         return {**base, "reason": "artifact_missing"}
+    ready_statuses = _ready_statuses_for_artifact(kind)
     if session_ref and current_ref and session_ref != current_ref:
+        if _source_repair_artifact_consumed_by_repaired_handoff(
+            kind,
+            status=status,
+            ready_statuses=ready_statuses,
+            session_ref=session_ref,
+            stored_workspace_id=stored_workspace_id,
+            stored_candidate_id=stored_candidate_id,
+            stored_repair_session_id=stored_repair_session_id,
+            current=current,
+        ):
+            return {
+                **base,
+                "status": "usable",
+                "reason": "source_repair_artifact_consumed_by_repaired_handoff",
+                "current_record_count": 1,
+                "next_action": "Continue with the repaired idea-to-spec workflow.",
+            }
         return {
             **base,
             "status": "stale",
@@ -612,7 +647,6 @@ def _artifact_state_status(
             "stale_record_count": 1,
             "next_action": f"Rebuild {kind} for the current repair session.",
         }
-    ready_statuses = _ready_statuses_for_artifact(kind)
     if status not in ready_statuses:
         return {
             **base,
@@ -687,6 +721,73 @@ def _matches_current(item: dict[str, Any], current: dict[str, str | None]) -> bo
         and (
             not current["repair_session_ref"]
             or repair_session_ref == current["repair_session_ref"]
+        )
+    )
+
+
+def _source_repair_state_consumed_by_repaired_handoff(
+    kind: str,
+    item: dict[str, Any],
+    current: dict[str, str | None],
+) -> bool:
+    if kind not in {
+        "repair_drafts",
+        "repair_rerun_request",
+    }:
+        return False
+    if current.get("repaired_handoff_selected") != "true":
+        return False
+    workspace_id = _text(item.get("workspace_id"))
+    candidate_id = _text(item.get("candidate_id"))
+    repair_session_id = _text(item.get("repair_session_id"))
+    repair_session_ref = _text(item.get("repair_session_ref"))
+    return (
+        workspace_id == current["workspace_id"]
+        and (not current["candidate_id"] or candidate_id == current["candidate_id"])
+        and (
+            not current.get("source_repair_session_id")
+            or repair_session_id == current.get("source_repair_session_id")
+        )
+        and (
+            not current.get("source_repair_session_ref")
+            or repair_session_ref == current.get("source_repair_session_ref")
+        )
+    )
+
+
+def _source_repair_artifact_consumed_by_repaired_handoff(
+    kind: str,
+    *,
+    status: str | None,
+    ready_statuses: set[str],
+    session_ref: str,
+    stored_workspace_id: str | None,
+    stored_candidate_id: str | None,
+    stored_repair_session_id: str | None,
+    current: dict[str, str | None],
+) -> bool:
+    if kind not in {
+        "repair_draft_import_preview",
+        "repair_rerun_request_gate",
+    }:
+        return False
+    return (
+        current.get("repaired_handoff_selected") == "true"
+        and status in ready_statuses
+        and session_ref == current.get("source_repair_session_ref")
+        and (
+            not current.get("source_repair_session_id")
+            or stored_repair_session_id == current.get("source_repair_session_id")
+        )
+        and (
+            not stored_workspace_id
+            or not current["workspace_id"]
+            or stored_workspace_id == current["workspace_id"]
+        )
+        and (
+            not stored_candidate_id
+            or not current["candidate_id"]
+            or stored_candidate_id == current["candidate_id"]
         )
     )
 
