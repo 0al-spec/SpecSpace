@@ -22,6 +22,7 @@ from viewer import (
     idea_to_spec_candidate_approval_intents,
     idea_to_spec_repair_rerun_requests,
     idea_to_spec_workspace,
+    idea_to_spec_workspace_state_hygiene,
     server,
     specspace_provider,
 )
@@ -5945,6 +5946,294 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             if item["kind"] == "candidate_approval_intent"
         ][0]
         self.assertEqual(intent["status"], "usable")
+
+    def test_idea_to_spec_workspace_state_hygiene_v1_keeps_source_repair_state_usable_after_repaired_handoff(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_import_preview=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            preview_path = (
+                runs_dir
+                / idea_to_spec_workspace.SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT
+            )
+            preview = json.loads(preview_path.read_text(encoding="utf-8"))
+            preview["source_artifacts"] = {
+                "idea_to_spec_repair_session": "runs/idea_to_spec_repair_session.json"
+            }
+            preview["summary"]["repair_session_id"] = "repair-session.team-decision-log"
+            _write_json(preview_path, preview)
+            _write_json(
+                state_dir / "idea_to_spec_repair_drafts.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_repair_draft_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "workspace_id": "team-decision-log",
+                    "candidate_id": "team-decision-log",
+                    "repair_session_id": "repair-session.team-decision-log",
+                    "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "consumer_boundary": {
+                        "specspace_owned_state": True,
+                        "for_product_repair_workflow": True,
+                        "may_execute_prompt_agent": False,
+                        "may_apply_to_specgraph": False,
+                        "may_apply_answers": False,
+                        "may_apply_decisions": False,
+                        "may_mutate_candidate_source_artifacts": False,
+                        "may_mutate_canonical_specs": False,
+                        "may_write_ontology_package": False,
+                        "may_accept_ontology_terms": False,
+                        "may_create_branch_or_commit": False,
+                        "may_open_pull_request": False,
+                    },
+                    "authority_boundary": {
+                        "repair_draft_state_is_authority": False,
+                        "specgraph_artifact_authority": False,
+                        "ontology_authority": False,
+                        "git_service_authority": False,
+                        "canonical_mutations_allowed": False,
+                    },
+                    "drafts": [
+                        {
+                            "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                            "workspace_id": "team-decision-log",
+                            "candidate_id": "team-decision-log",
+                            "repair_session_id": "repair-session.team-decision-log",
+                            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                            "allowed_action": "propose_project_local_term",
+                            "answer_value": {
+                                "terms": ["Decision Record"],
+                                "term_scope": "project_local",
+                            },
+                            "updated_at": "2026-06-29T10:00:00Z",
+                        }
+                    ],
+                },
+            )
+            _write_json(
+                state_dir / "idea_to_spec_repair_rerun_requests.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_repair_rerun_request_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "workspace_id": "team-decision-log",
+                    "candidate_id": "team-decision-log",
+                    "repair_session_id": "repair-session.team-decision-log",
+                    "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "consumer_boundary": {
+                        "specspace_owned_state": True,
+                        "for_product_repair_workflow": True,
+                        "may_execute_specgraph": False,
+                        "may_execute_prompt_agent": False,
+                        "may_apply_to_specgraph": False,
+                        "may_apply_answers": False,
+                        "may_apply_decisions": False,
+                        "may_mutate_candidate_source_artifacts": False,
+                        "may_mutate_canonical_specs": False,
+                        "may_write_ontology_package": False,
+                        "may_accept_ontology_terms": False,
+                        "may_create_branch_or_commit": False,
+                        "may_open_pull_request": False,
+                        "may_execute_git_service_operation": False,
+                    },
+                    "authority_boundary": {
+                        "rerun_request_state_is_authority": False,
+                        "specgraph_execution_authority": False,
+                        "specgraph_artifact_authority": False,
+                        "ontology_authority": False,
+                        "git_service_authority": False,
+                        "canonical_mutations_allowed": False,
+                    },
+                    "requests": [
+                        {
+                            "id": "repair-rerun-request.team-decision-log.1",
+                            "status": "requested",
+                            "requested_action": "prepare_repair_draft_rerun",
+                            "workspace_id": "team-decision-log",
+                            "candidate_id": "team-decision-log",
+                            "repair_session_id": "repair-session.team-decision-log",
+                            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                            "draft_state_ref": "specspace-state://idea_to_spec_repair_drafts.json",
+                            "import_preview_ref": "runs/specspace_repair_draft_import_preview.json",
+                            "created_at": "2026-06-29T10:00:00Z",
+                            "updated_at": "2026-06-29T10:00:00Z",
+                            "canonical_mutations_allowed": False,
+                            "tracked_artifacts_written": False,
+                            "may_execute_specgraph": False,
+                            "may_run_make_target": False,
+                            "may_mutate_candidate_source_artifacts": False,
+                            "may_mutate_canonical_specs": False,
+                            "may_write_ontology_package": False,
+                            "may_accept_ontology_terms": False,
+                            "may_create_branch_or_commit": False,
+                            "may_open_pull_request": False,
+                            "may_execute_git_service_operation": False,
+                        }
+                    ],
+                },
+            )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT,
+                {
+                    "artifact_kind": "specspace_repair_rerun_request_gate",
+                    "schema_version": 1,
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "status": "specspace_repair_rerun_request_gate_ready",
+                    "summary": {
+                        "status": "specspace_repair_rerun_request_gate_ready",
+                        "workspace_id": "team-decision-log",
+                        "candidate_id": "team-decision-log",
+                        "repair_session_id": "repair-session.team-decision-log",
+                    },
+                    "source_artifacts": {
+                        "idea_to_spec_repair_session": "runs/idea_to_spec_repair_session.json"
+                    },
+                    "authority_boundary": {
+                        "may_execute_prompt_agent": False,
+                        "may_mutate_candidate_source_artifacts": False,
+                        "may_mutate_canonical_specs": False,
+                        "may_write_ontology_package": False,
+                        "may_accept_ontology_terms": False,
+                        "may_create_branch_or_commit": False,
+                        "may_open_pull_request": False,
+                    },
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            body["repair_session_ref"],
+            "runs/repaired_idea_to_spec_repair_session.json",
+        )
+        states = {item["kind"]: item for item in body["states"]}
+        for kind in ("repair_drafts", "repair_rerun_request"):
+            self.assertEqual(states[kind]["status"], "usable")
+            self.assertEqual(
+                states[kind]["reason"],
+                "source_repair_state_consumed_by_repaired_handoff",
+            )
+        for kind in ("repair_draft_import_preview", "repair_rerun_request_gate"):
+            self.assertEqual(states[kind]["status"], "usable", states[kind])
+            self.assertEqual(
+                states[kind]["reason"],
+                "source_repair_artifact_consumed_by_repaired_handoff",
+            )
+        self.assertEqual(states["candidate_approval_intent"]["status"], "missing")
+        approval_action = [
+            item
+            for item in body["recommended_actions"]
+            if item["target_state"] == "candidate_approval_intent"
+        ][0]
+        self.assertTrue(approval_action["enabled"])
+        self.assertEqual(approval_action["blockers"], [])
+
+    def test_idea_to_spec_workspace_state_hygiene_v1_does_not_consume_state_for_partial_repaired(
+        self,
+    ) -> None:
+        current = {
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "repair_session_id": "repaired-session.team-decision-log",
+            "repair_session_ref": "runs/repaired_idea_to_spec_repair_session.json",
+            "source_repair_session_id": "repair-session.team-decision-log",
+            "source_repair_session_ref": "runs/idea_to_spec_repair_session.json",
+            "repaired_selected": "true",
+            "repaired_handoff_selected": None,
+        }
+        item = {
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "repair_session_id": "repair-session.team-decision-log",
+            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+        }
+
+        self.assertFalse(
+            idea_to_spec_workspace_state_hygiene._source_repair_state_consumed_by_repaired_handoff(
+                "repair_drafts",
+                item,
+                current,
+            )
+        )
+
+    def test_idea_to_spec_workspace_state_hygiene_v1_requires_ready_consumed_artifacts(
+        self,
+    ) -> None:
+        current = {
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "repair_session_id": "repaired-session.team-decision-log",
+            "repair_session_ref": "runs/repaired_idea_to_spec_repair_session.json",
+            "source_repair_session_id": "repair-session.team-decision-log",
+            "source_repair_session_ref": "runs/idea_to_spec_repair_session.json",
+            "repaired_selected": "true",
+            "repaired_handoff_selected": "true",
+        }
+
+        self.assertFalse(
+            idea_to_spec_workspace_state_hygiene._source_repair_artifact_consumed_by_repaired_handoff(
+                "repair_draft_import_preview",
+                status="repair_draft_import_preview_review_required",
+                ready_statuses={"repair_draft_import_preview_ready"},
+                session_ref="runs/idea_to_spec_repair_session.json",
+                stored_workspace_id="team-decision-log",
+                stored_candidate_id="team-decision-log",
+                stored_repair_session_id="repair-session.team-decision-log",
+                current=current,
+            )
+        )
+
+    def test_idea_to_spec_workspace_state_hygiene_v1_requires_source_session_id_for_consumed_artifacts(
+        self,
+    ) -> None:
+        current = {
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "repair_session_id": "repaired-session.team-decision-log",
+            "repair_session_ref": "runs/repaired_idea_to_spec_repair_session.json",
+            "source_repair_session_id": "repair-session.team-decision-log",
+            "source_repair_session_ref": "runs/idea_to_spec_repair_session.json",
+            "repaired_selected": "true",
+            "repaired_handoff_selected": "true",
+        }
+
+        self.assertFalse(
+            idea_to_spec_workspace_state_hygiene._source_repair_artifact_consumed_by_repaired_handoff(
+                "repair_rerun_request_gate",
+                status="specspace_repair_rerun_request_gate_ready",
+                ready_statuses={"specspace_repair_rerun_request_gate_ready"},
+                session_ref="runs/idea_to_spec_repair_session.json",
+                stored_workspace_id="team-decision-log",
+                stored_candidate_id="team-decision-log",
+                stored_repair_session_id="old-repair-session.team-decision-log",
+                current=current,
+            )
+        )
 
     def test_idea_to_spec_workspace_state_hygiene_v1_detects_stale_handoff_source_ref(
         self,
