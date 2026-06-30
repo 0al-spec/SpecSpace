@@ -361,7 +361,12 @@ def _normalize_existing_draft(entry: dict[str, Any]) -> dict[str, Any] | None:
     candidate_id = _text(entry.get("candidate_id"))
     if workspace_id is None or request_id is None or action is None or candidate_id is None:
         return None
-    answer_value = entry.get("answer_value") if isinstance(entry.get("answer_value"), dict) else {}
+    answer_value, value_error = _normalize_answer_value(
+        action,
+        entry.get("answer_value") if isinstance(entry.get("answer_value"), dict) else {},
+    )
+    if value_error is not None:
+        return None
     return {
         **entry,
         "workspace_id": workspace_id,
