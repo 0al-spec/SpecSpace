@@ -932,6 +932,38 @@ SpecGraph later validates these drafts through
 `runs/specspace_repair_draft_import_preview.json`; invalid or incomplete drafts
 remain visible as draft state but are not accepted for rerun.
 
+### `GET/POST /api/v1/idea-to-spec-intake-clarification-answers`
+
+Stores SpecSpace-owned operator answers for the **real idea intake**
+clarification loop. This state is earlier than product repair drafts: it helps
+complete the bounded context / ontology frame before SpecGraph materializes a
+public-safe `user_idea_intake_source.json`.
+
+The state is compatible with the SpecGraph clarification answer-set contract:
+
+```json
+{
+  "workspace_id": "team-decision-log",
+  "request_id": "clarification.intake.question-active-frame-domain-refs",
+  "answer_kind": "answer_question",
+  "value": {
+    "refs": ["domain.team_decision_log"]
+  }
+}
+```
+
+SpecSpace owns this mutable state, but it is not authority:
+
+- it does not run SpecGraph;
+- it does not execute prompt agents;
+- it does not apply answers to source artifacts;
+- it does not mutate user intent, candidate artifacts, or canonical specs;
+- it does not write Ontology packages or accept Ontology terms;
+- it does not create Git branches, commits, PRs, or read-model publications.
+
+SpecGraph must later validate/export this state through its intake
+clarification rerun flow before any clarified intake source is published.
+
 ### `GET /api/v1/idea-to-spec-workspace-state-hygiene`
 
 Returns a readonly preflight report for SpecSpace-owned Idea-to-Spec state in

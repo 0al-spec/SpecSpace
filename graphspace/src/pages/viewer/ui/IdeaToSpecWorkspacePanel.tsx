@@ -11,6 +11,7 @@ import type {
   IdeaToSpecIdeaMaturity,
   IdeaToSpecIdeaMaturityFinding,
   IdeaToSpecIdeaMaturityReadinessExplainer,
+  IdeaToSpecIntakeAnswer,
   IdeaToSpecMaterializedFile,
   IdeaToSpecOntologyDecision,
   IdeaToSpecProductRepairRerunPlatformExecution,
@@ -37,6 +38,12 @@ import {
   type UseIdeaToSpecRepairRerunRequestsState,
 } from "../model/use-idea-to-spec-repair-rerun-requests";
 import {
+  useIdeaToSpecIntakeClarificationAnswers,
+  type IdeaToSpecIntakeClarificationAnswer,
+  type IdeaToSpecIntakeClarificationAnswerSaveError,
+  type UseIdeaToSpecIntakeClarificationAnswersState,
+} from "../model/use-idea-to-spec-intake-clarification-answers";
+import {
   useIdeaToSpecCandidateApprovalIntents,
   type IdeaToSpecCandidateApprovalIntentError,
   type UseIdeaToSpecCandidateApprovalIntentsState,
@@ -47,6 +54,7 @@ import styles from "./OntologySemanticReviewPanel.module.css";
 type Props = {
   state: UseIdeaToSpecWorkspaceState;
   repairDraftsUrl?: string;
+  intakeClarificationAnswersUrl?: string;
   repairRerunRequestsUrl?: string;
   candidateApprovalIntentsUrl?: string;
   repairRerunRequestsRefreshKey?: number | string;
@@ -206,12 +214,17 @@ function maturityExplainerNextAction(
 export function IdeaToSpecWorkspacePanel({
   state,
   repairDraftsUrl,
+  intakeClarificationAnswersUrl,
   repairRerunRequestsUrl,
   candidateApprovalIntentsUrl,
   repairRerunRequestsRefreshKey = 0,
 }: Props) {
   const repairDrafts = useIdeaToSpecRepairDrafts({
     url: repairDraftsUrl,
+    enabled: state.kind === "ok",
+  });
+  const intakeClarificationAnswers = useIdeaToSpecIntakeClarificationAnswers({
+    url: intakeClarificationAnswersUrl,
     enabled: state.kind === "ok",
   });
   const repairDraftRefreshKey = useMemo(() => {
@@ -336,6 +349,11 @@ export function IdeaToSpecWorkspacePanel({
         <FrameSection project={frame.project} domains={frame.domainRefs} contexts={frame.contextRefs} />
         <ArtifactSection artifacts={data.artifacts} />
         <IntakeSection state={state} />
+        <IntakeClarificationSection
+          state={state}
+          answers={intakeClarificationAnswers}
+          workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+        />
         <OntologySeedSection seed={data.ontologySeed} />
         <CandidateGraphSection nodes={data.candidateGraph.nodes} />
         <PreSibSection state={state} />
@@ -650,6 +668,242 @@ function IntakeSection({ state }: { state: Extract<UseIdeaToSpecWorkspaceState, 
         />
       </div>
     </section>
+  );
+}
+
+function IntakeClarificationSection({
+  state,
+  answers,
+  workspaceId,
+}: {
+  state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
+  answers: ReturnType<typeof useIdeaToSpecIntakeClarificationAnswers>;
+  workspaceId: string | null;
+}) {
+  const lane = state.data.intakeClarification;
+  const draftCount = answers.state.kind === "ok" ? answers.state.data.summary.answerCount : 0;
+  return (
+    <section id="idea-to-spec-intake-clarification" className={styles.reviewSection}>
+      <SectionHeader
+        title="Intake clarification"
+        count={lane.clarificationRequests.requestCount + draftCount}
+      />
+      <div className={styles.postureStrip}>
+        <PostureItem
+          label="Requests"
+          value={String(lane.clarificationRequests.requestCount)}
+        />
+        <PostureItem
+          label="Blocking"
+          value={String(lane.clarificationRequests.blockingRequestCount)}
+        />
+        <PostureItem
+          label="Saved"
+          value={String(draftCount)}
+        />
+        <PostureItem
+          label="Validated"
+          value={String(lane.clarificationAnswers.acceptedAnswerCount)}
+        />
+        <PostureItem
+          label="Targets"
+          value={String(lane.rerunInput.acceptedTargetCount)}
+        />
+        <PostureItem
+          label="Session"
+          value={lane.clarifiedSession.available ? "clarified" : "pending"}
+        />
+      </div>
+      {!lane.available ? (
+        <Status
+          label="No intake clarification loop"
+          detail="SpecGraph has not published idea_intake_clarification_requests.json for this workspace."
+        />
+      ) : null}
+      <IntakeClarificationAnswerStatus state={answers.state} />
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>SpecGraph intake rerun</span>
+          <Pill value={compact(lane.rerunReport.readiness.reviewState, "not ready")} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Answers artifact" value={compact(lane.clarificationAnswers.readiness.reviewState, "missing")} />
+          <Meta label="Rerun input" value={compact(lane.rerunInput.readiness.reviewState, "missing")} />
+          <Meta label="Clarified source" value={lane.clarifiedSource.available ? "available" : "missing"} />
+          <Meta
+            label="Exec authority"
+            value={boolText(lane.actionBoundary.mayExecuteSpecgraph)}
+          />
+        </div>
+        <pre className={styles.codeBlock}>make real-idea-intake-clarification-rerun</pre>
+      </div>
+      {lane.clarificationRequests.requests.map((request) => (
+        <IntakeClarificationRequestRow
+          key={request.id}
+          request={request}
+          draft={answers.answersByRequestId.get(request.id)}
+          publishedAnswer={lane.clarificationAnswers.answers.find(
+            (answer) => answer.requestId === request.id,
+          )}
+          pending={answers.pendingRequestId === request.id}
+          saveError={
+            answers.saveError?.requestId === request.id ? answers.saveError : null
+          }
+          onSave={(input) =>
+            answers.saveAnswer({
+              ...input,
+              workspaceId,
+              operatorRef: "operator://specspace-local",
+            })
+          }
+        />
+      ))}
+    </section>
+  );
+}
+
+function IntakeClarificationAnswerStatus({
+  state,
+}: {
+  state: UseIdeaToSpecIntakeClarificationAnswersState;
+}) {
+  if (state.kind === "idle" || state.kind === "loading") {
+    return (
+      <Status
+        label="Intake answers loading"
+        detail="Reading SpecSpace-owned intake clarification answer state."
+      />
+    );
+  }
+  if (state.kind === "ok") {
+    return (
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>SpecSpace intake answers</span>
+          <Pill value={state.data.summary.status} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Answers" value={String(state.data.summary.answerCount)} />
+          <Meta label="Accepted" value={String(state.data.summary.acceptedAnswerCount)} />
+          <Meta label="State owner" value={state.data.stateOwner} />
+          <Meta
+            label="SpecGraph authority"
+            value={boolText(state.data.authorityBoundary.specgraphArtifactAuthority)}
+          />
+          <Meta
+            label="Apply authority"
+            value={boolText(state.data.consumerBoundary.mayApplyAnswers)}
+          />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <Status
+      label="Intake answers unavailable"
+      detail={intakeClarificationAnswerStateDetail(state)}
+    />
+  );
+}
+
+function IntakeClarificationRequestRow({
+  request,
+  draft,
+  publishedAnswer,
+  pending,
+  saveError,
+  onSave,
+}: {
+  request: IdeaToSpecClarificationRequest;
+  draft: IdeaToSpecIntakeClarificationAnswer | undefined;
+  publishedAnswer: IdeaToSpecIntakeAnswer | undefined;
+  pending: boolean;
+  saveError: IdeaToSpecIntakeClarificationAnswerSaveError | null;
+  onSave: (input: {
+    requestId: string;
+    answerKind: string;
+    value: Record<string, unknown>;
+  }) => void;
+}) {
+  const defaultAction = request.suggestedActions[0] ?? "answer_question";
+  const [selectedAction, setSelectedAction] = useState(
+    () => draft?.answerKind ?? defaultAction,
+  );
+  const [answerText, setAnswerText] = useState(
+    () => intakeAnswerText(draft, publishedAnswer) ?? "",
+  );
+  useEffect(() => {
+    setSelectedAction(draft?.answerKind ?? defaultAction);
+    setAnswerText(intakeAnswerText(draft, publishedAnswer) ?? "");
+  }, [defaultAction, draft, publishedAnswer]);
+  const canSave = selectedAction.length > 0 && answerText.trim().length > 0 && !pending;
+  const value = intakeClarificationValueForRequest(request, answerText);
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{request.id}</span>
+        <Pill value={request.status} />
+      </div>
+      <h3 className={styles.title}>{compact(request.question, request.kind)}</h3>
+      <div className={styles.metaGrid}>
+        <Meta label="Severity" value={request.severity} />
+        <Meta label="Target" value={request.targetRef} />
+        <Meta label="Target artifact" value={request.targetArtifact} />
+        <Meta label="Actions" value={joined(request.suggestedActions)} />
+      </div>
+      <form
+        className={styles.draftForm}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!canSave) return;
+          onSave({
+            requestId: request.id,
+            answerKind: selectedAction,
+            value,
+          });
+        }}
+      >
+        <div className={styles.draftControls}>
+          <select
+            className={styles.draftSelect}
+            value={selectedAction}
+            onChange={(event) => setSelectedAction(event.currentTarget.value)}
+            aria-label="Intake clarification answer kind"
+          >
+            {(request.suggestedActions.length ? request.suggestedActions : [defaultAction]).map((action) => (
+              <option key={action} value={action}>
+                {action.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+          <button className={styles.ackButton} type="submit" disabled={!canSave}>
+            {pending ? "Saving" : draft ? "Update answer" : "Save answer"}
+          </button>
+        </div>
+        <textarea
+          className={styles.draftTextarea}
+          value={answerText}
+          onChange={(event) => setAnswerText(event.currentTarget.value)}
+          placeholder={intakeClarificationPlaceholder(request)}
+          rows={3}
+          aria-label="Intake clarification answer"
+        />
+        {draft ? (
+          <span className={styles.statusDetail}>
+            Answer saved · {draft.answerKind.replace(/_/g, " ")} · {draft.updatedAt}
+          </span>
+        ) : publishedAnswer ? (
+          <span className={styles.statusDetail}>
+            Published answer · {publishedAnswer.answerKind.replace(/_/g, " ")} · {publishedAnswer.status}
+          </span>
+        ) : null}
+        {saveError ? (
+          <span className={styles.statusDetail}>
+            Answer save failed · {intakeClarificationAnswerSaveErrorText(saveError)}
+          </span>
+        ) : null}
+      </form>
+    </div>
   );
 }
 
@@ -2506,6 +2760,80 @@ function candidateApprovalIntentStateDetail(
     return "SpecSpace candidate approval intent endpoint is unreachable from the browser.";
   }
   return state.message;
+}
+
+function intakeClarificationAnswerStateDetail(
+  state: Exclude<UseIdeaToSpecIntakeClarificationAnswersState, { kind: "ok" | "idle" | "loading" }>,
+): string {
+  if (state.kind === "http-error") {
+    return `HTTP ${state.status}: ${state.statusText}`;
+  }
+  if (state.kind === "network-error") {
+    return "SpecSpace intake clarification answer endpoint is unreachable from the browser.";
+  }
+  return state.message;
+}
+
+function intakeClarificationAnswerSaveErrorText(
+  error: IdeaToSpecIntakeClarificationAnswerSaveError,
+): string {
+  if (error.kind === "http-error") return `HTTP ${error.status}: ${error.statusText}`;
+  return "network error";
+}
+
+function intakeAnswerText(
+  draft: IdeaToSpecIntakeClarificationAnswer | undefined,
+  publishedAnswer: IdeaToSpecIntakeAnswer | undefined,
+): string | null {
+  const value = draft?.value;
+  if (value) {
+    if (Array.isArray(value.refs)) {
+      return value.refs.filter((item): item is string => typeof item === "string").join(", ");
+    }
+    if (Array.isArray(value.entries)) {
+      return value.entries.filter((item): item is string => typeof item === "string").join("\n");
+    }
+    if (typeof value.text === "string") return value.text;
+  }
+  if (publishedAnswer) {
+    if (publishedAnswer.refs.length > 0) return publishedAnswer.refs.join(", ");
+    if (publishedAnswer.entries.length > 0) return publishedAnswer.entries.join("\n");
+    return publishedAnswer.text;
+  }
+  return null;
+}
+
+function splitIntakeAnswerList(text: string): string[] {
+  return text
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function intakeClarificationValueForRequest(
+  request: IdeaToSpecClarificationRequest,
+  text: string,
+): Record<string, unknown> {
+  const value = text.trim();
+  const haystack = `${request.id} ${request.targetRef ?? ""} ${request.question ?? ""}`.toLowerCase();
+  if (haystack.includes("refs") || haystack.includes("ontology") || haystack.includes("domain") || haystack.includes("context") || haystack.includes("applicability")) {
+    return { refs: splitIntakeAnswerList(value) };
+  }
+  if (haystack.includes("actors") || haystack.includes("domain-events") || haystack.includes("commands") || haystack.includes("constraints")) {
+    return { entries: splitIntakeAnswerList(value) };
+  }
+  return { text: value };
+}
+
+function intakeClarificationPlaceholder(request: IdeaToSpecClarificationRequest): string {
+  const haystack = `${request.id} ${request.targetRef ?? ""} ${request.question ?? ""}`.toLowerCase();
+  if (haystack.includes("refs") || haystack.includes("ontology") || haystack.includes("domain") || haystack.includes("context") || haystack.includes("applicability")) {
+    return "Comma-separated refs";
+  }
+  if (haystack.includes("actors") || haystack.includes("domain-events") || haystack.includes("commands") || haystack.includes("constraints")) {
+    return "One entry per line";
+  }
+  return "Bounded answer for intake rerun";
 }
 
 function answerValueForDraftAction(

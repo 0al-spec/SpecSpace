@@ -47,6 +47,9 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("runs/candidate_spec_graph_seed.json");
     expect(html).toContain("runs/candidate_repair_loop_report.json");
     expect(html).toContain("Event-storming intake");
+    expect(html).toContain("Intake clarification");
+    expect(html).toContain("No intake clarification loop");
+    expect(html).toContain("SpecSpace-owned intake clarification answer state");
     expect(html).toContain("Ontology-bound seed");
     expect(html).toContain("ontology-gap.numeric-input");
     expect(html).toContain("confirm_bind_or_promote_domain_term");

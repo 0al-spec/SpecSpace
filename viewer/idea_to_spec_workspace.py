@@ -10,6 +10,20 @@ from viewer import idea_maturity
 IDEA_TO_SPEC_WORKSPACE_ARTIFACT_KIND = "specspace_idea_to_spec_workspace"
 ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT = "active_idea_to_spec_candidate.json"
 IDEA_EVENT_STORMING_INTAKE_ARTIFACT = "idea_event_storming_intake.json"
+IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT = (
+    "idea_intake_clarification_requests.json"
+)
+IDEA_INTAKE_CLARIFICATION_ANSWERS_ARTIFACT = (
+    "idea_intake_clarification_answers.json"
+)
+IDEA_INTAKE_ANSWER_RERUN_INPUT_ARTIFACT = "idea_intake_answer_rerun_input.json"
+CLARIFIED_USER_IDEA_INTAKE_SESSION_ARTIFACT = (
+    "clarified_user_idea_intake_session.json"
+)
+CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT = "clarified_user_idea_intake_source.json"
+IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT = (
+    "idea_intake_clarification_rerun_report.json"
+)
 CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT = "candidate_spec_graph_seed.json"
 CANDIDATE_SPEC_GRAPH_ARTIFACT = "candidate_spec_graph.json"
 PRE_SIB_COHERENCE_REPORT_ARTIFACT = "pre_sib_coherence_report.json"
@@ -104,6 +118,12 @@ CORE_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
 )
 OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
+    IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT,
+    IDEA_INTAKE_CLARIFICATION_ANSWERS_ARTIFACT,
+    IDEA_INTAKE_ANSWER_RERUN_INPUT_ARTIFACT,
+    CLARIFIED_USER_IDEA_INTAKE_SESSION_ARTIFACT,
+    CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT,
+    IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT,
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT,
     IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT,
@@ -162,6 +182,12 @@ WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
 ARTIFACT_KEYS: dict[str, str] = {
     ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: "active_candidate",
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT: "event_storming_intake",
+    IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: "intake_clarification_requests",
+    IDEA_INTAKE_CLARIFICATION_ANSWERS_ARTIFACT: "intake_clarification_answers",
+    IDEA_INTAKE_ANSWER_RERUN_INPUT_ARTIFACT: "intake_answer_rerun_input",
+    CLARIFIED_USER_IDEA_INTAKE_SESSION_ARTIFACT: "clarified_intake_session",
+    CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT: "clarified_intake_source",
+    IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT: "intake_clarification_rerun",
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "ontology_seed",
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: "clarification_requests",
     IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT: "clarification_answers",
@@ -213,6 +239,18 @@ ARTIFACT_KEYS: dict[str, str] = {
 EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: "active_idea_to_spec_candidate",
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT: "idea_event_storming_intake",
+    IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: (
+        "idea_to_spec_clarification_requests"
+    ),
+    IDEA_INTAKE_CLARIFICATION_ANSWERS_ARTIFACT: (
+        "idea_to_spec_clarification_answers"
+    ),
+    IDEA_INTAKE_ANSWER_RERUN_INPUT_ARTIFACT: "idea_intake_answer_rerun_input",
+    CLARIFIED_USER_IDEA_INTAKE_SESSION_ARTIFACT: "user_idea_intake_session",
+    CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT: "user_idea_intake_source",
+    IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT: (
+        "idea_intake_clarification_rerun_report"
+    ),
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "candidate_spec_graph_seed",
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: (
         "idea_to_spec_clarification_requests"
@@ -1240,6 +1278,126 @@ def _accepted_answer_rows(
             }
         )
     return rows
+
+
+def _intake_answer_rows(
+    clarification_answers: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records((clarification_answers or {}).get("answers"))[
+        : DISPLAY_LIMITS["accepted_answers"]
+    ]:
+        request_id = _text(item.get("request_id"))
+        if not request_id:
+            continue
+        value = _record(item.get("value"))
+        rows.append(
+            {
+                "request_id": request_id,
+                "answer_kind": _text(item.get("answer_kind"), "answer"),
+                "status": _text(item.get("status"), "proposed"),
+                "authority": _optional_text(item.get("authority")),
+                "target_artifact": _optional_text(
+                    _record(item.get("request_snapshot")).get("target_artifact")
+                ),
+                "target_ref": _optional_text(
+                    _record(item.get("request_snapshot")).get("target_ref")
+                ),
+                "refs": _string_list(value.get("refs")),
+                "entries": _string_list(value.get("entries")),
+                "text": _optional_text(value.get("text")),
+            }
+        )
+    return rows
+
+
+def _intake_clarification_lane(
+    *,
+    clarification_requests: dict[str, Any] | None,
+    clarification_answers: dict[str, Any] | None,
+    rerun_input: dict[str, Any] | None,
+    clarified_session: dict[str, Any] | None,
+    clarified_source: dict[str, Any] | None,
+    rerun_report: dict[str, Any] | None,
+) -> dict[str, Any]:
+    requests = _clarification_request_rows(clarification_requests)
+    answer_rows = _intake_answer_rows(clarification_answers)
+    request_counts = _record((clarification_requests or {}).get("request_counts"))
+    answer_summary = _record((clarification_answers or {}).get("summary"))
+    rerun_summary = _record((rerun_input or {}).get("summary"))
+    report_summary = _record((rerun_report or {}).get("summary"))
+    return {
+        "available": any(
+            artifact is not None
+            for artifact in (
+                clarification_requests,
+                clarification_answers,
+                rerun_input,
+                clarified_session,
+                clarified_source,
+                rerun_report,
+            )
+        ),
+        "clarification_requests": {
+            "available": clarification_requests is not None,
+            "readiness": _readiness(clarification_requests),
+            "summary": request_counts,
+            "requests": requests,
+            "request_count": len(requests)
+            or _number(request_counts.get("total"))
+            or _number(request_counts.get("request_count")),
+            "blocking_request_count": sum(
+                1 for request in requests if request["severity"] == "blocking"
+            )
+            or _number(request_counts.get("blocking")),
+        },
+        "clarification_answers": {
+            "available": clarification_answers is not None,
+            "readiness": _readiness(clarification_answers),
+            "summary": answer_summary,
+            "answers": answer_rows,
+            "answer_count": len(answer_rows)
+            or _number(answer_summary.get("answer_count")),
+            "accepted_answer_count": _number(answer_summary.get("accepted_answer_count")),
+            "unresolved_blocking_count": _number(
+                answer_summary.get("unresolved_blocking_count")
+            ),
+        },
+        "rerun_input": {
+            "available": rerun_input is not None,
+            "readiness": _readiness(rerun_input),
+            "summary": rerun_summary,
+            "accepted_target_count": _number(rerun_summary.get("accepted_target_count")),
+        },
+        "clarified_session": {
+            "available": clarified_session is not None,
+            "readiness": _readiness(clarified_session),
+            "summary": _record((clarified_session or {}).get("summary")),
+        },
+        "clarified_source": {
+            "available": clarified_source is not None,
+            "readiness": _readiness(clarified_source),
+            "summary": _record((clarified_source or {}).get("summary")),
+        },
+        "rerun_report": {
+            "available": rerun_report is not None,
+            "readiness": _readiness(rerun_report),
+            "summary": report_summary,
+            "accepted_target_count": _number(report_summary.get("accepted_target_count")),
+        },
+        "action_boundary": {
+            "inspect_only": True,
+            "acknowledge_only": True,
+            "may_execute_specgraph": False,
+            "may_execute_prompt_agent": False,
+            "may_apply_answers": False,
+            "may_mutate_candidate_source_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+        },
+    }
 
 
 def _ontology_decision_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
@@ -3771,6 +3929,24 @@ def build_idea_to_spec_workspace(
 ) -> dict[str, Any]:
     active_candidate = _artifact_data(artifacts, ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT)
     intake = _artifact_data(artifacts, IDEA_EVENT_STORMING_INTAKE_ARTIFACT)
+    intake_clarification_requests = _artifact_data(
+        artifacts, IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT
+    )
+    intake_clarification_answers = _artifact_data(
+        artifacts, IDEA_INTAKE_CLARIFICATION_ANSWERS_ARTIFACT
+    )
+    intake_answer_rerun_input = _artifact_data(
+        artifacts, IDEA_INTAKE_ANSWER_RERUN_INPUT_ARTIFACT
+    )
+    clarified_intake_session = _artifact_data(
+        artifacts, CLARIFIED_USER_IDEA_INTAKE_SESSION_ARTIFACT
+    )
+    clarified_intake_source = _artifact_data(
+        artifacts, CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT
+    )
+    intake_clarification_rerun = _artifact_data(
+        artifacts, IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT
+    )
     candidate_seed = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT)
     candidate_graph = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_ARTIFACT)
     pre_sib = _artifact_data(artifacts, PRE_SIB_COHERENCE_REPORT_ARTIFACT)
@@ -3935,6 +4111,14 @@ def build_idea_to_spec_workspace(
     ontology_seed = _ontology_seed(candidate_seed)
     pre_sib_findings = _findings(selected_pre_sib)
     repair_actions = _repair_actions(selected_repair_loop)
+    intake_clarification = _intake_clarification_lane(
+        clarification_requests=intake_clarification_requests,
+        clarification_answers=intake_clarification_answers,
+        rerun_input=intake_answer_rerun_input,
+        clarified_session=clarified_intake_session,
+        clarified_source=clarified_intake_source,
+        rerun_report=intake_clarification_rerun,
+    )
     repair_session = _repair_session(selected_repair_session_journal)
     if (
         status != "partial"
@@ -4113,6 +4297,7 @@ def build_idea_to_spec_workspace(
                 ),
             },
         },
+        "intake_clarification": intake_clarification,
         "candidate_graph": {
             "available": selected_candidate_graph is not None,
             "source_mode": "repaired_handoff"
