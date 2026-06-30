@@ -384,19 +384,21 @@ def _normalize_existing_draft(entry: dict[str, Any]) -> dict[str, Any] | None:
 def _normalize_answer_value(action: str, raw: Any) -> tuple[dict[str, Any], dict[str, Any] | None]:
     value = raw if isinstance(raw, dict) else {}
     if action == "bind_existing_term":
+        term = _text(value.get("term"))
+        if term is None:
+            return {}, {"error": "bind_existing_term requires answer_value.term"}
         ontology_ref = _text(value.get("ontology_ref") or value.get("text"))
         if ontology_ref is None:
             return {}, {"error": "bind_existing_term requires answer_value.ontology_ref"}
-        return {"ontology_ref": ontology_ref}, None
+        return {"term": term, "ontology_ref": ontology_ref}, None
     if action == "alias":
+        term = _text(value.get("term"))
+        if term is None:
+            return {}, {"error": "alias requires answer_value.term"}
         alias_of = _text(value.get("alias_of") or value.get("text"))
         if alias_of is None:
             return {}, {"error": "alias requires answer_value.alias_of"}
-        result = {"alias_of": alias_of}
-        term = _text(value.get("term"))
-        if term is not None:
-            result["term"] = term
-        return result, None
+        return {"term": term, "alias_of": alias_of}, None
     if action == "propose_project_local_term":
         terms = _string_list(value.get("terms"))
         term = _text(value.get("term") or value.get("text"))
@@ -409,7 +411,11 @@ def _normalize_answer_value(action: str, raw: Any) -> tuple[dict[str, Any], dict
         reason = _text(value.get("reason") or value.get("text"))
         if reason is None:
             return {}, {"error": f"{action} requires answer_value.reason"}
-        return {"reason": reason}, None
+        result = {"reason": reason}
+        term = _text(value.get("term"))
+        if action == "reject" and term is not None:
+            result["term"] = term
+        return result, None
     if action not in ONTOLOGY_ACTIONS:
         text = _text(value.get("text"))
         if text is None:
@@ -427,7 +433,9 @@ def _records(value: Any) -> list[dict[str, Any]]:
 
 
 def _string_list(value: Any) -> list[str]:
-    return [item for item in value if isinstance(item, str) and item] if isinstance(value, list) else []
+    if not isinstance(value, list):
+        return []
+    return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
 def _string_map(value: Any) -> dict[str, str]:
