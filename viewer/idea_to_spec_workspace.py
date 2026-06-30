@@ -815,6 +815,9 @@ def _artifact_status(
     session = _session_projection(data.get("session"))
     if session:
         status_payload["session"] = session
+    selected_request = _selected_request_projection(data.get("selected_request"))
+    if selected_request:
+        status_payload["selected_request"] = selected_request
     return status_payload
 
 
@@ -844,6 +847,18 @@ def _session_projection(value: Any) -> dict[str, Any]:
         "session_id": _optional_text(session.get("session_id")),
         "candidate_id": _optional_text(session.get("candidate_id")),
         "workspace_route": _optional_text(session.get("workspace_route")),
+    }
+    return {key: item for key, item in projected.items() if item is not None}
+
+
+def _selected_request_projection(value: Any) -> dict[str, Any]:
+    request = _record(value)
+    projected = {
+        "id": _optional_text(request.get("id")),
+        "workspace_id": _optional_text(request.get("workspace_id")),
+        "candidate_id": _optional_text(request.get("candidate_id")),
+        "repair_session_id": _optional_text(request.get("repair_session_id")),
+        "repair_session_ref": _optional_text(request.get("repair_session_ref")),
     }
     return {key: item for key, item in projected.items() if item is not None}
 

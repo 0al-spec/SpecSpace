@@ -6002,7 +6002,11 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             preview["source_artifacts"] = {
                 "idea_to_spec_repair_session": "runs/idea_to_spec_repair_session.json"
             }
-            preview["summary"]["repair_session_id"] = "repair-session.team-decision-log"
+            preview["summary"].pop("repair_session_id", None)
+            preview["session"] = {
+                "session_id": "repair-session.team-decision-log",
+                "candidate_id": "team-decision-log",
+            }
             _write_json(preview_path, preview)
             _write_json(
                 state_dir / "idea_to_spec_repair_drafts.json",
@@ -6126,12 +6130,22 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     "schema_version": 1,
                     "canonical_mutations_allowed": False,
                     "tracked_artifacts_written": False,
-                    "status": "specspace_repair_rerun_request_gate_ready",
+                    "status": "specspace_repair_rerun_request_ready",
                     "summary": {
-                        "status": "specspace_repair_rerun_request_gate_ready",
+                        "status": "specspace_repair_rerun_request_ready",
+                        "workspace_id": "team-decision-log",
+                        "candidate_id": "team-decision-log",
+                    },
+                    "session": {
+                        "session_id": "repair-session.team-decision-log",
+                        "candidate_id": "team-decision-log",
+                    },
+                    "selected_request": {
+                        "id": "repair-rerun-request.team-decision-log.1",
                         "workspace_id": "team-decision-log",
                         "candidate_id": "team-decision-log",
                         "repair_session_id": "repair-session.team-decision-log",
+                        "repair_session_ref": "runs/idea_to_spec_repair_session.json",
                     },
                     "source_artifacts": {
                         "idea_to_spec_repair_session": "runs/idea_to_spec_repair_session.json"
@@ -6185,6 +6199,42 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         ][0]
         self.assertTrue(approval_action["enabled"])
         self.assertEqual(approval_action["blockers"], [])
+
+    def test_idea_to_spec_workspace_projects_repair_gate_selected_request(
+        self,
+    ) -> None:
+        status = idea_to_spec_workspace._artifact_status(
+            {
+                idea_to_spec_workspace.SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT: {
+                    "artifact_kind": "specspace_repair_rerun_request_gate",
+                    "schema_version": 1,
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "status": "specspace_repair_rerun_request_ready",
+                    "session": {
+                        "session_id": "repair-session.team-decision-log",
+                        "candidate_id": "team-decision-log",
+                    },
+                    "selected_request": {
+                        "id": "repair-rerun-request.team-decision-log.1",
+                        "workspace_id": "team-decision-log",
+                        "candidate_id": "team-decision-log",
+                        "repair_session_id": "repair-session.team-decision-log",
+                        "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                    },
+                    "source_artifacts": {
+                        "idea_to_spec_repair_session": "runs/idea_to_spec_repair_session.json"
+                    },
+                }
+            },
+            idea_to_spec_workspace.SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT,
+        )
+
+        self.assertEqual(
+            status["selected_request"]["repair_session_id"],
+            "repair-session.team-decision-log",
+        )
+        self.assertEqual(status["session"]["candidate_id"], "team-decision-log")
 
     def test_idea_to_spec_workspace_state_hygiene_v1_does_not_consume_state_for_partial_repaired(
         self,
@@ -6241,7 +6291,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             )
         )
 
-    def test_idea_to_spec_workspace_state_hygiene_v1_requires_source_session_id_for_consumed_artifacts(
+    def test_idea_to_spec_workspace_state_hygiene_v1_reads_candidate_id_from_runtime_session(
         self,
     ) -> None:
         current = {
@@ -6255,6 +6305,54 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "repaired_handoff_selected": "true",
         }
 
+        state = idea_to_spec_workspace_state_hygiene._artifact_state_status(
+            kind="repair_draft_import_preview",
+            artifact={
+                "available": True,
+                "status": "repair_draft_import_preview_ready",
+                "source_artifacts": {
+                    "idea_to_spec_repair_session": "runs/idea_to_spec_repair_session.json"
+                },
+                "session": {
+                    "session_id": "repair-session.team-decision-log",
+                    "candidate_id": "other-candidate",
+                },
+            },
+            current=current,
+            blocks=["repair_draft_import_preview"],
+            missing_next_action="Run import preview.",
+        )
+
+        self.assertEqual(state["status"], "stale")
+        self.assertEqual(state["reason"], "repair_session_ref_mismatch")
+        self.assertEqual(state["stored_candidate_id"], "other-candidate")
+
+    def test_idea_to_spec_workspace_state_hygiene_v1_allows_missing_source_session_id_for_consumed_artifacts(
+        self,
+    ) -> None:
+        current = {
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "repair_session_id": "repaired-session.team-decision-log",
+            "repair_session_ref": "runs/repaired_idea_to_spec_repair_session.json",
+            "source_repair_session_id": "repair-session.team-decision-log",
+            "source_repair_session_ref": "runs/idea_to_spec_repair_session.json",
+            "repaired_selected": "true",
+            "repaired_handoff_selected": "true",
+        }
+
+        self.assertTrue(
+            idea_to_spec_workspace_state_hygiene._source_repair_artifact_consumed_by_repaired_handoff(
+                "repair_rerun_request_gate",
+                status="specspace_repair_rerun_request_gate_ready",
+                ready_statuses={"specspace_repair_rerun_request_gate_ready"},
+                session_ref="runs/idea_to_spec_repair_session.json",
+                stored_workspace_id="team-decision-log",
+                stored_candidate_id="team-decision-log",
+                stored_repair_session_id=None,
+                current=current,
+            )
+        )
         self.assertFalse(
             idea_to_spec_workspace_state_hygiene._source_repair_artifact_consumed_by_repaired_handoff(
                 "repair_rerun_request_gate",
