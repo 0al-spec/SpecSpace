@@ -320,7 +320,13 @@ describe("IdeaToSpecWorkspacePanel", () => {
   });
 
   it("renders aggregate answer accounting", () => {
-    const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.idea_maturity.report.metrics.materialized_answer_count = 5;
+    raw.idea_maturity.report.metrics.unmaterialized_answer_count = 3;
+    raw.idea_maturity.report.metrics.per_gap_materialized_answer_count = 0;
+    raw.idea_maturity.report.metrics.closure_evidence_answer_count = 0;
+    raw.idea_maturity.report.metrics.ordinary_unmaterialized_answer_count = 0;
+    const parsed = parseIdeaToSpecWorkspace(raw);
     if (parsed.kind !== "ok") {
       throw new Error("Idea-to-spec fixture must parse");
     }
@@ -333,8 +339,12 @@ describe("IdeaToSpecWorkspacePanel", () => {
 
     expect(html).toContain("Per-gap materialized");
     expect(html).toContain("Aggregate closure");
+    expect(html).toContain("Dismissed");
     expect(html).toContain("Closure evidence");
     expect(html).toContain("Ordinary unmaterialized");
+    expect(html).toMatch(/Per-gap materialized<\/span><span[^>]*>0 \/ 5/);
+    expect(html).toMatch(/Closure evidence<\/span><span[^>]*>0 \/ 5/);
+    expect(html).toMatch(/Ordinary unmaterialized<\/span><span[^>]*>0/);
   });
 
   it("derives idea maturity finding next actions when absent", () => {

@@ -1465,6 +1465,13 @@ function IdeaMaturitySection({
     );
   }
   const metrics = maturity.report.metrics;
+  const perGapMaterializedAnswerCount =
+    metrics.perGapMaterializedAnswerCount ?? metrics.materializedAnswerCount;
+  const closureEvidenceAnswerCount =
+    metrics.closureEvidenceAnswerCount ?? metrics.materializedAnswerCount;
+  const ordinaryUnmaterializedAnswerCount =
+    metrics.ordinaryUnmaterializedAnswerCount ??
+    metrics.unmaterializedAnswerCount;
   const derived = maturity.report.derivedState;
   const contract = maturity.report.contract;
   const validationStatus = maturity.validation.available
@@ -1594,22 +1601,20 @@ function IdeaMaturitySection({
           <Meta label="Accepted answers" value={String(metrics.acceptedAnswerCount)} />
           <Meta
             label="Per-gap materialized"
-            value={`${metrics.perGapMaterializedAnswerCount || metrics.materializedAnswerCount} / ${metrics.answeredQuestionCount}`}
+            value={`${perGapMaterializedAnswerCount} / ${metrics.answeredQuestionCount}`}
           />
           <Meta
             label="Aggregate closure"
             value={String(metrics.aggregateAnswerCount)}
           />
+          <Meta label="Dismissed" value={String(metrics.dismissedAnswerCount)} />
           <Meta
             label="Closure evidence"
-            value={`${metrics.closureEvidenceAnswerCount || metrics.materializedAnswerCount} / ${metrics.acceptedAnswerCount}`}
+            value={`${closureEvidenceAnswerCount} / ${metrics.acceptedAnswerCount}`}
           />
           <Meta
             label="Ordinary unmaterialized"
-            value={String(
-              metrics.ordinaryUnmaterializedAnswerCount ||
-                metrics.unmaterializedAnswerCount,
-            )}
+            value={String(ordinaryUnmaterializedAnswerCount)}
           />
           <Meta label="Consumed" value={String(metrics.consumedAnswerCount)} />
           <Meta label="Deferred" value={String(metrics.deferredAnswerCount)} />

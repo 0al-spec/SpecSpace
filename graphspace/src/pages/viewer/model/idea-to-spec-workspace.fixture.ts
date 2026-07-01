@@ -1630,6 +1630,7 @@ export const ideaToSpecWorkspace = {
         per_gap_materialized_answer_count: 4,
         consumed_answer_count: 5,
         aggregate_answer_count: 1,
+        dismissed_answer_count: 0,
         closure_evidence_answer_count: 5,
         ordinary_unmaterialized_answer_count: 0,
         answer_materialization_rate: 1,

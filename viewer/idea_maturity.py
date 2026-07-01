@@ -348,6 +348,36 @@ def _metrics(report: dict[str, Any] | None) -> dict[str, Any]:
         "unmaterialized_answer_count": _number(
             _metric_source_value(report, "answer_materialization", "unmaterialized_answer_count")
         ),
+        "per_gap_materialized_answer_count": _optional_number(
+            _metric_source_value(
+                report,
+                "answer_materialization",
+                "per_gap_materialized_answer_count",
+            )
+        ),
+        "consumed_answer_count": _number(
+            _metric_source_value(report, "answer_materialization", "consumed_answer_count")
+        ),
+        "aggregate_answer_count": _number(
+            _metric_source_value(report, "answer_materialization", "aggregate_answer_count")
+        ),
+        "dismissed_answer_count": _number(
+            _metric_source_value(report, "answer_materialization", "dismissed_answer_count")
+        ),
+        "closure_evidence_answer_count": _optional_number(
+            _metric_source_value(
+                report,
+                "answer_materialization",
+                "closure_evidence_answer_count",
+            )
+        ),
+        "ordinary_unmaterialized_answer_count": _optional_number(
+            _metric_source_value(
+                report,
+                "answer_materialization",
+                "ordinary_unmaterialized_answer_count",
+            )
+        ),
         "answer_materialization_rate": _metric_number(
             _metric_source_value(report, "answer_materialization", "answer_materialization_rate")
         ),
