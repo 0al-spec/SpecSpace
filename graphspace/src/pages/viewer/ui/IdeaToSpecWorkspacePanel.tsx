@@ -735,6 +735,7 @@ function IntakeClarificationSection({
         />
       ) : null}
       <IntakeAnswerAuthoringStatus authoring={lane.answerAuthoring} />
+      <IntakeAnswerContinuationStatus continuation={lane.answerContinuation} />
       <IntakeClarificationAnswerStatus state={answers.state} />
       <div className={styles.row}>
         <div className={styles.rowHeader}>
@@ -816,6 +817,83 @@ function IntakeAnswerAuthoringStatus({
           {finding.severity}: {finding.message}
         </p>
       ))}
+    </div>
+  );
+}
+
+function IntakeAnswerContinuationStatus({
+  continuation,
+}: {
+  continuation: IdeaToSpecWorkspace["intakeClarification"]["answerContinuation"];
+}) {
+  if (!continuation.available) {
+    return (
+      <Status
+        label="Answer continuation pending"
+        detail="Build the SpecGraph import preview after saving SpecSpace-owned answers."
+      />
+    );
+  }
+  const outputEntries = Object.entries(continuation.continuationReport.outputs)
+    .filter(([, value]) => typeof value === "string" && value.length > 0)
+    .slice(0, 4);
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>Real idea answer continuation</span>
+        <Pill
+          value={compact(
+            continuation.continuationReport.readiness.reviewState ||
+              continuation.importPreview.readiness.reviewState,
+            "not ready",
+          )}
+        />
+      </div>
+      <div className={styles.metaGrid}>
+        <Meta
+          label="Import preview"
+          value={continuation.importPreview.available ? "available" : "missing"}
+        />
+        <Meta
+          label="Preview ready"
+          value={boolText(continuation.importPreview.readiness.ready)}
+        />
+        <Meta
+          label="Continuation"
+          value={continuation.continuationReport.available ? "available" : "missing"}
+        />
+        <Meta label="Ready" value={boolText(continuation.ready)} />
+        <Meta
+          label="Accepted answers"
+          value={String(continuation.importPreview.acceptedAnswerCount)}
+        />
+        <Meta
+          label="Exec authority"
+          value={boolText(continuation.actionBoundary.mayExecuteSpecgraph)}
+        />
+      </div>
+      {continuation.recommendedActions.map((action) => (
+        <p key={action.id} className={styles.statusDetail}>
+          {action.label}: {action.nextAction}
+        </p>
+      ))}
+      {outputEntries.length ? (
+        <div className={styles.metaGrid}>
+          {outputEntries.map(([key, value]) => (
+            <Meta key={key} label={compact(key, "Output")} value={String(value)} />
+          ))}
+        </div>
+      ) : null}
+      {[
+        ...continuation.importPreview.findings,
+        ...continuation.continuationReport.findings,
+      ]
+        .slice(0, 3)
+        .map((finding) => (
+          <p key={finding.findingId} className={styles.statusDetail}>
+            {finding.severity}: {finding.message}
+          </p>
+        ))}
     </div>
   );
 }

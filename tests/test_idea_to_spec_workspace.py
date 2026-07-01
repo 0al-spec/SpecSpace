@@ -559,6 +559,142 @@ def _real_idea_answer_set() -> dict:
     }
 
 
+def _specspace_real_idea_answer_import_preview() -> dict:
+    return {
+        "artifact_kind": "specspace_real_idea_answer_import_preview",
+        "schema_version": 1,
+        "proposal_id": "0195",
+        "contract_ref": (
+            "specgraph.idea-to-spec.specspace-real-idea-answer-import-preview.v0.1"
+        ),
+        "stage": "intake",
+        "run_dir": "runs/real_idea_smoke",
+        "source_artifacts": {
+            "specspace_answer_state": {
+                "artifact_kind": "specspace_idea_intake_clarification_answer_state",
+                "source_ref": "specspace-state://idea_to_spec_intake_clarification_answers.json",
+                "answer_count": 1,
+            },
+            "real_idea_answer_template": {
+                "artifact_kind": "real_idea_answer_template",
+                "source_ref": "runs/real_idea_smoke/real_idea_answer_template.json",
+            },
+            "clarification_requests": {
+                "artifact_kind": "idea_to_spec_clarification_requests",
+                "source_ref": "runs/idea_intake_clarification_requests.json",
+            },
+        },
+        "import_preview": {
+            "accepted_answer_count": 1,
+            "answer_count": 1,
+            "validated_answers": {
+                "artifact_kind": "idea_to_spec_clarification_answers",
+                "ready": True,
+                "review_state": "answers_ready_for_rerun",
+                "summary": {"accepted_answer_count": 1},
+            },
+        },
+        "readiness": {
+            "ready": True,
+            "review_state": "specspace_real_idea_answers_ready_for_continuation",
+            "blocked_by": [],
+            "next_artifact": "real_idea_answer_continuation_report.json",
+        },
+        "authority_boundary": {
+            "may_execute_specgraph": False,
+            "may_execute_platform": False,
+            "may_apply_answers": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+        },
+        "privacy_boundary": {
+            "raw_idea_text_published": False,
+            "raw_prompt_published": False,
+            "raw_model_output_published": False,
+            "raw_operator_note_published": False,
+        },
+        "findings": [],
+        "summary": {
+            "status": "specspace_real_idea_answers_ready_for_continuation",
+            "candidate_id": "team-decision-log",
+            "workspace_id": "team-decision-log",
+            "answer_count": 1,
+            "accepted_answer_count": 1,
+            "finding_count": 0,
+        },
+    }
+
+
+def _real_idea_answer_continuation_report() -> dict:
+    return {
+        "artifact_kind": "real_idea_answer_continuation_report",
+        "schema_version": 1,
+        "proposal_id": "0195",
+        "contract_ref": "specgraph.idea-to-spec.real-idea-answer-continuation.v0.1",
+        "stage": "intake",
+        "run_dir": "runs/real_idea_smoke",
+        "source_artifacts": {
+            "specspace_real_idea_answer_import_preview": {
+                "artifact_kind": "specspace_real_idea_answer_import_preview",
+                "source_ref": (
+                    "runs/real_idea_smoke/"
+                    "specspace_real_idea_answer_import_preview.json"
+                ),
+            },
+            "clarification_requests": {
+                "artifact_kind": "idea_to_spec_clarification_requests",
+                "source_ref": "runs/idea_intake_clarification_requests.json",
+            },
+        },
+        "outputs": {
+            "authoring_report": (
+                "runs/real_idea_smoke/real_idea_answer_authoring_report.json"
+            ),
+            "answer_set": "runs/real_idea_smoke/real_idea_answer_set.json",
+            "validated_answers": "runs/idea_intake_clarification_answers.json",
+            "clarified_intake_session": (
+                "runs/real_idea_smoke/clarified_user_idea_intake_session.json"
+            ),
+            "rerun_report": (
+                "runs/real_idea_smoke/"
+                "idea_intake_clarification_rerun_report.json"
+            ),
+        },
+        "readiness": {
+            "ready": True,
+            "review_state": "real_idea_answer_continuation_ready",
+            "blocked_by": [],
+            "next_artifact": (
+                "runs/real_idea_smoke/clarified_user_idea_intake_session.json"
+            ),
+        },
+        "authority_boundary": {
+            "may_execute_specgraph": False,
+            "may_execute_platform": False,
+            "may_apply_answers": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+        },
+        "privacy_boundary": {
+            "raw_idea_text_published": False,
+            "raw_prompt_published": False,
+            "raw_model_output_published": False,
+            "raw_operator_note_published": False,
+        },
+        "findings": [],
+        "summary": {
+            "status": "real_idea_answer_continuation_ready",
+            "answer_count": 1,
+            "accepted_answer_count": 1,
+            "finding_count": 0,
+        },
+    }
+
+
 def _intake_answer_rerun_input() -> dict:
     return {
         "artifact_kind": "idea_intake_answer_rerun_input",
@@ -2574,6 +2710,64 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertTrue(authoring["validation"]["ready"])
         self.assertFalse(authoring["action_boundary"]["may_execute_specgraph"])
         self.assertFalse(authoring["action_boundary"]["may_apply_answers"])
+
+    def test_build_workspace_projects_real_idea_answer_continuation(self) -> None:
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: _real_idea_answer_template(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_ARTIFACT: _real_idea_answer_set(),
+            idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT: (
+                _specspace_real_idea_answer_import_preview()
+            ),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT: (
+                _real_idea_answer_continuation_report()
+            ),
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        continuation = body["intake_clarification"]["answer_continuation"]
+        self.assertTrue(continuation["available"])
+        self.assertTrue(continuation["ready"])
+        self.assertEqual(continuation["import_preview"]["accepted_answer_count"], 1)
+        self.assertEqual(
+            continuation["continuation_report"]["readiness"]["review_state"],
+            "real_idea_answer_continuation_ready",
+        )
+        self.assertEqual(
+            continuation["continuation_report"]["outputs"]["validated_answers"],
+            "runs/idea_intake_clarification_answers.json",
+        )
+        self.assertFalse(continuation["action_boundary"]["may_execute_specgraph"])
+        self.assertFalse(continuation["action_boundary"]["may_apply_answers"])
+
+    def test_build_workspace_rejects_write_capable_real_idea_answer_handoff(
+        self,
+    ) -> None:
+        import_preview = _specspace_real_idea_answer_import_preview()
+        import_preview["authority_boundary"]["may_execute_specgraph"] = True
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT: (
+                import_preview
+            ),
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["artifacts"]["specspace_real_idea_answer_import_preview"]["reason"],
+            "invalid_artifact_contract",
+        )
+        continuation = body["intake_clarification"]["answer_continuation"]
+        self.assertFalse(continuation["import_preview"]["available"])
 
     def test_build_workspace_rejects_nested_raw_real_idea_answer_set(self) -> None:
         answer_set = _real_idea_answer_set()

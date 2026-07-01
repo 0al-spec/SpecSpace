@@ -49,7 +49,10 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Event-storming intake");
     expect(html).toContain("Intake clarification");
     expect(html).toContain("Real idea answer authoring");
+    expect(html).toContain("Real idea answer continuation");
     expect(html).toContain("answer_template_ready");
+    expect(html).toContain("real_idea_answer_continuation_ready");
+    expect(html).toContain("runs/idea_intake_clarification_answers.json");
     expect(html).toContain("Template-backed answer");
     expect(html).toContain("value.refs[]");
     expect(html).toContain("active_frame_ref");

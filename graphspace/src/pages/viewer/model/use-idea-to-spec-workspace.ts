@@ -171,6 +171,54 @@ export type IdeaToSpecRealIdeaAnswerAuthoring = {
   };
 };
 
+export type IdeaToSpecRealIdeaAnswerContinuation = {
+  available: boolean;
+  ready: boolean;
+  importPreview: {
+    available: boolean;
+    readiness: {
+      ready: boolean;
+      reviewState: string | null;
+      blockedBy: readonly string[];
+      nextArtifact: string | null;
+    };
+    summary: Record<string, unknown>;
+    acceptedAnswerCount: number;
+    answerCount: number;
+    findings: readonly IdeaToSpecFinding[];
+    sourceArtifacts: Record<string, unknown>;
+  };
+  continuationReport: {
+    available: boolean;
+    readiness: {
+      ready: boolean;
+      reviewState: string | null;
+      blockedBy: readonly string[];
+      nextArtifact: string | null;
+    };
+    summary: Record<string, unknown>;
+    outputs: Record<string, unknown>;
+    findings: readonly IdeaToSpecFinding[];
+  };
+  recommendedActions: readonly {
+    id: string;
+    label: string;
+    nextAction: string;
+  }[];
+  actionBoundary: {
+    inspectOnly: true;
+    acknowledgeOnly: true;
+    mayExecuteSpecgraph: false;
+    mayExecutePlatform: false;
+    mayApplyAnswers: false;
+    mayMutateCandidateSourceArtifacts: false;
+    mayMutateCanonicalSpecs: false;
+    mayWriteOntologyPackage: false;
+    mayAcceptOntologyTerms: false;
+    mayCreateBranchOrCommit: false;
+  };
+};
+
 export type IdeaToSpecOntologyDecision = {
   id: string;
   decisionType: string;
@@ -945,6 +993,7 @@ export type IdeaToSpecWorkspace = {
       acceptedTargetCount: number;
     };
     answerAuthoring: IdeaToSpecRealIdeaAnswerAuthoring;
+    answerContinuation: IdeaToSpecRealIdeaAnswerContinuation;
     actionBoundary: {
       inspectOnly: true;
       acknowledgeOnly: true;
@@ -1590,6 +1639,60 @@ function parseRealIdeaAnswerAuthoring(
   };
 }
 
+function parseRealIdeaAnswerContinuation(
+  raw: unknown,
+): IdeaToSpecRealIdeaAnswerContinuation {
+  const lane = recordValue(raw);
+  const importPreview = recordValue(lane.import_preview);
+  const continuationReport = recordValue(lane.continuation_report);
+  return {
+    available: lane.available === true,
+    ready: lane.ready === true,
+    importPreview: {
+      available: importPreview.available === true,
+      readiness: parseReadiness(importPreview.readiness),
+      summary: recordValue(importPreview.summary),
+      acceptedAnswerCount: numberValue(importPreview.accepted_answer_count),
+      answerCount: numberValue(importPreview.answer_count),
+      findings: records(importPreview.findings).flatMap((item) => {
+        const parsed = parseFinding(item);
+        return parsed ? [parsed] : [];
+      }),
+      sourceArtifacts: recordValue(importPreview.source_artifacts),
+    },
+    continuationReport: {
+      available: continuationReport.available === true,
+      readiness: parseReadiness(continuationReport.readiness),
+      summary: recordValue(continuationReport.summary),
+      outputs: recordValue(continuationReport.outputs),
+      findings: records(continuationReport.findings).flatMap((item) => {
+        const parsed = parseFinding(item);
+        return parsed ? [parsed] : [];
+      }),
+    },
+    recommendedActions: records(lane.recommended_actions).map((action) => ({
+      id: stringValue(action.id, "real-idea-answer-continuation-action"),
+      label: stringValue(action.label, "Next action"),
+      nextAction: stringValue(
+        action.next_action,
+        "Inspect answer continuation state.",
+      ),
+    })),
+    actionBoundary: {
+      inspectOnly: true,
+      acknowledgeOnly: true,
+      mayExecuteSpecgraph: false,
+      mayExecutePlatform: false,
+      mayApplyAnswers: false,
+      mayMutateCandidateSourceArtifacts: false,
+      mayMutateCanonicalSpecs: false,
+      mayWriteOntologyPackage: false,
+      mayAcceptOntologyTerms: false,
+      mayCreateBranchOrCommit: false,
+    },
+  };
+}
+
 function parseAcceptedAnswer(raw: unknown): IdeaToSpecAcceptedAnswer | null {
   const answer = recordValue(raw);
   const requestId = optionalString(answer.request_id);
@@ -1812,6 +1915,7 @@ function parseIntakeClarification(
   const clarifiedSource = recordValue(lane.clarified_source);
   const rerunReport = recordValue(lane.rerun_report);
   const answerAuthoring = recordValue(lane.answer_authoring);
+  const answerContinuation = recordValue(lane.answer_continuation);
   return {
     available: lane.available === true,
     clarificationRequests: {
@@ -1866,6 +1970,7 @@ function parseIntakeClarification(
       acceptedTargetCount: numberValue(rerunReport.accepted_target_count),
     },
     answerAuthoring: parseRealIdeaAnswerAuthoring(answerAuthoring),
+    answerContinuation: parseRealIdeaAnswerContinuation(answerContinuation),
     actionBoundary: {
       inspectOnly: true,
       acknowledgeOnly: true,
@@ -2960,6 +3065,12 @@ export function parseIdeaToSpecWorkspace(
   const intakeClarificationBoundary = recordValue(
     intakeClarification.action_boundary,
   );
+  const answerContinuation = recordValue(
+    intakeClarification.answer_continuation,
+  );
+  const answerContinuationBoundary = recordValue(
+    answerContinuation.action_boundary,
+  );
   const intakeClarificationFalseFlags = [
     "may_execute_specgraph",
     "may_execute_prompt_agent",
@@ -2981,6 +3092,37 @@ export function parseIdeaToSpecWorkspace(
       intakeClarificationBoundary.acknowledge_only !== true
     ) {
       return { kind: "parse-error", reason: "intake clarification boundary must be inspect-only", raw };
+    }
+  }
+  if (isRecord(intakeClarification.answer_continuation)) {
+    const answerContinuationFalseFlags = [
+      "may_execute_specgraph",
+      "may_execute_platform",
+      "may_apply_answers",
+      "may_mutate_candidate_source_artifacts",
+      "may_mutate_canonical_specs",
+      "may_write_ontology_package",
+      "may_accept_ontology_terms",
+      "may_create_branch_or_commit",
+    ];
+    for (const flag of answerContinuationFalseFlags) {
+      if (answerContinuationBoundary[flag] !== false) {
+        return {
+          kind: "parse-error",
+          reason: `answer continuation boundary expanded: ${flag}`,
+          raw,
+        };
+      }
+    }
+    if (
+      answerContinuationBoundary.inspect_only !== true ||
+      answerContinuationBoundary.acknowledge_only !== true
+    ) {
+      return {
+        kind: "parse-error",
+        reason: "answer continuation boundary must be inspect-only",
+        raw,
+      };
     }
   }
   const hasRepairSession = isRecord(raw.repair_session);

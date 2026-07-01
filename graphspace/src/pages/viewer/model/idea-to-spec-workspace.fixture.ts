@@ -899,6 +899,74 @@ export const ideaToSpecWorkspace = {
         may_create_branch_or_commit: false,
       },
     },
+    answer_continuation: {
+      available: true,
+      ready: true,
+      import_preview: {
+        available: true,
+        readiness: {
+          ready: true,
+          review_state: "specspace_real_idea_answers_ready_for_continuation",
+          blocked_by: [],
+          next_artifact: "real_idea_answer_continuation_report.json",
+        },
+        summary: {
+          status: "specspace_real_idea_answers_ready_for_continuation",
+          answer_count: 1,
+          accepted_answer_count: 1,
+        },
+        accepted_answer_count: 1,
+        answer_count: 1,
+        findings: [],
+        source_artifacts: {
+          specspace_answer_state: {
+            source_ref:
+              "specspace-state://idea_to_spec_intake_clarification_answers.json",
+          },
+        },
+      },
+      continuation_report: {
+        available: true,
+        readiness: {
+          ready: true,
+          review_state: "real_idea_answer_continuation_ready",
+          blocked_by: [],
+          next_artifact:
+            "runs/real_idea_smoke/clarified_user_idea_intake_session.json",
+        },
+        summary: {
+          status: "real_idea_answer_continuation_ready",
+          answer_count: 1,
+          accepted_answer_count: 1,
+        },
+        outputs: {
+          validated_answers: "runs/idea_intake_clarification_answers.json",
+          clarified_intake_session:
+            "runs/real_idea_smoke/clarified_user_idea_intake_session.json",
+        },
+        findings: [],
+      },
+      recommended_actions: [
+        {
+          id: "continue_active_candidate",
+          label: "Continue active candidate",
+          next_action:
+            "Run `make real-idea-intake-continue-from-specspace-answers` or the Platform handoff.",
+        },
+      ],
+      action_boundary: {
+        inspect_only: true,
+        acknowledge_only: true,
+        may_execute_specgraph: false,
+        may_execute_platform: false,
+        may_apply_answers: false,
+        may_mutate_candidate_source_artifacts: false,
+        may_mutate_canonical_specs: false,
+        may_write_ontology_package: false,
+        may_accept_ontology_terms: false,
+        may_create_branch_or_commit: false,
+      },
+    },
     action_boundary: {
       inspect_only: true,
       acknowledge_only: true,

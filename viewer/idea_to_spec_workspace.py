@@ -35,6 +35,12 @@ REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT = (
     "real_idea_smoke/real_idea_answer_authoring_report.json"
 )
 REAL_IDEA_ANSWER_SET_ARTIFACT = "real_idea_smoke/real_idea_answer_set.json"
+SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT = (
+    "real_idea_smoke/specspace_real_idea_answer_import_preview.json"
+)
+REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT = (
+    "real_idea_smoke/real_idea_answer_continuation_report.json"
+)
 CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT = "candidate_spec_graph_seed.json"
 CANDIDATE_SPEC_GRAPH_ARTIFACT = "candidate_spec_graph.json"
 PRE_SIB_COHERENCE_REPORT_ARTIFACT = "pre_sib_coherence_report.json"
@@ -138,6 +144,8 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT,
     REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT,
     REAL_IDEA_ANSWER_SET_ARTIFACT,
+    SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
+    REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT,
     IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT,
@@ -209,6 +217,12 @@ ARTIFACT_KEYS: dict[str, str] = {
     REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: "real_idea_answer_template",
     REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT: "real_idea_answer_authoring_report",
     REAL_IDEA_ANSWER_SET_ARTIFACT: "real_idea_answer_set",
+    SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT: (
+        "specspace_real_idea_answer_import_preview"
+    ),
+    REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT: (
+        "real_idea_answer_continuation_report"
+    ),
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "ontology_seed",
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: "clarification_requests",
     IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT: "clarification_answers",
@@ -280,6 +294,12 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     # Intentionally reuses the generic clarification answer-set contract; the
     # artifact path and workspace key identify the real-idea authoring source.
     REAL_IDEA_ANSWER_SET_ARTIFACT: "idea_to_spec_clarification_answer_set",
+    SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT: (
+        "specspace_real_idea_answer_import_preview"
+    ),
+    REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT: (
+        "real_idea_answer_continuation_report"
+    ),
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "candidate_spec_graph_seed",
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: (
         "idea_to_spec_clarification_requests"
@@ -463,6 +483,28 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "detail": contract_error["detail"],
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
                 "field": contract_error.get("field"),
+            }
+        return None
+    if filename in {
+        SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
+        REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
+    }:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "real idea answer handoff authority flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        privacy_boundary = _record(value.get("privacy_boundary"))
+        if any(
+            key.startswith("raw_") and key.endswith("_published") and flag is True
+            for key, flag in privacy_boundary.items()
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "real idea answer handoff privacy flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
     if filename in {
@@ -1547,6 +1589,110 @@ def _real_idea_answer_authoring(
     }
 
 
+def _real_idea_answer_continuation(
+    *,
+    import_preview: dict[str, Any] | None,
+    continuation_report: dict[str, Any] | None,
+) -> dict[str, Any]:
+    preview_summary = _record((import_preview or {}).get("summary"))
+    continuation_summary = _record((continuation_report or {}).get("summary"))
+    preview_import = _record((import_preview or {}).get("import_preview"))
+    preview_sources = _record((import_preview or {}).get("source_artifacts"))
+    continuation_outputs = _record((continuation_report or {}).get("outputs"))
+    ready = (
+        import_preview is not None
+        and _readiness(import_preview)["ready"]
+        and continuation_report is not None
+        and _readiness(continuation_report)["ready"]
+    )
+    recommended_actions = []
+    if import_preview is None:
+        recommended_actions.append(
+            {
+                "id": "build_specspace_answer_import_preview",
+                "label": "Build answer import preview",
+                "next_action": (
+                    "Run `make specspace-real-idea-answer-import-preview` in SpecGraph."
+                ),
+            }
+        )
+    elif not _readiness(import_preview)["ready"]:
+        recommended_actions.append(
+            {
+                "id": "fix_specspace_answer_import_preview",
+                "label": "Fix answer import preview",
+                "next_action": "Resolve import preview findings before continuation.",
+            }
+        )
+    elif continuation_report is None:
+        recommended_actions.append(
+            {
+                "id": "materialize_specspace_answer_continuation",
+                "label": "Materialize answer continuation",
+                "next_action": (
+                    "Run `make real-idea-intake-materialize-specspace-answers` "
+                    "in SpecGraph."
+                ),
+            }
+        )
+    elif not _readiness(continuation_report)["ready"]:
+        recommended_actions.append(
+            {
+                "id": "fix_answer_continuation",
+                "label": "Fix answer continuation",
+                "next_action": "Resolve continuation findings before candidate generation.",
+            }
+        )
+    else:
+        recommended_actions.append(
+            {
+                "id": "continue_active_candidate",
+                "label": "Continue active candidate",
+                "next_action": (
+                    "Run `make real-idea-intake-continue-from-specspace-answers` "
+                    "or the Platform handoff."
+                ),
+            }
+        )
+    return {
+        "available": import_preview is not None or continuation_report is not None,
+        "ready": ready,
+        "import_preview": {
+            "available": import_preview is not None,
+            "readiness": _readiness(import_preview),
+            "summary": preview_summary,
+            "accepted_answer_count": _number(
+                preview_import.get("accepted_answer_count")
+            )
+            or _number(preview_summary.get("accepted_answer_count")),
+            "answer_count": _number(preview_import.get("answer_count"))
+            or _number(preview_summary.get("answer_count")),
+            "findings": _findings(import_preview),
+            "source_artifacts": preview_sources,
+        },
+        "continuation_report": {
+            "available": continuation_report is not None,
+            "readiness": _readiness(continuation_report),
+            "summary": continuation_summary,
+            "outputs": continuation_outputs,
+            "findings": _findings(continuation_report),
+        },
+        "recommended_actions": recommended_actions,
+        "action_boundary": {
+            "inspect_only": True,
+            "acknowledge_only": True,
+            "may_execute_specgraph": False,
+            "may_execute_platform": False,
+            "may_apply_answers": False,
+            "may_mutate_candidate_source_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+        },
+    }
+
+
 def _intake_clarification_lane(
     *,
     clarification_requests: dict[str, Any] | None,
@@ -1558,6 +1704,8 @@ def _intake_clarification_lane(
     answer_template: dict[str, Any] | None,
     answer_authoring_report: dict[str, Any] | None,
     real_idea_answer_set: dict[str, Any] | None,
+    specspace_answer_import_preview: dict[str, Any] | None,
+    answer_continuation_report: dict[str, Any] | None,
 ) -> dict[str, Any]:
     requests = _clarification_request_rows(clarification_requests)
     answer_rows = _intake_answer_rows(clarification_answers)
@@ -1628,6 +1776,10 @@ def _intake_clarification_lane(
             template=answer_template,
             report=answer_authoring_report,
             answer_set=real_idea_answer_set,
+        ),
+        "answer_continuation": _real_idea_answer_continuation(
+            import_preview=specspace_answer_import_preview,
+            continuation_report=answer_continuation_report,
         ),
         "action_boundary": {
             "inspect_only": True,
@@ -4198,6 +4350,12 @@ def build_idea_to_spec_workspace(
         artifacts, REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT
     )
     real_idea_answer_set = _artifact_data(artifacts, REAL_IDEA_ANSWER_SET_ARTIFACT)
+    specspace_real_idea_answer_import_preview = _artifact_data(
+        artifacts, SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT
+    )
+    real_idea_answer_continuation_report = _artifact_data(
+        artifacts, REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT
+    )
     candidate_seed = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT)
     candidate_graph = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_ARTIFACT)
     pre_sib = _artifact_data(artifacts, PRE_SIB_COHERENCE_REPORT_ARTIFACT)
@@ -4372,6 +4530,8 @@ def build_idea_to_spec_workspace(
         answer_template=real_idea_answer_template,
         answer_authoring_report=real_idea_answer_authoring_report,
         real_idea_answer_set=real_idea_answer_set,
+        specspace_answer_import_preview=specspace_real_idea_answer_import_preview,
+        answer_continuation_report=real_idea_answer_continuation_report,
     )
     repair_session = _repair_session(selected_repair_session_journal)
     if (
