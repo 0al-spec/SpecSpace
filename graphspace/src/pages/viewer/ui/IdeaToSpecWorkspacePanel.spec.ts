@@ -319,6 +319,24 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Inspect Pre-SIB coherence findings.");
   });
 
+  it("renders aggregate answer accounting", () => {
+    const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
+    if (parsed.kind !== "ok") {
+      throw new Error("Idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsed.data },
+      }),
+    );
+
+    expect(html).toContain("Per-gap materialized");
+    expect(html).toContain("Aggregate closure");
+    expect(html).toContain("Closure evidence");
+    expect(html).toContain("Ordinary unmaterialized");
+  });
+
   it("derives idea maturity finding next actions when absent", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.idea_maturity.report.findings = [

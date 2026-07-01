@@ -1593,13 +1593,25 @@ function IdeaMaturitySection({
           <Meta label="Blocking" value={String(metrics.blockingQuestionCount)} />
           <Meta label="Accepted answers" value={String(metrics.acceptedAnswerCount)} />
           <Meta
-            label="Materialized"
-            value={`${metrics.materializedAnswerCount} / ${metrics.answeredQuestionCount}`}
+            label="Per-gap materialized"
+            value={`${metrics.perGapMaterializedAnswerCount || metrics.materializedAnswerCount} / ${metrics.answeredQuestionCount}`}
           />
           <Meta
-            label="Unmaterialized"
-            value={String(metrics.unmaterializedAnswerCount)}
+            label="Aggregate closure"
+            value={String(metrics.aggregateAnswerCount)}
           />
+          <Meta
+            label="Closure evidence"
+            value={`${metrics.closureEvidenceAnswerCount || metrics.materializedAnswerCount} / ${metrics.acceptedAnswerCount}`}
+          />
+          <Meta
+            label="Ordinary unmaterialized"
+            value={String(
+              metrics.ordinaryUnmaterializedAnswerCount ||
+                metrics.unmaterializedAnswerCount,
+            )}
+          />
+          <Meta label="Consumed" value={String(metrics.consumedAnswerCount)} />
           <Meta label="Deferred" value={String(metrics.deferredAnswerCount)} />
           <Meta
             label="Materialization rate"
