@@ -15,6 +15,7 @@ import type {
   IdeaToSpecMaterializedFile,
   IdeaToSpecOntologyDecision,
   IdeaToSpecProductRepairRerunPlatformExecution,
+  IdeaToSpecRealIdeaAnswerTarget,
   IdeaToSpecRepairAction,
   IdeaToSpecRepairSessionBlocker,
   IdeaToSpecRepairSessionStage,
@@ -682,6 +683,16 @@ function IntakeClarificationSection({
 }) {
   const lane = state.data.intakeClarification;
   const draftCount = answers.state.kind === "ok" ? answers.state.data.summary.answerCount : 0;
+  const answerTargetsByRequestId = useMemo(
+    () =>
+      new Map(
+        lane.answerAuthoring.template.targets.map((target) => [
+          target.requestId,
+          target,
+        ]),
+      ),
+    [lane.answerAuthoring.template.targets],
+  );
   return (
     <section id="idea-to-spec-intake-clarification" className={styles.reviewSection}>
       <SectionHeader
@@ -707,7 +718,10 @@ function IntakeClarificationSection({
         />
         <PostureItem
           label="Targets"
-          value={String(lane.rerunInput.acceptedTargetCount)}
+          value={String(
+            lane.answerAuthoring.template.targetCount ||
+              lane.rerunInput.acceptedTargetCount,
+          )}
         />
         <PostureItem
           label="Session"
@@ -720,6 +734,7 @@ function IntakeClarificationSection({
           detail="SpecGraph has not published idea_intake_clarification_requests.json for this workspace."
         />
       ) : null}
+      <IntakeAnswerAuthoringStatus authoring={lane.answerAuthoring} />
       <IntakeClarificationAnswerStatus state={answers.state} />
       <div className={styles.row}>
         <div className={styles.rowHeader}>
@@ -741,6 +756,7 @@ function IntakeClarificationSection({
         <IntakeClarificationRequestRow
           key={request.id}
           request={request}
+          answerTarget={answerTargetsByRequestId.get(request.id)}
           draft={answers.answersByRequestId.get(request.id)}
           publishedAnswer={lane.clarificationAnswers.answers.find(
             (answer) => answer.requestId === request.id,
@@ -759,6 +775,48 @@ function IntakeClarificationSection({
         />
       ))}
     </section>
+  );
+}
+
+function IntakeAnswerAuthoringStatus({
+  authoring,
+}: {
+  authoring: IdeaToSpecWorkspace["intakeClarification"]["answerAuthoring"];
+}) {
+  if (!authoring.available) {
+    return (
+      <Status
+        label="Answer template missing"
+        detail="Run `make real-idea-smoke-answer-template` in SpecGraph to publish typed answer targets."
+      />
+    );
+  }
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>Real idea answer authoring</span>
+        <Pill value={authoring.validation.status} />
+      </div>
+      <div className={styles.metaGrid}>
+        <Meta label="Template" value={authoring.template.available ? "available" : "missing"} />
+        <Meta label="Template status" value={authoring.template.readiness.reviewState} />
+        <Meta label="Stage" value={authoring.template.stage} />
+        <Meta label="Targets" value={String(authoring.template.targetCount)} />
+        <Meta label="Saved answer set" value={String(authoring.answerSet.answerCount)} />
+        <Meta label="Validation ready" value={boolText(authoring.validation.ready)} />
+        <Meta label="Findings" value={String(authoring.validation.findingCount)} />
+      </div>
+      {authoring.recommendedActions.map((action) => (
+        <p key={action.id} className={styles.statusDetail}>
+          {action.label}: {action.nextAction}
+        </p>
+      ))}
+      {authoring.report.findings.slice(0, 3).map((finding) => (
+        <p key={finding.findingId} className={styles.statusDetail}>
+          {finding.severity}: {finding.message}
+        </p>
+      ))}
+    </div>
   );
 }
 
@@ -808,6 +866,7 @@ function IntakeClarificationAnswerStatus({
 
 function IntakeClarificationRequestRow({
   request,
+  answerTarget,
   draft,
   publishedAnswer,
   pending,
@@ -815,6 +874,7 @@ function IntakeClarificationRequestRow({
   onSave,
 }: {
   request: IdeaToSpecClarificationRequest;
+  answerTarget: IdeaToSpecRealIdeaAnswerTarget | undefined;
   draft: IdeaToSpecIntakeClarificationAnswer | undefined;
   publishedAnswer: IdeaToSpecIntakeAnswer | undefined;
   pending: boolean;
@@ -825,7 +885,11 @@ function IntakeClarificationRequestRow({
     value: Record<string, unknown>;
   }) => void;
 }) {
-  const defaultAction = request.suggestedActions[0] ?? "answer_question";
+  const availableActions =
+    answerTarget?.acceptedActions.length
+      ? answerTarget.acceptedActions
+      : request.suggestedActions;
+  const defaultAction = availableActions[0] ?? "answer_question";
   const [selectedAction, setSelectedAction] = useState(
     () => draft?.answerKind ?? defaultAction,
   );
@@ -836,8 +900,14 @@ function IntakeClarificationRequestRow({
     setSelectedAction(draft?.answerKind ?? defaultAction);
     setAnswerText(intakeAnswerText(draft, publishedAnswer) ?? "");
   }, [defaultAction, draft, publishedAnswer]);
-  const canSave = selectedAction.length > 0 && answerText.trim().length > 0 && !pending;
-  const value = intakeClarificationValueForRequest(request, selectedAction, answerText);
+  const requiredFields = answerTarget?.requiredFieldsByAction[selectedAction] ?? [];
+  const value = answerTarget
+    ? intakeClarificationValueForTemplate(answerTarget, selectedAction, answerText)
+    : intakeClarificationValueForRequest(request, selectedAction, answerText);
+  const canSave =
+    selectedAction.length > 0 &&
+    intakeClarificationTemplateValueIsComplete(requiredFields, value) &&
+    !pending;
   return (
     <div className={styles.row}>
       <div className={styles.rowHeader}>
@@ -847,9 +917,11 @@ function IntakeClarificationRequestRow({
       <h3 className={styles.title}>{compact(request.question, request.kind)}</h3>
       <div className={styles.metaGrid}>
         <Meta label="Severity" value={request.severity} />
+        <Meta label="Template target" value={answerTarget?.targetType} />
         <Meta label="Target" value={request.targetRef} />
         <Meta label="Target artifact" value={request.targetArtifact} />
-        <Meta label="Actions" value={joined(request.suggestedActions)} />
+        <Meta label="Actions" value={joined(availableActions)} />
+        <Meta label="Required fields" value={joined(requiredFields)} />
       </div>
       <form
         className={styles.draftForm}
@@ -870,7 +942,7 @@ function IntakeClarificationRequestRow({
             onChange={(event) => setSelectedAction(event.currentTarget.value)}
             aria-label="Intake clarification answer kind"
           >
-            {(request.suggestedActions.length ? request.suggestedActions : [defaultAction]).map((action) => (
+            {(availableActions.length ? availableActions : [defaultAction]).map((action) => (
               <option key={action} value={action}>
                 {action.replace(/_/g, " ")}
               </option>
@@ -888,6 +960,11 @@ function IntakeClarificationRequestRow({
           rows={3}
           aria-label="Intake clarification answer"
         />
+        {answerTarget ? (
+          <span className={styles.statusDetail}>
+            Template-backed answer · {answerTarget.suggestedAnswerShape ?? "typed value"} · emits {Object.keys(value).join(", ") || "value"}
+          </span>
+        ) : null}
         {draft ? (
           <span className={styles.statusDetail}>
             Answer saved · {draft.answerKind.replace(/_/g, " ")} · {draft.updatedAt}
@@ -2794,6 +2871,14 @@ function intakeAnswerText(
       return value.entries.filter((item): item is string => typeof item === "string").join("\n");
     }
     if (typeof value.text === "string") return value.text;
+    if (typeof value.answer === "string") return value.answer;
+    if (typeof value.context === "string") return value.context;
+    if (typeof value.reason === "string") return value.reason;
+    if (typeof value.follow_up === "string") return value.follow_up;
+    if (Array.isArray(value.terms)) {
+      return value.terms.filter((item): item is string => typeof item === "string").join("\n");
+    }
+    if (typeof value.term === "string") return value.term;
   }
   if (publishedAnswer) {
     if (publishedAnswer.refs.length > 0) return publishedAnswer.refs.join(", ");
@@ -2827,6 +2912,87 @@ function intakeClarificationValueForRequest(
     return { refs: splitIntakeAnswerList(value) };
   }
   return { text: value };
+}
+
+function intakeClarificationValueForTemplate(
+  target: IdeaToSpecRealIdeaAnswerTarget,
+  action: string,
+  text: string,
+): Record<string, unknown> {
+  const trimmed = text.trim();
+  const required = target.requiredFieldsByAction[action] ?? [];
+  if (required.some((field) => field === "value.refs[]" || field === "value.refs")) {
+    return { refs: splitIntakeAnswerList(trimmed) };
+  }
+  if (
+    required.some(
+      (field) =>
+        field === "value.entries[]" ||
+        field === "value.entries" ||
+        field === "value.terms[]",
+    )
+  ) {
+    const key = required.some((field) => field === "value.terms[]")
+      ? "terms"
+      : "entries";
+    return { [key]: splitIntakeAnswerList(trimmed) };
+  }
+  if (required.includes("value.reason")) return { reason: trimmed };
+  if (required.includes("value.follow_up")) return { follow_up: trimmed };
+  if (required.includes("value.context")) return { context: trimmed };
+  if (required.includes("value.term")) return { term: trimmed };
+  const template = target.valueTemplatesByAction[action];
+  if (template && typeof template === "object" && !Array.isArray(template)) {
+    const keys = Object.keys(template as Record<string, unknown>);
+    if (keys.includes("answer")) return { answer: trimmed };
+    if (keys.includes("context")) return { context: trimmed };
+    if (keys.includes("refs")) return { refs: splitIntakeAnswerList(trimmed) };
+    if (keys.includes("entries")) return { entries: splitIntakeAnswerList(trimmed) };
+  }
+  return intakeClarificationValueForRequest(
+    {
+      id: target.requestId,
+      kind: target.requestKind ?? target.targetType,
+      severity: target.severity,
+      status: target.status,
+      targetRef: target.targetRef,
+      targetArtifact: target.targetArtifact,
+      question: target.question,
+      suggestedActions: target.acceptedActions,
+    },
+    action,
+    text,
+  );
+}
+
+function intakeClarificationTemplateValueIsComplete(
+  requiredFields: readonly string[],
+  value: Record<string, unknown>,
+): boolean {
+  if (!requiredFields.length) {
+    return Object.values(value).some(templateFieldValueIsPresent);
+  }
+  return requiredFields.every((field) => {
+    if (field === "value") return Object.values(value).some(templateFieldValueIsPresent);
+    if (!field.startsWith("value.")) return true;
+    const key = field.replace(/^value\./, "").replace(/\[\]$/, "");
+    if (key === "context") {
+      return templateFieldValueIsPresent(value.context) || templateFieldValueIsPresent(value.text);
+    }
+    if (key === "answer") {
+      return templateFieldValueIsPresent(value.answer) || templateFieldValueIsPresent(value.text);
+    }
+    return templateFieldValueIsPresent(value[key]);
+  });
+}
+
+function templateFieldValueIsPresent(value: unknown): boolean {
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some(templateFieldValueIsPresent);
+  if (value && typeof value === "object") {
+    return Object.values(value).some(templateFieldValueIsPresent);
+  }
+  return value !== null && value !== undefined && value !== false;
 }
 
 function intakeClarificationPlaceholder(request: IdeaToSpecClarificationRequest): string {

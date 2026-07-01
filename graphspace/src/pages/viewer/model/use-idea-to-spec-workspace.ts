@@ -92,6 +92,85 @@ export type IdeaToSpecRepairTarget = {
   expectedEffect: string;
 };
 
+export type IdeaToSpecRealIdeaAnswerTarget = {
+  targetId: string;
+  targetType: string;
+  requestId: string;
+  requestKind: string | null;
+  severity: string;
+  status: string;
+  question: string | null;
+  targetArtifact: string | null;
+  targetRef: string | null;
+  acceptedActions: readonly string[];
+  suggestedAnswerShape: string | null;
+  valueTemplatesByAction: Record<string, unknown>;
+  requiredFieldsByAction: Record<string, readonly string[]>;
+  evidenceRefs: readonly string[];
+};
+
+export type IdeaToSpecRealIdeaAnswerAuthoring = {
+  available: boolean;
+  template: {
+    available: boolean;
+    readiness: {
+      ready: boolean;
+      reviewState: string | null;
+      blockedBy: readonly string[];
+      nextArtifact: string | null;
+    };
+    stage: string | null;
+    runDir: string | null;
+    contractRef: string | null;
+    summary: Record<string, unknown>;
+    targetCount: number;
+    blockingTargetCount: number;
+    targets: readonly IdeaToSpecRealIdeaAnswerTarget[];
+  };
+  report: {
+    available: boolean;
+    readiness: {
+      ready: boolean;
+      reviewState: string | null;
+      blockedBy: readonly string[];
+      nextArtifact: string | null;
+    };
+    operation: string | null;
+    stage: string | null;
+    summary: Record<string, unknown>;
+    findings: readonly IdeaToSpecFinding[];
+    findingCount: number;
+  };
+  answerSet: {
+    available: boolean;
+    artifactKind: string | null;
+    contractRef: string | null;
+    answerCount: number;
+  };
+  validation: {
+    status: string;
+    ready: boolean;
+    findingCount: number;
+  };
+  recommendedActions: readonly {
+    id: string;
+    label: string;
+    nextAction: string;
+  }[];
+  actionBoundary: {
+    inspectOnly: true;
+    acknowledgeOnly: true;
+    mayExecuteSpecgraph: false;
+    mayExecutePlatform: false;
+    mayApplyAnswers: false;
+    mayMutateCandidateSourceArtifacts: false;
+    mayMutateCanonicalSpecs: false;
+    mayWriteOntologyPackage: false;
+    mayAcceptOntologyTerms: false;
+    mayCreateBranchOrCommit: false;
+  };
+};
+
 export type IdeaToSpecOntologyDecision = {
   id: string;
   decisionType: string;
@@ -865,6 +944,7 @@ export type IdeaToSpecWorkspace = {
       summary: Record<string, unknown>;
       acceptedTargetCount: number;
     };
+    answerAuthoring: IdeaToSpecRealIdeaAnswerAuthoring;
     actionBoundary: {
       inspectOnly: true;
       acknowledgeOnly: true;
@@ -1413,6 +1493,103 @@ function parseRepairTarget(raw: unknown): IdeaToSpecRepairTarget | null {
   };
 }
 
+function parseRealIdeaAnswerTarget(
+  raw: unknown,
+): IdeaToSpecRealIdeaAnswerTarget | null {
+  const target = recordValue(raw);
+  const targetId = optionalString(target.target_id);
+  const requestId = optionalString(target.request_id);
+  if (!targetId || !requestId) return null;
+  const requiredFieldsRaw = recordValue(target.required_fields_by_action);
+  const requiredFieldsByAction: Record<string, readonly string[]> = {};
+  for (const [action, fields] of Object.entries(requiredFieldsRaw)) {
+    requiredFieldsByAction[action] = strings(fields);
+  }
+  return {
+    targetId,
+    targetType: stringValue(target.target_type, "clarification"),
+    requestId,
+    requestKind: optionalString(target.request_kind),
+    severity: stringValue(target.severity, "review_required"),
+    status: stringValue(target.status, "open"),
+    question: optionalString(target.question),
+    targetArtifact: optionalString(target.target_artifact),
+    targetRef: optionalString(target.target_ref),
+    acceptedActions: strings(target.accepted_actions),
+    suggestedAnswerShape: optionalString(target.suggested_answer_shape),
+    valueTemplatesByAction: recordValue(target.value_templates_by_action),
+    requiredFieldsByAction,
+    evidenceRefs: strings(target.evidence_refs),
+  };
+}
+
+function parseRealIdeaAnswerAuthoring(
+  raw: unknown,
+): IdeaToSpecRealIdeaAnswerAuthoring {
+  const lane = recordValue(raw);
+  const template = recordValue(lane.template);
+  const report = recordValue(lane.report);
+  const answerSet = recordValue(lane.answer_set);
+  const validation = recordValue(lane.validation);
+  return {
+    available: lane.available === true,
+    template: {
+      available: template.available === true,
+      readiness: parseReadiness(template.readiness),
+      stage: optionalString(template.stage),
+      runDir: optionalString(template.run_dir),
+      contractRef: optionalString(template.contract_ref),
+      summary: recordValue(template.summary),
+      targetCount: numberValue(template.target_count),
+      blockingTargetCount: numberValue(template.blocking_target_count),
+      targets: records(template.targets).flatMap((item) => {
+        const parsed = parseRealIdeaAnswerTarget(item);
+        return parsed ? [parsed] : [];
+      }),
+    },
+    report: {
+      available: report.available === true,
+      readiness: parseReadiness(report.readiness),
+      operation: optionalString(report.operation),
+      stage: optionalString(report.stage),
+      summary: recordValue(report.summary),
+      findings: records(report.findings).flatMap((item) => {
+        const parsed = parseFinding(item);
+        return parsed ? [parsed] : [];
+      }),
+      findingCount: numberValue(report.finding_count),
+    },
+    answerSet: {
+      available: answerSet.available === true,
+      artifactKind: optionalString(answerSet.artifact_kind),
+      contractRef: optionalString(answerSet.contract_ref),
+      answerCount: numberValue(answerSet.answer_count),
+    },
+    validation: {
+      status: stringValue(validation.status, "unknown"),
+      ready: validation.ready === true,
+      findingCount: numberValue(validation.finding_count),
+    },
+    recommendedActions: records(lane.recommended_actions).map((action) => ({
+      id: stringValue(action.id, "real-idea-answer-action"),
+      label: stringValue(action.label, "Next action"),
+      nextAction: stringValue(action.next_action, "Inspect answer authoring state."),
+    })),
+    actionBoundary: {
+      inspectOnly: true,
+      acknowledgeOnly: true,
+      mayExecuteSpecgraph: false,
+      mayExecutePlatform: false,
+      mayApplyAnswers: false,
+      mayMutateCandidateSourceArtifacts: false,
+      mayMutateCanonicalSpecs: false,
+      mayWriteOntologyPackage: false,
+      mayAcceptOntologyTerms: false,
+      mayCreateBranchOrCommit: false,
+    },
+  };
+}
+
 function parseAcceptedAnswer(raw: unknown): IdeaToSpecAcceptedAnswer | null {
   const answer = recordValue(raw);
   const requestId = optionalString(answer.request_id);
@@ -1634,6 +1811,7 @@ function parseIntakeClarification(
   const clarifiedSession = recordValue(lane.clarified_session);
   const clarifiedSource = recordValue(lane.clarified_source);
   const rerunReport = recordValue(lane.rerun_report);
+  const answerAuthoring = recordValue(lane.answer_authoring);
   return {
     available: lane.available === true,
     clarificationRequests: {
@@ -1687,6 +1865,7 @@ function parseIntakeClarification(
       summary: recordValue(rerunReport.summary),
       acceptedTargetCount: numberValue(rerunReport.accepted_target_count),
     },
+    answerAuthoring: parseRealIdeaAnswerAuthoring(answerAuthoring),
     actionBoundary: {
       inspectOnly: true,
       acknowledgeOnly: true,

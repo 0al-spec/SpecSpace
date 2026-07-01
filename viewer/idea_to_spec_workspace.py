@@ -24,6 +24,13 @@ CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT = "clarified_user_idea_intake_source.
 IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT = (
     "idea_intake_clarification_rerun_report.json"
 )
+REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT = (
+    "real_idea_smoke/real_idea_answer_template.json"
+)
+REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT = (
+    "real_idea_smoke/real_idea_answer_authoring_report.json"
+)
+REAL_IDEA_ANSWER_SET_ARTIFACT = "real_idea_smoke/real_idea_answer_set.json"
 CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT = "candidate_spec_graph_seed.json"
 CANDIDATE_SPEC_GRAPH_ARTIFACT = "candidate_spec_graph.json"
 PRE_SIB_COHERENCE_REPORT_ARTIFACT = "pre_sib_coherence_report.json"
@@ -124,6 +131,9 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     CLARIFIED_USER_IDEA_INTAKE_SESSION_ARTIFACT,
     CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT,
     IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT,
+    REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT,
+    REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT,
+    REAL_IDEA_ANSWER_SET_ARTIFACT,
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT,
     IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT,
@@ -162,6 +172,10 @@ IDEA_MATURITY_ARTIFACTS: tuple[str, ...] = (
     idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT,
     idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT,
 )
+REAL_IDEA_ANSWER_AUTHORING_ARTIFACTS: tuple[str, ...] = (
+    REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT,
+    REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT,
+)
 SPECSPACE_REPAIR_DRAFT_HANDOFF_ARTIFACTS: tuple[str, ...] = (
     SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT,
     SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT,
@@ -188,6 +202,9 @@ ARTIFACT_KEYS: dict[str, str] = {
     CLARIFIED_USER_IDEA_INTAKE_SESSION_ARTIFACT: "clarified_intake_session",
     CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT: "clarified_intake_source",
     IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT: "intake_clarification_rerun",
+    REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: "real_idea_answer_template",
+    REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT: "real_idea_answer_authoring_report",
+    REAL_IDEA_ANSWER_SET_ARTIFACT: "real_idea_answer_set",
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "ontology_seed",
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: "clarification_requests",
     IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT: "clarification_answers",
@@ -254,6 +271,9 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT: (
         "idea_intake_clarification_rerun_report"
     ),
+    REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: "real_idea_answer_template",
+    REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT: "real_idea_answer_authoring_report",
+    REAL_IDEA_ANSWER_SET_ARTIFACT: "idea_to_spec_clarification_answer_set",
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "candidate_spec_graph_seed",
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: (
         "idea_to_spec_clarification_requests"
@@ -419,6 +439,59 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             "detail": f"artifact_kind must be {expected_kind}.",
             "artifact_kind": _optional_text(value.get("artifact_kind")),
         }
+    if filename in REAL_IDEA_ANSWER_AUTHORING_ARTIFACTS:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "real idea answer authoring authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        privacy_boundary = _record(value.get("privacy_boundary"))
+        if any(
+            key.startswith("raw_") and key.endswith("_published") and flag is True
+            for key, flag in privacy_boundary.items()
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "real idea answer authoring privacy boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_mutations_allowed") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must not be true.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must not be true.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == REAL_IDEA_ANSWER_SET_ARTIFACT:
+        if value.get("canonical_mutations_allowed") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must not be true.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must not be true.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        for answer in _records(value.get("answers")):
+            answer_value = _record(answer.get("value"))
+            if any(key.startswith("raw_") for key in answer_value):
+                return {
+                    "reason": "invalid_artifact_contract",
+                    "detail": "real idea answer set must not publish raw answer fields.",
+                    "artifact_kind": _optional_text(value.get("artifact_kind")),
+                }
+        return None
     if filename in {
         ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
         REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
@@ -1314,6 +1387,185 @@ def _intake_answer_rows(
     return rows
 
 
+def _safe_answer_value_template(value: Any) -> Any:
+    if isinstance(value, str):
+        return value if value and not value.startswith("/") else ""
+    if isinstance(value, list):
+        return [
+            item
+            for item in (_safe_answer_value_template(item) for item in value)
+            if item not in (None, {}, [])
+        ]
+    if isinstance(value, dict):
+        safe: dict[str, Any] = {}
+        for key, item in value.items():
+            key_text = _optional_text(key)
+            if key_text is None:
+                continue
+            if key_text.startswith("raw_") or key_text in {
+                "operator_note",
+                "scratch_path",
+                "password",
+                "secret",
+                "token",
+            }:
+                continue
+            safe_item = _safe_answer_value_template(item)
+            if safe_item not in (None, {}, []):
+                safe[key_text] = safe_item
+        return safe
+    if isinstance(value, bool) or isinstance(value, int) or value is None:
+        return value
+    return None
+
+
+def _real_idea_answer_targets(template: dict[str, Any] | None) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records((template or {}).get("answer_targets"))[
+        : DISPLAY_LIMITS["clarification_requests"]
+    ]:
+        target_id = _text(item.get("target_id"))
+        request_id = _text(item.get("request_id"))
+        if not target_id or not request_id:
+            continue
+        required_fields_by_action = {
+            action: _string_list(fields)
+            for action, fields in _record(item.get("required_fields_by_action")).items()
+            if _optional_text(action)
+        }
+        value_templates_by_action = {
+            action: _safe_answer_value_template(template_value)
+            for action, template_value in _record(item.get("value_templates_by_action")).items()
+            if _optional_text(action)
+        }
+        rows.append(
+            {
+                "target_id": target_id,
+                "target_type": _text(item.get("target_type"), "clarification"),
+                "request_id": request_id,
+                "request_kind": _optional_text(item.get("request_kind")),
+                "severity": _text(item.get("severity"), "review_required"),
+                "status": _text(item.get("status"), "open"),
+                "question": _optional_text(item.get("question")),
+                "target_artifact": _optional_text(item.get("target_artifact")),
+                "target_ref": _optional_text(item.get("target_ref")),
+                "accepted_actions": _string_list(item.get("accepted_actions")),
+                "suggested_answer_shape": _optional_text(
+                    item.get("suggested_answer_shape")
+                ),
+                "value_templates_by_action": value_templates_by_action,
+                "required_fields_by_action": required_fields_by_action,
+                "evidence_refs": [
+                    ref
+                    for ref in _string_list(item.get("evidence_refs"))
+                    if not ref.startswith("/") and ".." not in ref.split("/")
+                ],
+            }
+        )
+    return rows
+
+
+def _real_idea_answer_authoring(
+    *,
+    template: dict[str, Any] | None,
+    report: dict[str, Any] | None,
+    answer_set: dict[str, Any] | None,
+) -> dict[str, Any]:
+    template_summary = _record((template or {}).get("summary"))
+    report_summary = _record((report or {}).get("summary"))
+    template_targets = _real_idea_answer_targets(template)
+    report_findings = _findings(report)
+    answer_count = len(_records((answer_set or {}).get("answers")))
+    validation_status = (
+        _optional_text(report_summary.get("status"))
+        or _optional_text(_record((report or {}).get("readiness")).get("review_state"))
+        or "unknown"
+    )
+    recommended_actions = []
+    if template is None:
+        recommended_actions.append(
+            {
+                "id": "generate_real_idea_answer_template",
+                "label": "Generate answer template",
+                "next_action": "Run `make real-idea-smoke-answer-template` in SpecGraph.",
+            }
+        )
+    elif answer_count == 0:
+        recommended_actions.append(
+            {
+                "id": "save_real_idea_answers",
+                "label": "Save operator answers",
+                "next_action": "Fill and save answers for the current clarification template.",
+            }
+        )
+    elif report is None or not _readiness(report)["ready"]:
+        recommended_actions.append(
+            {
+                "id": "validate_real_idea_answers",
+                "label": "Validate answers",
+                "next_action": "Run `make real-idea-smoke-validate-answers` before continuation.",
+            }
+        )
+    else:
+        recommended_actions.append(
+            {
+                "id": "continue_real_idea_intake",
+                "label": "Continue intake",
+                "next_action": "Run `make real-idea-smoke-materialize-answers` and continue the smoke.",
+            }
+        )
+    return {
+        "available": any(artifact is not None for artifact in (template, report, answer_set)),
+        "template": {
+            "available": template is not None,
+            "readiness": _readiness(template),
+            "stage": _optional_text((template or {}).get("stage")),
+            "run_dir": _optional_text((template or {}).get("run_dir")),
+            "contract_ref": _optional_text((template or {}).get("contract_ref")),
+            "summary": template_summary,
+            "target_count": len(template_targets)
+            or _number(template_summary.get("target_count")),
+            "blocking_target_count": _number(
+                template_summary.get("blocking_target_count")
+            ),
+            "targets": template_targets,
+        },
+        "report": {
+            "available": report is not None,
+            "readiness": _readiness(report),
+            "operation": _optional_text((report or {}).get("operation")),
+            "stage": _optional_text((report or {}).get("stage")),
+            "summary": report_summary,
+            "findings": report_findings,
+            "finding_count": _finding_count(report),
+        },
+        "answer_set": {
+            "available": answer_set is not None,
+            "artifact_kind": _optional_text((answer_set or {}).get("artifact_kind")),
+            "contract_ref": _optional_text((answer_set or {}).get("contract_ref")),
+            "answer_count": answer_count,
+        },
+        "validation": {
+            "status": validation_status,
+            "ready": _readiness(report)["ready"] if report is not None else False,
+            "finding_count": _finding_count(report),
+        },
+        "recommended_actions": recommended_actions,
+        "action_boundary": {
+            "inspect_only": True,
+            "acknowledge_only": True,
+            "may_execute_specgraph": False,
+            "may_execute_platform": False,
+            "may_apply_answers": False,
+            "may_mutate_candidate_source_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+        },
+    }
+
+
 def _intake_clarification_lane(
     *,
     clarification_requests: dict[str, Any] | None,
@@ -1322,6 +1574,9 @@ def _intake_clarification_lane(
     clarified_session: dict[str, Any] | None,
     clarified_source: dict[str, Any] | None,
     rerun_report: dict[str, Any] | None,
+    answer_template: dict[str, Any] | None,
+    answer_authoring_report: dict[str, Any] | None,
+    real_idea_answer_set: dict[str, Any] | None,
 ) -> dict[str, Any]:
     requests = _clarification_request_rows(clarification_requests)
     answer_rows = _intake_answer_rows(clarification_answers)
@@ -1388,6 +1643,11 @@ def _intake_clarification_lane(
             "summary": report_summary,
             "accepted_target_count": _number(report_summary.get("accepted_target_count")),
         },
+        "answer_authoring": _real_idea_answer_authoring(
+            template=answer_template,
+            report=answer_authoring_report,
+            answer_set=real_idea_answer_set,
+        ),
         "action_boundary": {
             "inspect_only": True,
             "acknowledge_only": True,
@@ -3950,6 +4210,13 @@ def build_idea_to_spec_workspace(
     intake_clarification_rerun = _artifact_data(
         artifacts, IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT
     )
+    real_idea_answer_template = _artifact_data(
+        artifacts, REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT
+    )
+    real_idea_answer_authoring_report = _artifact_data(
+        artifacts, REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT
+    )
+    real_idea_answer_set = _artifact_data(artifacts, REAL_IDEA_ANSWER_SET_ARTIFACT)
     candidate_seed = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT)
     candidate_graph = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_ARTIFACT)
     pre_sib = _artifact_data(artifacts, PRE_SIB_COHERENCE_REPORT_ARTIFACT)
@@ -4121,6 +4388,9 @@ def build_idea_to_spec_workspace(
         clarified_session=clarified_intake_session,
         clarified_source=clarified_intake_source,
         rerun_report=intake_clarification_rerun,
+        answer_template=real_idea_answer_template,
+        answer_authoring_report=real_idea_answer_authoring_report,
+        real_idea_answer_set=real_idea_answer_set,
     )
     repair_session = _repair_session(selected_repair_session_journal)
     if (

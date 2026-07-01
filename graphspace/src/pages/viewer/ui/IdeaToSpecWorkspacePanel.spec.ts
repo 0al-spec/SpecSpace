@@ -48,7 +48,12 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("runs/candidate_repair_loop_report.json");
     expect(html).toContain("Event-storming intake");
     expect(html).toContain("Intake clarification");
-    expect(html).toContain("No intake clarification loop");
+    expect(html).toContain("Real idea answer authoring");
+    expect(html).toContain("answer_template_ready");
+    expect(html).toContain("Template-backed answer");
+    expect(html).toContain("value.refs[]");
+    expect(html).toContain("active_frame_ref");
+    expect(html).toContain("Answer requires refs before materialization.");
     expect(html).toContain("SpecSpace-owned intake clarification answer state");
     expect(html).toContain("Ontology-bound seed");
     expect(html).toContain("ontology-gap.numeric-input");

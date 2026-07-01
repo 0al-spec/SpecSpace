@@ -5836,6 +5836,83 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(answer["value"]["refs"], ["domain.team_decision_log"])
         self.assertTrue(state_written)
 
+    def test_idea_to_spec_intake_answers_use_real_idea_template_required_fields(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_intake_clarification_workspace_runs(runs_dir)
+            (runs_dir / "real_idea_smoke").mkdir(parents=True, exist_ok=True)
+            _write_json(
+                runs_dir / "real_idea_smoke" / "real_idea_answer_template.json",
+                {
+                    "artifact_kind": "real_idea_answer_template",
+                    "schema_version": 1,
+                    "proposal_id": "0194",
+                    "contract_ref": "specgraph.real-idea.answer-template.v0.1",
+                    "stage": "intake",
+                    "answer_targets": [
+                        {
+                            "target_id": "answer-target.active-frame-domain-refs",
+                            "target_type": "active_frame_ref",
+                            "request_id": "clarification.intake.question-active-frame-domain-refs",
+                            "accepted_actions": ["answer_question", "defer"],
+                            "required_fields_by_action": {
+                                "answer_question": ["value.refs[]"],
+                                "defer": ["value.follow_up"],
+                            },
+                            "value_templates_by_action": {
+                                "answer_question": {"refs": [""]},
+                                "defer": {"follow_up": ""},
+                            },
+                        }
+                    ],
+                    "readiness": {
+                        "ready": True,
+                        "review_state": "answer_template_ready",
+                        "blocked_by": [],
+                    },
+                    "authority_boundary": {"may_execute_specgraph": False},
+                    "privacy_boundary": {"raw_idea_text_published": False},
+                    "summary": {"status": "answer_template_ready", "target_count": 1},
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                bad_status, bad_body = _post(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.intake.question-active-frame-domain-refs",
+                        "answer_kind": "answer_question",
+                        "value": {"text": "domain.team_decision_log"},
+                    },
+                )
+                ok_status, ok_body = _post(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.intake.question-active-frame-domain-refs",
+                        "answer_kind": "answer_question",
+                        "value": {"refs": ["domain.team_decision_log"]},
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(bad_status, 400)
+        self.assertEqual(bad_body["missing_fields"], ["value.refs[]"])
+        self.assertEqual(ok_status, 200)
+        answer = ok_body["answers"][0]
+        self.assertEqual(answer["template_ref"], "runs/real_idea_smoke/real_idea_answer_template.json")
+        self.assertEqual(answer["value"]["refs"], ["domain.team_decision_log"])
+
     def test_idea_to_spec_intake_clarification_answers_v1_uses_full_request_artifact(
         self,
     ) -> None:
