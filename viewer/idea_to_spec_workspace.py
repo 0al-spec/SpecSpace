@@ -489,6 +489,14 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
         SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
         REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
     }:
+        for field in ("canonical_mutations_allowed", "tracked_artifacts_written"):
+            if value.get(field) is True:
+                return {
+                    "reason": "invalid_artifact_contract",
+                    "detail": f"{field} must not be true for real idea answer handoff artifacts.",
+                    "artifact_kind": _optional_text(value.get("artifact_kind")),
+                    "field": field,
+                }
         authority_boundary = _record(value.get("authority_boundary"))
         if any(flag is True for flag in authority_boundary.values()):
             return {

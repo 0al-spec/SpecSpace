@@ -183,7 +183,7 @@ export type IdeaToSpecRealIdeaAnswerContinuation = {
       nextArtifact: string | null;
     };
     summary: Record<string, unknown>;
-    acceptedAnswerCount: number;
+    acceptedAnswerCount: number | null;
     answerCount: number;
     findings: readonly IdeaToSpecFinding[];
     sourceArtifacts: Record<string, unknown>;
@@ -1652,7 +1652,7 @@ function parseRealIdeaAnswerContinuation(
       available: importPreview.available === true,
       readiness: parseReadiness(importPreview.readiness),
       summary: recordValue(importPreview.summary),
-      acceptedAnswerCount: numberValue(importPreview.accepted_answer_count),
+      acceptedAnswerCount: optionalNumberValue(importPreview.accepted_answer_count),
       answerCount: numberValue(importPreview.answer_count),
       findings: records(importPreview.findings).flatMap((item) => {
         const parsed = parseFinding(item);
@@ -1670,14 +1670,20 @@ function parseRealIdeaAnswerContinuation(
         return parsed ? [parsed] : [];
       }),
     },
-    recommendedActions: records(lane.recommended_actions).map((action) => ({
-      id: stringValue(action.id, "real-idea-answer-continuation-action"),
-      label: stringValue(action.label, "Next action"),
-      nextAction: stringValue(
-        action.next_action,
-        "Inspect answer continuation state.",
-      ),
-    })),
+    recommendedActions: records(lane.recommended_actions).flatMap((action) => {
+      const id = optionalString(action.id);
+      if (!id) return [];
+      return [
+        {
+          id,
+          label: stringValue(action.label, "Next action"),
+          nextAction: stringValue(
+            action.next_action,
+            "Inspect answer continuation state.",
+          ),
+        },
+      ];
+    }),
     actionBoundary: {
       inspectOnly: true,
       acknowledgeOnly: true,

@@ -2749,7 +2749,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self,
     ) -> None:
         import_preview = _specspace_real_idea_answer_import_preview()
-        import_preview["authority_boundary"]["may_execute_specgraph"] = True
+        import_preview["canonical_mutations_allowed"] = True
         artifacts = {
             **_workspace_artifacts(),
             idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT: (
@@ -2765,6 +2765,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["artifacts"]["specspace_real_idea_answer_import_preview"]["reason"],
             "invalid_artifact_contract",
+        )
+        self.assertEqual(
+            body["artifacts"]["specspace_real_idea_answer_import_preview"]["field"],
+            "canonical_mutations_allowed",
         )
         continuation = body["intake_clarification"]["answer_continuation"]
         self.assertFalse(continuation["import_preview"]["available"])
@@ -4909,6 +4913,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 / idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT,
                 _idea_maturity_validation_report(),
             )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
+                _specspace_real_idea_answer_import_preview(),
+            )
             provider = specspace_provider.FileSpecGraphProvider(
                 spec_nodes_dir=None,
                 runs_dir=runs_dir,
@@ -4918,6 +4927,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             status, body = provider.read_artifact_catalog()
             content_status, content_body = provider.read_artifact_content(
                 "runs/idea_maturity_metrics_report.json"
+            )
+            handoff_content_status, handoff_content_body = provider.read_artifact_content(
+                "runs/"
+                + idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT
             )
 
         self.assertEqual(status, HTTPStatus.OK)
@@ -4930,8 +4943,15 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertNotIn("runs/candidate_spec_graph_seed.json", paths)
         self.assertNotIn("runs/idea_maturity_metrics_report.json", paths)
         self.assertNotIn("runs/idea_maturity_metrics_validation_report.json", paths)
+        self.assertNotIn(
+            "runs/"
+            + idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
+            paths,
+        )
         self.assertEqual(content_status, HTTPStatus.NOT_FOUND)
         self.assertEqual(content_body["reason"], "missing_artifact")
+        self.assertEqual(handoff_content_status, HTTPStatus.NOT_FOUND)
+        self.assertEqual(handoff_content_body["reason"], "missing_artifact")
 
     def test_http_provider_reads_workspace_runs_from_manifest(self) -> None:
         workspace_artifacts = _workspace_artifacts()

@@ -865,7 +865,11 @@ function IntakeAnswerContinuationStatus({
         <Meta label="Ready" value={boolText(continuation.ready)} />
         <Meta
           label="Accepted answers"
-          value={String(continuation.importPreview.acceptedAnswerCount)}
+          value={
+            continuation.importPreview.acceptedAnswerCount === null
+              ? "unknown"
+              : String(continuation.importPreview.acceptedAnswerCount)
+          }
         />
         <Meta
           label="Exec authority"

@@ -455,4 +455,28 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Risk decision");
     expect(html).toContain("Mitigation");
   });
+
+  it("renders unknown accepted answer count for unavailable continuation preview", () => {
+    const data = {
+      ...parsed.data,
+      intakeClarification: {
+        ...parsed.data.intakeClarification,
+        answerContinuation: {
+          ...parsed.data.intakeClarification.answerContinuation,
+          importPreview: {
+            ...parsed.data.intakeClarification.answerContinuation.importPreview,
+            acceptedAnswerCount: null,
+          },
+        },
+      },
+    };
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data },
+      }),
+    );
+
+    expect(html).toContain("Accepted answers");
+    expect(html).toContain("unknown");
+  });
 });
