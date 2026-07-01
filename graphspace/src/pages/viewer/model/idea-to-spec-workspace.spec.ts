@@ -442,6 +442,32 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.reason).toBe("guided flow boundary expanded");
   });
 
+  it("keeps real idea continuation unknown counts and drops malformed actions", () => {
+    const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    delete payload.intake_clarification.answer_continuation.import_preview
+      .accepted_answer_count;
+    payload.intake_clarification.answer_continuation.recommended_actions = [
+      {
+        label: "Malformed action",
+        next_action: "This action has no stable id.",
+      },
+      {
+        id: "valid-action",
+        label: "Valid action",
+        next_action: "Use the stable action.",
+      },
+    ];
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    const continuation = parsed.data.intakeClarification.answerContinuation;
+    expect(continuation.importPreview.acceptedAnswerCount).toBeNull();
+    expect(continuation.recommendedActions).toHaveLength(1);
+    expect(continuation.recommendedActions[0].id).toBe("valid-action");
+  });
+
   it("rejects workspace state hygiene without explicit boundary false flags", () => {
     const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     delete payload.workspace_state_hygiene.authority_boundary.may_execute_platform;

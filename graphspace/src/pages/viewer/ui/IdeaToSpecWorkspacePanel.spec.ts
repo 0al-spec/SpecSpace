@@ -49,7 +49,10 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Event-storming intake");
     expect(html).toContain("Intake clarification");
     expect(html).toContain("Real idea answer authoring");
+    expect(html).toContain("Real idea answer continuation");
     expect(html).toContain("answer_template_ready");
+    expect(html).toContain("real_idea_answer_continuation_ready");
+    expect(html).toContain("runs/idea_intake_clarification_answers.json");
     expect(html).toContain("Template-backed answer");
     expect(html).toContain("value.refs[]");
     expect(html).toContain("active_frame_ref");
@@ -451,5 +454,29 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Scope");
     expect(html).toContain("Risk decision");
     expect(html).toContain("Mitigation");
+  });
+
+  it("renders unknown accepted answer count for unavailable continuation preview", () => {
+    const data = {
+      ...parsed.data,
+      intakeClarification: {
+        ...parsed.data.intakeClarification,
+        answerContinuation: {
+          ...parsed.data.intakeClarification.answerContinuation,
+          importPreview: {
+            ...parsed.data.intakeClarification.answerContinuation.importPreview,
+            acceptedAnswerCount: null,
+          },
+        },
+      },
+    };
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data },
+      }),
+    );
+
+    expect(html).toContain("Accepted answers");
+    expect(html).toContain("unknown");
   });
 });
