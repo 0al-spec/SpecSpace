@@ -11,6 +11,9 @@ from pathlib import Path
 from typing import Any
 
 from viewer import specspace_provider
+from viewer.real_idea_answer_authoring_contract import (
+    real_idea_answer_authoring_contract_error,
+)
 
 INTAKE_ANSWER_ARTIFACT_KIND = "specspace_idea_intake_clarification_answer_state"
 INTAKE_ANSWER_SCHEMA_VERSION = 1
@@ -18,6 +21,7 @@ INTAKE_ANSWER_FILENAME = "idea_to_spec_intake_clarification_answers.json"
 ANSWER_SET_CONTRACT_REF = "specgraph.idea-to-spec.clarification-answer-set.v0.1"
 REQUESTS_ARTIFACT_KEY = "intake_clarification_requests"
 REQUESTS_PATH = "runs/idea_intake_clarification_requests.json"
+ANSWER_TEMPLATE_PATH = "runs/real_idea_smoke/real_idea_answer_template.json"
 ANSWER_AUTHORITIES = {
     "operator_approved",
     "owner_approved",
@@ -252,19 +256,45 @@ def save_intake_answer(
             "error": f"Intake clarification request '{request_id}' not found.",
             "request_id": request_id,
         }
-    allowed_actions = _string_list(request.get("suggested_actions"))
+    template_payload, template_error = _published_answer_template_payload(
+        server,
+        workspace_id=workspace_id,
+    )
+    if template_error is not None:
+        return HTTPStatus.CONFLICT, template_error
+    template_target = _template_target_for_request(template_payload, request_id)
+    request_actions = _string_list(request.get("suggested_actions"))
+    template_actions = _string_list(_record(template_target).get("accepted_actions"))
+    allowed_actions = (
+        [action for action in template_actions if not request_actions or action in request_actions]
+        if template_actions
+        else request_actions
+    )
     if answer_kind not in allowed_actions:
         return HTTPStatus.BAD_REQUEST, {
             "error": f"Answer kind '{answer_kind}' is not allowed for request '{request_id}'.",
             "request_id": request_id,
             "allowed_actions": allowed_actions,
         }
+    raw_answer_value = _record(payload.get("value", payload.get("answer_value")))
     answer_value, value_error = _normalize_answer_value(
         answer_kind,
         payload.get("value", payload.get("answer_value")),
     )
     if value_error is not None:
         return HTTPStatus.BAD_REQUEST, value_error
+    missing_required = _missing_template_required_fields(
+        template_target,
+        answer_kind,
+        raw_answer_value,
+    )
+    if missing_required:
+        return HTTPStatus.BAD_REQUEST, {
+            "error": "Intake clarification answer is missing required template fields.",
+            "request_id": request_id,
+            "answer_kind": answer_kind,
+            "missing_fields": missing_required,
+        }
     status = _text(payload.get("status")) or (
         "deferred" if answer_kind in NON_RESOLVING_ANSWER_KINDS else "accepted_for_candidate"
     )
@@ -297,6 +327,7 @@ def save_intake_answer(
     artifacts = _record(workspace_payload.get("artifacts"))
     requests_artifact = _record(artifacts.get(REQUESTS_ARTIFACT_KEY))
     source_ref = _text(requests_artifact.get("path")) or REQUESTS_PATH
+    template_ref = ANSWER_TEMPLATE_PATH if template_target else None
     now = now_iso()
 
     with _STATE_LOCK:
@@ -331,6 +362,7 @@ def save_intake_answer(
             "created_at": created_at or now,
             "updated_at": now,
             "source_artifact": source_ref,
+            "template_ref": template_ref,
             "canonical_mutations_allowed": False,
             "tracked_artifacts_written": False,
             "applies_to_specgraph": False,
@@ -350,6 +382,7 @@ def save_intake_answer(
         state["source_artifacts"] = {
             **_record(state.get("source_artifacts")),
             "intake_clarification_requests": source_ref,
+            **({"real_idea_answer_template": template_ref} if template_ref else {}),
         }
         _refresh_summary(state)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -391,6 +424,89 @@ def _published_requests_payload(
             "artifact_kind": data.get("artifact_kind"),
         }
     return data, None
+
+
+def _published_answer_template_payload(
+    server: Any,
+    *,
+    workspace_id: str | None,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    status, content = specspace_provider.provider_from_server(
+        server,
+        workspace_id,
+    ).read_artifact_content(ANSWER_TEMPLATE_PATH)
+    if status == HTTPStatus.NOT_FOUND:
+        return {}, None
+    if status != HTTPStatus.OK:
+        return {}, {
+            "error": "Real idea answer template is not readable.",
+            "reason": "real_idea_answer_template_unavailable",
+            "status": int(status),
+        }
+    data = _record(content.get("data"))
+    if data.get("artifact_kind") != "real_idea_answer_template":
+        return {}, {
+            "error": "Real idea answer template has invalid artifact_kind.",
+            "reason": "real_idea_answer_template_invalid_contract",
+            "artifact_kind": data.get("artifact_kind"),
+        }
+    contract_error = real_idea_answer_authoring_contract_error(data)
+    if contract_error is not None:
+        return {}, {
+            "error": contract_error["detail"],
+            "reason": contract_error["reason"],
+            "field": contract_error.get("field"),
+        }
+    return data, None
+
+
+def _template_target_for_request(
+    template: dict[str, Any],
+    request_id: str,
+) -> dict[str, Any]:
+    if not template:
+        return {}
+    for target in _records(template.get("answer_targets")):
+        if target.get("request_id") == request_id:
+            return target
+    return {}
+
+
+def _missing_template_required_fields(
+    target: dict[str, Any],
+    answer_kind: str,
+    value: dict[str, Any],
+) -> list[str]:
+    required_fields = _string_list(
+        _record(_record(target).get("required_fields_by_action")).get(answer_kind)
+    )
+    return [field for field in required_fields if not _template_field_present(value, field)]
+
+
+def _template_field_present(value: dict[str, Any], field: str) -> bool:
+    if field == "value":
+        return _substantive(value)
+    if not field.startswith("value."):
+        return True
+    path = field.removeprefix("value.")
+    if path.endswith("[]"):
+        item = value.get(path[:-2])
+        return bool(_string_list(item))
+    if path == "context":
+        return _substantive(value.get("context") or value.get("text"))
+    if path == "answer":
+        return _substantive(value.get("answer") or value.get("text"))
+    return _substantive(value.get(path))
+
+
+def _substantive(value: Any) -> bool:
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, list):
+        return any(_substantive(item) for item in value)
+    if isinstance(value, dict):
+        return any(_substantive(item) for item in value.values())
+    return value not in (None, False)
 
 
 def _filtered_state(state: dict[str, Any], workspace_id: str | None) -> dict[str, Any]:
@@ -504,21 +620,30 @@ def _normalize_answer_value(answer_kind: str, raw: Any) -> tuple[dict[str, Any],
     if answer_kind in {"answer_question", "provide_candidate_context"}:
         refs = _string_list(value.get("refs"))
         entries = _string_list(value.get("entries"))
+        terms = _string_list(value.get("terms"))
+        term = _text(value.get("term"))
         text = _text(value.get("text") or value.get("answer") or value.get("context"))
         result: dict[str, Any] = {}
         if refs:
             result["refs"] = refs
         if entries:
             result["entries"] = entries
+        if terms:
+            result["terms"] = terms
+        if term is not None:
+            result["term"] = term
         if text is not None:
             result["text"] = text
         if not result:
             return {}, {
-                "error": f"{answer_kind} requires value.text, value.refs, or value.entries"
+                "error": (
+                    f"{answer_kind} requires value.text, value.refs, "
+                    "value.entries, value.terms, or value.term"
+                )
             }
         return result, None
     if answer_kind in {"reject", "defer", "defer_candidate"}:
-        reason = _text(value.get("reason") or value.get("text"))
+        reason = _text(value.get("reason") or value.get("follow_up") or value.get("text"))
         if reason is None:
             return {}, {"error": f"{answer_kind} requires value.reason"}
         return {"reason": reason}, None

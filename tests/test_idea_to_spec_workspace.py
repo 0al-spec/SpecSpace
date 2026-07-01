@@ -428,6 +428,137 @@ def _intake_clarification_answers() -> dict:
     }
 
 
+def _real_idea_answer_template() -> dict:
+    return {
+        "artifact_kind": "real_idea_answer_template",
+        "schema_version": 1,
+        "proposal_id": "0194",
+        "contract_ref": "specgraph.real-idea.answer-template.v0.1",
+        "stage": "intake",
+        "run_dir": "runs/real_idea_smoke",
+        "source_artifacts": {
+            "clarification_requests": {
+                "artifact_kind": "idea_to_spec_clarification_requests",
+                "contract_ref": "specgraph.idea-to-spec.clarification-requests.v0.1",
+                "source_ref": "runs/idea_intake_clarification_requests.json",
+                "request_count": 1,
+            }
+        },
+        "answer_targets": [
+            {
+                "target_id": "answer-target.active-frame-domain-refs",
+                "target_type": "active_frame_ref",
+                "request_id": "clarification.intake.question-active-frame-domain-refs",
+                "request_kind": "intake_context_gap",
+                "severity": "blocking",
+                "status": "open",
+                "question": "Which product domain refs bound this idea?",
+                "target_artifact": "user_idea_intake_session",
+                "target_ref": "active_frame.domain_refs",
+                "accepted_actions": ["answer_question", "defer"],
+                "suggested_answer_shape": "refs[]",
+                "value_templates_by_action": {
+                    "answer_question": {"refs": [""]},
+                    "defer": {"follow_up": ""},
+                },
+                "required_fields_by_action": {
+                    "answer_question": ["value.refs[]"],
+                    "defer": ["value.follow_up"],
+                },
+                "evidence_refs": [],
+            }
+        ],
+        "readiness": {
+            "ready": True,
+            "review_state": "answer_template_ready",
+            "blocked_by": [],
+            "next_artifact": "real_idea_answer_set.json",
+        },
+        "authority_boundary": {
+            "may_execute_specgraph": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+        },
+        "privacy_boundary": {
+            "raw_idea_text_published": False,
+            "raw_prompt_published": False,
+            "raw_model_output_published": False,
+            "raw_operator_note_published": False,
+        },
+        "findings": [],
+        "summary": {
+            "status": "answer_template_ready",
+            "stage": "intake",
+            "target_count": 1,
+            "blocking_target_count": 1,
+            "finding_count": 0,
+        },
+    }
+
+
+def _real_idea_answer_authoring_report() -> dict:
+    return {
+        "artifact_kind": "real_idea_answer_authoring_report",
+        "schema_version": 1,
+        "proposal_id": "0194",
+        "contract_ref": "specgraph.real-idea.answer-authoring-report.v0.1",
+        "operation": "validate",
+        "stage": "intake",
+        "source_artifacts": {},
+        "validated_answers": {
+            "artifact_kind": "idea_to_spec_clarification_answers",
+            "ready": True,
+            "review_state": "answers_ready_for_rerun",
+            "accepted_answer_count": 1,
+            "unresolved_blocking_count": 0,
+        },
+        "readiness": {
+            "ready": True,
+            "review_state": "answers_ready_for_materialization",
+            "blocked_by": [],
+            "next_artifact": "idea_intake_clarification_answers.json",
+        },
+        "authority_boundary": {
+            "may_execute_specgraph": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+        },
+        "privacy_boundary": {
+            "raw_idea_text_published": False,
+            "raw_prompt_published": False,
+            "raw_model_output_published": False,
+            "raw_operator_note_published": False,
+        },
+        "findings": [],
+        "summary": {
+            "status": "answers_ready_for_materialization",
+            "stage": "intake",
+            "answer_count": 1,
+            "accepted_answer_count": 1,
+            "finding_count": 0,
+        },
+    }
+
+
+def _real_idea_answer_set() -> dict:
+    return {
+        "artifact_kind": "idea_to_spec_clarification_answer_set",
+        "schema_version": 1,
+        "contract_ref": "specgraph.idea-to-spec.clarification-answer-set.v0.1",
+        "answers": [
+            {
+                "request_id": "clarification.intake.question-active-frame-domain-refs",
+                "answer_kind": "answer_question",
+                "status": "accepted_for_candidate",
+                "authority": "operator_approved",
+                "value": {"refs": ["domain.team_decision_log"]},
+            }
+        ],
+    }
+
+
 def _intake_answer_rerun_input() -> dict:
     return {
         "artifact_kind": "idea_intake_answer_rerun_input",
@@ -2053,6 +2184,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(body["summary"]["git_service_operation_count"], 3)
         self.assertEqual(body["summary"]["git_service_error_count"], 0)
         self.assertTrue(body["summary"]["approval_ready"])
+
         self.assertFalse(body["summary"]["repair_session_ready_for_candidate_approval"])
         self.assertFalse(body["summary"]["repair_session_ready_for_platform_promotion"])
         self.assertFalse(body["summary"]["review_merged"])
@@ -2410,6 +2542,65 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(lane["rerun_input"]["accepted_target_count"], 1)
         self.assertEqual(lane["rerun_report"]["accepted_target_count"], 1)
         self.assertFalse(lane["action_boundary"]["may_execute_specgraph"])
+
+    def test_build_workspace_projects_real_idea_answer_authoring(self) -> None:
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: _real_idea_answer_template(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT: _real_idea_answer_authoring_report(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_ARTIFACT: _real_idea_answer_set(),
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        authoring = body["intake_clarification"]["answer_authoring"]
+        self.assertTrue(authoring["available"])
+        self.assertEqual(authoring["template"]["target_count"], 1)
+        self.assertEqual(
+            authoring["template"]["targets"][0]["target_type"],
+            "active_frame_ref",
+        )
+        self.assertEqual(
+            authoring["template"]["targets"][0]["required_fields_by_action"][
+                "answer_question"
+            ],
+            ["value.refs[]"],
+        )
+        self.assertEqual(authoring["answer_set"]["answer_count"], 1)
+        self.assertTrue(authoring["validation"]["ready"])
+        self.assertFalse(authoring["action_boundary"]["may_execute_specgraph"])
+        self.assertFalse(authoring["action_boundary"]["may_apply_answers"])
+
+    def test_build_workspace_rejects_nested_raw_real_idea_answer_set(self) -> None:
+        answer_set = _real_idea_answer_set()
+        answer_set["answers"][0]["value"] = {
+            "context": {"raw_operator_note": "private note"},
+        }
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: _real_idea_answer_template(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_ARTIFACT: answer_set,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["artifacts"]["real_idea_answer_set"]["reason"],
+            "invalid_artifact_contract",
+        )
+        self.assertFalse(
+            body["intake_clarification"]["answer_authoring"]["answer_set"][
+                "available"
+            ]
+        )
 
     def test_idea_maturity_allows_missing_validation_as_untrusted_surface(self) -> None:
         artifacts = _workspace_artifacts()
