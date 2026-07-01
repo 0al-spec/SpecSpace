@@ -189,6 +189,56 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).not.toContain("Create branch");
   });
 
+  it("renders template-backed intake answers for all required fields", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    const target =
+      raw.intake_clarification.answer_authoring.template.targets[0];
+    target.required_fields_by_action.answer_question = [
+      "value.refs[]",
+      "value.context",
+    ];
+    target.value_templates_by_action.answer_question = {
+      refs: [""],
+      context: "",
+    };
+    const parsedWithMultiFieldTemplate = parseIdeaToSpecWorkspace(raw);
+    if (parsedWithMultiFieldTemplate.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWithMultiFieldTemplate.data },
+      }),
+    );
+
+    expect(html).toContain("value.refs[], value.context");
+    expect(html).toContain("emits refs, context");
+  });
+
+  it("renders template-backed term list answers with compatible payload keys", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    const target =
+      raw.intake_clarification.answer_authoring.template.targets[0];
+    target.required_fields_by_action.answer_question = ["value.terms[]"];
+    target.value_templates_by_action.answer_question = {
+      terms: [""],
+    };
+    const parsedWithTermTemplate = parseIdeaToSpecWorkspace(raw);
+    if (parsedWithTermTemplate.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWithTermTemplate.data },
+      }),
+    );
+
+    expect(html).toContain("value.terms[]");
+    expect(html).toContain("emits terms");
+  });
+
   it("renders failed dry-run approval execution as blocked", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.controlled_promotion.candidate_approval_execution.ok = false;

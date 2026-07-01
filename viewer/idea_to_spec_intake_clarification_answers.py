@@ -11,6 +11,9 @@ from pathlib import Path
 from typing import Any
 
 from viewer import specspace_provider
+from viewer.real_idea_answer_authoring_contract import (
+    real_idea_answer_authoring_contract_error,
+)
 
 INTAKE_ANSWER_ARTIFACT_KIND = "specspace_idea_intake_clarification_answer_state"
 INTAKE_ANSWER_SCHEMA_VERSION = 1
@@ -260,14 +263,20 @@ def save_intake_answer(
     if template_error is not None:
         return HTTPStatus.CONFLICT, template_error
     template_target = _template_target_for_request(template_payload, request_id)
+    request_actions = _string_list(request.get("suggested_actions"))
     template_actions = _string_list(_record(template_target).get("accepted_actions"))
-    allowed_actions = template_actions or _string_list(request.get("suggested_actions"))
+    allowed_actions = (
+        [action for action in template_actions if not request_actions or action in request_actions]
+        if template_actions
+        else request_actions
+    )
     if answer_kind not in allowed_actions:
         return HTTPStatus.BAD_REQUEST, {
             "error": f"Answer kind '{answer_kind}' is not allowed for request '{request_id}'.",
             "request_id": request_id,
             "allowed_actions": allowed_actions,
         }
+    raw_answer_value = _record(payload.get("value", payload.get("answer_value")))
     answer_value, value_error = _normalize_answer_value(
         answer_kind,
         payload.get("value", payload.get("answer_value")),
@@ -277,7 +286,7 @@ def save_intake_answer(
     missing_required = _missing_template_required_fields(
         template_target,
         answer_kind,
-        answer_value,
+        raw_answer_value,
     )
     if missing_required:
         return HTTPStatus.BAD_REQUEST, {
@@ -426,8 +435,14 @@ def _published_answer_template_payload(
         server,
         workspace_id,
     ).read_artifact_content(ANSWER_TEMPLATE_PATH)
-    if status != HTTPStatus.OK:
+    if status == HTTPStatus.NOT_FOUND:
         return {}, None
+    if status != HTTPStatus.OK:
+        return {}, {
+            "error": "Real idea answer template is not readable.",
+            "reason": "real_idea_answer_template_unavailable",
+            "status": int(status),
+        }
     data = _record(content.get("data"))
     if data.get("artifact_kind") != "real_idea_answer_template":
         return {}, {
@@ -435,21 +450,13 @@ def _published_answer_template_payload(
             "reason": "real_idea_answer_template_invalid_contract",
             "artifact_kind": data.get("artifact_kind"),
         }
-    mutation_field = _first_true(data.get("authority_boundary"), VALUE_FALSE_FIELDS)
-    if mutation_field is not None:
+    contract_error = real_idea_answer_authoring_contract_error(data)
+    if contract_error is not None:
         return {}, {
-            "error": f"Real idea answer template cannot claim {mutation_field}",
-            "reason": "real_idea_answer_template_authority_expanded",
-            "field": mutation_field,
+            "error": contract_error["detail"],
+            "reason": contract_error["reason"],
+            "field": contract_error.get("field"),
         }
-    privacy_boundary = _record(data.get("privacy_boundary"))
-    for key, value in privacy_boundary.items():
-        if isinstance(key, str) and key.startswith("raw_") and value is True:
-            return {}, {
-                "error": f"Real idea answer template cannot publish {key}",
-                "reason": "real_idea_answer_template_privacy_expanded",
-                "field": key,
-            }
     return data, None
 
 
@@ -613,17 +620,26 @@ def _normalize_answer_value(answer_kind: str, raw: Any) -> tuple[dict[str, Any],
     if answer_kind in {"answer_question", "provide_candidate_context"}:
         refs = _string_list(value.get("refs"))
         entries = _string_list(value.get("entries"))
+        terms = _string_list(value.get("terms"))
+        term = _text(value.get("term"))
         text = _text(value.get("text") or value.get("answer") or value.get("context"))
         result: dict[str, Any] = {}
         if refs:
             result["refs"] = refs
         if entries:
             result["entries"] = entries
+        if terms:
+            result["terms"] = terms
+        if term is not None:
+            result["term"] = term
         if text is not None:
             result["text"] = text
         if not result:
             return {}, {
-                "error": f"{answer_kind} requires value.text, value.refs, or value.entries"
+                "error": (
+                    f"{answer_kind} requires value.text, value.refs, "
+                    "value.entries, value.terms, or value.term"
+                )
             }
         return result, None
     if answer_kind in {"reject", "defer", "defer_candidate"}:

@@ -6,6 +6,10 @@ from datetime import datetime, timezone
 from typing import Any
 
 from viewer import idea_maturity
+from viewer.real_idea_answer_authoring_contract import (
+    real_idea_answer_authoring_contract_error,
+    real_idea_answer_set_contract_error,
+)
 
 IDEA_TO_SPEC_WORKSPACE_ARTIFACT_KIND = "specspace_idea_to_spec_workspace"
 ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT = "active_idea_to_spec_candidate.json"
@@ -273,6 +277,8 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ),
     REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: "real_idea_answer_template",
     REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT: "real_idea_answer_authoring_report",
+    # Intentionally reuses the generic clarification answer-set contract; the
+    # artifact path and workspace key identify the real-idea authoring source.
     REAL_IDEA_ANSWER_SET_ARTIFACT: "idea_to_spec_clarification_answer_set",
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "candidate_spec_graph_seed",
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: (
@@ -440,57 +446,24 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             "artifact_kind": _optional_text(value.get("artifact_kind")),
         }
     if filename in REAL_IDEA_ANSWER_AUTHORING_ARTIFACTS:
-        authority_boundary = _record(value.get("authority_boundary"))
-        if any(flag is True for flag in authority_boundary.values()):
+        contract_error = real_idea_answer_authoring_contract_error(value)
+        if contract_error is not None:
             return {
                 "reason": "invalid_artifact_contract",
-                "detail": "real idea answer authoring authority boundary flags must remain false.",
+                "detail": contract_error["detail"],
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
-            }
-        privacy_boundary = _record(value.get("privacy_boundary"))
-        if any(
-            key.startswith("raw_") and key.endswith("_published") and flag is True
-            for key, flag in privacy_boundary.items()
-        ):
-            return {
-                "reason": "invalid_artifact_contract",
-                "detail": "real idea answer authoring privacy boundary flags must remain false.",
-                "artifact_kind": _optional_text(value.get("artifact_kind")),
-            }
-        if value.get("canonical_mutations_allowed") is True:
-            return {
-                "reason": "invalid_artifact_contract",
-                "detail": "canonical_mutations_allowed must not be true.",
-                "artifact_kind": _optional_text(value.get("artifact_kind")),
-            }
-        if value.get("tracked_artifacts_written") is True:
-            return {
-                "reason": "invalid_artifact_contract",
-                "detail": "tracked_artifacts_written must not be true.",
-                "artifact_kind": _optional_text(value.get("artifact_kind")),
+                "field": contract_error.get("field"),
             }
         return None
     if filename == REAL_IDEA_ANSWER_SET_ARTIFACT:
-        if value.get("canonical_mutations_allowed") is True:
+        contract_error = real_idea_answer_set_contract_error(value)
+        if contract_error is not None:
             return {
                 "reason": "invalid_artifact_contract",
-                "detail": "canonical_mutations_allowed must not be true.",
+                "detail": contract_error["detail"],
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
+                "field": contract_error.get("field"),
             }
-        if value.get("tracked_artifacts_written") is True:
-            return {
-                "reason": "invalid_artifact_contract",
-                "detail": "tracked_artifacts_written must not be true.",
-                "artifact_kind": _optional_text(value.get("artifact_kind")),
-            }
-        for answer in _records(value.get("answers")):
-            answer_value = _record(answer.get("value"))
-            if any(key.startswith("raw_") for key in answer_value):
-                return {
-                    "reason": "invalid_artifact_contract",
-                    "detail": "real idea answer set must not publish raw answer fields.",
-                    "artifact_kind": _optional_text(value.get("artifact_kind")),
-                }
         return None
     if filename in {
         ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
@@ -1387,9 +1360,23 @@ def _intake_answer_rows(
     return rows
 
 
+REAL_IDEA_ANSWER_TEMPLATE_VALUE_KEYS = {
+    "answer",
+    "context",
+    "entries",
+    "follow_up",
+    "reason",
+    "refs",
+    "term",
+    "terms",
+    "text",
+}
+LOCAL_PATH_PREFIXES = ("/Users/", "/home/", "/tmp/", "/var/", "/private/")
+
+
 def _safe_answer_value_template(value: Any) -> Any:
     if isinstance(value, str):
-        return value if value and not value.startswith("/") else ""
+        return value if value and not value.startswith(LOCAL_PATH_PREFIXES) else ""
     if isinstance(value, list):
         return [
             item
@@ -1402,13 +1389,7 @@ def _safe_answer_value_template(value: Any) -> Any:
             key_text = _optional_text(key)
             if key_text is None:
                 continue
-            if key_text.startswith("raw_") or key_text in {
-                "operator_note",
-                "scratch_path",
-                "password",
-                "secret",
-                "token",
-            }:
+            if key_text not in REAL_IDEA_ANSWER_TEMPLATE_VALUE_KEYS:
                 continue
             safe_item = _safe_answer_value_template(item)
             if safe_item not in (None, {}, []):

@@ -2921,26 +2921,24 @@ function intakeClarificationValueForTemplate(
 ): Record<string, unknown> {
   const trimmed = text.trim();
   const required = target.requiredFieldsByAction[action] ?? [];
-  if (required.some((field) => field === "value.refs[]" || field === "value.refs")) {
-    return { refs: splitIntakeAnswerList(trimmed) };
+  const value: Record<string, unknown> = {};
+  for (const field of required) {
+    if (field === "value.refs[]" || field === "value.refs") {
+      value.refs = splitIntakeAnswerList(trimmed);
+    }
+    if (field === "value.entries[]" || field === "value.entries") {
+      value.entries = splitIntakeAnswerList(trimmed);
+    }
+    if (field === "value.terms[]" || field === "value.terms") {
+      value.terms = splitIntakeAnswerList(trimmed);
+    }
+    if (field === "value.reason") value.reason = trimmed;
+    if (field === "value.follow_up") value.follow_up = trimmed;
+    if (field === "value.context") value.context = trimmed;
+    if (field === "value.term") value.term = trimmed;
+    if (field === "value.answer") value.answer = trimmed;
   }
-  if (
-    required.some(
-      (field) =>
-        field === "value.entries[]" ||
-        field === "value.entries" ||
-        field === "value.terms[]",
-    )
-  ) {
-    const key = required.some((field) => field === "value.terms[]")
-      ? "terms"
-      : "entries";
-    return { [key]: splitIntakeAnswerList(trimmed) };
-  }
-  if (required.includes("value.reason")) return { reason: trimmed };
-  if (required.includes("value.follow_up")) return { follow_up: trimmed };
-  if (required.includes("value.context")) return { context: trimmed };
-  if (required.includes("value.term")) return { term: trimmed };
+  if (Object.keys(value).length > 0) return value;
   const template = target.valueTemplatesByAction[action];
   if (template && typeof template === "object" && !Array.isArray(template)) {
     const keys = Object.keys(template as Record<string, unknown>);
@@ -2948,6 +2946,9 @@ function intakeClarificationValueForTemplate(
     if (keys.includes("context")) return { context: trimmed };
     if (keys.includes("refs")) return { refs: splitIntakeAnswerList(trimmed) };
     if (keys.includes("entries")) return { entries: splitIntakeAnswerList(trimmed) };
+    if (keys.includes("terms")) return { terms: splitIntakeAnswerList(trimmed) };
+    if (keys.includes("term")) return { term: trimmed };
+    if (keys.includes("follow_up")) return { follow_up: trimmed };
   }
   return intakeClarificationValueForRequest(
     {

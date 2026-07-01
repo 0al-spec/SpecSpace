@@ -2575,6 +2575,33 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(authoring["action_boundary"]["may_execute_specgraph"])
         self.assertFalse(authoring["action_boundary"]["may_apply_answers"])
 
+    def test_build_workspace_rejects_nested_raw_real_idea_answer_set(self) -> None:
+        answer_set = _real_idea_answer_set()
+        answer_set["answers"][0]["value"] = {
+            "context": {"raw_operator_note": "private note"},
+        }
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: _real_idea_answer_template(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_ARTIFACT: answer_set,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["artifacts"]["real_idea_answer_set"]["reason"],
+            "invalid_artifact_contract",
+        )
+        self.assertFalse(
+            body["intake_clarification"]["answer_authoring"]["answer_set"][
+                "available"
+            ]
+        )
+
     def test_idea_maturity_allows_missing_validation_as_untrusted_surface(self) -> None:
         artifacts = _workspace_artifacts()
         artifacts.pop(idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT)
