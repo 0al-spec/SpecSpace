@@ -3310,6 +3310,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             ("tracked_artifacts_written", True),
             ("tracked_artifacts_written", "true"),
             ("tracked_artifacts_written_missing", None),
+            ("decision_effects[0].writes_ontology_package", True),
+            ("decision_effects[0].accepts_ontology_terms", True),
+            ("decision_effects[0].canonical_mutations_allowed", True),
+            ("decision_effects[0].canonical_mutations_allowed_missing", None),
         )
         for field, value in cases:
             with self.subTest(field=field):
@@ -3318,6 +3322,12 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                     effect[field] = {**effect[field], **value}
                 elif field == "tracked_artifacts_written_missing":
                     effect.pop("tracked_artifacts_written")
+                elif field == "decision_effects[0].canonical_mutations_allowed_missing":
+                    effect["decision_effects"][0].pop("canonical_mutations_allowed")
+                elif field.startswith("decision_effects[0]."):
+                    effect["decision_effects"][0][
+                        field.removeprefix("decision_effects[0].")
+                    ] = value
                 else:
                     effect[field] = value
                 artifacts = {
@@ -3987,6 +3997,13 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             readiness["review_states"]["candidate_approval_execution"],
             "candidate_approval_materialized",
+        )
+        workflow_items = {item["id"]: item for item in body["workflow"]["items"]}
+        self.assertEqual(workflow_items["candidate_approval"]["status"], "ready")
+        self.assertNotEqual(body["workflow"]["stage"], "approval_required")
+        self.assertNotEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "candidate_approval_decision",
         )
 
     def test_approval_readiness_ignores_dry_run_candidate_approval_execution(

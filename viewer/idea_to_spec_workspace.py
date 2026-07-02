@@ -593,6 +593,15 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                     "artifact_kind": _optional_text(value.get("artifact_kind")),
                     "field": decision_error["field"],
                 }
+        if filename == PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REPORT_ARTIFACT:
+            decision_error = _project_local_effect_decision_contract_error(value)
+            if decision_error is not None:
+                return {
+                    "reason": "invalid_artifact_contract",
+                    "detail": decision_error["detail"],
+                    "artifact_kind": _optional_text(value.get("artifact_kind")),
+                    "field": decision_error["field"],
+                }
         return None
     if filename in {
         ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
@@ -1026,6 +1035,24 @@ def _project_local_import_decision_contract_error(
                         "detail": f"{collection_name}[{index}].{field} must be false.",
                         "field": f"{collection_name}[{index}].{field}",
                     }
+    return None
+
+
+def _project_local_effect_decision_contract_error(
+    value: dict[str, Any],
+) -> dict[str, str] | None:
+    false_fields = (
+        "writes_ontology_package",
+        "accepts_ontology_terms",
+        "canonical_mutations_allowed",
+    )
+    for index, item in enumerate(_records(value.get("decision_effects"))):
+        for field in false_fields:
+            if item.get(field) is not False:
+                return {
+                    "detail": f"decision_effects[{index}].{field} must be false.",
+                    "field": f"decision_effects[{index}].{field}",
+                }
     return None
 
 
@@ -3392,7 +3419,8 @@ def _approval_readiness(
     candidate_approval_decision_ready = (
         approval_decision["ready"]
         or (
-            approval_execution["ok"]
+            candidate_approval is None
+            and approval_execution["ok"]
             and not approval_execution["dry_run"]
             and approval_execution["decision_written"]
             and approval_execution["candidate_approval_decision_ref"] is not None
@@ -3690,10 +3718,21 @@ def _workflow(
     platform_ok = (platform_promotion or {}).get("ok") is True
     approval_readiness = _record((candidate_approval or {}).get("readiness"))
     approval_decision = _record((candidate_approval or {}).get("decision"))
+    approval_ready_from_execution = (
+        candidate_approval is None
+        and candidate_approval_execution_view["ok"]
+        and not candidate_approval_execution_view["dry_run"]
+        and candidate_approval_execution_view["decision_written"]
+        and candidate_approval_execution_view["candidate_approval_decision_ref"]
+        is not None
+    )
     approval_ready = (
-        candidate_approval is not None
-        and approval_readiness.get("ready") is True
-        and approval_decision.get("state") == "approved"
+        (
+            candidate_approval is not None
+            and approval_readiness.get("ready") is True
+            and approval_decision.get("state") == "approved"
+        )
+        or approval_ready_from_execution
     )
     product_promotion_execution_view = _product_promotion_execution(
         product_promotion_execution
@@ -3748,7 +3787,7 @@ def _workflow(
     )
     journal_blocks_platform_promotion = (
         repair_session is not None
-        and candidate_approval is not None
+        and approval_ready
         and repair_session_impact["ready_for_platform_promotion"] is not True
     )
     product_repair_downstream_blocked = (
@@ -3957,16 +3996,21 @@ def _workflow(
         _workflow_item(
             item_id="candidate_approval",
             label="Candidate approval",
-            status=_available_status(
-                statuses,
-                "candidate_approval",
-                approval_ready,
-                blocked=approval_failed,
+            status=(
+                "ready"
+                if approval_ready_from_execution
+                else _available_status(
+                    statuses,
+                    "candidate_approval",
+                    approval_ready,
+                    blocked=approval_failed,
+                )
             ),
             artifact_key=CANDIDATE_APPROVAL_DECISION_ARTIFACT,
             detail=_optional_text(
                 approval_readiness.get("review_state")
                 or approval_decision.get("state")
+                or candidate_approval_execution_view["candidate_approval_decision_ref"]
             ),
         ),
         _workflow_item(
@@ -4206,7 +4250,19 @@ def _workflow(
             "command_template": None,
             "authority_boundary": "operator_only",
         }
-    elif promotion_readiness["ready"] and candidate_approval is None:
+    elif approval_failed:
+        stage = "approval_blocked"
+        status = "blocked"
+        next_handoff = {
+            "kind": "candidate_approval_repair",
+            "label": "Resolve candidate approval before Git Service execution",
+            "status": "blocked",
+            "artifact_key": "candidate_approval",
+            "artifact_path": f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}",
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
+    elif promotion_readiness["ready"] and not approval_ready:
         stage = "approval_required"
         status = "operator_review_required"
         next_handoff = {
@@ -4222,18 +4278,6 @@ def _workflow(
                 "--specgraph-dir <specgraph-repository> "
                 "--approval-intents <specspace-state>/idea_to_spec_candidate_approval_intents.json"
             ),
-            "authority_boundary": "operator_only",
-        }
-    elif approval_failed:
-        stage = "approval_blocked"
-        status = "blocked"
-        next_handoff = {
-            "kind": "candidate_approval_repair",
-            "label": "Resolve candidate approval before Git Service execution",
-            "status": "blocked",
-            "artifact_key": "candidate_approval",
-            "artifact_path": f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}",
-            "command_template": None,
             "authority_boundary": "operator_only",
         }
     elif journal_blocks_platform_promotion:
