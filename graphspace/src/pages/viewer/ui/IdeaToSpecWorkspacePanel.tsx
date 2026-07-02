@@ -68,6 +68,7 @@ type Props = {
   candidateApprovalIntentsUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
   repairRerunRequestsRefreshKey?: number | string;
+  auxiliaryDataEnabled?: boolean;
 };
 
 function errorDetail(
@@ -113,6 +114,50 @@ function recordText(
   fallback = "unknown",
 ): string {
   return metricValue(record[key]) === "n/a" ? fallback : metricValue(record[key]);
+}
+
+type MetaValueKind = "plain" | "path" | "list" | "prose";
+
+function metaValueKind(label: string, value: string): MetaValueKind {
+  const lowerLabel = label.toLowerCase();
+  if (
+    lowerLabel.includes("next action") ||
+    lowerLabel.includes("reason") ||
+    lowerLabel.includes("statement") ||
+    lowerLabel.includes("detail")
+  ) {
+    return "prose";
+  }
+  if (
+    lowerLabel.includes("path") ||
+    lowerLabel.includes("artifact") ||
+    lowerLabel.includes("evidence") ||
+    lowerLabel.includes("source ref") ||
+    lowerLabel === "source" ||
+    lowerLabel.includes("report") ||
+    lowerLabel.includes("manifest") ||
+    lowerLabel.includes("handoff")
+  ) {
+    return value.includes(", ") ? "list" : "path";
+  }
+  return value.includes(", ") && value.length > 40 ? "list" : "plain";
+}
+
+function metaValueClassName(kind: MetaValueKind): string {
+  switch (kind) {
+    case "path":
+      return `${styles.metaValue} ${styles.metaValuePath}`;
+    case "list":
+      return `${styles.metaValue} ${styles.metaValueList}`;
+    case "prose":
+      return `${styles.metaValue} ${styles.metaValueProse}`;
+    case "plain":
+      return styles.metaValue;
+  }
+}
+
+function metaShouldSpan(kind: MetaValueKind, value: string): boolean {
+  return kind !== "plain" && value.length > 72;
 }
 
 function rateText(value: number | null): string {
@@ -229,14 +274,15 @@ export function IdeaToSpecWorkspacePanel({
   candidateApprovalIntentsUrl,
   projectLocalOntologyReviewDecisionsUrl,
   repairRerunRequestsRefreshKey = 0,
+  auxiliaryDataEnabled = true,
 }: Props) {
   const repairDrafts = useIdeaToSpecRepairDrafts({
     url: repairDraftsUrl,
-    enabled: state.kind === "ok",
+    enabled: auxiliaryDataEnabled && state.kind === "ok",
   });
   const intakeClarificationAnswers = useIdeaToSpecIntakeClarificationAnswers({
     url: intakeClarificationAnswersUrl,
-    enabled: state.kind === "ok",
+    enabled: auxiliaryDataEnabled && state.kind === "ok",
   });
   const repairDraftRefreshKey = useMemo(() => {
     if (repairDrafts.state.kind !== "ok") return "repair-drafts-unavailable";
@@ -246,18 +292,18 @@ export function IdeaToSpecWorkspacePanel({
   }, [repairDrafts.state]);
   const repairRerunRequests = useIdeaToSpecRepairRerunRequests({
     url: repairRerunRequestsUrl,
-    enabled: state.kind === "ok",
+    enabled: auxiliaryDataEnabled && state.kind === "ok",
     refreshKey: `${repairDraftRefreshKey}:${repairRerunRequestsRefreshKey}`,
   });
   const candidateApprovalIntents = useIdeaToSpecCandidateApprovalIntents({
     url: candidateApprovalIntentsUrl,
-    enabled: state.kind === "ok",
+    enabled: auxiliaryDataEnabled && state.kind === "ok",
     refreshKey: `${repairDraftRefreshKey}:${repairRerunRequestsRefreshKey}`,
   });
   const projectLocalOntologyReviewDecisions =
     useProjectLocalOntologyReviewDecisions({
       url: projectLocalOntologyReviewDecisionsUrl,
-      enabled: state.kind === "ok",
+      enabled: auxiliaryDataEnabled && state.kind === "ok",
       refreshKey: repairDraftRefreshKey,
     });
 
@@ -2381,14 +2427,13 @@ function IdeaMaturitySection({
       ) : null}
 
       {maturity.validation.reports.map((report) => (
-        <div key={`${report.path ?? "validation"}:${report.status}`} className={styles.subRow}>
-          <span className={styles.rowId}>Validation report</span>
-          <Pill value={report.status} />
-          <span className={styles.statusDetail}>
-            {compact(report.path, "validation report")} · diagnostics{" "}
-            {report.diagnosticCount}
-          </span>
-        </div>
+        <ReportStatusRow
+          key={`${report.path ?? "validation"}:${report.status}`}
+          title="Validation report"
+          status={report.status}
+          path={report.path}
+          detail={`diagnostics ${report.diagnosticCount}`}
+        />
       ))}
 
       {maturity.report.findings.map((finding) => (
@@ -4739,11 +4784,58 @@ function PostureItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Meta({ label, value }: { label: string; value: string | null | undefined }) {
+export function ReportStatusRow({
+  title,
+  status,
+  path,
+  detail,
+}: {
+  title: string;
+  status: string;
+  path: string | null | undefined;
+  detail?: string;
+}) {
+  const detailText = detail
+    ? `${compact(path, "report")} · ${detail}`
+    : compact(path, "report");
   return (
-    <div className={styles.meta}>
+    <div className={`${styles.reportRow} ${styles.reportRowSplit}`}>
+      <div className={styles.reportMain}>
+        <span className={styles.rowId}>{title}</span>
+        <span className={`${styles.statusDetail} ${styles.subRowDetail}`}>
+          {detailText}
+        </span>
+      </div>
+      <div className={styles.reportStatus}>
+        <Pill value={status} />
+      </div>
+    </div>
+  );
+}
+
+function Meta({
+  label,
+  value,
+  kind,
+  wide,
+}: {
+  label: string;
+  value: string | null | undefined;
+  kind?: MetaValueKind;
+  wide?: boolean;
+}) {
+  const displayValue = compact(value, "none");
+  const resolvedKind = kind ?? metaValueKind(label, displayValue);
+  const shouldSpan = wide ?? metaShouldSpan(resolvedKind, displayValue);
+  const metaClassName = shouldSpan
+    ? `${styles.meta} ${styles.metaWide}`
+    : styles.meta;
+  return (
+    <div className={metaClassName}>
       <span className={styles.metaLabel}>{label}</span>
-      <span className={styles.metaValue}>{compact(value, "none")}</span>
+      <span className={metaValueClassName(resolvedKind)}>
+        {displayValue}
+      </span>
     </div>
   );
 }

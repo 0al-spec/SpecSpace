@@ -18,6 +18,22 @@ describe("SpecSpace app route selection", () => {
     expect(route.shouldReplace).toBe(true);
   });
 
+  it("reserves /dev/idea-to-spec-fixtures for the static fixture gallery", () => {
+    const route = resolveSpecSpaceAppRoute("/dev/idea-to-spec-fixtures");
+
+    expect(route.kind).toBe("idea-to-spec-fixture-gallery");
+    expect(route.canonicalPath).toBe("/dev/idea-to-spec-fixtures");
+    expect(route.shouldReplace).toBe(false);
+  });
+
+  it("canonicalizes trailing slash fixture gallery paths", () => {
+    const route = resolveSpecSpaceAppRoute("/dev/idea-to-spec-fixtures/");
+
+    expect(route.kind).toBe("idea-to-spec-fixture-gallery");
+    expect(route.canonicalPath).toBe("/dev/idea-to-spec-fixtures");
+    expect(route.shouldReplace).toBe(true);
+  });
+
   it("keeps generic product workspaces on the workspace viewer", () => {
     const route = resolveSpecSpaceAppRoute("/support-triage-log");
 

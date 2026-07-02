@@ -1,4 +1,5 @@
 export { ViewerPage } from "./ui/ViewerPage";
+export { IdeaToSpecFixtureGalleryPage } from "./ui/IdeaToSpecFixtureGalleryPage";
 export {
   resolveWorkspaceRoute,
   workspaceApiUrl,
