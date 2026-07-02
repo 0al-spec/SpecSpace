@@ -2298,6 +2298,27 @@ def _idea_maturity_metrics_report() -> dict:
                 "ontology_gap_resolved_count": 11,
                 "ontology_gap_unresolved_count": 0,
                 "ontology_gap_resolution_rate": 1.0,
+                "project_local_ontology_review": {
+                    "status": "project_local_ontology_decision_effect_ready",
+                    "accepted_decision_count": 2,
+                    "maturity_evidence_decision_count": 2,
+                    "keep_project_local_count": 1,
+                    "bind_existing_count": 1,
+                    "alias_count": 0,
+                    "request_promotion_count": 0,
+                    "reject_count": 0,
+                    "deferred_count": 0,
+                    "non_resolving_decision_count": 0,
+                    "invalid_decision_count": 0,
+                    "missing_decision_count": 0,
+                    "blocking_decision_count": 0,
+                    "follow_up_decision_count": 0,
+                    "effect_count": 2,
+                    "ready_for_maturity": True,
+                    "evidence_refs": [
+                        "runs/project_local_ontology_review_decisions.json"
+                    ],
+                },
             },
             "candidate_repair": {
                 "candidate_gap_count_initial": 4,
@@ -2356,6 +2377,25 @@ def _idea_maturity_metrics_report() -> dict:
             "ontology_gap_resolved_count": 11,
             "ontology_gap_unresolved_count": 0,
             "ontology_gap_resolution_rate": 1.0,
+            "project_local_ontology_review": {
+                "status": "project_local_ontology_decision_effect_ready",
+                "accepted_decision_count": 2,
+                "maturity_evidence_decision_count": 2,
+                "keep_project_local_count": 1,
+                "bind_existing_count": 1,
+                "alias_count": 0,
+                "request_promotion_count": 0,
+                "reject_count": 0,
+                "deferred_count": 0,
+                "non_resolving_decision_count": 0,
+                "invalid_decision_count": 0,
+                "missing_decision_count": 0,
+                "blocking_decision_count": 0,
+                "follow_up_decision_count": 0,
+                "effect_count": 2,
+                "ready_for_maturity": True,
+                "evidence_refs": ["runs/project_local_ontology_review_decisions.json"],
+            },
             "candidate_gap_count_initial": 4,
             "candidate_gap_resolved_count": 4,
             "candidate_gap_unresolved_count": 0,
@@ -2684,6 +2724,12 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 "ontology_gap_resolution_rate"
             ],
             1.0,
+        )
+        self.assertEqual(
+            body["idea_maturity"]["report"]["metrics"][
+                "project_local_ontology_review"
+            ]["accepted_decision_count"],
+            2,
         )
         self.assertEqual(
             body["idea_maturity"]["report"]["contract"]["schema_ref"],

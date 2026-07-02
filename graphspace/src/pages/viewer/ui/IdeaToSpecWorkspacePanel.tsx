@@ -2032,6 +2032,34 @@ function IdeaMaturitySection({
             label="Resolution rate"
             value={rateText(metrics.ontologyGapResolutionRate)}
           />
+          <Meta
+            label="Project-local review"
+            value={compact(metrics.projectLocalOntologyReview.status, "missing")}
+          />
+          <Meta
+            label="Review evidence"
+            value={String(metrics.projectLocalOntologyReview.maturityEvidenceDecisionCount)}
+          />
+          <Meta
+            label="Kept local"
+            value={String(metrics.projectLocalOntologyReview.keepProjectLocalCount)}
+          />
+          <Meta
+            label="Bound / alias"
+            value={`${metrics.projectLocalOntologyReview.bindExistingCount} / ${metrics.projectLocalOntologyReview.aliasCount}`}
+          />
+          <Meta
+            label="Promotion follow-ups"
+            value={String(metrics.projectLocalOntologyReview.requestPromotionCount)}
+          />
+          <Meta
+            label="Missing / invalid"
+            value={`${metrics.projectLocalOntologyReview.missingDecisionCount} / ${metrics.projectLocalOntologyReview.invalidDecisionCount}`}
+          />
+          <Meta
+            label="Deferred"
+            value={String(metrics.projectLocalOntologyReview.deferredCount)}
+          />
         </div>
       </div>
 

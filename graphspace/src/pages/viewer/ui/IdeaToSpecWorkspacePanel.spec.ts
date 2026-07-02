@@ -106,6 +106,12 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("metrics.idea_maturity_metrics.validator.v0.1");
     expect(html).toContain("repair required");
     expect(html).toContain("Ontology grounding");
+    expect(html).toContain("Project-local review");
+    expect(html).toContain("project_local_ontology_decision_effect_ready");
+    expect(html).toContain("Review evidence");
+    expect(html).toContain("Kept local");
+    expect(html).toContain("Bound / alias");
+    expect(html).toContain("Promotion follow-ups");
     expect(html).toContain("Candidate repair");
     expect(html).toContain("Rerun trend");
     expect(html).toContain("Ontology gaps resolved");
