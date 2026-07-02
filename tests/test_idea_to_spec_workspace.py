@@ -771,6 +771,237 @@ def _ontology_decisions() -> dict:
     }
 
 
+def _project_local_ontology_review_lane() -> dict:
+    return {
+        "artifact_kind": "project_local_ontology_review_lane",
+        "schema_version": 1,
+        "proposal_id": "0197",
+        "contract_ref": (
+            "specgraph.project-local-ontology.review-lane.v0.1"
+        ),
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": False,
+            "review_state": "project_local_ontology_review_required",
+            "blocked_by": ["project_local_ontology_terms_unreviewed"],
+            "next_artifact": "SpecSpace project-local ontology review decisions",
+        },
+        "context": {
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "repair_session_id": "repair-session.team-decision-log",
+            "workflow_lane": "product_idea_to_spec",
+            "domain_refs": ["domain.team-decision-log"],
+            "context_refs": ["context.idea-to-spec"],
+            "ontology_refs": ["ontology://specgraph-core"],
+        },
+        "source_artifacts": {
+            "candidate_graph": {"source_ref": "runs/candidate_spec_graph.json"},
+        },
+        "review_decision_schema": {
+            "supported_actions": [
+                "keep_project_local",
+                "bind_existing",
+                "alias",
+                "reject",
+                "request_workspace_promotion",
+                "defer",
+            ],
+            "authority": "operator_intent_only",
+            "request_workspace_promotion_effect": "proposal_only_no_ontology_write",
+        },
+        "terms": [
+            {
+                "id": "project-local-ontology-term.numericinput",
+                "term": "Numeric Input",
+                "term_key": "numericinput",
+                "status": "unreviewed",
+                "source_refs": ["command.enter_digit"],
+                "suggested_actions": ["keep_project_local", "bind_existing"],
+                "evidence_refs": ["runs/candidate_spec_graph.json"],
+                "gap_refs": [
+                    {
+                        "gap_id": "ontology-gap.numeric-input",
+                        "node_id": "candidate-spec.numeric-input",
+                        "target_ref": (
+                            "candidate-spec.numeric-input.gaps."
+                            "ontology-gap.numeric-input"
+                        ),
+                        "source_ref": "command.enter_digit",
+                    }
+                ],
+                "effect": {
+                    "candidate_readiness_effect": "blocks_until_reviewed",
+                    "next_action": "choose_project_local_ontology_decision",
+                    "resolved_gap_count": 0,
+                },
+            }
+        ],
+        "findings": [],
+        "warnings": [],
+        "summary": {
+            "status": "project_local_ontology_review_required",
+            "term_count": 1,
+            "reviewed_term_count": 0,
+            "blocking_term_count": 1,
+            "unreviewed_term_count": 1,
+            "deferred_term_count": 0,
+            "status_counts": {"unreviewed": 1},
+        },
+        "authority_boundary": {
+            "may_execute_prompt_agent": False,
+            "may_execute_specgraph": False,
+            "may_execute_platform": False,
+            "may_apply_decisions": False,
+            "may_mutate_candidate_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+        },
+        "privacy_boundary": {
+            "raw_idea_text_published": False,
+            "raw_prompt_published": False,
+            "raw_model_output_published": False,
+            "raw_operator_note_published": False,
+        },
+    }
+
+
+def _project_local_ontology_import_preview() -> dict:
+    return {
+        "artifact_kind": "specspace_project_local_ontology_decision_import_preview",
+        "schema_version": 1,
+        "proposal_id": "0198",
+        "contract_ref": (
+            "specgraph.project-local-ontology.specspace-decision-import.v0.1"
+        ),
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "project_local_ontology_decision_import_ready",
+            "blocked_by": [],
+            "next_artifact": "project_local_ontology_decisions_for_repair",
+        },
+        "context": {
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "repair_session_id": "repair-session.team-decision-log",
+            "workflow_lane": "product_idea_to_spec",
+            "domain_refs": ["domain.team-decision-log"],
+            "context_refs": ["context.idea-to-spec"],
+            "ontology_refs": ["ontology://specgraph-core"],
+        },
+        "source_artifacts": {
+            "decision_state": {
+                "artifact_kind": "specspace_project_local_ontology_review_decisions",
+                "source_ref": "specspace-state://project_local_ontology_review_decisions.json",
+            },
+            "project_local_ontology_review_lane": {
+                "artifact_kind": "project_local_ontology_review_lane",
+                "source_ref": "runs/project_local_ontology_review_lane.json",
+            },
+        },
+        "import_preview": {
+            "accepted_decisions": [
+                {
+                    "id": "specspace-project-local-ontology-import.numericinput.keep-project-local",
+                    "source_decision_id": "project-local-decision.numericinput",
+                    "source_artifact": (
+                        "specspace-state://project_local_ontology_review_decisions.json"
+                    ),
+                    "decision_type": "propose_project_local_term",
+                    "review_action": "keep_project_local",
+                    "status": "accepted_for_project_local_preview",
+                    "materialization_intent": "review_overlay_only",
+                    "term": "Numeric Input",
+                    "term_key": "numericinput",
+                    "decision_value": {
+                        "term": "Numeric Input",
+                        "reason": "Keep as project-local language.",
+                    },
+                    "target_ref": (
+                        "candidate-spec.numeric-input.gaps."
+                        "ontology-gap.numeric-input"
+                    ),
+                    "gap_refs": [
+                        {
+                            "gap_id": "ontology-gap.numeric-input",
+                            "node_id": "candidate-spec.numeric-input",
+                            "target_ref": (
+                                "candidate-spec.numeric-input.gaps."
+                                "ontology-gap.numeric-input"
+                            ),
+                            "source_ref": "command.enter_digit",
+                        }
+                    ],
+                    "writes_ontology_package": False,
+                    "accepts_ontology_terms": False,
+                    "applies_to_specgraph": False,
+                }
+            ],
+            "non_resolving_decisions": [],
+            "invalid_decisions": [],
+            "missing_decisions": [],
+        },
+        "decision_candidates": [
+            {
+                "id": "specspace-project-local-ontology-import.numericinput.keep-project-local",
+                "decision_type": "propose_project_local_term",
+                "review_action": "keep_project_local",
+                "status": "accepted_for_project_local_preview",
+                "term": "Numeric Input",
+                "term_key": "numericinput",
+                "target_ref": (
+                    "candidate-spec.numeric-input.gaps."
+                    "ontology-gap.numeric-input"
+                ),
+                "writes_ontology_package": False,
+                "accepts_ontology_terms": False,
+                "applies_to_specgraph": False,
+            }
+        ],
+        "authority_boundary": {
+            "may_execute_prompt_agent": False,
+            "may_execute_specgraph": False,
+            "may_execute_platform": False,
+            "may_apply_to_specgraph": False,
+            "may_apply_decisions": False,
+            "may_mutate_candidate_artifacts": False,
+            "may_mutate_candidate_source_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_write_ontology_lockfile": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+            "may_open_pull_request": False,
+            "may_publish_read_model": False,
+        },
+        "privacy_boundary": {
+            "raw_idea_text_published": False,
+            "raw_prompt_published": False,
+            "raw_model_output_published": False,
+            "raw_operator_note_published": False,
+            "private_operator_state_published": False,
+        },
+        "findings": [],
+        "summary": {
+            "status": "project_local_ontology_decision_import_ready",
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "decision_count": 1,
+            "accepted_decision_count": 1,
+            "non_resolving_decision_count": 0,
+            "invalid_decision_count": 0,
+            "missing_decision_count": 0,
+            "finding_count": 0,
+            "ready": True,
+        },
+    }
+
+
 def _rerun_input() -> dict:
     return {
         "artifact_kind": "idea_to_spec_answer_rerun_input",
@@ -2351,7 +2582,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(body["guided_flow"]["current_stage"], "repair_review")
         self.assertEqual(body["guided_flow"]["overall_status"], "blocked")
-        self.assertEqual(len(body["guided_flow"]["stages"]), 11)
+        self.assertEqual(len(body["guided_flow"]["stages"]), 12)
+        self.assertEqual(
+            _guided_stage(body, "project_local_ontology_review")["status"],
+            "completed",
+        )
         self.assertEqual(
             body["guided_flow"]["next_actions"][0]["target_section"],
             "idea-to-spec-repair-review",
@@ -2650,6 +2885,79 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertFalse(
             body["authority_boundary"]["may_create_branch_or_commit"]
+        )
+
+    def test_build_workspace_projects_project_local_ontology_import_preview(
+        self,
+    ) -> None:
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT: (
+                _project_local_ontology_review_lane()
+            ),
+            idea_to_spec_workspace.SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT: (
+                _project_local_ontology_import_preview()
+            ),
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        lane = body["project_local_ontology_review"]
+        preview = body["project_local_ontology_decision_import_preview"]
+        self.assertTrue(lane["available"])
+        self.assertEqual(lane["term_count"], 1)
+        self.assertTrue(preview["available"])
+        self.assertTrue(preview["readiness"]["ready"])
+        self.assertEqual(preview["accepted_decision_count"], 1)
+        self.assertEqual(preview["missing_decision_count"], 0)
+        self.assertEqual(
+            preview["accepted_decisions"][0]["term_key"],
+            "numericinput",
+        )
+        self.assertFalse(
+            preview["accepted_decisions"][0]["writes_ontology_package"]
+        )
+        self.assertEqual(
+            body["summary"]["project_local_ontology_import_accepted_count"],
+            1,
+        )
+        self.assertEqual(
+            _guided_stage(body, "project_local_ontology_review")["status"],
+            "completed",
+        )
+
+    def test_build_workspace_rejects_write_capable_project_local_import_preview(
+        self,
+    ) -> None:
+        unsafe_preview = _project_local_ontology_import_preview()
+        unsafe_preview["authority_boundary"]["may_apply_to_specgraph"] = True
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT: (
+                _project_local_ontology_review_lane()
+            ),
+            idea_to_spec_workspace.SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT: unsafe_preview,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        preview = body["project_local_ontology_decision_import_preview"]
+        self.assertFalse(preview["available"])
+        self.assertEqual(
+            body["artifacts"][
+                "specspace_project_local_ontology_decision_import_preview"
+            ]["reason"],
+            "invalid_artifact_contract",
+        )
+        self.assertEqual(
+            _guided_stage(body, "project_local_ontology_review")["status"],
+            "available",
         )
 
     def test_build_workspace_projects_intake_clarification_lane(self) -> None:

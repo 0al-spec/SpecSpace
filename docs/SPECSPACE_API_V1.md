@@ -744,7 +744,8 @@ still block the workflow before promotion.
 The payload is designed for fast operator inspection: event-storming counts,
 active ontology/domain/context frame, ontology-bound seed readiness, seed
 bindings/gaps, candidate graph nodes, pre-SIB/coherence findings, repair-loop
-actions, SpecSpace draft repair handoff state, Product Repair Rerun
+actions, SpecSpace draft repair handoff state, project-local ontology review
+state plus its SpecGraph import preview, Product Repair Rerun
 execution/publication status, metric deltas, approval status, Git Service
 handoff state, repository review status, read-model publication status, and
 artifact availability.
@@ -963,6 +964,14 @@ The state remains operator intent only:
 
 SpecGraph should later consume this state through a validation/import preview
 before any rerun or promotion step treats the decisions as evidence.
+When `runs/specspace_project_local_ontology_decision_import_preview.json` is
+published, `/api/v1/idea-to-spec-workspace` embeds it as
+`project_local_ontology_decision_import_preview`. The Product Workspace shows
+accepted, non-resolving, invalid, and missing decisions as read-only SpecGraph
+evidence. The preview can guide the operator to fix decisions or rebuild the
+preview, but it does not grant SpecSpace authority to apply decisions, mutate
+candidate artifacts, write Ontology packages, accept Ontology terms, or create
+Git branches/commits.
 
 ### `GET/POST /api/v1/idea-to-spec-intake-clarification-answers`
 
