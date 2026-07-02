@@ -2960,6 +2960,156 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "available",
         )
 
+    def test_build_workspace_rejects_write_capable_project_local_import_preview_decision(
+        self,
+    ) -> None:
+        unsafe_preview = _project_local_ontology_import_preview()
+        unsafe_preview["import_preview"]["accepted_decisions"][0][
+            "writes_ontology_package"
+        ] = True
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT: (
+                _project_local_ontology_review_lane()
+            ),
+            idea_to_spec_workspace.SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT: unsafe_preview,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        preview = body["project_local_ontology_decision_import_preview"]
+        self.assertFalse(preview["available"])
+        artifact = body["artifacts"][
+            "specspace_project_local_ontology_decision_import_preview"
+        ]
+        self.assertEqual(artifact["reason"], "invalid_artifact_contract")
+        self.assertEqual(
+            artifact["field"],
+            "import_preview.accepted_decisions[0].writes_ontology_package",
+        )
+
+    def test_build_workspace_rejects_write_capable_project_local_import_preview_candidate(
+        self,
+    ) -> None:
+        unsafe_preview = _project_local_ontology_import_preview()
+        unsafe_preview["decision_candidates"][0]["accepts_ontology_terms"] = True
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT: (
+                _project_local_ontology_review_lane()
+            ),
+            idea_to_spec_workspace.SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT: unsafe_preview,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        artifact = body["artifacts"][
+            "specspace_project_local_ontology_decision_import_preview"
+        ]
+        self.assertFalse(
+            body["project_local_ontology_decision_import_preview"]["available"]
+        )
+        self.assertEqual(artifact["reason"], "invalid_artifact_contract")
+        self.assertEqual(
+            artifact["field"],
+            "decision_candidates[0].accepts_ontology_terms",
+        )
+
+    def test_build_workspace_preserves_id_only_project_local_import_issues(
+        self,
+    ) -> None:
+        preview = _project_local_ontology_import_preview()
+        preview["import_preview"]["invalid_decisions"] = [
+            {"id": "invalid-decision.missing-scope", "reason": "missing_scope"},
+            {"id": "invalid-decision.missing-scope", "reason": "duplicate_id"},
+        ]
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT: (
+                _project_local_ontology_review_lane()
+            ),
+            idea_to_spec_workspace.SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT: preview,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        issues = body["project_local_ontology_decision_import_preview"][
+            "invalid_decisions"
+        ]
+        self.assertEqual(issues[0]["id"], "invalid-decision.missing-scope")
+        self.assertEqual(issues[0]["source_id"], "invalid-decision.missing-scope")
+        self.assertEqual(issues[1]["id"], "invalid-decision.missing-scope:1")
+
+    def test_guided_flow_ignores_stale_project_local_import_without_lane(
+        self,
+    ) -> None:
+        preview = _project_local_ontology_import_preview()
+        preview["readiness"]["ready"] = False
+        preview["readiness"]["blocked_by"] = ["missing_decisions"]
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT: preview,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        stage = _guided_stage(body, "project_local_ontology_review")
+        self.assertEqual(stage["status"], "completed")
+        self.assertEqual(
+            stage["primary_next_action"],
+            "No project-local ontology review is required.",
+        )
+
+    def test_guided_flow_blocks_non_resolving_project_local_import_preview(
+        self,
+    ) -> None:
+        preview = _project_local_ontology_import_preview()
+        preview["import_preview"]["non_resolving_decisions"] = [
+            {
+                "id": "specspace-project-local-ontology-import.numericinput.defer",
+                "decision_type": "defer",
+                "review_action": "defer",
+                "status": "deferred",
+                "term": "Numeric Input",
+                "term_key": "numericinput",
+                "writes_ontology_package": False,
+                "accepts_ontology_terms": False,
+                "applies_to_specgraph": False,
+            }
+        ]
+        preview["summary"]["non_resolving_decision_count"] = 1
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT: (
+                _project_local_ontology_review_lane()
+            ),
+            idea_to_spec_workspace.SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT: preview,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        stage = _guided_stage(body, "project_local_ontology_review")
+        self.assertEqual(stage["status"], "blocked")
+        self.assertEqual(
+            stage["primary_next_action"],
+            "Resolve invalid, missing, or deferred project-local ontology decisions.",
+        )
+
     def test_build_workspace_projects_intake_clarification_lane(self) -> None:
         artifacts = {
             **_workspace_artifacts(),
