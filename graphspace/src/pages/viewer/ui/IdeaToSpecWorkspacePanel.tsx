@@ -611,8 +611,12 @@ function CandidateOverviewSection({
 }) {
   const relationEntries = Object.entries(overview.topology.relationCounts).slice(0, 6);
   const primaryItems = [
-    ...overview.eventStorming.commands.slice(0, 2),
-    ...overview.eventStorming.domainEvents.slice(0, 2),
+    ...overview.eventStorming.commands
+      .slice(0, 2)
+      .map((item) => ({ collection: "command", item })),
+    ...overview.eventStorming.domainEvents
+      .slice(0, 2)
+      .map((item) => ({ collection: "domain-event", item })),
   ];
   return (
     <section id="idea-to-spec-candidate-overview" className={styles.reviewSection}>
@@ -687,8 +691,11 @@ function CandidateOverviewSection({
           <Meta label="Constraints" value={String(overview.eventStorming.constraintCount)} />
           <Meta label="Candidate nodes" value={String(overview.candidateNodes.nodes.length)} />
         </div>
-        {primaryItems.map((item) => (
-          <div key={`overview:${item.id}`} className={styles.subRow}>
+        {primaryItems.map(({ collection, item }) => (
+          <div
+            key={`overview:${collection}:${item.kind}:${item.id}`}
+            className={styles.subRow}
+          >
             <span>{compact(item.label, item.id)}</span>
             <Pill value={compact(item.kind, "item")} />
             <span className={styles.statusDetail}>{compact(item.detail, item.id)}</span>
