@@ -98,6 +98,26 @@
   top: 0;
 }
 
+.utilityHeaderText {
+  min-width: 0;
+}
+
+.utilityHeaderActions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.utilityExpandIcon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 1.6;
+}
+
 .utilityKicker {
   color: var(--gs-muted);
   font-family: var(--gs-mono);
@@ -222,6 +242,19 @@
   width: var(--viewer-utility-with-inspector-width);
 }
 
+.utilityRailExpanded {
+  top: var(--gs-space-6);
+  right: var(--gs-space-6);
+  bottom: var(--gs-space-6);
+  left: var(--gs-space-6);
+  z-index: 1000;
+  width: auto;
+  max-height: none;
+  border-color: var(--gs-rule-mid);
+  background: color-mix(in srgb, var(--gs-paper) 94%, transparent);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 24%);
+}
+
 .utilityTitle {
   margin: var(--gs-space-2) 0 0;
   color: var(--gs-ink);
@@ -263,6 +296,7 @@
 
 .closeButton {
   flex: 0 0 auto;
+  min-height: 32px;
   border: 1px solid var(--gs-rule-soft);
   background: var(--gs-paper);
   color: var(--gs-muted);
@@ -570,6 +604,16 @@
     bottom: calc(86px + env(safe-area-inset-bottom, 0px));
     max-height: none;
     z-index: 5;
+  }
+
+  .utilityRailExpanded {
+    top: max(var(--gs-space-3), env(safe-area-inset-top, 0px));
+    right: var(--gs-space-3);
+    bottom: max(var(--gs-space-3), env(safe-area-inset-bottom, 0px));
+    left: var(--gs-space-3);
+    z-index: 1000;
+    width: auto;
+    max-height: none;
   }
 
   .statusOverlay {
