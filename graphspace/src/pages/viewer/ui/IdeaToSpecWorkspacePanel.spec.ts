@@ -109,9 +109,11 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Project-local review");
     expect(html).toContain("project_local_ontology_decision_effect_ready");
     expect(html).toContain("Review evidence");
+    expect(html).toContain("Ready for maturity");
     expect(html).toContain("Kept local");
     expect(html).toContain("Bound / alias");
     expect(html).toContain("Promotion follow-ups");
+    expect(html).toContain("Blocking decisions");
     expect(html).toContain("Candidate repair");
     expect(html).toContain("Rerun trend");
     expect(html).toContain("Ontology gaps resolved");
@@ -564,5 +566,29 @@ describe("IdeaToSpecWorkspacePanel", () => {
 
     expect(html).toContain("Accepted answers");
     expect(html).toContain("unknown");
+  });
+
+  it("renders project-local ontology readiness and follow-up counters", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    const review =
+      raw.idea_maturity.report.metrics.project_local_ontology_review;
+    review.request_promotion_count = 1;
+    review.follow_up_decision_count = 7;
+    review.blocking_decision_count = 4;
+    review.ready_for_maturity = false;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toMatch(/Ready for maturity[\s\S]*?>no</);
+    expect(html).toMatch(/Promotion follow-ups[\s\S]*?>7</);
+    expect(html).toMatch(/Blocking decisions[\s\S]*?>4</);
   });
 });
