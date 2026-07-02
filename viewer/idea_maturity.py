@@ -251,6 +251,19 @@ def _group(report: dict[str, Any] | None, group_id: str) -> dict[str, Any]:
     return _safe_record(_record((report or {}).get("groups")).get(group_id))
 
 
+def _ontology_grounding_group(report: dict[str, Any] | None) -> dict[str, Any]:
+    group = _group(report, "ontology_grounding")
+    project_local_review = _record(group.get("project_local_ontology_review"))
+    if project_local_review:
+        group["project_local_ontology_review"] = {
+            **project_local_review,
+            "evidence_refs": _safe_artifact_refs(
+                project_local_review.get("evidence_refs")
+            ),
+        }
+    return group
+
+
 def _metric_source_value(
     report: dict[str, Any] | None,
     group_id: str,
@@ -637,7 +650,7 @@ def _report_surface(report: dict[str, Any] | None) -> dict[str, Any]:
         "groups": {
             "clarification_load": _group(report, "clarification_load"),
             "answer_materialization": _group(report, "answer_materialization"),
-            "ontology_grounding": _group(report, "ontology_grounding"),
+            "ontology_grounding": _ontology_grounding_group(report),
             "candidate_repair": _group(report, "candidate_repair"),
             "workflow_friction": _group(report, "workflow_friction"),
             "promotion_readiness": _group(report, "promotion_readiness"),

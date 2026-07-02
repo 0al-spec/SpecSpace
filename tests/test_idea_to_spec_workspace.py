@@ -3662,6 +3662,36 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         json.dumps(body, allow_nan=False)
 
+    def test_idea_maturity_sanitizes_project_local_group_evidence_refs(self) -> None:
+        artifacts = _workspace_artifacts()
+        report = _idea_maturity_metrics_report()
+        report["groups"]["ontology_grounding"]["project_local_ontology_review"][
+            "evidence_refs"
+        ] = [
+            "runs/project_local_ontology_review_decisions.json",
+            "/Users/egor/Development/GitHub/0AL/SpecGraph/runs/project_local_ontology_decision_effect_report.json",
+            "runs/local_operator_diagnostics.json",
+            "runs/ontology_term_binding_gate_report.json",
+            "/tmp/private_project_local_notes.json",
+        ]
+        artifacts[idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT] = report
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        refs = body["idea_maturity"]["report"]["groups"]["ontology_grounding"][
+            "project_local_ontology_review"
+        ]["evidence_refs"]
+        self.assertEqual(
+            refs,
+            [
+                "runs/project_local_ontology_review_decisions.json",
+                "runs/project_local_ontology_decision_effect_report.json",
+            ],
+        )
+
     def test_idea_maturity_quarantines_authority_expansion(self) -> None:
         artifacts = _workspace_artifacts()
         report = _idea_maturity_metrics_report()
