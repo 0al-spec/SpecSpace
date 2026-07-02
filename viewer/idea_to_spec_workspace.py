@@ -578,11 +578,7 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "detail": "canonical_mutations_allowed must be false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
-        if filename == PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REPORT_ARTIFACT:
-            tracked_written_is_invalid = value.get("tracked_artifacts_written") is True
-        else:
-            tracked_written_is_invalid = value.get("tracked_artifacts_written") is not False
-        if tracked_written_is_invalid:
+        if value.get("tracked_artifacts_written") is not False:
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "tracked_artifacts_written must be false.",
@@ -3397,6 +3393,7 @@ def _approval_readiness(
         approval_decision["ready"]
         or (
             approval_execution["ok"]
+            and not approval_execution["dry_run"]
             and approval_execution["decision_written"]
             and approval_execution["candidate_approval_decision_ref"] is not None
         )
