@@ -774,10 +774,13 @@ When `runs/candidate_overview.json` is present, the response embeds
 graph. It summarizes product intent, understood scope, event-storming frame
 counts, workflow topology, repair/maturity status, project-local ontology
 review status, and the next operator action. SpecSpace treats this artifact as
-display-only evidence and rejects it if its action boundary claims authority to
-run SpecGraph, run Platform, mutate candidate artifacts, mutate canonical
-specs, write Ontology packages, accept Ontology terms, or create Git
-branches/commits.
+display-only evidence and rejects it when the source artifact `authority_boundary`,
+`action_boundary`, privacy flags, or top-level read-only fields claim authority
+to run SpecGraph, run Platform, mutate candidate artifacts, mutate canonical
+specs, write Ontology packages, accept Ontology terms, create Git
+branches/commits, write tracked artifacts, or allow canonical mutations. The
+response `candidate_overview.action_boundary` is a SpecSpace-generated read-only
+projection for the UI.
 
 For promotion review and publication, product wrapper reports are preferred
 when present. SpecSpace falls back to the legacy `graph_repository_*` reports

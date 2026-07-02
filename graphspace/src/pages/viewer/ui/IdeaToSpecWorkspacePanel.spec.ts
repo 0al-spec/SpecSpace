@@ -408,6 +408,8 @@ describe("IdeaToSpecWorkspacePanel", () => {
       'aria-label="Project-local ontology review decision"',
     );
     const textareaEnd = html.indexOf("</textarea>", textareaStart);
+    expect(textareaStart).toBeGreaterThanOrEqual(0);
+    expect(textareaEnd).toBeGreaterThan(textareaStart);
     const textareaSnippet = html.slice(textareaStart, textareaEnd);
 
     expect(html).toContain("Local Price Rule");

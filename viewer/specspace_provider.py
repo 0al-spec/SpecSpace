@@ -520,6 +520,7 @@ WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS: tuple[str, ...] = tuple(
     and filename not in idea_to_spec_workspace.IDEA_MATURITY_ARTIFACTS
     and filename
     not in {
+        idea_to_spec_workspace.CANDIDATE_OVERVIEW_ARTIFACT,
         idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
         idea_to_spec_workspace.REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
     }

@@ -730,6 +730,13 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "detail": "candidate overview authority boundary flags must remain false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
+        action_boundary = _record(value.get("action_boundary"))
+        if any(flag is True for flag in action_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "candidate overview action boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
         privacy_boundary = _record(value.get("privacy_boundary"))
         if any(
             key.startswith("raw_") and key.endswith("_published") and flag is True
@@ -738,6 +745,18 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "candidate overview privacy boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_mutations_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must be false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None

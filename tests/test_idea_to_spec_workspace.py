@@ -3109,25 +3109,38 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
     def test_build_workspace_rejects_write_capable_candidate_overview(self) -> None:
-        artifacts = _workspace_artifacts()
-        overview = _candidate_overview()
-        overview["authority_boundary"] = {
-            **overview["authority_boundary"],
-            "may_execute_specgraph": True,
-        }
-        artifacts[idea_to_spec_workspace.CANDIDATE_OVERVIEW_ARTIFACT] = overview
-
-        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
-            artifacts=artifacts,
-            source={"provider": "fixture", "read_only": True},
+        cases = (
+            ("authority_boundary", {"may_execute_specgraph": True}),
+            ("action_boundary", {"may_execute_platform": True}),
+            ("canonical_mutations_allowed", True),
+            ("tracked_artifacts_written", True),
         )
+        for field, unsafe_value in cases:
+            with self.subTest(field=field):
+                artifacts = _workspace_artifacts()
+                overview = _candidate_overview()
+                if isinstance(unsafe_value, dict):
+                    overview[field] = {
+                        **overview.get(field, {}),
+                        **unsafe_value,
+                    }
+                else:
+                    overview[field] = unsafe_value
+                artifacts[
+                    idea_to_spec_workspace.CANDIDATE_OVERVIEW_ARTIFACT
+                ] = overview
 
-        self.assertFalse(body["candidate_overview"]["available"])
-        self.assertFalse(body["artifacts"]["candidate_overview"]["available"])
-        self.assertEqual(
-            body["artifacts"]["candidate_overview"]["reason"],
-            "invalid_artifact_contract",
-        )
+                body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+                    artifacts=artifacts,
+                    source={"provider": "fixture", "read_only": True},
+                )
+
+                self.assertFalse(body["candidate_overview"]["available"])
+                self.assertFalse(body["artifacts"]["candidate_overview"]["available"])
+                self.assertEqual(
+                    body["artifacts"]["candidate_overview"]["reason"],
+                    "invalid_artifact_contract",
+                )
 
     def test_build_workspace_projects_project_local_ontology_import_preview(
         self,
