@@ -17,6 +17,7 @@ describe("UtilityPanelHeader", () => {
 
     expect(html).toContain('aria-label="Expand Metrics viewer"');
     expect(html).toContain('title="Expand Metrics viewer"');
+    expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('aria-label="Close Metrics viewer"');
     expect(html).toContain("<svg");
     expect(html).toContain('aria-hidden="true"');
@@ -39,6 +40,7 @@ describe("UtilityPanelHeader", () => {
 
     expect(html).toContain('aria-label="Collapse Ontology workbench"');
     expect(html).toContain('title="Collapse Ontology workbench"');
+    expect(html).toContain('aria-expanded="true"');
     expect(html).not.toContain(">Collapse<");
   });
 });

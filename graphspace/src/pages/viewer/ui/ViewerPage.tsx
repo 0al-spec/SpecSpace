@@ -852,7 +852,12 @@ export function ViewerPage({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return;
       if (utilityPanelExpanded && event.key === "Escape") {
+        const nestedModalDialog = document.querySelector(
+          '[role="dialog"][aria-modal="true"]',
+        );
+        if (nestedModalDialog) return;
         event.preventDefault();
         setUtilityPanelExpanded(false);
         return;
@@ -1175,7 +1180,6 @@ export function ViewerPage({
             .filter(Boolean)
             .join(" ")}
           aria-label={utilityPanelDetails.title}
-          aria-modal={utilityPanelExpanded ? "true" : undefined}
           role={utilityPanelExpanded ? "dialog" : undefined}
         >
           <UtilityPanelHeader

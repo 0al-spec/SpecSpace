@@ -29,6 +29,7 @@ export function UtilityPanelHeader({
         <PanelBtn
           title={`${expandAction} ${title}`}
           aria-label={`${expandAction} ${title}`}
+          aria-expanded={expanded}
           active={expanded}
           onClick={onToggleExpanded}
         >
