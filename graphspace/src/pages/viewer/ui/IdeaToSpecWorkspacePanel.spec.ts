@@ -30,6 +30,13 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("#idea-to-spec-workspace-state-hygiene");
     expect(html).toContain("#idea-to-spec-idea-intake");
     expect(html).toContain("#idea-to-spec-candidate-graph");
+    expect(html).toContain('id="idea-to-spec-candidate-overview"');
+    expect(html).toContain("Candidate overview");
+    expect(html).toContain("Capture team decisions with explicit owner and outcome.");
+    expect(html).toContain("Decision capture, review, and retrieval for one product team.");
+    expect(html).toContain("Resolve repair blockers");
+    expect(html).toContain("Workflow topology");
+    expect(html).toContain("actor triggers command");
     expect(html).toContain("Git dry-run");
     expect(html).toContain("scripts/platform.py product-repair-rerun smoke --profile happy-path-promotion-dry-run");
     expect(html).toContain("Workflow lane");
@@ -400,11 +407,15 @@ describe("IdeaToSpecWorkspacePanel", () => {
     const textareaStart = html.indexOf(
       'aria-label="Project-local ontology review decision"',
     );
-    const textareaSnippet = html.slice(textareaStart, textareaStart + 220);
+    const textareaEnd = html.indexOf("</textarea>", textareaStart);
+    expect(textareaStart).toBeGreaterThanOrEqual(0);
+    expect(textareaEnd).toBeGreaterThan(textareaStart);
+    const textareaSnippet = html.slice(textareaStart, textareaEnd);
 
     expect(html).toContain("Local Price Rule");
     expect(textareaSnippet).not.toContain("Local Price Rule");
-    expect(textareaSnippet).toContain("></textarea>");
+    expect(html).toContain('Will keep &quot;Local Price Rule&quot; project-local');
+    expect(html).toContain("Project-local rationale");
   });
 
   it("derives idea maturity finding next actions when absent", () => {

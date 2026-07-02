@@ -1104,6 +1104,150 @@ export const ideaToSpecWorkspace = {
       },
     ],
   },
+  candidate_overview: {
+    available: true,
+    readiness: {
+      ready: true,
+      review_state: "candidate_overview_ready",
+      blocked_by: [],
+      next_artifact: null,
+    },
+    summary: {
+      candidate_id: "team-decision-log",
+      display_name: "Team Decision Log",
+      graph_source: "repaired_candidate_graph",
+      node_count: 2,
+      edge_count: 4,
+      workflow_edge_count: 3,
+      remaining_blocker_count: 1,
+      finding_count: 0,
+      ready_for_candidate_approval: false,
+      ready_for_platform_promotion: false,
+      project_local_ontology_review_status:
+        "project_local_ontology_decision_effect_ready",
+    },
+    candidate: {
+      candidate_id: "team-decision-log",
+      display_name: "Team Decision Log",
+      workspace_route: "/team-decision-log",
+      workflow_lane: "product_idea_to_spec",
+    },
+    narrative: {
+      product_intent: "Capture team decisions with explicit owner and outcome.",
+      understood_scope:
+        "Decision capture, review, and retrieval for one product team.",
+      readiness: "Candidate still needs repair review before approval.",
+      next_action: "Resolve repair blockers and rerun candidate preview.",
+    },
+    event_storming: {
+      actor_count: 1,
+      command_count: 1,
+      domain_event_count: 1,
+      policy_count: 1,
+      constraint_count: 1,
+      actors: [{ id: "actor.team-member", label: "Team member", kind: "actor" }],
+      commands: [
+        {
+          id: "command.record-decision",
+          label: "Record decision",
+          kind: "command",
+          detail: "Team member records a decision.",
+        },
+      ],
+      domain_events: [
+        {
+          id: "event.decision-recorded",
+          label: "Decision recorded",
+          kind: "domain_event",
+          detail: "Decision entry becomes reviewable.",
+        },
+      ],
+      policies: [
+        {
+          id: "policy.owner-required",
+          label: "Owner required",
+          kind: "policy",
+          detail: "Decision records require an owner.",
+        },
+      ],
+      constraints: [
+        {
+          id: "constraint.team-local",
+          label: "Team-local workspace",
+          kind: "constraint",
+          detail: "Workspace stays product-scoped.",
+        },
+      ],
+    },
+    candidate_nodes: {
+      nodes: [
+        {
+          id: "candidate-spec.calculator-product",
+          label: "Calculator Product",
+          kind: "product_boundary",
+          detail: "Product boundary node.",
+        },
+        {
+          id: "candidate-spec.numeric-input",
+          label: "Numeric Input",
+          kind: "feature",
+          detail: "Input node with one repair gap.",
+        },
+      ],
+    },
+    topology: {
+      edge_count: 4,
+      workflow_edge_count: 3,
+      relation_counts: {
+        actor_triggers_command: 1,
+        command_emits_event: 1,
+        event_informs_policy: 1,
+      },
+      edges: [
+        {
+          id: "edge.actor-command",
+          relation: "actor_triggers_command",
+          from: "actor.team-member",
+          to: "command.record-decision",
+          label: "Team member records decision",
+        },
+      ],
+    },
+    repair: {
+      remaining_blocker_count: 1,
+      resolved_ontology_gap_count: 1,
+      resolved_candidate_gap_count: 0,
+      removed_gap_count: 1,
+    },
+    idea_maturity: {
+      status: "available",
+      lifecycle_state: "repair_required",
+      trusted: true,
+    },
+    project_local_ontology: {
+      status: "project_local_ontology_decision_effect_ready",
+      term_count: 2,
+      accepted_decision_count: 2,
+      blocking_decision_count: 0,
+    },
+    next_action: {
+      action_id: "resolve_repair_blockers",
+      label: "Resolve repair blockers",
+      source: "idea_maturity",
+      evidence_refs: ["runs/idea_maturity_metrics_report.json"],
+    },
+    action_boundary: {
+      inspect_only: true,
+      acknowledge_only: true,
+      may_execute_specgraph: false,
+      may_execute_platform: false,
+      may_mutate_candidate_artifacts: false,
+      may_mutate_canonical_specs: false,
+      may_write_ontology_package: false,
+      may_accept_ontology_terms: false,
+      may_create_branch_or_commit: false,
+    },
+  },
   pre_sib: {
     available: true,
     readiness: {

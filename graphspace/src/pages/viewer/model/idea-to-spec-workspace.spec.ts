@@ -74,6 +74,20 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.candidateGraph.nodes[1].id).toBe(
       "candidate-spec.numeric-input",
     );
+    expect(parsed.data.candidateOverview.available).toBe(true);
+    expect(parsed.data.candidateOverview.summary.graphSource).toBe(
+      "repaired_candidate_graph",
+    );
+    expect(parsed.data.candidateOverview.narrative.productIntent).toBe(
+      "Capture team decisions with explicit owner and outcome.",
+    );
+    expect(
+      parsed.data.candidateOverview.topology.relationCounts
+        .actor_triggers_command,
+    ).toBe(1);
+    expect(parsed.data.candidateOverview.nextAction.label).toBe(
+      "Resolve repair blockers",
+    );
     expect(parsed.data.preSib.findings[0].findingId).toBe(
       "pre_sib_ontology_coverage_gap",
     );
@@ -536,6 +550,21 @@ describe("parseIdeaToSpecWorkspace", () => {
         action_boundary: {
           ...ideaToSpecWorkspace.controlled_promotion.action_boundary,
           may_execute_git_service: true,
+        },
+      },
+    });
+
+    expect(parsed.kind).toBe("parse-error");
+  });
+
+  it("rejects candidate overview action expansion", () => {
+    const parsed = parseIdeaToSpecWorkspace({
+      ...ideaToSpecWorkspace,
+      candidate_overview: {
+        ...ideaToSpecWorkspace.candidate_overview,
+        action_boundary: {
+          ...ideaToSpecWorkspace.candidate_overview.action_boundary,
+          may_execute_specgraph: true,
         },
       },
     });

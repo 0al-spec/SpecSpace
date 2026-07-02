@@ -214,6 +214,147 @@ def _candidate_graph() -> dict:
     }
 
 
+def _candidate_overview() -> dict:
+    return {
+        "artifact_kind": "candidate_overview",
+        "schema_version": 1,
+        "proposal_id": "0201",
+        "contract_ref": "specgraph.idea-to-spec.candidate-overview.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "candidate_overview_ready",
+            "blocked_by": [],
+        },
+        "summary": {
+            "candidate_id": "team-decision-log",
+            "display_name": "Team Decision Log",
+            "graph_source": "repaired_candidate_graph",
+            "node_count": 2,
+            "edge_count": 4,
+            "workflow_edge_count": 3,
+            "remaining_blocker_count": 1,
+            "finding_count": 0,
+            "ready_for_candidate_approval": False,
+            "ready_for_platform_promotion": False,
+            "project_local_ontology_review_status": (
+                "project_local_ontology_decision_effect_ready"
+            ),
+        },
+        "candidate": {
+            "candidate_id": "team-decision-log",
+            "display_name": "Team Decision Log",
+            "workspace_route": "/team-decision-log",
+            "workflow_lane": "product_idea_to_spec",
+        },
+        "narrative": {
+            "product_intent": (
+                "Capture team decisions with explicit owner and outcome."
+            ),
+            "understood_scope": (
+                "Decision capture, review, and retrieval for one product team."
+            ),
+            "readiness": "Candidate still needs repair review before approval.",
+            "next_action": "Resolve repair blockers and rerun candidate preview.",
+        },
+        "sections": {
+            "event_storming": {
+                "actor_count": 1,
+                "command_count": 1,
+                "domain_event_count": 1,
+                "policy_count": 1,
+                "constraint_count": 1,
+                "actors": [
+                    {"id": "actor.team-member", "label": "Team member", "kind": "actor"}
+                ],
+                "commands": [
+                    {
+                        "id": "command.record-decision",
+                        "label": "Record decision",
+                        "kind": "command",
+                        "detail": "Team member records a decision.",
+                    }
+                ],
+                "domain_events": [
+                    {
+                        "id": "event.decision-recorded",
+                        "label": "Decision recorded",
+                        "kind": "domain_event",
+                        "detail": "Decision entry becomes reviewable.",
+                    }
+                ],
+                "policies": [],
+                "constraints": [],
+            },
+            "candidate_nodes": {
+                "nodes": [
+                    {
+                        "id": "candidate-spec.numeric-input",
+                        "label": "Numeric Input",
+                        "kind": "feature",
+                        "detail": "Input node with one repair gap.",
+                    }
+                ]
+            },
+            "topology": {
+                "edge_count": 4,
+                "workflow_edge_count": 3,
+                "relation_counts": {
+                    "actor_triggers_command": 1,
+                    "command_emits_event": 1,
+                    "event_informs_policy": 1,
+                },
+                "edges": [
+                    {
+                        "id": "edge.actor-command",
+                        "relation": "actor_triggers_command",
+                        "from": "actor.team-member",
+                        "to": "command.record-decision",
+                    }
+                ],
+            },
+            "repair": {
+                "remaining_blocker_count": 1,
+                "resolved_ontology_gap_count": 1,
+                "resolved_candidate_gap_count": 0,
+                "removed_gap_count": 1,
+            },
+            "idea_maturity": {
+                "status": "available",
+                "lifecycle_state": "repair_required",
+                "trusted": True,
+            },
+            "project_local_ontology": {
+                "status": "project_local_ontology_decision_effect_ready",
+                "term_count": 2,
+                "accepted_decision_count": 2,
+                "blocking_decision_count": 0,
+            },
+        },
+        "next_action": {
+            "action_id": "resolve_repair_blockers",
+            "label": "Resolve repair blockers",
+            "source": "idea_maturity",
+            "evidence_refs": ["runs/idea_maturity_metrics_report.json"],
+        },
+        "authority_boundary": {
+            "may_execute_specgraph": False,
+            "may_execute_platform": False,
+            "may_mutate_candidate_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+        },
+        "privacy_boundary": {
+            "raw_intent_text_published": False,
+            "raw_prompt_published": False,
+            "raw_model_output_published": False,
+        },
+    }
+
+
 def _pre_sib() -> dict:
     return {
         "artifact_kind": "pre_sib_coherence_report",
@@ -2530,6 +2671,7 @@ def _workspace_artifacts() -> dict[str, dict]:
         idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT: _intake(),
         idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: _candidate_seed(),
         idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT: _candidate_graph(),
+        idea_to_spec_workspace.CANDIDATE_OVERVIEW_ARTIFACT: _candidate_overview(),
         idea_to_spec_workspace.PRE_SIB_COHERENCE_REPORT_ARTIFACT: _pre_sib(),
         idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: _repair_loop(),
         idea_to_spec_workspace.IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: _clarification_requests(),
@@ -2657,6 +2799,25 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["candidate_graph"]["nodes"][1]["id"],
             "candidate-spec.numeric-input",
+        )
+        self.assertTrue(body["candidate_overview"]["available"])
+        self.assertEqual(
+            body["candidate_overview"]["summary"]["graph_source"],
+            "repaired_candidate_graph",
+        )
+        self.assertEqual(
+            body["candidate_overview"]["narrative"]["product_intent"],
+            "Capture team decisions with explicit owner and outcome.",
+        )
+        self.assertEqual(
+            body["candidate_overview"]["topology"]["relation_counts"][
+                "actor_triggers_command"
+            ],
+            1,
+        )
+        self.assertEqual(
+            body["artifacts"]["candidate_overview"]["contract_ref"],
+            "specgraph.idea-to-spec.candidate-overview.v0.1",
         )
         self.assertEqual(
             body["pre_sib"]["findings"][0]["finding_id"],
@@ -2946,6 +3107,40 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(
             body["authority_boundary"]["may_create_branch_or_commit"]
         )
+
+    def test_build_workspace_rejects_write_capable_candidate_overview(self) -> None:
+        cases = (
+            ("authority_boundary", {"may_execute_specgraph": True}),
+            ("action_boundary", {"may_execute_platform": True}),
+            ("canonical_mutations_allowed", True),
+            ("tracked_artifacts_written", True),
+        )
+        for field, unsafe_value in cases:
+            with self.subTest(field=field):
+                artifacts = _workspace_artifacts()
+                overview = _candidate_overview()
+                if isinstance(unsafe_value, dict):
+                    overview[field] = {
+                        **overview.get(field, {}),
+                        **unsafe_value,
+                    }
+                else:
+                    overview[field] = unsafe_value
+                artifacts[
+                    idea_to_spec_workspace.CANDIDATE_OVERVIEW_ARTIFACT
+                ] = overview
+
+                body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+                    artifacts=artifacts,
+                    source={"provider": "fixture", "read_only": True},
+                )
+
+                self.assertFalse(body["candidate_overview"]["available"])
+                self.assertFalse(body["artifacts"]["candidate_overview"]["available"])
+                self.assertEqual(
+                    body["artifacts"]["candidate_overview"]["reason"],
+                    "invalid_artifact_contract",
+                )
 
     def test_build_workspace_projects_project_local_ontology_import_preview(
         self,
@@ -3989,7 +4184,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
 
         self.assertEqual(body["summary"]["status"], "partial")
-        self.assertEqual(body["summary"]["available_artifact_count"], 23)
+        self.assertEqual(body["summary"]["available_artifact_count"], 24)
         self.assertEqual(body["summary"]["missing_artifact_count"], 3)
         self.assertEqual(body["summary"]["candidate_node_count"], 0)
         self.assertEqual(body["summary"]["repair_action_count"], 0)
