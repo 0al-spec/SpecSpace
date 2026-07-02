@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -43,6 +44,23 @@ def _workspace_payload() -> dict:
                 }
             ],
         },
+    }
+
+
+def _lane_artifact() -> dict:
+    return {
+        "artifact_kind": "project_local_ontology_review_lane",
+        "review_decision_schema": {
+            "supported_actions": [
+                "keep_project_local",
+                "bind_existing",
+                "alias",
+                "reject",
+                "request_workspace_promotion",
+                "defer",
+            ]
+        },
+        "terms": _workspace_payload()["project_local_ontology_review"]["terms"],
     }
 
 
@@ -113,3 +131,94 @@ def test_save_project_local_decision_blocks_authority_expansion(tmp_path: Path) 
 
     assert status == 400
     assert payload["field"] == "may_write_ontology_package"
+
+
+def test_save_project_local_decision_uses_lane_supported_actions(
+    tmp_path: Path,
+) -> None:
+    lane = _lane_artifact()
+    lane["review_decision_schema"]["supported_actions"] = ["keep_project_local"]
+
+    status, payload = project_local_ontology_review_decisions.save_decision(
+        _server(tmp_path),
+        {
+            "workspace_id": "team-decision-log",
+            "term_key": "decisionrecord",
+            "action": "bind_existing",
+            "decision_value": {"ontology_ref": "ontology://core/DecisionRecord"},
+        },
+        _workspace_payload(),
+        workspace_id="team-decision-log",
+        lane_artifact=lane,
+    )
+
+    assert status == 400
+    assert payload["allowed_actions"] == ["keep_project_local"]
+
+
+def test_save_project_local_decision_uses_unbounded_lane_terms(
+    tmp_path: Path,
+) -> None:
+    lane = _lane_artifact()
+    lane["terms"] = [
+        {
+            "id": f"project-local-ontology-term.term-{index}",
+            "term": f"Term {index}",
+            "term_key": f"term{index}",
+            "suggested_actions": ["keep_project_local"],
+        }
+        for index in range(41)
+    ]
+    display_payload = _workspace_payload()
+    display_payload["project_local_ontology_review"]["terms"] = lane["terms"][:40]
+
+    status, payload = project_local_ontology_review_decisions.save_decision(
+        _server(tmp_path),
+        {
+            "workspace_id": "team-decision-log",
+            "term_key": "term40",
+            "action": "keep_project_local",
+            "decision_value": {"reason": "Keep this workspace-local."},
+        },
+        display_payload,
+        workspace_id="team-decision-log",
+        lane_artifact=lane,
+    )
+
+    assert status == 200
+    assert payload["decisions"][0]["term_key"] == "term40"
+
+
+def test_read_state_reports_dropped_invalid_decisions(tmp_path: Path) -> None:
+    path = tmp_path / "project_local_ontology_review_decisions.json"
+    state = project_local_ontology_review_decisions.empty_state(path)
+    state["decisions"] = [
+        {
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "term_key": "decisionrecord",
+            "review_action": "keep_project_local",
+            "decision_value": {"term": "Decision Record"},
+        },
+        {
+            "workspace_id": "team-decision-log",
+            "term_key": "broken",
+            "review_action": "keep_project_local",
+            "decision_value": {"term": "Broken"},
+        },
+    ]
+    path.write_text(
+        json.dumps(state, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    status, payload = project_local_ontology_review_decisions.read_state(
+        _server(tmp_path),
+        workspace_id="team-decision-log",
+    )
+
+    assert status == 200
+    assert payload["summary"]["decision_count"] == 1
+    assert payload["summary"]["invalid_decision_count"] == 1
+    assert payload["summary"]["dropped_decision_count"] == 1
+    assert payload["invalid_decisions"][0]["reason"] == "missing_required_fields"

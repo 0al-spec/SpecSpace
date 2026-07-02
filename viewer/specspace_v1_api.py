@@ -592,9 +592,8 @@ def handle_v1_project_local_ontology_review_decision_post(
         )
         return
     workspace_id = query_workspace_id or payload_workspace_id
-    workspace_status, workspace_payload = (
-        _provider(handler, workspace_id).read_idea_to_spec_workspace()
-    )
+    provider = _provider(handler, workspace_id)
+    workspace_status, workspace_payload = provider.read_idea_to_spec_workspace()
     if workspace_status != HTTPStatus.OK:
         json_response(
             handler,
@@ -607,11 +606,20 @@ def handle_v1_project_local_ontology_review_decision_post(
             },
         )
         return
+    lane_status, lane_payload = provider.read_artifact_content(
+        f"runs/{idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT}"
+    )
+    lane_artifact = (
+        lane_payload.get("data")
+        if lane_status == HTTPStatus.OK and isinstance(lane_payload.get("data"), dict)
+        else None
+    )
     status, response = project_local_ontology_review_decisions.save_decision(
         handler.server,
         payload,
         workspace_payload,
         workspace_id=workspace_id,
+        lane_artifact=lane_artifact,
     )
     json_response(handler, status, response)
 

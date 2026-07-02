@@ -347,6 +347,58 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toMatch(/Ordinary unmaterialized<\/span><span[^>]*>0/);
   });
 
+  it("does not prefill project-local keep decisions with the term text", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.project_local_ontology_review = {
+      available: true,
+      readiness: { ready: false, review_state: "project_local_ontology_review_required" },
+      summary: { status: "project_local_ontology_review_required", term_count: 1 },
+      context: { workspace_id: "team-decision-log", candidate_id: "team-decision-log" },
+      supported_actions: ["keep_project_local", "bind_existing"],
+      action_boundary: {
+        inspect_only: true,
+        acknowledge_only: true,
+        may_apply_decisions: false,
+        may_mutate_candidate_artifacts: false,
+        may_accept_ontology_terms: false,
+        may_write_ontology_package: false,
+        may_create_branch_or_commit: false,
+      },
+      terms: [
+        {
+          id: "project-local-ontology-term.local-price-rule",
+          term: "Local Price Rule",
+          term_key: "localpricerule",
+          status: "unreviewed",
+          suggested_actions: ["keep_project_local", "bind_existing"],
+          effect: {
+            candidate_readiness_effect: "requires_operator_review",
+            next_action: "record_project_local_ontology_decision",
+            resolved_gap_count: 0,
+          },
+        },
+      ],
+    };
+    const parsedWithProjectLocal = parseIdeaToSpecWorkspace(raw);
+    if (parsedWithProjectLocal.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWithProjectLocal.data },
+      }),
+    );
+    const textareaStart = html.indexOf(
+      'aria-label="Project-local ontology review decision"',
+    );
+    const textareaSnippet = html.slice(textareaStart, textareaStart + 220);
+
+    expect(html).toContain("Local Price Rule");
+    expect(textareaSnippet).not.toContain("Local Price Rule");
+    expect(textareaSnippet).toContain("></textarea>");
+  });
+
   it("derives idea maturity finding next actions when absent", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.idea_maturity.report.findings = [

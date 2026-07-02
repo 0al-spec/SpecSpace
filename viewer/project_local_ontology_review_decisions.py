@@ -170,15 +170,25 @@ def normalize_state(raw: Any, path: Path) -> tuple[dict[str, Any] | None, dict[s
 
     state = empty_state(path)
     decisions = []
-    for entry in _records(raw.get("decisions")):
+    invalid_decisions = []
+    for index, entry in enumerate(_records(raw.get("decisions"))):
         mutation_field = _first_true(entry, DECISION_FALSE_FIELDS)
         if mutation_field is not None:
             return None, {"error": f"Project-local ontology decision cannot claim {mutation_field}"}
-        decision = _normalize_existing_decision(entry)
+        decision, invalid_reason = _normalize_existing_decision_result(entry)
         if decision is not None:
             decisions.append(decision)
+        else:
+            invalid_decisions.append(
+                {
+                    "index": index,
+                    "reason": invalid_reason or "invalid_project_local_ontology_decision",
+                }
+            )
     decisions.sort(key=lambda entry: (entry["workspace_id"], entry["term_key"]))
     state["decisions"] = decisions
+    state["invalid_decision_count"] = len(invalid_decisions)
+    state["invalid_decisions"] = invalid_decisions[:20]
     state["source_artifacts"] = _string_map(raw.get("source_artifacts"))
     _refresh_summary(state)
     return state, None
@@ -190,6 +200,7 @@ def save_decision(
     workspace_payload: dict[str, Any],
     *,
     workspace_id: str | None,
+    lane_artifact: dict[str, Any] | None = None,
 ) -> tuple[HTTPStatus, dict[str, Any]]:
     term_key = _text(payload.get("term_key"))
     action = _text(payload.get("action") or payload.get("review_action"))
@@ -210,8 +221,11 @@ def save_decision(
             "field": mutation_field,
         }
 
-    lane = _record(workspace_payload.get("project_local_ontology_review"))
-    if lane.get("available") is not True:
+    lane = _record(lane_artifact) or _record(workspace_payload.get("project_local_ontology_review"))
+    raw_lane_available = lane_artifact is not None and (
+        lane.get("artifact_kind") == "project_local_ontology_review_lane"
+    )
+    if not raw_lane_available and lane.get("available") is not True:
         return HTTPStatus.CONFLICT, {
             "error": "Project-local ontology review decision requires a readable review lane.",
             "reason": "project_local_ontology_review_lane_required",
@@ -225,7 +239,11 @@ def save_decision(
             "error": f"Project-local ontology term '{term_key}' not found.",
             "term_key": term_key,
         }
-    allowed_actions = _strings(term.get("suggested_actions")) or sorted(SUPPORTED_ACTIONS)
+    lane_actions = _lane_supported_actions(lane)
+    suggested_actions = _strings(term.get("suggested_actions"))
+    allowed_actions = [
+        item for item in suggested_actions if item in lane_actions
+    ] or lane_actions
     if action not in SUPPORTED_ACTIONS or action not in allowed_actions:
         return HTTPStatus.BAD_REQUEST, {
             "error": f"Action '{action}' is not allowed for project-local ontology term '{term_key}'.",
@@ -330,19 +348,25 @@ def save_decision(
 
 
 def _normalize_existing_decision(entry: dict[str, Any]) -> dict[str, Any] | None:
+    return _normalize_existing_decision_result(entry)[0]
+
+
+def _normalize_existing_decision_result(
+    entry: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str | None]:
     workspace_id = _text(entry.get("workspace_id"))
     candidate_id = _text(entry.get("candidate_id"))
     term_key = _text(entry.get("term_key"))
     review_action = _text(entry.get("review_action"))
     if workspace_id is None or candidate_id is None or term_key is None or review_action is None:
-        return None
+        return None, "missing_required_fields"
     decision_value, value_error = _normalize_decision_value(
         review_action,
         entry.get("decision_value") if isinstance(entry.get("decision_value"), dict) else {},
         entry,
     )
     if value_error is not None:
-        return None
+        return None, _text(value_error.get("error")) or "invalid_decision_value"
     return {
         **entry,
         "workspace_id": workspace_id,
@@ -360,7 +384,7 @@ def _normalize_existing_decision(entry: dict[str, Any]) -> dict[str, Any] | None
         "accepts_ontology_terms": False,
         "creates_branch_or_commit": False,
         "opens_pull_request": False,
-    }
+    }, None
 
 
 def _normalize_decision_value(
@@ -421,6 +445,7 @@ def _filtered_state(state: dict[str, Any], workspace_id: str | None) -> dict[str
 
 def _refresh_summary(state: dict[str, Any]) -> None:
     decisions = [entry for entry in state.get("decisions", []) if isinstance(entry, dict)]
+    invalid_decision_count = _non_negative_int(state.get("invalid_decision_count"))
     workspaces = {
         entry["workspace_id"]
         for entry in decisions
@@ -437,6 +462,8 @@ def _refresh_summary(state: dict[str, Any]) -> None:
             else "no_project_local_ontology_review_decisions"
         ),
         "decision_count": len(decisions),
+        "invalid_decision_count": invalid_decision_count,
+        "dropped_decision_count": invalid_decision_count,
         "workspace_count": len(workspaces),
         "action_counts": action_counts,
         "next_gap": "export_project_local_ontology_review_decisions_for_specgraph_validation",
@@ -466,7 +493,11 @@ def _strings(value: Any) -> list[str]:
 def _string_map(value: Any) -> dict[str, str]:
     if not isinstance(value, dict):
         return {}
-    return {key: item for key, item in value.items() if isinstance(item, str)}
+    return {
+        key: item
+        for key, item in value.items()
+        if isinstance(key, str) and isinstance(item, str)
+    }
 
 
 def _text(value: Any) -> str | None:
@@ -480,3 +511,16 @@ def _first_true(value: Any, fields: tuple[str, ...]) -> str | None:
         if value.get(field) is True:
             return field
     return None
+
+
+def _lane_supported_actions(lane: dict[str, Any]) -> list[str]:
+    schema = _record(lane.get("review_decision_schema"))
+    actions = _strings(schema.get("supported_actions")) or _strings(
+        lane.get("supported_actions")
+    )
+    allowed = [item for item in actions if item in SUPPORTED_ACTIONS]
+    return allowed or sorted(SUPPORTED_ACTIONS)
+
+
+def _non_negative_int(value: Any) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0

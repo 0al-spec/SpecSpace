@@ -1357,12 +1357,12 @@ function ProjectLocalOntologyTermRow({
   const defaultAction = savedDecision?.reviewAction ?? availableActions[0];
   const [selectedAction, setSelectedAction] = useState(defaultAction);
   const [text, setText] = useState(() =>
-    projectLocalDecisionText(savedDecision, term, defaultAction),
+    projectLocalDecisionText(savedDecision, defaultAction),
   );
   useEffect(() => {
     setSelectedAction(defaultAction);
-    setText(projectLocalDecisionText(savedDecision, term, defaultAction));
-  }, [defaultAction, savedDecision, term]);
+    setText(projectLocalDecisionText(savedDecision, defaultAction));
+  }, [defaultAction, savedDecision]);
   const decisionValue = projectLocalDecisionValue(term, selectedAction, text);
   const canSave =
     selectedAction.length > 0 &&
@@ -1410,7 +1410,11 @@ function ProjectLocalOntologyTermRow({
           <select
             className={styles.draftSelect}
             value={selectedAction}
-            onChange={(event) => setSelectedAction(event.currentTarget.value)}
+            onChange={(event) => {
+              const nextAction = event.currentTarget.value;
+              setSelectedAction(nextAction);
+              setText(projectLocalDecisionText(savedDecision, nextAction));
+            }}
             aria-label="Project-local ontology review action"
           >
             {availableActions.map((action) => (
@@ -3700,9 +3704,9 @@ function repairDraftSaveErrorText(error: IdeaToSpecRepairDraftSaveError): string
 
 function projectLocalDecisionText(
   savedDecision: ProjectLocalOntologyReviewDecision | undefined,
-  term: IdeaToSpecProjectLocalOntologyTerm,
   action: string,
 ): string {
+  if (savedDecision?.reviewAction !== action) return "";
   const value = savedDecision?.decisionValue ?? {};
   if (typeof value.ontology_ref === "string") return value.ontology_ref;
   if (typeof value.alias_of === "string") return value.alias_of;
@@ -3710,9 +3714,6 @@ function projectLocalDecisionText(
   if (typeof value.text === "string") return value.text;
   if (typeof value.term === "string" && action !== "keep_project_local") {
     return value.term;
-  }
-  if (action === "keep_project_local") {
-    return compact(term.term, term.termKey);
   }
   return "";
 }

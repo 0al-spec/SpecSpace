@@ -5936,6 +5936,129 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(state_exists)
         self.assertEqual(lane_after, before_lane)
 
+    def test_project_local_ontology_review_decisions_v1_posts_raw_lane_terms_beyond_display_limit(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_project_local_ontology_review_workspace_runs(runs_dir)
+            lane_path = (
+                runs_dir
+                / idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT
+            )
+            lane = json.loads(lane_path.read_text(encoding="utf-8"))
+            lane["terms"] = [
+                {
+                    "id": f"project-local-ontology-term.term-{index}",
+                    "term": f"Term {index}",
+                    "term_key": f"term{index}",
+                    "status": "unreviewed",
+                    "suggested_actions": ["keep_project_local"],
+                    "effect": {
+                        "candidate_readiness_effect": "requires_operator_review",
+                        "next_action": "record_project_local_ontology_decision",
+                        "resolved_gap_count": 0,
+                    },
+                }
+                for index in range(41)
+            ]
+            lane["summary"]["term_count"] = 41
+            lane_path.write_text(json.dumps(lane), encoding="utf-8")
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/project-local-ontology-review-decisions?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "term_key": "term40",
+                        "action": "keep_project_local",
+                        "decision_value": {
+                            "reason": "Keep this late-display term local."
+                        },
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["decision_count"], 1)
+        self.assertEqual(body["decisions"][0]["term_key"], "term40")
+
+    def test_project_local_ontology_review_decisions_v1_reports_invalid_stored_decisions(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            state_dir.mkdir(parents=True)
+            state_path = state_dir / "project_local_ontology_review_decisions.json"
+            state = {
+                "artifact_kind": "specspace_project_local_ontology_review_decision_state",
+                "schema_version": 1,
+                "state_owner": "SpecSpace",
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
+                "consumer_boundary": {
+                    "may_execute_prompt_agent": False,
+                    "may_execute_specgraph": False,
+                    "may_execute_platform": False,
+                    "may_apply_to_specgraph": False,
+                    "may_apply_decisions": False,
+                    "may_mutate_candidate_artifacts": False,
+                    "may_mutate_canonical_specs": False,
+                    "may_write_ontology_package": False,
+                    "may_write_ontology_lockfile": False,
+                    "may_accept_ontology_terms": False,
+                    "may_create_branch_or_commit": False,
+                    "may_open_pull_request": False,
+                },
+                "authority_boundary": {
+                    "project_local_ontology_review_decision_state_is_authority": False,
+                    "specgraph_artifact_authority": False,
+                    "ontology_authority": False,
+                    "git_service_authority": False,
+                    "canonical_mutations_allowed": False,
+                },
+                "source_artifacts": {},
+                "decisions": [
+                    {
+                        "workspace_id": "team-decision-log",
+                        "candidate_id": "team-decision-log",
+                        "term_key": "decisionrecord",
+                        "review_action": "keep_project_local",
+                        "decision_value": {"term": "Decision Record"},
+                    },
+                    {
+                        "workspace_id": "team-decision-log",
+                        "term_key": "broken",
+                        "review_action": "keep_project_local",
+                        "decision_value": {"term": "Broken"},
+                    },
+                ],
+            }
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            httpd, thread, base = _start(
+                root / "dialogs",
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/project-local-ontology-review-decisions?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["decision_count"], 1)
+        self.assertEqual(body["summary"]["invalid_decision_count"], 1)
+        self.assertEqual(body["summary"]["dropped_decision_count"], 1)
+
     def test_idea_to_spec_intake_clarification_answers_v1_reads_empty_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
