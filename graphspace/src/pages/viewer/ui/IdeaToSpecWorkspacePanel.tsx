@@ -2041,6 +2041,10 @@ function IdeaMaturitySection({
             value={String(metrics.projectLocalOntologyReview.maturityEvidenceDecisionCount)}
           />
           <Meta
+            label="Ready for maturity"
+            value={metrics.projectLocalOntologyReview.readyForMaturity ? "yes" : "no"}
+          />
+          <Meta
             label="Kept local"
             value={String(metrics.projectLocalOntologyReview.keepProjectLocalCount)}
           />
@@ -2050,7 +2054,11 @@ function IdeaMaturitySection({
           />
           <Meta
             label="Promotion follow-ups"
-            value={String(metrics.projectLocalOntologyReview.requestPromotionCount)}
+            value={String(metrics.projectLocalOntologyReview.followUpDecisionCount)}
+          />
+          <Meta
+            label="Blocking decisions"
+            value={String(metrics.projectLocalOntologyReview.blockingDecisionCount)}
           />
           <Meta
             label="Missing / invalid"

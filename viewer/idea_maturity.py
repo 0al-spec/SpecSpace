@@ -262,6 +262,17 @@ def _metric_source_value(
     return _group(report, group_id).get(key)
 
 
+def _nested_or_flat(
+    nested: dict[str, Any],
+    key: str,
+    metrics: dict[str, Any],
+    flat_key: str | None = None,
+) -> Any:
+    if key in nested:
+        return nested.get(key)
+    return metrics.get(flat_key or key)
+
+
 def _safe_artifact_ref(value: Any) -> str | None:
     text = _optional_text(value)
     if text is None:
@@ -406,60 +417,90 @@ def _metrics(report: dict[str, Any] | None) -> dict[str, Any]:
                 or metrics.get("project_local_ontology_review_status")
             ),
             "accepted_decision_count": _number(
-                project_local_ontology_review.get("accepted_decision_count")
-                if "accepted_decision_count" in project_local_ontology_review
-                else metrics.get("project_local_ontology_accepted_decision_count")
+                _nested_or_flat(
+                    project_local_ontology_review,
+                    "accepted_decision_count",
+                    metrics,
+                    "project_local_ontology_accepted_decision_count",
+                )
             ),
             "maturity_evidence_decision_count": _number(
                 project_local_ontology_review.get("maturity_evidence_decision_count")
             ),
             "keep_project_local_count": _number(
-                project_local_ontology_review.get("keep_project_local_count")
-                if "keep_project_local_count" in project_local_ontology_review
-                else metrics.get("project_local_ontology_keep_local_count")
+                _nested_or_flat(
+                    project_local_ontology_review,
+                    "keep_project_local_count",
+                    metrics,
+                    "project_local_ontology_keep_local_count",
+                )
             ),
             "bind_existing_count": _number(
-                project_local_ontology_review.get("bind_existing_count")
-                if "bind_existing_count" in project_local_ontology_review
-                else metrics.get("project_local_ontology_bind_existing_count")
+                _nested_or_flat(
+                    project_local_ontology_review,
+                    "bind_existing_count",
+                    metrics,
+                    "project_local_ontology_bind_existing_count",
+                )
             ),
             "alias_count": _number(
-                project_local_ontology_review.get("alias_count")
-                if "alias_count" in project_local_ontology_review
-                else metrics.get("project_local_ontology_alias_count")
+                _nested_or_flat(
+                    project_local_ontology_review,
+                    "alias_count",
+                    metrics,
+                    "project_local_ontology_alias_count",
+                )
             ),
             "request_promotion_count": _number(
-                project_local_ontology_review.get("request_promotion_count")
-                if "request_promotion_count" in project_local_ontology_review
-                else metrics.get("project_local_ontology_request_promotion_count")
+                _nested_or_flat(
+                    project_local_ontology_review,
+                    "request_promotion_count",
+                    metrics,
+                    "project_local_ontology_request_promotion_count",
+                )
             ),
             "reject_count": _number(
-                project_local_ontology_review.get("reject_count")
-                if "reject_count" in project_local_ontology_review
-                else metrics.get("project_local_ontology_reject_count")
+                _nested_or_flat(
+                    project_local_ontology_review,
+                    "reject_count",
+                    metrics,
+                    "project_local_ontology_reject_count",
+                )
             ),
             "deferred_count": _number(
-                project_local_ontology_review.get("deferred_count")
-                if "deferred_count" in project_local_ontology_review
-                else metrics.get("project_local_ontology_deferred_decision_count")
+                _nested_or_flat(
+                    project_local_ontology_review,
+                    "deferred_count",
+                    metrics,
+                    "project_local_ontology_deferred_decision_count",
+                )
             ),
             "non_resolving_decision_count": _number(
                 project_local_ontology_review.get("non_resolving_decision_count")
             ),
             "invalid_decision_count": _number(
-                project_local_ontology_review.get("invalid_decision_count")
-                if "invalid_decision_count" in project_local_ontology_review
-                else metrics.get("project_local_ontology_invalid_decision_count")
+                _nested_or_flat(
+                    project_local_ontology_review,
+                    "invalid_decision_count",
+                    metrics,
+                    "project_local_ontology_invalid_decision_count",
+                )
             ),
             "missing_decision_count": _number(
-                project_local_ontology_review.get("missing_decision_count")
-                if "missing_decision_count" in project_local_ontology_review
-                else metrics.get("project_local_ontology_missing_decision_count")
+                _nested_or_flat(
+                    project_local_ontology_review,
+                    "missing_decision_count",
+                    metrics,
+                    "project_local_ontology_missing_decision_count",
+                )
             ),
             "blocking_decision_count": _number(
-                project_local_ontology_review.get("blocking_decision_count")
-                if "blocking_decision_count" in project_local_ontology_review
-                else metrics.get("project_local_ontology_blocking_decision_count")
+                _nested_or_flat(
+                    project_local_ontology_review,
+                    "blocking_decision_count",
+                    metrics,
+                    "project_local_ontology_blocking_decision_count",
+                )
             ),
             "follow_up_decision_count": _number(
                 project_local_ontology_review.get("follow_up_decision_count")
@@ -469,7 +510,7 @@ def _metrics(report: dict[str, Any] | None) -> dict[str, Any]:
                 "ready_for_maturity"
             )
             is True,
-            "evidence_refs": _string_list(
+            "evidence_refs": _safe_artifact_refs(
                 project_local_ontology_review.get("evidence_refs")
             ),
         },

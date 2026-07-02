@@ -2394,7 +2394,12 @@ def _idea_maturity_metrics_report() -> dict:
                 "follow_up_decision_count": 0,
                 "effect_count": 2,
                 "ready_for_maturity": True,
-                "evidence_refs": ["runs/project_local_ontology_review_decisions.json"],
+                "evidence_refs": [
+                    "runs/project_local_ontology_review_decisions.json",
+                    "/Users/egor/Development/GitHub/0AL/SpecGraph/runs/project_local_ontology_decision_effect_report.json",
+                    "runs/local_operator_diagnostics.json",
+                    "/tmp/private_project_local_notes.json",
+                ],
             },
             "candidate_gap_count_initial": 4,
             "candidate_gap_resolved_count": 4,
@@ -2776,6 +2781,15 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             [
                 "runs/repaired_pre_sib_coherence_report.json#findings.pre-sib-ontology-coverage-gap",
                 "runs/repaired_idea_to_spec_repair_session.json#blockers.0",
+            ],
+        )
+        self.assertEqual(
+            body["idea_maturity"]["report"]["metrics"][
+                "project_local_ontology_review"
+            ]["evidence_refs"],
+            [
+                "runs/project_local_ontology_review_decisions.json",
+                "runs/project_local_ontology_decision_effect_report.json",
             ],
         )
         self.assertEqual(
