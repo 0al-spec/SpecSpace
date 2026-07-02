@@ -7,6 +7,13 @@ When working on the SpecSpace subproject, follow
 Feature-Sliced Design structure, layer responsibilities, import direction,
 public APIs, and where to place UI, API, and state code.
 
+For frontend component work, use the dev UI catalog/workbench first. Search for
+an existing example under `/dev/ui-catalog` and the linked fixture galleries
+before creating a new component; when adding or changing a component, render the
+smallest useful isolated state there with realistic fixture data, verify layout
+with screenshots/DOM measurements for relevant viewports, and only then wire the
+component into production pages or panels.
+
 Store important lessons learned during SpecSpace work in [CONTRIBUTING.md](CONTRIBUTING.md), and check it first when recurring implementation, review, or deployment problems appear.
 
 ## 0AL Local Ops Logging
