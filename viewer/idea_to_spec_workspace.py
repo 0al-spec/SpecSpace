@@ -2352,6 +2352,23 @@ def _project_local_ontology_review_lane(
     }
 
 
+def _project_local_ontology_effect_ready(
+    project_local_ontology_review: dict[str, Any],
+) -> bool:
+    effective_review = _record(project_local_ontology_review.get("effective_review"))
+    readiness = _record(effective_review.get("readiness"))
+    return (
+        effective_review.get("available") is True
+        and readiness.get("ready") is True
+        and effective_review.get("ready_for_maturity") is True
+        and _number(effective_review.get("blocking_decision_count")) == 0
+        and _number(effective_review.get("invalid_decision_count")) == 0
+        and _number(effective_review.get("missing_decision_count")) == 0
+        and _number(effective_review.get("deferred_count")) == 0
+        and _number(effective_review.get("follow_up_decision_count")) == 0
+    )
+
+
 def _project_local_ontology_import_decision_rows(
     values: Any,
 ) -> list[dict[str, Any]]:
@@ -3652,6 +3669,7 @@ def _workflow(
     active_candidate: dict[str, Any] | None,
     intake: dict[str, Any] | None,
     candidate_seed: dict[str, Any] | None,
+    ontology_seed_review_resolved: bool,
     candidate_graph: dict[str, Any] | None,
     pre_sib: dict[str, Any] | None,
     repair_loop: dict[str, Any] | None,
@@ -3714,7 +3732,7 @@ def _workflow(
     )
     seed_source_generation = _record((candidate_seed or {}).get("source_generation"))
     seed_readiness = _readiness(seed_source_generation)
-    seed_blocked = _ontology_seed_blocked(candidate_seed)
+    seed_blocked = _ontology_seed_blocked(candidate_seed) and not ontology_seed_review_resolved
     platform_ok = (platform_promotion or {}).get("ok") is True
     approval_readiness = _record((candidate_approval or {}).get("readiness"))
     approval_decision = _record((candidate_approval or {}).get("decision"))
@@ -3768,6 +3786,9 @@ def _workflow(
         if product_execution_available
         else legacy_git_open_review_dry_run
     )
+    journal_platform_promotion_resolved = platform_ok or (
+        promotion_execution_available and promotion_execution_ok
+    )
     promotion_gate_blocked = (
         promotion_gate is not None
         and (
@@ -3789,6 +3810,7 @@ def _workflow(
         repair_session is not None
         and approval_ready
         and repair_session_impact["ready_for_platform_promotion"] is not True
+        and not journal_platform_promotion_resolved
     )
     product_repair_downstream_blocked = (
         context_required_count > 0
@@ -5281,10 +5303,17 @@ def build_idea_to_spec_workspace(
     )
     missing_artifact_count = core_missing_artifact_count
     available_count = sum(1 for status in statuses.values() if status["available"])
+    project_local_ontology_review_lane = _project_local_ontology_review_lane(
+        project_local_ontology_review,
+        project_local_ontology_decision_effect,
+    )
+    ontology_seed_review_resolved = _project_local_ontology_effect_ready(
+        project_local_ontology_review_lane
+    )
     status = "ready"
     if core_missing_artifact_count:
         status = "partial" if available_count else "unavailable"
-    elif _ontology_seed_blocked(candidate_seed):
+    elif _ontology_seed_blocked(candidate_seed) and not ontology_seed_review_resolved:
         status = "blocked"
     elif selected_promotion_gate is not None and not _readiness(selected_promotion_gate)["ready"]:
         status = "blocked"
@@ -5326,10 +5355,6 @@ def build_idea_to_spec_workspace(
         product_repair_rerun_execution=product_repair_rerun_execution,
         product_repair_rerun_publication=product_repair_rerun_publication,
     )
-    project_local_ontology_review_lane = _project_local_ontology_review_lane(
-        project_local_ontology_review,
-        project_local_ontology_decision_effect,
-    )
     project_local_ontology_import_preview = (
         _project_local_ontology_decision_import_preview(
             project_local_ontology_decision_import_preview
@@ -5357,6 +5382,7 @@ def build_idea_to_spec_workspace(
         active_candidate=selected_active_candidate,
         intake=intake,
         candidate_seed=candidate_seed,
+        ontology_seed_review_resolved=ontology_seed_review_resolved,
         candidate_graph=selected_candidate_graph,
         pre_sib=selected_pre_sib,
         repair_loop=selected_repair_loop,

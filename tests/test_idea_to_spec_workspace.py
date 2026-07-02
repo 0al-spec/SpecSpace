@@ -3301,6 +3301,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["artifacts"]["project_local_ontology_decision_effect"]["status"],
             "project_local_ontology_decision_effect_ready",
         )
+        workflow_items = {item["id"]: item for item in body["workflow"]["items"]}
+        self.assertNotEqual(body["workflow"]["stage"], "ontology_seed_review_required")
+        self.assertNotEqual(workflow_items["ontology_seed"]["status"], "blocked")
 
     def test_build_workspace_rejects_write_capable_project_local_decision_effect(
         self,
@@ -5175,6 +5178,78 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             _guided_stage(body, "review_publication")["status"],
             "blocked",
+        )
+
+    def test_downstream_promotion_resolves_stale_repair_session_platform_blocker(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        promotion_gate = _promotion_gate()
+        promotion_gate["readiness"] = {
+            "ready": True,
+            "review_state": "idea_to_spec_promotion_ready",
+            "blocked_by": [],
+        }
+        promotion_gate["findings"] = []
+        promotion_gate["warnings"] = []
+        repair_loop = _repair_loop()
+        repair_loop["summary"]["context_required_count"] = 0
+        artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = promotion_gate
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT
+        ] = repair_loop
+        repaired_session = _repaired_repair_session_journal()
+        repaired_session["readiness_impact"]["platform_promotion_blocked_by"] = [
+            "candidate_approval_decision_missing"
+        ]
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+        ] = _active_candidate()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = repaired_session
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+        ] = _product_promotion_execution()
+        artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
+        )
+        artifacts.pop(
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["workflow"]["stage"], "review_dry_run_ready")
+        self.assertEqual(
+            body["workflow"]["next_handoff"]["kind"],
+            "product_candidate_promotion_open_review",
+        )
+        workflow_items = {item["id"]: item for item in body["workflow"]["items"]}
+        self.assertEqual(workflow_items["candidate_approval"]["status"], "ready")
+        self.assertEqual(
+            workflow_items["product_promotion_execution"]["status"],
+            "dry_run",
         )
 
     def test_workflow_requires_candidate_approval_before_promotion_request(
