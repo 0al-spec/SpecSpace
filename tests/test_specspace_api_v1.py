@@ -900,6 +900,114 @@ def _write_repair_draft_workspace_runs(
     )
 
 
+def _write_project_local_ontology_review_workspace_runs(runs_dir: Path) -> None:
+    _write_repair_draft_workspace_runs(runs_dir)
+    _write_json(
+        runs_dir / idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT,
+        {
+            "artifact_kind": "project_local_ontology_review_lane",
+            "schema_version": 1,
+            "proposal_id": "0197",
+            "contract_ref": "specgraph.project-local-ontology-review-lane.v0.1",
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "readiness": {
+                "ready": True,
+                "review_state": "project_local_ontology_review_required",
+                "blocked_by": ["project_local_ontology_terms_unreviewed"],
+            },
+            "context": {
+                "workspace_id": "team-decision-log",
+                "candidate_id": "team-decision-log",
+                "repair_session_id": "repair-session.team-decision-log",
+                "workflow_lane": "product_idea_to_spec",
+                "domain_refs": ["domain.team_decision_log"],
+                "context_refs": ["context.idea_to_spec"],
+                "ontology_refs": ["ontology://specgraph-core"],
+            },
+            "review_decision_schema": {
+                "supported_actions": [
+                    "keep_project_local",
+                    "bind_existing",
+                    "alias",
+                    "reject",
+                    "request_workspace_promotion",
+                    "defer",
+                ],
+                "authority": "operator_intent_only",
+                "request_workspace_promotion_effect": "handoff_only",
+            },
+            "terms": [
+                {
+                    "id": "project-local-ontology-term.decisionrecord",
+                    "term": "Decision Record",
+                    "term_key": "decisionrecord",
+                    "status": "unreviewed",
+                    "source_refs": ["candidate-spec.decision-record"],
+                    "suggested_actions": [
+                        "keep_project_local",
+                        "bind_existing",
+                        "alias",
+                        "reject",
+                        "request_workspace_promotion",
+                        "defer",
+                    ],
+                    "gap_refs": [
+                        {
+                            "gap_id": "ontology-gap.decision-record",
+                            "node_id": "candidate-spec.decision-record",
+                            "target_ref": (
+                                "candidate-spec.decision-record.gaps."
+                                "ontology-gap.decision-record"
+                            ),
+                            "source_ref": "candidate-spec.decision-record",
+                            "source_kind": "domain_entity",
+                        }
+                    ],
+                    "decisions": [],
+                    "effect": {
+                        "candidate_readiness_effect": "requires_operator_review",
+                        "next_action": "record_project_local_ontology_decision",
+                        "resolved_gap_count": 0,
+                    },
+                }
+            ],
+            "summary": {
+                "status": "project_local_ontology_review_required",
+                "term_count": 1,
+                "reviewed_term_count": 0,
+                "blocking_term_count": 1,
+                "unreviewed_term_count": 1,
+                "deferred_term_count": 0,
+                "status_counts": {"unreviewed": 1},
+            },
+            "source_artifacts": {
+                "repair_session": "runs/idea_to_spec_repair_session.json",
+                "rerun_materialization": "runs/idea_to_spec_rerun_materialization.json",
+            },
+            "authority_boundary": {
+                "may_execute_prompt_agent": False,
+                "may_mutate_candidate_source_artifacts": False,
+                "may_mutate_canonical_specs": False,
+                "may_write_ontology_package": False,
+                "may_write_ontology_lockfile": False,
+                "may_accept_ontology_terms": False,
+                "may_mark_candidate_graph_accepted": False,
+                "may_create_branch_or_commit": False,
+                "may_open_pull_request": False,
+            },
+            "privacy_boundary": {
+                "raw_idea_text_published": False,
+                "raw_prompt_published": False,
+                "raw_model_output_published": False,
+                "raw_operator_note_published": False,
+            },
+            "findings": [],
+            "warnings": [],
+        },
+    )
+
+
 def _append_product_repair_request(runs_dir: Path) -> str:
     path = runs_dir / idea_to_spec_workspace.IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -5746,6 +5854,87 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(body["consumer_boundary"]["may_apply_to_specgraph"])
         self.assertFalse(body["authority_boundary"]["repair_draft_state_is_authority"])
         self.assertFalse((state_dir / "idea_to_spec_repair_drafts.json").exists())
+
+    def test_project_local_ontology_review_decisions_v1_reads_empty_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs",
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/project-local-ontology-review-decisions?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            body["artifact_kind"],
+            "specspace_project_local_ontology_review_decision_state",
+        )
+        self.assertEqual(body["selected_workspace_id"], "team-decision-log")
+        self.assertEqual(body["summary"]["decision_count"], 0)
+        self.assertTrue(body["consumer_boundary"]["specspace_owned_state"])
+        self.assertFalse(body["consumer_boundary"]["may_apply_to_specgraph"])
+        self.assertFalse(body["authority_boundary"]["ontology_authority"])
+        self.assertFalse(
+            (state_dir / "project_local_ontology_review_decisions.json").exists()
+        )
+
+    def test_project_local_ontology_review_decisions_v1_posts_operator_intent(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_project_local_ontology_review_workspace_runs(runs_dir)
+            lane_path = (
+                runs_dir
+                / idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT
+            )
+            before_lane = lane_path.read_text(encoding="utf-8")
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/project-local-ontology-review-decisions?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "term_key": "decisionrecord",
+                        "action": "keep_project_local",
+                        "decision_value": {
+                            "reason": "Product-local term for this workspace."
+                        },
+                        "operator_ref": "operator://local-reviewer",
+                    },
+                )
+                get_status, get_body = _get(
+                    f"{base}/api/v1/project-local-ontology-review-decisions?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+            state_path = state_dir / "project_local_ontology_review_decisions.json"
+            state_exists = state_path.exists()
+            lane_after = lane_path.read_text(encoding="utf-8")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["decision_count"], 1)
+        self.assertEqual(get_status, 200)
+        decision = get_body["decisions"][0]
+        self.assertEqual(decision["term_key"], "decisionrecord")
+        self.assertEqual(decision["review_action"], "keep_project_local")
+        self.assertEqual(decision["decision_value"]["term_scope"], "project_local")
+        self.assertFalse(decision["writes_ontology_package"])
+        self.assertFalse(decision["accepts_ontology_terms"])
+        self.assertTrue(state_exists)
+        self.assertEqual(lane_after, before_lane)
 
     def test_idea_to_spec_intake_clarification_answers_v1_reads_empty_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

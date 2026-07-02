@@ -14,6 +14,7 @@ import type {
   IdeaToSpecIntakeAnswer,
   IdeaToSpecMaterializedFile,
   IdeaToSpecOntologyDecision,
+  IdeaToSpecProjectLocalOntologyTerm,
   IdeaToSpecProductRepairRerunPlatformExecution,
   IdeaToSpecRealIdeaAnswerTarget,
   IdeaToSpecRepairAction,
@@ -49,6 +50,12 @@ import {
   type IdeaToSpecCandidateApprovalIntentError,
   type UseIdeaToSpecCandidateApprovalIntentsState,
 } from "../model/use-idea-to-spec-candidate-approval-intents";
+import {
+  useProjectLocalOntologyReviewDecisions,
+  type ProjectLocalOntologyReviewDecision,
+  type ProjectLocalOntologyReviewDecisionSaveError,
+  type UseProjectLocalOntologyReviewDecisionState,
+} from "../model/use-project-local-ontology-review-decisions";
 import { describeHttpErrorDetail } from "../model/live-artifacts";
 import styles from "./OntologySemanticReviewPanel.module.css";
 
@@ -58,6 +65,7 @@ type Props = {
   intakeClarificationAnswersUrl?: string;
   repairRerunRequestsUrl?: string;
   candidateApprovalIntentsUrl?: string;
+  projectLocalOntologyReviewDecisionsUrl?: string;
   repairRerunRequestsRefreshKey?: number | string;
 };
 
@@ -218,6 +226,7 @@ export function IdeaToSpecWorkspacePanel({
   intakeClarificationAnswersUrl,
   repairRerunRequestsUrl,
   candidateApprovalIntentsUrl,
+  projectLocalOntologyReviewDecisionsUrl,
   repairRerunRequestsRefreshKey = 0,
 }: Props) {
   const repairDrafts = useIdeaToSpecRepairDrafts({
@@ -244,6 +253,12 @@ export function IdeaToSpecWorkspacePanel({
     enabled: state.kind === "ok",
     refreshKey: `${repairDraftRefreshKey}:${repairRerunRequestsRefreshKey}`,
   });
+  const projectLocalOntologyReviewDecisions =
+    useProjectLocalOntologyReviewDecisions({
+      url: projectLocalOntologyReviewDecisionsUrl,
+      enabled: state.kind === "ok",
+      refreshKey: repairDraftRefreshKey,
+    });
 
   if (state.kind === "idle" || state.kind === "loading") {
     return (
@@ -356,6 +371,11 @@ export function IdeaToSpecWorkspacePanel({
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
         />
         <OntologySeedSection seed={data.ontologySeed} />
+        <ProjectLocalOntologyReviewSection
+          lane={data.projectLocalOntologyReview}
+          decisions={projectLocalOntologyReviewDecisions}
+          workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+        />
         <CandidateGraphSection nodes={data.candidateGraph.nodes} />
         <PreSibSection state={state} />
         <RepairSection actions={data.repairLoop.actions} />
@@ -1162,6 +1182,274 @@ function OntologySeedSection({
         </div>
       ))}
     </section>
+  );
+}
+
+function ProjectLocalOntologyReviewSection({
+  lane,
+  decisions,
+  workspaceId,
+}: {
+  lane: IdeaToSpecWorkspace["projectLocalOntologyReview"];
+  decisions: ReturnType<typeof useProjectLocalOntologyReviewDecisions>;
+  workspaceId: string | null;
+}) {
+  const savedCount =
+    decisions.state.kind === "ok" ? decisions.state.data.summary.decisionCount : 0;
+  return (
+    <section id="idea-to-spec-project-local-ontology-review" className={styles.reviewSection}>
+      <SectionHeader
+        title="Project-local ontology review"
+        count={lane.termCount + savedCount}
+      />
+      <div className={styles.postureStrip}>
+        <PostureItem label="Available" value={boolText(lane.available)} />
+        <PostureItem
+          label="Review state"
+          value={compact(lane.readiness.reviewState, "missing")}
+        />
+        <PostureItem label="Terms" value={String(lane.termCount)} />
+        <PostureItem label="Reviewed" value={String(lane.reviewedTermCount)} />
+        <PostureItem label="Blocking" value={String(lane.blockingTermCount)} />
+        <PostureItem label="Unreviewed" value={String(lane.unreviewedTermCount)} />
+        <PostureItem label="Deferred" value={String(lane.deferredTermCount)} />
+        <PostureItem label="Saved" value={String(savedCount)} />
+      </div>
+      {!lane.available ? (
+        <Status
+          label="Project-local ontology lane missing"
+          detail="Run `make project-local-ontology-review-lane` in SpecGraph after candidate graph and ontology decisions are available."
+        />
+      ) : null}
+      <ProjectLocalOntologyDecisionStatus state={decisions.state} />
+      {lane.available ? (
+        <div className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>Review contract</span>
+            <Pill value={compact(lane.authority, "operator intent only")} />
+          </div>
+          <div className={styles.metaGrid}>
+            <Meta label="Workspace" value={lane.context.workspaceId} />
+            <Meta label="Candidate" value={lane.context.candidateId} />
+            <Meta label="Repair session" value={lane.context.repairSessionId} />
+            <Meta label="Actions" value={joined(lane.supportedActions)} />
+            <Meta
+              label="Promotion effect"
+              value={lane.requestWorkspacePromotionEffect}
+            />
+            <Meta
+              label="Ontology writes"
+              value={boolText(lane.actionBoundary.mayWriteOntologyPackage)}
+            />
+          </div>
+        </div>
+      ) : null}
+      {lane.terms.map((term) => (
+        <ProjectLocalOntologyTermRow
+          key={term.termKey}
+          term={term}
+          savedDecision={decisions.decisionsByTermKey.get(term.termKey)}
+          pending={decisions.pendingTermKey === term.termKey}
+          saveError={
+            decisions.saveError?.termKey === term.termKey
+              ? decisions.saveError
+              : null
+          }
+          onSave={(input) =>
+            decisions.saveDecision({
+              ...input,
+              workspaceId,
+              operatorRef: "operator://specspace-local",
+            })
+          }
+        />
+      ))}
+      {lane.findings.map((finding) => (
+        <div key={finding.findingId} className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{finding.findingId}</span>
+            <Pill value={finding.severity} />
+          </div>
+          <h3 className={styles.title}>{finding.message}</h3>
+          <div className={styles.metaGrid}>
+            <Meta label="Source" value={finding.sourceRef} />
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function ProjectLocalOntologyDecisionStatus({
+  state,
+}: {
+  state: UseProjectLocalOntologyReviewDecisionState;
+}) {
+  if (state.kind === "idle" || state.kind === "loading") {
+    return (
+      <Status
+        label="Project-local ontology decisions loading"
+        detail="Reading SpecSpace-owned project-local ontology decision state."
+      />
+    );
+  }
+  if (state.kind === "ok") {
+    return (
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>SpecSpace project-local decisions</span>
+          <Pill value={state.data.summary.status} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Decisions" value={String(state.data.summary.decisionCount)} />
+          <Meta label="State owner" value={state.data.stateOwner} />
+          <Meta
+            label="SpecGraph authority"
+            value={boolText(state.data.authorityBoundary.specgraphArtifactAuthority)}
+          />
+          <Meta
+            label="Ontology authority"
+            value={boolText(state.data.authorityBoundary.ontologyAuthority)}
+          />
+          <Meta
+            label="Ontology writes"
+            value={boolText(state.data.consumerBoundary.mayWriteOntologyPackage)}
+          />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <Status
+      label="Project-local ontology decisions unavailable"
+      detail={projectLocalOntologyDecisionStateDetail(state)}
+    />
+  );
+}
+
+function ProjectLocalOntologyTermRow({
+  term,
+  savedDecision,
+  pending,
+  saveError,
+  onSave,
+}: {
+  term: IdeaToSpecProjectLocalOntologyTerm;
+  savedDecision: ProjectLocalOntologyReviewDecision | undefined;
+  pending: boolean;
+  saveError: ProjectLocalOntologyReviewDecisionSaveError | null;
+  onSave: (input: {
+    termKey: string;
+    action: string;
+    decisionValue: Record<string, unknown>;
+  }) => void;
+}) {
+  const availableActions = term.suggestedActions.length
+    ? term.suggestedActions
+    : [
+        "keep_project_local",
+        "bind_existing",
+        "alias",
+        "reject",
+        "request_workspace_promotion",
+        "defer",
+      ];
+  const defaultAction = savedDecision?.reviewAction ?? availableActions[0];
+  const [selectedAction, setSelectedAction] = useState(defaultAction);
+  const [text, setText] = useState(() =>
+    projectLocalDecisionText(savedDecision, term, defaultAction),
+  );
+  useEffect(() => {
+    setSelectedAction(defaultAction);
+    setText(projectLocalDecisionText(savedDecision, term, defaultAction));
+  }, [defaultAction, savedDecision, term]);
+  const decisionValue = projectLocalDecisionValue(term, selectedAction, text);
+  const canSave =
+    selectedAction.length > 0 &&
+    projectLocalDecisionValueIsComplete(selectedAction, decisionValue) &&
+    !pending;
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>{term.termKey}</span>
+        <Pill value={term.status} />
+      </div>
+      <h3 className={styles.title}>{compact(term.term, term.id)}</h3>
+      <div className={styles.metaGrid}>
+        <Meta label="Selected decision" value={term.selectedDecisionId} />
+        <Meta label="Effect" value={term.effect.candidateReadinessEffect} />
+        <Meta label="Next action" value={term.effect.nextAction} />
+        <Meta label="Resolved" value={String(term.effect.resolvedGapCount)} />
+        <Meta label="Gaps" value={String(term.gapRefs.length)} />
+        <Meta label="Resolved refs" value={String(term.resolvedGapRefs.length)} />
+        <Meta label="Source refs" value={joined(term.sourceRefs)} />
+        <Meta label="Evidence" value={joined(term.evidenceRefs)} />
+      </div>
+      {term.decisions.map((decision, index) => (
+        <div key={`${decision.id ?? "decision"}:${index}`} className={styles.subRow}>
+          <span>{compact(decision.id, decision.decisionType)}</span>
+          <Pill value={compact(decision.reviewStatus, "review")} />
+          <span className={styles.statusDetail}>
+            {compact(decision.term, term.term)} · {compact(decision.reason, decision.targetRef)}
+          </span>
+        </div>
+      ))}
+      <form
+        className={styles.draftForm}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!canSave) return;
+          onSave({
+            termKey: term.termKey,
+            action: selectedAction,
+            decisionValue,
+          });
+        }}
+      >
+        <div className={styles.draftControls}>
+          <select
+            className={styles.draftSelect}
+            value={selectedAction}
+            onChange={(event) => setSelectedAction(event.currentTarget.value)}
+            aria-label="Project-local ontology review action"
+          >
+            {availableActions.map((action) => (
+              <option key={action} value={action}>
+                {action.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+          <button className={styles.ackButton} type="submit" disabled={!canSave}>
+            {pending
+              ? "Saving"
+              : savedDecision
+                ? "Update decision"
+                : "Save decision"}
+          </button>
+        </div>
+        <textarea
+          className={styles.draftTextarea}
+          value={text}
+          onChange={(event) => setText(event.currentTarget.value)}
+          placeholder={projectLocalDecisionPlaceholder(selectedAction)}
+          rows={3}
+          aria-label="Project-local ontology review decision"
+        />
+        <span className={styles.statusDetail}>
+          Operator intent only · does not write Ontology packages or accept terms.
+        </span>
+        {savedDecision ? (
+          <span className={styles.statusDetail}>
+            Decision saved · {savedDecision.reviewAction.replace(/_/g, " ")} · {savedDecision.updatedAt}
+          </span>
+        ) : null}
+        {saveError ? (
+          <span className={styles.statusDetail}>
+            Decision save failed · {projectLocalOntologyDecisionErrorText(saveError)}
+          </span>
+        ) : null}
+      </form>
+    </div>
   );
 }
 
@@ -3406,6 +3694,92 @@ function draftPlaceholder(action: string): string {
 }
 
 function repairDraftSaveErrorText(error: IdeaToSpecRepairDraftSaveError): string {
+  if (error.kind === "http-error") return `HTTP ${error.status}: ${error.statusText}`;
+  return "network error";
+}
+
+function projectLocalDecisionText(
+  savedDecision: ProjectLocalOntologyReviewDecision | undefined,
+  term: IdeaToSpecProjectLocalOntologyTerm,
+  action: string,
+): string {
+  const value = savedDecision?.decisionValue ?? {};
+  if (typeof value.ontology_ref === "string") return value.ontology_ref;
+  if (typeof value.alias_of === "string") return value.alias_of;
+  if (typeof value.reason === "string") return value.reason;
+  if (typeof value.text === "string") return value.text;
+  if (typeof value.term === "string" && action !== "keep_project_local") {
+    return value.term;
+  }
+  if (action === "keep_project_local") {
+    return compact(term.term, term.termKey);
+  }
+  return "";
+}
+
+function projectLocalDecisionValue(
+  term: IdeaToSpecProjectLocalOntologyTerm,
+  action: string,
+  text: string,
+): Record<string, unknown> {
+  const value = text.trim();
+  const termText = compact(term.term, term.termKey);
+  if (action === "keep_project_local") {
+    return { term: termText, reason: value };
+  }
+  if (action === "bind_existing") return { term: termText, ontology_ref: value };
+  if (action === "alias") return { term: termText, alias_of: value };
+  if (action === "request_workspace_promotion") {
+    return { term: termText, reason: value, promotion_scope: "workspace" };
+  }
+  if (action === "reject" || action === "defer") {
+    return { term: termText, reason: value };
+  }
+  return { term: termText, text: value };
+}
+
+function projectLocalDecisionValueIsComplete(
+  action: string,
+  value: Record<string, unknown>,
+): boolean {
+  if (action === "keep_project_local") return typeof value.term === "string";
+  if (action === "bind_existing") {
+    return typeof value.ontology_ref === "string" && value.ontology_ref.trim().length > 0;
+  }
+  if (action === "alias") {
+    return typeof value.alias_of === "string" && value.alias_of.trim().length > 0;
+  }
+  if (action === "reject" || action === "defer" || action === "request_workspace_promotion") {
+    return typeof value.reason === "string" && value.reason.trim().length > 0;
+  }
+  return Object.values(value).some(templateFieldValueIsPresent);
+}
+
+function projectLocalDecisionPlaceholder(action: string): string {
+  if (action === "keep_project_local") return "Optional reason for keeping this term project-local";
+  if (action === "bind_existing") return "ontology://.../classes/AcceptedTerm";
+  if (action === "alias") return "Accepted term to alias";
+  if (action === "request_workspace_promotion") return "Reason to review this term for workspace ontology promotion";
+  if (action === "reject") return "Reason this is not a domain term";
+  if (action === "defer") return "Reason or follow-up owner review needed";
+  return "Review note";
+}
+
+function projectLocalOntologyDecisionStateDetail(
+  state: Exclude<UseProjectLocalOntologyReviewDecisionState, { kind: "ok" | "idle" | "loading" }>,
+): string {
+  if (state.kind === "http-error") {
+    return `HTTP ${state.status}: ${state.statusText}`;
+  }
+  if (state.kind === "network-error") {
+    return "SpecSpace project-local ontology decision endpoint is unreachable from the browser.";
+  }
+  return state.message;
+}
+
+function projectLocalOntologyDecisionErrorText(
+  error: ProjectLocalOntologyReviewDecisionSaveError,
+): string {
   if (error.kind === "http-error") return `HTTP ${error.status}: ${error.statusText}`;
   return "network error";
 }

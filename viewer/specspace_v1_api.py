@@ -15,6 +15,7 @@ from viewer import (
     idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
     ontology_acknowledgements,
+    project_local_ontology_review_decisions,
     spec_compile,
     specspace_provider,
 )
@@ -508,6 +509,18 @@ def handle_v1_idea_to_spec_repair_rerun_requests(
     json_response(handler, status, payload)
 
 
+def handle_v1_project_local_ontology_review_decisions(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    workspace_id = _query_workspace_id(parsed)
+    status, payload = project_local_ontology_review_decisions.read_state(
+        handler.server,
+        workspace_id=workspace_id,
+    )
+    json_response(handler, status, payload)
+
+
 def handle_v1_idea_to_spec_repair_draft_post(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     payload = handler.read_json_body()
     if payload is None:
@@ -546,6 +559,55 @@ def handle_v1_idea_to_spec_repair_draft_post(handler: SpecSpaceV1Handler, parsed
         )
         return
     status, response = idea_to_spec_repair_drafts.save_repair_draft(
+        handler.server,
+        payload,
+        workspace_payload,
+        workspace_id=workspace_id,
+    )
+    json_response(handler, status, response)
+
+
+def handle_v1_project_local_ontology_review_decision_post(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    query_workspace_id = _query_workspace_id(parsed)
+    payload_workspace_id = specspace_provider.normalize_workspace_id(
+        payload.get("workspace_id")
+        if isinstance(payload.get("workspace_id"), str)
+        else None
+    )
+    if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
+        json_response(
+            handler,
+            HTTPStatus.CONFLICT,
+            {
+                "error": "Project-local ontology decision workspace_id does not match selected workspace.",
+                "expected": query_workspace_id,
+                "actual": payload_workspace_id,
+            },
+        )
+        return
+    workspace_id = query_workspace_id or payload_workspace_id
+    workspace_status, workspace_payload = (
+        _provider(handler, workspace_id).read_idea_to_spec_workspace()
+    )
+    if workspace_status != HTTPStatus.OK:
+        json_response(
+            handler,
+            workspace_status,
+            {
+                "error": "Cannot save project-local ontology decision without readable idea-to-spec workspace.",
+                "reason": "source_workspace_unavailable",
+                "source_status": int(workspace_status),
+                "source": workspace_payload,
+            },
+        )
+        return
+    status, response = project_local_ontology_review_decisions.save_decision(
         handler.server,
         payload,
         workspace_payload,

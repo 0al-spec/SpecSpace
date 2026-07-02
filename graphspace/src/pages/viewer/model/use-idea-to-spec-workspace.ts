@@ -231,6 +231,49 @@ export type IdeaToSpecOntologyDecision = {
   materializationIntent: string | null;
 };
 
+export type IdeaToSpecProjectLocalOntologyTerm = {
+  id: string;
+  term: string | null;
+  termKey: string;
+  status: string;
+  selectedDecisionId: string | null;
+  sourceRefs: readonly string[];
+  suggestedActions: readonly string[];
+  evidenceRefs: readonly string[];
+  gapRefs: readonly {
+    gapId: string | null;
+    nodeId: string | null;
+    targetRef: string | null;
+    sourceRef: string | null;
+    sourceKind: string | null;
+    statement: string | null;
+    suggestedAction: string | null;
+  }[];
+  resolvedGapRefs: readonly {
+    gapId: string | null;
+    nodeId: string | null;
+    targetRef: string | null;
+    decision: string | null;
+    matchKind: string | null;
+  }[];
+  decisions: readonly {
+    id: string | null;
+    decisionType: string | null;
+    reviewStatus: string | null;
+    term: string | null;
+    termScope: string | null;
+    ontologyRef: string | null;
+    aliasOf: string | null;
+    targetRef: string | null;
+    reason: string | null;
+  }[];
+  effect: {
+    candidateReadinessEffect: string | null;
+    nextAction: string | null;
+    resolvedGapCount: number;
+  };
+};
+
 export type IdeaToSpecResolvedOntologyGap = {
   gapId: string;
   nodeId: string | null;
@@ -894,6 +937,7 @@ export type IdeaToSpecWorkspace = {
     repairActionCount: number;
     clarificationRequestCount: number;
     ontologyDecisionCount: number;
+    projectLocalOntologyTermCount: number;
     resolvedOntologyGapCount: number;
     unresolvedOntologyGapCount: number;
     rerunRemovedGapCount: number;
@@ -1236,6 +1280,47 @@ export type IdeaToSpecWorkspace = {
       inspectOnly: true;
       acknowledgeOnly: true;
       mayApplyAnswers: false;
+      mayApplyDecisions: false;
+      mayMutateCandidateArtifacts: false;
+      mayAcceptOntologyTerms: false;
+      mayWriteOntologyPackage: false;
+      mayCreateBranchOrCommit: false;
+    };
+  };
+  projectLocalOntologyReview: {
+    available: boolean;
+    readiness: {
+      ready: boolean;
+      reviewState: string | null;
+      blockedBy: readonly string[];
+      nextArtifact: string | null;
+    };
+    summary: Record<string, unknown>;
+    context: {
+      workspaceId: string | null;
+      candidateId: string | null;
+      repairSessionId: string | null;
+      workflowLane: string | null;
+      domainRefs: readonly string[];
+      contextRefs: readonly string[];
+      ontologyRefs: readonly string[];
+    };
+    sourceArtifacts: Record<string, unknown>;
+    supportedActions: readonly string[];
+    authority: string | null;
+    requestWorkspacePromotionEffect: string | null;
+    terms: readonly IdeaToSpecProjectLocalOntologyTerm[];
+    termCount: number;
+    reviewedTermCount: number;
+    blockingTermCount: number;
+    unreviewedTermCount: number;
+    deferredTermCount: number;
+    statusCounts: Record<string, unknown>;
+    findings: readonly IdeaToSpecFinding[];
+    warnings: readonly Record<string, unknown>[];
+    actionBoundary: {
+      inspectOnly: true;
+      acknowledgeOnly: true;
       mayApplyDecisions: false;
       mayMutateCandidateArtifacts: false;
       mayAcceptOntologyTerms: false;
@@ -1752,6 +1837,108 @@ function parseOntologyDecision(raw: unknown): IdeaToSpecOntologyDecision | null 
     targetRef: optionalString(decision.target_ref),
     requestId: optionalString(decision.request_id),
     materializationIntent: optionalString(decision.materialization_intent),
+  };
+}
+
+function parseProjectLocalOntologyTerm(
+  raw: unknown,
+): IdeaToSpecProjectLocalOntologyTerm | null {
+  const term = recordValue(raw);
+  const termKey = optionalString(term.term_key);
+  if (!termKey) return null;
+  const effect = recordValue(term.effect);
+  return {
+    id: stringValue(term.id, `project-local-ontology-term.${termKey}`),
+    term: optionalString(term.term),
+    termKey,
+    status: stringValue(term.status, "unreviewed"),
+    selectedDecisionId: optionalString(term.selected_decision_id),
+    sourceRefs: strings(term.source_refs),
+    suggestedActions: strings(term.suggested_actions),
+    evidenceRefs: strings(term.evidence_refs),
+    gapRefs: records(term.gap_refs).map((gap) => ({
+      gapId: optionalString(gap.gap_id),
+      nodeId: optionalString(gap.node_id),
+      targetRef: optionalString(gap.target_ref),
+      sourceRef: optionalString(gap.source_ref),
+      sourceKind: optionalString(gap.source_kind),
+      statement: optionalString(gap.statement),
+      suggestedAction: optionalString(gap.suggested_action),
+    })),
+    resolvedGapRefs: records(term.resolved_gap_refs).map((gap) => ({
+      gapId: optionalString(gap.gap_id),
+      nodeId: optionalString(gap.node_id),
+      targetRef: optionalString(gap.target_ref),
+      decision: optionalString(gap.decision),
+      matchKind: optionalString(gap.match_kind),
+    })),
+    decisions: records(term.decisions).map((decision) => ({
+      id: optionalString(decision.id),
+      decisionType: optionalString(decision.decision_type),
+      reviewStatus: optionalString(decision.review_status),
+      term: optionalString(decision.term),
+      termScope: optionalString(decision.term_scope),
+      ontologyRef: optionalString(decision.ontology_ref),
+      aliasOf: optionalString(decision.alias_of),
+      targetRef: optionalString(decision.target_ref),
+      reason: optionalString(decision.reason),
+    })),
+    effect: {
+      candidateReadinessEffect: optionalString(effect.candidate_readiness_effect),
+      nextAction: optionalString(effect.next_action),
+      resolvedGapCount: numberValue(effect.resolved_gap_count),
+    },
+  };
+}
+
+function parseProjectLocalOntologyReview(
+  raw: unknown,
+): IdeaToSpecWorkspace["projectLocalOntologyReview"] {
+  const lane = recordValue(raw);
+  const context = recordValue(lane.context);
+  return {
+    available: lane.available === true,
+    readiness: parseReadiness(lane.readiness),
+    summary: recordValue(lane.summary),
+    context: {
+      workspaceId: optionalString(context.workspace_id),
+      candidateId: optionalString(context.candidate_id),
+      repairSessionId: optionalString(context.repair_session_id),
+      workflowLane: optionalString(context.workflow_lane),
+      domainRefs: strings(context.domain_refs),
+      contextRefs: strings(context.context_refs),
+      ontologyRefs: strings(context.ontology_refs),
+    },
+    sourceArtifacts: recordValue(lane.source_artifacts),
+    supportedActions: strings(lane.supported_actions),
+    authority: optionalString(lane.authority),
+    requestWorkspacePromotionEffect: optionalString(
+      lane.request_workspace_promotion_effect,
+    ),
+    terms: records(lane.terms).flatMap((item) => {
+      const parsed = parseProjectLocalOntologyTerm(item);
+      return parsed ? [parsed] : [];
+    }),
+    termCount: numberValue(lane.term_count),
+    reviewedTermCount: numberValue(lane.reviewed_term_count),
+    blockingTermCount: numberValue(lane.blocking_term_count),
+    unreviewedTermCount: numberValue(lane.unreviewed_term_count),
+    deferredTermCount: numberValue(lane.deferred_term_count),
+    statusCounts: recordValue(lane.status_counts),
+    findings: records(lane.findings).flatMap((item) => {
+      const parsed = parseFinding(item);
+      return parsed ? [parsed] : [];
+    }),
+    warnings: records(lane.warnings),
+    actionBoundary: {
+      inspectOnly: true,
+      acknowledgeOnly: true,
+      mayApplyDecisions: false,
+      mayMutateCandidateArtifacts: false,
+      mayAcceptOntologyTerms: false,
+      mayWriteOntologyPackage: false,
+      mayCreateBranchOrCommit: false,
+    },
   };
 }
 
@@ -3194,6 +3381,30 @@ export function parseIdeaToSpecWorkspace(
   ) {
     return { kind: "parse-error", reason: "repair review boundary must be inspect-only", raw };
   }
+  const projectLocalOntologyReview = recordValue(raw.project_local_ontology_review);
+  const projectLocalOntologyBoundary = recordValue(
+    projectLocalOntologyReview.action_boundary,
+  );
+  const projectLocalOntologyFalseFlags = [
+    "may_apply_decisions",
+    "may_mutate_candidate_artifacts",
+    "may_accept_ontology_terms",
+    "may_write_ontology_package",
+    "may_create_branch_or_commit",
+  ];
+  if (isRecord(raw.project_local_ontology_review)) {
+    for (const flag of projectLocalOntologyFalseFlags) {
+      if (projectLocalOntologyBoundary[flag] !== false) {
+        return { kind: "parse-error", reason: `project-local ontology review boundary expanded: ${flag}`, raw };
+      }
+    }
+    if (
+      projectLocalOntologyBoundary.inspect_only !== true ||
+      projectLocalOntologyBoundary.acknowledge_only !== true
+    ) {
+      return { kind: "parse-error", reason: "project-local ontology review boundary must be inspect-only", raw };
+    }
+  }
   const hasWorkspaceStateHygiene = isRecord(raw.workspace_state_hygiene);
   const workspaceStateHygiene = recordValue(raw.workspace_state_hygiene);
   if (hasWorkspaceStateHygiene) {
@@ -3393,6 +3604,9 @@ export function parseIdeaToSpecWorkspace(
           summary.clarification_request_count,
         ),
         ontologyDecisionCount: numberValue(summary.ontology_decision_count),
+        projectLocalOntologyTermCount: numberValue(
+          summary.project_local_ontology_term_count,
+        ),
         resolvedOntologyGapCount: numberValue(
           summary.resolved_ontology_gap_count,
         ),
@@ -3486,6 +3700,9 @@ export function parseIdeaToSpecWorkspace(
       },
       repairSession: parseRepairSession(repairSession),
       repairReview: parseRepairReview(repairReview),
+      projectLocalOntologyReview: parseProjectLocalOntologyReview(
+        projectLocalOntologyReview,
+      ),
       workspaceStateHygiene: parseWorkspaceStateHygiene(workspaceStateHygiene),
       ideaMaturity: parseIdeaMaturity(ideaMaturity),
       approvalReadiness: parseApprovalReadiness(approvalReadiness),
