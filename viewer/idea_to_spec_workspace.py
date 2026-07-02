@@ -61,6 +61,9 @@ PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT = (
 SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT = (
     "specspace_project_local_ontology_decision_import_preview.json"
 )
+PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REPORT_ARTIFACT = (
+    "project_local_ontology_decision_effect_report.json"
+)
 IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT = "idea_to_spec_answer_rerun_input.json"
 IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT = "idea_to_spec_rerun_preview.json"
 IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT = (
@@ -159,6 +162,7 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT,
     PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT,
     SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT,
+    PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REPORT_ARTIFACT,
     CANDIDATE_OVERVIEW_ARTIFACT,
     IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT,
     IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT,
@@ -241,6 +245,9 @@ ARTIFACT_KEYS: dict[str, str] = {
     PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT: "project_local_ontology_review",
     SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT: (
         "specspace_project_local_ontology_decision_import_preview"
+    ),
+    PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REPORT_ARTIFACT: (
+        "project_local_ontology_decision_effect"
     ),
     IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT: "rerun_input",
     IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT: "rerun_preview",
@@ -331,6 +338,9 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ),
     SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT: (
         "specspace_project_local_ontology_decision_import_preview"
+    ),
+    PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REPORT_ARTIFACT: (
+        "project_local_ontology_decision_effect_report"
     ),
     IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT: "idea_to_spec_answer_rerun_input",
     IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT: "idea_to_spec_rerun_preview",
@@ -543,6 +553,7 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
     if filename in {
         PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT,
         SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT,
+        PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REPORT_ARTIFACT,
     }:
         authority_boundary = _record(value.get("authority_boundary"))
         if any(flag is True for flag in authority_boundary.values()):
@@ -575,6 +586,15 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             }
         if filename == SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT:
             decision_error = _project_local_import_decision_contract_error(value)
+            if decision_error is not None:
+                return {
+                    "reason": "invalid_artifact_contract",
+                    "detail": decision_error["detail"],
+                    "artifact_kind": _optional_text(value.get("artifact_kind")),
+                    "field": decision_error["field"],
+                }
+        if filename == PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REPORT_ARTIFACT:
+            decision_error = _project_local_effect_decision_contract_error(value)
             if decision_error is not None:
                 return {
                     "reason": "invalid_artifact_contract",
@@ -1015,6 +1035,24 @@ def _project_local_import_decision_contract_error(
                         "detail": f"{collection_name}[{index}].{field} must be false.",
                         "field": f"{collection_name}[{index}].{field}",
                     }
+    return None
+
+
+def _project_local_effect_decision_contract_error(
+    value: dict[str, Any],
+) -> dict[str, str] | None:
+    false_fields = (
+        "writes_ontology_package",
+        "accepts_ontology_terms",
+        "canonical_mutations_allowed",
+    )
+    for index, item in enumerate(_records(value.get("decision_effects"))):
+        for field in false_fields:
+            if item.get(field) is not False:
+                return {
+                    "detail": f"decision_effects[{index}].{field} must be false.",
+                    "field": f"decision_effects[{index}].{field}",
+                }
     return None
 
 
@@ -2210,16 +2248,72 @@ def _project_local_ontology_terms(report: dict[str, Any] | None) -> list[dict[st
     return rows
 
 
-def _project_local_ontology_review_lane(
+def _project_local_ontology_effect_review(
     report: dict[str, Any] | None,
 ) -> dict[str, Any]:
     summary = _record((report or {}).get("summary"))
-    schema = _record((report or {}).get("review_decision_schema"))
     context = _record((report or {}).get("context"))
     return {
         "available": report is not None,
         "readiness": _readiness(report),
         "summary": summary,
+        "context": {
+            "workspace_id": _optional_text(context.get("workspace_id")),
+            "candidate_id": _optional_text(context.get("candidate_id")),
+            "repair_session_id": _optional_text(context.get("repair_session_id")),
+            "workflow_lane": _optional_text(context.get("workflow_lane")),
+        },
+        "status": _optional_text(summary.get("status"))
+        or _optional_text(summary.get("review_status")),
+        "accepted_decision_count": _number(summary.get("accepted_decision_count")),
+        "maturity_evidence_decision_count": _number(
+            summary.get("maturity_evidence_decision_count")
+        ),
+        "keep_project_local_count": _number(summary.get("keep_project_local_count")),
+        "bind_existing_count": _number(summary.get("bind_existing_count")),
+        "alias_count": _number(summary.get("alias_count")),
+        "request_promotion_count": _number(summary.get("request_promotion_count")),
+        "reject_count": _number(summary.get("reject_count")),
+        "deferred_count": _number(summary.get("deferred_count")),
+        "non_resolving_decision_count": _number(
+            summary.get("non_resolving_decision_count")
+        ),
+        "invalid_decision_count": _number(summary.get("invalid_decision_count")),
+        "missing_decision_count": _number(summary.get("missing_decision_count")),
+        "blocking_decision_count": _number(summary.get("blocking_decision_count")),
+        "follow_up_decision_count": _number(
+            summary.get("follow_up_decision_count")
+        ),
+        "effect_count": _number(summary.get("effect_count")),
+        "ready_for_maturity": summary.get("ready_for_maturity") is True,
+        "source_ref": f"runs/{PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REPORT_ARTIFACT}"
+        if report is not None
+        else None,
+        "action_boundary": {
+            "inspect_only": True,
+            "acknowledge_only": True,
+            "may_apply_decisions": False,
+            "may_mutate_candidate_artifacts": False,
+            "may_accept_ontology_terms": False,
+            "may_write_ontology_package": False,
+            "may_create_branch_or_commit": False,
+        },
+    }
+
+
+def _project_local_ontology_review_lane(
+    report: dict[str, Any] | None,
+    effect_report: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    summary = _record((report or {}).get("summary"))
+    schema = _record((report or {}).get("review_decision_schema"))
+    context = _record((report or {}).get("context"))
+    effective_review = _project_local_ontology_effect_review(effect_report)
+    return {
+        "available": report is not None,
+        "readiness": _readiness(report),
+        "summary": summary,
+        "effective_review": effective_review,
         "context": {
             "workspace_id": _optional_text(context.get("workspace_id")),
             "candidate_id": _optional_text(context.get("candidate_id")),
@@ -2256,6 +2350,23 @@ def _project_local_ontology_review_lane(
             "may_create_branch_or_commit": False,
         },
     }
+
+
+def _project_local_ontology_effect_ready(
+    project_local_ontology_review: dict[str, Any],
+) -> bool:
+    effective_review = _record(project_local_ontology_review.get("effective_review"))
+    readiness = _record(effective_review.get("readiness"))
+    return (
+        effective_review.get("available") is True
+        and readiness.get("ready") is True
+        and effective_review.get("ready_for_maturity") is True
+        and _number(effective_review.get("blocking_decision_count")) == 0
+        and _number(effective_review.get("invalid_decision_count")) == 0
+        and _number(effective_review.get("missing_decision_count")) == 0
+        and _number(effective_review.get("deferred_count")) == 0
+        and _number(effective_review.get("follow_up_decision_count")) == 0
+    )
 
 
 def _project_local_ontology_import_decision_rows(
@@ -3291,6 +3402,7 @@ def _approval_readiness(
     repaired_promotion_gate: dict[str, Any] | None,
     product_repair_rerun_execution: dict[str, Any] | None,
     product_repair_rerun_publication: dict[str, Any] | None,
+    candidate_approval_execution: dict[str, Any] | None,
     candidate_approval: dict[str, Any] | None,
 ) -> dict[str, Any]:
     selected_active_candidate = repaired_active_candidate or active_candidate
@@ -3319,7 +3431,18 @@ def _approval_readiness(
     publication_view = _product_repair_rerun_publication(
         product_repair_rerun_publication
     )
+    approval_execution = _candidate_approval_execution(candidate_approval_execution)
     approval_decision = _candidate_approval_decision(candidate_approval)
+    candidate_approval_decision_ready = (
+        approval_decision["ready"]
+        or (
+            candidate_approval is None
+            and approval_execution["ok"]
+            and not approval_execution["dry_run"]
+            and approval_execution["decision_written"]
+            and approval_execution["candidate_approval_decision_ref"] is not None
+        )
+    )
 
     resolved_ontology_gap_count = _summary_number(
         handoff_summary,
@@ -3410,14 +3533,14 @@ def _approval_readiness(
         and platform_rerun_executed
         and platform_rerun_published
         and promotion_path_count > 0
-        and not approval_decision["ready"]
+        and not candidate_approval_decision_ready
         and not unique_blockers
     )
     platform_approval_gate_can_materialize_decision = (
         promotion_review_can_be_requested
         and (repaired_handoff is None or handoff_readiness["ready"])
     )
-    if approval_decision["ready"]:
+    if candidate_approval_decision_ready:
         status = "approval_decision_materialized"
     elif promotion_review_can_be_requested:
         status = "approval_ready"
@@ -3443,7 +3566,7 @@ def _approval_readiness(
         "platform_approval_gate_can_materialize_decision": (
             platform_approval_gate_can_materialize_decision
         ),
-        "candidate_approval_decision_ready": approval_decision["ready"],
+        "candidate_approval_decision_ready": candidate_approval_decision_ready,
         "platform_rerun_executed": platform_rerun_executed,
         "platform_rerun_published": platform_rerun_published,
         "repaired_artifacts_published": repaired_artifacts_published,
@@ -3484,6 +3607,7 @@ def _approval_readiness(
             "promotion_gate": promotion_readiness["review_state"],
             "execution": execution_view["status"],
             "publication": publication_view["status"],
+            "candidate_approval_execution": approval_execution["status"],
         },
         "action_boundary": {
             "inspect_only": True,
@@ -3545,6 +3669,7 @@ def _workflow(
     active_candidate: dict[str, Any] | None,
     intake: dict[str, Any] | None,
     candidate_seed: dict[str, Any] | None,
+    ontology_seed_review_resolved: bool,
     candidate_graph: dict[str, Any] | None,
     pre_sib: dict[str, Any] | None,
     repair_loop: dict[str, Any] | None,
@@ -3607,14 +3732,25 @@ def _workflow(
     )
     seed_source_generation = _record((candidate_seed or {}).get("source_generation"))
     seed_readiness = _readiness(seed_source_generation)
-    seed_blocked = _ontology_seed_blocked(candidate_seed)
+    seed_blocked = _ontology_seed_blocked(candidate_seed) and not ontology_seed_review_resolved
     platform_ok = (platform_promotion or {}).get("ok") is True
     approval_readiness = _record((candidate_approval or {}).get("readiness"))
     approval_decision = _record((candidate_approval or {}).get("decision"))
+    approval_ready_from_execution = (
+        candidate_approval is None
+        and candidate_approval_execution_view["ok"]
+        and not candidate_approval_execution_view["dry_run"]
+        and candidate_approval_execution_view["decision_written"]
+        and candidate_approval_execution_view["candidate_approval_decision_ref"]
+        is not None
+    )
     approval_ready = (
-        candidate_approval is not None
-        and approval_readiness.get("ready") is True
-        and approval_decision.get("state") == "approved"
+        (
+            candidate_approval is not None
+            and approval_readiness.get("ready") is True
+            and approval_decision.get("state") == "approved"
+        )
+        or approval_ready_from_execution
     )
     product_promotion_execution_view = _product_promotion_execution(
         product_promotion_execution
@@ -3650,6 +3786,9 @@ def _workflow(
         if product_execution_available
         else legacy_git_open_review_dry_run
     )
+    journal_platform_promotion_resolved = platform_ok or (
+        promotion_execution_available and promotion_execution_ok
+    )
     promotion_gate_blocked = (
         promotion_gate is not None
         and (
@@ -3669,8 +3808,9 @@ def _workflow(
     )
     journal_blocks_platform_promotion = (
         repair_session is not None
-        and candidate_approval is not None
+        and approval_ready
         and repair_session_impact["ready_for_platform_promotion"] is not True
+        and not journal_platform_promotion_resolved
     )
     product_repair_downstream_blocked = (
         context_required_count > 0
@@ -3878,16 +4018,21 @@ def _workflow(
         _workflow_item(
             item_id="candidate_approval",
             label="Candidate approval",
-            status=_available_status(
-                statuses,
-                "candidate_approval",
-                approval_ready,
-                blocked=approval_failed,
+            status=(
+                "ready"
+                if approval_ready_from_execution
+                else _available_status(
+                    statuses,
+                    "candidate_approval",
+                    approval_ready,
+                    blocked=approval_failed,
+                )
             ),
             artifact_key=CANDIDATE_APPROVAL_DECISION_ARTIFACT,
             detail=_optional_text(
                 approval_readiness.get("review_state")
                 or approval_decision.get("state")
+                or candidate_approval_execution_view["candidate_approval_decision_ref"]
             ),
         ),
         _workflow_item(
@@ -4127,7 +4272,19 @@ def _workflow(
             "command_template": None,
             "authority_boundary": "operator_only",
         }
-    elif promotion_readiness["ready"] and candidate_approval is None:
+    elif approval_failed:
+        stage = "approval_blocked"
+        status = "blocked"
+        next_handoff = {
+            "kind": "candidate_approval_repair",
+            "label": "Resolve candidate approval before Git Service execution",
+            "status": "blocked",
+            "artifact_key": "candidate_approval",
+            "artifact_path": f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}",
+            "command_template": None,
+            "authority_boundary": "operator_only",
+        }
+    elif promotion_readiness["ready"] and not approval_ready:
         stage = "approval_required"
         status = "operator_review_required"
         next_handoff = {
@@ -4143,18 +4300,6 @@ def _workflow(
                 "--specgraph-dir <specgraph-repository> "
                 "--approval-intents <specspace-state>/idea_to_spec_candidate_approval_intents.json"
             ),
-            "authority_boundary": "operator_only",
-        }
-    elif approval_failed:
-        stage = "approval_blocked"
-        status = "blocked"
-        next_handoff = {
-            "kind": "candidate_approval_repair",
-            "label": "Resolve candidate approval before Git Service execution",
-            "status": "blocked",
-            "artifact_key": "candidate_approval",
-            "artifact_path": f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}",
-            "command_template": None,
             "authority_boundary": "operator_only",
         }
     elif journal_blocks_platform_promotion:
@@ -5015,6 +5160,9 @@ def build_idea_to_spec_workspace(
     project_local_ontology_decision_import_preview = _artifact_data(
         artifacts, SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT
     )
+    project_local_ontology_decision_effect = _artifact_data(
+        artifacts, PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REPORT_ARTIFACT
+    )
     rerun_input = _artifact_data(artifacts, IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT)
     rerun_preview = _artifact_data(artifacts, IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT)
     rerun_materialization = _artifact_data(
@@ -5155,10 +5303,17 @@ def build_idea_to_spec_workspace(
     )
     missing_artifact_count = core_missing_artifact_count
     available_count = sum(1 for status in statuses.values() if status["available"])
+    project_local_ontology_review_lane = _project_local_ontology_review_lane(
+        project_local_ontology_review,
+        project_local_ontology_decision_effect,
+    )
+    ontology_seed_review_resolved = _project_local_ontology_effect_ready(
+        project_local_ontology_review_lane
+    )
     status = "ready"
     if core_missing_artifact_count:
         status = "partial" if available_count else "unavailable"
-    elif _ontology_seed_blocked(candidate_seed):
+    elif _ontology_seed_blocked(candidate_seed) and not ontology_seed_review_resolved:
         status = "blocked"
     elif selected_promotion_gate is not None and not _readiness(selected_promotion_gate)["ready"]:
         status = "blocked"
@@ -5200,9 +5355,6 @@ def build_idea_to_spec_workspace(
         product_repair_rerun_execution=product_repair_rerun_execution,
         product_repair_rerun_publication=product_repair_rerun_publication,
     )
-    project_local_ontology_review_lane = _project_local_ontology_review_lane(
-        project_local_ontology_review
-    )
     project_local_ontology_import_preview = (
         _project_local_ontology_decision_import_preview(
             project_local_ontology_decision_import_preview
@@ -5221,6 +5373,7 @@ def build_idea_to_spec_workspace(
         repaired_promotion_gate=repaired_promotion_gate,
         product_repair_rerun_execution=product_repair_rerun_execution,
         product_repair_rerun_publication=product_repair_rerun_publication,
+        candidate_approval_execution=candidate_approval_execution,
         candidate_approval=candidate_approval,
     )
     workflow = _workflow(
@@ -5229,6 +5382,7 @@ def build_idea_to_spec_workspace(
         active_candidate=selected_active_candidate,
         intake=intake,
         candidate_seed=candidate_seed,
+        ontology_seed_review_resolved=ontology_seed_review_resolved,
         candidate_graph=selected_candidate_graph,
         pre_sib=selected_pre_sib,
         repair_loop=selected_repair_loop,
@@ -5330,9 +5484,7 @@ def build_idea_to_spec_workspace(
                     "error_count"
                 )
             ),
-            "approval_ready": _candidate_approval_decision(candidate_approval)[
-                "ready"
-            ],
+            "approval_ready": approval_readiness["candidate_approval_decision_ready"],
             "repair_session_ready_for_candidate_approval": repair_session[
                 "readiness_impact"
             ]["ready_for_candidate_approval"],

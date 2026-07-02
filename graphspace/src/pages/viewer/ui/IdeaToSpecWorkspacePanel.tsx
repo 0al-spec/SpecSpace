@@ -1347,6 +1347,14 @@ function ProjectLocalOntologyReviewSection({
           value={importPreview.available ? compact(importPreview.readiness.reviewState, "available") : "missing"}
         />
         <PostureItem
+          label="Effective"
+          value={
+            lane.effectiveReview.available
+              ? compact(lane.effectiveReview.status, "available")
+              : "missing"
+          }
+        />
+        <PostureItem
           label="Accepted"
           value={String(importPreview.acceptedDecisionCount)}
         />
@@ -1367,6 +1375,7 @@ function ProjectLocalOntologyReviewSection({
       ) : null}
       <ProjectLocalOntologyDecisionStatus state={decisions.state} />
       <ProjectLocalOntologyImportPreviewStatus preview={importPreview} />
+      <ProjectLocalOntologyEffectiveReviewStatus review={lane.effectiveReview} />
       {lane.available ? (
         <div className={styles.row}>
           <div className={styles.rowHeader}>
@@ -1422,6 +1431,42 @@ function ProjectLocalOntologyReviewSection({
         </div>
       ))}
     </section>
+  );
+}
+
+function ProjectLocalOntologyEffectiveReviewStatus({
+  review,
+}: {
+  review: IdeaToSpecWorkspace["projectLocalOntologyReview"]["effectiveReview"];
+}) {
+  if (!review.available) return null;
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>Effective project-local review</span>
+        <Pill value={compact(review.status, "unknown")} />
+      </div>
+      <div className={styles.metaGrid}>
+        <Meta label="Ready" value={boolText(review.readiness.ready)} />
+        <Meta label="Accepted" value={String(review.acceptedDecisionCount)} />
+        <Meta
+          label="Maturity evidence"
+          value={String(review.maturityEvidenceDecisionCount)}
+        />
+        <Meta label="Keep local" value={String(review.keepProjectLocalCount)} />
+        <Meta label="Bind existing" value={String(review.bindExistingCount)} />
+        <Meta label="Alias" value={String(review.aliasCount)} />
+        <Meta
+          label="Request promotion"
+          value={String(review.requestPromotionCount)}
+        />
+        <Meta label="Blocking" value={String(review.blockingDecisionCount)} />
+        <Meta label="Deferred" value={String(review.deferredCount)} />
+        <Meta label="Invalid" value={String(review.invalidDecisionCount)} />
+        <Meta label="Missing" value={String(review.missingDecisionCount)} />
+        <Meta label="Source" value={review.sourceRef} />
+      </div>
+    </div>
   );
 }
 
