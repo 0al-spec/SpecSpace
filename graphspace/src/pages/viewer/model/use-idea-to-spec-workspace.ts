@@ -641,6 +641,12 @@ export type IdeaToSpecIdeaMaturityMetrics = {
   invalidAnswerCount: number;
   materializedAnswerCount: number;
   unmaterializedAnswerCount: number;
+  perGapMaterializedAnswerCount: number | null;
+  consumedAnswerCount: number;
+  aggregateAnswerCount: number;
+  dismissedAnswerCount: number;
+  closureEvidenceAnswerCount: number | null;
+  ordinaryUnmaterializedAnswerCount: number | null;
   answerMaterializationRate: number | null;
   ontologyGapCountInitial: number;
   ontologyGapResolvedCount: number;
@@ -2560,6 +2566,18 @@ function parseIdeaMaturityMetrics(raw: unknown): IdeaToSpecIdeaMaturityMetrics {
     invalidAnswerCount: numberValue(metrics.invalid_answer_count),
     materializedAnswerCount: numberValue(metrics.materialized_answer_count),
     unmaterializedAnswerCount: numberValue(metrics.unmaterialized_answer_count),
+    perGapMaterializedAnswerCount: optionalNumberValue(
+      metrics.per_gap_materialized_answer_count,
+    ),
+    consumedAnswerCount: numberValue(metrics.consumed_answer_count),
+    aggregateAnswerCount: numberValue(metrics.aggregate_answer_count),
+    dismissedAnswerCount: numberValue(metrics.dismissed_answer_count),
+    closureEvidenceAnswerCount: optionalNumberValue(
+      metrics.closure_evidence_answer_count,
+    ),
+    ordinaryUnmaterializedAnswerCount: optionalNumberValue(
+      metrics.ordinary_unmaterialized_answer_count,
+    ),
     answerMaterializationRate: optionalNumberValue(
       metrics.answer_materialization_rate,
     ),
