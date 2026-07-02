@@ -69,6 +69,7 @@ type Props = {
   projectLocalOntologyReviewDecisionsUrl?: string;
   repairRerunRequestsRefreshKey?: number | string;
   auxiliaryDataEnabled?: boolean;
+  readOnly?: boolean;
 };
 
 function errorDetail(
@@ -275,6 +276,7 @@ export function IdeaToSpecWorkspacePanel({
   projectLocalOntologyReviewDecisionsUrl,
   repairRerunRequestsRefreshKey = 0,
   auxiliaryDataEnabled = true,
+  readOnly = false,
 }: Props) {
   const repairDrafts = useIdeaToSpecRepairDrafts({
     url: repairDraftsUrl,
@@ -330,12 +332,14 @@ export function IdeaToSpecWorkspacePanel({
   const frame = data.candidateGraph.activeFrame.project
     ? data.candidateGraph.activeFrame
     : data.intake.activeFrame;
-  const requestCandidateApprovalIntent = () =>
+  const requestCandidateApprovalIntent = () => {
+    if (readOnly) return;
     candidateApprovalIntents.requestApprovalIntent({
       workspaceId: data.selectedWorkspaceId ?? data.workspace.id,
       operatorRef: "operator://specspace-local",
       reason: "Approve candidate for promotion review.",
     });
+  };
 
   return (
     <section className={styles.panel} aria-label="Idea-to-spec workspace">
@@ -417,6 +421,7 @@ export function IdeaToSpecWorkspacePanel({
           state={state}
           answers={intakeClarificationAnswers}
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+          readOnly={readOnly}
         />
         <OntologySeedSection seed={data.ontologySeed} />
         <ProjectLocalOntologyReviewSection
@@ -424,6 +429,7 @@ export function IdeaToSpecWorkspacePanel({
           importPreview={data.projectLocalOntologyDecisionImportPreview}
           decisions={projectLocalOntologyReviewDecisions}
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+          readOnly={readOnly}
         />
         <CandidateGraphSection nodes={data.candidateGraph.nodes} />
         <PreSibSection state={state} />
@@ -436,6 +442,7 @@ export function IdeaToSpecWorkspacePanel({
           repairDrafts={repairDrafts}
           repairRerunRequests={repairRerunRequests}
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+          readOnly={readOnly}
         />
         <MaterializationSection state={state} />
         <PromotionGateSection state={state} />
@@ -448,6 +455,7 @@ export function IdeaToSpecWorkspacePanel({
           pending={candidateApprovalIntents.pending}
           requestError={candidateApprovalIntents.requestError}
           onRequest={requestCandidateApprovalIntent}
+          readOnly={readOnly}
         />
         <CandidateApprovalIntentSection
           state={candidateApprovalIntents.state}
@@ -868,10 +876,12 @@ function IntakeClarificationSection({
   state,
   answers,
   workspaceId,
+  readOnly,
 }: {
   state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
   answers: ReturnType<typeof useIdeaToSpecIntakeClarificationAnswers>;
   workspaceId: string | null;
+  readOnly: boolean;
 }) {
   const lane = state.data.intakeClarification;
   const draftCount = answers.state.kind === "ok" ? answers.state.data.summary.answerCount : 0;
@@ -965,6 +975,7 @@ function IntakeClarificationSection({
               operatorRef: "operator://specspace-local",
             })
           }
+          readOnly={readOnly}
         />
       ))}
     </section>
@@ -1146,6 +1157,7 @@ function IntakeClarificationRequestRow({
   pending,
   saveError,
   onSave,
+  readOnly,
 }: {
   request: IdeaToSpecClarificationRequest;
   answerTarget: IdeaToSpecRealIdeaAnswerTarget | undefined;
@@ -1158,6 +1170,7 @@ function IntakeClarificationRequestRow({
     answerKind: string;
     value: Record<string, unknown>;
   }) => void;
+  readOnly: boolean;
 }) {
   const availableActions =
     answerTarget?.acceptedActions.length
@@ -1181,6 +1194,7 @@ function IntakeClarificationRequestRow({
   const canSave =
     selectedAction.length > 0 &&
     intakeClarificationTemplateValueIsComplete(requiredFields, value) &&
+    !readOnly &&
     !pending;
   return (
     <div className={styles.row}>
@@ -1215,6 +1229,7 @@ function IntakeClarificationRequestRow({
             value={selectedAction}
             onChange={(event) => setSelectedAction(event.currentTarget.value)}
             aria-label="Intake clarification answer kind"
+            disabled={readOnly}
           >
             {(availableActions.length ? availableActions : [defaultAction]).map((action) => (
               <option key={action} value={action}>
@@ -1233,6 +1248,7 @@ function IntakeClarificationRequestRow({
           placeholder={intakeClarificationPlaceholder(request)}
           rows={3}
           aria-label="Intake clarification answer"
+          readOnly={readOnly}
         />
         {answerTarget ? (
           <span className={styles.statusDetail}>
@@ -1362,11 +1378,13 @@ function ProjectLocalOntologyReviewSection({
   importPreview,
   decisions,
   workspaceId,
+  readOnly,
 }: {
   lane: IdeaToSpecWorkspace["projectLocalOntologyReview"];
   importPreview: IdeaToSpecWorkspace["projectLocalOntologyDecisionImportPreview"];
   decisions: ReturnType<typeof useProjectLocalOntologyReviewDecisions>;
   workspaceId: string | null;
+  readOnly: boolean;
 }) {
   const savedCount =
     decisions.state.kind === "ok" ? decisions.state.data.summary.decisionCount : 0;
@@ -1462,6 +1480,7 @@ function ProjectLocalOntologyReviewSection({
               operatorRef: "operator://specspace-local",
             })
           }
+          readOnly={readOnly}
         />
       ))}
       {lane.findings.map((finding) => (
@@ -1648,6 +1667,7 @@ function ProjectLocalOntologyTermRow({
   pending,
   saveError,
   onSave,
+  readOnly,
 }: {
   term: IdeaToSpecProjectLocalOntologyTerm;
   savedDecision: ProjectLocalOntologyReviewDecision | undefined;
@@ -1658,6 +1678,7 @@ function ProjectLocalOntologyTermRow({
     action: string;
     decisionValue: Record<string, unknown>;
   }) => void;
+  readOnly: boolean;
 }) {
   const availableActions = term.suggestedActions.length
     ? term.suggestedActions
@@ -1682,6 +1703,7 @@ function ProjectLocalOntologyTermRow({
   const canSave =
     selectedAction.length > 0 &&
     projectLocalDecisionValueIsComplete(selectedAction, decisionValue) &&
+    !readOnly &&
     !pending;
   const saveButtonLabel = pending
     ? "Saving"
@@ -1736,6 +1758,7 @@ function ProjectLocalOntologyTermRow({
               setText(projectLocalDecisionText(savedDecision, nextAction));
             }}
             aria-label="Project-local ontology review action"
+            disabled={readOnly}
           >
             {availableActions.map((action) => (
               <option key={action} value={action}>
@@ -1758,6 +1781,7 @@ function ProjectLocalOntologyTermRow({
           placeholder={projectLocalDecisionPlaceholder(selectedAction)}
           rows={3}
           aria-label="Project-local ontology review decision"
+          readOnly={readOnly}
         />
         <span className={styles.statusDetail}>
           {projectLocalDecisionPreview(term, selectedAction, decisionValue)}
@@ -2570,11 +2594,13 @@ function ProductRepairReviewSection({
   repairDrafts,
   repairRerunRequests,
   workspaceId,
+  readOnly,
 }: {
   state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
   repairDrafts: ReturnType<typeof useIdeaToSpecRepairDrafts>;
   repairRerunRequests: ReturnType<typeof useIdeaToSpecRepairRerunRequests>;
   workspaceId: string | null;
+  readOnly: boolean;
 }) {
   const lane = state.data.repairReview;
   const quality = lane.rerunPreview.candidateQualityPreview;
@@ -2642,12 +2668,14 @@ function ProductRepairReviewSection({
         state={repairRerunRequests.state}
         pending={repairRerunRequests.pending}
         requestError={repairRerunRequests.requestError}
-        onRequest={() =>
+        onRequest={() => {
+          if (readOnly) return;
           repairRerunRequests.requestRerun({
             workspaceId,
             operatorRef: "operator://specspace-local",
-          })
-        }
+          });
+        }}
+        readOnly={readOnly}
       />
       <ProductRepairRerunExecutionStatus platformExecution={platformExecution} />
       <div className={styles.row}>
@@ -2690,6 +2718,7 @@ function ProductRepairReviewSection({
               operatorRef: "operator://specspace-local",
             })
           }
+          readOnly={readOnly}
         />
       ))}
       {lane.ontologyDecisions.decisions.map((decision) => (
@@ -2750,11 +2779,13 @@ function RepairRerunRequestStatus({
   pending,
   requestError,
   onRequest,
+  readOnly,
 }: {
   state: UseIdeaToSpecRepairRerunRequestsState;
   pending: boolean;
   requestError: IdeaToSpecRepairRerunRequestError | null;
   onRequest: () => void;
+  readOnly: boolean;
 }) {
   if (state.kind === "idle" || state.kind === "loading") {
     return (
@@ -2798,7 +2829,7 @@ function RepairRerunRequestStatus({
         <button
           className={styles.ackButton}
           type="button"
-          disabled={!workflow.requestReady || pending}
+          disabled={readOnly || !workflow.requestReady || pending}
           onClick={onRequest}
         >
           {pending ? "Requesting" : "Request rerun preview"}
@@ -2885,17 +2916,20 @@ function ApprovalReadinessSection({
   pending,
   requestError,
   onRequest,
+  readOnly,
 }: {
   readiness: IdeaToSpecApprovalReadiness;
   intentRequestReady: boolean;
   pending: boolean;
   requestError: IdeaToSpecCandidateApprovalIntentError | null;
   onRequest: () => void;
+  readOnly: boolean;
 }) {
   const canRequest =
     readiness.promotionReviewCanBeRequested &&
     readiness.platformApprovalGateCanMaterializeDecision &&
     intentRequestReady &&
+    !readOnly &&
     !pending;
   const title = readiness.candidateRepaired
     ? "Candidate repaired"
@@ -3148,6 +3182,7 @@ function ClarificationRequestRow({
   pending,
   saveError,
   onSave,
+  readOnly,
 }: {
   request: IdeaToSpecClarificationRequest;
   repairTarget: IdeaToSpecRepairTarget | undefined;
@@ -3155,6 +3190,7 @@ function ClarificationRequestRow({
   pending: boolean;
   saveError: IdeaToSpecRepairDraftSaveError | null;
   onSave: (input: IdeaToSpecRepairDraftInput) => void;
+  readOnly: boolean;
 }) {
   const defaultAction = request.suggestedActions[0] ?? "";
   const ontologyGapRequest = request.kind === "ontology_gap";
@@ -3193,6 +3229,7 @@ function ClarificationRequestRow({
       : structuredProductSpecRequest
         ? productSpecGapDraftCanSave(selectedAction, productSpecDraft)
       : draftText.trim().length > 0) &&
+    !readOnly &&
     !pending;
   const productTarget = productSpecGapRequest
     ? productSpecRepairTarget(request, repairTarget)
@@ -3236,6 +3273,7 @@ function ClarificationRequestRow({
             value={selectedAction}
             onChange={(event) => setSelectedAction(event.currentTarget.value)}
             aria-label="Repair draft action"
+            disabled={readOnly}
           >
             {request.suggestedActions.map((action) => (
               <option key={action} value={action}>
@@ -3268,6 +3306,7 @@ function ClarificationRequestRow({
             placeholder={draftPlaceholder(selectedAction)}
             rows={3}
             aria-label="Repair draft value"
+            readOnly={readOnly}
           />
         )}
         {structuredProductSpecRequest && productTarget ? (

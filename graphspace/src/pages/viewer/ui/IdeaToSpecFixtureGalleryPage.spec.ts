@@ -17,8 +17,10 @@ describe("IdeaToSpecFixtureGalleryPage", () => {
     expect(html).toContain('id="team-decision-overlay"');
     expect(html).toContain('data-testid="team-decision-rail-frame"');
     expect(html).toContain('data-testid="team-decision-overlay-frame"');
-    expect(html).toContain("#idea-to-spec-candidate-graph");
+    const nav = html.match(/<nav[\s\S]*?<\/nav>/)?.[0] ?? "";
+    expect(nav).not.toContain("#idea-to-spec-candidate-graph");
     expect(html).toContain("Capture team decisions with explicit owner and outcome.");
     expect(html).toContain("Decision capture, review, and retrieval for one product team.");
+    expect(html).toContain("disabled=\"\"");
   });
 });

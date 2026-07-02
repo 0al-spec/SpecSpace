@@ -12,13 +12,6 @@ const sectionLinks = [
   { id: "report-status-row", label: "Report status row" },
   { id: "team-decision-rail", label: "Rail width preview" },
   { id: "team-decision-overlay", label: "Fullscreen overlay preview" },
-  { id: "idea-to-spec-workspace-state-hygiene", label: "Workspace state hygiene" },
-  { id: "idea-to-spec-idea-intake", label: "Idea intake" },
-  { id: "idea-to-spec-candidate-graph", label: "Candidate graph" },
-  { id: "idea-to-spec-candidate-overview", label: "Candidate overview" },
-  { id: "idea-to-spec-repair-review", label: "Repair review" },
-  { id: "idea-to-spec-idea-maturity", label: "Idea maturity" },
-  { id: "idea-to-spec-approval-readiness", label: "Approval readiness" },
 ] as const;
 
 function fixtureFailureDetail(): string {
@@ -51,6 +44,7 @@ function renderPanelPreview() {
     <IdeaToSpecWorkspacePanel
       state={teamDecisionState}
       auxiliaryDataEnabled={false}
+      readOnly
     />
   );
 }

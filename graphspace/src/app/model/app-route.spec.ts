@@ -34,6 +34,16 @@ describe("SpecSpace app route selection", () => {
     expect(route.shouldReplace).toBe(true);
   });
 
+  it("keeps the fixture gallery path on workspace routing when the dev route is disabled", () => {
+    const route = resolveSpecSpaceAppRoute("/dev/idea-to-spec-fixtures", {
+      fixtureGalleryEnabled: false,
+    });
+
+    expect(route.kind).toBe("workspace-viewer");
+    if (route.kind !== "workspace-viewer") return;
+    expect(route.workspaceRoute.workspace.id).toBe("specgraph-bootstrap");
+  });
+
   it("keeps generic product workspaces on the workspace viewer", () => {
     const route = resolveSpecSpaceAppRoute("/support-triage-log");
 

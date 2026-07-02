@@ -1,5 +1,11 @@
 export { ViewerPage } from "./ui/ViewerPage";
-export { IdeaToSpecFixtureGalleryPage } from "./ui/IdeaToSpecFixtureGalleryPage";
+export function loadIdeaToSpecFixtureGalleryPage() {
+  return import("./ui/IdeaToSpecFixtureGalleryPage").then(
+    ({ IdeaToSpecFixtureGalleryPage }) => ({
+      default: IdeaToSpecFixtureGalleryPage,
+    }),
+  );
+}
 export {
   resolveWorkspaceRoute,
   workspaceApiUrl,
