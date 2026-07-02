@@ -134,6 +134,25 @@ describe("parseIdeaToSpecWorkspace", () => {
       parsed.data.ideaMaturity.report.metrics.ontologyGapResolutionRate,
     ).toBe(1);
     expect(
+      parsed.data.ideaMaturity.report.metrics.projectLocalOntologyReview.status,
+    ).toBe("project_local_ontology_decision_effect_ready");
+    expect(
+      parsed.data.ideaMaturity.report.metrics.projectLocalOntologyReview
+        .acceptedDecisionCount,
+    ).toBe(2);
+    expect(
+      parsed.data.ideaMaturity.report.metrics.projectLocalOntologyReview
+        .keepProjectLocalCount,
+    ).toBe(1);
+    expect(
+      parsed.data.ideaMaturity.report.metrics.projectLocalOntologyReview
+        .bindExistingCount,
+    ).toBe(1);
+    expect(
+      parsed.data.ideaMaturity.report.metrics.projectLocalOntologyReview
+        .readyForMaturity,
+    ).toBe(true);
+    expect(
       parsed.data.ideaMaturity.report.metrics.timeToApprovalReadySeconds,
     ).toBeNull();
     expect(parsed.data.ideaMaturity.report.contract.schemaRef).toBe(

@@ -731,6 +731,25 @@ export type IdeaToSpecIdeaMaturityMetrics = {
   ontologyGapResolvedCount: number;
   ontologyGapUnresolvedCount: number;
   ontologyGapResolutionRate: number | null;
+  projectLocalOntologyReview: {
+    status: string | null;
+    acceptedDecisionCount: number;
+    maturityEvidenceDecisionCount: number;
+    keepProjectLocalCount: number;
+    bindExistingCount: number;
+    aliasCount: number;
+    requestPromotionCount: number;
+    rejectCount: number;
+    deferredCount: number;
+    nonResolvingDecisionCount: number;
+    invalidDecisionCount: number;
+    missingDecisionCount: number;
+    blockingDecisionCount: number;
+    followUpDecisionCount: number;
+    effectCount: number;
+    readyForMaturity: boolean;
+    evidenceRefs: readonly string[];
+  };
   candidateGapCountInitial: number;
   candidateGapResolvedCount: number;
   candidateGapUnresolvedCount: number;
@@ -2931,6 +2950,9 @@ function parseApprovalReadiness(raw: unknown): IdeaToSpecApprovalReadiness {
 
 function parseIdeaMaturityMetrics(raw: unknown): IdeaToSpecIdeaMaturityMetrics {
   const metrics = recordValue(raw);
+  const nestedProjectLocalReview = recordValue(
+    metrics.project_local_ontology_review,
+  );
   return {
     candidateNodeCount: numberValue(metrics.candidate_node_count),
     clarificationQuestionCount: numberValue(
@@ -2969,6 +2991,64 @@ function parseIdeaMaturityMetrics(raw: unknown): IdeaToSpecIdeaMaturityMetrics {
     ontologyGapResolutionRate: optionalNumberValue(
       metrics.ontology_gap_resolution_rate,
     ),
+    projectLocalOntologyReview: {
+      status: optionalString(
+        nestedProjectLocalReview.status ??
+          metrics.project_local_ontology_review_status,
+      ),
+      acceptedDecisionCount: numberValue(
+        nestedProjectLocalReview.accepted_decision_count ??
+          metrics.project_local_ontology_accepted_decision_count,
+      ),
+      maturityEvidenceDecisionCount: numberValue(
+        nestedProjectLocalReview.maturity_evidence_decision_count,
+      ),
+      keepProjectLocalCount: numberValue(
+        nestedProjectLocalReview.keep_project_local_count ??
+          metrics.project_local_ontology_keep_local_count,
+      ),
+      bindExistingCount: numberValue(
+        nestedProjectLocalReview.bind_existing_count ??
+          metrics.project_local_ontology_bind_existing_count,
+      ),
+      aliasCount: numberValue(
+        nestedProjectLocalReview.alias_count ??
+          metrics.project_local_ontology_alias_count,
+      ),
+      requestPromotionCount: numberValue(
+        nestedProjectLocalReview.request_promotion_count ??
+          metrics.project_local_ontology_request_promotion_count,
+      ),
+      rejectCount: numberValue(
+        nestedProjectLocalReview.reject_count ??
+          metrics.project_local_ontology_reject_count,
+      ),
+      deferredCount: numberValue(
+        nestedProjectLocalReview.deferred_count ??
+          metrics.project_local_ontology_deferred_decision_count,
+      ),
+      nonResolvingDecisionCount: numberValue(
+        nestedProjectLocalReview.non_resolving_decision_count,
+      ),
+      invalidDecisionCount: numberValue(
+        nestedProjectLocalReview.invalid_decision_count ??
+          metrics.project_local_ontology_invalid_decision_count,
+      ),
+      missingDecisionCount: numberValue(
+        nestedProjectLocalReview.missing_decision_count ??
+          metrics.project_local_ontology_missing_decision_count,
+      ),
+      blockingDecisionCount: numberValue(
+        nestedProjectLocalReview.blocking_decision_count ??
+          metrics.project_local_ontology_blocking_decision_count,
+      ),
+      followUpDecisionCount: numberValue(
+        nestedProjectLocalReview.follow_up_decision_count,
+      ),
+      effectCount: numberValue(nestedProjectLocalReview.effect_count),
+      readyForMaturity: nestedProjectLocalReview.ready_for_maturity === true,
+      evidenceRefs: strings(nestedProjectLocalReview.evidence_refs),
+    },
     candidateGapCountInitial: numberValue(metrics.candidate_gap_count_initial),
     candidateGapResolvedCount: numberValue(metrics.candidate_gap_resolved_count),
     candidateGapUnresolvedCount: numberValue(
