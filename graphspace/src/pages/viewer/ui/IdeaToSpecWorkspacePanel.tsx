@@ -5,6 +5,7 @@ import type {
   IdeaToSpecAcceptedAnswer,
   IdeaToSpecApprovalReadiness,
   IdeaToSpecCandidateNode,
+  IdeaToSpecCandidateOverview,
   IdeaToSpecClarificationRequest,
   IdeaToSpecGitServiceOperation,
   IdeaToSpecGuidedFlow,
@@ -359,6 +360,7 @@ export function IdeaToSpecWorkspacePanel({
 
       <div className={styles.entries}>
         <GuidedFlowSection flow={data.guidedFlow} />
+        <CandidateOverviewSection overview={data.candidateOverview} />
         <WorkflowSection workflow={data.workflow} />
         <IdeaIntakeDraftSection activeFrame={frame} />
         <WorkspaceSection workspace={data.workspace} />
@@ -598,6 +600,122 @@ function GuidedFlowSection({ flow }: { flow: IdeaToSpecGuidedFlow }) {
             <span className={styles.statusDetail}>{joined(stage.blockers)}</span>
           </div>
         ))}
+    </section>
+  );
+}
+
+function CandidateOverviewSection({
+  overview,
+}: {
+  overview: IdeaToSpecCandidateOverview;
+}) {
+  const relationEntries = Object.entries(overview.topology.relationCounts).slice(0, 6);
+  const primaryItems = [
+    ...overview.eventStorming.commands.slice(0, 2),
+    ...overview.eventStorming.domainEvents.slice(0, 2),
+  ];
+  return (
+    <section id="idea-to-spec-candidate-overview" className={styles.reviewSection}>
+      <SectionHeader
+        title="Candidate overview"
+        count={
+          overview.eventStorming.commandCount +
+          overview.eventStorming.domainEventCount +
+          overview.summary.nodeCount
+        }
+      />
+      {!overview.available ? (
+        <Status
+          label="Candidate overview unavailable"
+          detail="Run `make candidate-overview` in SpecGraph to publish the narrative candidate summary."
+        />
+      ) : null}
+      <div className={styles.postureStrip}>
+        <PostureItem label="Source" value={compact(overview.summary.graphSource, "missing")} />
+        <PostureItem label="Nodes" value={String(overview.summary.nodeCount)} />
+        <PostureItem label="Workflow edges" value={String(overview.summary.workflowEdgeCount)} />
+        <PostureItem label="Blockers" value={String(overview.summary.remainingBlockerCount)} />
+        <PostureItem label="Candidate approval" value={boolText(overview.summary.readyForCandidateApproval)} />
+        <PostureItem label="Maturity" value={compact(overview.ideaMaturity.lifecycleState, overview.ideaMaturity.status)} />
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>
+            {compact(
+              overview.candidate.displayName,
+              overview.summary.displayName ?? overview.summary.candidateId,
+            )}
+          </span>
+          <Pill value={compact(overview.readiness.reviewState, "overview")} />
+        </div>
+        <h3 className={styles.title}>
+          {compact(overview.narrative.productIntent, "Candidate narrative is not available.")}
+        </h3>
+        <div className={styles.metaGrid}>
+          <Meta label="Scope" value={overview.narrative.understoodScope} />
+          <Meta label="Readiness" value={overview.narrative.readiness} />
+          <Meta
+            label="Next action"
+            value={compact(overview.nextAction.label, overview.narrative.nextAction)}
+          />
+          <Meta label="Evidence" value={joined(overview.nextAction.evidenceRefs)} />
+          <Meta label="Route" value={overview.candidate.workspaceRoute} />
+          <Meta label="Lane" value={overview.candidate.workflowLane} />
+          <Meta
+            label="Project-local ontology"
+            value={compact(
+              overview.projectLocalOntology.status,
+              overview.summary.projectLocalOntologyReviewStatus,
+            )}
+          />
+          <Meta
+            label="Ontology decisions"
+            value={`${overview.projectLocalOntology.acceptedDecisionCount} accepted / ${overview.projectLocalOntology.blockingDecisionCount} blocking`}
+          />
+        </div>
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Event-storming frame</span>
+          <Pill value={`${overview.eventStorming.commandCount} commands`} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Actors" value={String(overview.eventStorming.actorCount)} />
+          <Meta label="Commands" value={String(overview.eventStorming.commandCount)} />
+          <Meta label="Domain events" value={String(overview.eventStorming.domainEventCount)} />
+          <Meta label="Policies" value={String(overview.eventStorming.policyCount)} />
+          <Meta label="Constraints" value={String(overview.eventStorming.constraintCount)} />
+          <Meta label="Candidate nodes" value={String(overview.candidateNodes.nodes.length)} />
+        </div>
+        {primaryItems.map((item) => (
+          <div key={`overview:${item.id}`} className={styles.subRow}>
+            <span>{compact(item.label, item.id)}</span>
+            <Pill value={compact(item.kind, "item")} />
+            <span className={styles.statusDetail}>{compact(item.detail, item.id)}</span>
+          </div>
+        ))}
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Workflow topology</span>
+          <Pill value={`${overview.topology.workflowEdgeCount} workflow edges`} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="All edges" value={String(overview.topology.edgeCount)} />
+          {relationEntries.map(([relation, count]) => (
+            <Meta key={relation} label={relation.replace(/_/g, " ")} value={String(count)} />
+          ))}
+        </div>
+        {overview.topology.edges.slice(0, 4).map((edge) => (
+          <div key={`overview-edge:${edge.id}`} className={styles.subRow}>
+            <span>{compact(edge.from, edge.id)}</span>
+            <Pill value={compact(edge.relation, "relates")} />
+            <span className={styles.statusDetail}>
+              {compact(edge.to, edge.label)}
+            </span>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
@@ -1467,6 +1585,11 @@ function ProjectLocalOntologyTermRow({
     selectedAction.length > 0 &&
     projectLocalDecisionValueIsComplete(selectedAction, decisionValue) &&
     !pending;
+  const saveButtonLabel = pending
+    ? "Saving"
+    : savedDecision
+      ? "Update decision"
+      : "Save decision";
   return (
     <div className={styles.row}>
       <div className={styles.rowHeader}>
@@ -1518,18 +1641,18 @@ function ProjectLocalOntologyTermRow({
           >
             {availableActions.map((action) => (
               <option key={action} value={action}>
-                {action.replace(/_/g, " ")}
+                {projectLocalActionLabel(action)}
               </option>
             ))}
           </select>
           <button className={styles.ackButton} type="submit" disabled={!canSave}>
-            {pending
-              ? "Saving"
-              : savedDecision
-                ? "Update decision"
-                : "Save decision"}
+            {saveButtonLabel}
           </button>
         </div>
+        <span className={styles.statusDetail}>
+          {projectLocalDecisionFieldLabel(selectedAction)} ·{" "}
+          {projectLocalDecisionHint(selectedAction)}
+        </span>
         <textarea
           className={styles.draftTextarea}
           value={text}
@@ -1539,11 +1662,14 @@ function ProjectLocalOntologyTermRow({
           aria-label="Project-local ontology review decision"
         />
         <span className={styles.statusDetail}>
+          {projectLocalDecisionPreview(term, selectedAction, decisionValue)}
+        </span>
+        <span className={styles.statusDetail}>
           Operator intent only · does not write Ontology packages or accept terms.
         </span>
         {savedDecision ? (
           <span className={styles.statusDetail}>
-            Decision saved · {savedDecision.reviewAction.replace(/_/g, " ")} · {savedDecision.updatedAt}
+            Decision saved · {projectLocalActionLabel(savedDecision.reviewAction)} · {savedDecision.updatedAt}
           </span>
         ) : null}
         {saveError ? (
@@ -3853,6 +3979,25 @@ function projectLocalDecisionText(
   return "";
 }
 
+function projectLocalActionLabel(action: string): string {
+  switch (action) {
+    case "keep_project_local":
+      return "Keep project-local";
+    case "bind_existing":
+      return "Bind existing";
+    case "alias":
+      return "Alias";
+    case "request_workspace_promotion":
+      return "Request workspace promotion";
+    case "reject":
+      return "Reject";
+    case "defer":
+      return "Defer";
+    default:
+      return action.replace(/_/g, " ");
+  }
+}
+
 function projectLocalDecisionValue(
   term: IdeaToSpecProjectLocalOntologyTerm,
   action: string,
@@ -3889,6 +4034,73 @@ function projectLocalDecisionValueIsComplete(
     return typeof value.reason === "string" && value.reason.trim().length > 0;
   }
   return Object.values(value).some(templateFieldValueIsPresent);
+}
+
+function projectLocalDecisionFieldLabel(action: string): string {
+  if (action === "bind_existing") return "Accepted ontology ref";
+  if (action === "alias") return "Accepted alias target";
+  if (action === "request_workspace_promotion") return "Promotion review reason";
+  if (action === "reject") return "Rejection reason";
+  if (action === "defer") return "Follow-up reason";
+  if (action === "keep_project_local") return "Project-local rationale";
+  return "Review note";
+}
+
+function projectLocalDecisionHint(action: string): string {
+  if (action === "bind_existing") {
+    return "stores term plus ontology_ref for an existing accepted ontology term";
+  }
+  if (action === "alias") {
+    return "stores term plus alias_of without accepting a new ontology term";
+  }
+  if (action === "request_workspace_promotion") {
+    return "requests later owner review but does not write an ontology package";
+  }
+  if (action === "reject") {
+    return "marks this as not a project ontology term for the candidate review";
+  }
+  if (action === "defer") {
+    return "keeps the term unresolved until a later owner review";
+  }
+  if (action === "keep_project_local") {
+    return "keeps the term local to this candidate/workspace";
+  }
+  return "stores operator intent for SpecGraph import preview";
+}
+
+function projectLocalDecisionPreview(
+  term: IdeaToSpecProjectLocalOntologyTerm,
+  action: string,
+  value: Record<string, unknown>,
+): string {
+  const termText = compact(term.term, term.termKey);
+  if (action === "bind_existing") {
+    const ontologyRef =
+      typeof value.ontology_ref === "string" && value.ontology_ref.trim().length > 0
+        ? value.ontology_ref.trim()
+        : "required";
+    return `Will save term "${termText}" with ontology_ref "${ontologyRef}".`;
+  }
+  if (action === "alias") {
+    const aliasOf =
+      typeof value.alias_of === "string" && value.alias_of.trim().length > 0
+        ? value.alias_of.trim()
+        : "required";
+    return `Will save term "${termText}" with alias_of "${aliasOf}".`;
+  }
+  if (action === "request_workspace_promotion") {
+    return `Will request workspace-level review for "${termText}".`;
+  }
+  if (action === "reject") {
+    return `Will reject "${termText}" for this candidate ontology review.`;
+  }
+  if (action === "defer") {
+    return `Will keep "${termText}" open as deferred follow-up.`;
+  }
+  if (action === "keep_project_local") {
+    return `Will keep "${termText}" project-local for this candidate.`;
+  }
+  return `Will save operator note for "${termText}".`;
 }
 
 function projectLocalDecisionPlaceholder(action: string): string {

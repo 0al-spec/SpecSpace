@@ -43,6 +43,7 @@ REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT = (
 )
 CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT = "candidate_spec_graph_seed.json"
 CANDIDATE_SPEC_GRAPH_ARTIFACT = "candidate_spec_graph.json"
+CANDIDATE_OVERVIEW_ARTIFACT = "candidate_overview.json"
 PRE_SIB_COHERENCE_REPORT_ARTIFACT = "pre_sib_coherence_report.json"
 CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT = "candidate_repair_loop_report.json"
 IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT = (
@@ -158,6 +159,7 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT,
     PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT,
     SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT,
+    CANDIDATE_OVERVIEW_ARTIFACT,
     IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT,
     IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT,
     IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT,
@@ -232,6 +234,7 @@ ARTIFACT_KEYS: dict[str, str] = {
         "real_idea_answer_continuation_report"
     ),
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "ontology_seed",
+    CANDIDATE_OVERVIEW_ARTIFACT: "candidate_overview",
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: "clarification_requests",
     IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT: "clarification_answers",
     PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT: "ontology_decisions",
@@ -313,6 +316,7 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
         "real_idea_answer_continuation_report"
     ),
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "candidate_spec_graph_seed",
+    CANDIDATE_OVERVIEW_ARTIFACT: "candidate_overview",
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: (
         "idea_to_spec_clarification_requests"
     ),
@@ -413,6 +417,7 @@ DISPLAY_LIMITS = {
     "ontology_decisions": 40,
     "project_local_ontology_terms": 40,
     "project_local_ontology_import_decisions": 40,
+    "candidate_overview_items": 12,
     "resolved_gaps": 40,
     "materialized_files": 40,
     "git_service_operations": 20,
@@ -714,6 +719,25 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "tracked_artifacts_written must not be true.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == CANDIDATE_OVERVIEW_ARTIFACT:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "candidate overview authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        privacy_boundary = _record(value.get("privacy_boundary"))
+        if any(
+            key.startswith("raw_") and key.endswith("_published") and flag is True
+            for key, flag in privacy_boundary.items()
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "candidate overview privacy boundary flags must remain false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
@@ -1161,6 +1185,177 @@ def _candidate_counts(candidate_graph: dict[str, Any] | None) -> dict[str, int]:
         ),
         "claim_count": sum(len(_records(node.get("claims"))) for node in nodes),
         "gap_count": sum(len(_records(node.get("gaps"))) for node in nodes),
+    }
+
+
+def _number_record(value: Any) -> dict[str, int]:
+    return {
+        key: _number(item)
+        for key, item in _record(value).items()
+        if _optional_text(key) is not None
+    }
+
+
+def _overview_items(value: Any) -> list[dict[str, Any]]:
+    rows = []
+    limit = DISPLAY_LIMITS["candidate_overview_items"]
+    for index, item in enumerate(_records(value)[:limit]):
+        item_id = (
+            _text(item.get("id"))
+            or _text(item.get("term"))
+            or f"overview-item-{index}"
+        )
+        rows.append(
+            {
+                "id": item_id,
+                "label": _optional_text(
+                    item.get("label")
+                    or item.get("title")
+                    or item.get("name")
+                    or item.get("term")
+                ),
+                "kind": _optional_text(item.get("kind") or item.get("type")),
+                "detail": _optional_text(
+                    item.get("detail")
+                    or item.get("description")
+                    or item.get("statement")
+                    or item.get("source_ref")
+                ),
+            }
+        )
+    return rows
+
+
+def _overview_edges(value: Any) -> list[dict[str, Any]]:
+    rows = []
+    limit = DISPLAY_LIMITS["candidate_overview_items"]
+    for index, item in enumerate(_records(value)[:limit]):
+        edge_id = _text(item.get("id")) or f"overview-edge-{index}"
+        rows.append(
+            {
+                "id": edge_id,
+                "relation": _optional_text(item.get("relation") or item.get("type")),
+                "from": _optional_text(item.get("from") or item.get("source")),
+                "to": _optional_text(item.get("to") or item.get("target")),
+                "label": _optional_text(item.get("label") or item.get("title")),
+            }
+        )
+    return rows
+
+
+def _candidate_overview(report: dict[str, Any] | None) -> dict[str, Any]:
+    summary = _record((report or {}).get("summary"))
+    candidate = _record((report or {}).get("candidate"))
+    narrative = _record((report or {}).get("narrative"))
+    sections = _record((report or {}).get("sections"))
+    event_storming = _record(sections.get("event_storming"))
+    candidate_nodes = _record(sections.get("candidate_nodes"))
+    topology = _record(sections.get("topology"))
+    repair = _record(sections.get("repair"))
+    idea_maturity_section = _record(sections.get("idea_maturity"))
+    project_local_ontology = _record(sections.get("project_local_ontology"))
+    next_action = _record((report or {}).get("next_action"))
+    return {
+        "available": report is not None,
+        "readiness": _readiness(report),
+        "summary": {
+            "candidate_id": _optional_text(summary.get("candidate_id")),
+            "display_name": _optional_text(summary.get("display_name")),
+            "graph_source": _optional_text(summary.get("graph_source")),
+            "node_count": _number(summary.get("node_count")),
+            "edge_count": _number(summary.get("edge_count")),
+            "workflow_edge_count": _number(summary.get("workflow_edge_count")),
+            "remaining_blocker_count": _number(summary.get("remaining_blocker_count")),
+            "finding_count": _number(summary.get("finding_count")),
+            "ready_for_candidate_approval": summary.get("ready_for_candidate_approval")
+            is True,
+            "ready_for_platform_promotion": summary.get("ready_for_platform_promotion")
+            is True,
+            "project_local_ontology_review_status": _optional_text(
+                summary.get("project_local_ontology_review_status")
+            ),
+        },
+        "candidate": {
+            "candidate_id": _optional_text(candidate.get("candidate_id")),
+            "display_name": _optional_text(candidate.get("display_name")),
+            "workspace_route": _optional_text(candidate.get("workspace_route")),
+            "workflow_lane": _optional_text(candidate.get("workflow_lane")),
+        },
+        "narrative": {
+            "product_intent": _optional_text(narrative.get("product_intent")),
+            "understood_scope": _optional_text(narrative.get("understood_scope")),
+            "readiness": _optional_text(narrative.get("readiness")),
+            "next_action": _optional_text(narrative.get("next_action")),
+        },
+        "event_storming": {
+            "actor_count": _number(event_storming.get("actor_count")),
+            "command_count": _number(event_storming.get("command_count")),
+            "domain_event_count": _number(event_storming.get("domain_event_count")),
+            "policy_count": _number(event_storming.get("policy_count")),
+            "constraint_count": _number(event_storming.get("constraint_count")),
+            "actors": _overview_items(event_storming.get("actors")),
+            "commands": _overview_items(event_storming.get("commands")),
+            "domain_events": _overview_items(event_storming.get("domain_events")),
+            "policies": _overview_items(event_storming.get("policies")),
+            "constraints": _overview_items(event_storming.get("constraints")),
+        },
+        "candidate_nodes": {
+            "nodes": _overview_items(candidate_nodes.get("nodes")),
+        },
+        "topology": {
+            "edge_count": _number(topology.get("edge_count")),
+            "workflow_edge_count": _number(topology.get("workflow_edge_count")),
+            "relation_counts": _number_record(topology.get("relation_counts")),
+            "edges": _overview_edges(
+                topology.get("edges")
+                or topology.get("sample_edges")
+                or topology.get("workflow_edges")
+            ),
+        },
+        "repair": {
+            "remaining_blocker_count": _number(repair.get("remaining_blocker_count")),
+            "resolved_ontology_gap_count": _number(
+                repair.get("resolved_ontology_gap_count")
+            ),
+            "resolved_candidate_gap_count": _number(
+                repair.get("resolved_candidate_gap_count")
+            ),
+            "removed_gap_count": _number(repair.get("removed_gap_count")),
+        },
+        "idea_maturity": {
+            "status": _optional_text(idea_maturity_section.get("status")),
+            "lifecycle_state": _optional_text(
+                idea_maturity_section.get("lifecycle_state")
+            ),
+            "trusted": idea_maturity_section.get("trusted") is True,
+        },
+        "project_local_ontology": {
+            "status": _optional_text(project_local_ontology.get("status")),
+            "term_count": _number(project_local_ontology.get("term_count")),
+            "accepted_decision_count": _number(
+                project_local_ontology.get("accepted_decision_count")
+            ),
+            "blocking_decision_count": _number(
+                project_local_ontology.get("blocking_decision_count")
+            ),
+        },
+        "next_action": {
+            "action_id": _optional_text(next_action.get("action_id")),
+            "label": _optional_text(next_action.get("label")),
+            "source": _optional_text(next_action.get("source")),
+            "evidence_refs": _string_list(next_action.get("evidence_refs")),
+        },
+        "action_boundary": {
+            "inspect_only": True,
+            "acknowledge_only": True,
+            "may_execute_specgraph": False,
+            "may_execute_platform": False,
+            "may_mutate_candidate_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+        },
     }
 
 
@@ -4783,6 +4978,7 @@ def build_idea_to_spec_workspace(
     )
     candidate_seed = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT)
     candidate_graph = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_ARTIFACT)
+    candidate_overview = _artifact_data(artifacts, CANDIDATE_OVERVIEW_ARTIFACT)
     pre_sib = _artifact_data(artifacts, PRE_SIB_COHERENCE_REPORT_ARTIFACT)
     repair_loop = _artifact_data(artifacts, CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT)
     clarification_requests = _artifact_data(
@@ -5177,6 +5373,7 @@ def build_idea_to_spec_workspace(
             ),
             "nodes": _candidate_nodes(selected_candidate_graph),
         },
+        "candidate_overview": _candidate_overview(candidate_overview),
         "ontology_seed": ontology_seed,
         "pre_sib": {
             "available": selected_pre_sib is not None,

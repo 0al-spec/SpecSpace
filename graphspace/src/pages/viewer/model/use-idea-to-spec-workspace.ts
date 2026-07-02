@@ -954,6 +954,111 @@ export type IdeaToSpecGuidedFlow = {
   authorityBoundary: IdeaToSpecGuidedFlowBoundary;
 };
 
+export type IdeaToSpecOverviewItem = {
+  id: string;
+  label: string | null;
+  kind: string | null;
+  detail: string | null;
+};
+
+export type IdeaToSpecOverviewEdge = {
+  id: string;
+  relation: string | null;
+  from: string | null;
+  to: string | null;
+  label: string | null;
+};
+
+export type IdeaToSpecCandidateOverview = {
+  available: boolean;
+  readiness: {
+    ready: boolean;
+    reviewState: string | null;
+    blockedBy: readonly string[];
+    nextArtifact: string | null;
+  };
+  summary: {
+    candidateId: string | null;
+    displayName: string | null;
+    graphSource: string | null;
+    nodeCount: number;
+    edgeCount: number;
+    workflowEdgeCount: number;
+    remainingBlockerCount: number;
+    findingCount: number;
+    readyForCandidateApproval: boolean;
+    readyForPlatformPromotion: boolean;
+    projectLocalOntologyReviewStatus: string | null;
+  };
+  candidate: {
+    candidateId: string | null;
+    displayName: string | null;
+    workspaceRoute: string | null;
+    workflowLane: string | null;
+  };
+  narrative: {
+    productIntent: string | null;
+    understoodScope: string | null;
+    readiness: string | null;
+    nextAction: string | null;
+  };
+  eventStorming: {
+    actorCount: number;
+    commandCount: number;
+    domainEventCount: number;
+    policyCount: number;
+    constraintCount: number;
+    actors: readonly IdeaToSpecOverviewItem[];
+    commands: readonly IdeaToSpecOverviewItem[];
+    domainEvents: readonly IdeaToSpecOverviewItem[];
+    policies: readonly IdeaToSpecOverviewItem[];
+    constraints: readonly IdeaToSpecOverviewItem[];
+  };
+  candidateNodes: {
+    nodes: readonly IdeaToSpecOverviewItem[];
+  };
+  topology: {
+    edgeCount: number;
+    workflowEdgeCount: number;
+    relationCounts: Record<string, number>;
+    edges: readonly IdeaToSpecOverviewEdge[];
+  };
+  repair: {
+    remainingBlockerCount: number;
+    resolvedOntologyGapCount: number;
+    resolvedCandidateGapCount: number;
+    removedGapCount: number;
+  };
+  ideaMaturity: {
+    status: string | null;
+    lifecycleState: string | null;
+    trusted: boolean;
+  };
+  projectLocalOntology: {
+    status: string | null;
+    termCount: number;
+    acceptedDecisionCount: number;
+    blockingDecisionCount: number;
+  };
+  nextAction: {
+    actionId: string | null;
+    label: string | null;
+    source: string | null;
+    evidenceRefs: readonly string[];
+  };
+  actionBoundary: {
+    inspectOnly: true;
+    acknowledgeOnly: true;
+    mayExecuteSpecgraph: false;
+    mayExecutePlatform: false;
+    mayMutateCandidateArtifacts: false;
+    mayMutateCanonicalSpecs: false;
+    mayWriteOntologyPackage: false;
+    mayAcceptOntologyTerms: false;
+    mayCreateBranchOrCommit: false;
+  };
+};
+
 export type IdeaToSpecWorkspaceIdentity = {
   available: boolean;
   id: string | null;
@@ -1129,6 +1234,7 @@ export type IdeaToSpecWorkspace = {
     preSibReadiness: Record<string, unknown>;
     nodes: readonly IdeaToSpecCandidateNode[];
   };
+  candidateOverview: IdeaToSpecCandidateOverview;
   ontologySeed: {
     available: boolean;
     sourceRef: string | null;
@@ -3355,6 +3461,164 @@ function parseGuidedFlow(raw: unknown): IdeaToSpecGuidedFlow {
   };
 }
 
+function parseOverviewItem(raw: unknown): IdeaToSpecOverviewItem | null {
+  const item = recordValue(raw);
+  const id = optionalString(item.id);
+  if (!id) return null;
+  return {
+    id,
+    label: optionalString(item.label),
+    kind: optionalString(item.kind),
+    detail: optionalString(item.detail),
+  };
+}
+
+function parseOverviewEdge(raw: unknown): IdeaToSpecOverviewEdge | null {
+  const edge = recordValue(raw);
+  const id = optionalString(edge.id);
+  if (!id) return null;
+  return {
+    id,
+    relation: optionalString(edge.relation),
+    from: optionalString(edge.from),
+    to: optionalString(edge.to),
+    label: optionalString(edge.label),
+  };
+}
+
+function parseCandidateOverview(
+  raw: unknown,
+): IdeaToSpecCandidateOverview {
+  const overview = recordValue(raw);
+  const summary = recordValue(overview.summary);
+  const candidate = recordValue(overview.candidate);
+  const narrative = recordValue(overview.narrative);
+  const eventStorming = recordValue(overview.event_storming);
+  const candidateNodes = recordValue(overview.candidate_nodes);
+  const topology = recordValue(overview.topology);
+  const repair = recordValue(overview.repair);
+  const ideaMaturity = recordValue(overview.idea_maturity);
+  const projectLocalOntology = recordValue(overview.project_local_ontology);
+  const nextAction = recordValue(overview.next_action);
+  return {
+    available: overview.available === true,
+    readiness: parseReadiness(overview.readiness),
+    summary: {
+      candidateId: optionalString(summary.candidate_id),
+      displayName: optionalString(summary.display_name),
+      graphSource: optionalString(summary.graph_source),
+      nodeCount: numberValue(summary.node_count),
+      edgeCount: numberValue(summary.edge_count),
+      workflowEdgeCount: numberValue(summary.workflow_edge_count),
+      remainingBlockerCount: numberValue(summary.remaining_blocker_count),
+      findingCount: numberValue(summary.finding_count),
+      readyForCandidateApproval:
+        summary.ready_for_candidate_approval === true,
+      readyForPlatformPromotion:
+        summary.ready_for_platform_promotion === true,
+      projectLocalOntologyReviewStatus: optionalString(
+        summary.project_local_ontology_review_status,
+      ),
+    },
+    candidate: {
+      candidateId: optionalString(candidate.candidate_id),
+      displayName: optionalString(candidate.display_name),
+      workspaceRoute: optionalString(candidate.workspace_route),
+      workflowLane: optionalString(candidate.workflow_lane),
+    },
+    narrative: {
+      productIntent: optionalString(narrative.product_intent),
+      understoodScope: optionalString(narrative.understood_scope),
+      readiness: optionalString(narrative.readiness),
+      nextAction: optionalString(narrative.next_action),
+    },
+    eventStorming: {
+      actorCount: numberValue(eventStorming.actor_count),
+      commandCount: numberValue(eventStorming.command_count),
+      domainEventCount: numberValue(eventStorming.domain_event_count),
+      policyCount: numberValue(eventStorming.policy_count),
+      constraintCount: numberValue(eventStorming.constraint_count),
+      actors: records(eventStorming.actors).flatMap((item) => {
+        const parsed = parseOverviewItem(item);
+        return parsed ? [parsed] : [];
+      }),
+      commands: records(eventStorming.commands).flatMap((item) => {
+        const parsed = parseOverviewItem(item);
+        return parsed ? [parsed] : [];
+      }),
+      domainEvents: records(eventStorming.domain_events).flatMap((item) => {
+        const parsed = parseOverviewItem(item);
+        return parsed ? [parsed] : [];
+      }),
+      policies: records(eventStorming.policies).flatMap((item) => {
+        const parsed = parseOverviewItem(item);
+        return parsed ? [parsed] : [];
+      }),
+      constraints: records(eventStorming.constraints).flatMap((item) => {
+        const parsed = parseOverviewItem(item);
+        return parsed ? [parsed] : [];
+      }),
+    },
+    candidateNodes: {
+      nodes: records(candidateNodes.nodes).flatMap((item) => {
+        const parsed = parseOverviewItem(item);
+        return parsed ? [parsed] : [];
+      }),
+    },
+    topology: {
+      edgeCount: numberValue(topology.edge_count),
+      workflowEdgeCount: numberValue(topology.workflow_edge_count),
+      relationCounts: parseNumberRecord(topology.relation_counts),
+      edges: records(topology.edges).flatMap((item) => {
+        const parsed = parseOverviewEdge(item);
+        return parsed ? [parsed] : [];
+      }),
+    },
+    repair: {
+      remainingBlockerCount: numberValue(repair.remaining_blocker_count),
+      resolvedOntologyGapCount: numberValue(
+        repair.resolved_ontology_gap_count,
+      ),
+      resolvedCandidateGapCount: numberValue(
+        repair.resolved_candidate_gap_count,
+      ),
+      removedGapCount: numberValue(repair.removed_gap_count),
+    },
+    ideaMaturity: {
+      status: optionalString(ideaMaturity.status),
+      lifecycleState: optionalString(ideaMaturity.lifecycle_state),
+      trusted: ideaMaturity.trusted === true,
+    },
+    projectLocalOntology: {
+      status: optionalString(projectLocalOntology.status),
+      termCount: numberValue(projectLocalOntology.term_count),
+      acceptedDecisionCount: numberValue(
+        projectLocalOntology.accepted_decision_count,
+      ),
+      blockingDecisionCount: numberValue(
+        projectLocalOntology.blocking_decision_count,
+      ),
+    },
+    nextAction: {
+      actionId: optionalString(nextAction.action_id),
+      label: optionalString(nextAction.label),
+      source: optionalString(nextAction.source),
+      evidenceRefs: strings(nextAction.evidence_refs),
+    },
+    actionBoundary: {
+      inspectOnly: true,
+      acknowledgeOnly: true,
+      mayExecuteSpecgraph: false,
+      mayExecutePlatform: false,
+      mayMutateCandidateArtifacts: false,
+      mayMutateCanonicalSpecs: false,
+      mayWriteOntologyPackage: false,
+      mayAcceptOntologyTerms: false,
+      mayCreateBranchOrCommit: false,
+    },
+  };
+}
+
 function guidedFlowBoundaryIsSafe(raw: unknown): boolean {
   const boundary = recordValue(raw);
   const falseFlags = [
@@ -3386,6 +3650,26 @@ function guidedFlowBoundariesAreSafe(raw: unknown): boolean {
     if (!guidedFlowBoundaryIsSafe(action.authority_boundary)) return false;
   }
   return true;
+}
+
+function candidateOverviewBoundaryIsSafe(raw: unknown): boolean {
+  const overview = recordValue(raw);
+  if (!isRecord(raw)) return true;
+  const boundary = recordValue(overview.action_boundary);
+  const falseFlags = [
+    "may_execute_specgraph",
+    "may_execute_platform",
+    "may_mutate_candidate_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_branch_or_commit",
+  ];
+  return (
+    boundary.inspect_only === true &&
+    boundary.acknowledge_only === true &&
+    falseFlags.every((flag) => boundary[flag] === false)
+  );
 }
 
 function parseWorkspaceIdentity(raw: unknown): IdeaToSpecWorkspaceIdentity {
@@ -3536,6 +3820,12 @@ export function parseIdeaToSpecWorkspace(
     !guidedFlowBoundariesAreSafe(raw.guided_flow)
   ) {
     return { kind: "parse-error", reason: "guided flow boundary expanded", raw };
+  }
+  if (
+    isRecord(raw.candidate_overview) &&
+    !candidateOverviewBoundaryIsSafe(raw.candidate_overview)
+  ) {
+    return { kind: "parse-error", reason: "candidate overview boundary expanded", raw };
   }
   const summary = recordValue(raw.summary);
   const intake = recordValue(raw.intake);
@@ -3979,6 +4269,7 @@ export function parseIdeaToSpecWorkspace(
           return parsed ? [parsed] : [];
         }),
       },
+      candidateOverview: parseCandidateOverview(raw.candidate_overview),
       ontologySeed: parseOntologySeed(ontologySeed),
       preSib: {
         available: preSib.available === true,

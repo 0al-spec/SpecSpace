@@ -714,6 +714,7 @@ idea-to-spec artifacts produced by SpecGraph:
 - `runs/idea_event_storming_intake.json`;
 - `runs/candidate_spec_graph_seed.json` when produced by newer SpecGraph
   idea-to-spec flows;
+- `runs/candidate_overview.json`;
 - `runs/candidate_spec_graph.json`;
 - `runs/pre_sib_coherence_report.json`;
 - `runs/candidate_repair_loop_report.json`;
@@ -743,12 +744,12 @@ still block the workflow before promotion.
 
 The payload is designed for fast operator inspection: event-storming counts,
 active ontology/domain/context frame, ontology-bound seed readiness, seed
-bindings/gaps, candidate graph nodes, pre-SIB/coherence findings, repair-loop
-actions, SpecSpace draft repair handoff state, project-local ontology review
-state plus its SpecGraph import preview, Product Repair Rerun
-execution/publication status, metric deltas, approval status, Git Service
-handoff state, repository review status, read-model publication status, and
-artifact availability.
+bindings/gaps, candidate overview narrative, candidate graph nodes,
+pre-SIB/coherence findings, repair-loop actions, SpecSpace draft repair
+handoff state, project-local ontology review state plus its SpecGraph import
+preview, Product Repair Rerun execution/publication status, metric deltas,
+approval status, Git Service handoff state, repository review status,
+read-model publication status, and artifact availability.
 
 The response embeds `workspace_state_hygiene`, the same read-only preflight
 surface returned by `/api/v1/idea-to-spec-workspace-state-hygiene`. This lets
@@ -767,6 +768,16 @@ stage, and every next action include an `authority_boundary` object with
 `inspect_only: true`, `acknowledge_only: true`, and all execution/mutation
 capabilities set to `false`; consumers should treat any expanded authority as
 invalid.
+
+When `runs/candidate_overview.json` is present, the response embeds
+`candidate_overview`, a read-only narrative surface over the selected candidate
+graph. It summarizes product intent, understood scope, event-storming frame
+counts, workflow topology, repair/maturity status, project-local ontology
+review status, and the next operator action. SpecSpace treats this artifact as
+display-only evidence and rejects it if its action boundary claims authority to
+run SpecGraph, run Platform, mutate candidate artifacts, mutate canonical
+specs, write Ontology packages, accept Ontology terms, or create Git
+branches/commits.
 
 For promotion review and publication, product wrapper reports are preferred
 when present. SpecSpace falls back to the legacy `graph_repository_*` reports
