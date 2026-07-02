@@ -1460,6 +1460,42 @@ export type IdeaToSpecWorkspace = {
       nextArtifact: string | null;
     };
     summary: Record<string, unknown>;
+    effectiveReview: {
+      available: boolean;
+      readiness: {
+        ready: boolean;
+        reviewState: string | null;
+        blockedBy: readonly string[];
+        nextArtifact: string | null;
+      };
+      summary: Record<string, unknown>;
+      status: string | null;
+      acceptedDecisionCount: number;
+      maturityEvidenceDecisionCount: number;
+      keepProjectLocalCount: number;
+      bindExistingCount: number;
+      aliasCount: number;
+      requestPromotionCount: number;
+      rejectCount: number;
+      deferredCount: number;
+      nonResolvingDecisionCount: number;
+      invalidDecisionCount: number;
+      missingDecisionCount: number;
+      blockingDecisionCount: number;
+      followUpDecisionCount: number;
+      effectCount: number;
+      readyForMaturity: boolean;
+      sourceRef: string | null;
+      actionBoundary: {
+        inspectOnly: true;
+        acknowledgeOnly: true;
+        mayApplyDecisions: false;
+        mayMutateCandidateArtifacts: false;
+        mayAcceptOntologyTerms: false;
+        mayWriteOntologyPackage: false;
+        mayCreateBranchOrCommit: false;
+      };
+    };
     context: {
       workspaceId: string | null;
       candidateId: string | null;
@@ -2101,10 +2137,46 @@ function parseProjectLocalOntologyReview(
 ): IdeaToSpecWorkspace["projectLocalOntologyReview"] {
   const lane = recordValue(raw);
   const context = recordValue(lane.context);
+  const effectiveReview = recordValue(lane.effective_review);
   return {
     available: lane.available === true,
     readiness: parseReadiness(lane.readiness),
     summary: recordValue(lane.summary),
+    effectiveReview: {
+      available: effectiveReview.available === true,
+      readiness: parseReadiness(effectiveReview.readiness),
+      summary: recordValue(effectiveReview.summary),
+      status: optionalString(effectiveReview.status),
+      acceptedDecisionCount: numberValue(effectiveReview.accepted_decision_count),
+      maturityEvidenceDecisionCount: numberValue(
+        effectiveReview.maturity_evidence_decision_count,
+      ),
+      keepProjectLocalCount: numberValue(effectiveReview.keep_project_local_count),
+      bindExistingCount: numberValue(effectiveReview.bind_existing_count),
+      aliasCount: numberValue(effectiveReview.alias_count),
+      requestPromotionCount: numberValue(effectiveReview.request_promotion_count),
+      rejectCount: numberValue(effectiveReview.reject_count),
+      deferredCount: numberValue(effectiveReview.deferred_count),
+      nonResolvingDecisionCount: numberValue(
+        effectiveReview.non_resolving_decision_count,
+      ),
+      invalidDecisionCount: numberValue(effectiveReview.invalid_decision_count),
+      missingDecisionCount: numberValue(effectiveReview.missing_decision_count),
+      blockingDecisionCount: numberValue(effectiveReview.blocking_decision_count),
+      followUpDecisionCount: numberValue(effectiveReview.follow_up_decision_count),
+      effectCount: numberValue(effectiveReview.effect_count),
+      readyForMaturity: effectiveReview.ready_for_maturity === true,
+      sourceRef: optionalString(effectiveReview.source_ref),
+      actionBoundary: {
+        inspectOnly: true,
+        acknowledgeOnly: true,
+        mayApplyDecisions: false,
+        mayMutateCandidateArtifacts: false,
+        mayAcceptOntologyTerms: false,
+        mayWriteOntologyPackage: false,
+        mayCreateBranchOrCommit: false,
+      },
+    },
     context: {
       workspaceId: optionalString(context.workspace_id),
       candidateId: optionalString(context.candidate_id),
@@ -3966,6 +4038,21 @@ export function parseIdeaToSpecWorkspace(
       projectLocalOntologyBoundary.acknowledge_only !== true
     ) {
       return { kind: "parse-error", reason: "project-local ontology review boundary must be inspect-only", raw };
+    }
+    const effectiveReview = recordValue(projectLocalOntologyReview.effective_review);
+    const effectiveReviewBoundary = recordValue(effectiveReview.action_boundary);
+    if (isRecord(projectLocalOntologyReview.effective_review)) {
+      for (const flag of projectLocalOntologyFalseFlags) {
+        if (effectiveReviewBoundary[flag] !== false) {
+          return { kind: "parse-error", reason: `project-local ontology effective review boundary expanded: ${flag}`, raw };
+        }
+      }
+      if (
+        effectiveReviewBoundary.inspect_only !== true ||
+        effectiveReviewBoundary.acknowledge_only !== true
+      ) {
+        return { kind: "parse-error", reason: "project-local ontology effective review boundary must be inspect-only", raw };
+      }
     }
   }
   const projectLocalOntologyImportPreview = recordValue(

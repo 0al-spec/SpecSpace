@@ -1143,6 +1143,86 @@ def _project_local_ontology_import_preview() -> dict:
     }
 
 
+def _project_local_ontology_decision_effect() -> dict:
+    return {
+        "artifact_kind": "project_local_ontology_decision_effect_report",
+        "schema_version": 1,
+        "proposal_id": "0199",
+        "contract_ref": "specgraph.product-ontology.project-local-decision-effect.v0.1",
+        "canonical_mutations_allowed": False,
+        "tracked_artifacts_written": False,
+        "readiness": {
+            "ready": True,
+            "review_state": "project_local_ontology_decision_effect_ready",
+            "blocked_by": [],
+            "next_artifact": "idea_maturity_metrics_report",
+        },
+        "context": {
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "repair_session_id": "repair-session.team-decision-log",
+            "workflow_lane": "product_idea_to_spec",
+            "domain_refs": ["domain.team-decision-log"],
+            "context_refs": ["context.idea-to-spec"],
+            "ontology_refs": ["ontology://specgraph-core"],
+        },
+        "decision_effects": [
+            {
+                "id": "specspace-project-local-ontology-import.numericinput.keep-project-local",
+                "source_decision_id": "project-local-decision.numericinput",
+                "decision_type": "propose_project_local_term",
+                "review_action": "keep_project_local",
+                "status": "accepted_for_project_local_preview",
+                "effect_kind": "project_local_review_evidence",
+                "maturity_effect": "resolves_project_local_review",
+                "term": "Numeric Input",
+                "term_key": "numericinput",
+                "writes_ontology_package": False,
+                "accepts_ontology_terms": False,
+                "canonical_mutations_allowed": False,
+            }
+        ],
+        "summary": {
+            "status": "project_local_ontology_decision_effect_ready",
+            "review_status": "project_local_ontology_decision_effect_ready",
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "repair_session_id": "repair-session.team-decision-log",
+            "accepted_decision_count": 1,
+            "maturity_evidence_decision_count": 1,
+            "keep_project_local_count": 1,
+            "bind_existing_count": 0,
+            "alias_count": 0,
+            "request_promotion_count": 0,
+            "reject_count": 0,
+            "deferred_count": 0,
+            "non_resolving_decision_count": 0,
+            "invalid_decision_count": 0,
+            "missing_decision_count": 0,
+            "blocking_decision_count": 0,
+            "follow_up_decision_count": 0,
+            "effect_count": 1,
+            "ready_for_maturity": True,
+        },
+        "authority_boundary": {
+            "may_execute_prompt_agent": False,
+            "may_execute_specgraph": False,
+            "may_execute_platform": False,
+            "may_apply_decisions": False,
+            "may_apply_to_specgraph": False,
+            "may_mutate_candidate_artifacts": False,
+            "may_mutate_candidate_source_artifacts": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_write_ontology_lockfile": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+            "may_open_pull_request": False,
+            "may_publish_read_model": False,
+        },
+    }
+
+
 def _rerun_input() -> dict:
     return {
         "artifact_kind": "idea_to_spec_answer_rerun_input",
@@ -3184,6 +3264,70 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "completed",
         )
 
+    def test_build_workspace_projects_effective_project_local_ontology_review(
+        self,
+    ) -> None:
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT: (
+                _project_local_ontology_review_lane()
+            ),
+            idea_to_spec_workspace.SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT: (
+                _project_local_ontology_import_preview()
+            ),
+            idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REPORT_ARTIFACT: (
+                _project_local_ontology_decision_effect()
+            ),
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        lane = body["project_local_ontology_review"]
+        effective = lane["effective_review"]
+        self.assertEqual(lane["blocking_term_count"], 1)
+        self.assertTrue(effective["available"])
+        self.assertTrue(effective["readiness"]["ready"])
+        self.assertEqual(
+            effective["status"],
+            "project_local_ontology_decision_effect_ready",
+        )
+        self.assertEqual(effective["accepted_decision_count"], 1)
+        self.assertEqual(effective["blocking_decision_count"], 0)
+        self.assertTrue(effective["ready_for_maturity"])
+        self.assertEqual(
+            body["artifacts"]["project_local_ontology_decision_effect"]["status"],
+            "project_local_ontology_decision_effect_ready",
+        )
+
+    def test_build_workspace_rejects_write_capable_project_local_decision_effect(
+        self,
+    ) -> None:
+        effect = _project_local_ontology_decision_effect()
+        effect["authority_boundary"]["may_apply_decisions"] = True
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT: (
+                _project_local_ontology_review_lane()
+            ),
+            idea_to_spec_workspace.PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REPORT_ARTIFACT: effect,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertFalse(
+            body["project_local_ontology_review"]["effective_review"]["available"]
+        )
+        self.assertEqual(
+            body["artifacts"]["project_local_ontology_decision_effect"]["reason"],
+            "invalid_artifact_contract",
+        )
+
     def test_build_workspace_rejects_write_capable_project_local_import_preview(
         self,
     ) -> None:
@@ -3715,6 +3859,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
     def test_approval_readiness_prefers_repaired_handoff(self) -> None:
         artifacts = _workspace_artifacts()
         artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts.pop(
+            idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+        )
         artifacts[
             idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
         ] = _product_repair_rerun_execution_report()
@@ -3779,6 +3926,50 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             readiness["action_boundary"][
                 "may_materialize_candidate_approval_decision"
             ]
+        )
+
+    def test_approval_readiness_uses_candidate_approval_execution_report(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+        publication = _product_repair_rerun_publication_report()
+        publication["published_artifacts"] = _published_repaired_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = publication
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+        ] = _active_candidate()
+        repaired_session = _repaired_repair_session_journal()
+        repaired_session["readiness_impact"]["platform_promotion_blocked_by"] = [
+            "candidate_approval_decision_missing"
+        ]
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = repaired_session
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertEqual(readiness["status"], "approval_decision_materialized")
+        self.assertTrue(readiness["candidate_approval_decision_ready"])
+        self.assertFalse(readiness["promotion_review_can_be_requested"])
+        self.assertEqual(
+            readiness["review_states"]["candidate_approval_execution"],
+            "candidate_approval_materialized",
         )
 
     def test_repaired_handoff_selects_repaired_workspace_surface(self) -> None:
@@ -3877,6 +4068,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
     ) -> None:
         artifacts = _workspace_artifacts()
         artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts.pop(
+            idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+        )
         artifacts[
             idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
         ] = _product_repair_rerun_execution_report()
@@ -3919,6 +4113,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         artifacts = _workspace_artifacts()
         artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
         artifacts.pop(
+            idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+        )
+        artifacts.pop(
             idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT,
             None,
         )
@@ -3950,6 +4147,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
     def test_approval_readiness_blocks_unpublished_repaired_artifacts(self) -> None:
         artifacts = _workspace_artifacts()
         artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts.pop(
+            idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+        )
         artifacts[
             idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
         ] = _product_repair_rerun_execution_report()
@@ -3979,6 +4179,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
     def test_approval_readiness_blocks_empty_promotion_paths(self) -> None:
         artifacts = _workspace_artifacts()
         artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts.pop(
+            idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+        )
         publication = _product_repair_rerun_publication_report()
         publication["published_artifacts"] = _published_repaired_artifacts()
         repaired_session = _repaired_repair_session_journal()

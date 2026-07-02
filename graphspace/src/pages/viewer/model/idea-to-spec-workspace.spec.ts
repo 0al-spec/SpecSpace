@@ -297,6 +297,49 @@ describe("parseIdeaToSpecWorkspace", () => {
         deferred_term_count: 0,
         status_counts: { unreviewed: 1 },
       },
+      effective_review: {
+        available: true,
+        readiness: {
+          ready: true,
+          review_state: "project_local_ontology_decision_effect_ready",
+          blocked_by: [],
+          next_artifact: "idea_maturity_metrics_report",
+        },
+        summary: {
+          status: "project_local_ontology_decision_effect_ready",
+          accepted_decision_count: 1,
+          maturity_evidence_decision_count: 1,
+          keep_project_local_count: 1,
+          blocking_decision_count: 0,
+          ready_for_maturity: true,
+        },
+        status: "project_local_ontology_decision_effect_ready",
+        accepted_decision_count: 1,
+        maturity_evidence_decision_count: 1,
+        keep_project_local_count: 1,
+        bind_existing_count: 0,
+        alias_count: 0,
+        request_promotion_count: 0,
+        reject_count: 0,
+        deferred_count: 0,
+        non_resolving_decision_count: 0,
+        invalid_decision_count: 0,
+        missing_decision_count: 0,
+        blocking_decision_count: 0,
+        follow_up_decision_count: 0,
+        effect_count: 1,
+        ready_for_maturity: true,
+        source_ref: "runs/project_local_ontology_decision_effect_report.json",
+        action_boundary: {
+          inspect_only: true,
+          acknowledge_only: true,
+          may_apply_decisions: false,
+          may_mutate_candidate_artifacts: false,
+          may_accept_ontology_terms: false,
+          may_write_ontology_package: false,
+          may_create_branch_or_commit: false,
+        },
+      },
       context: {
         workspace_id: "team-decision-log",
         candidate_id: "team-decision-log",
@@ -370,6 +413,16 @@ describe("parseIdeaToSpecWorkspace", () => {
     if (parsed.kind !== "ok") return;
     expect(parsed.data.projectLocalOntologyReview.available).toBe(true);
     expect(parsed.data.projectLocalOntologyReview.termCount).toBe(1);
+    expect(parsed.data.projectLocalOntologyReview.effectiveReview.available).toBe(
+      true,
+    );
+    expect(parsed.data.projectLocalOntologyReview.effectiveReview.status).toBe(
+      "project_local_ontology_decision_effect_ready",
+    );
+    expect(
+      parsed.data.projectLocalOntologyReview.effectiveReview
+        .blockingDecisionCount,
+    ).toBe(0);
     expect(parsed.data.projectLocalOntologyReview.terms[0]?.termKey).toBe(
       "decisionrecord",
     );
@@ -702,6 +755,29 @@ describe("parseIdeaToSpecWorkspace", () => {
         },
       },
     });
+
+    expect(parsed.kind).toBe("parse-error");
+  });
+
+  it("rejects project-local ontology effective review authority expansion", () => {
+    const payload: any = structuredClone(ideaToSpecWorkspace);
+    payload.project_local_ontology_review = {
+      ...payload.project_local_ontology_review,
+      effective_review: {
+        available: true,
+        action_boundary: {
+          inspect_only: true,
+          acknowledge_only: true,
+          may_apply_decisions: true,
+          may_mutate_candidate_artifacts: false,
+          may_accept_ontology_terms: false,
+          may_write_ontology_package: false,
+          may_create_branch_or_commit: false,
+        },
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
 
     expect(parsed.kind).toBe("parse-error");
   });
