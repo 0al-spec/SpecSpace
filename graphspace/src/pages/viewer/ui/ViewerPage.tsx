@@ -95,6 +95,7 @@ import { PracticalOntologyPanel } from "./PracticalOntologyPanel";
 import { ProposalViewerPanel } from "./ProposalViewerPanel";
 import { RecentActivitySurface } from "./RecentActivitySurface";
 import { SpecPMRegistryPanel } from "./SpecPMRegistryPanel";
+import { UtilityPanelHeader } from "./UtilityPanelHeader";
 import {
   SelectionHistoryButtons,
   ViewerChrome,
@@ -146,6 +147,7 @@ export function ViewerPage({
     useState<ViewerUtilityPanelId | null>(
       productWorkspace ? "idea-to-spec" : null,
     );
+  const [utilityPanelExpanded, setUtilityPanelExpanded] = useState(false);
   const [proposalContextFilter, setProposalContextFilter] =
     useState<ProposalViewerContextFilter | null>(null);
   const [metricsContextFilter, setMetricsContextFilter] =
@@ -686,6 +688,7 @@ export function ViewerPage({
   };
   const closeUtilityPanel = () => {
     setActiveUtilityPanel(null);
+    setUtilityPanelExpanded(false);
     setAgentConversationPromptSeed(null);
   };
   const setRecentTimelineField = (field: RecentTimelineField) => {
@@ -834,6 +837,10 @@ export function ViewerPage({
   }, [productWorkspace, workspace.id]);
 
   useEffect(() => {
+    setUtilityPanelExpanded(false);
+  }, [activeUtilityPanel]);
+
+  useEffect(() => {
     specSelectionHistoryRef.current = specSelectionHistory;
   }, [specSelectionHistory]);
 
@@ -845,6 +852,16 @@ export function ViewerPage({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return;
+      if (utilityPanelExpanded && event.key === "Escape") {
+        const nestedModalDialog = document.querySelector(
+          '[role="dialog"][aria-modal="true"]',
+        );
+        if (nestedModalDialog) return;
+        event.preventDefault();
+        setUtilityPanelExpanded(false);
+        return;
+      }
       if (isTextEntryTarget(event.target)) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
 
@@ -865,6 +882,7 @@ export function ViewerPage({
     goForwardSpecSelection,
     specSelectionHistory.back.length,
     specSelectionHistory.forward.length,
+    utilityPanelExpanded,
   ]);
 
   return (
@@ -1157,27 +1175,20 @@ export function ViewerPage({
           className={[
             styles.utilityRail,
             selectedSpec || selectedGraphEdge ? styles.utilityRailWithInspector : "",
+            utilityPanelExpanded ? styles.utilityRailExpanded : "",
           ]
             .filter(Boolean)
             .join(" ")}
           aria-label={utilityPanelDetails.title}
+          role={utilityPanelExpanded ? "dialog" : undefined}
         >
-          <div className={styles.utilityHeader}>
-            <div>
-              <span className={styles.utilityKicker}>Utility panel</span>
-              <h2 className={styles.utilityTitle}>{utilityPanelDetails.title}</h2>
-              <p className={styles.utilityCaption}>{utilityPanelDetails.caption}</p>
-            </div>
-            <button
-              title={`Close ${utilityPanelDetails.title}`}
-              aria-label={`Close ${utilityPanelDetails.title}`}
-              className={styles.closeButton}
-              type="button"
-              onClick={closeUtilityPanel}
-            >
-              Close
-            </button>
-          </div>
+          <UtilityPanelHeader
+            title={utilityPanelDetails.title}
+            caption={utilityPanelDetails.caption}
+            expanded={utilityPanelExpanded}
+            onToggleExpanded={() => setUtilityPanelExpanded((expanded) => !expanded)}
+            onClose={closeUtilityPanel}
+          />
 
           {activeUtilityPanel === "recent" ? (
             <RecentActivitySurface
