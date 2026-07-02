@@ -782,6 +782,13 @@ branches/commits, write tracked artifacts, or allow canonical mutations. The
 response `candidate_overview.action_boundary` is a SpecSpace-generated read-only
 projection for the UI.
 
+The Product Workspace may render `candidate_overview.topology` as a read-only
+workflow map. This visualization groups event-storming items into actors,
+commands, events, policies, and constraints, then displays relation rows such as
+`actor_triggers_command` and `command_emits_event`. These topology edges remain
+review-only product understanding evidence; they are not implementation
+dependencies and do not grant mutation or execution authority.
+
 For promotion review and publication, product wrapper reports are preferred
 when present. SpecSpace falls back to the legacy `graph_repository_*` reports
 for older in-flight workspaces, but the product surface exposes the selected

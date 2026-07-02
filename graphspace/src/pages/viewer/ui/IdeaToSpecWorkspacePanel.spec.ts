@@ -36,7 +36,14 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Decision capture, review, and retrieval for one product team.");
     expect(html).toContain("Resolve repair blockers");
     expect(html).toContain("Workflow topology");
+    expect(html).toContain("Workflow topology map");
+    expect(html).toContain("Actors");
+    expect(html).toContain("Commands");
+    expect(html).toContain("Events");
+    expect(html).toContain("review-only topology");
     expect(html).toContain("actor triggers command");
+    expect(html).toContain("Team member");
+    expect(html).toContain("Record decision");
     expect(html).toContain("Git dry-run");
     expect(html).toContain("scripts/platform.py product-repair-rerun smoke --profile happy-path-promotion-dry-run");
     expect(html).toContain("Workflow lane");
