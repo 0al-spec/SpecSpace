@@ -21,6 +21,9 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.summary.clarificationRequestCount).toBe(1);
     expect(parsed.data.summary.ontologyDecisionCount).toBe(1);
     expect(parsed.data.summary.projectLocalOntologyTermCount).toBe(0);
+    expect(parsed.data.summary.projectLocalOntologyImportAcceptedCount).toBe(0);
+    expect(parsed.data.summary.projectLocalOntologyImportMissingCount).toBe(0);
+    expect(parsed.data.summary.projectLocalOntologyImportInvalidCount).toBe(0);
     expect(parsed.data.summary.resolvedOntologyGapCount).toBe(1);
     expect(parsed.data.summary.unresolvedOntologyGapCount).toBe(7);
     expect(parsed.data.summary.rerunRemovedGapCount).toBe(1);
@@ -343,6 +346,137 @@ describe("parseIdeaToSpecWorkspace", () => {
     ).toBe("blocks_until_reviewed");
   });
 
+  it("parses project-local ontology decision import preview", () => {
+    const payload: any = structuredClone(ideaToSpecWorkspace);
+    payload.summary.project_local_ontology_import_accepted_count = 1;
+    payload.summary.project_local_ontology_import_missing_count = 0;
+    payload.summary.project_local_ontology_import_invalid_count = 1;
+    payload.project_local_ontology_decision_import_preview = {
+      available: true,
+      readiness: {
+        ready: false,
+        review_state: "project_local_ontology_decision_import_review_required",
+        blocked_by: ["project_local_decision_invalid_decisionrecord"],
+        next_artifact: "SpecSpace project-local ontology review decisions",
+      },
+      summary: {
+        status: "project_local_ontology_decision_import_review_required",
+        decision_count: 2,
+        accepted_decision_count: 1,
+        non_resolving_decision_count: 0,
+        invalid_decision_count: 1,
+        missing_decision_count: 0,
+        finding_count: 1,
+      },
+      decision_count: 2,
+      accepted_decision_count: 1,
+      non_resolving_decision_count: 0,
+      invalid_decision_count: 1,
+      missing_decision_count: 0,
+      finding_count: 1,
+      context: {
+        workspace_id: "team-decision-log",
+        candidate_id: "team-decision-log",
+        repair_session_id: "repair-session.team-decision-log",
+        workflow_lane: "product_idea_to_spec",
+        domain_refs: ["domain.team-decision-log"],
+        context_refs: ["context.idea-to-spec"],
+        ontology_refs: ["ontology://specgraph-core"],
+      },
+      source_artifacts: {
+        decision_state: {
+          source_ref:
+            "specspace-state://project_local_ontology_review_decisions.json",
+        },
+      },
+      accepted_decisions: [
+        {
+          id: "specspace-project-local-ontology-import.decisionrecord.keep",
+          source_decision_id: "project-local-decision.decisionrecord",
+          source_artifact:
+            "specspace-state://project_local_ontology_review_decisions.json",
+          decision_type: "propose_project_local_term",
+          review_action: "keep_project_local",
+          status: "accepted_for_project_local_preview",
+          materialization_intent: "review_overlay_only",
+          term: "Decision Record",
+          term_key: "decisionrecord",
+          target_ref: "candidate-spec.decision-record.gaps.ontology-gap",
+          gap_refs: [
+            {
+              gap_id: "ontology-gap.decision-record",
+              node_id: "candidate-spec.decision-record",
+              target_ref: "candidate-spec.decision-record.gaps.ontology-gap",
+            },
+          ],
+          decision_value: {
+            term: "Decision Record",
+            reason: "Keep as project-local.",
+          },
+          writes_ontology_package: false,
+          accepts_ontology_terms: false,
+          applies_to_specgraph: false,
+        },
+      ],
+      non_resolving_decisions: [],
+      invalid_decisions: [
+        {
+          id: "project-local-decision.bad",
+          decision_id: "project-local-decision.bad",
+          term_key: "decisionrecord",
+          action: "bind_existing",
+          reason: "bind_existing_requires_ontology_ref",
+        },
+      ],
+      missing_decisions: [],
+      decision_candidates: [
+        {
+          id: "specspace-project-local-ontology-import.decisionrecord.keep",
+          decision_type: "propose_project_local_term",
+          review_action: "keep_project_local",
+          term: "Decision Record",
+          term_key: "decisionrecord",
+          writes_ontology_package: false,
+          accepts_ontology_terms: false,
+          applies_to_specgraph: false,
+        },
+      ],
+      findings: [
+        {
+          finding_id: "project_local_decision_invalid_decisionrecord",
+          severity: "blocking",
+          message: "Decision failed validation.",
+        },
+      ],
+      action_boundary: {
+        inspect_only: true,
+        acknowledge_only: true,
+        may_apply_decisions: false,
+        may_mutate_candidate_artifacts: false,
+        may_accept_ontology_terms: false,
+        may_write_ontology_package: false,
+        may_create_branch_or_commit: false,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    const preview = parsed.data.projectLocalOntologyDecisionImportPreview;
+    expect(preview.available).toBe(true);
+    expect(preview.acceptedDecisionCount).toBe(1);
+    expect(preview.invalidDecisionCount).toBe(1);
+    expect(preview.acceptedDecisions[0]?.termKey).toBe("decisionrecord");
+    expect(preview.invalidDecisions[0]?.reason).toBe(
+      "bind_existing_requires_ontology_ref",
+    );
+    expect(preview.findings[0]?.findingId).toBe(
+      "project_local_decision_invalid_decisionrecord",
+    );
+    expect(parsed.data.summary.projectLocalOntologyImportInvalidCount).toBe(1);
+  });
+
   it("rejects authority expansion", () => {
     const parsed = parseIdeaToSpecWorkspace({
       ...ideaToSpecWorkspace,
@@ -351,6 +485,26 @@ describe("parseIdeaToSpecWorkspace", () => {
         may_mutate_canonical_specs: true,
       },
     });
+
+    expect(parsed.kind).toBe("parse-error");
+  });
+
+  it("rejects project-local ontology import preview authority expansion", () => {
+    const payload: any = structuredClone(ideaToSpecWorkspace);
+    payload.project_local_ontology_decision_import_preview = {
+      available: true,
+      action_boundary: {
+        inspect_only: true,
+        acknowledge_only: true,
+        may_apply_decisions: true,
+        may_mutate_candidate_artifacts: false,
+        may_accept_ontology_terms: false,
+        may_write_ontology_package: false,
+        may_create_branch_or_commit: false,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
 
     expect(parsed.kind).toBe("parse-error");
   });

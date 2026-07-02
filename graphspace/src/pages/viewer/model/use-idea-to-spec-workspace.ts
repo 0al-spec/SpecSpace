@@ -274,6 +274,42 @@ export type IdeaToSpecProjectLocalOntologyTerm = {
   };
 };
 
+export type IdeaToSpecProjectLocalOntologyImportDecision = {
+  id: string;
+  sourceDecisionId: string | null;
+  sourceArtifact: string | null;
+  decisionType: string | null;
+  reviewAction: string | null;
+  status: string | null;
+  materializationIntent: string | null;
+  term: string | null;
+  termKey: string | null;
+  targetRef: string | null;
+  gapRefs: readonly {
+    gapId: string | null;
+    nodeId: string | null;
+    targetRef: string | null;
+    sourceRef: string | null;
+  }[];
+  decisionValue: Record<string, unknown>;
+  writesOntologyPackage: boolean;
+  acceptsOntologyTerms: boolean;
+  appliesToSpecgraph: boolean;
+};
+
+export type IdeaToSpecProjectLocalOntologyImportIssue = {
+  id: string;
+  decisionId: string | null;
+  termKey: string | null;
+  term: string | null;
+  action: string | null;
+  reason: string | null;
+  field: string | null;
+  expected: string | null;
+  actual: string | null;
+  status: string | null;
+};
+
 export type IdeaToSpecResolvedOntologyGap = {
   gapId: string;
   nodeId: string | null;
@@ -938,6 +974,9 @@ export type IdeaToSpecWorkspace = {
     clarificationRequestCount: number;
     ontologyDecisionCount: number;
     projectLocalOntologyTermCount: number;
+    projectLocalOntologyImportAcceptedCount: number;
+    projectLocalOntologyImportMissingCount: number;
+    projectLocalOntologyImportInvalidCount: number;
     resolvedOntologyGapCount: number;
     unresolvedOntologyGapCount: number;
     rerunRemovedGapCount: number;
@@ -1318,6 +1357,47 @@ export type IdeaToSpecWorkspace = {
     statusCounts: Record<string, unknown>;
     findings: readonly IdeaToSpecFinding[];
     warnings: readonly Record<string, unknown>[];
+    actionBoundary: {
+      inspectOnly: true;
+      acknowledgeOnly: true;
+      mayApplyDecisions: false;
+      mayMutateCandidateArtifacts: false;
+      mayAcceptOntologyTerms: false;
+      mayWriteOntologyPackage: false;
+      mayCreateBranchOrCommit: false;
+    };
+  };
+  projectLocalOntologyDecisionImportPreview: {
+    available: boolean;
+    readiness: {
+      ready: boolean;
+      reviewState: string | null;
+      blockedBy: readonly string[];
+      nextArtifact: string | null;
+    };
+    summary: Record<string, unknown>;
+    context: {
+      workspaceId: string | null;
+      candidateId: string | null;
+      repairSessionId: string | null;
+      workflowLane: string | null;
+      domainRefs: readonly string[];
+      contextRefs: readonly string[];
+      ontologyRefs: readonly string[];
+    };
+    sourceArtifacts: Record<string, unknown>;
+    acceptedDecisions: readonly IdeaToSpecProjectLocalOntologyImportDecision[];
+    nonResolvingDecisions: readonly IdeaToSpecProjectLocalOntologyImportDecision[];
+    invalidDecisions: readonly IdeaToSpecProjectLocalOntologyImportIssue[];
+    missingDecisions: readonly IdeaToSpecProjectLocalOntologyImportIssue[];
+    decisionCandidates: readonly IdeaToSpecProjectLocalOntologyImportDecision[];
+    decisionCount: number;
+    acceptedDecisionCount: number;
+    nonResolvingDecisionCount: number;
+    invalidDecisionCount: number;
+    missingDecisionCount: number;
+    findingCount: number;
+    findings: readonly IdeaToSpecFinding[];
     actionBoundary: {
       inspectOnly: true;
       acknowledgeOnly: true;
@@ -1930,6 +2010,119 @@ function parseProjectLocalOntologyReview(
       return parsed ? [parsed] : [];
     }),
     warnings: records(lane.warnings),
+    actionBoundary: {
+      inspectOnly: true,
+      acknowledgeOnly: true,
+      mayApplyDecisions: false,
+      mayMutateCandidateArtifacts: false,
+      mayAcceptOntologyTerms: false,
+      mayWriteOntologyPackage: false,
+      mayCreateBranchOrCommit: false,
+    },
+  };
+}
+
+function parseProjectLocalOntologyImportDecision(
+  raw: unknown,
+): IdeaToSpecProjectLocalOntologyImportDecision | null {
+  const item = recordValue(raw);
+  const id = optionalString(item.id);
+  if (!id) return null;
+  return {
+    id,
+    sourceDecisionId: optionalString(item.source_decision_id),
+    sourceArtifact: optionalString(item.source_artifact),
+    decisionType: optionalString(item.decision_type),
+    reviewAction: optionalString(item.review_action),
+    status: optionalString(item.status),
+    materializationIntent: optionalString(item.materialization_intent),
+    term: optionalString(item.term),
+    termKey: optionalString(item.term_key),
+    targetRef: optionalString(item.target_ref),
+    gapRefs: records(item.gap_refs).map((gap) => ({
+      gapId: optionalString(gap.gap_id),
+      nodeId: optionalString(gap.node_id),
+      targetRef: optionalString(gap.target_ref),
+      sourceRef: optionalString(gap.source_ref),
+    })),
+    decisionValue: recordValue(item.decision_value),
+    writesOntologyPackage: item.writes_ontology_package === true,
+    acceptsOntologyTerms: item.accepts_ontology_terms === true,
+    appliesToSpecgraph: item.applies_to_specgraph === true,
+  };
+}
+
+function parseProjectLocalOntologyImportIssue(
+  raw: unknown,
+): IdeaToSpecProjectLocalOntologyImportIssue | null {
+  const item = recordValue(raw);
+  const id = optionalString(item.id);
+  if (!id) return null;
+  return {
+    id,
+    decisionId: optionalString(item.decision_id),
+    termKey: optionalString(item.term_key),
+    term: optionalString(item.term),
+    action: optionalString(item.action),
+    reason: optionalString(item.reason),
+    field: optionalString(item.field),
+    expected: optionalString(item.expected),
+    actual: optionalString(item.actual),
+    status: optionalString(item.status),
+  };
+}
+
+function parseProjectLocalOntologyDecisionImportPreview(
+  raw: unknown,
+): IdeaToSpecWorkspace["projectLocalOntologyDecisionImportPreview"] {
+  const preview = recordValue(raw);
+  const context = recordValue(preview.context);
+  return {
+    available: preview.available === true,
+    readiness: parseReadiness(preview.readiness),
+    summary: recordValue(preview.summary),
+    context: {
+      workspaceId: optionalString(context.workspace_id),
+      candidateId: optionalString(context.candidate_id),
+      repairSessionId: optionalString(context.repair_session_id),
+      workflowLane: optionalString(context.workflow_lane),
+      domainRefs: strings(context.domain_refs),
+      contextRefs: strings(context.context_refs),
+      ontologyRefs: strings(context.ontology_refs),
+    },
+    sourceArtifacts: recordValue(preview.source_artifacts),
+    acceptedDecisions: records(preview.accepted_decisions).flatMap((item) => {
+      const parsed = parseProjectLocalOntologyImportDecision(item);
+      return parsed ? [parsed] : [];
+    }),
+    nonResolvingDecisions: records(preview.non_resolving_decisions).flatMap(
+      (item) => {
+        const parsed = parseProjectLocalOntologyImportDecision(item);
+        return parsed ? [parsed] : [];
+      },
+    ),
+    invalidDecisions: records(preview.invalid_decisions).flatMap((item) => {
+      const parsed = parseProjectLocalOntologyImportIssue(item);
+      return parsed ? [parsed] : [];
+    }),
+    missingDecisions: records(preview.missing_decisions).flatMap((item) => {
+      const parsed = parseProjectLocalOntologyImportIssue(item);
+      return parsed ? [parsed] : [];
+    }),
+    decisionCandidates: records(preview.decision_candidates).flatMap((item) => {
+      const parsed = parseProjectLocalOntologyImportDecision(item);
+      return parsed ? [parsed] : [];
+    }),
+    decisionCount: numberValue(preview.decision_count),
+    acceptedDecisionCount: numberValue(preview.accepted_decision_count),
+    nonResolvingDecisionCount: numberValue(preview.non_resolving_decision_count),
+    invalidDecisionCount: numberValue(preview.invalid_decision_count),
+    missingDecisionCount: numberValue(preview.missing_decision_count),
+    findingCount: numberValue(preview.finding_count),
+    findings: records(preview.findings).flatMap((item) => {
+      const parsed = parseFinding(item);
+      return parsed ? [parsed] : [];
+    }),
     actionBoundary: {
       inspectOnly: true,
       acknowledgeOnly: true,
@@ -3405,6 +3598,25 @@ export function parseIdeaToSpecWorkspace(
       return { kind: "parse-error", reason: "project-local ontology review boundary must be inspect-only", raw };
     }
   }
+  const projectLocalOntologyImportPreview = recordValue(
+    raw.project_local_ontology_decision_import_preview,
+  );
+  const projectLocalOntologyImportBoundary = recordValue(
+    projectLocalOntologyImportPreview.action_boundary,
+  );
+  if (isRecord(raw.project_local_ontology_decision_import_preview)) {
+    for (const flag of projectLocalOntologyFalseFlags) {
+      if (projectLocalOntologyImportBoundary[flag] !== false) {
+        return { kind: "parse-error", reason: `project-local ontology import boundary expanded: ${flag}`, raw };
+      }
+    }
+    if (
+      projectLocalOntologyImportBoundary.inspect_only !== true ||
+      projectLocalOntologyImportBoundary.acknowledge_only !== true
+    ) {
+      return { kind: "parse-error", reason: "project-local ontology import boundary must be inspect-only", raw };
+    }
+  }
   const hasWorkspaceStateHygiene = isRecord(raw.workspace_state_hygiene);
   const workspaceStateHygiene = recordValue(raw.workspace_state_hygiene);
   if (hasWorkspaceStateHygiene) {
@@ -3607,6 +3819,15 @@ export function parseIdeaToSpecWorkspace(
         projectLocalOntologyTermCount: numberValue(
           summary.project_local_ontology_term_count,
         ),
+        projectLocalOntologyImportAcceptedCount: numberValue(
+          summary.project_local_ontology_import_accepted_count,
+        ),
+        projectLocalOntologyImportMissingCount: numberValue(
+          summary.project_local_ontology_import_missing_count,
+        ),
+        projectLocalOntologyImportInvalidCount: numberValue(
+          summary.project_local_ontology_import_invalid_count,
+        ),
         resolvedOntologyGapCount: numberValue(
           summary.resolved_ontology_gap_count,
         ),
@@ -3703,6 +3924,10 @@ export function parseIdeaToSpecWorkspace(
       projectLocalOntologyReview: parseProjectLocalOntologyReview(
         projectLocalOntologyReview,
       ),
+      projectLocalOntologyDecisionImportPreview:
+        parseProjectLocalOntologyDecisionImportPreview(
+          projectLocalOntologyImportPreview,
+        ),
       workspaceStateHygiene: parseWorkspaceStateHygiene(workspaceStateHygiene),
       ideaMaturity: parseIdeaMaturity(ideaMaturity),
       approvalReadiness: parseApprovalReadiness(approvalReadiness),

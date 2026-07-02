@@ -373,6 +373,7 @@ export function IdeaToSpecWorkspacePanel({
         <OntologySeedSection seed={data.ontologySeed} />
         <ProjectLocalOntologyReviewSection
           lane={data.projectLocalOntologyReview}
+          importPreview={data.projectLocalOntologyDecisionImportPreview}
           decisions={projectLocalOntologyReviewDecisions}
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
         />
@@ -1187,10 +1188,12 @@ function OntologySeedSection({
 
 function ProjectLocalOntologyReviewSection({
   lane,
+  importPreview,
   decisions,
   workspaceId,
 }: {
   lane: IdeaToSpecWorkspace["projectLocalOntologyReview"];
+  importPreview: IdeaToSpecWorkspace["projectLocalOntologyDecisionImportPreview"];
   decisions: ReturnType<typeof useProjectLocalOntologyReviewDecisions>;
   workspaceId: string | null;
 }) {
@@ -1214,6 +1217,22 @@ function ProjectLocalOntologyReviewSection({
         <PostureItem label="Unreviewed" value={String(lane.unreviewedTermCount)} />
         <PostureItem label="Deferred" value={String(lane.deferredTermCount)} />
         <PostureItem label="Saved" value={String(savedCount)} />
+        <PostureItem
+          label="Import preview"
+          value={importPreview.available ? compact(importPreview.readiness.reviewState, "available") : "missing"}
+        />
+        <PostureItem
+          label="Accepted"
+          value={String(importPreview.acceptedDecisionCount)}
+        />
+        <PostureItem
+          label="Invalid"
+          value={String(importPreview.invalidDecisionCount)}
+        />
+        <PostureItem
+          label="Missing"
+          value={String(importPreview.missingDecisionCount)}
+        />
       </div>
       {!lane.available ? (
         <Status
@@ -1222,6 +1241,7 @@ function ProjectLocalOntologyReviewSection({
         />
       ) : null}
       <ProjectLocalOntologyDecisionStatus state={decisions.state} />
+      <ProjectLocalOntologyImportPreviewStatus preview={importPreview} />
       {lane.available ? (
         <div className={styles.row}>
           <div className={styles.rowHeader}>
@@ -1277,6 +1297,85 @@ function ProjectLocalOntologyReviewSection({
         </div>
       ))}
     </section>
+  );
+}
+
+function ProjectLocalOntologyImportPreviewStatus({
+  preview,
+}: {
+  preview: IdeaToSpecWorkspace["projectLocalOntologyDecisionImportPreview"];
+}) {
+  if (!preview.available) {
+    return (
+      <Status
+        label="Project-local import preview missing"
+        detail="Run `make specspace-project-local-ontology-decision-import-preview` in SpecGraph after saving project-local ontology decisions."
+      />
+    );
+  }
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>SpecGraph project-local import preview</span>
+        <Pill value={compact(preview.readiness.reviewState, "unknown")} />
+      </div>
+      <div className={styles.metaGrid}>
+        <Meta label="Ready" value={boolText(preview.readiness.ready)} />
+        <Meta label="Accepted" value={String(preview.acceptedDecisionCount)} />
+        <Meta
+          label="Non-resolving"
+          value={String(preview.nonResolvingDecisionCount)}
+        />
+        <Meta label="Invalid" value={String(preview.invalidDecisionCount)} />
+        <Meta label="Missing" value={String(preview.missingDecisionCount)} />
+        <Meta label="Blocked by" value={joined(preview.readiness.blockedBy)} />
+        <Meta label="Workspace" value={preview.context.workspaceId} />
+        <Meta label="Candidate" value={preview.context.candidateId} />
+      </div>
+      {preview.acceptedDecisions.map((decision) => (
+        <div key={decision.id} className={styles.subRow}>
+          <span>{compact(decision.term, decision.termKey)}</span>
+          <Pill value={compact(decision.reviewAction, "accepted")} />
+          <span className={styles.statusDetail}>
+            {compact(decision.decisionType, decision.status)} · {compact(decision.targetRef, decision.sourceDecisionId)}
+          </span>
+        </div>
+      ))}
+      {preview.nonResolvingDecisions.map((decision) => (
+        <div key={decision.id} className={styles.subRow}>
+          <span>{compact(decision.term, decision.termKey)}</span>
+          <Pill value={compact(decision.reviewAction, "non-resolving")} />
+          <span className={styles.statusDetail}>
+            {compact(decision.materializationIntent, decision.status)}
+          </span>
+        </div>
+      ))}
+      {preview.invalidDecisions.map((issue) => (
+        <div key={`invalid:${issue.id}`} className={styles.subRow}>
+          <span>{compact(issue.term, issue.termKey)}</span>
+          <Pill value="invalid" />
+          <span className={styles.statusDetail}>
+            {compact(issue.reason, issue.field)}
+          </span>
+        </div>
+      ))}
+      {preview.missingDecisions.map((issue) => (
+        <div key={`missing:${issue.id}`} className={styles.subRow}>
+          <span>{compact(issue.term, issue.termKey)}</span>
+          <Pill value="missing" />
+          <span className={styles.statusDetail}>
+            {compact(issue.reason, issue.status)}
+          </span>
+        </div>
+      ))}
+      {preview.findings.map((finding) => (
+        <div key={finding.findingId} className={styles.subRow}>
+          <span>{finding.findingId}</span>
+          <Pill value={finding.severity} />
+          <span className={styles.statusDetail}>{finding.message}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
