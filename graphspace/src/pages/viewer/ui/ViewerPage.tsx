@@ -210,6 +210,10 @@ export function ViewerPage({
         "/api/v1/idea-to-spec-candidate-approval-intents",
         workspace,
       ),
+      projectLocalOntologyReviewDecisions: workspaceApiUrl(
+        "/api/v1/project-local-ontology-review-decisions",
+        workspace,
+      ),
       ontologyWorkbench: workspaceApiUrl("/api/v1/ontology-workbench", workspace),
       practicalOntology: workspaceApiUrl("/api/v1/practical-ontology", workspace),
       ontologyReviewDashboard: workspaceApiUrl(
@@ -1275,6 +1279,9 @@ export function ViewerPage({
               }
               repairRerunRequestsUrl={workspaceApiUrls.ideaToSpecRepairRerunRequests}
               candidateApprovalIntentsUrl={workspaceApiUrls.ideaToSpecCandidateApprovalIntents}
+              projectLocalOntologyReviewDecisionsUrl={
+                workspaceApiUrls.projectLocalOntologyReviewDecisions
+              }
               repairRerunRequestsRefreshKey={runsWatchVersion}
             />
           ) : null}

@@ -20,6 +20,7 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.summary.promotionGateBlockerCount).toBe(1);
     expect(parsed.data.summary.clarificationRequestCount).toBe(1);
     expect(parsed.data.summary.ontologyDecisionCount).toBe(1);
+    expect(parsed.data.summary.projectLocalOntologyTermCount).toBe(0);
     expect(parsed.data.summary.resolvedOntologyGapCount).toBe(1);
     expect(parsed.data.summary.unresolvedOntologyGapCount).toBe(7);
     expect(parsed.data.summary.rerunRemovedGapCount).toBe(1);
@@ -238,6 +239,108 @@ describe("parseIdeaToSpecWorkspace", () => {
         .productReviewStatusReportRef,
     ).toBe("runs/product_candidate_promotion_review_status_report.json");
     expect(parsed.data.authorityBoundary.mayMutateCanonicalSpecs).toBe(false);
+  });
+
+  it("parses project-local ontology review lane terms", () => {
+    const payload: any = structuredClone(ideaToSpecWorkspace);
+    payload.summary.project_local_ontology_term_count = 1;
+    payload.project_local_ontology_review = {
+      available: true,
+      readiness: {
+        ready: false,
+        review_state: "project_local_ontology_review_required",
+        blocked_by: ["project_local_ontology_terms_unreviewed"],
+        next_artifact: "SpecSpace project-local ontology review lane",
+      },
+      summary: {
+        status: "project_local_ontology_review_required",
+        term_count: 1,
+        reviewed_term_count: 0,
+        blocking_term_count: 1,
+        unreviewed_term_count: 1,
+        deferred_term_count: 0,
+        status_counts: { unreviewed: 1 },
+      },
+      context: {
+        workspace_id: "team-decision-log",
+        candidate_id: "team-decision-log",
+        repair_session_id: "repair-session.team-decision-log",
+        workflow_lane: "product_idea_to_spec",
+        domain_refs: ["domain.team-decision-log"],
+        context_refs: ["context.idea-to-spec"],
+        ontology_refs: ["ontology://specgraph-core"],
+      },
+      source_artifacts: {
+        candidate_graph: { source_ref: "runs/candidate_spec_graph.json" },
+      },
+      supported_actions: ["keep_project_local", "bind_existing"],
+      authority: "operator_intent_only",
+      request_workspace_promotion_effect: "proposal_only_no_ontology_write",
+      term_count: 1,
+      reviewed_term_count: 0,
+      blocking_term_count: 1,
+      unreviewed_term_count: 1,
+      deferred_term_count: 0,
+      status_counts: { unreviewed: 1 },
+      terms: [
+        {
+          id: "project-local-ontology-term.decision-record",
+          term: "Decision Record",
+          term_key: "decisionrecord",
+          status: "unreviewed",
+          selected_decision_id: null,
+          source_refs: ["command.record-decision"],
+          suggested_actions: ["keep_project_local", "bind_existing"],
+          evidence_refs: ["runs/candidate_spec_graph.json"],
+          gap_refs: [
+            {
+              gap_id: "ontology-gap.decision-record",
+              node_id: "candidate-spec.decision-record",
+              target_ref:
+                "candidate-spec.decision-record.gaps.ontology-gap.decision-record",
+              statement: "Decision Record needs review.",
+            },
+          ],
+          resolved_gap_refs: [],
+          decisions: [],
+          effect: {
+            candidate_readiness_effect: "blocks_until_reviewed",
+            next_action: "choose_project_local_ontology_decision",
+          },
+        },
+      ],
+      findings: [
+        {
+          finding_id: "project_local_ontology_terms_unreviewed",
+          severity: "review_required",
+          message: "Some terms need review.",
+        },
+      ],
+      warnings: [],
+      action_boundary: {
+        inspect_only: true,
+        acknowledge_only: true,
+        may_apply_decisions: false,
+        may_mutate_candidate_artifacts: false,
+        may_accept_ontology_terms: false,
+        may_write_ontology_package: false,
+        may_create_branch_or_commit: false,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.projectLocalOntologyReview.available).toBe(true);
+    expect(parsed.data.projectLocalOntologyReview.termCount).toBe(1);
+    expect(parsed.data.projectLocalOntologyReview.terms[0]?.termKey).toBe(
+      "decisionrecord",
+    );
+    expect(
+      parsed.data.projectLocalOntologyReview.terms[0]?.effect
+        .candidateReadinessEffect,
+    ).toBe("blocks_until_reviewed");
   });
 
   it("rejects authority expansion", () => {

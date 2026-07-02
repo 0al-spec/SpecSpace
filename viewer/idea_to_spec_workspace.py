@@ -54,6 +54,9 @@ IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT = (
 PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT = (
     "product_ontology_gap_review_decisions.json"
 )
+PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT = (
+    "project_local_ontology_review_lane.json"
+)
 IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT = "idea_to_spec_answer_rerun_input.json"
 IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT = "idea_to_spec_rerun_preview.json"
 IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT = (
@@ -150,6 +153,7 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT,
     IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT,
     PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT,
+    PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT,
     IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT,
     IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT,
     IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT,
@@ -227,6 +231,7 @@ ARTIFACT_KEYS: dict[str, str] = {
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT: "clarification_requests",
     IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT: "clarification_answers",
     PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT: "ontology_decisions",
+    PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT: "project_local_ontology_review",
     IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT: "rerun_input",
     IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT: "rerun_preview",
     IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT: "rerun_materialization",
@@ -309,6 +314,9 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ),
     PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT: (
         "product_ontology_gap_review_decisions"
+    ),
+    PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT: (
+        "project_local_ontology_review_lane"
     ),
     IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT: "idea_to_spec_answer_rerun_input",
     IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT: "idea_to_spec_rerun_preview",
@@ -393,6 +401,7 @@ DISPLAY_LIMITS = {
     "clarification_requests": 40,
     "accepted_answers": 40,
     "ontology_decisions": 40,
+    "project_local_ontology_terms": 40,
     "resolved_gaps": 40,
     "materialized_files": 40,
     "git_service_operations": 20,
@@ -512,6 +521,37 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "real idea answer handoff privacy flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "project-local ontology review lane authority flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        privacy_boundary = _record(value.get("privacy_boundary"))
+        if any(
+            key.startswith("raw_") and key.endswith("_published") and flag is True
+            for key, flag in privacy_boundary.items()
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "project-local ontology review lane privacy flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("canonical_mutations_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must be false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
@@ -1828,6 +1868,121 @@ def _ontology_decision_rows(report: dict[str, Any] | None) -> list[dict[str, Any
             }
         )
     return rows
+
+
+def _project_local_ontology_terms(report: dict[str, Any] | None) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records((report or {}).get("terms"))[
+        : DISPLAY_LIMITS["project_local_ontology_terms"]
+    ]:
+        term_key = _text(item.get("term_key"))
+        if not term_key:
+            continue
+        effect = _record(item.get("effect"))
+        rows.append(
+            {
+                "id": _text(item.get("id"), f"project-local-ontology-term.{term_key}"),
+                "term": _optional_text(item.get("term")),
+                "term_key": term_key,
+                "status": _text(item.get("status"), "unreviewed"),
+                "selected_decision_id": _optional_text(item.get("selected_decision_id")),
+                "source_refs": _string_list(item.get("source_refs")),
+                "suggested_actions": _string_list(item.get("suggested_actions")),
+                "evidence_refs": _string_list(item.get("evidence_refs")),
+                "gap_refs": [
+                    {
+                        "gap_id": _optional_text(gap.get("gap_id")),
+                        "node_id": _optional_text(gap.get("node_id")),
+                        "target_ref": _optional_text(gap.get("target_ref")),
+                        "source_ref": _optional_text(gap.get("source_ref")),
+                        "source_kind": _optional_text(gap.get("source_kind")),
+                        "statement": _optional_text(gap.get("statement")),
+                        "suggested_action": _optional_text(gap.get("suggested_action")),
+                    }
+                    for gap in _records(item.get("gap_refs"))
+                ],
+                "resolved_gap_refs": [
+                    {
+                        "gap_id": _optional_text(gap.get("gap_id")),
+                        "node_id": _optional_text(gap.get("node_id")),
+                        "target_ref": _optional_text(gap.get("target_ref")),
+                        "decision": _optional_text(gap.get("decision")),
+                        "match_kind": _optional_text(gap.get("match_kind")),
+                    }
+                    for gap in _records(item.get("resolved_gap_refs"))
+                ],
+                "decisions": [
+                    {
+                        "id": _optional_text(decision.get("id")),
+                        "decision_type": _optional_text(decision.get("decision_type")),
+                        "review_status": _optional_text(decision.get("review_status")),
+                        "term": _optional_text(decision.get("term")),
+                        "term_scope": _optional_text(decision.get("term_scope")),
+                        "ontology_ref": _optional_text(decision.get("ontology_ref")),
+                        "alias_of": _optional_text(decision.get("alias_of")),
+                        "target_ref": _optional_text(decision.get("target_ref")),
+                        "reason": _optional_text(decision.get("reason")),
+                    }
+                    for decision in _records(item.get("decisions"))
+                ],
+                "effect": {
+                    "candidate_readiness_effect": _optional_text(
+                        effect.get("candidate_readiness_effect")
+                    ),
+                    "next_action": _optional_text(effect.get("next_action")),
+                    "resolved_gap_count": _number(effect.get("resolved_gap_count")),
+                },
+            }
+        )
+    return rows
+
+
+def _project_local_ontology_review_lane(
+    report: dict[str, Any] | None,
+) -> dict[str, Any]:
+    summary = _record((report or {}).get("summary"))
+    schema = _record((report or {}).get("review_decision_schema"))
+    context = _record((report or {}).get("context"))
+    return {
+        "available": report is not None,
+        "readiness": _readiness(report),
+        "summary": summary,
+        "context": {
+            "workspace_id": _optional_text(context.get("workspace_id")),
+            "candidate_id": _optional_text(context.get("candidate_id")),
+            "repair_session_id": _optional_text(context.get("repair_session_id")),
+            "workflow_lane": _optional_text(context.get("workflow_lane")),
+            "domain_refs": _string_list(context.get("domain_refs")),
+            "context_refs": _string_list(context.get("context_refs")),
+            "ontology_refs": _string_list(context.get("ontology_refs")),
+        },
+        "source_artifacts": _record((report or {}).get("source_artifacts")),
+        "supported_actions": _string_list(schema.get("supported_actions")),
+        "authority": _optional_text(schema.get("authority")),
+        "request_workspace_promotion_effect": _optional_text(
+            schema.get("request_workspace_promotion_effect")
+        ),
+        "terms": _project_local_ontology_terms(report),
+        "term_count": _number(summary.get("term_count")),
+        "reviewed_term_count": _number(summary.get("reviewed_term_count")),
+        "blocking_term_count": _number(summary.get("blocking_term_count")),
+        "unreviewed_term_count": _number(summary.get("unreviewed_term_count")),
+        "deferred_term_count": _number(summary.get("deferred_term_count")),
+        "status_counts": _record(summary.get("status_counts")),
+        "findings": _findings(report),
+        "warnings": _records((report or {}).get("warnings"))[
+            : DISPLAY_LIMITS["findings"]
+        ],
+        "action_boundary": {
+            "inspect_only": True,
+            "acknowledge_only": True,
+            "may_apply_decisions": False,
+            "may_mutate_candidate_artifacts": False,
+            "may_accept_ontology_terms": False,
+            "may_write_ontology_package": False,
+            "may_create_branch_or_commit": False,
+        },
+    }
 
 
 def _repair_session_stage_rows(
@@ -4377,6 +4532,9 @@ def build_idea_to_spec_workspace(
     ontology_decisions = _artifact_data(
         artifacts, PRODUCT_ONTOLOGY_GAP_REVIEW_DECISIONS_ARTIFACT
     )
+    project_local_ontology_review = _artifact_data(
+        artifacts, PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT
+    )
     rerun_input = _artifact_data(artifacts, IDEA_TO_SPEC_ANSWER_RERUN_INPUT_ARTIFACT)
     rerun_preview = _artifact_data(artifacts, IDEA_TO_SPEC_RERUN_PREVIEW_ARTIFACT)
     rerun_materialization = _artifact_data(
@@ -4562,6 +4720,9 @@ def build_idea_to_spec_workspace(
         product_repair_rerun_execution=product_repair_rerun_execution,
         product_repair_rerun_publication=product_repair_rerun_publication,
     )
+    project_local_ontology_review_lane = _project_local_ontology_review_lane(
+        project_local_ontology_review
+    )
     materialized_files = _materialized_files(selected_materialization)
     promotion_gate_findings = _findings(selected_promotion_gate)
     promotion_request = _promotion_request(selected_promotion_gate or selected_materialization)
@@ -4630,6 +4791,9 @@ def build_idea_to_spec_workspace(
             ],
             "ontology_decision_count": repair_review["ontology_decisions"][
                 "decision_count"
+            ],
+            "project_local_ontology_term_count": project_local_ontology_review_lane[
+                "term_count"
             ],
             "resolved_ontology_gap_count": (
                 repair_session["readiness_impact"]["resolved_ontology_gap_count"]
@@ -4752,6 +4916,7 @@ def build_idea_to_spec_workspace(
         },
         "repair_session": repair_session,
         "repair_review": repair_review,
+        "project_local_ontology_review": project_local_ontology_review_lane,
         "idea_maturity": idea_maturity.build_surface(
             report=idea_maturity_report,
             validation=idea_maturity_validation,

@@ -86,6 +86,10 @@ GET_ROUTES: dict[str, RouteSpec] = {
         "handle_v1_idea_to_spec_repair_rerun_requests",
         pass_parsed=True,
     ),
+    "/api/v1/project-local-ontology-review-decisions": RouteSpec(
+        "handle_v1_project_local_ontology_review_decisions",
+        pass_parsed=True,
+    ),
     "/api/v1/idea-to-spec-candidate-approval-intents": RouteSpec(
         "handle_v1_idea_to_spec_candidate_approval_intents",
         pass_parsed=True,
@@ -145,6 +149,10 @@ POST_ROUTES: dict[str, RouteSpec] = {
     ),
     "/api/v1/idea-to-spec-repair-rerun-requests": RouteSpec(
         "handle_v1_idea_to_spec_repair_rerun_request_post",
+        pass_parsed=True,
+    ),
+    "/api/v1/project-local-ontology-review-decisions": RouteSpec(
+        "handle_v1_project_local_ontology_review_decision_post",
         pass_parsed=True,
     ),
     "/api/v1/idea-to-spec-candidate-approval-intents": RouteSpec(

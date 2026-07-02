@@ -932,6 +932,38 @@ SpecGraph later validates these drafts through
 `runs/specspace_repair_draft_import_preview.json`; invalid or incomplete drafts
 remain visible as draft state but are not accepted for rerun.
 
+### `GET/POST /api/v1/project-local-ontology-review-decisions`
+
+Stores SpecSpace-owned operator decisions for the
+`runs/project_local_ontology_review_lane.json` surface. This is a project-local
+review lane for product vocabulary: users can keep a term local, bind it to an
+existing ontology ref, alias it, reject it, request workspace ontology promotion,
+or defer it for owner review.
+
+Example:
+
+```json
+{
+  "workspace_id": "team-decision-log",
+  "term_key": "decisionrecord",
+  "action": "keep_project_local",
+  "decision_value": {
+    "term": "Decision Record",
+    "reason": "Product-specific wording for this bounded context."
+  }
+}
+```
+
+The state remains operator intent only:
+
+- SpecSpace does not write Ontology packages or lockfiles;
+- SpecSpace does not accept Ontology terms;
+- SpecSpace does not apply decisions to SpecGraph artifacts;
+- SpecSpace does not run SpecGraph, Platform, or Git Service.
+
+SpecGraph should later consume this state through a validation/import preview
+before any rerun or promotion step treats the decisions as evidence.
+
 ### `GET/POST /api/v1/idea-to-spec-intake-clarification-answers`
 
 Stores SpecSpace-owned operator answers for the **real idea intake**
