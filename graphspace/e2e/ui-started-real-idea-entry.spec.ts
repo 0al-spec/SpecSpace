@@ -581,6 +581,19 @@ async function publishPromotionRequestArtifacts(args: {
   );
 }
 
+async function publishPromotionExecutionArtifacts(args: {
+  backendRunsDir: string;
+  executionReportPath: string;
+}) {
+  await copyIfPresent(
+    args.executionReportPath,
+    path.join(
+      args.backendRunsDir,
+      "product_candidate_promotion_execution_report.json",
+    ),
+  );
+}
+
 function safeActionBoundary() {
   return {
     inspect_only: true,
@@ -1651,6 +1664,78 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await emitRunsChange(page);
     await expect(controlledPromotion.getByText("Platform promotion request")).toBeVisible();
     await expect(controlledPromotion.getByText("ready").first()).toBeVisible();
+
+    const promotionExecutionPath = path.join(
+      specGraphRunDir,
+      "product_candidate_promotion_execution_report.json",
+    );
+    const promotionWorkspaceDir = path.join(
+      specGraphRunDir,
+      "promotion-dry-run-worktree",
+    );
+    const promotionExecutionCommand = platformCliInvocation(
+      platformDir!,
+      platformScript,
+      [
+        "product-candidate-promotion",
+        "execute",
+        "--promotion-request",
+        promotionRequestPath,
+        "--approval-decision",
+        candidateApprovalDecisionPath,
+        "--repository-dir",
+        specGraphDir!,
+        "--workspace-dir",
+        promotionWorkspaceDir,
+        "--dry-run",
+        "--open-review-dry-run",
+        "--output",
+        promotionExecutionPath,
+        "--format",
+        "json",
+      ],
+    );
+    const promotionExecution = await runCommand(
+      promotionExecutionCommand.command,
+      promotionExecutionCommand.args,
+      { cwd: platformDir! },
+    );
+    expect(
+      promotionExecution.code,
+      `stdout:\n${promotionExecution.stdout}\nstderr:\n${promotionExecution.stderr}`,
+    ).toBe(0);
+    const promotionExecutionPayload = JSON.parse(
+      await readFile(promotionExecutionPath, "utf8"),
+    ) as {
+      ok?: boolean;
+      dry_run?: boolean;
+      open_review_dry_run?: boolean;
+      diagnostics?: unknown[];
+      summary?: {
+        status?: string;
+        physical_worktree_created?: boolean;
+        commit_created?: boolean;
+        review_opened?: boolean;
+      };
+    };
+    expect(
+      promotionExecutionPayload.ok,
+      JSON.stringify(promotionExecutionPayload.diagnostics ?? []),
+    ).toBe(true);
+    expect(promotionExecutionPayload.dry_run).toBe(true);
+    expect(promotionExecutionPayload.open_review_dry_run).toBe(true);
+    expect(promotionExecutionPayload.summary?.status).toBe("dry_run");
+    expect(promotionExecutionPayload.summary?.physical_worktree_created).toBe(false);
+    expect(promotionExecutionPayload.summary?.commit_created).toBe(false);
+    expect(promotionExecutionPayload.summary?.review_opened).toBe(false);
+    await publishPromotionExecutionArtifacts({
+      backendRunsDir: backend.runsDir,
+      executionReportPath: promotionExecutionPath,
+    });
+    await emitRunsChange(page);
+    await expect(controlledPromotion.getByText("Product promotion execution")).toBeVisible();
+    await expect(controlledPromotion.getByText("dry_run").first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /Git dry-run .* completed/i })).toBeVisible();
 
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });

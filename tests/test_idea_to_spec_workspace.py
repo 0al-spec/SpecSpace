@@ -5361,7 +5361,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["workflow"]["next_handoff"]["kind"],
             "product_candidate_promotion_open_review",
         )
-        self.assertEqual(_guided_stage(body, "git_dry_run")["status"], "available")
+        self.assertEqual(_guided_stage(body, "git_dry_run")["status"], "completed")
         self.assertEqual(
             _guided_stage(body, "review_publication")["status"],
             "blocked",

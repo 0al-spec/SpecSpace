@@ -5088,6 +5088,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         git_execution.get("available") is True
     )
     promotion_execution_ready_for_review = promotion_execution_status == "ready"
+    promotion_execution_dry_run_complete = promotion_execution_status == "dry_run"
     promotion_execution_blocked = promotion_execution_status == "blocked"
     review_available = review_status.get("available") is True
     review_ok = review_status.get("ok") is True
@@ -5467,6 +5468,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             status=(
                 "completed"
                 if promotion_execution_ready_for_review
+                or promotion_execution_dry_run_complete
                 else "blocked"
                 if promotion_execution_blocked
                 else "available"
