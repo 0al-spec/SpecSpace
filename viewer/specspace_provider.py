@@ -523,6 +523,7 @@ WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS: tuple[str, ...] = tuple(
         idea_to_spec_workspace.CANDIDATE_OVERVIEW_ARTIFACT,
         idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
         idea_to_spec_workspace.REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
+        idea_to_spec_workspace.PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT,
     }
 )
 

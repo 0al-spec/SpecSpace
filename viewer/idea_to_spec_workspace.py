@@ -5133,6 +5133,8 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         idea_intake_stage_status = "completed"
     elif real_intake_status == "blocked":
         idea_intake_stage_status = "blocked"
+    elif real_intake_status == "entry_submitted":
+        idea_intake_stage_status = "available"
     else:
         idea_intake_stage_status = "missing"
     if real_intake_status in {

@@ -592,6 +592,29 @@
   color: var(--gs-muted-2);
 }
 
+.textInput {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--gs-rule-soft);
+  margin: 0 0 var(--gs-space-5);
+  padding: var(--gs-space-3) var(--gs-space-4);
+  background: var(--gs-panel);
+  color: var(--gs-ink);
+  font-family: var(--gs-sans);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.textInput:focus {
+  border-color: var(--gs-accent);
+  outline: none;
+}
+
+.textInput::placeholder {
+  color: var(--gs-muted-2);
+}
+
 .draftForm {
   display: grid;
   gap: var(--gs-space-3);

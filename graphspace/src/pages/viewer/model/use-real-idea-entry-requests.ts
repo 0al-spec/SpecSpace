@@ -270,6 +270,7 @@ export function useRealIdeaEntryRequests({
   );
 
   return {
+    configured: Boolean(enabled && url),
     state,
     saveRequest,
     saveError,

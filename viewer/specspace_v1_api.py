@@ -60,6 +60,45 @@ def _query_provider(
     return _provider(handler, _query_workspace_id(parsed))
 
 
+def _record(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _apply_real_idea_entry_projection(
+    payload: dict[str, Any],
+    entry_projection: dict[str, Any],
+) -> None:
+    summary = _record(entry_projection.get("summary"))
+    active_submitted_count = summary.get("active_submitted_count")
+    has_submitted_entry = (
+        isinstance(active_submitted_count, int)
+        and not isinstance(active_submitted_count, bool)
+        and active_submitted_count > 0
+    )
+    if not has_submitted_entry:
+        return
+    intake = _record(payload.get("real_idea_intake"))
+    if intake.get("status") not in {None, "missing"}:
+        return
+    source_refs = [
+        ref
+        for ref in intake.get("source_refs", [])
+        if isinstance(ref, str) and ref.strip()
+    ]
+    source_refs.append("specspace-state://real_idea_entry_requests.json")
+    payload["real_idea_intake"] = {
+        **intake,
+        "available": True,
+        "status": "entry_submitted",
+        "next_action": (
+            "Import the submitted raw idea entry through SpecGraph/Platform intake "
+            "handoff."
+        ),
+        "blockers": [],
+        "source_refs": sorted(set(source_refs)),
+    }
+
+
 def _query_limit(parsed: Any, *, default: int, minimum: int = 1, maximum: int = 500) -> int:
     params = query_params(parsed)
     try:
@@ -429,11 +468,17 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
             workspace_payload=payload,
         )
         payload["workspace_state_hygiene"] = hygiene
-        _, entry_state = real_idea_entry_requests.read_state(
+        entry_status, entry_state = real_idea_entry_requests.read_state(
             handler.server,
             workspace_id=workspace_id,
         )
-        payload["real_idea_entry"] = entry_state
+        entry_projection = real_idea_entry_requests.workspace_projection(
+            entry_status,
+            entry_state,
+            workspace_id=workspace_id,
+        )
+        payload["real_idea_entry"] = entry_projection
+        _apply_real_idea_entry_projection(payload, entry_projection)
         idea_to_spec_workspace.attach_guided_flow(payload)
     json_response(handler, status, payload)
 

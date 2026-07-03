@@ -25,6 +25,7 @@ from viewer import (
     idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
     server,
+    specspace_v1_api,
     specspace_provider,
 )
 
@@ -6184,6 +6185,50 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(request["privacy_boundary"]["raw_idea_text_public_safe"])
         self.assertTrue(state_written)
 
+    def test_real_idea_entry_requests_v1_supersedes_previous_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                first_status, first_body = _post(
+                    f"{base}/api/v1/real-idea-entry-requests?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "idea_text": "First team decision log idea.",
+                        "idea_summary_hint": "First decision log",
+                    },
+                )
+                second_status, second_body = _post(
+                    f"{base}/api/v1/real-idea-entry-requests?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "idea_text": "Second team decision log idea.",
+                        "idea_summary_hint": "Second decision log",
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(first_status, 200)
+        self.assertEqual(second_status, 200)
+        first_id = first_body["requests"][0]["request_id"]
+        statuses = {item["request_id"]: item["status"] for item in second_body["requests"]}
+        submitted_ids = [
+            item["request_id"]
+            for item in second_body["requests"]
+            if item["status"] == "submitted"
+        ]
+        self.assertEqual(len(statuses), 2)
+        self.assertEqual(len(submitted_ids), 1)
+        self.assertNotEqual(first_id, submitted_ids[0])
+        self.assertEqual(statuses[first_id], "superseded")
+        superseded = [item for item in second_body["requests"] if item["request_id"] == first_id][0]
+        self.assertIn("superseded_at", superseded)
+        self.assertEqual(second_body["summary"]["active_submitted_count"], 1)
+
     def test_real_idea_entry_requests_v1_rejects_authority_expansion(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -6243,6 +6288,139 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertEqual(entry_state["summary"]["active_submitted_count"], 1)
         self.assertEqual(entry_state["requests"][0]["workspace_id"], "team-decision-log")
+        self.assertNotIn("idea_text", entry_state["requests"][0])
+        self.assertTrue(entry_state["requests"][0]["idea_summary_hint_present"])
+
+    def test_real_idea_entry_projection_marks_missing_intake_submitted(self) -> None:
+        payload = {
+            "real_idea_intake": {
+                "available": False,
+                "status": "missing",
+                "source_refs": [],
+                "blockers": [],
+            }
+        }
+        specspace_v1_api._apply_real_idea_entry_projection(
+            payload,
+            {
+                "summary": {
+                    "active_submitted_count": 1,
+                }
+            },
+        )
+
+        self.assertEqual(payload["real_idea_intake"]["status"], "entry_submitted")
+        self.assertTrue(payload["real_idea_intake"]["available"])
+        self.assertIn(
+            "specspace-state://real_idea_entry_requests.json",
+            payload["real_idea_intake"]["source_refs"],
+        )
+
+    def test_idea_to_spec_workspace_sanitizes_invalid_real_idea_entry_state(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            state_dir.mkdir(parents=True)
+            _write_product_workspace_runs(runs_dir)
+            (state_dir / "real_idea_entry_requests.json").write_text(
+                "{not-json",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        entry_state = body["real_idea_entry"]
+        self.assertEqual(
+            entry_state["summary"]["status"],
+            "real_idea_entry_state_invalid",
+        )
+        dumped = json.dumps(entry_state)
+        self.assertNotIn(str(state_dir), dumped)
+        self.assertNotIn("path", entry_state.get("error", {}))
+
+    def test_real_idea_entry_requests_v1_drops_unknown_fields_and_caps_history(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            state_dir.mkdir(parents=True)
+            requests = []
+            for index in range(25):
+                requests.append(
+                    {
+                        "request_id": f"entry-{index}",
+                        "workspace_id": "team-decision-log",
+                        "idea_text": f"Old idea {index}",
+                        "status": "superseded",
+                        "created_at": f"2026-07-03T00:00:{index:02d}Z",
+                        "updated_at": f"2026-07-03T00:00:{index:02d}Z",
+                        "superseded_at": f"2026-07-03T00:01:{index:02d}Z",
+                        "private_extra": "/Users/egor/raw.txt",
+                    }
+                )
+            requests.append(
+                {
+                    "request_id": "entry-active",
+                    "workspace_id": "team-decision-log",
+                    "idea_text": "Current idea",
+                    "idea_summary_hint": "Current idea summary",
+                    "status": "submitted",
+                    "created_at": "2026-07-03T00:02:00Z",
+                    "updated_at": "2026-07-03T00:02:00Z",
+                    "private_extra": "/Users/egor/raw.txt",
+                }
+            )
+            state = {
+                "artifact_kind": "specspace_real_idea_entry_request_state",
+                "schema_version": 1,
+                "state_owner": "SpecSpace",
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
+                "consumer_boundary": {"may_execute_specgraph": False},
+                "authority_boundary": {
+                    "real_idea_entry_request_state_is_authority": False
+                },
+                "privacy_boundary": {
+                    "raw_idea_text_local_only": True,
+                    "raw_idea_text_public_safe": False,
+                    "public_safe": False,
+                },
+                "requests": requests,
+            }
+            (state_dir / "real_idea_entry_requests.json").write_text(
+                json.dumps(state),
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/real-idea-entry-requests?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["superseded_count"], 20)
+        self.assertEqual(body["summary"]["active_submitted_count"], 1)
+        dumped = json.dumps(body)
+        self.assertNotIn("private_extra", dumped)
+        self.assertIn("superseded_at", body["requests"][0])
 
     def test_idea_to_spec_workspace_shows_real_idea_entry_execution(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

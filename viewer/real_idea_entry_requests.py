@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import secrets
 import tempfile
 import threading
 from datetime import datetime, timezone
@@ -19,6 +20,7 @@ ENTRY_REQUEST_FILENAME = "real_idea_entry_requests.json"
 MAX_IDEA_TEXT_LENGTH = 8000
 MAX_HINT_LENGTH = 500
 MAX_HINTS = 20
+MAX_SUPERSEDED_PER_WORKSPACE = 20
 TOP_LEVEL_FALSE_FIELDS = (
     "canonical_mutations_allowed",
     "tracked_artifacts_written",
@@ -191,8 +193,7 @@ def normalize_state(raw: Any, path: Path) -> tuple[dict[str, Any] | None, dict[s
             invalid_request_count += 1
             continue
         requests.append(normalized)
-    requests.sort(key=lambda item: (item["workspace_id"], item["created_at"], item["request_id"]))
-    state["requests"] = requests
+    state["requests"] = _cap_superseded_history(requests)
     _refresh_summary(state, invalid_request_count=invalid_request_count)
     return state, None
 
@@ -243,7 +244,9 @@ def save_request(
             "field": "status",
         }
     now = now_iso()
-    request_id = _clean_text(payload.get("request_id")) or f"real-idea-entry.{workspace_id_value}.{_timestamp_id(now)}"
+    request_id = _clean_text(payload.get("request_id")) or (
+        f"real-idea-entry.{workspace_id_value}.{_timestamp_id(now)}.{secrets.token_hex(3)}"
+    )
     if not _safe_id(request_id):
         return HTTPStatus.BAD_REQUEST, {
             "error": "Invalid real idea entry request_id.",
@@ -313,10 +316,7 @@ def save_request(
             },
         }
         existing.append(record)
-        state["requests"] = sorted(
-            existing,
-            key=lambda item: (item["workspace_id"], item["created_at"], item["request_id"]),
-        )
+        state["requests"] = _cap_superseded_history(existing)
         _refresh_summary(state)
         path.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
@@ -353,7 +353,6 @@ def _normalize_existing_request(entry: dict[str, Any]) -> dict[str, Any] | None:
     if privacy.get("public_safe") is True or privacy.get("raw_idea_text_public_safe") is True:
         return None
     return {
-        **entry,
         "request_id": request_id,
         "workspace_id": workspace_id,
         "idea_text": idea_text,
@@ -366,6 +365,7 @@ def _normalize_existing_request(entry: dict[str, Any]) -> dict[str, Any] | None:
         "operator_ref": _clean_text(entry.get("operator_ref")) or "local_operator",
         "created_at": _clean_text(entry.get("created_at")) or "unknown",
         "updated_at": _clean_text(entry.get("updated_at")) or _clean_text(entry.get("created_at")) or "unknown",
+        "superseded_at": _clean_text(entry.get("superseded_at")),
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
         "authority_boundary": {
@@ -389,6 +389,28 @@ def _normalize_existing_request(entry: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _request_sort_key(item: dict[str, Any]) -> tuple[str, str, str]:
+    return (
+        str(item.get("workspace_id") or ""),
+        str(item.get("created_at") or ""),
+        str(item.get("request_id") or ""),
+    )
+
+
+def _cap_superseded_history(requests: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    active = [item for item in requests if item.get("status") != "superseded"]
+    superseded_by_workspace: dict[str, list[dict[str, Any]]] = {}
+    for item in requests:
+        if item.get("status") != "superseded":
+            continue
+        workspace_id = str(item.get("workspace_id") or "")
+        superseded_by_workspace.setdefault(workspace_id, []).append(item)
+    capped: list[dict[str, Any]] = [*active]
+    for items in superseded_by_workspace.values():
+        capped.extend(sorted(items, key=_request_sort_key)[-MAX_SUPERSEDED_PER_WORKSPACE:])
+    return sorted(capped, key=_request_sort_key)
+
+
 def _filtered_state(state: dict[str, Any], workspace_id: str | None) -> dict[str, Any]:
     if not workspace_id:
         return state
@@ -401,6 +423,85 @@ def _filtered_state(state: dict[str, Any], workspace_id: str | None) -> dict[str
     ]
     _refresh_summary(filtered)
     return filtered
+
+
+def workspace_projection(
+    status: HTTPStatus,
+    state: dict[str, Any],
+    *,
+    workspace_id: str | None,
+) -> dict[str, Any]:
+    if status != HTTPStatus.OK:
+        return {
+            "artifact_kind": ENTRY_REQUEST_ARTIFACT_KIND,
+            "schema_version": ENTRY_REQUEST_SCHEMA_VERSION,
+            "state_owner": "SpecSpace",
+            "selected_workspace_id": workspace_id,
+            "requests": [],
+            "summary": {
+                "status": "real_idea_entry_state_invalid",
+                "request_count": 0,
+                "draft_count": 0,
+                "submitted_count": 0,
+                "superseded_count": 0,
+                "active_submitted_count": 0,
+                "invalid_request_count": 1,
+                "workspace_count": 0,
+                "next_gap": "repair_real_idea_entry_request_state",
+            },
+            "error": {
+                "error": _clean_text(state.get("error")) or "Invalid real idea entry state",
+                "detail": _clean_text(state.get("detail")),
+            },
+            "consumer_boundary": empty_state(Path(ENTRY_REQUEST_FILENAME))["consumer_boundary"],
+            "authority_boundary": empty_state(Path(ENTRY_REQUEST_FILENAME))["authority_boundary"],
+            "privacy_boundary": empty_state(Path(ENTRY_REQUEST_FILENAME))["privacy_boundary"],
+        }
+
+    summary = _record(state.get("summary"))
+    requests: list[dict[str, Any]] = []
+    for item in state.get("requests", []):
+        if not isinstance(item, dict):
+            continue
+        requests.append(
+            {
+                "request_id": item.get("request_id"),
+                "workspace_id": item.get("workspace_id"),
+                "operator_ref": item.get("operator_ref"),
+                "status": item.get("status"),
+                "created_at": item.get("created_at"),
+                "updated_at": item.get("updated_at"),
+                "superseded_at": item.get("superseded_at"),
+                "idea_summary_hint_present": bool(_clean_text(item.get("idea_summary_hint"))),
+                "workspace_display_name_present": bool(
+                    _clean_text(item.get("workspace_display_name"))
+                ),
+                "public_route_hint": item.get("public_route_hint"),
+                "domain_hint_count": len(_clean_text_list(item.get("domain_hints"))),
+                "constraint_count": len(_clean_text_list(item.get("constraints"))),
+            }
+        )
+    return {
+        "artifact_kind": ENTRY_REQUEST_ARTIFACT_KIND,
+        "schema_version": ENTRY_REQUEST_SCHEMA_VERSION,
+        "state_owner": "SpecSpace",
+        "selected_workspace_id": state.get("selected_workspace_id"),
+        "requests": requests,
+        "summary": {
+            "status": summary.get("status"),
+            "request_count": summary.get("request_count"),
+            "draft_count": summary.get("draft_count"),
+            "submitted_count": summary.get("submitted_count"),
+            "superseded_count": summary.get("superseded_count"),
+            "active_submitted_count": summary.get("active_submitted_count"),
+            "invalid_request_count": summary.get("invalid_request_count"),
+            "workspace_count": summary.get("workspace_count"),
+            "next_gap": summary.get("next_gap"),
+        },
+        "consumer_boundary": state.get("consumer_boundary"),
+        "authority_boundary": state.get("authority_boundary"),
+        "privacy_boundary": state.get("privacy_boundary"),
+    }
 
 
 def _refresh_summary(

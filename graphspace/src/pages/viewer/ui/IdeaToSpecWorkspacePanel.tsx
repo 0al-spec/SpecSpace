@@ -516,12 +516,18 @@ function IdeaIntakeDraftSection({
   readOnly: boolean;
 }) {
   const [idea, setIdea] = useState("");
+  const [publicSummary, setPublicSummary] = useState("");
   const draft = useMemo(
     () => buildIdeaToSpecIntakeDraft({ idea, activeFrame }),
     [idea, activeFrame],
   );
   const activeEntry = entryRequests.activeSubmittedRequest;
-  const canSubmit = !readOnly && idea.trim().length > 0 && !entryRequests.pending;
+  const canSubmit =
+    !readOnly &&
+    entryRequests.configured &&
+    idea.trim().length > 0 &&
+    publicSummary.trim().length > 0 &&
+    !entryRequests.pending;
   return (
     <section id="idea-to-spec-idea-intake" className={styles.reviewSection}>
       <SectionHeader title="Idea intake" count={realIdeaIntake.clarificationProgress.questionCount} />
@@ -628,6 +634,14 @@ function IdeaIntakeDraftSection({
           aria-label="Product idea intake"
           disabled={readOnly || entryRequests.pending}
         />
+        <input
+          className={styles.textInput}
+          value={publicSummary}
+          onChange={(event) => setPublicSummary(event.currentTarget.value)}
+          placeholder="Public-safe idea summary"
+          aria-label="Public-safe idea summary"
+          disabled={readOnly || entryRequests.pending}
+        />
         <div className={styles.postureStrip}>
           <PostureItem label="Source" value={draft?.sourceMode ?? "local_browser_draft"} />
           <PostureItem
@@ -647,8 +661,8 @@ function IdeaIntakeDraftSection({
             entryRequests.saveRequest({
               workspaceId,
               ideaText: idea,
-              ideaSummaryHint: draft?.summary ?? null,
-              workspaceDisplayName: workspaceId ?? null,
+              ideaSummaryHint: publicSummary,
+              workspaceDisplayName: null,
               publicRouteHint: workspaceId ? `/${workspaceId}` : null,
               operatorRef: "operator://specspace-local",
               status: "submitted",
