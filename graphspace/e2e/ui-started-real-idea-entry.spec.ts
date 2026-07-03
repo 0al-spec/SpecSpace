@@ -571,6 +571,16 @@ async function publishCandidateApprovalArtifacts(args: {
   );
 }
 
+async function publishPromotionRequestArtifacts(args: {
+  backendRunsDir: string;
+  promotionRequestPath: string;
+}) {
+  await copyIfPresent(
+    args.promotionRequestPath,
+    path.join(args.backendRunsDir, "graph_repository_promotion_request.json"),
+  );
+}
+
 function safeActionBoundary() {
   return {
     inspect_only: true,
@@ -1548,6 +1558,99 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       controlledPromotion.getByText("Candidate approval", { exact: true }),
     ).toBeVisible();
     await expect(controlledPromotion.getByText("approved").first()).toBeVisible();
+
+    const graphRepositoryPlanPath = path.join(
+      specGraphRunDir,
+      "graph_repository_execution_plan.json",
+    );
+    const graphRepositoryPlanCommand = platformCliInvocation(
+      platformDir!,
+      platformScript,
+      [
+        "graph-repository",
+        "plan",
+        "--contract",
+        path.join(platformDir!, "graph-repository-service.example.json"),
+        "--runs-dir",
+        specGraphRunDir,
+        "--repaired-handoff",
+        path.join(specGraphRunDir, "repaired_candidate_promotion_handoff_report.json"),
+        "--output",
+        graphRepositoryPlanPath,
+        "--format",
+        "json",
+      ],
+    );
+    const graphRepositoryPlan = await runCommand(
+      graphRepositoryPlanCommand.command,
+      graphRepositoryPlanCommand.args,
+      { cwd: platformDir! },
+    );
+    expect(
+      graphRepositoryPlan.code,
+      `stdout:\n${graphRepositoryPlan.stdout}\nstderr:\n${graphRepositoryPlan.stderr}`,
+    ).toBe(0);
+    const graphRepositoryPlanPayload = JSON.parse(
+      await readFile(graphRepositoryPlanPath, "utf8"),
+    ) as {
+      ok?: boolean;
+      ready_for_branch?: boolean;
+      diagnostics?: unknown[];
+    };
+    expect(
+      graphRepositoryPlanPayload.ok,
+      JSON.stringify(graphRepositoryPlanPayload.diagnostics ?? []),
+    ).toBe(true);
+    expect(graphRepositoryPlanPayload.ready_for_branch).toBe(true);
+
+    const promotionRequestPath = path.join(
+      specGraphRunDir,
+      "graph_repository_promotion_request.json",
+    );
+    const promotionRequestCommand = platformCliInvocation(
+      platformDir!,
+      platformScript,
+      [
+        "product-candidate-promotion",
+        "request",
+        "--plan",
+        graphRepositoryPlanPath,
+        "--approval-decision",
+        candidateApprovalDecisionPath,
+        "--output",
+        promotionRequestPath,
+        "--format",
+        "json",
+      ],
+    );
+    const promotionRequest = await runCommand(
+      promotionRequestCommand.command,
+      promotionRequestCommand.args,
+      { cwd: platformDir! },
+    );
+    expect(
+      promotionRequest.code,
+      `stdout:\n${promotionRequest.stdout}\nstderr:\n${promotionRequest.stderr}`,
+    ).toBe(0);
+    const promotionRequestPayload = JSON.parse(
+      await readFile(promotionRequestPath, "utf8"),
+    ) as {
+      ok?: boolean;
+      summary?: { promotion_ready?: boolean };
+      diagnostics?: unknown[];
+    };
+    expect(
+      promotionRequestPayload.ok,
+      JSON.stringify(promotionRequestPayload.diagnostics ?? []),
+    ).toBe(true);
+    expect(promotionRequestPayload.summary?.promotion_ready).toBe(true);
+    await publishPromotionRequestArtifacts({
+      backendRunsDir: backend.runsDir,
+      promotionRequestPath,
+    });
+    await emitRunsChange(page);
+    await expect(controlledPromotion.getByText("Platform promotion request")).toBeVisible();
+    await expect(controlledPromotion.getByText("ready").first()).toBeVisible();
 
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });
