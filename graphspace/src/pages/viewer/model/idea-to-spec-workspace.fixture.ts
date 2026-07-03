@@ -252,9 +252,6 @@ export const ideaToSpecWorkspace = {
         evidence_refs: [
           "runs/idea_event_storming_intake.json",
           "runs/idea_intake_clarification_requests.json",
-          "runs/real_idea_smoke/real_idea_answer_template.json",
-          "runs/real_idea_smoke/specspace_real_idea_answer_import_preview.json",
-          "runs/real_idea_smoke/real_idea_answer_continuation_report.json",
         ],
         target_section: "idea-to-spec-idea-intake",
         command_template: null,
@@ -280,14 +277,13 @@ export const ideaToSpecWorkspace = {
         primary_next_action: "Continue with repair, ontology review, and promotion readiness.",
         blockers: [],
         evidence_refs: [
-          "runs/idea_event_storming_intake.json",
           "runs/idea_intake_clarification_requests.json",
           "runs/real_idea_smoke/real_idea_answer_template.json",
           "runs/real_idea_smoke/specspace_real_idea_answer_import_preview.json",
           "runs/real_idea_smoke/real_idea_answer_continuation_report.json",
         ],
         target_section: "idea-to-spec-intake-clarification",
-        command_template: "make real-idea-intake-continue-from-specspace-answers",
+        command_template: null,
         authority_boundary: {
           inspect_only: true,
           acknowledge_only: true,
@@ -768,8 +764,7 @@ export const ideaToSpecWorkspace = {
     status: "active_candidate_ready",
     workspace_id: "team-decision-log",
     session_ref: "runs/idea_intake_clarification_requests.json",
-    clarified_session_ref:
-      "runs/real_idea_smoke/clarified_user_idea_intake_session.json",
+    clarified_session_ref: null,
     candidate_source_ref: null,
     active_candidate_ref: "runs/active_idea_to_spec_candidate.json",
     next_action: "Continue with repair, ontology review, and promotion readiness.",
@@ -808,7 +803,7 @@ export const ideaToSpecWorkspace = {
         "runs/real_idea_smoke/clarified_user_idea_intake_session.json",
         "runs/real_idea_smoke/idea_intake_clarification_rerun_report.json",
       ],
-      command_hint: "make real-idea-intake-continue-from-specspace-answers",
+      command_hint: null,
     },
     source_refs: [
       "runs/idea_intake_clarification_requests.json",

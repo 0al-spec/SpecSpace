@@ -271,6 +271,10 @@ function maturityExplainerNextAction(
   );
 }
 
+function findingKey(finding: { findingId: string }, index: number): string {
+  return `${finding.findingId}-${index}`;
+}
+
 export function IdeaToSpecWorkspacePanel({
   state,
   repairDraftsUrl,
@@ -554,8 +558,8 @@ function IdeaIntakeDraftSection({
         ) : null}
         {realIdeaIntake.clarificationProgress.requiredFieldFindings
           .slice(0, 3)
-          .map((finding) => (
-            <p key={finding.findingId} className={styles.statusDetail}>
+          .map((finding, index) => (
+            <p key={findingKey(finding, index)} className={styles.statusDetail}>
               {finding.severity}: {finding.message}
             </p>
           ))}
@@ -1204,8 +1208,8 @@ function IntakeAnswerAuthoringStatus({
           {action.label}: {action.nextAction}
         </p>
       ))}
-      {authoring.report.findings.slice(0, 3).map((finding) => (
-        <p key={finding.findingId} className={styles.statusDetail}>
+      {authoring.report.findings.slice(0, 3).map((finding, index) => (
+        <p key={findingKey(finding, index)} className={styles.statusDetail}>
           {finding.severity}: {finding.message}
         </p>
       ))}
@@ -1285,8 +1289,8 @@ function IntakeAnswerContinuationStatus({
         ...continuation.continuationReport.findings,
       ]
         .slice(0, 3)
-        .map((finding) => (
-          <p key={finding.findingId} className={styles.statusDetail}>
+        .map((finding, index) => (
+          <p key={findingKey(finding, index)} className={styles.statusDetail}>
             {finding.severity}: {finding.message}
           </p>
         ))}
@@ -1546,8 +1550,8 @@ function OntologySeedSection({
           </div>
         </div>
       ))}
-      {seed.findings.map((finding) => (
-        <div key={finding.findingId} className={styles.row}>
+      {seed.findings.map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{finding.findingId}</span>
             <Pill value={finding.severity} />
@@ -1672,8 +1676,8 @@ function ProjectLocalOntologyReviewSection({
           readOnly={readOnly}
         />
       ))}
-      {lane.findings.map((finding) => (
-        <div key={finding.findingId} className={styles.row}>
+      {lane.findings.map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{finding.findingId}</span>
             <Pill value={finding.severity} />
@@ -1792,8 +1796,8 @@ function ProjectLocalOntologyImportPreviewStatus({
           </span>
         </div>
       ))}
-      {preview.findings.map((finding) => (
-        <div key={finding.findingId} className={styles.subRow}>
+      {preview.findings.map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.subRow}>
           <span>{finding.findingId}</span>
           <Pill value={finding.severity} />
           <span className={styles.statusDetail}>{finding.message}</span>
@@ -2047,8 +2051,8 @@ function PreSibSection({ state }: { state: Extract<UseIdeaToSpecWorkspaceState, 
           ))}
         </div>
       </div>
-      {data.preSib.findings.map((finding) => (
-        <div key={finding.findingId} className={styles.row}>
+      {data.preSib.findings.map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{finding.findingId}</span>
             <Pill value={finding.severity} />
@@ -2649,8 +2653,8 @@ function IdeaMaturitySection({
         />
       ))}
 
-      {maturity.report.findings.map((finding) => (
-        <div key={finding.findingId} className={styles.row}>
+      {maturity.report.findings.map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{finding.findingId}</span>
             <Pill value={finding.severity} />
@@ -4610,8 +4614,8 @@ function PromotionGateSection({
           detail={compact(gate.readiness.nextArtifact, "Platform handoff ready.")}
         />
       ) : null}
-      {gate.findings.map((finding) => (
-        <div key={finding.findingId} className={styles.row}>
+      {gate.findings.map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{finding.findingId}</span>
             <Pill value={finding.severity} />

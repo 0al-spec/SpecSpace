@@ -63,9 +63,7 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.guidedFlow.stages).toHaveLength(12);
     expect(parsed.data.guidedFlow.stages[1].id).toBe("intake_clarification");
     expect(parsed.data.guidedFlow.stages[1].status).toBe("completed");
-    expect(parsed.data.guidedFlow.stages[1].commandTemplate).toBe(
-      "make real-idea-intake-continue-from-specspace-answers",
-    );
+    expect(parsed.data.guidedFlow.stages[1].commandTemplate).toBeNull();
     expect(parsed.data.guidedFlow.stages[3].blockers).toEqual([
       "workspace_id_mismatch",
     ]);

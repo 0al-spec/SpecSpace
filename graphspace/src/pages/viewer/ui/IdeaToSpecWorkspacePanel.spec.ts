@@ -64,6 +64,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("runs/candidate_repair_loop_report.json");
     expect(html).toContain("Event-storming intake");
     expect(html).toContain("Intake clarification");
+    expect(html).toContain('id="idea-to-spec-intake-clarification"');
     expect(html).toContain("active candidate ready");
     expect(html).toContain("make real-idea-intake-continue-from-specspace-answers");
     expect(html).toContain("Real idea answer authoring");

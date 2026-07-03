@@ -3665,7 +3665,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(
             intake["clarified_session_ref"],
-            "runs/real_idea_smoke/clarified_user_idea_intake_session.json",
+            None,
         )
         self.assertEqual(
             intake["active_candidate_ref"],
@@ -3694,9 +3694,110 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             if stage["id"] == "intake_clarification"
         )
         self.assertEqual(clarification_stage["status"], "completed")
+        self.assertIsNone(clarification_stage["command_template"])
+
+    def test_real_idea_intake_keeps_raw_intake_before_clarification(self) -> None:
+        artifacts = {
+            idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT: _intake(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: (
+                _intake_clarification_requests()
+            ),
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["real_idea_intake"]["status"], "needs_clarification")
         self.assertEqual(
-            clarification_stage["command_template"],
-            "make real-idea-intake-continue-from-specspace-answers",
+            body["real_idea_intake"]["next_action"],
+            "Answer intake clarification questions before candidate generation.",
+        )
+        self.assertEqual(
+            _guided_stage(body, "intake_clarification")["status"],
+            "available",
+        )
+
+    def test_real_idea_intake_preserves_zero_accepted_answer_count(self) -> None:
+        answers = _intake_clarification_answers()
+        answers["summary"]["accepted_answer_count"] = 0
+        answers["summary"]["unresolved_blocking_count"] = 1
+        answer_set = _real_idea_answer_set()
+        answer_set["answers"].append(
+            {
+                "request_id": "clarification.intake.extra",
+                "answer_kind": "answer_question",
+                "status": "draft",
+                "authority": "operator_draft",
+                "value": {"refs": ["domain.extra"]},
+            }
+        )
+        artifacts = {
+            idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT: _intake(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: (
+                _intake_clarification_requests()
+            ),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_ANSWERS_ARTIFACT: answers,
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_ARTIFACT: answer_set,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["real_idea_intake"]["clarification_progress"]["answered_count"],
+            0,
+        )
+        self.assertEqual(body["real_idea_intake"]["status"], "needs_clarification")
+
+    def test_real_idea_intake_blocks_unready_active_candidate(self) -> None:
+        active_candidate = _active_candidate()
+        active_candidate["readiness"] = {
+            "ready": False,
+            "review_state": "active_candidate_review_required",
+            "blocked_by": ["active_candidate_context_required"],
+        }
+        artifacts = {
+            idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: active_candidate,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["real_idea_intake"]["status"], "blocked")
+        self.assertEqual(
+            body["real_idea_intake"]["active_candidate_ref"],
+            "runs/active_idea_to_spec_candidate.json",
+        )
+        self.assertIn(
+            "active_candidate_context_required",
+            body["real_idea_intake"]["blockers"],
+        )
+
+    def test_real_idea_intake_uses_repaired_active_candidate_ref(self) -> None:
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT: (
+                _repaired_handoff_report()
+            ),
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: (
+                _active_candidate()
+            ),
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["real_idea_intake"]["active_candidate_ref"],
+            "runs/repaired_active_idea_to_spec_candidate.json",
         )
 
     def test_build_workspace_rejects_write_capable_real_idea_answer_handoff(
