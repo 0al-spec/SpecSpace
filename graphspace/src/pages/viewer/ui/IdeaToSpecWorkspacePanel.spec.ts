@@ -609,4 +609,44 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toMatch(/Promotion follow-ups[\s\S]*?>7</);
     expect(html).toMatch(/Blocking decisions[\s\S]*?>4</);
   });
+
+  it("labels sampled topology refs and hidden workflow edge counts accurately", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.candidate_overview.event_storming.actor_count = 2;
+    raw.candidate_overview.topology.workflow_edge_count = 30;
+    raw.candidate_overview.topology.edges = [
+      {
+        id: "edge.hidden-actor",
+        relation: "actor_triggers_command",
+        from: "actor.hidden-by-sample",
+        to: "command.record-decision",
+        label: "Hidden actor records decision",
+      },
+      ...Array.from({ length: 11 }, (_, index) => ({
+        id: `edge.sampled-${index}`,
+        relation: "command_emits_event",
+        from: "command.record-decision",
+        to: "event.decision-recorded",
+        label: "Record decision emits event",
+      })),
+    ];
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Sampled topology fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toContain("Topology refs outside displayed sample");
+    expect(html).toContain(
+      "Some endpoints may be valid source items hidden by the workspace API sample limit.",
+    );
+    expect(html).toContain("+22 more workflow edges");
+    expect(html).toContain("4 additional sampled rows");
+    expect(html).not.toContain("Unresolved topology refs");
+  });
 });

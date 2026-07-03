@@ -784,6 +784,18 @@ function CandidateWorkflowTopologyMap({
   topology: CandidateWorkflowTopologyView;
 }) {
   const visibleEdges = topology.edges.slice(0, 8);
+  const totalWorkflowEdges = Math.max(topology.workflowEdgeCount, topology.edges.length);
+  const hiddenWorkflowEdgeCount = Math.max(
+    0,
+    totalWorkflowEdges - visibleEdges.length,
+  );
+  const additionalSampledEdgeCount = Math.max(
+    0,
+    topology.edges.length - visibleEdges.length,
+  );
+  const hasSampledNodes = topology.columns.some(
+    (column) => column.totalCount > column.nodes.length,
+  );
   return (
     <div className={styles.topologySurface}>
       <div className={styles.topologyLegend} aria-label="Workflow topology relation legend">
@@ -842,9 +854,12 @@ function CandidateWorkflowTopologyMap({
               </span>
             </div>
           ))}
-          {topology.edges.length > visibleEdges.length ? (
+          {hiddenWorkflowEdgeCount > 0 ? (
             <div className={styles.topologyMore}>
-              +{topology.edges.length - visibleEdges.length} more topology edges
+              +{hiddenWorkflowEdgeCount} more workflow edges
+              {additionalSampledEdgeCount > 0
+                ? ` · ${additionalSampledEdgeCount} additional sampled rows`
+                : ""}
             </div>
           ) : null}
         </div>
@@ -856,12 +871,22 @@ function CandidateWorkflowTopologyMap({
       )}
       {topology.unresolvedEdges.length > 0 ? (
         <div className={styles.topologyWarning}>
-          <span className={styles.metaLabel}>Unresolved topology refs</span>
+          <span className={styles.metaLabel}>
+            {hasSampledNodes
+              ? "Topology refs outside displayed sample"
+              : "Unresolved topology refs"}
+          </span>
           {topology.unresolvedEdges.slice(0, 3).map((edge) => (
             <span key={`unresolved:${edge.id}`} className={styles.metaValue}>
               {edge.id}: {joined(edge.unresolvedRefs)}
             </span>
           ))}
+          {hasSampledNodes ? (
+            <span className={styles.metaValue}>
+              Some endpoints may be valid source items hidden by the workspace API
+              sample limit.
+            </span>
+          ) : null}
         </div>
       ) : null}
     </div>
