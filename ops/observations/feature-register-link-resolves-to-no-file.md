@@ -5,7 +5,7 @@ status: pending
 observed: 2026-07-03
 ---
 
-# the mandated [[feature register]] link points at a file name that does not exist
+# the mandated [[feature register]] link points at a filename that does not exist
 
 `templates/feature-record.md` (Areas footer) and
 `docs/agent/feature-knowledge-system.md` (link conventions section) both
