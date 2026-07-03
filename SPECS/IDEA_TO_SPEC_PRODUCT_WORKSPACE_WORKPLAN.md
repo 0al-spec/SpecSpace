@@ -115,6 +115,14 @@ external answer continuation publication. Remaining work is to replace the
 projected continuation publication with a real Platform/SpecGraph subprocess in
 the E2E harness.
 
+Latest execution-backed finding: Platform needs a first-class
+`product-real-idea-continuation execute --answer-state <SpecSpace state>` handoff
+so the operator-owned answer state does not have to be copied into a SpecGraph
+run directory by hand. After that handoff exists, the next blocker is semantic:
+the generated real-idea answer template and the SpecSpace structured answer UI
+must produce answers that SpecGraph imports as continuation-ready rather than
+`specspace_real_idea_answers_review_required`.
+
 Execution-backed follow-up preconditions:
 
 - The harness must run `product-real-idea-continuation execute` or an equivalent

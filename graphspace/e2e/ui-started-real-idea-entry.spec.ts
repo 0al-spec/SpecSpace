@@ -875,6 +875,7 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await expect(page.getByText("Platform intake execution")).toBeVisible();
     await expect(page.getByText("execute_specgraph_real_idea_entry_intake")).toBeVisible();
     await expect(page.getByText("Template-backed answer").first()).toBeVisible();
+
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });
     await backend.stop();
