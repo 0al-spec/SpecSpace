@@ -1636,11 +1636,17 @@ function IntakeClarificationRequestRow({
               </option>
             ))}
           </select>
-          <button className={styles.ackButton} type="submit" disabled={!canSave}>
+          <button
+            data-testid={`intake-clarification-answer-save-${request.id}`}
+            className={styles.ackButton}
+            type="submit"
+            disabled={!canSave}
+          >
             {pending ? "Saving" : draft ? "Update answer" : "Save answer"}
           </button>
         </div>
         <textarea
+          data-testid={`intake-clarification-answer-${request.id}`}
           className={styles.draftTextarea}
           value={answerText}
           onChange={(event) => setAnswerText(event.currentTarget.value)}
@@ -1655,7 +1661,10 @@ function IntakeClarificationRequestRow({
           </span>
         ) : null}
         {draft ? (
-          <span className={styles.statusDetail}>
+          <span
+            className={styles.statusDetail}
+            data-testid={`intake-clarification-answer-saved-${request.id}`}
+          >
             Answer saved · {draft.answerKind.replace(/_/g, " ")} · {draft.updatedAt}
           </span>
         ) : publishedAnswer ? (

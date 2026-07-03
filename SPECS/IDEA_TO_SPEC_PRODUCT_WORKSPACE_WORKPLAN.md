@@ -40,6 +40,8 @@ reviews, or publish read models.
 - Visible handoff command for controlled Platform intake execution.
 - Product Workspace visibility for the Platform real idea intake execution
   report, including operations and generated output artifacts.
+- Browser E2E for projected intake clarification publication and
+  SpecSpace-owned clarification answer save.
 
 ## Next Tasks
 
@@ -84,11 +86,18 @@ Acceptance criteria:
 
 Cover the next user-facing loop after intake questions appear.
 
+Status: partially closed. Browser E2E now saves a template-backed intake
+clarification answer through the Product Workspace UI and verifies the
+SpecSpace-owned answer state. Remaining work is to cover the external
+SpecGraph/Platform continuation handoff that consumes those answers.
+
 Acceptance criteria:
 
-- User fills clarification answers in SpecSpace.
-- SpecSpace-owned answer state is saved and validated.
-- Import preview / continuation lane is visible.
+- User fills clarification answers in SpecSpace. Done.
+- SpecSpace-owned answer state is saved and validated. Done for the browser
+  save path.
+- Import preview / continuation lane is visible. Partially covered by fixture
+  projection; still needs an execution-backed E2E slice.
 - Invalid or missing answers produce clear UI diagnostics.
 
 ### 4. Artifact Refresh And Runs-Watch Hardening
@@ -117,14 +126,14 @@ Acceptance criteria:
 ## Known Friction
 
 - UI submit persists raw idea entry, but does not execute the intake pipeline.
-- E2E currently proves the entry boundary, not the full lifecycle.
+- E2E currently proves entry, projected intake execution, and clarification
+  answer save, not the full execution-backed lifecycle.
 - Some browser tests still use a fixture-backed `/api/v1/idea-to-spec-workspace`
   projection while only mutable state APIs are real.
 - Local state directory, SpecGraph run directory, and product workspace artifact
   base can drift during manual smoke runs.
-- Clarification answer flow is not yet covered by browser E2E.
-- Operator handoff commands are visible, but execution status is not yet a
-  first-class part of the UI-started intake stage.
+- Continuation/import-preview after saved intake answers is not yet covered by
+  execution-backed browser E2E.
 
 ## Cross-Repo Coordination
 

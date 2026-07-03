@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -24,6 +24,8 @@ const repoRoot = path.resolve(
   "../..",
 );
 const repoPython = path.join(repoRoot, ".venv/bin/python");
+const clarificationRequestId =
+  "clarification.intake.question-active-frame-domain-refs";
 
 async function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -63,8 +65,10 @@ async function startSpecSpaceBackend(): Promise<SpecSpaceBackend> {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "specspace-ui-e2e-"));
   const dialogDir = path.join(tmpRoot, "dialogs");
   const stateDir = path.join(tmpRoot, "state");
+  const runsDir = path.join(tmpRoot, "runs");
   await mkdir(dialogDir, { recursive: true });
   await mkdir(stateDir, { recursive: true });
+  await writeRealIdeaIntakeRuns(runsDir);
   const port = await freePort();
   const python = process.env.PYTHON ?? (existsSync(repoPython) ? repoPython : "python3");
   const child = spawn(
@@ -75,6 +79,8 @@ async function startSpecSpaceBackend(): Promise<SpecSpaceBackend> {
       String(port),
       "--dialog-dir",
       dialogDir,
+      "--runs-dir",
+      runsDir,
       "--specspace-state-dir",
       stateDir,
     ],
@@ -103,6 +109,97 @@ async function startSpecSpaceBackend(): Promise<SpecSpaceBackend> {
       await rm(tmpRoot, { recursive: true, force: true });
     },
   };
+}
+
+async function writeJson(filePath: string, payload: unknown) {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
+async function writeRealIdeaIntakeRuns(runsDir: string) {
+  await writeJson(path.join(runsDir, "idea_intake_clarification_requests.json"), {
+    artifact_kind: "idea_to_spec_clarification_requests",
+    schema_version: 1,
+    proposal_id: "0186",
+    contract_ref: "specgraph.idea-to-spec.clarification-requests.v0.1",
+    canonical_mutations_allowed: false,
+    tracked_artifacts_written: false,
+    readiness: {
+      ready: false,
+      review_state: "clarification_required",
+      blocked_by: [clarificationRequestId],
+      next_artifact: "idea_intake_clarification_answers",
+    },
+    clarification_requests: [
+      {
+        id: clarificationRequestId,
+        kind: "intake_context_gap",
+        severity: "blocking",
+        status: "open",
+        target_artifact: "user_idea_intake_session",
+        target_ref: "active_frame.domain_refs",
+        question: "Which product domain refs bound this idea?",
+        suggested_actions: ["answer_question", "defer"],
+      },
+    ],
+    request_counts: {
+      total: 1,
+      blocking: 1,
+      by_kind: { intake_context_gap: 1 },
+      by_status: { open: 1 },
+    },
+  });
+  await writeJson(path.join(runsDir, "real_idea_smoke/real_idea_answer_template.json"), {
+    artifact_kind: "real_idea_answer_template",
+    schema_version: 1,
+    proposal_id: "0194",
+    contract_ref: "specgraph.real-idea.answer-template.v0.1",
+    stage: "intake",
+    run_dir: "runs/real_idea_smoke",
+    answer_targets: [
+      {
+        target_id: "answer-target.active-frame-domain-refs",
+        target_type: "active_frame_ref",
+        request_id: clarificationRequestId,
+        request_kind: "intake_context_gap",
+        severity: "blocking",
+        status: "open",
+        question: "Which product domain refs bound this idea?",
+        target_artifact: "user_idea_intake_session",
+        target_ref: "active_frame.domain_refs",
+        accepted_actions: ["answer_question", "defer"],
+        suggested_answer_shape: "refs[]",
+        value_templates_by_action: {
+          answer_question: { refs: [""] },
+          defer: { follow_up: "" },
+        },
+        required_fields_by_action: {
+          answer_question: ["value.refs[]"],
+          defer: ["value.follow_up"],
+        },
+      },
+    ],
+    readiness: {
+      ready: true,
+      review_state: "answer_template_ready",
+      blocked_by: [],
+      next_artifact: "real_idea_answer_set.json",
+    },
+    authority_boundary: {
+      may_execute_specgraph: false,
+      may_write_ontology_package: false,
+      may_accept_ontology_terms: false,
+      may_create_branch_or_commit: false,
+    },
+    privacy_boundary: { raw_idea_text_published: false },
+    summary: {
+      status: "answer_template_ready",
+      stage: "intake",
+      target_count: 1,
+      blocking_target_count: 1,
+      finding_count: 0,
+    },
+  });
 }
 
 async function proxyRouteToBackend(route: Route, baseUrl: string) {
@@ -311,6 +408,11 @@ async function installIdeaToSpecApiRoutes(
       return;
     }
 
+    if (path === "/api/v1/idea-to-spec-intake-clarification-answers") {
+      await proxyRouteToBackend(route, backendBaseUrl);
+      return;
+    }
+
     if (path === "/api/v1/runs-watch") {
       await route.fulfill({
         json: {
@@ -404,6 +506,49 @@ test("shows clarification stage after external intake execution publication", as
     await expect(page.getByText("execute_specgraph_real_idea_entry_intake")).toBeVisible();
     await expect(page.getByText("clarification_requests", { exact: true })).toBeVisible();
     await expect(page.getByText("Template-backed answer")).toBeVisible();
+  } finally {
+    await backend.stop();
+  }
+});
+
+test("saves a clarification answer from the product workspace UI", async ({
+  page,
+}) => {
+  const backend = await startSpecSpaceBackend();
+  const scenario: UiStartedIdeaScenario = { intakeExecutionPublished: true };
+  try {
+    await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
+    const response = await fetch(
+      `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          idea_text: "A decision log that needs domain clarification.",
+          idea_summary_hint: "Decision log with clarification",
+        }),
+      },
+    );
+    expect(response.ok).toBeTruthy();
+
+    await page.goto(`/${workspaceId}`);
+    await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
+      "Answer intake clarification questions",
+    );
+
+    await page
+      .getByTestId(`intake-clarification-answer-${clarificationRequestId}`)
+      .fill("domain.team_decision_log");
+    await page
+      .getByTestId(`intake-clarification-answer-save-${clarificationRequestId}`)
+      .click();
+
+    await expect(
+      page.getByTestId(`intake-clarification-answer-saved-${clarificationRequestId}`),
+    ).toContainText("Answer saved · answer question");
+    await expect(page.getByText("SpecSpace intake answers")).toBeVisible();
+    await expect(page.getByText("intake_clarification_answers_recorded")).toBeVisible();
   } finally {
     await backend.stop();
   }
