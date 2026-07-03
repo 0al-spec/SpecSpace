@@ -1035,6 +1035,11 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await page.getByRole("button", { name: "Save draft" }).first().click();
     await expect(page.getByText("Draft saved · propose project local term").first()).toBeVisible();
     await expect(page.getByText("SpecSpace repair drafts").first()).toBeVisible();
+    const workspaceStatePreflight = page.locator("#idea-to-spec-workspace-state-hygiene");
+    await expect(workspaceStatePreflight).toContainText(/repair drafts\s*usable/i);
+    await expect(
+      workspaceStatePreflight,
+    ).toContainText(/Rebuild repair draft import preview\s*enabled/i);
 
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });

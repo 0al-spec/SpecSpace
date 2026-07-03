@@ -385,11 +385,13 @@ export function useIdeaToSpecRepairDrafts(options: Options = {}) {
           statusText: response.statusText,
           body,
         });
-        return;
+        return false;
       }
       setState(parseIdeaToSpecRepairDraftState(await response.json()));
+      return true;
     } catch (error) {
       setSaveError({ kind: "network-error", requestId: input.requestId, error });
+      return false;
     } finally {
       setPendingRequestId(null);
     }

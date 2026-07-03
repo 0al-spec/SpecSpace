@@ -487,6 +487,7 @@ export function IdeaToSpecWorkspacePanel({
           repairDrafts={repairDrafts}
           repairRerunRequests={repairRerunRequests}
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+          onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
           readOnly={readOnly}
         />
         <MaterializationSection state={state} />
@@ -3020,12 +3021,14 @@ function ProductRepairReviewSection({
   repairDrafts,
   repairRerunRequests,
   workspaceId,
+  onWorkspaceRefreshRequest,
   readOnly,
 }: {
   state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
   repairDrafts: ReturnType<typeof useIdeaToSpecRepairDrafts>;
   repairRerunRequests: ReturnType<typeof useIdeaToSpecRepairRerunRequests>;
   workspaceId: string | null;
+  onWorkspaceRefreshRequest?: () => void;
   readOnly: boolean;
 }) {
   const lane = state.data.repairReview;
@@ -3138,11 +3141,15 @@ function ProductRepairReviewSection({
               : null
           }
           onSave={(input) =>
-            repairDrafts.saveDraft({
-              ...input,
-              workspaceId,
-              operatorRef: "operator://specspace-local",
-            })
+            void repairDrafts
+              .saveDraft({
+                ...input,
+                workspaceId,
+                operatorRef: "operator://specspace-local",
+              })
+              .then((saved) => {
+                if (saved) onWorkspaceRefreshRequest?.();
+              })
           }
           readOnly={readOnly}
         />
