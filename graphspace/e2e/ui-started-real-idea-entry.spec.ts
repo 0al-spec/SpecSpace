@@ -17,6 +17,7 @@ type SpecSpaceBackend = {
 
 type UiStartedIdeaScenario = {
   intakeExecutionPublished: boolean;
+  answerContinuationPublished?: boolean;
 };
 
 const repoRoot = path.resolve(
@@ -231,6 +232,62 @@ function safeActionBoundary() {
   };
 }
 
+function safeAnswerContinuationBoundary() {
+  return {
+    inspect_only: true,
+    acknowledge_only: true,
+    may_execute_specgraph: false,
+    may_execute_platform: false,
+    may_apply_answers: false,
+    may_mutate_candidate_source_artifacts: false,
+    may_mutate_canonical_specs: false,
+    may_write_ontology_package: false,
+    may_accept_ontology_terms: false,
+    may_create_branch_or_commit: false,
+  };
+}
+
+function pendingAnswerContinuation() {
+  return {
+    available: false,
+    ready: false,
+    import_preview: {
+      available: false,
+      readiness: {
+        ready: false,
+        review_state: "missing",
+        blocked_by: [],
+        next_artifact: "specspace_real_idea_answer_import_preview.json",
+      },
+      summary: {},
+      accepted_answer_count: null,
+      answer_count: null,
+      findings: [],
+      source_artifacts: {},
+    },
+    continuation_report: {
+      available: false,
+      readiness: {
+        ready: false,
+        review_state: "missing",
+        blocked_by: [],
+        next_artifact: "real_idea_answer_continuation_report.json",
+      },
+      summary: {},
+      outputs: {},
+      findings: [],
+    },
+    recommended_actions: [
+      {
+        id: "build_specspace_answer_import_preview",
+        label: "Build answer import preview",
+        next_action: "Run the controlled SpecGraph answer import preview handoff.",
+      },
+    ],
+    action_boundary: safeAnswerContinuationBoundary(),
+  };
+}
+
 async function workspacePayload(
   backendBaseUrl: string,
   scenario: UiStartedIdeaScenario,
@@ -275,20 +332,44 @@ async function workspacePayload(
   }
 
   if (scenario.intakeExecutionPublished) {
+    const continuationPublished = scenario.answerContinuationPublished === true;
+    const intakeClarification = (payload.intake_clarification as Record<string, unknown>) ?? {};
+    if (!continuationPublished) {
+      payload.intake_clarification = {
+        ...intakeClarification,
+        answer_continuation: pendingAnswerContinuation(),
+      };
+    }
     payload.real_idea_intake = {
       ...realIdeaIntake,
       available: true,
-      status: "needs_clarification",
-      next_action: "Answer intake clarification questions before candidate generation.",
+      status: continuationPublished ? "continuation_ready" : "needs_clarification",
+      next_action: continuationPublished
+        ? "Continue the real idea intake into candidate source generation."
+        : "Answer intake clarification questions before candidate generation.",
       blockers: [],
+      clarified_session_ref: continuationPublished
+        ? "runs/real_idea_smoke/clarified_user_idea_intake_session.json"
+        : null,
+      candidate_source_ref: null,
+      active_candidate_ref: null,
       clarification_progress: {
         question_count: 1,
-        answered_count: 0,
-        missing_count: 1,
+        answered_count: continuationPublished ? 1 : 0,
+        missing_count: continuationPublished ? 0 : 1,
         invalid_answer_count: 0,
         stale_answer_count: 0,
         required_field_findings: [],
       },
+      continuation_handoff: continuationPublished
+        ? realIdeaIntake.continuation_handoff
+        : {
+            import_preview_status: "missing",
+            materialization_status: "missing",
+            safe_to_continue: false,
+            output_refs: [],
+            command_hint: null,
+          },
       entry_execution: {
         available: true,
         ok: true,
@@ -341,16 +422,28 @@ async function workspacePayload(
       current_stage_label: "Intake clarification",
       overall_status: "action_required",
       next_actions: [
-        {
-          id: "answer_real_idea_intake_clarifications",
-          label: "Answer intake clarification questions before candidate generation.",
-          status: "ready",
-          target_section: "idea-to-spec-intake-clarification",
-          evidence_refs: [
-            "runs/real_idea_smoke/idea_intake_clarification_requests.json",
-          ],
-          authority_boundary: actionBoundary,
-        },
+        continuationPublished
+          ? {
+              id: "continue_real_idea_intake_candidate_source",
+              label: "Continue the real idea intake into candidate source generation.",
+              status: "ready",
+              target_section: "idea-to-spec-intake-clarification",
+              evidence_refs: [
+                "runs/real_idea_smoke/specspace_real_idea_answer_import_preview.json",
+                "runs/real_idea_smoke/real_idea_answer_continuation_report.json",
+              ],
+              authority_boundary: actionBoundary,
+            }
+          : {
+              id: "answer_real_idea_intake_clarifications",
+              label: "Answer intake clarification questions before candidate generation.",
+              status: "ready",
+              target_section: "idea-to-spec-intake-clarification",
+              evidence_refs: [
+                "runs/real_idea_smoke/idea_intake_clarification_requests.json",
+              ],
+              authority_boundary: actionBoundary,
+            },
       ],
     };
     return payload;
@@ -506,6 +599,7 @@ test("shows clarification stage after external intake execution publication", as
     await expect(page.getByText("execute_specgraph_real_idea_entry_intake")).toBeVisible();
     await expect(page.getByText("clarification_requests", { exact: true })).toBeVisible();
     await expect(page.getByText("Template-backed answer")).toBeVisible();
+    await expect(page.getByText("Answer continuation pending")).toBeVisible();
   } finally {
     await backend.stop();
   }
@@ -549,6 +643,64 @@ test("saves a clarification answer from the product workspace UI", async ({
     ).toContainText("Answer saved · answer question");
     await expect(page.getByText("SpecSpace intake answers")).toBeVisible();
     await expect(page.getByText("intake_clarification_answers_recorded")).toBeVisible();
+  } finally {
+    await backend.stop();
+  }
+});
+
+test("shows continuation-ready lane after external answer continuation publication", async ({
+  page,
+}) => {
+  const backend = await startSpecSpaceBackend();
+  const scenario: UiStartedIdeaScenario = {
+    intakeExecutionPublished: true,
+    answerContinuationPublished: false,
+  };
+  try {
+    await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
+    const response = await fetch(
+      `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          idea_text: "A decision log that should continue after clarification.",
+          idea_summary_hint: "Decision log continuation",
+        }),
+      },
+    );
+    expect(response.ok).toBeTruthy();
+
+    await page.goto(`/${workspaceId}`);
+    await page
+      .getByTestId(`intake-clarification-answer-${clarificationRequestId}`)
+      .fill("domain.team_decision_log");
+    await page
+      .getByTestId(`intake-clarification-answer-save-${clarificationRequestId}`)
+      .click();
+    await expect(
+      page.getByTestId(`intake-clarification-answer-saved-${clarificationRequestId}`),
+    ).toContainText("Answer saved · answer question");
+    await expect(page.getByText("Answer continuation pending")).toBeVisible();
+
+    scenario.answerContinuationPublished = true;
+    await page.reload();
+
+    await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
+      "Continue the real idea intake into candidate source generation.",
+    );
+    await expect(page.getByTestId("guided-flow-next-action")).toContainText(
+      "Continue the real idea intake into candidate source generation.",
+    );
+    const intakeClarification = page.locator("#idea-to-spec-intake-clarification");
+    await expect(intakeClarification.getByText("Real idea answer continuation")).toBeVisible();
+    await expect(
+      page.getByText("specspace_real_idea_answers_ready_for_continuation").first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText("real_idea_answer_continuation_ready").first(),
+    ).toBeVisible();
   } finally {
     await backend.stop();
   }

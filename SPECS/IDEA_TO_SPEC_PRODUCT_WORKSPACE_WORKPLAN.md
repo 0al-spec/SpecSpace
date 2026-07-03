@@ -88,17 +88,19 @@ Cover the next user-facing loop after intake questions appear.
 
 Status: partially closed. Browser E2E now saves a template-backed intake
 clarification answer through the Product Workspace UI, verifies the
-SpecSpace-owned answer state, and checks that missing required refs keep the
-save action disabled. Remaining work is to cover the external
-SpecGraph/Platform continuation handoff that consumes those answers.
+SpecSpace-owned answer state, checks that missing required refs keep the save
+action disabled, and verifies that continuation readiness only appears after
+external answer continuation publication. Remaining work is to replace the
+projected continuation publication with a real Platform/SpecGraph subprocess in
+the E2E harness.
 
 Acceptance criteria:
 
 - User fills clarification answers in SpecSpace. Done.
 - SpecSpace-owned answer state is saved and validated. Done for the browser
   save path.
-- Import preview / continuation lane is visible. Partially covered by fixture
-  projection; still needs an execution-backed E2E slice.
+- Import preview / continuation lane is visible. Done with projected
+  publication; still needs an execution-backed E2E slice.
 - Invalid or missing answers produce clear UI diagnostics. Partially covered
   for required template refs; server-side invalid-answer surfacing still needs
   execution-backed coverage.
@@ -129,14 +131,15 @@ Acceptance criteria:
 ## Known Friction
 
 - UI submit persists raw idea entry, but does not execute the intake pipeline.
-- E2E currently proves entry, projected intake execution, and clarification
-  answer save, not the full execution-backed lifecycle.
+- E2E currently proves entry, projected intake execution, clarification answer
+  save, and projected continuation readiness, not the full execution-backed
+  lifecycle.
 - Some browser tests still use a fixture-backed `/api/v1/idea-to-spec-workspace`
   projection while only mutable state APIs are real.
 - Local state directory, SpecGraph run directory, and product workspace artifact
   base can drift during manual smoke runs.
-- Continuation/import-preview after saved intake answers is not yet covered by
-  execution-backed browser E2E.
+- Continuation/import-preview after saved intake answers is covered by
+  projection but not yet by execution-backed browser E2E.
 
 ## Cross-Repo Coordination
 
