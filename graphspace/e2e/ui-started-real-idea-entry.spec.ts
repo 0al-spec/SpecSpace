@@ -382,6 +382,53 @@ async function publishRealIdeaIntakeExecutionArtifacts(args: {
   );
 }
 
+async function publishRealIdeaContinuationArtifacts(args: {
+  backendRunsDir: string;
+  platformReportPath: string;
+  specGraphRunDir: string;
+}) {
+  await copyIfPresent(
+    args.platformReportPath,
+    path.join(args.backendRunsDir, "platform_real_idea_answer_continuation_execution_report.json"),
+  );
+  await copyIfPresent(
+    path.join(args.specGraphRunDir, "idea_intake_clarification_answers.json"),
+    path.join(args.backendRunsDir, "idea_intake_clarification_answers.json"),
+  );
+  await copyIfPresent(
+    path.join(args.specGraphRunDir, "real_idea_answer_set.json"),
+    path.join(args.backendRunsDir, "real_idea_smoke", "real_idea_answer_set.json"),
+  );
+  await copyIfPresent(
+    path.join(args.specGraphRunDir, "specspace_real_idea_answer_import_preview.json"),
+    path.join(
+      args.backendRunsDir,
+      "real_idea_smoke",
+      "specspace_real_idea_answer_import_preview.json",
+    ),
+  );
+  await copyIfPresent(
+    path.join(args.specGraphRunDir, "real_idea_answer_continuation_report.json"),
+    path.join(
+      args.backendRunsDir,
+      "real_idea_smoke",
+      "real_idea_answer_continuation_report.json",
+    ),
+  );
+  await copyIfPresent(
+    path.join(args.specGraphRunDir, "clarified_user_idea_intake_session.json"),
+    path.join(args.backendRunsDir, "clarified_user_idea_intake_session.json"),
+  );
+  await copyIfPresent(
+    path.join(args.specGraphRunDir, "clarified_user_idea_intake_source.json"),
+    path.join(args.backendRunsDir, "clarified_user_idea_intake_source.json"),
+  );
+  await copyIfPresent(
+    path.join(args.specGraphRunDir, "active_idea_to_spec_candidate.json"),
+    path.join(args.backendRunsDir, "active_idea_to_spec_candidate.json"),
+  );
+}
+
 function safeActionBoundary() {
   return {
     inspect_only: true,
@@ -510,16 +557,18 @@ async function workspacePayload(
     payload.real_idea_intake = {
       ...realIdeaIntake,
       available: true,
-      status: continuationPublished ? "continuation_ready" : "needs_clarification",
+      status: continuationPublished ? "active_candidate_ready" : "needs_clarification",
       next_action: continuationPublished
-        ? "Continue the real idea intake into candidate source generation."
+        ? "Continue with repair, ontology review, and promotion readiness."
         : "Answer intake clarification questions before candidate generation.",
       blockers: [],
       clarified_session_ref: continuationPublished
         ? "runs/real_idea_smoke/clarified_user_idea_intake_session.json"
         : null,
       candidate_source_ref: null,
-      active_candidate_ref: null,
+      active_candidate_ref: continuationPublished
+        ? "runs/active_idea_to_spec_candidate.json"
+        : null,
       clarification_progress: {
         question_count: 1,
         answered_count: continuationPublished ? 1 : 0,
@@ -592,7 +641,7 @@ async function workspacePayload(
         continuationPublished
           ? {
               id: "continue_real_idea_intake_candidate_source",
-              label: "Continue the real idea intake into candidate source generation.",
+              label: "Continue with repair, ontology review, and promotion readiness.",
               status: "ready",
               target_section: "idea-to-spec-intake-clarification",
               evidence_refs: [
@@ -876,6 +925,87 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await expect(page.getByText("execute_specgraph_real_idea_entry_intake")).toBeVisible();
     await expect(page.getByText("Template-backed answer").first()).toBeVisible();
 
+    const answerFields = page.locator('textarea[data-testid^="intake-clarification-answer-"]');
+    const answerCount = await answerFields.count();
+    expect(answerCount).toBeGreaterThan(0);
+    const answerValuesByRequest: Record<string, string> = {
+      "clarification.intake.question-active-frame-domain-refs":
+        "domain.team_decision_log",
+      "clarification.intake.question-event-storming-actors":
+        "Decision owner\nReviewer",
+      "clarification.intake.question-event-storming-domain-events":
+        "Decision recorded\nReview requested",
+      "clarification.intake.question-event-storming-commands":
+        "Record decision\nRequest review",
+      "clarification.intake.question-event-storming-constraints":
+        "Owner review date required\nDecision outcome required",
+    };
+    for (let index = 0; index < answerCount; index += 1) {
+      const field = answerFields.nth(index);
+      const testId = await field.getAttribute("data-testid");
+      expect(testId).toBeTruthy();
+      const requestId = testId!.replace("intake-clarification-answer-", "");
+      await field.fill(answerValuesByRequest[requestId] ?? `Answer ${index + 1}`);
+      await page.getByTestId(`intake-clarification-answer-save-${requestId}`).click();
+    }
+    await expect(
+      page.locator('[data-testid^="intake-clarification-answer-saved-"]'),
+    ).toHaveCount(answerCount);
+
+    const continuationReportPath = path.join(
+      specGraphRunDir,
+      "platform_real_idea_answer_continuation_execution_report.json",
+    );
+    const continuation = await runCommand(
+      python,
+      [
+        platformScript,
+        "product-real-idea-continuation",
+        "execute",
+        "--specgraph-dir",
+        specGraphDir!,
+        "--run-dir",
+        specGraphRunDirRef,
+        "--answer-state",
+        path.join(backend.stateDir, "idea_to_spec_intake_clarification_answers.json"),
+        "--output",
+        continuationReportPath,
+        "--format",
+        "json",
+      ],
+      { cwd: platformDir! },
+    );
+    expect(continuation.code, continuation.stderr).toBe(0);
+    const continuationReport = JSON.parse(
+      await readFile(continuationReportPath, "utf8"),
+    ) as {
+      ok?: boolean;
+      diagnostics?: unknown[];
+    };
+    expect(
+      continuationReport.ok,
+      JSON.stringify(continuationReport.diagnostics ?? []),
+    ).toBe(true);
+
+    await publishRealIdeaContinuationArtifacts({
+      backendRunsDir: backend.runsDir,
+      platformReportPath: continuationReportPath,
+      specGraphRunDir,
+    });
+    await emitRunsChange(page);
+
+    await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
+      "Inspect active candidate readiness before continuing.",
+    );
+    await expect(page.getByText("Real idea answer continuation", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("specspace_real_idea_answers_ready_for_continuation").first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText("real_idea_answer_continuation_ready").first(),
+    ).toBeVisible();
+    await expect(page.getByText("active_candidate_review_required").first()).toBeVisible();
+
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });
     await backend.stop();
@@ -967,10 +1097,10 @@ test("shows continuation-ready lane after external answer continuation publicati
     await emitRunsChange(page);
 
     await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
-      "Continue the real idea intake into candidate source generation.",
+      "Continue with repair, ontology review, and promotion readiness.",
     );
     await expect(page.getByTestId("guided-flow-next-action")).toContainText(
-      "Continue the real idea intake into candidate source generation.",
+      "Continue with repair, ontology review, and promotion readiness.",
     );
     const intakeClarification = page.locator("#idea-to-spec-intake-clarification");
     await expect(intakeClarification.getByText("Real idea answer continuation")).toBeVisible();

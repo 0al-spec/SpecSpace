@@ -1586,7 +1586,9 @@ function IntakeClarificationRequestRow({
     setSelectedAction(draft?.answerKind ?? defaultAction);
     setAnswerText(intakeAnswerText(draft, publishedAnswer) ?? "");
   }, [defaultAction, draft, publishedAnswer]);
-  const requiredFields = answerTarget?.requiredFieldsByAction[selectedAction] ?? [];
+  const requiredFields = answerTarget
+    ? intakeClarificationRequiredFields(answerTarget, selectedAction)
+    : [];
   const value = answerTarget
     ? intakeClarificationValueForTemplate(answerTarget, selectedAction, answerText)
     : intakeClarificationValueForRequest(request, selectedAction, answerText);
@@ -4116,7 +4118,7 @@ function intakeClarificationValueForTemplate(
   text: string,
 ): Record<string, unknown> {
   const trimmed = text.trim();
-  const required = target.requiredFieldsByAction[action] ?? [];
+  const required = intakeClarificationRequiredFields(target, action);
   const value: Record<string, unknown> = {};
   for (const field of required) {
     if (field === "value.refs[]" || field === "value.refs") {
@@ -4160,6 +4162,27 @@ function intakeClarificationValueForTemplate(
     action,
     text,
   );
+}
+
+function intakeClarificationRequiredFields(
+  target: IdeaToSpecRealIdeaAnswerTarget,
+  action: string,
+): string[] {
+  const required = target.requiredFieldsByAction[action] ?? [];
+  const template = target.valueTemplatesByAction[action];
+  if (
+    !required.includes("value") ||
+    !template ||
+    typeof template !== "object" ||
+    Array.isArray(template)
+  ) {
+    return [...required];
+  }
+  const expanded = Object.entries(template as Record<string, unknown>).flatMap(
+    ([key, item]) => (Array.isArray(item) ? [`value.${key}[]`] : [`value.${key}`]),
+  );
+  if (expanded.length === 0) return [...required];
+  return required.flatMap((field) => (field === "value" ? expanded : [field]));
 }
 
 function intakeClarificationTemplateValueIsComplete(

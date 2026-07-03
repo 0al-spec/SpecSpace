@@ -24,6 +24,9 @@ user enters raw idea in SpecSpace
   -> SpecSpace stores operator-owned local state
   -> Platform executes the controlled intake handoff
   -> SpecGraph emits intake / clarification artifacts
+  -> user answers clarification requests in SpecSpace
+  -> Platform executes the controlled answer continuation handoff
+  -> SpecGraph emits clarified intake / active candidate review artifacts
   -> SpecSpace refreshes the Product Workspace lifecycle
 ```
 
@@ -49,6 +52,15 @@ reviews, or publish read models.
   runs Platform externally, validates the execution report, publishes selected
   output artifacts into the test runs directory, and refreshes through
   runs-watch.
+- Env-gated browser E2E for real Platform/SpecGraph answer continuation after
+  SpecSpace-owned clarification answers. The harness passes the persisted
+  SpecSpace answer state into Platform, Platform rebases run-local handoff refs,
+  SpecGraph imports the answers, and the UI refreshes to active candidate
+  review-required state.
+- Template-backed intake answer shape alignment. Generic template `value`
+  fields are expanded to concrete payload keys such as `value.entries[]` or
+  `value.refs[]`, so SpecSpace saves answers in the shape SpecGraph can
+  materialize.
 
 ## Next Tasks
 
@@ -107,50 +119,54 @@ does not execute Platform or SpecGraph.
 
 Cover the next user-facing loop after intake questions appear.
 
-Status: partially closed. Browser E2E now saves a template-backed intake
+Status: closed for the first execution-backed loop. Browser E2E now saves a template-backed intake
 clarification answer through the Product Workspace UI, verifies the
 SpecSpace-owned answer state, checks that missing required refs keep the save
-action disabled, and verifies that continuation readiness only appears after
-external answer continuation publication. Remaining work is to replace the
-projected continuation publication with a real Platform/SpecGraph subprocess in
-the E2E harness.
+action disabled, and has an env-gated execution-backed path for real
+Platform/SpecGraph continuation after saved answers.
 
-Latest execution-backed finding: Platform needs a first-class
-`product-real-idea-continuation execute --answer-state <SpecSpace state>` handoff
-so the operator-owned answer state does not have to be copied into a SpecGraph
-run directory by hand. After that handoff exists, the next blocker is semantic:
-the generated real-idea answer template and the SpecSpace structured answer UI
-must produce answers that SpecGraph imports as continuation-ready rather than
-`specspace_real_idea_answers_review_required`.
+Closed execution-backed findings:
+
+- Platform now has a first-class
+  `product-real-idea-continuation execute --answer-state <SpecSpace state>`
+  handoff, so operator-owned answer state does not need to be copied into a
+  SpecGraph run directory by hand.
+- Platform rebases answer-state source refs to the selected SpecGraph run dir
+  and derives the missing top-level workspace id from answer rows when
+  SpecSpace persisted state was written before a filtered read.
+- SpecSpace expands generic template `value` fields using
+  `value_templates_by_action`, so event-storming answers save as `entries` and
+  domain-frame answers save as `refs`.
 
 Execution-backed follow-up preconditions:
 
-- The harness must run `product-real-idea-continuation execute` or an equivalent
-  fixed Platform wrapper outside the browser.
-- The produced import preview and continuation report must be copied or served
-  from the same artifact base that `/api/v1/idea-to-spec-workspace` reads.
-- The browser must observe the update through runs-watch, not `page.reload()`.
+- The harness runs `product-real-idea-continuation execute` outside the browser.
+  Done.
+- The produced import preview and continuation report are copied into the same
+  artifact base that `/api/v1/idea-to-spec-workspace` reads. Done for the local
+  e2e harness.
+- The browser observes the update through runs-watch, not `page.reload()`. Done.
 
 Acceptance criteria:
 
 - User fills clarification answers in SpecSpace. Done.
 - SpecSpace-owned answer state is saved and validated. Done for the browser
   save path.
-- Import preview / continuation lane is visible. Done with projected
-  publication; still needs an execution-backed E2E slice.
+- Import preview / continuation lane is visible. Done with projected and
+  execution-backed publication.
 - Invalid or missing answers produce clear UI diagnostics. Partially covered
-  for required template refs; server-side invalid-answer surfacing still needs
-  execution-backed coverage.
+  for required template refs and template shape mismatch; broader server-side
+  invalid-answer surfacing can still improve.
 
 ### 4. Artifact Refresh And Runs-Watch Hardening
 
 Make the Product Workspace update predictably after external Platform/SpecGraph
 execution.
 
-Status: partially closed. Browser E2E now emits a runs-watch `change` event and
+Status: closed for intake and answer continuation. Browser E2E now emits a runs-watch `change` event and
 verifies that the Product Workspace refetches the projected intake execution and
-answer continuation state without `page.reload()`. Remaining work is to exercise
-the same refresh path with real Platform/SpecGraph output artifacts.
+answer continuation state without `page.reload()`. The env-gated E2E also
+exercises the same refresh path with real Platform/SpecGraph output artifacts.
 
 Acceptance criteria:
 
@@ -176,15 +192,16 @@ Acceptance criteria:
 
 - UI submit persists raw idea entry, but does not execute the intake pipeline.
 - E2E currently proves entry, execution-backed intake execution when local
-  Platform/SpecGraph checkouts are provided, projected continuation readiness,
-  clarification answer save, and runs-watch refresh. Continuation after saved
-  answers is not yet execution-backed.
+  Platform/SpecGraph checkouts are provided, clarification answer save,
+  execution-backed answer continuation, and runs-watch refresh.
 - Some browser tests still use a fixture-backed `/api/v1/idea-to-spec-workspace`
   projection while only mutable state APIs are real.
 - Local state directory, SpecGraph run directory, and product workspace artifact
   base can drift during manual smoke runs.
-- Continuation/import-preview after saved intake answers is covered by
-  projection but not yet by execution-backed browser E2E.
+- After answer continuation, the real active candidate can still be
+  `active_candidate_review_required`; that is expected for raw ideas and should
+  lead into repair/ontology review rather than pretending the candidate is
+  approval-ready.
 
 ## Cross-Repo Coordination
 

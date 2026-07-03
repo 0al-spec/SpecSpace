@@ -273,6 +273,30 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("emits terms");
   });
 
+  it("expands generic template value fields to the concrete template shape", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    const target =
+      raw.intake_clarification.answer_authoring.template.targets[0];
+    target.required_fields_by_action.answer_question = ["value"];
+    target.value_templates_by_action.answer_question = {
+      entries: [""],
+    };
+    target.suggested_answer_shape = "event_storming_entry[]";
+    const parsedWithGenericTemplate = parseIdeaToSpecWorkspace(raw);
+    if (parsedWithGenericTemplate.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWithGenericTemplate.data },
+      }),
+    );
+
+    expect(html).toContain("value.entries[]");
+    expect(html).toContain("emits entries");
+  });
+
   it("renders failed dry-run approval execution as blocked", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.controlled_promotion.candidate_approval_execution.ok = false;
