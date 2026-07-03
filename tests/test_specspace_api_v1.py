@@ -235,6 +235,7 @@ def _write_repair_draft_workspace_runs(
     include_import_preview: bool = False,
     import_preview_ready: bool = True,
     accepted_for_rerun_count: int | None = None,
+    include_platform_import_preview_report: bool = False,
     include_rerun_report: bool = False,
     include_platform_rerun_reports: bool = False,
     include_platform_publication_report: bool = True,
@@ -739,6 +740,51 @@ def _write_repair_draft_workspace_runs(
                     "raw_model_output_published": False,
                 },
                 "findings": [] if import_ready else [{"finding_id": "invalid_repair_drafts"}],
+            },
+        )
+    if include_platform_import_preview_report:
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT,
+            {
+                "artifact_kind": "platform_product_repair_draft_import_preview_execution_report",
+                "schema_version": 1,
+                "ok": True,
+                "dry_run": False,
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
+                "repair_session_ref": "runs/isolated/idea_to_spec_repair_session.json",
+                "clarification_requests_ref": "runs/idea_to_spec_clarification_requests.json",
+                "authority_boundary": {
+                    "executes_specgraph_make_target": True,
+                    "executes_git_commands": False,
+                    "opens_pull_requests": False,
+                    "merges_pull_requests": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                    "mutates_canonical_specs": False,
+                    "publishes_private_artifacts": False,
+                },
+                "output_artifacts": {
+                    "import_preview": {
+                        "path": "runs/isolated/specspace_repair_draft_import_preview.json",
+                        "present": True,
+                        "artifact_kind": "specspace_repair_draft_import_preview",
+                        "contract_ref": (
+                            "specgraph.idea-to-spec.specspace-repair-draft-import-preview.v0.1"
+                        ),
+                        "ready": True,
+                        "status": "repair_draft_import_preview_ready",
+                        "sha256": "sha256:import-preview",
+                    }
+                },
+                "diagnostics": [],
+                "summary": {
+                    "status": "completed",
+                    "error_count": 0,
+                    "import_preview_digest": "sha256:import-preview",
+                    "import_preview_status": "repair_draft_import_preview_ready",
+                },
             },
         )
     if include_platform_rerun_reports:
@@ -7151,6 +7197,46 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertFalse(import_action["enabled"])
         self.assertIn("Build repair session journal first.", import_action["blockers"])
+
+    def test_idea_to_spec_workspace_state_hygiene_uses_platform_import_preview_report(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_import_preview=False,
+                include_platform_import_preview_report=True,
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        import_state = [
+            item
+            for item in body["states"]
+            if item["kind"] == "repair_draft_import_preview"
+        ][0]
+        self.assertEqual(import_state["status"], "usable")
+        self.assertEqual(
+            import_state["path"],
+            "runs/isolated/specspace_repair_draft_import_preview.json",
+        )
+        actions = {
+            item["target_state"]: item for item in body["recommended_actions"]
+        }
+        self.assertNotIn("repair_draft_import_preview", actions)
 
     def test_idea_to_spec_workspace_state_hygiene_v1_reports_stale_state(
         self,

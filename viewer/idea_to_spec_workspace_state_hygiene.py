@@ -537,10 +537,17 @@ def _artifact_state_statuses(
     current: dict[str, str | None],
 ) -> list[dict[str, Any]]:
     artifacts = _record(workspace_payload.get("artifacts"))
+    import_preview_artifact = _record(
+        artifacts.get("specspace_repair_draft_import_preview")
+    )
+    if import_preview_artifact.get("available") is not True:
+        import_preview_artifact = _import_preview_from_platform_execution(
+            _record(artifacts.get("product_repair_draft_import_execution"))
+        )
     return [
         _artifact_state_status(
             kind="repair_draft_import_preview",
-            artifact=_record(artifacts.get("specspace_repair_draft_import_preview")),
+            artifact=import_preview_artifact,
             current=current,
             blocks=["repair_rerun_request"],
             missing_next_action="Run SpecGraph repair draft import preview for the current repair session.",
@@ -553,6 +560,55 @@ def _artifact_state_statuses(
             missing_next_action="Run SpecGraph rerun request gate for the current request.",
         ),
     ]
+
+
+def _import_preview_from_platform_execution(report: dict[str, Any]) -> dict[str, Any]:
+    if report.get("available") is not True:
+        return {}
+    if report.get("artifact_kind") != "platform_product_repair_draft_import_preview_execution_report":
+        return {}
+    if report.get("ok") is not True or report.get("dry_run") is True:
+        return {}
+    boundary = _record(report.get("authority_boundary"))
+    for field in (
+        "executes_git_commands",
+        "opens_pull_requests",
+        "merges_pull_requests",
+        "writes_ontology_packages",
+        "accepts_ontology_terms",
+        "mutates_canonical_specs",
+        "publishes_private_artifacts",
+    ):
+        if boundary.get(field) is True:
+            return {}
+    import_preview = _record(_record(report.get("output_artifacts")).get("import_preview"))
+    if import_preview.get("ready") is not True:
+        return {}
+    repair_session_ref = _text(report.get("repair_session_ref"))
+    return {
+        "available": True,
+        "path": _text(import_preview.get("path")),
+        "status": _text(import_preview.get("status")) or "repair_draft_import_preview_ready",
+        "artifact_kind": import_preview.get("artifact_kind"),
+        "contract_ref": import_preview.get("contract_ref"),
+        "summary": {
+            "status": _text(import_preview.get("status"))
+            or "repair_draft_import_preview_ready",
+            "source": "platform_product_repair_draft_import_execution",
+        },
+        "source_mode": "platform_import_execution",
+        "readiness": {
+            "ready": True,
+            "review_state": _text(import_preview.get("status"))
+            or "repair_draft_import_preview_ready",
+            "blocked_by": [],
+        },
+        "source_artifacts": {
+            "idea_to_spec_repair_session": repair_session_ref,
+        }
+        if repair_session_ref
+        else {},
+    }
 
 
 def _artifact_state_status(
@@ -623,6 +679,14 @@ def _artifact_state_status(
         return {**base, "reason": "artifact_missing"}
     ready_statuses = _ready_statuses_for_artifact(kind)
     if session_ref and current_ref and session_ref != current_ref:
+        if artifact.get("source_mode") == "platform_import_execution":
+            return {
+                **base,
+                "status": "usable",
+                "reason": "platform_import_execution_ready",
+                "current_record_count": 1,
+                "next_action": "Continue with the repair rerun request handoff.",
+            }
         if _source_repair_artifact_consumed_by_repaired_handoff(
             kind,
             status=status,
