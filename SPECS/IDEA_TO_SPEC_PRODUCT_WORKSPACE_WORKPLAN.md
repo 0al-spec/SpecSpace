@@ -200,8 +200,10 @@ Acceptance criteria:
 
 Follow-up scope:
 
-- Extend the same handoff UX treatment into repair/ontology review continuation
-  after `active_candidate_review_required`.
+- Repair draft rerun command visibility after `active_candidate_review_required`
+  is covered by the UI-started browser smoke.
+- Extend the same handoff UX treatment into ontology review/import and later
+  promotion handoffs after repair decisions are available.
 - Keep repair/promotion command hints read-only until Platform owns the
   corresponding controlled execution wrapper.
 
