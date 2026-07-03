@@ -6,6 +6,7 @@ export type IdeaToSpecIntakeDraft = {
   canonicalMutationsAllowed: false;
   trackedArtifactsWritten: false;
   project: string;
+  summary: string;
   activeFrame: IdeaToSpecActiveFrame;
   actors: readonly string[];
   domainEvents: readonly string[];
@@ -127,6 +128,7 @@ export function buildIdeaToSpecIntakeDraft({
     canonicalMutationsAllowed: false,
     trackedArtifactsWritten: false,
     project,
+    summary: first.slice(0, 180),
     activeFrame,
     actors: inferActors(trimmed),
     domainEvents: unique(domainEvents),

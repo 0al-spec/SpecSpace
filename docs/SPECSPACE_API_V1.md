@@ -772,7 +772,8 @@ invalid.
 The response embeds `real_idea_intake`, a compact read-only projection for the
 real idea intake workspace. It summarizes the current intake status, clarification
 progress, answer-template validation, SpecSpace answer import/continuation
-handoff, safe source refs, and the next operator action. This surface is
+handoff, optional Platform real-idea entry execution telemetry, safe source
+refs, and the next operator action. This surface is
 diagnostic only: SpecSpace may collect operator-owned answers elsewhere, but this
 projection does not let the UI apply answers, run SpecGraph, run Platform, execute
 prompt agents, mutate candidate source artifacts, mutate canonical specs, write
@@ -1034,6 +1035,47 @@ SpecSpace owns this mutable state, but it is not authority:
 
 SpecGraph must later validate/export this state through its intake
 clarification rerun flow before any clarified intake source is published.
+
+### `GET/POST /api/v1/real-idea-entry-requests`
+
+Stores SpecSpace-owned raw idea entry requests for a product workspace. This is
+the first user-facing state in the real idea flow: the user can type a raw
+product idea in SpecSpace, while SpecGraph remains the only component that can
+turn it into intake artifacts.
+
+Example:
+
+```json
+{
+  "workspace_id": "team-decision-log",
+  "idea_text": "A shared decision log for product teams.",
+  "idea_summary_hint": "Team decision log",
+  "workspace_display_name": "Team Decision Log",
+  "public_route_hint": "/team-decision-log",
+  "domain_hints": ["team collaboration"],
+  "constraints": ["review-only candidate first"]
+}
+```
+
+SpecSpace keeps the submitted request as mutable local state and supersedes any
+previous submitted request for the same workspace. The state is not public-safe:
+raw idea text is available to SpecSpace and the local operator, but must not be
+published as a static SpecGraph artifact.
+
+Authority boundary:
+
+- SpecSpace does not run SpecGraph;
+- SpecSpace does not execute prompt agents;
+- SpecSpace does not mutate user intent, candidate artifacts, or canonical
+  specs;
+- SpecSpace does not write Ontology packages or accept Ontology terms;
+- SpecSpace does not create Git branches, commits, PRs, or read-model
+  publications.
+
+SpecGraph should later consume this state through
+`make real-idea-intake-from-entry-request`, which writes a sanitized import
+preview and local-only real idea intake artifacts under the selected run
+directory.
 
 ### `GET /api/v1/idea-to-spec-workspace-state-hygiene`
 

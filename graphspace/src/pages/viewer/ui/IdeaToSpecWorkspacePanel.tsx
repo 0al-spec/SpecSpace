@@ -50,6 +50,7 @@ import {
   type IdeaToSpecIntakeClarificationAnswerSaveError,
   type UseIdeaToSpecIntakeClarificationAnswersState,
 } from "../model/use-idea-to-spec-intake-clarification-answers";
+import { useRealIdeaEntryRequests } from "../model/use-real-idea-entry-requests";
 import {
   useIdeaToSpecCandidateApprovalIntents,
   type IdeaToSpecCandidateApprovalIntentError,
@@ -68,6 +69,7 @@ type Props = {
   state: UseIdeaToSpecWorkspaceState;
   repairDraftsUrl?: string;
   intakeClarificationAnswersUrl?: string;
+  realIdeaEntryRequestsUrl?: string;
   repairRerunRequestsUrl?: string;
   candidateApprovalIntentsUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
@@ -88,6 +90,17 @@ function errorDetail(
     case "parse-error":
       return state.reason;
   }
+}
+
+function realIdeaEntryRequestErrorText(
+  error: NonNullable<ReturnType<typeof useRealIdeaEntryRequests>["saveError"]>,
+): string {
+  if (error.kind === "network-error") return "network error";
+  return describeHttpErrorDetail({
+    status: error.status,
+    statusText: error.statusText,
+    body: error.body,
+  });
 }
 
 function compact(
@@ -279,6 +292,7 @@ export function IdeaToSpecWorkspacePanel({
   state,
   repairDraftsUrl,
   intakeClarificationAnswersUrl,
+  realIdeaEntryRequestsUrl,
   repairRerunRequestsUrl,
   candidateApprovalIntentsUrl,
   projectLocalOntologyReviewDecisionsUrl,
@@ -292,6 +306,10 @@ export function IdeaToSpecWorkspacePanel({
   });
   const intakeClarificationAnswers = useIdeaToSpecIntakeClarificationAnswers({
     url: intakeClarificationAnswersUrl,
+    enabled: auxiliaryDataEnabled && state.kind === "ok",
+  });
+  const realIdeaEntryRequests = useRealIdeaEntryRequests({
+    url: realIdeaEntryRequestsUrl,
     enabled: auxiliaryDataEnabled && state.kind === "ok",
   });
   const repairDraftRefreshKey = useMemo(() => {
@@ -423,6 +441,9 @@ export function IdeaToSpecWorkspacePanel({
         <IdeaIntakeDraftSection
           activeFrame={frame}
           realIdeaIntake={data.realIdeaIntake}
+          entryRequests={realIdeaEntryRequests}
+          workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+          readOnly={readOnly}
         />
         <WorkspaceSection workspace={data.workspace} />
         <FrameSection project={frame.project} domains={frame.domainRefs} contexts={frame.contextRefs} />
@@ -484,15 +505,29 @@ export function IdeaToSpecWorkspacePanel({
 function IdeaIntakeDraftSection({
   activeFrame,
   realIdeaIntake,
+  entryRequests,
+  workspaceId,
+  readOnly,
 }: {
   activeFrame: IdeaToSpecActiveFrame;
   realIdeaIntake: IdeaToSpecWorkspace["realIdeaIntake"];
+  entryRequests: ReturnType<typeof useRealIdeaEntryRequests>;
+  workspaceId: string | null;
+  readOnly: boolean;
 }) {
   const [idea, setIdea] = useState("");
+  const [publicSummary, setPublicSummary] = useState("");
   const draft = useMemo(
     () => buildIdeaToSpecIntakeDraft({ idea, activeFrame }),
     [idea, activeFrame],
   );
+  const activeEntry = entryRequests.activeSubmittedRequest;
+  const canSubmit =
+    !readOnly &&
+    entryRequests.configured &&
+    idea.trim().length > 0 &&
+    publicSummary.trim().length > 0 &&
+    !entryRequests.pending;
   return (
     <section id="idea-to-spec-idea-intake" className={styles.reviewSection}>
       <SectionHeader title="Idea intake" count={realIdeaIntake.clarificationProgress.questionCount} />
@@ -523,6 +558,10 @@ function IdeaIntakeDraftSection({
             label="Continuation"
             value={realIdeaIntake.continuationHandoff.safeToContinue ? "ready" : "pending"}
           />
+          <PostureItem
+            label="Entry"
+            value={realIdeaIntake.entryExecution.status}
+          />
         </div>
         <div className={styles.metaGrid}>
           <Meta label="Workspace" value={realIdeaIntake.workspaceId} />
@@ -543,6 +582,23 @@ function IdeaIntakeDraftSection({
           <Meta
             label="Materialization"
             value={realIdeaIntake.continuationHandoff.materializationStatus}
+          />
+          <Meta
+            label="Entry execution"
+            value={
+              realIdeaIntake.entryExecution.available
+                ? realIdeaIntake.entryExecution.status
+                : "missing"
+            }
+          />
+          <Meta label="Entry target" value={realIdeaIntake.entryExecution.target} />
+          <Meta
+            label="Entry handoff"
+            value={realIdeaIntake.entryExecution.entryRequestsHandoffRef}
+          />
+          <Meta
+            label="Entry outputs"
+            value={joined(realIdeaIntake.entryExecution.outputRefs)}
           />
           <Meta label="Evidence" value={joined(realIdeaIntake.sourceRefs)} />
         </div>
@@ -566,8 +622,8 @@ function IdeaIntakeDraftSection({
       </div>
       <div className={styles.row}>
         <div className={styles.rowHeader}>
-          <span className={styles.rowId}>Local draft preview</span>
-          <Pill value={draft?.sourceMode ?? "local_browser_draft"} />
+          <span className={styles.rowId}>Start from raw idea</span>
+          <Pill value={activeEntry ? "submitted" : "operator draft"} />
         </div>
         <textarea
           className={styles.ideaInput}
@@ -576,6 +632,15 @@ function IdeaIntakeDraftSection({
           placeholder="Product idea, actors, events, constraints"
           rows={5}
           aria-label="Product idea intake"
+          disabled={readOnly || entryRequests.pending}
+        />
+        <input
+          className={styles.textInput}
+          value={publicSummary}
+          onChange={(event) => setPublicSummary(event.currentTarget.value)}
+          placeholder="Public-safe idea summary"
+          aria-label="Public-safe idea summary"
+          disabled={readOnly || entryRequests.pending}
         />
         <div className={styles.postureStrip}>
           <PostureItem label="Source" value={draft?.sourceMode ?? "local_browser_draft"} />
@@ -588,6 +653,44 @@ function IdeaIntakeDraftSection({
             value={boolText(draft?.trackedArtifactsWritten ?? false)}
           />
         </div>
+        <button
+          className={styles.ackButton}
+          type="button"
+          disabled={!canSubmit}
+          onClick={() =>
+            entryRequests.saveRequest({
+              workspaceId,
+              ideaText: idea,
+              ideaSummaryHint: publicSummary,
+              workspaceDisplayName: null,
+              publicRouteHint: workspaceId ? `/${workspaceId}` : null,
+              operatorRef: "operator://specspace-local",
+              status: "submitted",
+            })
+          }
+        >
+          {entryRequests.pending ? "Saving request" : "Submit raw idea request"}
+        </button>
+        {activeEntry ? (
+          <p className={styles.statusDetail}>
+            Submitted request · {activeEntry.requestId} · {activeEntry.updatedAt}
+          </p>
+        ) : null}
+        {entryRequests.saveError ? (
+          <p className={styles.statusDetail}>
+            Request save failed · {realIdeaEntryRequestErrorText(entryRequests.saveError)}
+          </p>
+        ) : null}
+        {entryRequests.state.kind === "ok" ? (
+          <div className={styles.metaGrid}>
+            <Meta label="Request state" value={entryRequests.state.data.summary.status} />
+            <Meta
+              label="Submitted"
+              value={String(entryRequests.state.data.summary.activeSubmittedCount)}
+            />
+            <Meta label="Next gap" value={entryRequests.state.data.summary.nextGap} />
+          </div>
+        ) : null}
       </div>
       {draft ? (
         <div className={styles.row}>

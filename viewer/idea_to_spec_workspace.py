@@ -41,6 +41,9 @@ SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT = (
 REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT = (
     "real_idea_smoke/real_idea_answer_continuation_report.json"
 )
+PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT = (
+    "platform_real_idea_entry_intake_execution_report.json"
+)
 CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT = "candidate_spec_graph_seed.json"
 CANDIDATE_SPEC_GRAPH_ARTIFACT = "candidate_spec_graph.json"
 CANDIDATE_OVERVIEW_ARTIFACT = "candidate_overview.json"
@@ -156,6 +159,7 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     REAL_IDEA_ANSWER_SET_ARTIFACT,
     SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
     REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
+    PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT,
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT,
     IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT,
@@ -236,6 +240,9 @@ ARTIFACT_KEYS: dict[str, str] = {
     ),
     REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT: (
         "real_idea_answer_continuation_report"
+    ),
+    PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT: (
+        "platform_real_idea_entry_intake_execution"
     ),
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "ontology_seed",
     CANDIDATE_OVERVIEW_ARTIFACT: "candidate_overview",
@@ -321,6 +328,9 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ),
     REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT: (
         "real_idea_answer_continuation_report"
+    ),
+    PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT: (
+        "platform_real_idea_entry_intake_execution_report"
     ),
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "candidate_spec_graph_seed",
     CANDIDATE_OVERVIEW_ARTIFACT: "candidate_overview",
@@ -555,6 +565,33 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "real idea answer handoff privacy flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT:
+        authority_boundary = _record(value.get("authority_boundary"))
+        for flag, enabled in authority_boundary.items():
+            if flag == "executes_specgraph_make_target":
+                continue
+            if enabled is True:
+                return {
+                    "reason": "invalid_artifact_contract",
+                    "detail": (
+                        "real idea entry intake execution authority flags must "
+                        "remain false except executes_specgraph_make_target."
+                    ),
+                    "artifact_kind": _optional_text(value.get("artifact_kind")),
+                }
+        if value.get("canonical_mutations_allowed") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is not False:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must be false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
@@ -2060,6 +2097,30 @@ def _real_idea_answer_continuation(
     }
 
 
+def _real_idea_entry_execution(report: dict[str, Any] | None) -> dict[str, Any]:
+    summary = _record((report or {}).get("summary"))
+    target_make = _record((report or {}).get("target_make"))
+    output_artifacts = _product_repair_rerun_output_artifacts(report)
+    return {
+        "available": report is not None,
+        "ok": (report or {}).get("ok") is True,
+        "dry_run": (report or {}).get("dry_run") is True,
+        "status": _optional_text(summary.get("status")) or "missing",
+        "run_dir": _safe_ref((report or {}).get("run_dir")),
+        "target": _optional_text(target_make.get("target")),
+        "entry_requests_handoff_ref": _safe_ref(
+            (report or {}).get("entry_requests_handoff_ref")
+        ),
+        "entry_requests_source_digest": _optional_text(
+            (report or {}).get("entry_requests_source_digest")
+        ),
+        "output_refs": _safe_refs([item.get("path") for item in output_artifacts]),
+        "output_artifact_count": _number(summary.get("output_artifact_count")),
+        "diagnostic_count": len(_records((report or {}).get("diagnostics"))),
+        "operations": _product_repair_rerun_operations(report),
+    }
+
+
 def _intake_clarification_lane(
     *,
     clarification_requests: dict[str, Any] | None,
@@ -2215,6 +2276,7 @@ def _real_idea_intake_projection(
     intake_clarification: dict[str, Any],
     answer_authoring: dict[str, Any],
     answer_continuation: dict[str, Any],
+    entry_execution_report: dict[str, Any] | None,
     statuses: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     requests = _record(intake_clarification.get("clarification_requests"))
@@ -2226,6 +2288,7 @@ def _real_idea_intake_projection(
     answer_set = _record(answer_authoring.get("answer_set"))
     import_preview = _record(answer_continuation.get("import_preview"))
     continuation_report = _record(answer_continuation.get("continuation_report"))
+    entry_execution = _real_idea_entry_execution(entry_execution_report)
 
     question_count = _first_optional_number(
         requests.get("request_count")
@@ -2276,6 +2339,8 @@ def _real_idea_intake_projection(
         )
     if active_candidate_available and not active_candidate_ready:
         blockers.extend(_string_list(active_readiness.get("blocked_by")))
+    if entry_execution["available"] and not entry_execution["ok"]:
+        blockers.append("real_idea_entry_intake_execution_failed")
     blockers.extend(_string_list(_record(requests.get("readiness")).get("blocked_by")))
     blockers.extend(_string_list(_record(template.get("readiness")).get("blocked_by")))
     blockers.extend(
@@ -2306,6 +2371,15 @@ def _real_idea_intake_projection(
     elif question_count > 0 or clarification_requests is not None or template_ready:
         status = "needs_clarification"
         next_action = "Answer intake clarification questions before candidate generation."
+    elif entry_execution["available"] and entry_execution["dry_run"]:
+        status = "missing"
+        next_action = "Run the Platform real idea entry intake execution without dry-run."
+    elif entry_execution["available"] and not entry_execution["ok"]:
+        status = "blocked"
+        next_action = "Inspect the Platform real idea entry intake execution report."
+    elif entry_execution["available"]:
+        status = "intake_ready"
+        next_action = "Inspect generated intake artifacts before candidate generation."
     elif intake is not None:
         status = "intake_ready"
         next_action = "Continue the captured idea into candidate source generation."
@@ -2339,6 +2413,7 @@ def _real_idea_intake_projection(
                 intake,
                 active_candidate,
                 clarification_requests,
+                entry_execution_report,
             )
         )
         or answer_authoring.get("available") is True
@@ -2414,8 +2489,12 @@ def _real_idea_intake_projection(
             ),
             "command_hint": _real_idea_intake_command_hint(status),
         },
+        "entry_execution": entry_execution,
         "source_refs": _safe_refs(
             [
+                statuses["platform_real_idea_entry_intake_execution"]["path"]
+                if entry_execution["available"] is True
+                else None,
                 statuses["intake_clarification_requests"]["path"]
                 if requests.get("available") is True
                 else None,
@@ -5054,6 +5133,8 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         idea_intake_stage_status = "completed"
     elif real_intake_status == "blocked":
         idea_intake_stage_status = "blocked"
+    elif real_intake_status == "entry_submitted":
+        idea_intake_stage_status = "available"
     else:
         idea_intake_stage_status = "missing"
     if real_intake_status in {
@@ -5482,6 +5563,9 @@ def build_idea_to_spec_workspace(
     real_idea_answer_continuation_report = _artifact_data(
         artifacts, REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT
     )
+    real_idea_entry_intake_execution = _artifact_data(
+        artifacts, PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT
+    )
     candidate_seed = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT)
     candidate_graph = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_ARTIFACT)
     candidate_overview = _artifact_data(artifacts, CANDIDATE_OVERVIEW_ARTIFACT)
@@ -5774,6 +5858,7 @@ def build_idea_to_spec_workspace(
         intake_clarification=intake_clarification,
         answer_authoring=intake_clarification["answer_authoring"],
         answer_continuation=intake_clarification["answer_continuation"],
+        entry_execution_report=real_idea_entry_intake_execution,
         statuses=statuses,
     )
     payload = {
