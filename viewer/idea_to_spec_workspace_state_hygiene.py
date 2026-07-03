@@ -905,6 +905,7 @@ def _source_repair_state_consumed_by_repaired_handoff(
         and (not current["candidate_id"] or candidate_id == current["candidate_id"])
         and (
             not current.get("source_repair_session_id")
+            or not repair_session_id
             or repair_session_id == current.get("source_repair_session_id")
         )
         and (

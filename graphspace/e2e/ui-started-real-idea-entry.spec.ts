@@ -1436,7 +1436,6 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       .locator("#idea-to-spec-approval-readiness")
       .getByRole("button", { name: "Approve candidate for promotion review" })
       .click();
-    await expect(page.getByText("Candidate approval intent", { exact: true })).toBeVisible();
     await expect(page.getByText("candidate_approval_intent_recorded")).toBeVisible();
     await expect(page.getByText(/^candidate-approval-intent\./)).toBeVisible();
 

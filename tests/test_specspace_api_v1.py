@@ -7640,7 +7640,6 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                             "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
                             "workspace_id": "team-decision-log",
                             "candidate_id": "team-decision-log",
-                            "repair_session_id": "repair-session.team-decision-log",
                             "repair_session_ref": "runs/idea_to_spec_repair_session.json",
                             "allowed_action": "propose_project_local_term",
                             "answer_value": {
