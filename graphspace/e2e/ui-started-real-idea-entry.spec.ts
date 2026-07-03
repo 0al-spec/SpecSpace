@@ -1023,6 +1023,8 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await expect(page.getByText("Candidate graph").first()).toBeVisible();
     await expect(page.getByText("Pre-SIB coherence").first()).toBeVisible();
     await expect(page.getByText("Product repair review").first()).toBeVisible();
+    await expect(page.getByText("Repair draft rerun").first()).toBeVisible();
+    await expect(page.getByText("make product-workspace-repair-draft-rerun").first()).toBeVisible();
     await expect(page.getByText("idea_to_spec_promotion_blocked").first()).toBeVisible();
 
   } finally {
