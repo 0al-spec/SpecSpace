@@ -87,8 +87,9 @@ Acceptance criteria:
 Cover the next user-facing loop after intake questions appear.
 
 Status: partially closed. Browser E2E now saves a template-backed intake
-clarification answer through the Product Workspace UI and verifies the
-SpecSpace-owned answer state. Remaining work is to cover the external
+clarification answer through the Product Workspace UI, verifies the
+SpecSpace-owned answer state, and checks that missing required refs keep the
+save action disabled. Remaining work is to cover the external
 SpecGraph/Platform continuation handoff that consumes those answers.
 
 Acceptance criteria:
@@ -98,7 +99,9 @@ Acceptance criteria:
   save path.
 - Import preview / continuation lane is visible. Partially covered by fixture
   projection; still needs an execution-backed E2E slice.
-- Invalid or missing answers produce clear UI diagnostics.
+- Invalid or missing answers produce clear UI diagnostics. Partially covered
+  for required template refs; server-side invalid-answer surfacing still needs
+  execution-backed coverage.
 
 ### 4. Artifact Refresh And Runs-Watch Hardening
 

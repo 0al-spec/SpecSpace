@@ -553,3 +553,50 @@ test("saves a clarification answer from the product workspace UI", async ({
     await backend.stop();
   }
 });
+
+test("keeps template-backed clarification answers disabled until required refs are filled", async ({
+  page,
+}) => {
+  const backend = await startSpecSpaceBackend();
+  const scenario: UiStartedIdeaScenario = { intakeExecutionPublished: true };
+  try {
+    await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
+    const response = await fetch(
+      `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          idea_text: "A decision log with an incomplete clarification answer.",
+          idea_summary_hint: "Decision log clarification validation",
+        }),
+      },
+    );
+    expect(response.ok).toBeTruthy();
+
+    await page.goto(`/${workspaceId}`);
+    const intakeClarification = page.locator("#idea-to-spec-intake-clarification");
+    await expect(intakeClarification.getByText("Required fields")).toBeVisible();
+    await expect(intakeClarification.getByText("value.refs[]", { exact: true })).toBeVisible();
+
+    const answer = page.getByTestId(
+      `intake-clarification-answer-${clarificationRequestId}`,
+    );
+    const save = page.getByTestId(
+      `intake-clarification-answer-save-${clarificationRequestId}`,
+    );
+
+    await expect(save).toBeDisabled();
+    await answer.fill("   ");
+    await expect(save).toBeDisabled();
+    await expect(
+      page.getByTestId(`intake-clarification-answer-saved-${clarificationRequestId}`),
+    ).toHaveCount(0);
+
+    await answer.fill("domain.team_decision_log");
+    await expect(save).toBeEnabled();
+  } finally {
+    await backend.stop();
+  }
+});
