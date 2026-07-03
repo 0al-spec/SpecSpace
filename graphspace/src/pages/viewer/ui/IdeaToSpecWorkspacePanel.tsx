@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import {
+  buildCandidateWorkflowTopology,
+  type CandidateWorkflowTopologyView,
+} from "../model/candidate-workflow-topology";
 import { buildIdeaToSpecIntakeDraft } from "../model/idea-to-spec-intake-draft";
 import type {
   IdeaToSpecActiveFrame,
@@ -663,7 +667,8 @@ function CandidateOverviewSection({
 }: {
   overview: IdeaToSpecCandidateOverview;
 }) {
-  const relationEntries = Object.entries(overview.topology.relationCounts).slice(0, 6);
+  const topology = buildCandidateWorkflowTopology(overview);
+  const relationEntries = topology.relationEntries.slice(0, 6);
   const primaryItems = [
     ...overview.eventStorming.commands
       .slice(0, 2)
@@ -767,17 +772,124 @@ function CandidateOverviewSection({
             <Meta key={relation} label={relation.replace(/_/g, " ")} value={String(count)} />
           ))}
         </div>
-        {overview.topology.edges.slice(0, 4).map((edge) => (
-          <div key={`overview-edge:${edge.id}`} className={styles.subRow}>
-            <span>{compact(edge.from, edge.id)}</span>
-            <Pill value={compact(edge.relation, "relates")} />
-            <span className={styles.statusDetail}>
-              {compact(edge.to, edge.label)}
-            </span>
+        <CandidateWorkflowTopologyMap topology={topology} />
+      </div>
+    </section>
+  );
+}
+
+function CandidateWorkflowTopologyMap({
+  topology,
+}: {
+  topology: CandidateWorkflowTopologyView;
+}) {
+  const visibleEdges = topology.edges.slice(0, 8);
+  const totalWorkflowEdges = Math.max(topology.workflowEdgeCount, topology.edges.length);
+  const hiddenWorkflowEdgeCount = Math.max(
+    0,
+    totalWorkflowEdges - visibleEdges.length,
+  );
+  const additionalSampledEdgeCount = Math.max(
+    0,
+    topology.edges.length - visibleEdges.length,
+  );
+  const hasSampledNodes = topology.columns.some(
+    (column) => column.totalCount > column.nodes.length,
+  );
+  return (
+    <div className={styles.topologySurface}>
+      <div className={styles.topologyLegend} aria-label="Workflow topology relation legend">
+        {topology.relationEntries.slice(0, 8).map(([relation, count]) => (
+          <span key={`legend:${relation}`} className={styles.topologyLegendItem}>
+            {relation.replace(/_/g, " ")} · {count}
+          </span>
+        ))}
+        <span className={styles.topologyLegendItem}>review-only topology</span>
+      </div>
+      <div className={styles.topologyMap} aria-label="Workflow topology map">
+        {topology.columns.map((column) => (
+          <div key={column.id} className={styles.topologyColumn}>
+            <div className={styles.topologyColumnHeader}>
+              <span>{column.label}</span>
+              <span>{column.totalCount}</span>
+            </div>
+            <div className={styles.topologyNodeList}>
+              {column.nodes.slice(0, 5).map((node) => (
+                <div key={`${column.id}:${node.id}`} className={styles.topologyNode}>
+                  <span className={styles.topologyNodeLabel}>
+                    {compact(node.label, node.id)}
+                  </span>
+                  <span className={styles.topologyNodeMeta}>
+                    {compact(node.kind, node.id)}
+                  </span>
+                </div>
+              ))}
+              {column.totalCount > column.nodes.slice(0, 5).length ? (
+                <div className={styles.topologyMore}>
+                  +{column.totalCount - column.nodes.slice(0, 5).length} more
+                </div>
+              ) : null}
+              {column.nodes.length === 0 ? (
+                <div className={styles.topologyEmpty}>No published items</div>
+              ) : null}
+            </div>
           </div>
         ))}
       </div>
-    </section>
+      {visibleEdges.length > 0 ? (
+        <div className={styles.topologyEdgeList} aria-label="Workflow topology edges">
+          {visibleEdges.map((edge) => (
+            <div
+              key={`workflow-topology-edge:${edge.id}`}
+              className={styles.topologyEdge}
+            >
+              <span className={styles.topologyEndpoint}>
+                {compact(edge.fromNode?.label, edge.from)}
+              </span>
+              <span className={styles.topologyRelation}>
+                {edge.relationLabel}
+              </span>
+              <span className={styles.topologyEndpoint}>
+                {compact(edge.toNode?.label, edge.to)}
+              </span>
+            </div>
+          ))}
+          {hiddenWorkflowEdgeCount > 0 ? (
+            <div className={styles.topologyMore}>
+              +{hiddenWorkflowEdgeCount} more workflow edges
+              {additionalSampledEdgeCount > 0
+                ? ` · ${additionalSampledEdgeCount} additional sampled rows`
+                : ""}
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <Status
+          label="No workflow topology edges"
+          detail="Candidate overview did not publish workflow topology edges for this lifecycle stage."
+        />
+      )}
+      {topology.unresolvedEdges.length > 0 ? (
+        <div className={styles.topologyWarning}>
+          <span className={styles.metaLabel}>
+            {hasSampledNodes
+              ? "Topology refs outside displayed sample"
+              : "Unresolved topology refs"}
+          </span>
+          {topology.unresolvedEdges.slice(0, 3).map((edge) => (
+            <span key={`unresolved:${edge.id}`} className={styles.metaValue}>
+              {edge.id}: {joined(edge.unresolvedRefs)}
+            </span>
+          ))}
+          {hasSampledNodes ? (
+            <span className={styles.metaValue}>
+              Some endpoints may be valid source items hidden by the workspace API
+              sample limit.
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

@@ -376,6 +376,141 @@
   line-height: 1.35;
 }
 
+.topologySurface {
+  margin-top: var(--gs-space-5);
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-panel);
+}
+
+.topologyLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gs-space-2);
+  padding: var(--gs-space-4);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+}
+
+.topologyLegendItem {
+  border: 1px solid var(--gs-rule-soft);
+  padding: 3px 6px;
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.topologyMap {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(132px, 1fr));
+  gap: 1px;
+  overflow-x: auto;
+  background: var(--gs-rule-soft);
+}
+
+.topologyColumn {
+  min-width: 132px;
+  background: var(--gs-panel);
+}
+
+.topologyColumnHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gs-space-3);
+  padding: var(--gs-space-3) var(--gs-space-4);
+  border-bottom: 1px solid var(--gs-rule-soft);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.topologyNodeList {
+  display: grid;
+  gap: var(--gs-space-3);
+  padding: var(--gs-space-4);
+}
+
+.topologyNode {
+  min-width: 0;
+  border: 1px solid var(--gs-rule-soft);
+  border-left: 3px solid var(--gs-accent);
+  padding: var(--gs-space-3);
+  background: var(--gs-paper);
+}
+
+.topologyNodeLabel,
+.topologyNodeMeta,
+.topologyMore,
+.topologyEmpty {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.topologyNodeLabel {
+  color: var(--gs-ink);
+  font-family: var(--gs-sans);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.topologyNodeMeta,
+.topologyMore,
+.topologyEmpty {
+  margin-top: 2px;
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.topologyEdgeList {
+  display: grid;
+  gap: 1px;
+  border-top: 1px solid var(--gs-rule-soft);
+  background: var(--gs-rule-soft);
+}
+
+.topologyEdge {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(118px, auto) minmax(0, 1fr);
+  gap: var(--gs-space-3);
+  align-items: center;
+  padding: var(--gs-space-3) var(--gs-space-4);
+  background: var(--gs-panel);
+}
+
+.topologyEndpoint,
+.topologyRelation {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--gs-mono);
+  font-size: 11px;
+}
+
+.topologyEndpoint {
+  color: var(--gs-ink);
+}
+
+.topologyRelation {
+  border: 1px solid var(--gs-rule-soft);
+  padding: 3px 6px;
+  color: var(--gs-accent);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.topologyWarning {
+  display: grid;
+  gap: var(--gs-space-2);
+  border-top: 1px solid var(--gs-rule-soft);
+  padding: var(--gs-space-4);
+  background: color-mix(in srgb, var(--gs-warn) 8%, var(--gs-panel));
+}
+
 .guidedRail {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -870,7 +1005,9 @@
   }
 
   .navGrid,
-  .workflowGrid {
+  .workflowGrid,
+  .topologyMap,
+  .topologyEdge {
     grid-template-columns: minmax(0, 1fr);
   }
 }
