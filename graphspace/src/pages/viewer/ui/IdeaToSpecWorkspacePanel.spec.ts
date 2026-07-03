@@ -50,7 +50,9 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("repair required");
     expect(html).toContain("Resolve context-required repairs before promotion");
     expect(html).toContain("operator_only");
-    expect(html).toContain("Idea intake draft");
+    expect(html).toContain("Idea intake");
+    expect(html).toContain("Real idea intake");
+    expect(html).toContain("Local draft preview");
     expect(html).toContain("No local idea draft");
     expect(html).toContain("local_browser_draft");
     expect(html).toContain("Active workspace");
@@ -62,6 +64,8 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("runs/candidate_repair_loop_report.json");
     expect(html).toContain("Event-storming intake");
     expect(html).toContain("Intake clarification");
+    expect(html).toContain("active candidate ready");
+    expect(html).toContain("make real-idea-intake-continue-from-specspace-answers");
     expect(html).toContain("Real idea answer authoring");
     expect(html).toContain("Real idea answer continuation");
     expect(html).toContain("answer_template_ready");

@@ -769,6 +769,15 @@ stage, and every next action include an `authority_boundary` object with
 capabilities set to `false`; consumers should treat any expanded authority as
 invalid.
 
+The response embeds `real_idea_intake`, a compact read-only projection for the
+real idea intake workspace. It summarizes the current intake status, clarification
+progress, answer-template validation, SpecSpace answer import/continuation
+handoff, safe source refs, and the next operator action. This surface is
+diagnostic only: SpecSpace may collect operator-owned answers elsewhere, but this
+projection does not let the UI apply answers, run SpecGraph, run Platform, execute
+prompt agents, mutate candidate source artifacts, mutate canonical specs, write
+Ontology packages, accept Ontology terms, or create Git branches/commits.
+
 When `runs/candidate_overview.json` is present, the response embeds
 `candidate_overview`, a read-only narrative surface over the selected candidate
 graph. It summarizes product intent, understood scope, event-storming frame

@@ -2155,6 +2155,241 @@ def _intake_clarification_lane(
     }
 
 
+def _real_idea_intake_boundary() -> dict[str, bool]:
+    return {
+        "inspect_only": True,
+        "acknowledge_only": True,
+        "may_execute_specgraph": False,
+        "may_execute_platform": False,
+        "may_execute_prompt_agent": False,
+        "may_apply_answers": False,
+        "may_mutate_candidate_source_artifacts": False,
+        "may_mutate_canonical_specs": False,
+        "may_write_ontology_package": False,
+        "may_accept_ontology_terms": False,
+        "may_create_branch_or_commit": False,
+    }
+
+
+def _safe_ref(value: Any) -> str | None:
+    ref = _optional_text(value)
+    if ref is None:
+        return None
+    if ref.startswith("/") or ".." in ref.split("/"):
+        return None
+    return ref
+
+
+def _safe_refs(values: list[Any]) -> list[str]:
+    refs = []
+    for value in values:
+        ref = _safe_ref(value)
+        if ref is not None:
+            refs.append(ref)
+    return refs
+
+
+def _real_idea_intake_projection(
+    *,
+    workspace_id: str | None,
+    intake: dict[str, Any] | None,
+    active_candidate: dict[str, Any] | None,
+    clarification_requests: dict[str, Any] | None,
+    intake_clarification: dict[str, Any],
+    answer_authoring: dict[str, Any],
+    answer_continuation: dict[str, Any],
+    statuses: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    requests = _record(intake_clarification.get("clarification_requests"))
+    answers = _record(intake_clarification.get("clarification_answers"))
+    clarified_session = _record(intake_clarification.get("clarified_session"))
+    clarified_source = _record(intake_clarification.get("clarified_source"))
+    template = _record(answer_authoring.get("template"))
+    validation = _record(answer_authoring.get("validation"))
+    answer_set = _record(answer_authoring.get("answer_set"))
+    import_preview = _record(answer_continuation.get("import_preview"))
+    continuation_report = _record(answer_continuation.get("continuation_report"))
+
+    question_count = _number(requests.get("request_count")) or _number(
+        template.get("target_count")
+    )
+    answered_count = (
+        _number(answers.get("accepted_answer_count"))
+        or _number(answer_set.get("answer_count"))
+        or _number(import_preview.get("accepted_answer_count"))
+    )
+    missing_count = max(question_count - answered_count, 0)
+    invalid_answer_count = (
+        _number(validation.get("finding_count"))
+        if answered_count > 0 and validation.get("ready") is not True
+        else 0
+    )
+    template_ready = _record(template.get("readiness")).get("ready") is True
+    continuation_ready = answer_continuation.get("ready") is True
+    candidate_source_ready = clarified_source.get("available") is True
+    active_candidate_ready = active_candidate is not None
+    blockers: list[str] = []
+    if invalid_answer_count:
+        blockers.extend(
+            finding["finding_id"]
+            for finding in _findings(_record(answer_authoring.get("report")))
+            if finding.get("finding_id")
+        )
+    blockers.extend(_string_list(_record(requests.get("readiness")).get("blocked_by")))
+    blockers.extend(_string_list(_record(template.get("readiness")).get("blocked_by")))
+    blockers.extend(
+        _string_list(_record(import_preview.get("readiness")).get("blocked_by"))
+    )
+    blockers.extend(
+        _string_list(_record(continuation_report.get("readiness")).get("blocked_by"))
+    )
+
+    if active_candidate_ready:
+        status = "active_candidate_ready"
+        next_action = "Continue with repair, ontology review, and promotion readiness."
+    elif candidate_source_ready or intake is not None:
+        status = "candidate_source_ready"
+        next_action = "Build or inspect the active idea-to-spec candidate."
+    elif continuation_ready:
+        status = "continuation_ready"
+        next_action = "Continue the real idea intake into candidate source generation."
+    elif answered_count > 0 and invalid_answer_count == 0:
+        status = "answers_ready"
+        next_action = "Build the SpecGraph answer import preview and continuation report."
+    elif question_count > 0 or clarification_requests is not None or template_ready:
+        status = "needs_clarification"
+        next_action = "Answer intake clarification questions before candidate generation."
+    else:
+        status = "missing"
+        next_action = "Create a real idea intake session in SpecGraph."
+
+    handoff_blocked = (
+        invalid_answer_count
+        or (
+            import_preview.get("available") is True
+            and _record(import_preview.get("readiness")).get("ready") is False
+        )
+        or (
+            continuation_report.get("available") is True
+            and _record(continuation_report.get("readiness")).get("ready") is False
+        )
+    )
+    if (
+        handoff_blocked
+        and not active_candidate_ready
+        and not candidate_source_ready
+        and not continuation_ready
+    ):
+        status = "blocked"
+
+    return {
+        "available": any(
+            item is not None
+            for item in (
+                intake,
+                active_candidate,
+                clarification_requests,
+            )
+        )
+        or answer_authoring.get("available") is True
+        or answer_continuation.get("available") is True,
+        "status": status,
+        "workspace_id": workspace_id,
+        "session_ref": _safe_ref(statuses["intake_clarification_requests"]["path"])
+        if requests.get("available") is True
+        else None,
+        "clarified_session_ref": _safe_ref(
+            statuses["clarified_intake_session"]["path"]
+        )
+        if clarified_session.get("available") is True
+        else _safe_ref(
+            _record(continuation_report.get("readiness")).get("next_artifact")
+        ),
+        "candidate_source_ref": _safe_ref(statuses["clarified_intake_source"]["path"])
+        if clarified_source.get("available") is True
+        else None,
+        "active_candidate_ref": _safe_ref(statuses["active_candidate"]["path"])
+        if active_candidate_ready
+        else None,
+        "next_action": next_action,
+        "blockers": (
+            sorted(set(blockers))
+            if status in {"blocked", "needs_clarification", "answers_ready"}
+            else []
+        ),
+        "clarification_progress": {
+            "question_count": question_count,
+            "answered_count": answered_count,
+            "missing_count": missing_count,
+            "invalid_answer_count": invalid_answer_count,
+            "stale_answer_count": 0,
+            "required_field_findings": _findings(
+                _record(answer_authoring.get("report"))
+            ),
+        },
+        "answer_template": {
+            "status": _optional_text(validation.get("status"))
+            or _optional_text(_record(template.get("readiness")).get("review_state"))
+            or "missing",
+            "template_ref": _safe_ref(statuses["real_idea_answer_template"]["path"])
+            if template.get("available") is True
+            else None,
+            "target_count": _number(template.get("target_count")),
+            "blocking_target_count": _number(template.get("blocking_target_count")),
+            "required_fields": sorted(
+                {
+                    field
+                    for target in _records(template.get("targets"))
+                    for fields in _record(target.get("required_fields_by_action")).values()
+                    for field in _string_list(fields)
+                }
+            ),
+            "validation_status": _optional_text(validation.get("status")) or "unknown",
+            "validation_ready": validation.get("ready") is True,
+        },
+        "continuation_handoff": {
+            "import_preview_status": _optional_text(
+                _record(import_preview.get("readiness")).get("review_state")
+            )
+            or ("missing" if import_preview.get("available") is not True else "unknown"),
+            "materialization_status": _optional_text(
+                _record(continuation_report.get("readiness")).get("review_state")
+            )
+            or (
+                "missing"
+                if continuation_report.get("available") is not True
+                else "unknown"
+            ),
+            "safe_to_continue": continuation_ready,
+            "output_refs": _safe_refs(
+                list(_record(continuation_report.get("outputs")).values())
+            ),
+            "command_hint": (
+                "make real-idea-intake-continue-from-specspace-answers"
+                if continuation_ready
+                else "make specspace-real-idea-answer-import-preview"
+            ),
+        },
+        "source_refs": _safe_refs(
+            [
+                statuses["intake_clarification_requests"]["path"]
+                if requests.get("available") is True
+                else None,
+                statuses["real_idea_answer_template"]["path"]
+                if template.get("available") is True
+                else None,
+                statuses["specspace_real_idea_answer_import_preview"]["path"]
+                if import_preview.get("available") is True
+                else None,
+                statuses["real_idea_answer_continuation_report"]["path"]
+                if continuation_report.get("available") is True
+                else None,
+            ]
+        ),
+        "authority_boundary": _real_idea_intake_boundary(),
+    }
+
+
 def _ontology_decision_rows(report: dict[str, Any] | None) -> list[dict[str, Any]]:
     rows = []
     for item in _records((report or {}).get("decisions"))[
@@ -4621,6 +4856,7 @@ def _stage_done(status: str) -> bool:
 
 def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     workflow = _record(payload.get("workflow"))
+    real_idea_intake = _record(payload.get("real_idea_intake"))
     repair_review = _record(payload.get("repair_review"))
     repair_session = _record(payload.get("repair_session"))
     repair_session_impact = _record(repair_session.get("readiness_impact"))
@@ -4704,7 +4940,6 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             or read_model_published
         )
     )
-    idea_intake_status = _stage_status_from_item(workflow, "event_storming_intake")
     project_local_lane_available = project_local_ontology.get("available") is True
     project_local_term_count = _number(project_local_ontology.get("term_count"))
     project_local_review_required = project_local_lane_available and project_local_term_count > 0
@@ -4753,25 +4988,74 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         if approval_effective_ready or approval_request_ready
         else _string_list(approval.get("blockers"))
     )
+    real_intake_status = _text(real_idea_intake.get("status"), "missing")
+    real_intake_blockers = _string_list(real_idea_intake.get("blockers"))
+    real_intake_source_refs = _string_list(real_idea_intake.get("source_refs"))
+    if real_intake_status in {
+        "needs_clarification",
+        "answers_ready",
+        "continuation_ready",
+        "candidate_source_ready",
+        "active_candidate_ready",
+    }:
+        idea_intake_stage_status = "completed"
+    elif real_intake_status == "blocked":
+        idea_intake_stage_status = "blocked"
+    else:
+        idea_intake_stage_status = "missing"
+    if real_intake_status in {
+        "continuation_ready",
+        "candidate_source_ready",
+        "active_candidate_ready",
+    }:
+        intake_clarification_stage_status = "completed"
+    elif real_intake_status == "blocked":
+        intake_clarification_stage_status = "blocked"
+    elif real_intake_status in {"needs_clarification", "answers_ready"}:
+        intake_clarification_stage_status = "available"
+    else:
+        intake_clarification_stage_status = "missing"
 
     stages = [
         _guided_stage(
             stage_id="idea_intake",
             label="Idea intake",
-            status=(
-                "completed"
-                if _stage_done(idea_intake_status)
-                else idea_intake_status
+            status=idea_intake_stage_status,
+            next_action=_text(
+                real_idea_intake.get("next_action"),
+                "Capture product idea as event-storming intake.",
             ),
-            next_action="Capture product idea as event-storming intake.",
             target_section="idea-to-spec-idea-intake",
+            blockers=real_intake_blockers if idea_intake_stage_status == "blocked" else [],
+            evidence_refs=real_intake_source_refs,
+        ),
+        _guided_stage(
+            stage_id="intake_clarification",
+            label="Intake clarification",
+            status=intake_clarification_stage_status,
+            next_action=_text(
+                real_idea_intake.get("next_action"),
+                "Answer intake clarification questions before candidate generation.",
+            ),
+            target_section="idea-to-spec-intake-clarification",
+            blockers=(
+                real_intake_blockers
+                if intake_clarification_stage_status == "blocked"
+                else []
+            ),
             evidence_refs=[
                 ref
                 for ref in [
                     _stage_path_from_item(workflow, "event_storming_intake"),
+                    *real_intake_source_refs,
                 ]
                 if ref
             ],
+            command_template=_optional_text(
+                _record(real_idea_intake.get("continuation_handoff")).get(
+                    "command_hint"
+                )
+            ),
         ),
         _guided_stage(
             stage_id="candidate_graph",
@@ -5429,6 +5713,17 @@ def build_idea_to_spec_workspace(
         read_model_publication=read_model_publication,
         promotion_finalization=promotion_finalization,
     )
+    workspace_identity = _workspace(selected_active_candidate)
+    real_idea_intake = _real_idea_intake_projection(
+        workspace_id=_optional_text(workspace_identity.get("id")),
+        intake=intake,
+        active_candidate=selected_active_candidate,
+        clarification_requests=intake_clarification_requests,
+        intake_clarification=intake_clarification,
+        answer_authoring=intake_clarification["answer_authoring"],
+        answer_continuation=intake_clarification["answer_continuation"],
+        statuses=statuses,
+    )
     payload = {
         "api_version": "v1",
         "artifact_kind": IDEA_TO_SPEC_WORKSPACE_ARTIFACT_KIND,
@@ -5438,7 +5733,7 @@ def build_idea_to_spec_workspace(
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
         "source": source,
-        "workspace": _workspace(selected_active_candidate),
+        "workspace": workspace_identity,
         "summary": {
             "status": status,
             "available_artifact_count": available_count,
@@ -5540,6 +5835,7 @@ def build_idea_to_spec_workspace(
             ),
         },
         "workflow": workflow,
+        "real_idea_intake": real_idea_intake,
         "intake": {
             "available": intake is not None,
             "active_frame": _active_frame((intake or {}).get("active_frame")),

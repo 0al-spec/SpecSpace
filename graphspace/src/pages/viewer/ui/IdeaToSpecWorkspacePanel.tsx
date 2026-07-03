@@ -416,7 +416,10 @@ export function IdeaToSpecWorkspacePanel({
         <GuidedFlowSection flow={data.guidedFlow} />
         <CandidateOverviewSection overview={data.candidateOverview} />
         <WorkflowSection workflow={data.workflow} />
-        <IdeaIntakeDraftSection activeFrame={frame} />
+        <IdeaIntakeDraftSection
+          activeFrame={frame}
+          realIdeaIntake={data.realIdeaIntake}
+        />
         <WorkspaceSection workspace={data.workspace} />
         <FrameSection project={frame.project} domains={frame.domainRefs} contexts={frame.contextRefs} />
         <ArtifactSection artifacts={data.artifacts} />
@@ -476,8 +479,10 @@ export function IdeaToSpecWorkspacePanel({
 
 function IdeaIntakeDraftSection({
   activeFrame,
+  realIdeaIntake,
 }: {
   activeFrame: IdeaToSpecActiveFrame;
+  realIdeaIntake: IdeaToSpecWorkspace["realIdeaIntake"];
 }) {
   const [idea, setIdea] = useState("");
   const draft = useMemo(
@@ -486,8 +491,80 @@ function IdeaIntakeDraftSection({
   );
   return (
     <section id="idea-to-spec-idea-intake" className={styles.reviewSection}>
-      <SectionHeader title="Idea intake draft" count={draft ? 1 : 0} />
+      <SectionHeader title="Idea intake" count={realIdeaIntake.clarificationProgress.questionCount} />
       <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Real idea intake</span>
+          <Pill value={realIdeaIntake.status.replace(/_/g, " ")} />
+        </div>
+        <h3 className={styles.title}>{realIdeaIntake.nextAction}</h3>
+        <div className={styles.postureStrip}>
+          <PostureItem
+            label="Questions"
+            value={String(realIdeaIntake.clarificationProgress.questionCount)}
+          />
+          <PostureItem
+            label="Answered"
+            value={String(realIdeaIntake.clarificationProgress.answeredCount)}
+          />
+          <PostureItem
+            label="Missing"
+            value={String(realIdeaIntake.clarificationProgress.missingCount)}
+          />
+          <PostureItem
+            label="Invalid"
+            value={String(realIdeaIntake.clarificationProgress.invalidAnswerCount)}
+          />
+          <PostureItem
+            label="Continuation"
+            value={realIdeaIntake.continuationHandoff.safeToContinue ? "ready" : "pending"}
+          />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Workspace" value={realIdeaIntake.workspaceId} />
+          <Meta label="Session" value={realIdeaIntake.sessionRef} />
+          <Meta label="Clarified session" value={realIdeaIntake.clarifiedSessionRef} />
+          <Meta label="Candidate source" value={realIdeaIntake.candidateSourceRef} />
+          <Meta label="Active candidate" value={realIdeaIntake.activeCandidateRef} />
+          <Meta label="Template" value={realIdeaIntake.answerTemplate.status} />
+          <Meta label="Template ref" value={realIdeaIntake.answerTemplate.templateRef} />
+          <Meta
+            label="Required fields"
+            value={joined(realIdeaIntake.answerTemplate.requiredFields)}
+          />
+          <Meta
+            label="Import preview"
+            value={realIdeaIntake.continuationHandoff.importPreviewStatus}
+          />
+          <Meta
+            label="Materialization"
+            value={realIdeaIntake.continuationHandoff.materializationStatus}
+          />
+          <Meta label="Evidence" value={joined(realIdeaIntake.sourceRefs)} />
+        </div>
+        {realIdeaIntake.continuationHandoff.commandHint ? (
+          <pre className={styles.codeBlock}>
+            {realIdeaIntake.continuationHandoff.commandHint}
+          </pre>
+        ) : null}
+        {realIdeaIntake.blockers.length > 0 ? (
+          <p className={styles.statusDetail}>
+            Blockers: {joined(realIdeaIntake.blockers)}
+          </p>
+        ) : null}
+        {realIdeaIntake.clarificationProgress.requiredFieldFindings
+          .slice(0, 3)
+          .map((finding) => (
+            <p key={finding.findingId} className={styles.statusDetail}>
+              {finding.severity}: {finding.message}
+            </p>
+          ))}
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Local draft preview</span>
+          <Pill value={draft?.sourceMode ?? "local_browser_draft"} />
+        </div>
         <textarea
           className={styles.ideaInput}
           value={idea}

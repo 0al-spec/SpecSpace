@@ -219,6 +219,56 @@ export type IdeaToSpecRealIdeaAnswerContinuation = {
   };
 };
 
+export type IdeaToSpecRealIdeaIntake = {
+  available: boolean;
+  status: string;
+  workspaceId: string | null;
+  sessionRef: string | null;
+  clarifiedSessionRef: string | null;
+  candidateSourceRef: string | null;
+  activeCandidateRef: string | null;
+  nextAction: string;
+  blockers: readonly string[];
+  clarificationProgress: {
+    questionCount: number;
+    answeredCount: number;
+    missingCount: number;
+    invalidAnswerCount: number;
+    staleAnswerCount: number;
+    requiredFieldFindings: readonly IdeaToSpecFinding[];
+  };
+  answerTemplate: {
+    status: string;
+    templateRef: string | null;
+    targetCount: number;
+    blockingTargetCount: number;
+    requiredFields: readonly string[];
+    validationStatus: string;
+    validationReady: boolean;
+  };
+  continuationHandoff: {
+    importPreviewStatus: string;
+    materializationStatus: string;
+    safeToContinue: boolean;
+    outputRefs: readonly string[];
+    commandHint: string | null;
+  };
+  sourceRefs: readonly string[];
+  authorityBoundary: {
+    inspectOnly: true;
+    acknowledgeOnly: true;
+    mayExecuteSpecgraph: false;
+    mayExecutePlatform: false;
+    mayExecutePromptAgent: false;
+    mayApplyAnswers: false;
+    mayMutateCandidateSourceArtifacts: false;
+    mayMutateCanonicalSpecs: false;
+    mayWriteOntologyPackage: false;
+    mayAcceptOntologyTerms: false;
+    mayCreateBranchOrCommit: false;
+  };
+};
+
 export type IdeaToSpecOntologyDecision = {
   id: string;
   decisionType: string;
@@ -1120,6 +1170,7 @@ export type IdeaToSpecWorkspace = {
   };
   workflow: IdeaToSpecWorkflow;
   guidedFlow: IdeaToSpecGuidedFlow;
+  realIdeaIntake: IdeaToSpecRealIdeaIntake;
   intake: {
     available: boolean;
     activeFrame: IdeaToSpecActiveFrame;
@@ -2463,6 +2514,76 @@ function parseRepairSession(
       mayMutateCandidateArtifacts: false,
       mayAcceptOntologyTerms: false,
       mayWriteOntologyPackage: false,
+      mayCreateBranchOrCommit: false,
+    },
+  };
+}
+
+function parseRealIdeaIntake(raw: unknown): IdeaToSpecRealIdeaIntake {
+  const intake = recordValue(raw);
+  const progress = recordValue(intake.clarification_progress);
+  const answerTemplate = recordValue(intake.answer_template);
+  const continuationHandoff = recordValue(intake.continuation_handoff);
+  return {
+    available: intake.available === true,
+    status: stringValue(intake.status, "missing"),
+    workspaceId: optionalString(intake.workspace_id),
+    sessionRef: optionalString(intake.session_ref),
+    clarifiedSessionRef: optionalString(intake.clarified_session_ref),
+    candidateSourceRef: optionalString(intake.candidate_source_ref),
+    activeCandidateRef: optionalString(intake.active_candidate_ref),
+    nextAction: stringValue(
+      intake.next_action,
+      "Create or continue the real idea intake session.",
+    ),
+    blockers: strings(intake.blockers),
+    clarificationProgress: {
+      questionCount: numberValue(progress.question_count),
+      answeredCount: numberValue(progress.answered_count),
+      missingCount: numberValue(progress.missing_count),
+      invalidAnswerCount: numberValue(progress.invalid_answer_count),
+      staleAnswerCount: numberValue(progress.stale_answer_count),
+      requiredFieldFindings: records(progress.required_field_findings).flatMap(
+        (item) => {
+          const parsed = parseFinding(item);
+          return parsed ? [parsed] : [];
+        },
+      ),
+    },
+    answerTemplate: {
+      status: stringValue(answerTemplate.status, "missing"),
+      templateRef: optionalString(answerTemplate.template_ref),
+      targetCount: numberValue(answerTemplate.target_count),
+      blockingTargetCount: numberValue(answerTemplate.blocking_target_count),
+      requiredFields: strings(answerTemplate.required_fields),
+      validationStatus: stringValue(answerTemplate.validation_status, "unknown"),
+      validationReady: answerTemplate.validation_ready === true,
+    },
+    continuationHandoff: {
+      importPreviewStatus: stringValue(
+        continuationHandoff.import_preview_status,
+        "missing",
+      ),
+      materializationStatus: stringValue(
+        continuationHandoff.materialization_status,
+        "missing",
+      ),
+      safeToContinue: continuationHandoff.safe_to_continue === true,
+      outputRefs: strings(continuationHandoff.output_refs),
+      commandHint: optionalString(continuationHandoff.command_hint),
+    },
+    sourceRefs: strings(intake.source_refs),
+    authorityBoundary: {
+      inspectOnly: true,
+      acknowledgeOnly: true,
+      mayExecuteSpecgraph: false,
+      mayExecutePlatform: false,
+      mayExecutePromptAgent: false,
+      mayApplyAnswers: false,
+      mayMutateCandidateSourceArtifacts: false,
+      mayMutateCanonicalSpecs: false,
+      mayWriteOntologyPackage: false,
+      mayAcceptOntologyTerms: false,
       mayCreateBranchOrCommit: false,
     },
   };
@@ -3899,6 +4020,32 @@ export function parseIdeaToSpecWorkspace(
   ) {
     return { kind: "parse-error", reason: "candidate overview boundary expanded", raw };
   }
+  const realIdeaIntake = recordValue(raw.real_idea_intake);
+  if (isRecord(raw.real_idea_intake)) {
+    const realIdeaIntakeBoundary = recordValue(realIdeaIntake.authority_boundary);
+    const realIdeaIntakeFalseFlags = [
+      "may_execute_specgraph",
+      "may_execute_platform",
+      "may_execute_prompt_agent",
+      "may_apply_answers",
+      "may_mutate_candidate_source_artifacts",
+      "may_mutate_canonical_specs",
+      "may_write_ontology_package",
+      "may_accept_ontology_terms",
+      "may_create_branch_or_commit",
+    ];
+    for (const flag of realIdeaIntakeFalseFlags) {
+      if (realIdeaIntakeBoundary[flag] !== false) {
+        return { kind: "parse-error", reason: `real idea intake boundary expanded: ${flag}`, raw };
+      }
+    }
+    if (
+      realIdeaIntakeBoundary.inspect_only !== true ||
+      realIdeaIntakeBoundary.acknowledge_only !== true
+    ) {
+      return { kind: "parse-error", reason: "real idea intake boundary must be inspect-only", raw };
+    }
+  }
   const summary = recordValue(raw.summary);
   const intake = recordValue(raw.intake);
   const intakeSummary = recordValue(intake.summary);
@@ -4318,6 +4465,7 @@ export function parseIdeaToSpecWorkspace(
       },
       workflow: parseWorkflow(raw.workflow),
       guidedFlow: parseGuidedFlow(raw.guided_flow),
+      realIdeaIntake: parseRealIdeaIntake(raw.real_idea_intake),
       intake: {
         available: intake.available === true,
         activeFrame: parseActiveFrame(intake.active_frame),
