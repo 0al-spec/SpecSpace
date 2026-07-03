@@ -67,13 +67,18 @@ Acceptance criteria:
 Extend the Playwright smoke from entry persistence to the first external
 handoff.
 
+Status: partially closed. Browser E2E now covers raw idea submit followed by an
+externally published intake execution/clarification projection. A future
+hardening slice can replace the projection step with a real Platform subprocess
+when the test environment reliably provides Platform and SpecGraph checkouts.
+
 Acceptance criteria:
 
-- The test uses the browser for raw idea entry.
+- The test uses the browser for raw idea entry. Done.
 - The test harness may run Platform/SpecGraph outside the browser.
-- The browser never receives execution authority.
+- The browser never receives execution authority. Done.
 - After artifact publication/refresh, the UI shows clarification requests or a
-  ready candidate-source state.
+  ready candidate-source state. Done with projected publication.
 
 ### 3. Clarification Answer UI E2E
 

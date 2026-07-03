@@ -15,6 +15,10 @@ type SpecSpaceBackend = {
   stop: () => Promise<void>;
 };
 
+type UiStartedIdeaScenario = {
+  intakeExecutionPublished: boolean;
+};
+
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
@@ -113,21 +117,8 @@ async function proxyRouteToBackend(route: Route, baseUrl: string) {
   await route.fulfill({ response });
 }
 
-async function workspacePayload(backendBaseUrl: string) {
-  const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace)) as Record<
-    string,
-    unknown
-  >;
-  const response = await fetch(
-    `${backendBaseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
-  );
-  const entryState = (await response.json()) as {
-    summary?: { active_submitted_count?: number };
-  };
-  const hasSubmittedEntry =
-    (entryState.summary?.active_submitted_count ?? 0) > 0;
-  if (!hasSubmittedEntry) return payload;
-  const actionBoundary = {
+function safeActionBoundary() {
+  return {
     inspect_only: true,
     acknowledge_only: true,
     may_execute_specgraph: false,
@@ -141,14 +132,141 @@ async function workspacePayload(backendBaseUrl: string) {
     may_open_pull_request: false,
     may_merge_review: false,
   };
+}
+
+async function workspacePayload(
+  backendBaseUrl: string,
+  scenario: UiStartedIdeaScenario,
+) {
+  const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace)) as Record<
+    string,
+    unknown
+  >;
+  const response = await fetch(
+    `${backendBaseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
+  );
+  const entryState = (await response.json()) as {
+    summary?: { active_submitted_count?: number };
+  };
+  const hasSubmittedEntry =
+    (entryState.summary?.active_submitted_count ?? 0) > 0;
+  const realIdeaIntake = (payload.real_idea_intake as Record<string, unknown>) ?? {};
+  const missingEntryExecution = {
+    available: false,
+    ok: false,
+    dry_run: false,
+    status: "missing",
+    output_refs: [],
+    output_artifact_count: 0,
+    diagnostic_count: 0,
+    operations: [],
+    output_artifacts: [],
+  };
+  const actionBoundary = safeActionBoundary();
+
+  if (!hasSubmittedEntry) {
+    payload.real_idea_intake = {
+      ...realIdeaIntake,
+      available: false,
+      status: "missing",
+      next_action: "Submit a raw idea request before intake execution.",
+      blockers: [],
+      source_refs: [],
+      entry_execution: missingEntryExecution,
+    };
+    return payload;
+  }
+
+  if (scenario.intakeExecutionPublished) {
+    payload.real_idea_intake = {
+      ...realIdeaIntake,
+      available: true,
+      status: "needs_clarification",
+      next_action: "Answer intake clarification questions before candidate generation.",
+      blockers: [],
+      clarification_progress: {
+        question_count: 1,
+        answered_count: 0,
+        missing_count: 1,
+        invalid_answer_count: 0,
+        stale_answer_count: 0,
+        required_field_findings: [],
+      },
+      entry_execution: {
+        available: true,
+        ok: true,
+        dry_run: false,
+        status: "completed",
+        run_dir: "runs/real_idea_smoke",
+        target: "real-idea-intake-from-entry-request",
+        entry_requests_handoff_ref:
+          "runs/real_idea_smoke/real_idea_entry_requests.json",
+        output_refs: [
+          "runs/real_idea_smoke/real_idea_entry_request_intake_report.json",
+          "runs/real_idea_smoke/idea_intake_clarification_requests.json",
+        ],
+        output_artifact_count: 2,
+        diagnostic_count: 0,
+        operations: [
+          {
+            name: "execute_specgraph_real_idea_entry_intake",
+            status: "succeeded",
+            evidence: ["real-idea-intake-from-entry-request"],
+          },
+        ],
+        output_artifacts: [
+          {
+            key: "entry_intake_report",
+            path: "runs/real_idea_smoke/real_idea_entry_request_intake_report.json",
+            present: true,
+            artifact_kind: "real_idea_entry_request_intake_report",
+            status: "ready",
+            ready: true,
+          },
+          {
+            key: "clarification_requests",
+            path: "runs/real_idea_smoke/idea_intake_clarification_requests.json",
+            present: true,
+            artifact_kind: "idea_intake_clarification_requests",
+            status: "ready",
+            ready: true,
+          },
+        ],
+      },
+      source_refs: [
+        "runs/platform_real_idea_entry_intake_execution_report.json",
+        "runs/real_idea_smoke/idea_intake_clarification_requests.json",
+      ],
+    };
+    payload.guided_flow = {
+      ...((payload.guided_flow as Record<string, unknown>) ?? {}),
+      current_stage: "intake_clarification",
+      current_stage_label: "Intake clarification",
+      overall_status: "action_required",
+      next_actions: [
+        {
+          id: "answer_real_idea_intake_clarifications",
+          label: "Answer intake clarification questions before candidate generation.",
+          status: "ready",
+          target_section: "idea-to-spec-intake-clarification",
+          evidence_refs: [
+            "runs/real_idea_smoke/idea_intake_clarification_requests.json",
+          ],
+          authority_boundary: actionBoundary,
+        },
+      ],
+    };
+    return payload;
+  }
 
   payload.real_idea_intake = {
-    ...((payload.real_idea_intake as Record<string, unknown>) ?? {}),
+    ...realIdeaIntake,
     available: true,
     status: "entry_submitted",
     next_action:
       "Import the submitted raw idea entry through SpecGraph/Platform intake handoff.",
     blockers: [],
+    entry_execution: missingEntryExecution,
     source_refs: ["specspace-state://real_idea_entry_requests.json"],
   };
   payload.guided_flow = {
@@ -172,13 +290,19 @@ async function workspacePayload(backendBaseUrl: string) {
   return payload;
 }
 
-async function installIdeaToSpecApiRoutes(page: Page, backendBaseUrl: string) {
+async function installIdeaToSpecApiRoutes(
+  page: Page,
+  backendBaseUrl: string,
+  scenario: UiStartedIdeaScenario = { intakeExecutionPublished: false },
+) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
 
     if (path === "/api/v1/idea-to-spec-workspace") {
-      await route.fulfill({ json: await workspacePayload(backendBaseUrl) });
+      await route.fulfill({
+        json: await workspacePayload(backendBaseUrl, scenario),
+      });
       return;
     }
 
@@ -240,6 +364,46 @@ test("submits a raw real idea entry request from the product workspace UI", asyn
       "Import submitted raw idea entry through Platform.",
     );
     await expect(page.getByText("Request state")).toBeVisible();
+  } finally {
+    await backend.stop();
+  }
+});
+
+test("shows clarification stage after external intake execution publication", async ({
+  page,
+}) => {
+  const backend = await startSpecSpaceBackend();
+  const scenario: UiStartedIdeaScenario = { intakeExecutionPublished: false };
+  try {
+    await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
+
+    await page.goto(`/${workspaceId}`);
+    await expect(page.getByText("Idea-to-Spec Workspace")).toBeVisible();
+
+    await page
+      .getByTestId("real-idea-entry-text")
+      .fill("A spending guard for recurring bills and overdraft avoidance.");
+    await page
+      .getByTestId("real-idea-entry-summary")
+      .fill("Spending guard for recurring bills");
+    await page.getByTestId("real-idea-entry-submit").click();
+    await expect(page.getByTestId("guided-flow-next-action")).toContainText(
+      "Import submitted raw idea entry through Platform.",
+    );
+
+    scenario.intakeExecutionPublished = true;
+    await page.reload();
+
+    await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
+      "Answer intake clarification questions",
+    );
+    await expect(page.getByTestId("guided-flow-next-action")).toContainText(
+      "Answer intake clarification questions before candidate generation.",
+    );
+    await expect(page.getByText("Platform intake execution")).toBeVisible();
+    await expect(page.getByText("execute_specgraph_real_idea_entry_intake")).toBeVisible();
+    await expect(page.getByText("clarification_requests", { exact: true })).toBeVisible();
+    await expect(page.getByText("Template-backed answer")).toBeVisible();
   } finally {
     await backend.stop();
   }
