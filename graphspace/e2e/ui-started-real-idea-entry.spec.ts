@@ -444,6 +444,47 @@ async function publishRealIdeaContinuationArtifacts(args: {
   );
 }
 
+async function publishRepairSessionJournalArtifacts(args: {
+  backendRunsDir: string;
+  specGraphRunDir: string;
+}) {
+  await copyIfPresent(
+    path.join(args.specGraphRunDir, "idea_to_spec_repair_session.json"),
+    path.join(args.backendRunsDir, "idea_to_spec_repair_session.json"),
+  );
+}
+
+async function publishRepairImportPreviewExecutionArtifacts(args: {
+  backendRunsDir: string;
+  platformReportPath: string;
+}) {
+  await copyIfPresent(
+    args.platformReportPath,
+    path.join(
+      args.backendRunsDir,
+      "platform_product_repair_draft_import_preview_execution_report.json",
+    ),
+  );
+}
+
+async function publishRepairRequestGateArtifacts(args: {
+  backendRunsDir: string;
+  platformReportPath: string;
+  specGraphRunDir: string;
+}) {
+  await copyIfPresent(
+    args.platformReportPath,
+    path.join(
+      args.backendRunsDir,
+      "platform_product_repair_rerun_request_gate_execution_report.json",
+    ),
+  );
+  await copyIfPresent(
+    path.join(args.specGraphRunDir, "specspace_repair_rerun_request_gate.json"),
+    path.join(args.backendRunsDir, "specspace_repair_rerun_request_gate.json"),
+  );
+}
+
 function safeActionBoundary() {
   return {
     inspect_only: true,
@@ -1047,6 +1088,148 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       "idea-to-spec-initial-repair-session-journal",
     );
     await expect(workspaceStatePreflight).toContainText("Build repair session journal first.");
+
+    const initialJournal = await runCommand(
+      "make",
+      [
+        "idea-to-spec-initial-repair-session-journal",
+        `IDEA_TO_SPEC_REPAIR_SESSION_ACTIVE_CANDIDATE=${specGraphRunDirRef}/active_idea_to_spec_candidate.json`,
+        `IDEA_TO_SPEC_REPAIR_SESSION_CLARIFICATION_REQUESTS=${specGraphRunDirRef}/idea_to_spec_clarification_requests.json`,
+        `IDEA_TO_SPEC_REPAIR_SESSION_CLARIFICATION_ANSWERS=${specGraphRunDirRef}/idea_to_spec_clarification_answers.json`,
+        `IDEA_TO_SPEC_REPAIR_SESSION_ONTOLOGY_DECISIONS=${specGraphRunDirRef}/product_ontology_gap_review_decisions.json`,
+        `IDEA_TO_SPEC_REPAIR_SESSION_RERUN_INPUT=${specGraphRunDirRef}/idea_to_spec_answer_rerun_input.json`,
+        `IDEA_TO_SPEC_REPAIR_SESSION_RERUN_PREVIEW=${specGraphRunDirRef}/idea_to_spec_rerun_preview.json`,
+        `IDEA_TO_SPEC_REPAIR_SESSION_RERUN_MATERIALIZATION=${specGraphRunDirRef}/idea_to_spec_rerun_materialization.json`,
+        `IDEA_TO_SPEC_REPAIR_SESSION_PROMOTION_GATE=${specGraphRunDirRef}/idea_to_spec_promotion_gate.json`,
+        `IDEA_TO_SPEC_REPAIR_SESSION_OUTPUT=${specGraphRunDirRef}/idea_to_spec_repair_session.json`,
+      ],
+      { cwd: specGraphDir! },
+    );
+    expect(initialJournal.code, initialJournal.stderr).toBe(0);
+    await publishRepairSessionJournalArtifacts({
+      backendRunsDir: backend.runsDir,
+      specGraphRunDir,
+    });
+    await emitRunsChange(page);
+    await expect(workspaceStatePreflight).toContainText(/repair drafts\s*usable/i);
+
+    const importPreviewReportPath = path.join(
+      specGraphRunDir,
+      "platform_product_repair_draft_import_preview_execution_report.json",
+    );
+    const importPreview = await runCommand(
+      python,
+      [
+        platformScript,
+        "product-repair-rerun",
+        "import-preview",
+        "--specgraph-dir",
+        specGraphDir!,
+        "--run-dir",
+        specGraphRunDirRef,
+        "--draft-state",
+        path.join(backend.stateDir, "idea_to_spec_repair_drafts.json"),
+        "--repair-session",
+        path.join(specGraphRunDir, "idea_to_spec_repair_session.json"),
+        "--clarification-requests",
+        path.join(specGraphRunDir, "idea_to_spec_clarification_requests.json"),
+        "--workspace-id",
+        workspaceId,
+        "--output-preview",
+        path.join(specGraphRunDir, "specspace_repair_draft_import_preview.json"),
+        "--output",
+        importPreviewReportPath,
+        "--format",
+        "json",
+      ],
+      { cwd: platformDir! },
+    );
+    expect(
+      importPreview.code,
+      `stdout:\n${importPreview.stdout}\nstderr:\n${importPreview.stderr}`,
+    ).toBe(0);
+    const importPreviewReport = JSON.parse(
+      await readFile(importPreviewReportPath, "utf8"),
+    ) as {
+      ok?: boolean;
+      diagnostics?: unknown[];
+    };
+    expect(
+      importPreviewReport.ok,
+      JSON.stringify(importPreviewReport.diagnostics ?? []),
+    ).toBe(true);
+    await publishRepairImportPreviewExecutionArtifacts({
+      backendRunsDir: backend.runsDir,
+      platformReportPath: importPreviewReportPath,
+    });
+    await emitRunsChange(page);
+    await expect(workspaceStatePreflight).toContainText(
+      /repair draft import preview\s*usable/i,
+    );
+    const requestRerunButton = page.getByRole("button", {
+      name: "Request rerun preview",
+    });
+    await expect(requestRerunButton).toBeEnabled();
+    await requestRerunButton.click();
+    await expect(page.getByText("rerun_requested").first()).toBeVisible();
+
+    const requestGateReportPath = path.join(
+      specGraphRunDir,
+      "platform_product_repair_rerun_request_gate_execution_report.json",
+    );
+    const requestGate = await runCommand(
+      python,
+      [
+        platformScript,
+        "product-repair-rerun",
+        "request-gate",
+        "--specgraph-dir",
+        specGraphDir!,
+        "--run-dir",
+        specGraphRunDirRef,
+        "--rerun-request",
+        path.join(backend.stateDir, "idea_to_spec_repair_rerun_requests.json"),
+        "--import-preview",
+        path.join(specGraphRunDir, "specspace_repair_draft_import_preview.json"),
+        "--repair-session",
+        path.join(specGraphRunDir, "idea_to_spec_repair_session.json"),
+        "--workspace-id",
+        workspaceId,
+        "--output-gate",
+        path.join(specGraphRunDir, "specspace_repair_rerun_request_gate.json"),
+        "--output",
+        requestGateReportPath,
+        "--format",
+        "json",
+      ],
+      { cwd: platformDir! },
+    );
+    expect(
+      requestGate.code,
+      `stdout:\n${requestGate.stdout}\nstderr:\n${requestGate.stderr}`,
+    ).toBe(0);
+    const requestGateReport = JSON.parse(
+      await readFile(requestGateReportPath, "utf8"),
+    ) as {
+      ok?: boolean;
+      diagnostics?: unknown[];
+    };
+    expect(
+      requestGateReport.ok,
+      JSON.stringify(requestGateReport.diagnostics ?? []),
+    ).toBe(true);
+    await publishRepairRequestGateArtifacts({
+      backendRunsDir: backend.runsDir,
+      platformReportPath: requestGateReportPath,
+      specGraphRunDir,
+    });
+    await emitRunsChange(page);
+    await expect(workspaceStatePreflight).toContainText(
+      /repair rerun request\s*usable/i,
+    );
+    await expect(workspaceStatePreflight).toContainText(
+      /repair rerun request gate\s*usable/i,
+    );
 
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });

@@ -88,6 +88,9 @@ PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT = (
 PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT = (
     "platform_product_repair_draft_import_preview_execution_report.json"
 )
+PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT = (
+    "platform_product_repair_rerun_request_gate_execution_report.json"
+)
 PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT = (
     "platform_product_repair_rerun_publication_report.json"
 )
@@ -179,6 +182,7 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT,
     SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT,
     PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT,
+    PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT,
     PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT,
     PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT,
     REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT,
@@ -269,6 +273,9 @@ ARTIFACT_KEYS: dict[str, str] = {
     SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT: "specspace_repair_rerun_request_gate",
     PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT: (
         "product_repair_draft_import_execution"
+    ),
+    PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT: (
+        "product_repair_rerun_request_gate_execution"
     ),
     PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT: "product_repair_rerun_execution",
     PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT: "product_repair_rerun_publication",
@@ -370,6 +377,9 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT: "specspace_repair_rerun_request_gate",
     PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT: (
         "platform_product_repair_draft_import_preview_execution_report"
+    ),
+    PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT: (
+        "platform_product_repair_rerun_request_gate_execution_report"
     ),
     PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT: (
         "platform_product_repair_rerun_execution_report"
@@ -1184,7 +1194,10 @@ def _artifact_status(
         status_payload["candidate_id"] = candidate_id
     if repair_session_ref:
         status_payload["repair_session_ref"] = repair_session_ref
-    if filename == PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT:
+    if filename in {
+        PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT,
+        PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT,
+    }:
         status_payload["ok"] = data.get("ok") is True
         status_payload["dry_run"] = data.get("dry_run") is True
         status_payload["authority_boundary"] = _record(data.get("authority_boundary"))

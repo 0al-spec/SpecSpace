@@ -237,6 +237,7 @@ def _write_repair_draft_workspace_runs(
     accepted_for_rerun_count: int | None = None,
     include_platform_import_preview_report: bool = False,
     include_rerun_report: bool = False,
+    include_platform_request_gate_report: bool = False,
     include_platform_rerun_reports: bool = False,
     include_platform_publication_report: bool = True,
     ready_for_candidate_approval: bool = False,
@@ -788,6 +789,52 @@ def _write_repair_draft_workspace_runs(
                     "error_count": 0,
                     "import_preview_digest": "sha256:import-preview",
                     "import_preview_status": "repair_draft_import_preview_ready",
+                },
+            },
+        )
+    if include_platform_request_gate_report:
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT,
+            {
+                "artifact_kind": "platform_product_repair_rerun_request_gate_execution_report",
+                "schema_version": 1,
+                "ok": True,
+                "dry_run": False,
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
+                "repair_session_ref": "runs/isolated/idea_to_spec_repair_session.json",
+                "import_preview_ref": "runs/isolated/specspace_repair_draft_import_preview.json",
+                "authority_boundary": {
+                    "executes_specgraph_make_target": True,
+                    "executes_git_commands": False,
+                    "opens_pull_requests": False,
+                    "merges_pull_requests": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                    "mutates_canonical_specs": False,
+                    "publishes_private_artifacts": False,
+                },
+                "output_artifacts": {
+                    "request_gate": {
+                        "path": "runs/isolated/specspace_repair_rerun_request_gate.json",
+                        "present": True,
+                        "artifact_kind": "specspace_repair_rerun_request_gate",
+                        "contract_ref": (
+                            "specgraph.idea-to-spec.specspace-repair-rerun-request-gate.v0.1"
+                        ),
+                        "ready": True,
+                        "status": "ready",
+                        "summary": {"status": "ready"},
+                        "sha256": "sha256:request-gate",
+                    }
+                },
+                "diagnostics": [],
+                "summary": {
+                    "status": "completed",
+                    "error_count": 0,
+                    "request_gate_digest": "sha256:request-gate",
+                    "request_gate_status": "ready",
                 },
             },
         )
@@ -7298,6 +7345,41 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "runs/isolated/specspace_repair_draft_import_preview.json",
         )
         self.assertFalse(request["may_execute_specgraph"])
+
+    def test_idea_to_spec_workspace_state_hygiene_uses_platform_request_gate_report(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_request_gate_report=True,
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        request_gate_state = [
+            item
+            for item in body["states"]
+            if item["kind"] == "repair_rerun_request_gate"
+        ][0]
+        self.assertEqual(request_gate_state["status"], "usable")
+        self.assertEqual(
+            request_gate_state["path"],
+            "runs/isolated/specspace_repair_rerun_request_gate.json",
+        )
 
     def test_idea_to_spec_workspace_state_hygiene_v1_reports_stale_state(
         self,

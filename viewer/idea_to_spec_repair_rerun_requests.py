@@ -279,12 +279,6 @@ def save_rerun_request(
         repair_session_id=repair_session_id,
         repair_session_ref=repair_session_ref,
     )
-    if not drafts:
-        stale_reason = "repair_drafts_stale" if workspace_drafts else "repair_drafts_missing"
-        return HTTPStatus.CONFLICT, {
-            "error": "Repair rerun request requires saved SpecSpace repair drafts for the current repair session.",
-            "reason": stale_reason,
-        }
 
     import_preview_status = _effective_import_preview_status(artifacts)
     if import_preview_status.get("available") is not True:
@@ -305,6 +299,15 @@ def save_rerun_request(
             "error": "Repair rerun request requires at least one accepted draft import.",
             "reason": "accepted_draft_imports_missing",
         }
+    if not drafts and import_preview_status.get("source") != (
+        "platform_product_repair_draft_import_execution"
+    ):
+        stale_reason = "repair_drafts_stale" if workspace_drafts else "repair_drafts_missing"
+        return HTTPStatus.CONFLICT, {
+            "error": "Repair rerun request requires saved SpecSpace repair drafts for the current repair session.",
+            "reason": stale_reason,
+        }
+    draft_count = len(drafts) if drafts else accepted_count
 
     import_preview_ref = _text(import_preview_status.get("path")) or IMPORT_PREVIEW_PATH
     operator_ref = _text(payload.get("operator_ref")) or "operator://specspace-local"
@@ -325,7 +328,7 @@ def save_rerun_request(
         "requested_by": operator_ref,
         "created_at": now,
         "updated_at": now,
-        "draft_count": len(drafts),
+        "draft_count": draft_count,
         "accepted_for_rerun_count": accepted_count,
         "operator_command": _operator_command(import_preview_ref),
         "canonical_mutations_allowed": False,
@@ -447,6 +450,10 @@ def _with_workflow_status(
         repair_session_ref=current_session_ref,
     )
     draft_count = len(current_drafts)
+    if draft_count == 0 and import_preview.get("source") == (
+        "platform_product_repair_draft_import_execution"
+    ):
+        draft_count = accepted_for_rerun_count
     command = _operator_command(_text(import_preview.get("path")) or IMPORT_PREVIEW_PATH)
     state["workflow_status"] = {
         "drafts_saved": draft_count > 0,
