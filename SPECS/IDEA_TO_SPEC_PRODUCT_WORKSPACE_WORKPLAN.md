@@ -84,6 +84,16 @@ Acceptance criteria:
 - After artifact publication/refresh, the UI shows clarification requests or a
   ready candidate-source state. Done with projected publication.
 
+Execution-backed follow-up preconditions:
+
+- The Playwright job must have local Platform and SpecGraph checkouts, or a
+  stable fixture wrapper that is explicitly marked as a Platform/SpecGraph
+  substitute.
+- The harness must pass SpecSpace-owned state paths into Platform without
+  granting browser execution authority.
+- The test must validate the produced Platform/SpecGraph artifacts before
+  emitting the runs-watch change event.
+
 ### 3. Clarification Answer UI E2E
 
 Cover the next user-facing loop after intake questions appear.
@@ -95,6 +105,14 @@ action disabled, and verifies that continuation readiness only appears after
 external answer continuation publication. Remaining work is to replace the
 projected continuation publication with a real Platform/SpecGraph subprocess in
 the E2E harness.
+
+Execution-backed follow-up preconditions:
+
+- The harness must run `product-real-idea-continuation execute` or an equivalent
+  fixed Platform wrapper outside the browser.
+- The produced import preview and continuation report must be copied or served
+  from the same artifact base that `/api/v1/idea-to-spec-workspace` reads.
+- The browser must observe the update through runs-watch, not `page.reload()`.
 
 Acceptance criteria:
 
