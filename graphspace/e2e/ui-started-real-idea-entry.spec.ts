@@ -423,6 +423,21 @@ async function publishRealIdeaContinuationArtifacts(args: {
     path.join(args.specGraphRunDir, "clarified_user_idea_intake_source.json"),
     path.join(args.backendRunsDir, "clarified_user_idea_intake_source.json"),
   );
+  for (const artifactName of [
+    "idea_event_storming_intake.json",
+    "candidate_spec_graph_seed.json",
+    "candidate_spec_graph.json",
+    "pre_sib_coherence_report.json",
+    "candidate_repair_loop_report.json",
+    "idea_to_spec_clarification_requests.json",
+    "candidate_spec_materialization_report.json",
+    "idea_to_spec_promotion_gate.json",
+  ]) {
+    await copyIfPresent(
+      path.join(args.specGraphRunDir, artifactName),
+      path.join(args.backendRunsDir, artifactName),
+    );
+  }
   await copyIfPresent(
     path.join(args.specGraphRunDir, "active_idea_to_spec_candidate.json"),
     path.join(args.backendRunsDir, "active_idea_to_spec_candidate.json"),
@@ -1005,6 +1020,10 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       page.getByText("real_idea_answer_continuation_ready").first(),
     ).toBeVisible();
     await expect(page.getByText("active_candidate_review_required").first()).toBeVisible();
+    await expect(page.getByText("Candidate graph").first()).toBeVisible();
+    await expect(page.getByText("Pre-SIB coherence").first()).toBeVisible();
+    await expect(page.getByText("Product repair review").first()).toBeVisible();
+    await expect(page.getByText("idea_to_spec_promotion_blocked").first()).toBeVisible();
 
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });
