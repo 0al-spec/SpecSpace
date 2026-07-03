@@ -1039,7 +1039,8 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await expect(workspaceStatePreflight).toContainText(/repair drafts\s*usable/i);
     await expect(
       workspaceStatePreflight,
-    ).toContainText(/Rebuild repair draft import preview\s*enabled/i);
+    ).toContainText(/Rebuild repair draft import preview\s*blocked/i);
+    await expect(workspaceStatePreflight).toContainText("Build repair session journal first.");
 
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });

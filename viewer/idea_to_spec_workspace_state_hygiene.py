@@ -145,6 +145,8 @@ def _recommended_actions(
             by_kind,
             (("repair_drafts", "Save repair drafts first."),),
         )
+        if not current.get("repair_session_id"):
+            blockers.append("Build repair session journal first.")
         actions.append(
             _recommended_action(
                 action_id="workspace_state.rebuild_repair_draft_import_preview",

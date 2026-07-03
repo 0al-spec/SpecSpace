@@ -7096,6 +7096,52 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(invalid["status"], "invalid")
         self.assertEqual(invalid["path"], str(draft_path))
 
+    def test_idea_to_spec_workspace_state_hygiene_blocks_import_without_journal(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_repair_session=False,
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                post_status, _post_body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                        "action": "propose_project_local_term",
+                        "answer_value": {"terms": ["Decision Record"]},
+                    },
+                )
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(post_status, 200)
+        self.assertEqual(status, 200)
+        repair_drafts = [
+            item for item in body["states"] if item["kind"] == "repair_drafts"
+        ][0]
+        self.assertEqual(repair_drafts["status"], "usable")
+        import_action = [
+            item
+            for item in body["recommended_actions"]
+            if item["target_state"] == "repair_draft_import_preview"
+        ][0]
+        self.assertFalse(import_action["enabled"])
+        self.assertIn("Build repair session journal first.", import_action["blockers"])
+
     def test_idea_to_spec_workspace_state_hygiene_v1_reports_stale_state(
         self,
     ) -> None:
