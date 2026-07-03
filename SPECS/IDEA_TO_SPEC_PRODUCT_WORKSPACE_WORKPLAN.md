@@ -44,6 +44,11 @@ reviews, or publish read models.
   SpecSpace-owned clarification answer save.
 - Browser E2E refresh through a runs-watch change event instead of page reload
   for projected external intake/continuation publication.
+- Env-gated browser E2E for real Platform/SpecGraph intake execution after raw
+  idea submit. This keeps the browser inspect/request-only while the harness
+  runs Platform externally, validates the execution report, publishes selected
+  output artifacts into the test runs directory, and refreshes through
+  runs-watch.
 
 ## Next Tasks
 
@@ -52,17 +57,17 @@ reviews, or publish read models.
 Show the result of the controlled intake handoff after an operator submits a raw
 idea.
 
-Status: partially closed. SpecSpace now shows the Platform intake execution
-report when the artifact is published. The remaining work is to connect this to
-the next browser E2E and artifact refresh path.
+Status: closed for intake execution. SpecSpace shows the Platform intake
+execution report when the artifact is published, and the browser smoke now has
+an env-gated execution-backed path using local Platform and SpecGraph checkouts.
 
 Acceptance criteria:
 
 - Platform execution report is visible in the Product Workspace. Done.
 - SpecGraph intake session / clarification request artifacts are reflected in
-  `real_idea_intake`.
+  `real_idea_intake`. Done.
 - `guided_flow` advances from `entry_submitted` to the appropriate
-  clarification or candidate-source stage.
+  clarification or candidate-source stage. Done for execution-backed intake.
 - Missing or failed execution is shown as an actionable blocker, not as silent
   stale state.
 
@@ -71,10 +76,10 @@ Acceptance criteria:
 Extend the Playwright smoke from entry persistence to the first external
 handoff.
 
-Status: partially closed. Browser E2E now covers raw idea submit followed by an
-externally published intake execution/clarification projection. A future
-hardening slice can replace the projection step with a real Platform subprocess
-when the test environment reliably provides Platform and SpecGraph checkouts.
+Status: closed with two modes. Browser E2E covers raw idea submit followed by a
+projected publication in normal CI, and an env-gated execution-backed mode runs
+the real Platform subprocess against a local SpecGraph checkout when
+`SPECG_E2E_PLATFORM_DIR` and `SPECG_E2E_SPECG_DIR` are provided.
 
 Acceptance criteria:
 
@@ -82,17 +87,21 @@ Acceptance criteria:
 - The test harness may run Platform/SpecGraph outside the browser.
 - The browser never receives execution authority. Done.
 - After artifact publication/refresh, the UI shows clarification requests or a
-  ready candidate-source state. Done with projected publication.
+  ready candidate-source state. Done with projected publication and
+  execution-backed intake publication.
 
-Execution-backed follow-up preconditions:
+Execution-backed local smoke:
 
-- The Playwright job must have local Platform and SpecGraph checkouts, or a
-  stable fixture wrapper that is explicitly marked as a Platform/SpecGraph
-  substitute.
-- The harness must pass SpecSpace-owned state paths into Platform without
-  granting browser execution authority.
-- The test must validate the produced Platform/SpecGraph artifacts before
-  emitting the runs-watch change event.
+```bash
+SPECG_E2E_PLATFORM_DIR=../Platform \
+SPECG_E2E_SPECG_DIR=../SpecGraph \
+UI_PORT=5190 make ui-e2e-raw-idea-entry
+```
+
+The harness passes SpecSpace-owned state paths into Platform, validates the
+produced Platform report, publishes selected SpecGraph output artifacts into
+the test `runsDir`, and emits a runs-watch change event. Browser code still
+does not execute Platform or SpecGraph.
 
 ### 3. Clarification Answer UI E2E
 
@@ -158,9 +167,10 @@ Acceptance criteria:
 ## Known Friction
 
 - UI submit persists raw idea entry, but does not execute the intake pipeline.
-- E2E currently proves entry, projected intake execution, clarification answer
-  save, projected continuation readiness, and runs-watch refresh, not the full
-  execution-backed lifecycle.
+- E2E currently proves entry, execution-backed intake execution when local
+  Platform/SpecGraph checkouts are provided, projected continuation readiness,
+  clarification answer save, and runs-watch refresh. Continuation after saved
+  answers is not yet execution-backed.
 - Some browser tests still use a fixture-backed `/api/v1/idea-to-spec-workspace`
   projection while only mutable state APIs are real.
 - Local state directory, SpecGraph run directory, and product workspace artifact

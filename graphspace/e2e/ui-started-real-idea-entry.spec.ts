@@ -1,7 +1,14 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -12,6 +19,9 @@ const workspaceId = "team-decision-log";
 
 type SpecSpaceBackend = {
   baseUrl: string;
+  runsDir: string;
+  stateDir: string;
+  tmpRoot: string;
   stop: () => Promise<void>;
 };
 
@@ -34,6 +44,12 @@ const repoPython = path.join(repoRoot, ".venv/bin/python");
 const clarificationRequestId =
   "clarification.intake.question-active-frame-domain-refs";
 
+type CommandResult = {
+  code: number | null;
+  stdout: string;
+  stderr: string;
+};
+
 async function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -48,6 +64,20 @@ async function freePort(): Promise<number> {
       server.close(() => reject(new Error("Could not allocate a TCP port")));
     });
   });
+}
+
+function executablePythonForSubprocess(baseDir: string): string {
+  const configured = process.env.PYTHON;
+  if (configured) {
+    const resolved = path.isAbsolute(configured)
+      ? configured
+      : path.join(repoRoot, configured);
+    if (existsSync(resolved)) return resolved;
+  }
+  const baseVenv = path.join(baseDir, ".venv/bin/python");
+  if (existsSync(baseVenv)) return baseVenv;
+  if (existsSync(repoPython)) return repoPython;
+  return "python3";
 }
 
 async function waitForBackend(baseUrl: string, child: ChildProcessWithoutNullStreams) {
@@ -68,16 +98,44 @@ async function waitForBackend(baseUrl: string, child: ChildProcessWithoutNullStr
   throw new Error(`SpecSpace backend did not become ready: ${String(lastError)}`);
 }
 
-async function startSpecSpaceBackend(): Promise<SpecSpaceBackend> {
+async function runCommand(
+  command: string,
+  args: string[],
+  options: { cwd: string; env?: NodeJS.ProcessEnv },
+): Promise<CommandResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk.toString("utf8")));
+    child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk.toString("utf8")));
+    child.once("error", reject);
+    child.once("exit", (code) => {
+      resolve({ code, stdout: stdout.join(""), stderr: stderr.join("") });
+    });
+  });
+}
+
+async function startSpecSpaceBackend(options: {
+  seedIntakeRuns?: boolean;
+} = {}): Promise<SpecSpaceBackend> {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "specspace-ui-e2e-"));
   const dialogDir = path.join(tmpRoot, "dialogs");
   const stateDir = path.join(tmpRoot, "state");
   const runsDir = path.join(tmpRoot, "runs");
   await mkdir(dialogDir, { recursive: true });
   await mkdir(stateDir, { recursive: true });
-  await writeRealIdeaIntakeRuns(runsDir);
+  if (options.seedIntakeRuns !== false) {
+    await writeRealIdeaIntakeRuns(runsDir);
+  } else {
+    await mkdir(runsDir, { recursive: true });
+  }
   const port = await freePort();
-  const python = process.env.PYTHON ?? (existsSync(repoPython) ? repoPython : "python3");
+  const python = executablePythonForSubprocess(repoRoot);
   const child = spawn(
     python,
     [
@@ -110,6 +168,9 @@ async function startSpecSpaceBackend(): Promise<SpecSpaceBackend> {
   }
   return {
     baseUrl,
+    runsDir,
+    stateDir,
+    tmpRoot,
     stop: async () => {
       child.kill();
       await new Promise((resolve) => child.once("exit", resolve));
@@ -221,6 +282,22 @@ async function proxyRouteToBackend(route: Route, baseUrl: string) {
   await route.fulfill({ response });
 }
 
+async function installRealBackendApiRoutes(page: Page, baseUrl: string) {
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/v1/runs-watch") {
+      await route.fulfill({
+        json: {
+          artifact_kind: "specspace_runs_watch",
+          version: 1,
+        },
+      });
+      return;
+    }
+    await proxyRouteToBackend(route, baseUrl);
+  });
+}
+
 async function installRunsWatchMock(page: Page) {
   await page.addInitScript(() => {
     type Listener = () => void;
@@ -270,6 +347,39 @@ async function emitRunsChange(page: Page) {
   await page.evaluate(() => {
     window.__specspaceEmitRunsChange?.();
   });
+}
+
+async function copyIfPresent(source: string, destination: string) {
+  if (!existsSync(source)) return;
+  await mkdir(path.dirname(destination), { recursive: true });
+  await copyFile(source, destination);
+}
+
+async function publishRealIdeaIntakeExecutionArtifacts(args: {
+  backendRunsDir: string;
+  platformReportPath: string;
+  specGraphRunDir: string;
+}) {
+  await copyIfPresent(
+    args.platformReportPath,
+    path.join(args.backendRunsDir, "platform_real_idea_entry_intake_execution_report.json"),
+  );
+  await copyIfPresent(
+    path.join(args.specGraphRunDir, "idea_intake_clarification_requests.json"),
+    path.join(args.backendRunsDir, "idea_intake_clarification_requests.json"),
+  );
+  await copyIfPresent(
+    path.join(args.specGraphRunDir, "real_idea_answer_template.json"),
+    path.join(args.backendRunsDir, "real_idea_smoke", "real_idea_answer_template.json"),
+  );
+  await copyIfPresent(
+    path.join(args.specGraphRunDir, "real_idea_answer_authoring_report.json"),
+    path.join(
+      args.backendRunsDir,
+      "real_idea_smoke",
+      "real_idea_answer_authoring_report.json",
+    ),
+  );
 }
 
 function safeActionBoundary() {
@@ -660,6 +770,113 @@ test("shows clarification stage after external intake execution publication", as
     await expect(page.getByText("Template-backed answer")).toBeVisible();
     await expect(page.getByText("Answer continuation pending")).toBeVisible();
   } finally {
+    await backend.stop();
+  }
+});
+
+test("can refresh from a real Platform intake execution when checkouts are provided", async ({
+  page,
+}) => {
+  const platformDir = process.env.SPECG_E2E_PLATFORM_DIR;
+  const specGraphDir = process.env.SPECG_E2E_SPECG_DIR;
+  test.skip(
+    !platformDir || !specGraphDir,
+    "Set SPECG_E2E_PLATFORM_DIR and SPECG_E2E_SPECG_DIR to run the execution-backed smoke.",
+  );
+
+  const platformScript = path.join(platformDir!, "scripts/platform.py");
+  const specGraphMakefile = path.join(specGraphDir!, "Makefile");
+  test.skip(
+    !existsSync(platformScript) || !existsSync(specGraphMakefile),
+    "Execution-backed smoke requires local Platform and SpecGraph checkouts.",
+  );
+
+  const backend = await startSpecSpaceBackend({ seedIntakeRuns: false });
+  const runDirName = `specspace-ui-e2e-real-${Date.now()}`;
+  const specGraphRunDirRef = `runs/${runDirName}`;
+  const specGraphRunDir = path.join(specGraphDir!, specGraphRunDirRef);
+  const platformReportPath = path.join(
+    specGraphRunDir,
+    "platform_real_idea_entry_intake_execution_report.json",
+  );
+
+  try {
+    await installRunsWatchMock(page);
+    await installRealBackendApiRoutes(page, backend.baseUrl);
+
+    await page.goto(`/${workspaceId}`);
+    await expect(page.getByText("Idea-to-Spec Workspace")).toBeVisible();
+    await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
+      "Create a real idea intake session",
+    );
+
+    await page
+      .getByTestId("real-idea-entry-text")
+      .fill("A browser-started team decision log for owner review dates.");
+    await page
+      .getByTestId("real-idea-entry-summary")
+      .fill("Browser-started team decision log");
+    await page.getByTestId("real-idea-entry-submit").click();
+    await expect(page.getByTestId("guided-flow-next-action")).toContainText(
+      "Import the submitted raw idea entry",
+    );
+
+    const stateResponse = await fetch(
+      `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
+    );
+    expect(stateResponse.ok).toBeTruthy();
+    const state = (await stateResponse.json()) as {
+      requests?: Array<{ request_id?: string }>;
+    };
+    const requestId = state.requests?.[0]?.request_id;
+    expect(requestId).toBeTruthy();
+
+    const python = executablePythonForSubprocess(platformDir!);
+    const execution = await runCommand(
+      python,
+      [
+        platformScript,
+        "product-real-idea-intake",
+        "execute",
+        "--specgraph-dir",
+        specGraphDir!,
+        "--run-dir",
+        specGraphRunDirRef,
+        "--entry-requests",
+        path.join(backend.stateDir, "real_idea_entry_requests.json"),
+        "--workspace-id",
+        workspaceId,
+        "--request-id",
+        requestId!,
+        "--output",
+        platformReportPath,
+        "--format",
+        "json",
+      ],
+      { cwd: platformDir! },
+    );
+    expect(execution.code, execution.stderr).toBe(0);
+    const report = JSON.parse(await readFile(platformReportPath, "utf8")) as {
+      ok?: boolean;
+      diagnostics?: unknown[];
+    };
+    expect(report.ok, JSON.stringify(report.diagnostics ?? [])).toBe(true);
+
+    await publishRealIdeaIntakeExecutionArtifacts({
+      backendRunsDir: backend.runsDir,
+      platformReportPath,
+      specGraphRunDir,
+    });
+    await emitRunsChange(page);
+
+    await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
+      "Answer intake clarification questions",
+    );
+    await expect(page.getByText("Platform intake execution")).toBeVisible();
+    await expect(page.getByText("execute_specgraph_real_idea_entry_intake")).toBeVisible();
+    await expect(page.getByText("Template-backed answer").first()).toBeVisible();
+  } finally {
+    await rm(specGraphRunDir, { recursive: true, force: true });
     await backend.stop();
   }
 });
