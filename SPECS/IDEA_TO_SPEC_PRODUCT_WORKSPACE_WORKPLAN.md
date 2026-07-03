@@ -182,11 +182,28 @@ Acceptance criteria:
 Make controlled handoffs understandable without giving SpecSpace execution
 authority.
 
+Status: closed for raw idea entry and intake answer continuation. The Product
+Workspace shows a copyable Platform intake command after raw entry submit, the
+last Platform intake execution report beside the current intake stage, and the
+real-idea answer continuation lane now pairs source refs, output refs, and
+read-only command hints with the continuation report.
+
 Acceptance criteria:
 
-- Copyable command hints are paired with source refs and expected outputs.
-- Last execution report is shown next to the current lifecycle stage.
-- Next safe step, blockers, and authority boundary stay aligned.
+- Copyable command hints are paired with source refs and expected outputs. Done
+  for entry and answer continuation.
+- Last execution report is shown next to the current lifecycle stage. Done for
+  Platform intake execution; answer continuation report is shown with its
+  output refs.
+- Next safe step, blockers, and authority boundary stay aligned. Done for the
+  UI-started intake loop through active candidate review-required state.
+
+Follow-up scope:
+
+- Extend the same handoff UX treatment into repair/ontology review continuation
+  after `active_candidate_review_required`.
+- Keep repair/promotion command hints read-only until Platform owns the
+  corresponding controlled execution wrapper.
 
 ## Known Friction
 
