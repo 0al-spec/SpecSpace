@@ -52,6 +52,10 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("operator_only");
     expect(html).toContain("Idea intake");
     expect(html).toContain("Real idea intake");
+    expect(html).toContain("Platform intake execution");
+    expect(html).toContain("execute_specgraph_real_idea_entry_intake");
+    expect(html).toContain("entry_intake_report");
+    expect(html).toContain("real_idea_entry_request_intake_report.json");
     expect(html).toContain("Start from raw idea");
     expect(html).toContain("No local idea draft");
     expect(html).toContain("local_browser_draft");

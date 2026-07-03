@@ -264,6 +264,8 @@ export type IdeaToSpecRealIdeaIntake = {
     outputRefs: readonly string[];
     outputArtifactCount: number;
     diagnosticCount: number;
+    operations: readonly IdeaToSpecProductRepairRerunOperation[];
+    outputArtifacts: readonly IdeaToSpecProductRepairRerunOutputArtifact[];
   };
   sourceRefs: readonly string[];
   authorityBoundary: {
@@ -2598,6 +2600,14 @@ function parseRealIdeaIntake(raw: unknown): IdeaToSpecRealIdeaIntake {
       outputRefs: strings(entryExecution.output_refs),
       outputArtifactCount: numberValue(entryExecution.output_artifact_count),
       diagnosticCount: numberValue(entryExecution.diagnostic_count),
+      operations: records(entryExecution.operations).flatMap((item) => {
+        const parsed = parseProductRepairRerunOperation(item);
+        return parsed ? [parsed] : [];
+      }),
+      outputArtifacts: records(entryExecution.output_artifacts).flatMap((item) => {
+        const parsed = parseProductRepairRerunOutputArtifact(item);
+        return parsed ? [parsed] : [];
+      }),
     },
     sourceRefs: strings(intake.source_refs),
     authorityBoundary: {

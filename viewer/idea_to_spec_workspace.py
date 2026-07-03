@@ -2115,6 +2115,7 @@ def _real_idea_entry_execution(report: dict[str, Any] | None) -> dict[str, Any]:
             (report or {}).get("entry_requests_source_digest")
         ),
         "output_refs": _safe_refs([item.get("path") for item in output_artifacts]),
+        "output_artifacts": output_artifacts,
         "output_artifact_count": _number(summary.get("output_artifact_count")),
         "diagnostic_count": len(_records((report or {}).get("diagnostics"))),
         "operations": _product_repair_rerun_operations(report),

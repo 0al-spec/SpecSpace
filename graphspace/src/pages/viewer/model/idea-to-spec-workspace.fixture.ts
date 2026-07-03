@@ -805,7 +805,49 @@ export const ideaToSpecWorkspace = {
       ],
       command_hint: null,
     },
+    entry_execution: {
+      available: true,
+      ok: true,
+      dry_run: false,
+      status: "completed",
+      run_dir: "runs/real_idea_smoke",
+      target: "real-idea-intake-from-entry-request",
+      entry_requests_handoff_ref:
+        "runs/real_idea_smoke/real_idea_entry_requests.json",
+      output_refs: [
+        "runs/real_idea_smoke/real_idea_entry_request_intake_report.json",
+        "runs/real_idea_smoke/idea_intake_clarification_requests.json",
+      ],
+      output_artifact_count: 2,
+      diagnostic_count: 0,
+      operations: [
+        {
+          name: "execute_specgraph_real_idea_entry_intake",
+          status: "succeeded",
+          evidence: ["real-idea-intake-from-entry-request"],
+        },
+      ],
+      output_artifacts: [
+        {
+          key: "entry_intake_report",
+          path: "runs/real_idea_smoke/real_idea_entry_request_intake_report.json",
+          present: true,
+          artifact_kind: "real_idea_entry_request_intake_report",
+          status: "ready",
+          ready: true,
+        },
+        {
+          key: "clarification_requests",
+          path: "runs/real_idea_smoke/idea_intake_clarification_requests.json",
+          present: true,
+          artifact_kind: "idea_intake_clarification_requests",
+          status: "ready",
+          ready: true,
+        },
+      ],
+    },
     source_refs: [
+      "runs/platform_real_idea_entry_intake_execution_report.json",
       "runs/idea_intake_clarification_requests.json",
       "runs/real_idea_smoke/real_idea_answer_template.json",
       "runs/real_idea_smoke/specspace_real_idea_answer_import_preview.json",

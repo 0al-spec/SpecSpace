@@ -626,6 +626,62 @@ function IdeaIntakeDraftSection({
             {realIdeaIntake.continuationHandoff.commandHint}
           </pre>
         ) : null}
+        {realIdeaIntake.entryExecution.available ? (
+          <div className={styles.row}>
+            <div className={styles.rowHeader}>
+              <span className={styles.rowId}>Platform intake execution</span>
+              <Pill
+                value={
+                  realIdeaIntake.entryExecution.dryRun
+                    ? "dry run"
+                    : realIdeaIntake.entryExecution.ok
+                      ? "completed"
+                      : realIdeaIntake.entryExecution.status
+                }
+              />
+            </div>
+            <div className={styles.metaGrid}>
+              <Meta label="Status" value={realIdeaIntake.entryExecution.status} />
+              <Meta label="Dry run" value={boolText(realIdeaIntake.entryExecution.dryRun)} />
+              <Meta label="Run dir" value={realIdeaIntake.entryExecution.runDir} />
+              <Meta label="Target" value={realIdeaIntake.entryExecution.target} />
+              <Meta
+                label="Outputs"
+                value={String(realIdeaIntake.entryExecution.outputArtifactCount)}
+              />
+              <Meta
+                label="Diagnostics"
+                value={String(realIdeaIntake.entryExecution.diagnosticCount)}
+              />
+            </div>
+            {realIdeaIntake.entryExecution.operations.map((operation) => (
+              <div key={operation.name} className={styles.subRow}>
+                <span>{operation.name}</span>
+                <Pill value={operation.status} />
+                <span className={styles.statusDetail}>
+                  {compact(operation.reason, joined(operation.evidence))}
+                </span>
+              </div>
+            ))}
+            {realIdeaIntake.entryExecution.outputArtifacts.map((artifact) => (
+              <div key={artifact.key} className={styles.subRow}>
+                <span>{artifact.key}</span>
+                <Pill
+                  value={
+                    artifact.ready
+                      ? "ready"
+                      : artifact.present
+                        ? "present"
+                        : "missing"
+                  }
+                />
+                <span className={styles.statusDetail}>
+                  {artifact.path ?? compact(artifact.artifactKind)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {realIdeaIntake.blockers.length > 0 ? (
           <p className={styles.statusDetail}>
             Blockers: {joined(realIdeaIntake.blockers)}

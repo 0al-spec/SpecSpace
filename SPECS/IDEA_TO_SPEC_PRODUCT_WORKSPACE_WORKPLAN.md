@@ -38,6 +38,8 @@ reviews, or publish read models.
 - Browser E2E for raw idea submit into SpecSpace-owned mutable state.
 - Workspace and `guided_flow` refresh after successful raw idea submit.
 - Visible handoff command for controlled Platform intake execution.
+- Product Workspace visibility for the Platform real idea intake execution
+  report, including operations and generated output artifacts.
 
 ## Next Tasks
 
@@ -46,9 +48,13 @@ reviews, or publish read models.
 Show the result of the controlled intake handoff after an operator submits a raw
 idea.
 
+Status: partially closed. SpecSpace now shows the Platform intake execution
+report when the artifact is published. The remaining work is to connect this to
+the next browser E2E and artifact refresh path.
+
 Acceptance criteria:
 
-- Platform execution report is visible in the Product Workspace.
+- Platform execution report is visible in the Product Workspace. Done.
 - SpecGraph intake session / clarification request artifacts are reflected in
   `real_idea_intake`.
 - `guided_flow` advances from `entry_submitted` to the appropriate

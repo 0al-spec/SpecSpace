@@ -6507,6 +6507,14 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "runs/real_idea_smoke/real_idea_entry_request_intake_report.json",
             execution["output_refs"],
         )
+        self.assertEqual(
+            execution["operations"][0]["name"],
+            "execute_specgraph_real_idea_entry_intake",
+        )
+        self.assertEqual(
+            execution["output_artifacts"][0]["key"],
+            "entry_intake_report",
+        )
 
     def test_idea_to_spec_intake_clarification_answers_v1_posts_answer(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
