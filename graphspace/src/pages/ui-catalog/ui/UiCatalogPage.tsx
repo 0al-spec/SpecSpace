@@ -2,17 +2,19 @@ import { Panel } from "@/shared/ui/panel";
 import { PanelBtn } from "@/shared/ui/panel-btn";
 import styles from "./UiCatalogPage.module.css";
 
+const utilityPanelComponentItems = [
+  "Report status row",
+  "Rail width preview",
+  "Fullscreen overlay preview",
+] as const;
+
 const catalogSections = [
   {
     id: "utility-panel-components",
     title: "Utility panel components",
     status: "active",
     href: "/dev/idea-to-spec-fixtures",
-    items: [
-      "Report status row",
-      "Rail width preview",
-      "Fullscreen overlay preview",
-    ],
+    items: utilityPanelComponentItems,
   },
   {
     id: "shared-primitives",
@@ -75,7 +77,7 @@ export function UiCatalogPage() {
               </a>
             </div>
             <div className={styles.cardGrid}>
-              {catalogSections[0].items.map((item) => (
+              {utilityPanelComponentItems.map((item) => (
                 <a
                   className={styles.catalogCard}
                   href={`/dev/idea-to-spec-fixtures#${fixtureAnchor(item)}`}
@@ -105,7 +107,11 @@ export function UiCatalogPage() {
                 <span className={styles.cardTitle}>Panel</span>
                 <span className={styles.cardMeta}>default / sm</span>
               </Panel>
-              <div className={styles.buttonSet} aria-label="Panel button examples">
+              <div
+                className={styles.buttonSet}
+                role="group"
+                aria-label="Panel button examples"
+              >
                 <PanelBtn title="Default panel button" aria-label="Default panel button">
                   +
                 </PanelBtn>
