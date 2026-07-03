@@ -232,25 +232,26 @@ def save_repair_draft(
     workspace = _record(workspace_payload.get("workspace"))
     repair_session = _record(workspace_payload.get("repair_session"))
     repair_review = _record(workspace_payload.get("repair_review"))
-    if repair_session.get("available") is not True or repair_session.get("source_mode") != "journal":
-        return HTTPStatus.CONFLICT, {
-            "error": "Repair draft requires a readable repair session journal.",
-            "reason": "repair_session_journal_required",
-        }
-    session_readiness = _record(repair_session.get("readiness"))
-    if session_readiness.get("ready") is not True:
-        return HTTPStatus.CONFLICT, {
-            "error": "Repair draft requires a ready repair session journal.",
-            "reason": "repair_session_not_ready",
-            "review_state": session_readiness.get("review_state"),
-        }
-
     requests = _records(_record(repair_review.get("clarification_requests")).get("requests"))
     request = next((item for item in requests if item.get("id") == request_id), None)
     if request is None:
         return HTTPStatus.NOT_FOUND, {
             "error": f"Clarification request '{request_id}' not found.",
             "request_id": request_id,
+        }
+    if repair_session.get("source_mode") == "journal":
+        session_readiness = _record(repair_session.get("readiness"))
+        if session_readiness.get("ready") is not True:
+            return HTTPStatus.CONFLICT, {
+                "error": "Repair draft requires a ready repair session journal.",
+                "reason": "repair_session_not_ready",
+                "review_state": session_readiness.get("review_state"),
+            }
+    elif repair_session.get("available") is True:
+        return HTTPStatus.CONFLICT, {
+            "error": "Repair draft requires a readable repair session journal.",
+            "reason": "repair_session_journal_required",
+            "source_mode": repair_session.get("source_mode"),
         }
     allowed_actions = _string_list(request.get("suggested_actions"))
     if action not in allowed_actions:

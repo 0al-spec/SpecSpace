@@ -1027,6 +1027,15 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await expect(page.getByText("make product-workspace-repair-draft-rerun").first()).toBeVisible();
     await expect(page.getByText("idea_to_spec_promotion_blocked").first()).toBeVisible();
 
+    await page
+      .getByLabel("Repair draft action")
+      .first()
+      .selectOption("propose_project_local_term");
+    await page.getByLabel("Ontology gap term").first().fill("Team Member");
+    await page.getByRole("button", { name: "Save draft" }).first().click();
+    await expect(page.getByText("Draft saved · propose project local term").first()).toBeVisible();
+    await expect(page.getByText("SpecSpace repair drafts").first()).toBeVisible();
+
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });
     await backend.stop();

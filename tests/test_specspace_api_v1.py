@@ -230,6 +230,7 @@ def _write_product_workspace_runs(
 def _write_repair_draft_workspace_runs(
     runs_dir: Path,
     *,
+    include_repair_session: bool = True,
     include_secondary_request: bool = False,
     include_import_preview: bool = False,
     import_preview_ready: bool = True,
@@ -300,99 +301,102 @@ def _write_repair_draft_workspace_runs(
             },
         },
     )
-    _write_json(
-        runs_dir / idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
-        {
-            "artifact_kind": "idea_to_spec_repair_session_journal",
-            "schema_version": 1,
-            "proposal_id": "0171",
-            "contract_ref": "specgraph.idea-to-spec.repair-session-journal.v0.1",
-            "canonical_mutations_allowed": False,
-            "tracked_artifacts_written": False,
-            "readiness": {
-                "ready": True,
-                "review_state": "repair_session_journal_ready",
-                "blocked_by": [],
-                "next_artifact": "SpecSpace product repair workspace",
+    if include_repair_session:
+        _write_json(
+            runs_dir / idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
+            {
+                "artifact_kind": "idea_to_spec_repair_session_journal",
+                "schema_version": 1,
+                "proposal_id": "0171",
+                "contract_ref": "specgraph.idea-to-spec.repair-session-journal.v0.1",
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
+                "readiness": {
+                    "ready": True,
+                    "review_state": "repair_session_journal_ready",
+                    "blocked_by": [],
+                    "next_artifact": "SpecSpace product repair workspace",
+                },
+                "session": {
+                    "session_id": "repair-session.team-decision-log",
+                    "candidate_id": "team-decision-log",
+                    "workspace_route": "/team-decision-log",
+                    "workflow_lane": "product_idea_to_spec",
+                    "target_repository_role": "product_spec_workspace",
+                    "governance_profile": "product_workspace",
+                    "operator_ref": "operator://workspace-owner",
+                },
+                "readiness_impact": {
+                    "ready_for_candidate_approval": ready_for_candidate_approval,
+                    "ready_for_platform_promotion": False,
+                    "intermediate_artifacts_ready": True,
+                    "candidate_quality_review_state": "candidate_quality_partially_improved",
+                    "promotion_gate_review_state": (
+                        "idea_to_spec_promotion_ready"
+                        if ready_for_candidate_approval
+                        else "idea_to_spec_promotion_blocked"
+                    ),
+                    "active_candidate_review_state": "active_candidate_review_required",
+                    "resolved_ontology_gap_count": 1 if ready_for_candidate_approval else 0,
+                    "unresolved_ontology_gap_count": 0 if ready_for_candidate_approval else 1,
+                    "rerun_removed_gap_count": 1 if ready_for_candidate_approval else 0,
+                    "clarification_request_count": 1,
+                    "accepted_answer_count": 1 if ready_for_candidate_approval else 0,
+                    "ontology_decision_count": 1 if ready_for_candidate_approval else 0,
+                    "promotion_path_count": 1 if ready_for_candidate_approval else 0,
+                    "blocked_by": (
+                        [] if ready_for_candidate_approval else ["unresolved_ontology_gaps"]
+                    ),
+                    "platform_promotion_blocked_by": (
+                        []
+                        if ready_for_candidate_approval
+                        else ["candidate_not_ready_for_approval"]
+                    ),
+                },
+                "workflow_journal": {
+                    "stages": [],
+                    "accepted_answers": [],
+                    "ontology_decisions": [],
+                    "rerun_overlay_refs": {},
+                    "preview_refs": {},
+                },
+                "source_artifacts": {},
+                "summary": {
+                    "status": "repair_session_journal_ready",
+                    "candidate_id": "team-decision-log",
+                    "workflow_lane": "product_idea_to_spec",
+                    "accepted_answer_count": 1 if ready_for_candidate_approval else 0,
+                    "ontology_decision_count": 1 if ready_for_candidate_approval else 0,
+                    "resolved_ontology_gap_count": 1 if ready_for_candidate_approval else 0,
+                    "unresolved_ontology_gap_count": 0 if ready_for_candidate_approval else 1,
+                    "ready_for_candidate_approval": ready_for_candidate_approval,
+                    "finding_count": 0,
+                },
+                "authority_boundary": {
+                    "may_execute_prompt_agent": False,
+                    "may_apply_answers_to_source_artifacts": False,
+                    "may_apply_decisions_to_source_artifacts": False,
+                    "may_mutate_candidate_source_artifacts": False,
+                    "may_mutate_canonical_specs": False,
+                    "may_write_ontology_package": False,
+                    "may_write_ontology_lockfile": False,
+                    "may_accept_ontology_terms": False,
+                    "may_mark_candidate_graph_accepted": False,
+                    "may_create_branch_or_commit": False,
+                    "may_open_pull_request": False,
+                    "may_publish_read_model": False,
+                },
+                "privacy_boundary": {
+                    "raw_idea_text_published": False,
+                    "raw_prompt_published": False,
+                    "raw_model_output_published": False,
+                    "raw_operator_note_published": False,
+                    "static_flags_are_asserted_invariants": True,
+                    "redaction_enforced_by": "recursive_public_safe_field_filter",
+                },
+                "findings": [],
             },
-            "session": {
-                "session_id": "repair-session.team-decision-log",
-                "candidate_id": "team-decision-log",
-                "workspace_route": "/team-decision-log",
-                "workflow_lane": "product_idea_to_spec",
-                "target_repository_role": "product_spec_workspace",
-                "governance_profile": "product_workspace",
-                "operator_ref": "operator://workspace-owner",
-            },
-            "readiness_impact": {
-                "ready_for_candidate_approval": ready_for_candidate_approval,
-                "ready_for_platform_promotion": False,
-                "intermediate_artifacts_ready": True,
-                "candidate_quality_review_state": "candidate_quality_partially_improved",
-                "promotion_gate_review_state": (
-                    "idea_to_spec_promotion_ready"
-                    if ready_for_candidate_approval
-                    else "idea_to_spec_promotion_blocked"
-                ),
-                "active_candidate_review_state": "active_candidate_review_required",
-                "resolved_ontology_gap_count": 1 if ready_for_candidate_approval else 0,
-                "unresolved_ontology_gap_count": 0 if ready_for_candidate_approval else 1,
-                "rerun_removed_gap_count": 1 if ready_for_candidate_approval else 0,
-                "clarification_request_count": 1,
-                "accepted_answer_count": 1 if ready_for_candidate_approval else 0,
-                "ontology_decision_count": 1 if ready_for_candidate_approval else 0,
-                "promotion_path_count": 1 if ready_for_candidate_approval else 0,
-                "blocked_by": [] if ready_for_candidate_approval else ["unresolved_ontology_gaps"],
-                "platform_promotion_blocked_by": (
-                    []
-                    if ready_for_candidate_approval
-                    else ["candidate_not_ready_for_approval"]
-                ),
-            },
-            "workflow_journal": {
-                "stages": [],
-                "accepted_answers": [],
-                "ontology_decisions": [],
-                "rerun_overlay_refs": {},
-                "preview_refs": {},
-            },
-            "source_artifacts": {},
-            "summary": {
-                "status": "repair_session_journal_ready",
-                "candidate_id": "team-decision-log",
-                "workflow_lane": "product_idea_to_spec",
-                "accepted_answer_count": 1 if ready_for_candidate_approval else 0,
-                "ontology_decision_count": 1 if ready_for_candidate_approval else 0,
-                "resolved_ontology_gap_count": 1 if ready_for_candidate_approval else 0,
-                "unresolved_ontology_gap_count": 0 if ready_for_candidate_approval else 1,
-                "ready_for_candidate_approval": ready_for_candidate_approval,
-                "finding_count": 0,
-            },
-            "authority_boundary": {
-                "may_execute_prompt_agent": False,
-                "may_apply_answers_to_source_artifacts": False,
-                "may_apply_decisions_to_source_artifacts": False,
-                "may_mutate_candidate_source_artifacts": False,
-                "may_mutate_canonical_specs": False,
-                "may_write_ontology_package": False,
-                "may_write_ontology_lockfile": False,
-                "may_accept_ontology_terms": False,
-                "may_mark_candidate_graph_accepted": False,
-                "may_create_branch_or_commit": False,
-                "may_open_pull_request": False,
-                "may_publish_read_model": False,
-            },
-            "privacy_boundary": {
-                "raw_idea_text_published": False,
-                "raw_prompt_published": False,
-                "raw_model_output_published": False,
-                "raw_operator_note_published": False,
-                "static_flags_are_asserted_invariants": True,
-                "redaction_enforced_by": "recursive_public_safe_field_filter",
-            },
-            "findings": [],
-        },
-    )
+        )
     if include_repaired_handoff:
         _write_json(
             runs_dir
@@ -7907,6 +7911,49 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(draft["mutates_canonical_specs"])
         self.assertTrue(state_exists)
         self.assertEqual(candidate_graph_after, before_candidate_graph)
+
+    def test_idea_to_spec_repair_drafts_v1_posts_draft_with_legacy_repair_artifacts(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_repair_session=False,
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                        "action": "propose_project_local_term",
+                        "answer_value": {"terms": ["Decision Record"]},
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["draft_count"], 1)
+        draft = body["drafts"][0]
+        self.assertEqual(
+            draft["request_id"],
+            "clarification.candidate-gap.ontology-gap-decision-record",
+        )
+        self.assertEqual(
+            draft["repair_session_ref"],
+            "runs/idea_to_spec_repair_session.json",
+        )
+        self.assertIsNone(draft["repair_session_id"])
+        self.assertFalse(draft["applies_to_specgraph"])
 
     def test_idea_to_spec_repair_drafts_v1_preserves_bind_term(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
