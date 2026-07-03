@@ -556,6 +556,21 @@ async function publishRepairRerunPublicationArtifacts(args: {
   );
 }
 
+async function publishCandidateApprovalArtifacts(args: {
+  backendRunsDir: string;
+  executionReportPath: string;
+  decisionPath: string;
+}) {
+  await copyIfPresent(
+    args.executionReportPath,
+    path.join(args.backendRunsDir, "platform_candidate_approval_execution_report.json"),
+  );
+  await copyIfPresent(
+    args.decisionPath,
+    path.join(args.backendRunsDir, "candidate_approval_decision.json"),
+  );
+}
+
 function safeActionBoundary() {
   return {
     inspect_only: true,
@@ -1438,6 +1453,101 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       .click();
     await expect(page.getByText("candidate_approval_intent_recorded")).toBeVisible();
     await expect(page.getByText(/^candidate-approval-intent\./)).toBeVisible();
+
+    const repairedPromotionGate = JSON.parse(
+      await readFile(
+        path.join(specGraphRunDir, "repaired_idea_to_spec_promotion_gate.json"),
+        "utf8",
+      ),
+    ) as { promotion_request?: { paths?: string[] } };
+    const approvalPaths = repairedPromotionGate.promotion_request?.paths ?? [];
+    expect(approvalPaths.length).toBeGreaterThan(0);
+    const candidateApprovalGatePath = path.join(
+      specGraphRunDir,
+      "platform_candidate_approval_intent_gate_report.json",
+    );
+    const candidateApprovalDecisionPath = path.join(
+      specGraphRunDir,
+      "candidate_approval_decision.json",
+    );
+    const candidateApprovalExecutionPath = path.join(
+      specGraphRunDir,
+      "platform_candidate_approval_execution_report.json",
+    );
+    const candidateApprovalArgs = [
+      "product-candidate-approval",
+      "approve",
+      "--specgraph-dir",
+      specGraphDir!,
+      "--approval-intents",
+      path.join(backend.stateDir, "idea_to_spec_candidate_approval_intents.json"),
+      "--repair-session",
+      path.join(specGraphRunDir, "repaired_idea_to_spec_repair_session.json"),
+      "--active-candidate",
+      path.join(specGraphRunDir, "repaired_active_idea_to_spec_candidate.json"),
+      "--promotion-gate",
+      path.join(specGraphRunDir, "repaired_idea_to_spec_promotion_gate.json"),
+      "--repaired-handoff",
+      path.join(specGraphRunDir, "repaired_candidate_promotion_handoff_report.json"),
+      "--repair-execution",
+      repairRerunExecutionPath,
+      "--repair-publication",
+      repairRerunPublicationPath,
+      "--workspace-id",
+      workspaceId,
+      "--gate-output",
+      candidateApprovalGatePath,
+      "--decision-output",
+      candidateApprovalDecisionPath,
+      "--output",
+      candidateApprovalExecutionPath,
+      "--format",
+      "json",
+    ];
+    for (const approvalPath of approvalPaths) {
+      candidateApprovalArgs.push("--path", approvalPath);
+    }
+    const candidateApprovalCommand = platformCliInvocation(
+      platformDir!,
+      platformScript,
+      candidateApprovalArgs,
+    );
+    const candidateApprovalExecution = await runCommand(
+      candidateApprovalCommand.command,
+      candidateApprovalCommand.args,
+      { cwd: platformDir! },
+    );
+    expect(
+      candidateApprovalExecution.code,
+      `stdout:\n${candidateApprovalExecution.stdout}\nstderr:\n${candidateApprovalExecution.stderr}`,
+    ).toBe(0);
+    const candidateApprovalExecutionPayload = JSON.parse(
+      await readFile(candidateApprovalExecutionPath, "utf8"),
+    ) as {
+      ok?: boolean;
+      diagnostics?: unknown[];
+      summary?: { decision_written?: boolean };
+    };
+    expect(
+      candidateApprovalExecutionPayload.ok,
+      JSON.stringify(candidateApprovalExecutionPayload.diagnostics ?? []),
+    ).toBe(true);
+    expect(candidateApprovalExecutionPayload.summary?.decision_written).toBe(true);
+    await publishCandidateApprovalArtifacts({
+      backendRunsDir: backend.runsDir,
+      executionReportPath: candidateApprovalExecutionPath,
+      decisionPath: candidateApprovalDecisionPath,
+    });
+    await emitRunsChange(page);
+    const controlledPromotion = page.locator("#idea-to-spec-controlled-promotion");
+    await expect(controlledPromotion.getByText("Candidate approval execution")).toBeVisible();
+    await expect(
+      controlledPromotion.getByText("Decision written", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      controlledPromotion.getByText("Candidate approval", { exact: true }),
+    ).toBeVisible();
+    await expect(controlledPromotion.getByText("approved").first()).toBeVisible();
 
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });
