@@ -253,6 +253,18 @@ export type IdeaToSpecRealIdeaIntake = {
     outputRefs: readonly string[];
     commandHint: string | null;
   };
+  entryExecution: {
+    available: boolean;
+    ok: boolean;
+    dryRun: boolean;
+    status: string;
+    runDir: string | null;
+    target: string | null;
+    entryRequestsHandoffRef: string | null;
+    outputRefs: readonly string[];
+    outputArtifactCount: number;
+    diagnosticCount: number;
+  };
   sourceRefs: readonly string[];
   authorityBoundary: {
     inspectOnly: true;
@@ -2524,6 +2536,7 @@ function parseRealIdeaIntake(raw: unknown): IdeaToSpecRealIdeaIntake {
   const progress = recordValue(intake.clarification_progress);
   const answerTemplate = recordValue(intake.answer_template);
   const continuationHandoff = recordValue(intake.continuation_handoff);
+  const entryExecution = recordValue(intake.entry_execution);
   return {
     available: intake.available === true,
     status: stringValue(intake.status, "missing"),
@@ -2571,6 +2584,20 @@ function parseRealIdeaIntake(raw: unknown): IdeaToSpecRealIdeaIntake {
       safeToContinue: continuationHandoff.safe_to_continue === true,
       outputRefs: strings(continuationHandoff.output_refs),
       commandHint: optionalString(continuationHandoff.command_hint),
+    },
+    entryExecution: {
+      available: entryExecution.available === true,
+      ok: entryExecution.ok === true,
+      dryRun: entryExecution.dry_run === true,
+      status: stringValue(entryExecution.status, "missing"),
+      runDir: optionalString(entryExecution.run_dir),
+      target: optionalString(entryExecution.target),
+      entryRequestsHandoffRef: optionalString(
+        entryExecution.entry_requests_handoff_ref,
+      ),
+      outputRefs: strings(entryExecution.output_refs),
+      outputArtifactCount: numberValue(entryExecution.output_artifact_count),
+      diagnosticCount: numberValue(entryExecution.diagnostic_count),
     },
     sourceRefs: strings(intake.source_refs),
     authorityBoundary: {

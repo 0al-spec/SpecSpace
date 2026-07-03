@@ -347,6 +347,12 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_idea_to_spec_intake_clarification_answer_post = (
         specspace_v1_api.handle_v1_idea_to_spec_intake_clarification_answer_post
     )
+    handle_v1_real_idea_entry_requests = (
+        specspace_v1_api.handle_v1_real_idea_entry_requests
+    )
+    handle_v1_real_idea_entry_request_post = (
+        specspace_v1_api.handle_v1_real_idea_entry_request_post
+    )
     handle_v1_idea_to_spec_repair_rerun_requests = (
         specspace_v1_api.handle_v1_idea_to_spec_repair_rerun_requests
     )

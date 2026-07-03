@@ -6120,6 +6120,216 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIsNone(body["selected_workspace_id"])
 
+    def test_real_idea_entry_requests_v1_reads_empty_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/real-idea-entry-requests?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            body["artifact_kind"],
+            "specspace_real_idea_entry_request_state",
+        )
+        self.assertEqual(body["selected_workspace_id"], "team-decision-log")
+        self.assertEqual(body["summary"]["request_count"], 0)
+        self.assertEqual(body["summary"]["next_gap"], "submit_real_idea_entry_request")
+        self.assertTrue(body["consumer_boundary"]["specspace_owned_state"])
+        self.assertFalse(body["consumer_boundary"]["may_execute_specgraph"])
+        self.assertFalse(body["authority_boundary"]["specgraph_artifact_authority"])
+        self.assertFalse((state_dir / "real_idea_entry_requests.json").exists())
+
+    def test_real_idea_entry_requests_v1_posts_submitted_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/real-idea-entry-requests?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "idea_text": "A team decision log for product discussions.",
+                        "idea_summary_hint": "Team decision log",
+                        "workspace_display_name": "Team Decision Log",
+                        "domain_hints": ["team collaboration"],
+                        "constraints": ["review-only candidate first"],
+                    },
+                )
+                state_written = (state_dir / "real_idea_entry_requests.json").exists()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["request_count"], 1)
+        self.assertEqual(body["summary"]["active_submitted_count"], 1)
+        request = body["requests"][0]
+        self.assertEqual(request["workspace_id"], "team-decision-log")
+        self.assertEqual(request["status"], "submitted")
+        self.assertEqual(
+            request["idea_text"],
+            "A team decision log for product discussions.",
+        )
+        self.assertFalse(request["authority_boundary"]["may_execute_specgraph"])
+        self.assertFalse(request["privacy_boundary"]["raw_idea_text_public_safe"])
+        self.assertTrue(state_written)
+
+    def test_real_idea_entry_requests_v1_rejects_authority_expansion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/real-idea-entry-requests?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "idea_text": "A team decision log for product discussions.",
+                        "may_execute_specgraph": True,
+                    },
+                )
+                state_written = (state_dir / "real_idea_entry_requests.json").exists()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertIn("may_execute_specgraph", body["error"])
+        self.assertFalse(state_written)
+
+    def test_idea_to_spec_workspace_embeds_real_idea_entry_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_product_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                post_status, _post_body = _post(
+                    f"{base}/api/v1/real-idea-entry-requests?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "idea_text": "A team decision log for product discussions.",
+                        "idea_summary_hint": "Team decision log",
+                    },
+                )
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(post_status, 200)
+        self.assertEqual(status, 200)
+        entry_state = body["real_idea_entry"]
+        self.assertEqual(
+            entry_state["artifact_kind"],
+            "specspace_real_idea_entry_request_state",
+        )
+        self.assertEqual(entry_state["summary"]["active_submitted_count"], 1)
+        self.assertEqual(entry_state["requests"][0]["workspace_id"], "team-decision-log")
+
+    def test_idea_to_spec_workspace_shows_real_idea_entry_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            _write_product_workspace_runs(runs_dir)
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": (
+                        "platform_real_idea_entry_intake_execution_report"
+                    ),
+                    "schema_version": 1,
+                    "ok": True,
+                    "dry_run": False,
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "run_dir": "runs/real_idea_smoke",
+                    "entry_requests_handoff_ref": (
+                        "runs/real_idea_smoke/real_idea_entry_requests.json"
+                    ),
+                    "entry_requests_source_digest": "0" * 64,
+                    "authority_boundary": {
+                        "executes_specgraph_make_target": True,
+                        "executes_git_commands": False,
+                        "opens_pull_requests": False,
+                        "merges_pull_requests": False,
+                        "writes_ontology_packages": False,
+                        "accepts_ontology_terms": False,
+                        "mutates_canonical_specs": False,
+                        "publishes_private_artifacts": False,
+                    },
+                    "target_make": {
+                        "target": "real-idea-intake-from-entry-request",
+                    },
+                    "output_artifacts": {
+                        "entry_intake_report": {
+                            "path": (
+                                "runs/real_idea_smoke/"
+                                "real_idea_entry_request_intake_report.json"
+                            ),
+                            "present": True,
+                            "artifact_kind": (
+                                "real_idea_entry_request_intake_report"
+                            ),
+                            "status": "ready",
+                            "ready": True,
+                        }
+                    },
+                    "operations": [
+                        {
+                            "name": "execute_specgraph_real_idea_entry_intake",
+                            "status": "succeeded",
+                            "evidence": ["real-idea-intake-from-entry-request"],
+                        }
+                    ],
+                    "diagnostics": [],
+                    "summary": {
+                        "status": "completed",
+                        "error_count": 0,
+                        "output_artifact_count": 1,
+                    },
+                },
+            )
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        execution = body["real_idea_intake"]["entry_execution"]
+        self.assertTrue(execution["available"])
+        self.assertTrue(execution["ok"])
+        self.assertEqual(execution["status"], "completed")
+        self.assertEqual(
+            execution["target"], "real-idea-intake-from-entry-request"
+        )
+        self.assertEqual(execution["output_artifact_count"], 1)
+        self.assertIn(
+            "runs/real_idea_smoke/real_idea_entry_request_intake_report.json",
+            execution["output_refs"],
+        )
+
     def test_idea_to_spec_intake_clarification_answers_v1_posts_answer(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

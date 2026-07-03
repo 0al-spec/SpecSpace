@@ -16,6 +16,7 @@ from viewer import (
     idea_to_spec_workspace_state_hygiene,
     ontology_acknowledgements,
     project_local_ontology_review_decisions,
+    real_idea_entry_requests,
     spec_compile,
     specspace_provider,
 )
@@ -428,6 +429,11 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
             workspace_payload=payload,
         )
         payload["workspace_state_hygiene"] = hygiene
+        _, entry_state = real_idea_entry_requests.read_state(
+            handler.server,
+            workspace_id=workspace_id,
+        )
+        payload["real_idea_entry"] = entry_state
         idea_to_spec_workspace.attach_guided_flow(payload)
     json_response(handler, status, payload)
 
@@ -475,6 +481,18 @@ def handle_v1_idea_to_spec_intake_clarification_answers(
 ) -> None:
     workspace_id = _query_workspace_id(parsed)
     status, payload = idea_to_spec_intake_clarification_answers.read_state(
+        handler.server,
+        workspace_id=workspace_id,
+    )
+    json_response(handler, status, payload)
+
+
+def handle_v1_real_idea_entry_requests(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    workspace_id = _query_workspace_id(parsed)
+    status, payload = real_idea_entry_requests.read_state(
         handler.server,
         workspace_id=workspace_id,
     )
@@ -668,6 +686,39 @@ def handle_v1_idea_to_spec_intake_clarification_answer_post(
         handler.server,
         payload,
         workspace_payload,
+        workspace_id=workspace_id,
+    )
+    json_response(handler, status, response)
+
+
+def handle_v1_real_idea_entry_request_post(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    query_workspace_id = _query_workspace_id(parsed)
+    payload_workspace_id = specspace_provider.normalize_workspace_id(
+        payload.get("workspace_id")
+        if isinstance(payload.get("workspace_id"), str)
+        else None
+    )
+    if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
+        json_response(
+            handler,
+            HTTPStatus.CONFLICT,
+            {
+                "error": "Real idea entry workspace_id does not match selected workspace.",
+                "expected": query_workspace_id,
+                "actual": payload_workspace_id,
+            },
+        )
+        return
+    workspace_id = query_workspace_id or payload_workspace_id
+    status, response = real_idea_entry_requests.save_request(
+        handler.server,
+        payload,
         workspace_id=workspace_id,
     )
     json_response(handler, status, response)

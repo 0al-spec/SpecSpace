@@ -204,6 +204,10 @@ export function ViewerPage({
         "/api/v1/idea-to-spec-intake-clarification-answers",
         workspace,
       ),
+      realIdeaEntryRequests: workspaceApiUrl(
+        "/api/v1/real-idea-entry-requests",
+        workspace,
+      ),
       ideaToSpecRepairRerunRequests: workspaceApiUrl(
         "/api/v1/idea-to-spec-repair-rerun-requests",
         workspace,
@@ -1288,6 +1292,7 @@ export function ViewerPage({
               intakeClarificationAnswersUrl={
                 workspaceApiUrls.ideaToSpecIntakeClarificationAnswers
               }
+              realIdeaEntryRequestsUrl={workspaceApiUrls.realIdeaEntryRequests}
               repairRerunRequestsUrl={workspaceApiUrls.ideaToSpecRepairRerunRequests}
               candidateApprovalIntentsUrl={workspaceApiUrls.ideaToSpecCandidateApprovalIntents}
               projectLocalOntologyReviewDecisionsUrl={

@@ -52,7 +52,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("operator_only");
     expect(html).toContain("Idea intake");
     expect(html).toContain("Real idea intake");
-    expect(html).toContain("Local draft preview");
+    expect(html).toContain("Start from raw idea");
     expect(html).toContain("No local idea draft");
     expect(html).toContain("local_browser_draft");
     expect(html).toContain("Active workspace");

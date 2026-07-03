@@ -82,6 +82,10 @@ GET_ROUTES: dict[str, RouteSpec] = {
         "handle_v1_idea_to_spec_intake_clarification_answers",
         pass_parsed=True,
     ),
+    "/api/v1/real-idea-entry-requests": RouteSpec(
+        "handle_v1_real_idea_entry_requests",
+        pass_parsed=True,
+    ),
     "/api/v1/idea-to-spec-repair-rerun-requests": RouteSpec(
         "handle_v1_idea_to_spec_repair_rerun_requests",
         pass_parsed=True,
@@ -145,6 +149,10 @@ POST_ROUTES: dict[str, RouteSpec] = {
     ),
     "/api/v1/idea-to-spec-intake-clarification-answers": RouteSpec(
         "handle_v1_idea_to_spec_intake_clarification_answer_post",
+        pass_parsed=True,
+    ),
+    "/api/v1/real-idea-entry-requests": RouteSpec(
+        "handle_v1_real_idea_entry_request_post",
         pass_parsed=True,
     ),
     "/api/v1/idea-to-spec-repair-rerun-requests": RouteSpec(
