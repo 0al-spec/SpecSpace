@@ -16,6 +16,13 @@ component into production pages or panels.
 
 Store important lessons learned during SpecSpace work in [CONTRIBUTING.md](CONTRIBUTING.md), and check it first when recurring implementation, review, or deployment problems appear.
 
+For idea-to-spec Product Workspace work, keep the active UI/product backlog in
+[SPECS/IDEA_TO_SPEC_PRODUCT_WORKSPACE_WORKPLAN.md](SPECS/IDEA_TO_SPEC_PRODUCT_WORKSPACE_WORKPLAN.md).
+Use that file for current friction, next slices, and cross-repo handoff notes
+that affect SpecSpace UX. Keep proven demo/smoke procedures in Platform
+runbooks, and keep producer-side artifact/contract plans in SpecGraph roadmaps;
+do not bury actionable SpecSpace UI tasks only in PR summaries or chat history.
+
 ## 0AL Local Ops Logging
 
 For cross-repo observations, coordination tasks, blockers, or handoffs, write a
