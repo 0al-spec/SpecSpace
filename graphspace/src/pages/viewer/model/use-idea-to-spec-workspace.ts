@@ -1705,7 +1705,7 @@ export type UseIdeaToSpecWorkspaceState =
 type Options = {
   url?: string;
   fetcher?: typeof fetch;
-  refreshKey?: number;
+  refreshKey?: number | string;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {

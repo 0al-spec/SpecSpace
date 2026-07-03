@@ -113,13 +113,72 @@ async function proxyRouteToBackend(route: Route, baseUrl: string) {
   await route.fulfill({ response });
 }
 
+async function workspacePayload(backendBaseUrl: string) {
+  const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace)) as Record<
+    string,
+    unknown
+  >;
+  const response = await fetch(
+    `${backendBaseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
+  );
+  const entryState = (await response.json()) as {
+    summary?: { active_submitted_count?: number };
+  };
+  const hasSubmittedEntry =
+    (entryState.summary?.active_submitted_count ?? 0) > 0;
+  if (!hasSubmittedEntry) return payload;
+  const actionBoundary = {
+    inspect_only: true,
+    acknowledge_only: true,
+    may_execute_specgraph: false,
+    may_execute_platform: false,
+    may_execute_git_service: false,
+    may_mutate_candidate_artifacts: false,
+    may_mutate_canonical_specs: false,
+    may_write_ontology_package: false,
+    may_accept_ontology_terms: false,
+    may_create_branch_or_commit: false,
+    may_open_pull_request: false,
+    may_merge_review: false,
+  };
+
+  payload.real_idea_intake = {
+    ...((payload.real_idea_intake as Record<string, unknown>) ?? {}),
+    available: true,
+    status: "entry_submitted",
+    next_action:
+      "Import the submitted raw idea entry through SpecGraph/Platform intake handoff.",
+    blockers: [],
+    source_refs: ["specspace-state://real_idea_entry_requests.json"],
+  };
+  payload.guided_flow = {
+    ...((payload.guided_flow as Record<string, unknown>) ?? {}),
+    current_stage: "idea_intake",
+    current_stage_label: "Idea intake",
+    overall_status: "action_required",
+    next_actions: [
+      {
+        id: "import_real_idea_entry_request",
+        label: "Import submitted raw idea entry through Platform.",
+        status: "ready",
+        target_section: "idea-to-spec-idea-intake",
+        command_template:
+          "scripts/platform.py product-real-idea-intake execute --entry-requests <SpecSpace state dir>/real_idea_entry_requests.json",
+        evidence_refs: ["specspace-state://real_idea_entry_requests.json"],
+        authority_boundary: actionBoundary,
+      },
+    ],
+  };
+  return payload;
+}
+
 async function installIdeaToSpecApiRoutes(page: Page, backendBaseUrl: string) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
 
     if (path === "/api/v1/idea-to-spec-workspace") {
-      await route.fulfill({ json: ideaToSpecWorkspace });
+      await route.fulfill({ json: await workspacePayload(backendBaseUrl) });
       return;
     }
 
@@ -173,6 +232,12 @@ test("submits a raw real idea entry request from the product workspace UI", asyn
     );
     await expect(page.getByTestId("real-idea-entry-handoff-command")).toContainText(
       "--request-id real-idea-entry.team-decision-log",
+    );
+    await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
+      "Import the submitted raw idea entry",
+    );
+    await expect(page.getByTestId("guided-flow-next-action")).toContainText(
+      "Import submitted raw idea entry through Platform.",
     );
     await expect(page.getByText("Request state")).toBeVisible();
   } finally {

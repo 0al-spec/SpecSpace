@@ -222,7 +222,7 @@ export function useRealIdeaEntryRequests({
 
   const saveRequest = useCallback(
     async (input: RealIdeaEntryRequestInput) => {
-      if (!url || pending) return;
+      if (!url || pending) return false;
       setPending(true);
       setSaveError(null);
       try {
@@ -249,11 +249,13 @@ export function useRealIdeaEntryRequests({
             statusText: response.statusText,
             body,
           });
-          return;
+          return false;
         }
         setState(parseState(body));
+        return true;
       } catch (error) {
         setSaveError({ kind: "network-error", error });
+        return false;
       } finally {
         setPending(false);
       }

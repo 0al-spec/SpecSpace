@@ -169,6 +169,8 @@ export function ViewerPage({
   );
   const [agentConversationPromptSeed, setAgentConversationPromptSeed] =
     useState<AgentConversationPromptSeed | null>(null);
+  const [ideaToSpecWorkspaceRefreshKey, setIdeaToSpecWorkspaceRefreshKey] =
+    useState(0);
   const agentConversationRuntime = useMemo(
     () => createMockAgentConversationRuntime({ id_prefix: "specspace-local" }),
     [],
@@ -266,7 +268,7 @@ export function ViewerPage({
   });
   const ideaToSpecWorkspaceState = useIdeaToSpecWorkspace({
     url: workspaceApiUrls.ideaToSpecWorkspace,
-    refreshKey: runsWatchVersion,
+    refreshKey: `${runsWatchVersion}:${ideaToSpecWorkspaceRefreshKey}`,
   });
   const ontologyWorkbenchState = useOntologyWorkbench({
     url: workspaceApiUrls.ontologyWorkbench,
@@ -1299,6 +1301,9 @@ export function ViewerPage({
                 workspaceApiUrls.projectLocalOntologyReviewDecisions
               }
               repairRerunRequestsRefreshKey={runsWatchVersion}
+              onWorkspaceRefreshRequest={() =>
+                setIdeaToSpecWorkspaceRefreshKey((current) => current + 1)
+              }
             />
           ) : null}
 

@@ -74,6 +74,7 @@ type Props = {
   candidateApprovalIntentsUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
   repairRerunRequestsRefreshKey?: number | string;
+  onWorkspaceRefreshRequest?: () => void;
   auxiliaryDataEnabled?: boolean;
   readOnly?: boolean;
 };
@@ -297,6 +298,7 @@ export function IdeaToSpecWorkspacePanel({
   candidateApprovalIntentsUrl,
   projectLocalOntologyReviewDecisionsUrl,
   repairRerunRequestsRefreshKey = 0,
+  onWorkspaceRefreshRequest,
   auxiliaryDataEnabled = true,
   readOnly = false,
 }: Props) {
@@ -443,6 +445,7 @@ export function IdeaToSpecWorkspacePanel({
           realIdeaIntake={data.realIdeaIntake}
           entryRequests={realIdeaEntryRequests}
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+          onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
           readOnly={readOnly}
         />
         <WorkspaceSection workspace={data.workspace} />
@@ -507,12 +510,14 @@ function IdeaIntakeDraftSection({
   realIdeaIntake,
   entryRequests,
   workspaceId,
+  onWorkspaceRefreshRequest,
   readOnly,
 }: {
   activeFrame: IdeaToSpecActiveFrame;
   realIdeaIntake: IdeaToSpecWorkspace["realIdeaIntake"];
   entryRequests: ReturnType<typeof useRealIdeaEntryRequests>;
   workspaceId: string | null;
+  onWorkspaceRefreshRequest?: () => void;
   readOnly: boolean;
 }) {
   const [idea, setIdea] = useState("");
@@ -545,7 +550,12 @@ function IdeaIntakeDraftSection({
           <span className={styles.rowId}>Real idea intake</span>
           <Pill value={realIdeaIntake.status.replace(/_/g, " ")} />
         </div>
-        <h3 className={styles.title}>{realIdeaIntake.nextAction}</h3>
+        <h3
+          className={styles.title}
+          data-testid="real-idea-intake-next-action"
+        >
+          {realIdeaIntake.nextAction}
+        </h3>
         <div className={styles.postureStrip}>
           <PostureItem
             label="Questions"
@@ -669,17 +679,21 @@ function IdeaIntakeDraftSection({
           className={styles.ackButton}
           type="button"
           disabled={!canSubmit}
-          onClick={() =>
-            entryRequests.saveRequest({
-              workspaceId,
-              ideaText: idea,
-              ideaSummaryHint: publicSummary,
-              workspaceDisplayName: null,
-              publicRouteHint: workspaceId ? `/${workspaceId}` : null,
-              operatorRef: "operator://specspace-local",
-              status: "submitted",
-            })
-          }
+          onClick={() => {
+            void entryRequests
+              .saveRequest({
+                workspaceId,
+                ideaText: idea,
+                ideaSummaryHint: publicSummary,
+                workspaceDisplayName: null,
+                publicRouteHint: workspaceId ? `/${workspaceId}` : null,
+                operatorRef: "operator://specspace-local",
+                status: "submitted",
+              })
+              .then((saved) => {
+                if (saved) onWorkspaceRefreshRequest?.();
+              });
+          }}
         >
           {entryRequests.pending ? "Saving request" : "Submit raw idea request"}
         </button>
@@ -809,7 +823,7 @@ function GuidedFlowSection({ flow }: { flow: IdeaToSpecGuidedFlow }) {
           <span className={styles.rowId}>{flow.currentStageLabel}</span>
           <Pill value={flow.overallStatus.replace(/_/g, " ")} />
         </div>
-        <h3 className={styles.title}>
+        <h3 className={styles.title} data-testid="guided-flow-next-action">
           {nextAction?.label ?? "Inspect the current idea-to-spec lifecycle stage."}
         </h3>
         <div className={styles.metaGrid}>
