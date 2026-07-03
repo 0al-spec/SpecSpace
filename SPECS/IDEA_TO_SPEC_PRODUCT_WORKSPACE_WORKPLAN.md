@@ -42,6 +42,8 @@ reviews, or publish read models.
   report, including operations and generated output artifacts.
 - Browser E2E for projected intake clarification publication and
   SpecSpace-owned clarification answer save.
+- Browser E2E refresh through a runs-watch change event instead of page reload
+  for projected external intake/continuation publication.
 
 ## Next Tasks
 
@@ -110,10 +112,17 @@ Acceptance criteria:
 Make the Product Workspace update predictably after external Platform/SpecGraph
 execution.
 
+Status: partially closed. Browser E2E now emits a runs-watch `change` event and
+verifies that the Product Workspace refetches the projected intake execution and
+answer continuation state without `page.reload()`. Remaining work is to exercise
+the same refresh path with real Platform/SpecGraph output artifacts.
+
 Acceptance criteria:
 
-- UI refreshes relevant idea-to-spec surfaces after artifact changes.
-- Manual reload is not the normal happy path.
+- UI refreshes relevant idea-to-spec surfaces after artifact changes. Done for
+  projected runs-watch publication.
+- Manual reload is not the normal happy path. Done for the UI-started browser
+  smoke projection.
 - Workspace artifact base, SpecSpace state directory, and SpecGraph run
   directory drift are visible as diagnostics.
 
@@ -132,8 +141,8 @@ Acceptance criteria:
 
 - UI submit persists raw idea entry, but does not execute the intake pipeline.
 - E2E currently proves entry, projected intake execution, clarification answer
-  save, and projected continuation readiness, not the full execution-backed
-  lifecycle.
+  save, projected continuation readiness, and runs-watch refresh, not the full
+  execution-backed lifecycle.
 - Some browser tests still use a fixture-backed `/api/v1/idea-to-spec-workspace`
   projection while only mutable state APIs are real.
 - Local state directory, SpecGraph run directory, and product workspace artifact

@@ -20,6 +20,12 @@ type UiStartedIdeaScenario = {
   answerContinuationPublished?: boolean;
 };
 
+declare global {
+  interface Window {
+    __specspaceEmitRunsChange?: () => void;
+  }
+}
+
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
@@ -213,6 +219,57 @@ async function proxyRouteToBackend(route: Route, baseUrl: string) {
     postData: request.postData() ?? undefined,
   });
   await route.fulfill({ response });
+}
+
+async function installRunsWatchMock(page: Page) {
+  await page.addInitScript(() => {
+    type Listener = () => void;
+
+    class MockEventSource {
+      static instances: MockEventSource[] = [];
+
+      readonly url: string;
+      private readonly listeners = new Map<string, Set<Listener>>();
+
+      constructor(url: string) {
+        this.url = url;
+        MockEventSource.instances.push(this);
+      }
+
+      addEventListener(type: string, listener: Listener) {
+        const listeners = this.listeners.get(type) ?? new Set<Listener>();
+        listeners.add(listener);
+        this.listeners.set(type, listeners);
+      }
+
+      removeEventListener(type: string, listener: Listener) {
+        this.listeners.get(type)?.delete(listener);
+      }
+
+      close() {
+        const index = MockEventSource.instances.indexOf(this);
+        if (index >= 0) MockEventSource.instances.splice(index, 1);
+        this.listeners.clear();
+      }
+
+      emit(type: string) {
+        for (const listener of this.listeners.get(type) ?? []) listener();
+      }
+    }
+
+    window.EventSource = MockEventSource as unknown as typeof EventSource;
+    window.__specspaceEmitRunsChange = () => {
+      for (const instance of [...MockEventSource.instances]) {
+        instance.emit("change");
+      }
+    };
+  });
+}
+
+async function emitRunsChange(page: Page) {
+  await page.evaluate(() => {
+    window.__specspaceEmitRunsChange?.();
+  });
 }
 
 function safeActionBoundary() {
@@ -530,6 +587,7 @@ test("submits a raw real idea entry request from the product workspace UI", asyn
 }) => {
   const backend = await startSpecSpaceBackend();
   try {
+    await installRunsWatchMock(page);
     await installIdeaToSpecApiRoutes(page, backend.baseUrl);
 
     await page.goto(`/${workspaceId}`);
@@ -570,6 +628,7 @@ test("shows clarification stage after external intake execution publication", as
   const backend = await startSpecSpaceBackend();
   const scenario: UiStartedIdeaScenario = { intakeExecutionPublished: false };
   try {
+    await installRunsWatchMock(page);
     await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
 
     await page.goto(`/${workspaceId}`);
@@ -587,7 +646,7 @@ test("shows clarification stage after external intake execution publication", as
     );
 
     scenario.intakeExecutionPublished = true;
-    await page.reload();
+    await emitRunsChange(page);
 
     await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
       "Answer intake clarification questions",
@@ -611,6 +670,7 @@ test("saves a clarification answer from the product workspace UI", async ({
   const backend = await startSpecSpaceBackend();
   const scenario: UiStartedIdeaScenario = { intakeExecutionPublished: true };
   try {
+    await installRunsWatchMock(page);
     await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
     const response = await fetch(
       `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
@@ -657,6 +717,7 @@ test("shows continuation-ready lane after external answer continuation publicati
     answerContinuationPublished: false,
   };
   try {
+    await installRunsWatchMock(page);
     await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
     const response = await fetch(
       `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
@@ -685,7 +746,7 @@ test("shows continuation-ready lane after external answer continuation publicati
     await expect(page.getByText("Answer continuation pending")).toBeVisible();
 
     scenario.answerContinuationPublished = true;
-    await page.reload();
+    await emitRunsChange(page);
 
     await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
       "Continue the real idea intake into candidate source generation.",
@@ -712,6 +773,7 @@ test("keeps template-backed clarification answers disabled until required refs a
   const backend = await startSpecSpaceBackend();
   const scenario: UiStartedIdeaScenario = { intakeExecutionPublished: true };
   try {
+    await installRunsWatchMock(page);
     await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
     const response = await fetch(
       `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
