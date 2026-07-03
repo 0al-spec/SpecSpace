@@ -141,6 +141,33 @@ def _recommended_actions(
 
     import_preview = by_kind.get("repair_draft_import_preview", {})
     if _text(import_preview.get("status")) != "usable":
+        if not current.get("repair_session_id"):
+            actions.append(
+                _recommended_action(
+                    action_id="workspace_state.build_initial_repair_session_journal",
+                    label="Build initial repair session journal",
+                    reason=(
+                        "A durable repair session journal is required before "
+                        "SpecGraph can import SpecSpace-owned repair drafts."
+                    ),
+                    target_state="repair_session_journal",
+                    target_section="idea-to-spec-workspace-state-hygiene",
+                    current=current,
+                    enabled=True,
+                    blockers=[],
+                    ui_intent="show_specgraph_initial_repair_session_command",
+                    command_hint=(
+                        "make idea-to-spec-initial-repair-session-journal "
+                        f"IDEA_TO_SPEC_REPAIR_SESSION_OUTPUT="
+                        f"{current['repair_session_ref'] or 'runs/idea_to_spec_repair_session.json'}"
+                    ),
+                    evidence_refs=[
+                        "runs/active_idea_to_spec_candidate.json",
+                        "runs/idea_to_spec_clarification_requests.json",
+                        "runs/idea_to_spec_promotion_gate.json",
+                    ],
+                )
+            )
         blockers = _missing_prerequisites(
             by_kind,
             (("repair_drafts", "Save repair drafts first."),),

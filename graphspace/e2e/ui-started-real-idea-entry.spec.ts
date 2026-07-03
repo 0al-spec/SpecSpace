@@ -1040,6 +1040,12 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await expect(
       workspaceStatePreflight,
     ).toContainText(/Rebuild repair draft import preview\s*blocked/i);
+    await expect(
+      workspaceStatePreflight,
+    ).toContainText(/Build initial repair session journal\s*enabled/i);
+    await expect(workspaceStatePreflight).toContainText(
+      "idea-to-spec-initial-repair-session-journal",
+    );
     await expect(workspaceStatePreflight).toContainText("Build repair session journal first.");
 
   } finally {

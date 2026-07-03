@@ -7139,6 +7139,16 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             for item in body["recommended_actions"]
             if item["target_state"] == "repair_draft_import_preview"
         ][0]
+        journal_action = [
+            item
+            for item in body["recommended_actions"]
+            if item["target_state"] == "repair_session_journal"
+        ][0]
+        self.assertTrue(journal_action["enabled"])
+        self.assertIn(
+            "idea-to-spec-initial-repair-session-journal",
+            journal_action["command_hint"],
+        )
         self.assertFalse(import_action["enabled"])
         self.assertIn("Build repair session journal first.", import_action["blockers"])
 
