@@ -3633,6 +3633,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             continuation["continuation_report"]["outputs"]["validated_answers"],
             "runs/idea_intake_clarification_answers.json",
         )
+        self.assertIn(
+            "product-real-idea-continuation execute",
+            continuation["recommended_actions"][0]["command_hint"],
+        )
         self.assertFalse(continuation["action_boundary"]["may_execute_specgraph"])
         self.assertFalse(continuation["action_boundary"]["may_apply_answers"])
 

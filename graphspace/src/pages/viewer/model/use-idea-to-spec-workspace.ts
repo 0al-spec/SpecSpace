@@ -204,6 +204,7 @@ export type IdeaToSpecRealIdeaAnswerContinuation = {
     id: string;
     label: string;
     nextAction: string;
+    commandHint: string | null;
   }[];
   actionBoundary: {
     inspectOnly: true;
@@ -2078,6 +2079,7 @@ function parseRealIdeaAnswerContinuation(
             action.next_action,
             "Inspect answer continuation state.",
           ),
+          commandHint: optionalString(action.command_hint),
         },
       ];
     }),

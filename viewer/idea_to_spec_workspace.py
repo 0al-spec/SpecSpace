@@ -2018,6 +2018,10 @@ def _real_idea_answer_continuation(
                 "next_action": (
                     "Run `make specspace-real-idea-answer-import-preview` in SpecGraph."
                 ),
+                "command_hint": (
+                    "make specspace-real-idea-answer-import-preview "
+                    "SPECSPACE_REAL_IDEA_ANSWERS=<SpecSpace state>"
+                ),
             }
         )
     elif not _readiness(import_preview)["ready"]:
@@ -2037,6 +2041,10 @@ def _real_idea_answer_continuation(
                     "Run `make real-idea-intake-materialize-specspace-answers` "
                     "in SpecGraph."
                 ),
+                "command_hint": (
+                    "make real-idea-intake-materialize-specspace-answers "
+                    "SPECSPACE_REAL_IDEA_ANSWERS=<SpecSpace state>"
+                ),
             }
         )
     elif not _readiness(continuation_report)["ready"]:
@@ -2055,6 +2063,11 @@ def _real_idea_answer_continuation(
                 "next_action": (
                     "Run `make real-idea-intake-continue-from-specspace-answers` "
                     "or the Platform handoff."
+                ),
+                "command_hint": (
+                    "scripts/platform.py product-real-idea-continuation execute "
+                    "--answer-state <SpecSpace state dir>/"
+                    "idea_to_spec_intake_clarification_answers.json"
                 ),
             }
         )

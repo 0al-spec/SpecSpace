@@ -1092,6 +1092,8 @@ export const ideaToSpecWorkspace = {
           label: "Continue active candidate",
           next_action:
             "Run `make real-idea-intake-continue-from-specspace-answers` or the Platform handoff.",
+          command_hint:
+            "scripts/platform.py product-real-idea-continuation execute --answer-state <SpecSpace state dir>/idea_to_spec_intake_clarification_answers.json",
         },
       ],
       action_boundary: {

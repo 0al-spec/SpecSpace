@@ -120,6 +120,16 @@ function joined(values: readonly string[], fallback = "none"): string {
   return values.length > 0 ? values.join(", ") : fallback;
 }
 
+function sourceArtifactRefs(sourceArtifacts: Record<string, unknown>): string[] {
+  return Object.entries(sourceArtifacts).flatMap(([key, value]) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+    const sourceRef = (value as Record<string, unknown>).source_ref;
+    return typeof sourceRef === "string" && sourceRef.length > 0
+      ? [`${key}: ${sourceRef}`]
+      : [];
+  });
+}
+
 function metricValue(value: unknown): string {
   if (typeof value === "number") return String(value);
   if (typeof value === "string") return value;
@@ -1439,6 +1449,7 @@ function IntakeAnswerContinuationStatus({
   const outputEntries = Object.entries(continuation.continuationReport.outputs)
     .filter(([, value]) => typeof value === "string" && value.length > 0)
     .slice(0, 4);
+  const sourceRefs = sourceArtifactRefs(continuation.importPreview.sourceArtifacts);
   return (
     <div className={styles.row}>
       <div className={styles.rowHeader}>
@@ -1477,11 +1488,16 @@ function IntakeAnswerContinuationStatus({
           label="Exec authority"
           value={boolText(continuation.actionBoundary.mayExecuteSpecgraph)}
         />
+        <Meta label="Source refs" value={joined(sourceRefs)} />
       </div>
       {continuation.recommendedActions.map((action) => (
-        <p key={action.id} className={styles.statusDetail}>
-          {action.label}: {action.nextAction}
-        </p>
+        <div key={action.id} className={styles.subRow}>
+          <span>{action.label}</span>
+          <span className={styles.statusDetail}>{action.nextAction}</span>
+          {action.commandHint ? (
+            <pre className={styles.codeBlock}>{action.commandHint}</pre>
+          ) : null}
+        </div>
       ))}
       {outputEntries.length ? (
         <div className={styles.metaGrid}>

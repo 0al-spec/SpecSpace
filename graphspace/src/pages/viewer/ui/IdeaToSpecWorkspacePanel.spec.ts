@@ -76,6 +76,10 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("answer_template_ready");
     expect(html).toContain("real_idea_answer_continuation_ready");
     expect(html).toContain("runs/idea_intake_clarification_answers.json");
+    expect(html).toContain(
+      "specspace-state://idea_to_spec_intake_clarification_answers.json",
+    );
+    expect(html).toContain("product-real-idea-continuation execute");
     expect(html).toContain("Template-backed answer");
     expect(html).toContain("value.refs[]");
     expect(html).toContain("active_frame_ref");
