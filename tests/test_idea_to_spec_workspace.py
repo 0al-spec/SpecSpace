@@ -2849,7 +2849,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(body["guided_flow"]["current_stage"], "repair_review")
         self.assertEqual(body["guided_flow"]["overall_status"], "blocked")
-        self.assertEqual(len(body["guided_flow"]["stages"]), 12)
+        self.assertEqual(len(body["guided_flow"]["stages"]), 13)
+        self.assertEqual(
+            _guided_stage(body, "intake_clarification")["status"],
+            "completed",
+        )
         self.assertEqual(
             _guided_stage(body, "project_local_ontology_review")["status"],
             "completed",
@@ -3631,6 +3635,170 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertFalse(continuation["action_boundary"]["may_execute_specgraph"])
         self.assertFalse(continuation["action_boundary"]["may_apply_answers"])
+
+    def test_build_workspace_projects_real_idea_intake_summary(self) -> None:
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: _real_idea_answer_template(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_ARTIFACT: _real_idea_answer_set(),
+            idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT: (
+                _specspace_real_idea_answer_import_preview()
+            ),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT: (
+                _real_idea_answer_continuation_report()
+            ),
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        intake = body["real_idea_intake"]
+        self.assertTrue(intake["available"])
+        self.assertEqual(intake["status"], "active_candidate_ready")
+        self.assertEqual(intake["workspace_id"], "team-decision-log")
+        self.assertEqual(
+            intake["session_ref"],
+            "runs/idea_intake_clarification_requests.json",
+        )
+        self.assertEqual(
+            intake["clarified_session_ref"],
+            None,
+        )
+        self.assertEqual(
+            intake["active_candidate_ref"],
+            "runs/active_idea_to_spec_candidate.json",
+        )
+        self.assertEqual(intake["clarification_progress"]["question_count"], 1)
+        self.assertEqual(intake["clarification_progress"]["answered_count"], 1)
+        self.assertEqual(intake["clarification_progress"]["missing_count"], 0)
+        self.assertEqual(
+            intake["answer_template"]["required_fields"],
+            ["value.follow_up", "value.refs[]"],
+        )
+        self.assertTrue(intake["continuation_handoff"]["safe_to_continue"])
+        self.assertIn(
+            "runs/idea_intake_clarification_answers.json",
+            intake["continuation_handoff"]["output_refs"],
+        )
+        self.assertFalse(intake["authority_boundary"]["may_execute_specgraph"])
+        self.assertFalse(intake["authority_boundary"]["may_apply_answers"])
+
+        guided_stage_ids = [stage["id"] for stage in body["guided_flow"]["stages"]]
+        self.assertIn("intake_clarification", guided_stage_ids)
+        clarification_stage = next(
+            stage
+            for stage in body["guided_flow"]["stages"]
+            if stage["id"] == "intake_clarification"
+        )
+        self.assertEqual(clarification_stage["status"], "completed")
+        self.assertIsNone(clarification_stage["command_template"])
+
+    def test_real_idea_intake_keeps_raw_intake_before_clarification(self) -> None:
+        artifacts = {
+            idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT: _intake(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: (
+                _intake_clarification_requests()
+            ),
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["real_idea_intake"]["status"], "needs_clarification")
+        self.assertEqual(
+            body["real_idea_intake"]["next_action"],
+            "Answer intake clarification questions before candidate generation.",
+        )
+        self.assertEqual(
+            _guided_stage(body, "intake_clarification")["status"],
+            "available",
+        )
+
+    def test_real_idea_intake_preserves_zero_accepted_answer_count(self) -> None:
+        answers = _intake_clarification_answers()
+        answers["summary"]["accepted_answer_count"] = 0
+        answers["summary"]["unresolved_blocking_count"] = 1
+        answer_set = _real_idea_answer_set()
+        answer_set["answers"].append(
+            {
+                "request_id": "clarification.intake.extra",
+                "answer_kind": "answer_question",
+                "status": "draft",
+                "authority": "operator_draft",
+                "value": {"refs": ["domain.extra"]},
+            }
+        )
+        artifacts = {
+            idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT: _intake(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: (
+                _intake_clarification_requests()
+            ),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_ANSWERS_ARTIFACT: answers,
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_ARTIFACT: answer_set,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["real_idea_intake"]["clarification_progress"]["answered_count"],
+            0,
+        )
+        self.assertEqual(body["real_idea_intake"]["status"], "needs_clarification")
+
+    def test_real_idea_intake_blocks_unready_active_candidate(self) -> None:
+        active_candidate = _active_candidate()
+        active_candidate["readiness"] = {
+            "ready": False,
+            "review_state": "active_candidate_review_required",
+            "blocked_by": ["active_candidate_context_required"],
+        }
+        artifacts = {
+            idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: active_candidate,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["real_idea_intake"]["status"], "blocked")
+        self.assertEqual(
+            body["real_idea_intake"]["active_candidate_ref"],
+            "runs/active_idea_to_spec_candidate.json",
+        )
+        self.assertIn(
+            "active_candidate_context_required",
+            body["real_idea_intake"]["blockers"],
+        )
+
+    def test_real_idea_intake_uses_repaired_active_candidate_ref(self) -> None:
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT: (
+                _repaired_handoff_report()
+            ),
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT: (
+                _active_candidate()
+            ),
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["real_idea_intake"]["active_candidate_ref"],
+            "runs/repaired_active_idea_to_spec_candidate.json",
+        )
 
     def test_build_workspace_rejects_write_capable_real_idea_answer_handoff(
         self,

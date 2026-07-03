@@ -60,13 +60,25 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.guidedFlow.nextActions[0].label).toBe(
       "Replace the rerun request for the current workspace and repair session.",
     );
-    expect(parsed.data.guidedFlow.stages).toHaveLength(11);
-    expect(parsed.data.guidedFlow.stages[2].blockers).toEqual([
+    expect(parsed.data.guidedFlow.stages).toHaveLength(12);
+    expect(parsed.data.guidedFlow.stages[1].id).toBe("intake_clarification");
+    expect(parsed.data.guidedFlow.stages[1].status).toBe("completed");
+    expect(parsed.data.guidedFlow.stages[1].commandTemplate).toBeNull();
+    expect(parsed.data.guidedFlow.stages[3].blockers).toEqual([
       "workspace_id_mismatch",
     ]);
     expect(
       parsed.data.guidedFlow.authorityBoundary.mayExecutePlatform,
     ).toBe(false);
+    expect(parsed.data.realIdeaIntake.status).toBe("active_candidate_ready");
+    expect(parsed.data.realIdeaIntake.clarificationProgress.questionCount).toBe(1);
+    expect(parsed.data.realIdeaIntake.clarificationProgress.answeredCount).toBe(1);
+    expect(parsed.data.realIdeaIntake.answerTemplate.requiredFields).toEqual([
+      "value.follow_up",
+      "value.refs[]",
+    ]);
+    expect(parsed.data.realIdeaIntake.continuationHandoff.safeToContinue).toBe(true);
+    expect(parsed.data.realIdeaIntake.authorityBoundary.mayExecuteSpecgraph).toBe(false);
     expect(parsed.data.intake.activeFrame.project).toBe("DemoCalculator");
     expect(parsed.data.ontologySeed.readiness.ready).toBe(true);
     expect(parsed.data.ontologySeed.summary.ontologyBindingCount).toBe(5);

@@ -271,6 +271,10 @@ function maturityExplainerNextAction(
   );
 }
 
+function findingKey(finding: { findingId: string }, index: number): string {
+  return `${finding.findingId}-${index}`;
+}
+
 export function IdeaToSpecWorkspacePanel({
   state,
   repairDraftsUrl,
@@ -416,7 +420,10 @@ export function IdeaToSpecWorkspacePanel({
         <GuidedFlowSection flow={data.guidedFlow} />
         <CandidateOverviewSection overview={data.candidateOverview} />
         <WorkflowSection workflow={data.workflow} />
-        <IdeaIntakeDraftSection activeFrame={frame} />
+        <IdeaIntakeDraftSection
+          activeFrame={frame}
+          realIdeaIntake={data.realIdeaIntake}
+        />
         <WorkspaceSection workspace={data.workspace} />
         <FrameSection project={frame.project} domains={frame.domainRefs} contexts={frame.contextRefs} />
         <ArtifactSection artifacts={data.artifacts} />
@@ -476,8 +483,10 @@ export function IdeaToSpecWorkspacePanel({
 
 function IdeaIntakeDraftSection({
   activeFrame,
+  realIdeaIntake,
 }: {
   activeFrame: IdeaToSpecActiveFrame;
+  realIdeaIntake: IdeaToSpecWorkspace["realIdeaIntake"];
 }) {
   const [idea, setIdea] = useState("");
   const draft = useMemo(
@@ -486,8 +495,80 @@ function IdeaIntakeDraftSection({
   );
   return (
     <section id="idea-to-spec-idea-intake" className={styles.reviewSection}>
-      <SectionHeader title="Idea intake draft" count={draft ? 1 : 0} />
+      <SectionHeader title="Idea intake" count={realIdeaIntake.clarificationProgress.questionCount} />
       <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Real idea intake</span>
+          <Pill value={realIdeaIntake.status.replace(/_/g, " ")} />
+        </div>
+        <h3 className={styles.title}>{realIdeaIntake.nextAction}</h3>
+        <div className={styles.postureStrip}>
+          <PostureItem
+            label="Questions"
+            value={String(realIdeaIntake.clarificationProgress.questionCount)}
+          />
+          <PostureItem
+            label="Answered"
+            value={String(realIdeaIntake.clarificationProgress.answeredCount)}
+          />
+          <PostureItem
+            label="Missing"
+            value={String(realIdeaIntake.clarificationProgress.missingCount)}
+          />
+          <PostureItem
+            label="Invalid"
+            value={String(realIdeaIntake.clarificationProgress.invalidAnswerCount)}
+          />
+          <PostureItem
+            label="Continuation"
+            value={realIdeaIntake.continuationHandoff.safeToContinue ? "ready" : "pending"}
+          />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Workspace" value={realIdeaIntake.workspaceId} />
+          <Meta label="Session" value={realIdeaIntake.sessionRef} />
+          <Meta label="Clarified session" value={realIdeaIntake.clarifiedSessionRef} />
+          <Meta label="Candidate source" value={realIdeaIntake.candidateSourceRef} />
+          <Meta label="Active candidate" value={realIdeaIntake.activeCandidateRef} />
+          <Meta label="Template" value={realIdeaIntake.answerTemplate.status} />
+          <Meta label="Template ref" value={realIdeaIntake.answerTemplate.templateRef} />
+          <Meta
+            label="Required fields"
+            value={joined(realIdeaIntake.answerTemplate.requiredFields)}
+          />
+          <Meta
+            label="Import preview"
+            value={realIdeaIntake.continuationHandoff.importPreviewStatus}
+          />
+          <Meta
+            label="Materialization"
+            value={realIdeaIntake.continuationHandoff.materializationStatus}
+          />
+          <Meta label="Evidence" value={joined(realIdeaIntake.sourceRefs)} />
+        </div>
+        {realIdeaIntake.continuationHandoff.commandHint ? (
+          <pre className={styles.codeBlock}>
+            {realIdeaIntake.continuationHandoff.commandHint}
+          </pre>
+        ) : null}
+        {realIdeaIntake.blockers.length > 0 ? (
+          <p className={styles.statusDetail}>
+            Blockers: {joined(realIdeaIntake.blockers)}
+          </p>
+        ) : null}
+        {realIdeaIntake.clarificationProgress.requiredFieldFindings
+          .slice(0, 3)
+          .map((finding, index) => (
+            <p key={findingKey(finding, index)} className={styles.statusDetail}>
+              {finding.severity}: {finding.message}
+            </p>
+          ))}
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Local draft preview</span>
+          <Pill value={draft?.sourceMode ?? "local_browser_draft"} />
+        </div>
         <textarea
           className={styles.ideaInput}
           value={idea}
@@ -1127,8 +1208,8 @@ function IntakeAnswerAuthoringStatus({
           {action.label}: {action.nextAction}
         </p>
       ))}
-      {authoring.report.findings.slice(0, 3).map((finding) => (
-        <p key={finding.findingId} className={styles.statusDetail}>
+      {authoring.report.findings.slice(0, 3).map((finding, index) => (
+        <p key={findingKey(finding, index)} className={styles.statusDetail}>
           {finding.severity}: {finding.message}
         </p>
       ))}
@@ -1208,8 +1289,8 @@ function IntakeAnswerContinuationStatus({
         ...continuation.continuationReport.findings,
       ]
         .slice(0, 3)
-        .map((finding) => (
-          <p key={finding.findingId} className={styles.statusDetail}>
+        .map((finding, index) => (
+          <p key={findingKey(finding, index)} className={styles.statusDetail}>
             {finding.severity}: {finding.message}
           </p>
         ))}
@@ -1469,8 +1550,8 @@ function OntologySeedSection({
           </div>
         </div>
       ))}
-      {seed.findings.map((finding) => (
-        <div key={finding.findingId} className={styles.row}>
+      {seed.findings.map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{finding.findingId}</span>
             <Pill value={finding.severity} />
@@ -1595,8 +1676,8 @@ function ProjectLocalOntologyReviewSection({
           readOnly={readOnly}
         />
       ))}
-      {lane.findings.map((finding) => (
-        <div key={finding.findingId} className={styles.row}>
+      {lane.findings.map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{finding.findingId}</span>
             <Pill value={finding.severity} />
@@ -1715,8 +1796,8 @@ function ProjectLocalOntologyImportPreviewStatus({
           </span>
         </div>
       ))}
-      {preview.findings.map((finding) => (
-        <div key={finding.findingId} className={styles.subRow}>
+      {preview.findings.map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.subRow}>
           <span>{finding.findingId}</span>
           <Pill value={finding.severity} />
           <span className={styles.statusDetail}>{finding.message}</span>
@@ -1970,8 +2051,8 @@ function PreSibSection({ state }: { state: Extract<UseIdeaToSpecWorkspaceState, 
           ))}
         </div>
       </div>
-      {data.preSib.findings.map((finding) => (
-        <div key={finding.findingId} className={styles.row}>
+      {data.preSib.findings.map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{finding.findingId}</span>
             <Pill value={finding.severity} />
@@ -2572,8 +2653,8 @@ function IdeaMaturitySection({
         />
       ))}
 
-      {maturity.report.findings.map((finding) => (
-        <div key={finding.findingId} className={styles.row}>
+      {maturity.report.findings.map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{finding.findingId}</span>
             <Pill value={finding.severity} />
@@ -4533,8 +4614,8 @@ function PromotionGateSection({
           detail={compact(gate.readiness.nextArtifact, "Platform handoff ready.")}
         />
       ) : null}
-      {gate.findings.map((finding) => (
-        <div key={finding.findingId} className={styles.row}>
+      {gate.findings.map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>{finding.findingId}</span>
             <Pill value={finding.severity} />
