@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildCandidateWorkflowTopology } from "./candidate-workflow-topology";
 import { ideaToSpecWorkspace } from "./idea-to-spec-workspace.fixture";
 import { parseIdeaToSpecWorkspace } from "./use-idea-to-spec-workspace";
 
@@ -847,6 +848,60 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(continuation.importPreview.acceptedAnswerCount).toBeNull();
     expect(continuation.recommendedActions).toHaveLength(1);
     expect(continuation.recommendedActions[0].id).toBe("valid-action");
+  });
+
+  it("builds a deterministic candidate workflow topology view", () => {
+    const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+
+    const topology = buildCandidateWorkflowTopology(
+      parsed.data.candidateOverview,
+    );
+
+    expect(topology.columns.map((column) => column.id)).toEqual([
+      "actors",
+      "commands",
+      "events",
+      "policies",
+      "constraints",
+    ]);
+    expect(topology.columns[0].nodes[0].label).toBe("Team member");
+    expect(topology.columns[1].nodes[0].label).toBe("Record decision");
+    expect(topology.edges[0].relationLabel).toBe("actor triggers command");
+    expect(topology.edges[0].fromNode?.columnId).toBe("actors");
+    expect(topology.edges[0].toNode?.columnId).toBe("commands");
+    expect(topology.unresolvedEdges).toHaveLength(0);
+    expect(topology.workflowEdgeCount).toBe(3);
+  });
+
+  it("keeps unresolved topology references visible for review", () => {
+    const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    payload.candidate_overview.topology.edges.push({
+      id: "edge.unknown-event",
+      relation: "event_informs_constraint",
+      from: "event.unknown",
+      to: "constraint.team-local",
+      label: "Unknown event informs team-local constraint",
+    });
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+
+    const topology = buildCandidateWorkflowTopology(
+      parsed.data.candidateOverview,
+    );
+
+    expect(topology.unresolvedEdges).toHaveLength(1);
+    expect(topology.unresolvedEdges[0].relationLabel).toBe(
+      "event informs constraint",
+    );
+    expect(topology.unresolvedEdges[0].unresolvedRefs).toEqual([
+      "event.unknown",
+    ]);
   });
 
   it("rejects workspace state hygiene without explicit boundary false flags", () => {
