@@ -69,9 +69,34 @@ override and returns to Refinement Ladder Layout.
 ```sh
 cd graphspace
 npm install
-npm run dev          # http://localhost:5174
+npm run dev          # http://localhost:5175
 npm run lint:fsd     # Steiger architecture lint
 ```
+
+## Browser E2E
+
+UI-started product flows need a real browser check, not only API and render
+tests. The first smoke covers the raw idea entry path:
+
+```sh
+cd graphspace
+npx playwright install chromium
+npm run e2e:ui-started
+```
+
+From the repository root the same smoke is available as:
+
+```sh
+make ui-e2e-raw-idea-entry
+```
+
+The smoke starts the GraphSpace Vite app, opens `/team-decision-log`, starts a
+temporary Python SpecSpace backend for the SpecSpace-owned mutable state API,
+submits a raw idea request through the browser UI, and verifies the submitted
+state plus the next Platform handoff command are visible. Readonly product
+workspace artifacts are fixture-backed so the test stays focused on the
+UI-started entry boundary. It does not run SpecGraph, Platform, Git Service, or
+any mutation-capable handoff.
 
 ## Layer rules (Steiger-enforced)
 

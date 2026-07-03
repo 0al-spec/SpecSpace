@@ -6,5 +6,7 @@ __pycache__/
 runs/
 viewer/app/runs/
 .specspace-dev/
+graphspace/test-results/
+graphspace/playwright-report/
 deps/*
 !deps/.gitkeep

@@ -522,6 +522,15 @@ function IdeaIntakeDraftSection({
     [idea, activeFrame],
   );
   const activeEntry = entryRequests.activeSubmittedRequest;
+  const entryHandoffCommand = activeEntry
+    ? [
+        "scripts/platform.py product-real-idea-intake execute \\",
+        "  --specgraph-dir ../SpecGraph \\",
+        "  --entry-requests <SpecSpace state dir>/real_idea_entry_requests.json \\",
+        `  --workspace-id ${workspaceId ?? activeEntry.workspaceId} \\`,
+        `  --request-id ${activeEntry.requestId}`,
+      ].join("\n")
+    : null;
   const canSubmit =
     !readOnly &&
     entryRequests.configured &&
@@ -626,6 +635,7 @@ function IdeaIntakeDraftSection({
           <Pill value={activeEntry ? "submitted" : "operator draft"} />
         </div>
         <textarea
+          data-testid="real-idea-entry-text"
           className={styles.ideaInput}
           value={idea}
           onChange={(event) => setIdea(event.currentTarget.value)}
@@ -635,6 +645,7 @@ function IdeaIntakeDraftSection({
           disabled={readOnly || entryRequests.pending}
         />
         <input
+          data-testid="real-idea-entry-summary"
           className={styles.textInput}
           value={publicSummary}
           onChange={(event) => setPublicSummary(event.currentTarget.value)}
@@ -654,6 +665,7 @@ function IdeaIntakeDraftSection({
           />
         </div>
         <button
+          data-testid="real-idea-entry-submit"
           className={styles.ackButton}
           type="button"
           disabled={!canSubmit}
@@ -672,9 +684,30 @@ function IdeaIntakeDraftSection({
           {entryRequests.pending ? "Saving request" : "Submit raw idea request"}
         </button>
         {activeEntry ? (
-          <p className={styles.statusDetail}>
+          <p
+            className={styles.statusDetail}
+            data-testid="real-idea-entry-submitted-status"
+          >
             Submitted request · {activeEntry.requestId} · {activeEntry.updatedAt}
           </p>
+        ) : null}
+        {entryHandoffCommand ? (
+          <div className={styles.row}>
+            <div className={styles.rowHeader}>
+              <span className={styles.rowId}>Next safe handoff</span>
+              <Pill value="operator command" />
+            </div>
+            <p className={styles.statusDetail}>
+              Import the submitted entry through Platform. This is a command
+              hint only; SpecSpace does not execute SpecGraph.
+            </p>
+            <pre
+              className={styles.codeBlock}
+              data-testid="real-idea-entry-handoff-command"
+            >
+              {entryHandoffCommand}
+            </pre>
+          </div>
         ) : null}
         {entryRequests.saveError ? (
           <p className={styles.statusDetail}>
