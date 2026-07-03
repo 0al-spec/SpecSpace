@@ -543,6 +543,19 @@ async function publishRepairRerunExecutionArtifacts(args: {
   }
 }
 
+async function publishRepairRerunPublicationArtifacts(args: {
+  backendRunsDir: string;
+  platformReportPath: string;
+}) {
+  await copyIfPresent(
+    args.platformReportPath,
+    path.join(
+      args.backendRunsDir,
+      "platform_product_repair_rerun_publication_report.json",
+    ),
+  );
+}
+
 function safeActionBoundary() {
   return {
     inspect_only: true,
@@ -940,6 +953,7 @@ test("shows clarification stage after external intake execution publication", as
 test("can refresh from a real Platform intake execution when checkouts are provided", async ({
   page,
 }) => {
+  test.setTimeout(120_000);
   const platformDir = process.env.SPECG_E2E_PLATFORM_DIR;
   const specGraphDir = process.env.SPECG_E2E_SPECG_DIR;
   test.skip(
@@ -1369,6 +1383,62 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     const approvalReadiness = page.locator("#idea-to-spec-approval-readiness");
     await expect(approvalReadiness).toContainText("Candidate repaired");
     await expect(approvalReadiness).toContainText(/Approval-ready\s*true/i);
+
+    const repairRerunPublicationPath = path.join(
+      specGraphRunDir,
+      "platform_product_repair_rerun_publication_report.json",
+    );
+    const repairRerunPublicationCommand = platformCliInvocation(
+      platformDir!,
+      platformScript,
+      [
+        "product-repair-rerun",
+        "publish",
+        "--execution-report",
+        repairRerunExecutionPath,
+        "--specgraph-dir",
+        specGraphDir!,
+        "--output",
+        repairRerunPublicationPath,
+        "--format",
+        "json",
+      ],
+    );
+    const repairRerunPublication = await runCommand(
+      repairRerunPublicationCommand.command,
+      repairRerunPublicationCommand.args,
+      { cwd: platformDir! },
+    );
+    expect(
+      repairRerunPublication.code,
+      `stdout:\n${repairRerunPublication.stdout}\nstderr:\n${repairRerunPublication.stderr}`,
+    ).toBe(0);
+    const repairRerunPublicationPayload = JSON.parse(
+      await readFile(repairRerunPublicationPath, "utf8"),
+    ) as {
+      ok?: boolean;
+      diagnostics?: unknown[];
+    };
+    expect(
+      repairRerunPublicationPayload.ok,
+      JSON.stringify(repairRerunPublicationPayload.diagnostics ?? []),
+    ).toBe(true);
+    await publishRepairRerunPublicationArtifacts({
+      backendRunsDir: backend.runsDir,
+      platformReportPath: repairRerunPublicationPath,
+    });
+    await emitRunsChange(page);
+    await expect(page.getByText("Platform repair rerun")).toBeVisible();
+    await expect(approvalReadiness).toContainText(/Repaired public\s*true/i);
+    await expect(approvalReadiness).toContainText(/Intent request\s*true/i);
+
+    await page
+      .locator("#idea-to-spec-approval-readiness")
+      .getByRole("button", { name: "Approve candidate for promotion review" })
+      .click();
+    await expect(page.getByText("Candidate approval intent", { exact: true })).toBeVisible();
+    await expect(page.getByText("candidate_approval_intent_recorded")).toBeVisible();
+    await expect(page.getByText(/^candidate-approval-intent\./)).toBeVisible();
 
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });
