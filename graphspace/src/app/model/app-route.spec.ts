@@ -18,6 +18,22 @@ describe("SpecSpace app route selection", () => {
     expect(route.shouldReplace).toBe(true);
   });
 
+  it("reserves /dev/ui-catalog for the dev UI catalog", () => {
+    const route = resolveSpecSpaceAppRoute("/dev/ui-catalog");
+
+    expect(route.kind).toBe("ui-catalog");
+    expect(route.canonicalPath).toBe("/dev/ui-catalog");
+    expect(route.shouldReplace).toBe(false);
+  });
+
+  it("canonicalizes trailing slash UI catalog paths", () => {
+    const route = resolveSpecSpaceAppRoute("/dev/ui-catalog/");
+
+    expect(route.kind).toBe("ui-catalog");
+    expect(route.canonicalPath).toBe("/dev/ui-catalog");
+    expect(route.shouldReplace).toBe(true);
+  });
+
   it("reserves /dev/idea-to-spec-fixtures for the static fixture gallery", () => {
     const route = resolveSpecSpaceAppRoute("/dev/idea-to-spec-fixtures");
 
@@ -34,11 +50,15 @@ describe("SpecSpace app route selection", () => {
     expect(route.shouldReplace).toBe(true);
   });
 
-  it("keeps the fixture gallery path on workspace routing when the dev route is disabled", () => {
+  it("keeps dev catalog paths on workspace routing when dev routes are disabled", () => {
+    const catalogRoute = resolveSpecSpaceAppRoute("/dev/ui-catalog", {
+      devRoutesEnabled: false,
+    });
     const route = resolveSpecSpaceAppRoute("/dev/idea-to-spec-fixtures", {
-      fixtureGalleryEnabled: false,
+      devRoutesEnabled: false,
     });
 
+    expect(catalogRoute.kind).toBe("workspace-viewer");
     expect(route.kind).toBe("workspace-viewer");
     if (route.kind !== "workspace-viewer") return;
     expect(route.workspaceRoute.workspace.id).toBe("specgraph-bootstrap");
