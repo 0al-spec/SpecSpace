@@ -775,6 +775,10 @@ def _write_repair_draft_workspace_runs(
                         ),
                         "ready": True,
                         "status": "repair_draft_import_preview_ready",
+                        "summary": {
+                            "status": "repair_draft_import_preview_ready",
+                            "accepted_for_rerun_count": 1,
+                        },
                         "sha256": "sha256:import-preview",
                     }
                 },
@@ -7237,6 +7241,63 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             item["target_state"]: item for item in body["recommended_actions"]
         }
         self.assertNotIn("repair_draft_import_preview", actions)
+
+    def test_idea_to_spec_repair_rerun_requests_v1_posts_with_platform_import_preview_report(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_import_preview=False,
+                include_platform_import_preview_report=True,
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                draft_status, _draft_body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.candidate-gap.ontology-gap-decision-record",
+                        "action": "propose_project_local_term",
+                        "answer_value": {"terms": ["Decision Record"]},
+                    },
+                )
+                get_status, get_body = _get(
+                    f"{base}/api/v1/idea-to-spec-repair-rerun-requests?workspace=team-decision-log"
+                )
+                post_status, post_body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-rerun-requests?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "requested_action": "prepare_repair_draft_rerun",
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(draft_status, 200)
+        self.assertEqual(get_status, 200)
+        self.assertEqual(get_body["workflow_status"]["import_preview_status"], "ready")
+        self.assertEqual(
+            get_body["workflow_status"]["import_preview_ref"],
+            "runs/isolated/specspace_repair_draft_import_preview.json",
+        )
+        self.assertEqual(get_body["workflow_status"]["accepted_for_rerun_count"], 1)
+        self.assertTrue(get_body["workflow_status"]["request_ready"])
+        self.assertEqual(post_status, 200)
+        request = post_body["requests"][0]
+        self.assertEqual(
+            request["import_preview_ref"],
+            "runs/isolated/specspace_repair_draft_import_preview.json",
+        )
+        self.assertFalse(request["may_execute_specgraph"])
 
     def test_idea_to_spec_workspace_state_hygiene_v1_reports_stale_state(
         self,

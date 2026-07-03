@@ -3679,6 +3679,7 @@ def _product_repair_rerun_output_artifacts(
                 "artifact_kind": _optional_text(item.get("artifact_kind")),
                 "contract_ref": _optional_text(item.get("contract_ref")),
                 "status": _optional_text(item.get("status")),
+                "summary": _record(item.get("summary")),
                 "ready": item.get("ready") is True,
                 "sha256": _optional_text(item.get("sha256")),
             }

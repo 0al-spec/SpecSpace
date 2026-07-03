@@ -18,6 +18,7 @@ RERUN_REQUEST_FILENAME = "idea_to_spec_repair_rerun_requests.json"
 REQUESTED_ACTION = "prepare_repair_draft_rerun"
 IMPORT_PREVIEW_ARTIFACT_KEY = "specspace_repair_draft_import_preview"
 RERUN_REPORT_ARTIFACT_KEY = "specspace_repair_draft_rerun_report"
+PLATFORM_IMPORT_EXECUTION_ARTIFACT_KEY = "product_repair_draft_import_execution"
 IMPORT_PREVIEW_PATH = "runs/specspace_repair_draft_import_preview.json"
 RERUN_REPORT_PATH = "runs/specspace_repair_draft_rerun_report.json"
 REPAIR_SESSION_PATH = "runs/idea_to_spec_repair_session.json"
@@ -285,7 +286,7 @@ def save_rerun_request(
             "reason": stale_reason,
         }
 
-    import_preview_status = _record(artifacts.get(IMPORT_PREVIEW_ARTIFACT_KEY))
+    import_preview_status = _effective_import_preview_status(artifacts)
     if import_preview_status.get("available") is not True:
         return HTTPStatus.CONFLICT, {
             "error": "Repair rerun request requires ready SpecGraph repair draft import preview.",
@@ -400,7 +401,7 @@ def _with_workflow_status(
     session = _record(repair_session.get("session"))
     current_session_id = _text(session.get("session_id"))
     current_session_ref = _text(_record(artifacts.get("repair_session")).get("path")) or REPAIR_SESSION_PATH
-    import_preview = _record(artifacts.get(IMPORT_PREVIEW_ARTIFACT_KEY))
+    import_preview = _effective_import_preview_status(artifacts)
     rerun_report = _record(artifacts.get(RERUN_REPORT_ARTIFACT_KEY))
     latest_request = _latest_active_request(state)
     latest_journal_state = "not_requested"
@@ -482,6 +483,56 @@ def _current_session_drafts(
             and (not repair_session_ref or draft.get("repair_session_ref") == repair_session_ref)
         )
     ]
+
+
+def _effective_import_preview_status(artifacts: dict[str, Any]) -> dict[str, Any]:
+    import_preview = _record(artifacts.get(IMPORT_PREVIEW_ARTIFACT_KEY))
+    if import_preview.get("available") is True:
+        return import_preview
+    platform_report = _record(artifacts.get(PLATFORM_IMPORT_EXECUTION_ARTIFACT_KEY))
+    if platform_report.get("available") is not True:
+        return import_preview
+    if (
+        platform_report.get("artifact_kind")
+        != "platform_product_repair_draft_import_preview_execution_report"
+    ):
+        return import_preview
+    if platform_report.get("ok") is not True or platform_report.get("dry_run") is True:
+        return import_preview
+    if _first_true(
+        platform_report.get("authority_boundary"),
+        (
+            "executes_git_commands",
+            "opens_pull_requests",
+            "merges_pull_requests",
+            "writes_ontology_packages",
+            "accepts_ontology_terms",
+            "mutates_canonical_specs",
+            "publishes_private_artifacts",
+        ),
+    ):
+        return import_preview
+    output = _record(_record(platform_report.get("output_artifacts")).get("import_preview"))
+    if output.get("ready") is not True:
+        return import_preview
+    status = _text(output.get("status")) or "repair_draft_import_preview_ready"
+    return {
+        "available": True,
+        "path": _text(output.get("path")) or IMPORT_PREVIEW_PATH,
+        "status": status,
+        "artifact_kind": output.get("artifact_kind"),
+        "contract_ref": output.get("contract_ref"),
+        "summary": {
+            **_record(output.get("summary")),
+            "status": status,
+        },
+        "readiness": {
+            "ready": True,
+            "review_state": status,
+            "blocked_by": [],
+        },
+        "source": "platform_product_repair_draft_import_execution",
+    }
 
 
 def _refresh_summary(state: dict[str, Any]) -> None:
