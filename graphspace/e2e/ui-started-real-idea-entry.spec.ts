@@ -80,6 +80,30 @@ function executablePythonForSubprocess(baseDir: string): string {
   return "python3";
 }
 
+function platformCliInvocation(
+  platformDir: string,
+  platformScript: string,
+  args: string[],
+) {
+  const uv = process.env.UV ?? "uv";
+  return existsSync(path.join(platformDir, "requirements-dev.txt"))
+    ? {
+        command: uv,
+        args: [
+          "run",
+          "--with-requirements",
+          "requirements-dev.txt",
+          "python",
+          platformScript,
+          ...args,
+        ],
+      }
+    : {
+        command: executablePythonForSubprocess(platformDir),
+        args: [platformScript, ...args],
+      };
+}
+
 async function waitForBackend(baseUrl: string, child: ChildProcessWithoutNullStreams) {
   const deadline = Date.now() + 10_000;
   let lastError: unknown = null;
@@ -483,6 +507,40 @@ async function publishRepairRequestGateArtifacts(args: {
     path.join(args.specGraphRunDir, "specspace_repair_rerun_request_gate.json"),
     path.join(args.backendRunsDir, "specspace_repair_rerun_request_gate.json"),
   );
+}
+
+async function publishRepairRerunExecutionArtifacts(args: {
+  backendRunsDir: string;
+  platformReportPath: string;
+  specGraphRunDir: string;
+}) {
+  await copyIfPresent(
+    args.platformReportPath,
+    path.join(
+      args.backendRunsDir,
+      "platform_product_repair_rerun_execution_report.json",
+    ),
+  );
+  for (const artifactName of [
+    "specspace_repair_draft_rerun_report.json",
+    "idea_to_spec_answer_rerun_input.json",
+    "idea_to_spec_rerun_preview.json",
+    "idea_to_spec_rerun_materialization.json",
+    "idea_to_spec_repair_session.json",
+    "repaired_candidate_promotion_handoff_report.json",
+    "repaired_active_idea_to_spec_candidate.json",
+    "repaired_candidate_spec_graph.json",
+    "repaired_pre_sib_coherence_report.json",
+    "repaired_candidate_repair_loop_report.json",
+    "repaired_candidate_spec_materialization_report.json",
+    "repaired_idea_to_spec_repair_session.json",
+    "repaired_idea_to_spec_promotion_gate.json",
+  ]) {
+    await copyIfPresent(
+      path.join(args.specGraphRunDir, artifactName),
+      path.join(args.backendRunsDir, artifactName),
+    );
+  }
 }
 
 function safeActionBoundary() {
@@ -936,28 +994,27 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     const requestId = state.requests?.[0]?.request_id;
     expect(requestId).toBeTruthy();
 
-    const python = executablePythonForSubprocess(platformDir!);
+    const intakeCommand = platformCliInvocation(platformDir!, platformScript, [
+      "product-real-idea-intake",
+      "execute",
+      "--specgraph-dir",
+      specGraphDir!,
+      "--run-dir",
+      specGraphRunDirRef,
+      "--entry-requests",
+      path.join(backend.stateDir, "real_idea_entry_requests.json"),
+      "--workspace-id",
+      workspaceId,
+      "--request-id",
+      requestId!,
+      "--output",
+      platformReportPath,
+      "--format",
+      "json",
+    ]);
     const execution = await runCommand(
-      python,
-      [
-        platformScript,
-        "product-real-idea-intake",
-        "execute",
-        "--specgraph-dir",
-        specGraphDir!,
-        "--run-dir",
-        specGraphRunDirRef,
-        "--entry-requests",
-        path.join(backend.stateDir, "real_idea_entry_requests.json"),
-        "--workspace-id",
-        workspaceId,
-        "--request-id",
-        requestId!,
-        "--output",
-        platformReportPath,
-        "--format",
-        "json",
-      ],
+      intakeCommand.command,
+      intakeCommand.args,
       { cwd: platformDir! },
     );
     expect(execution.code, execution.stderr).toBe(0);
@@ -1012,23 +1069,23 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       specGraphRunDir,
       "platform_real_idea_answer_continuation_execution_report.json",
     );
+    const continuationCommand = platformCliInvocation(platformDir!, platformScript, [
+      "product-real-idea-continuation",
+      "execute",
+      "--specgraph-dir",
+      specGraphDir!,
+      "--run-dir",
+      specGraphRunDirRef,
+      "--answer-state",
+      path.join(backend.stateDir, "idea_to_spec_intake_clarification_answers.json"),
+      "--output",
+      continuationReportPath,
+      "--format",
+      "json",
+    ]);
     const continuation = await runCommand(
-      python,
-      [
-        platformScript,
-        "product-real-idea-continuation",
-        "execute",
-        "--specgraph-dir",
-        specGraphDir!,
-        "--run-dir",
-        specGraphRunDirRef,
-        "--answer-state",
-        path.join(backend.stateDir, "idea_to_spec_intake_clarification_answers.json"),
-        "--output",
-        continuationReportPath,
-        "--format",
-        "json",
-      ],
+      continuationCommand.command,
+      continuationCommand.args,
       { cwd: platformDir! },
     );
     expect(continuation.code, continuation.stderr).toBe(0);
@@ -1117,31 +1174,31 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       specGraphRunDir,
       "platform_product_repair_draft_import_preview_execution_report.json",
     );
+    const importPreviewCommand = platformCliInvocation(platformDir!, platformScript, [
+      "product-repair-rerun",
+      "import-preview",
+      "--specgraph-dir",
+      specGraphDir!,
+      "--run-dir",
+      specGraphRunDirRef,
+      "--draft-state",
+      path.join(backend.stateDir, "idea_to_spec_repair_drafts.json"),
+      "--repair-session",
+      path.join(specGraphRunDir, "idea_to_spec_repair_session.json"),
+      "--clarification-requests",
+      path.join(specGraphRunDir, "idea_to_spec_clarification_requests.json"),
+      "--workspace-id",
+      workspaceId,
+      "--output-preview",
+      path.join(specGraphRunDir, "specspace_repair_draft_import_preview.json"),
+      "--output",
+      importPreviewReportPath,
+      "--format",
+      "json",
+    ]);
     const importPreview = await runCommand(
-      python,
-      [
-        platformScript,
-        "product-repair-rerun",
-        "import-preview",
-        "--specgraph-dir",
-        specGraphDir!,
-        "--run-dir",
-        specGraphRunDirRef,
-        "--draft-state",
-        path.join(backend.stateDir, "idea_to_spec_repair_drafts.json"),
-        "--repair-session",
-        path.join(specGraphRunDir, "idea_to_spec_repair_session.json"),
-        "--clarification-requests",
-        path.join(specGraphRunDir, "idea_to_spec_clarification_requests.json"),
-        "--workspace-id",
-        workspaceId,
-        "--output-preview",
-        path.join(specGraphRunDir, "specspace_repair_draft_import_preview.json"),
-        "--output",
-        importPreviewReportPath,
-        "--format",
-        "json",
-      ],
+      importPreviewCommand.command,
+      importPreviewCommand.args,
       { cwd: platformDir! },
     );
     expect(
@@ -1177,31 +1234,31 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       specGraphRunDir,
       "platform_product_repair_rerun_request_gate_execution_report.json",
     );
+    const requestGateCommand = platformCliInvocation(platformDir!, platformScript, [
+      "product-repair-rerun",
+      "request-gate",
+      "--specgraph-dir",
+      specGraphDir!,
+      "--run-dir",
+      specGraphRunDirRef,
+      "--rerun-request",
+      path.join(backend.stateDir, "idea_to_spec_repair_rerun_requests.json"),
+      "--import-preview",
+      path.join(specGraphRunDir, "specspace_repair_draft_import_preview.json"),
+      "--repair-session",
+      path.join(specGraphRunDir, "idea_to_spec_repair_session.json"),
+      "--workspace-id",
+      workspaceId,
+      "--output-gate",
+      path.join(specGraphRunDir, "specspace_repair_rerun_request_gate.json"),
+      "--output",
+      requestGateReportPath,
+      "--format",
+      "json",
+    ]);
     const requestGate = await runCommand(
-      python,
-      [
-        platformScript,
-        "product-repair-rerun",
-        "request-gate",
-        "--specgraph-dir",
-        specGraphDir!,
-        "--run-dir",
-        specGraphRunDirRef,
-        "--rerun-request",
-        path.join(backend.stateDir, "idea_to_spec_repair_rerun_requests.json"),
-        "--import-preview",
-        path.join(specGraphRunDir, "specspace_repair_draft_import_preview.json"),
-        "--repair-session",
-        path.join(specGraphRunDir, "idea_to_spec_repair_session.json"),
-        "--workspace-id",
-        workspaceId,
-        "--output-gate",
-        path.join(specGraphRunDir, "specspace_repair_rerun_request_gate.json"),
-        "--output",
-        requestGateReportPath,
-        "--format",
-        "json",
-      ],
+      requestGateCommand.command,
+      requestGateCommand.args,
       { cwd: platformDir! },
     );
     expect(
@@ -1230,6 +1287,88 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await expect(workspaceStatePreflight).toContainText(
       /repair rerun request gate\s*usable/i,
     );
+
+    const repairRerunPlanPath = path.join(
+      specGraphRunDir,
+      "platform_product_repair_rerun_execution_plan.json",
+    );
+    const repairRerunPlanCommand = platformCliInvocation(platformDir!, platformScript, [
+      "product-repair-rerun",
+      "plan",
+      "--specgraph-dir",
+      specGraphDir!,
+      "--run-dir",
+      specGraphRunDirRef,
+      "--output",
+      repairRerunPlanPath,
+      "--format",
+      "json",
+    ]);
+    const repairRerunPlan = await runCommand(
+      repairRerunPlanCommand.command,
+      repairRerunPlanCommand.args,
+      { cwd: platformDir! },
+    );
+    expect(
+      repairRerunPlan.code,
+      `stdout:\n${repairRerunPlan.stdout}\nstderr:\n${repairRerunPlan.stderr}`,
+    ).toBe(0);
+    const repairRerunPlanPayload = JSON.parse(
+      await readFile(repairRerunPlanPath, "utf8"),
+    ) as {
+      ok?: boolean;
+      diagnostics?: unknown[];
+    };
+    expect(
+      repairRerunPlanPayload.ok,
+      JSON.stringify(repairRerunPlanPayload.diagnostics ?? []),
+    ).toBe(true);
+
+    const repairRerunExecutionPath = path.join(
+      specGraphRunDir,
+      "platform_product_repair_rerun_execution_report.json",
+    );
+    const repairRerunExecutionCommand = platformCliInvocation(platformDir!, platformScript, [
+      "product-repair-rerun",
+      "execute",
+      "--plan",
+      repairRerunPlanPath,
+      "--build-repaired-handoff",
+      "--output",
+      repairRerunExecutionPath,
+      "--format",
+      "json",
+    ]);
+    const repairRerunExecution = await runCommand(
+      repairRerunExecutionCommand.command,
+      repairRerunExecutionCommand.args,
+      { cwd: platformDir! },
+    );
+    expect(
+      repairRerunExecution.code,
+      `stdout:\n${repairRerunExecution.stdout}\nstderr:\n${repairRerunExecution.stderr}`,
+    ).toBe(0);
+    const repairRerunExecutionPayload = JSON.parse(
+      await readFile(repairRerunExecutionPath, "utf8"),
+    ) as {
+      ok?: boolean;
+      diagnostics?: unknown[];
+    };
+    expect(
+      repairRerunExecutionPayload.ok,
+      JSON.stringify(repairRerunExecutionPayload.diagnostics ?? []),
+    ).toBe(true);
+    await publishRepairRerunExecutionArtifacts({
+      backendRunsDir: backend.runsDir,
+      platformReportPath: repairRerunExecutionPath,
+      specGraphRunDir,
+    });
+    await emitRunsChange(page);
+    await expect(page.getByText("Platform repair rerun")).toBeVisible();
+    await expect(page.getByText("execute_specgraph_repaired_promotion_handoff")).toBeVisible();
+    const approvalReadiness = page.locator("#idea-to-spec-approval-readiness");
+    await expect(approvalReadiness).toContainText("Candidate repaired");
+    await expect(approvalReadiness).toContainText(/Approval-ready\s*true/i);
 
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });
