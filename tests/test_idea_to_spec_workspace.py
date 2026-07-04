@@ -2823,6 +2823,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(body["summary"]["repair_session_ready_for_platform_promotion"])
         self.assertFalse(body["summary"]["review_merged"])
         self.assertFalse(body["summary"]["read_model_published"])
+
         self.assertEqual(body["workflow"]["stage"], "repair_required")
         self.assertEqual(body["workflow"]["status"], "blocked")
         self.assertEqual(len(body["workflow"]["items"]), 17)
@@ -3191,6 +3192,24 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(
             body["authority_boundary"]["may_create_branch_or_commit"]
         )
+
+    def test_product_workspace_rejects_mismatched_active_candidate_identity(self) -> None:
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=_workspace_artifacts(),
+            source={
+                "provider": "file-product-workspace",
+                "workspace_id": "household-pantry-rotation",
+                "read_only": True,
+            },
+        )
+
+        self.assertEqual(body["workspace"]["available"], False)
+        self.assertIsNone(body["workspace"]["id"])
+        self.assertEqual(
+            body["real_idea_intake"]["workspace_id"],
+            "household-pantry-rotation",
+        )
+        self.assertIsNone(body["real_idea_intake"]["active_candidate_ref"])
 
     def test_build_workspace_rejects_write_capable_candidate_overview(self) -> None:
         cases = (

@@ -20,9 +20,8 @@ const executionBackedWorkspaceId = "household-pantry-rotation";
 const executionBackedRawIdea =
   "A household pantry rotation planner that tracks expiring food, shared shopping tasks, and meal-prep inventory gaps.";
 const executionBackedPublicSummary = "Household pantry rotation planner";
-const fullLifecycleRawIdea =
-  "A browser-started team decision log for owner review dates.";
-const fullLifecyclePublicSummary = "Browser-started team decision log";
+const fullLifecycleRawIdea = executionBackedRawIdea;
+const fullLifecyclePublicSummary = executionBackedPublicSummary;
 
 test.describe.configure({ mode: "serial" });
 
@@ -1618,6 +1617,7 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     "Set SPECG_E2E_PLATFORM_DIR and SPECG_E2E_SPECG_DIR to run the execution-backed smoke.",
   );
 
+  const lifecycleWorkspaceId = executionBackedWorkspaceId;
   const platformScript = path.join(platformDir!, "scripts/platform.py");
   const specGraphMakefile = path.join(specGraphDir!, "Makefile");
   test.skip(
@@ -1638,24 +1638,24 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await installRunsWatchMock(page);
     await installRealBackendApiRoutes(page, backend.baseUrl);
     const creationResponse = await fetch(
-      `${backend.baseUrl}/api/v1/product-workspace-creation-requests?workspace=${workspaceId}`,
+      `${backend.baseUrl}/api/v1/product-workspace-creation-requests?workspace=${lifecycleWorkspaceId}`,
       {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          workspace_id: workspaceId,
-          display_name: "Team Decision Log",
+          workspace_id: lifecycleWorkspaceId,
+          display_name: "Household Pantry Rotation",
         }),
       },
     );
     expect(creationResponse.ok).toBeTruthy();
     const initializationReportPath = await writeWorkspaceInitializationReport({
       runsDir: backend.runsDir,
-      workspaceId,
-      displayName: "Team Decision Log",
+      workspaceId: lifecycleWorkspaceId,
+      displayName: "Household Pantry Rotation",
     });
 
-    await page.goto(`/${workspaceId}`);
+    await page.goto(`/${lifecycleWorkspaceId}`);
     await expect(page.getByText("Idea-to-Spec Workspace")).toBeVisible();
     await expect(page.getByTestId("workspace-creation-status")).toContainText(
       "Workspace initialized through backend-owned state.",
@@ -1674,7 +1674,7 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     );
 
     const stateResponse = await fetch(
-      `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
+      `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${lifecycleWorkspaceId}`,
     );
     expect(stateResponse.ok).toBeTruthy();
     const state = (await stateResponse.json()) as {
@@ -1732,15 +1732,15 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     expect(answerCount).toBeGreaterThan(0);
     const answerValuesByRequest: Record<string, string> = {
       "clarification.intake.question-active-frame-domain-refs":
-        "domain.team_decision_log",
+        "domain.household_pantry_rotation",
       "clarification.intake.question-event-storming-actors":
-        "Decision owner\nReviewer",
+        "Household shopper\nMeal planner",
       "clarification.intake.question-event-storming-domain-events":
-        "Decision recorded\nReview requested",
+        "Pantry item recorded\nExpiration reviewed\nShopping task assigned",
       "clarification.intake.question-event-storming-commands":
-        "Record decision\nRequest review",
+        "Record pantry item\nReview expiring item\nAssign shopping task",
       "clarification.intake.question-event-storming-constraints":
-        "Owner review date required\nDecision outcome required",
+        "Expiration date required\nShared shopping task owner required\nMeal-prep inventory gap must be visible",
     };
     for (let index = 0; index < answerCount; index += 1) {
       const field = answerFields.nth(index);
@@ -1822,9 +1822,28 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     ]);
     expect(generatedIdeaArtifactsText).not.toContain(fullLifecycleRawIdea);
     expect(generatedIdeaArtifactsText).toContain(fullLifecyclePublicSummary);
-    expect(generatedIdeaArtifactsText).toContain("Decision recorded");
-    expect(generatedIdeaArtifactsText).toContain("Record decision");
-    expect(generatedIdeaArtifactsText).toContain("Decision owner");
+    expect(generatedIdeaArtifactsText).toContain("Pantry item recorded");
+    expect(generatedIdeaArtifactsText).toContain("Record pantry item");
+    expect(generatedIdeaArtifactsText).toContain("Household shopper");
+    expect(generatedIdeaArtifactsText).not.toContain("Decision owner");
+    expect(generatedIdeaArtifactsText).not.toContain("Record decision");
+    expect(generatedIdeaArtifactsText).not.toContain("team-decision-log");
+    const publishedIdeaArtifactsText = await readExistingFilesAsText([
+      path.join(backend.runsDir, "platform_real_idea_entry_intake_execution_report.json"),
+      path.join(
+        backend.runsDir,
+        "platform_real_idea_answer_continuation_execution_report.json",
+      ),
+      path.join(backend.runsDir, "clarified_user_idea_intake_session.json"),
+      path.join(backend.runsDir, "clarified_user_idea_intake_source.json"),
+      path.join(backend.runsDir, "idea_event_storming_intake.json"),
+      path.join(backend.runsDir, "candidate_spec_graph_seed.json"),
+      path.join(backend.runsDir, "candidate_spec_graph.json"),
+      path.join(backend.runsDir, "active_idea_to_spec_candidate.json"),
+    ]);
+    expect(publishedIdeaArtifactsText).toContain(lifecycleWorkspaceId);
+    expect(publishedIdeaArtifactsText).toContain("Pantry item recorded");
+    expect(publishedIdeaArtifactsText).not.toContain("team-decision-log");
     await emitRunsChange(page);
 
     await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
@@ -1938,7 +1957,7 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       "--clarification-requests",
       path.join(specGraphRunDir, "idea_to_spec_clarification_requests.json"),
       "--workspace-id",
-      workspaceId,
+      lifecycleWorkspaceId,
       "--output-preview",
       path.join(specGraphRunDir, "specspace_repair_draft_import_preview.json"),
       "--output",
@@ -1998,7 +2017,7 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       "--repair-session",
       path.join(specGraphRunDir, "idea_to_spec_repair_session.json"),
       "--workspace-id",
-      workspaceId,
+      lifecycleWorkspaceId,
       "--output-gate",
       path.join(specGraphRunDir, "specspace_repair_rerun_request_gate.json"),
       "--output",
@@ -2225,7 +2244,7 @@ test("can refresh from a real Platform intake execution when checkouts are provi
         "specspace-project-local-ontology-decision-import-preview",
         `SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_STATE=${path.join(backend.stateDir, "project_local_ontology_review_decisions.json")}`,
         `SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_REVIEW_LANE=${specGraphRunDirRef}/project_local_ontology_review_lane.json`,
-        `SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_WORKSPACE_ID=${workspaceId}`,
+        `SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_WORKSPACE_ID=${lifecycleWorkspaceId}`,
         `SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_OUTPUT=${specGraphRunDirRef}/specspace_project_local_ontology_decision_import_preview.json`,
       ],
       { cwd: specGraphDir! },
@@ -2308,7 +2327,7 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       "--repair-publication",
       repairRerunPublicationPath,
       "--workspace-id",
-      workspaceId,
+      lifecycleWorkspaceId,
       "--gate-output",
       candidateApprovalGatePath,
       "--decision-output",

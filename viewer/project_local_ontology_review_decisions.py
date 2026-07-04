@@ -281,12 +281,17 @@ def save_decision(
     artifacts = _record(workspace_payload.get("artifacts"))
     lane_artifact = _record(artifacts.get("project_local_ontology_review"))
     lane_ref = _text(lane_artifact.get("path")) or "runs/project_local_ontology_review_lane.json"
+    lane_context = _record(lane.get("context"))
     candidate_id = (
-        _text(session.get("candidate_id"))
+        _text(lane_context.get("candidate_id"))
+        or _text(session.get("candidate_id"))
         or _text(workspace.get("id"))
         or workspace_id_value
     )
-    repair_session_id = _text(session.get("session_id"))
+    repair_session_id = (
+        _text(lane_context.get("repair_session_id"))
+        or _text(session.get("session_id"))
+    )
     now = now_iso()
 
     with _STATE_LOCK:

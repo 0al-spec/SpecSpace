@@ -302,24 +302,25 @@ Acceptance criteria:
 
 ### 8. Arbitrary Route Downstream Repair Lifecycle
 
-Status: open, cross-repo.
+Status: closed.
 
 The `/household-pantry-rotation` execution-backed smoke proves the route,
 SpecSpace-owned entry state, Platform intake handoff, SpecGraph clarification
-flow, and active candidate generation are scoped to the non-demo workspace.
-When the same arbitrary route is pushed deeper into repair / project-local
-ontology review / approval, late surfaces can still observe stale or default
-Team Decision Log lifecycle state.
+flow, active candidate generation, repair loop, project-local ontology review,
+candidate approval, promotion request, and Git dry-run are scoped to the
+non-demo workspace.
 
-Observed failure mode:
+Resolved failure modes:
 
 - `active_idea_to_spec_candidate.json` in the isolated run dir is derived from
-  the household pantry idea;
-- later Product Workspace hygiene / repair-session / project-local ontology
-  review surfaces may still compare against `team-decision-log` session or
-  candidate identity;
-- project-local ontology decisions for the arbitrary route can become
-  `candidate_mismatch` instead of feeding the effective decision report.
+  the household pantry idea and is also verified after publication into the
+  local SpecSpace backend runs surface;
+- Product Workspace rejects mismatched active/repaired candidate identity for a
+  selected arbitrary product workspace route instead of treating stale
+  `team-decision-log` artifacts as current;
+- project-local ontology decisions now derive candidate/session identity from
+  the current review lane context, so arbitrary-route decisions feed the
+  effective decision report instead of becoming `candidate_mismatch`.
 
 Acceptance criteria:
 
@@ -336,11 +337,8 @@ Acceptance criteria:
 
 Likely repositories:
 
-- SpecSpace: workspace state hygiene / selected repaired source projection.
-- SpecGraph: repaired/session/project-local effect refs if a producer artifact
-  still encodes default candidate identity.
-- Platform: controlled wrapper defaults if any late command still assumes the
-  tracked demo workspace.
+- SpecSpace: implemented through selected workspace identity filtering,
+  project-local decision identity binding, and the env-gated browser smoke.
 
 ### 9. Raw Idea Entry Usability Polish
 

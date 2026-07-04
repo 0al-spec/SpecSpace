@@ -3458,6 +3458,20 @@ def _workspace(active_candidate: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def _candidate_matches_workspace(
+    active_candidate: dict[str, Any] | None,
+    workspace_id: str | None,
+) -> bool:
+    if active_candidate is None or workspace_id is None:
+        return True
+    candidate = _record(active_candidate.get("candidate"))
+    candidate_id = _optional_text(candidate.get("candidate_id"))
+    public_route = _optional_text(candidate.get("public_route"))
+    if candidate_id == workspace_id:
+        return True
+    return public_route == f"/{workspace_id}"
+
+
 def _platform_promotion_request(report: dict[str, Any] | None) -> dict[str, Any]:
     review = _record((report or {}).get("review"))
     return {
@@ -5859,6 +5873,11 @@ def build_idea_to_spec_workspace(
         key: _artifact_status(artifacts, filename)
         for filename, key in ARTIFACT_KEYS.items()
     }
+    source_workspace_id = _optional_text(source.get("workspace_id"))
+    if not _candidate_matches_workspace(active_candidate, source_workspace_id):
+        active_candidate = None
+    if not _candidate_matches_workspace(repaired_active_candidate, source_workspace_id):
+        repaired_active_candidate = None
     repaired_surface_selected = repaired_handoff is not None
     selected_active_candidate = (
         repaired_active_candidate
@@ -6025,7 +6044,6 @@ def build_idea_to_spec_workspace(
         promotion_finalization=promotion_finalization,
     )
     workspace_identity = _workspace(selected_active_candidate)
-    source_workspace_id = _optional_text(source.get("workspace_id"))
     effective_workspace_id = source_workspace_id or _optional_text(workspace_identity.get("id"))
     selected_active_candidate_ref = (
         statuses["repaired_active_candidate"]["path"]
