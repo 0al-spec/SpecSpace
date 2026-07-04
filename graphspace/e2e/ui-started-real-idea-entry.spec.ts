@@ -470,6 +470,63 @@ async function publishRealIdeaIntakeExecutionArtifacts(args: {
   );
 }
 
+async function writeWorkspaceInitializationReport(args: {
+  runsDir: string;
+  workspaceId: string;
+  displayName: string;
+}) {
+  const reportPath = path.join(
+    args.runsDir,
+    "platform_product_workspace_initialization_execution_report.json",
+  );
+  await writeJson(
+    reportPath,
+    {
+      artifact_kind: "platform_product_workspace_initialization_execution_report",
+      schema_version: 1,
+      ok: true,
+      dry_run: false,
+      canonical_mutations_allowed: false,
+      tracked_artifacts_written: false,
+      plan_ref: `runs/${args.workspaceId}/platform_product_workspace_initialization_plan.json`,
+      catalog_ref: "workspaces.local.yaml",
+      specgraph_initialization_report_ref:
+        "runs/product_workspace_initialization.json",
+      workspace: {
+        workspace_id: args.workspaceId,
+        display_name: args.displayName,
+        route: `/${args.workspaceId}`,
+        repository_role: "product_spec_workspace",
+      },
+      summary: {
+        status: "workspace_initialization_executed",
+        specgraph_executed: true,
+        catalog_written: true,
+        workspace_files_created: true,
+        error_count: 0,
+      },
+      executed_operations: [
+        "validate_product_workspace_creation_request",
+        "execute_specgraph_product_workspace_initialization",
+        "write_workspace_catalog_entry",
+      ],
+      authority_boundary: {
+        executes_platform: true,
+        executes_specgraph: true,
+        creates_workspace_files: true,
+        updates_workspace_catalog: true,
+        creates_git_commits: false,
+        opens_pull_requests: false,
+        publishes_read_models: false,
+        mutates_canonical_specs: false,
+        writes_ontology_packages: false,
+        accepts_ontology_terms: false,
+      },
+    },
+  );
+  return reportPath;
+}
+
 async function publishRealIdeaContinuationArtifacts(args: {
   backendRunsDir: string;
   platformReportPath: string;
@@ -1156,6 +1213,26 @@ test("shows clarification stage after external intake execution publication", as
   }
 });
 
+test("blocks raw idea submit for a route-only product workspace", async ({ page }) => {
+  const backend = await startSpecSpaceBackend({ seedIntakeRuns: false });
+  try {
+    await installRunsWatchMock(page);
+    await installRealBackendApiRoutes(page, backend.baseUrl);
+
+    await page.goto("/route-only-idea");
+    await expect(page.getByText("Idea-to-Spec Workspace")).toBeVisible();
+    await expect(page.getByTestId("workspace-creation-status")).toContainText(
+      "Route opened; backend workspace creation has not been requested yet.",
+    );
+    await expect(page.getByTestId("real-idea-entry-workspace-gate")).toContainText(
+      "Request and initialize this workspace before submitting a raw idea.",
+    );
+    await expect(page.getByTestId("real-idea-entry-submit")).toBeDisabled();
+  } finally {
+    await backend.stop();
+  }
+});
+
 test("builds an active candidate from a non-demo product workspace route", async ({
   page,
 }) => {
@@ -1186,10 +1263,33 @@ test("builds an active candidate from a non-demo product workspace route", async
   try {
     await installRunsWatchMock(page);
     await installRealBackendApiRoutes(page, backend.baseUrl);
+    const creationResponse = await fetch(
+      `${backend.baseUrl}/api/v1/product-workspace-creation-requests?workspace=${executionBackedWorkspaceId}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: executionBackedWorkspaceId,
+          display_name: "Household Pantry Rotation",
+        }),
+      },
+    );
+    expect(creationResponse.ok).toBeTruthy();
+    const initializationReportPath = await writeWorkspaceInitializationReport({
+      runsDir: backend.runsDir,
+      workspaceId: executionBackedWorkspaceId,
+      displayName: "Household Pantry Rotation",
+    });
 
     await page.goto(`/${executionBackedWorkspaceId}`);
     await expect(page.getByText("Idea-to-Spec Workspace")).toBeVisible();
     await expect(page.getByText("Household Pantry Rotation").first()).toBeVisible();
+    await expect(page.getByTestId("workspace-creation-status")).toContainText(
+      "Workspace initialized through backend-owned state.",
+    );
+    await expect(page.getByTestId("real-idea-entry-workspace-gate")).toContainText(
+      "Raw idea intake will use this workspace namespace.",
+    );
     await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
       "Create a real idea intake session",
     );
@@ -1221,12 +1321,12 @@ test("builds an active candidate from a non-demo product workspace route", async
       "execute",
       "--specgraph-dir",
       specGraphDir!,
+      "--workspace-initialization",
+      initializationReportPath,
       "--run-dir",
       specGraphRunDirRef,
       "--entry-requests",
       path.join(backend.stateDir, "real_idea_entry_requests.json"),
-      "--workspace-id",
-      executionBackedWorkspaceId,
       "--request-id",
       requestId!,
       "--output",
@@ -1243,8 +1343,20 @@ test("builds an active candidate from a non-demo product workspace route", async
     const report = JSON.parse(await readFile(platformReportPath, "utf8")) as {
       ok?: boolean;
       diagnostics?: unknown[];
+      workspace_initialization?: {
+        workspace_id?: string;
+      };
+      target_make?: {
+        variables?: Record<string, string>;
+      };
     };
     expect(report.ok, JSON.stringify(report.diagnostics ?? [])).toBe(true);
+    expect(report.workspace_initialization?.workspace_id).toBe(
+      executionBackedWorkspaceId,
+    );
+    expect(
+      report.target_make?.variables?.SPECSPACE_REAL_IDEA_ENTRY_WORKSPACE_ID,
+    ).toBe(executionBackedWorkspaceId);
 
     await publishRealIdeaIntakeExecutionArtifacts({
       backendRunsDir: backend.runsDir,
@@ -1404,9 +1516,29 @@ test("can refresh from a real Platform intake execution when checkouts are provi
   try {
     await installRunsWatchMock(page);
     await installRealBackendApiRoutes(page, backend.baseUrl);
+    const creationResponse = await fetch(
+      `${backend.baseUrl}/api/v1/product-workspace-creation-requests?workspace=${workspaceId}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          display_name: "Team Decision Log",
+        }),
+      },
+    );
+    expect(creationResponse.ok).toBeTruthy();
+    const initializationReportPath = await writeWorkspaceInitializationReport({
+      runsDir: backend.runsDir,
+      workspaceId,
+      displayName: "Team Decision Log",
+    });
 
     await page.goto(`/${workspaceId}`);
     await expect(page.getByText("Idea-to-Spec Workspace")).toBeVisible();
+    await expect(page.getByTestId("workspace-creation-status")).toContainText(
+      "Workspace initialized through backend-owned state.",
+    );
     await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
       "Create a real idea intake session",
     );
@@ -1435,12 +1567,12 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       "execute",
       "--specgraph-dir",
       specGraphDir!,
+      "--workspace-initialization",
+      initializationReportPath,
       "--run-dir",
       specGraphRunDirRef,
       "--entry-requests",
       path.join(backend.stateDir, "real_idea_entry_requests.json"),
-      "--workspace-id",
-      workspaceId,
       "--request-id",
       requestId!,
       "--output",

@@ -320,6 +320,52 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("written");
   });
 
+  it("does not treat a different active candidate as selected route readiness", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.selected_workspace_id = "pantry-rotation";
+    raw.workspace = {
+      ...raw.workspace,
+      available: true,
+      ready: true,
+      id: "team-decision-log",
+      display_name: "Team Decision Log",
+      public_route: "/team-decision-log",
+    };
+    raw.workspace_creation = {
+      artifact_kind: "specspace_product_workspace_creation_request_state",
+      selected_workspace_id: "pantry-rotation",
+      summary: {
+        status: "route_only_workspace",
+        request_count: 0,
+        active_requested_count: 0,
+        invalid_request_count: 0,
+        next_gap: "submit_product_workspace_creation_request",
+      },
+      initialization: {
+        available: false,
+        trusted: true,
+        initialized: false,
+      },
+    };
+    const parsedRouteOnly = parseIdeaToSpecWorkspace(raw);
+    if (parsedRouteOnly.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedRouteOnly.data },
+      }),
+    );
+
+    expect(html).toContain("Workspace gate");
+    expect(html).toContain("route only");
+    expect(html).toContain(
+      "Request and initialize this workspace before submitting a raw idea.",
+    );
+    expect(html).not.toContain("Raw idea intake will use this workspace namespace.");
+  });
+
   it("renders template-backed term list answers with compatible payload keys", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     const target =

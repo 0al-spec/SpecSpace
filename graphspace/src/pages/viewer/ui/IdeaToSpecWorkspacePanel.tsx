@@ -452,6 +452,8 @@ export function IdeaToSpecWorkspacePanel({
           activeFrame={frame}
           realIdeaIntake={data.realIdeaIntake}
           entryRequests={realIdeaEntryRequests}
+          workspace={data.workspace}
+          workspaceCreation={data.workspaceCreation}
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
           onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
           readOnly={readOnly}
@@ -581,6 +583,8 @@ function IdeaIntakeDraftSection({
   activeFrame,
   realIdeaIntake,
   entryRequests,
+  workspace,
+  workspaceCreation,
   workspaceId,
   onWorkspaceRefreshRequest,
   readOnly,
@@ -588,6 +592,8 @@ function IdeaIntakeDraftSection({
   activeFrame: IdeaToSpecActiveFrame;
   realIdeaIntake: IdeaToSpecWorkspace["realIdeaIntake"];
   entryRequests: ReturnType<typeof useRealIdeaEntryRequests>;
+  workspace: IdeaToSpecWorkspace["workspace"];
+  workspaceCreation: IdeaToSpecWorkspace["workspaceCreation"];
   workspaceId: string | null;
   onWorkspaceRefreshRequest?: () => void;
   readOnly: boolean;
@@ -599,6 +605,51 @@ function IdeaIntakeDraftSection({
     [idea, activeFrame],
   );
   const activeEntry = entryRequests.activeSubmittedRequest;
+  const workspaceInitialized = workspaceCreation.initialization.initialized === true;
+  const workspaceMatchesRoute = !workspaceId || workspace.id === workspaceId;
+  const publishedWorkspaceReady =
+    workspaceMatchesRoute && (workspace.available === true || workspace.ready === true);
+  const workspaceNamespaceReady =
+    publishedWorkspaceReady ||
+    workspaceInitialized;
+  const workspaceCreationBlocksIntake =
+    !workspaceNamespaceReady &&
+    [
+      "route_only_workspace",
+      "workspace_creation_requested",
+      "workspace_creation_blocked",
+      "product_workspace_creation_state_invalid",
+    ].includes(workspaceCreation.status);
+  let workspaceCreationGateLabel = "route only";
+  let workspaceCreationGateMessage =
+    "Request and initialize this workspace before submitting a raw idea.";
+  if (workspaceInitialized) {
+    workspaceCreationGateLabel = "workspace initialized";
+    workspaceCreationGateMessage = "Raw idea intake will use this workspace namespace.";
+  } else if (publishedWorkspaceReady) {
+    workspaceCreationGateLabel = "published workspace";
+    workspaceCreationGateMessage = "Raw idea intake will use this workspace namespace.";
+  } else {
+    switch (workspaceCreation.status) {
+      case "workspace_creation_requested":
+        workspaceCreationGateLabel = "workspace creation requested";
+        workspaceCreationGateMessage =
+          "Run the controlled Platform workspace initialization before submitting a raw idea.";
+        break;
+      case "workspace_creation_blocked":
+        workspaceCreationGateLabel = "workspace creation blocked";
+        workspaceCreationGateMessage =
+          "Repair workspace creation state before submitting a raw idea.";
+        break;
+      case "product_workspace_creation_state_invalid":
+        workspaceCreationGateLabel = "workspace creation invalid";
+        workspaceCreationGateMessage =
+          "Repair workspace creation state before submitting a raw idea.";
+        break;
+      default:
+        break;
+    }
+  }
   const entryHandoffCommand = activeEntry
     ? [
         "scripts/platform.py product-real-idea-intake execute \\",
@@ -613,6 +664,7 @@ function IdeaIntakeDraftSection({
     entryRequests.configured &&
     idea.trim().length > 0 &&
     publicSummary.trim().length > 0 &&
+    !workspaceCreationBlocksIntake &&
     !entryRequests.pending;
   return (
     <section id="idea-to-spec-idea-intake" className={styles.reviewSection}>
@@ -629,6 +681,7 @@ function IdeaIntakeDraftSection({
           {realIdeaIntake.nextAction}
         </h3>
         <div className={styles.postureStrip}>
+          <PostureItem label="Workspace gate" value={workspaceCreationGateLabel} />
           <PostureItem
             label="Questions"
             value={String(realIdeaIntake.clarificationProgress.questionCount)}
@@ -777,6 +830,12 @@ function IdeaIntakeDraftSection({
           operator-owned local state; Platform performs the controlled intake
           handoff later.
         </p>
+        <p
+          className={styles.statusDetail}
+          data-testid="real-idea-entry-workspace-gate"
+        >
+          Workspace gate: {workspaceCreationGateMessage}
+        </p>
         <textarea
           data-testid="real-idea-entry-text"
           className={styles.ideaInput}
@@ -785,7 +844,7 @@ function IdeaIntakeDraftSection({
           placeholder="Product idea, actors, events, constraints"
           rows={5}
           aria-label="Product idea intake"
-          disabled={readOnly || entryRequests.pending}
+          disabled={readOnly || entryRequests.pending || workspaceCreationBlocksIntake}
         />
         <input
           data-testid="real-idea-entry-summary"
@@ -794,7 +853,7 @@ function IdeaIntakeDraftSection({
           onChange={(event) => setPublicSummary(event.currentTarget.value)}
           placeholder="Public-safe idea summary"
           aria-label="Public-safe idea summary"
-          disabled={readOnly || entryRequests.pending}
+          disabled={readOnly || entryRequests.pending || workspaceCreationBlocksIntake}
         />
         <div className={styles.postureStrip}>
           <PostureItem label="Source" value={draft?.sourceMode ?? "local_browser_draft"} />
