@@ -354,6 +354,27 @@ async function installRealBackendApiRoutes(page: Page, baseUrl: string) {
   });
 }
 
+async function installBootstrapChromeApiRoutes(page: Page) {
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/v1/runs-watch") {
+      await route.fulfill({
+        json: {
+          artifact_kind: "specspace_runs_watch",
+          version: 1,
+        },
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 404,
+      json: {
+        error: "mocked_api_surface_not_needed_for_bootstrap_chrome",
+      },
+    });
+  });
+}
+
 async function installRunsWatchMock(page: Page) {
   await page.addInitScript(() => {
     type Listener = () => void;
@@ -1024,6 +1045,26 @@ test("submits a raw real idea entry request from the product workspace UI", asyn
   }
 });
 
+test("renders bootstrap workspace metadata as human-readable sidebar labels", async ({
+  page,
+}) => {
+  await installRunsWatchMock(page);
+  await installBootstrapChromeApiRoutes(page);
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+
+  const sidebar = page.getByLabel("SpecSpace Sidebar");
+  await expect(sidebar.getByText("SpecGraph bootstrap showcase")).toBeVisible();
+  await expect(sidebar.getByText("SpecGraph bootstrap", { exact: true })).toBeVisible();
+  await expect(
+    sidebar.getByText("specgraph_bootstrap_showcase", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    sidebar.getByText("specgraph_bootstrap", { exact: true }),
+  ).toHaveCount(0);
+});
+
 test("shows clarification stage after external intake execution publication", async ({
   page,
 }) => {
@@ -1245,14 +1286,17 @@ test("builds an active candidate from a non-demo product workspace route", async
       specGraphRunDir,
     });
     const generatedIdeaArtifactsText = await readExistingFilesAsText([
-      path.join(specGraphRunDir, "platform_real_idea_entry_intake_execution_report.json"),
-      path.join(specGraphRunDir, "user_idea_intake_session.json"),
-      path.join(specGraphRunDir, "clarified_user_idea_intake_session.json"),
-      path.join(specGraphRunDir, "clarified_user_idea_intake_source.json"),
-      path.join(specGraphRunDir, "idea_event_storming_intake.json"),
-      path.join(specGraphRunDir, "candidate_spec_graph_seed.json"),
-      path.join(specGraphRunDir, "candidate_spec_graph.json"),
-      path.join(specGraphRunDir, "active_idea_to_spec_candidate.json"),
+      path.join(backend.runsDir, "platform_real_idea_entry_intake_execution_report.json"),
+      path.join(
+        backend.runsDir,
+        "platform_real_idea_answer_continuation_execution_report.json",
+      ),
+      path.join(backend.runsDir, "clarified_user_idea_intake_session.json"),
+      path.join(backend.runsDir, "clarified_user_idea_intake_source.json"),
+      path.join(backend.runsDir, "idea_event_storming_intake.json"),
+      path.join(backend.runsDir, "candidate_spec_graph_seed.json"),
+      path.join(backend.runsDir, "candidate_spec_graph.json"),
+      path.join(backend.runsDir, "active_idea_to_spec_candidate.json"),
     ]);
     expect(generatedIdeaArtifactsText).not.toContain(executionBackedRawIdea);
     expect(generatedIdeaArtifactsText).toContain(executionBackedPublicSummary);

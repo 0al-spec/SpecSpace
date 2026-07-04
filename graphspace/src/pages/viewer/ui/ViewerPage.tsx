@@ -132,6 +132,19 @@ type ViewerPageProps = {
   workspace?: SpecSpaceWorkspace;
 };
 
+const WORKSPACE_LANE_LABELS: Record<SpecSpaceWorkspace["workflowLane"], string> = {
+  specgraph_bootstrap_showcase: "SpecGraph bootstrap showcase",
+  product_idea_to_spec: "Product idea-to-spec",
+};
+
+const WORKSPACE_ROLE_LABELS: Record<
+  SpecSpaceWorkspace["targetRepositoryRole"],
+  string
+> = {
+  specgraph_bootstrap: "SpecGraph bootstrap",
+  product_spec_workspace: "Product spec workspace",
+};
+
 export function ViewerPage({
   workspace = SPECGRAPH_BOOTSTRAP_WORKSPACE,
 }: ViewerPageProps) {
@@ -418,8 +431,10 @@ export function ViewerPage({
     }),
   ] as const;
   const capabilityDiagnostics = describeCapabilityDiagnostics(capabilitiesState);
+  const workspaceLaneLabel = WORKSPACE_LANE_LABELS[workspace.workflowLane];
+  const workspaceRoleLabel = WORKSPACE_ROLE_LABELS[workspace.targetRepositoryRole];
   const liveStatusTooltip = [
-    `Workspace: ${workspace.displayName}; ${workspace.workflowLane}; ${workspace.targetRepositoryRole}`,
+    `Workspace: ${workspace.displayName}; ${workspaceLaneLabel}; ${workspaceRoleLabel}`,
     deploymentStatus.title,
     ...artifactDiagnostics.map(
       (artifact) => `${artifact.label}: ${artifact.status}; ${artifact.detail}`,
@@ -956,8 +971,8 @@ export function ViewerPage({
             ))}
           </nav>
           <div className={styles.workspaceMeta}>
-            <span>{workspace.workflowLane}</span>
-            <span>{workspace.targetRepositoryRole}</span>
+            <span>{workspaceLaneLabel}</span>
+            <span>{workspaceRoleLabel}</span>
           </div>
 
           <PanelBtnRow
