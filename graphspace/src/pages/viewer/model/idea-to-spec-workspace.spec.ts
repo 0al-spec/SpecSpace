@@ -470,6 +470,12 @@ describe("parseIdeaToSpecWorkspace", () => {
         available: true,
         trusted: true,
         initialized: true,
+        execution_request: {
+          status: "workspace_initialization_execution_requested",
+          ready_for_managed_execution: true,
+          requested_operation: "workspace.execute-initialization-plan",
+          idempotency_key: "a".repeat(64),
+        },
         execution: {
           status: "workspace_initialization_executed",
           catalog_written: true,
@@ -491,6 +497,10 @@ describe("parseIdeaToSpecWorkspace", () => {
       available: true,
       trusted: true,
       initialized: true,
+      requestStatus: "workspace_initialization_execution_requested",
+      requestReadyForManagedExecution: true,
+      requestedOperation: "workspace.execute-initialization-plan",
+      idempotencyKey: "a".repeat(64),
       executionStatus: "workspace_initialization_executed",
       catalogWritten: true,
       workspaceFilesCreated: true,

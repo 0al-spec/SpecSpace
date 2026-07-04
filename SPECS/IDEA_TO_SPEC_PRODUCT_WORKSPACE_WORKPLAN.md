@@ -436,6 +436,11 @@ Acceptance criteria:
   Done for creation-request state and controlled initialization publication:
   the opened workspace refreshes from `runs-watch` after the Platform
   initialization report appears and only then unlocks raw idea intake.
+- The workspace creation surface shows Platform's managed initialization
+  execution request handoff when
+  `runs/product_workspace_initialization_execution_request.json` is present.
+  Done for read-only visibility: SpecSpace exposes request status, requested
+  operation, readiness, and idempotency evidence without executing Platform.
 
 Likely repositories:
 

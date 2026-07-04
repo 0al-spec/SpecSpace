@@ -1163,6 +1163,10 @@ export type IdeaToSpecWorkspaceCreation = {
     available: boolean;
     trusted: boolean;
     initialized: boolean;
+    requestStatus: string | null;
+    requestReadyForManagedExecution: boolean;
+    requestedOperation: string | null;
+    idempotencyKey: string | null;
     executionStatus: string | null;
     catalogWritten: boolean;
     workspaceFilesCreated: boolean;
@@ -3962,6 +3966,7 @@ function parseWorkspaceCreation(raw: unknown): IdeaToSpecWorkspaceCreation {
   const summary = recordValue(creation.summary);
   const active = recordValue(creation.active_request);
   const initialization = recordValue(creation.initialization);
+  const initializationRequest = recordValue(initialization.execution_request);
   const initializationExecution = recordValue(initialization.execution);
   const requestId = optionalString(active.request_id);
   const workspaceId = optionalString(active.workspace_id);
@@ -3994,6 +3999,11 @@ function parseWorkspaceCreation(raw: unknown): IdeaToSpecWorkspaceCreation {
       available: initialization.available === true,
       trusted: initialization.trusted !== false,
       initialized: initialization.initialized === true,
+      requestStatus: optionalString(initializationRequest.status),
+      requestReadyForManagedExecution:
+        initializationRequest.ready_for_managed_execution === true,
+      requestedOperation: optionalString(initializationRequest.requested_operation),
+      idempotencyKey: optionalString(initializationRequest.idempotency_key),
       executionStatus: optionalString(initializationExecution.status),
       catalogWritten: initializationExecution.catalog_written === true,
       workspaceFilesCreated: initializationExecution.workspace_files_created === true,

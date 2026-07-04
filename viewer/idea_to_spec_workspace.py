@@ -47,6 +47,9 @@ PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT = (
 PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT = (
     "product_workspace_initialization_plan.json"
 )
+PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT = (
+    "product_workspace_initialization_execution_request.json"
+)
 PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT = (
     "platform_product_workspace_initialization_execution_report.json"
 )
@@ -173,6 +176,7 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
     PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT,
     PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT,
+    PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT,
     PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT,
@@ -265,6 +269,9 @@ ARTIFACT_KEYS: dict[str, str] = {
     ),
     PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT: (
         "workspace_initialization_plan"
+    ),
+    PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT: (
+        "workspace_initialization_execution_request"
     ),
     PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT: (
         "workspace_initialization_execution"
@@ -365,6 +372,9 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ),
     PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT: (
         "platform_product_workspace_initialization_plan"
+    ),
+    PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT: (
+        "platform_product_workspace_initialization_execution_request"
     ),
     PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT: (
         "platform_product_workspace_initialization_execution_report"
@@ -2207,19 +2217,56 @@ def _workspace_initialization_authority_trusted(report: dict[str, Any] | None) -
     return True
 
 
+def _workspace_initialization_request_authority_trusted(
+    report: dict[str, Any] | None,
+) -> bool:
+    if report is None:
+        return False
+    boundary = _record(report.get("authority_boundary"))
+    for key, value in boundary.items():
+        if value is True and (
+            key.startswith("may_")
+            or key
+            in {
+                "executes_specgraph",
+                "executes_platform",
+                "creates_workspace_files",
+                "updates_workspace_catalog",
+                "creates_git_commits",
+                "opens_pull_requests",
+                "publishes_read_models",
+                "mutates_canonical_specs",
+                "writes_ontology_packages",
+                "accepts_ontology_terms",
+            }
+        ):
+            return False
+    return True
+
+
 def _workspace_initialization_surface(
     *,
     plan: dict[str, Any] | None,
+    execution_request: dict[str, Any] | None,
     execution: dict[str, Any] | None,
     workspace_id: str | None = None,
 ) -> dict[str, Any]:
     plan_summary = _record((plan or {}).get("summary"))
+    request_summary = _record((execution_request or {}).get("summary"))
     execution_summary = _record((execution or {}).get("summary"))
-    workspace = _record((execution or plan or {}).get("workspace"))
+    workspace = _record((execution or execution_request or plan or {}).get("workspace"))
     plan_trusted = (
         plan is None
         or plan.get("artifact_kind")
         == "platform_product_workspace_initialization_plan"
+    )
+    request_trusted = (
+        execution_request is None
+        or (
+            execution_request.get("artifact_kind")
+            == "platform_product_workspace_initialization_execution_request"
+            and _workspace_initialization_request_authority_trusted(execution_request)
+        )
     )
     trusted = (
         execution is not None
@@ -2242,8 +2289,12 @@ def _workspace_initialization_surface(
         and execution_summary.get("workspace_files_created") is True
     )
     return {
-        "available": plan is not None or execution is not None,
-        "trusted": (trusted if execution is not None else True) and plan_trusted,
+        "available": plan is not None or execution_request is not None or execution is not None,
+        "trusted": (
+            (trusted if execution is not None else True)
+            and plan_trusted
+            and request_trusted
+        ),
         "initialized": initialized,
         "plan": {
             "available": plan is not None,
@@ -2253,6 +2304,22 @@ def _workspace_initialization_surface(
             "ready_for_platform_initialization": (
                 plan_trusted
                 and plan_summary.get("ready_for_platform_initialization") is True
+            ),
+        },
+        "execution_request": {
+            "available": execution_request is not None,
+            "trusted": request_trusted,
+            "ok": request_trusted and (execution_request or {}).get("ok") is True,
+            "status": _optional_text(request_summary.get("status")),
+            "ready_for_managed_execution": (
+                request_trusted
+                and request_summary.get("ready_for_managed_execution") is True
+            ),
+            "requested_operation": _optional_text(
+                (execution_request or {}).get("requested_operation")
+            ),
+            "idempotency_key": _optional_text(
+                (execution_request or {}).get("idempotency_key")
             ),
         },
         "execution": {
@@ -2275,14 +2342,20 @@ def _workspace_initialization_surface(
             "repository_role": _optional_text(workspace.get("repository_role")),
         },
         "refs": {
-            "plan": _safe_ref((execution or {}).get("plan_ref")),
+            "plan": _safe_ref(
+                (execution or execution_request or {}).get("plan_ref")
+            ),
             "catalog": _safe_ref((execution or plan or {}).get("catalog_ref")),
             "specgraph_initialization_report": _safe_ref(
                 (execution or {}).get("specgraph_initialization_report_ref")
             ),
         },
-        "diagnostic_count": len(_records((execution or plan or {}).get("diagnostics"))),
-        "authority_boundary": _record((execution or plan or {}).get("authority_boundary")),
+        "diagnostic_count": len(
+            _records((execution or execution_request or plan or {}).get("diagnostics"))
+        ),
+        "authority_boundary": _record(
+            (execution or execution_request or plan or {}).get("authority_boundary")
+        ),
     }
 
 
@@ -5754,6 +5827,10 @@ def build_idea_to_spec_workspace(
     workspace_initialization_plan = _artifact_data(
         artifacts, PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT
     )
+    workspace_initialization_execution_request = _artifact_data(
+        artifacts,
+        PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT,
+    )
     workspace_initialization_execution = _artifact_data(
         artifacts,
         PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
@@ -6064,6 +6141,7 @@ def build_idea_to_spec_workspace(
     )
     workspace_initialization = _workspace_initialization_surface(
         plan=workspace_initialization_plan,
+        execution_request=workspace_initialization_execution_request,
         execution=workspace_initialization_execution,
         workspace_id=effective_workspace_id,
     )
