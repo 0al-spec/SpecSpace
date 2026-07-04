@@ -399,6 +399,9 @@ Acceptance criteria:
   intake-ready, and blocked creation.
 - Duplicate, reserved, malformed, or already-initialized workspace ids produce
   visible diagnostics and do not silently fall back to `team-decision-log`.
+- Human-facing workspace display name and raw idea text are separated from the
+  route slug. The backend should allocate or validate an ASCII route id for
+  non-English ideas instead of forcing the user to hand-craft a Latin slug.
 - The UI entry point refreshes from backend state after creation instead of
   treating the route as sufficient evidence that a workspace exists.
 
