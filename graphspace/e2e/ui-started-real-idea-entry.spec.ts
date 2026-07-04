@@ -16,6 +16,9 @@ import { fileURLToPath } from "node:url";
 import { ideaToSpecWorkspace } from "../src/pages/viewer/model/idea-to-spec-workspace.fixture";
 
 const workspaceId = "team-decision-log";
+const executionBackedRawIdea =
+  "A household pantry rotation planner that tracks expiring food, shared shopping tasks, and meal-prep inventory gaps.";
+const executionBackedPublicSummary = "Household pantry rotation planner";
 
 type SpecSpaceBackend = {
   baseUrl: string;
@@ -500,6 +503,15 @@ async function publishRealIdeaContinuationArtifacts(args: {
     path.join(args.specGraphRunDir, "active_idea_to_spec_candidate.json"),
     path.join(args.backendRunsDir, "active_idea_to_spec_candidate.json"),
   );
+}
+
+async function readExistingFilesAsText(filePaths: string[]): Promise<string> {
+  const chunks: string[] = [];
+  for (const filePath of filePaths) {
+    if (!existsSync(filePath)) continue;
+    chunks.push(await readFile(filePath, "utf8"));
+  }
+  return chunks.join("\n");
 }
 
 async function publishRepairSessionJournalArtifacts(args: {
@@ -1085,12 +1097,10 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       "Create a real idea intake session",
     );
 
-    await page
-      .getByTestId("real-idea-entry-text")
-      .fill("A browser-started team decision log for owner review dates.");
+    await page.getByTestId("real-idea-entry-text").fill(executionBackedRawIdea);
     await page
       .getByTestId("real-idea-entry-summary")
-      .fill("Browser-started team decision log");
+      .fill(executionBackedPublicSummary);
     await page.getByTestId("real-idea-entry-submit").click();
     await expect(page.getByTestId("guided-flow-next-action")).toContainText(
       "Import the submitted raw idea entry",
@@ -1155,15 +1165,15 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     expect(answerCount).toBeGreaterThan(0);
     const answerValuesByRequest: Record<string, string> = {
       "clarification.intake.question-active-frame-domain-refs":
-        "domain.team_decision_log",
+        "domain.household_pantry_rotation",
       "clarification.intake.question-event-storming-actors":
-        "Decision owner\nReviewer",
+        "Household shopper\nMeal planner",
       "clarification.intake.question-event-storming-domain-events":
-        "Decision recorded\nReview requested",
+        "Pantry item recorded\nExpiration reviewed\nShopping task assigned",
       "clarification.intake.question-event-storming-commands":
-        "Record decision\nRequest review",
+        "Record pantry item\nReview expiring item\nAssign shopping task",
       "clarification.intake.question-event-storming-constraints":
-        "Owner review date required\nDecision outcome required",
+        "Expiration date required\nShared shopping task owner required\nMeal-prep inventory gap must be visible",
     };
     for (let index = 0; index < answerCount; index += 1) {
       const field = answerFields.nth(index);
@@ -1217,6 +1227,23 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       platformReportPath: continuationReportPath,
       specGraphRunDir,
     });
+    const generatedIdeaArtifactsText = await readExistingFilesAsText([
+      path.join(specGraphRunDir, "platform_real_idea_entry_intake_execution_report.json"),
+      path.join(specGraphRunDir, "user_idea_intake_session.json"),
+      path.join(specGraphRunDir, "clarified_user_idea_intake_session.json"),
+      path.join(specGraphRunDir, "clarified_user_idea_intake_source.json"),
+      path.join(specGraphRunDir, "idea_event_storming_intake.json"),
+      path.join(specGraphRunDir, "candidate_spec_graph_seed.json"),
+      path.join(specGraphRunDir, "candidate_spec_graph.json"),
+      path.join(specGraphRunDir, "active_idea_to_spec_candidate.json"),
+    ]);
+    expect(generatedIdeaArtifactsText).not.toContain(executionBackedRawIdea);
+    expect(generatedIdeaArtifactsText).toContain(executionBackedPublicSummary);
+    expect(generatedIdeaArtifactsText).toContain("Pantry item recorded");
+    expect(generatedIdeaArtifactsText).toContain("Record pantry item");
+    expect(generatedIdeaArtifactsText).toContain("Household shopper");
+    expect(generatedIdeaArtifactsText).not.toContain("Decision owner");
+    expect(generatedIdeaArtifactsText).not.toContain("Record decision");
     await emitRunsChange(page);
 
     await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
@@ -1241,7 +1268,7 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       .getByLabel("Repair draft action")
       .first()
       .selectOption("propose_project_local_term");
-    await page.getByLabel("Ontology gap term").first().fill("Team Member");
+    await page.getByLabel("Ontology gap term").first().fill("Pantry Item");
     await page.getByRole("button", { name: "Save draft" }).first().click();
     await expect(page.getByText("Draft saved · propose project local term").first()).toBeVisible();
     const repairActionSelects = page.getByLabel("Repair draft action");
@@ -1263,13 +1290,13 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     expect(productGapRow, "expected a product/spec repair gap form").not.toBeNull();
     await productGapRow!
       .getByLabel("Product gap mechanism or context")
-      .fill("Add an explicit owner-checked enforcement mechanism in the candidate spec.");
-    await productGapRow!.getByLabel("Product gap owner").fill("Product owner");
-    await productGapRow!.getByLabel("Product gap scope").fill("UI-started candidate review");
+      .fill("Add an explicit household-review enforcement mechanism in the candidate spec.");
+    await productGapRow!.getByLabel("Product gap owner").fill("Household shopper");
+    await productGapRow!.getByLabel("Product gap scope").fill("UI-started pantry candidate review");
     await productGapRow!.getByLabel("Product gap risk decision").fill("mitigated");
     await productGapRow!
       .getByLabel("Product gap mitigation")
-      .fill("Require candidate review before promotion.");
+      .fill("Require pantry item review before candidate promotion.");
     await productGapRow!.getByRole("button", { name: "Save draft" }).click();
     await expect(
       productGapRow!.getByText("Draft saved · provide candidate context"),
