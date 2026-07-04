@@ -200,7 +200,10 @@ Acceptance criteria:
 - Manual reload is not the normal happy path. Done for the UI-started browser
   smoke projection.
 - Workspace artifact base, SpecSpace state directory, and SpecGraph run
-  directory drift are visible as diagnostics.
+  directory drift are visible as diagnostics. Done through workspace state
+  hygiene, source-ref stale checks, consumed-source-state handling after
+  repaired handoff, and the execution-backed browser smoke's isolated
+  `state`/`runs` directories.
 
 ### 5. Operator Handoff UX
 
@@ -283,13 +286,15 @@ Acceptance criteria:
   execution-backed answer continuation, repair rerun, project-local ontology
   review import/effect, approval materialization, promotion request, Git
   Service dry-run, and runs-watch refresh.
-- Some browser tests still use a fixture-backed `/api/v1/idea-to-spec-workspace`
-  projection while only mutable state APIs are real.
-- Local state directory, SpecGraph run directory, and product workspace artifact
-  base can drift during manual smoke runs.
-- Some browser tests still use fixture-backed workspace projections for fast
-  UI-only coverage; keep the env-gated execution-backed smoke as the authority
-  for real cross-repo lifecycle behavior.
+- Fast browser tests still use fixture-backed `/api/v1/idea-to-spec-workspace`
+  projections for UI-only coverage. Keep the env-gated execution-backed smoke as
+  the authority for real cross-repo lifecycle behavior, and only replace a fast
+  projection with real artifact fixtures when it catches a lifecycle bug that
+  the projection can mask.
+- Manual smoke runs can still become confusing when an operator mixes old
+  browser state with a new SpecGraph run directory or product artifact base.
+  The runtime now reports this through workspace state hygiene; the remaining
+  work is documentation/runbook clarity, not a hidden UI mutation.
 
 ## Cross-Repo Coordination
 
