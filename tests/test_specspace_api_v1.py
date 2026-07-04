@@ -6268,6 +6268,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["artifact_kind"],
             "specspace_real_idea_intake_execution_request_state",
         )
+        self.assertEqual(
+            body["state_path"],
+            str(state_dir / "real_idea_intake_execution_requests.json"),
+        )
         self.assertEqual(body["selected_workspace_id"], "pantry-rotation")
         self.assertEqual(body["summary"]["request_count"], 0)
         self.assertEqual(
@@ -6325,6 +6329,82 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             ]
         )
         self.assertTrue(state_written)
+
+    def test_real_idea_intake_execution_requests_v1_reports_corrupt_state_path(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            state_path = state_dir / "real_idea_intake_execution_requests.json"
+            state_path.write_text("{not-json", encoding="utf-8")
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/real-idea-intake-execution-requests?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(body["path"], str(state_path))
+
+    def test_real_idea_intake_execution_requests_v1_prioritizes_blocked_state(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            state_path = state_dir / "real_idea_intake_execution_requests.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "artifact_kind": "specspace_real_idea_intake_execution_request_state",
+                        "schema_version": 1,
+                        "state_owner": "SpecSpace",
+                        "requests": [
+                            {
+                                "request_id": "real-idea-intake-execute.pantry.consumed",
+                                "workspace_id": "pantry-rotation",
+                                "entry_request_id": "real-idea-entry.pantry.old",
+                                "workspace_initialization_ref": "runs/init.json",
+                                "status": "consumed",
+                            },
+                            {
+                                "request_id": "real-idea-intake-execute.pantry.blocked",
+                                "workspace_id": "pantry-rotation",
+                                "entry_request_id": "real-idea-entry.pantry.new",
+                                "workspace_initialization_ref": "runs/init.json",
+                                "status": "blocked",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/real-idea-intake-execution-requests?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            body["summary"]["status"],
+            "real_idea_intake_execution_blocked",
+        )
+        self.assertEqual(
+            body["summary"]["next_gap"],
+            "repair_real_idea_intake_execution_request",
+        )
 
     def test_real_idea_intake_execution_requests_v1_rejects_authority_expansion(
         self,

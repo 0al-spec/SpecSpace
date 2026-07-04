@@ -344,6 +344,7 @@ export function IdeaToSpecWorkspacePanel({
   const realIdeaIntakeExecutionRequests = useRealIdeaIntakeExecutionRequests({
     url: realIdeaIntakeExecutionRequestsUrl,
     enabled: auxiliaryDataEnabled && state.kind === "ok",
+    refreshKey: repairRerunRequestsRefreshKey,
   });
   const repairDraftRefreshKey = useMemo(() => {
     if (repairDrafts.state.kind !== "ok") return "repair-drafts-unavailable";
@@ -629,6 +630,14 @@ function IdeaIntakeDraftSection({
   );
   const activeEntry = entryRequests.activeSubmittedRequest;
   const activeExecutionRequest = executionRequests.activeRequest;
+  const executionRequestTargetsCurrentEntry =
+    activeExecutionRequest !== null &&
+    activeEntry !== null &&
+    activeExecutionRequest.entryRequestId === activeEntry.requestId;
+  const executionRequestTargetsStaleEntry =
+    activeExecutionRequest !== null &&
+    activeEntry !== null &&
+    activeExecutionRequest.entryRequestId !== activeEntry.requestId;
   const workspaceInitialized = workspaceCreation.initialization.initialized === true;
   const workspaceMatchesRoute = !workspaceId || workspace.id === workspaceId;
   const publishedWorkspaceReady =
@@ -676,9 +685,9 @@ function IdeaIntakeDraftSection({
   }
   const entryHandoffCommand = activeEntry
     ? [
-        "scripts/platform.py product-real-idea-intake execute \\",
+        "scripts/platform.py product-real-idea-intake execute-requested \\",
         "  --specgraph-dir <specgraph-repository> \\",
-        "  --entry-requests <SpecSpace state dir>/real_idea_entry_requests.json \\",
+        "  --execution-request <SpecSpace state dir>/real_idea_intake_execution_requests.json \\",
         `  --workspace-id ${workspaceId ?? activeEntry.workspaceId} \\`,
         `  --request-id ${activeEntry.requestId}`,
       ].join("\n")
@@ -691,7 +700,7 @@ function IdeaIntakeDraftSection({
     workspaceInitialized &&
     !realIdeaIntake.entryExecution.available &&
     !executionRequests.pending &&
-    !activeExecutionRequest;
+    !executionRequestTargetsCurrentEntry;
   const canSubmit =
     !readOnly &&
     entryRequests.configured &&
@@ -934,7 +943,15 @@ function IdeaIntakeDraftSection({
           <div className={styles.row}>
             <div className={styles.rowHeader}>
               <span className={styles.rowId}>Next safe handoff</span>
-              <Pill value={activeExecutionRequest ? "requested" : "operator request"} />
+              <Pill
+                value={
+                  executionRequestTargetsCurrentEntry
+                    ? "requested"
+                    : executionRequestTargetsStaleEntry
+                      ? "replace request"
+                      : "operator request"
+                }
+              />
             </div>
             <p className={styles.statusDetail}>
               Request controlled Platform intake execution. SpecSpace stores a
@@ -963,15 +980,20 @@ function IdeaIntakeDraftSection({
             >
               {executionRequests.pending
                 ? "Requesting intake execution"
-                : "Request intake execution"}
+                : executionRequestTargetsStaleEntry
+                  ? "Replace intake execution request"
+                  : "Request intake execution"}
             </button>
             {activeExecutionRequest ? (
               <p
                 className={styles.statusDetail}
                 data-testid="real-idea-intake-execution-request-status"
               >
-                Requested execution · {activeExecutionRequest.requestId} ·
-                entry {activeExecutionRequest.entryRequestId}
+                {executionRequestTargetsStaleEntry
+                  ? "Requested execution targets previous entry"
+                  : "Requested execution"}{" "}
+                · {activeExecutionRequest.requestId} · entry{" "}
+                {activeExecutionRequest.entryRequestId}
               </p>
             ) : null}
             <pre

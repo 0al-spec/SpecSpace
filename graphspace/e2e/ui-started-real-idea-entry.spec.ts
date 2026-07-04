@@ -1095,7 +1095,10 @@ test("submits a raw real idea entry request from the product workspace UI", asyn
       "real-idea-entry.team-decision-log",
     );
     await expect(page.getByTestId("real-idea-entry-handoff-command")).toContainText(
-      "product-real-idea-intake execute",
+      "product-real-idea-intake execute-requested",
+    );
+    await expect(page.getByTestId("real-idea-entry-handoff-command")).toContainText(
+      "real_idea_intake_execution_requests.json",
     );
     await expect(page.getByTestId("real-idea-entry-handoff-command")).toContainText(
       "--specgraph-dir <specgraph-repository>",
@@ -1325,7 +1328,7 @@ test("builds an active candidate from a non-demo product workspace route", async
     const state = (await stateResponse.json()) as {
       requests?: Array<{ request_id?: string }>;
     };
-    const requestId = state.requests?.[0]?.request_id;
+    let requestId = state.requests?.[0]?.request_id;
     expect(requestId).toMatch(
       new RegExp(`^real-idea-entry\\.${executionBackedWorkspaceId}(\\.|$)`),
     );
@@ -1344,10 +1347,70 @@ test("builds an active candidate from a non-demo product workspace route", async
         entry_request_id?: string;
         workspace_id?: string;
         workspace_initialization_ref?: string;
+        status?: string;
       }>;
     };
-    expect(executionRequestState.requests?.[0]?.entry_request_id).toBe(requestId);
-    expect(executionRequestState.requests?.[0]?.workspace_id).toBe(
+    expect(
+      executionRequestState.requests?.find((request) => request.status === "requested")
+        ?.entry_request_id,
+    ).toBe(requestId);
+    expect(
+      executionRequestState.requests?.find((request) => request.status === "requested")
+        ?.workspace_id,
+    ).toBe(executionBackedWorkspaceId);
+
+    await page.getByTestId("real-idea-entry-text").fill(
+      `${executionBackedRawIdea} Revised with household notifications.`,
+    );
+    await page
+      .getByTestId("real-idea-entry-summary")
+      .fill(`${executionBackedPublicSummary} revised`);
+    await page.getByTestId("real-idea-entry-submit").click();
+    await expect(page.getByTestId("real-idea-intake-execution-request")).toContainText(
+      "Replace intake execution request",
+    );
+    await expect(
+      page.getByTestId("real-idea-intake-execution-request-status"),
+    ).toContainText("previous entry");
+
+    const revisedStateResponse = await fetch(
+      `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${executionBackedWorkspaceId}`,
+    );
+    expect(revisedStateResponse.ok).toBeTruthy();
+    const revisedState = (await revisedStateResponse.json()) as {
+      requests?: Array<{ request_id?: string; status?: string }>;
+    };
+    const revisedRequestId = revisedState.requests?.find(
+      (request) => request.status === "submitted",
+    )?.request_id;
+    expect(revisedRequestId).toBeTruthy();
+    expect(revisedRequestId).not.toBe(requestId);
+    requestId = revisedRequestId;
+    await page.getByTestId("real-idea-intake-execution-request").click();
+
+    const replacedExecutionRequestResponse = await fetch(
+      `${backend.baseUrl}/api/v1/real-idea-intake-execution-requests?workspace=${executionBackedWorkspaceId}`,
+    );
+    expect(replacedExecutionRequestResponse.ok).toBeTruthy();
+    const replacedExecutionRequestState =
+      (await replacedExecutionRequestResponse.json()) as typeof executionRequestState;
+    expect(
+      replacedExecutionRequestState.requests?.find(
+        (request) => request.status === "requested",
+      )?.entry_request_id,
+    ).toBe(requestId);
+    expect(
+      replacedExecutionRequestState.requests?.some(
+        (request) =>
+          request.status === "superseded" &&
+          request.entry_request_id !== requestId,
+      ),
+    ).toBeTruthy();
+    expect(
+      replacedExecutionRequestState.requests?.find(
+        (request) => request.status === "requested",
+      )?.workspace_id,
+    ).toBe(
       executionBackedWorkspaceId,
     );
 

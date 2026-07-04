@@ -57,11 +57,12 @@ def now_iso() -> str:
     return datetime.now(tz=timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def empty_state() -> dict[str, Any]:
+def empty_state(path: Path | None = None) -> dict[str, Any]:
     return {
         "artifact_kind": EXECUTION_REQUEST_ARTIFACT_KIND,
         "schema_version": EXECUTION_REQUEST_SCHEMA_VERSION,
         "state_owner": "SpecSpace",
+        "state_path": str(path) if path is not None else EXECUTION_REQUEST_FILENAME,
         "selected_workspace_id": None,
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
@@ -113,22 +114,24 @@ def read_state(
 ) -> tuple[HTTPStatus, dict[str, Any]]:
     path = state_path(server)
     if not path.exists():
-        return HTTPStatus.OK, _filtered_state(empty_state(), workspace_id)
+        return HTTPStatus.OK, _filtered_state(empty_state(path), workspace_id)
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         return HTTPStatus.UNPROCESSABLE_ENTITY, {
             "error": f"{EXECUTION_REQUEST_FILENAME} is not valid JSON",
             "detail": str(exc),
+            "path": str(path),
         }
-    state, error = normalize_state(raw)
+    state, error = normalize_state(raw, path)
     if error is not None:
+        error["path"] = str(path)
         return HTTPStatus.UNPROCESSABLE_ENTITY, error
     assert state is not None
     return HTTPStatus.OK, _filtered_state(state, workspace_id)
 
 
-def normalize_state(raw: Any) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+def normalize_state(raw: Any, path: Path) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     if not isinstance(raw, dict):
         return None, {"error": f"{EXECUTION_REQUEST_FILENAME} must contain a JSON object"}
     if raw.get("artifact_kind") != EXECUTION_REQUEST_ARTIFACT_KIND:
@@ -146,7 +149,7 @@ def normalize_state(raw: Any) -> tuple[dict[str, Any] | None, dict[str, Any] | N
     expanded = _first_true(_record(raw.get("authority_boundary")), AUTHORITY_FALSE_FIELDS)
     if expanded is not None:
         return None, {"error": f"Real idea intake execution authority_boundary cannot claim {expanded}"}
-    state = empty_state()
+    state = empty_state(path)
     invalid_request_count = 0
     requests: list[dict[str, Any]] = []
     for entry in raw.get("requests", []):
@@ -253,8 +256,8 @@ def save_request(
             "updated_at": now,
             "canonical_mutations_allowed": False,
             "tracked_artifacts_written": False,
-            "consumer_boundary": empty_state()["consumer_boundary"],
-            "authority_boundary": empty_state()["authority_boundary"],
+            "consumer_boundary": empty_state(path)["consumer_boundary"],
+            "authority_boundary": empty_state(path)["authority_boundary"],
         }
         existing.append(record)
         state["requests"] = _cap_superseded_history(existing)
@@ -348,14 +351,20 @@ def _refresh_summary(
         for item in requests
         if isinstance(item.get("workspace_id"), str) and item["workspace_id"]
     }
+    if requested:
+        status = "real_idea_intake_execution_requested"
+        next_gap = "run_platform_real_idea_intake_execution"
+    elif blocked:
+        status = "real_idea_intake_execution_blocked"
+        next_gap = "repair_real_idea_intake_execution_request"
+    elif consumed:
+        status = "real_idea_intake_execution_consumed"
+        next_gap = "request_real_idea_intake_execution"
+    else:
+        status = "no_real_idea_intake_execution_requests"
+        next_gap = "request_real_idea_intake_execution"
     state["summary"] = {
-        "status": "real_idea_intake_execution_requested"
-        if requested
-        else "real_idea_intake_execution_consumed"
-        if consumed
-        else "real_idea_intake_execution_blocked"
-        if blocked
-        else "no_real_idea_intake_execution_requests",
+        "status": status,
         "request_count": len(requests),
         "requested_count": len(requested),
         "superseded_count": sum(1 for item in requests if item.get("status") == "superseded"),
@@ -364,9 +373,7 @@ def _refresh_summary(
         "active_requested_count": len(requested),
         "invalid_request_count": invalid_request_count,
         "workspace_count": len(workspaces),
-        "next_gap": "run_platform_real_idea_intake_execution"
-        if requested
-        else "request_real_idea_intake_execution",
+        "next_gap": next_gap,
     }
 
 
