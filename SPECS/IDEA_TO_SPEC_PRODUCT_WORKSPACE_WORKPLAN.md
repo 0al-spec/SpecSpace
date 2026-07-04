@@ -166,10 +166,16 @@ Platform/SpecGraph continuation after saved answers.
 
 Closed execution-backed findings:
 
+- SpecSpace now has a request-only
+  `real_idea_answer_continuation_execution_requests.json` state artifact.
+  Browser UI can request continuation without executing Platform or SpecGraph.
 - Platform now has a first-class
+  `product-real-idea-continuation execute-requested --execution-request <SpecSpace state>`
+  handoff, so operator-owned answer state is consumed through a validated
+  request artifact rather than a direct browser-to-executor action.
+- The lower-level
   `product-real-idea-continuation execute --answer-state <SpecSpace state>`
-  handoff, so operator-owned answer state does not need to be copied into a
-  SpecGraph run directory by hand.
+  handoff remains available for operator/debug use.
 - Platform rebases answer-state source refs to the selected SpecGraph run dir
   and derives the missing top-level workspace id from answer rows when
   SpecSpace persisted state was written before a filtered read.
@@ -179,7 +185,8 @@ Closed execution-backed findings:
 
 Execution-backed follow-up preconditions:
 
-- The harness runs `product-real-idea-continuation execute` outside the browser.
+- The harness clicks the Product Workspace request button and then runs
+  `product-real-idea-continuation execute-requested` outside the browser.
   Done.
 - The produced import preview and continuation report are copied into the same
   artifact base that `/api/v1/idea-to-spec-workspace` reads. Done for the local

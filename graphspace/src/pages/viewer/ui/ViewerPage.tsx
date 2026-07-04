@@ -279,6 +279,10 @@ export function ViewerPage({
         "/api/v1/real-idea-intake-execution-requests",
         workspace,
       ),
+      realIdeaAnswerContinuationExecutionRequests: workspaceApiUrl(
+        "/api/v1/real-idea-answer-continuation-execution-requests",
+        workspace,
+      ),
       productWorkspaceCreationRequests: workspaceApiUrl(
         "/api/v1/product-workspace-creation-requests",
         workspace,
@@ -1439,6 +1443,9 @@ export function ViewerPage({
               realIdeaEntryRequestsUrl={workspaceApiUrls.realIdeaEntryRequests}
               realIdeaIntakeExecutionRequestsUrl={
                 workspaceApiUrls.realIdeaIntakeExecutionRequests
+              }
+              realIdeaAnswerContinuationExecutionRequestsUrl={
+                workspaceApiUrls.realIdeaAnswerContinuationExecutionRequests
               }
               repairRerunRequestsUrl={workspaceApiUrls.ideaToSpecRepairRerunRequests}
               candidateApprovalIntentsUrl={workspaceApiUrls.ideaToSpecCandidateApprovalIntents}

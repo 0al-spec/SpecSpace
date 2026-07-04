@@ -359,6 +359,12 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_real_idea_intake_execution_request_post = (
         specspace_v1_api.handle_v1_real_idea_intake_execution_request_post
     )
+    handle_v1_real_idea_answer_continuation_execution_requests = (
+        specspace_v1_api.handle_v1_real_idea_answer_continuation_execution_requests
+    )
+    handle_v1_real_idea_answer_continuation_execution_request_post = (
+        specspace_v1_api.handle_v1_real_idea_answer_continuation_execution_request_post
+    )
     handle_v1_product_workspace_creation_requests = (
         specspace_v1_api.handle_v1_product_workspace_creation_requests
     )

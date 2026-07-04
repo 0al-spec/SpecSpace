@@ -1043,6 +1043,11 @@ async function installIdeaToSpecApiRoutes(
       return;
     }
 
+    if (path === "/api/v1/real-idea-answer-continuation-execution-requests") {
+      await proxyRouteToBackend(route, backendBaseUrl);
+      return;
+    }
+
     if (path === "/api/v1/product-workspace-creation-requests") {
       await proxyRouteToBackend(route, backendBaseUrl);
       return;
@@ -1505,6 +1510,15 @@ test("builds an active candidate from a non-demo product workspace route", async
     await expect(
       page.locator('[data-testid^="intake-clarification-answer-saved-"]'),
     ).toHaveCount(answerCount);
+    await expect(
+      page.getByTestId("real-idea-answer-continuation-execution-request"),
+    ).toBeEnabled();
+    await page
+      .getByTestId("real-idea-answer-continuation-execution-request")
+      .click();
+    await expect(
+      page.getByTestId("real-idea-answer-continuation-execution-request-status"),
+    ).toContainText("real-idea-answer-continuation-execute");
 
     const continuationReportPath = path.join(
       specGraphRunDir,
@@ -1512,13 +1526,17 @@ test("builds an active candidate from a non-demo product workspace route", async
     );
     const continuationCommand = platformCliInvocation(platformDir!, platformScript, [
       "product-real-idea-continuation",
-      "execute",
+      "execute-requested",
       "--specgraph-dir",
       specGraphDir!,
+      "--execution-request",
+      path.join(backend.stateDir, "real_idea_answer_continuation_execution_requests.json"),
       "--run-dir",
       specGraphRunDirRef,
-      "--answer-state",
-      path.join(backend.stateDir, "idea_to_spec_intake_clarification_answers.json"),
+      "--workspace-initialization",
+      initializationReportPath,
+      "--intake-execution",
+      platformReportPath,
       "--output",
       continuationReportPath,
       "--format",
@@ -1540,6 +1558,9 @@ test("builds an active candidate from a non-demo product workspace route", async
       continuationReport.ok,
       JSON.stringify(continuationReport.diagnostics ?? []),
     ).toBe(true);
+    expect(JSON.stringify(continuationReport)).toContain(
+      "real_idea_answer_continuation_execution_requests.json",
+    );
 
     await publishRealIdeaContinuationArtifacts({
       backendRunsDir: backend.runsDir,
@@ -1732,6 +1753,15 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await expect(
       page.locator('[data-testid^="intake-clarification-answer-saved-"]'),
     ).toHaveCount(answerCount);
+    await expect(
+      page.getByTestId("real-idea-answer-continuation-execution-request"),
+    ).toBeEnabled();
+    await page
+      .getByTestId("real-idea-answer-continuation-execution-request")
+      .click();
+    await expect(
+      page.getByTestId("real-idea-answer-continuation-execution-request-status"),
+    ).toContainText("real-idea-answer-continuation-execute");
 
     const continuationReportPath = path.join(
       specGraphRunDir,
@@ -1739,13 +1769,17 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     );
     const continuationCommand = platformCliInvocation(platformDir!, platformScript, [
       "product-real-idea-continuation",
-      "execute",
+      "execute-requested",
       "--specgraph-dir",
       specGraphDir!,
+      "--execution-request",
+      path.join(backend.stateDir, "real_idea_answer_continuation_execution_requests.json"),
       "--run-dir",
       specGraphRunDirRef,
-      "--answer-state",
-      path.join(backend.stateDir, "idea_to_spec_intake_clarification_answers.json"),
+      "--workspace-initialization",
+      initializationReportPath,
+      "--intake-execution",
+      platformReportPath,
       "--output",
       continuationReportPath,
       "--format",
@@ -1767,6 +1801,9 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       continuationReport.ok,
       JSON.stringify(continuationReport.diagnostics ?? []),
     ).toBe(true);
+    expect(JSON.stringify(continuationReport)).toContain(
+      "real_idea_answer_continuation_execution_requests.json",
+    );
 
     await publishRealIdeaContinuationArtifacts({
       backendRunsDir: backend.runsDir,
@@ -2557,6 +2594,21 @@ test("shows continuation-ready lane after external answer continuation publicati
       page.getByTestId(`intake-clarification-answer-saved-${clarificationRequestId}`),
     ).toContainText("Answer saved · answer question");
     await expect(page.getByText("Answer continuation pending")).toBeVisible();
+    await expect(
+      page.getByTestId("real-idea-answer-continuation-execution-request"),
+    ).toBeEnabled();
+    await page
+      .getByTestId("real-idea-answer-continuation-execution-request")
+      .click();
+    await expect(
+      page.getByTestId("real-idea-answer-continuation-execution-request-status"),
+    ).toContainText("real-idea-answer-continuation-execute.team-decision-log");
+    await expect(
+      page.getByTestId("real-idea-answer-continuation-handoff-command"),
+    ).toContainText("product-real-idea-continuation execute-requested");
+    await expect(
+      page.getByTestId("real-idea-answer-continuation-handoff-command"),
+    ).toContainText("real_idea_answer_continuation_execution_requests.json");
 
     scenario.answerContinuationPublished = true;
     await emitRunsChange(page);

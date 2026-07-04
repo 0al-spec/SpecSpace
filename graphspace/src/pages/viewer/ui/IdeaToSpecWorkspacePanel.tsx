@@ -52,6 +52,7 @@ import {
   type UseIdeaToSpecIntakeClarificationAnswersState,
 } from "../model/use-idea-to-spec-intake-clarification-answers";
 import { useRealIdeaEntryRequests } from "../model/use-real-idea-entry-requests";
+import { useRealIdeaAnswerContinuationExecutionRequests } from "../model/use-real-idea-answer-continuation-execution-requests";
 import { useRealIdeaIntakeExecutionRequests } from "../model/use-real-idea-intake-execution-requests";
 import {
   useIdeaToSpecCandidateApprovalIntents,
@@ -73,6 +74,7 @@ type Props = {
   intakeClarificationAnswersUrl?: string;
   realIdeaEntryRequestsUrl?: string;
   realIdeaIntakeExecutionRequestsUrl?: string;
+  realIdeaAnswerContinuationExecutionRequestsUrl?: string;
   repairRerunRequestsUrl?: string;
   candidateApprovalIntentsUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
@@ -110,6 +112,19 @@ function realIdeaEntryRequestErrorText(
 function realIdeaIntakeExecutionRequestErrorText(
   error: NonNullable<
     ReturnType<typeof useRealIdeaIntakeExecutionRequests>["saveError"]
+  >,
+): string {
+  if (error.kind === "network-error") return "network error";
+  return describeHttpErrorDetail({
+    status: error.status,
+    statusText: error.statusText,
+    body: error.body,
+  });
+}
+
+function realIdeaAnswerContinuationExecutionRequestErrorText(
+  error: NonNullable<
+    ReturnType<typeof useRealIdeaAnswerContinuationExecutionRequests>["saveError"]
   >,
 ): string {
   if (error.kind === "network-error") return "network error";
@@ -321,6 +336,7 @@ export function IdeaToSpecWorkspacePanel({
   intakeClarificationAnswersUrl,
   realIdeaEntryRequestsUrl,
   realIdeaIntakeExecutionRequestsUrl,
+  realIdeaAnswerContinuationExecutionRequestsUrl,
   repairRerunRequestsUrl,
   candidateApprovalIntentsUrl,
   projectLocalOntologyReviewDecisionsUrl,
@@ -346,6 +362,12 @@ export function IdeaToSpecWorkspacePanel({
     enabled: auxiliaryDataEnabled && state.kind === "ok",
     refreshKey: repairRerunRequestsRefreshKey,
   });
+  const realIdeaAnswerContinuationExecutionRequests =
+    useRealIdeaAnswerContinuationExecutionRequests({
+      url: realIdeaAnswerContinuationExecutionRequestsUrl,
+      enabled: auxiliaryDataEnabled && state.kind === "ok",
+      refreshKey: repairRerunRequestsRefreshKey,
+    });
   const repairDraftRefreshKey = useMemo(() => {
     if (repairDrafts.state.kind !== "ok") return "repair-drafts-unavailable";
     return repairDrafts.state.data.drafts
@@ -491,7 +513,14 @@ export function IdeaToSpecWorkspacePanel({
         <IntakeClarificationSection
           state={state}
           answers={intakeClarificationAnswers}
+          continuationExecutionRequests={realIdeaAnswerContinuationExecutionRequests}
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+          workspaceInitialized={
+            data.workspaceCreation.initialization.initialized === true ||
+            data.workspace.available === true ||
+            data.workspace.ready === true
+          }
+          onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
           readOnly={readOnly}
         />
         <OntologySeedSection seed={data.ontologySeed} />
@@ -1505,16 +1534,26 @@ function IntakeSection({ state }: { state: Extract<UseIdeaToSpecWorkspaceState, 
 function IntakeClarificationSection({
   state,
   answers,
+  continuationExecutionRequests,
   workspaceId,
+  workspaceInitialized,
+  onWorkspaceRefreshRequest,
   readOnly,
 }: {
   state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
   answers: ReturnType<typeof useIdeaToSpecIntakeClarificationAnswers>;
+  continuationExecutionRequests: ReturnType<
+    typeof useRealIdeaAnswerContinuationExecutionRequests
+  >;
   workspaceId: string | null;
+  workspaceInitialized: boolean;
+  onWorkspaceRefreshRequest?: () => void;
   readOnly: boolean;
 }) {
   const lane = state.data.intakeClarification;
   const draftCount = answers.state.kind === "ok" ? answers.state.data.summary.answerCount : 0;
+  const acceptedAnswerCount =
+    answers.state.kind === "ok" ? answers.state.data.summary.acceptedAnswerCount : 0;
   const answerTargetsByRequestId = useMemo(
     () =>
       new Map(
@@ -1525,6 +1564,26 @@ function IntakeClarificationSection({
       ),
     [lane.answerAuthoring.template.targets],
   );
+  const activeContinuationRequest = continuationExecutionRequests.activeRequest;
+  const laneSourceRefs = lane.sourceRefs ?? [];
+  const intakeExecutionRef =
+    laneSourceRefs.find((ref) =>
+      ref.endsWith("platform_real_idea_entry_intake_execution_report.json"),
+    ) ?? "runs/platform_real_idea_entry_intake_execution_report.json";
+  const answerTemplateRef =
+    laneSourceRefs.find((ref) =>
+      ref.endsWith("real_idea_smoke/real_idea_answer_template.json"),
+    ) ?? "runs/real_idea_smoke/real_idea_answer_template.json";
+  const continuationRequestReady =
+    !readOnly &&
+    workspaceInitialized &&
+    lane.available &&
+    lane.answerAuthoring.template.available &&
+    lane.clarificationRequests.blockingRequestCount > 0 &&
+    acceptedAnswerCount > 0 &&
+    !lane.answerContinuation.available &&
+    !continuationExecutionRequests.pending &&
+    activeContinuationRequest === null;
   return (
     <section id="idea-to-spec-intake-clarification" className={styles.reviewSection}>
       <SectionHeader
@@ -1567,7 +1626,28 @@ function IntakeClarificationSection({
         />
       ) : null}
       <IntakeAnswerAuthoringStatus authoring={lane.answerAuthoring} />
-      <IntakeAnswerContinuationStatus continuation={lane.answerContinuation} />
+      <IntakeAnswerContinuationStatus
+        continuation={lane.answerContinuation}
+        executionRequests={continuationExecutionRequests}
+        canRequestExecution={continuationRequestReady}
+        workspaceId={workspaceId}
+        onRequestExecution={() => {
+          void continuationExecutionRequests
+            .requestExecution({
+              workspaceId,
+              answerStateRef:
+                "specspace-state://idea_to_spec_intake_clarification_answers.json",
+              answerTemplateRef,
+              intakeExecutionRef,
+              workspaceInitializationRef:
+                "runs/platform_product_workspace_initialization_execution_report.json",
+              operatorRef: "operator://specspace-local",
+            })
+            .then((saved) => {
+              if (saved) onWorkspaceRefreshRequest?.();
+            });
+        }}
+      />
       <IntakeClarificationAnswerStatus state={answers.state} />
       <div className={styles.row}>
         <div className={styles.rowHeader}>
@@ -1652,15 +1732,98 @@ function IntakeAnswerAuthoringStatus({
 
 function IntakeAnswerContinuationStatus({
   continuation,
+  executionRequests,
+  canRequestExecution,
+  workspaceId,
+  onRequestExecution,
 }: {
   continuation: IdeaToSpecWorkspace["intakeClarification"]["answerContinuation"];
+  executionRequests: ReturnType<typeof useRealIdeaAnswerContinuationExecutionRequests>;
+  canRequestExecution: boolean;
+  workspaceId: string | null;
+  onRequestExecution: () => void;
 }) {
+  const activeRequest = executionRequests.activeRequest;
   if (!continuation.available) {
     return (
-      <Status
-        label="Answer continuation pending"
-        detail="Build the SpecGraph import preview after saving SpecSpace-owned answers."
-      />
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Answer continuation pending</span>
+          <Pill
+            value={
+              executionRequests.pending
+                ? "requesting"
+                : activeRequest
+                ? "execution requested"
+                : canRequestExecution
+                  ? "ready to request"
+                  : "not ready"
+            }
+          />
+        </div>
+        <p className={styles.statusDetail}>
+          Request controlled Platform answer continuation execution. SpecSpace
+          stores a request intent only; a backend/Platform worker performs the
+          allowlisted execution.
+        </p>
+        <div className={styles.metaGrid}>
+          <Meta label="Workspace" value={workspaceId} />
+          <Meta
+            label="Request state"
+            value={
+              executionRequests.state.kind === "ok"
+                ? executionRequests.state.data.summary.status
+                : executionRequests.state.kind
+            }
+          />
+          <Meta
+            label="Active requests"
+            value={
+              executionRequests.state.kind === "ok"
+                ? String(executionRequests.state.data.summary.activeRequestedCount)
+                : "unknown"
+            }
+          />
+        </div>
+        <button
+          data-testid="real-idea-answer-continuation-execution-request"
+          className={styles.ackButton}
+          type="button"
+          disabled={!canRequestExecution}
+          onClick={onRequestExecution}
+        >
+          {executionRequests.pending
+            ? "Requesting answer continuation"
+            : activeRequest
+              ? "Answer continuation requested"
+              : "Request answer continuation"}
+        </button>
+        {activeRequest ? (
+          <p
+            className={styles.statusDetail}
+            data-testid="real-idea-answer-continuation-execution-request-status"
+          >
+            Requested execution · {activeRequest.requestId} · answers{" "}
+            {activeRequest.answerStateRef}
+          </p>
+        ) : null}
+        {executionRequests.saveError ? (
+          <p className={styles.statusDetail}>
+            Execution request failed ·{" "}
+            {realIdeaAnswerContinuationExecutionRequestErrorText(
+              executionRequests.saveError,
+            )}
+          </p>
+        ) : null}
+        <pre
+          className={styles.codeBlock}
+          data-testid="real-idea-answer-continuation-handoff-command"
+        >
+          scripts/platform.py product-real-idea-continuation execute-requested{"\n"}
+          {"  --specgraph-dir <specgraph-repository> \\\n"}
+          {"  --execution-request <SpecSpace state dir>/real_idea_answer_continuation_execution_requests.json"}
+        </pre>
+      </div>
     );
   }
   const outputEntries = Object.entries(continuation.continuationReport.outputs)

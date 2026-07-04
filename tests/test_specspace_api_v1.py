@@ -6437,6 +6437,139 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertIn("may_execute_platform", body["error"])
         self.assertFalse(state_written)
 
+    def test_real_idea_answer_continuation_execution_requests_v1_reads_empty_state(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            body["artifact_kind"],
+            "specspace_real_idea_answer_continuation_execution_request_state",
+        )
+        self.assertEqual(
+            body["state_path"],
+            str(state_dir / "real_idea_answer_continuation_execution_requests.json"),
+        )
+        self.assertEqual(body["selected_workspace_id"], "pantry-rotation")
+        self.assertEqual(body["summary"]["request_count"], 0)
+        self.assertEqual(
+            body["summary"]["next_gap"],
+            "request_real_idea_answer_continuation_execution",
+        )
+        self.assertFalse(body["consumer_boundary"]["may_execute_platform"])
+        self.assertFalse(body["consumer_boundary"]["may_apply_answers"])
+        self.assertFalse(body["authority_boundary"]["platform_execution_authority"])
+        self.assertFalse(
+            (state_dir / "real_idea_answer_continuation_execution_requests.json").exists()
+        )
+
+    def test_real_idea_answer_continuation_execution_requests_v1_posts_requested_execution(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "answer_state_ref": (
+                            "specspace-state://idea_to_spec_intake_clarification_answers.json"
+                        ),
+                        "answer_template_ref": (
+                            "runs/real_idea_smoke/real_idea_answer_template.json"
+                        ),
+                        "intake_execution_ref": (
+                            "runs/platform_real_idea_entry_intake_execution_report.json"
+                        ),
+                        "workspace_initialization_ref": (
+                            "runs/platform_product_workspace_initialization_execution_report.json"
+                        ),
+                    },
+                )
+                state_written = (
+                    state_dir
+                    / "real_idea_answer_continuation_execution_requests.json"
+                ).exists()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["request_count"], 1)
+        self.assertEqual(body["summary"]["active_requested_count"], 1)
+        request = body["requests"][0]
+        self.assertEqual(request["workspace_id"], "pantry-rotation")
+        self.assertEqual(request["status"], "requested")
+        self.assertEqual(
+            request["answer_state_ref"],
+            "specspace-state://idea_to_spec_intake_clarification_answers.json",
+        )
+        self.assertEqual(
+            request["intake_execution_ref"],
+            "runs/platform_real_idea_entry_intake_execution_report.json",
+        )
+        self.assertFalse(request["consumer_boundary"]["may_execute_platform"])
+        self.assertFalse(request["consumer_boundary"]["may_apply_answers"])
+        self.assertFalse(
+            request["authority_boundary"][
+                "real_idea_answer_continuation_execution_request_state_is_authority"
+            ]
+        )
+        self.assertTrue(state_written)
+
+    def test_real_idea_answer_continuation_execution_requests_v1_rejects_authority_expansion(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "answer_state_ref": (
+                            "specspace-state://idea_to_spec_intake_clarification_answers.json"
+                        ),
+                        "intake_execution_ref": (
+                            "runs/platform_real_idea_entry_intake_execution_report.json"
+                        ),
+                        "workspace_initialization_ref": (
+                            "runs/platform_product_workspace_initialization_execution_report.json"
+                        ),
+                        "may_apply_answers": True,
+                    },
+                )
+                state_written = (
+                    state_dir
+                    / "real_idea_answer_continuation_execution_requests.json"
+                ).exists()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertIn("may_apply_answers", body["error"])
+        self.assertFalse(state_written)
+
     def test_product_workspace_creation_requests_v1_reads_route_only_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
