@@ -109,7 +109,7 @@ UI_PORT=5190 make ui-e2e-raw-idea-entry
 That mode still keeps browser authority read-only. The Playwright harness runs
 Platform and SpecGraph as external operator actions, then publishes selected
 public-safe artifacts into the temporary backend `runs` directory and emits a
-runs-watch event.
+`change` event on `/api/v1/runs-watch`.
 
 ### State And Run-Dir Hygiene
 
