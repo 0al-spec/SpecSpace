@@ -80,6 +80,9 @@ reviews, or publish read models.
 - Product/spec repair drafts are now saved through structured Product
   Workspace browser controls in the execution-backed e2e, alongside ontology
   gap repair drafts.
+- Fast clarification-answer browser tests now create raw idea entry state
+  through the same Product Workspace submit UI instead of seeding that mutable
+  state with direct API POSTs.
 - Isolated run-dir project-local ontology imports accept the canonical
   `runs/project_local_ontology_review_lane.json` decision ref as a safe alias
   for `runs/<run-dir>/project_local_ontology_review_lane.json`.

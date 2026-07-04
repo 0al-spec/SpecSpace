@@ -373,6 +373,17 @@ async function emitRunsChange(page: Page) {
   });
 }
 
+async function submitRawIdeaEntryFromUi(
+  page: Page,
+  ideaText: string,
+  summary: string,
+) {
+  await page.goto(`/${workspaceId}`);
+  await page.getByTestId("real-idea-entry-text").fill(ideaText);
+  await page.getByTestId("real-idea-entry-summary").fill(summary);
+  await page.getByTestId("real-idea-entry-submit").click();
+}
+
 async function copyIfPresent(source: string, destination: string) {
   if (!existsSync(source)) return;
   await mkdir(path.dirname(destination), { recursive: true });
@@ -1890,21 +1901,11 @@ test("saves a clarification answer from the product workspace UI", async ({
   try {
     await installRunsWatchMock(page);
     await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
-    const response = await fetch(
-      `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workspace_id: workspaceId,
-          idea_text: "A decision log that needs domain clarification.",
-          idea_summary_hint: "Decision log with clarification",
-        }),
-      },
+    await submitRawIdeaEntryFromUi(
+      page,
+      "A decision log that needs domain clarification.",
+      "Decision log with clarification",
     );
-    expect(response.ok).toBeTruthy();
-
-    await page.goto(`/${workspaceId}`);
     await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
       "Answer intake clarification questions",
     );
@@ -1937,21 +1938,11 @@ test("shows continuation-ready lane after external answer continuation publicati
   try {
     await installRunsWatchMock(page);
     await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
-    const response = await fetch(
-      `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workspace_id: workspaceId,
-          idea_text: "A decision log that should continue after clarification.",
-          idea_summary_hint: "Decision log continuation",
-        }),
-      },
+    await submitRawIdeaEntryFromUi(
+      page,
+      "A decision log that should continue after clarification.",
+      "Decision log continuation",
     );
-    expect(response.ok).toBeTruthy();
-
-    await page.goto(`/${workspaceId}`);
     await page
       .getByTestId(`intake-clarification-answer-${clarificationRequestId}`)
       .fill("domain.team_decision_log");
@@ -1993,21 +1984,11 @@ test("keeps template-backed clarification answers disabled until required refs a
   try {
     await installRunsWatchMock(page);
     await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
-    const response = await fetch(
-      `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${workspaceId}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workspace_id: workspaceId,
-          idea_text: "A decision log with an incomplete clarification answer.",
-          idea_summary_hint: "Decision log clarification validation",
-        }),
-      },
+    await submitRawIdeaEntryFromUi(
+      page,
+      "A decision log with an incomplete clarification answer.",
+      "Decision log clarification validation",
     );
-    expect(response.ok).toBeTruthy();
-
-    await page.goto(`/${workspaceId}`);
     const intakeClarification = page.locator("#idea-to-spec-intake-clarification");
     await expect(intakeClarification.getByText("Required fields")).toBeVisible();
     await expect(intakeClarification.getByText("value.refs[]", { exact: true })).toBeVisible();
