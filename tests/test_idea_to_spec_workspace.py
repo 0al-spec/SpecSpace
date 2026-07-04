@@ -3571,11 +3571,22 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(lane["action_boundary"]["may_execute_specgraph"])
 
     def test_build_workspace_projects_real_idea_answer_authoring(self) -> None:
+        authoring_report = _real_idea_answer_authoring_report()
+        authoring_report["findings"] = [
+            {
+                "finding_id": "answer_required_field_empty",
+                "severity": "review_required",
+                "message": "Answer requires refs before materialization.",
+                "source_ref": "runs/real_idea_smoke/real_idea_answer_set.json",
+                "target_ref": "active_frame.domain_refs",
+                "next_action": "Add at least one value.refs[] entry.",
+            }
+        ]
         artifacts = {
             **_workspace_artifacts(),
             idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
             idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: _real_idea_answer_template(),
-            idea_to_spec_workspace.REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT: _real_idea_answer_authoring_report(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT: authoring_report,
             idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_ARTIFACT: _real_idea_answer_set(),
         }
 
@@ -3599,6 +3610,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(authoring["answer_set"]["answer_count"], 1)
         self.assertTrue(authoring["validation"]["ready"])
+        finding = authoring["report"]["findings"][0]
+        self.assertEqual(finding["finding_id"], "answer_required_field_empty")
+        self.assertEqual(finding["source_ref"], "runs/real_idea_smoke/real_idea_answer_set.json")
+        self.assertEqual(finding["target_ref"], "active_frame.domain_refs")
+        self.assertEqual(finding["next_action"], "Add at least one value.refs[] entry.")
         self.assertFalse(authoring["action_boundary"]["may_execute_specgraph"])
         self.assertFalse(authoring["action_boundary"]["may_apply_answers"])
 

@@ -487,6 +487,10 @@ def _template_required_fields(target: dict[str, Any], answer_kind: str) -> list[
     template = _record(_record(target).get("value_templates_by_action")).get(answer_kind)
     if "value" not in required_fields or not isinstance(template, dict):
         return required_fields
+    # Contract invariant: when a template uses generic `value` as the required
+    # field, every key in value_templates_by_action[action] describes required
+    # structure. Optional keys must be expressed as explicit required fields
+    # instead of through the generic `value` shorthand.
     expanded = []
     for key, item in template.items():
         if not isinstance(key, str) or not key:

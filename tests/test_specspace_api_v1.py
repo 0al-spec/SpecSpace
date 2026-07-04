@@ -7289,6 +7289,97 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         }
         self.assertNotIn("repair_draft_import_preview", actions)
 
+    def test_idea_to_spec_workspace_state_hygiene_rejects_platform_unknown_authority(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_import_preview=False,
+                include_platform_import_preview_report=True,
+            )
+            report_path = (
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT
+            )
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            report["authority_boundary"]["publishes_read_models"] = True
+            _write_json(report_path, report)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+                request_status, request_body = _get(
+                    f"{base}/api/v1/idea-to-spec-repair-rerun-requests?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        import_state = [
+            item
+            for item in body["states"]
+            if item["kind"] == "repair_draft_import_preview"
+        ][0]
+        self.assertEqual(import_state["status"], "missing")
+        self.assertEqual(request_status, 200)
+        self.assertEqual(
+            request_body["workflow_status"]["import_preview_status"],
+            "missing",
+        )
+
+    def test_idea_to_spec_workspace_state_hygiene_rejects_wrong_platform_session_ref(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_import_preview=False,
+                include_platform_import_preview_report=True,
+            )
+            report_path = (
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT
+            )
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            report["repair_session_ref"] = "runs/isolated/old_repair_session.json"
+            _write_json(report_path, report)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace-state-hygiene?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        import_state = [
+            item
+            for item in body["states"]
+            if item["kind"] == "repair_draft_import_preview"
+        ][0]
+        self.assertEqual(import_state["status"], "stale")
+        self.assertEqual(import_state["reason"], "repair_session_ref_mismatch")
+        self.assertEqual(
+            import_state["stored_repair_session_ref"],
+            "runs/isolated/old_repair_session.json",
+        )
+
     def test_idea_to_spec_repair_rerun_requests_v1_posts_with_platform_import_preview_report(
         self,
     ) -> None:

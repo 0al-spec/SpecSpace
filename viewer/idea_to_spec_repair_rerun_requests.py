@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from viewer import specspace_provider
+from viewer.idea_to_spec_authority import authority_boundary_has_disallowed_true
 
 RERUN_REQUEST_ARTIFACT_KIND = "specspace_idea_to_spec_repair_rerun_request_state"
 RERUN_REQUEST_SCHEMA_VERSION = 1
@@ -506,17 +507,9 @@ def _effective_import_preview_status(artifacts: dict[str, Any]) -> dict[str, Any
         return import_preview
     if platform_report.get("ok") is not True or platform_report.get("dry_run") is True:
         return import_preview
-    if _first_true(
+    if authority_boundary_has_disallowed_true(
         platform_report.get("authority_boundary"),
-        (
-            "executes_git_commands",
-            "opens_pull_requests",
-            "merges_pull_requests",
-            "writes_ontology_packages",
-            "accepts_ontology_terms",
-            "mutates_canonical_specs",
-            "publishes_private_artifacts",
-        ),
+        allowed_true_fields={"executes_specgraph_make_target"},
     ):
         return import_preview
     output = _record(_record(platform_report.get("output_artifacts")).get("import_preview"))

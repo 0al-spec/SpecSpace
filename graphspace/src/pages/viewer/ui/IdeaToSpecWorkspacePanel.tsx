@@ -666,8 +666,8 @@ function IdeaIntakeDraftSection({
                 value={String(realIdeaIntake.entryExecution.diagnosticCount)}
               />
             </div>
-            {realIdeaIntake.entryExecution.operations.map((operation) => (
-              <div key={operation.name} className={styles.subRow}>
+            {realIdeaIntake.entryExecution.operations.map((operation, index) => (
+              <div key={`${operation.name}-${index}`} className={styles.subRow}>
                 <span>{operation.name}</span>
                 <Pill value={operation.status} />
                 <span className={styles.statusDetail}>

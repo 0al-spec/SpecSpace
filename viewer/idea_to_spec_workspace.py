@@ -181,6 +181,9 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT,
     SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT,
     SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT,
+    # Platform execution reports are public-safe telemetry. They expose
+    # sanitized refs/status/digests so Product Workspace can show handoff
+    # progress, but they do not grant execution or mutation authority.
     PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT,
     PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT,
     PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT,
@@ -1605,6 +1608,8 @@ def _findings(payload: dict[str, Any] | None) -> list[dict[str, Any]]:
                 "source_ref": _optional_text(
                     item.get("source_ref") or item.get("source")
                 ),
+                "target_ref": _optional_text(item.get("target_ref")),
+                "next_action": _optional_text(item.get("next_action")),
             }
         )
     return rows

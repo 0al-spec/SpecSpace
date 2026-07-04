@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from pathlib import PurePosixPath
 from typing import Any
 
 from viewer import (
@@ -10,6 +11,7 @@ from viewer import (
     idea_to_spec_repair_drafts,
     idea_to_spec_repair_rerun_requests,
 )
+from viewer.idea_to_spec_authority import authority_boundary_has_disallowed_true
 
 ARTIFACT_KIND = "specspace_idea_to_spec_workspace_state_hygiene"
 SCHEMA_VERSION = 1
@@ -574,18 +576,11 @@ def _import_preview_from_platform_execution(report: dict[str, Any]) -> dict[str,
         return {}
     if report.get("ok") is not True or report.get("dry_run") is True:
         return {}
-    boundary = _record(report.get("authority_boundary"))
-    for field in (
-        "executes_git_commands",
-        "opens_pull_requests",
-        "merges_pull_requests",
-        "writes_ontology_packages",
-        "accepts_ontology_terms",
-        "mutates_canonical_specs",
-        "publishes_private_artifacts",
+    if authority_boundary_has_disallowed_true(
+        report.get("authority_boundary"),
+        allowed_true_fields={"executes_specgraph_make_target"},
     ):
-        if boundary.get(field) is True:
-            return {}
+        return {}
     import_preview = _record(_record(report.get("output_artifacts")).get("import_preview"))
     if import_preview.get("ready") is not True:
         return {}
@@ -626,18 +621,11 @@ def _request_gate_from_platform_execution(report: dict[str, Any]) -> dict[str, A
         return {}
     if report.get("ok") is not True or report.get("dry_run") is True:
         return {}
-    boundary = _record(report.get("authority_boundary"))
-    for field in (
-        "executes_git_commands",
-        "opens_pull_requests",
-        "merges_pull_requests",
-        "writes_ontology_packages",
-        "accepts_ontology_terms",
-        "mutates_canonical_specs",
-        "publishes_private_artifacts",
+    if authority_boundary_has_disallowed_true(
+        report.get("authority_boundary"),
+        allowed_true_fields={"executes_specgraph_make_target"},
     ):
-        if boundary.get(field) is True:
-            return {}
+        return {}
     request_gate = _record(_record(report.get("output_artifacts")).get("request_gate"))
     if request_gate.get("ready") is not True:
         return {}
@@ -737,7 +725,7 @@ def _artifact_state_status(
         if artifact.get("source_mode") in {
             "platform_import_execution",
             "platform_request_gate_execution",
-        }:
+        } and _session_ref_matches_current(session_ref, current_ref):
             return {
                 **base,
                 "status": "usable",
@@ -831,6 +819,14 @@ def _ready_statuses_for_artifact(kind: str) -> set[str]:
             "repair_rerun_request_gate_ready",
         }
     return set()
+
+
+def _session_ref_matches_current(session_ref: str | None, current_ref: str | None) -> bool:
+    if not session_ref or not current_ref:
+        return False
+    if session_ref == current_ref:
+        return True
+    return PurePosixPath(session_ref).name == PurePosixPath(current_ref).name
 
 
 def _summary(states: list[dict[str, Any]]) -> dict[str, Any]:
