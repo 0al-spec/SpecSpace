@@ -84,6 +84,12 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("value.refs[]");
     expect(html).toContain("active_frame_ref");
     expect(html).toContain("Answer requires refs before materialization.");
+    expect(html).toContain("answer_required_field_empty");
+    expect(html).toContain(
+      "clarification.intake.question-active-frame-domain-refs",
+    );
+    expect(html).toContain("runs/real_idea_smoke/real_idea_answer_set.json");
+    expect(html).toContain("Add at least one value.refs[] entry.");
     expect(html).toContain("SpecSpace-owned intake clarification answer state");
     expect(html).toContain("Ontology-bound seed");
     expect(html).toContain("ontology-gap.numeric-input");

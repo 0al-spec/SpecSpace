@@ -11,6 +11,7 @@ import type {
   IdeaToSpecCandidateNode,
   IdeaToSpecCandidateOverview,
   IdeaToSpecClarificationRequest,
+  IdeaToSpecFinding,
   IdeaToSpecGitServiceOperation,
   IdeaToSpecGuidedFlow,
   IdeaToSpecIdeaMaturity,
@@ -1425,11 +1426,7 @@ function IntakeAnswerAuthoringStatus({
           {action.label}: {action.nextAction}
         </p>
       ))}
-      {authoring.report.findings.slice(0, 3).map((finding, index) => (
-        <p key={findingKey(finding, index)} className={styles.statusDetail}>
-          {finding.severity}: {finding.message}
-        </p>
-      ))}
+      <IntakeAnswerFindingDiagnostics findings={authoring.report.findings} />
     </div>
   );
 }
@@ -1510,13 +1507,48 @@ function IntakeAnswerContinuationStatus({
       {[
         ...continuation.importPreview.findings,
         ...continuation.continuationReport.findings,
-      ]
-        .slice(0, 3)
-        .map((finding, index) => (
-          <p key={findingKey(finding, index)} className={styles.statusDetail}>
-            {finding.severity}: {finding.message}
-          </p>
-        ))}
+      ].length ? (
+        <IntakeAnswerFindingDiagnostics
+          findings={[
+            ...continuation.importPreview.findings,
+            ...continuation.continuationReport.findings,
+          ]}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function IntakeAnswerFindingDiagnostics({
+  findings,
+}: {
+  findings: readonly IdeaToSpecFinding[];
+}) {
+  if (!findings.length) return null;
+  return (
+    <div className={styles.subList}>
+      {findings.slice(0, 5).map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.subRow}>
+          <span>
+            {finding.severity}: {finding.findingId}
+          </span>
+          <span className={styles.statusDetail}>{finding.message}</span>
+          {finding.targetRef ? (
+            <span className={styles.statusDetail}>Target: {finding.targetRef}</span>
+          ) : null}
+          {finding.sourceRef ? (
+            <span className={styles.statusDetail}>Source: {finding.sourceRef}</span>
+          ) : null}
+          {finding.nextAction ? (
+            <span className={styles.statusDetail}>Next action: {finding.nextAction}</span>
+          ) : null}
+        </div>
+      ))}
+      {findings.length > 5 ? (
+        <p className={styles.statusDetail}>
+          {findings.length - 5} additional answer finding(s) hidden.
+        </p>
+      ) : null}
     </div>
   );
 }

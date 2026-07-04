@@ -1004,6 +1004,10 @@ export const ideaToSpecWorkspace = {
             finding_id: "answer_required_field_empty",
             severity: "review_required",
             message: "Answer requires refs before materialization.",
+            target_ref:
+              "clarification.intake.question-active-frame-domain-refs",
+            source_ref: "runs/real_idea_smoke/real_idea_answer_set.json",
+            next_action: "Add at least one value.refs[] entry.",
           },
         ],
         finding_count: 1,

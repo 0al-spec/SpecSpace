@@ -39,6 +39,8 @@ export type IdeaToSpecFinding = {
   severity: string;
   message: string;
   sourceRef: string | null;
+  targetRef: string | null;
+  nextAction: string | null;
 };
 
 export type IdeaToSpecOntologySeedBinding = {
@@ -1813,6 +1815,8 @@ function parseFinding(raw: unknown): IdeaToSpecFinding | null {
     severity: stringValue(finding.severity, "unknown"),
     message: stringValue(finding.message, "No message supplied."),
     sourceRef: optionalString(finding.source_ref),
+    targetRef: optionalString(finding.target_ref),
+    nextAction: optionalString(finding.next_action),
   };
 }
 

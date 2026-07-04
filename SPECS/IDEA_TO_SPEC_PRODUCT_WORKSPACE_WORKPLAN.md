@@ -86,6 +86,10 @@ reviews, or publish read models.
 - Isolated run-dir project-local ontology imports accept the canonical
   `runs/project_local_ontology_review_lane.json` decision ref as a safe alias
   for `runs/<run-dir>/project_local_ontology_review_lane.json`.
+- Intake answer validation findings now preserve and render `finding_id`,
+  `target_ref`, `source_ref`, and `next_action`, so invalid-answer diagnostics
+  point to the affected request/source instead of showing only a generic
+  message.
 
 ## Next Tasks
 
@@ -179,9 +183,9 @@ Acceptance criteria:
   save path.
 - Import preview / continuation lane is visible. Done with projected and
   execution-backed publication.
-- Invalid or missing answers produce clear UI diagnostics. Partially covered
-  for required template refs and template shape mismatch; broader server-side
-  invalid-answer surfacing can still improve.
+- Invalid or missing answers produce clear UI diagnostics. Done for required
+  template refs, template shape mismatch, and server-side answer findings with
+  stable finding/source/target/next-action detail.
 
 ### 4. Artifact Refresh And Runs-Watch Hardening
 
