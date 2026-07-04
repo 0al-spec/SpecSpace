@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import secrets
@@ -571,7 +572,11 @@ def _workspace_id_from_display_name(value: str) -> str | None:
     ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
     slug = re.sub(r"[^a-z0-9]+", "-", ascii_text.lower()).strip("-")
     slug = re.sub(r"-{2,}", "-", slug)[:64].strip("-")
-    return specspace_provider.normalize_product_workspace_id(slug)
+    normalized_slug = specspace_provider.normalize_product_workspace_id(slug)
+    if normalized_slug is not None:
+        return normalized_slug
+    digest = hashlib.sha256(value.strip().casefold().encode("utf-8")).hexdigest()[:10]
+    return specspace_provider.normalize_product_workspace_id(f"idea-{digest}")
 
 
 def _timestamp_id(value: str) -> str:

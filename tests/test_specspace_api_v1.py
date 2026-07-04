@@ -6634,6 +6634,36 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertNotIn("root_intent_summary", request)
         self.assertTrue(request["root_intent_summary_present"])
         self.assertTrue(state_written)
+
+    def test_product_workspace_creation_requests_v1_allocates_non_english_route(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "display_name": "Домашний контроль подписок",
+                        "root_intent_summary": "Локальный контроль цифровых подписок.",
+                    },
+                )
+                state_written = (
+                    state_dir / "product_workspace_creation_requests.json"
+                ).exists()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        request = body["requests"][0]
+        self.assertRegex(request["workspace_id"], r"^idea-[a-f0-9]{10}$")
+        self.assertEqual(request["route"], f"/{request['workspace_id']}")
+        self.assertEqual(request["display_name"], "Домашний контроль подписок")
+        self.assertTrue(state_written)
         self.assertNotIn(str(state_dir), json.dumps(body))
 
     def test_product_workspace_creation_requests_v1_redacts_root_intent_on_get(

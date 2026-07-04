@@ -427,8 +427,9 @@ Acceptance criteria:
 - Human-facing workspace display name and raw idea text are separated from the
   route slug. The backend should allocate or validate an ASCII route id for
   non-English ideas instead of forcing the user to hand-craft a Latin slug.
-  Partially done for display name vs route id; non-English slug allocation
-  remains open.
+  Done for display name vs route id and backend-allocated non-English routes:
+  the sidebar can submit a non-English display name without a hand-authored
+  Latin slug, and the backend allocates a safe `idea-<digest>` workspace route.
 - The UI entry point refreshes from backend state after creation instead of
   treating the route as sufficient evidence that a workspace exists.
   Done for creation-request state and controlled initialization publication:

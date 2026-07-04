@@ -1048,7 +1048,7 @@ export function ViewerPage({
             aria-label="New idea workspace"
             onSubmit={(event) => {
               event.preventDefault();
-              if (newIdeaWorkspaceRoute === null) return;
+              if (!newIdeaWorkspaceInput.trim()) return;
               void productWorkspaceCreationRequests
                 .saveRequest({
                   workspaceId: newIdeaWorkspaceSlug,
@@ -1057,7 +1057,8 @@ export function ViewerPage({
                   operatorRef: "operator://specspace-local",
                 })
                 .then((saved) => {
-                  if (saved) window.location.assign(newIdeaWorkspaceRoute);
+                  const savedRoute = saved ? saved.activeRequest?.route : null;
+                  if (savedRoute) window.location.assign(savedRoute);
                 });
             }}
           >
@@ -1081,7 +1082,7 @@ export function ViewerPage({
                 className={styles.newWorkspaceButton}
                 type="submit"
                 disabled={
-                  newIdeaWorkspaceRoute === null ||
+                  !newIdeaWorkspaceInput.trim() ||
                   productWorkspaceCreationRequests.pending
                 }
                 aria-label="Open workspace"
@@ -1095,7 +1096,9 @@ export function ViewerPage({
             >
               {newIdeaWorkspaceRoute !== null
                 ? newIdeaWorkspaceRoute
-                : "Use a Latin route slug, for example /cash-flow-control."}
+                : newIdeaWorkspaceInput.trim()
+                  ? "SpecSpace will ask the backend to allocate a safe route."
+                  : "Enter a workspace name, for example Cash Flow Control."}
             </p>
             {productWorkspaceCreationRequests.saveError ? (
               <p className={styles.newWorkspaceError}>
