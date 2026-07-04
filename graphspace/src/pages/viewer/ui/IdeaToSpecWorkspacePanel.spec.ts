@@ -267,6 +267,59 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("emits refs, context");
   });
 
+  it("renders backend workspace initialization evidence", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.workspace_creation = {
+      artifact_kind: "specspace_product_workspace_creation_request_state",
+      selected_workspace_id: "pantry-rotation",
+      active_request: {
+        request_id: "product-workspace-request.pantry-rotation",
+        workspace_id: "pantry-rotation",
+        display_name: "Pantry Rotation",
+        route: "/pantry-rotation",
+        status: "initialized",
+        created_at: "2026-07-04T08:00:00Z",
+        updated_at: "2026-07-04T08:05:00Z",
+      },
+      summary: {
+        status: "workspace_initialized",
+        request_count: 1,
+        active_requested_count: 1,
+        invalid_request_count: 0,
+        next_gap: "start_real_idea_intake",
+      },
+      initialization: {
+        available: true,
+        trusted: true,
+        initialized: true,
+        execution: {
+          status: "workspace_initialization_executed",
+          catalog_written: true,
+          workspace_files_created: true,
+        },
+      },
+    };
+    const parsedInitialized = parseIdeaToSpecWorkspace(raw);
+    if (parsedInitialized.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedInitialized.data },
+      }),
+    );
+
+    expect(html).toContain("Workspace initialized through backend-owned state.");
+    expect(html).toContain("workspace initialized");
+    expect(html).toContain("Pantry Rotation");
+    expect(html).toContain("/pantry-rotation");
+    expect(html).toContain("Initialized");
+    expect(html).toContain("workspace_initialization_executed");
+    expect(html).toContain("Catalog binding");
+    expect(html).toContain("written");
+  });
+
   it("renders template-backed term list answers with compatible payload keys", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     const target =

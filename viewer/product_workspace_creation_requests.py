@@ -296,6 +296,7 @@ def workspace_projection(
     state: dict[str, Any],
     *,
     workspace_id: str | None,
+    initialization: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if status != HTTPStatus.OK:
         return {
@@ -318,12 +319,43 @@ def workspace_projection(
             "consumer_boundary": _consumer_boundary(),
             "authority_boundary": _authority_boundary(),
         }
-    summary = _record(state.get("summary"))
     requests = [_public_request(item) for item in state.get("requests", []) if isinstance(item, dict)]
     active = next((item for item in requests if item.get("status") == "requested"), None)
-    status_value = _clean_text(summary.get("status")) or "no_product_workspace_creation_requests"
+    initialization_record = _record(initialization)
+    initialization_workspace_id = _clean_text(
+        _record(initialization_record.get("workspace")).get("workspace_id")
+    )
+    initialized = (
+        initialization_record.get("initialized") is True
+        and initialization_workspace_id is not None
+        and workspace_id is not None
+        and initialization_workspace_id == workspace_id
+    )
+    initialization_trusted = initialization_record.get("trusted") is not False
+    projected_initialization = (
+        {**initialization_record, "initialized": initialized}
+        if initialization_record
+        else None
+    )
+    if initialized and initialization_trusted:
+        if active is not None:
+            active = {**active, "status": "initialized"}
+        requests = [
+            {**item, "status": "initialized"}
+            if item.get("status") == "requested"
+            and item.get("workspace_id") == initialization_workspace_id
+            else item
+            for item in requests
+        ]
+    projected_summary = _summary_for_public_requests(
+        requests,
+        invalid_request_count=_number(_record(state.get("summary")).get("invalid_request_count")),
+    )
+    status_value = _status_for_public_summary(projected_summary)
     if workspace_id and not requests:
         status_value = "route_only_workspace"
+    if initialized and initialization_trusted:
+        status_value = "workspace_initialized"
     return {
         "artifact_kind": CREATION_REQUEST_ARTIFACT_KIND,
         "schema_version": CREATION_REQUEST_SCHEMA_VERSION,
@@ -333,18 +365,25 @@ def workspace_projection(
         "active_request": active,
         "summary": {
             "status": status_value,
-            "request_count": _number(summary.get("request_count")),
-            "requested_count": _number(summary.get("requested_count")),
-            "superseded_count": _number(summary.get("superseded_count")),
-            "initialized_count": _number(summary.get("initialized_count")),
-            "blocked_count": _number(summary.get("blocked_count")),
-            "active_requested_count": _number(summary.get("active_requested_count")),
-            "invalid_request_count": _number(summary.get("invalid_request_count")),
-            "workspace_count": _number(summary.get("workspace_count")),
-            "next_gap": "submit_product_workspace_creation_request"
-            if workspace_id and not requests
-            else summary.get("next_gap"),
+            "request_count": projected_summary["request_count"],
+            "requested_count": projected_summary["requested_count"],
+            "superseded_count": projected_summary["superseded_count"],
+            "initialized_count": projected_summary["initialized_count"],
+            "blocked_count": projected_summary["blocked_count"],
+            "active_requested_count": projected_summary["active_requested_count"],
+            "invalid_request_count": projected_summary["invalid_request_count"],
+            "workspace_count": projected_summary["workspace_count"],
+            "next_gap": (
+                "start_real_idea_intake"
+                if initialized and initialization_trusted
+                else "submit_product_workspace_creation_request"
+                if workspace_id and not requests
+                else "run_platform_workspace_initialization"
+                if projected_summary["active_requested_count"]
+                else "submit_product_workspace_creation_request"
+            ),
         },
+        "initialization": projected_initialization,
         "consumer_boundary": state.get("consumer_boundary"),
         "authority_boundary": state.get("authority_boundary"),
     }
@@ -450,6 +489,38 @@ def _refresh_summary(
         if requested
         else "submit_product_workspace_creation_request",
     }
+
+
+def _summary_for_public_requests(
+    requests: list[dict[str, Any]],
+    *,
+    invalid_request_count: int,
+) -> dict[str, int]:
+    workspaces = {
+        item["workspace_id"]
+        for item in requests
+        if isinstance(item.get("workspace_id"), str) and item["workspace_id"]
+    }
+    return {
+        "request_count": len(requests),
+        "requested_count": sum(1 for item in requests if item.get("status") == "requested"),
+        "superseded_count": sum(1 for item in requests if item.get("status") == "superseded"),
+        "initialized_count": sum(1 for item in requests if item.get("status") == "initialized"),
+        "blocked_count": sum(1 for item in requests if item.get("status") == "blocked"),
+        "active_requested_count": sum(1 for item in requests if item.get("status") == "requested"),
+        "invalid_request_count": invalid_request_count,
+        "workspace_count": len(workspaces),
+    }
+
+
+def _status_for_public_summary(summary: dict[str, int]) -> str:
+    if summary["requested_count"]:
+        return "workspace_creation_requested"
+    if summary["initialized_count"]:
+        return "workspace_initialized"
+    if summary["blocked_count"]:
+        return "workspace_creation_blocked"
+    return "no_product_workspace_creation_requests"
 
 
 def _cap_superseded_history(requests: list[dict[str, Any]]) -> list[dict[str, Any]]:

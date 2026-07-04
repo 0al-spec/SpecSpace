@@ -490,6 +490,9 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
                     creation_status,
                     creation_state,
                     workspace_id=workspace_id,
+                    initialization=payload.get("workspace_initialization")
+                    if isinstance(payload.get("workspace_initialization"), dict)
+                    else None,
                 )
             )
         idea_to_spec_workspace.attach_guided_flow(payload)

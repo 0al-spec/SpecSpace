@@ -1159,6 +1159,14 @@ export type IdeaToSpecWorkspaceCreation = {
     createdAt: string;
     updatedAt: string;
   } | null;
+  initialization: {
+    available: boolean;
+    trusted: boolean;
+    initialized: boolean;
+    executionStatus: string | null;
+    catalogWritten: boolean;
+    workspaceFilesCreated: boolean;
+  };
 };
 
 export type IdeaToSpecWorkspace = {
@@ -3951,6 +3959,8 @@ function parseWorkspaceCreation(raw: unknown): IdeaToSpecWorkspaceCreation {
   const creation = recordValue(raw);
   const summary = recordValue(creation.summary);
   const active = recordValue(creation.active_request);
+  const initialization = recordValue(creation.initialization);
+  const initializationExecution = recordValue(initialization.execution);
   const requestId = optionalString(active.request_id);
   const workspaceId = optionalString(active.workspace_id);
   const displayName = optionalString(active.display_name);
@@ -3978,6 +3988,14 @@ function parseWorkspaceCreation(raw: unknown): IdeaToSpecWorkspaceCreation {
             updatedAt: stringValue(active.updated_at, "unknown"),
           }
         : null,
+    initialization: {
+      available: initialization.available === true,
+      trusted: initialization.trusted !== false,
+      initialized: initialization.initialized === true,
+      executionStatus: optionalString(initializationExecution.status),
+      catalogWritten: initializationExecution.catalog_written === true,
+      workspaceFilesCreated: initializationExecution.workspace_files_created === true,
+    },
   };
 }
 
