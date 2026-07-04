@@ -213,6 +213,12 @@ def save_request(
             "error": "Reserved workspace id cannot be used for product workspace creation.",
             "field": "workspace_id",
         }
+    if _workspace_exists_in_catalog(server, workspace_id_value):
+        return HTTPStatus.CONFLICT, {
+            "error": "Product workspace already exists in the workspace catalog.",
+            "field": "workspace_id",
+            "workspace_id": workspace_id_value,
+        }
 
     now = now_iso()
     request_id = _clean_text(payload.get("request_id")) or (
@@ -247,6 +253,16 @@ def save_request(
                 and item.get("request_id") == request_id
             )
         ]
+        if any(
+            item.get("workspace_id") == workspace_id_value
+            and item.get("status") == "initialized"
+            for item in existing
+        ):
+            return HTTPStatus.CONFLICT, {
+                "error": "Product workspace creation request is already initialized.",
+                "field": "workspace_id",
+                "workspace_id": workspace_id_value,
+            }
         if status == "requested":
             existing = [
                 {**item, "status": "superseded", "superseded_at": now}
@@ -577,6 +593,18 @@ def _workspace_id_from_display_name(value: str) -> str | None:
         return normalized_slug
     digest = hashlib.sha256(value.strip().casefold().encode("utf-8")).hexdigest()[:10]
     return specspace_provider.normalize_product_workspace_id(f"idea-{digest}")
+
+
+def _workspace_exists_in_catalog(server: Any, workspace_id: str) -> bool:
+    catalog = specspace_provider.workspace_catalog(server)
+    for item in catalog.get("workspaces", []):
+        if (
+            isinstance(item, dict)
+            and specspace_provider.normalize_product_workspace_id(item.get("id"))
+            == workspace_id
+        ):
+            return True
+    return False
 
 
 def _timestamp_id(value: str) -> str:

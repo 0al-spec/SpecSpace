@@ -6798,6 +6798,87 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertIn("may_execute_platform", body["error"])
         self.assertFalse(state_written)
 
+    def test_product_workspace_creation_requests_v1_rejects_catalog_workspace(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "display_name": "Team Decision Log",
+                    },
+                )
+                state_written = (
+                    state_dir / "product_workspace_creation_requests.json"
+                ).exists()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["field"], "workspace_id")
+        self.assertIn("already exists", body["error"])
+        self.assertFalse(state_written)
+
+    def test_product_workspace_creation_requests_v1_rejects_initialized_workspace(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            state_dir.mkdir(parents=True)
+            _write_json(
+                state_dir / "product_workspace_creation_requests.json",
+                {
+                    "artifact_kind": "specspace_product_workspace_creation_request_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "selected_workspace_id": None,
+                    "requests": [
+                        {
+                            "request_id": "product-workspace-create.pantry-rotation.1",
+                            "workspace_id": "pantry-rotation",
+                            "display_name": "Pantry Rotation",
+                            "route": "/pantry-rotation",
+                            "status": "initialized",
+                            "created_at": "2026-07-04T00:00:00Z",
+                            "updated_at": "2026-07-04T00:00:00Z",
+                            "canonical_mutations_allowed": False,
+                            "tracked_artifacts_written": False,
+                        }
+                    ],
+                    "summary": {},
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "display_name": "Pantry Rotation",
+                    },
+                )
+                stored = json.loads(
+                    (state_dir / "product_workspace_creation_requests.json").read_text()
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["field"], "workspace_id")
+        self.assertIn("already initialized", body["error"])
+        self.assertEqual(len(stored["requests"]), 1)
+        self.assertEqual(stored["requests"][0]["status"], "initialized")
+
     def test_real_idea_entry_requests_v1_posts_submitted_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
