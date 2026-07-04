@@ -379,7 +379,7 @@ Acceptance criteria:
 
 ### 11. Backend-Backed Workspace Creation
 
-Status: open, cross-repo.
+Status: in progress, cross-repo.
 
 The sidebar `New idea workspace` entry point currently creates only a product
 workspace route. That is useful for UI-started smoke, but it is not yet a real
@@ -387,23 +387,47 @@ workspace creation flow. The next layer must connect this UI to a backend-owned
 workspace registry / creation boundary instead of relying on route-only
 navigation.
 
+Current SpecSpace slice:
+
+- `product_workspace_creation_requests.json` records SpecSpace-owned creation
+  intent.
+- `GET/POST /api/v1/product-workspace-creation-requests` exposes the request
+  state with authority guards.
+- The sidebar entry point saves creation intent before opening the route.
+- Product Workspace shows `route_only_workspace` or
+  `workspace_creation_requested` status from backend state.
+- SpecSpace still does not initialize workspace files, mutate SpecGraph, update
+  Platform catalogs, or run Git Service.
+
 Acceptance criteria:
 
 - Submitting a new workspace request writes a SpecSpace-owned operator intent or
   calls a Platform-owned workspace creation endpoint; it must not mutate
   SpecGraph or Git directly from the browser.
+  Done for SpecSpace-owned operator intent; Platform-owned initialization
+  remains open.
 - The backend allocates or resolves a durable workspace id, display name,
   artifact base, SpecSpace state namespace, and run-dir binding.
+  Partially done for workspace id, display name, and route; artifact base,
+  state namespace, and run-dir binding remain open for Platform/SpecGraph.
 - `guided_flow` and `workspace_state_hygiene` can distinguish:
   route-only workspace, workspace creation requested, workspace initialized,
   intake-ready, and blocked creation.
+  Partially done in Product Workspace creation projection; guided-flow/hygiene
+  integration remains open.
 - Duplicate, reserved, malformed, or already-initialized workspace ids produce
   visible diagnostics and do not silently fall back to `team-decision-log`.
+  Partially done for malformed/reserved ids at the SpecSpace request boundary;
+  duplicate/already-initialized checks remain open for the workspace catalog.
 - Human-facing workspace display name and raw idea text are separated from the
   route slug. The backend should allocate or validate an ASCII route id for
   non-English ideas instead of forcing the user to hand-craft a Latin slug.
+  Partially done for display name vs route id; non-English slug allocation
+  remains open.
 - The UI entry point refreshes from backend state after creation instead of
   treating the route as sufficient evidence that a workspace exists.
+  Done for creation-request state; workspace initialization refresh remains
+  open.
 
 Likely repositories:
 

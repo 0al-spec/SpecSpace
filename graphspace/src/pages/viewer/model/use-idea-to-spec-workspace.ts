@@ -1142,6 +1142,25 @@ export type IdeaToSpecWorkspaceIdentity = {
   nextArtifact: string | null;
 };
 
+export type IdeaToSpecWorkspaceCreation = {
+  artifactKind: "specspace_product_workspace_creation_request_state" | null;
+  selectedWorkspaceId: string | null;
+  status: string;
+  requestCount: number;
+  activeRequestedCount: number;
+  invalidRequestCount: number;
+  nextGap: string | null;
+  activeRequest: {
+    requestId: string;
+    workspaceId: string;
+    displayName: string;
+    route: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
+};
+
 export type IdeaToSpecWorkspace = {
   apiVersion: "v1";
   artifactKind: "specspace_idea_to_spec_workspace";
@@ -1152,6 +1171,7 @@ export type IdeaToSpecWorkspace = {
   source: Record<string, unknown>;
   selectedWorkspaceId: string | null;
   workspace: IdeaToSpecWorkspaceIdentity;
+  workspaceCreation: IdeaToSpecWorkspaceCreation;
   summary: {
     status: string;
     availableArtifactCount: number;
@@ -3927,6 +3947,40 @@ function parseWorkspaceIdentity(raw: unknown): IdeaToSpecWorkspaceIdentity {
   };
 }
 
+function parseWorkspaceCreation(raw: unknown): IdeaToSpecWorkspaceCreation {
+  const creation = recordValue(raw);
+  const summary = recordValue(creation.summary);
+  const active = recordValue(creation.active_request);
+  const requestId = optionalString(active.request_id);
+  const workspaceId = optionalString(active.workspace_id);
+  const displayName = optionalString(active.display_name);
+  const route = optionalString(active.route);
+  return {
+    artifactKind:
+      creation.artifact_kind === "specspace_product_workspace_creation_request_state"
+        ? "specspace_product_workspace_creation_request_state"
+        : null,
+    selectedWorkspaceId: optionalString(creation.selected_workspace_id),
+    status: stringValue(summary.status, "route_only_workspace"),
+    requestCount: numberValue(summary.request_count),
+    activeRequestedCount: numberValue(summary.active_requested_count),
+    invalidRequestCount: numberValue(summary.invalid_request_count),
+    nextGap: optionalString(summary.next_gap),
+    activeRequest:
+      requestId && workspaceId && displayName && route
+        ? {
+            requestId,
+            workspaceId,
+            displayName,
+            route,
+            status: stringValue(active.status, "requested"),
+            createdAt: stringValue(active.created_at, "unknown"),
+            updatedAt: stringValue(active.updated_at, "unknown"),
+          }
+        : null,
+  };
+}
+
 function parseWorkspaceStateHygieneItem(
   raw: unknown,
 ): IdeaToSpecWorkspaceStateHygieneItem | null {
@@ -4447,6 +4501,7 @@ export function parseIdeaToSpecWorkspace(
       source: recordValue(raw.source),
       selectedWorkspaceId: optionalString(raw.selected_workspace_id),
       workspace: parseWorkspaceIdentity(raw.workspace),
+      workspaceCreation: parseWorkspaceCreation(raw.workspace_creation),
       summary: {
         status: stringValue(summary.status, "unknown"),
         availableArtifactCount: numberValue(summary.available_artifact_count),

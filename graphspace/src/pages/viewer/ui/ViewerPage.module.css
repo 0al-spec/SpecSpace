@@ -290,6 +290,16 @@
   overflow-wrap: anywhere;
 }
 
+.newWorkspaceError {
+  margin: 0;
+  color: var(--gs-danger);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
 .utilityRail {
   top: var(--viewer-panel-top);
   right: var(--viewer-panel-edge);

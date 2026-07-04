@@ -971,6 +971,11 @@ async function installIdeaToSpecApiRoutes(
       return;
     }
 
+    if (path === "/api/v1/product-workspace-creation-requests") {
+      await proxyRouteToBackend(route, backendBaseUrl);
+      return;
+    }
+
     if (path === "/api/v1/idea-to-spec-intake-clarification-answers") {
       await proxyRouteToBackend(route, backendBaseUrl);
       return;
@@ -1066,26 +1071,47 @@ test("renders bootstrap workspace metadata as human-readable sidebar labels", as
 });
 
 test("opens a new idea workspace from the sidebar entry point", async ({ page }) => {
-  await installRunsWatchMock(page);
-  await installBootstrapChromeApiRoutes(page);
+  const backend = await startSpecSpaceBackend();
+  try {
+    await installRunsWatchMock(page);
+    await installRealBackendApiRoutes(page, backend.baseUrl);
 
-  await page.goto("/");
-  await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+    await page.goto("/");
+    await page.getByRole("button", { name: "Toggle Sidebar" }).click();
 
-  const sidebar = page.getByLabel("SpecSpace Sidebar");
-  await sidebar.getByRole("textbox", { name: "New idea workspace" }).fill(
-    "Pantry Rotation",
-  );
-  await expect(sidebar.getByTestId("new-idea-workspace-route")).toContainText(
-    "/pantry-rotation",
-  );
+    const sidebar = page.getByLabel("SpecSpace Sidebar");
+    await sidebar.getByRole("textbox", { name: "New idea workspace" }).fill(
+      "Pantry Rotation",
+    );
+    await expect(sidebar.getByTestId("new-idea-workspace-route")).toContainText(
+      "/pantry-rotation",
+    );
 
-  await sidebar.getByRole("button", { name: "Open workspace" }).click();
+    await sidebar.getByRole("button", { name: "Open workspace" }).click();
 
-  await expect(page).toHaveURL(/\/pantry-rotation$/);
-  await expect(page.getByText("Pantry Rotation").first()).toBeVisible();
-  await expect(sidebar.getByText("Product idea-to-spec")).toBeVisible();
-  await expect(sidebar.getByText("Product spec workspace")).toBeVisible();
+    await expect(page).toHaveURL(/\/pantry-rotation$/);
+    await expect(page.getByText("Pantry Rotation").first()).toBeVisible();
+    await expect(sidebar.getByText("Product idea-to-spec")).toBeVisible();
+    await expect(sidebar.getByText("Product spec workspace")).toBeVisible();
+    await expect(page.getByTestId("workspace-creation-status")).toContainText(
+      "Workspace creation requested",
+    );
+
+    const stateResponse = await fetch(
+      `${backend.baseUrl}/api/v1/product-workspace-creation-requests?workspace=pantry-rotation`,
+    );
+    expect(stateResponse.ok).toBeTruthy();
+    const state = (await stateResponse.json()) as {
+      requests?: Array<{ workspace_id?: string; route?: string; status?: string }>;
+    };
+    expect(state.requests?.[0]).toMatchObject({
+      workspace_id: "pantry-rotation",
+      route: "/pantry-rotation",
+      status: "requested",
+    });
+  } finally {
+    await backend.stop();
+  }
 });
 
 test("shows clarification stage after external intake execution publication", async ({

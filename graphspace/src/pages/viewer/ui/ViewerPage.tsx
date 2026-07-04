@@ -110,6 +110,7 @@ import { useOntologyOwnerDecisionReview } from "../model/use-ontology-owner-deci
 import { useOntologyReviewDashboard } from "../model/use-ontology-review-dashboard";
 import { useOntologyWorkbench } from "../model/use-ontology-workbench";
 import { usePracticalOntology } from "../model/use-practical-ontology";
+import { useProductWorkspaceCreationRequests } from "../model/use-product-workspace-creation-requests";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecSpaceCapabilities } from "../model/use-specspace-capabilities";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
@@ -253,6 +254,10 @@ export function ViewerPage({
         "/api/v1/real-idea-entry-requests",
         workspace,
       ),
+      productWorkspaceCreationRequests: workspaceApiUrl(
+        "/api/v1/product-workspace-creation-requests",
+        workspace,
+      ),
       ideaToSpecRepairRerunRequests: workspaceApiUrl(
         "/api/v1/idea-to-spec-repair-rerun-requests",
         workspace,
@@ -312,6 +317,10 @@ export function ViewerPage({
   const ideaToSpecWorkspaceState = useIdeaToSpecWorkspace({
     url: workspaceApiUrls.ideaToSpecWorkspace,
     refreshKey: `${runsWatchVersion}:${ideaToSpecWorkspaceRefreshKey}`,
+  });
+  const productWorkspaceCreationRequests = useProductWorkspaceCreationRequests({
+    url: "/api/v1/product-workspace-creation-requests",
+    refreshKey: runsWatchVersion,
   });
   const ontologyWorkbenchState = useOntologyWorkbench({
     url: workspaceApiUrls.ontologyWorkbench,
@@ -1010,7 +1019,16 @@ export function ViewerPage({
             onSubmit={(event) => {
               event.preventDefault();
               if (newIdeaWorkspaceRoute === null) return;
-              window.location.assign(newIdeaWorkspaceRoute);
+              void productWorkspaceCreationRequests
+                .saveRequest({
+                  workspaceId: newIdeaWorkspaceSlug,
+                  displayName: newIdeaWorkspaceInput.trim(),
+                  route: newIdeaWorkspaceRoute,
+                  operatorRef: "operator://specspace-local",
+                })
+                .then((saved) => {
+                  if (saved) window.location.assign(newIdeaWorkspaceRoute);
+                });
             }}
           >
             <label
@@ -1032,10 +1050,13 @@ export function ViewerPage({
               <button
                 className={styles.newWorkspaceButton}
                 type="submit"
-                disabled={newIdeaWorkspaceRoute === null}
+                disabled={
+                  newIdeaWorkspaceRoute === null ||
+                  productWorkspaceCreationRequests.pending
+                }
                 aria-label="Open workspace"
               >
-                Open
+                {productWorkspaceCreationRequests.pending ? "Saving" : "Open"}
               </button>
             </div>
             <p
@@ -1046,6 +1067,11 @@ export function ViewerPage({
                 ? newIdeaWorkspaceRoute
                 : "Use a Latin route slug, for example /cash-flow-control."}
             </p>
+            {productWorkspaceCreationRequests.saveError ? (
+              <p className={styles.newWorkspaceError}>
+                Workspace request failed.
+              </p>
+            ) : null}
           </form>
 
           <PanelBtnRow
