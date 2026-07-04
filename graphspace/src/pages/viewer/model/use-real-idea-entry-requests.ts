@@ -92,13 +92,12 @@ function parseRequest(raw: unknown): RealIdeaEntryRequest | null {
   if (!isRecord(raw)) return null;
   const requestId = optionalString(raw.request_id);
   const workspaceId = optionalString(raw.workspace_id);
-  const ideaText = optionalString(raw.idea_text);
-  if (!requestId || !workspaceId || !ideaText) return null;
+  if (!requestId || !workspaceId) return null;
   return {
     requestId,
     workspaceId,
     operatorRef: stringValue(raw.operator_ref, "local_operator"),
-    ideaText,
+    ideaText: optionalString(raw.idea_text) ?? "",
     ideaSummaryHint: optionalString(raw.idea_summary_hint),
     workspaceDisplayName: optionalString(raw.workspace_display_name),
     publicRouteHint: optionalString(raw.public_route_hint),
@@ -110,7 +109,9 @@ function parseRequest(raw: unknown): RealIdeaEntryRequest | null {
   };
 }
 
-function parseState(raw: unknown): UseRealIdeaEntryRequestsState {
+export function parseRealIdeaEntryRequestState(
+  raw: unknown,
+): UseRealIdeaEntryRequestsState {
   if (!isRecord(raw)) {
     return { kind: "parse-error", message: "real idea entry state must be an object", raw };
   }
@@ -210,7 +211,7 @@ export function useRealIdeaEntryRequests({
         });
         return;
       }
-      setState(parseState(body));
+      setState(parseRealIdeaEntryRequestState(body));
     } catch (error) {
       setState({ kind: "network-error", error });
     }
@@ -251,7 +252,7 @@ export function useRealIdeaEntryRequests({
           });
           return false;
         }
-        setState(parseState(body));
+        setState(parseRealIdeaEntryRequestState(body));
         return true;
       } catch (error) {
         setSaveError({ kind: "network-error", error });

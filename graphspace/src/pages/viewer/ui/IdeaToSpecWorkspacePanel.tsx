@@ -541,7 +541,7 @@ function IdeaIntakeDraftSection({
   const entryHandoffCommand = activeEntry
     ? [
         "scripts/platform.py product-real-idea-intake execute \\",
-        "  --specgraph-dir ../SpecGraph \\",
+        "  --specgraph-dir <specgraph-repository> \\",
         "  --entry-requests <SpecSpace state dir>/real_idea_entry_requests.json \\",
         `  --workspace-id ${workspaceId ?? activeEntry.workspaceId} \\`,
         `  --request-id ${activeEntry.requestId}`,

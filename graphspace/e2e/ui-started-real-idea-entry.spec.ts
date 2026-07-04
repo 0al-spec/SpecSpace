@@ -25,6 +25,30 @@ type SpecSpaceBackend = {
   stop: () => Promise<void>;
 };
 
+async function stopChildProcess(
+  child: ChildProcessWithoutNullStreams,
+  timeoutMs = 5_000,
+) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGKILL");
+      }
+      finish();
+    }, timeoutMs);
+    child.once("exit", finish);
+    child.kill("SIGTERM");
+  });
+}
+
 type UiStartedIdeaScenario = {
   intakeExecutionPublished: boolean;
   answerContinuationPublished?: boolean;
@@ -186,7 +210,7 @@ async function startSpecSpaceBackend(options: {
   try {
     await waitForBackend(baseUrl, child);
   } catch (error) {
-    child.kill();
+    await stopChildProcess(child);
     await rm(tmpRoot, { recursive: true, force: true });
     throw new Error(`${String(error)}\n${stderr.join("")}`);
   }
@@ -196,8 +220,7 @@ async function startSpecSpaceBackend(options: {
     stateDir,
     tmpRoot,
     stop: async () => {
-      child.kill();
-      await new Promise((resolve) => child.once("exit", resolve));
+      await stopChildProcess(child);
       await rm(tmpRoot, { recursive: true, force: true });
     },
   };
@@ -959,7 +982,17 @@ test("submits a raw real idea entry request from the product workspace UI", asyn
       "product-real-idea-intake execute",
     );
     await expect(page.getByTestId("real-idea-entry-handoff-command")).toContainText(
+      "--specgraph-dir <specgraph-repository>",
+    );
+    await expect(page.getByTestId("real-idea-entry-handoff-command")).toContainText(
       "--request-id real-idea-entry.team-decision-log",
+    );
+    await page.reload();
+    await expect(page.getByTestId("real-idea-entry-submitted-status")).toContainText(
+      "real-idea-entry.team-decision-log",
+    );
+    await expect(page.getByTestId("real-idea-entry-handoff-command")).toContainText(
+      "--specgraph-dir <specgraph-repository>",
     );
     await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
       "Import the submitted raw idea entry",
