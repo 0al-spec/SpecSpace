@@ -1193,6 +1193,59 @@ test("opens a new idea workspace from the sidebar entry point", async ({ page })
   }
 });
 
+test("refreshes an opened workspace after controlled initialization is published", async ({
+  page,
+}) => {
+  const backend = await startSpecSpaceBackend();
+  try {
+    await installRunsWatchMock(page);
+    await installRealBackendApiRoutes(page, backend.baseUrl);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+
+    const sidebar = page.getByLabel("SpecSpace Sidebar");
+    await sidebar.getByRole("textbox", { name: "New idea workspace" }).fill(
+      "Pantry Rotation",
+    );
+    await sidebar.getByRole("button", { name: "Open workspace" }).click();
+
+    await expect(page).toHaveURL(/\/pantry-rotation$/);
+    await expect(page.getByTestId("workspace-creation-status")).toContainText(
+      "Workspace creation requested",
+    );
+    await expect(page.getByTestId("real-idea-entry-workspace-gate")).toContainText(
+      "Run the controlled Platform workspace initialization",
+    );
+    await expect(page.getByTestId("real-idea-entry-submit")).toBeDisabled();
+
+    await writeWorkspaceInitializationReport({
+      runsDir: backend.runsDir,
+      workspaceId: "pantry-rotation",
+      displayName: "Pantry Rotation",
+    });
+    await emitRunsChange(page);
+
+    await expect(page.getByTestId("workspace-creation-status")).toContainText(
+      "Workspace initialized through backend-owned state.",
+    );
+    await expect(page.getByTestId("real-idea-entry-workspace-gate")).toContainText(
+      "Raw idea intake will use this workspace namespace.",
+    );
+    await expect(page.getByTestId("real-idea-entry-text")).toBeEnabled();
+    await expect(page.getByTestId("real-idea-entry-summary")).toBeEnabled();
+    await page
+      .getByTestId("real-idea-entry-text")
+      .fill("A pantry rotation assistant for household food inventory.");
+    await page
+      .getByTestId("real-idea-entry-summary")
+      .fill("Pantry rotation assistant");
+    await expect(page.getByTestId("real-idea-entry-submit")).toBeEnabled();
+  } finally {
+    await backend.stop();
+  }
+});
+
 test("shows clarification stage after external intake execution publication", async ({
   page,
 }) => {

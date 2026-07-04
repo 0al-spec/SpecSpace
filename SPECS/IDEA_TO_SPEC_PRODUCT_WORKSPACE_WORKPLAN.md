@@ -431,8 +431,9 @@ Acceptance criteria:
   remains open.
 - The UI entry point refreshes from backend state after creation instead of
   treating the route as sufficient evidence that a workspace exists.
-  Done for creation-request state; workspace initialization refresh remains
-  open.
+  Done for creation-request state and controlled initialization publication:
+  the opened workspace refreshes from `runs-watch` after the Platform
+  initialization report appears and only then unlocks raw idea intake.
 
 Likely repositories:
 
