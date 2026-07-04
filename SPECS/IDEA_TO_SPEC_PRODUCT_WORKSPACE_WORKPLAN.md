@@ -77,6 +77,9 @@ reviews, or publish read models.
   project-local decision effect exists.
 - Project-local ontology decisions are now saved through the Product Workspace
   browser controls in the execution-backed e2e, not by direct API writes.
+- Product/spec repair drafts are now saved through structured Product
+  Workspace browser controls in the execution-backed e2e, alongside ontology
+  gap repair drafts.
 - Isolated run-dir project-local ontology imports accept the canonical
   `runs/project_local_ontology_review_lane.json` decision ref as a safe alias
   for `runs/<run-dir>/project_local_ontology_review_lane.json`.
@@ -251,18 +254,22 @@ Acceptance criteria:
 Use the actual repair draft controls for product/spec gaps in the
 execution-backed smoke instead of relying on pre-shaped helper payloads.
 
-Status: open. The current smoke proves the controlled repair rerun path after
-SpecSpace-owned state exists, but the next UI-quality step is to prove that the
-operator can fill the product/spec repair forms naturally in the browser.
+Status: closed. The execution-backed browser smoke fills an ontology gap repair
+draft and a structured product/spec `provide_candidate_context` draft through
+the Product Workspace UI before running import preview, rerun, repaired handoff,
+approval, promotion request, and Git dry-run.
 
 Acceptance criteria:
 
 - The browser fills at least one structured `provide_candidate_context` or
   `answer_question` repair draft.
+  Done.
 - The browser saves ontology and product/spec repair drafts without direct API
   state construction for those targets.
+  Done.
 - The downstream import preview, rerun, repaired handoff, and approval
   readiness stay unchanged.
+  Done.
 
 ## Known Friction
 
@@ -277,9 +284,9 @@ Acceptance criteria:
   projection while only mutable state APIs are real.
 - Local state directory, SpecGraph run directory, and product workspace artifact
   base can drift during manual smoke runs.
-- The execution-backed smoke should broaden repair draft UI coverage so
-  product/spec gap answers are proven through real forms, not just compatible
-  persisted state.
+- Some browser tests still use fixture-backed workspace projections for fast
+  UI-only coverage; keep the env-gated execution-backed smoke as the authority
+  for real cross-repo lifecycle behavior.
 
 ## Cross-Repo Coordination
 

@@ -1200,6 +1200,36 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await page.getByLabel("Ontology gap term").first().fill("Team Member");
     await page.getByRole("button", { name: "Save draft" }).first().click();
     await expect(page.getByText("Draft saved · propose project local term").first()).toBeVisible();
+    const repairActionSelects = page.getByLabel("Repair draft action");
+    let productGapRow = null as ReturnType<typeof page.locator> | null;
+    const repairActionCount = await repairActionSelects.count();
+    for (let index = 0; index < repairActionCount; index += 1) {
+      const select = repairActionSelects.nth(index);
+      const supportsProductContext = await select
+        .locator('option[value="provide_candidate_context"]')
+        .count();
+      if (!supportsProductContext) continue;
+      await select.selectOption("provide_candidate_context");
+      const row = select.locator("xpath=ancestor::div[.//form][1]");
+      if ((await row.getByLabel("Product gap mechanism or context").count()) > 0) {
+        productGapRow = row;
+        break;
+      }
+    }
+    expect(productGapRow, "expected a product/spec repair gap form").not.toBeNull();
+    await productGapRow!
+      .getByLabel("Product gap mechanism or context")
+      .fill("Add an explicit owner-checked enforcement mechanism in the candidate spec.");
+    await productGapRow!.getByLabel("Product gap owner").fill("Product owner");
+    await productGapRow!.getByLabel("Product gap scope").fill("UI-started candidate review");
+    await productGapRow!.getByLabel("Product gap risk decision").fill("mitigated");
+    await productGapRow!
+      .getByLabel("Product gap mitigation")
+      .fill("Require candidate review before promotion.");
+    await productGapRow!.getByRole("button", { name: "Save draft" }).click();
+    await expect(
+      productGapRow!.getByText("Draft saved · provide candidate context"),
+    ).toBeVisible();
     await expect(page.getByText("SpecSpace repair drafts").first()).toBeVisible();
     const workspaceStatePreflight = page.locator("#idea-to-spec-workspace-state-hygiene");
     await expect(workspaceStatePreflight).toContainText(/repair drafts\s*usable/i);
