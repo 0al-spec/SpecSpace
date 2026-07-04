@@ -132,6 +132,42 @@ type ViewerPageProps = {
   workspace?: SpecSpaceWorkspace;
 };
 
+const WORKSPACE_LANE_LABELS: Record<SpecSpaceWorkspace["workflowLane"], string> = {
+  specgraph_bootstrap_showcase: "SpecGraph bootstrap showcase",
+  product_idea_to_spec: "Product idea-to-spec",
+};
+
+const WORKSPACE_ROLE_LABELS: Record<
+  SpecSpaceWorkspace["targetRepositoryRole"],
+  string
+> = {
+  specgraph_bootstrap: "SpecGraph bootstrap",
+  product_spec_workspace: "Product spec workspace",
+};
+
+const RESERVED_WORKSPACE_SLUGS = new Set([
+  "bootstrap",
+  "specgraph",
+  "specgraph-bootstrap",
+]);
+
+function productWorkspaceSlugFromInput(value: string): string | null {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64)
+    .replace(/-+$/g, "");
+
+  if (!/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/.test(slug)) return null;
+  if (RESERVED_WORKSPACE_SLUGS.has(slug)) return null;
+  return slug;
+}
+
 export function ViewerPage({
   workspace = SPECGRAPH_BOOTSTRAP_WORKSPACE,
 }: ViewerPageProps) {
@@ -171,6 +207,13 @@ export function ViewerPage({
     useState<AgentConversationPromptSeed | null>(null);
   const [ideaToSpecWorkspaceRefreshKey, setIdeaToSpecWorkspaceRefreshKey] =
     useState(0);
+  const [newIdeaWorkspaceInput, setNewIdeaWorkspaceInput] = useState("");
+  const newIdeaWorkspaceSlug = useMemo(
+    () => productWorkspaceSlugFromInput(newIdeaWorkspaceInput),
+    [newIdeaWorkspaceInput],
+  );
+  const newIdeaWorkspaceRoute =
+    newIdeaWorkspaceSlug !== null ? `/${newIdeaWorkspaceSlug}` : null;
   const agentConversationRuntime = useMemo(
     () => createMockAgentConversationRuntime({ id_prefix: "specspace-local" }),
     [],
@@ -418,8 +461,10 @@ export function ViewerPage({
     }),
   ] as const;
   const capabilityDiagnostics = describeCapabilityDiagnostics(capabilitiesState);
+  const workspaceLaneLabel = WORKSPACE_LANE_LABELS[workspace.workflowLane];
+  const workspaceRoleLabel = WORKSPACE_ROLE_LABELS[workspace.targetRepositoryRole];
   const liveStatusTooltip = [
-    `Workspace: ${workspace.displayName}; ${workspace.workflowLane}; ${workspace.targetRepositoryRole}`,
+    `Workspace: ${workspace.displayName}; ${workspaceLaneLabel}; ${workspaceRoleLabel}`,
     deploymentStatus.title,
     ...artifactDiagnostics.map(
       (artifact) => `${artifact.label}: ${artifact.status}; ${artifact.detail}`,
@@ -956,9 +1001,52 @@ export function ViewerPage({
             ))}
           </nav>
           <div className={styles.workspaceMeta}>
-            <span>{workspace.workflowLane}</span>
-            <span>{workspace.targetRepositoryRole}</span>
+            <span>{workspaceLaneLabel}</span>
+            <span>{workspaceRoleLabel}</span>
           </div>
+          <form
+            className={styles.newWorkspaceForm}
+            aria-label="New idea workspace"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (newIdeaWorkspaceRoute === null) return;
+              window.location.assign(newIdeaWorkspaceRoute);
+            }}
+          >
+            <label
+              className={styles.newWorkspaceLabel}
+              htmlFor="new-idea-workspace-input"
+            >
+              New idea workspace
+            </label>
+            <div className={styles.newWorkspaceControls}>
+              <input
+                id="new-idea-workspace-input"
+                className={styles.newWorkspaceInput}
+                type="text"
+                value={newIdeaWorkspaceInput}
+                placeholder="cash-flow-control"
+                autoComplete="off"
+                onChange={(event) => setNewIdeaWorkspaceInput(event.target.value)}
+              />
+              <button
+                className={styles.newWorkspaceButton}
+                type="submit"
+                disabled={newIdeaWorkspaceRoute === null}
+                aria-label="Open workspace"
+              >
+                Open
+              </button>
+            </div>
+            <p
+              className={styles.newWorkspaceHint}
+              data-testid="new-idea-workspace-route"
+            >
+              {newIdeaWorkspaceRoute !== null
+                ? newIdeaWorkspaceRoute
+                : "Use a Latin route slug, for example /cash-flow-control."}
+            </p>
+          </form>
 
           <PanelBtnRow
             className={styles.sidebarDock}

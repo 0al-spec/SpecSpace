@@ -56,7 +56,14 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("execute_specgraph_real_idea_entry_intake");
     expect(html).toContain("entry_intake_report");
     expect(html).toContain("real_idea_entry_request_intake_report.json");
-    expect(html).toContain("Start from raw idea");
+    expect(html).toContain('id="idea-to-spec-start-raw-idea"');
+    expect(html).toContain("Start here: raw product idea");
+    expect(html.indexOf("Start here: raw product idea")).toBeLessThan(
+      html.indexOf("Guided product flow"),
+    );
+    expect(html).toContain(
+      "Enter the user&#x27;s product idea here. SpecSpace stores only",
+    );
     expect(html).toContain("No local idea draft");
     expect(html).toContain("local_browser_draft");
     expect(html).toContain("Active workspace");

@@ -90,6 +90,16 @@ reviews, or publish read models.
   `target_ref`, `source_ref`, and `next_action`, so invalid-answer diagnostics
   point to the affected request/source instead of showing only a generic
   message.
+- Env-gated browser E2E now includes a non-demo workspace route smoke for
+  `/household-pantry-rotation`. It verifies that a UI-submitted raw idea creates
+  `real-idea-entry.household-pantry-rotation...`, Platform/SpecGraph handoff
+  reaches active candidate generation, raw idea text stays out of generated
+  public-safe artifacts, and `team-decision-log` fixture terms do not leak into
+  the new candidate artifacts.
+- The raw idea form is promoted to the first Product Workspace lifecycle block
+  and has a stable `#idea-to-spec-start-raw-idea` anchor. It is labelled
+  `Start here: raw product idea` so the entry point is not hidden behind Guided
+  Flow / Candidate Overview / Workflow sections.
 
 ## Next Tasks
 
@@ -281,11 +291,166 @@ Acceptance criteria:
   readiness stay unchanged.
   Done.
 
+## Open Friction / Next Fixes
+
+### 8. Arbitrary Route Downstream Repair Lifecycle
+
+Status: open, cross-repo.
+
+The `/household-pantry-rotation` execution-backed smoke proves the route,
+SpecSpace-owned entry state, Platform intake handoff, SpecGraph clarification
+flow, and active candidate generation are scoped to the non-demo workspace.
+When the same arbitrary route is pushed deeper into repair / project-local
+ontology review / approval, late surfaces can still observe stale or default
+Team Decision Log lifecycle state.
+
+Observed failure mode:
+
+- `active_idea_to_spec_candidate.json` in the isolated run dir is derived from
+  the household pantry idea;
+- later Product Workspace hygiene / repair-session / project-local ontology
+  review surfaces may still compare against `team-decision-log` session or
+  candidate identity;
+- project-local ontology decisions for the arbitrary route can become
+  `candidate_mismatch` instead of feeding the effective decision report.
+
+Acceptance criteria:
+
+- A non-demo workspace route can continue past active candidate into repair
+  draft import preview, rerun request gate, repaired handoff, project-local
+  ontology decision effect, candidate approval intent, approval decision,
+  promotion request, and Git dry-run without falling back to
+  `team-decision-log` identity.
+- Workspace state hygiene treats the selected arbitrary workspace as current
+  throughout the full lifecycle.
+- The env-gated browser smoke can extend the `/household-pantry-rotation`
+  scenario beyond active candidate without expected `candidate_mismatch`
+  diagnostics.
+
+Likely repositories:
+
+- SpecSpace: workspace state hygiene / selected repaired source projection.
+- SpecGraph: repaired/session/project-local effect refs if a producer artifact
+  still encodes default candidate identity.
+- Platform: controlled wrapper defaults if any late command still assumes the
+  tracked demo workspace.
+
+### 9. Raw Idea Entry Usability Polish
+
+Status: closed.
+
+The raw idea entry existed in Product Workspace as `Start from raw idea`, but it
+was visually buried after Guided Flow, Candidate Overview, and Workflow Lane.
+For a user starting from a blank idea, that made the actual first input look
+like an internal inspector row.
+
+Acceptance criteria:
+
+- Raw idea input is the first visible lifecycle block in Product Workspace.
+- The block has a stable anchor for guided-flow / help links.
+- The copy explains that SpecSpace only stores operator-owned local state and
+  does not execute Platform/SpecGraph from the browser.
+- Browser/component tests prevent the entry point from drifting below
+  diagnostic panels again.
+
+### 10. New Idea Workspace Entry Point
+
+Status: closed.
+
+Arbitrary product workspace routes already existed, but users had to know and
+type the route manually. The Product Workspace flow now has a visible sidebar
+entry point for opening a new idea workspace route before submitting the raw
+idea.
+
+Acceptance criteria:
+
+- The SpecSpace sidebar exposes a `New idea workspace` input.
+  Done.
+- The input derives a safe product workspace route such as
+  `/cash-flow-control` without creating backend state or running Platform /
+  SpecGraph.
+  Done.
+- Opening the route lands in a Product idea-to-spec workspace where the raw
+  idea entry is the first lifecycle block.
+  Done.
+- Browser coverage prevents the entry point from regressing back into
+  route-by-hand behavior.
+  Done.
+
+### 11. Backend-Backed Workspace Creation
+
+Status: open, cross-repo.
+
+The sidebar `New idea workspace` entry point currently creates only a product
+workspace route. That is useful for UI-started smoke, but it is not yet a real
+workspace creation flow. The next layer must connect this UI to a backend-owned
+workspace registry / creation boundary instead of relying on route-only
+navigation.
+
+Acceptance criteria:
+
+- Submitting a new workspace request writes a SpecSpace-owned operator intent or
+  calls a Platform-owned workspace creation endpoint; it must not mutate
+  SpecGraph or Git directly from the browser.
+- The backend allocates or resolves a durable workspace id, display name,
+  artifact base, SpecSpace state namespace, and run-dir binding.
+- `guided_flow` and `workspace_state_hygiene` can distinguish:
+  route-only workspace, workspace creation requested, workspace initialized,
+  intake-ready, and blocked creation.
+- Duplicate, reserved, malformed, or already-initialized workspace ids produce
+  visible diagnostics and do not silently fall back to `team-decision-log`.
+- Human-facing workspace display name and raw idea text are separated from the
+  route slug. The backend should allocate or validate an ASCII route id for
+  non-English ideas instead of forcing the user to hand-craft a Latin slug.
+- The UI entry point refreshes from backend state after creation instead of
+  treating the route as sufficient evidence that a workspace exists.
+
+Likely repositories:
+
+- SpecSpace: workspace creation UI/state projection, route status, hygiene.
+- Platform: workspace catalog / creation request endpoint or wrapper.
+- SpecGraph: product workspace initializer contract if canonical workspace
+  files are required before intake.
+
+### 12. Controlled SpecSpace Authority Transition
+
+Status: open, cross-repo strategy.
+
+SpecSpace is currently an inspect/request surface. That boundary is correct for
+the current product flow, but the roadmap needs an explicit transition strategy
+for moving from read-only visibility to controlled management of lower layers.
+The transition must happen through typed backend commands and durable reports,
+not by letting the browser mutate SpecGraph, Platform, Git Service, or Ontology
+state directly.
+
+Phased strategy:
+
+1. **Read-only inspect**: show artifacts, reports, metrics, lifecycle state, and
+   next actions.
+2. **Local operator state**: store drafts, answers, ontology decisions, approval
+   intents, and workspace creation intents as SpecSpace-owned mutable state.
+3. **Validated handoff request**: convert SpecSpace-owned state into typed
+   handoff artifacts that another layer can validate.
+4. **Controlled execution request**: call a backend/Platform executor that runs
+   only allowlisted operations and returns durable execution reports.
+5. **Managed operation surface**: expose selected operations in the UI only when
+   their gate reports say the request is ready and the authority boundary is
+   explicit.
+6. **Audited lifecycle management**: every execution-capable action must have
+   idempotency, source refs, policy checks, audit report, and public-safe
+   read-model publication.
+
+Non-goals:
+
+- Browser-side execution of SpecGraph, Platform, Git Service, or Ontology tools.
+- Direct writes to canonical specs, ontology packages, branches, PRs, or read
+  models from React components.
+- Treating a UI route as proof that a product workspace exists.
+
 ## Accepted Constraints And Runbook Notes
 
-No active SpecSpace-facing bug remains open in this workplan for the current
-UI-started idea-to-spec smoke slice. The items below are accepted authority
-boundaries or operator runbook notes, not hidden UI mutations.
+The items below are accepted authority boundaries or operator runbook notes, not
+hidden UI mutations.
 
 - UI submit persists raw idea entry, but does not execute the intake pipeline.
   This is an intentional authority boundary, not a bug.

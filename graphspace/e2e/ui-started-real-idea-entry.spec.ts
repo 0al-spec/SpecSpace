@@ -16,6 +16,15 @@ import { fileURLToPath } from "node:url";
 import { ideaToSpecWorkspace } from "../src/pages/viewer/model/idea-to-spec-workspace.fixture";
 
 const workspaceId = "team-decision-log";
+const executionBackedWorkspaceId = "household-pantry-rotation";
+const executionBackedRawIdea =
+  "A household pantry rotation planner that tracks expiring food, shared shopping tasks, and meal-prep inventory gaps.";
+const executionBackedPublicSummary = "Household pantry rotation planner";
+const fullLifecycleRawIdea =
+  "A browser-started team decision log for owner review dates.";
+const fullLifecyclePublicSummary = "Browser-started team decision log";
+
+test.describe.configure({ mode: "serial" });
 
 type SpecSpaceBackend = {
   baseUrl: string;
@@ -345,6 +354,27 @@ async function installRealBackendApiRoutes(page: Page, baseUrl: string) {
   });
 }
 
+async function installBootstrapChromeApiRoutes(page: Page) {
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/v1/runs-watch") {
+      await route.fulfill({
+        json: {
+          artifact_kind: "specspace_runs_watch",
+          version: 1,
+        },
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 404,
+      json: {
+        error: "mocked_api_surface_not_needed_for_bootstrap_chrome",
+      },
+    });
+  });
+}
+
 async function installRunsWatchMock(page: Page) {
   await page.addInitScript(() => {
     type Listener = () => void;
@@ -500,6 +530,15 @@ async function publishRealIdeaContinuationArtifacts(args: {
     path.join(args.specGraphRunDir, "active_idea_to_spec_candidate.json"),
     path.join(args.backendRunsDir, "active_idea_to_spec_candidate.json"),
   );
+}
+
+async function readExistingFilesAsText(filePaths: string[]): Promise<string> {
+  const chunks: string[] = [];
+  for (const filePath of filePaths) {
+    if (!existsSync(filePath)) continue;
+    chunks.push(await readFile(filePath, "utf8"));
+  }
+  return chunks.join("\n");
 }
 
 async function publishRepairSessionJournalArtifacts(args: {
@@ -1006,6 +1045,49 @@ test("submits a raw real idea entry request from the product workspace UI", asyn
   }
 });
 
+test("renders bootstrap workspace metadata as human-readable sidebar labels", async ({
+  page,
+}) => {
+  await installRunsWatchMock(page);
+  await installBootstrapChromeApiRoutes(page);
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+
+  const sidebar = page.getByLabel("SpecSpace Sidebar");
+  await expect(sidebar.getByText("SpecGraph bootstrap showcase")).toBeVisible();
+  await expect(sidebar.getByText("SpecGraph bootstrap", { exact: true })).toBeVisible();
+  await expect(
+    sidebar.getByText("specgraph_bootstrap_showcase", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    sidebar.getByText("specgraph_bootstrap", { exact: true }),
+  ).toHaveCount(0);
+});
+
+test("opens a new idea workspace from the sidebar entry point", async ({ page }) => {
+  await installRunsWatchMock(page);
+  await installBootstrapChromeApiRoutes(page);
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+
+  const sidebar = page.getByLabel("SpecSpace Sidebar");
+  await sidebar.getByRole("textbox", { name: "New idea workspace" }).fill(
+    "Pantry Rotation",
+  );
+  await expect(sidebar.getByTestId("new-idea-workspace-route")).toContainText(
+    "/pantry-rotation",
+  );
+
+  await sidebar.getByRole("button", { name: "Open workspace" }).click();
+
+  await expect(page).toHaveURL(/\/pantry-rotation$/);
+  await expect(page.getByText("Pantry Rotation").first()).toBeVisible();
+  await expect(sidebar.getByText("Product idea-to-spec")).toBeVisible();
+  await expect(sidebar.getByText("Product spec workspace")).toBeVisible();
+});
+
 test("shows clarification stage after external intake execution publication", async ({
   page,
 }) => {
@@ -1048,10 +1130,228 @@ test("shows clarification stage after external intake execution publication", as
   }
 });
 
-test("can refresh from a real Platform intake execution when checkouts are provided", async ({
+test("builds an active candidate from a non-demo product workspace route", async ({
   page,
 }) => {
   test.setTimeout(120_000);
+  const platformDir = process.env.SPECG_E2E_PLATFORM_DIR;
+  const specGraphDir = process.env.SPECG_E2E_SPECG_DIR;
+  test.skip(
+    !platformDir || !specGraphDir,
+    "Set SPECG_E2E_PLATFORM_DIR and SPECG_E2E_SPECG_DIR to run the execution-backed route smoke.",
+  );
+
+  const platformScript = path.join(platformDir!, "scripts/platform.py");
+  const specGraphMakefile = path.join(specGraphDir!, "Makefile");
+  test.skip(
+    !existsSync(platformScript) || !existsSync(specGraphMakefile),
+    "Execution-backed route smoke requires local Platform and SpecGraph checkouts.",
+  );
+
+  const backend = await startSpecSpaceBackend({ seedIntakeRuns: false });
+  const runDirName = `specspace-ui-e2e-route-${Date.now()}`;
+  const specGraphRunDirRef = `runs/${runDirName}`;
+  const specGraphRunDir = path.join(specGraphDir!, specGraphRunDirRef);
+  const platformReportPath = path.join(
+    specGraphRunDir,
+    "platform_real_idea_entry_intake_execution_report.json",
+  );
+
+  try {
+    await installRunsWatchMock(page);
+    await installRealBackendApiRoutes(page, backend.baseUrl);
+
+    await page.goto(`/${executionBackedWorkspaceId}`);
+    await expect(page.getByText("Idea-to-Spec Workspace")).toBeVisible();
+    await expect(page.getByText("Household Pantry Rotation").first()).toBeVisible();
+    await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
+      "Create a real idea intake session",
+    );
+
+    await page.getByTestId("real-idea-entry-text").fill(executionBackedRawIdea);
+    await page
+      .getByTestId("real-idea-entry-summary")
+      .fill(executionBackedPublicSummary);
+    await page.getByTestId("real-idea-entry-submit").click();
+    await expect(page.getByTestId("guided-flow-next-action")).toContainText(
+      "Import the submitted raw idea entry",
+    );
+
+    const stateResponse = await fetch(
+      `${backend.baseUrl}/api/v1/real-idea-entry-requests?workspace=${executionBackedWorkspaceId}`,
+    );
+    expect(stateResponse.ok).toBeTruthy();
+    const state = (await stateResponse.json()) as {
+      requests?: Array<{ request_id?: string }>;
+    };
+    const requestId = state.requests?.[0]?.request_id;
+    expect(requestId).toMatch(
+      new RegExp(`^real-idea-entry\\.${executionBackedWorkspaceId}(\\.|$)`),
+    );
+    expect(requestId).not.toContain(workspaceId);
+
+    const intakeCommand = platformCliInvocation(platformDir!, platformScript, [
+      "product-real-idea-intake",
+      "execute",
+      "--specgraph-dir",
+      specGraphDir!,
+      "--run-dir",
+      specGraphRunDirRef,
+      "--entry-requests",
+      path.join(backend.stateDir, "real_idea_entry_requests.json"),
+      "--workspace-id",
+      executionBackedWorkspaceId,
+      "--request-id",
+      requestId!,
+      "--output",
+      platformReportPath,
+      "--format",
+      "json",
+    ]);
+    const execution = await runCommand(
+      intakeCommand.command,
+      intakeCommand.args,
+      { cwd: platformDir! },
+    );
+    expect(execution.code, execution.stderr).toBe(0);
+    const report = JSON.parse(await readFile(platformReportPath, "utf8")) as {
+      ok?: boolean;
+      diagnostics?: unknown[];
+    };
+    expect(report.ok, JSON.stringify(report.diagnostics ?? [])).toBe(true);
+
+    await publishRealIdeaIntakeExecutionArtifacts({
+      backendRunsDir: backend.runsDir,
+      platformReportPath,
+      specGraphRunDir,
+    });
+    await emitRunsChange(page);
+
+    await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
+      "Answer intake clarification questions",
+    );
+    await expect(page.getByText("Platform intake execution")).toBeVisible();
+    await expect(page.getByText("execute_specgraph_real_idea_entry_intake")).toBeVisible();
+    await expect(page.getByText("Template-backed answer").first()).toBeVisible();
+
+    const answerFields = page.locator('textarea[data-testid^="intake-clarification-answer-"]');
+    const answerCount = await answerFields.count();
+    expect(answerCount).toBeGreaterThan(0);
+    const answerValuesByRequest: Record<string, string> = {
+      "clarification.intake.question-active-frame-domain-refs":
+        "domain.household_pantry_rotation",
+      "clarification.intake.question-event-storming-actors":
+        "Household shopper\nMeal planner",
+      "clarification.intake.question-event-storming-domain-events":
+        "Pantry item recorded\nExpiration reviewed\nShopping task assigned",
+      "clarification.intake.question-event-storming-commands":
+        "Record pantry item\nReview expiring item\nAssign shopping task",
+      "clarification.intake.question-event-storming-constraints":
+        "Expiration date required\nShared shopping task owner required\nMeal-prep inventory gap must be visible",
+    };
+    for (let index = 0; index < answerCount; index += 1) {
+      const field = answerFields.nth(index);
+      const testId = await field.getAttribute("data-testid");
+      expect(testId).toBeTruthy();
+      const clarificationRequestId = testId!.replace(
+        "intake-clarification-answer-",
+        "",
+      );
+      await field.fill(
+        answerValuesByRequest[clarificationRequestId] ?? `Answer ${index + 1}`,
+      );
+      await page
+        .getByTestId(`intake-clarification-answer-save-${clarificationRequestId}`)
+        .click();
+    }
+    await expect(
+      page.locator('[data-testid^="intake-clarification-answer-saved-"]'),
+    ).toHaveCount(answerCount);
+
+    const continuationReportPath = path.join(
+      specGraphRunDir,
+      "platform_real_idea_answer_continuation_execution_report.json",
+    );
+    const continuationCommand = platformCliInvocation(platformDir!, platformScript, [
+      "product-real-idea-continuation",
+      "execute",
+      "--specgraph-dir",
+      specGraphDir!,
+      "--run-dir",
+      specGraphRunDirRef,
+      "--answer-state",
+      path.join(backend.stateDir, "idea_to_spec_intake_clarification_answers.json"),
+      "--output",
+      continuationReportPath,
+      "--format",
+      "json",
+    ]);
+    const continuation = await runCommand(
+      continuationCommand.command,
+      continuationCommand.args,
+      { cwd: platformDir! },
+    );
+    expect(continuation.code, continuation.stderr).toBe(0);
+    const continuationReport = JSON.parse(
+      await readFile(continuationReportPath, "utf8"),
+    ) as {
+      ok?: boolean;
+      diagnostics?: unknown[];
+    };
+    expect(
+      continuationReport.ok,
+      JSON.stringify(continuationReport.diagnostics ?? []),
+    ).toBe(true);
+
+    await publishRealIdeaContinuationArtifacts({
+      backendRunsDir: backend.runsDir,
+      platformReportPath: continuationReportPath,
+      specGraphRunDir,
+    });
+    const generatedIdeaArtifactsText = await readExistingFilesAsText([
+      path.join(backend.runsDir, "platform_real_idea_entry_intake_execution_report.json"),
+      path.join(
+        backend.runsDir,
+        "platform_real_idea_answer_continuation_execution_report.json",
+      ),
+      path.join(backend.runsDir, "clarified_user_idea_intake_session.json"),
+      path.join(backend.runsDir, "clarified_user_idea_intake_source.json"),
+      path.join(backend.runsDir, "idea_event_storming_intake.json"),
+      path.join(backend.runsDir, "candidate_spec_graph_seed.json"),
+      path.join(backend.runsDir, "candidate_spec_graph.json"),
+      path.join(backend.runsDir, "active_idea_to_spec_candidate.json"),
+    ]);
+    expect(generatedIdeaArtifactsText).not.toContain(executionBackedRawIdea);
+    expect(generatedIdeaArtifactsText).toContain(executionBackedPublicSummary);
+    expect(generatedIdeaArtifactsText).toContain("Pantry item recorded");
+    expect(generatedIdeaArtifactsText).toContain("Record pantry item");
+    expect(generatedIdeaArtifactsText).toContain("Household shopper");
+    expect(generatedIdeaArtifactsText).toContain(executionBackedWorkspaceId);
+    expect(generatedIdeaArtifactsText).not.toContain("Decision owner");
+    expect(generatedIdeaArtifactsText).not.toContain("Record decision");
+    expect(generatedIdeaArtifactsText).not.toContain("team-decision-log");
+    await emitRunsChange(page);
+
+    await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
+      "Inspect active candidate readiness before continuing.",
+    );
+    await expect(page.getByText("Real idea answer continuation", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("real_idea_answer_continuation_ready").first(),
+    ).toBeVisible();
+    await expect(page.getByText("active_candidate_review_required").first()).toBeVisible();
+    await expect(page.getByText("Candidate graph").first()).toBeVisible();
+    await expect(page.getByText("Product repair review").first()).toBeVisible();
+  } finally {
+    await rm(specGraphRunDir, { recursive: true, force: true });
+    await backend.stop();
+  }
+});
+
+test("can refresh from a real Platform intake execution when checkouts are provided", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
   const platformDir = process.env.SPECG_E2E_PLATFORM_DIR;
   const specGraphDir = process.env.SPECG_E2E_SPECG_DIR;
   test.skip(
@@ -1085,12 +1385,10 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       "Create a real idea intake session",
     );
 
-    await page
-      .getByTestId("real-idea-entry-text")
-      .fill("A browser-started team decision log for owner review dates.");
+    await page.getByTestId("real-idea-entry-text").fill(fullLifecycleRawIdea);
     await page
       .getByTestId("real-idea-entry-summary")
-      .fill("Browser-started team decision log");
+      .fill(fullLifecyclePublicSummary);
     await page.getByTestId("real-idea-entry-submit").click();
     await expect(page.getByTestId("guided-flow-next-action")).toContainText(
       "Import the submitted raw idea entry",
@@ -1217,6 +1515,21 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       platformReportPath: continuationReportPath,
       specGraphRunDir,
     });
+    const generatedIdeaArtifactsText = await readExistingFilesAsText([
+      path.join(specGraphRunDir, "platform_real_idea_entry_intake_execution_report.json"),
+      path.join(specGraphRunDir, "user_idea_intake_session.json"),
+      path.join(specGraphRunDir, "clarified_user_idea_intake_session.json"),
+      path.join(specGraphRunDir, "clarified_user_idea_intake_source.json"),
+      path.join(specGraphRunDir, "idea_event_storming_intake.json"),
+      path.join(specGraphRunDir, "candidate_spec_graph_seed.json"),
+      path.join(specGraphRunDir, "candidate_spec_graph.json"),
+      path.join(specGraphRunDir, "active_idea_to_spec_candidate.json"),
+    ]);
+    expect(generatedIdeaArtifactsText).not.toContain(fullLifecycleRawIdea);
+    expect(generatedIdeaArtifactsText).toContain(fullLifecyclePublicSummary);
+    expect(generatedIdeaArtifactsText).toContain("Decision recorded");
+    expect(generatedIdeaArtifactsText).toContain("Record decision");
+    expect(generatedIdeaArtifactsText).toContain("Decision owner");
     await emitRunsChange(page);
 
     await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
