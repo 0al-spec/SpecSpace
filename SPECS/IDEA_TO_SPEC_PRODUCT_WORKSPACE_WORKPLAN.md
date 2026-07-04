@@ -281,7 +281,11 @@ Acceptance criteria:
   readiness stay unchanged.
   Done.
 
-## Known Friction
+## Accepted Constraints And Runbook Notes
+
+No active SpecSpace-facing bug remains open in this workplan for the current
+UI-started idea-to-spec smoke slice. The items below are accepted authority
+boundaries or operator runbook notes, not hidden UI mutations.
 
 - UI submit persists raw idea entry, but does not execute the intake pipeline.
   This is an intentional authority boundary, not a bug.
