@@ -50,6 +50,11 @@ def _workspace_payload() -> dict:
 def _lane_artifact() -> dict:
     return {
         "artifact_kind": "project_local_ontology_review_lane",
+        "context": {
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "repair_session_id": "repair-session.team-decision-log",
+        },
         "review_decision_schema": {
             "supported_actions": [
                 "keep_project_local",
@@ -96,6 +101,35 @@ def test_save_project_local_decision_records_operator_intent(tmp_path: Path) -> 
     assert decision["decision_value"]["term_scope"] == "project_local"
     assert decision["writes_ontology_package"] is False
     assert decision["accepts_ontology_terms"] is False
+
+
+def test_save_project_local_decision_uses_lane_context_identity(tmp_path: Path) -> None:
+    workspace_payload = _workspace_payload()
+    workspace_payload["workspace"] = {"id": "household-pantry-rotation"}
+    lane = _lane_artifact()
+    lane["context"] = {
+        "workspace_id": "household-pantry-rotation",
+        "candidate_id": "household-pantry-rotation",
+        "repair_session_id": "repair-session.household-pantry-rotation",
+    }
+    status, payload = project_local_ontology_review_decisions.save_decision(
+        _server(tmp_path),
+        {
+            "workspace_id": "household-pantry-rotation",
+            "term_key": "decisionrecord",
+            "action": "keep_project_local",
+            "decision_value": {"reason": "Project-local household term."},
+        },
+        workspace_payload,
+        workspace_id="household-pantry-rotation",
+        lane_artifact=lane,
+    )
+
+    assert status == 200
+    decision = payload["decisions"][0]
+    assert decision["workspace_id"] == "household-pantry-rotation"
+    assert decision["candidate_id"] == "household-pantry-rotation"
+    assert decision["repair_session_id"] == "repair-session.household-pantry-rotation"
 
 
 def test_bind_existing_requires_ontology_ref(tmp_path: Path) -> None:
