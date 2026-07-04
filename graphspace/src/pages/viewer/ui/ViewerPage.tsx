@@ -110,7 +110,10 @@ import { useOntologyOwnerDecisionReview } from "../model/use-ontology-owner-deci
 import { useOntologyReviewDashboard } from "../model/use-ontology-review-dashboard";
 import { useOntologyWorkbench } from "../model/use-ontology-workbench";
 import { usePracticalOntology } from "../model/use-practical-ontology";
-import { useProductWorkspaceCreationRequests } from "../model/use-product-workspace-creation-requests";
+import {
+  useProductWorkspaceCreationRequests,
+  type ProductWorkspaceCreationRequestError,
+} from "../model/use-product-workspace-creation-requests";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecSpaceCapabilities } from "../model/use-specspace-capabilities";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
@@ -167,6 +170,24 @@ function productWorkspaceSlugFromInput(value: string): string | null {
   if (!/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/.test(slug)) return null;
   if (RESERVED_WORKSPACE_SLUGS.has(slug)) return null;
   return slug;
+}
+
+function workspaceCreationSaveErrorMessage(
+  error: ProductWorkspaceCreationRequestError,
+): string {
+  if (error.kind !== "http-error") return "Workspace request failed.";
+  const body = error.body;
+  if (
+    body &&
+    typeof body === "object" &&
+    !Array.isArray(body) &&
+    "error" in body &&
+    typeof body.error === "string" &&
+    body.error.trim()
+  ) {
+    return body.error;
+  }
+  return "Workspace request failed.";
 }
 
 export function ViewerPage({
@@ -319,7 +340,8 @@ export function ViewerPage({
     refreshKey: `${runsWatchVersion}:${ideaToSpecWorkspaceRefreshKey}`,
   });
   const productWorkspaceCreationRequests = useProductWorkspaceCreationRequests({
-    url: "/api/v1/product-workspace-creation-requests",
+    url: workspaceApiUrls.productWorkspaceCreationRequests,
+    writeUrl: "/api/v1/product-workspace-creation-requests",
     refreshKey: runsWatchVersion,
   });
   const ontologyWorkbenchState = useOntologyWorkbench({
@@ -1069,7 +1091,9 @@ export function ViewerPage({
             </p>
             {productWorkspaceCreationRequests.saveError ? (
               <p className={styles.newWorkspaceError}>
-                Workspace request failed.
+                {workspaceCreationSaveErrorMessage(
+                  productWorkspaceCreationRequests.saveError,
+                )}
               </p>
             ) : null}
           </form>

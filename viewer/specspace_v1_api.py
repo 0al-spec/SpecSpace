@@ -480,17 +480,18 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
         )
         payload["real_idea_entry"] = entry_projection
         _apply_real_idea_entry_projection(payload, entry_projection)
-        creation_status, creation_state = product_workspace_creation_requests.read_state(
-            handler.server,
-            workspace_id=workspace_id,
-        )
-        payload["workspace_creation"] = (
-            product_workspace_creation_requests.workspace_projection(
-                creation_status,
-                creation_state,
+        if workspace_id is not None:
+            creation_status, creation_state = product_workspace_creation_requests.read_state(
+                handler.server,
                 workspace_id=workspace_id,
             )
-        )
+            payload["workspace_creation"] = (
+                product_workspace_creation_requests.workspace_projection(
+                    creation_status,
+                    creation_state,
+                    workspace_id=workspace_id,
+                )
+            )
         idea_to_spec_workspace.attach_guided_flow(payload)
     json_response(handler, status, payload)
 
@@ -565,7 +566,15 @@ def handle_v1_product_workspace_creation_requests(
         handler.server,
         workspace_id=workspace_id,
     )
-    json_response(handler, status, payload)
+    json_response(
+        handler,
+        status,
+        product_workspace_creation_requests.workspace_projection(
+            status,
+            payload,
+            workspace_id=workspace_id,
+        ),
+    )
 
 
 def handle_v1_idea_to_spec_repair_rerun_requests(

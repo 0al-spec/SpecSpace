@@ -78,4 +78,22 @@ describe("parseProductWorkspaceCreationRequestState", () => {
 
     expect(parsed.kind).toBe("parse-error");
   });
+
+  it("rejects unexpected schema versions", () => {
+    const invalid = structuredClone(creationState);
+    invalid.schema_version = 2;
+
+    const parsed = parseProductWorkspaceCreationRequestState(invalid);
+
+    expect(parsed.kind).toBe("parse-error");
+  });
+
+  it("rejects non-SpecSpace state owners", () => {
+    const invalid = structuredClone(creationState);
+    invalid.state_owner = "Platform";
+
+    const parsed = parseProductWorkspaceCreationRequestState(invalid);
+
+    expect(parsed.kind).toBe("parse-error");
+  });
 });

@@ -43,7 +43,7 @@ export type ProductWorkspaceCreationRequestInput = {
   route?: string | null;
   rootIntentSummary?: string | null;
   operatorRef?: string | null;
-  status?: "requested" | "initialized" | "blocked";
+  status?: "requested";
 };
 
 export type ProductWorkspaceCreationRequestError =
@@ -52,6 +52,7 @@ export type ProductWorkspaceCreationRequestError =
 
 type Options = {
   url?: string;
+  writeUrl?: string;
   fetcher?: typeof fetch;
   enabled?: boolean;
   refreshKey?: number | string;
@@ -107,6 +108,12 @@ export function parseProductWorkspaceCreationRequestState(
   }
   if (raw.artifact_kind !== "specspace_product_workspace_creation_request_state") {
     return { kind: "parse-error", message: "unexpected workspace creation artifact_kind", raw };
+  }
+  if (raw.schema_version !== 1) {
+    return { kind: "parse-error", message: "unexpected workspace creation schema_version", raw };
+  }
+  if (raw.state_owner !== "SpecSpace") {
+    return { kind: "parse-error", message: "unexpected workspace creation state_owner", raw };
   }
   const topLevelExpanded = firstTrue(raw, [
     "canonical_mutations_allowed",
@@ -176,6 +183,7 @@ export function parseProductWorkspaceCreationRequestState(
 
 export function useProductWorkspaceCreationRequests({
   url,
+  writeUrl,
   fetcher = fetch,
   enabled = true,
   refreshKey,
@@ -217,11 +225,12 @@ export function useProductWorkspaceCreationRequests({
 
   const saveRequest = useCallback(
     async (input: ProductWorkspaceCreationRequestInput) => {
-      if (!url || pending) return false;
+      const targetUrl = writeUrl ?? url;
+      if (!targetUrl || pending) return false;
       setPending(true);
       setSaveError(null);
       try {
-        const response = await fetcher(url, {
+        const response = await fetcher(targetUrl, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -252,7 +261,7 @@ export function useProductWorkspaceCreationRequests({
         setPending(false);
       }
     },
-    [fetcher, pending, url],
+    [fetcher, pending, url, writeUrl],
   );
 
   const activeRequest = useMemo(

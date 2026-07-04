@@ -6310,12 +6310,115 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(request["display_name"], "Pantry Rotation")
         self.assertEqual(request["route"], "/pantry-rotation")
         self.assertEqual(request["status"], "requested")
-        self.assertEqual(
-            request["root_intent_summary"],
-            "Rotate pantry stock before expiry.",
-        )
+        self.assertNotIn("root_intent_summary", request)
+        self.assertTrue(request["root_intent_summary_present"])
         self.assertTrue(state_written)
         self.assertNotIn(str(state_dir), json.dumps(body))
+
+    def test_product_workspace_creation_requests_v1_redacts_root_intent_on_get(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "display_name": "Pantry Rotation",
+                        "root_intent_summary": "Rotate pantry stock before expiry.",
+                    },
+                )
+                status, body = _get(
+                    f"{base}/api/v1/product-workspace-creation-requests?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        request = body["requests"][0]
+        self.assertNotIn("root_intent_summary", request)
+        self.assertTrue(request["root_intent_summary_present"])
+
+    def test_product_workspace_creation_requests_v1_rejects_terminal_status(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "display_name": "Pantry Rotation",
+                        "status": "initialized",
+                    },
+                )
+                state_written = (
+                    state_dir / "product_workspace_creation_requests.json"
+                ).exists()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertIn("requested", body["error"])
+        self.assertFalse(state_written)
+
+    def test_product_workspace_creation_requests_v1_rejects_long_root_intent(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "display_name": "Pantry Rotation",
+                        "root_intent_summary": "x" * 2001,
+                    },
+                )
+                state_written = (
+                    state_dir / "product_workspace_creation_requests.json"
+                ).exists()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["field"], "root_intent_summary")
+        self.assertFalse(state_written)
+
+    def test_product_workspace_creation_requests_v1_uses_selected_workspace_fallback(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests?workspace=crm",
+                    {
+                        "display_name": "Customer Relationship Management",
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["requests"][0]["workspace_id"], "crm")
+        self.assertEqual(body["requests"][0]["route"], "/crm")
 
     def test_product_workspace_creation_requests_v1_rejects_authority_expansion(
         self,
@@ -6523,6 +6626,34 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(creation["active_request"]["route"], "/pantry-rotation")
         dumped = json.dumps(creation)
         self.assertNotIn(str(state_dir), dumped)
+
+    def test_idea_to_spec_workspace_root_does_not_embed_global_workspace_creation_state(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_product_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                post_status, _post_body = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "display_name": "Pantry Rotation",
+                    },
+                )
+                status, body = _get(f"{base}/api/v1/idea-to-spec-workspace")
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(post_status, 200)
+        self.assertEqual(status, 200)
+        self.assertNotIn("workspace_creation", body)
 
     def test_real_idea_entry_projection_marks_missing_intake_submitted(self) -> None:
         payload = {

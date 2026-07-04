@@ -19,6 +19,7 @@ CREATION_REQUEST_ARTIFACT_KIND = "specspace_product_workspace_creation_request_s
 CREATION_REQUEST_SCHEMA_VERSION = 1
 CREATION_REQUEST_FILENAME = "product_workspace_creation_requests.json"
 MAX_TEXT_LENGTH = 500
+MAX_ROOT_INTENT_SUMMARY_LENGTH = 2000
 MAX_SUPERSEDED_PER_WORKSPACE = 20
 REQUEST_STATUSES = {"requested", "superseded", "initialized", "blocked"}
 RESERVED_WORKSPACE_IDS = {
@@ -70,7 +71,7 @@ def now_iso() -> str:
     )
 
 
-def empty_state(path: Path) -> dict[str, Any]:
+def empty_state() -> dict[str, Any]:
     return {
         "artifact_kind": CREATION_REQUEST_ARTIFACT_KIND,
         "schema_version": CREATION_REQUEST_SCHEMA_VERSION,
@@ -102,7 +103,7 @@ def read_state(
 ) -> tuple[HTTPStatus, dict[str, Any]]:
     path = state_path(server)
     if not path.exists():
-        return HTTPStatus.OK, _filtered_state(empty_state(path), workspace_id)
+        return HTTPStatus.OK, _filtered_state(empty_state(), workspace_id)
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -139,7 +140,7 @@ def normalize_state(
     if expanded is not None:
         return None, {"error": f"Product workspace creation authority_boundary cannot claim {expanded}"}
 
-    state = empty_state(path)
+    state = empty_state()
     invalid_request_count = 0
     requests: list[dict[str, Any]] = []
     for entry in raw.get("requests", []):
@@ -181,20 +182,24 @@ def save_request(
             "max_length": MAX_TEXT_LENGTH,
         }
 
+    status = _clean_text(payload.get("status")) or "requested"
+    if status != "requested":
+        return HTTPStatus.BAD_REQUEST, {
+            "error": "New product workspace creation requests must start as requested.",
+            "field": "status",
+        }
+
     payload_workspace_id = specspace_provider.normalize_product_workspace_id(
         payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     route_hint_id = _workspace_id_from_route_hint(payload.get("route") or payload.get("public_route_hint"))
-    derived_workspace_id = (
-        payload_workspace_id
-        or route_hint_id
-        or _workspace_id_from_display_name(display_name)
-    )
-    if workspace_id and derived_workspace_id and workspace_id != derived_workspace_id:
+    explicit_workspace_id = payload_workspace_id or route_hint_id
+    derived_workspace_id = explicit_workspace_id or workspace_id or _workspace_id_from_display_name(display_name)
+    if workspace_id and explicit_workspace_id and workspace_id != explicit_workspace_id:
         return HTTPStatus.CONFLICT, {
             "error": "Product workspace creation workspace_id does not match selected workspace.",
             "expected": workspace_id,
-            "actual": derived_workspace_id,
+            "actual": explicit_workspace_id,
         }
     workspace_id_value = workspace_id or derived_workspace_id
     if not workspace_id_value:
@@ -208,17 +213,6 @@ def save_request(
             "field": "workspace_id",
         }
 
-    status = _clean_text(payload.get("status")) or "requested"
-    if status not in REQUEST_STATUSES:
-        return HTTPStatus.BAD_REQUEST, {
-            "error": "Unsupported product workspace creation request status.",
-            "field": "status",
-        }
-    if status == "superseded":
-        return HTTPStatus.BAD_REQUEST, {
-            "error": "New product workspace creation requests cannot start as superseded.",
-            "field": "status",
-        }
     now = now_iso()
     request_id = _clean_text(payload.get("request_id")) or (
         f"product-workspace-create.{workspace_id_value}.{_timestamp_id(now)}.{secrets.token_hex(3)}"
@@ -230,6 +224,12 @@ def save_request(
         }
     operator_ref = _clean_text(payload.get("operator_ref")) or "local_operator"
     root_intent_summary = _clean_text(payload.get("root_intent_summary"))
+    if root_intent_summary is not None and len(root_intent_summary) > MAX_ROOT_INTENT_SUMMARY_LENGTH:
+        return HTTPStatus.BAD_REQUEST, {
+            "error": "root_intent_summary is too long",
+            "field": "root_intent_summary",
+            "max_length": MAX_ROOT_INTENT_SUMMARY_LENGTH,
+        }
     route = specspace_provider.product_workspace_route(workspace_id_value)
 
     with _STATE_LOCK:
@@ -284,7 +284,11 @@ def save_request(
             tmp_file.write(json.dumps(state, indent=2, sort_keys=True) + "\n")
             tmp = Path(tmp_file.name)
         tmp.replace(path)
-        return HTTPStatus.OK, _filtered_state(state, workspace_id_value)
+        return HTTPStatus.OK, workspace_projection(
+            HTTPStatus.OK,
+            _filtered_state(state, workspace_id_value),
+            workspace_id=workspace_id_value,
+        )
 
 
 def workspace_projection(
