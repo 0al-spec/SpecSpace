@@ -329,13 +329,23 @@ async function writeRealIdeaIntakeRuns(runsDir: string) {
 async function proxyRouteToBackend(route: Route, baseUrl: string) {
   const request = route.request();
   const sourceUrl = new URL(request.url());
-  const response = await route.fetch({
-    url: `${baseUrl}${sourceUrl.pathname}${sourceUrl.search}`,
-    method: request.method(),
-    headers: request.headers(),
-    postData: request.postData() ?? undefined,
-  });
-  await route.fulfill({ response });
+  try {
+    const response = await route.fetch({
+      url: `${baseUrl}${sourceUrl.pathname}${sourceUrl.search}`,
+      method: request.method(),
+      headers: request.headers(),
+      postData: request.postData() ?? undefined,
+    });
+    await route.fulfill({ response });
+  } catch (error) {
+    await route.fulfill({
+      status: 502,
+      json: {
+        error: "specspace_e2e_backend_proxy_unavailable",
+        detail: String(error),
+      },
+    });
+  }
 }
 
 async function installRealBackendApiRoutes(page: Page, baseUrl: string) {
@@ -1028,6 +1038,11 @@ async function installIdeaToSpecApiRoutes(
       return;
     }
 
+    if (path === "/api/v1/real-idea-intake-execution-requests") {
+      await proxyRouteToBackend(route, backendBaseUrl);
+      return;
+    }
+
     if (path === "/api/v1/product-workspace-creation-requests") {
       await proxyRouteToBackend(route, backendBaseUrl);
       return;
@@ -1203,7 +1218,7 @@ test("shows clarification stage after external intake execution publication", as
     await expect(page.getByTestId("guided-flow-next-action")).toContainText(
       "Answer intake clarification questions before candidate generation.",
     );
-    await expect(page.getByText("Platform intake execution")).toBeVisible();
+    await expect(page.getByText("Platform intake execution", { exact: true })).toBeVisible();
     await expect(page.getByText("execute_specgraph_real_idea_entry_intake")).toBeVisible();
     await expect(page.getByText("clarification_requests", { exact: true })).toBeVisible();
     await expect(page.getByText("Template-backed answer")).toBeVisible();
@@ -1315,20 +1330,38 @@ test("builds an active candidate from a non-demo product workspace route", async
       new RegExp(`^real-idea-entry\\.${executionBackedWorkspaceId}(\\.|$)`),
     );
     expect(requestId).not.toContain(workspaceId);
+    await page.getByTestId("real-idea-intake-execution-request").click();
+    await expect(
+      page.getByTestId("real-idea-intake-execution-request-status"),
+    ).toContainText("Requested execution");
+
+    const executionRequestResponse = await fetch(
+      `${backend.baseUrl}/api/v1/real-idea-intake-execution-requests?workspace=${executionBackedWorkspaceId}`,
+    );
+    expect(executionRequestResponse.ok).toBeTruthy();
+    const executionRequestState = (await executionRequestResponse.json()) as {
+      requests?: Array<{
+        entry_request_id?: string;
+        workspace_id?: string;
+        workspace_initialization_ref?: string;
+      }>;
+    };
+    expect(executionRequestState.requests?.[0]?.entry_request_id).toBe(requestId);
+    expect(executionRequestState.requests?.[0]?.workspace_id).toBe(
+      executionBackedWorkspaceId,
+    );
 
     const intakeCommand = platformCliInvocation(platformDir!, platformScript, [
       "product-real-idea-intake",
-      "execute",
+      "execute-requested",
       "--specgraph-dir",
       specGraphDir!,
+      "--execution-request",
+      path.join(backend.stateDir, "real_idea_intake_execution_requests.json"),
       "--workspace-initialization",
       initializationReportPath,
       "--run-dir",
       specGraphRunDirRef,
-      "--entry-requests",
-      path.join(backend.stateDir, "real_idea_entry_requests.json"),
-      "--request-id",
-      requestId!,
       "--output",
       platformReportPath,
       "--format",
@@ -1349,8 +1382,12 @@ test("builds an active candidate from a non-demo product workspace route", async
       target_make?: {
         variables?: Record<string, string>;
       };
+      execution_request_ref?: string;
     };
     expect(report.ok, JSON.stringify(report.diagnostics ?? [])).toBe(true);
+    expect(report.execution_request_ref).toContain(
+      "real_idea_intake_execution_requests.json",
+    );
     expect(report.workspace_initialization?.workspace_id).toBe(
       executionBackedWorkspaceId,
     );
@@ -1368,7 +1405,7 @@ test("builds an active candidate from a non-demo product workspace route", async
     await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
       "Answer intake clarification questions",
     );
-    await expect(page.getByText("Platform intake execution")).toBeVisible();
+    await expect(page.getByText("Platform intake execution", { exact: true })).toBeVisible();
     await expect(page.getByText("execute_specgraph_real_idea_entry_intake")).toBeVisible();
     await expect(page.getByText("Template-backed answer").first()).toBeVisible();
 
@@ -1602,7 +1639,7 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
       "Answer intake clarification questions",
     );
-    await expect(page.getByText("Platform intake execution")).toBeVisible();
+    await expect(page.getByText("Platform intake execution", { exact: true })).toBeVisible();
     await expect(page.getByText("execute_specgraph_real_idea_entry_intake")).toBeVisible();
     await expect(page.getByText("Template-backed answer").first()).toBeVisible();
 

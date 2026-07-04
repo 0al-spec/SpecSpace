@@ -86,6 +86,10 @@ GET_ROUTES: dict[str, RouteSpec] = {
         "handle_v1_real_idea_entry_requests",
         pass_parsed=True,
     ),
+    "/api/v1/real-idea-intake-execution-requests": RouteSpec(
+        "handle_v1_real_idea_intake_execution_requests",
+        pass_parsed=True,
+    ),
     "/api/v1/product-workspace-creation-requests": RouteSpec(
         "handle_v1_product_workspace_creation_requests",
         pass_parsed=True,
@@ -157,6 +161,10 @@ POST_ROUTES: dict[str, RouteSpec] = {
     ),
     "/api/v1/real-idea-entry-requests": RouteSpec(
         "handle_v1_real_idea_entry_request_post",
+        pass_parsed=True,
+    ),
+    "/api/v1/real-idea-intake-execution-requests": RouteSpec(
+        "handle_v1_real_idea_intake_execution_request_post",
         pass_parsed=True,
     ),
     "/api/v1/product-workspace-creation-requests": RouteSpec(
