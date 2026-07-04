@@ -2222,6 +2222,12 @@ def _workspace_initialization_request_authority_trusted(
 ) -> bool:
     if report is None:
         return False
+    if report.get("request_only") is not True:
+        return False
+    if report.get("canonical_mutations_allowed") is not False:
+        return False
+    if report.get("tracked_artifacts_written") is not False:
+        return False
     boundary = _record(report.get("authority_boundary"))
     for key, value in boundary.items():
         if value is True and (
@@ -2249,30 +2255,51 @@ def _workspace_initialization_surface(
     plan: dict[str, Any] | None,
     execution_request: dict[str, Any] | None,
     execution: dict[str, Any] | None,
+    execution_request_status: dict[str, Any] | None = None,
     workspace_id: str | None = None,
 ) -> dict[str, Any]:
     plan_summary = _record((plan or {}).get("summary"))
-    request_summary = _record((execution_request or {}).get("summary"))
     execution_summary = _record((execution or {}).get("summary"))
-    workspace = _record((execution or execution_request or plan or {}).get("workspace"))
+    request_workspace_id = _optional_text(
+        _record((execution_request or {}).get("workspace")).get("workspace_id")
+    )
+    request_workspace_matches = (
+        execution_request is not None
+        and (
+            workspace_id is None
+            or (
+                request_workspace_id is not None
+                and request_workspace_id == workspace_id
+            )
+        )
+    )
+    selected_request = execution_request if request_workspace_matches else None
+    request_summary = _record((selected_request or {}).get("summary"))
+    request_contract_invalid = (
+        execution_request is None
+        and _record(execution_request_status).get("reason")
+        == "invalid_artifact_contract"
+    )
+    workspace = _record((execution or selected_request or plan or {}).get("workspace"))
     plan_trusted = (
         plan is None
         or plan.get("artifact_kind")
         == "platform_product_workspace_initialization_plan"
     )
-    request_trusted = (
-        execution_request is None
-        or (
-            execution_request.get("artifact_kind")
-            == "platform_product_workspace_initialization_execution_request"
-            and _workspace_initialization_request_authority_trusted(execution_request)
-        )
-    )
-    trusted = (
+    execution_trusted = (
         execution is not None
         and execution.get("artifact_kind")
         == "platform_product_workspace_initialization_execution_report"
         and _workspace_initialization_authority_trusted(execution)
+    )
+    request_trusted = (
+        (not request_contract_invalid and selected_request is None)
+        or (
+            selected_request is not None
+            and selected_request.get("artifact_kind")
+            == "platform_product_workspace_initialization_execution_request"
+            and _workspace_initialization_request_authority_trusted(selected_request)
+        )
     )
     execution_workspace_id = _optional_text(_record((execution or {}).get("workspace")).get("workspace_id"))
     workspace_matches = (
@@ -2281,7 +2308,7 @@ def _workspace_initialization_surface(
         and execution_workspace_id == workspace_id
     )
     initialized = (
-        trusted
+        execution_trusted
         and workspace_matches
         and execution.get("ok") is True
         and execution.get("dry_run") is not True
@@ -2289,11 +2316,11 @@ def _workspace_initialization_surface(
         and execution_summary.get("workspace_files_created") is True
     )
     return {
-        "available": plan is not None or execution_request is not None or execution is not None,
+        "available": plan is not None or selected_request is not None or execution is not None,
         "trusted": (
-            (trusted if execution is not None else True)
+            (execution_trusted if execution is not None else True)
             and plan_trusted
-            and request_trusted
+            and (True if execution_trusted else request_trusted)
         ),
         "initialized": initialized,
         "plan": {
@@ -2307,19 +2334,23 @@ def _workspace_initialization_surface(
             ),
         },
         "execution_request": {
-            "available": execution_request is not None,
-            "trusted": request_trusted,
-            "ok": request_trusted and (execution_request or {}).get("ok") is True,
+            "available": selected_request is not None,
+            "trusted": request_trusted if selected_request is not None else False,
+            "ok": request_trusted and (selected_request or {}).get("ok") is True,
             "status": _optional_text(request_summary.get("status")),
             "ready_for_managed_execution": (
                 request_trusted
                 and request_summary.get("ready_for_managed_execution") is True
             ),
             "requested_operation": _optional_text(
-                (execution_request or {}).get("requested_operation")
+                (selected_request or {}).get("requested_operation")
+                if request_trusted
+                else None
             ),
             "idempotency_key": _optional_text(
-                (execution_request or {}).get("idempotency_key")
+                (selected_request or {}).get("idempotency_key")
+                if request_trusted
+                else None
             ),
         },
         "execution": {
@@ -2343,7 +2374,7 @@ def _workspace_initialization_surface(
         },
         "refs": {
             "plan": _safe_ref(
-                (execution or execution_request or {}).get("plan_ref")
+                (execution or selected_request or {}).get("plan_ref")
             ),
             "catalog": _safe_ref((execution or plan or {}).get("catalog_ref")),
             "specgraph_initialization_report": _safe_ref(
@@ -2351,10 +2382,10 @@ def _workspace_initialization_surface(
             ),
         },
         "diagnostic_count": len(
-            _records((execution or execution_request or plan or {}).get("diagnostics"))
+            _records((execution or selected_request or plan or {}).get("diagnostics"))
         ),
         "authority_boundary": _record(
-            (execution or execution_request or plan or {}).get("authority_boundary")
+            (execution or selected_request or plan or {}).get("authority_boundary")
         ),
     }
 
@@ -6142,6 +6173,7 @@ def build_idea_to_spec_workspace(
     workspace_initialization = _workspace_initialization_surface(
         plan=workspace_initialization_plan,
         execution_request=workspace_initialization_execution_request,
+        execution_request_status=statuses["workspace_initialization_execution_request"],
         execution=workspace_initialization_execution,
         workspace_id=effective_workspace_id,
     )

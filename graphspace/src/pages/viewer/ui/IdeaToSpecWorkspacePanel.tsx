@@ -635,6 +635,10 @@ function WorkspaceCreationSection({
             value={creation.initialization.requestedOperation}
           />
           <Meta
+            label="Idempotency"
+            value={creation.initialization.idempotencyKey}
+          />
+          <Meta
             label="Catalog binding"
             value={creation.initialization.catalogWritten ? "written" : null}
           />
