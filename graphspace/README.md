@@ -94,9 +94,44 @@ The smoke starts the GraphSpace Vite app, opens `/team-decision-log`, starts a
 temporary Python SpecSpace backend for the SpecSpace-owned mutable state API,
 submits a raw idea request through the browser UI, and verifies the submitted
 state plus the next Platform handoff command are visible. Readonly product
-workspace artifacts are fixture-backed so the test stays focused on the
-UI-started entry boundary. It does not run SpecGraph, Platform, Git Service, or
-any mutation-capable handoff.
+workspace artifacts are fixture-backed in the default mode so the test stays
+focused on the UI-started entry boundary. It does not run SpecGraph, Platform,
+Git Service, or any mutation-capable handoff.
+
+For the execution-backed local smoke, provide sibling checkouts explicitly:
+
+```sh
+SPECG_E2E_PLATFORM_DIR=../Platform \
+SPECG_E2E_SPECG_DIR=../SpecGraph \
+UI_PORT=5190 make ui-e2e-raw-idea-entry
+```
+
+That mode still keeps browser authority read-only. The Playwright harness runs
+Platform and SpecGraph as external operator actions, then publishes selected
+public-safe artifacts into the temporary backend `runs` directory and emits a
+`change` event on `/api/v1/runs-watch`.
+
+### State And Run-Dir Hygiene
+
+Manual UI-started smoke runs are easiest to reason about when these three paths
+belong to the same run:
+
+- SpecSpace-owned mutable state directory;
+- SpecGraph `--run-dir`;
+- product artifact base / backend `runs` directory.
+
+If they drift, the Product Workspace should not be treated as broken. It will
+surface the mismatch in **Workspace state preflight** via `workspace_state_hygiene`
+and recommended actions such as rebuilding an import preview, recreating a rerun
+request, or recreating an approval intent. Those actions are operator hints only:
+SpecSpace does not clear stale state, run Platform, run SpecGraph, mutate specs,
+write ontology packages, create branches, or publish read models.
+
+When debugging a confusing local smoke, prefer starting with a fresh temp state
+directory and a fresh SpecGraph run directory. If reusing state intentionally,
+verify that the current repair session, candidate id, workspace id, and source
+refs shown in **Workspace state preflight** match the run you are about to
+continue.
 
 ## Layer rules (Steiger-enforced)
 
