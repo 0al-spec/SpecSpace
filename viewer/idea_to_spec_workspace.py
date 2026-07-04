@@ -6025,13 +6025,15 @@ def build_idea_to_spec_workspace(
         promotion_finalization=promotion_finalization,
     )
     workspace_identity = _workspace(selected_active_candidate)
+    source_workspace_id = _optional_text(source.get("workspace_id"))
+    effective_workspace_id = source_workspace_id or _optional_text(workspace_identity.get("id"))
     selected_active_candidate_ref = (
         statuses["repaired_active_candidate"]["path"]
         if repaired_surface_selected and repaired_active_candidate is not None
         else statuses["active_candidate"]["path"]
     )
     real_idea_intake = _real_idea_intake_projection(
-        workspace_id=_optional_text(workspace_identity.get("id")),
+        workspace_id=effective_workspace_id,
         intake=intake,
         active_candidate=selected_active_candidate,
         active_candidate_ref=selected_active_candidate_ref,
@@ -6045,7 +6047,7 @@ def build_idea_to_spec_workspace(
     workspace_initialization = _workspace_initialization_surface(
         plan=workspace_initialization_plan,
         execution=workspace_initialization_execution,
-        workspace_id=_optional_text(workspace_identity.get("id")),
+        workspace_id=effective_workspace_id,
     )
     payload = {
         "api_version": "v1",
