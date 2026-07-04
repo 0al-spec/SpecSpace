@@ -448,9 +448,6 @@ export function IdeaToSpecWorkspacePanel({
       </div>
 
       <div className={styles.entries}>
-        <GuidedFlowSection flow={data.guidedFlow} />
-        <CandidateOverviewSection overview={data.candidateOverview} />
-        <WorkflowSection workflow={data.workflow} />
         <IdeaIntakeDraftSection
           activeFrame={frame}
           realIdeaIntake={data.realIdeaIntake}
@@ -459,6 +456,9 @@ export function IdeaToSpecWorkspacePanel({
           onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
           readOnly={readOnly}
         />
+        <GuidedFlowSection flow={data.guidedFlow} />
+        <CandidateOverviewSection overview={data.candidateOverview} />
+        <WorkflowSection workflow={data.workflow} />
         <WorkspaceSection workspace={data.workspace} />
         <FrameSection project={frame.project} domains={frame.domainRefs} contexts={frame.contextRefs} />
         <ArtifactSection artifacts={data.artifacts} />
@@ -707,11 +707,16 @@ function IdeaIntakeDraftSection({
             </p>
           ))}
       </div>
-      <div className={styles.row}>
+      <div id="idea-to-spec-start-raw-idea" className={styles.row}>
         <div className={styles.rowHeader}>
-          <span className={styles.rowId}>Start from raw idea</span>
+          <span className={styles.rowId}>Start here: raw product idea</span>
           <Pill value={activeEntry ? "submitted" : "operator draft"} />
         </div>
+        <p className={styles.statusDetail}>
+          Enter the user's product idea here. SpecSpace stores only
+          operator-owned local state; Platform performs the controlled intake
+          handoff later.
+        </p>
         <textarea
           data-testid="real-idea-entry-text"
           className={styles.ideaInput}

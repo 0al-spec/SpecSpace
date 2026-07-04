@@ -90,6 +90,16 @@ reviews, or publish read models.
   `target_ref`, `source_ref`, and `next_action`, so invalid-answer diagnostics
   point to the affected request/source instead of showing only a generic
   message.
+- Env-gated browser E2E now includes a non-demo workspace route smoke for
+  `/household-pantry-rotation`. It verifies that a UI-submitted raw idea creates
+  `real-idea-entry.household-pantry-rotation...`, Platform/SpecGraph handoff
+  reaches active candidate generation, raw idea text stays out of generated
+  public-safe artifacts, and `team-decision-log` fixture terms do not leak into
+  the new candidate artifacts.
+- The raw idea form is promoted to the first Product Workspace lifecycle block
+  and has a stable `#idea-to-spec-start-raw-idea` anchor. It is labelled
+  `Start here: raw product idea` so the entry point is not hidden behind Guided
+  Flow / Candidate Overview / Workflow sections.
 
 ## Next Tasks
 
@@ -281,11 +291,72 @@ Acceptance criteria:
   readiness stay unchanged.
   Done.
 
+## Open Friction / Next Fixes
+
+### 8. Arbitrary Route Downstream Repair Lifecycle
+
+Status: open, cross-repo.
+
+The `/household-pantry-rotation` execution-backed smoke proves the route,
+SpecSpace-owned entry state, Platform intake handoff, SpecGraph clarification
+flow, and active candidate generation are scoped to the non-demo workspace.
+When the same arbitrary route is pushed deeper into repair / project-local
+ontology review / approval, late surfaces can still observe stale or default
+Team Decision Log lifecycle state.
+
+Observed failure mode:
+
+- `active_idea_to_spec_candidate.json` in the isolated run dir is derived from
+  the household pantry idea;
+- later Product Workspace hygiene / repair-session / project-local ontology
+  review surfaces may still compare against `team-decision-log` session or
+  candidate identity;
+- project-local ontology decisions for the arbitrary route can become
+  `candidate_mismatch` instead of feeding the effective decision report.
+
+Acceptance criteria:
+
+- A non-demo workspace route can continue past active candidate into repair
+  draft import preview, rerun request gate, repaired handoff, project-local
+  ontology decision effect, candidate approval intent, approval decision,
+  promotion request, and Git dry-run without falling back to
+  `team-decision-log` identity.
+- Workspace state hygiene treats the selected arbitrary workspace as current
+  throughout the full lifecycle.
+- The env-gated browser smoke can extend the `/household-pantry-rotation`
+  scenario beyond active candidate without expected `candidate_mismatch`
+  diagnostics.
+
+Likely repositories:
+
+- SpecSpace: workspace state hygiene / selected repaired source projection.
+- SpecGraph: repaired/session/project-local effect refs if a producer artifact
+  still encodes default candidate identity.
+- Platform: controlled wrapper defaults if any late command still assumes the
+  tracked demo workspace.
+
+### 9. Raw Idea Entry Usability Polish
+
+Status: closed.
+
+The raw idea entry existed in Product Workspace as `Start from raw idea`, but it
+was visually buried after Guided Flow, Candidate Overview, and Workflow Lane.
+For a user starting from a blank idea, that made the actual first input look
+like an internal inspector row.
+
+Acceptance criteria:
+
+- Raw idea input is the first visible lifecycle block in Product Workspace.
+- The block has a stable anchor for guided-flow / help links.
+- The copy explains that SpecSpace only stores operator-owned local state and
+  does not execute Platform/SpecGraph from the browser.
+- Browser/component tests prevent the entry point from drifting below
+  diagnostic panels again.
+
 ## Accepted Constraints And Runbook Notes
 
-No active SpecSpace-facing bug remains open in this workplan for the current
-UI-started idea-to-spec smoke slice. The items below are accepted authority
-boundaries or operator runbook notes, not hidden UI mutations.
+The items below are accepted authority boundaries or operator runbook notes, not
+hidden UI mutations.
 
 - UI submit persists raw idea entry, but does not execute the intake pipeline.
   This is an intentional authority boundary, not a bug.
