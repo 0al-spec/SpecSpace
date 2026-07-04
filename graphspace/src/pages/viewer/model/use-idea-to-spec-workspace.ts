@@ -1303,6 +1303,7 @@ export type IdeaToSpecWorkspace = {
     };
     answerAuthoring: IdeaToSpecRealIdeaAnswerAuthoring;
     answerContinuation: IdeaToSpecRealIdeaAnswerContinuation;
+    sourceRefs: readonly string[];
     actionBoundary: {
       inspectOnly: true;
       acknowledgeOnly: true;
@@ -2752,6 +2753,7 @@ function parseIntakeClarification(
     },
     answerAuthoring: parseRealIdeaAnswerAuthoring(answerAuthoring),
     answerContinuation: parseRealIdeaAnswerContinuation(answerContinuation),
+    sourceRefs: strings(lane.source_refs),
     actionBoundary: {
       inspectOnly: true,
       acknowledgeOnly: true,
