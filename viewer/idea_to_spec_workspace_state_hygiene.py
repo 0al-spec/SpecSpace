@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from pathlib import PurePosixPath
 from typing import Any
 
 from viewer import (
@@ -10,6 +11,7 @@ from viewer import (
     idea_to_spec_repair_drafts,
     idea_to_spec_repair_rerun_requests,
 )
+from viewer.idea_to_spec_authority import authority_boundary_has_disallowed_true
 
 ARTIFACT_KIND = "specspace_idea_to_spec_workspace_state_hygiene"
 SCHEMA_VERSION = 1
@@ -141,10 +143,39 @@ def _recommended_actions(
 
     import_preview = by_kind.get("repair_draft_import_preview", {})
     if _text(import_preview.get("status")) != "usable":
+        if not current.get("repair_session_id"):
+            actions.append(
+                _recommended_action(
+                    action_id="workspace_state.build_initial_repair_session_journal",
+                    label="Build initial repair session journal",
+                    reason=(
+                        "A durable repair session journal is required before "
+                        "SpecGraph can import SpecSpace-owned repair drafts."
+                    ),
+                    target_state="repair_session_journal",
+                    target_section="idea-to-spec-workspace-state-hygiene",
+                    current=current,
+                    enabled=True,
+                    blockers=[],
+                    ui_intent="show_specgraph_initial_repair_session_command",
+                    command_hint=(
+                        "make idea-to-spec-initial-repair-session-journal "
+                        f"IDEA_TO_SPEC_REPAIR_SESSION_OUTPUT="
+                        f"{current['repair_session_ref'] or 'runs/idea_to_spec_repair_session.json'}"
+                    ),
+                    evidence_refs=[
+                        "runs/active_idea_to_spec_candidate.json",
+                        "runs/idea_to_spec_clarification_requests.json",
+                        "runs/idea_to_spec_promotion_gate.json",
+                    ],
+                )
+            )
         blockers = _missing_prerequisites(
             by_kind,
             (("repair_drafts", "Save repair drafts first."),),
         )
+        if not current.get("repair_session_id"):
+            blockers.append("Build repair session journal first.")
         actions.append(
             _recommended_action(
                 action_id="workspace_state.rebuild_repair_draft_import_preview",
@@ -508,22 +539,119 @@ def _artifact_state_statuses(
     current: dict[str, str | None],
 ) -> list[dict[str, Any]]:
     artifacts = _record(workspace_payload.get("artifacts"))
+    import_preview_artifact = _record(
+        artifacts.get("specspace_repair_draft_import_preview")
+    )
+    if import_preview_artifact.get("available") is not True:
+        import_preview_artifact = _import_preview_from_platform_execution(
+            _record(artifacts.get("product_repair_draft_import_execution"))
+        )
+    request_gate_artifact = _request_gate_from_platform_execution(
+        _record(artifacts.get("product_repair_rerun_request_gate_execution"))
+    )
+    if request_gate_artifact.get("available") is not True:
+        request_gate_artifact = _record(artifacts.get("specspace_repair_rerun_request_gate"))
     return [
         _artifact_state_status(
             kind="repair_draft_import_preview",
-            artifact=_record(artifacts.get("specspace_repair_draft_import_preview")),
+            artifact=import_preview_artifact,
             current=current,
             blocks=["repair_rerun_request"],
             missing_next_action="Run SpecGraph repair draft import preview for the current repair session.",
         ),
         _artifact_state_status(
             kind="repair_rerun_request_gate",
-            artifact=_record(artifacts.get("specspace_repair_rerun_request_gate")),
+            artifact=request_gate_artifact,
             current=current,
             blocks=["repair_rerun_execution", "repair_rerun_smoke"],
             missing_next_action="Run SpecGraph rerun request gate for the current request.",
         ),
     ]
+
+
+def _import_preview_from_platform_execution(report: dict[str, Any]) -> dict[str, Any]:
+    if report.get("available") is not True:
+        return {}
+    if report.get("artifact_kind") != "platform_product_repair_draft_import_preview_execution_report":
+        return {}
+    if report.get("ok") is not True or report.get("dry_run") is True:
+        return {}
+    if authority_boundary_has_disallowed_true(
+        report.get("authority_boundary"),
+        allowed_true_fields={"executes_specgraph_make_target"},
+    ):
+        return {}
+    import_preview = _record(_record(report.get("output_artifacts")).get("import_preview"))
+    if import_preview.get("ready") is not True:
+        return {}
+    repair_session_ref = _text(report.get("repair_session_ref"))
+    return {
+        "available": True,
+        "path": _text(import_preview.get("path")),
+        "status": _text(import_preview.get("status")) or "repair_draft_import_preview_ready",
+        "artifact_kind": import_preview.get("artifact_kind"),
+        "contract_ref": import_preview.get("contract_ref"),
+        "summary": {
+            "status": _text(import_preview.get("status"))
+            or "repair_draft_import_preview_ready",
+            "source": "platform_product_repair_draft_import_execution",
+        },
+        "source_mode": "platform_import_execution",
+        "readiness": {
+            "ready": True,
+            "review_state": _text(import_preview.get("status"))
+            or "repair_draft_import_preview_ready",
+            "blocked_by": [],
+        },
+        "source_artifacts": {
+            "idea_to_spec_repair_session": repair_session_ref,
+        }
+        if repair_session_ref
+        else {},
+    }
+
+
+def _request_gate_from_platform_execution(report: dict[str, Any]) -> dict[str, Any]:
+    if report.get("available") is not True:
+        return {}
+    if (
+        report.get("artifact_kind")
+        != "platform_product_repair_rerun_request_gate_execution_report"
+    ):
+        return {}
+    if report.get("ok") is not True or report.get("dry_run") is True:
+        return {}
+    if authority_boundary_has_disallowed_true(
+        report.get("authority_boundary"),
+        allowed_true_fields={"executes_specgraph_make_target"},
+    ):
+        return {}
+    request_gate = _record(_record(report.get("output_artifacts")).get("request_gate"))
+    if request_gate.get("ready") is not True:
+        return {}
+    repair_session_ref = _text(report.get("repair_session_ref"))
+    return {
+        "available": True,
+        "path": _text(request_gate.get("path")),
+        "status": _text(request_gate.get("status")) or "ready",
+        "artifact_kind": request_gate.get("artifact_kind"),
+        "contract_ref": request_gate.get("contract_ref"),
+        "summary": {
+            "status": _text(request_gate.get("status")) or "ready",
+            "source": "platform_product_repair_rerun_request_gate_execution",
+        },
+        "source_mode": "platform_request_gate_execution",
+        "readiness": {
+            "ready": True,
+            "review_state": _text(request_gate.get("status")) or "ready",
+            "blocked_by": [],
+        },
+        "source_artifacts": {
+            "idea_to_spec_repair_session": repair_session_ref,
+        }
+        if repair_session_ref
+        else {},
+    }
 
 
 def _artifact_state_status(
@@ -594,6 +722,17 @@ def _artifact_state_status(
         return {**base, "reason": "artifact_missing"}
     ready_statuses = _ready_statuses_for_artifact(kind)
     if session_ref and current_ref and session_ref != current_ref:
+        if artifact.get("source_mode") in {
+            "platform_import_execution",
+            "platform_request_gate_execution",
+        } and _session_ref_matches_current(session_ref, current_ref):
+            return {
+                **base,
+                "status": "usable",
+                "reason": f"{artifact.get('source_mode')}_ready",
+                "current_record_count": 1,
+                "next_action": "Continue with the repair rerun request handoff.",
+            }
         if _source_repair_artifact_consumed_by_repaired_handoff(
             kind,
             status=status,
@@ -682,6 +821,14 @@ def _ready_statuses_for_artifact(kind: str) -> set[str]:
     return set()
 
 
+def _session_ref_matches_current(session_ref: str | None, current_ref: str | None) -> bool:
+    if not session_ref or not current_ref:
+        return False
+    if session_ref == current_ref:
+        return True
+    return PurePosixPath(session_ref).name == PurePosixPath(current_ref).name
+
+
 def _summary(states: list[dict[str, Any]]) -> dict[str, Any]:
     counts: dict[str, int] = {"usable": 0, "missing": 0, "stale": 0, "invalid": 0}
     for state in states:
@@ -754,6 +901,7 @@ def _source_repair_state_consumed_by_repaired_handoff(
         and (not current["candidate_id"] or candidate_id == current["candidate_id"])
         and (
             not current.get("source_repair_session_id")
+            or not repair_session_id
             or repair_session_id == current.get("source_repair_session_id")
         )
         and (

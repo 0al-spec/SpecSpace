@@ -11,6 +11,7 @@ import type {
   IdeaToSpecCandidateNode,
   IdeaToSpecCandidateOverview,
   IdeaToSpecClarificationRequest,
+  IdeaToSpecFinding,
   IdeaToSpecGitServiceOperation,
   IdeaToSpecGuidedFlow,
   IdeaToSpecIdeaMaturity,
@@ -74,6 +75,7 @@ type Props = {
   candidateApprovalIntentsUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
   repairRerunRequestsRefreshKey?: number | string;
+  onWorkspaceRefreshRequest?: () => void;
   auxiliaryDataEnabled?: boolean;
   readOnly?: boolean;
 };
@@ -117,6 +119,16 @@ function boolText(value: boolean): string {
 
 function joined(values: readonly string[], fallback = "none"): string {
   return values.length > 0 ? values.join(", ") : fallback;
+}
+
+function sourceArtifactRefs(sourceArtifacts: Record<string, unknown>): string[] {
+  return Object.entries(sourceArtifacts).flatMap(([key, value]) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+    const sourceRef = (value as Record<string, unknown>).source_ref;
+    return typeof sourceRef === "string" && sourceRef.length > 0
+      ? [`${key}: ${sourceRef}`]
+      : [];
+  });
 }
 
 function metricValue(value: unknown): string {
@@ -297,6 +309,7 @@ export function IdeaToSpecWorkspacePanel({
   candidateApprovalIntentsUrl,
   projectLocalOntologyReviewDecisionsUrl,
   repairRerunRequestsRefreshKey = 0,
+  onWorkspaceRefreshRequest,
   auxiliaryDataEnabled = true,
   readOnly = false,
 }: Props) {
@@ -443,6 +456,7 @@ export function IdeaToSpecWorkspacePanel({
           realIdeaIntake={data.realIdeaIntake}
           entryRequests={realIdeaEntryRequests}
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+          onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
           readOnly={readOnly}
         />
         <WorkspaceSection workspace={data.workspace} />
@@ -474,6 +488,7 @@ export function IdeaToSpecWorkspacePanel({
           repairDrafts={repairDrafts}
           repairRerunRequests={repairRerunRequests}
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+          onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
           readOnly={readOnly}
         />
         <MaterializationSection state={state} />
@@ -507,12 +522,14 @@ function IdeaIntakeDraftSection({
   realIdeaIntake,
   entryRequests,
   workspaceId,
+  onWorkspaceRefreshRequest,
   readOnly,
 }: {
   activeFrame: IdeaToSpecActiveFrame;
   realIdeaIntake: IdeaToSpecWorkspace["realIdeaIntake"];
   entryRequests: ReturnType<typeof useRealIdeaEntryRequests>;
   workspaceId: string | null;
+  onWorkspaceRefreshRequest?: () => void;
   readOnly: boolean;
 }) {
   const [idea, setIdea] = useState("");
@@ -522,6 +539,15 @@ function IdeaIntakeDraftSection({
     [idea, activeFrame],
   );
   const activeEntry = entryRequests.activeSubmittedRequest;
+  const entryHandoffCommand = activeEntry
+    ? [
+        "scripts/platform.py product-real-idea-intake execute \\",
+        "  --specgraph-dir <specgraph-repository> \\",
+        "  --entry-requests <SpecSpace state dir>/real_idea_entry_requests.json \\",
+        `  --workspace-id ${workspaceId ?? activeEntry.workspaceId} \\`,
+        `  --request-id ${activeEntry.requestId}`,
+      ].join("\n")
+    : null;
   const canSubmit =
     !readOnly &&
     entryRequests.configured &&
@@ -536,7 +562,12 @@ function IdeaIntakeDraftSection({
           <span className={styles.rowId}>Real idea intake</span>
           <Pill value={realIdeaIntake.status.replace(/_/g, " ")} />
         </div>
-        <h3 className={styles.title}>{realIdeaIntake.nextAction}</h3>
+        <h3
+          className={styles.title}
+          data-testid="real-idea-intake-next-action"
+        >
+          {realIdeaIntake.nextAction}
+        </h3>
         <div className={styles.postureStrip}>
           <PostureItem
             label="Questions"
@@ -607,6 +638,62 @@ function IdeaIntakeDraftSection({
             {realIdeaIntake.continuationHandoff.commandHint}
           </pre>
         ) : null}
+        {realIdeaIntake.entryExecution.available ? (
+          <div className={styles.row}>
+            <div className={styles.rowHeader}>
+              <span className={styles.rowId}>Platform intake execution</span>
+              <Pill
+                value={
+                  realIdeaIntake.entryExecution.dryRun
+                    ? "dry run"
+                    : realIdeaIntake.entryExecution.ok
+                      ? "completed"
+                      : realIdeaIntake.entryExecution.status
+                }
+              />
+            </div>
+            <div className={styles.metaGrid}>
+              <Meta label="Status" value={realIdeaIntake.entryExecution.status} />
+              <Meta label="Dry run" value={boolText(realIdeaIntake.entryExecution.dryRun)} />
+              <Meta label="Run dir" value={realIdeaIntake.entryExecution.runDir} />
+              <Meta label="Target" value={realIdeaIntake.entryExecution.target} />
+              <Meta
+                label="Outputs"
+                value={String(realIdeaIntake.entryExecution.outputArtifactCount)}
+              />
+              <Meta
+                label="Diagnostics"
+                value={String(realIdeaIntake.entryExecution.diagnosticCount)}
+              />
+            </div>
+            {realIdeaIntake.entryExecution.operations.map((operation, index) => (
+              <div key={`${operation.name}-${index}`} className={styles.subRow}>
+                <span>{operation.name}</span>
+                <Pill value={operation.status} />
+                <span className={styles.statusDetail}>
+                  {compact(operation.reason, joined(operation.evidence))}
+                </span>
+              </div>
+            ))}
+            {realIdeaIntake.entryExecution.outputArtifacts.map((artifact) => (
+              <div key={artifact.key} className={styles.subRow}>
+                <span>{artifact.key}</span>
+                <Pill
+                  value={
+                    artifact.ready
+                      ? "ready"
+                      : artifact.present
+                        ? "present"
+                        : "missing"
+                  }
+                />
+                <span className={styles.statusDetail}>
+                  {artifact.path ?? compact(artifact.artifactKind)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {realIdeaIntake.blockers.length > 0 ? (
           <p className={styles.statusDetail}>
             Blockers: {joined(realIdeaIntake.blockers)}
@@ -626,6 +713,7 @@ function IdeaIntakeDraftSection({
           <Pill value={activeEntry ? "submitted" : "operator draft"} />
         </div>
         <textarea
+          data-testid="real-idea-entry-text"
           className={styles.ideaInput}
           value={idea}
           onChange={(event) => setIdea(event.currentTarget.value)}
@@ -635,6 +723,7 @@ function IdeaIntakeDraftSection({
           disabled={readOnly || entryRequests.pending}
         />
         <input
+          data-testid="real-idea-entry-summary"
           className={styles.textInput}
           value={publicSummary}
           onChange={(event) => setPublicSummary(event.currentTarget.value)}
@@ -654,27 +743,53 @@ function IdeaIntakeDraftSection({
           />
         </div>
         <button
+          data-testid="real-idea-entry-submit"
           className={styles.ackButton}
           type="button"
           disabled={!canSubmit}
-          onClick={() =>
-            entryRequests.saveRequest({
-              workspaceId,
-              ideaText: idea,
-              ideaSummaryHint: publicSummary,
-              workspaceDisplayName: null,
-              publicRouteHint: workspaceId ? `/${workspaceId}` : null,
-              operatorRef: "operator://specspace-local",
-              status: "submitted",
-            })
-          }
+          onClick={() => {
+            void entryRequests
+              .saveRequest({
+                workspaceId,
+                ideaText: idea,
+                ideaSummaryHint: publicSummary,
+                workspaceDisplayName: null,
+                publicRouteHint: workspaceId ? `/${workspaceId}` : null,
+                operatorRef: "operator://specspace-local",
+                status: "submitted",
+              })
+              .then((saved) => {
+                if (saved) onWorkspaceRefreshRequest?.();
+              });
+          }}
         >
           {entryRequests.pending ? "Saving request" : "Submit raw idea request"}
         </button>
         {activeEntry ? (
-          <p className={styles.statusDetail}>
+          <p
+            className={styles.statusDetail}
+            data-testid="real-idea-entry-submitted-status"
+          >
             Submitted request · {activeEntry.requestId} · {activeEntry.updatedAt}
           </p>
+        ) : null}
+        {entryHandoffCommand ? (
+          <div className={styles.row}>
+            <div className={styles.rowHeader}>
+              <span className={styles.rowId}>Next safe handoff</span>
+              <Pill value="operator command" />
+            </div>
+            <p className={styles.statusDetail}>
+              Import the submitted entry through Platform. This is a command
+              hint only; SpecSpace does not execute SpecGraph.
+            </p>
+            <pre
+              className={styles.codeBlock}
+              data-testid="real-idea-entry-handoff-command"
+            >
+              {entryHandoffCommand}
+            </pre>
+          </div>
         ) : null}
         {entryRequests.saveError ? (
           <p className={styles.statusDetail}>
@@ -776,7 +891,7 @@ function GuidedFlowSection({ flow }: { flow: IdeaToSpecGuidedFlow }) {
           <span className={styles.rowId}>{flow.currentStageLabel}</span>
           <Pill value={flow.overallStatus.replace(/_/g, " ")} />
         </div>
-        <h3 className={styles.title}>
+        <h3 className={styles.title} data-testid="guided-flow-next-action">
           {nextAction?.label ?? "Inspect the current idea-to-spec lifecycle stage."}
         </h3>
         <div className={styles.metaGrid}>
@@ -1311,11 +1426,7 @@ function IntakeAnswerAuthoringStatus({
           {action.label}: {action.nextAction}
         </p>
       ))}
-      {authoring.report.findings.slice(0, 3).map((finding, index) => (
-        <p key={findingKey(finding, index)} className={styles.statusDetail}>
-          {finding.severity}: {finding.message}
-        </p>
-      ))}
+      <IntakeAnswerFindingDiagnostics findings={authoring.report.findings} />
     </div>
   );
 }
@@ -1336,6 +1447,7 @@ function IntakeAnswerContinuationStatus({
   const outputEntries = Object.entries(continuation.continuationReport.outputs)
     .filter(([, value]) => typeof value === "string" && value.length > 0)
     .slice(0, 4);
+  const sourceRefs = sourceArtifactRefs(continuation.importPreview.sourceArtifacts);
   return (
     <div className={styles.row}>
       <div className={styles.rowHeader}>
@@ -1374,11 +1486,16 @@ function IntakeAnswerContinuationStatus({
           label="Exec authority"
           value={boolText(continuation.actionBoundary.mayExecuteSpecgraph)}
         />
+        <Meta label="Source refs" value={joined(sourceRefs)} />
       </div>
       {continuation.recommendedActions.map((action) => (
-        <p key={action.id} className={styles.statusDetail}>
-          {action.label}: {action.nextAction}
-        </p>
+        <div key={action.id} className={styles.subRow}>
+          <span>{action.label}</span>
+          <span className={styles.statusDetail}>{action.nextAction}</span>
+          {action.commandHint ? (
+            <pre className={styles.codeBlock}>{action.commandHint}</pre>
+          ) : null}
+        </div>
       ))}
       {outputEntries.length ? (
         <div className={styles.metaGrid}>
@@ -1390,13 +1507,48 @@ function IntakeAnswerContinuationStatus({
       {[
         ...continuation.importPreview.findings,
         ...continuation.continuationReport.findings,
-      ]
-        .slice(0, 3)
-        .map((finding, index) => (
-          <p key={findingKey(finding, index)} className={styles.statusDetail}>
-            {finding.severity}: {finding.message}
-          </p>
-        ))}
+      ].length ? (
+        <IntakeAnswerFindingDiagnostics
+          findings={[
+            ...continuation.importPreview.findings,
+            ...continuation.continuationReport.findings,
+          ]}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function IntakeAnswerFindingDiagnostics({
+  findings,
+}: {
+  findings: readonly IdeaToSpecFinding[];
+}) {
+  if (!findings.length) return null;
+  return (
+    <div className={styles.subList}>
+      {findings.slice(0, 5).map((finding, index) => (
+        <div key={findingKey(finding, index)} className={styles.subRow}>
+          <span>
+            {finding.severity}: {finding.findingId}
+          </span>
+          <span className={styles.statusDetail}>{finding.message}</span>
+          {finding.targetRef ? (
+            <span className={styles.statusDetail}>Target: {finding.targetRef}</span>
+          ) : null}
+          {finding.sourceRef ? (
+            <span className={styles.statusDetail}>Source: {finding.sourceRef}</span>
+          ) : null}
+          {finding.nextAction ? (
+            <span className={styles.statusDetail}>Next action: {finding.nextAction}</span>
+          ) : null}
+        </div>
+      ))}
+      {findings.length > 5 ? (
+        <p className={styles.statusDetail}>
+          {findings.length - 5} additional answer finding(s) hidden.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -1483,7 +1635,9 @@ function IntakeClarificationRequestRow({
     setSelectedAction(draft?.answerKind ?? defaultAction);
     setAnswerText(intakeAnswerText(draft, publishedAnswer) ?? "");
   }, [defaultAction, draft, publishedAnswer]);
-  const requiredFields = answerTarget?.requiredFieldsByAction[selectedAction] ?? [];
+  const requiredFields = answerTarget
+    ? intakeClarificationRequiredFields(answerTarget, selectedAction)
+    : [];
   const value = answerTarget
     ? intakeClarificationValueForTemplate(answerTarget, selectedAction, answerText)
     : intakeClarificationValueForRequest(request, selectedAction, answerText);
@@ -1533,11 +1687,17 @@ function IntakeClarificationRequestRow({
               </option>
             ))}
           </select>
-          <button className={styles.ackButton} type="submit" disabled={!canSave}>
+          <button
+            data-testid={`intake-clarification-answer-save-${request.id}`}
+            className={styles.ackButton}
+            type="submit"
+            disabled={!canSave}
+          >
             {pending ? "Saving" : draft ? "Update answer" : "Save answer"}
           </button>
         </div>
         <textarea
+          data-testid={`intake-clarification-answer-${request.id}`}
           className={styles.draftTextarea}
           value={answerText}
           onChange={(event) => setAnswerText(event.currentTarget.value)}
@@ -1552,7 +1712,10 @@ function IntakeClarificationRequestRow({
           </span>
         ) : null}
         {draft ? (
-          <span className={styles.statusDetail}>
+          <span
+            className={styles.statusDetail}
+            data-testid={`intake-clarification-answer-saved-${request.id}`}
+          >
             Answer saved · {draft.answerKind.replace(/_/g, " ")} · {draft.updatedAt}
           </span>
         ) : publishedAnswer ? (
@@ -2890,12 +3053,14 @@ function ProductRepairReviewSection({
   repairDrafts,
   repairRerunRequests,
   workspaceId,
+  onWorkspaceRefreshRequest,
   readOnly,
 }: {
   state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
   repairDrafts: ReturnType<typeof useIdeaToSpecRepairDrafts>;
   repairRerunRequests: ReturnType<typeof useIdeaToSpecRepairRerunRequests>;
   workspaceId: string | null;
+  onWorkspaceRefreshRequest?: () => void;
   readOnly: boolean;
 }) {
   const lane = state.data.repairReview;
@@ -3008,11 +3173,15 @@ function ProductRepairReviewSection({
               : null
           }
           onSave={(input) =>
-            repairDrafts.saveDraft({
-              ...input,
-              workspaceId,
-              operatorRef: "operator://specspace-local",
-            })
+            void repairDrafts
+              .saveDraft({
+                ...input,
+                workspaceId,
+                operatorRef: "operator://specspace-local",
+              })
+              .then((saved) => {
+                if (saved) onWorkspaceRefreshRequest?.();
+              })
           }
           readOnly={readOnly}
         />
@@ -4004,7 +4173,7 @@ function intakeClarificationValueForTemplate(
   text: string,
 ): Record<string, unknown> {
   const trimmed = text.trim();
-  const required = target.requiredFieldsByAction[action] ?? [];
+  const required = intakeClarificationRequiredFields(target, action);
   const value: Record<string, unknown> = {};
   for (const field of required) {
     if (field === "value.refs[]" || field === "value.refs") {
@@ -4048,6 +4217,27 @@ function intakeClarificationValueForTemplate(
     action,
     text,
   );
+}
+
+function intakeClarificationRequiredFields(
+  target: IdeaToSpecRealIdeaAnswerTarget,
+  action: string,
+): string[] {
+  const required = target.requiredFieldsByAction[action] ?? [];
+  const template = target.valueTemplatesByAction[action];
+  if (
+    !required.includes("value") ||
+    !template ||
+    typeof template !== "object" ||
+    Array.isArray(template)
+  ) {
+    return [...required];
+  }
+  const expanded = Object.entries(template as Record<string, unknown>).flatMap(
+    ([key, item]) => (Array.isArray(item) ? [`value.${key}[]`] : [`value.${key}`]),
+  );
+  if (expanded.length === 0) return [...required];
+  return required.flatMap((field) => (field === "value" ? expanded : [field]));
 }
 
 function intakeClarificationTemplateValueIsComplete(

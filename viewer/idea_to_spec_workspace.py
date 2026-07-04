@@ -85,6 +85,12 @@ SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT = (
 PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT = (
     "platform_product_repair_rerun_execution_report.json"
 )
+PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT = (
+    "platform_product_repair_draft_import_preview_execution_report.json"
+)
+PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT = (
+    "platform_product_repair_rerun_request_gate_execution_report.json"
+)
 PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT = (
     "platform_product_repair_rerun_publication_report.json"
 )
@@ -175,6 +181,11 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT,
     SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT,
     SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT,
+    # Platform execution reports are public-safe telemetry. They expose
+    # sanitized refs/status/digests so Product Workspace can show handoff
+    # progress, but they do not grant execution or mutation authority.
+    PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT,
+    PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT,
     PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT,
     PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT,
     REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT,
@@ -263,6 +274,12 @@ ARTIFACT_KEYS: dict[str, str] = {
     SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT: "specspace_repair_draft_import_preview",
     SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT: "specspace_repair_draft_rerun_report",
     SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT: "specspace_repair_rerun_request_gate",
+    PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT: (
+        "product_repair_draft_import_execution"
+    ),
+    PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT: (
+        "product_repair_rerun_request_gate_execution"
+    ),
     PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT: "product_repair_rerun_execution",
     PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT: "product_repair_rerun_publication",
     REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT: "repaired_handoff",
@@ -361,6 +378,12 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT: "specspace_repair_draft_import_preview",
     SPECSPACE_REPAIR_DRAFT_RERUN_REPORT_ARTIFACT: "specspace_repair_draft_rerun_report",
     SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT: "specspace_repair_rerun_request_gate",
+    PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT: (
+        "platform_product_repair_draft_import_preview_execution_report"
+    ),
+    PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT: (
+        "platform_product_repair_rerun_request_gate_execution_report"
+    ),
     PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT: (
         "platform_product_repair_rerun_execution_report"
     ),
@@ -1174,6 +1197,16 @@ def _artifact_status(
         status_payload["candidate_id"] = candidate_id
     if repair_session_ref:
         status_payload["repair_session_ref"] = repair_session_ref
+    if filename in {
+        PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT,
+        PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT,
+    }:
+        status_payload["ok"] = data.get("ok") is True
+        status_payload["dry_run"] = data.get("dry_run") is True
+        status_payload["authority_boundary"] = _record(data.get("authority_boundary"))
+        status_payload["output_artifacts"] = {
+            row["key"]: row for row in _product_repair_rerun_output_artifacts(data)
+        }
     session = _session_projection(data.get("session"))
     if session:
         status_payload["session"] = session
@@ -1575,6 +1608,8 @@ def _findings(payload: dict[str, Any] | None) -> list[dict[str, Any]]:
                 "source_ref": _optional_text(
                     item.get("source_ref") or item.get("source")
                 ),
+                "target_ref": _optional_text(item.get("target_ref")),
+                "next_action": _optional_text(item.get("next_action")),
             }
         )
     return rows
@@ -2018,6 +2053,10 @@ def _real_idea_answer_continuation(
                 "next_action": (
                     "Run `make specspace-real-idea-answer-import-preview` in SpecGraph."
                 ),
+                "command_hint": (
+                    "make specspace-real-idea-answer-import-preview "
+                    "SPECSPACE_REAL_IDEA_ANSWERS=<SpecSpace state>"
+                ),
             }
         )
     elif not _readiness(import_preview)["ready"]:
@@ -2037,6 +2076,10 @@ def _real_idea_answer_continuation(
                     "Run `make real-idea-intake-materialize-specspace-answers` "
                     "in SpecGraph."
                 ),
+                "command_hint": (
+                    "make real-idea-intake-materialize-specspace-answers "
+                    "SPECSPACE_REAL_IDEA_ANSWERS=<SpecSpace state>"
+                ),
             }
         )
     elif not _readiness(continuation_report)["ready"]:
@@ -2055,6 +2098,11 @@ def _real_idea_answer_continuation(
                 "next_action": (
                     "Run `make real-idea-intake-continue-from-specspace-answers` "
                     "or the Platform handoff."
+                ),
+                "command_hint": (
+                    "scripts/platform.py product-real-idea-continuation execute "
+                    "--answer-state <SpecSpace state dir>/"
+                    "idea_to_spec_intake_clarification_answers.json"
                 ),
             }
         )
@@ -2115,6 +2163,7 @@ def _real_idea_entry_execution(report: dict[str, Any] | None) -> dict[str, Any]:
             (report or {}).get("entry_requests_source_digest")
         ),
         "output_refs": _safe_refs([item.get("path") for item in output_artifacts]),
+        "output_artifacts": output_artifacts,
         "output_artifact_count": _number(summary.get("output_artifact_count")),
         "diagnostic_count": len(_records((report or {}).get("diagnostics"))),
         "operations": _product_repair_rerun_operations(report),
@@ -3648,6 +3697,7 @@ def _product_repair_rerun_output_artifacts(
                 "artifact_kind": _optional_text(item.get("artifact_kind")),
                 "contract_ref": _optional_text(item.get("contract_ref")),
                 "status": _optional_text(item.get("status")),
+                "summary": _record(item.get("summary")),
                 "ready": item.get("ready") is True,
                 "sha256": _optional_text(item.get("sha256")),
             }
@@ -3762,6 +3812,7 @@ def _approval_readiness(
     product_repair_rerun_publication: dict[str, Any] | None,
     candidate_approval_execution: dict[str, Any] | None,
     candidate_approval: dict[str, Any] | None,
+    ontology_seed_review_required: bool = False,
 ) -> dict[str, Any]:
     selected_active_candidate = repaired_active_candidate or active_candidate
     selected_repair_session = repaired_repair_session or repair_session
@@ -3872,6 +3923,8 @@ def _approval_readiness(
         blockers.append("promotion_paths_missing")
     if repaired_handoff is not None and not repaired_artifacts_published:
         blockers.append("repaired_artifacts_not_published")
+    if ontology_seed_review_required:
+        blockers.append("ontology_seed_review_required")
     if not platform_rerun_executed and product_repair_rerun_execution is not None:
         blockers.append("repair_rerun_execution_not_complete")
     if not platform_rerun_published and product_repair_rerun_publication is not None:
@@ -5043,6 +5096,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         git_execution.get("available") is True
     )
     promotion_execution_ready_for_review = promotion_execution_status == "ready"
+    promotion_execution_dry_run_complete = promotion_execution_status == "dry_run"
     promotion_execution_blocked = promotion_execution_status == "blocked"
     review_available = review_status.get("available") is True
     review_ok = review_status.get("ok") is True
@@ -5422,6 +5476,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             status=(
                 "completed"
                 if promotion_execution_ready_for_review
+                or promotion_execution_dry_run_complete
                 else "blocked"
                 if promotion_execution_blocked
                 else "available"
@@ -5818,6 +5873,9 @@ def build_idea_to_spec_workspace(
         product_repair_rerun_publication=product_repair_rerun_publication,
         candidate_approval_execution=candidate_approval_execution,
         candidate_approval=candidate_approval,
+        ontology_seed_review_required=(
+            _ontology_seed_blocked(candidate_seed) and not ontology_seed_review_resolved
+        ),
     )
     workflow = _workflow(
         statuses=statuses,

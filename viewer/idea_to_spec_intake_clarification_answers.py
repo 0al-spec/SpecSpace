@@ -276,7 +276,6 @@ def save_intake_answer(
             "request_id": request_id,
             "allowed_actions": allowed_actions,
         }
-    raw_answer_value = _record(payload.get("value", payload.get("answer_value")))
     answer_value, value_error = _normalize_answer_value(
         answer_kind,
         payload.get("value", payload.get("answer_value")),
@@ -286,7 +285,7 @@ def save_intake_answer(
     missing_required = _missing_template_required_fields(
         template_target,
         answer_kind,
-        raw_answer_value,
+        answer_value,
     )
     if missing_required:
         return HTTPStatus.BAD_REQUEST, {
@@ -477,10 +476,34 @@ def _missing_template_required_fields(
     answer_kind: str,
     value: dict[str, Any],
 ) -> list[str]:
+    required_fields = _template_required_fields(target, answer_kind)
+    return [field for field in required_fields if not _template_field_present(value, field)]
+
+
+def _template_required_fields(target: dict[str, Any], answer_kind: str) -> list[str]:
     required_fields = _string_list(
         _record(_record(target).get("required_fields_by_action")).get(answer_kind)
     )
-    return [field for field in required_fields if not _template_field_present(value, field)]
+    template = _record(_record(target).get("value_templates_by_action")).get(answer_kind)
+    if "value" not in required_fields or not isinstance(template, dict):
+        return required_fields
+    # Contract invariant: when a template uses generic `value` as the required
+    # field, every key in value_templates_by_action[action] describes required
+    # structure. Optional keys must be expressed as explicit required fields
+    # instead of through the generic `value` shorthand.
+    expanded = []
+    for key, item in template.items():
+        if not isinstance(key, str) or not key:
+            continue
+        suffix = "[]" if isinstance(item, list) else ""
+        expanded.append(f"value.{key}{suffix}")
+    if not expanded:
+        return required_fields
+    return [
+        expanded_field
+        for field in required_fields
+        for expanded_field in (expanded if field == "value" else [field])
+    ]
 
 
 def _template_field_present(value: dict[str, Any], field: str) -> bool:
@@ -496,6 +519,8 @@ def _template_field_present(value: dict[str, Any], field: str) -> bool:
         return _substantive(value.get("context") or value.get("text"))
     if path == "answer":
         return _substantive(value.get("answer") or value.get("text"))
+    if path == "follow_up":
+        return _substantive(value.get("follow_up") or value.get("reason"))
     return _substantive(value.get(path))
 
 

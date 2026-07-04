@@ -39,6 +39,8 @@ export type IdeaToSpecFinding = {
   severity: string;
   message: string;
   sourceRef: string | null;
+  targetRef: string | null;
+  nextAction: string | null;
 };
 
 export type IdeaToSpecOntologySeedBinding = {
@@ -204,6 +206,7 @@ export type IdeaToSpecRealIdeaAnswerContinuation = {
     id: string;
     label: string;
     nextAction: string;
+    commandHint: string | null;
   }[];
   actionBoundary: {
     inspectOnly: true;
@@ -264,6 +267,8 @@ export type IdeaToSpecRealIdeaIntake = {
     outputRefs: readonly string[];
     outputArtifactCount: number;
     diagnosticCount: number;
+    operations: readonly IdeaToSpecProductRepairRerunOperation[];
+    outputArtifacts: readonly IdeaToSpecProductRepairRerunOutputArtifact[];
   };
   sourceRefs: readonly string[];
   authorityBoundary: {
@@ -1705,7 +1710,7 @@ export type UseIdeaToSpecWorkspaceState =
 type Options = {
   url?: string;
   fetcher?: typeof fetch;
-  refreshKey?: number;
+  refreshKey?: number | string;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -1810,6 +1815,8 @@ function parseFinding(raw: unknown): IdeaToSpecFinding | null {
     severity: stringValue(finding.severity, "unknown"),
     message: stringValue(finding.message, "No message supplied."),
     sourceRef: optionalString(finding.source_ref),
+    targetRef: optionalString(finding.target_ref),
+    nextAction: optionalString(finding.next_action),
   };
 }
 
@@ -2076,6 +2083,7 @@ function parseRealIdeaAnswerContinuation(
             action.next_action,
             "Inspect answer continuation state.",
           ),
+          commandHint: optionalString(action.command_hint),
         },
       ];
     }),
@@ -2598,6 +2606,14 @@ function parseRealIdeaIntake(raw: unknown): IdeaToSpecRealIdeaIntake {
       outputRefs: strings(entryExecution.output_refs),
       outputArtifactCount: numberValue(entryExecution.output_artifact_count),
       diagnosticCount: numberValue(entryExecution.diagnostic_count),
+      operations: records(entryExecution.operations).flatMap((item) => {
+        const parsed = parseProductRepairRerunOperation(item);
+        return parsed ? [parsed] : [];
+      }),
+      outputArtifacts: records(entryExecution.output_artifacts).flatMap((item) => {
+        const parsed = parseProductRepairRerunOutputArtifact(item);
+        return parsed ? [parsed] : [];
+      }),
     },
     sourceRefs: strings(intake.source_refs),
     authorityBoundary: {

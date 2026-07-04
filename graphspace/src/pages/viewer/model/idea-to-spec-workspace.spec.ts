@@ -862,6 +862,24 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(continuation.recommendedActions[0].id).toBe("valid-action");
   });
 
+  it("preserves real idea answer finding refs and next actions", () => {
+    const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+
+    const finding =
+      parsed.data.intakeClarification.answerAuthoring.report.findings[0];
+    expect(finding.findingId).toBe("answer_required_field_empty");
+    expect(finding.targetRef).toBe(
+      "clarification.intake.question-active-frame-domain-refs",
+    );
+    expect(finding.sourceRef).toBe(
+      "runs/real_idea_smoke/real_idea_answer_set.json",
+    );
+    expect(finding.nextAction).toBe("Add at least one value.refs[] entry.");
+  });
+
   it("builds a deterministic candidate workflow topology view", () => {
     const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
 

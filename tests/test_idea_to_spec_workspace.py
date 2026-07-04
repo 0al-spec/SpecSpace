@@ -3571,11 +3571,22 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(lane["action_boundary"]["may_execute_specgraph"])
 
     def test_build_workspace_projects_real_idea_answer_authoring(self) -> None:
+        authoring_report = _real_idea_answer_authoring_report()
+        authoring_report["findings"] = [
+            {
+                "finding_id": "answer_required_field_empty",
+                "severity": "review_required",
+                "message": "Answer requires refs before materialization.",
+                "source_ref": "runs/real_idea_smoke/real_idea_answer_set.json",
+                "target_ref": "active_frame.domain_refs",
+                "next_action": "Add at least one value.refs[] entry.",
+            }
+        ]
         artifacts = {
             **_workspace_artifacts(),
             idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
             idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: _real_idea_answer_template(),
-            idea_to_spec_workspace.REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT: _real_idea_answer_authoring_report(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT: authoring_report,
             idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_ARTIFACT: _real_idea_answer_set(),
         }
 
@@ -3599,6 +3610,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(authoring["answer_set"]["answer_count"], 1)
         self.assertTrue(authoring["validation"]["ready"])
+        finding = authoring["report"]["findings"][0]
+        self.assertEqual(finding["finding_id"], "answer_required_field_empty")
+        self.assertEqual(finding["source_ref"], "runs/real_idea_smoke/real_idea_answer_set.json")
+        self.assertEqual(finding["target_ref"], "active_frame.domain_refs")
+        self.assertEqual(finding["next_action"], "Add at least one value.refs[] entry.")
         self.assertFalse(authoring["action_boundary"]["may_execute_specgraph"])
         self.assertFalse(authoring["action_boundary"]["may_apply_answers"])
 
@@ -3632,6 +3648,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             continuation["continuation_report"]["outputs"]["validated_answers"],
             "runs/idea_intake_clarification_answers.json",
+        )
+        self.assertIn(
+            "product-real-idea-continuation execute",
+            continuation["recommended_actions"][0]["command_hint"],
         )
         self.assertFalse(continuation["action_boundary"]["may_execute_specgraph"])
         self.assertFalse(continuation["action_boundary"]["may_apply_answers"])
@@ -4124,6 +4144,58 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             readiness["action_boundary"][
                 "may_materialize_candidate_approval_decision"
             ]
+        )
+
+    def test_approval_readiness_requires_ontology_seed_review(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts.pop(
+            idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+        )
+        candidate_seed = _candidate_seed()
+        candidate_seed["source_generation"]["ontology_gaps"][0][
+            "blocks_candidate_graph"
+        ] = True
+        artifacts[idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT] = (
+            candidate_seed
+        )
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+        publication = _product_repair_rerun_publication_report()
+        publication["published_artifacts"] = _published_repaired_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = publication
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+        ] = _active_candidate()
+        repaired_session = _repaired_repair_session_journal()
+        repaired_session["readiness_impact"]["platform_promotion_blocked_by"] = [
+            "candidate_approval_decision_missing"
+        ]
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = repaired_session
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertEqual(readiness["status"], "approval_blocked_by_handoff")
+        self.assertFalse(readiness["promotion_review_can_be_requested"])
+        self.assertIn("ontology_seed_review_required", readiness["blockers"])
+        self.assertEqual(
+            body["workflow"]["stage"],
+            "ontology_seed_review_required",
         )
 
     def test_approval_readiness_uses_candidate_approval_execution_report(
@@ -5357,7 +5429,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["workflow"]["next_handoff"]["kind"],
             "product_candidate_promotion_open_review",
         )
-        self.assertEqual(_guided_stage(body, "git_dry_run")["status"], "available")
+        self.assertEqual(_guided_stage(body, "git_dry_run")["status"], "completed")
         self.assertEqual(
             _guided_stage(body, "review_publication")["status"],
             "blocked",

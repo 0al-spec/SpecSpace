@@ -74,6 +74,13 @@ jobs:
           ref: ${{ inputs.specgraph_ref || 'main' }}
           path: SpecGraph
 
+      - name: Check out Metrics
+        uses: actions/checkout@v6
+        with:
+          repository: 0al-spec/Metrics
+          ref: main
+          path: Metrics
+
       - name: Check out SpecPM
         uses: actions/checkout@v6
         with:
