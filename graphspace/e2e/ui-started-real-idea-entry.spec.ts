@@ -1193,6 +1193,47 @@ test("opens a new idea workspace from the sidebar entry point", async ({ page })
   }
 });
 
+test("opens a backend-allocated route for a non-English workspace name", async ({
+  page,
+}) => {
+  const backend = await startSpecSpaceBackend();
+  try {
+    await installRunsWatchMock(page);
+    await installRealBackendApiRoutes(page, backend.baseUrl);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+
+    const sidebar = page.getByLabel("SpecSpace Sidebar");
+    await sidebar
+      .getByRole("textbox", { name: "New idea workspace" })
+      .fill("Домашний контроль подписок");
+    await expect(sidebar.getByTestId("new-idea-workspace-route")).toContainText(
+      "SpecSpace will ask the backend to allocate a safe route.",
+    );
+
+    await sidebar.getByRole("button", { name: "Open workspace" }).click();
+
+    await expect(page).toHaveURL(/\/idea-[a-f0-9]{10}$/);
+    await expect(page.getByText("Домашний контроль подписок").first()).toBeVisible();
+    await expect(page.getByTestId("workspace-creation-status")).toContainText(
+      "Workspace creation requested",
+    );
+
+    const stateResponse = await fetch(
+      `${backend.baseUrl}/api/v1/product-workspace-creation-requests`,
+    );
+    expect(stateResponse.ok).toBeTruthy();
+    const state = (await stateResponse.json()) as {
+      requests?: Array<{ workspace_id?: string; route?: string; status?: string }>;
+    };
+    expect(state.requests?.[0]?.workspace_id).toMatch(/^idea-[a-f0-9]{10}$/);
+    expect(state.requests?.[0]?.route).toBe(`/${state.requests?.[0]?.workspace_id}`);
+  } finally {
+    await backend.stop();
+  }
+});
+
 test("refreshes an opened workspace after controlled initialization is published", async ({
   page,
 }) => {

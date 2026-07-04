@@ -252,8 +252,9 @@ export function useProductWorkspaceCreationRequests({
           });
           return false;
         }
-        setState(parseProductWorkspaceCreationRequestState(body));
-        return true;
+        const parsed = parseProductWorkspaceCreationRequestState(body);
+        setState(parsed);
+        return parsed.kind === "ok" ? parsed.data : false;
       } catch (error) {
         setSaveError({ kind: "network-error", error });
         return false;
