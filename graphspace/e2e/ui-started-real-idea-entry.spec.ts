@@ -1520,29 +1520,21 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     ) as { terms?: Array<{ term_key?: string; term?: string }> };
     const projectLocalTerms = projectLocalLanePayload.terms ?? [];
     expect(projectLocalTerms.length).toBeGreaterThan(0);
+    const projectLocalReview = page.locator("#idea-to-spec-project-local-ontology-review");
     for (const term of projectLocalTerms) {
       const termKey = term.term_key;
       expect(termKey).toBeTruthy();
-      const response = await fetch(
-        `${backend.baseUrl}/api/v1/project-local-ontology-review-decisions?workspace=${workspaceId}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            workspace_id: workspaceId,
-            term_key: termKey,
-            action: "keep_project_local",
-            decision_value: {
-              reason: "Keep this term project-local for the UI-started candidate review.",
-            },
-            operator_ref: "operator://ui-e2e",
-          }),
-        },
+      const termRow = projectLocalReview
+        .getByText(termKey!, { exact: true })
+        .locator("xpath=ancestor::div[.//form][1]");
+      await termRow
+        .getByLabel("Project-local ontology review action")
+        .selectOption("keep_project_local");
+      await termRow.getByLabel("Project-local ontology review decision").fill(
+        "Keep this term project-local for the UI-started candidate review.",
       );
-      expect(
-        response.ok,
-        `failed to save project-local decision for ${term.term ?? termKey}: ${await response.text()}`,
-      ).toBeTruthy();
+      await termRow.getByRole("button", { name: "Save decision" }).click();
+      await expect(termRow.getByText("Decision saved")).toBeVisible();
     }
 
     const projectLocalImportPreview = await runCommand(
@@ -1579,7 +1571,6 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       specGraphRunDir,
     });
     await emitRunsChange(page);
-    const projectLocalReview = page.locator("#idea-to-spec-project-local-ontology-review");
     await expect(
       projectLocalReview.getByText("Effective project-local review", { exact: true }),
     ).toBeVisible();

@@ -75,6 +75,8 @@ reviews, or publish read models.
 - Project-local ontology review is part of approval readiness. Approval intent
   stays unavailable while ontology seed review is required and no effective
   project-local decision effect exists.
+- Project-local ontology decisions are now saved through the Product Workspace
+  browser controls in the execution-backed e2e, not by direct API writes.
 - Isolated run-dir project-local ontology imports accept the canonical
   `runs/project_local_ontology_review_lane.json` decision ref as a safe alias
   for `runs/<run-dir>/project_local_ontology_review_lane.json`.
@@ -227,20 +229,22 @@ Follow-up scope:
 Use the actual Product Workspace project-local ontology review controls in the
 execution-backed browser smoke.
 
-Status: open. The e2e currently generates the project-local ontology review
-lane, then saves `keep_project_local` decisions by posting directly to
-`/api/v1/project-local-ontology-review-decisions`. That proves the backend
-contract and downstream SpecGraph import/effect path, but it does not prove the
-operator-facing review form.
+Status: closed. The e2e generates the project-local ontology review lane, then
+uses the browser to select `keep_project_local`, fill the rationale, save each
+decision, and continue through SpecGraph import preview plus decision effect.
 
 Acceptance criteria:
 
 - The browser selects `keep_project_local` for each surfaced project-local term.
+  Done.
 - The browser fills the decision rationale where the UI requires one.
+  Done.
 - The saved SpecSpace-owned state still feeds the existing SpecGraph import
   preview and decision effect report.
+  Done.
 - Approval intent remains unavailable before effective review and becomes
   available after effective review.
+  Done.
 
 ### 7. Browser E2E: Repair Draft UI Coverage
 
@@ -273,8 +277,6 @@ Acceptance criteria:
   projection while only mutable state APIs are real.
 - Local state directory, SpecGraph run directory, and product workspace artifact
   base can drift during manual smoke runs.
-- The execution-backed smoke still uses direct API POSTs for project-local
-  ontology decisions. Replace this with browser interaction in the next slice.
 - The execution-backed smoke should broaden repair draft UI coverage so
   product/spec gap answers are proven through real forms, not just compatible
   persisted state.
