@@ -296,6 +296,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
           status: "workspace_initialization_execution_requested",
           ready_for_managed_execution: true,
           requested_operation: "workspace.execute-initialization-plan",
+          idempotency_key: "a".repeat(64),
         },
         execution: {
           status: "workspace_initialization_executed",
@@ -326,6 +327,8 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Managed ready");
     expect(html).toContain("Requested operation");
     expect(html).toContain("workspace.execute-initialization-plan");
+    expect(html).toContain("Idempotency");
+    expect(html).toContain("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     expect(html).toContain("Catalog binding");
     expect(html).toContain("written");
   });
