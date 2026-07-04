@@ -1751,7 +1751,9 @@ function IntakeAnswerContinuationStatus({
           <span className={styles.rowId}>Answer continuation pending</span>
           <Pill
             value={
-              activeRequest
+              executionRequests.pending
+                ? "requesting"
+                : activeRequest
                 ? "execution requested"
                 : canRequestExecution
                   ? "ready to request"
