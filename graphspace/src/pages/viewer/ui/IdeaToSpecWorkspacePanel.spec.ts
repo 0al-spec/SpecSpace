@@ -292,6 +292,11 @@ describe("IdeaToSpecWorkspacePanel", () => {
         available: true,
         trusted: true,
         initialized: true,
+        execution_request: {
+          status: "workspace_initialization_execution_requested",
+          ready_for_managed_execution: true,
+          requested_operation: "workspace.execute-initialization-plan",
+        },
         execution: {
           status: "workspace_initialization_executed",
           catalog_written: true,
@@ -316,6 +321,11 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("/pantry-rotation");
     expect(html).toContain("Initialized");
     expect(html).toContain("workspace_initialization_executed");
+    expect(html).toContain("Execution request");
+    expect(html).toContain("workspace_initialization_execution_requested");
+    expect(html).toContain("Managed ready");
+    expect(html).toContain("Requested operation");
+    expect(html).toContain("workspace.execute-initialization-plan");
     expect(html).toContain("Catalog binding");
     expect(html).toContain("written");
   });

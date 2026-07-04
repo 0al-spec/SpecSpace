@@ -779,6 +779,15 @@ projection does not let the UI apply answers, run SpecGraph, run Platform, execu
 prompt agents, mutate candidate source artifacts, mutate canonical specs, write
 Ontology packages, accept Ontology terms, or create Git branches/commits.
 
+The response may also embed `workspace_initialization.execution_request` when
+Platform publishes
+`runs/product_workspace_initialization_execution_request.json`. This is a
+managed-execution handoff only. It exposes request status, requested operation,
+readiness, and idempotency evidence, but it does not mean SpecSpace may execute
+Platform or initialize the workspace from the browser. The request must remain
+public-safe and request-only; any expanded execution/mutation authority makes
+the initialization surface untrusted.
+
 When `runs/candidate_overview.json` is present, the response embeds
 `candidate_overview`, a read-only narrative surface over the selected candidate
 graph. It summarizes product intent, understood scope, event-storming frame

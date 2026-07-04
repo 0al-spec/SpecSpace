@@ -621,6 +621,20 @@ function WorkspaceCreationSection({
             value={creation.initialization.executionStatus}
           />
           <Meta
+            label="Execution request"
+            value={creation.initialization.requestStatus}
+          />
+          <Meta
+            label="Managed ready"
+            value={
+              creation.initialization.requestReadyForManagedExecution ? "yes" : null
+            }
+          />
+          <Meta
+            label="Requested operation"
+            value={creation.initialization.requestedOperation}
+          />
+          <Meta
             label="Catalog binding"
             value={creation.initialization.catalogWritten ? "written" : null}
           />
