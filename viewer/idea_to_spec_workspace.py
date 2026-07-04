@@ -2337,7 +2337,9 @@ def _workspace_initialization_surface(
             "available": selected_request is not None,
             "trusted": request_trusted if selected_request is not None else False,
             "ok": request_trusted and (selected_request or {}).get("ok") is True,
-            "status": _optional_text(request_summary.get("status")),
+            "status": _optional_text(
+                request_summary.get("status") if request_trusted else None
+            ),
             "ready_for_managed_execution": (
                 request_trusted
                 and request_summary.get("ready_for_managed_execution") is True
