@@ -52,6 +52,7 @@ import {
   type UseIdeaToSpecIntakeClarificationAnswersState,
 } from "../model/use-idea-to-spec-intake-clarification-answers";
 import { useRealIdeaEntryRequests } from "../model/use-real-idea-entry-requests";
+import { useRealIdeaIntakeExecutionRequests } from "../model/use-real-idea-intake-execution-requests";
 import {
   useIdeaToSpecCandidateApprovalIntents,
   type IdeaToSpecCandidateApprovalIntentError,
@@ -71,6 +72,7 @@ type Props = {
   repairDraftsUrl?: string;
   intakeClarificationAnswersUrl?: string;
   realIdeaEntryRequestsUrl?: string;
+  realIdeaIntakeExecutionRequestsUrl?: string;
   repairRerunRequestsUrl?: string;
   candidateApprovalIntentsUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
@@ -96,6 +98,19 @@ function errorDetail(
 
 function realIdeaEntryRequestErrorText(
   error: NonNullable<ReturnType<typeof useRealIdeaEntryRequests>["saveError"]>,
+): string {
+  if (error.kind === "network-error") return "network error";
+  return describeHttpErrorDetail({
+    status: error.status,
+    statusText: error.statusText,
+    body: error.body,
+  });
+}
+
+function realIdeaIntakeExecutionRequestErrorText(
+  error: NonNullable<
+    ReturnType<typeof useRealIdeaIntakeExecutionRequests>["saveError"]
+  >,
 ): string {
   if (error.kind === "network-error") return "network error";
   return describeHttpErrorDetail({
@@ -305,6 +320,7 @@ export function IdeaToSpecWorkspacePanel({
   repairDraftsUrl,
   intakeClarificationAnswersUrl,
   realIdeaEntryRequestsUrl,
+  realIdeaIntakeExecutionRequestsUrl,
   repairRerunRequestsUrl,
   candidateApprovalIntentsUrl,
   projectLocalOntologyReviewDecisionsUrl,
@@ -324,6 +340,11 @@ export function IdeaToSpecWorkspacePanel({
   const realIdeaEntryRequests = useRealIdeaEntryRequests({
     url: realIdeaEntryRequestsUrl,
     enabled: auxiliaryDataEnabled && state.kind === "ok",
+  });
+  const realIdeaIntakeExecutionRequests = useRealIdeaIntakeExecutionRequests({
+    url: realIdeaIntakeExecutionRequestsUrl,
+    enabled: auxiliaryDataEnabled && state.kind === "ok",
+    refreshKey: repairRerunRequestsRefreshKey,
   });
   const repairDraftRefreshKey = useMemo(() => {
     if (repairDrafts.state.kind !== "ok") return "repair-drafts-unavailable";
@@ -452,6 +473,7 @@ export function IdeaToSpecWorkspacePanel({
           activeFrame={frame}
           realIdeaIntake={data.realIdeaIntake}
           entryRequests={realIdeaEntryRequests}
+          executionRequests={realIdeaIntakeExecutionRequests}
           workspace={data.workspace}
           workspaceCreation={data.workspaceCreation}
           workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
@@ -583,6 +605,7 @@ function IdeaIntakeDraftSection({
   activeFrame,
   realIdeaIntake,
   entryRequests,
+  executionRequests,
   workspace,
   workspaceCreation,
   workspaceId,
@@ -592,6 +615,7 @@ function IdeaIntakeDraftSection({
   activeFrame: IdeaToSpecActiveFrame;
   realIdeaIntake: IdeaToSpecWorkspace["realIdeaIntake"];
   entryRequests: ReturnType<typeof useRealIdeaEntryRequests>;
+  executionRequests: ReturnType<typeof useRealIdeaIntakeExecutionRequests>;
   workspace: IdeaToSpecWorkspace["workspace"];
   workspaceCreation: IdeaToSpecWorkspace["workspaceCreation"];
   workspaceId: string | null;
@@ -605,6 +629,15 @@ function IdeaIntakeDraftSection({
     [idea, activeFrame],
   );
   const activeEntry = entryRequests.activeSubmittedRequest;
+  const activeExecutionRequest = executionRequests.activeRequest;
+  const executionRequestTargetsCurrentEntry =
+    activeExecutionRequest !== null &&
+    activeEntry !== null &&
+    activeExecutionRequest.entryRequestId === activeEntry.requestId;
+  const executionRequestTargetsStaleEntry =
+    activeExecutionRequest !== null &&
+    activeEntry !== null &&
+    activeExecutionRequest.entryRequestId !== activeEntry.requestId;
   const workspaceInitialized = workspaceCreation.initialization.initialized === true;
   const workspaceMatchesRoute = !workspaceId || workspace.id === workspaceId;
   const publishedWorkspaceReady =
@@ -652,13 +685,22 @@ function IdeaIntakeDraftSection({
   }
   const entryHandoffCommand = activeEntry
     ? [
-        "scripts/platform.py product-real-idea-intake execute \\",
+        "scripts/platform.py product-real-idea-intake execute-requested \\",
         "  --specgraph-dir <specgraph-repository> \\",
-        "  --entry-requests <SpecSpace state dir>/real_idea_entry_requests.json \\",
+        "  --execution-request <SpecSpace state dir>/real_idea_intake_execution_requests.json \\",
         `  --workspace-id ${workspaceId ?? activeEntry.workspaceId} \\`,
         `  --request-id ${activeEntry.requestId}`,
       ].join("\n")
     : null;
+  const workspaceInitializationRef =
+    "runs/platform_product_workspace_initialization_execution_report.json";
+  const canRequestIntakeExecution =
+    !readOnly &&
+    activeEntry !== null &&
+    workspaceInitialized &&
+    !realIdeaIntake.entryExecution.available &&
+    !executionRequests.pending &&
+    !executionRequestTargetsCurrentEntry;
   const canSubmit =
     !readOnly &&
     entryRequests.configured &&
@@ -901,12 +943,59 @@ function IdeaIntakeDraftSection({
           <div className={styles.row}>
             <div className={styles.rowHeader}>
               <span className={styles.rowId}>Next safe handoff</span>
-              <Pill value="operator command" />
+              <Pill
+                value={
+                  executionRequestTargetsCurrentEntry
+                    ? "requested"
+                    : executionRequestTargetsStaleEntry
+                      ? "replace request"
+                      : "operator request"
+                }
+              />
             </div>
             <p className={styles.statusDetail}>
-              Import the submitted entry through Platform. This is a command
-              hint only; SpecSpace does not execute SpecGraph.
+              Request controlled Platform intake execution. SpecSpace stores a
+              request intent only; a backend/Platform worker performs the
+              allowlisted execution.
             </p>
+            <button
+              data-testid="real-idea-intake-execution-request"
+              className={styles.ackButton}
+              type="button"
+              disabled={!canRequestIntakeExecution}
+              onClick={() => {
+                if (!activeEntry) return;
+                void executionRequests
+                  .requestExecution({
+                    workspaceId,
+                    entryRequestId: activeEntry.requestId,
+                    entryRequestsRef: "specspace-state://real_idea_entry_requests.json",
+                    workspaceInitializationRef,
+                    operatorRef: "operator://specspace-local",
+                  })
+                  .then((saved) => {
+                    if (saved) onWorkspaceRefreshRequest?.();
+                  });
+              }}
+            >
+              {executionRequests.pending
+                ? "Requesting intake execution"
+                : executionRequestTargetsStaleEntry
+                  ? "Replace intake execution request"
+                  : "Request intake execution"}
+            </button>
+            {activeExecutionRequest ? (
+              <p
+                className={styles.statusDetail}
+                data-testid="real-idea-intake-execution-request-status"
+              >
+                {executionRequestTargetsStaleEntry
+                  ? "Requested execution targets previous entry"
+                  : "Requested execution"}{" "}
+                · {activeExecutionRequest.requestId} · entry{" "}
+                {activeExecutionRequest.entryRequestId}
+              </p>
+            ) : null}
             <pre
               className={styles.codeBlock}
               data-testid="real-idea-entry-handoff-command"
@@ -914,6 +1003,12 @@ function IdeaIntakeDraftSection({
               {entryHandoffCommand}
             </pre>
           </div>
+        ) : null}
+        {executionRequests.saveError ? (
+          <p className={styles.statusDetail}>
+            Execution request failed ·{" "}
+            {realIdeaIntakeExecutionRequestErrorText(executionRequests.saveError)}
+          </p>
         ) : null}
         {entryRequests.saveError ? (
           <p className={styles.statusDetail}>
