@@ -456,6 +456,7 @@ export function IdeaToSpecWorkspacePanel({
           onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
           readOnly={readOnly}
         />
+        <WorkspaceCreationSection creation={data.workspaceCreation} />
         <GuidedFlowSection flow={data.guidedFlow} />
         <CandidateOverviewSection overview={data.candidateOverview} />
         <WorkflowSection workflow={data.workflow} />
@@ -512,6 +513,53 @@ export function IdeaToSpecWorkspacePanel({
           showRequestButton={false}
         />
         <ControlledPromotionSection state={state} />
+      </div>
+    </section>
+  );
+}
+
+function WorkspaceCreationSection({
+  creation,
+}: {
+  creation: IdeaToSpecWorkspace["workspaceCreation"];
+}) {
+  const activeRequest = creation.activeRequest;
+  return (
+    <section id="idea-to-spec-workspace-creation" className={styles.reviewSection}>
+      <SectionHeader title="Workspace creation" count={creation.requestCount} />
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Product workspace</span>
+          <Pill value={creation.status.replace(/_/g, " ")} />
+        </div>
+        <h3 className={styles.title} data-testid="workspace-creation-status">
+          {creation.status === "route_only_workspace"
+            ? "Route opened; backend workspace creation has not been requested yet."
+            : creation.status === "workspace_creation_requested"
+              ? "Workspace creation requested; waiting for controlled Platform initialization."
+              : creation.status === "workspace_initialized"
+                ? "Workspace initialized through backend-owned state."
+                : creation.status === "product_workspace_creation_state_invalid"
+                  ? "Workspace creation state is invalid."
+                  : "Workspace creation state is not available yet."}
+        </h3>
+        <div className={styles.postureStrip}>
+          <PostureItem label="Requests" value={String(creation.requestCount)} />
+          <PostureItem
+            label="Active"
+            value={String(creation.activeRequestedCount)}
+          />
+          <PostureItem label="Invalid" value={String(creation.invalidRequestCount)} />
+          <PostureItem label="Next" value={compact(creation.nextGap)} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Selected workspace" value={creation.selectedWorkspaceId} />
+          <Meta label="Request" value={activeRequest?.requestId} />
+          <Meta label="Workspace id" value={activeRequest?.workspaceId} />
+          <Meta label="Display name" value={activeRequest?.displayName} />
+          <Meta label="Route" value={activeRequest?.route} />
+          <Meta label="Request status" value={activeRequest?.status} />
+        </div>
       </div>
     </section>
   );

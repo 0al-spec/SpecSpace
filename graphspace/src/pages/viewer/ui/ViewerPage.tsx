@@ -110,6 +110,10 @@ import { useOntologyOwnerDecisionReview } from "../model/use-ontology-owner-deci
 import { useOntologyReviewDashboard } from "../model/use-ontology-review-dashboard";
 import { useOntologyWorkbench } from "../model/use-ontology-workbench";
 import { usePracticalOntology } from "../model/use-practical-ontology";
+import {
+  useProductWorkspaceCreationRequests,
+  type ProductWorkspaceCreationRequestError,
+} from "../model/use-product-workspace-creation-requests";
 import { useProposalIndex } from "../model/use-proposal-index";
 import { useSpecSpaceCapabilities } from "../model/use-specspace-capabilities";
 import { useSpecPMRegistrySummary } from "../model/use-specpm-registry-summary";
@@ -166,6 +170,24 @@ function productWorkspaceSlugFromInput(value: string): string | null {
   if (!/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/.test(slug)) return null;
   if (RESERVED_WORKSPACE_SLUGS.has(slug)) return null;
   return slug;
+}
+
+function workspaceCreationSaveErrorMessage(
+  error: ProductWorkspaceCreationRequestError,
+): string {
+  if (error.kind !== "http-error") return "Workspace request failed.";
+  const body = error.body;
+  if (
+    body &&
+    typeof body === "object" &&
+    !Array.isArray(body) &&
+    "error" in body &&
+    typeof body.error === "string" &&
+    body.error.trim()
+  ) {
+    return body.error;
+  }
+  return "Workspace request failed.";
 }
 
 export function ViewerPage({
@@ -253,6 +275,10 @@ export function ViewerPage({
         "/api/v1/real-idea-entry-requests",
         workspace,
       ),
+      productWorkspaceCreationRequests: workspaceApiUrl(
+        "/api/v1/product-workspace-creation-requests",
+        workspace,
+      ),
       ideaToSpecRepairRerunRequests: workspaceApiUrl(
         "/api/v1/idea-to-spec-repair-rerun-requests",
         workspace,
@@ -312,6 +338,11 @@ export function ViewerPage({
   const ideaToSpecWorkspaceState = useIdeaToSpecWorkspace({
     url: workspaceApiUrls.ideaToSpecWorkspace,
     refreshKey: `${runsWatchVersion}:${ideaToSpecWorkspaceRefreshKey}`,
+  });
+  const productWorkspaceCreationRequests = useProductWorkspaceCreationRequests({
+    url: workspaceApiUrls.productWorkspaceCreationRequests,
+    writeUrl: "/api/v1/product-workspace-creation-requests",
+    refreshKey: runsWatchVersion,
   });
   const ontologyWorkbenchState = useOntologyWorkbench({
     url: workspaceApiUrls.ontologyWorkbench,
@@ -1010,7 +1041,16 @@ export function ViewerPage({
             onSubmit={(event) => {
               event.preventDefault();
               if (newIdeaWorkspaceRoute === null) return;
-              window.location.assign(newIdeaWorkspaceRoute);
+              void productWorkspaceCreationRequests
+                .saveRequest({
+                  workspaceId: newIdeaWorkspaceSlug,
+                  displayName: newIdeaWorkspaceInput.trim(),
+                  route: newIdeaWorkspaceRoute,
+                  operatorRef: "operator://specspace-local",
+                })
+                .then((saved) => {
+                  if (saved) window.location.assign(newIdeaWorkspaceRoute);
+                });
             }}
           >
             <label
@@ -1032,10 +1072,13 @@ export function ViewerPage({
               <button
                 className={styles.newWorkspaceButton}
                 type="submit"
-                disabled={newIdeaWorkspaceRoute === null}
+                disabled={
+                  newIdeaWorkspaceRoute === null ||
+                  productWorkspaceCreationRequests.pending
+                }
                 aria-label="Open workspace"
               >
-                Open
+                {productWorkspaceCreationRequests.pending ? "Saving" : "Open"}
               </button>
             </div>
             <p
@@ -1046,6 +1089,13 @@ export function ViewerPage({
                 ? newIdeaWorkspaceRoute
                 : "Use a Latin route slug, for example /cash-flow-control."}
             </p>
+            {productWorkspaceCreationRequests.saveError ? (
+              <p className={styles.newWorkspaceError}>
+                {workspaceCreationSaveErrorMessage(
+                  productWorkspaceCreationRequests.saveError,
+                )}
+              </p>
+            ) : null}
           </form>
 
           <PanelBtnRow
