@@ -445,6 +445,58 @@ describe("parseIdeaToSpecWorkspace", () => {
     ).toBe("blocks_until_reviewed");
   });
 
+  it("parses backend workspace initialization evidence", () => {
+    const payload: any = structuredClone(ideaToSpecWorkspace);
+    payload.workspace_creation = {
+      artifact_kind: "specspace_product_workspace_creation_request_state",
+      selected_workspace_id: "pantry-rotation",
+      active_request: {
+        request_id: "product-workspace-request.pantry-rotation",
+        workspace_id: "pantry-rotation",
+        display_name: "Pantry Rotation",
+        route: "/pantry-rotation",
+        status: "initialized",
+        created_at: "2026-07-04T08:00:00Z",
+        updated_at: "2026-07-04T08:05:00Z",
+      },
+      summary: {
+        status: "workspace_initialized",
+        request_count: 1,
+        active_requested_count: 1,
+        invalid_request_count: 0,
+        next_gap: "start_real_idea_intake",
+      },
+      initialization: {
+        available: true,
+        trusted: true,
+        initialized: true,
+        execution: {
+          status: "workspace_initialization_executed",
+          catalog_written: true,
+          workspace_files_created: true,
+        },
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.workspaceCreation.status).toBe("workspace_initialized");
+    expect(parsed.data.workspaceCreation.nextGap).toBe("start_real_idea_intake");
+    expect(parsed.data.workspaceCreation.activeRequest?.status).toBe(
+      "initialized",
+    );
+    expect(parsed.data.workspaceCreation.initialization).toMatchObject({
+      available: true,
+      trusted: true,
+      initialized: true,
+      executionStatus: "workspace_initialization_executed",
+      catalogWritten: true,
+      workspaceFilesCreated: true,
+    });
+  });
+
   it("parses project-local ontology decision import preview", () => {
     const payload: any = structuredClone(ideaToSpecWorkspace);
     payload.summary.project_local_ontology_import_accepted_count = 1;

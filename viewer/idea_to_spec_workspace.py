@@ -44,6 +44,12 @@ REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT = (
 PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT = (
     "platform_real_idea_entry_intake_execution_report.json"
 )
+PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT = (
+    "product_workspace_initialization_plan.json"
+)
+PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT = (
+    "platform_product_workspace_initialization_execution_report.json"
+)
 CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT = "candidate_spec_graph_seed.json"
 CANDIDATE_SPEC_GRAPH_ARTIFACT = "candidate_spec_graph.json"
 CANDIDATE_OVERVIEW_ARTIFACT = "candidate_overview.json"
@@ -166,6 +172,8 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
     REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
     PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT,
+    PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT,
+    PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT,
     IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT,
     IDEA_TO_SPEC_CLARIFICATION_ANSWERS_ARTIFACT,
@@ -254,6 +262,12 @@ ARTIFACT_KEYS: dict[str, str] = {
     ),
     PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT: (
         "platform_real_idea_entry_intake_execution"
+    ),
+    PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT: (
+        "workspace_initialization_plan"
+    ),
+    PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT: (
+        "workspace_initialization_execution"
     ),
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "ontology_seed",
     CANDIDATE_OVERVIEW_ARTIFACT: "candidate_overview",
@@ -348,6 +362,12 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ),
     PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT: (
         "platform_real_idea_entry_intake_execution_report"
+    ),
+    PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT: (
+        "platform_product_workspace_initialization_plan"
+    ),
+    PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT: (
+        "platform_product_workspace_initialization_execution_report"
     ),
     CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT: "candidate_spec_graph_seed",
     CANDIDATE_OVERVIEW_ARTIFACT: "candidate_overview",
@@ -2167,6 +2187,102 @@ def _real_idea_entry_execution(report: dict[str, Any] | None) -> dict[str, Any]:
         "output_artifact_count": _number(summary.get("output_artifact_count")),
         "diagnostic_count": len(_records((report or {}).get("diagnostics"))),
         "operations": _product_repair_rerun_operations(report),
+    }
+
+
+def _workspace_initialization_authority_trusted(report: dict[str, Any] | None) -> bool:
+    if report is None:
+        return False
+    boundary = _record(report.get("authority_boundary"))
+    for key in (
+        "creates_git_commits",
+        "opens_pull_requests",
+        "publishes_read_models",
+        "mutates_canonical_specs",
+        "writes_ontology_packages",
+        "accepts_ontology_terms",
+    ):
+        if boundary.get(key) is True:
+            return False
+    return True
+
+
+def _workspace_initialization_surface(
+    *,
+    plan: dict[str, Any] | None,
+    execution: dict[str, Any] | None,
+    workspace_id: str | None = None,
+) -> dict[str, Any]:
+    plan_summary = _record((plan or {}).get("summary"))
+    execution_summary = _record((execution or {}).get("summary"))
+    workspace = _record((execution or plan or {}).get("workspace"))
+    plan_trusted = (
+        plan is None
+        or plan.get("artifact_kind")
+        == "platform_product_workspace_initialization_plan"
+    )
+    trusted = (
+        execution is not None
+        and execution.get("artifact_kind")
+        == "platform_product_workspace_initialization_execution_report"
+        and _workspace_initialization_authority_trusted(execution)
+    )
+    execution_workspace_id = _optional_text(_record((execution or {}).get("workspace")).get("workspace_id"))
+    workspace_matches = (
+        workspace_id is not None
+        and execution_workspace_id is not None
+        and execution_workspace_id == workspace_id
+    )
+    initialized = (
+        trusted
+        and workspace_matches
+        and execution.get("ok") is True
+        and execution.get("dry_run") is not True
+        and execution_summary.get("catalog_written") is True
+        and execution_summary.get("workspace_files_created") is True
+    )
+    return {
+        "available": plan is not None or execution is not None,
+        "trusted": (trusted if execution is not None else True) and plan_trusted,
+        "initialized": initialized,
+        "plan": {
+            "available": plan is not None,
+            "trusted": plan_trusted,
+            "ok": plan_trusted and (plan or {}).get("ok") is True,
+            "status": _optional_text(plan_summary.get("status")),
+            "ready_for_platform_initialization": (
+                plan_trusted
+                and plan_summary.get("ready_for_platform_initialization") is True
+            ),
+        },
+        "execution": {
+            "available": execution is not None,
+            "ok": (execution or {}).get("ok") is True,
+            "dry_run": (execution or {}).get("dry_run") is True,
+            "status": _optional_text(execution_summary.get("status")),
+            "specgraph_executed": execution_summary.get("specgraph_executed")
+            is True,
+            "catalog_written": execution_summary.get("catalog_written") is True,
+            "workspace_files_created": execution_summary.get("workspace_files_created")
+            is True,
+            "error_count": _number(execution_summary.get("error_count")),
+            "operations": _string_list((execution or {}).get("executed_operations")),
+        },
+        "workspace": {
+            "workspace_id": _optional_text(workspace.get("workspace_id")),
+            "display_name": _optional_text(workspace.get("display_name")),
+            "route": _optional_text(workspace.get("route")),
+            "repository_role": _optional_text(workspace.get("repository_role")),
+        },
+        "refs": {
+            "plan": _safe_ref((execution or {}).get("plan_ref")),
+            "catalog": _safe_ref((execution or plan or {}).get("catalog_ref")),
+            "specgraph_initialization_report": _safe_ref(
+                (execution or {}).get("specgraph_initialization_report_ref")
+            ),
+        },
+        "diagnostic_count": len(_records((execution or plan or {}).get("diagnostics"))),
+        "authority_boundary": _record((execution or plan or {}).get("authority_boundary")),
     }
 
 
@@ -5621,6 +5737,13 @@ def build_idea_to_spec_workspace(
     real_idea_entry_intake_execution = _artifact_data(
         artifacts, PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT
     )
+    workspace_initialization_plan = _artifact_data(
+        artifacts, PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT
+    )
+    workspace_initialization_execution = _artifact_data(
+        artifacts,
+        PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
+    )
     candidate_seed = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT)
     candidate_graph = _artifact_data(artifacts, CANDIDATE_SPEC_GRAPH_ARTIFACT)
     candidate_overview = _artifact_data(artifacts, CANDIDATE_OVERVIEW_ARTIFACT)
@@ -5919,6 +6042,11 @@ def build_idea_to_spec_workspace(
         entry_execution_report=real_idea_entry_intake_execution,
         statuses=statuses,
     )
+    workspace_initialization = _workspace_initialization_surface(
+        plan=workspace_initialization_plan,
+        execution=workspace_initialization_execution,
+        workspace_id=_optional_text(workspace_identity.get("id")),
+    )
     payload = {
         "api_version": "v1",
         "artifact_kind": IDEA_TO_SPEC_WORKSPACE_ARTIFACT_KIND,
@@ -6030,6 +6158,7 @@ def build_idea_to_spec_workspace(
             ),
         },
         "workflow": workflow,
+        "workspace_initialization": workspace_initialization,
         "real_idea_intake": real_idea_intake,
         "intake": {
             "available": intake is not None,

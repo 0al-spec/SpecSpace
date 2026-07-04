@@ -550,6 +550,10 @@ function WorkspaceCreationSection({
             value={String(creation.activeRequestedCount)}
           />
           <PostureItem label="Invalid" value={String(creation.invalidRequestCount)} />
+          <PostureItem
+            label="Initialized"
+            value={creation.initialization.initialized ? "yes" : "no"}
+          />
           <PostureItem label="Next" value={compact(creation.nextGap)} />
         </div>
         <div className={styles.metaGrid}>
@@ -559,6 +563,14 @@ function WorkspaceCreationSection({
           <Meta label="Display name" value={activeRequest?.displayName} />
           <Meta label="Route" value={activeRequest?.route} />
           <Meta label="Request status" value={activeRequest?.status} />
+          <Meta
+            label="Initialization"
+            value={creation.initialization.executionStatus}
+          />
+          <Meta
+            label="Catalog binding"
+            value={creation.initialization.catalogWritten ? "written" : null}
+          />
         </div>
       </div>
     </section>

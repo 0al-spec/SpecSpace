@@ -6655,6 +6655,220 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertNotIn("workspace_creation", body)
 
+    def test_idea_to_spec_workspace_marks_creation_initialized_from_platform_report(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_product_workspace_runs(
+                runs_dir,
+                candidate_id="pantry-rotation",
+                display_name="Pantry Rotation",
+                public_route="/pantry-rotation",
+            )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": (
+                        "platform_product_workspace_initialization_execution_report"
+                    ),
+                    "schema_version": 1,
+                    "ok": True,
+                    "dry_run": False,
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "workspace": {
+                        "workspace_id": "pantry-rotation",
+                        "display_name": "Pantry Rotation",
+                        "route": "/pantry-rotation",
+                        "repository_role": "product_spec_workspace",
+                    },
+                    "summary": {
+                        "status": "workspace_initialization_executed",
+                        "specgraph_executed": True,
+                        "catalog_written": True,
+                        "workspace_files_created": True,
+                    },
+                    "authority_boundary": {
+                        "executes_platform": True,
+                        "executes_specgraph": True,
+                        "creates_workspace_files": True,
+                        "updates_workspace_catalog": True,
+                        "creates_git_commits": False,
+                        "opens_pull_requests": False,
+                        "publishes_read_models": False,
+                        "mutates_canonical_specs": False,
+                        "writes_ontology_packages": False,
+                        "accepts_ontology_terms": False,
+                    },
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                post_status, _post_body = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "display_name": "Pantry Rotation",
+                    },
+                )
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(post_status, 200)
+        self.assertEqual(status, 200)
+        creation = body["workspace_creation"]
+        self.assertEqual(creation["summary"]["status"], "workspace_initialized")
+        self.assertEqual(creation["summary"]["next_gap"], "start_real_idea_intake")
+        self.assertEqual(creation["summary"]["requested_count"], 0)
+        self.assertEqual(creation["summary"]["active_requested_count"], 0)
+        self.assertEqual(creation["summary"]["initialized_count"], 1)
+        self.assertEqual(creation["requests"][0]["status"], "initialized")
+        self.assertTrue(creation["initialization"]["initialized"])
+        self.assertTrue(
+            creation["initialization"]["execution"]["catalog_written"]
+        )
+        self.assertEqual(
+            body["workspace_initialization"]["execution"]["status"],
+            "workspace_initialization_executed",
+        )
+
+    def test_idea_to_spec_workspace_ignores_initialization_for_other_workspace(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_product_workspace_runs(
+                runs_dir,
+                candidate_id="pantry-rotation",
+                display_name="Pantry Rotation",
+                public_route="/pantry-rotation",
+            )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": (
+                        "platform_product_workspace_initialization_execution_report"
+                    ),
+                    "schema_version": 1,
+                    "ok": True,
+                    "dry_run": False,
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "workspace": {
+                        "workspace_id": "different-workspace",
+                        "display_name": "Different Workspace",
+                        "route": "/different-workspace",
+                        "repository_role": "product_spec_workspace",
+                    },
+                    "summary": {
+                        "status": "workspace_initialization_executed",
+                        "specgraph_executed": True,
+                        "catalog_written": True,
+                        "workspace_files_created": True,
+                    },
+                    "authority_boundary": {
+                        "executes_platform": True,
+                        "executes_specgraph": True,
+                        "creates_workspace_files": True,
+                        "updates_workspace_catalog": True,
+                        "creates_git_commits": False,
+                        "opens_pull_requests": False,
+                        "publishes_read_models": False,
+                        "mutates_canonical_specs": False,
+                        "writes_ontology_packages": False,
+                        "accepts_ontology_terms": False,
+                    },
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                post_status, _post_body = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "display_name": "Pantry Rotation",
+                    },
+                )
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(post_status, 200)
+        self.assertEqual(status, 200)
+        creation = body["workspace_creation"]
+        self.assertEqual(creation["summary"]["status"], "workspace_creation_requested")
+        self.assertEqual(
+            creation["summary"]["next_gap"],
+            "run_platform_workspace_initialization",
+        )
+        self.assertFalse(creation["initialization"]["initialized"])
+        self.assertFalse(body["workspace_initialization"]["initialized"])
+
+    def test_idea_to_spec_workspace_rejects_invalid_initialization_plan_artifact(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            _write_product_workspace_runs(
+                runs_dir,
+                candidate_id="pantry-rotation",
+                display_name="Pantry Rotation",
+                public_route="/pantry-rotation",
+            )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT,
+                {
+                    "artifact_kind": "unexpected_plan",
+                    "schema_version": 1,
+                    "ok": True,
+                    "summary": {
+                        "status": "product_workspace_initialization_ready",
+                        "ready_for_platform_initialization": True,
+                    },
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        initialization = body["workspace_initialization"]
+        self.assertTrue(initialization["trusted"])
+        self.assertFalse(initialization["plan"]["available"])
+        self.assertFalse(initialization["plan"]["ok"])
+        self.assertFalse(
+            initialization["plan"]["ready_for_platform_initialization"]
+        )
+
     def test_real_idea_entry_projection_marks_missing_intake_submitted(self) -> None:
         payload = {
             "real_idea_intake": {
