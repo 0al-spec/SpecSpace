@@ -353,6 +353,30 @@ Acceptance criteria:
 - Browser/component tests prevent the entry point from drifting below
   diagnostic panels again.
 
+### 10. New Idea Workspace Entry Point
+
+Status: closed.
+
+Arbitrary product workspace routes already existed, but users had to know and
+type the route manually. The Product Workspace flow now has a visible sidebar
+entry point for opening a new idea workspace route before submitting the raw
+idea.
+
+Acceptance criteria:
+
+- The SpecSpace sidebar exposes a `New idea workspace` input.
+  Done.
+- The input derives a safe product workspace route such as
+  `/cash-flow-control` without creating backend state or running Platform /
+  SpecGraph.
+  Done.
+- Opening the route lands in a Product idea-to-spec workspace where the raw
+  idea entry is the first lifecycle block.
+  Done.
+- Browser coverage prevents the entry point from regressing back into
+  route-by-hand behavior.
+  Done.
+
 ## Accepted Constraints And Runbook Notes
 
 The items below are accepted authority boundaries or operator runbook notes, not

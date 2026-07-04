@@ -1065,6 +1065,29 @@ test("renders bootstrap workspace metadata as human-readable sidebar labels", as
   ).toHaveCount(0);
 });
 
+test("opens a new idea workspace from the sidebar entry point", async ({ page }) => {
+  await installRunsWatchMock(page);
+  await installBootstrapChromeApiRoutes(page);
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+
+  const sidebar = page.getByLabel("SpecSpace Sidebar");
+  await sidebar.getByRole("textbox", { name: "New idea workspace" }).fill(
+    "Pantry Rotation",
+  );
+  await expect(sidebar.getByTestId("new-idea-workspace-route")).toContainText(
+    "/pantry-rotation",
+  );
+
+  await sidebar.getByRole("button", { name: "Open workspace" }).click();
+
+  await expect(page).toHaveURL(/\/pantry-rotation$/);
+  await expect(page.getByText("Pantry Rotation").first()).toBeVisible();
+  await expect(sidebar.getByText("Product idea-to-spec")).toBeVisible();
+  await expect(sidebar.getByText("Product spec workspace")).toBeVisible();
+});
+
 test("shows clarification stage after external intake execution publication", async ({
   page,
 }) => {
