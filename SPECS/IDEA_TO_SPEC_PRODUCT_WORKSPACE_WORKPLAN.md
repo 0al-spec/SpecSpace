@@ -422,8 +422,9 @@ Acceptance criteria:
   integration remains open.
 - Duplicate, reserved, malformed, or already-initialized workspace ids produce
   visible diagnostics and do not silently fall back to `team-decision-log`.
-  Partially done for malformed/reserved ids at the SpecSpace request boundary;
-  duplicate/already-initialized checks remain open for the workspace catalog.
+  Done at the SpecSpace request boundary for malformed, reserved,
+  already-initialized, and published catalog workspace ids. Platform-owned
+  catalog/run-dir binding validation remains a separate downstream concern.
 - Human-facing workspace display name and raw idea text are separated from the
   route slug. The backend should allocate or validate an ASCII route id for
   non-English ideas instead of forcing the user to hand-craft a Latin slug.
