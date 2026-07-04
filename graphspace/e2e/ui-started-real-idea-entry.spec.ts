@@ -556,6 +556,22 @@ async function publishRepairRerunPublicationArtifacts(args: {
   );
 }
 
+async function publishProjectLocalOntologyReviewArtifacts(args: {
+  backendRunsDir: string;
+  specGraphRunDir: string;
+}) {
+  for (const artifactName of [
+    "project_local_ontology_review_lane.json",
+    "specspace_project_local_ontology_decision_import_preview.json",
+    "project_local_ontology_decision_effect_report.json",
+  ]) {
+    await copyIfPresent(
+      path.join(args.specGraphRunDir, artifactName),
+      path.join(args.backendRunsDir, artifactName),
+    );
+  }
+}
+
 async function publishCandidateApprovalArtifacts(args: {
   backendRunsDir: string;
   executionReportPath: string;
@@ -1468,6 +1484,108 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await emitRunsChange(page);
     await expect(page.getByText("Platform repair rerun")).toBeVisible();
     await expect(approvalReadiness).toContainText(/Repaired public\s*true/i);
+    await expect(approvalReadiness).toContainText(/Intent request\s*false/i);
+
+    const projectLocalLane = await runCommand(
+      "make",
+      [
+        "project-local-ontology-review-lane",
+        `PROJECT_LOCAL_ONTOLOGY_REVIEW_CANDIDATE_GRAPH=${specGraphRunDirRef}/candidate_spec_graph.json`,
+        `PROJECT_LOCAL_ONTOLOGY_REVIEW_DECISIONS=${specGraphRunDirRef}/product_ontology_gap_review_decisions.json`,
+        `PROJECT_LOCAL_ONTOLOGY_REVIEW_RERUN_PREVIEW=${specGraphRunDirRef}/idea_to_spec_rerun_preview.json`,
+        `PROJECT_LOCAL_ONTOLOGY_REVIEW_ACTIVE_CANDIDATE=${specGraphRunDirRef}/active_idea_to_spec_candidate.json`,
+        `PROJECT_LOCAL_ONTOLOGY_REVIEW_REPAIR_SESSION=${specGraphRunDirRef}/idea_to_spec_repair_session.json`,
+        `PROJECT_LOCAL_ONTOLOGY_REVIEW_OUTPUT=${specGraphRunDirRef}/project_local_ontology_review_lane.json`,
+      ],
+      { cwd: specGraphDir! },
+    );
+    expect(
+      projectLocalLane.code,
+      `stdout:\n${projectLocalLane.stdout}\nstderr:\n${projectLocalLane.stderr}`,
+    ).toBe(0);
+    await publishProjectLocalOntologyReviewArtifacts({
+      backendRunsDir: backend.runsDir,
+      specGraphRunDir,
+    });
+    await emitRunsChange(page);
+    await expect(
+      page.getByText("Project-local ontology review", { exact: true }).first(),
+    ).toBeVisible();
+
+    const projectLocalLanePayload = JSON.parse(
+      await readFile(
+        path.join(specGraphRunDir, "project_local_ontology_review_lane.json"),
+        "utf8",
+      ),
+    ) as { terms?: Array<{ term_key?: string; term?: string }> };
+    const projectLocalTerms = projectLocalLanePayload.terms ?? [];
+    expect(projectLocalTerms.length).toBeGreaterThan(0);
+    for (const term of projectLocalTerms) {
+      const termKey = term.term_key;
+      expect(termKey).toBeTruthy();
+      const response = await fetch(
+        `${backend.baseUrl}/api/v1/project-local-ontology-review-decisions?workspace=${workspaceId}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            workspace_id: workspaceId,
+            term_key: termKey,
+            action: "keep_project_local",
+            decision_value: {
+              reason: "Keep this term project-local for the UI-started candidate review.",
+            },
+            operator_ref: "operator://ui-e2e",
+          }),
+        },
+      );
+      expect(
+        response.ok,
+        `failed to save project-local decision for ${term.term ?? termKey}: ${await response.text()}`,
+      ).toBeTruthy();
+    }
+
+    const projectLocalImportPreview = await runCommand(
+      "make",
+      [
+        "specspace-project-local-ontology-decision-import-preview",
+        `SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_STATE=${path.join(backend.stateDir, "project_local_ontology_review_decisions.json")}`,
+        `SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_REVIEW_LANE=${specGraphRunDirRef}/project_local_ontology_review_lane.json`,
+        `SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_WORKSPACE_ID=${workspaceId}`,
+        `SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_OUTPUT=${specGraphRunDirRef}/specspace_project_local_ontology_decision_import_preview.json`,
+      ],
+      { cwd: specGraphDir! },
+    );
+    expect(
+      projectLocalImportPreview.code,
+      `stdout:\n${projectLocalImportPreview.stdout}\nstderr:\n${projectLocalImportPreview.stderr}`,
+    ).toBe(0);
+    const projectLocalDecisionEffect = await runCommand(
+      "make",
+      [
+        "project-local-ontology-decision-effect-report",
+        `PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_REVIEW_LANE=${specGraphRunDirRef}/project_local_ontology_review_lane.json`,
+        `PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_IMPORT_PREVIEW=${specGraphRunDirRef}/specspace_project_local_ontology_decision_import_preview.json`,
+        `PROJECT_LOCAL_ONTOLOGY_DECISION_EFFECT_OUTPUT=${specGraphRunDirRef}/project_local_ontology_decision_effect_report.json`,
+      ],
+      { cwd: specGraphDir! },
+    );
+    expect(
+      projectLocalDecisionEffect.code,
+      `stdout:\n${projectLocalDecisionEffect.stdout}\nstderr:\n${projectLocalDecisionEffect.stderr}`,
+    ).toBe(0);
+    await publishProjectLocalOntologyReviewArtifacts({
+      backendRunsDir: backend.runsDir,
+      specGraphRunDir,
+    });
+    await emitRunsChange(page);
+    const projectLocalReview = page.locator("#idea-to-spec-project-local-ontology-review");
+    await expect(
+      projectLocalReview.getByText("Effective project-local review", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      projectLocalReview.getByText("project_local_ontology_decision_effect_ready").first(),
+    ).toBeVisible();
     await expect(approvalReadiness).toContainText(/Intent request\s*true/i);
 
     await page

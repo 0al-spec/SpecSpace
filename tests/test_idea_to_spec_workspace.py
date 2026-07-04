@@ -4130,6 +4130,58 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             ]
         )
 
+    def test_approval_readiness_requires_ontology_seed_review(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts.pop(
+            idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+        )
+        candidate_seed = _candidate_seed()
+        candidate_seed["source_generation"]["ontology_gaps"][0][
+            "blocks_candidate_graph"
+        ] = True
+        artifacts[idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT] = (
+            candidate_seed
+        )
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+        publication = _product_repair_rerun_publication_report()
+        publication["published_artifacts"] = _published_repaired_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = publication
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+        ] = _active_candidate()
+        repaired_session = _repaired_repair_session_journal()
+        repaired_session["readiness_impact"]["platform_promotion_blocked_by"] = [
+            "candidate_approval_decision_missing"
+        ]
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = repaired_session
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertEqual(readiness["status"], "approval_blocked_by_handoff")
+        self.assertFalse(readiness["promotion_review_can_be_requested"])
+        self.assertIn("ontology_seed_review_required", readiness["blockers"])
+        self.assertEqual(
+            body["workflow"]["stage"],
+            "ontology_seed_review_required",
+        )
+
     def test_approval_readiness_uses_candidate_approval_execution_report(
         self,
     ) -> None:

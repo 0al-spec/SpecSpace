@@ -3807,6 +3807,7 @@ def _approval_readiness(
     product_repair_rerun_publication: dict[str, Any] | None,
     candidate_approval_execution: dict[str, Any] | None,
     candidate_approval: dict[str, Any] | None,
+    ontology_seed_review_required: bool = False,
 ) -> dict[str, Any]:
     selected_active_candidate = repaired_active_candidate or active_candidate
     selected_repair_session = repaired_repair_session or repair_session
@@ -3917,6 +3918,8 @@ def _approval_readiness(
         blockers.append("promotion_paths_missing")
     if repaired_handoff is not None and not repaired_artifacts_published:
         blockers.append("repaired_artifacts_not_published")
+    if ontology_seed_review_required:
+        blockers.append("ontology_seed_review_required")
     if not platform_rerun_executed and product_repair_rerun_execution is not None:
         blockers.append("repair_rerun_execution_not_complete")
     if not platform_rerun_published and product_repair_rerun_publication is not None:
@@ -5865,6 +5868,9 @@ def build_idea_to_spec_workspace(
         product_repair_rerun_publication=product_repair_rerun_publication,
         candidate_approval_execution=candidate_approval_execution,
         candidate_approval=candidate_approval,
+        ontology_seed_review_required=(
+            _ontology_seed_blocked(candidate_seed) and not ontology_seed_review_resolved
+        ),
     )
     workflow = _workflow(
         statuses=statuses,
