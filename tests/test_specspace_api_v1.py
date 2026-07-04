@@ -7361,6 +7361,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(request["trusted"])
         self.assertFalse(request["ok"])
         self.assertFalse(request["ready_for_managed_execution"])
+        self.assertIsNone(request["status"])
         self.assertIsNone(request["requested_operation"])
         self.assertIsNone(request["idempotency_key"])
 
