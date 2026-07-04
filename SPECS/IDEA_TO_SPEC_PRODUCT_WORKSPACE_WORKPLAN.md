@@ -1,7 +1,7 @@
 # Idea-to-Spec Product Workspace Workplan
 
 Status: active planning
-Updated: 2026-07-03
+Updated: 2026-07-04
 
 ## Purpose
 
@@ -27,7 +27,12 @@ user enters raw idea in SpecSpace
   -> user answers clarification requests in SpecSpace
   -> Platform executes the controlled answer continuation handoff
   -> SpecGraph emits clarified intake / active candidate review artifacts
-  -> SpecSpace refreshes the Product Workspace lifecycle
+  -> user saves repair drafts in SpecSpace
+  -> Platform/SpecGraph run controlled repair rerun and repaired handoff
+  -> user reviews project-local ontology terms in SpecSpace
+  -> Platform materializes candidate approval and promotion request
+  -> Platform runs Git Service promotion dry-run
+  -> SpecSpace refreshes the Product Workspace lifecycle through each handoff
 ```
 
 SpecSpace must remain an inspect/request surface. It must not execute
@@ -61,6 +66,18 @@ reviews, or publish read models.
   fields are expanded to concrete payload keys such as `value.entries[]` or
   `value.refs[]`, so SpecSpace saves answers in the shape SpecGraph can
   materialize.
+- Env-gated browser E2E for the repair/approval/promotion dry-run chain after
+  answer continuation. The harness now drives controlled Platform/SpecGraph
+  execution outside browser authority and publishes the resulting artifacts so
+  the browser verifies candidate graph, Pre-SIB, repair review, repair rerun,
+  repaired handoff, approval readiness, approval decision, promotion request,
+  and Git Service dry-run status.
+- Project-local ontology review is part of approval readiness. Approval intent
+  stays unavailable while ontology seed review is required and no effective
+  project-local decision effect exists.
+- Isolated run-dir project-local ontology imports accept the canonical
+  `runs/project_local_ontology_review_lane.json` decision ref as a safe alias
+  for `runs/<run-dir>/project_local_ontology_review_lane.json`.
 
 ## Next Tasks
 
@@ -182,45 +199,85 @@ Acceptance criteria:
 Make controlled handoffs understandable without giving SpecSpace execution
 authority.
 
-Status: closed for raw idea entry and intake answer continuation. The Product
-Workspace shows a copyable Platform intake command after raw entry submit, the
-last Platform intake execution report beside the current intake stage, and the
-real-idea answer continuation lane now pairs source refs, output refs, and
-read-only command hints with the continuation report.
+Status: closed for the UI-started chain through Git dry-run. The Product
+Workspace shows copyable Platform commands, source refs, output refs, execution
+reports, and next-step state for raw idea entry, intake execution, answer
+continuation, repair rerun, project-local ontology review, approval, promotion
+request, and dry-run promotion execution.
 
 Acceptance criteria:
 
 - Copyable command hints are paired with source refs and expected outputs. Done
-  for entry and answer continuation.
+  for the UI-started chain through Git dry-run.
 - Last execution report is shown next to the current lifecycle stage. Done for
-  Platform intake execution; answer continuation report is shown with its
-  output refs.
+  intake, answer continuation, repair rerun, approval, promotion request, and
+  promotion execution surfaces.
 - Next safe step, blockers, and authority boundary stay aligned. Done for the
-  UI-started intake loop through active candidate review-required state.
+  UI-started chain through dry-run promotion execution.
 
 Follow-up scope:
 
-- Repair draft rerun command visibility after `active_candidate_review_required`
-  is covered by the UI-started browser smoke.
-- Extend the same handoff UX treatment into ontology review/import and later
-  promotion handoffs after repair decisions are available.
-- Keep repair/promotion command hints read-only until Platform owns the
-  corresponding controlled execution wrapper.
+- Replace remaining direct API writes in the e2e harness with browser-level UI
+  interactions where the Product Workspace already has forms.
+- Keep repair/promotion command hints read-only until Platform owns each
+  controlled execution wrapper.
+
+### 6. Browser E2E: Project-Local Ontology Decision UI
+
+Use the actual Product Workspace project-local ontology review controls in the
+execution-backed browser smoke.
+
+Status: open. The e2e currently generates the project-local ontology review
+lane, then saves `keep_project_local` decisions by posting directly to
+`/api/v1/project-local-ontology-review-decisions`. That proves the backend
+contract and downstream SpecGraph import/effect path, but it does not prove the
+operator-facing review form.
+
+Acceptance criteria:
+
+- The browser selects `keep_project_local` for each surfaced project-local term.
+- The browser fills the decision rationale where the UI requires one.
+- The saved SpecSpace-owned state still feeds the existing SpecGraph import
+  preview and decision effect report.
+- Approval intent remains unavailable before effective review and becomes
+  available after effective review.
+
+### 7. Browser E2E: Repair Draft UI Coverage
+
+Use the actual repair draft controls for product/spec gaps in the
+execution-backed smoke instead of relying on pre-shaped helper payloads.
+
+Status: open. The current smoke proves the controlled repair rerun path after
+SpecSpace-owned state exists, but the next UI-quality step is to prove that the
+operator can fill the product/spec repair forms naturally in the browser.
+
+Acceptance criteria:
+
+- The browser fills at least one structured `provide_candidate_context` or
+  `answer_question` repair draft.
+- The browser saves ontology and product/spec repair drafts without direct API
+  state construction for those targets.
+- The downstream import preview, rerun, repaired handoff, and approval
+  readiness stay unchanged.
 
 ## Known Friction
 
 - UI submit persists raw idea entry, but does not execute the intake pipeline.
+  This is an intentional authority boundary, not a bug.
 - E2E currently proves entry, execution-backed intake execution when local
   Platform/SpecGraph checkouts are provided, clarification answer save,
-  execution-backed answer continuation, and runs-watch refresh.
+  execution-backed answer continuation, repair rerun, project-local ontology
+  review import/effect, approval materialization, promotion request, Git
+  Service dry-run, and runs-watch refresh.
 - Some browser tests still use a fixture-backed `/api/v1/idea-to-spec-workspace`
   projection while only mutable state APIs are real.
 - Local state directory, SpecGraph run directory, and product workspace artifact
   base can drift during manual smoke runs.
-- After answer continuation, the real active candidate can still be
-  `active_candidate_review_required`; that is expected for raw ideas and should
-  lead into repair/ontology review rather than pretending the candidate is
-  approval-ready.
+- The execution-backed smoke still uses direct API POSTs for project-local
+  ontology decisions. Replace this with browser interaction in the next slice.
+- The execution-backed smoke should broaden repair draft UI coverage so
+  product/spec gap answers are proven through real forms, not just compatible
+  persisted state.
 
 ## Cross-Repo Coordination
 
