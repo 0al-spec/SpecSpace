@@ -297,8 +297,10 @@ Acceptance criteria:
   the projection can mask.
 - Manual smoke runs can still become confusing when an operator mixes old
   browser state with a new SpecGraph run directory or product artifact base.
-  The runtime now reports this through workspace state hygiene; the remaining
-  work is documentation/runbook clarity, not a hidden UI mutation.
+  The runtime now reports this through workspace state hygiene, and
+  `graphspace/README.md` documents the expected state/run-dir alignment and the
+  safe interpretation of `Workspace state preflight` recommended actions. This
+  remains an operator runbook concern, not a hidden UI mutation.
 
 ## Cross-Repo Coordination
 
