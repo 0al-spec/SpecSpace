@@ -377,6 +377,73 @@ Acceptance criteria:
   route-by-hand behavior.
   Done.
 
+### 11. Backend-Backed Workspace Creation
+
+Status: open, cross-repo.
+
+The sidebar `New idea workspace` entry point currently creates only a product
+workspace route. That is useful for UI-started smoke, but it is not yet a real
+workspace creation flow. The next layer must connect this UI to a backend-owned
+workspace registry / creation boundary instead of relying on route-only
+navigation.
+
+Acceptance criteria:
+
+- Submitting a new workspace request writes a SpecSpace-owned operator intent or
+  calls a Platform-owned workspace creation endpoint; it must not mutate
+  SpecGraph or Git directly from the browser.
+- The backend allocates or resolves a durable workspace id, display name,
+  artifact base, SpecSpace state namespace, and run-dir binding.
+- `guided_flow` and `workspace_state_hygiene` can distinguish:
+  route-only workspace, workspace creation requested, workspace initialized,
+  intake-ready, and blocked creation.
+- Duplicate, reserved, malformed, or already-initialized workspace ids produce
+  visible diagnostics and do not silently fall back to `team-decision-log`.
+- The UI entry point refreshes from backend state after creation instead of
+  treating the route as sufficient evidence that a workspace exists.
+
+Likely repositories:
+
+- SpecSpace: workspace creation UI/state projection, route status, hygiene.
+- Platform: workspace catalog / creation request endpoint or wrapper.
+- SpecGraph: product workspace initializer contract if canonical workspace
+  files are required before intake.
+
+### 12. Controlled SpecSpace Authority Transition
+
+Status: open, cross-repo strategy.
+
+SpecSpace is currently an inspect/request surface. That boundary is correct for
+the current product flow, but the roadmap needs an explicit transition strategy
+for moving from read-only visibility to controlled management of lower layers.
+The transition must happen through typed backend commands and durable reports,
+not by letting the browser mutate SpecGraph, Platform, Git Service, or Ontology
+state directly.
+
+Phased strategy:
+
+1. **Read-only inspect**: show artifacts, reports, metrics, lifecycle state, and
+   next actions.
+2. **Local operator state**: store drafts, answers, ontology decisions, approval
+   intents, and workspace creation intents as SpecSpace-owned mutable state.
+3. **Validated handoff request**: convert SpecSpace-owned state into typed
+   handoff artifacts that another layer can validate.
+4. **Controlled execution request**: call a backend/Platform executor that runs
+   only allowlisted operations and returns durable execution reports.
+5. **Managed operation surface**: expose selected operations in the UI only when
+   their gate reports say the request is ready and the authority boundary is
+   explicit.
+6. **Audited lifecycle management**: every execution-capable action must have
+   idempotency, source refs, policy checks, audit report, and public-safe
+   read-model publication.
+
+Non-goals:
+
+- Browser-side execution of SpecGraph, Platform, Git Service, or Ontology tools.
+- Direct writes to canonical specs, ontology packages, branches, PRs, or read
+  models from React components.
+- Treating a UI route as proof that a product workspace exists.
+
 ## Accepted Constraints And Runbook Notes
 
 The items below are accepted authority boundaries or operator runbook notes, not
