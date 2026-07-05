@@ -62,6 +62,7 @@ type UiStartedIdeaScenario = {
   answerContinuationPublished?: boolean;
   partialBlockingClarification?: boolean;
   blockedAnswerContinuationPublished?: boolean;
+  approvalPathPublished?: boolean;
 };
 
 declare global {
@@ -824,6 +825,154 @@ function pendingAnswerContinuation() {
   };
 }
 
+function approvalPathBoundary() {
+  return {
+    ...safeActionBoundary(),
+    may_materialize_candidate_approval_decision: false,
+    may_create_promotion_request: false,
+    may_publish_read_model: false,
+  };
+}
+
+function missingGuidedApprovalPath() {
+  return {
+    available: false,
+    stage: "missing",
+    status: "missing",
+    next_action: "Publish approval readiness and controlled promotion artifacts.",
+    target_section: "idea-to-spec-approval-readiness",
+    blockers: [],
+    counts: {
+      promotion_path_count: 0,
+      remaining_blocker_count: 0,
+      approved_path_count: 0,
+      promotion_commit_path_count: 0,
+      promotion_operation_count: 0,
+    },
+    state: {
+      approval_readiness_status: null,
+      approval_intent_status: "missing",
+      approval_execution_status: null,
+      candidate_approval_state: null,
+      promotion_request_ok: false,
+      promotion_execution_status: null,
+      review_state: null,
+      read_model_published: false,
+    },
+    checkpoints: [],
+    evidence_refs: [],
+    authority_boundary: approvalPathBoundary(),
+  };
+}
+
+function reviewMergeWaitingGuidedApprovalPath() {
+  return {
+    available: true,
+    stage: "review_merge_waiting",
+    status: "waiting_for_operator",
+    next_action: "Wait for repository review merge before publication.",
+    target_section: "idea-to-spec-controlled-promotion",
+    blockers: [],
+    counts: {
+      promotion_path_count: 2,
+      remaining_blocker_count: 0,
+      approved_path_count: 2,
+      promotion_commit_path_count: 2,
+      promotion_operation_count: 3,
+    },
+    state: {
+      approval_readiness_status: "approval_ready",
+      approval_intent_status: "missing",
+      approval_execution_status: "candidate_approval_materialized",
+      candidate_approval_state: "approved",
+      promotion_request_ok: true,
+      promotion_execution_status: "completed",
+      review_state: "open",
+      read_model_published: false,
+    },
+    checkpoints: [
+      {
+        id: "approval_readiness",
+        label: "Approval readiness",
+        status: "completed",
+        target_section: "idea-to-spec-approval-readiness",
+        evidence_refs: [
+          "runs/repaired_candidate_promotion_handoff_report.json",
+          "runs/repaired_idea_to_spec_repair_session.json",
+          "runs/repaired_idea_to_spec_promotion_gate.json",
+        ],
+        detail: "approval_ready",
+      },
+      {
+        id: "approval_intent",
+        label: "Candidate approval intent",
+        status: "required",
+        target_section: "idea-to-spec-approval-readiness",
+        evidence_refs: [
+          "specspace-state://idea_to_spec_candidate_approval_intents.json",
+        ],
+        detail: "missing",
+      },
+      {
+        id: "approval_decision",
+        label: "Approval decision",
+        status: "completed",
+        target_section: "idea-to-spec-controlled-promotion",
+        evidence_refs: [
+          "runs/platform_candidate_approval_execution_report.json",
+          "runs/candidate_approval_decision.json",
+        ],
+        detail: "approved",
+      },
+      {
+        id: "promotion_request",
+        label: "Promotion request",
+        status: "completed",
+        target_section: "idea-to-spec-controlled-promotion",
+        evidence_refs: ["runs/graph_repository_promotion_request.json"],
+      },
+      {
+        id: "promotion_execution",
+        label: "Promotion execution",
+        status: "completed",
+        target_section: "idea-to-spec-controlled-promotion",
+        evidence_refs: [
+          "runs/product_candidate_promotion_execution_report.json",
+          "runs/platform_git_service_promotion_execution_report.json",
+        ],
+      },
+      {
+        id: "review_status",
+        label: "Review status",
+        status: "waiting_for_operator",
+        target_section: "idea-to-spec-controlled-promotion",
+        evidence_refs: [
+          "runs/product_candidate_promotion_review_status_report.json",
+        ],
+        detail: "open",
+      },
+      {
+        id: "read_model_publication",
+        label: "Read-model publication",
+        status: "required",
+        target_section: "idea-to-spec-controlled-promotion",
+        evidence_refs: [
+          "runs/product_candidate_promotion_read_model_publication_report.json",
+        ],
+      },
+    ],
+    evidence_refs: [
+      "runs/repaired_candidate_promotion_handoff_report.json",
+      "runs/platform_candidate_approval_execution_report.json",
+      "runs/candidate_approval_decision.json",
+      "runs/graph_repository_promotion_request.json",
+      "runs/product_candidate_promotion_execution_report.json",
+      "runs/product_candidate_promotion_review_status_report.json",
+    ],
+    authority_boundary: approvalPathBoundary(),
+  };
+}
+
 async function workspacePayload(
   backendBaseUrl: string,
   scenario: UiStartedIdeaScenario,
@@ -853,6 +1002,10 @@ async function workspacePayload(
     output_artifacts: [],
   };
   const actionBoundary = safeActionBoundary();
+  payload.guided_approval_path =
+    scenario.approvalPathPublished === true
+      ? reviewMergeWaitingGuidedApprovalPath()
+      : missingGuidedApprovalPath();
 
   if (!hasSubmittedEntry) {
     payload.real_idea_intake = {
@@ -1541,6 +1694,43 @@ test("shows clarification stage after external intake execution publication", as
     await expect(page.getByText("clarification_requests", { exact: true })).toBeVisible();
     await expect(page.getByText("Template-backed answer")).toBeVisible();
     await expect(page.getByText("Answer continuation pending")).toBeVisible();
+  } finally {
+    await backend.stop();
+  }
+});
+
+test("shows guided approval and promotion lifecycle path", async ({ page }) => {
+  const backend = await startSpecSpaceBackend();
+  const scenario: UiStartedIdeaScenario = {
+    intakeExecutionPublished: true,
+    answerContinuationPublished: true,
+    approvalPathPublished: true,
+  };
+  try {
+    await installRunsWatchMock(page);
+    await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
+
+    await submitRawIdeaEntryFromUi(
+      page,
+      "A decision log that already reached promotion review.",
+      "Decision log promotion lifecycle",
+    );
+
+    const guidedApprovalPath = page.locator("#idea-to-spec-guided-approval-path");
+    await expect(guidedApprovalPath).toContainText("Guided approval path");
+    await expect(guidedApprovalPath).toContainText("Approval and promotion route");
+    await expect(page.getByTestId("guided-approval-next-action")).toContainText(
+      "Wait for repository review merge before publication.",
+    );
+    await expect(guidedApprovalPath).toContainText("Approval readiness");
+    await expect(guidedApprovalPath).toContainText("Approval decision");
+    await expect(guidedApprovalPath).toContainText("Promotion request");
+    await expect(guidedApprovalPath).toContainText("Promotion execution");
+    await expect(guidedApprovalPath).toContainText("Review status");
+    await expect(guidedApprovalPath).toContainText("Read-model publication");
+    await expect(guidedApprovalPath.getByRole("link", {
+      name: /Open target section/i,
+    })).toHaveAttribute("href", "#idea-to-spec-controlled-promotion");
   } finally {
     await backend.stop();
   }
@@ -2727,6 +2917,7 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     });
     await emitRunsChange(page);
     const controlledPromotion = page.locator("#idea-to-spec-controlled-promotion");
+    const guidedApprovalPath = page.locator("#idea-to-spec-guided-approval-path");
     await expect(controlledPromotion.getByText("Candidate approval execution")).toBeVisible();
     await expect(
       controlledPromotion.getByText("Decision written", { exact: true }),
@@ -2735,6 +2926,12 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       controlledPromotion.getByText("Candidate approval", { exact: true }),
     ).toBeVisible();
     await expect(controlledPromotion.getByText("approved").first()).toBeVisible();
+    await expect(guidedApprovalPath).toContainText("Guided approval path");
+    await expect(guidedApprovalPath).toContainText("Approval and promotion route");
+    await expect(guidedApprovalPath).toContainText(
+      "Create the report-only graph repository promotion request.",
+    );
+    await expect(guidedApprovalPath).toContainText("Approval decision");
 
     const graphRepositoryPlanPath = path.join(
       specGraphRunDir,
@@ -2828,6 +3025,10 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await emitRunsChange(page);
     await expect(controlledPromotion.getByText("Platform promotion request")).toBeVisible();
     await expect(controlledPromotion.getByText("ready").first()).toBeVisible();
+    await expect(guidedApprovalPath).toContainText(
+      "Run controlled product promotion execution.",
+    );
+    await expect(guidedApprovalPath).toContainText("Promotion request");
 
     const promotionExecutionPath = path.join(
       specGraphRunDir,
@@ -2900,6 +3101,11 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await expect(controlledPromotion.getByText("Product promotion execution")).toBeVisible();
     await expect(controlledPromotion.getByText("dry_run").first()).toBeVisible();
     await expect(page.getByRole("link", { name: /Git dry-run .* completed/i })).toBeVisible();
+    await expect(guidedApprovalPath).toContainText(
+      "Run non-dry-run product promotion execution when ready.",
+    );
+    await expect(guidedApprovalPath).toContainText("Promotion execution");
+    await expect(guidedApprovalPath).toContainText("dry_run");
 
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });

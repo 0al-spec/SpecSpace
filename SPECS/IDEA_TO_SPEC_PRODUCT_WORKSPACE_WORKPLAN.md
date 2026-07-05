@@ -111,6 +111,12 @@ reviews, or publish read models.
   ontology decision progress, project-local ontology review, rerun request/gate
   state, repaired handoff state, blockers, evidence refs, and target anchors
   without giving the browser Platform/SpecGraph execution authority.
+- Guided approval and promotion is now a dedicated Product Workspace path rather
+  than a scattered set of approval readiness and controlled-promotion sections.
+  The UI shows approval intent, Platform approval materialization, promotion
+  request, promotion execution, repository review, read-model publication,
+  blockers, evidence refs, and target anchors without giving the browser
+  Platform/Git Service execution authority.
 
 ## Next Tasks
 
@@ -249,7 +255,10 @@ Status: closed for the UI-started chain through Git dry-run. The Product
 Workspace shows copyable Platform commands, source refs, output refs, execution
 reports, and next-step state for raw idea entry, intake execution, answer
 continuation, repair rerun, project-local ontology review, approval, promotion
-request, and dry-run promotion execution.
+request, and dry-run promotion execution. Approval and promotion also have a
+dedicated guided path that sequences approval intent, approval materialization,
+promotion request, promotion execution, repository review, and read-model
+publication.
 
 Acceptance criteria:
 
@@ -260,6 +269,9 @@ Acceptance criteria:
   promotion execution surfaces.
 - Next safe step, blockers, and authority boundary stay aligned. Done for the
   UI-started chain through dry-run promotion execution.
+- Approval/promotion no longer requires the operator to infer the next step from
+  separate `approval_readiness` and `controlled_promotion` blocks. Done through
+  the guided approval path.
 
 Follow-up scope:
 
@@ -267,6 +279,9 @@ Follow-up scope:
   interactions where the Product Workspace already has forms.
 - Keep repair/promotion command hints read-only until Platform owns each
   controlled execution wrapper.
+- If approval/promotion becomes request-driven from the browser, add
+  SpecSpace-owned request artifacts first and keep Platform as the executor
+  boundary.
 
 ### 6. Browser E2E: Project-Local Ontology Decision UI
 
