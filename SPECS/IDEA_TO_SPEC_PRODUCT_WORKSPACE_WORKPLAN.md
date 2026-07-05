@@ -106,6 +106,11 @@ reviews, or publish read models.
   candidate refs, and the next safe action; the request button writes only the
   SpecSpace-owned continuation execution request while the browser keeps zero
   Platform/SpecGraph execution authority.
+- Guided candidate repair is now a dedicated Product Workspace path rather than
+  a scattered repair dashboard. The UI shows product/spec answer progress,
+  ontology decision progress, project-local ontology review, rerun request/gate
+  state, repaired handoff state, blockers, evidence refs, and target anchors
+  without giving the browser Platform/SpecGraph execution authority.
 
 ## Next Tasks
 
