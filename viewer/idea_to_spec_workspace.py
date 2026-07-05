@@ -5402,6 +5402,16 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
     review_status = _record(controlled.get("review_status"))
     read_model_publication = _record(controlled.get("read_model_publication"))
     promotion_finalization = _record(controlled.get("promotion_finalization"))
+    review_status_artifact = (
+        PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        if review_status.get("source_mode") == "product"
+        else GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
+    )
+    read_model_publication_artifact = (
+        PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        if read_model_publication.get("source_mode") == "product"
+        else GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
+    )
     approval_intent_state = _guided_repair_hygiene_state(
         hygiene,
         "candidate_approval_intent",
@@ -5429,10 +5439,10 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         f"runs/{GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT}"
         if git_execution.get("available") is True
         else None,
-        f"runs/{PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT}"
+        f"runs/{review_status_artifact}"
         if review_status.get("available") is True
         else None,
-        f"runs/{PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT}"
+        f"runs/{read_model_publication_artifact}"
         if read_model_publication.get("available") is True
         else None,
         f"runs/{GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT}"
@@ -5442,14 +5452,19 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         _guided_repair_append_unique(evidence_refs, ref)
 
     approval_ready = approval.get("promotion_review_can_be_requested") is True
+    approval_execution_decision_ready = (
+        candidate_approval_execution.get("ok") is True
+        and candidate_approval_execution.get("dry_run") is not True
+        and candidate_approval_execution.get("decision_written") is True
+        and _optional_text(
+            candidate_approval_execution.get("candidate_approval_decision_ref")
+        )
+        is not None
+    )
     approval_decision_ready = (
         candidate_approval.get("ready") is True
         or approval.get("candidate_approval_decision_ready") is True
-        or (
-            candidate_approval_execution.get("ok") is True
-            and candidate_approval_execution.get("dry_run") is not True
-            and candidate_approval_execution.get("decision_written") is True
-        )
+        or approval_execution_decision_ready
     )
     approval_execution_available = (
         candidate_approval_execution.get("available") is True
@@ -5476,24 +5491,42 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
     promotion_execution_available = (
         product_execution_available or git_execution_available
     )
-    promotion_execution_ok = (
-        product_execution.get("ok") is True
-        if product_execution_available
-        else git_execution.get("ok") is True
+    promotion_execution_ok_values: list[bool] = []
+    if product_execution_available:
+        promotion_execution_ok_values.append(
+            product_execution.get("ok") is True
+            and _number(product_execution.get("error_count")) == 0
+        )
+    if git_execution_available:
+        promotion_execution_ok_values.append(
+            git_execution.get("ok") is True
+            and _number(git_execution.get("error_count")) == 0
+        )
+    promotion_execution_ok = bool(promotion_execution_ok_values) and all(
+        promotion_execution_ok_values
     )
     promotion_execution_failed = (
         promotion_execution_available and not promotion_execution_ok
     )
+    selected_execution = (
+        product_execution if product_execution_available else git_execution
+    )
     promotion_execution_dry_run = (
-        product_execution.get("dry_run") is True
-        or product_execution.get("open_review_dry_run") is True
-        or git_execution.get("dry_run") is True
-        or git_execution.get("open_review_dry_run") is True
+        selected_execution.get("dry_run") is True
+        or selected_execution.get("open_review_dry_run") is True
+    )
+    promotion_execution_ready_for_review = (
+        promotion_execution_available
+        and promotion_execution_ok
+        and not promotion_execution_dry_run
     )
     review_available = review_status.get("available") is True
+    review_can_be_used = review_available and (
+        not promotion_execution_available or promotion_execution_ready_for_review
+    )
     review_ok = review_status.get("ok") is True
-    review_merged = review_status.get("review_merged") is True
-    review_failed = review_available and not review_ok
+    review_merged = review_can_be_used and review_status.get("review_merged") is True
+    review_failed = review_can_be_used and not review_ok
     read_model_published = (
         read_model_publication.get("published") is True
         or read_model_publication.get("read_model_published") is True
@@ -5522,11 +5555,14 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
     for blocker in blockers:
         _guided_repair_append_unique(unique_blockers, blocker)
 
-    stage = "approval_not_ready"
-    status = "blocked"
-    next_action = "Resolve approval readiness blockers before promotion review."
+    available = approval.get("available") is True or controlled.get("available") is True
+    stage = "missing"
+    status = "missing"
+    next_action = "Publish approval readiness and controlled promotion artifacts."
     target_section = "idea-to-spec-approval-readiness"
-    if read_model_published:
+    if not available:
+        pass
+    elif read_model_published:
         stage = "published"
         status = "completed"
         next_action = "Inspect the published product read model."
@@ -5541,16 +5577,6 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         status = "waiting_for_operator"
         next_action = "Publish the public read model after repository review merge."
         target_section = "idea-to-spec-controlled-promotion"
-    elif review_failed:
-        stage = "review_merge_waiting"
-        status = "blocked"
-        next_action = "Repair product promotion review-status report."
-        target_section = "idea-to-spec-controlled-promotion"
-    elif review_available:
-        stage = "review_merge_waiting"
-        status = "waiting_for_operator"
-        next_action = "Wait for repository review merge before publication."
-        target_section = "idea-to-spec-controlled-promotion"
     elif promotion_execution_failed:
         stage = "promotion_execution_needed"
         status = "blocked"
@@ -5560,6 +5586,16 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         stage = "promotion_execution_needed"
         status = "waiting_for_operator"
         next_action = "Run non-dry-run product promotion execution when ready."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif review_failed:
+        stage = "review_merge_waiting"
+        status = "blocked"
+        next_action = "Repair product promotion review-status report."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif review_can_be_used:
+        stage = "review_merge_waiting"
+        status = "waiting_for_operator"
+        next_action = "Wait for repository review merge before publication."
         target_section = "idea-to-spec-controlled-promotion"
     elif promotion_execution_available and promotion_execution_ok:
         stage = "review_merge_waiting"
@@ -5576,15 +5612,15 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         status = "waiting_for_operator"
         next_action = "Run controlled product promotion execution."
         target_section = "idea-to-spec-controlled-promotion"
-    elif approval_decision_ready:
-        stage = "promotion_request_needed"
-        status = "waiting_for_operator"
-        next_action = "Create the report-only graph repository promotion request."
-        target_section = "idea-to-spec-controlled-promotion"
     elif approval_execution_failed:
         stage = "approval_execution_needed"
         status = "blocked"
         next_action = "Repair Platform candidate approval materialization."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif approval_decision_ready:
+        stage = "promotion_request_needed"
+        status = "waiting_for_operator"
+        next_action = "Create the report-only graph repository promotion request."
         target_section = "idea-to-spec-controlled-promotion"
     elif approval_execution_available:
         stage = "approval_execution_needed"
@@ -5601,9 +5637,19 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         status = "waiting_for_operator"
         next_action = "Record candidate approval intent in SpecSpace."
         target_section = "idea-to-spec-approval-readiness"
+    else:
+        stage = "approval_not_ready"
+        status = "blocked"
+        next_action = "Resolve approval readiness blockers before promotion review."
 
     checkpoint_status = {
-        "approval_readiness": "completed" if approval_ready or approval_decision_ready else status,
+        "approval_readiness": (
+            "completed"
+            if approval_ready or approval_decision_ready
+            else "required"
+            if not available
+            else "blocked"
+        ),
         "approval_intent": "completed" if approval_intent_ready else "required",
         "approval_decision": "completed" if approval_decision_ready else "required",
         "promotion_request": "completed" if promotion_request_ready else "required",
@@ -5616,7 +5662,7 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
             "completed"
             if review_merged
             else "waiting_for_operator"
-            if review_available
+            if review_can_be_used
             else "required"
         ),
         "read_model_publication": "completed" if read_model_published else "required",
@@ -5644,10 +5690,11 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
             "remaining_blocker_count": _number(
                 approval.get("remaining_blocker_count")
             ),
-            "approved_path_count": _number(
-                candidate_approval_execution.get("approved_path_count")
-            )
-            or len(_string_list(candidate_approval.get("promotion_paths"))),
+            "approved_path_count": (
+                _number(candidate_approval_execution.get("approved_path_count"))
+                if candidate_approval_execution.get("approved_path_count") is not None
+                else len(_string_list(candidate_approval.get("promotion_paths")))
+            ),
             "promotion_commit_path_count": len(
                 _string_list(promotion_request.get("commit_paths"))
             ),
@@ -5745,7 +5792,7 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
                 label="Review status",
                 status=checkpoint_status["review_status"],
                 evidence_refs=[
-                    f"runs/{PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT}"
+                    f"runs/{review_status_artifact}"
                 ]
                 if review_status.get("available") is True
                 else [],
@@ -5756,7 +5803,7 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
                 label="Read-model publication",
                 status=checkpoint_status["read_model_publication"],
                 evidence_refs=[
-                    f"runs/{PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT}"
+                    f"runs/{read_model_publication_artifact}"
                 ]
                 if read_model_publication.get("available") is True
                 else [],
