@@ -4055,7 +4055,7 @@ function guidedRepairPathBoundaryIsSafe(raw: unknown): boolean {
   return (
     boundary.inspect_only === true &&
     boundary.acknowledge_only === true &&
-    repairFalseFlags.every((flag) => boundary[flag] !== true)
+    repairFalseFlags.every((flag) => boundary[flag] === false)
   );
 }
 

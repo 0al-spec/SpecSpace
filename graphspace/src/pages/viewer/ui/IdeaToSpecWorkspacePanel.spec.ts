@@ -43,6 +43,18 @@ describe("IdeaToSpecWorkspacePanel", () => {
     }
   });
 
+  it("rejects malformed truthy guided repair path authority flags", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_repair_path.authority_boundary.may_apply_decisions = "true";
+
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsedWorkspace.kind).toBe("parse-error");
+    if (parsedWorkspace.kind === "parse-error") {
+      expect(parsedWorkspace.reason).toBe("guided repair path boundary expanded");
+    }
+  });
+
   it("hides guided repair checkpoint rail when path is unavailable", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.guided_repair_path.available = false;

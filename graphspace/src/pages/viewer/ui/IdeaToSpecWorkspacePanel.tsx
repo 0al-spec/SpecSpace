@@ -1243,7 +1243,10 @@ function GuidedRepairPathSection({
   ] as const;
   return (
     <section id="idea-to-spec-guided-repair-path" className={styles.reviewSection}>
-      <SectionHeader title="Guided repair path" count={path.checkpoints.length} />
+      <SectionHeader
+        title="Guided repair path"
+        count={path.available ? path.checkpoints.length : 0}
+      />
       <div className={styles.row}>
         <div className={styles.rowHeader}>
           <span className={styles.rowId}>Candidate repair route</span>

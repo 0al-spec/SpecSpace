@@ -844,6 +844,8 @@ export const ideaToSpecWorkspace = {
       may_create_branch_or_commit: false,
       may_open_pull_request: false,
       may_merge_review: false,
+      may_apply_answers: false,
+      may_apply_decisions: false,
     },
   },
   real_idea_intake: {
