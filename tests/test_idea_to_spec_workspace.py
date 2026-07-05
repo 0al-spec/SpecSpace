@@ -2786,6 +2786,14 @@ def _guided_stage(body: dict, stage_id: str) -> dict:
     ][0]
 
 
+def _guided_repair_checkpoint(body: dict, checkpoint_id: str) -> dict:
+    return [
+        checkpoint
+        for checkpoint in body["guided_repair_path"]["checkpoints"]
+        if checkpoint["id"] == checkpoint_id
+    ][0]
+
+
 class IdeaToSpecWorkspaceTests(unittest.TestCase):
     def test_build_workspace_summarizes_candidate_graph_and_repairs(self) -> None:
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
@@ -2865,6 +2873,33 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertFalse(
             body["guided_flow"]["authority_boundary"]["may_execute_platform"]
+        )
+        self.assertEqual(
+            body["guided_repair_path"]["stage"],
+            "ready_to_request_rerun",
+        )
+        self.assertEqual(
+            body["guided_repair_path"]["next_action"],
+            "Request a controlled repair rerun.",
+        )
+        self.assertEqual(
+            body["guided_repair_path"]["target_section"],
+            "idea-to-spec-repair-review",
+        )
+        self.assertEqual(
+            body["guided_repair_path"]["counts"]["ontology_gap_request_count"],
+            1,
+        )
+        self.assertEqual(
+            body["guided_repair_path"]["counts"]["ontology_decision_count"],
+            1,
+        )
+        self.assertEqual(
+            _guided_repair_checkpoint(body, "rerun_request")["status"],
+            "missing",
+        )
+        self.assertFalse(
+            body["guided_repair_path"]["authority_boundary"]["may_execute_platform"]
         )
         self.assertEqual(body["intake"]["summary"]["actor_count"], 1)
         self.assertTrue(body["ontology_seed"]["readiness"]["ready"])
@@ -3560,6 +3595,17 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             stage["primary_next_action"],
             "Resolve invalid, missing, or deferred project-local ontology decisions.",
+        )
+        self.assertEqual(body["guided_repair_path"]["stage"], "decisions_needed")
+        self.assertEqual(
+            body["guided_repair_path"]["target_section"],
+            "idea-to-spec-project-local-ontology-review",
+        )
+        self.assertEqual(
+            body["guided_repair_path"]["counts"][
+                "project_local_non_resolving_decision_count"
+            ],
+            1,
         )
 
     def test_build_workspace_projects_intake_clarification_lane(self) -> None:
@@ -5882,6 +5928,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["workflow"]["next_handoff"]["kind"],
             "product_repair_rerun_publication_repair",
+        )
+        self.assertEqual(body["guided_repair_path"]["stage"], "repair_blocked")
+        self.assertIn(
+            "repair_rerun_publication_failed",
+            body["guided_repair_path"]["blockers"],
         )
 
     def test_platform_repair_rerun_reports_are_optional(self) -> None:
