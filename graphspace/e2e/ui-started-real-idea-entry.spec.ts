@@ -1353,6 +1353,43 @@ test("opens a new idea workspace from the sidebar wizard entry point", async ({ 
   }
 });
 
+test("explains unavailable workspace creation API from the sidebar wizard", async ({
+  page,
+}) => {
+  await installRunsWatchMock(page);
+  await installBootstrapChromeApiRoutes(page);
+  await page.route("**/api/v1/product-workspace-creation-requests", (route) => {
+    if (route.request().method() === "POST") {
+      return route.fulfill({
+        status: 500,
+        contentType: "text/plain",
+        body: "",
+      });
+    }
+    return route.continue();
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+
+  const sidebar = page.getByLabel("SpecSpace Sidebar");
+  await sidebar.getByRole("button", { name: "New workspace" }).click();
+
+  const wizard = page.getByRole("dialog", { name: "New workspace" });
+  await wizard
+    .getByRole("textbox", { name: "Workspace display name" })
+    .fill("Calcus");
+  await wizard
+    .getByRole("textbox", { name: "Initial idea" })
+    .fill("Calculator for students on exams");
+  await wizard.getByRole("button", { name: "Create workspace request" }).click();
+
+  await expect(wizard).toContainText(
+    "Workspace request failed because the SpecSpace API is unavailable.",
+  );
+  await expect(wizard).toContainText("make specspace-start");
+});
+
 test("opens a backend-allocated route for a non-English workspace name", async ({
   page,
 }) => {

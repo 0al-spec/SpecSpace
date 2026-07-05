@@ -182,7 +182,9 @@ function productWorkspaceSlugFromInput(value: string): string | null {
 function workspaceCreationSaveErrorMessage(
   error: ProductWorkspaceCreationRequestError,
 ): string {
-  if (error.kind !== "http-error") return "Workspace request failed.";
+  const fallback =
+    "Workspace request failed. Start the SpecSpace API backend with `make dev` or `make specspace-start`, then retry.";
+  if (error.kind !== "http-error") return fallback;
   const body = error.body;
   if (
     body &&
@@ -194,7 +196,13 @@ function workspaceCreationSaveErrorMessage(
   ) {
     return body.error;
   }
-  return "Workspace request failed.";
+  if (error.status >= 500) {
+    return (
+      "Workspace request failed because the SpecSpace API is unavailable. " +
+      "Start the backend with `make dev` or `make specspace-start`, then retry."
+    );
+  }
+  return fallback;
 }
 
 export function ViewerPage({
