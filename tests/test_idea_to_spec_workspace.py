@@ -3357,6 +3357,93 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "missing",
         )
 
+    def test_guided_repair_path_requires_gate_after_rerun_request(self) -> None:
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=_workspace_artifacts(),
+            source={"provider": "fixture", "read_only": True},
+        )
+        body["workspace_state_hygiene"] = {
+            "available": True,
+            "summary": {"blocking_state_count": 0},
+            "states": [
+                {
+                    "kind": "repair_rerun_request",
+                    "status": "usable",
+                    "reason": "current_request_ready",
+                },
+            ],
+        }
+
+        body = idea_to_spec_workspace.attach_guided_flow(body)
+
+        self.assertEqual(
+            body["guided_repair_path"]["stage"],
+            "rerun_request_gate_needed",
+        )
+        self.assertEqual(
+            body["guided_repair_path"]["next_action"],
+            "Build or refresh the repair rerun request gate.",
+        )
+        self.assertEqual(
+            _guided_repair_checkpoint(body, "rerun_request")["status"],
+            "completed",
+        )
+        self.assertEqual(
+            body["guided_repair_path"]["state"]["request_gate_status"],
+            "missing",
+        )
+
+    def test_guided_repair_path_advances_when_request_and_gate_are_ready(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[
+            idea_to_spec_workspace.SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT
+        ] = {
+            "artifact_kind": "specspace_repair_rerun_request_gate",
+            "schema_version": 1,
+            "contract_ref": (
+                "specgraph.idea-to-spec.specspace-repair-rerun-request-gate.v0.1"
+            ),
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "readiness": {
+                "ready": True,
+                "review_state": "specspace_repair_rerun_request_ready",
+                "blocked_by": [],
+            },
+            "summary": {
+                "status": "specspace_repair_rerun_request_ready",
+                "workspace_id": "team-decision-log",
+                "candidate_id": "team-decision-log",
+            },
+        }
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+        body["workspace_state_hygiene"] = {
+            "available": True,
+            "summary": {"blocking_state_count": 0},
+            "states": [
+                {
+                    "kind": "repair_rerun_request",
+                    "status": "usable",
+                    "reason": "current_request_ready",
+                },
+            ],
+        }
+
+        body = idea_to_spec_workspace.attach_guided_flow(body)
+
+        self.assertEqual(body["guided_repair_path"]["stage"], "rerun_requested")
+        self.assertEqual(
+            body["guided_repair_path"]["next_action"],
+            "Wait for Platform to execute the requested repair rerun.",
+        )
+        self.assertEqual(
+            body["guided_repair_path"]["state"]["request_gate_status"],
+            "specspace_repair_rerun_request_ready",
+        )
+
     def test_guided_repair_path_filters_and_dedupes_hygiene_blockers(self) -> None:
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
             artifacts=_workspace_artifacts(),

@@ -5529,6 +5529,10 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
         stage = "ready_to_request_rerun"
         next_action = "Request a controlled repair rerun."
         target_section = "idea-to-spec-repair-review"
+    elif not request_gate_ready:
+        stage = "rerun_request_gate_needed"
+        next_action = "Build or refresh the repair rerun request gate."
+        target_section = "idea-to-spec-repair-review"
     elif not rerun_execution_complete:
         stage = "rerun_requested"
         next_action = "Wait for Platform to execute the requested repair rerun."
