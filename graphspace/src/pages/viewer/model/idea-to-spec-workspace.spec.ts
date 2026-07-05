@@ -71,13 +71,13 @@ describe("parseIdeaToSpecWorkspace", () => {
       parsed.data.guidedFlow.authorityBoundary.mayExecutePlatform,
     ).toBe(false);
     expect(parsed.data.guidedRepairPath.available).toBe(true);
-    expect(parsed.data.guidedRepairPath.stage).toBe("repair_blocked");
+    expect(parsed.data.guidedRepairPath.stage).toBe("ready_to_request_rerun");
     expect(parsed.data.guidedRepairPath.nextAction).toBe(
-      "Replace the rerun request for the current workspace and repair session.",
+      "Request a controlled repair rerun.",
     );
     expect(parsed.data.guidedRepairPath.counts.acceptedAnswerCount).toBe(1);
     expect(parsed.data.guidedRepairPath.counts.unresolvedOntologyGapCount).toBe(7);
-    expect(parsed.data.guidedRepairPath.state.rerunRequestStatus).toBe("stale");
+    expect(parsed.data.guidedRepairPath.state.rerunRequestStatus).toBeNull();
     expect(parsed.data.guidedRepairPath.checkpoints.map((item) => item.id)).toEqual([
       "product_spec_answers",
       "ontology_decisions",
@@ -85,6 +85,10 @@ describe("parseIdeaToSpecWorkspace", () => {
       "rerun_request",
       "repaired_handoff",
     ]);
+    expect(parsed.data.guidedRepairPath.checkpoints[3].label).toBe(
+      "Rerun request",
+    );
+    expect(parsed.data.guidedRepairPath.checkpoints[3].count).toBeNull();
     expect(
       parsed.data.guidedRepairPath.authorityBoundary.mayExecutePlatform,
     ).toBe(false);
