@@ -1002,6 +1002,313 @@ def _write_repair_draft_workspace_runs(
     )
 
 
+def _write_candidate_approval_intent_state(state_dir: Path) -> None:
+    state_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(
+        state_dir / "idea_to_spec_candidate_approval_intents.json",
+        {
+            "artifact_kind": "specspace_idea_to_spec_candidate_approval_intent_state",
+            "schema_version": 1,
+            "state_owner": "SpecSpace",
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "source_artifacts": {},
+            "consumer_boundary": {
+                "specspace_owned_state": True,
+                "may_execute_specgraph": False,
+            },
+            "authority_boundary": {
+                "candidate_approval_intent_state_is_authority": False,
+                "canonical_mutations_allowed": False,
+            },
+            "intents": [
+                {
+                    "id": "candidate-approval-intent.team-decision-log.1",
+                    "status": "requested",
+                    "requested_action": "approve_candidate_for_promotion_review",
+                    "workspace_id": "team-decision-log",
+                    "candidate_id": "team-decision-log",
+                    "repair_session_id": "repaired-session.team-decision-log",
+                    "repair_session_ref": (
+                        "runs/repaired_idea_to_spec_repair_session.json"
+                    ),
+                    "created_at": "2026-06-29T10:00:00Z",
+                    "updated_at": "2026-06-29T10:00:00Z",
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "may_execute_specgraph": False,
+                    "may_execute_prompt_agent": False,
+                    "may_apply_to_specgraph": False,
+                    "may_mutate_candidate_source_artifacts": False,
+                    "may_mutate_canonical_specs": False,
+                    "may_write_ontology_package": False,
+                    "may_accept_ontology_terms": False,
+                    "may_mark_candidate_accepted": False,
+                    "may_mark_candidate_graph_accepted": False,
+                    "may_create_branch_or_commit": False,
+                    "may_open_pull_request": False,
+                    "may_execute_git_service_operation": False,
+                }
+            ],
+        },
+    )
+
+
+def _write_candidate_approval_artifacts(runs_dir: Path) -> None:
+    _write_json(
+        runs_dir
+        / idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT,
+        {
+            "artifact_kind": "platform_candidate_approval_execution_report",
+            "schema_version": 1,
+            "ok": True,
+            "dry_run": False,
+            "canonical_mutations_allowed": False,
+            "ontology_writes_allowed": False,
+            "tracked_artifacts_written": False,
+            "candidate_id": "team-decision-log",
+            "workspace_id": "team-decision-log",
+            "gate_report_ref": "runs/candidate_approval_gate_report.json",
+            "approval_intent_ref": (
+                "specspace-state://idea_to_spec_candidate_approval_intents.json"
+            ),
+            "candidate_approval_decision_ref": (
+                "runs/candidate_approval_decision.json"
+            ),
+            "output_artifacts": {
+                "candidate_approval_decision": {
+                    "path": "runs/candidate_approval_decision.json",
+                    "present": True,
+                    "artifact_kind": "candidate_approval_decision",
+                    "ready": True,
+                    "status": "approved",
+                    "sha256": "sha256:candidate-approval",
+                }
+            },
+            "summary": {
+                "status": "candidate_approval_decision_materialized",
+                "gate_ready": True,
+                "decision_written": True,
+                "approved_path_count": 1,
+                "error_count": 0,
+            },
+            "authority_boundary": {
+                "executes_specgraph": False,
+                "executes_git_commands": False,
+                "opens_pull_requests": False,
+                "merges_pull_requests": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+                "mutates_canonical_specs": False,
+            },
+            "diagnostics": [],
+        },
+    )
+    _write_json(
+        runs_dir / idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT,
+        {
+            "artifact_kind": "candidate_approval_decision",
+            "schema_version": 1,
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "decision": {
+                "state": "approved",
+                "requested_state": "approved",
+                "operator_ref": "operator://workspace-owner",
+                "reason": "candidate is ready for promotion review",
+            },
+            "candidate": {"candidate_id": "team-decision-log"},
+            "promotion_request": {
+                "paths": [
+                    "runs/materialized_candidate_specs/CANDIDATE-TEAM-DECISION-LOG.yaml"
+                ]
+            },
+            "readiness": {
+                "ready": True,
+                "review_state": "candidate_approval_ready",
+                "blocked_by": [],
+            },
+            "authority_boundary": {
+                "may_execute_git_service": False,
+                "may_create_branch_or_commit": False,
+                "may_open_pull_request": False,
+                "may_mutate_canonical_specs": False,
+                "may_write_ontology_package": False,
+                "may_accept_ontology_terms": False,
+            },
+        },
+    )
+
+
+def _write_product_promotion_artifacts(
+    runs_dir: Path,
+    *,
+    include_execution: bool = False,
+    include_review_status: bool = False,
+    include_publication: bool = False,
+) -> None:
+    _write_json(
+        runs_dir / idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT,
+        {
+            "artifact_kind": "platform_graph_repository_promotion_request",
+            "schema_version": 1,
+            "ok": True,
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "candidate_id": "team-decision-log",
+            "candidate_branch": "graph-candidate/team-decision-log",
+            "commit_paths": [
+                "runs/materialized_candidate_specs/CANDIDATE-TEAM-DECISION-LOG.yaml"
+            ],
+            "requested_operations": [
+                "prepare_worktree",
+                "commit_candidate_paths",
+                "open_review_pr",
+            ],
+            "review": {
+                "title": "Promote Team Decision Log candidate spec graph",
+                "base_branch": "main",
+            },
+            "summary": {"status": "promotion_ready", "promotion_ready": True},
+            "authority_boundary": {
+                "may_execute_git_service": False,
+                "may_create_branch_or_commit": False,
+                "may_open_pull_request": False,
+            },
+        },
+    )
+    if include_execution:
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+            {
+                "artifact_kind": (
+                    "platform_product_candidate_promotion_execution_report"
+                ),
+                "schema_version": 1,
+                "ok": True,
+                "dry_run": False,
+                "open_review_dry_run": False,
+                "workflow_lane": "product_idea_to_spec",
+                "candidate_id": "team-decision-log",
+                "candidate_branch": "graph-candidate/team-decision-log",
+                "promotion_request_ref": (
+                    "runs/graph_repository_promotion_request.json"
+                ),
+                "approval_decision_ref": "runs/candidate_approval_decision.json",
+                "git_review": {
+                    "candidate_branch": "graph-candidate/team-decision-log",
+                    "commit_sha": "5ea1638",
+                    "review_url": "https://github.com/0al-spec/SpecGraph/pull/662",
+                    "review_number": 662,
+                    "review_opened": True,
+                    "copied_file_count": 1,
+                },
+                "git_service_execution": {
+                    "operations": [
+                        {"name": "open_review_pr", "status": "succeeded"}
+                    ],
+                },
+                "summary": {
+                    "status": "promotion_review_opened",
+                    "worktree_prepared": True,
+                    "commit_created": True,
+                    "child_operation_count": 1,
+                    "error_count": 0,
+                },
+                "diagnostics": [],
+                "authority_boundary": {
+                    "controlled_git_service_execution": True,
+                    "creates_candidate_worktree_or_branch": True,
+                    "creates_candidate_commit": True,
+                    "opens_pull_requests": True,
+                    "merges_pull_requests": False,
+                    "publishes_read_models": False,
+                    "mutates_canonical_specs": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                },
+            },
+        )
+    if include_review_status:
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT,
+            {
+                "artifact_kind": (
+                    "platform_product_candidate_promotion_review_status_report"
+                ),
+                "schema_version": 1,
+                "ok": True,
+                "workflow_lane": "product_idea_to_spec",
+                "candidate_id": "team-decision-log",
+                "candidate_branch": "graph-candidate/team-decision-log",
+                "review_state": "merged",
+                "review_decision": "merged",
+                "review_url": "https://github.com/0al-spec/SpecGraph/pull/662",
+                "pull_request": {
+                    "number": 662,
+                    "baseRefName": "main",
+                    "headRefName": "graph-candidate/team-decision-log",
+                    "mergedAt": "2026-07-05T10:00:00Z",
+                    "mergeCommit": {"oid": "abc123"},
+                },
+                "summary": {
+                    "status": "review_merged",
+                    "review_merged": True,
+                    "error_count": 0,
+                },
+                "diagnostics": [],
+                "authority_boundary": {
+                    "may_merge_review": False,
+                    "may_publish_read_model": False,
+                    "may_mutate_canonical_specs": False,
+                },
+            },
+        )
+    if include_publication:
+        _write_json(
+            runs_dir
+            / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT,
+            {
+                "artifact_kind": (
+                    "platform_product_candidate_promotion_read_model_publication_report"
+                ),
+                "schema_version": 1,
+                "ok": True,
+                "dry_run": False,
+                "workflow_lane": "product_idea_to_spec",
+                "canonical_mutations_allowed": False,
+                "canonical_tracked_artifacts_written": False,
+                "tracked_artifacts_written": False,
+                "candidate_id": "team-decision-log",
+                "candidate_branch": "graph-candidate/team-decision-log",
+                "review_state": "merged",
+                "manifest_name": "artifact_manifest.json",
+                "bundle_dir": "dist/specgraph-public/workspaces/team-decision-log",
+                "summary": {
+                    "status": "read_model_published",
+                    "published": True,
+                    "read_model_published": True,
+                    "file_count": 6,
+                    "error_count": 0,
+                },
+                "operations": [
+                    {
+                        "name": "publish_product_read_model",
+                        "status": "succeeded",
+                    }
+                ],
+                "authority_boundary": {
+                    "publishes_read_models": True,
+                    "may_mutate_canonical_specs": False,
+                    "may_create_branch_or_commit": False,
+                    "may_open_pull_request": False,
+                },
+            },
+        )
+
+
 def _write_project_local_ontology_review_workspace_runs(runs_dir: Path) -> None:
     _write_repair_draft_workspace_runs(runs_dir)
     _write_json(
@@ -9418,6 +9725,530 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             if item["kind"] == "candidate_approval_intent"
         ][0]
         self.assertEqual(intent["status"], "usable")
+
+    def test_idea_to_spec_workspace_guided_approval_path_waits_for_intent(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        path = body["guided_approval_path"]
+        self.assertTrue(path["available"])
+        self.assertEqual(path["stage"], "approval_intent_needed")
+        self.assertEqual(path["status"], "waiting_for_operator")
+        self.assertEqual(path["target_section"], "idea-to-spec-approval-readiness")
+        self.assertEqual(path["counts"]["promotion_path_count"], 1)
+        self.assertEqual(path["state"]["approval_intent_status"], "missing")
+        boundary = path["authority_boundary"]
+        self.assertTrue(boundary["inspect_only"])
+        self.assertFalse(boundary["may_execute_platform"])
+        self.assertFalse(boundary["may_execute_git_service"])
+        self.assertFalse(boundary["may_materialize_candidate_approval_decision"])
+        self.assertFalse(boundary["may_create_promotion_request"])
+        self.assertFalse(boundary["may_publish_read_model"])
+        checkpoints = {item["id"]: item for item in path["checkpoints"]}
+        self.assertEqual(checkpoints["approval_readiness"]["status"], "completed")
+        self.assertEqual(checkpoints["approval_intent"]["status"], "required")
+
+    def test_idea_to_spec_workspace_guided_approval_path_is_missing_without_artifacts(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        path = body["guided_approval_path"]
+        self.assertFalse(path["available"])
+        self.assertEqual(path["stage"], "missing")
+        self.assertEqual(path["status"], "missing")
+        self.assertEqual(
+            path["next_action"],
+            "Publish approval readiness and controlled promotion artifacts.",
+        )
+        checkpoints = {item["id"]: item for item in path["checkpoints"]}
+        self.assertEqual(checkpoints["approval_readiness"]["status"], "required")
+
+    def test_idea_to_spec_workspace_guided_approval_path_waits_for_execution(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_candidate_approval_intent_state(state_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        path = body["guided_approval_path"]
+        self.assertEqual(path["stage"], "approval_execution_needed")
+        self.assertEqual(path["status"], "waiting_for_operator")
+        self.assertEqual(path["state"]["approval_intent_status"], "usable")
+        checkpoints = {item["id"]: item for item in path["checkpoints"]}
+        self.assertEqual(checkpoints["approval_intent"]["status"], "completed")
+        self.assertEqual(checkpoints["approval_decision"]["status"], "required")
+
+    def test_idea_to_spec_workspace_guided_approval_path_requires_approval_decision_ref(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_candidate_approval_intent_state(state_dir)
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": "platform_candidate_approval_execution_report",
+                    "schema_version": 1,
+                    "ok": True,
+                    "dry_run": False,
+                    "canonical_mutations_allowed": False,
+                    "ontology_writes_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "candidate_id": "team-decision-log",
+                    "workspace_id": "team-decision-log",
+                    "summary": {
+                        "status": "candidate_approval_decision_materialized",
+                        "gate_ready": True,
+                        "decision_written": True,
+                        "approved_path_count": 1,
+                        "error_count": 0,
+                    },
+                    "authority_boundary": {
+                        "executes_specgraph": False,
+                        "executes_git_commands": False,
+                        "opens_pull_requests": False,
+                        "merges_pull_requests": False,
+                        "writes_ontology_packages": False,
+                        "accepts_ontology_terms": False,
+                        "mutates_canonical_specs": False,
+                    },
+                    "diagnostics": [],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        path = body["guided_approval_path"]
+        self.assertEqual(path["stage"], "approval_execution_needed")
+        self.assertEqual(path["status"], "waiting_for_operator")
+        checkpoints = {item["id"]: item for item in path["checkpoints"]}
+        self.assertEqual(checkpoints["approval_decision"]["status"], "required")
+
+    def test_idea_to_spec_workspace_guided_approval_path_blocks_failed_approval_execution(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_candidate_approval_intent_state(state_dir)
+            _write_candidate_approval_artifacts(runs_dir)
+            execution_path = (
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+            )
+            execution = json.loads(execution_path.read_text(encoding="utf-8"))
+            execution["ok"] = False
+            execution["summary"]["status"] = "candidate_approval_failed"
+            execution["summary"]["error_count"] = 1
+            _write_json(execution_path, execution)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        path = body["guided_approval_path"]
+        self.assertEqual(path["stage"], "approval_execution_needed")
+        self.assertEqual(path["status"], "blocked")
+        self.assertIn("candidate_approval_execution_failed", path["blockers"])
+        checkpoints = {item["id"]: item for item in path["checkpoints"]}
+        self.assertEqual(checkpoints["approval_decision"]["status"], "blocked")
+
+    def test_idea_to_spec_workspace_guided_approval_path_waits_for_promotion_request(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_candidate_approval_intent_state(state_dir)
+            _write_candidate_approval_artifacts(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        path = body["guided_approval_path"]
+        self.assertEqual(path["stage"], "promotion_request_needed")
+        self.assertEqual(path["status"], "waiting_for_operator")
+        self.assertEqual(path["counts"]["approved_path_count"], 1)
+        checkpoints = {item["id"]: item for item in path["checkpoints"]}
+        self.assertEqual(checkpoints["approval_decision"]["status"], "completed")
+        self.assertIn(
+            "runs/candidate_approval_decision.json",
+            path["evidence_refs"],
+        )
+
+    def test_idea_to_spec_workspace_guided_approval_path_blocks_failed_git_execution(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_candidate_approval_intent_state(state_dir)
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir, include_execution=True)
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": (
+                        "platform_git_service_promotion_execution_report"
+                    ),
+                    "schema_version": 1,
+                    "ok": False,
+                    "dry_run": False,
+                    "open_review_dry_run": False,
+                    "candidate_ref": "graph-candidate/team-decision-log",
+                    "summary": {
+                        "status": "promotion_execution_failed",
+                        "error_count": 1,
+                    },
+                    "authority_boundary": {
+                        "may_execute_git_service": False,
+                        "may_create_branch_or_commit": False,
+                        "may_open_pull_request": False,
+                        "may_merge_review": False,
+                        "may_mutate_canonical_specs": False,
+                        "may_write_ontology_package": False,
+                        "may_accept_ontology_terms": False,
+                    },
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        path = body["guided_approval_path"]
+        self.assertEqual(path["stage"], "promotion_execution_needed")
+        self.assertEqual(path["status"], "blocked")
+        self.assertIn("promotion_execution_failed", path["blockers"])
+        checkpoints = {item["id"]: item for item in path["checkpoints"]}
+        self.assertEqual(checkpoints["promotion_execution"]["status"], "blocked")
+        self.assertIn(
+            f"runs/{idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT}",
+            path["evidence_refs"],
+        )
+
+    def test_idea_to_spec_workspace_guided_approval_path_blocks_product_execution_errors(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_candidate_approval_intent_state(state_dir)
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir, include_execution=True)
+            execution_path = (
+                runs_dir
+                / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+            )
+            execution = json.loads(execution_path.read_text(encoding="utf-8"))
+            execution["summary"]["error_count"] = 1
+            execution["diagnostics"] = [{"severity": "error", "id": "copy_failed"}]
+            _write_json(execution_path, execution)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        path = body["guided_approval_path"]
+        self.assertEqual(path["stage"], "promotion_execution_needed")
+        self.assertEqual(path["status"], "blocked")
+        self.assertIn("promotion_execution_failed", path["blockers"])
+
+    def test_idea_to_spec_workspace_guided_approval_path_ignores_stale_review_after_dry_run(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_candidate_approval_intent_state(state_dir)
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(
+                runs_dir,
+                include_execution=True,
+                include_review_status=True,
+            )
+            execution_path = (
+                runs_dir
+                / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+            )
+            execution = json.loads(execution_path.read_text(encoding="utf-8"))
+            execution["dry_run"] = True
+            execution["open_review_dry_run"] = True
+            execution["summary"]["status"] = "dry_run"
+            _write_json(execution_path, execution)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        path = body["guided_approval_path"]
+        self.assertEqual(path["stage"], "promotion_execution_needed")
+        self.assertEqual(path["status"], "waiting_for_operator")
+        self.assertEqual(
+            path["next_action"],
+            "Run non-dry-run product promotion execution when ready.",
+        )
+        checkpoints = {item["id"]: item for item in path["checkpoints"]}
+        self.assertEqual(checkpoints["review_status"]["status"], "required")
+
+    def test_idea_to_spec_workspace_guided_approval_path_uses_legacy_review_ref(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_candidate_approval_intent_state(state_dir)
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": "platform_graph_repository_review_status_report",
+                    "schema_version": 1,
+                    "ok": True,
+                    "canonical_mutations_allowed": False,
+                    "canonical_tracked_artifacts_written": False,
+                    "tracked_artifacts_written": False,
+                    "review_state": "open",
+                    "summary": {"status": "waiting_for_review_merge"},
+                    "authority_boundary": {
+                        "may_merge_review": False,
+                        "may_publish_read_model": False,
+                        "may_mutate_canonical_specs": False,
+                    },
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        path = body["guided_approval_path"]
+        self.assertEqual(path["stage"], "review_merge_waiting")
+        checkpoints = {item["id"]: item for item in path["checkpoints"]}
+        self.assertIn(
+            f"runs/{idea_to_spec_workspace.GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT}",
+            checkpoints["review_status"]["evidence_refs"],
+        )
+
+    def test_idea_to_spec_workspace_guided_approval_path_reports_published_read_model(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_candidate_approval_intent_state(state_dir)
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(
+                runs_dir,
+                include_execution=True,
+                include_review_status=True,
+                include_publication=True,
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        path = body["guided_approval_path"]
+        self.assertEqual(path["stage"], "published")
+        self.assertEqual(path["status"], "completed")
+        self.assertTrue(path["state"]["read_model_published"])
+        checkpoints = {item["id"]: item for item in path["checkpoints"]}
+        self.assertEqual(checkpoints["promotion_request"]["status"], "completed")
+        self.assertEqual(checkpoints["promotion_execution"]["status"], "completed")
+        self.assertEqual(checkpoints["review_status"]["status"], "completed")
+        self.assertEqual(checkpoints["read_model_publication"]["status"], "completed")
+        self.assertIn(
+            "runs/product_candidate_promotion_read_model_publication_report.json",
+            path["evidence_refs"],
+        )
 
     def test_idea_to_spec_workspace_state_hygiene_v1_keeps_source_repair_state_usable_after_repaired_handoff(
         self,

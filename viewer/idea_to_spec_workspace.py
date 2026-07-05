@@ -5276,6 +5276,18 @@ def _guided_repair_boundary() -> dict[str, bool]:
     return boundary
 
 
+def _guided_approval_boundary() -> dict[str, bool]:
+    boundary = _guided_flow_boundary()
+    boundary.update(
+        {
+            "may_materialize_candidate_approval_decision": False,
+            "may_create_promotion_request": False,
+            "may_publish_read_model": False,
+        }
+    )
+    return boundary
+
+
 def _guided_stage(
     *,
     stage_id: str,
@@ -5355,6 +5367,451 @@ def _guided_repair_append_unique(items: list[str], value: str | None) -> None:
     text = _optional_text(value)
     if text and text not in items:
         items.append(text)
+
+
+def _guided_approval_checkpoint(
+    *,
+    checkpoint_id: str,
+    label: str,
+    status: str,
+    target_section: str = "idea-to-spec-controlled-promotion",
+    evidence_refs: list[str] | None = None,
+    detail: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "id": checkpoint_id,
+        "label": label,
+        "status": status,
+        "target_section": target_section,
+        "evidence_refs": evidence_refs or [],
+        "detail": detail,
+    }
+
+
+def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
+    approval = _record(payload.get("approval_readiness"))
+    controlled = _record(payload.get("controlled_promotion"))
+    hygiene = _record(payload.get("workspace_state_hygiene"))
+    candidate_approval_execution = _record(
+        controlled.get("candidate_approval_execution")
+    )
+    candidate_approval = _record(controlled.get("candidate_approval"))
+    promotion_request = _record(controlled.get("platform_request"))
+    product_execution = _record(controlled.get("product_promotion_execution"))
+    git_execution = _record(controlled.get("git_service_execution"))
+    review_status = _record(controlled.get("review_status"))
+    read_model_publication = _record(controlled.get("read_model_publication"))
+    promotion_finalization = _record(controlled.get("promotion_finalization"))
+    review_status_artifact = (
+        PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        if review_status.get("source_mode") == "product"
+        else GRAPH_REPOSITORY_REVIEW_STATUS_REPORT_ARTIFACT
+    )
+    read_model_publication_artifact = (
+        PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        if read_model_publication.get("source_mode") == "product"
+        else GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT
+    )
+    approval_intent_state = _guided_repair_hygiene_state(
+        hygiene,
+        "candidate_approval_intent",
+    )
+
+    source_refs = _record(approval.get("source_refs"))
+    evidence_refs: list[str] = []
+    for ref in [
+        _optional_text(source_refs.get("handoff")),
+        _optional_text(source_refs.get("repair_session")),
+        _optional_text(source_refs.get("promotion_gate")),
+        _optional_text(candidate_approval_execution.get("gate_report_ref")),
+        _optional_text(
+            candidate_approval_execution.get("candidate_approval_decision_ref")
+        ),
+        f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}"
+        if candidate_approval.get("available") is True
+        else None,
+        f"runs/{GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT}"
+        if promotion_request.get("available") is True
+        else None,
+        f"runs/{PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT}"
+        if product_execution.get("available") is True
+        else None,
+        f"runs/{GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT}"
+        if git_execution.get("available") is True
+        else None,
+        f"runs/{review_status_artifact}"
+        if review_status.get("available") is True
+        else None,
+        f"runs/{read_model_publication_artifact}"
+        if read_model_publication.get("available") is True
+        else None,
+        f"runs/{GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT}"
+        if promotion_finalization.get("available") is True
+        else None,
+    ]:
+        _guided_repair_append_unique(evidence_refs, ref)
+
+    approval_ready = approval.get("promotion_review_can_be_requested") is True
+    approval_execution_decision_ready = (
+        candidate_approval_execution.get("ok") is True
+        and candidate_approval_execution.get("dry_run") is not True
+        and candidate_approval_execution.get("decision_written") is True
+        and _optional_text(
+            candidate_approval_execution.get("candidate_approval_decision_ref")
+        )
+        is not None
+    )
+    approval_decision_ready = (
+        candidate_approval.get("ready") is True
+        or approval.get("candidate_approval_decision_ready") is True
+        or approval_execution_decision_ready
+    )
+    approval_execution_available = (
+        candidate_approval_execution.get("available") is True
+    )
+    approval_execution_failed = (
+        approval_execution_available and candidate_approval_execution.get("ok") is not True
+    )
+    approval_intent_status = _text(
+        approval_intent_state.get("status"),
+        "missing",
+    )
+    approval_intent_ready = approval_intent_status in {
+        "usable",
+        "requested",
+        "ready",
+    }
+    promotion_request_ready = promotion_request.get("ok") is True
+    promotion_request_failed = (
+        promotion_request.get("available") is True
+        and promotion_request.get("ok") is not True
+    )
+    product_execution_available = product_execution.get("available") is True
+    git_execution_available = git_execution.get("available") is True
+    promotion_execution_available = (
+        product_execution_available or git_execution_available
+    )
+    promotion_execution_ok_values: list[bool] = []
+    if product_execution_available:
+        promotion_execution_ok_values.append(
+            product_execution.get("ok") is True
+            and _number(product_execution.get("error_count")) == 0
+        )
+    if git_execution_available:
+        promotion_execution_ok_values.append(
+            git_execution.get("ok") is True
+            and _number(git_execution.get("error_count")) == 0
+        )
+    promotion_execution_ok = bool(promotion_execution_ok_values) and all(
+        promotion_execution_ok_values
+    )
+    promotion_execution_failed = (
+        promotion_execution_available and not promotion_execution_ok
+    )
+    selected_execution = (
+        product_execution if product_execution_available else git_execution
+    )
+    promotion_execution_dry_run = (
+        selected_execution.get("dry_run") is True
+        or selected_execution.get("open_review_dry_run") is True
+    )
+    promotion_execution_ready_for_review = (
+        promotion_execution_available
+        and promotion_execution_ok
+        and not promotion_execution_dry_run
+    )
+    review_available = review_status.get("available") is True
+    review_can_be_used = review_available and (
+        not promotion_execution_available or promotion_execution_ready_for_review
+    )
+    review_ok = review_status.get("ok") is True
+    review_merged = review_can_be_used and review_status.get("review_merged") is True
+    review_failed = review_can_be_used and not review_ok
+    read_model_published = (
+        read_model_publication.get("published") is True
+        or read_model_publication.get("read_model_published") is True
+        or promotion_finalization.get("read_model_published") is True
+    )
+    publication_failed = (
+        read_model_publication.get("available") is True
+        and read_model_publication.get("ok") is not True
+    ) or (
+        promotion_finalization.get("available") is True
+        and promotion_finalization.get("ok") is not True
+    )
+
+    blockers = _string_list(approval.get("blockers"))
+    if approval_execution_failed:
+        blockers.append("candidate_approval_execution_failed")
+    if promotion_request_failed:
+        blockers.append("promotion_request_failed")
+    if promotion_execution_failed:
+        blockers.append("promotion_execution_failed")
+    if review_failed:
+        blockers.append("review_status_failed")
+    if publication_failed:
+        blockers.append("read_model_publication_failed")
+    unique_blockers: list[str] = []
+    for blocker in blockers:
+        _guided_repair_append_unique(unique_blockers, blocker)
+
+    available = approval.get("available") is True or controlled.get("available") is True
+    stage = "missing"
+    status = "missing"
+    next_action = "Publish approval readiness and controlled promotion artifacts."
+    target_section = "idea-to-spec-approval-readiness"
+    if not available:
+        pass
+    elif read_model_published:
+        stage = "published"
+        status = "completed"
+        next_action = "Inspect the published product read model."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif publication_failed:
+        stage = "read_model_publication_needed"
+        status = "blocked"
+        next_action = "Repair read-model publication report."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif review_merged:
+        stage = "read_model_publication_needed"
+        status = "waiting_for_operator"
+        next_action = "Publish the public read model after repository review merge."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif promotion_execution_failed:
+        stage = "promotion_execution_needed"
+        status = "blocked"
+        next_action = "Repair controlled product promotion execution."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif promotion_execution_available and promotion_execution_dry_run:
+        stage = "promotion_execution_needed"
+        status = "waiting_for_operator"
+        next_action = "Run non-dry-run product promotion execution when ready."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif review_failed:
+        stage = "review_merge_waiting"
+        status = "blocked"
+        next_action = "Repair product promotion review-status report."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif review_can_be_used:
+        stage = "review_merge_waiting"
+        status = "waiting_for_operator"
+        next_action = "Wait for repository review merge before publication."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif promotion_execution_available and promotion_execution_ok:
+        stage = "review_merge_waiting"
+        status = "waiting_for_operator"
+        next_action = "Inspect repository review status for the opened promotion PR."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif promotion_request_failed:
+        stage = "promotion_request_needed"
+        status = "blocked"
+        next_action = "Repair graph repository promotion request."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif promotion_request_ready:
+        stage = "promotion_execution_needed"
+        status = "waiting_for_operator"
+        next_action = "Run controlled product promotion execution."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif approval_execution_failed:
+        stage = "approval_execution_needed"
+        status = "blocked"
+        next_action = "Repair Platform candidate approval materialization."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif approval_decision_ready:
+        stage = "promotion_request_needed"
+        status = "waiting_for_operator"
+        next_action = "Create the report-only graph repository promotion request."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif approval_execution_available:
+        stage = "approval_execution_needed"
+        status = "waiting_for_operator"
+        next_action = "Run Platform candidate approval materialization."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif approval_ready and approval_intent_ready:
+        stage = "approval_execution_needed"
+        status = "waiting_for_operator"
+        next_action = "Materialize candidate approval through Platform."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif approval_ready:
+        stage = "approval_intent_needed"
+        status = "waiting_for_operator"
+        next_action = "Record candidate approval intent in SpecSpace."
+        target_section = "idea-to-spec-approval-readiness"
+    else:
+        stage = "approval_not_ready"
+        status = "blocked"
+        next_action = "Resolve approval readiness blockers before promotion review."
+
+    checkpoint_status = {
+        "approval_readiness": (
+            "completed"
+            if approval_ready or approval_decision_ready
+            else "required"
+            if not available
+            else "blocked"
+        ),
+        "approval_intent": "completed" if approval_intent_ready else "required",
+        "approval_decision": "completed" if approval_decision_ready else "required",
+        "promotion_request": "completed" if promotion_request_ready else "required",
+        "promotion_execution": (
+            "completed"
+            if promotion_execution_available and promotion_execution_ok
+            else "required"
+        ),
+        "review_status": (
+            "completed"
+            if review_merged
+            else "waiting_for_operator"
+            if review_can_be_used
+            else "required"
+        ),
+        "read_model_publication": "completed" if read_model_published else "required",
+    }
+    if approval_execution_failed:
+        checkpoint_status["approval_decision"] = "blocked"
+    if promotion_request_failed:
+        checkpoint_status["promotion_request"] = "blocked"
+    if promotion_execution_failed:
+        checkpoint_status["promotion_execution"] = "blocked"
+    if review_failed:
+        checkpoint_status["review_status"] = "blocked"
+    if publication_failed:
+        checkpoint_status["read_model_publication"] = "blocked"
+
+    return {
+        "available": approval.get("available") is True or controlled.get("available") is True,
+        "stage": stage,
+        "status": status,
+        "next_action": next_action,
+        "target_section": target_section,
+        "blockers": unique_blockers[: DISPLAY_LIMITS["findings"]],
+        "counts": {
+            "promotion_path_count": _number(approval.get("promotion_path_count")),
+            "remaining_blocker_count": _number(
+                approval.get("remaining_blocker_count")
+            ),
+            "approved_path_count": (
+                _number(candidate_approval_execution.get("approved_path_count"))
+                if candidate_approval_execution.get("approved_path_count") is not None
+                else len(_string_list(candidate_approval.get("promotion_paths")))
+            ),
+            "promotion_commit_path_count": len(
+                _string_list(promotion_request.get("commit_paths"))
+            ),
+            "promotion_operation_count": _number(
+                product_execution.get("child_operation_count")
+            )
+            or _number(git_execution.get("operation_count")),
+        },
+        "state": {
+            "approval_readiness_status": _optional_text(approval.get("status")),
+            "approval_intent_status": approval_intent_status,
+            "approval_execution_status": _optional_text(
+                candidate_approval_execution.get("status")
+            ),
+            "candidate_approval_state": _optional_text(
+                candidate_approval.get("decision_state")
+            ),
+            "promotion_request_ok": promotion_request_ready,
+            "promotion_execution_status": _optional_text(product_execution.get("status")),
+            "review_state": _optional_text(review_status.get("review_state")),
+            "read_model_published": read_model_published,
+        },
+        "checkpoints": [
+            _guided_approval_checkpoint(
+                checkpoint_id="approval_readiness",
+                label="Approval readiness",
+                status=checkpoint_status["approval_readiness"],
+                target_section="idea-to-spec-approval-readiness",
+                evidence_refs=[
+                    ref
+                    for ref in [
+                        _optional_text(source_refs.get("handoff")),
+                        _optional_text(source_refs.get("repair_session")),
+                        _optional_text(source_refs.get("promotion_gate")),
+                    ]
+                    if ref
+                ],
+                detail=_optional_text(approval.get("status")),
+            ),
+            _guided_approval_checkpoint(
+                checkpoint_id="approval_intent",
+                label="Candidate approval intent",
+                status=checkpoint_status["approval_intent"],
+                target_section="idea-to-spec-approval-readiness",
+                evidence_refs=["specspace-state://idea_to_spec_candidate_approval_intents.json"],
+                detail=approval_intent_status,
+            ),
+            _guided_approval_checkpoint(
+                checkpoint_id="approval_decision",
+                label="Approval decision",
+                status=checkpoint_status["approval_decision"],
+                evidence_refs=[
+                    ref
+                    for ref in [
+                        f"runs/{PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT}"
+                        if candidate_approval_execution.get("available") is True
+                        else None,
+                        f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}"
+                        if candidate_approval.get("available") is True
+                        else None,
+                    ]
+                    if ref
+                ],
+                detail=_optional_text(candidate_approval.get("decision_state")),
+            ),
+            _guided_approval_checkpoint(
+                checkpoint_id="promotion_request",
+                label="Promotion request",
+                status=checkpoint_status["promotion_request"],
+                evidence_refs=[
+                    f"runs/{GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT}"
+                ]
+                if promotion_request.get("available") is True
+                else [],
+            ),
+            _guided_approval_checkpoint(
+                checkpoint_id="promotion_execution",
+                label="Promotion execution",
+                status=checkpoint_status["promotion_execution"],
+                evidence_refs=[
+                    ref
+                    for ref in [
+                        f"runs/{PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT}"
+                        if product_execution.get("available") is True
+                        else None,
+                        f"runs/{GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT}"
+                        if git_execution.get("available") is True
+                        else None,
+                    ]
+                    if ref
+                ],
+            ),
+            _guided_approval_checkpoint(
+                checkpoint_id="review_status",
+                label="Review status",
+                status=checkpoint_status["review_status"],
+                evidence_refs=[
+                    f"runs/{review_status_artifact}"
+                ]
+                if review_status.get("available") is True
+                else [],
+                detail=_optional_text(review_status.get("review_state")),
+            ),
+            _guided_approval_checkpoint(
+                checkpoint_id="read_model_publication",
+                label="Read-model publication",
+                status=checkpoint_status["read_model_publication"],
+                evidence_refs=[
+                    f"runs/{read_model_publication_artifact}"
+                ]
+                if read_model_publication.get("available") is True
+                else [],
+            ),
+        ],
+        "evidence_refs": evidence_refs,
+        "authority_boundary": _guided_approval_boundary(),
+    }
 
 
 def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
@@ -6395,6 +6852,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
 
 def attach_guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     payload["guided_repair_path"] = _guided_repair_path(payload)
+    payload["guided_approval_path"] = _guided_approval_path(payload)
     payload["guided_flow"] = _guided_flow(payload)
     return payload
 
