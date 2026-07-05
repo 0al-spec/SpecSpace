@@ -1795,7 +1795,7 @@ test("builds an active candidate from a non-demo product workspace route", async
       expect(generatedIntakeArtifactsText).not.toContain(executionBackedRawIdea);
       expect(generatedIntakeArtifactsText).toContain(executionBackedWorkspaceId);
       expect(generatedIntakeArtifactsText).not.toContain("team-decision-log");
-      return;
+      test.skip(true, "Platform produced no clarification questions.");
     }
     await expect(page.getByText("Template-backed answer").first()).toBeVisible();
     const answerValuesByRequest: Record<string, string> = {
@@ -2053,7 +2053,19 @@ test("can refresh from a real Platform intake execution when checkouts are provi
 
     const answerFields = page.locator('textarea[data-testid^="intake-clarification-answer-"]');
     const answerCount = await answerFields.count();
-    if (answerCount === 0) return;
+    if (answerCount === 0) {
+      const generatedIntakeArtifactsText = await readExistingFilesAsText([
+        path.join(backend.runsDir, "platform_real_idea_entry_intake_execution_report.json"),
+        path.join(backend.runsDir, "idea_event_storming_intake.json"),
+        path.join(backend.runsDir, "candidate_spec_graph_seed.json"),
+        path.join(backend.runsDir, "candidate_spec_graph.json"),
+        path.join(backend.runsDir, "active_idea_to_spec_candidate.json"),
+      ]);
+      expect(generatedIntakeArtifactsText).not.toContain(fullLifecycleRawIdea);
+      expect(generatedIntakeArtifactsText).toContain(lifecycleWorkspaceId);
+      expect(generatedIntakeArtifactsText).not.toContain("team-decision-log");
+      test.skip(true, "Platform produced no clarification questions.");
+    }
     await expect(page.getByText("Template-backed answer").first()).toBeVisible();
     const answerValuesByRequest: Record<string, string> = {
       "clarification.intake.question-active-frame-domain-refs":
