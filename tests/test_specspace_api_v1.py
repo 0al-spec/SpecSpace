@@ -3451,6 +3451,131 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
         self.assertEqual(product_graph["workspace_id"], "support-triage-log")
         self.assertEqual(workspace_body["workspace"]["id"], "support-triage-log")
 
+    def test_requested_product_workspace_does_not_reuse_default_product_runs(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_dir = root / "specs" / "nodes"
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            spec_dir.mkdir(parents=True)
+            _write_yaml(
+                spec_dir / "SG-SPEC-BOOTSTRAP.yaml",
+                {
+                    **MINIMAL_SPEC,
+                    "id": "SG-SPEC-BOOTSTRAP",
+                    "title": "Bootstrap Graph",
+                },
+            )
+            _write_product_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                spec_dir=spec_dir,
+                runs_dir=runs_dir,
+                specgraph_dir=root,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                post_status, _ = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "workspace_id": "calcus",
+                        "display_name": "calcus",
+                        "route": "/calcus",
+                        "root_intent_summary": "Calculator for students on exams",
+                    },
+                )
+                graph_status, product_graph = _get(
+                    f"{base}/api/v1/spec-graph?workspace=calcus"
+                )
+                workspace_status, workspace_body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=calcus"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(post_status, 200)
+        self.assertEqual(graph_status, 200)
+        self.assertEqual(workspace_status, 200)
+        node_ids = {node["node_id"] for node in product_graph["graph"]["nodes"]}
+        self.assertNotIn("candidate-spec.team-decision-log-product", node_ids)
+        self.assertEqual(product_graph["workspace_id"], "calcus")
+        self.assertEqual(workspace_body["source"]["workspace_id"], "calcus")
+        self.assertEqual(workspace_body["summary"]["status"], "unavailable")
+        self.assertFalse(workspace_body["workspace"]["available"])
+
+    def test_requested_product_workspace_keeps_matching_initialization_artifact(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_product_workspace_runs(runs_dir)
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": (
+                        "platform_product_workspace_initialization_execution_report"
+                    ),
+                    "schema_version": 1,
+                    "ok": True,
+                    "dry_run": False,
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "workspace": {
+                        "workspace_id": "calcus",
+                        "display_name": "calcus",
+                        "route": "/calcus",
+                        "repository_role": "product_spec_workspace",
+                    },
+                    "summary": {
+                        "status": "workspace_initialization_executed",
+                        "catalog_written": True,
+                        "workspace_files_created": True,
+                        "error_count": 0,
+                    },
+                    "authority_boundary": {
+                        "creates_git_commits": False,
+                        "opens_pull_requests": False,
+                        "publishes_read_models": False,
+                        "mutates_canonical_specs": False,
+                        "writes_ontology_packages": False,
+                        "accepts_ontology_terms": False,
+                    },
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specgraph_dir=root,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                _, _ = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "workspace_id": "calcus",
+                        "display_name": "calcus",
+                        "route": "/calcus",
+                    },
+                )
+                status, workspace_body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=calcus"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(workspace_body["workspace_initialization"]["initialized"])
+        self.assertEqual(
+            workspace_body["workspace_initialization"]["execution"]["status"],
+            "workspace_initialization_executed",
+        )
+        self.assertEqual(workspace_body["summary"]["candidate_node_count"], 0)
+
     def test_team_workspace_artifact_catalog_excludes_bootstrap_manifest_files(
         self,
     ) -> None:

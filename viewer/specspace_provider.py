@@ -54,6 +54,11 @@ DEFAULT_PRODUCT_WORKSPACE_CATALOG: tuple[dict[str, Any], ...] = (
         "aliases": ["/team_decision_log"],
     },
 )
+DEFAULT_PRODUCT_WORKSPACE_IDS: frozenset[str] = frozenset(
+    str(workspace["id"])
+    for workspace in DEFAULT_PRODUCT_WORKSPACE_CATALOG
+    if isinstance(workspace.get("id"), str)
+)
 
 
 def normalize_product_workspace_id(value: Any) -> str | None:
@@ -99,6 +104,16 @@ def _validated_ontology_workbench_artifact(
         status, _ = specgraph_surfaces.validate_ontology_owner_decision_review_envelope(envelope)
         return payload if status == HTTPStatus.OK else None
     return payload
+
+
+def _json_contains_any_string(value: Any, expected: set[str]) -> bool:
+    if isinstance(value, str):
+        return value in expected
+    if isinstance(value, dict):
+        return any(_json_contains_any_string(item, expected) for item in value.values())
+    if isinstance(value, list):
+        return any(_json_contains_any_string(item, expected) for item in value)
+    return False
 
 
 class CapabilityContext(capabilities_api.CapabilitiesHandler, Protocol):
@@ -526,6 +541,27 @@ WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS: tuple[str, ...] = tuple(
         idea_to_spec_workspace.PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT,
     }
 )
+
+PRE_CANDIDATE_WORKSPACE_ARTIFACTS: frozenset[str] = frozenset(
+    {
+        idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT,
+        idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT,
+        idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
+        idea_to_spec_workspace.PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT,
+        idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT,
+        idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_ANSWERS_ARTIFACT,
+        idea_to_spec_workspace.IDEA_INTAKE_ANSWER_RERUN_INPUT_ARTIFACT,
+        idea_to_spec_workspace.CLARIFIED_USER_IDEA_INTAKE_SESSION_ARTIFACT,
+        idea_to_spec_workspace.CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT,
+        idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT,
+        idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT,
+        idea_to_spec_workspace.REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT,
+        idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_ARTIFACT,
+        idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
+        idea_to_spec_workspace.REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
+    }
+)
+
 
 PUBLIC_SAFE_RUN_ARTIFACT_FILENAMES: frozenset[str] = frozenset(
     {
@@ -1300,10 +1336,47 @@ class ProductWorkspaceFileProvider:
         )
 
     def _workspace_artifacts(self) -> dict[str, Any]:
-        return self.delegate._read_idea_to_spec_workspace_artifacts()
+        artifacts = self.delegate._read_idea_to_spec_workspace_artifacts()
+        if self._workspace_artifacts_match(artifacts):
+            return artifacts
+        return {
+            filename: payload
+            for filename, payload in artifacts.items()
+            if filename in PRE_CANDIDATE_WORKSPACE_ARTIFACTS
+            and self._payload_matches_workspace(payload)
+        }
+
+    def _payload_matches_workspace(self, payload: Any) -> bool:
+        if self.workspace_id in DEFAULT_PRODUCT_WORKSPACE_IDS:
+            return True
+        expected_values = {self.workspace_id, f"/{self.workspace_id}"}
+        return _json_contains_any_string(payload, expected_values)
+
+    def _workspace_artifacts_match(self, artifacts: dict[str, Any]) -> bool:
+        if not artifacts:
+            return True
+        candidate_surfaces = [
+            artifacts.get(idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT),
+            artifacts.get(
+                idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+            ),
+        ]
+        candidate_surfaces = [
+            candidate for candidate in candidate_surfaces if isinstance(candidate, dict)
+        ]
+        if not candidate_surfaces:
+            return self.workspace_id in DEFAULT_PRODUCT_WORKSPACE_IDS
+        return any(
+            idea_to_spec_workspace._candidate_matches_workspace(  # noqa: SLF001
+                candidate,
+                self.workspace_id,
+            )
+            for candidate in candidate_surfaces
+        )
 
     def _candidate_spec_nodes(self) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        candidate_graph = self.delegate._read_local_runs_json(
+        artifacts = self._workspace_artifacts()
+        candidate_graph = artifacts.get(
             idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT
         )
         if candidate_graph is None:
@@ -1318,6 +1391,10 @@ class ProductWorkspaceFileProvider:
     def _artifact_map(self) -> dict[str, Path]:
         if self.delegate.runs_dir is None:
             return {}
+        if not self._workspace_artifacts_match(
+            self.delegate._read_idea_to_spec_workspace_artifacts()
+        ):
+            return {}
         artifact_map: dict[str, Path] = {}
         for filename in WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS:
             path = self.delegate.runs_dir / filename
@@ -1328,9 +1405,8 @@ class ProductWorkspaceFileProvider:
     def health(self) -> dict[str, Any]:
         base = self.delegate.health()
         runs = self.delegate.runs_health()
-        candidate_graph = self.delegate._read_local_runs_json(
-            idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT
-        )
+        artifacts = self._workspace_artifacts()
+        candidate_graph = artifacts.get(idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT)
         status = "ok" if source_is_readable(runs) and candidate_graph is not None else "degraded"
         return {
             **base,
