@@ -508,6 +508,7 @@ export function IdeaToSpecWorkspacePanel({
         <WorkspaceCreationSection creation={data.workspaceCreation} />
         <GuidedFlowSection flow={data.guidedFlow} />
         <GuidedRepairPathSection path={data.guidedRepairPath} />
+        <GuidedApprovalPathSection path={data.guidedApprovalPath} />
         <CandidateOverviewSection overview={data.candidateOverview} />
         <WorkflowSection workflow={data.workflow} />
         <WorkspaceSection workspace={data.workspace} />
@@ -1423,6 +1424,136 @@ function GuidedRepairPathSection({
         <div className={styles.row}>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>Repair path blockers</span>
+            <span className={styles.sectionCount}>{path.blockers.length}</span>
+          </div>
+          <div className={styles.tagList}>
+            {path.blockers.map((blocker) => (
+              <Pill key={blocker} value={blocker} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function GuidedApprovalPathSection({
+  path,
+}: {
+  path: IdeaToSpecWorkspace["guidedApprovalPath"];
+}) {
+  const primaryHref = path.targetSection ? `#${path.targetSection}` : null;
+  const stateItems = [
+    ["Readiness", path.state.approvalReadinessStatus],
+    ["Intent", path.state.approvalIntentStatus],
+    ["Execution", path.state.approvalExecutionStatus],
+    ["Decision", path.state.candidateApprovalState],
+    ["Promotion", path.state.promotionExecutionStatus],
+    ["Review", path.state.reviewState],
+  ] as const;
+  return (
+    <section id="idea-to-spec-guided-approval-path" className={styles.reviewSection}>
+      <SectionHeader
+        title="Guided approval path"
+        count={path.available ? path.checkpoints.length : 0}
+      />
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Approval and promotion route</span>
+          <Pill value={path.stage.replace(/_/g, " ")} />
+        </div>
+        <h3 className={styles.title} data-testid="guided-approval-next-action">
+          {path.nextAction}
+        </h3>
+        <div className={styles.postureStrip}>
+          <PostureItem
+            label="Promotion paths"
+            value={String(path.counts.promotionPathCount)}
+          />
+          <PostureItem
+            label="Blockers"
+            value={String(path.blockers.length)}
+          />
+          <PostureItem
+            label="Approved paths"
+            value={String(path.counts.approvedPathCount)}
+          />
+          <PostureItem
+            label="Commit paths"
+            value={String(path.counts.promotionCommitPathCount)}
+          />
+          <PostureItem
+            label="Promotion ops"
+            value={String(path.counts.promotionOperationCount)}
+          />
+          <PostureItem
+            label="Read model"
+            value={path.state.readModelPublished ? "published" : "pending"}
+          />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Status" value={path.status.replace(/_/g, " ")} />
+          <Meta label="Available" value={path.available ? "yes" : "no"} />
+          <Meta label="Target section" value={path.targetSection} />
+          <Meta
+            label="Promotion request"
+            value={path.state.promotionRequestOk ? "ready" : "pending"}
+          />
+          <Meta label="Evidence" value={joined(path.evidenceRefs)} />
+          <Meta label="Blockers" value={joined(path.blockers)} />
+          {stateItems.map(([label, value]) => (
+            <Meta key={label} label={label} value={value} />
+          ))}
+        </div>
+        {primaryHref ? (
+          <a className={styles.ackButton} href={primaryHref}>
+            Open target section
+          </a>
+        ) : null}
+      </div>
+      {path.available && path.checkpoints.length > 0 ? (
+        <div className={styles.guidedRail}>
+          {path.checkpoints.map((checkpoint, index) => {
+            const href = checkpoint.targetSection
+              ? `#${checkpoint.targetSection}`
+              : undefined;
+            const content = (
+              <>
+                <span className={styles.navLabel}>
+                  {index + 1}. {checkpoint.label}
+                </span>
+                <span className={styles.navHint}>
+                  {checkpoint.detail ?? "Evidence pending"}
+                </span>
+                <span className={styles.guidedStageMeta}>
+                  {checkpoint.status.replace(/_/g, " ")}
+                  {checkpoint.evidenceRefs.length > 0
+                    ? ` · refs ${checkpoint.evidenceRefs.length}`
+                    : ""}
+                </span>
+              </>
+            );
+            return href ? (
+              <a key={checkpoint.id} className={styles.guidedStage} href={href}>
+                {content}
+              </a>
+            ) : (
+              <div key={checkpoint.id} className={styles.guidedStage}>
+                {content}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <Status
+          label="Approval path unavailable"
+          detail="Approval readiness and promotion artifacts are not published for this workspace yet."
+        />
+      )}
+      {path.blockers.length > 0 ? (
+        <div className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>Approval path blockers</span>
             <span className={styles.sectionCount}>{path.blockers.length}</span>
           </div>
           <div className={styles.tagList}>

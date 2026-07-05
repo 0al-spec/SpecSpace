@@ -987,6 +987,12 @@ export type IdeaToSpecGuidedFlowBoundary = {
   mayMergeReview: false;
 };
 
+export type IdeaToSpecGuidedApprovalBoundary = IdeaToSpecGuidedFlowBoundary & {
+  mayMaterializeCandidateApprovalDecision: false;
+  mayCreatePromotionRequest: false;
+  mayPublishReadModel: false;
+};
+
 export type IdeaToSpecGuidedFlowStage = {
   id: string;
   label: string;
@@ -1030,6 +1036,15 @@ export type IdeaToSpecGuidedRepairCheckpoint = {
   evidenceRefs: readonly string[];
 };
 
+export type IdeaToSpecGuidedApprovalCheckpoint = {
+  id: string;
+  label: string;
+  status: string;
+  targetSection: string | null;
+  evidenceRefs: readonly string[];
+  detail: string | null;
+};
+
 export type IdeaToSpecGuidedRepairPath = {
   available: boolean;
   stage: string;
@@ -1060,6 +1075,35 @@ export type IdeaToSpecGuidedRepairPath = {
   checkpoints: readonly IdeaToSpecGuidedRepairCheckpoint[];
   evidenceRefs: readonly string[];
   authorityBoundary: IdeaToSpecGuidedFlowBoundary;
+};
+
+export type IdeaToSpecGuidedApprovalPath = {
+  available: boolean;
+  stage: string;
+  status: string;
+  nextAction: string;
+  targetSection: string | null;
+  blockers: readonly string[];
+  counts: {
+    promotionPathCount: number;
+    remainingBlockerCount: number;
+    approvedPathCount: number;
+    promotionCommitPathCount: number;
+    promotionOperationCount: number;
+  };
+  state: {
+    approvalReadinessStatus: string | null;
+    approvalIntentStatus: string | null;
+    approvalExecutionStatus: string | null;
+    candidateApprovalState: string | null;
+    promotionRequestOk: boolean;
+    promotionExecutionStatus: string | null;
+    reviewState: string | null;
+    readModelPublished: boolean;
+  };
+  checkpoints: readonly IdeaToSpecGuidedApprovalCheckpoint[];
+  evidenceRefs: readonly string[];
+  authorityBoundary: IdeaToSpecGuidedApprovalBoundary;
 };
 
 export type IdeaToSpecOverviewItem = {
@@ -1277,6 +1321,7 @@ export type IdeaToSpecWorkspace = {
   workflow: IdeaToSpecWorkflow;
   guidedFlow: IdeaToSpecGuidedFlow;
   guidedRepairPath: IdeaToSpecGuidedRepairPath;
+  guidedApprovalPath: IdeaToSpecGuidedApprovalPath;
   realIdeaIntake: IdeaToSpecRealIdeaIntake;
   intake: {
     available: boolean;
@@ -3729,6 +3774,15 @@ function parseGuidedFlowBoundary(): IdeaToSpecGuidedFlowBoundary {
   };
 }
 
+function parseGuidedApprovalBoundary(): IdeaToSpecGuidedApprovalBoundary {
+  return {
+    ...parseGuidedFlowBoundary(),
+    mayMaterializeCandidateApprovalDecision: false,
+    mayCreatePromotionRequest: false,
+    mayPublishReadModel: false,
+  };
+}
+
 function parseGuidedFlowStage(
   raw: unknown,
 ): IdeaToSpecGuidedFlowStage | null {
@@ -3857,6 +3911,68 @@ function parseGuidedRepairPath(raw: unknown): IdeaToSpecGuidedRepairPath {
     }),
     evidenceRefs: strings(path.evidence_refs),
     authorityBoundary: parseGuidedFlowBoundary(),
+  };
+}
+
+function parseGuidedApprovalCheckpoint(
+  raw: unknown,
+): IdeaToSpecGuidedApprovalCheckpoint | null {
+  const checkpoint = recordValue(raw);
+  const id = optionalString(checkpoint.id);
+  if (!id) return null;
+  return {
+    id,
+    label: stringValue(checkpoint.label, id),
+    status: stringValue(checkpoint.status, "unknown"),
+    targetSection: optionalString(checkpoint.target_section),
+    evidenceRefs: strings(checkpoint.evidence_refs),
+    detail: optionalString(checkpoint.detail),
+  };
+}
+
+function parseGuidedApprovalPath(raw: unknown): IdeaToSpecGuidedApprovalPath {
+  const path = recordValue(raw);
+  const counts = recordValue(path.counts);
+  const state = recordValue(path.state);
+  return {
+    available: path.available === true,
+    stage: stringValue(path.stage, "missing"),
+    status: stringValue(path.status, "unknown"),
+    nextAction: stringValue(
+      path.next_action,
+      "Inspect candidate approval and promotion state.",
+    ),
+    targetSection: optionalString(path.target_section),
+    blockers: strings(path.blockers),
+    counts: {
+      promotionPathCount: numberValue(counts.promotion_path_count),
+      remainingBlockerCount: numberValue(counts.remaining_blocker_count),
+      approvedPathCount: numberValue(counts.approved_path_count),
+      promotionCommitPathCount: numberValue(counts.promotion_commit_path_count),
+      promotionOperationCount: numberValue(counts.promotion_operation_count),
+    },
+    state: {
+      approvalReadinessStatus: optionalString(
+        state.approval_readiness_status,
+      ),
+      approvalIntentStatus: optionalString(state.approval_intent_status),
+      approvalExecutionStatus: optionalString(
+        state.approval_execution_status,
+      ),
+      candidateApprovalState: optionalString(state.candidate_approval_state),
+      promotionRequestOk: state.promotion_request_ok === true,
+      promotionExecutionStatus: optionalString(
+        state.promotion_execution_status,
+      ),
+      reviewState: optionalString(state.review_state),
+      readModelPublished: state.read_model_published === true,
+    },
+    checkpoints: records(path.checkpoints).flatMap((item) => {
+      const parsed = parseGuidedApprovalCheckpoint(item);
+      return parsed ? [parsed] : [];
+    }),
+    evidenceRefs: strings(path.evidence_refs),
+    authorityBoundary: parseGuidedApprovalBoundary(),
   };
 }
 
@@ -4072,6 +4188,37 @@ function guidedRepairPathBoundaryIsSafe(raw: unknown): boolean {
     boundary.inspect_only === true &&
     boundary.acknowledge_only === true &&
     repairFalseFlags.every((flag) => boundary[flag] === false)
+  );
+}
+
+function guidedApprovalPathBoundaryIsSafe(raw: unknown): boolean {
+  if (!isRecord(raw)) return true;
+  const boundary = recordValue(raw.authority_boundary);
+  const approvalFalseFlags = [
+    "may_execute_specgraph",
+    "may_execute_platform",
+    "may_execute_git_service",
+    "may_mutate_candidate_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_branch_or_commit",
+    "may_open_pull_request",
+    "may_merge_review",
+    "may_materialize_candidate_approval_decision",
+    "may_create_promotion_request",
+    "may_publish_read_model",
+  ];
+  const knownApprovalFlags = new Set(approvalFalseFlags);
+  for (const [flag, value] of Object.entries(boundary)) {
+    if (flag.startsWith("may_") && !knownApprovalFlags.has(flag) && value !== false) {
+      return false;
+    }
+  }
+  return (
+    boundary.inspect_only === true &&
+    boundary.acknowledge_only === true &&
+    approvalFalseFlags.every((flag) => boundary[flag] === false)
   );
 }
 
@@ -4321,6 +4468,12 @@ export function parseIdeaToSpecWorkspace(
     !guidedRepairPathBoundaryIsSafe(raw.guided_repair_path)
   ) {
     return { kind: "parse-error", reason: "guided repair path boundary expanded", raw };
+  }
+  if (
+    isRecord(raw.guided_approval_path) &&
+    !guidedApprovalPathBoundaryIsSafe(raw.guided_approval_path)
+  ) {
+    return { kind: "parse-error", reason: "guided approval path boundary expanded", raw };
   }
   if (
     isRecord(raw.candidate_overview) &&
@@ -4778,6 +4931,7 @@ export function parseIdeaToSpecWorkspace(
       workflow: parseWorkflow(raw.workflow),
       guidedFlow: parseGuidedFlow(raw.guided_flow),
       guidedRepairPath: parseGuidedRepairPath(raw.guided_repair_path),
+      guidedApprovalPath: parseGuidedApprovalPath(raw.guided_approval_path),
       realIdeaIntake: parseRealIdeaIntake(raw.real_idea_intake),
       intake: {
         available: intake.available === true,
