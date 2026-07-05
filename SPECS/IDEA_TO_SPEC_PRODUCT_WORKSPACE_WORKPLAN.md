@@ -377,17 +377,20 @@ Acceptance criteria:
 Status: closed.
 
 Arbitrary product workspace routes already existed, but users had to know and
-type the route manually. The Product Workspace flow now has a visible sidebar
-entry point for opening a new idea workspace route before submitting the raw
-idea.
+type the route manually. The Product Workspace flow now has a visible SpecSpace
+shell entry point for opening a new idea workspace before submitting the raw
+idea. The initial fast slice used an inline sidebar form; the current UI uses a
+compact workspace dropdown plus a fullscreen `New workspace` wizard.
 
 Acceptance criteria:
 
-- The SpecSpace sidebar exposes a `New idea workspace` input.
+- The SpecSpace sidebar exposes a compact workspace dropdown and `+` button.
   Done.
-- The input derives a safe product workspace route such as
-  `/cash-flow-control` without creating backend state or running Platform /
-  SpecGraph.
+- The `+` button opens a fullscreen `New workspace` wizard rather than placing
+  creation fields inside the Team Decision Log or other current workspace UI.
+  Done.
+- The wizard derives or requests a safe product workspace route such as
+  `/cash-flow-control` without running Platform / SpecGraph from the browser.
   Done.
 - Opening the route lands in a Product idea-to-spec workspace where the raw
   idea entry is the first lifecycle block.
@@ -400,11 +403,9 @@ Acceptance criteria:
 
 Status: in progress, cross-repo.
 
-The sidebar `New idea workspace` entry point currently creates only a product
-workspace route. That is useful for UI-started smoke, but it is not yet a real
-workspace creation flow. The next layer must connect this UI to a backend-owned
-workspace registry / creation boundary instead of relying on route-only
-navigation.
+The `New workspace` wizard records backend-owned workspace creation request
+state before opening a product workspace route. Platform-owned initialization
+and durable workspace binding remain separate controlled handoff steps.
 
 Current SpecSpace slice:
 
@@ -412,7 +413,8 @@ Current SpecSpace slice:
   intent.
 - `GET/POST /api/v1/product-workspace-creation-requests` exposes the request
   state with authority guards.
-- The sidebar entry point saves creation intent before opening the route.
+- The fullscreen `New workspace` wizard saves creation intent before opening the
+  route.
 - Product Workspace shows `route_only_workspace` or
   `workspace_creation_requested` status from backend state.
 - SpecSpace still does not initialize workspace files, mutate SpecGraph, update
