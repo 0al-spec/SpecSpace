@@ -1572,6 +1572,7 @@ function IntakeClarificationSection({
   const draftCount = answers.state.kind === "ok" ? answers.state.data.summary.answerCount : 0;
   const acceptedAnswerCount =
     answers.state.kind === "ok" ? answers.state.data.summary.acceptedAnswerCount : 0;
+  const blockingRequestCount = lane.clarificationRequests.blockingRequestCount;
   const answerTargetsByRequestId = useMemo(
     () =>
       new Map(
@@ -1597,8 +1598,8 @@ function IntakeClarificationSection({
     workspaceInitialized &&
     lane.available &&
     lane.answerAuthoring.template.available &&
-    lane.clarificationRequests.blockingRequestCount > 0 &&
-    acceptedAnswerCount > 0 &&
+    blockingRequestCount > 0 &&
+    acceptedAnswerCount >= blockingRequestCount &&
     !lane.answerContinuation.available &&
     !continuationExecutionRequests.pending &&
     activeContinuationRequest === null;
@@ -1744,6 +1745,9 @@ function ClarificationContinuationGuide({
     answers.state.kind === "ok" ? answers.state.data.summary.answerCount : 0;
   const acceptedAnswerCount =
     answers.state.kind === "ok" ? answers.state.data.summary.acceptedAnswerCount : 0;
+  const blockingRequestCount = lane.clarificationRequests.blockingRequestCount;
+  const allBlockingAnswersAccepted =
+    blockingRequestCount > 0 && acceptedAnswerCount >= blockingRequestCount;
   const activeRequest = continuationExecutionRequests.activeRequest;
   const candidateReady =
     realIdeaIntake.status === "active_candidate_ready" &&
@@ -1760,6 +1764,13 @@ function ClarificationContinuationGuide({
           label: "Continuation complete",
           nextAction: "Review the generated active candidate and downstream repair stage.",
         }
+      : lane.answerContinuation.available
+        ? {
+            status: "continuation_needs_review",
+            label: "Continuation needs review",
+            nextAction:
+              "Review the answer continuation import preview and report findings before editing answers.",
+          }
       : activeRequest
         ? {
             status: "execution_requested",
@@ -1778,7 +1789,9 @@ function ClarificationContinuationGuide({
                 status: "answer_questions",
                 label: "Answer questions",
                 nextAction:
-                  acceptedAnswerCount > 0
+                  allBlockingAnswersAccepted
+                    ? "Review workspace, template, or request prerequisites before requesting continuation."
+                    : acceptedAnswerCount > 0
                     ? "Complete required answers before requesting continuation."
                     : "Answer the clarification questions in this section.",
               }
@@ -1806,6 +1819,7 @@ function ClarificationContinuationGuide({
           label="Questions"
           value={String(lane.clarificationRequests.requestCount)}
         />
+        <PostureItem label="Blocking" value={String(blockingRequestCount)} />
         <PostureItem label="Saved" value={String(savedAnswerCount)} />
         <PostureItem label="Validated" value={String(acceptedAnswerCount)} />
         <PostureItem
