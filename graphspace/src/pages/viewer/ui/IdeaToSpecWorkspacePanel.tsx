@@ -662,7 +662,10 @@ function GuidedWorkspaceInitializationPathSection({
       id="idea-to-spec-workspace-initialization-path"
       className={styles.reviewSection}
     >
-      <SectionHeader title="Guided workspace initialization" count={0} />
+      <SectionHeader
+        title="Guided workspace initialization"
+        count={path.blockers.length}
+      />
       <div className={styles.row}>
         <div className={styles.rowHeader}>
           <span className={styles.rowId}>Workspace initialization path</span>

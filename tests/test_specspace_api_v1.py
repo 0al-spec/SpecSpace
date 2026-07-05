@@ -7271,6 +7271,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "Rotate pantry stock before expiry.",
         )
         self.assertTrue(creation["active_request"]["root_intent_summary_present"])
+        self.assertNotIn("root_intent_summary", creation["requests"][0])
         self.assertEqual(
             body["workspace_initialization_path"]["status"],
             "initialization_request_needed",
@@ -7510,6 +7511,181 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["workspace_initialization"]["refs"]["plan"],
             "runs/product_workspace_initialization_plan.json",
         )
+        self.assertEqual(
+            body["workspace_initialization"]["refs"]["execution_request"],
+            "runs/product_workspace_initialization_execution_request.json",
+        )
+        self.assertEqual(
+            body["workspace_initialization_path"]["initialization_request_ref"],
+            "runs/product_workspace_initialization_execution_request.json",
+        )
+
+    def test_idea_to_spec_workspace_blocks_unready_initialization_execution_request(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_product_workspace_runs(
+                runs_dir,
+                candidate_id="pantry-rotation",
+                display_name="Pantry Rotation",
+                public_route="/pantry-rotation",
+            )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT,
+                {
+                    "artifact_kind": (
+                        "platform_product_workspace_initialization_execution_request"
+                    ),
+                    "schema_version": 1,
+                    "ok": True,
+                    "request_only": True,
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "workspace": {
+                        "workspace_id": "pantry-rotation",
+                        "display_name": "Pantry Rotation",
+                        "route": "/pantry-rotation",
+                        "repository_role": "product_spec_workspace",
+                    },
+                    "plan_ref": "runs/product_workspace_initialization_plan.json",
+                    "requested_operation": "workspace.execute-initialization-plan",
+                    "idempotency_key": "a" * 64,
+                    "summary": {
+                        "status": "workspace_initialization_execution_requested",
+                        "ready_for_managed_execution": False,
+                    },
+                    "authority_boundary": {
+                        "executes_platform": False,
+                        "executes_specgraph": False,
+                        "creates_workspace_files": False,
+                        "updates_workspace_catalog": False,
+                    },
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                post_status, _post_body = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "display_name": "Pantry Rotation",
+                    },
+                )
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(post_status, 200)
+        self.assertEqual(status, 200)
+        self.assertTrue(
+            body["workspace_initialization"]["execution_request"]["available"]
+        )
+        self.assertFalse(
+            body["workspace_initialization"]["execution_request"][
+                "ready_for_managed_execution"
+            ]
+        )
+        self.assertEqual(
+            body["workspace_initialization_path"]["status"],
+            "blocked",
+        )
+        self.assertEqual(
+            body["workspace_initialization_path"]["blockers"],
+            ["workspace_initialization_request_not_ready"],
+        )
+
+    def test_idea_to_spec_workspace_blocks_failed_initialization_execution_report(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_product_workspace_runs(
+                runs_dir,
+                candidate_id="pantry-rotation",
+                display_name="Pantry Rotation",
+                public_route="/pantry-rotation",
+            )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": (
+                        "platform_product_workspace_initialization_execution_report"
+                    ),
+                    "schema_version": 1,
+                    "ok": False,
+                    "dry_run": False,
+                    "canonical_mutations_allowed": False,
+                    "tracked_artifacts_written": False,
+                    "workspace": {
+                        "workspace_id": "pantry-rotation",
+                        "display_name": "Pantry Rotation",
+                        "route": "/pantry-rotation",
+                        "repository_role": "product_spec_workspace",
+                    },
+                    "summary": {
+                        "status": "workspace_initialization_failed",
+                        "specgraph_executed": False,
+                        "catalog_written": False,
+                        "workspace_files_created": False,
+                    },
+                    "authority_boundary": {
+                        "executes_platform": True,
+                        "executes_specgraph": False,
+                        "creates_workspace_files": False,
+                        "updates_workspace_catalog": False,
+                        "creates_git_commits": False,
+                        "opens_pull_requests": False,
+                        "publishes_read_models": False,
+                        "mutates_canonical_specs": False,
+                        "writes_ontology_packages": False,
+                        "accepts_ontology_terms": False,
+                    },
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                post_status, _post_body = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "display_name": "Pantry Rotation",
+                    },
+                )
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(post_status, 200)
+        self.assertEqual(status, 200)
+        self.assertTrue(body["workspace_initialization"]["execution"]["available"])
+        self.assertFalse(body["workspace_initialization"]["execution"]["ok"])
+        self.assertEqual(
+            body["workspace_initialization_path"]["status"],
+            "blocked",
+        )
+        self.assertEqual(
+            body["workspace_initialization_path"]["blockers"],
+            ["workspace_initialization_execution_failed"],
+        )
 
     def test_idea_to_spec_workspace_rejects_mutating_initialization_execution_request(
         self,
@@ -7588,6 +7764,14 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertIsNone(request["status"])
         self.assertIsNone(request["requested_operation"])
         self.assertIsNone(request["idempotency_key"])
+        self.assertEqual(
+            body["workspace_initialization_path"]["status"],
+            "blocked",
+        )
+        self.assertEqual(
+            body["workspace_initialization_path"]["blockers"],
+            ["workspace_initialization_untrusted"],
+        )
 
     def test_idea_to_spec_workspace_ignores_initialization_request_for_other_workspace(
         self,
@@ -7661,6 +7845,11 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(request["trusted"])
         self.assertFalse(request["ready_for_managed_execution"])
         self.assertIsNone(request["requested_operation"])
+        self.assertFalse(body["workspace_initialization"]["available"])
+        self.assertEqual(
+            body["workspace_initialization_path"]["status"],
+            "initialization_request_needed",
+        )
         self.assertEqual(
             body["workspace_creation"]["summary"]["next_gap"],
             "run_platform_workspace_initialization",

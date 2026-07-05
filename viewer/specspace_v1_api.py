@@ -130,15 +130,26 @@ def _workspace_initialization_path(
         next_safe_action = "Start or continue raw idea intake in this workspace."
     elif not active_request:
         status = "route_only"
+    elif initialization.get("available") is True and initialization.get("trusted") is False:
+        status = "blocked"
+        next_safe_action = "Review the untrusted workspace initialization artifacts."
+        blockers.append("workspace_initialization_untrusted")
+    elif execution.get("available") is True and execution.get("ok") is not True:
+        status = "blocked"
+        next_safe_action = "Review the failed workspace initialization execution report."
+        blockers.append("workspace_initialization_execution_failed")
     elif execution_request.get("available") is True:
         if execution_request.get("trusted") is False:
             status = "blocked"
             next_safe_action = "Review the untrusted workspace initialization request."
             blockers.append("workspace_initialization_request_untrusted")
-        elif execution.get("available") is True and execution.get("ok") is not True:
+        elif (
+            execution_request.get("ok") is not True
+            or execution_request.get("ready_for_managed_execution") is not True
+        ):
             status = "blocked"
-            next_safe_action = "Review the failed workspace initialization execution report."
-            blockers.append("workspace_initialization_execution_failed")
+            next_safe_action = "Review the unready workspace initialization request."
+            blockers.append("workspace_initialization_request_not_ready")
         else:
             status = "waiting_for_platform"
             next_safe_action = "Wait for Platform to execute the workspace initialization request."
@@ -155,7 +166,7 @@ def _workspace_initialization_path(
         "creation_request_ref": "specspace-state://product_workspace_creation_requests.json"
         if active_request
         else None,
-        "initialization_request_ref": refs.get("plan")
+        "initialization_request_ref": refs.get("execution_request")
         if execution_request.get("available") is True
         else None,
         "initialization_report_ref": "runs/platform_product_workspace_initialization_execution_report.json"

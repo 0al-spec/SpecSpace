@@ -337,12 +337,24 @@ def workspace_projection(
             "consumer_boundary": _consumer_boundary(),
             "authority_boundary": _authority_boundary(),
         }
-    requests = [
-        _public_request(item, include_root_intent_summary=include_root_intent_summary)
-        for item in state.get("requests", [])
-        if isinstance(item, dict)
-    ]
+    raw_requests = [item for item in state.get("requests", []) if isinstance(item, dict)]
+    requests = [_public_request(item) for item in raw_requests]
     active = next((item for item in requests if item.get("status") == "requested"), None)
+    if include_root_intent_summary and active is not None:
+        active_raw = next(
+            (
+                item
+                for item in raw_requests
+                if item.get("request_id") == active.get("request_id")
+                and item.get("workspace_id") == active.get("workspace_id")
+            ),
+            None,
+        )
+        if active_raw is not None:
+            active = _public_request(
+                active_raw,
+                include_root_intent_summary=True,
+            )
     initialization_record = _record(initialization)
     initialization_workspace_id = _clean_text(
         _record(initialization_record.get("workspace")).get("workspace_id")
