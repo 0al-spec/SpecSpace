@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import {
   addAgentContextItem,
   clearAgentContextItems,
@@ -175,7 +182,9 @@ function productWorkspaceSlugFromInput(value: string): string | null {
 function workspaceCreationSaveErrorMessage(
   error: ProductWorkspaceCreationRequestError,
 ): string {
-  if (error.kind !== "http-error") return "Workspace request failed.";
+  const fallback =
+    "Workspace request failed. Start the SpecSpace API backend with `make dev` or `make specspace-start`, then retry.";
+  if (error.kind !== "http-error") return fallback;
   const body = error.body;
   if (
     body &&
@@ -187,7 +196,13 @@ function workspaceCreationSaveErrorMessage(
   ) {
     return body.error;
   }
-  return "Workspace request failed.";
+  if (error.status >= 500) {
+    return (
+      "Workspace request failed because the SpecSpace API is unavailable. " +
+      "Start the backend with `make dev` or `make specspace-start`, then retry."
+    );
+  }
+  return fallback;
 }
 
 export function ViewerPage({
@@ -200,6 +215,7 @@ export function ViewerPage({
     }
     return [...SPECSPACE_WORKSPACES, workspace];
   }, [workspace]);
+  const [workspaceSelectRoute, setWorkspaceSelectRoute] = useState(workspace.route);
   const [sidebarOpen, setSidebarOpen] = useState(productWorkspace);
   const [activeUtilityPanel, setActiveUtilityPanel] =
     useState<ViewerUtilityPanelId | null>(
@@ -230,6 +246,13 @@ export function ViewerPage({
   const [ideaToSpecWorkspaceRefreshKey, setIdeaToSpecWorkspaceRefreshKey] =
     useState(0);
   const [newIdeaWorkspaceInput, setNewIdeaWorkspaceInput] = useState("");
+  const [newIdeaWorkspaceRootIntent, setNewIdeaWorkspaceRootIntent] = useState("");
+  const [newIdeaWorkspaceWizardOpen, setNewIdeaWorkspaceWizardOpen] =
+    useState(false);
+  const newIdeaWorkspaceLauncherButtonRef = useRef<HTMLButtonElement | null>(null);
+  const newIdeaWorkspaceWizardRef = useRef<HTMLFormElement | null>(null);
+  const newIdeaWorkspaceFirstFieldRef = useRef<HTMLInputElement | null>(null);
+  const wasNewIdeaWorkspaceWizardOpenRef = useRef(false);
   const newIdeaWorkspaceSlug = useMemo(
     () => productWorkspaceSlugFromInput(newIdeaWorkspaceInput),
     [newIdeaWorkspaceInput],
@@ -352,6 +375,64 @@ export function ViewerPage({
     writeUrl: "/api/v1/product-workspace-creation-requests",
     refreshKey: runsWatchVersion,
   });
+  const clearWorkspaceCreationSaveError =
+    productWorkspaceCreationRequests.clearSaveError;
+  const closeNewWorkspaceWizard = useCallback(() => {
+    if (productWorkspaceCreationRequests.pending) return;
+    clearWorkspaceCreationSaveError();
+    setNewIdeaWorkspaceWizardOpen(false);
+  }, [clearWorkspaceCreationSaveError, productWorkspaceCreationRequests.pending]);
+  useEffect(() => {
+    setWorkspaceSelectRoute(workspace.route);
+  }, [workspace.route]);
+  useEffect(() => {
+    if (newIdeaWorkspaceWizardOpen) {
+      clearWorkspaceCreationSaveError();
+      wasNewIdeaWorkspaceWizardOpenRef.current = true;
+      window.setTimeout(() => newIdeaWorkspaceFirstFieldRef.current?.focus(), 0);
+      return;
+    }
+    if (!wasNewIdeaWorkspaceWizardOpenRef.current) return;
+    wasNewIdeaWorkspaceWizardOpenRef.current = false;
+    window.setTimeout(() => newIdeaWorkspaceLauncherButtonRef.current?.focus(), 0);
+  }, [clearWorkspaceCreationSaveError, newIdeaWorkspaceWizardOpen]);
+  const handleNewWorkspaceWizardKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLFormElement>) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeNewWorkspaceWizard();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const wizard = newIdeaWorkspaceWizardRef.current;
+      if (wizard === null) return;
+      const focusable = Array.from(
+        wizard.querySelectorAll<HTMLElement>(
+          [
+            "button:not([disabled])",
+            "input:not([disabled])",
+            "textarea:not([disabled])",
+            "select:not([disabled])",
+            "a[href]",
+            '[tabindex]:not([tabindex="-1"])',
+          ].join(", "),
+        ),
+      ).filter((element) => element.offsetParent !== null);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+        return;
+      }
+      if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    },
+    [closeNewWorkspaceWizard],
+  );
   const ontologyWorkbenchState = useOntologyWorkbench({
     url: workspaceApiUrls.ontologyWorkbench,
     refreshKey: runsWatchVersion,
@@ -1022,92 +1103,60 @@ export function ViewerPage({
             </button>
           </div>
 
-          <nav className={styles.workspaceSwitcher} aria-label="Workspace">
-            {workspaceSwitcherItems.map((item) => (
-              <a
-                key={item.id}
-                className={[
-                  styles.workspaceLink,
-                  item.id === workspace.id ? styles.workspaceLinkActive : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                href={item.route}
-                aria-current={item.id === workspace.id ? "page" : undefined}
+          <section className={styles.workspaceLauncher} aria-label="Workspace launcher">
+            <div className={styles.workspaceLauncherHeader}>
+              <label
+                className={styles.workspaceLauncherLabel}
+                htmlFor="workspace-route-select"
               >
-                {item.displayName}
-              </a>
-            ))}
-          </nav>
+                Workspaces
+              </label>
+              <button
+                ref={newIdeaWorkspaceLauncherButtonRef}
+                className={styles.workspaceAddButton}
+                type="button"
+                aria-label="New workspace"
+                title="New workspace"
+                onClick={() => {
+                  clearWorkspaceCreationSaveError();
+                  setNewIdeaWorkspaceWizardOpen(true);
+                }}
+              >
+                +
+              </button>
+            </div>
+            <div className={styles.workspaceSelectRow}>
+              <select
+                id="workspace-route-select"
+                className={styles.workspaceSelect}
+                value={workspaceSelectRoute}
+                onChange={(event) => setWorkspaceSelectRoute(event.target.value)}
+              >
+                {workspaceSwitcherItems.map((item) => (
+                  <option key={item.id} value={item.route}>
+                    {item.displayName}
+                  </option>
+                ))}
+              </select>
+              <button
+                className={styles.workspaceOpenButton}
+                type="button"
+                aria-label="Open selected workspace"
+                disabled={!workspaceSelectRoute || workspaceSelectRoute === workspace.route}
+                onClick={() => {
+                  if (workspaceSelectRoute && workspaceSelectRoute !== workspace.route) {
+                    window.location.assign(workspaceSelectRoute);
+                  }
+                }}
+              >
+                Open
+              </button>
+            </div>
+          </section>
           <div className={styles.workspaceMeta}>
             <span>{workspaceLaneLabel}</span>
             <span>{workspaceRoleLabel}</span>
           </div>
-          <form
-            className={styles.newWorkspaceForm}
-            aria-label="New idea workspace"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!newIdeaWorkspaceInput.trim()) return;
-              void productWorkspaceCreationRequests
-                .saveRequest({
-                  workspaceId: newIdeaWorkspaceSlug,
-                  displayName: newIdeaWorkspaceInput.trim(),
-                  route: newIdeaWorkspaceRoute,
-                  operatorRef: "operator://specspace-local",
-                })
-                .then((saved) => {
-                  const savedRoute = saved ? saved.activeRequest?.route : null;
-                  if (savedRoute) window.location.assign(savedRoute);
-                });
-            }}
-          >
-            <label
-              className={styles.newWorkspaceLabel}
-              htmlFor="new-idea-workspace-input"
-            >
-              New idea workspace
-            </label>
-            <div className={styles.newWorkspaceControls}>
-              <input
-                id="new-idea-workspace-input"
-                className={styles.newWorkspaceInput}
-                type="text"
-                value={newIdeaWorkspaceInput}
-                placeholder="cash-flow-control"
-                autoComplete="off"
-                onChange={(event) => setNewIdeaWorkspaceInput(event.target.value)}
-              />
-              <button
-                className={styles.newWorkspaceButton}
-                type="submit"
-                disabled={
-                  !newIdeaWorkspaceInput.trim() ||
-                  productWorkspaceCreationRequests.pending
-                }
-                aria-label="Open workspace"
-              >
-                {productWorkspaceCreationRequests.pending ? "Saving" : "Open"}
-              </button>
-            </div>
-            <p
-              className={styles.newWorkspaceHint}
-              data-testid="new-idea-workspace-route"
-            >
-              {newIdeaWorkspaceRoute !== null
-                ? newIdeaWorkspaceRoute
-                : newIdeaWorkspaceInput.trim()
-                  ? "SpecSpace will ask the backend to allocate a safe route."
-                  : "Enter a workspace name, for example Cash Flow Control."}
-            </p>
-            {productWorkspaceCreationRequests.saveError ? (
-              <p className={styles.newWorkspaceError}>
-                {workspaceCreationSaveErrorMessage(
-                  productWorkspaceCreationRequests.saveError,
-                )}
-              </p>
-            ) : null}
-          </form>
 
           <PanelBtnRow
             className={styles.sidebarDock}
@@ -1323,6 +1372,170 @@ export function ViewerPage({
             />
           ) : null}
         </aside>
+      ) : null}
+
+      {newIdeaWorkspaceWizardOpen ? (
+        <div
+          className={styles.newWorkspaceWizardOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-workspace-wizard-title"
+        >
+          <form
+            ref={newIdeaWorkspaceWizardRef}
+            className={styles.newWorkspaceWizard}
+            aria-label="New workspace wizard"
+            onKeyDown={handleNewWorkspaceWizardKeyDown}
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!newIdeaWorkspaceInput.trim()) return;
+              void productWorkspaceCreationRequests
+                .saveRequest({
+                  workspaceId: newIdeaWorkspaceSlug,
+                  displayName: newIdeaWorkspaceInput.trim(),
+                  route: newIdeaWorkspaceRoute,
+                  rootIntentSummary: newIdeaWorkspaceRootIntent.trim() || null,
+                  operatorRef: "operator://specspace-local",
+                })
+                .then((saved) => {
+                  const savedRoute = saved ? saved.activeRequest?.route : null;
+                  if (savedRoute) window.location.assign(savedRoute);
+                });
+            }}
+          >
+            <header className={styles.newWorkspaceWizardHeader}>
+              <div>
+                <p className={styles.newWorkspaceWizardKicker}>Product workspace</p>
+                <h2
+                  id="new-workspace-wizard-title"
+                  className={styles.newWorkspaceWizardTitle}
+                >
+                  New workspace
+                </h2>
+              </div>
+              <button
+                className={styles.closeButton}
+                type="button"
+                onClick={closeNewWorkspaceWizard}
+                disabled={productWorkspaceCreationRequests.pending}
+              >
+                Close
+              </button>
+            </header>
+
+            <div className={styles.newWorkspaceWizardGrid}>
+              <section className={styles.newWorkspaceWizardStep}>
+                <span className={styles.newWorkspaceStepIndex}>1</span>
+                <label
+                  className={styles.newWorkspaceWizardLabel}
+                  htmlFor="new-idea-workspace-input"
+                >
+                  Workspace display name
+                </label>
+                <input
+                  ref={newIdeaWorkspaceFirstFieldRef}
+                  id="new-idea-workspace-input"
+                  className={styles.newWorkspaceInput}
+                  type="text"
+                  value={newIdeaWorkspaceInput}
+                  placeholder="Cash Flow Control"
+                  autoComplete="off"
+                  onChange={(event) => setNewIdeaWorkspaceInput(event.target.value)}
+                />
+                <p
+                  className={styles.newWorkspaceHint}
+                  data-testid="new-idea-workspace-route"
+                >
+                  {newIdeaWorkspaceRoute !== null
+                    ? newIdeaWorkspaceRoute
+                    : newIdeaWorkspaceInput.trim()
+                      ? "SpecSpace will ask the backend to allocate a safe route."
+                      : "Enter a workspace name to preview or allocate a route."}
+                </p>
+              </section>
+
+              <section className={styles.newWorkspaceWizardStep}>
+                <span className={styles.newWorkspaceStepIndex}>2</span>
+                <label
+                  className={styles.newWorkspaceWizardLabel}
+                  htmlFor="new-idea-workspace-root-intent"
+                >
+                  Initial idea
+                </label>
+                <textarea
+                  id="new-idea-workspace-root-intent"
+                  className={styles.newWorkspaceTextarea}
+                  value={newIdeaWorkspaceRootIntent}
+                  placeholder="Describe the product idea or context."
+                  onChange={(event) =>
+                    setNewIdeaWorkspaceRootIntent(event.target.value)
+                  }
+                />
+                <p className={styles.newWorkspaceHint}>
+                  Stored as operator-owned request context; raw product work still
+                  enters the idea-to-spec intake after initialization.
+                </p>
+              </section>
+
+              <section className={styles.newWorkspaceWizardStep}>
+                <span className={styles.newWorkspaceStepIndex}>3</span>
+                <h3 className={styles.newWorkspaceWizardStepTitle}>
+                  Creation boundary
+                </h3>
+                <p className={styles.newWorkspaceWizardCopy}>
+                  SpecSpace records a workspace creation request. Platform owns
+                  controlled initialization, and SpecGraph/Git/Ontology are not
+                  mutated from the browser.
+                </p>
+                <dl className={styles.newWorkspaceBoundaryList}>
+                  <div>
+                    <dt>Browser execution</dt>
+                    <dd>false</dd>
+                  </div>
+                  <div>
+                    <dt>SpecGraph mutation</dt>
+                    <dd>false</dd>
+                  </div>
+                  <div>
+                    <dt>Git writes</dt>
+                    <dd>false</dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
+
+            {productWorkspaceCreationRequests.saveError ? (
+              <p className={styles.newWorkspaceError}>
+                {workspaceCreationSaveErrorMessage(
+                  productWorkspaceCreationRequests.saveError,
+                )}
+              </p>
+            ) : null}
+
+            <footer className={styles.newWorkspaceWizardActions}>
+              <button
+                className={styles.newWorkspaceSecondaryButton}
+                type="button"
+                onClick={closeNewWorkspaceWizard}
+                disabled={productWorkspaceCreationRequests.pending}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.newWorkspacePrimaryButton}
+                type="submit"
+                disabled={
+                  !newIdeaWorkspaceInput.trim() ||
+                  productWorkspaceCreationRequests.pending
+                }
+              >
+                {productWorkspaceCreationRequests.pending
+                  ? "Creating request"
+                  : "Create workspace request"}
+              </button>
+            </footer>
+          </form>
+        </div>
       ) : null}
 
       {utilityPanelDetails ? (

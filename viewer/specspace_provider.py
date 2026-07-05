@@ -54,6 +54,11 @@ DEFAULT_PRODUCT_WORKSPACE_CATALOG: tuple[dict[str, Any], ...] = (
         "aliases": ["/team_decision_log"],
     },
 )
+DEFAULT_PRODUCT_WORKSPACE_IDS: frozenset[str] = frozenset(
+    str(workspace["id"])
+    for workspace in DEFAULT_PRODUCT_WORKSPACE_CATALOG
+    if isinstance(workspace.get("id"), str)
+)
 
 
 def normalize_product_workspace_id(value: Any) -> str | None:
@@ -99,6 +104,51 @@ def _validated_ontology_workbench_artifact(
         status, _ = specgraph_surfaces.validate_ontology_owner_decision_review_envelope(envelope)
         return payload if status == HTTPStatus.OK else None
     return payload
+
+
+WORKSPACE_IDENTITY_FIELD_NAMES: frozenset[str] = frozenset(
+    {
+        "workspace_id",
+        "selected_workspace_id",
+        "current_workspace_id",
+        "requested_workspace_id",
+        "target_workspace_id",
+        "workspace_route",
+        "route",
+    }
+)
+
+
+def _json_contains_workspace_identity(
+    value: Any,
+    *,
+    expected_workspace_id: str,
+    expected_route: str,
+) -> bool:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if (
+                key in WORKSPACE_IDENTITY_FIELD_NAMES
+                and item in {expected_workspace_id, expected_route}
+            ):
+                return True
+            if _json_contains_workspace_identity(
+                item,
+                expected_workspace_id=expected_workspace_id,
+                expected_route=expected_route,
+            ):
+                return True
+        return False
+    if isinstance(value, list):
+        return any(
+            _json_contains_workspace_identity(
+                item,
+                expected_workspace_id=expected_workspace_id,
+                expected_route=expected_route,
+            )
+            for item in value
+        )
+    return False
 
 
 class CapabilityContext(capabilities_api.CapabilitiesHandler, Protocol):
@@ -526,6 +576,27 @@ WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS: tuple[str, ...] = tuple(
         idea_to_spec_workspace.PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT,
     }
 )
+
+PRE_CANDIDATE_WORKSPACE_ARTIFACTS: frozenset[str] = frozenset(
+    {
+        idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT,
+        idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT,
+        idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
+        idea_to_spec_workspace.PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT,
+        idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT,
+        idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_ANSWERS_ARTIFACT,
+        idea_to_spec_workspace.IDEA_INTAKE_ANSWER_RERUN_INPUT_ARTIFACT,
+        idea_to_spec_workspace.CLARIFIED_USER_IDEA_INTAKE_SESSION_ARTIFACT,
+        idea_to_spec_workspace.CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT,
+        idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT,
+        idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT,
+        idea_to_spec_workspace.REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT,
+        idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_ARTIFACT,
+        idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
+        idea_to_spec_workspace.REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
+    }
+)
+
 
 PUBLIC_SAFE_RUN_ARTIFACT_FILENAMES: frozenset[str] = frozenset(
     {
@@ -1300,10 +1371,50 @@ class ProductWorkspaceFileProvider:
         )
 
     def _workspace_artifacts(self) -> dict[str, Any]:
-        return self.delegate._read_idea_to_spec_workspace_artifacts()
+        artifacts = self.delegate._read_idea_to_spec_workspace_artifacts()
+        if self._workspace_artifacts_match(artifacts):
+            return artifacts
+        return {
+            filename: payload
+            for filename, payload in artifacts.items()
+            if filename in PRE_CANDIDATE_WORKSPACE_ARTIFACTS
+            and self._payload_matches_workspace(payload)
+        }
+
+    def _payload_matches_workspace(self, payload: Any) -> bool:
+        if self.workspace_id in DEFAULT_PRODUCT_WORKSPACE_IDS:
+            return True
+        return _json_contains_workspace_identity(
+            payload,
+            expected_workspace_id=self.workspace_id,
+            expected_route=f"/{self.workspace_id}",
+        )
+
+    def _workspace_artifacts_match(self, artifacts: dict[str, Any]) -> bool:
+        if not artifacts:
+            return True
+        candidate_surfaces = [
+            artifacts.get(idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT),
+            artifacts.get(
+                idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+            ),
+        ]
+        candidate_surfaces = [
+            candidate for candidate in candidate_surfaces if isinstance(candidate, dict)
+        ]
+        if not candidate_surfaces:
+            return self.workspace_id in DEFAULT_PRODUCT_WORKSPACE_IDS
+        return any(
+            idea_to_spec_workspace._candidate_matches_workspace(  # noqa: SLF001
+                candidate,
+                self.workspace_id,
+            )
+            for candidate in candidate_surfaces
+        )
 
     def _candidate_spec_nodes(self) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        candidate_graph = self.delegate._read_local_runs_json(
+        artifacts = self._workspace_artifacts()
+        candidate_graph = artifacts.get(
             idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT
         )
         if candidate_graph is None:
@@ -1318,8 +1429,15 @@ class ProductWorkspaceFileProvider:
     def _artifact_map(self) -> dict[str, Path]:
         if self.delegate.runs_dir is None:
             return {}
+        all_artifacts = self.delegate._read_idea_to_spec_workspace_artifacts()
+        if self._workspace_artifacts_match(all_artifacts):
+            allowed_filenames = set(WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS)
+        else:
+            allowed_filenames = set(self._workspace_artifacts())
         artifact_map: dict[str, Path] = {}
         for filename in WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS:
+            if filename not in allowed_filenames:
+                continue
             path = self.delegate.runs_dir / filename
             if path.exists() and path.is_file():
                 artifact_map[f"runs/{filename}"] = path
@@ -1328,10 +1446,14 @@ class ProductWorkspaceFileProvider:
     def health(self) -> dict[str, Any]:
         base = self.delegate.health()
         runs = self.delegate.runs_health()
-        candidate_graph = self.delegate._read_local_runs_json(
-            idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT
-        )
-        status = "ok" if source_is_readable(runs) and candidate_graph is not None else "degraded"
+        artifacts = self._workspace_artifacts()
+        candidate_graph = artifacts.get(idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT)
+        if not source_is_readable(runs):
+            status = "degraded"
+        elif candidate_graph is None:
+            status = "pending"
+        else:
+            status = "ok"
         return {
             **base,
             "provider": self.kind,
@@ -1344,7 +1466,7 @@ class ProductWorkspaceFileProvider:
                     "path": str(self.delegate.runs_dir / idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT)
                     if self.delegate.runs_dir is not None
                     else None,
-                    "status": "ok" if candidate_graph is not None else "missing",
+                    "status": "ok" if candidate_graph is not None else "not_built",
                 },
             },
         }

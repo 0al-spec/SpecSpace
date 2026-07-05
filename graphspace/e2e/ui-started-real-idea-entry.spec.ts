@@ -1267,7 +1267,23 @@ test("renders bootstrap workspace metadata as human-readable sidebar labels", as
   ).toHaveCount(0);
 });
 
-test("opens a new idea workspace from the sidebar entry point", async ({ page }) => {
+test("switches workspaces through the compact sidebar dropdown", async ({ page }) => {
+  await installRunsWatchMock(page);
+  await installBootstrapChromeApiRoutes(page);
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+
+  const sidebar = page.getByLabel("SpecSpace Sidebar");
+  const workspaceSelect = sidebar.getByLabel("Workspaces");
+  await workspaceSelect.selectOption("/team-decision-log");
+  await expect(page).toHaveURL(/\/$/);
+
+  await sidebar.getByRole("button", { name: "Open selected workspace" }).click();
+  await expect(page).toHaveURL(/\/team-decision-log$/);
+});
+
+test("opens a new idea workspace from the sidebar wizard entry point", async ({ page }) => {
   const backend = await startSpecSpaceBackend();
   try {
     await installRunsWatchMock(page);
@@ -1277,17 +1293,45 @@ test("opens a new idea workspace from the sidebar entry point", async ({ page })
     await page.getByRole("button", { name: "Toggle Sidebar" }).click();
 
     const sidebar = page.getByLabel("SpecSpace Sidebar");
-    await sidebar.getByRole("textbox", { name: "New idea workspace" }).fill(
-      "Pantry Rotation",
+    await expect(
+      sidebar.getByRole("textbox", { name: "New idea workspace" }),
+    ).toHaveCount(0);
+    const newWorkspaceButton = sidebar.getByRole("button", {
+      name: "New workspace",
+    });
+    await newWorkspaceButton.click();
+
+    const wizard = page.getByRole("dialog", { name: "New workspace" });
+    await expect(wizard).toBeVisible();
+    const displayNameInput = wizard.getByRole("textbox", {
+      name: "Workspace display name",
+    });
+    await expect(displayNameInput).toBeFocused();
+    await wizard.getByRole("button", { name: "Close" }).focus();
+    await page.keyboard.press("Shift+Tab");
+    await expect(wizard.getByRole("button", { name: "Cancel" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(wizard.getByRole("button", { name: "Close" })).toBeFocused();
+    await wizard.getByRole("button", { name: "Cancel" }).click();
+    await expect(wizard).toBeHidden();
+    await expect(newWorkspaceButton).toBeFocused();
+
+    await newWorkspaceButton.click();
+    await expect(displayNameInput).toBeFocused();
+    await displayNameInput.fill("Pantry Rotation");
+    await wizard.getByRole("textbox", { name: "Initial idea" }).fill(
+      "A household pantry rotation planner.",
     );
-    await expect(sidebar.getByTestId("new-idea-workspace-route")).toContainText(
+    await expect(wizard.getByTestId("new-idea-workspace-route")).toContainText(
       "/pantry-rotation",
     );
 
-    await sidebar.getByRole("button", { name: "Open workspace" }).click();
+    await wizard.getByRole("button", { name: "Create workspace request" }).click();
 
     await expect(page).toHaveURL(/\/pantry-rotation$/);
-    await expect(page.getByText("Pantry Rotation").first()).toBeVisible();
+    await expect(
+      page.getByLabel("SpecSpace Sidebar").getByLabel("Workspaces"),
+    ).toHaveValue("/pantry-rotation");
     await expect(sidebar.getByText("Product idea-to-spec")).toBeVisible();
     await expect(sidebar.getByText("Product spec workspace")).toBeVisible();
     await expect(page.getByTestId("workspace-creation-status")).toContainText(
@@ -1311,6 +1355,43 @@ test("opens a new idea workspace from the sidebar entry point", async ({ page })
   }
 });
 
+test("explains unavailable workspace creation API from the sidebar wizard", async ({
+  page,
+}) => {
+  await installRunsWatchMock(page);
+  await installBootstrapChromeApiRoutes(page);
+  await page.route("**/api/v1/product-workspace-creation-requests", (route) => {
+    if (route.request().method() === "POST") {
+      return route.fulfill({
+        status: 500,
+        contentType: "text/plain",
+        body: "",
+      });
+    }
+    return route.continue();
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+
+  const sidebar = page.getByLabel("SpecSpace Sidebar");
+  await sidebar.getByRole("button", { name: "New workspace" }).click();
+
+  const wizard = page.getByRole("dialog", { name: "New workspace" });
+  await wizard
+    .getByRole("textbox", { name: "Workspace display name" })
+    .fill("Calcus");
+  await wizard
+    .getByRole("textbox", { name: "Initial idea" })
+    .fill("Calculator for students on exams");
+  await wizard.getByRole("button", { name: "Create workspace request" }).click();
+
+  await expect(wizard).toContainText(
+    "Workspace request failed because the SpecSpace API is unavailable.",
+  );
+  await expect(wizard).toContainText("make specspace-start");
+});
+
 test("opens a backend-allocated route for a non-English workspace name", async ({
   page,
 }) => {
@@ -1323,17 +1404,18 @@ test("opens a backend-allocated route for a non-English workspace name", async (
     await page.getByRole("button", { name: "Toggle Sidebar" }).click();
 
     const sidebar = page.getByLabel("SpecSpace Sidebar");
-    await sidebar
-      .getByRole("textbox", { name: "New idea workspace" })
+    await sidebar.getByRole("button", { name: "New workspace" }).click();
+    const wizard = page.getByRole("dialog", { name: "New workspace" });
+    await wizard
+      .getByRole("textbox", { name: "Workspace display name" })
       .fill("Домашний контроль подписок");
-    await expect(sidebar.getByTestId("new-idea-workspace-route")).toContainText(
+    await expect(wizard.getByTestId("new-idea-workspace-route")).toContainText(
       "SpecSpace will ask the backend to allocate a safe route.",
     );
 
-    await sidebar.getByRole("button", { name: "Open workspace" }).click();
+    await wizard.getByRole("button", { name: "Create workspace request" }).click();
 
     await expect(page).toHaveURL(/\/idea-[a-f0-9]{10}$/);
-    await expect(page.getByText("Домашний контроль подписок").first()).toBeVisible();
     await expect(page.getByTestId("workspace-creation-status")).toContainText(
       "Workspace creation requested",
     );
@@ -1364,10 +1446,12 @@ test("refreshes an opened workspace after controlled initialization is published
     await page.getByRole("button", { name: "Toggle Sidebar" }).click();
 
     const sidebar = page.getByLabel("SpecSpace Sidebar");
-    await sidebar.getByRole("textbox", { name: "New idea workspace" }).fill(
+    await sidebar.getByRole("button", { name: "New workspace" }).click();
+    const wizard = page.getByRole("dialog", { name: "New workspace" });
+    await wizard.getByRole("textbox", { name: "Workspace display name" }).fill(
       "Pantry Rotation",
     );
-    await sidebar.getByRole("button", { name: "Open workspace" }).click();
+    await wizard.getByRole("button", { name: "Create workspace request" }).click();
 
     await expect(page).toHaveURL(/\/pantry-rotation$/);
     await expect(page.getByTestId("workspace-creation-status")).toContainText(
@@ -1517,7 +1601,9 @@ test("builds an active candidate from a non-demo product workspace route", async
 
     await page.goto(`/${executionBackedWorkspaceId}`);
     await expect(page.getByText("Idea-to-Spec Workspace")).toBeVisible();
-    await expect(page.getByText("Household Pantry Rotation").first()).toBeVisible();
+    await expect(
+      page.getByLabel("SpecSpace Sidebar").getByLabel("Workspaces"),
+    ).toHaveValue(`/${executionBackedWorkspaceId}`);
     await expect(page.getByTestId("workspace-creation-status")).toContainText(
       "Workspace initialized through backend-owned state.",
     );
