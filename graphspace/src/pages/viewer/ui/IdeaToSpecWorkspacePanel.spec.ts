@@ -19,6 +19,18 @@ const state: UseIdeaToSpecWorkspaceState = {
 };
 
 describe("IdeaToSpecWorkspacePanel", () => {
+  it("rejects write-capable guided repair path payloads", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_repair_path.authority_boundary.may_execute_platform = true;
+
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsedWorkspace.kind).toBe("parse-error");
+    if (parsedWorkspace.kind === "parse-error") {
+      expect(parsedWorkspace.reason).toBe("guided repair path boundary expanded");
+    }
+  });
+
   it("renders candidate graph, pre-SIB metrics, and repair actions read-only", () => {
     const html = renderToStaticMarkup(
       createElement(IdeaToSpecWorkspacePanel, { state }),
@@ -28,6 +40,14 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Guided product flow");
     expect(html).toContain("Replace the rerun request for the current workspace and repair session.");
     expect(html).toContain("#idea-to-spec-workspace-state-hygiene");
+    expect(html).toContain("Guided repair path");
+    expect(html).toContain('id="idea-to-spec-guided-repair-path"');
+    expect(html).toContain("Candidate repair route");
+    expect(html).toContain("repair blocked");
+    expect(html).toContain("Product/spec answers");
+    expect(html).toContain("Project-local ontology review");
+    expect(html).toContain("Repair path blockers");
+    expect(html).toContain("Open ontology");
     expect(html).toContain("#idea-to-spec-idea-intake");
     expect(html).toContain("#idea-to-spec-candidate-graph");
     expect(html).toContain('id="idea-to-spec-candidate-overview"');
