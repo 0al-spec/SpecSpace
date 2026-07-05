@@ -5224,6 +5224,17 @@ def _guided_flow_boundary() -> dict[str, bool]:
     }
 
 
+def _guided_repair_boundary() -> dict[str, bool]:
+    boundary = _guided_flow_boundary()
+    boundary.update(
+        {
+            "may_apply_answers": False,
+            "may_apply_decisions": False,
+        }
+    )
+    return boundary
+
+
 def _guided_stage(
     *,
     stage_id: str,
@@ -5245,6 +5256,436 @@ def _guided_stage(
         "target_section": target_section,
         "command_template": command_template,
         "authority_boundary": _guided_flow_boundary(),
+    }
+
+
+def _guided_repair_checkpoint(
+    *,
+    checkpoint_id: str,
+    label: str,
+    status: str,
+    target_section: str,
+    count: int | None = None,
+    evidence_refs: list[str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "id": checkpoint_id,
+        "label": label,
+        "status": status,
+        "count": count,
+        "target_section": target_section,
+        "evidence_refs": evidence_refs or [],
+    }
+
+
+def _guided_repair_hygiene_state(
+    hygiene: dict[str, Any],
+    kind: str,
+) -> dict[str, Any]:
+    for state in _records(hygiene.get("states")):
+        if _text(state.get("kind")) == kind:
+            return state
+    return {}
+
+
+def _guided_repair_artifact_status(
+    payload: dict[str, Any],
+    artifact_key: str,
+) -> dict[str, Any]:
+    return _record(_record(payload.get("artifacts")).get(artifact_key))
+
+
+def _guided_repair_status_ready(value: Any) -> bool:
+    status = _text(value).lower()
+    return status in {
+        "ready",
+        "usable",
+        "completed",
+        "published",
+        "ready_for_rerun",
+        "ready_for_candidate_approval",
+        "specspace_repair_rerun_request_ready",
+        "specspace_repair_rerun_request_gate_ready",
+        "specspace_repair_draft_import_preview_ready",
+    }
+
+
+def _guided_repair_append_unique(items: list[str], value: str | None) -> None:
+    text = _optional_text(value)
+    if text and text not in items:
+        items.append(text)
+
+
+def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
+    repair_review = _record(payload.get("repair_review"))
+    repair_session = _record(payload.get("repair_session"))
+    approval = _record(payload.get("approval_readiness"))
+    project_local_review = _record(payload.get("project_local_ontology_review"))
+    project_local_import = _record(
+        payload.get("project_local_ontology_decision_import_preview")
+    )
+    hygiene = _record(payload.get("workspace_state_hygiene"))
+    hygiene_summary = _record(hygiene.get("summary"))
+    platform_execution = _record(repair_review.get("platform_execution"))
+    rerun_execution = _record(platform_execution.get("execution"))
+    rerun_publication = _record(platform_execution.get("publication"))
+    clarification_requests = _record(repair_review.get("clarification_requests"))
+    clarification_answers = _record(repair_review.get("clarification_answers"))
+    ontology_decisions = _record(repair_review.get("ontology_decisions"))
+    rerun_preview = _record(repair_review.get("rerun_preview"))
+    rerun_materialization = _record(repair_review.get("rerun_materialization"))
+    readiness_impact = _record(repair_session.get("readiness_impact"))
+    repair_drafts_state = _guided_repair_hygiene_state(hygiene, "repair_drafts")
+    rerun_request_state = _guided_repair_hygiene_state(
+        hygiene,
+        "repair_rerun_request",
+    )
+    request_gate_state = _guided_repair_hygiene_state(
+        hygiene,
+        "repair_rerun_request_gate",
+    )
+    request_count = _number(clarification_requests.get("request_count"))
+    repair_target_count = len(_records(clarification_requests.get("repair_targets")))
+    ontology_gap_request_count = _number(
+        clarification_requests.get("ontology_gap_request_count")
+    )
+    accepted_answer_summary = _record(clarification_answers.get("summary"))
+    if "accepted_answer_count" in accepted_answer_summary:
+        accepted_answer_count = _number(
+            accepted_answer_summary.get("accepted_answer_count")
+        )
+    else:
+        accepted_answer_count = len(
+            _records(clarification_answers.get("accepted_answers"))
+        )
+    unresolved_blocking_answer_count = _number(
+        clarification_answers.get("unresolved_blocking_count")
+    )
+    ontology_decision_count = _number(ontology_decisions.get("decision_count"))
+    project_local_term_count = _number(project_local_review.get("term_count"))
+    project_local_effect = _record(project_local_review.get("effective_review"))
+    project_local_ready = _project_local_ontology_effect_ready(project_local_review)
+    project_local_missing_count = _number(
+        project_local_import.get("missing_decision_count")
+    )
+    project_local_invalid_count = _number(
+        project_local_import.get("invalid_decision_count")
+    )
+    project_local_non_resolving_count = _number(
+        project_local_import.get("non_resolving_decision_count")
+    )
+    request_gate_artifact = _guided_repair_artifact_status(
+        payload,
+        "specspace_repair_rerun_request_gate",
+    )
+    request_gate_status = _text(
+        request_gate_state.get("status"),
+        _text(request_gate_artifact.get("status"), "missing"),
+    )
+    rerun_request_status = _text(rerun_request_state.get("status"), "missing")
+    rerun_execution_available = rerun_execution.get("available") is True
+    rerun_publication_available = rerun_publication.get("available") is True
+    rerun_execution_failed = rerun_execution_available and (
+        rerun_execution.get("ok") is not True
+        or _number(rerun_execution.get("error_count")) > 0
+    )
+    rerun_publication_failed = rerun_publication_available and (
+        rerun_publication.get("ok") is not True
+        or _number(rerun_publication.get("error_count")) > 0
+        or _number(rerun_publication.get("missing_artifact_count")) > 0
+    )
+    unresolved_ontology_gap_count = _number(
+        readiness_impact.get("unresolved_ontology_gap_count")
+    )
+    approval_gap_summary = _record(approval.get("gap_summary"))
+    if "unresolved_candidate_gap_count" in approval:
+        unresolved_candidate_gap_count = _number(
+            approval.get("unresolved_candidate_gap_count")
+        )
+    elif "unresolved_candidate_gap_count" in approval_gap_summary:
+        unresolved_candidate_gap_count = _number(
+            approval_gap_summary.get("unresolved_candidate_gap_count")
+        )
+    else:
+        unresolved_candidate_gap_count = max(
+            0,
+            repair_target_count - accepted_answer_count,
+        )
+    repaired_artifacts_published = approval.get("repaired_artifacts_published")
+    if isinstance(repaired_artifacts_published, dict):
+        repaired_artifacts_publication_complete = (
+            repaired_artifacts_published.get("published") is True
+        )
+    else:
+        repaired_artifacts_publication_complete = (
+            approval.get("repaired_artifacts_published") is not False
+        )
+    rerun_execution_complete = (
+        rerun_execution_available
+        and rerun_execution.get("ok") is True
+        and rerun_execution.get("dry_run") is not True
+    )
+    rerun_publication_required = rerun_execution_complete
+    rerun_publication_complete = (
+        (not rerun_publication_required and not rerun_publication_available)
+        or (
+            rerun_publication_available
+            and
+            rerun_publication.get("ok") is True
+            and rerun_publication.get("dry_run") is not True
+            and _number(rerun_publication.get("missing_artifact_count")) == 0
+        )
+    )
+    repaired_ready_candidate = (
+        readiness_impact.get("ready_for_candidate_approval") is True
+        or approval.get("ready_for_candidate_approval") is True
+        or approval.get("status") == "approval_ready"
+    )
+    repaired_ready = repaired_ready_candidate and (
+        not rerun_execution_complete
+        or (
+            rerun_publication_complete
+            and repaired_artifacts_publication_complete
+        )
+    )
+    repair_blockers = []
+    repair_hygiene_kinds = {
+        "repair_drafts",
+        "repair_rerun_request",
+        "repair_rerun_request_gate",
+    }
+    if _number(hygiene_summary.get("blocking_state_count")) > 0:
+        for state in _records(hygiene.get("states")):
+            if _text(state.get("kind")) not in repair_hygiene_kinds:
+                continue
+            if _text(state.get("status")) not in {"stale", "invalid"}:
+                continue
+            _guided_repair_append_unique(
+                repair_blockers,
+                _text(state.get("reason"), _text(state.get("kind"), "state_blocked")),
+            )
+    if rerun_execution_failed:
+        _guided_repair_append_unique(
+            repair_blockers,
+            "repair_rerun_execution_failed",
+        )
+    if rerun_publication_failed:
+        _guided_repair_append_unique(
+            repair_blockers,
+            "repair_rerun_publication_failed",
+        )
+    if _record(rerun_preview.get("readiness")).get("ready") is False and rerun_preview.get(
+        "available"
+    ):
+        for blocker in _string_list(
+            _record(rerun_preview.get("readiness")).get("blocked_by")
+        ):
+            _guided_repair_append_unique(repair_blockers, blocker)
+    if _record(rerun_materialization.get("readiness")).get("ready") is False and rerun_materialization.get(
+        "available"
+    ):
+        for blocker in _string_list(
+            _record(rerun_materialization.get("readiness")).get("blocked_by")
+        ):
+            _guided_repair_append_unique(repair_blockers, blocker)
+
+    answers_complete = (
+        repair_target_count == 0
+        or (
+            accepted_answer_count >= repair_target_count
+            and unresolved_blocking_answer_count == 0
+        )
+    )
+    ontology_decisions_complete = (
+        ontology_gap_request_count == 0
+        or ontology_decision_count >= ontology_gap_request_count
+    )
+    project_local_complete = project_local_term_count == 0 or project_local_ready
+    decisions_complete = ontology_decisions_complete and project_local_complete
+    request_gate_ready = request_gate_status == "usable" or (
+        request_gate_artifact.get("available") is True
+        and _guided_repair_status_ready(request_gate_artifact.get("status"))
+    )
+    rerun_requested = rerun_request_status == "usable"
+
+    if not repair_review.get("available") and not repair_session.get("available"):
+        stage = "missing"
+        next_action = "Wait for an active candidate repair session."
+        target_section = "idea-to-spec-repair-session"
+    elif repair_blockers:
+        stage = "repair_blocked"
+        next_action = "Inspect failed or stale repair handoff artifacts."
+        target_section = "idea-to-spec-workspace-state-hygiene"
+    elif repaired_ready:
+        stage = "repaired_ready"
+        next_action = "Inspect approval readiness for the repaired candidate."
+        target_section = "idea-to-spec-approval-readiness"
+    elif not answers_complete:
+        stage = "answers_needed"
+        next_action = "Answer product/spec repair targets before rerun."
+        target_section = "idea-to-spec-repair-review"
+    elif not decisions_complete:
+        stage = "decisions_needed"
+        next_action = "Review ontology and project-local ontology decisions."
+        target_section = (
+            "idea-to-spec-project-local-ontology-review"
+            if not project_local_complete
+            else "idea-to-spec-repair-review"
+        )
+    elif rerun_execution_complete and not rerun_publication_complete:
+        stage = "rerun_running_or_waiting"
+        next_action = "Wait for repaired artifacts to publish."
+        target_section = "idea-to-spec-repair-review"
+    elif not rerun_requested:
+        stage = "ready_to_request_rerun"
+        next_action = "Request a controlled repair rerun."
+        target_section = "idea-to-spec-repair-review"
+    elif not request_gate_ready:
+        stage = "rerun_request_gate_needed"
+        next_action = "Build or refresh the repair rerun request gate."
+        target_section = "idea-to-spec-repair-review"
+    elif not rerun_execution_complete:
+        stage = "rerun_requested"
+        next_action = "Wait for Platform to execute the requested repair rerun."
+        target_section = "idea-to-spec-repair-review"
+    else:
+        stage = "rerun_running_or_waiting"
+        next_action = "Wait for repaired handoff readiness to refresh."
+        target_section = "idea-to-spec-repair-session"
+
+    checkpoints = [
+        _guided_repair_checkpoint(
+            checkpoint_id="product_spec_answers",
+            label="Product/spec answers",
+            status="completed" if answers_complete else "required",
+            count=accepted_answer_count,
+            target_section="idea-to-spec-repair-review",
+            evidence_refs=["runs/idea_to_spec_clarification_answers.json"]
+            if clarification_answers.get("available")
+            else [],
+        ),
+        _guided_repair_checkpoint(
+            checkpoint_id="ontology_decisions",
+            label="Ontology decisions",
+            status="completed" if ontology_decisions_complete else "required",
+            count=ontology_decision_count,
+            target_section="idea-to-spec-repair-review",
+            evidence_refs=["runs/product_ontology_gap_review_decisions.json"]
+            if ontology_decisions.get("available")
+            else [],
+        ),
+        _guided_repair_checkpoint(
+            checkpoint_id="project_local_ontology_review",
+            label="Project-local ontology",
+            status="completed" if project_local_complete else "required",
+            count=_number(project_local_effect.get("accepted_decision_count")),
+            target_section="idea-to-spec-project-local-ontology-review",
+            evidence_refs=[
+                ref
+                for ref in [
+                    "runs/project_local_ontology_review_lane.json"
+                    if project_local_review.get("available")
+                    else None,
+                    "runs/project_local_ontology_decision_effect_report.json"
+                    if project_local_effect.get("available")
+                    else None,
+                ]
+                if ref
+            ],
+        ),
+        _guided_repair_checkpoint(
+            checkpoint_id="rerun_request",
+            label="Rerun request",
+            status="completed" if rerun_requested else "missing",
+            target_section="idea-to-spec-repair-review",
+            evidence_refs=[
+                "specspace-state://idea_to_spec_repair_rerun_requests.json"
+            ]
+            if rerun_requested
+            else [],
+        ),
+        _guided_repair_checkpoint(
+            checkpoint_id="repaired_handoff",
+            label="Repaired handoff",
+            status="completed" if repaired_ready else "pending",
+            target_section="idea-to-spec-repair-session",
+            evidence_refs=[
+                ref
+                for ref in [
+                    "runs/repaired_candidate_promotion_handoff_report.json"
+                    if approval.get("candidate_repaired")
+                    else None,
+                    "runs/repaired_idea_to_spec_repair_session.json"
+                    if repaired_ready
+                    else None,
+                ]
+                if ref
+            ],
+        ),
+    ]
+
+    return {
+        "available": repair_review.get("available") is True
+        or repair_session.get("available") is True,
+        "stage": stage,
+        "next_action": next_action,
+        "target_section": target_section,
+        "blockers": repair_blockers,
+        "counts": {
+            "repair_request_count": request_count,
+            "product_spec_target_count": repair_target_count,
+            "accepted_answer_count": accepted_answer_count,
+            "unresolved_blocking_answer_count": unresolved_blocking_answer_count,
+            "ontology_gap_request_count": ontology_gap_request_count,
+            "ontology_decision_count": ontology_decision_count,
+            "project_local_term_count": project_local_term_count,
+            "project_local_missing_decision_count": project_local_missing_count,
+            "project_local_invalid_decision_count": project_local_invalid_count,
+            "project_local_non_resolving_decision_count": (
+                project_local_non_resolving_count
+            ),
+            "unresolved_ontology_gap_count": unresolved_ontology_gap_count,
+            "unresolved_candidate_gap_count": unresolved_candidate_gap_count,
+        },
+        "state": {
+            "repair_drafts_status": _optional_text(repair_drafts_state.get("status")),
+            "rerun_request_status": _optional_text(rerun_request_state.get("status")),
+            "request_gate_status": _optional_text(request_gate_status),
+            "rerun_execution_status": _optional_text(rerun_execution.get("status")),
+            "rerun_publication_status": _optional_text(
+                rerun_publication.get("status")
+            ),
+        },
+        "checkpoints": checkpoints,
+        "evidence_refs": [
+            ref
+            for ref in [
+                _stage_path_from_item(_record(payload.get("workflow")), "repair_loop"),
+                _stage_path_from_item(
+                    _record(payload.get("workflow")),
+                    "product_repair_rerun_execution",
+                )
+                if _guided_repair_artifact_status(
+                    payload,
+                    "product_repair_rerun_execution",
+                ).get("available")
+                else None,
+                _stage_path_from_item(
+                    _record(payload.get("workflow")),
+                    "product_repair_rerun_publication",
+                )
+                if _guided_repair_artifact_status(
+                    payload,
+                    "product_repair_rerun_publication",
+                ).get("available")
+                else None,
+                "workspace_state_hygiene"
+                if hygiene.get("available") or hygiene.get("artifact_kind")
+                else None,
+            ]
+            if ref
+        ],
+        "authority_boundary": _guided_repair_boundary(),
     }
 
 
@@ -5812,6 +6253,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def attach_guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
+    payload["guided_repair_path"] = _guided_repair_path(payload)
     payload["guided_flow"] = _guided_flow(payload)
     return payload
 
