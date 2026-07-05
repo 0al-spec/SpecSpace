@@ -477,6 +477,7 @@ describe("parseIdeaToSpecWorkspace", () => {
         workspace_id: "pantry-rotation",
         display_name: "Pantry Rotation",
         route: "/pantry-rotation",
+        root_intent_summary: "Track pantry stock before food expires.",
         status: "initialized",
         created_at: "2026-07-04T08:00:00Z",
         updated_at: "2026-07-04T08:05:00Z",
@@ -505,6 +506,20 @@ describe("parseIdeaToSpecWorkspace", () => {
         },
       },
     };
+    payload.workspace_initialization_path = {
+      available: true,
+      status: "initialized",
+      workspace_id: "pantry-rotation",
+      display_name: "Pantry Rotation",
+      initial_idea_present: true,
+      creation_request_ref: "specspace-state://product_workspace_creation_requests.json",
+      initialization_request_ref:
+        "runs/pantry-rotation/product_workspace_initialization_plan.json",
+      initialization_report_ref:
+        "runs/platform_product_workspace_initialization_execution_report.json",
+      next_safe_action: "Start or continue raw idea intake in this workspace.",
+      blockers: [],
+    };
 
     const parsed = parseIdeaToSpecWorkspace(payload);
 
@@ -514,6 +529,14 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.workspaceCreation.nextGap).toBe("start_real_idea_intake");
     expect(parsed.data.workspaceCreation.activeRequest?.status).toBe(
       "initialized",
+    );
+    expect(parsed.data.workspaceCreation.activeRequest?.rootIntentSummary).toBe(
+      "Track pantry stock before food expires.",
+    );
+    expect(parsed.data.workspaceInitializationPath.status).toBe("initialized");
+    expect(parsed.data.workspaceInitializationPath.initialIdeaPresent).toBe(true);
+    expect(parsed.data.workspaceInitializationPath.nextSafeAction).toBe(
+      "Start or continue raw idea intake in this workspace.",
     );
     expect(parsed.data.workspaceCreation.initialization).toMatchObject({
       available: true,

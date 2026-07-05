@@ -102,6 +102,84 @@ def _apply_real_idea_entry_projection(
     }
 
 
+def _workspace_initialization_path(
+    *,
+    workspace_id: str | None,
+    creation: dict[str, Any],
+) -> dict[str, Any]:
+    summary = _record(creation.get("summary"))
+    active_request = _record(creation.get("active_request"))
+    initialization = _record(creation.get("initialization"))
+    execution_request = _record(initialization.get("execution_request"))
+    execution = _record(initialization.get("execution"))
+    refs = _record(initialization.get("refs"))
+    status = "route_only"
+    next_safe_action = "Create a workspace request before starting product intake."
+    blockers: list[str] = []
+
+    creation_status = summary.get("status")
+    if creation_status in {
+        "product_workspace_creation_state_invalid",
+        "workspace_creation_blocked",
+    }:
+        status = "blocked"
+        next_safe_action = "Repair workspace creation state before initialization."
+        blockers.append(str(creation_status))
+    elif initialization.get("initialized") is True:
+        status = "initialized"
+        next_safe_action = "Start or continue raw idea intake in this workspace."
+    elif not active_request:
+        status = "route_only"
+    elif execution_request.get("available") is True:
+        if execution_request.get("trusted") is False:
+            status = "blocked"
+            next_safe_action = "Review the untrusted workspace initialization request."
+            blockers.append("workspace_initialization_request_untrusted")
+        elif execution.get("available") is True and execution.get("ok") is not True:
+            status = "blocked"
+            next_safe_action = "Review the failed workspace initialization execution report."
+            blockers.append("workspace_initialization_execution_failed")
+        else:
+            status = "waiting_for_platform"
+            next_safe_action = "Wait for Platform to execute the workspace initialization request."
+    else:
+        status = "initialization_request_needed"
+        next_safe_action = "Request controlled Platform workspace initialization."
+
+    return {
+        "available": bool(workspace_id),
+        "status": status,
+        "workspace_id": workspace_id,
+        "display_name": active_request.get("display_name"),
+        "initial_idea_present": bool(active_request.get("root_intent_summary_present")),
+        "creation_request_ref": "specspace-state://product_workspace_creation_requests.json"
+        if active_request
+        else None,
+        "initialization_request_ref": refs.get("plan")
+        if execution_request.get("available") is True
+        else None,
+        "initialization_report_ref": "runs/platform_product_workspace_initialization_execution_report.json"
+        if execution.get("available") is True
+        else None,
+        "next_safe_action": next_safe_action,
+        "blockers": blockers,
+        "authority_boundary": {
+            "inspect_only": True,
+            "acknowledge_only": True,
+            "may_execute_platform": False,
+            "may_execute_specgraph": False,
+            "may_create_workspace": False,
+            "may_initialize_workspace": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_create_branch_or_commit": False,
+            "may_open_pull_request": False,
+            "may_publish_read_model": False,
+        },
+    }
+
+
 def _query_limit(parsed: Any, *, default: int, minimum: int = 1, maximum: int = 500) -> int:
     params = query_params(parsed)
     try:
@@ -495,7 +573,12 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
                     initialization=payload.get("workspace_initialization")
                     if isinstance(payload.get("workspace_initialization"), dict)
                     else None,
+                    include_root_intent_summary=True,
                 )
+            )
+            payload["workspace_initialization_path"] = _workspace_initialization_path(
+                workspace_id=workspace_id,
+                creation=payload["workspace_creation"],
             )
         idea_to_spec_workspace.attach_guided_flow(payload)
     json_response(handler, status, payload)

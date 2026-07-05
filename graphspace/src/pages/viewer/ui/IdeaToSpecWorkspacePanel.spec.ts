@@ -343,6 +343,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
         workspace_id: "pantry-rotation",
         display_name: "Pantry Rotation",
         route: "/pantry-rotation",
+        root_intent_summary: "Track pantry stock before food expires.",
         status: "initialized",
         created_at: "2026-07-04T08:00:00Z",
         updated_at: "2026-07-04T08:05:00Z",
@@ -371,6 +372,20 @@ describe("IdeaToSpecWorkspacePanel", () => {
         },
       },
     };
+    raw.workspace_initialization_path = {
+      available: true,
+      status: "initialized",
+      workspace_id: "pantry-rotation",
+      display_name: "Pantry Rotation",
+      initial_idea_present: true,
+      creation_request_ref: "specspace-state://product_workspace_creation_requests.json",
+      initialization_request_ref:
+        "runs/pantry-rotation/product_workspace_initialization_plan.json",
+      initialization_report_ref:
+        "runs/platform_product_workspace_initialization_execution_report.json",
+      next_safe_action: "Start or continue raw idea intake in this workspace.",
+      blockers: [],
+    };
     const parsedInitialized = parseIdeaToSpecWorkspace(raw);
     if (parsedInitialized.kind !== "ok") {
       throw new Error("Modified idea-to-spec fixture must parse");
@@ -383,6 +398,10 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
 
     expect(html).toContain("Workspace initialized through backend-owned state.");
+    expect(html).toContain("Guided workspace initialization");
+    expect(html).toContain("Start or continue raw idea intake in this workspace.");
+    expect(html).toContain("Initial idea");
+    expect(html).toContain("present");
     expect(html).toContain("workspace initialized");
     expect(html).toContain("Pantry Rotation");
     expect(html).toContain("/pantry-rotation");
