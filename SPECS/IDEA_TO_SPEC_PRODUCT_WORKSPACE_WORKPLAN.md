@@ -1,7 +1,7 @@
 # Idea-to-Spec Product Workspace Workplan
 
 Status: active planning
-Updated: 2026-07-04
+Updated: 2026-07-05
 
 ## Purpose
 
@@ -100,6 +100,12 @@ reviews, or publish read models.
   and has a stable `#idea-to-spec-start-raw-idea` anchor. It is labelled
   `Start here: raw product idea` so the entry point is not hidden behind Guided
   Flow / Candidate Overview / Workflow sections.
+- Guided clarification continuation is now a single Product Workspace path
+  rather than a scattered set of technical rows. It shows question count,
+  saved/validated answers, request state, continuation readiness, active
+  candidate refs, and the next safe action; the request button writes only the
+  SpecSpace-owned continuation execution request while the browser keeps zero
+  Platform/SpecGraph execution authority.
 
 ## Next Tasks
 
@@ -192,6 +198,9 @@ Execution-backed follow-up preconditions:
   artifact base that `/api/v1/idea-to-spec-workspace` reads. Done for the local
   e2e harness.
 - The browser observes the update through runs-watch, not `page.reload()`. Done.
+- Product Workspace has a guided clarification path that consolidates answer
+  progress, continuation request state, import preview, continuation report,
+  and active candidate refs. Done.
 
 Acceptance criteria:
 

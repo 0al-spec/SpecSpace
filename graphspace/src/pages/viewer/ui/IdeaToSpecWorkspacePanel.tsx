@@ -1602,6 +1602,22 @@ function IntakeClarificationSection({
     !lane.answerContinuation.available &&
     !continuationExecutionRequests.pending &&
     activeContinuationRequest === null;
+  const requestAnswerContinuationExecution = () => {
+    void continuationExecutionRequests
+      .requestExecution({
+        workspaceId,
+        answerStateRef:
+          "specspace-state://idea_to_spec_intake_clarification_answers.json",
+        answerTemplateRef,
+        intakeExecutionRef,
+        workspaceInitializationRef:
+          "runs/platform_product_workspace_initialization_execution_report.json",
+        operatorRef: "operator://specspace-local",
+      })
+      .then((saved) => {
+        if (saved) onWorkspaceRefreshRequest?.();
+      });
+  };
   return (
     <section id="idea-to-spec-intake-clarification" className={styles.reviewSection}>
       <SectionHeader
@@ -1643,28 +1659,23 @@ function IntakeClarificationSection({
           detail="SpecGraph has not published idea_intake_clarification_requests.json for this workspace."
         />
       ) : null}
+      <ClarificationContinuationGuide
+        lane={lane}
+        answers={answers}
+        continuationExecutionRequests={continuationExecutionRequests}
+        realIdeaIntake={state.data.realIdeaIntake}
+        canRequestExecution={continuationRequestReady}
+        workspaceId={workspaceId}
+        onRequestExecution={requestAnswerContinuationExecution}
+      />
       <IntakeAnswerAuthoringStatus authoring={lane.answerAuthoring} />
       <IntakeAnswerContinuationStatus
         continuation={lane.answerContinuation}
         executionRequests={continuationExecutionRequests}
         canRequestExecution={continuationRequestReady}
         workspaceId={workspaceId}
-        onRequestExecution={() => {
-          void continuationExecutionRequests
-            .requestExecution({
-              workspaceId,
-              answerStateRef:
-                "specspace-state://idea_to_spec_intake_clarification_answers.json",
-              answerTemplateRef,
-              intakeExecutionRef,
-              workspaceInitializationRef:
-                "runs/platform_product_workspace_initialization_execution_report.json",
-              operatorRef: "operator://specspace-local",
-            })
-            .then((saved) => {
-              if (saved) onWorkspaceRefreshRequest?.();
-            });
-        }}
+        onRequestExecution={requestAnswerContinuationExecution}
+        showRequestAction={false}
       />
       <IntakeClarificationAnswerStatus state={answers.state} />
       <div className={styles.row}>
@@ -1707,6 +1718,153 @@ function IntakeClarificationSection({
         />
       ))}
     </section>
+  );
+}
+
+function ClarificationContinuationGuide({
+  lane,
+  answers,
+  continuationExecutionRequests,
+  realIdeaIntake,
+  canRequestExecution,
+  workspaceId,
+  onRequestExecution,
+}: {
+  lane: IdeaToSpecWorkspace["intakeClarification"];
+  answers: ReturnType<typeof useIdeaToSpecIntakeClarificationAnswers>;
+  continuationExecutionRequests: ReturnType<
+    typeof useRealIdeaAnswerContinuationExecutionRequests
+  >;
+  realIdeaIntake: IdeaToSpecWorkspace["realIdeaIntake"];
+  canRequestExecution: boolean;
+  workspaceId: string | null;
+  onRequestExecution: () => void;
+}) {
+  const savedAnswerCount =
+    answers.state.kind === "ok" ? answers.state.data.summary.answerCount : 0;
+  const acceptedAnswerCount =
+    answers.state.kind === "ok" ? answers.state.data.summary.acceptedAnswerCount : 0;
+  const activeRequest = continuationExecutionRequests.activeRequest;
+  const candidateReady =
+    realIdeaIntake.status === "active_candidate_ready" &&
+    Boolean(realIdeaIntake.activeCandidateRef);
+  const stage = candidateReady
+    ? {
+        status: "candidate_ready",
+        label: "Candidate ready",
+        nextAction: "Continue with repair, ontology review, and promotion readiness.",
+      }
+    : lane.answerContinuation.ready
+      ? {
+          status: "continuation_ready",
+          label: "Continuation complete",
+          nextAction: "Review the generated active candidate and downstream repair stage.",
+        }
+      : activeRequest
+        ? {
+            status: "execution_requested",
+            label: "Waiting for Platform",
+            nextAction:
+              "Run the requested Platform continuation execution and publish its report.",
+          }
+        : canRequestExecution
+          ? {
+              status: "request_continuation",
+              label: "Ready to continue",
+              nextAction: "Request controlled Platform answer continuation execution.",
+            }
+          : lane.clarificationRequests.requestCount > 0
+            ? {
+                status: "answer_questions",
+                label: "Answer questions",
+                nextAction:
+                  acceptedAnswerCount > 0
+                    ? "Complete required answers before requesting continuation."
+                    : "Answer the clarification questions in this section.",
+              }
+            : {
+                status: "clarification_missing",
+                label: "No clarification requests",
+                nextAction: "Wait for SpecGraph to publish clarification requests.",
+              };
+  const requestState =
+    continuationExecutionRequests.state.kind === "ok"
+      ? continuationExecutionRequests.state.data.summary.status
+      : continuationExecutionRequests.state.kind;
+
+  return (
+    <div className={styles.row} data-testid="guided-clarification-continuation">
+      <div className={styles.rowHeader}>
+        <span className={styles.rowId}>Guided clarification path</span>
+        <Pill value={stage.status} />
+      </div>
+      <p className={styles.statusDetail}>
+        {stage.label}: {stage.nextAction}
+      </p>
+      <div className={styles.postureStrip}>
+        <PostureItem
+          label="Questions"
+          value={String(lane.clarificationRequests.requestCount)}
+        />
+        <PostureItem label="Saved" value={String(savedAnswerCount)} />
+        <PostureItem label="Validated" value={String(acceptedAnswerCount)} />
+        <PostureItem
+          label="Request"
+          value={activeRequest ? activeRequest.status : requestState}
+        />
+        <PostureItem
+          label="Continuation"
+          value={lane.answerContinuation.ready ? "ready" : "pending"}
+        />
+        <PostureItem label="Candidate" value={candidateReady ? "ready" : "pending"} />
+      </div>
+      <div className={styles.metaGrid}>
+        <Meta label="Workspace" value={workspaceId} />
+        <Meta
+          label="Template"
+          value={lane.answerAuthoring.template.available ? "available" : "missing"}
+        />
+        <Meta
+          label="Import preview"
+          value={lane.answerContinuation.importPreview.readiness.reviewState}
+        />
+        <Meta
+          label="Continuation report"
+          value={lane.answerContinuation.continuationReport.readiness.reviewState}
+        />
+        <Meta label="Active candidate" value={realIdeaIntake.activeCandidateRef} />
+      </div>
+      {canRequestExecution ? (
+        <button
+          data-testid="guided-clarification-continuation-request"
+          className={styles.ackButton}
+          type="button"
+          disabled={continuationExecutionRequests.pending}
+          onClick={onRequestExecution}
+        >
+          {continuationExecutionRequests.pending
+            ? "Requesting continuation"
+            : "Request continuation"}
+        </button>
+      ) : null}
+      {activeRequest ? (
+        <p
+          className={styles.statusDetail}
+          data-testid="guided-clarification-continuation-request-status"
+        >
+          Requested execution · {activeRequest.requestId} · answers{" "}
+          {activeRequest.answerStateRef}
+        </p>
+      ) : null}
+      {continuationExecutionRequests.saveError ? (
+        <p className={styles.statusDetail}>
+          Continuation request failed ·{" "}
+          {realIdeaAnswerContinuationExecutionRequestErrorText(
+            continuationExecutionRequests.saveError,
+          )}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -1754,12 +1912,14 @@ function IntakeAnswerContinuationStatus({
   canRequestExecution,
   workspaceId,
   onRequestExecution,
+  showRequestAction = true,
 }: {
   continuation: IdeaToSpecWorkspace["intakeClarification"]["answerContinuation"];
   executionRequests: ReturnType<typeof useRealIdeaAnswerContinuationExecutionRequests>;
   canRequestExecution: boolean;
   workspaceId: string | null;
   onRequestExecution: () => void;
+  showRequestAction?: boolean;
 }) {
   const activeRequest = executionRequests.activeRequest;
   if (!continuation.available) {
@@ -1803,20 +1963,22 @@ function IntakeAnswerContinuationStatus({
             }
           />
         </div>
-        <button
-          data-testid="real-idea-answer-continuation-execution-request"
-          className={styles.ackButton}
-          type="button"
-          disabled={!canRequestExecution}
-          onClick={onRequestExecution}
-        >
-          {executionRequests.pending
-            ? "Requesting answer continuation"
-            : activeRequest
-              ? "Answer continuation requested"
-              : "Request answer continuation"}
-        </button>
-        {activeRequest ? (
+        {showRequestAction ? (
+          <button
+            data-testid="real-idea-answer-continuation-execution-request"
+            className={styles.ackButton}
+            type="button"
+            disabled={!canRequestExecution}
+            onClick={onRequestExecution}
+          >
+            {executionRequests.pending
+              ? "Requesting answer continuation"
+              : activeRequest
+                ? "Answer continuation requested"
+                : "Request answer continuation"}
+          </button>
+        ) : null}
+        {showRequestAction && activeRequest ? (
           <p
             className={styles.statusDetail}
             data-testid="real-idea-answer-continuation-execution-request-status"

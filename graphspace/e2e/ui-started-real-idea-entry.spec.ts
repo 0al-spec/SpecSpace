@@ -1604,13 +1604,16 @@ test("builds an active candidate from a non-demo product workspace route", async
       page.locator('[data-testid^="intake-clarification-answer-saved-"]'),
     ).toHaveCount(answerCount);
     await expect(
-      page.getByTestId("real-idea-answer-continuation-execution-request"),
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("request_continuation");
+    await expect(
+      page.getByTestId("guided-clarification-continuation-request"),
     ).toBeEnabled();
     await page
-      .getByTestId("real-idea-answer-continuation-execution-request")
+      .getByTestId("guided-clarification-continuation-request")
       .click();
     await expect(
-      page.getByTestId("real-idea-answer-continuation-execution-request-status"),
+      page.getByTestId("guided-clarification-continuation-request-status"),
     ).toContainText("real-idea-answer-continuation-execute");
 
     const continuationReportPath = path.join(
@@ -1688,6 +1691,9 @@ test("builds an active candidate from a non-demo product workspace route", async
       "Inspect active candidate readiness before continuing.",
     );
     await expect(page.getByText("Real idea answer continuation", { exact: true })).toBeVisible();
+    await expect(
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("continuation_ready");
     await expect(
       page.getByText("real_idea_answer_continuation_ready").first(),
     ).toBeVisible();
@@ -1848,13 +1854,16 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       page.locator('[data-testid^="intake-clarification-answer-saved-"]'),
     ).toHaveCount(answerCount);
     await expect(
-      page.getByTestId("real-idea-answer-continuation-execution-request"),
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("request_continuation");
+    await expect(
+      page.getByTestId("guided-clarification-continuation-request"),
     ).toBeEnabled();
     await page
-      .getByTestId("real-idea-answer-continuation-execution-request")
+      .getByTestId("guided-clarification-continuation-request")
       .click();
     await expect(
-      page.getByTestId("real-idea-answer-continuation-execution-request-status"),
+      page.getByTestId("guided-clarification-continuation-request-status"),
     ).toContainText("real-idea-answer-continuation-execute");
 
     const continuationReportPath = path.join(
@@ -1944,6 +1953,9 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       "Inspect active candidate readiness before continuing.",
     );
     await expect(page.getByText("Real idea answer continuation", { exact: true })).toBeVisible();
+    await expect(
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("continuation_ready");
     await expect(
       page.getByText("specspace_real_idea_answers_ready_for_continuation").first(),
     ).toBeVisible();
@@ -2708,13 +2720,16 @@ test("shows continuation-ready lane after external answer continuation publicati
     ).toContainText("Answer saved · answer question");
     await expect(page.getByText("Answer continuation pending")).toBeVisible();
     await expect(
-      page.getByTestId("real-idea-answer-continuation-execution-request"),
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("request_continuation");
+    await expect(
+      page.getByTestId("guided-clarification-continuation-request"),
     ).toBeEnabled();
     await page
-      .getByTestId("real-idea-answer-continuation-execution-request")
+      .getByTestId("guided-clarification-continuation-request")
       .click();
     await expect(
-      page.getByTestId("real-idea-answer-continuation-execution-request-status"),
+      page.getByTestId("guided-clarification-continuation-request-status"),
     ).toContainText("real-idea-answer-continuation-execute.team-decision-log");
     await expect(
       page.getByTestId("real-idea-answer-continuation-handoff-command"),
@@ -2734,6 +2749,9 @@ test("shows continuation-ready lane after external answer continuation publicati
     );
     const intakeClarification = page.locator("#idea-to-spec-intake-clarification");
     await expect(intakeClarification.getByText("Real idea answer continuation")).toBeVisible();
+    await expect(
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("candidate_ready");
     await expect(
       page.getByText("specspace_real_idea_answers_ready_for_continuation").first(),
     ).toBeVisible();
