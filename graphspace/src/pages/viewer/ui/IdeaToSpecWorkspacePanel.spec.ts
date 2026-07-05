@@ -105,7 +105,8 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Guided approval path");
     expect(html).toContain('id="idea-to-spec-guided-approval-path"');
     expect(html).toContain("Approval and promotion route");
-    expect(html).toContain("Wait for repository review merge before publication.");
+    expect(html).toContain("Resolve approval readiness blockers before promotion review.");
+    expect(html).toContain("repair_context_required");
     expect(html).toContain("Promotion paths");
     expect(html).toContain("Approval decision");
     expect(html).toContain("Promotion request");
