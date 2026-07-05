@@ -5224,6 +5224,17 @@ def _guided_flow_boundary() -> dict[str, bool]:
     }
 
 
+def _guided_repair_boundary() -> dict[str, bool]:
+    boundary = _guided_flow_boundary()
+    boundary.update(
+        {
+            "may_apply_answers": False,
+            "may_apply_decisions": False,
+        }
+    )
+    return boundary
+
+
 def _guided_stage(
     *,
     stage_id: str,
@@ -5674,7 +5685,7 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
             ]
             if ref
         ],
-        "authority_boundary": _guided_flow_boundary(),
+        "authority_boundary": _guided_repair_boundary(),
     }
 
 

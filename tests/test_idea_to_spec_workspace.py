@@ -3277,6 +3277,16 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(body["guided_repair_path"]["stage"], "answers_needed")
 
+    def test_guided_repair_path_declares_repair_authority_flags(self) -> None:
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=_workspace_artifacts(),
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        boundary = body["guided_repair_path"]["authority_boundary"]
+        self.assertIs(boundary["may_apply_answers"], False)
+        self.assertIs(boundary["may_apply_decisions"], False)
+
     def test_guided_repair_path_preserves_zero_approval_candidate_gaps(
         self,
     ) -> None:
