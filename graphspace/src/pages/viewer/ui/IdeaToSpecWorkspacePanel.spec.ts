@@ -55,6 +55,18 @@ describe("IdeaToSpecWorkspacePanel", () => {
     }
   });
 
+  it("rejects write-capable guided approval path payloads", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_approval_path.authority_boundary.may_publish_read_model = true;
+
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsedWorkspace.kind).toBe("parse-error");
+    if (parsedWorkspace.kind === "parse-error") {
+      expect(parsedWorkspace.reason).toBe("guided approval path boundary expanded");
+    }
+  });
+
   it("hides guided repair checkpoint rail when path is unavailable", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.guided_repair_path.available = false;
@@ -90,6 +102,16 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Rerun request");
     expect(html).toContain("Evidence pending");
     expect(html).not.toContain("0 evidence items");
+    expect(html).toContain("Guided approval path");
+    expect(html).toContain('id="idea-to-spec-guided-approval-path"');
+    expect(html).toContain("Approval and promotion route");
+    expect(html).toContain("Wait for repository review merge before publication.");
+    expect(html).toContain("Promotion paths");
+    expect(html).toContain("Approval decision");
+    expect(html).toContain("Promotion request");
+    expect(html).toContain("Promotion execution");
+    expect(html).toContain("Review status");
+    expect(html).toContain("Read-model publication");
     expect(html).toContain("Open ontology");
     expect(html).toContain("#idea-to-spec-idea-intake");
     expect(html).toContain("#idea-to-spec-candidate-graph");

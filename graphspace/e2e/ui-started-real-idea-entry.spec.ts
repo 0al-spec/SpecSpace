@@ -1546,6 +1546,42 @@ test("shows clarification stage after external intake execution publication", as
   }
 });
 
+test("shows guided approval and promotion lifecycle path", async ({ page }) => {
+  const backend = await startSpecSpaceBackend();
+  const scenario: UiStartedIdeaScenario = {
+    intakeExecutionPublished: true,
+    answerContinuationPublished: true,
+  };
+  try {
+    await installRunsWatchMock(page);
+    await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
+
+    await submitRawIdeaEntryFromUi(
+      page,
+      "A decision log that already reached promotion review.",
+      "Decision log promotion lifecycle",
+    );
+
+    const guidedApprovalPath = page.locator("#idea-to-spec-guided-approval-path");
+    await expect(guidedApprovalPath).toContainText("Guided approval path");
+    await expect(guidedApprovalPath).toContainText("Approval and promotion route");
+    await expect(page.getByTestId("guided-approval-next-action")).toContainText(
+      "Wait for repository review merge before publication.",
+    );
+    await expect(guidedApprovalPath).toContainText("Approval readiness");
+    await expect(guidedApprovalPath).toContainText("Approval decision");
+    await expect(guidedApprovalPath).toContainText("Promotion request");
+    await expect(guidedApprovalPath).toContainText("Promotion execution");
+    await expect(guidedApprovalPath).toContainText("Review status");
+    await expect(guidedApprovalPath).toContainText("Read-model publication");
+    await expect(guidedApprovalPath.getByRole("link", {
+      name: /Open target section/i,
+    })).toHaveAttribute("href", "#idea-to-spec-controlled-promotion");
+  } finally {
+    await backend.stop();
+  }
+});
+
 test("blocks raw idea submit for a route-only product workspace", async ({ page }) => {
   const backend = await startSpecSpaceBackend({ seedIntakeRuns: false });
   try {
@@ -2727,6 +2763,7 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     });
     await emitRunsChange(page);
     const controlledPromotion = page.locator("#idea-to-spec-controlled-promotion");
+    const guidedApprovalPath = page.locator("#idea-to-spec-guided-approval-path");
     await expect(controlledPromotion.getByText("Candidate approval execution")).toBeVisible();
     await expect(
       controlledPromotion.getByText("Decision written", { exact: true }),
@@ -2735,6 +2772,12 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       controlledPromotion.getByText("Candidate approval", { exact: true }),
     ).toBeVisible();
     await expect(controlledPromotion.getByText("approved").first()).toBeVisible();
+    await expect(guidedApprovalPath).toContainText("Guided approval path");
+    await expect(guidedApprovalPath).toContainText("Approval and promotion route");
+    await expect(guidedApprovalPath).toContainText(
+      "Create the report-only graph repository promotion request.",
+    );
+    await expect(guidedApprovalPath).toContainText("Approval decision");
 
     const graphRepositoryPlanPath = path.join(
       specGraphRunDir,
@@ -2828,6 +2871,10 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await emitRunsChange(page);
     await expect(controlledPromotion.getByText("Platform promotion request")).toBeVisible();
     await expect(controlledPromotion.getByText("ready").first()).toBeVisible();
+    await expect(guidedApprovalPath).toContainText(
+      "Run controlled product promotion execution.",
+    );
+    await expect(guidedApprovalPath).toContainText("Promotion request");
 
     const promotionExecutionPath = path.join(
       specGraphRunDir,
@@ -2900,6 +2947,11 @@ test("can refresh from a real Platform intake execution when checkouts are provi
     await expect(controlledPromotion.getByText("Product promotion execution")).toBeVisible();
     await expect(controlledPromotion.getByText("dry_run").first()).toBeVisible();
     await expect(page.getByRole("link", { name: /Git dry-run .* completed/i })).toBeVisible();
+    await expect(guidedApprovalPath).toContainText(
+      "Run non-dry-run product promotion execution when ready.",
+    );
+    await expect(guidedApprovalPath).toContainText("Promotion execution");
+    await expect(guidedApprovalPath).toContainText("dry_run");
 
   } finally {
     await rm(specGraphRunDir, { recursive: true, force: true });
