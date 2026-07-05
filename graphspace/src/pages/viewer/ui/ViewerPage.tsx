@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import {
   addAgentContextItem,
   clearAgentContextItems,
@@ -233,6 +240,10 @@ export function ViewerPage({
   const [newIdeaWorkspaceRootIntent, setNewIdeaWorkspaceRootIntent] = useState("");
   const [newIdeaWorkspaceWizardOpen, setNewIdeaWorkspaceWizardOpen] =
     useState(false);
+  const newIdeaWorkspaceLauncherButtonRef = useRef<HTMLButtonElement | null>(null);
+  const newIdeaWorkspaceWizardRef = useRef<HTMLFormElement | null>(null);
+  const newIdeaWorkspaceFirstFieldRef = useRef<HTMLInputElement | null>(null);
+  const wasNewIdeaWorkspaceWizardOpenRef = useRef(false);
   const newIdeaWorkspaceSlug = useMemo(
     () => productWorkspaceSlugFromInput(newIdeaWorkspaceInput),
     [newIdeaWorkspaceInput],
@@ -359,6 +370,53 @@ export function ViewerPage({
     if (productWorkspaceCreationRequests.pending) return;
     setNewIdeaWorkspaceWizardOpen(false);
   }, [productWorkspaceCreationRequests.pending]);
+  useEffect(() => {
+    if (newIdeaWorkspaceWizardOpen) {
+      wasNewIdeaWorkspaceWizardOpenRef.current = true;
+      window.setTimeout(() => newIdeaWorkspaceFirstFieldRef.current?.focus(), 0);
+      return;
+    }
+    if (!wasNewIdeaWorkspaceWizardOpenRef.current) return;
+    wasNewIdeaWorkspaceWizardOpenRef.current = false;
+    window.setTimeout(() => newIdeaWorkspaceLauncherButtonRef.current?.focus(), 0);
+  }, [newIdeaWorkspaceWizardOpen]);
+  const handleNewWorkspaceWizardKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLFormElement>) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeNewWorkspaceWizard();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const wizard = newIdeaWorkspaceWizardRef.current;
+      if (wizard === null) return;
+      const focusable = Array.from(
+        wizard.querySelectorAll<HTMLElement>(
+          [
+            "button:not([disabled])",
+            "input:not([disabled])",
+            "textarea:not([disabled])",
+            "select:not([disabled])",
+            "a[href]",
+            '[tabindex]:not([tabindex="-1"])',
+          ].join(", "),
+        ),
+      ).filter((element) => element.offsetParent !== null);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+        return;
+      }
+      if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    },
+    [closeNewWorkspaceWizard],
+  );
   const ontologyWorkbenchState = useOntologyWorkbench({
     url: workspaceApiUrls.ontologyWorkbench,
     refreshKey: runsWatchVersion,
@@ -1038,6 +1096,7 @@ export function ViewerPage({
                 Workspaces
               </label>
               <button
+                ref={newIdeaWorkspaceLauncherButtonRef}
                 className={styles.workspaceAddButton}
                 type="button"
                 aria-label="New workspace"
@@ -1292,8 +1351,10 @@ export function ViewerPage({
           aria-labelledby="new-workspace-wizard-title"
         >
           <form
+            ref={newIdeaWorkspaceWizardRef}
             className={styles.newWorkspaceWizard}
             aria-label="New workspace wizard"
+            onKeyDown={handleNewWorkspaceWizardKeyDown}
             onSubmit={(event) => {
               event.preventDefault();
               if (!newIdeaWorkspaceInput.trim()) return;
@@ -1325,6 +1386,7 @@ export function ViewerPage({
                 className={styles.closeButton}
                 type="button"
                 onClick={closeNewWorkspaceWizard}
+                disabled={productWorkspaceCreationRequests.pending}
               >
                 Close
               </button>
@@ -1340,6 +1402,7 @@ export function ViewerPage({
                   Workspace display name
                 </label>
                 <input
+                  ref={newIdeaWorkspaceFirstFieldRef}
                   id="new-idea-workspace-input"
                   className={styles.newWorkspaceInput}
                   type="text"

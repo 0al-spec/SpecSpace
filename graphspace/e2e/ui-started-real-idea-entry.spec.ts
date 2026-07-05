@@ -1294,13 +1294,29 @@ test("opens a new idea workspace from the sidebar wizard entry point", async ({ 
     await expect(
       sidebar.getByRole("textbox", { name: "New idea workspace" }),
     ).toHaveCount(0);
-    await sidebar.getByRole("button", { name: "New workspace" }).click();
+    const newWorkspaceButton = sidebar.getByRole("button", {
+      name: "New workspace",
+    });
+    await newWorkspaceButton.click();
 
     const wizard = page.getByRole("dialog", { name: "New workspace" });
     await expect(wizard).toBeVisible();
-    await wizard.getByRole("textbox", { name: "Workspace display name" }).fill(
-      "Pantry Rotation",
-    );
+    const displayNameInput = wizard.getByRole("textbox", {
+      name: "Workspace display name",
+    });
+    await expect(displayNameInput).toBeFocused();
+    await wizard.getByRole("button", { name: "Close" }).focus();
+    await page.keyboard.press("Shift+Tab");
+    await expect(wizard.getByRole("button", { name: "Cancel" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(wizard.getByRole("button", { name: "Close" })).toBeFocused();
+    await wizard.getByRole("button", { name: "Cancel" }).click();
+    await expect(wizard).toBeHidden();
+    await expect(newWorkspaceButton).toBeFocused();
+
+    await newWorkspaceButton.click();
+    await expect(displayNameInput).toBeFocused();
+    await displayNameInput.fill("Pantry Rotation");
     await wizard.getByRole("textbox", { name: "Initial idea" }).fill(
       "A household pantry rotation planner.",
     );
