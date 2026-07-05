@@ -491,6 +491,10 @@ export function IdeaToSpecWorkspacePanel({
       </div>
 
       <div className={styles.entries}>
+        <ProductWorkspaceOverviewSection
+          overview={data.productWorkspaceOverview}
+          workspace={data.workspace}
+        />
         <IdeaIntakeDraftSection
           activeFrame={frame}
           realIdeaIntake={data.realIdeaIntake}
@@ -572,6 +576,137 @@ export function IdeaToSpecWorkspacePanel({
         />
         <ControlledPromotionSection state={state} />
       </div>
+    </section>
+  );
+}
+
+function ProductWorkspaceOverviewSection({
+  overview,
+  workspace,
+}: {
+  overview: IdeaToSpecWorkspace["productWorkspaceOverview"];
+  workspace: IdeaToSpecWorkspace["workspace"];
+}) {
+  const primaryHref = overview.primaryTargetSection
+    ? `#${overview.primaryTargetSection}`
+    : null;
+  const lastHandoffHref = overview.lastSuccessfulHandoff.targetSection
+    ? `#${overview.lastSuccessfulHandoff.targetSection}`
+    : null;
+  return (
+    <section
+      id="idea-to-spec-product-workspace-overview"
+      className={styles.reviewSection}
+    >
+      <SectionHeader
+        title="Product workspace overview"
+        count={overview.readiness.blockerCount}
+      />
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>
+            {workspace.displayName ?? workspace.id ?? "Product workspace"}
+          </span>
+          <Pill value={overview.status.replace(/_/g, " ")} />
+        </div>
+        <h3 className={styles.title} data-testid="product-workspace-overview-next-action">
+          {overview.nextSafeAction}
+        </h3>
+        <div className={styles.postureStrip}>
+          <PostureItem label="Current phase" value={overview.currentPhaseLabel} />
+          <PostureItem
+            label="Progress"
+            value={`${overview.completedPhaseCount}/${overview.totalPhaseCount}`}
+          />
+          <PostureItem
+            label="Blockers"
+            value={String(overview.readiness.blockerCount)}
+          />
+          <PostureItem label="Readiness" value={overview.readiness.status} />
+          <PostureItem label="Confidence" value={overview.confidence.level} />
+          <PostureItem
+            label="Last handoff"
+            value={overview.lastSuccessfulHandoff.label ?? "None"}
+          />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Workspace id" value={workspace.id} />
+          <Meta label="Route" value={workspace.publicRoute} />
+          <Meta label="Target section" value={overview.primaryTargetSection} />
+          <Meta
+            label="Confidence reason"
+            value={overview.confidence.reason}
+          />
+          <Meta
+            label="Maturity"
+            value={overview.confidence.maturityLifecycleState}
+          />
+          <Meta
+            label="Evidence"
+            value={joined(overview.confidence.sourceRefs)}
+          />
+        </div>
+        {primaryHref ? (
+          <a className={styles.guidedStage} href={primaryHref}>
+            <span className={styles.navLabel}>Next safe action</span>
+            <span className={styles.navHint}>{overview.nextSafeAction}</span>
+            <span className={styles.guidedStageMeta}>
+              {overview.currentPhaseLabel}
+            </span>
+          </a>
+        ) : null}
+        {lastHandoffHref ? (
+          <a className={styles.guidedStage} href={lastHandoffHref}>
+            <span className={styles.navLabel}>Last successful handoff</span>
+            <span className={styles.navHint}>
+              {overview.lastSuccessfulHandoff.label ?? "No completed handoff yet"}
+            </span>
+            <span className={styles.guidedStageMeta}>
+              {joined(overview.lastSuccessfulHandoff.evidenceRefs)}
+            </span>
+          </a>
+        ) : null}
+      </div>
+      <div className={styles.guidedRail} data-testid="product-workspace-phase-timeline">
+        {overview.phases.map((phase) => {
+          const href = phase.targetSection ? `#${phase.targetSection}` : undefined;
+          const content = (
+            <>
+              <span className={styles.navLabel}>{phase.label}</span>
+              <span className={styles.navHint}>
+                {phase.blockers.length > 0
+                  ? joined(phase.blockers)
+                  : joined(phase.evidenceRefs)}
+              </span>
+              <span className={styles.guidedStageMeta}>
+                {phase.state.replace(/_/g, " ")}
+              </span>
+            </>
+          );
+          return href ? (
+            <a key={phase.id} className={styles.guidedStage} href={href}>
+              {content}
+            </a>
+          ) : (
+            <div key={phase.id} className={styles.guidedStage}>
+              {content}
+            </div>
+          );
+        })}
+      </div>
+      {overview.readiness.blockers.length > 0 ? (
+        <div className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>Overview blockers</span>
+            <span className={styles.sectionCount}>
+              {overview.readiness.blockers.length}
+            </span>
+          </div>
+          <p className={styles.statusDetail}>
+            {joined(overview.readiness.blockers)}
+          </p>
+        </div>
+      ) : null}
     </section>
   );
 }

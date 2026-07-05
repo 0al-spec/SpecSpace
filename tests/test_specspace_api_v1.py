@@ -7605,6 +7605,32 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["guided_flow"]["next_handoff"]["label"],
             "Request controlled Platform workspace initialization.",
         )
+        overview = body["product_workspace_overview"]
+        self.assertTrue(overview["available"])
+        self.assertEqual(overview["status"], "creation_requested")
+        self.assertEqual(overview["current_phase"], "workspace")
+        self.assertEqual(
+            overview["next_safe_action"],
+            "Request controlled Platform workspace initialization.",
+        )
+        self.assertEqual(
+            overview["primary_target_section"],
+            "idea-to-spec-workspace-initialization-path",
+        )
+        self.assertEqual(overview["readiness"]["blocker_count"], 0)
+        self.assertEqual(
+            [phase["id"] for phase in overview["phases"]],
+            [
+                "workspace",
+                "intake",
+                "clarification",
+                "candidate",
+                "repair",
+                "approval",
+                "publication",
+            ],
+        )
+        self.assertFalse(overview["authority_boundary"]["may_execute_platform"])
         dumped = json.dumps(creation)
         self.assertNotIn(str(state_dir), dumped)
 
@@ -7668,6 +7694,24 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         stage_ids = [stage["id"] for stage in body["guided_flow"]["stages"]]
         self.assertNotIn("workspace_initialization", stage_ids)
+        overview = body["product_workspace_overview"]
+        self.assertTrue(overview["available"])
+        self.assertNotEqual(overview["current_phase"], "workspace")
+        self.assertEqual(overview["total_phase_count"], 6)
+        self.assertEqual(
+            [phase["id"] for phase in overview["phases"]],
+            [
+                "workspace",
+                "intake",
+                "clarification",
+                "candidate",
+                "repair",
+                "approval",
+                "publication",
+            ],
+        )
+        self.assertEqual(overview["phases"][0]["state"], "not_applicable")
+        self.assertFalse(overview["authority_boundary"]["may_create_branch_or_commit"])
 
     def test_idea_to_spec_workspace_marks_creation_initialized_from_platform_report(
         self,

@@ -117,6 +117,11 @@ reviews, or publish read models.
   request, promotion execution, repository review, read-model publication,
   blockers, evidence refs, and target anchors without giving the browser
   Platform/Git Service execution authority.
+- Product Workspace lifecycle overview now acts as the top landing layer over
+  the guided paths. It summarizes the current phase, progress, blockers, last
+  successful handoff, confidence, and one next safe action across Workspace,
+  Intake, Clarification, Candidate, Repair, Approval, and Publication without
+  giving the browser execution or mutation authority.
 
 ## Next Tasks
 

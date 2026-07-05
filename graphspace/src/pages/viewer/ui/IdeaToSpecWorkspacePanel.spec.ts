@@ -67,6 +67,52 @@ describe("IdeaToSpecWorkspacePanel", () => {
     }
   });
 
+  it("rejects write-capable product workspace overview payloads", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.product_workspace_overview = {
+      available: true,
+      status: "repair",
+      current_phase: "repair",
+      current_phase_label: "Repair",
+      next_safe_action: "Inspect repair state.",
+      primary_target_section: "idea-to-spec-guided-repair-path",
+      readiness: {
+        status: "blocked",
+        ready: false,
+        blocker_count: 1,
+        blockers: ["repair_required"],
+      },
+      completed_phase_count: 4,
+      total_phase_count: 7,
+      last_successful_handoff: {},
+      confidence: { level: "trusted", source_refs: [] },
+      phases: [],
+      authority_boundary: {
+        inspect_only: true,
+        acknowledge_only: true,
+        may_execute_specgraph: false,
+        may_execute_platform: true,
+        may_execute_git_service: false,
+        may_mutate_candidate_artifacts: false,
+        may_mutate_canonical_specs: false,
+        may_write_ontology_package: false,
+        may_accept_ontology_terms: false,
+        may_create_branch_or_commit: false,
+        may_open_pull_request: false,
+        may_merge_review: false,
+      },
+    };
+
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsedWorkspace.kind).toBe("parse-error");
+    if (parsedWorkspace.kind === "parse-error") {
+      expect(parsedWorkspace.reason).toBe(
+        "product workspace overview boundary expanded",
+      );
+    }
+  });
+
   it("hides guided repair checkpoint rail when path is unavailable", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.guided_repair_path.available = false;
@@ -90,6 +136,14 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
 
     expect(html).toContain("Idea-to-Spec Workspace");
+    expect(html).toContain("Product workspace overview");
+    expect(html).toContain('id="idea-to-spec-product-workspace-overview"');
+    expect(html).toContain("Next safe action");
+    expect(html).toContain("Current phase");
+    expect(html).toContain("Progress");
+    expect(html).toContain("Workspace");
+    expect(html).toContain("Publication");
+    expect(html).toContain('data-testid="product-workspace-phase-timeline"');
     expect(html).toContain("Guided product flow");
     expect(html).toContain("Request a controlled repair rerun.");
     expect(html).toContain("#idea-to-spec-workspace-state-hygiene");

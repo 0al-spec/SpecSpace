@@ -6850,10 +6850,215 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _overview_phase(
+    *,
+    phase_id: str,
+    label: str,
+    stage_ids: set[str],
+    stages: list[dict[str, Any]],
+    current_stage_id: str,
+) -> dict[str, Any]:
+    selected = [stage for stage in stages if _text(stage.get("id")) in stage_ids]
+    if not selected:
+        return {
+            "id": phase_id,
+            "label": label,
+            "state": "not_applicable",
+            "target_section": None,
+            "blockers": [],
+            "evidence_refs": [],
+        }
+
+    blockers: list[str] = []
+    evidence_refs: list[str] = []
+    for stage in selected:
+        blockers.extend(_string_list(stage.get("blockers")))
+        evidence_refs.extend(_string_list(stage.get("evidence_refs")))
+
+    selected_statuses = {_text(stage.get("status"), "pending") for stage in selected}
+    if "blocked" in selected_statuses:
+        state = "blocked"
+    elif current_stage_id in stage_ids and selected_statuses - {"completed", "ready"}:
+        state = "current"
+    elif all(status in {"completed", "ready"} for status in selected_statuses):
+        state = "complete"
+    else:
+        state = "pending"
+
+    target_stage = next(
+        (
+            stage
+            for stage in selected
+            if _text(stage.get("id")) == current_stage_id
+            or _text(stage.get("status")) in {"blocked", "available", "waiting_for_operator"}
+        ),
+        selected[-1],
+    )
+    return {
+        "id": phase_id,
+        "label": label,
+        "state": state,
+        "target_section": _optional_text(target_stage.get("target_section")),
+        "blockers": blockers,
+        "evidence_refs": sorted(set(ref for ref in evidence_refs if ref)),
+    }
+
+
+def _product_workspace_overview(payload: dict[str, Any]) -> dict[str, Any]:
+    guided = _record(payload.get("guided_flow"))
+    stages = _records(guided.get("stages"))
+    current_stage = _text(guided.get("current_stage"), "unknown")
+    next_actions = _records(guided.get("next_actions"))
+    next_action = _record(next_actions[0] if next_actions else {})
+    summary = _record(payload.get("summary"))
+    workspace = _record(payload.get("workspace"))
+    workspace_initialization = _record(payload.get("workspace_initialization_path"))
+    maturity = _record(payload.get("idea_maturity"))
+    maturity_report = _record(maturity.get("report"))
+    maturity_metrics = _record(maturity_report.get("metrics"))
+
+    phase_definitions = [
+        ("workspace", "Workspace", {"workspace_initialization"}),
+        ("intake", "Intake", {"idea_intake"}),
+        ("clarification", "Clarification", {"intake_clarification"}),
+        ("candidate", "Candidate", {"candidate_graph"}),
+        (
+            "repair",
+            "Repair",
+            {
+                "repair_review",
+                "ontology_decisions",
+                "project_local_ontology_review",
+                "rerun_request",
+                "repaired_handoff",
+            },
+        ),
+        (
+            "approval",
+            "Approval",
+            {
+                "candidate_approval_intent",
+                "platform_approval_decision",
+                "promotion_request",
+            },
+        ),
+        ("publication", "Publication", {"git_dry_run", "review_publication"}),
+    ]
+    phases = [
+        _overview_phase(
+            phase_id=phase_id,
+            label=label,
+            stage_ids=stage_ids,
+            stages=stages,
+            current_stage_id=current_stage,
+        )
+        for phase_id, label, stage_ids in phase_definitions
+    ]
+    current_phase = next(
+        (
+            phase
+            for phase in phases
+            if phase["state"] in {"current", "blocked"}
+        ),
+        next((phase for phase in reversed(phases) if phase["state"] == "complete"), phases[0]),
+    )
+    all_blockers: list[str] = []
+    for phase in phases:
+        all_blockers.extend(_string_list(phase.get("blockers")))
+    current_blockers = _string_list(current_phase.get("blockers"))
+    completed_phase_count = sum(1 for phase in phases if phase["state"] == "complete")
+    available_phase_count = sum(
+        1 for phase in phases if phase["state"] != "not_applicable"
+    )
+
+    workflow_status = _text(guided.get("overall_status"), "unknown")
+    initialization_status = _text(workspace_initialization.get("status"))
+    if _text(current_phase.get("id")) == "workspace":
+        readiness_blockers = current_blockers
+    else:
+        readiness_blockers = all_blockers
+    if (
+        _number(summary.get("read_model_published")) > 0
+        or summary.get("read_model_published") is True
+    ):
+        status = "published"
+    elif initialization_status == "route_only":
+        status = "route_only"
+    elif initialization_status in {
+        "initialization_request_needed",
+        "waiting_for_platform",
+        "blocked",
+    }:
+        status = "creation_requested" if initialization_status != "blocked" else "blocked"
+    elif all_blockers or workflow_status == "blocked":
+        status = "blocked"
+    else:
+        status = _text(current_phase.get("id"), workflow_status)
+
+    successful_stages = [
+        stage
+        for stage in stages
+        if _text(stage.get("status")) in {"completed", "ready", "published", "dry_run"}
+    ]
+    last_successful = successful_stages[-1] if successful_stages else {}
+    confidence_refs = []
+    confidence_refs.extend(_string_list(next_action.get("evidence_refs")))
+    confidence_refs.extend(_string_list(last_successful.get("evidence_refs")))
+    confidence_level = "trusted"
+    confidence_reason = "Current lifecycle projection is backed by guided flow evidence."
+    if workspace.get("available") is not True and workspace.get("ready") is not True:
+        confidence_level = "partial"
+        confidence_reason = "Workspace exists as route or request state but is not fully initialized."
+    if readiness_blockers:
+        confidence_level = "blocked"
+        confidence_reason = "One or more lifecycle phases report blockers."
+    if maturity.get("trusted") is False:
+        confidence_level = "untrusted"
+        confidence_reason = "Idea Maturity telemetry is unavailable or untrusted."
+
+    return {
+        "available": True,
+        "status": status,
+        "current_phase": _text(current_phase.get("id"), "unknown"),
+        "current_phase_label": _text(current_phase.get("label"), "Unknown"),
+        "next_safe_action": _text(
+            next_action.get("label"),
+            "Inspect the current product workspace lifecycle stage.",
+        ),
+        "primary_target_section": _optional_text(next_action.get("target_section")),
+        "readiness": {
+            "status": workflow_status,
+            "ready": status == "published",
+            "blocker_count": len(readiness_blockers),
+            "blockers": readiness_blockers[:12],
+        },
+        "completed_phase_count": completed_phase_count,
+        "total_phase_count": available_phase_count,
+        "last_successful_handoff": {
+            "stage_id": _optional_text(last_successful.get("id")),
+            "label": _optional_text(last_successful.get("label")),
+            "target_section": _optional_text(last_successful.get("target_section")),
+            "evidence_refs": _string_list(last_successful.get("evidence_refs")),
+        },
+        "confidence": {
+            "level": confidence_level,
+            "reason": confidence_reason,
+            "source_refs": sorted(set(ref for ref in confidence_refs if ref))[:12],
+            "maturity_lifecycle_state": _optional_text(
+                maturity_metrics.get("lifecycle_state")
+            )
+            or _optional_text(_record(maturity_report.get("summary")).get("lifecycle_state")),
+        },
+        "phases": phases,
+        "authority_boundary": _guided_flow_boundary(),
+    }
+
+
 def attach_guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     payload["guided_repair_path"] = _guided_repair_path(payload)
     payload["guided_approval_path"] = _guided_approval_path(payload)
     payload["guided_flow"] = _guided_flow(payload)
+    payload["product_workspace_overview"] = _product_workspace_overview(payload)
     return payload
 
 
