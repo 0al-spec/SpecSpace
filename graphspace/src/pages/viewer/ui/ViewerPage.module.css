@@ -207,6 +207,13 @@
   color: var(--gs-ink);
 }
 
+.workspaceSelectRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--gs-space-2);
+  align-items: stretch;
+}
+
 .workspaceSelect {
   width: 100%;
   min-height: 34px;
@@ -223,6 +230,36 @@
 }
 
 .workspaceSelect:focus {
+  border-color: var(--gs-accent);
+  outline: 2px solid var(--gs-accent-soft);
+  outline-offset: 0;
+}
+
+.workspaceOpenButton {
+  min-height: 34px;
+  border: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+  color: var(--gs-ink);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0 var(--gs-space-3);
+  text-transform: uppercase;
+}
+
+.workspaceOpenButton:hover:not(:disabled) {
+  border-color: var(--gs-rule-mid);
+}
+
+.workspaceOpenButton:disabled {
+  color: var(--gs-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.workspaceOpenButton:focus {
   border-color: var(--gs-accent);
   outline: 2px solid var(--gs-accent-soft);
   outline-offset: 0;

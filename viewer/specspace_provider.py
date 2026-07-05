@@ -106,13 +106,48 @@ def _validated_ontology_workbench_artifact(
     return payload
 
 
-def _json_contains_any_string(value: Any, expected: set[str]) -> bool:
-    if isinstance(value, str):
-        return value in expected
+WORKSPACE_IDENTITY_FIELD_NAMES: frozenset[str] = frozenset(
+    {
+        "workspace_id",
+        "selected_workspace_id",
+        "current_workspace_id",
+        "requested_workspace_id",
+        "target_workspace_id",
+        "workspace_route",
+        "route",
+    }
+)
+
+
+def _json_contains_workspace_identity(
+    value: Any,
+    *,
+    expected_workspace_id: str,
+    expected_route: str,
+) -> bool:
     if isinstance(value, dict):
-        return any(_json_contains_any_string(item, expected) for item in value.values())
+        for key, item in value.items():
+            if (
+                key in WORKSPACE_IDENTITY_FIELD_NAMES
+                and item in {expected_workspace_id, expected_route}
+            ):
+                return True
+            if _json_contains_workspace_identity(
+                item,
+                expected_workspace_id=expected_workspace_id,
+                expected_route=expected_route,
+            ):
+                return True
+        return False
     if isinstance(value, list):
-        return any(_json_contains_any_string(item, expected) for item in value)
+        return any(
+            _json_contains_workspace_identity(
+                item,
+                expected_workspace_id=expected_workspace_id,
+                expected_route=expected_route,
+            )
+            for item in value
+        )
     return False
 
 
@@ -1349,8 +1384,11 @@ class ProductWorkspaceFileProvider:
     def _payload_matches_workspace(self, payload: Any) -> bool:
         if self.workspace_id in DEFAULT_PRODUCT_WORKSPACE_IDS:
             return True
-        expected_values = {self.workspace_id, f"/{self.workspace_id}"}
-        return _json_contains_any_string(payload, expected_values)
+        return _json_contains_workspace_identity(
+            payload,
+            expected_workspace_id=self.workspace_id,
+            expected_route=f"/{self.workspace_id}",
+        )
 
     def _workspace_artifacts_match(self, artifacts: dict[str, Any]) -> bool:
         if not artifacts:
@@ -1391,12 +1429,15 @@ class ProductWorkspaceFileProvider:
     def _artifact_map(self) -> dict[str, Path]:
         if self.delegate.runs_dir is None:
             return {}
-        if not self._workspace_artifacts_match(
-            self.delegate._read_idea_to_spec_workspace_artifacts()
-        ):
-            return {}
+        all_artifacts = self.delegate._read_idea_to_spec_workspace_artifacts()
+        if self._workspace_artifacts_match(all_artifacts):
+            allowed_filenames = set(WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS)
+        else:
+            allowed_filenames = set(self._workspace_artifacts())
         artifact_map: dict[str, Path] = {}
         for filename in WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS:
+            if filename not in allowed_filenames:
+                continue
             path = self.delegate.runs_dir / filename
             if path.exists() and path.is_file():
                 artifact_map[f"runs/{filename}"] = path
@@ -1407,7 +1448,12 @@ class ProductWorkspaceFileProvider:
         runs = self.delegate.runs_health()
         artifacts = self._workspace_artifacts()
         candidate_graph = artifacts.get(idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT)
-        status = "ok" if source_is_readable(runs) and candidate_graph is not None else "degraded"
+        if not source_is_readable(runs):
+            status = "degraded"
+        elif candidate_graph is None:
+            status = "pending"
+        else:
+            status = "ok"
         return {
             **base,
             "provider": self.kind,
@@ -1420,7 +1466,7 @@ class ProductWorkspaceFileProvider:
                     "path": str(self.delegate.runs_dir / idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_ARTIFACT)
                     if self.delegate.runs_dir is not None
                     else None,
-                    "status": "ok" if candidate_graph is not None else "missing",
+                    "status": "ok" if candidate_graph is not None else "not_built",
                 },
             },
         }

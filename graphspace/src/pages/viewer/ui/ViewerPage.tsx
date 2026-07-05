@@ -215,6 +215,7 @@ export function ViewerPage({
     }
     return [...SPECSPACE_WORKSPACES, workspace];
   }, [workspace]);
+  const [workspaceSelectRoute, setWorkspaceSelectRoute] = useState(workspace.route);
   const [sidebarOpen, setSidebarOpen] = useState(productWorkspace);
   const [activeUtilityPanel, setActiveUtilityPanel] =
     useState<ViewerUtilityPanelId | null>(
@@ -374,12 +375,19 @@ export function ViewerPage({
     writeUrl: "/api/v1/product-workspace-creation-requests",
     refreshKey: runsWatchVersion,
   });
+  const clearWorkspaceCreationSaveError =
+    productWorkspaceCreationRequests.clearSaveError;
   const closeNewWorkspaceWizard = useCallback(() => {
     if (productWorkspaceCreationRequests.pending) return;
+    clearWorkspaceCreationSaveError();
     setNewIdeaWorkspaceWizardOpen(false);
-  }, [productWorkspaceCreationRequests.pending]);
+  }, [clearWorkspaceCreationSaveError, productWorkspaceCreationRequests.pending]);
+  useEffect(() => {
+    setWorkspaceSelectRoute(workspace.route);
+  }, [workspace.route]);
   useEffect(() => {
     if (newIdeaWorkspaceWizardOpen) {
+      clearWorkspaceCreationSaveError();
       wasNewIdeaWorkspaceWizardOpenRef.current = true;
       window.setTimeout(() => newIdeaWorkspaceFirstFieldRef.current?.focus(), 0);
       return;
@@ -387,7 +395,7 @@ export function ViewerPage({
     if (!wasNewIdeaWorkspaceWizardOpenRef.current) return;
     wasNewIdeaWorkspaceWizardOpenRef.current = false;
     window.setTimeout(() => newIdeaWorkspaceLauncherButtonRef.current?.focus(), 0);
-  }, [newIdeaWorkspaceWizardOpen]);
+  }, [clearWorkspaceCreationSaveError, newIdeaWorkspaceWizardOpen]);
   const handleNewWorkspaceWizardKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLFormElement>) => {
       if (event.key === "Escape") {
@@ -1109,26 +1117,41 @@ export function ViewerPage({
                 type="button"
                 aria-label="New workspace"
                 title="New workspace"
-                onClick={() => setNewIdeaWorkspaceWizardOpen(true)}
+                onClick={() => {
+                  clearWorkspaceCreationSaveError();
+                  setNewIdeaWorkspaceWizardOpen(true);
+                }}
               >
                 +
               </button>
             </div>
-            <select
-              id="workspace-route-select"
-              className={styles.workspaceSelect}
-              value={workspace.route}
-              onChange={(event) => {
-                const route = event.target.value;
-                if (route && route !== workspace.route) window.location.assign(route);
-              }}
-            >
-              {workspaceSwitcherItems.map((item) => (
-                <option key={item.id} value={item.route}>
-                  {item.displayName}
-                </option>
-              ))}
-            </select>
+            <div className={styles.workspaceSelectRow}>
+              <select
+                id="workspace-route-select"
+                className={styles.workspaceSelect}
+                value={workspaceSelectRoute}
+                onChange={(event) => setWorkspaceSelectRoute(event.target.value)}
+              >
+                {workspaceSwitcherItems.map((item) => (
+                  <option key={item.id} value={item.route}>
+                    {item.displayName}
+                  </option>
+                ))}
+              </select>
+              <button
+                className={styles.workspaceOpenButton}
+                type="button"
+                aria-label="Open selected workspace"
+                disabled={!workspaceSelectRoute || workspaceSelectRoute === workspace.route}
+                onClick={() => {
+                  if (workspaceSelectRoute && workspaceSelectRoute !== workspace.route) {
+                    window.location.assign(workspaceSelectRoute);
+                  }
+                }}
+              >
+                Open
+              </button>
+            </div>
           </section>
           <div className={styles.workspaceMeta}>
             <span>{workspaceLaneLabel}</span>

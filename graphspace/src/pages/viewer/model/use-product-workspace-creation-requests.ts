@@ -269,11 +269,13 @@ export function useProductWorkspaceCreationRequests({
     () => (state.kind === "ok" ? state.data.activeRequest : null),
     [state],
   );
+  const clearSaveError = useCallback(() => setSaveError(null), []);
 
   return {
     configured: Boolean(enabled && url),
     state,
     saveRequest,
+    clearSaveError,
     saveError,
     pending,
     activeRequest,

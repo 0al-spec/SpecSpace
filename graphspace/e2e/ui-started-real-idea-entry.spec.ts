@@ -1277,7 +1277,9 @@ test("switches workspaces through the compact sidebar dropdown", async ({ page }
   const sidebar = page.getByLabel("SpecSpace Sidebar");
   const workspaceSelect = sidebar.getByLabel("Workspaces");
   await workspaceSelect.selectOption("/team-decision-log");
+  await expect(page).toHaveURL(/\/$/);
 
+  await sidebar.getByRole("button", { name: "Open selected workspace" }).click();
   await expect(page).toHaveURL(/\/team-decision-log$/);
 });
 
