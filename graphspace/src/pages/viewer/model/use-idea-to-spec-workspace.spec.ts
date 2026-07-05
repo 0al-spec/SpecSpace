@@ -143,4 +143,19 @@ describe("parseIdeaToSpecWorkspace guided approval path", () => {
     if (parsed.kind !== "parse-error") return;
     expect(parsed.reason).toBe("guided approval path boundary expanded");
   });
+
+  it("rejects unlisted truthy approval path authority flags", () => {
+    const payload = minimalWorkspacePayload();
+    const boundary = payload.guided_approval_path.authority_boundary as Record<
+      string,
+      unknown
+    >;
+    boundary.may_execute_prompt_agent = true;
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("parse-error");
+    if (parsed.kind !== "parse-error") return;
+    expect(parsed.reason).toBe("guided approval path boundary expanded");
+  });
 });

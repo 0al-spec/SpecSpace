@@ -1472,7 +1472,7 @@ function GuidedApprovalPathSection({
           />
           <PostureItem
             label="Blockers"
-            value={String(path.counts.remainingBlockerCount)}
+            value={String(path.blockers.length)}
           />
           <PostureItem
             label="Approved paths"

@@ -4209,6 +4209,12 @@ function guidedApprovalPathBoundaryIsSafe(raw: unknown): boolean {
     "may_create_promotion_request",
     "may_publish_read_model",
   ];
+  const knownApprovalFlags = new Set(approvalFalseFlags);
+  for (const [flag, value] of Object.entries(boundary)) {
+    if (flag.startsWith("may_") && !knownApprovalFlags.has(flag) && value !== false) {
+      return false;
+    }
+  }
   return (
     boundary.inspect_only === true &&
     boundary.acknowledge_only === true &&
