@@ -7281,6 +7281,23 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "Request controlled Platform workspace initialization.",
         )
         self.assertTrue(body["workspace_initialization_path"]["initial_idea_present"])
+        self.assertEqual(
+            body["guided_flow"]["current_stage"],
+            "workspace_initialization",
+        )
+        self.assertEqual(body["guided_flow"]["overall_status"], "waiting_for_operator")
+        self.assertEqual(
+            body["guided_flow"]["next_actions"][0]["target_section"],
+            "idea-to-spec-workspace-initialization-path",
+        )
+        self.assertEqual(
+            body["guided_flow"]["next_handoff"]["kind"],
+            "workspace_initialization",
+        )
+        self.assertEqual(
+            body["guided_flow"]["next_handoff"]["label"],
+            "Request controlled Platform workspace initialization.",
+        )
         dumped = json.dumps(creation)
         self.assertNotIn(str(state_dir), dumped)
 
@@ -7311,6 +7328,39 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(post_status, 200)
         self.assertEqual(status, 200)
         self.assertNotIn("workspace_creation", body)
+
+    def test_idea_to_spec_workspace_skips_initialization_stage_for_published_workspace(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            _write_product_workspace_runs(
+                runs_dir,
+                candidate_id="pantry-rotation",
+                display_name="Pantry Rotation",
+                public_route="/pantry-rotation",
+            )
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            body["workspace_initialization_path"]["status"],
+            "route_only",
+        )
+        self.assertEqual(body["workspace"]["id"], "pantry-rotation")
+        self.assertNotEqual(
+            body["guided_flow"]["current_stage"],
+            "workspace_initialization",
+        )
+        stage_ids = [stage["id"] for stage in body["guided_flow"]["stages"]]
+        self.assertNotIn("workspace_initialization", stage_ids)
 
     def test_idea_to_spec_workspace_marks_creation_initialized_from_platform_report(
         self,
@@ -7517,6 +7567,14 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertEqual(
             body["workspace_initialization_path"]["initialization_request_ref"],
+            "runs/product_workspace_initialization_execution_request.json",
+        )
+        self.assertEqual(
+            body["guided_flow"]["current_stage"],
+            "workspace_initialization",
+        )
+        self.assertEqual(
+            body["guided_flow"]["next_handoff"]["artifact_path"],
             "runs/product_workspace_initialization_execution_request.json",
         )
 
