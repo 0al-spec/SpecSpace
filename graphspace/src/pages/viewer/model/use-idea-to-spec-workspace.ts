@@ -1021,6 +1021,47 @@ export type IdeaToSpecGuidedFlow = {
   authorityBoundary: IdeaToSpecGuidedFlowBoundary;
 };
 
+export type IdeaToSpecGuidedRepairCheckpoint = {
+  id: string;
+  label: string;
+  status: string;
+  count: number | null;
+  targetSection: string | null;
+  evidenceRefs: readonly string[];
+};
+
+export type IdeaToSpecGuidedRepairPath = {
+  available: boolean;
+  stage: string;
+  nextAction: string;
+  targetSection: string | null;
+  blockers: readonly string[];
+  counts: {
+    repairRequestCount: number;
+    productSpecTargetCount: number;
+    acceptedAnswerCount: number;
+    unresolvedBlockingAnswerCount: number;
+    ontologyGapRequestCount: number;
+    ontologyDecisionCount: number;
+    projectLocalTermCount: number;
+    projectLocalMissingDecisionCount: number;
+    projectLocalInvalidDecisionCount: number;
+    projectLocalNonResolvingDecisionCount: number;
+    unresolvedOntologyGapCount: number;
+    unresolvedCandidateGapCount: number;
+  };
+  state: {
+    repairDraftsStatus: string | null;
+    rerunRequestStatus: string | null;
+    requestGateStatus: string | null;
+    rerunExecutionStatus: string | null;
+    rerunPublicationStatus: string | null;
+  };
+  checkpoints: readonly IdeaToSpecGuidedRepairCheckpoint[];
+  evidenceRefs: readonly string[];
+  authorityBoundary: IdeaToSpecGuidedFlowBoundary;
+};
+
 export type IdeaToSpecOverviewItem = {
   id: string;
   label: string | null;
@@ -1219,6 +1260,7 @@ export type IdeaToSpecWorkspace = {
   };
   workflow: IdeaToSpecWorkflow;
   guidedFlow: IdeaToSpecGuidedFlow;
+  guidedRepairPath: IdeaToSpecGuidedRepairPath;
   realIdeaIntake: IdeaToSpecRealIdeaIntake;
   intake: {
     available: boolean;
@@ -3731,6 +3773,77 @@ function parseGuidedFlow(raw: unknown): IdeaToSpecGuidedFlow {
   };
 }
 
+function parseGuidedRepairCheckpoint(
+  raw: unknown,
+): IdeaToSpecGuidedRepairCheckpoint | null {
+  const checkpoint = recordValue(raw);
+  const id = optionalString(checkpoint.id);
+  if (!id) return null;
+  return {
+    id,
+    label: stringValue(checkpoint.label, id),
+    status: stringValue(checkpoint.status, "unknown"),
+    count: optionalNumberValue(checkpoint.count),
+    targetSection: optionalString(checkpoint.target_section),
+    evidenceRefs: strings(checkpoint.evidence_refs),
+  };
+}
+
+function parseGuidedRepairPath(raw: unknown): IdeaToSpecGuidedRepairPath {
+  const path = recordValue(raw);
+  const counts = recordValue(path.counts);
+  const state = recordValue(path.state);
+  return {
+    available: path.available === true,
+    stage: stringValue(path.stage, "missing"),
+    nextAction: stringValue(
+      path.next_action,
+      "Inspect product repair review state.",
+    ),
+    targetSection: optionalString(path.target_section),
+    blockers: strings(path.blockers),
+    counts: {
+      repairRequestCount: numberValue(counts.repair_request_count),
+      productSpecTargetCount: numberValue(counts.product_spec_target_count),
+      acceptedAnswerCount: numberValue(counts.accepted_answer_count),
+      unresolvedBlockingAnswerCount: numberValue(
+        counts.unresolved_blocking_answer_count,
+      ),
+      ontologyGapRequestCount: numberValue(counts.ontology_gap_request_count),
+      ontologyDecisionCount: numberValue(counts.ontology_decision_count),
+      projectLocalTermCount: numberValue(counts.project_local_term_count),
+      projectLocalMissingDecisionCount: numberValue(
+        counts.project_local_missing_decision_count,
+      ),
+      projectLocalInvalidDecisionCount: numberValue(
+        counts.project_local_invalid_decision_count,
+      ),
+      projectLocalNonResolvingDecisionCount: numberValue(
+        counts.project_local_non_resolving_decision_count,
+      ),
+      unresolvedOntologyGapCount: numberValue(
+        counts.unresolved_ontology_gap_count,
+      ),
+      unresolvedCandidateGapCount: numberValue(
+        counts.unresolved_candidate_gap_count,
+      ),
+    },
+    state: {
+      repairDraftsStatus: optionalString(state.repair_drafts_status),
+      rerunRequestStatus: optionalString(state.rerun_request_status),
+      requestGateStatus: optionalString(state.request_gate_status),
+      rerunExecutionStatus: optionalString(state.rerun_execution_status),
+      rerunPublicationStatus: optionalString(state.rerun_publication_status),
+    },
+    checkpoints: records(path.checkpoints).flatMap((item) => {
+      const parsed = parseGuidedRepairCheckpoint(item);
+      return parsed ? [parsed] : [];
+    }),
+    evidenceRefs: strings(path.evidence_refs),
+    authorityBoundary: parseGuidedFlowBoundary(),
+  };
+}
+
 function parseOverviewItem(raw: unknown): IdeaToSpecOverviewItem | null {
   const item = recordValue(raw);
   const id = optionalString(item.id);
@@ -3920,6 +4033,30 @@ function guidedFlowBoundariesAreSafe(raw: unknown): boolean {
     if (!guidedFlowBoundaryIsSafe(action.authority_boundary)) return false;
   }
   return true;
+}
+
+function guidedRepairPathBoundaryIsSafe(raw: unknown): boolean {
+  if (!isRecord(raw)) return true;
+  const boundary = recordValue(raw.authority_boundary);
+  const repairFalseFlags = [
+    "may_execute_specgraph",
+    "may_execute_platform",
+    "may_execute_git_service",
+    "may_apply_answers",
+    "may_apply_decisions",
+    "may_mutate_candidate_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_branch_or_commit",
+    "may_open_pull_request",
+    "may_merge_review",
+  ];
+  return (
+    boundary.inspect_only === true &&
+    boundary.acknowledge_only === true &&
+    repairFalseFlags.every((flag) => boundary[flag] === false)
+  );
 }
 
 function candidateOverviewBoundaryIsSafe(raw: unknown): boolean {
@@ -4140,6 +4277,12 @@ export function parseIdeaToSpecWorkspace(
     !guidedFlowBoundariesAreSafe(raw.guided_flow)
   ) {
     return { kind: "parse-error", reason: "guided flow boundary expanded", raw };
+  }
+  if (
+    isRecord(raw.guided_repair_path) &&
+    !guidedRepairPathBoundaryIsSafe(raw.guided_repair_path)
+  ) {
+    return { kind: "parse-error", reason: "guided repair path boundary expanded", raw };
   }
   if (
     isRecord(raw.candidate_overview) &&
@@ -4593,6 +4736,7 @@ export function parseIdeaToSpecWorkspace(
       },
       workflow: parseWorkflow(raw.workflow),
       guidedFlow: parseGuidedFlow(raw.guided_flow),
+      guidedRepairPath: parseGuidedRepairPath(raw.guided_repair_path),
       realIdeaIntake: parseRealIdeaIntake(raw.real_idea_intake),
       intake: {
         available: intake.available === true,

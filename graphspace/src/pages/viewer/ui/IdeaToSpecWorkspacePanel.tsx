@@ -504,6 +504,7 @@ export function IdeaToSpecWorkspacePanel({
         />
         <WorkspaceCreationSection creation={data.workspaceCreation} />
         <GuidedFlowSection flow={data.guidedFlow} />
+        <GuidedRepairPathSection path={data.guidedRepairPath} />
         <CandidateOverviewSection overview={data.candidateOverview} />
         <WorkflowSection workflow={data.workflow} />
         <WorkspaceSection workspace={data.workspace} />
@@ -1223,6 +1224,134 @@ function GuidedFlowSection({ flow }: { flow: IdeaToSpecGuidedFlow }) {
             <span className={styles.statusDetail}>{joined(stage.blockers)}</span>
           </div>
         ))}
+    </section>
+  );
+}
+
+function GuidedRepairPathSection({
+  path,
+}: {
+  path: IdeaToSpecWorkspace["guidedRepairPath"];
+}) {
+  const primaryHref = path.targetSection ? `#${path.targetSection}` : null;
+  const stateItems = [
+    ["Drafts", path.state.repairDraftsStatus],
+    ["Request", path.state.rerunRequestStatus],
+    ["Gate", path.state.requestGateStatus],
+    ["Execution", path.state.rerunExecutionStatus],
+    ["Publication", path.state.rerunPublicationStatus],
+  ] as const;
+  return (
+    <section id="idea-to-spec-guided-repair-path" className={styles.reviewSection}>
+      <SectionHeader
+        title="Guided repair path"
+        count={path.available ? path.checkpoints.length : 0}
+      />
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Candidate repair route</span>
+          <Pill value={path.stage.replace(/_/g, " ")} />
+        </div>
+        <h3 className={styles.title} data-testid="guided-repair-next-action">
+          {path.nextAction}
+        </h3>
+        <div className={styles.postureStrip}>
+          <PostureItem
+            label="Answers"
+            value={`${path.counts.acceptedAnswerCount}/${path.counts.productSpecTargetCount}`}
+          />
+          <PostureItem
+            label="Open answers"
+            value={String(path.counts.unresolvedBlockingAnswerCount)}
+          />
+          <PostureItem
+            label="Ontology decisions"
+            value={`${path.counts.ontologyDecisionCount}/${path.counts.ontologyGapRequestCount}`}
+          />
+          <PostureItem
+            label="Local terms"
+            value={String(path.counts.projectLocalTermCount)}
+          />
+          <PostureItem
+            label="Open ontology"
+            value={String(path.counts.unresolvedOntologyGapCount)}
+          />
+          <PostureItem
+            label="Open candidate"
+            value={String(path.counts.unresolvedCandidateGapCount)}
+          />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Available" value={path.available ? "yes" : "no"} />
+          <Meta label="Target section" value={path.targetSection} />
+          <Meta label="Evidence" value={joined(path.evidenceRefs)} />
+          <Meta label="Blockers" value={joined(path.blockers)} />
+          {stateItems.map(([label, value]) => (
+            <Meta key={label} label={label} value={value} />
+          ))}
+        </div>
+        {primaryHref ? (
+          <a className={styles.ackButton} href={primaryHref}>
+            Open target section
+          </a>
+        ) : null}
+      </div>
+      {path.available && path.checkpoints.length > 0 ? (
+        <div className={styles.guidedRail}>
+          {path.checkpoints.map((checkpoint, index) => {
+            const href = checkpoint.targetSection
+              ? `#${checkpoint.targetSection}`
+              : undefined;
+            const content = (
+              <>
+                <span className={styles.navLabel}>
+                  {index + 1}. {checkpoint.label}
+                </span>
+                <span className={styles.navHint}>
+                  {checkpoint.count === null
+                    ? "Evidence pending"
+                    : `${checkpoint.count} tracked item${
+                        checkpoint.count === 1 ? "" : "s"
+                      }`}
+                </span>
+                <span className={styles.guidedStageMeta}>
+                  {checkpoint.status.replace(/_/g, " ")}
+                  {checkpoint.evidenceRefs.length > 0
+                    ? ` · refs ${checkpoint.evidenceRefs.length}`
+                    : ""}
+                </span>
+              </>
+            );
+            return href ? (
+              <a key={checkpoint.id} className={styles.guidedStage} href={href}>
+                {content}
+              </a>
+            ) : (
+              <div key={checkpoint.id} className={styles.guidedStage}>
+                {content}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <Status
+          label="Repair path unavailable"
+          detail="Repair session and repair review artifacts are not published for this workspace yet."
+        />
+      )}
+      {path.blockers.length > 0 ? (
+        <div className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>Repair path blockers</span>
+            <span className={styles.sectionCount}>{path.blockers.length}</span>
+          </div>
+          <div className={styles.tagList}>
+            {path.blockers.map((blocker) => (
+              <Pill key={blocker} value={blocker} />
+            ))}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
