@@ -60,6 +60,8 @@ async function stopChildProcess(
 type UiStartedIdeaScenario = {
   intakeExecutionPublished: boolean;
   answerContinuationPublished?: boolean;
+  partialBlockingClarification?: boolean;
+  blockedAnswerContinuationPublished?: boolean;
 };
 
 declare global {
@@ -867,11 +869,127 @@ async function workspacePayload(
 
   if (scenario.intakeExecutionPublished) {
     const continuationPublished = scenario.answerContinuationPublished === true;
+    const blockedContinuationPublished =
+      scenario.blockedAnswerContinuationPublished === true;
     const intakeClarification = (payload.intake_clarification as Record<string, unknown>) ?? {};
-    if (!continuationPublished) {
+    if (scenario.partialBlockingClarification) {
+      const clarificationRequests = {
+        ...((intakeClarification.clarification_requests as Record<string, unknown>) ?? {}),
+      };
+      const requests = Array.isArray(clarificationRequests.requests)
+        ? clarificationRequests.requests.map((request) =>
+            JSON.parse(JSON.stringify(request)) as Record<string, unknown>,
+          )
+        : [];
+      const firstRequest = requests[0] ?? {};
+      const secondRequest = {
+        ...firstRequest,
+        id: "clarification.intake.question-active-frame-actor-refs",
+        target_ref: "active_frame.actor_refs",
+        question: "Which actor refs bound this idea?",
+      };
+      const template = {
+        ...((((intakeClarification.answer_authoring as Record<string, unknown>) ?? {})
+          .template as Record<string, unknown>) ?? {}),
+      };
+      const targets = Array.isArray(template.targets)
+        ? template.targets.map((target) =>
+            JSON.parse(JSON.stringify(target)) as Record<string, unknown>,
+          )
+        : [];
+      const firstTarget = targets[0] ?? {};
+      const secondTarget = {
+        ...firstTarget,
+        target_id: "answer-target.active-frame-actor-refs",
+        target_type: "active_frame_ref",
+        request_id: "clarification.intake.question-active-frame-actor-refs",
+        question: "Which actor refs bound this idea?",
+        target_ref: "active_frame.actor_refs",
+      };
+      payload.intake_clarification = {
+        ...intakeClarification,
+        clarification_requests: {
+          ...clarificationRequests,
+          requests: [...requests, secondRequest],
+          request_count: 2,
+          blocking_request_count: 2,
+          summary: {
+            ...((clarificationRequests.summary as Record<string, unknown>) ?? {}),
+            total: 2,
+            blocking: 2,
+          },
+        },
+        answer_authoring: {
+          ...((intakeClarification.answer_authoring as Record<string, unknown>) ?? {}),
+          template: {
+            ...template,
+            targets: [...targets, secondTarget],
+            target_count: 2,
+            blocking_target_count: 2,
+            summary: {
+              ...((template.summary as Record<string, unknown>) ?? {}),
+              target_count: 2,
+              blocking_target_count: 2,
+            },
+          },
+        },
+        answer_continuation: pendingAnswerContinuation(),
+      };
+    } else if (!continuationPublished && !blockedContinuationPublished) {
       payload.intake_clarification = {
         ...intakeClarification,
         answer_continuation: pendingAnswerContinuation(),
+      };
+    } else if (blockedContinuationPublished) {
+      payload.intake_clarification = {
+        ...intakeClarification,
+        answer_continuation: {
+          ...pendingAnswerContinuation(),
+          available: true,
+          ready: false,
+          import_preview: {
+            ...pendingAnswerContinuation().import_preview,
+            available: true,
+            readiness: {
+              ready: false,
+              review_state: "specspace_real_idea_answers_blocked",
+              blocked_by: ["answer_required_field_empty"],
+              next_artifact: "real_idea_answer_continuation_report.json",
+            },
+            summary: {
+              status: "specspace_real_idea_answers_blocked",
+            },
+            accepted_answer_count: 0,
+            answer_count: 1,
+            findings: [
+              {
+                finding_id: "answer_required_field_empty",
+                severity: "blocking",
+                message: "Required refs are missing.",
+              },
+            ],
+          },
+          continuation_report: {
+            ...pendingAnswerContinuation().continuation_report,
+            available: true,
+            readiness: {
+              ready: false,
+              review_state: "real_idea_answer_continuation_blocked",
+              blocked_by: ["answer_required_field_empty"],
+              next_artifact: "specspace_real_idea_answer_import_preview.json",
+            },
+            summary: {
+              status: "real_idea_answer_continuation_blocked",
+            },
+            findings: [
+              {
+                finding_id: "answer_required_field_empty",
+                severity: "blocking",
+                message: "Required refs are missing.",
+              },
+            ],
+          },
+        },
       };
     }
     payload.real_idea_intake = {
@@ -1604,13 +1722,16 @@ test("builds an active candidate from a non-demo product workspace route", async
       page.locator('[data-testid^="intake-clarification-answer-saved-"]'),
     ).toHaveCount(answerCount);
     await expect(
-      page.getByTestId("real-idea-answer-continuation-execution-request"),
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("request_continuation");
+    await expect(
+      page.getByTestId("guided-clarification-continuation-request"),
     ).toBeEnabled();
     await page
-      .getByTestId("real-idea-answer-continuation-execution-request")
+      .getByTestId("guided-clarification-continuation-request")
       .click();
     await expect(
-      page.getByTestId("real-idea-answer-continuation-execution-request-status"),
+      page.getByTestId("guided-clarification-continuation-request-status"),
     ).toContainText("real-idea-answer-continuation-execute");
 
     const continuationReportPath = path.join(
@@ -1688,6 +1809,9 @@ test("builds an active candidate from a non-demo product workspace route", async
       "Inspect active candidate readiness before continuing.",
     );
     await expect(page.getByText("Real idea answer continuation", { exact: true })).toBeVisible();
+    await expect(
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("continuation_ready");
     await expect(
       page.getByText("real_idea_answer_continuation_ready").first(),
     ).toBeVisible();
@@ -1848,13 +1972,16 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       page.locator('[data-testid^="intake-clarification-answer-saved-"]'),
     ).toHaveCount(answerCount);
     await expect(
-      page.getByTestId("real-idea-answer-continuation-execution-request"),
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("request_continuation");
+    await expect(
+      page.getByTestId("guided-clarification-continuation-request"),
     ).toBeEnabled();
     await page
-      .getByTestId("real-idea-answer-continuation-execution-request")
+      .getByTestId("guided-clarification-continuation-request")
       .click();
     await expect(
-      page.getByTestId("real-idea-answer-continuation-execution-request-status"),
+      page.getByTestId("guided-clarification-continuation-request-status"),
     ).toContainText("real-idea-answer-continuation-execute");
 
     const continuationReportPath = path.join(
@@ -1944,6 +2071,9 @@ test("can refresh from a real Platform intake execution when checkouts are provi
       "Inspect active candidate readiness before continuing.",
     );
     await expect(page.getByText("Real idea answer continuation", { exact: true })).toBeVisible();
+    await expect(
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("continuation_ready");
     await expect(
       page.getByText("specspace_real_idea_answers_ready_for_continuation").first(),
     ).toBeVisible();
@@ -2681,6 +2811,75 @@ test("saves a clarification answer from the product workspace UI", async ({
   }
 });
 
+test("keeps continuation request unavailable until all blocking answers are accepted", async ({
+  page,
+}) => {
+  const backend = await startSpecSpaceBackend();
+  const scenario: UiStartedIdeaScenario = {
+    intakeExecutionPublished: true,
+    partialBlockingClarification: true,
+  };
+  try {
+    await installRunsWatchMock(page);
+    await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
+    await submitRawIdeaEntryFromUi(
+      page,
+      "A decision log that needs multiple clarification answers.",
+      "Decision log with partial clarification",
+    );
+    await page
+      .getByTestId(`intake-clarification-answer-${clarificationRequestId}`)
+      .fill("domain.team_decision_log");
+    await page
+      .getByTestId(`intake-clarification-answer-save-${clarificationRequestId}`)
+      .click();
+
+    const guide = page.getByTestId("guided-clarification-continuation");
+    await expect(guide).toContainText("answer_questions");
+    await expect(guide).toContainText("Blocking2");
+    await expect(guide).toContainText(
+      "Complete required answers before requesting continuation.",
+    );
+    await expect(
+      page.getByTestId("guided-clarification-continuation-request"),
+    ).toHaveCount(0);
+  } finally {
+    await backend.stop();
+  }
+});
+
+test("surfaces not-ready answer continuation artifacts in the guided path", async ({
+  page,
+}) => {
+  const backend = await startSpecSpaceBackend();
+  const scenario: UiStartedIdeaScenario = {
+    intakeExecutionPublished: true,
+    blockedAnswerContinuationPublished: true,
+  };
+  try {
+    await installRunsWatchMock(page);
+    await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
+    await submitRawIdeaEntryFromUi(
+      page,
+      "A decision log with blocked answer continuation artifacts.",
+      "Decision log blocked continuation",
+    );
+
+    const guide = page.getByTestId("guided-clarification-continuation");
+    await expect(guide).toContainText("continuation_needs_review");
+    await expect(guide).toContainText(
+      "Review the answer continuation import preview and report findings before editing answers.",
+    );
+    await expect(guide).toContainText("specspace_real_idea_answers_blocked");
+    await expect(guide).toContainText("real_idea_answer_continuation_blocked");
+    await expect(
+      page.getByTestId("guided-clarification-continuation-request"),
+    ).toHaveCount(0);
+  } finally {
+    await backend.stop();
+  }
+});
+
 test("shows continuation-ready lane after external answer continuation publication", async ({
   page,
 }) => {
@@ -2708,13 +2907,16 @@ test("shows continuation-ready lane after external answer continuation publicati
     ).toContainText("Answer saved · answer question");
     await expect(page.getByText("Answer continuation pending")).toBeVisible();
     await expect(
-      page.getByTestId("real-idea-answer-continuation-execution-request"),
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("request_continuation");
+    await expect(
+      page.getByTestId("guided-clarification-continuation-request"),
     ).toBeEnabled();
     await page
-      .getByTestId("real-idea-answer-continuation-execution-request")
+      .getByTestId("guided-clarification-continuation-request")
       .click();
     await expect(
-      page.getByTestId("real-idea-answer-continuation-execution-request-status"),
+      page.getByTestId("guided-clarification-continuation-request-status"),
     ).toContainText("real-idea-answer-continuation-execute.team-decision-log");
     await expect(
       page.getByTestId("real-idea-answer-continuation-handoff-command"),
@@ -2734,6 +2936,9 @@ test("shows continuation-ready lane after external answer continuation publicati
     );
     const intakeClarification = page.locator("#idea-to-spec-intake-clarification");
     await expect(intakeClarification.getByText("Real idea answer continuation")).toBeVisible();
+    await expect(
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("candidate_ready");
     await expect(
       page.getByText("specspace_real_idea_answers_ready_for_continuation").first(),
     ).toBeVisible();

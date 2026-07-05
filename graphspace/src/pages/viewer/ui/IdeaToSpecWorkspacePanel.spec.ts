@@ -76,6 +76,9 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Event-storming intake");
     expect(html).toContain("Intake clarification");
     expect(html).toContain('id="idea-to-spec-intake-clarification"');
+    expect(html).toContain("Guided clarification path");
+    expect(html).toContain("candidate_ready");
+    expect(html).toContain("Candidate ready");
     expect(html).toContain("active candidate ready");
     expect(html).toContain("make real-idea-intake-continue-from-specspace-answers");
     expect(html).toContain("Real idea answer authoring");
