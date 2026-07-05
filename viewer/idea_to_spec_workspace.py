@@ -6205,6 +6205,53 @@ def _stage_done(status: str) -> bool:
     return status in {"ready", "completed", "published", "dry_run"}
 
 
+STAGE_WORKSPACE_INITIALIZATION = "workspace_initialization"
+STAGE_IDEA_INTAKE = "idea_intake"
+STAGE_INTAKE_CLARIFICATION = "intake_clarification"
+STAGE_CANDIDATE_GRAPH = "candidate_graph"
+STAGE_REPAIR_REVIEW = "repair_review"
+STAGE_ONTOLOGY_DECISIONS = "ontology_decisions"
+STAGE_PROJECT_LOCAL_ONTOLOGY_REVIEW = "project_local_ontology_review"
+STAGE_RERUN_REQUEST = "rerun_request"
+STAGE_REPAIRED_HANDOFF = "repaired_handoff"
+STAGE_CANDIDATE_APPROVAL_INTENT = "candidate_approval_intent"
+STAGE_PLATFORM_APPROVAL_DECISION = "platform_approval_decision"
+STAGE_PROMOTION_REQUEST = "promotion_request"
+STAGE_GIT_DRY_RUN = "git_dry_run"
+STAGE_REVIEW_PUBLICATION = "review_publication"
+
+PRODUCT_WORKSPACE_OVERVIEW_PHASES: tuple[
+    tuple[str, str, tuple[str, ...]],
+    ...,
+] = (
+    ("workspace", "Workspace", (STAGE_WORKSPACE_INITIALIZATION,)),
+    ("intake", "Intake", (STAGE_IDEA_INTAKE,)),
+    ("clarification", "Clarification", (STAGE_INTAKE_CLARIFICATION,)),
+    ("candidate", "Candidate", (STAGE_CANDIDATE_GRAPH,)),
+    (
+        "repair",
+        "Repair",
+        (
+            STAGE_REPAIR_REVIEW,
+            STAGE_ONTOLOGY_DECISIONS,
+            STAGE_PROJECT_LOCAL_ONTOLOGY_REVIEW,
+            STAGE_RERUN_REQUEST,
+            STAGE_REPAIRED_HANDOFF,
+        ),
+    ),
+    (
+        "approval",
+        "Approval",
+        (
+            STAGE_CANDIDATE_APPROVAL_INTENT,
+            STAGE_PLATFORM_APPROVAL_DECISION,
+            STAGE_PROMOTION_REQUEST,
+        ),
+    ),
+    ("publication", "Publication", (STAGE_GIT_DRY_RUN, STAGE_REVIEW_PUBLICATION)),
+)
+
+
 def _workspace_initialization_guided_stage(
     payload: dict[str, Any],
 ) -> dict[str, Any] | None:
@@ -6241,7 +6288,7 @@ def _workspace_initialization_guided_stage(
             "--execution-request <run-dir>/product_workspace_initialization_execution_request.json"
         )
     return _guided_stage(
-        stage_id="workspace_initialization",
+        stage_id=STAGE_WORKSPACE_INITIALIZATION,
         label="Workspace initialization",
         status=status,
         next_action=_text(
@@ -6468,7 +6515,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         if stage is not None
     ] + [
         _guided_stage(
-            stage_id="idea_intake",
+            stage_id=STAGE_IDEA_INTAKE,
             label="Idea intake",
             status=idea_intake_stage_status,
             next_action=_text(
@@ -6480,7 +6527,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             evidence_refs=real_intake_event_refs,
         ),
         _guided_stage(
-            stage_id="intake_clarification",
+            stage_id=STAGE_INTAKE_CLARIFICATION,
             label="Intake clarification",
             status=intake_clarification_stage_status,
             next_action=_text(
@@ -6501,7 +6548,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             ),
         ),
         _guided_stage(
-            stage_id="candidate_graph",
+            stage_id=STAGE_CANDIDATE_GRAPH,
             label="Candidate graph",
             status=(
                 "completed"
@@ -6520,7 +6567,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             ],
         ),
         _guided_stage(
-            stage_id="repair_review",
+            stage_id=STAGE_REPAIR_REVIEW,
             label="Repair review",
             status=(
                 "blocked"
@@ -6543,7 +6590,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             ],
         ),
         _guided_stage(
-            stage_id="ontology_decisions",
+            stage_id=STAGE_ONTOLOGY_DECISIONS,
             label="Ontology decisions",
             status=(
                 "completed"
@@ -6575,7 +6622,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             ],
         ),
         _guided_stage(
-            stage_id="project_local_ontology_review",
+            stage_id=STAGE_PROJECT_LOCAL_ONTOLOGY_REVIEW,
             label="Project-local ontology review",
             status=project_local_stage_status,
             next_action=project_local_next_action,
@@ -6600,7 +6647,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             ),
         ),
         _guided_stage(
-            stage_id="rerun_request",
+            stage_id=STAGE_RERUN_REQUEST,
             label="Repair rerun request",
             status=(
                 "blocked"
@@ -6630,7 +6677,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             command_template="scripts/platform.py product-repair-rerun smoke --profile happy-path-promotion-dry-run",
         ),
         _guided_stage(
-            stage_id="repaired_handoff",
+            stage_id=STAGE_REPAIRED_HANDOFF,
             label="Repaired handoff",
             status=(
                 "completed"
@@ -6658,7 +6705,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             command_template="make product-workspace-repaired-promotion-handoff",
         ),
         _guided_stage(
-            stage_id="candidate_approval_intent",
+            stage_id=STAGE_CANDIDATE_APPROVAL_INTENT,
             label="Candidate approval intent",
             status=(
                 "completed"
@@ -6682,7 +6729,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             ],
         ),
         _guided_stage(
-            stage_id="platform_approval_decision",
+            stage_id=STAGE_PLATFORM_APPROVAL_DECISION,
             label="Platform approval decision",
             status=(
                 "completed"
@@ -6710,7 +6757,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             ),
         ),
         _guided_stage(
-            stage_id="promotion_request",
+            stage_id=STAGE_PROMOTION_REQUEST,
             label="Promotion request",
             status=(
                 "completed"
@@ -6733,7 +6780,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             command_template="scripts/platform.py product-candidate-promotion request <inputs>",
         ),
         _guided_stage(
-            stage_id="git_dry_run",
+            stage_id=STAGE_GIT_DRY_RUN,
             label="Git dry-run",
             status=(
                 "completed"
@@ -6766,7 +6813,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             ),
         ),
         _guided_stage(
-            stage_id="review_publication",
+            stage_id=STAGE_REVIEW_PUBLICATION,
             label="Review and publication",
             status=(
                 "completed"
@@ -6808,7 +6855,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         stages[-1],
     )
     if (
-        current["id"] == "workspace_initialization"
+        current["id"] == STAGE_WORKSPACE_INITIALIZATION
         and current["status"] in {"available", "waiting_for_operator"}
     ):
         overall_status = "waiting_for_operator"
@@ -6832,7 +6879,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     if (
         workspace_initialization_stage is not None
         and workspace_initialization_stage["status"] not in {"completed", "ready"}
-        and current["id"] == "workspace_initialization"
+        and current["id"] == STAGE_WORKSPACE_INITIALIZATION
     ):
         next_handoff = _workspace_initialization_handoff(
             workspace_initialization_stage
@@ -6917,43 +6964,20 @@ def _product_workspace_overview(payload: dict[str, Any]) -> dict[str, Any]:
     maturity_report = _record(maturity.get("report"))
     maturity_metrics = _record(maturity_report.get("metrics"))
 
-    phase_definitions = [
-        ("workspace", "Workspace", {"workspace_initialization"}),
-        ("intake", "Intake", {"idea_intake"}),
-        ("clarification", "Clarification", {"intake_clarification"}),
-        ("candidate", "Candidate", {"candidate_graph"}),
-        (
-            "repair",
-            "Repair",
-            {
-                "repair_review",
-                "ontology_decisions",
-                "project_local_ontology_review",
-                "rerun_request",
-                "repaired_handoff",
-            },
-        ),
-        (
-            "approval",
-            "Approval",
-            {
-                "candidate_approval_intent",
-                "platform_approval_decision",
-                "promotion_request",
-            },
-        ),
-        ("publication", "Publication", {"git_dry_run", "review_publication"}),
-    ]
     phases = [
         _overview_phase(
             phase_id=phase_id,
             label=label,
-            stage_ids=stage_ids,
+            stage_ids=set(stage_ids),
             stages=stages,
             current_stage_id=current_stage,
         )
-        for phase_id, label, stage_ids in phase_definitions
+        for phase_id, label, stage_ids in PRODUCT_WORKSPACE_OVERVIEW_PHASES
     ]
+    current_stage_record = next(
+        (stage for stage in stages if _text(stage.get("id")) == current_stage),
+        {},
+    )
     current_phase = next(
         (
             phase
@@ -6973,18 +6997,17 @@ def _product_workspace_overview(payload: dict[str, Any]) -> dict[str, Any]:
 
     workflow_status = _text(guided.get("overall_status"), "unknown")
     initialization_status = _text(workspace_initialization.get("status"))
+    current_phase_id = _text(current_phase.get("id"), "unknown")
+    current_stage_status = _text(current_stage_record.get("status"), "unknown")
     if _text(current_phase.get("id")) == "workspace":
         readiness_blockers = current_blockers
     else:
         readiness_blockers = all_blockers
-    if (
-        _number(summary.get("read_model_published")) > 0
-        or summary.get("read_model_published") is True
-    ):
+    if summary.get("read_model_published") is True:
         status = "published"
-    elif initialization_status == "route_only":
+    elif current_phase_id == "workspace" and initialization_status == "route_only":
         status = "route_only"
-    elif initialization_status in {
+    elif current_phase_id == "workspace" and initialization_status in {
         "initialization_request_needed",
         "waiting_for_platform",
         "blocked",
@@ -6992,12 +7015,40 @@ def _product_workspace_overview(payload: dict[str, Any]) -> dict[str, Any]:
         status = "creation_requested" if initialization_status != "blocked" else "blocked"
     elif all_blockers or workflow_status == "blocked":
         status = "blocked"
+    elif current_stage == STAGE_IDEA_INTAKE and current_stage_status == "missing":
+        status = "initialized"
     else:
-        status = _text(current_phase.get("id"), workflow_status)
+        status = {
+            "workspace": "initialized",
+            "intake": "intake",
+            "clarification": "clarification",
+            "candidate": "candidate_review",
+            "repair": "repair",
+            "approval": "approval",
+            "publication": "promotion",
+        }.get(current_phase_id, "missing" if not stages else workflow_status)
 
+    next_safe_action = _text(
+        next_action.get("label"),
+        "Inspect the current product workspace lifecycle stage.",
+    )
+    primary_target_section = _optional_text(next_action.get("target_section"))
+    if status == "route_only":
+        next_safe_action = "Create workspace request before initialization."
+        primary_target_section = "idea-to-spec-workspace-creation"
+
+    current_stage_index = next(
+        (
+            index
+            for index, stage in enumerate(stages)
+            if _text(stage.get("id")) == current_stage
+        ),
+        len(stages) - 1,
+    )
+    reached_stages = stages[: current_stage_index + 1]
     successful_stages = [
         stage
-        for stage in stages
+        for stage in reached_stages
         if _text(stage.get("status")) in {"completed", "ready", "published", "dry_run"}
     ]
     last_successful = successful_stages[-1] if successful_stages else {}
@@ -7021,11 +7072,8 @@ def _product_workspace_overview(payload: dict[str, Any]) -> dict[str, Any]:
         "status": status,
         "current_phase": _text(current_phase.get("id"), "unknown"),
         "current_phase_label": _text(current_phase.get("label"), "Unknown"),
-        "next_safe_action": _text(
-            next_action.get("label"),
-            "Inspect the current product workspace lifecycle stage.",
-        ),
-        "primary_target_section": _optional_text(next_action.get("target_section")),
+        "next_safe_action": next_safe_action,
+        "primary_target_section": primary_target_section,
         "readiness": {
             "status": workflow_status,
             "ready": status == "published",

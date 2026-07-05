@@ -3906,20 +3906,42 @@ function parseProductWorkspaceOverview(
 ): IdeaToSpecProductWorkspaceOverview {
   if (!isRecord(raw)) {
     const current = guidedFlow.nextActions[0] ?? null;
-    const phaseIds = [
-      ["workspace", "Workspace"],
-      ["intake", "Intake"],
-      ["clarification", "Clarification"],
-      ["candidate", "Candidate"],
-      ["repair", "Repair"],
-      ["approval", "Approval"],
-      ["publication", "Publication"],
+    const phaseDefinitions = [
+      ["workspace", "Workspace", ["workspace_initialization"]],
+      ["intake", "Intake", ["idea_intake"]],
+      ["clarification", "Clarification", ["intake_clarification"]],
+      ["candidate", "Candidate", ["candidate_graph"]],
+      [
+        "repair",
+        "Repair",
+        [
+          "repair_review",
+          "ontology_decisions",
+          "project_local_ontology_review",
+          "rerun_request",
+          "repaired_handoff",
+        ],
+      ],
+      [
+        "approval",
+        "Approval",
+        [
+          "candidate_approval_intent",
+          "platform_approval_decision",
+          "promotion_request",
+        ],
+      ],
+      ["publication", "Publication", ["git_dry_run", "review_publication"]],
     ] as const;
+    const currentPhase =
+      phaseDefinitions.find(([, , stageIds]) =>
+        (stageIds as readonly string[]).includes(guidedFlow.currentStage),
+      ) ?? null;
     return {
       available: false,
       status: guidedFlow.overallStatus,
-      currentPhase: guidedFlow.currentStage,
-      currentPhaseLabel: guidedFlow.currentStageLabel,
+      currentPhase: currentPhase?.[0] ?? "missing",
+      currentPhaseLabel: currentPhase?.[1] ?? guidedFlow.currentStageLabel,
       nextSafeAction:
         current?.label ?? "Inspect the current product workspace lifecycle stage.",
       primaryTargetSection: current?.targetSection ?? null,
@@ -3948,10 +3970,12 @@ function parseProductWorkspaceOverview(
         sourceRefs: current?.evidenceRefs ?? [],
         maturityLifecycleState: null,
       },
-      phases: phaseIds.map(([id, label]) => ({
+      phases: phaseDefinitions.map(([id, label, stageIds]) => ({
         id,
         label,
-        state: id === guidedFlow.currentStage ? "current" : "pending",
+        state: (stageIds as readonly string[]).includes(guidedFlow.currentStage)
+          ? "current"
+          : "pending",
         targetSection: current?.targetSection ?? null,
         blockers: [],
         evidenceRefs: [],
@@ -4327,7 +4351,23 @@ function guidedFlowBoundariesAreSafe(raw: unknown): boolean {
 
 function productWorkspaceOverviewBoundaryIsSafe(raw: unknown): boolean {
   if (!isRecord(raw)) return true;
-  return guidedFlowBoundaryIsSafe(raw.authority_boundary);
+  const boundary = recordValue(raw.authority_boundary);
+  const allowedMayFlags = new Set([
+    "may_execute_specgraph",
+    "may_execute_platform",
+    "may_execute_git_service",
+    "may_mutate_candidate_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_branch_or_commit",
+    "may_open_pull_request",
+    "may_merge_review",
+  ]);
+  for (const key of Object.keys(boundary)) {
+    if (key.startsWith("may_") && !allowedMayFlags.has(key)) return false;
+  }
+  return guidedFlowBoundaryIsSafe(boundary);
 }
 
 function guidedRepairPathBoundaryIsSafe(raw: unknown): boolean {

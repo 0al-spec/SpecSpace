@@ -91,7 +91,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
         inspect_only: true,
         acknowledge_only: true,
         may_execute_specgraph: false,
-        may_execute_platform: true,
+        may_execute_platform: false,
         may_execute_git_service: false,
         may_mutate_candidate_artifacts: false,
         may_mutate_canonical_specs: false,
@@ -100,6 +100,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
         may_create_branch_or_commit: false,
         may_open_pull_request: false,
         may_merge_review: false,
+        may_publish_read_model: true,
       },
     };
 

@@ -7713,6 +7713,313 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(overview["phases"][0]["state"], "not_applicable")
         self.assertFalse(overview["authority_boundary"]["may_create_branch_or_commit"])
 
+    def test_idea_to_spec_workspace_overview_covers_lifecycle_statuses(
+        self,
+    ) -> None:
+        def stage(
+            stage_id: str,
+            status: str,
+            *,
+            blockers: list[str] | None = None,
+        ) -> dict[str, object]:
+            return {
+                "id": stage_id,
+                "label": stage_id.replace("_", " ").title(),
+                "status": status,
+                "primary_next_action": f"Next action for {stage_id}",
+                "target_section": f"section-{stage_id}",
+                "blockers": blockers or [],
+                "evidence_refs": [f"runs/{stage_id}.json"],
+            }
+
+        def overview(
+            stages: list[dict[str, object]],
+            current_stage: str,
+            *,
+            overall_status: str = "waiting_for_operator",
+            workspace_ready: bool = True,
+            initialization_status: str | None = None,
+            read_model_published: bool = False,
+            maturity_trusted: bool = True,
+        ) -> dict[str, object]:
+            return idea_to_spec_workspace._product_workspace_overview(
+                {
+                    "guided_flow": {
+                        "current_stage": current_stage,
+                        "current_stage_label": current_stage,
+                        "overall_status": overall_status,
+                        "next_actions": [
+                            {
+                                "label": f"Next action for {current_stage}",
+                                "target_section": f"section-{current_stage}",
+                                "evidence_refs": [f"runs/{current_stage}.json"],
+                            }
+                        ],
+                        "stages": stages,
+                    },
+                    "summary": {"read_model_published": read_model_published},
+                    "workspace": {
+                        "available": workspace_ready,
+                        "ready": workspace_ready,
+                    },
+                    "workspace_initialization_path": (
+                        {"status": initialization_status}
+                        if initialization_status is not None
+                        else {}
+                    ),
+                    "idea_maturity": {
+                        "trusted": maturity_trusted,
+                        "report": {
+                            "summary": {"lifecycle_state": "test_lifecycle"}
+                        },
+                    },
+                }
+            )
+
+        cases = [
+            {
+                "name": "route_only",
+                "stages": [
+                    stage(
+                        idea_to_spec_workspace.STAGE_WORKSPACE_INITIALIZATION,
+                        "available",
+                    )
+                ],
+                "current": idea_to_spec_workspace.STAGE_WORKSPACE_INITIALIZATION,
+                "initialization_status": "route_only",
+                "workspace_ready": False,
+                "status": "route_only",
+                "phase": "workspace",
+                "confidence": "partial",
+            },
+            {
+                "name": "creation_requested",
+                "stages": [
+                    stage(
+                        idea_to_spec_workspace.STAGE_WORKSPACE_INITIALIZATION,
+                        "available",
+                    )
+                ],
+                "current": idea_to_spec_workspace.STAGE_WORKSPACE_INITIALIZATION,
+                "initialization_status": "initialization_request_needed",
+                "workspace_ready": False,
+                "status": "creation_requested",
+                "phase": "workspace",
+                "confidence": "partial",
+            },
+            {
+                "name": "initialized_without_idea",
+                "stages": [
+                    stage(
+                        idea_to_spec_workspace.STAGE_WORKSPACE_INITIALIZATION,
+                        "completed",
+                    ),
+                    stage(idea_to_spec_workspace.STAGE_IDEA_INTAKE, "missing"),
+                ],
+                "current": idea_to_spec_workspace.STAGE_IDEA_INTAKE,
+                "status": "initialized",
+                "phase": "intake",
+                "confidence": "trusted",
+            },
+            {
+                "name": "clarification_required",
+                "stages": [
+                    stage(idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"),
+                    stage(
+                        idea_to_spec_workspace.STAGE_INTAKE_CLARIFICATION,
+                        "available",
+                    ),
+                ],
+                "current": idea_to_spec_workspace.STAGE_INTAKE_CLARIFICATION,
+                "status": "clarification",
+                "phase": "clarification",
+                "confidence": "trusted",
+            },
+            {
+                "name": "candidate_review",
+                "stages": [
+                    stage(idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"),
+                    stage(
+                        idea_to_spec_workspace.STAGE_INTAKE_CLARIFICATION,
+                        "completed",
+                    ),
+                    stage(idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH, "available"),
+                ],
+                "current": idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH,
+                "status": "candidate_review",
+                "phase": "candidate",
+                "confidence": "trusted",
+            },
+            {
+                "name": "repair_blocked",
+                "stages": [
+                    stage(idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"),
+                    stage(
+                        idea_to_spec_workspace.STAGE_INTAKE_CLARIFICATION,
+                        "completed",
+                    ),
+                    stage(idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH, "completed"),
+                    stage(
+                        idea_to_spec_workspace.STAGE_REPAIR_REVIEW,
+                        "blocked",
+                        blockers=["repair_required"],
+                    ),
+                ],
+                "current": idea_to_spec_workspace.STAGE_REPAIR_REVIEW,
+                "overall_status": "blocked",
+                "status": "blocked",
+                "phase": "repair",
+                "confidence": "blocked",
+            },
+            {
+                "name": "approval_ready",
+                "stages": [
+                    stage(idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"),
+                    stage(
+                        idea_to_spec_workspace.STAGE_INTAKE_CLARIFICATION,
+                        "completed",
+                    ),
+                    stage(idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH, "completed"),
+                    stage(idea_to_spec_workspace.STAGE_REPAIR_REVIEW, "completed"),
+                    stage(
+                        idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                        "available",
+                    ),
+                ],
+                "current": idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                "status": "approval",
+                "phase": "approval",
+                "confidence": "trusted",
+            },
+            {
+                "name": "promotion",
+                "stages": [
+                    stage(idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"),
+                    stage(
+                        idea_to_spec_workspace.STAGE_INTAKE_CLARIFICATION,
+                        "completed",
+                    ),
+                    stage(idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH, "completed"),
+                    stage(idea_to_spec_workspace.STAGE_REPAIR_REVIEW, "completed"),
+                    stage(
+                        idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                        "completed",
+                    ),
+                    stage(
+                        idea_to_spec_workspace.STAGE_PLATFORM_APPROVAL_DECISION,
+                        "completed",
+                    ),
+                    stage(idea_to_spec_workspace.STAGE_PROMOTION_REQUEST, "completed"),
+                    stage(idea_to_spec_workspace.STAGE_GIT_DRY_RUN, "available"),
+                ],
+                "current": idea_to_spec_workspace.STAGE_GIT_DRY_RUN,
+                "status": "promotion",
+                "phase": "publication",
+                "confidence": "trusted",
+            },
+            {
+                "name": "published",
+                "stages": [
+                    stage(idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"),
+                    stage(idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH, "completed"),
+                    stage(idea_to_spec_workspace.STAGE_REVIEW_PUBLICATION, "completed"),
+                ],
+                "current": idea_to_spec_workspace.STAGE_REVIEW_PUBLICATION,
+                "read_model_published": True,
+                "status": "published",
+                "phase": "publication",
+                "confidence": "trusted",
+            },
+            {
+                "name": "untrusted_maturity",
+                "stages": [
+                    stage(idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"),
+                    stage(
+                        idea_to_spec_workspace.STAGE_INTAKE_CLARIFICATION,
+                        "available",
+                    ),
+                ],
+                "current": idea_to_spec_workspace.STAGE_INTAKE_CLARIFICATION,
+                "maturity_trusted": False,
+                "status": "clarification",
+                "phase": "clarification",
+                "confidence": "untrusted",
+            },
+        ]
+
+        for case in cases:
+            with self.subTest(case["name"]):
+                result = overview(
+                    case["stages"],
+                    case["current"],
+                    overall_status=case.get("overall_status", "waiting_for_operator"),
+                    workspace_ready=case.get("workspace_ready", True),
+                    initialization_status=case.get("initialization_status"),
+                    read_model_published=case.get("read_model_published", False),
+                    maturity_trusted=case.get("maturity_trusted", True),
+                )
+
+                self.assertEqual(result["status"], case["status"])
+                self.assertEqual(result["current_phase"], case["phase"])
+                self.assertEqual(result["confidence"]["level"], case["confidence"])
+                if case["name"] == "route_only":
+                    self.assertEqual(
+                        result["next_safe_action"],
+                        "Create workspace request before initialization.",
+                    )
+                    self.assertEqual(
+                        result["primary_target_section"],
+                        "idea-to-spec-workspace-creation",
+                    )
+                self.assertIn(
+                    result["status"],
+                    {
+                        "missing",
+                        "route_only",
+                        "creation_requested",
+                        "initialized",
+                        "intake",
+                        "clarification",
+                        "candidate_review",
+                        "repair",
+                        "approval",
+                        "promotion",
+                        "published",
+                        "blocked",
+                    },
+                )
+
+    def test_idea_to_spec_workspace_overview_phase_mapping_tracks_guided_stage_ids(
+        self,
+    ) -> None:
+        covered_stage_ids = {
+            stage_id
+            for _phase_id, _label, stage_ids in (
+                idea_to_spec_workspace.PRODUCT_WORKSPACE_OVERVIEW_PHASES
+            )
+            for stage_id in stage_ids
+        }
+
+        self.assertEqual(
+            covered_stage_ids,
+            {
+                idea_to_spec_workspace.STAGE_WORKSPACE_INITIALIZATION,
+                idea_to_spec_workspace.STAGE_IDEA_INTAKE,
+                idea_to_spec_workspace.STAGE_INTAKE_CLARIFICATION,
+                idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH,
+                idea_to_spec_workspace.STAGE_REPAIR_REVIEW,
+                idea_to_spec_workspace.STAGE_ONTOLOGY_DECISIONS,
+                idea_to_spec_workspace.STAGE_PROJECT_LOCAL_ONTOLOGY_REVIEW,
+                idea_to_spec_workspace.STAGE_RERUN_REQUEST,
+                idea_to_spec_workspace.STAGE_REPAIRED_HANDOFF,
+                idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                idea_to_spec_workspace.STAGE_PLATFORM_APPROVAL_DECISION,
+                idea_to_spec_workspace.STAGE_PROMOTION_REQUEST,
+                idea_to_spec_workspace.STAGE_GIT_DRY_RUN,
+                idea_to_spec_workspace.STAGE_REVIEW_PUBLICATION,
+            },
+        )
+
     def test_idea_to_spec_workspace_marks_creation_initialized_from_platform_report(
         self,
     ) -> None:
