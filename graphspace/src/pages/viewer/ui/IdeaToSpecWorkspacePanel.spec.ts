@@ -31,6 +31,35 @@ describe("IdeaToSpecWorkspacePanel", () => {
     }
   });
 
+  it("rejects answer-applying guided repair path payloads", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_repair_path.authority_boundary.may_apply_answers = true;
+
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsedWorkspace.kind).toBe("parse-error");
+    if (parsedWorkspace.kind === "parse-error") {
+      expect(parsedWorkspace.reason).toBe("guided repair path boundary expanded");
+    }
+  });
+
+  it("hides guided repair checkpoint rail when path is unavailable", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_repair_path.available = false;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    expect(parsedWorkspace.kind).toBe("ok");
+    if (parsedWorkspace.kind !== "ok") return;
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toContain("Repair path unavailable");
+    expect(html).not.toContain("Product/spec answers");
+  });
+
   it("renders candidate graph, pre-SIB metrics, and repair actions read-only", () => {
     const html = renderToStaticMarkup(
       createElement(IdeaToSpecWorkspacePanel, { state }),
@@ -38,15 +67,17 @@ describe("IdeaToSpecWorkspacePanel", () => {
 
     expect(html).toContain("Idea-to-Spec Workspace");
     expect(html).toContain("Guided product flow");
-    expect(html).toContain("Replace the rerun request for the current workspace and repair session.");
+    expect(html).toContain("Request a controlled repair rerun.");
     expect(html).toContain("#idea-to-spec-workspace-state-hygiene");
     expect(html).toContain("Guided repair path");
     expect(html).toContain('id="idea-to-spec-guided-repair-path"');
     expect(html).toContain("Candidate repair route");
-    expect(html).toContain("repair blocked");
+    expect(html).toContain("ready to request rerun");
     expect(html).toContain("Product/spec answers");
-    expect(html).toContain("Project-local ontology review");
-    expect(html).toContain("Repair path blockers");
+    expect(html).toContain("Project-local ontology");
+    expect(html).toContain("Rerun request");
+    expect(html).toContain("Evidence pending");
+    expect(html).not.toContain("0 evidence items");
     expect(html).toContain("Open ontology");
     expect(html).toContain("#idea-to-spec-idea-intake");
     expect(html).toContain("#idea-to-spec-candidate-graph");

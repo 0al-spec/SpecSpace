@@ -1025,7 +1025,7 @@ export type IdeaToSpecGuidedRepairCheckpoint = {
   id: string;
   label: string;
   status: string;
-  count: number;
+  count: number | null;
   targetSection: string | null;
   evidenceRefs: readonly string[];
 };
@@ -3783,7 +3783,7 @@ function parseGuidedRepairCheckpoint(
     id,
     label: stringValue(checkpoint.label, id),
     status: stringValue(checkpoint.status, "unknown"),
-    count: numberValue(checkpoint.count),
+    count: optionalNumberValue(checkpoint.count),
     targetSection: optionalString(checkpoint.target_section),
     evidenceRefs: strings(checkpoint.evidence_refs),
   };
@@ -4037,7 +4037,26 @@ function guidedFlowBoundariesAreSafe(raw: unknown): boolean {
 
 function guidedRepairPathBoundaryIsSafe(raw: unknown): boolean {
   if (!isRecord(raw)) return true;
-  return guidedFlowBoundaryIsSafe(raw.authority_boundary);
+  const boundary = recordValue(raw.authority_boundary);
+  const repairFalseFlags = [
+    "may_execute_specgraph",
+    "may_execute_platform",
+    "may_execute_git_service",
+    "may_apply_answers",
+    "may_apply_decisions",
+    "may_mutate_candidate_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_branch_or_commit",
+    "may_open_pull_request",
+    "may_merge_review",
+  ];
+  return (
+    boundary.inspect_only === true &&
+    boundary.acknowledge_only === true &&
+    repairFalseFlags.every((flag) => boundary[flag] !== true)
+  );
 }
 
 function candidateOverviewBoundaryIsSafe(raw: unknown): boolean {

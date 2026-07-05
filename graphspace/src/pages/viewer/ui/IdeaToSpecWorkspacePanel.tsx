@@ -1293,7 +1293,7 @@ function GuidedRepairPathSection({
           </a>
         ) : null}
       </div>
-      {path.checkpoints.length > 0 ? (
+      {path.available && path.checkpoints.length > 0 ? (
         <div className={styles.guidedRail}>
           {path.checkpoints.map((checkpoint, index) => {
             const href = checkpoint.targetSection
@@ -1305,8 +1305,11 @@ function GuidedRepairPathSection({
                   {index + 1}. {checkpoint.label}
                 </span>
                 <span className={styles.navHint}>
-                  {checkpoint.count} evidence item
-                  {checkpoint.count === 1 ? "" : "s"}
+                  {checkpoint.count === null
+                    ? "Evidence pending"
+                    : `${checkpoint.count} tracked item${
+                        checkpoint.count === 1 ? "" : "s"
+                      }`}
                 </span>
                 <span className={styles.guidedStageMeta}>
                   {checkpoint.status.replace(/_/g, " ")}
