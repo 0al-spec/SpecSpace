@@ -1463,6 +1463,9 @@ test("refreshes an opened workspace after controlled initialization is published
     await expect(
       page.getByTestId("workspace-initialization-path-next-action"),
     ).toContainText("Request controlled Platform workspace initialization.");
+    await expect(page.getByTestId("guided-flow-next-action")).toContainText(
+      "Request controlled Platform workspace initialization.",
+    );
     await expect(page.getByTestId("real-idea-entry-workspace-gate")).toContainText(
       "Run the controlled Platform workspace initialization",
     );
@@ -1481,6 +1484,9 @@ test("refreshes an opened workspace after controlled initialization is published
     await expect(
       page.getByTestId("workspace-initialization-path-next-action"),
     ).toContainText("Start or continue raw idea intake in this workspace.");
+    await expect(page.getByTestId("guided-flow-next-action")).toContainText(
+      "Create a real idea intake session in SpecGraph.",
+    );
     await expect(page.getByTestId("real-idea-entry-workspace-gate")).toContainText(
       "Raw idea intake will use this workspace namespace.",
     );

@@ -5748,8 +5748,91 @@ def _stage_done(status: str) -> bool:
     return status in {"ready", "completed", "published", "dry_run"}
 
 
+def _workspace_initialization_guided_stage(
+    payload: dict[str, Any],
+) -> dict[str, Any] | None:
+    path = _record(payload.get("workspace_initialization_path"))
+    if path.get("available") is not True:
+        return None
+    path_status = _text(path.get("status"), "route_only")
+    workspace = _record(payload.get("workspace"))
+    workspace_ready = workspace.get("available") is True or workspace.get("ready") is True
+    if path_status == "route_only" and workspace_ready:
+        return None
+    if path_status == "initialized":
+        status = "completed"
+    elif path_status == "waiting_for_platform":
+        status = "waiting_for_operator"
+    elif path_status == "blocked":
+        status = "blocked"
+    else:
+        status = "available"
+
+    evidence_refs = [
+        ref
+        for ref in [
+            _optional_text(path.get("initialization_report_ref")),
+            _optional_text(path.get("initialization_request_ref")),
+            _optional_text(path.get("creation_request_ref")),
+        ]
+        if ref
+    ]
+    command_template = None
+    if path_status == "waiting_for_platform":
+        command_template = (
+            "scripts/platform.py workspace execute-requested-initialization "
+            "--execution-request <run-dir>/product_workspace_initialization_execution_request.json"
+        )
+    return _guided_stage(
+        stage_id="workspace_initialization",
+        label="Workspace initialization",
+        status=status,
+        next_action=_text(
+            path.get("next_safe_action"),
+            "Create and initialize this workspace before intake.",
+        ),
+        target_section="idea-to-spec-workspace-initialization-path",
+        blockers=_string_list(path.get("blockers")) if status == "blocked" else [],
+        evidence_refs=evidence_refs,
+        command_template=command_template,
+    )
+
+
+def _workspace_initialization_handoff(
+    stage: dict[str, Any],
+) -> dict[str, Any]:
+    evidence_refs = _string_list(stage.get("evidence_refs"))
+    artifact_path = next(
+        (
+            ref
+            for ref in evidence_refs
+            if ref.endswith(
+                PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
+            )
+            or ref.endswith(
+                PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT
+            )
+            or ref.endswith(PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT)
+        ),
+        evidence_refs[0] if evidence_refs else None,
+    )
+    return {
+        "kind": "workspace_initialization",
+        "label": _text(
+            stage.get("primary_next_action"),
+            "Create and initialize this workspace before intake.",
+        ),
+        "status": _text(stage.get("status"), "available"),
+        "artifact_key": "workspace_initialization",
+        "artifact_path": artifact_path,
+        "command_template": _optional_text(stage.get("command_template")),
+        "authority_boundary": "operator_only",
+    }
+
+
 def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     workflow = _record(payload.get("workflow"))
+    workspace_initialization_stage = _workspace_initialization_guided_stage(payload)
     real_idea_intake = _record(payload.get("real_idea_intake"))
     repair_review = _record(payload.get("repair_review"))
     repair_session = _record(payload.get("repair_session"))
@@ -5923,6 +6006,10 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         intake_clarification_stage_status = "missing"
 
     stages = [
+        stage
+        for stage in [workspace_initialization_stage]
+        if stage is not None
+    ] + [
         _guided_stage(
             stage_id="idea_intake",
             label="Idea intake",
@@ -6263,7 +6350,12 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         ),
         stages[-1],
     )
-    if any(stage["status"] == "blocked" for stage in stages):
+    if (
+        current["id"] == "workspace_initialization"
+        and current["status"] in {"available", "waiting_for_operator"}
+    ):
+        overall_status = "waiting_for_operator"
+    elif any(stage["status"] == "blocked" for stage in stages):
         overall_status = "blocked"
     elif read_model_published:
         overall_status = "completed"
@@ -6280,6 +6372,14 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         "evidence_refs": current["evidence_refs"],
         "authority_boundary": _guided_flow_boundary(),
     }
+    if (
+        workspace_initialization_stage is not None
+        and workspace_initialization_stage["status"] not in {"completed", "ready"}
+        and current["id"] == "workspace_initialization"
+    ):
+        next_handoff = _workspace_initialization_handoff(
+            workspace_initialization_stage
+        )
     return {
         "current_stage": current["id"],
         "current_stage_label": current["label"],
