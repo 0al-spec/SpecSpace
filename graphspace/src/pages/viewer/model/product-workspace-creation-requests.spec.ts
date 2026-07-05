@@ -15,6 +15,7 @@ const creationState = {
       display_name: "Pantry Rotation",
       route: "/pantry-rotation",
       operator_ref: "operator://specspace-local",
+      root_intent_summary: "Track pantry stock before food expires.",
       root_intent_summary_present: true,
       status: "requested",
       created_at: "2026-07-04T00:00:00Z",
@@ -27,6 +28,7 @@ const creationState = {
     display_name: "Pantry Rotation",
     route: "/pantry-rotation",
     operator_ref: "operator://specspace-local",
+    root_intent_summary: "Track pantry stock before food expires.",
     root_intent_summary_present: true,
     status: "requested",
     created_at: "2026-07-04T00:00:00Z",
@@ -67,6 +69,9 @@ describe("parseProductWorkspaceCreationRequestState", () => {
     if (parsed.kind !== "ok") return;
     expect(parsed.data.activeRequest?.workspaceId).toBe("pantry-rotation");
     expect(parsed.data.activeRequest?.route).toBe("/pantry-rotation");
+    expect(parsed.data.activeRequest?.rootIntentSummary).toBe(
+      "Track pantry stock before food expires.",
+    );
     expect(parsed.data.summary.activeRequestedCount).toBe(1);
   });
 

@@ -6,6 +6,7 @@ export type ProductWorkspaceCreationRequest = {
   displayName: string;
   route: string;
   operatorRef: string;
+  rootIntentSummary: string | null;
   rootIntentSummaryPresent: boolean;
   status: string;
   createdAt: string;
@@ -91,6 +92,7 @@ function parseRequest(raw: unknown): ProductWorkspaceCreationRequest | null {
     displayName,
     route,
     operatorRef: stringValue(raw.operator_ref, "local_operator"),
+    rootIntentSummary: optionalString(raw.root_intent_summary),
     rootIntentSummaryPresent:
       raw.root_intent_summary_present === true ||
       optionalString(raw.root_intent_summary) !== null,

@@ -1196,6 +1196,8 @@ export type IdeaToSpecWorkspaceCreation = {
     workspaceId: string;
     displayName: string;
     route: string;
+    rootIntentSummary: string | null;
+    rootIntentSummaryPresent: boolean;
     status: string;
     createdAt: string;
     updatedAt: string;
@@ -1214,6 +1216,19 @@ export type IdeaToSpecWorkspaceCreation = {
   };
 };
 
+export type IdeaToSpecWorkspaceInitializationPath = {
+  available: boolean;
+  status: string;
+  workspaceId: string | null;
+  displayName: string | null;
+  initialIdeaPresent: boolean;
+  creationRequestRef: string | null;
+  initializationRequestRef: string | null;
+  initializationReportRef: string | null;
+  nextSafeAction: string | null;
+  blockers: readonly string[];
+};
+
 export type IdeaToSpecWorkspace = {
   apiVersion: "v1";
   artifactKind: "specspace_idea_to_spec_workspace";
@@ -1225,6 +1240,7 @@ export type IdeaToSpecWorkspace = {
   selectedWorkspaceId: string | null;
   workspace: IdeaToSpecWorkspaceIdentity;
   workspaceCreation: IdeaToSpecWorkspaceCreation;
+  workspaceInitializationPath: IdeaToSpecWorkspaceInitializationPath;
   summary: {
     status: string;
     availableArtifactCount: number;
@@ -4127,6 +4143,10 @@ function parseWorkspaceCreation(raw: unknown): IdeaToSpecWorkspaceCreation {
             workspaceId,
             displayName,
             route,
+            rootIntentSummary: optionalString(active.root_intent_summary),
+            rootIntentSummaryPresent:
+              active.root_intent_summary_present === true ||
+              optionalString(active.root_intent_summary) !== null,
             status: stringValue(active.status, "requested"),
             createdAt: stringValue(active.created_at, "unknown"),
             updatedAt: stringValue(active.updated_at, "unknown"),
@@ -4145,6 +4165,24 @@ function parseWorkspaceCreation(raw: unknown): IdeaToSpecWorkspaceCreation {
       catalogWritten: initializationExecution.catalog_written === true,
       workspaceFilesCreated: initializationExecution.workspace_files_created === true,
     },
+  };
+}
+
+function parseWorkspaceInitializationPath(
+  raw: unknown,
+): IdeaToSpecWorkspaceInitializationPath {
+  const path = recordValue(raw);
+  return {
+    available: path.available === true,
+    status: stringValue(path.status, "route_only"),
+    workspaceId: optionalString(path.workspace_id),
+    displayName: optionalString(path.display_name),
+    initialIdeaPresent: path.initial_idea_present === true,
+    creationRequestRef: optionalString(path.creation_request_ref),
+    initializationRequestRef: optionalString(path.initialization_request_ref),
+    initializationReportRef: optionalString(path.initialization_report_ref),
+    nextSafeAction: optionalString(path.next_safe_action),
+    blockers: strings(path.blockers),
   };
 }
 
@@ -4675,6 +4713,9 @@ export function parseIdeaToSpecWorkspace(
       selectedWorkspaceId: optionalString(raw.selected_workspace_id),
       workspace: parseWorkspaceIdentity(raw.workspace),
       workspaceCreation: parseWorkspaceCreation(raw.workspace_creation),
+      workspaceInitializationPath: parseWorkspaceInitializationPath(
+        raw.workspace_initialization_path,
+      ),
       summary: {
         status: stringValue(summary.status, "unknown"),
         availableArtifactCount: numberValue(summary.available_artifact_count),

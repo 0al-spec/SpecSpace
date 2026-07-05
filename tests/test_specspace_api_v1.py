@@ -7247,6 +7247,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     f"{base}/api/v1/product-workspace-creation-requests",
                     {
                         "display_name": "Pantry Rotation",
+                        "root_intent_summary": "Rotate pantry stock before expiry.",
                     },
                 )
                 status, body = _get(
@@ -7265,6 +7266,20 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(creation["summary"]["status"], "workspace_creation_requested")
         self.assertEqual(creation["active_request"]["workspace_id"], "pantry-rotation")
         self.assertEqual(creation["active_request"]["route"], "/pantry-rotation")
+        self.assertEqual(
+            creation["active_request"]["root_intent_summary"],
+            "Rotate pantry stock before expiry.",
+        )
+        self.assertTrue(creation["active_request"]["root_intent_summary_present"])
+        self.assertEqual(
+            body["workspace_initialization_path"]["status"],
+            "initialization_request_needed",
+        )
+        self.assertEqual(
+            body["workspace_initialization_path"]["next_safe_action"],
+            "Request controlled Platform workspace initialization.",
+        )
+        self.assertTrue(body["workspace_initialization_path"]["initial_idea_present"])
         dumped = json.dumps(creation)
         self.assertNotIn(str(state_dir), dumped)
 

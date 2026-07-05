@@ -502,6 +502,9 @@ export function IdeaToSpecWorkspacePanel({
           onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
           readOnly={readOnly}
         />
+        <GuidedWorkspaceInitializationPathSection
+          path={data.workspaceInitializationPath}
+        />
         <WorkspaceCreationSection creation={data.workspaceCreation} />
         <GuidedFlowSection flow={data.guidedFlow} />
         <GuidedRepairPathSection path={data.guidedRepairPath} />
@@ -649,6 +652,58 @@ function WorkspaceCreationSection({
   );
 }
 
+function GuidedWorkspaceInitializationPathSection({
+  path,
+}: {
+  path: IdeaToSpecWorkspace["workspaceInitializationPath"];
+}) {
+  return (
+    <section
+      id="idea-to-spec-workspace-initialization-path"
+      className={styles.reviewSection}
+    >
+      <SectionHeader title="Guided workspace initialization" count={0} />
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Workspace initialization path</span>
+          <Pill value={path.status.replace(/_/g, " ")} />
+        </div>
+        <h3
+          className={styles.title}
+          data-testid="workspace-initialization-path-next-action"
+        >
+          {path.nextSafeAction ?? "Create and initialize this workspace before intake."}
+        </h3>
+        <div className={styles.postureStrip}>
+          <PostureItem label="Workspace" value={path.workspaceId ?? "route"} />
+          <PostureItem
+            label="Initial idea"
+            value={path.initialIdeaPresent ? "present" : "missing"}
+          />
+          <PostureItem label="Blockers" value={String(path.blockers.length)} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Display name" value={path.displayName} />
+          <Meta label="Creation request" value={path.creationRequestRef} />
+          <Meta
+            label="Initialization request"
+            value={path.initializationRequestRef}
+          />
+          <Meta
+            label="Initialization report"
+            value={path.initializationReportRef}
+          />
+        </div>
+        {path.blockers.length > 0 ? (
+          <p className={styles.statusDetail}>
+            Blockers: {joined(path.blockers)}
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function IdeaIntakeDraftSection({
   activeFrame,
   realIdeaIntake,
@@ -672,11 +727,33 @@ function IdeaIntakeDraftSection({
 }) {
   const [idea, setIdea] = useState("");
   const [publicSummary, setPublicSummary] = useState("");
+  const [prefilledCreationRequestId, setPrefilledCreationRequestId] =
+    useState<string | null>(null);
   const draft = useMemo(
     () => buildIdeaToSpecIntakeDraft({ idea, activeFrame }),
     [idea, activeFrame],
   );
   const activeEntry = entryRequests.activeSubmittedRequest;
+  const activeWorkspaceCreationRequest = workspaceCreation.activeRequest;
+  useEffect(() => {
+    if (activeEntry !== null || activeWorkspaceCreationRequest === null) return;
+    if (prefilledCreationRequestId === activeWorkspaceCreationRequest.requestId) {
+      return;
+    }
+    if (!idea.trim() && activeWorkspaceCreationRequest.rootIntentSummary) {
+      setIdea(activeWorkspaceCreationRequest.rootIntentSummary);
+    }
+    if (!publicSummary.trim()) {
+      setPublicSummary(activeWorkspaceCreationRequest.displayName);
+    }
+    setPrefilledCreationRequestId(activeWorkspaceCreationRequest.requestId);
+  }, [
+    activeEntry,
+    activeWorkspaceCreationRequest,
+    idea,
+    prefilledCreationRequestId,
+    publicSummary,
+  ]);
   const activeExecutionRequest = executionRequests.activeRequest;
   const executionRequestTargetsCurrentEntry =
     activeExecutionRequest !== null &&

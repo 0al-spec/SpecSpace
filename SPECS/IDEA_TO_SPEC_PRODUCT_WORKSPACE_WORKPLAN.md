@@ -417,6 +417,12 @@ Current SpecSpace slice:
   route.
 - Product Workspace shows `route_only_workspace` or
   `workspace_creation_requested` status from backend state.
+- Product Workspace exposes a `Guided workspace initialization` path that
+  summarizes route-only, initialization-needed, waiting-for-Platform,
+  initialized, and blocked states.
+- Initial idea text entered in the wizard is reused as the raw idea draft after
+  the workspace becomes initialized; the user does not need to type the same
+  idea twice.
 - SpecSpace still does not initialize workspace files, mutate SpecGraph, update
   Platform catalogs, or run Git Service.
 
@@ -434,8 +440,9 @@ Acceptance criteria:
 - `guided_flow` and `workspace_state_hygiene` can distinguish:
   route-only workspace, workspace creation requested, workspace initialized,
   intake-ready, and blocked creation.
-  Partially done in Product Workspace creation projection; guided-flow/hygiene
-  integration remains open.
+  Done for the Product Workspace guided initialization projection. Existing
+  workspace state hygiene remains the diagnostic surface for stale mutable
+  state rather than a creation executor.
 - Duplicate, reserved, malformed, or already-initialized workspace ids produce
   visible diagnostics and do not silently fall back to `team-decision-log`.
   Done at the SpecSpace request boundary for malformed, reserved,
@@ -457,6 +464,11 @@ Acceptance criteria:
   `runs/product_workspace_initialization_execution_request.json` is present.
   Done for read-only visibility: SpecSpace exposes request status, requested
   operation, readiness, and idempotency evidence without executing Platform.
+- The initial idea captured by the wizard is available only as selected
+  workspace local UI state and is not exposed by the standalone
+  `product-workspace-creation-requests` endpoint or public artifacts.
+  Done: the direct state endpoint keeps root intent redacted, while the selected
+  Product Workspace read model can prefill the raw idea draft.
 
 Likely repositories:
 

@@ -314,6 +314,7 @@ def workspace_projection(
     *,
     workspace_id: str | None,
     initialization: dict[str, Any] | None = None,
+    include_root_intent_summary: bool = False,
 ) -> dict[str, Any]:
     if status != HTTPStatus.OK:
         return {
@@ -336,7 +337,11 @@ def workspace_projection(
             "consumer_boundary": _consumer_boundary(),
             "authority_boundary": _authority_boundary(),
         }
-    requests = [_public_request(item) for item in state.get("requests", []) if isinstance(item, dict)]
+    requests = [
+        _public_request(item, include_root_intent_summary=include_root_intent_summary)
+        for item in state.get("requests", [])
+        if isinstance(item, dict)
+    ]
     active = next((item for item in requests if item.get("status") == "requested"), None)
     initialization_record = _record(initialization)
     initialization_workspace_id = _clean_text(
@@ -554,8 +559,12 @@ def _cap_superseded_history(requests: list[dict[str, Any]]) -> list[dict[str, An
     return sorted(capped, key=_request_sort_key)
 
 
-def _public_request(item: dict[str, Any]) -> dict[str, Any]:
-    return {
+def _public_request(
+    item: dict[str, Any],
+    *,
+    include_root_intent_summary: bool = False,
+) -> dict[str, Any]:
+    request = {
         "request_id": item.get("request_id"),
         "workspace_id": item.get("workspace_id"),
         "display_name": item.get("display_name"),
@@ -567,6 +576,9 @@ def _public_request(item: dict[str, Any]) -> dict[str, Any]:
         "updated_at": item.get("updated_at"),
         "superseded_at": item.get("superseded_at"),
     }
+    if include_root_intent_summary:
+        request["root_intent_summary"] = _clean_text(item.get("root_intent_summary"))
+    return request
 
 
 def _request_sort_key(item: dict[str, Any]) -> tuple[str, str, str]:
