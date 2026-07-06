@@ -92,6 +92,7 @@ type Props = {
   candidateApprovalExecuteUrl?: string;
   promotionRequestExecuteUrl?: string;
   promotionExecuteUrl?: string;
+  reviewStatusExecuteUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
   productWorkspaceInitializationExecuteUrl?: string;
   repairRerunRequestsRefreshKey?: number | string;
@@ -411,6 +412,7 @@ export function IdeaToSpecWorkspacePanel({
   candidateApprovalExecuteUrl,
   promotionRequestExecuteUrl,
   promotionExecuteUrl,
+  reviewStatusExecuteUrl,
   projectLocalOntologyReviewDecisionsUrl,
   productWorkspaceInitializationExecuteUrl,
   repairRerunRequestsRefreshKey = 0,
@@ -483,6 +485,11 @@ export function IdeaToSpecWorkspacePanel({
       error: string | null;
     }>({ pending: false, status: null, error: null });
   const [promotionExecutionState, setPromotionExecutionState] = useState<{
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  }>({ pending: false, status: null, error: null });
+  const [reviewStatusExecutionState, setReviewStatusExecutionState] = useState<{
     pending: boolean;
     status: string | null;
     error: string | null;
@@ -792,6 +799,61 @@ export function IdeaToSpecWorkspacePanel({
       });
     }
   };
+  const executeReviewStatus = async () => {
+    const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
+    if (readOnly || !reviewStatusExecuteUrl || !workspaceId) {
+      return;
+    }
+    setReviewStatusExecutionState({
+      pending: true,
+      status: null,
+      error: null,
+    });
+    try {
+      const response = await fetch(reviewStatusExecuteUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace_id: workspaceId }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        summary?: { status?: unknown };
+        status?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok) {
+        const detail =
+          typeof body.error === "string"
+            ? body.error
+            : `Managed review-status inspection failed with HTTP ${response.status}.`;
+        setReviewStatusExecutionState({
+          pending: false,
+          status: typeof body.status === "string" ? body.status : null,
+          error: detail,
+        });
+        return;
+      }
+      setReviewStatusExecutionState({
+        pending: false,
+        status:
+          typeof body.summary?.status === "string"
+            ? body.summary.status
+            : typeof body.status === "string"
+              ? body.status
+              : "managed_review_status_inspected",
+        error: null,
+      });
+      onWorkspaceRefreshRequest?.();
+    } catch (error) {
+      setReviewStatusExecutionState({
+        pending: false,
+        status: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Managed review-status inspection failed.",
+      });
+    }
+  };
 
   const productWorkspaceOverviewSection = (
     <ProductWorkspaceOverviewSection
@@ -843,12 +905,15 @@ export function IdeaToSpecWorkspacePanel({
       executeUrl={candidateApprovalExecuteUrl}
       promotionRequestExecuteUrl={promotionRequestExecuteUrl}
       promotionExecuteUrl={promotionExecuteUrl}
+      reviewStatusExecuteUrl={reviewStatusExecuteUrl}
       executionState={candidateApprovalExecutionState}
       promotionRequestExecutionState={promotionRequestExecutionState}
       promotionExecutionState={promotionExecutionState}
+      reviewStatusExecutionState={reviewStatusExecutionState}
       onExecute={executeCandidateApproval}
       onPromotionRequestExecute={executePromotionRequest}
       onPromotionExecute={executePromotionDryRun}
+      onReviewStatusExecute={executeReviewStatus}
       readOnly={readOnly}
     />
   );
@@ -2497,18 +2562,22 @@ function GuidedApprovalPathSection({
   executeUrl,
   promotionRequestExecuteUrl,
   promotionExecuteUrl,
+  reviewStatusExecuteUrl,
   executionState,
   promotionRequestExecutionState,
   promotionExecutionState,
+  reviewStatusExecutionState,
   onExecute,
   onPromotionRequestExecute,
   onPromotionExecute,
+  onReviewStatusExecute,
   readOnly = false,
 }: {
   path: IdeaToSpecWorkspace["guidedApprovalPath"];
   executeUrl?: string;
   promotionRequestExecuteUrl?: string;
   promotionExecuteUrl?: string;
+  reviewStatusExecuteUrl?: string;
   executionState?: {
     pending: boolean;
     status: string | null;
@@ -2524,9 +2593,15 @@ function GuidedApprovalPathSection({
     status: string | null;
     error: string | null;
   };
+  reviewStatusExecutionState?: {
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  };
   onExecute?: () => void;
   onPromotionRequestExecute?: () => void;
   onPromotionExecute?: () => void;
+  onReviewStatusExecute?: () => void;
   readOnly?: boolean;
 }) {
   const primaryHref = path.targetSection ? `#${path.targetSection}` : null;
@@ -2557,6 +2632,14 @@ function GuidedApprovalPathSection({
     showManagedPromotionExecution &&
     path.state.promotionRequestOk === true &&
     !promotionExecutionState?.pending;
+  const showManagedReviewStatus =
+    path.stage === "review_merge_waiting" && path.state.reviewState === null;
+  const canRunManagedReviewStatus =
+    !readOnly &&
+    Boolean(reviewStatusExecuteUrl) &&
+    showManagedReviewStatus &&
+    path.state.promotionExecutionStatus !== null &&
+    !reviewStatusExecutionState?.pending;
   const stateItems = [
     ["Readiness", path.state.approvalReadinessStatus],
     ["Intent", path.state.approvalIntentStatus],
@@ -2675,6 +2758,23 @@ function GuidedApprovalPathSection({
             </span>
           </div>
         ) : null}
+        {showManagedReviewStatus ? (
+          <div className={styles.draftControls}>
+            <button
+              className={styles.ackButton}
+              type="button"
+              disabled={!canRunManagedReviewStatus}
+              onClick={onReviewStatusExecute}
+            >
+              {reviewStatusExecutionState?.pending
+                ? "Inspecting review status..."
+                : "Inspect review status"}
+            </button>
+            <span className={styles.statusDetail}>
+              SpecSpace backend will call the allowlisted Platform review-status inspection.
+            </span>
+          </div>
+        ) : null}
         {executionState?.status ? (
           <span className={styles.statusDetail}>
             Candidate approval execution: {executionState.status}
@@ -2703,6 +2803,16 @@ function GuidedApprovalPathSection({
         {promotionExecutionState?.error ? (
           <span className={styles.statusDetail}>
             Promotion execution failed · {promotionExecutionState.error}
+          </span>
+        ) : null}
+        {reviewStatusExecutionState?.status ? (
+          <span className={styles.statusDetail}>
+            Review-status inspection: {reviewStatusExecutionState.status}
+          </span>
+        ) : null}
+        {reviewStatusExecutionState?.error ? (
+          <span className={styles.statusDetail}>
+            Review-status inspection failed · {reviewStatusExecutionState.error}
           </span>
         ) : null}
       </div>
