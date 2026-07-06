@@ -7115,6 +7115,113 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(request_state["summary"]["consumed_count"], 1)
         self.assertEqual(request_state["summary"]["requested_count"], 0)
 
+    def test_real_idea_intake_execute_rejects_consumed_request_without_platform(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "raise SystemExit('must not execute consumed request')\n",
+                encoding="utf-8",
+            )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": (
+                        "platform_product_workspace_initialization_execution_report"
+                    ),
+                    "ok": True,
+                    "dry_run": False,
+                    "workspace": {"workspace_id": "pantry-rotation"},
+                    "summary": {
+                        "status": "workspace_initialization_executed",
+                        "catalog_written": True,
+                        "workspace_files_created": True,
+                    },
+                },
+            )
+            _write_json(
+                state_dir / "real_idea_entry_requests.json",
+                {
+                    "artifact_kind": "specspace_real_idea_entry_request_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "requests": [
+                        {
+                            "request_id": (
+                                "real-idea-entry.pantry-rotation.20260704.abcd12"
+                            ),
+                            "workspace_id": "pantry-rotation",
+                            "status": "submitted",
+                            "idea_summary_hint": "Pantry rotation",
+                            "created_at": "2026-07-04T00:00:00Z",
+                            "updated_at": "2026-07-04T00:00:00Z",
+                        }
+                    ],
+                },
+            )
+            _write_json(
+                state_dir / "real_idea_intake_execution_requests.json",
+                {
+                    "artifact_kind": (
+                        "specspace_real_idea_intake_execution_request_state"
+                    ),
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "requests": [
+                        {
+                            "request_id": (
+                                "real-idea-intake-execute.pantry-rotation.abcd12"
+                            ),
+                            "workspace_id": "pantry-rotation",
+                            "entry_request_id": (
+                                "real-idea-entry.pantry-rotation.20260704.abcd12"
+                            ),
+                            "workspace_initialization_ref": (
+                                "runs/platform_product_workspace_initialization_execution_report.json"
+                            ),
+                            "status": "consumed",
+                            "created_at": "2026-07-04T00:00:00Z",
+                            "updated_at": "2026-07-04T00:00:00Z",
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/real-idea-intake/execute?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "request_id": (
+                            "real-idea-intake-execute.pantry-rotation.abcd12"
+                        ),
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertIn("No active real idea intake execution request", body["error"])
+
     def test_real_idea_intake_execute_rejects_stale_entry_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

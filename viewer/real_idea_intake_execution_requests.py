@@ -296,6 +296,7 @@ def mark_request_consumed(
                 isinstance(item, dict)
                 and item.get("workspace_id") == workspace_id
                 and item.get("request_id") == request_id
+                and item.get("status") == "requested"
             ):
                 updated.append(
                     {
@@ -310,7 +311,7 @@ def mark_request_consumed(
                 updated.append(item)
         if not matched:
             return HTTPStatus.CONFLICT, {
-                "error": "Real idea intake execution request is no longer active.",
+                "error": "Real idea intake execution request is no longer active or has already been consumed.",
                 "workspace_id": workspace_id,
                 "request_id": request_id,
             }

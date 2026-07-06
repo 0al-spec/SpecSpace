@@ -317,6 +317,43 @@ def execute_requested_intake(
         return HTTPStatus.CONFLICT, entry_error
     output_path = runs_dir / EXECUTION_REPORT_ARTIFACT
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
+    consume_status, consume_body = (
+        real_idea_intake_execution_requests.mark_request_consumed(
+            server,
+            workspace_id=selected_workspace_id,
+            request_id=str(request.get("request_id")),
+        )
+    )
+    if consume_status != HTTPStatus.OK:
+        return consume_status, {
+            "artifact_kind": "specspace_managed_real_idea_intake_execution",
+            "ok": False,
+            "status": "execution_request_not_active",
+            "workspace_id": selected_workspace_id,
+            "request_id": request.get("request_id"),
+            "entry_request_id": request.get("entry_request_id"),
+            "execution_request_ref": f"specspace-state://{real_idea_intake_execution_requests.EXECUTION_REQUEST_FILENAME}",
+            "output_ref": output_ref,
+            "summary": {
+                "status": "managed_real_idea_intake_request_not_active",
+                "executed": False,
+            },
+            "error": consume_body.get("error")
+            if isinstance(consume_body.get("error"), str)
+            else "Real idea intake execution request is no longer active.",
+            "authority_boundary": {
+                "browser_executes_platform": False,
+                "specspace_backend_executes_platform": False,
+                "executes_specgraph": False,
+                "creates_workspace_files": False,
+                "updates_workspace_catalog": False,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+            },
+        }
 
     timeout = getattr(server, "platform_execution_timeout_seconds", 120)
     try:
@@ -397,12 +434,6 @@ def execute_requested_intake(
         report = {}
 
     success = completed.returncode == 0
-    if success:
-        real_idea_intake_execution_requests.mark_request_consumed(
-            server,
-            workspace_id=selected_workspace_id,
-            request_id=str(request.get("request_id")),
-        )
 
     response = {
         "artifact_kind": "specspace_managed_real_idea_intake_execution",
