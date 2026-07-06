@@ -8162,6 +8162,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 gate_file_exists = (
                     runs_dir / "specspace_repair_rerun_request_gate.json"
                 ).is_file()
+                request_state_status, request_state = _get(
+                    f"{base}/api/v1/idea-to-spec-repair-rerun-requests?workspace=pantry-rotation"
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -8189,6 +8192,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(body["authority_boundary"]["executes_repair_rerun"])
         self.assertTrue(report_file_exists)
         self.assertTrue(gate_file_exists)
+        self.assertEqual(request_state_status, 200)
+        self.assertEqual(request_state["summary"]["active_request_count"], 0)
+        self.assertEqual(request_state["requests"][0]["status"], "consumed")
 
     def test_repair_rerun_request_gate_execute_requires_import_preview(
         self,

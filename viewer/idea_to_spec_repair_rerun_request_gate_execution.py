@@ -333,6 +333,46 @@ def execute_requested_request_gate(
     output_report_ref = (
         f"runs/{output_report_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     )
+    consume_status, consume_body = idea_to_spec_repair_rerun_requests.mark_request_consumed(
+        server,
+        workspace_id=selected_workspace_id,
+        request_id=str(request.get("id")),
+    )
+    if consume_status != HTTPStatus.OK:
+        return consume_status, {
+            "artifact_kind": "specspace_managed_repair_rerun_request_gate_execution",
+            "ok": False,
+            "status": "repair_rerun_request_not_active",
+            "workspace_id": selected_workspace_id,
+            "request_id": request.get("id"),
+            "rerun_request_ref": (
+                "specspace-state://"
+                f"{idea_to_spec_repair_rerun_requests.RERUN_REQUEST_FILENAME}"
+            ),
+            "import_preview_ref": import_preview_ref,
+            "repair_session_ref": repair_session_ref,
+            "output_gate_ref": output_gate_ref,
+            "output_ref": output_report_ref,
+            "summary": {
+                "status": "managed_repair_rerun_request_gate_request_not_active",
+                "executed": False,
+            },
+            "error": consume_body.get("error")
+            if isinstance(consume_body.get("error"), str)
+            else "Repair rerun request is no longer active.",
+            "authority_boundary": {
+                "browser_executes_platform": False,
+                "specspace_backend_executes_platform": False,
+                "executes_specgraph": False,
+                "executes_repair_rerun": False,
+                "applies_repair_drafts": False,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+            },
+        }
 
     timeout = getattr(server, "platform_execution_timeout_seconds", 120)
     try:
