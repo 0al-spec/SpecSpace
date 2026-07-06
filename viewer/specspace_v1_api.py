@@ -12,6 +12,7 @@ from viewer import (
     idea_to_spec_candidate_approval_execution,
     idea_to_spec_candidate_approval_intents,
     idea_to_spec_intake_clarification_answers,
+    idea_to_spec_promotion_request_execution,
     idea_to_spec_repair_drafts,
     idea_to_spec_repair_rerun_request_gate_execution,
     idea_to_spec_repair_rerun_execution,
@@ -1390,6 +1391,25 @@ def handle_v1_idea_to_spec_candidate_approval_execute_post(
         query_value(params, "workspace")
     )
     status, response = idea_to_spec_candidate_approval_execution.execute_candidate_approval(
+        handler.server,
+        payload,
+        workspace_id=workspace_id,
+    )
+    json_response(handler, status, response)
+
+
+def handle_v1_idea_to_spec_promotion_request_execute_post(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    params = query_params(parsed)
+    workspace_id = specspace_provider.normalize_product_workspace_id(
+        query_value(params, "workspace")
+    )
+    status, response = idea_to_spec_promotion_request_execution.execute_promotion_request(
         handler.server,
         payload,
         workspace_id=workspace_id,

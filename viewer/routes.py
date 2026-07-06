@@ -219,6 +219,10 @@ POST_ROUTES: dict[str, RouteSpec] = {
         "handle_v1_idea_to_spec_candidate_approval_execute_post",
         pass_parsed=True,
     ),
+    "/api/v1/idea-to-spec-promotion-request/execute": RouteSpec(
+        "handle_v1_idea_to_spec_promotion_request_execute_post",
+        pass_parsed=True,
+    ),
     "/api/specpm/preview/build": RouteSpec("handle_specpm_preview_build"),
     "/api/specpm/build-export-preview": RouteSpec(
         "_handle_specpm_build",

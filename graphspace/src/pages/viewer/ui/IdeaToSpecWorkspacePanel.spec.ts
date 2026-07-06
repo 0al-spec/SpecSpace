@@ -522,6 +522,37 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Materialize approval decision");
   });
 
+  it("shows managed promotion request action after approval decision is ready", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_approval_path.available = true;
+    raw.guided_approval_path.stage = "promotion_request_needed";
+    raw.guided_approval_path.status = "waiting_for_operator";
+    raw.guided_approval_path.next_action =
+      "Create the report-only graph repository promotion request.";
+    raw.guided_approval_path.state.candidate_approval_state = "approved";
+    raw.guided_approval_path.state.promotion_request_ok = false;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+        promotionRequestExecuteUrl:
+          "/api/v1/idea-to-spec-promotion-request/execute",
+      }),
+    );
+
+    expect(html).toContain(
+      "Create the report-only graph repository promotion request.",
+    );
+    expect(html).toContain("Create promotion request");
+    expect(html).toContain(
+      "SpecSpace backend will call the allowlisted Platform promotion request operation.",
+    );
+  });
+
   it("renders template-backed intake answers for all required fields", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     const target =
