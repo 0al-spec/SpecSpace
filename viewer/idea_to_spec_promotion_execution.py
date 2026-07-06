@@ -164,20 +164,41 @@ def _is_real_git_service_execution_report(path: Path) -> bool:
     )
 
 
-def _promotion_review_opened(payload: dict[str, Any]) -> bool:
+def _promotion_dry_run_succeeded(path: Path) -> bool:
+    payload = _load_json(path)
+    if payload is None:
+        return False
     summary = _record(payload.get("summary"))
-    git_review = _record(payload.get("git_review"))
+    return (
+        payload.get("artifact_kind")
+        == "platform_product_candidate_promotion_execution_report"
+        and payload.get("ok") is True
+        and (
+            payload.get("dry_run") is True
+            or payload.get("open_review_dry_run") is True
+        )
+        and summary.get("error_count") in (None, 0)
+    )
+
+
+def _review_opened(report: dict[str, Any]) -> bool:
+    summary = _record(report.get("summary"))
+    git_review = _record(report.get("git_review"))
+    return (
+        report.get("review_opened") is True
+        or summary.get("review_opened") is True
+        or git_review.get("review_opened") is True
+    )
+
+
+def _promotion_review_opened(payload: dict[str, Any]) -> bool:
     return (
         payload.get("artifact_kind")
         == "platform_product_candidate_promotion_execution_report"
         and payload.get("ok") is True
         and payload.get("dry_run") is False
         and payload.get("open_review_dry_run") is not True
-        and (
-            payload.get("review_opened") is True
-            or summary.get("review_opened") is True
-            or git_review.get("review_opened") is True
-        )
+        and _review_opened(payload)
     )
 
 
@@ -355,6 +376,12 @@ def _execute_promotion(
             "git_service_output_ref": git_service_output_ref,
             "reason": "git_service_promotion_execution_report_not_dry_run",
         }
+    if review_execution and not _promotion_dry_run_succeeded(output_path):
+        return HTTPStatus.CONFLICT, {
+            "error": "Non-dry-run promotion review execution requires a successful prior promotion dry-run report.",
+            "promotion_execution_ref": output_ref,
+            "reason": "promotion_dry_run_not_ready",
+        }
 
     timeout = getattr(server, "platform_execution_timeout_seconds", 120)
     try:
@@ -446,7 +473,9 @@ def _execute_promotion(
     except json.JSONDecodeError:
         report = {}
 
-    ok = completed.returncode == 0
+    command_ok = completed.returncode == 0
+    review_opened = _review_opened(report) if review_execution else False
+    ok = command_ok and (not review_execution or review_opened)
     response = {
         "artifact_kind": (
             "specspace_managed_promotion_review_execution"
@@ -490,10 +519,12 @@ def _execute_promotion(
             "executed": True,
             "dry_run": not review_execution,
             "open_review_dry_run": not review_execution,
+            "review_opened": review_opened,
             "opens_pull_requests": bool(ok) and review_execution,
             "output_ref": output_ref,
             "git_service_output_ref": git_service_output_ref,
             "promotion_execution_ok": _record(report).get("ok") is True,
+            "review_opened_required": review_execution,
         },
     }
     return HTTPStatus.OK if ok else HTTPStatus.BAD_GATEWAY, response

@@ -614,6 +614,34 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).not.toContain("Run promotion dry-run");
   });
 
+  it("keeps managed promotion dry-run retry available after execution failure", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_approval_path.available = true;
+    raw.guided_approval_path.stage = "promotion_execution_needed";
+    raw.guided_approval_path.status = "blocked";
+    raw.guided_approval_path.next_action =
+      "Repair controlled product promotion execution.";
+    raw.guided_approval_path.state.promotion_request_ok = true;
+    raw.guided_approval_path.state.promotion_execution_status = "failed";
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+        promotionExecuteUrl: "/api/v1/idea-to-spec-promotion/execute",
+        promotionReviewExecuteUrl:
+          "/api/v1/idea-to-spec-promotion-review/execute",
+      }),
+    );
+
+    expect(html).toContain("Repair controlled product promotion execution.");
+    expect(html).toContain("Run promotion dry-run");
+    expect(html).not.toContain("Open review PR");
+  });
+
   it("shows managed review-status inspection action after promotion execution opens review", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.guided_approval_path.available = true;

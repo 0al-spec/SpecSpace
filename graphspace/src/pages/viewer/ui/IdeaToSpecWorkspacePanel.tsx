@@ -2780,7 +2780,7 @@ function GuidedApprovalPathSection({
     !promotionRequestExecutionState?.pending;
   const showManagedPromotionExecution =
     path.stage === "promotion_execution_needed" &&
-    path.state.promotionExecutionStatus === null;
+    (path.state.promotionExecutionStatus === null || path.status === "blocked");
   const canRunManagedPromotionExecution =
     !readOnly &&
     Boolean(promotionExecuteUrl) &&
