@@ -85,6 +85,7 @@ type Props = {
   repairRerunRequestsUrl?: string;
   candidateApprovalIntentsUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
+  productWorkspaceInitializationExecuteUrl?: string;
   repairRerunRequestsRefreshKey?: number | string;
   onWorkspaceRefreshRequest?: () => void;
   auxiliaryDataEnabled?: boolean;
@@ -395,6 +396,7 @@ export function IdeaToSpecWorkspacePanel({
   repairRerunRequestsUrl,
   candidateApprovalIntentsUrl,
   projectLocalOntologyReviewDecisionsUrl,
+  productWorkspaceInitializationExecuteUrl,
   repairRerunRequestsRefreshKey = 0,
   onWorkspaceRefreshRequest,
   auxiliaryDataEnabled = true,
@@ -446,6 +448,12 @@ export function IdeaToSpecWorkspacePanel({
       refreshKey: repairDraftRefreshKey,
     });
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [workspaceInitializationExecutionState, setWorkspaceInitializationExecutionState] =
+    useState<{
+      pending: boolean;
+      status: string | null;
+      error: string | null;
+    }>({ pending: false, status: null, error: null });
   const diagnosticsBodyRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -525,6 +533,67 @@ export function IdeaToSpecWorkspacePanel({
     const hash = target?.getAttribute("href");
     if (hash) openDiagnosticsForHash(hash);
   };
+  const executeWorkspaceInitialization = async () => {
+    const executionRequestRef = data.workspaceInitializationPath.initializationRequestRef;
+    const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
+    if (
+      readOnly ||
+      !productWorkspaceInitializationExecuteUrl ||
+      !executionRequestRef ||
+      !workspaceId
+    ) {
+      return;
+    }
+    setWorkspaceInitializationExecutionState({
+      pending: true,
+      status: null,
+      error: null,
+    });
+    try {
+      const response = await fetch(productWorkspaceInitializationExecuteUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          execution_request_ref: executionRequestRef,
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        summary?: { status?: unknown };
+        status?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok) {
+        const detail =
+          typeof body.error === "string"
+            ? body.error
+            : `Managed initialization failed with HTTP ${response.status}.`;
+        setWorkspaceInitializationExecutionState({
+          pending: false,
+          status: typeof body.status === "string" ? body.status : null,
+          error: detail,
+        });
+        return;
+      }
+      setWorkspaceInitializationExecutionState({
+        pending: false,
+        status:
+          typeof body.summary?.status === "string"
+            ? body.summary.status
+            : typeof body.status === "string"
+              ? body.status
+              : "managed_initialization_executed",
+        error: null,
+      });
+      onWorkspaceRefreshRequest?.();
+    } catch (error) {
+      setWorkspaceInitializationExecutionState({
+        pending: false,
+        status: null,
+        error: error instanceof Error ? error.message : "Managed initialization failed.",
+      });
+    }
+  };
 
   const productWorkspaceOverviewSection = (
     <ProductWorkspaceOverviewSection
@@ -548,6 +617,10 @@ export function IdeaToSpecWorkspacePanel({
   const guidedWorkspaceInitializationPathSection = (
     <GuidedWorkspaceInitializationPathSection
       path={data.workspaceInitializationPath}
+      executeUrl={productWorkspaceInitializationExecuteUrl}
+      executionState={workspaceInitializationExecutionState}
+      onExecute={executeWorkspaceInitialization}
+      readOnly={readOnly}
     />
   );
   const workspaceCreationSection = (
@@ -1000,9 +1073,26 @@ function WorkspaceCreationSection({
 
 function GuidedWorkspaceInitializationPathSection({
   path,
+  executeUrl,
+  executionState,
+  onExecute,
+  readOnly,
 }: {
   path: IdeaToSpecWorkspace["workspaceInitializationPath"];
+  executeUrl?: string;
+  executionState: {
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  };
+  onExecute: () => void;
+  readOnly: boolean;
 }) {
+  const canRequestManagedExecution =
+    Boolean(path.initializationRequestRef) &&
+    path.status !== "initialized" &&
+    path.status !== "blocked" &&
+    !readOnly;
   return (
     <section
       id="idea-to-spec-workspace-initialization-path"
@@ -1047,6 +1137,35 @@ function GuidedWorkspaceInitializationPathSection({
           <p className={styles.statusDetail}>
             Blockers: {joined(path.blockers)}
           </p>
+        ) : null}
+        {path.initializationRequestRef && path.status !== "initialized" ? (
+          <div className={styles.rowActions}>
+            <button
+              type="button"
+              className={styles.actionButton}
+              disabled={
+                !executeUrl ||
+                !canRequestManagedExecution ||
+                executionState.pending
+              }
+              onClick={onExecute}
+            >
+              {executionState.pending
+                ? "Running initialization..."
+                : "Run controlled initialization"}
+            </button>
+            <span className={styles.statusDetail}>
+              {executeUrl
+                ? "SpecSpace backend will call the allowlisted Platform operation."
+                : "Managed backend execution is not configured; use the Platform command hint."}
+            </span>
+          </div>
+        ) : null}
+        {executionState.status ? (
+          <p className={styles.statusDetail}>Execution: {executionState.status}</p>
+        ) : null}
+        {executionState.error ? (
+          <p className={styles.statusDetail}>{executionState.error}</p>
         ) : null}
       </div>
     </section>

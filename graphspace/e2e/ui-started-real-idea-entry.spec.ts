@@ -191,6 +191,8 @@ async function runCommand(
 
 async function startSpecSpaceBackend(options: {
   seedIntakeRuns?: boolean;
+  platformDir?: string;
+  enablePlatformExecution?: boolean;
 } = {}): Promise<SpecSpaceBackend> {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "specspace-ui-e2e-"));
   const dialogDir = path.join(tmpRoot, "dialogs");
@@ -217,6 +219,10 @@ async function startSpecSpaceBackend(options: {
       runsDir,
       "--specspace-state-dir",
       stateDir,
+      ...(options.platformDir
+        ? ["--platform-dir", options.platformDir]
+        : []),
+      ...(options.enablePlatformExecution ? ["--enable-platform-execution"] : []),
     ],
     {
       cwd: repoRoot,
@@ -547,6 +553,93 @@ async function writeWorkspaceInitializationReport(args: {
     },
   );
   return reportPath;
+}
+
+async function writeWorkspaceInitializationRequest(args: {
+  runsDir: string;
+  workspaceId: string;
+  displayName: string;
+}) {
+  const requestPath = path.join(
+    args.runsDir,
+    "product_workspace_initialization_execution_request.json",
+  );
+  await writeJson(requestPath, {
+    artifact_kind: "platform_product_workspace_initialization_execution_request",
+    schema_version: 1,
+    ok: true,
+    request_only: true,
+    canonical_mutations_allowed: false,
+    tracked_artifacts_written: false,
+    workspace: {
+      workspace_id: args.workspaceId,
+      display_name: args.displayName,
+      route: `/${args.workspaceId}`,
+      repository_role: "product_spec_workspace",
+    },
+    plan_ref: "runs/product_workspace_initialization_plan.json",
+    requested_operation: "workspace.execute-initialization-plan",
+    idempotency_key: "a".repeat(64),
+    summary: {
+      status: "workspace_initialization_execution_requested",
+      ready_for_managed_execution: true,
+    },
+    authority_boundary: {
+      executes_platform: false,
+      executes_specgraph: false,
+      creates_workspace_files: false,
+      updates_workspace_catalog: false,
+      may_execute_platform: false,
+    },
+  });
+  return requestPath;
+}
+
+async function writeFakePlatformForWorkspaceInitialization(root: string) {
+  const platformDir = path.join(root, "fake-platform");
+  const scriptsDir = path.join(platformDir, "scripts");
+  await mkdir(scriptsDir, { recursive: true });
+  await writeFile(
+    path.join(scriptsDir, "platform.py"),
+    [
+      "import json",
+      "import sys",
+      "from pathlib import Path",
+      "request = Path(sys.argv[sys.argv.index('--execution-request') + 1])",
+      "output = Path(sys.argv[sys.argv.index('--output') + 1])",
+      "request_payload = json.loads(request.read_text(encoding='utf-8'))",
+      "report = {",
+      "    'artifact_kind': 'platform_product_workspace_initialization_execution_report',",
+      "    'schema_version': 1,",
+      "    'ok': True,",
+      "    'dry_run': False,",
+      "    'canonical_mutations_allowed': False,",
+      "    'tracked_artifacts_written': False,",
+      "    'workspace': request_payload.get('workspace', {}),",
+      "    'summary': {",
+      "        'status': 'workspace_initialization_executed',",
+      "        'specgraph_executed': True,",
+      "        'catalog_written': True,",
+      "        'workspace_files_created': True,",
+      "    },",
+      "    'authority_boundary': {",
+      "        'executes_platform': True,",
+      "        'executes_specgraph': True,",
+      "        'creates_workspace_files': True,",
+      "        'updates_workspace_catalog': True,",
+      "        'creates_git_commits': False,",
+      "        'opens_pull_requests': False,",
+      "        'publishes_read_models': False,",
+      "        'writes_ontology_packages': False,",
+      "        'accepts_ontology_terms': False,",
+      "    },",
+      "}",
+      "output.write_text(json.dumps(report), encoding='utf-8')",
+      "print(json.dumps(report))",
+    ].join("\n"),
+    "utf-8",
+  );
+  return platformDir;
 }
 
 async function publishRealIdeaContinuationArtifacts(args: {
@@ -1875,6 +1968,64 @@ test("refreshes an opened workspace after controlled initialization is published
     await expect(page.getByTestId("real-idea-entry-submit")).toBeEnabled();
   } finally {
     await backend.stop();
+  }
+});
+
+test("runs workspace initialization through SpecSpace backend managed execution", async ({
+  page,
+}) => {
+  const fakePlatformRoot = await mkdtemp(
+    path.join(os.tmpdir(), "specspace-fake-platform-"),
+  );
+  const platformDir = await writeFakePlatformForWorkspaceInitialization(
+    fakePlatformRoot,
+  );
+  const backend = await startSpecSpaceBackend({
+    platformDir,
+    enablePlatformExecution: true,
+  });
+  try {
+    await installRunsWatchMock(page);
+    await installRealBackendApiRoutes(page, backend.baseUrl);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+
+    const sidebar = page.getByLabel("SpecSpace Sidebar");
+    await sidebar.getByRole("button", { name: "New workspace" }).click();
+    const wizard = page.getByRole("dialog", { name: "New workspace" });
+    await wizard.getByRole("textbox", { name: "Workspace display name" }).fill(
+      "Pantry Rotation",
+    );
+    await wizard.getByRole("textbox", { name: "Initial idea" }).fill(
+      "A pantry rotation assistant for household food inventory.",
+    );
+    await wizard.getByRole("button", { name: "Create workspace request" }).click();
+
+    await expect(page).toHaveURL(/\/pantry-rotation$/);
+    await writeWorkspaceInitializationRequest({
+      runsDir: backend.runsDir,
+      workspaceId: "pantry-rotation",
+      displayName: "Pantry Rotation",
+    });
+    await emitRunsChange(page);
+
+    await expect(
+      page.getByRole("button", { name: "Run controlled initialization" }),
+    ).toBeEnabled();
+    await page.getByRole("button", { name: "Run controlled initialization" }).click();
+
+    await expect(page.getByText("Execution: managed_initialization_executed")).toBeVisible();
+    await expect(page.getByTestId("workspace-creation-status")).toContainText(
+      "Workspace initialized through backend-owned state.",
+    );
+    await expect(
+      page.getByTestId("workspace-initialization-path-next-action"),
+    ).toContainText("Start or continue raw idea intake in this workspace.");
+    await expect(page.getByTestId("real-idea-entry-text")).toBeEnabled();
+  } finally {
+    await backend.stop();
+    await rm(fakePlatformRoot, { recursive: true, force: true });
   }
 });
 

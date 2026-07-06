@@ -371,6 +371,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_product_workspace_creation_request_post = (
         specspace_v1_api.handle_v1_product_workspace_creation_request_post
     )
+    handle_v1_product_workspace_initialization_execute_post = (
+        specspace_v1_api.handle_v1_product_workspace_initialization_execute_post
+    )
     handle_v1_idea_to_spec_repair_rerun_requests = (
         specspace_v1_api.handle_v1_idea_to_spec_repair_rerun_requests
     )

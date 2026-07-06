@@ -310,6 +310,10 @@ export function ViewerPage({
         "/api/v1/product-workspace-creation-requests",
         workspace,
       ),
+      productWorkspaceInitializationExecute: workspaceApiUrl(
+        "/api/v1/product-workspace-initialization/execute",
+        workspace,
+      ),
       ideaToSpecRepairRerunRequests: workspaceApiUrl(
         "/api/v1/idea-to-spec-repair-rerun-requests",
         workspace,
@@ -1667,6 +1671,9 @@ export function ViewerPage({
               candidateApprovalIntentsUrl={workspaceApiUrls.ideaToSpecCandidateApprovalIntents}
               projectLocalOntologyReviewDecisionsUrl={
                 workspaceApiUrls.projectLocalOntologyReviewDecisions
+              }
+              productWorkspaceInitializationExecuteUrl={
+                workspaceApiUrls.productWorkspaceInitializationExecute
               }
               repairRerunRequestsRefreshKey={runsWatchVersion}
               onWorkspaceRefreshRequest={() =>

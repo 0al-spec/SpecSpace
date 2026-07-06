@@ -45,6 +45,11 @@ reviews, or publish read models.
 - Raw idea entry state in SpecSpace.
 - Browser E2E for raw idea submit into SpecSpace-owned mutable state.
 - Workspace and `guided_flow` refresh after successful raw idea submit.
+- Backend-managed workspace initialization execution. SpecSpace can expose an
+  opt-in backend endpoint that calls the allowlisted Platform workspace
+  initialization operation, writes the Platform execution report, and refreshes
+  Product Workspace lifecycle from the resulting artifact. Browser authority is
+  still limited to requesting the SpecSpace backend operation.
 - Visible handoff command for controlled Platform intake execution.
 - Product Workspace visibility for the Platform real idea intake execution
   report, including operations and generated output artifacts.
@@ -512,8 +517,11 @@ Acceptance criteria:
 - The workspace creation surface shows Platform's managed initialization
   execution request handoff when
   `runs/product_workspace_initialization_execution_request.json` is present.
-  Done for read-only visibility: SpecSpace exposes request status, requested
-  operation, readiness, and idempotency evidence without executing Platform.
+  Done for read-only visibility and opt-in backend-managed execution: SpecSpace
+  exposes request status, requested operation, readiness, and idempotency
+  evidence, and can call the allowlisted Platform initialization command when
+  the backend is explicitly started with Platform execution enabled. The
+  browser still does not execute Platform directly.
 - The initial idea captured by the wizard is available only as selected
   workspace local UI state and is not exposed by the standalone
   `product-workspace-creation-requests` endpoint or public artifacts.

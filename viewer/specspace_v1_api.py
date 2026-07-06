@@ -15,6 +15,7 @@ from viewer import (
     idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
     ontology_acknowledgements,
+    product_workspace_initialization_execution,
     product_workspace_creation_requests,
     project_local_ontology_review_decisions,
     real_idea_answer_continuation_execution_requests,
@@ -1020,6 +1021,41 @@ def handle_v1_product_workspace_creation_request_post(
         handler.server,
         payload,
         workspace_id=workspace_id,
+    )
+    json_response(handler, status, response)
+
+
+def handle_v1_product_workspace_initialization_execute_post(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    query_workspace_id = _query_workspace_id(parsed)
+    payload_workspace_id = specspace_provider.normalize_product_workspace_id(
+        payload.get("workspace_id")
+        if isinstance(payload.get("workspace_id"), str)
+        else None
+    )
+    if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
+        json_response(
+            handler,
+            HTTPStatus.CONFLICT,
+            {
+                "error": "Workspace initialization execution workspace_id does not match selected workspace.",
+                "expected": query_workspace_id,
+                "actual": payload_workspace_id,
+            },
+        )
+        return
+    workspace_id = query_workspace_id or payload_workspace_id
+    status, response = (
+        product_workspace_initialization_execution.execute_requested_initialization(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        )
     )
     json_response(handler, status, response)
 

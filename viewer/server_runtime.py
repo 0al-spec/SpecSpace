@@ -41,6 +41,9 @@ class ViewerRuntimeServer(Protocol):
     specpm_registry_url: str | None
     agent_workbench_dir: Path | None
     specspace_state_dir: Path
+    platform_dir: Path | None
+    platform_execution_enabled: bool
+    platform_execution_timeout_seconds: int
     agent_available: bool
 
     def serve_forever(self) -> None: ...
@@ -61,6 +64,11 @@ def build_arg_parser(
     ).strip()
     product_workspace_artifact_base_urls_env = os.environ.get(
         "SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URLS",
+        "",
+    ).strip()
+    platform_dir_env = os.environ.get("SPECSPACE_PLATFORM_DIR", "").strip()
+    platform_execution_enabled_env = os.environ.get(
+        "SPECSPACE_PLATFORM_EXECUTION_ENABLED",
         "",
     ).strip()
     parser = argparse.ArgumentParser(description=description)
@@ -201,6 +209,30 @@ def build_arg_parser(
             "Defaults to .specspace-dev/state under the repository root."
         ),
     )
+    parser.add_argument(
+        "--platform-dir",
+        type=Path,
+        default=Path(platform_dir_env) if platform_dir_env else None,
+        help=(
+            "Optional Platform repository root used only by explicitly enabled "
+            "managed execution endpoints."
+        ),
+    )
+    parser.add_argument(
+        "--enable-platform-execution",
+        action="store_true",
+        default=platform_execution_enabled_env.lower() in {"1", "true", "yes", "on"},
+        help=(
+            "Enable allowlisted SpecSpace backend calls into Platform. The "
+            "browser still receives no direct execution authority."
+        ),
+    )
+    parser.add_argument(
+        "--platform-execution-timeout-seconds",
+        type=int,
+        default=int(os.environ.get("SPECSPACE_PLATFORM_EXECUTION_TIMEOUT_SECONDS", "120")),
+        help="Timeout for allowlisted Platform subprocess calls. Defaults to 120.",
+    )
     return parser
 
 
@@ -316,6 +348,12 @@ def configure_server(
         specspace_state_dir.expanduser().resolve()
         if specspace_state_dir
         else repo_root / ".specspace-dev" / "state"
+    )
+    platform_dir = getattr(args, "platform_dir", None)
+    server.platform_dir = platform_dir.expanduser().resolve() if platform_dir else None
+    server.platform_execution_enabled = bool(args.enable_platform_execution)
+    server.platform_execution_timeout_seconds = int(
+        args.platform_execution_timeout_seconds
     )
     server.agent_available = args.agent
 
