@@ -1142,6 +1142,61 @@ Authority boundary:
 - SpecSpace does not create Git commits, open PRs, publish read models, write
   Ontology packages, accept Ontology terms, or mutate canonical specs.
 
+### `POST /api/v1/real-idea-answer-continuation/execute`
+
+Optionally executes a previously requested real idea answer continuation handoff
+through the SpecSpace backend. The user still saves answers as SpecSpace-owned
+state and creates a request-only continuation intent first; this endpoint only
+lets an explicitly enabled backend call the allowlisted Platform
+`product-real-idea-continuation execute-requested` wrapper.
+
+Server opt-in uses the same execution flags as managed intake:
+
+```bash
+python viewer/server.py \
+  --dialog-dir /data/dialogs \
+  --runs-dir /repo/SpecGraph/runs \
+  --specspace-state-dir /data/specspace-state \
+  --platform-dir /repo/Platform \
+  --specgraph-dir /repo/SpecGraph \
+  --enable-platform-execution
+```
+
+Request:
+
+```json
+{
+  "workspace_id": "team-decision-log",
+  "request_id": "real-idea-answer-continuation-execute.team-decision-log.20260706.abcd12"
+}
+```
+
+`request_id` is optional when exactly one active
+`real_idea_answer_continuation_execution_requests.json` entry exists for the
+selected workspace. SpecSpace validates the matching SpecSpace-owned
+continuation request, local answer state, workspace initialization report,
+intake execution report, Platform checkout, and SpecGraph checkout before
+execution. On success Platform writes:
+
+```text
+runs/platform_real_idea_answer_continuation_execution_report.json
+```
+
+The Product Workspace then refreshes from that execution report and the
+generated continuation artifacts. Deployments should point `--runs-dir` at the
+SpecGraph run directory used by Platform so generated continuation artifacts are
+visible to the same workspace provider.
+
+Authority boundary:
+
+- the browser does not execute Platform directly;
+- SpecSpace backend may execute only the allowlisted Platform answer
+  continuation wrapper when explicitly enabled;
+- SpecSpace does not apply answers directly; SpecGraph/Platform validate and
+  materialize review-only continuation artifacts;
+- SpecSpace does not create Git commits, open PRs, publish read models, write
+  Ontology packages, accept Ontology terms, or mutate canonical specs.
+
 ### `GET/POST /api/v1/real-idea-entry-requests`
 
 Stores SpecSpace-owned raw idea entry requests for a product workspace. This is

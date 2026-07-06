@@ -56,6 +56,13 @@ reviews, or publish read models.
   `product-real-idea-intake execute-requested` operation, writes the Platform
   execution report, and refreshes Product Workspace lifecycle into
   clarification/intake state. Browser authority remains request-only.
+- Backend-managed real idea answer continuation execution. After clarification
+  answers are saved and the operator requests continuation, SpecSpace can expose
+  an opt-in backend endpoint that calls the allowlisted Platform
+  `product-real-idea-continuation execute-requested` operation, writes the
+  Platform execution report, and refreshes Product Workspace lifecycle toward
+  candidate review state. Browser authority remains request-only and SpecSpace
+  does not apply answers directly.
 - Visible handoff command for controlled Platform intake execution.
 - Product Workspace visibility for the Platform real idea intake execution
   report, including operations and generated output artifacts.
@@ -536,6 +543,14 @@ Acceptance criteria:
   `product-real-idea-intake execute-requested` wrapper. The browser still only
   requests the SpecSpace backend operation and does not execute Platform or
   SpecGraph directly.
+- The guided clarification path can execute the controlled Platform answer
+  continuation handoff after the operator has saved accepted answers and
+  requested continuation. Done for opt-in backend-managed execution: SpecSpace
+  validates the current continuation request, answer state, intake execution
+  report, and workspace initialization report, then calls the allowlisted
+  Platform `product-real-idea-continuation execute-requested` wrapper. The
+  browser still only requests the SpecSpace backend operation and does not apply
+  answers or run SpecGraph directly.
 - The initial idea captured by the wizard is available only as selected
   workspace local UI state and is not exposed by the standalone
   `product-workspace-creation-requests` endpoint or public artifacts.
