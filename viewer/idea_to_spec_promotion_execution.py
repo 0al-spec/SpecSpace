@@ -109,6 +109,12 @@ def _promotion_request_ready(path: Path) -> bool:
     )
 
 
+def _promotion_request_candidate_id(payload: dict[str, Any]) -> str | None:
+    return _text(payload.get("candidate_id")) or _text(
+        _record(payload.get("summary")).get("candidate_id")
+    )
+
+
 def _approval_decision_ready(path: Path) -> bool:
     payload = _load_json(path)
     if payload is None:
@@ -117,6 +123,24 @@ def _approval_decision_ready(path: Path) -> bool:
         payload.get("artifact_kind") == "candidate_approval_decision"
         and _record(payload.get("readiness")).get("ready") is True
         and _record(payload.get("decision")).get("state") == "approved"
+    )
+
+
+def _approval_decision_candidate_id(payload: dict[str, Any]) -> str | None:
+    return _text(_record(payload.get("candidate")).get("candidate_id")) or _text(
+        payload.get("candidate_id")
+    )
+
+
+def _is_real_promotion_execution_report(path: Path) -> bool:
+    payload = _load_json(path)
+    if payload is None:
+        return False
+    return (
+        payload.get("artifact_kind")
+        == "platform_product_candidate_promotion_execution_report"
+        and payload.get("dry_run") is False
+        and payload.get("open_review_dry_run") is False
     )
 
 
@@ -181,6 +205,17 @@ def execute_promotion_dry_run(
             ),
             "reason": "promotion_request_not_ready",
         }
+    promotion_request = _load_json(promotion_request_path) or {}
+    request_candidate_id = specspace_provider.normalize_product_workspace_id(
+        _promotion_request_candidate_id(promotion_request)
+    )
+    if request_candidate_id != selected_workspace_id:
+        return HTTPStatus.CONFLICT, {
+            "error": "Promotion request candidate_id does not match selected workspace.",
+            "expected": selected_workspace_id,
+            "actual": request_candidate_id,
+            "reason": "promotion_request_workspace_mismatch",
+        }
 
     approval_decision_path = _runs_path(server, CANDIDATE_APPROVAL_DECISION_ARTIFACT)
     if approval_decision_path is None or not approval_decision_path.is_file():
@@ -194,6 +229,17 @@ def execute_promotion_dry_run(
             "approval_decision_ref": f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}",
             "reason": "candidate_approval_decision_not_ready",
         }
+    approval_decision = _load_json(approval_decision_path) or {}
+    approval_candidate_id = specspace_provider.normalize_product_workspace_id(
+        _approval_decision_candidate_id(approval_decision)
+    )
+    if approval_candidate_id != selected_workspace_id:
+        return HTTPStatus.CONFLICT, {
+            "error": "Candidate approval decision candidate_id does not match selected workspace.",
+            "expected": selected_workspace_id,
+            "actual": approval_candidate_id,
+            "reason": "candidate_approval_decision_workspace_mismatch",
+        }
 
     runs_dir = _runs_dir(server)
     if runs_dir is None:
@@ -204,6 +250,12 @@ def execute_promotion_dry_run(
     git_service_output_ref = (
         f"runs/{git_service_output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     )
+    if _is_real_promotion_execution_report(output_path):
+        return HTTPStatus.CONFLICT, {
+            "error": "Refusing to overwrite an existing non-dry-run promotion execution report.",
+            "output_ref": output_ref,
+            "reason": "promotion_execution_report_not_dry_run",
+        }
 
     timeout = getattr(server, "platform_execution_timeout_seconds", 120)
     try:
@@ -234,13 +286,53 @@ def execute_promotion_dry_run(
         "--format",
         "json",
     ]
-    completed = subprocess.run(
-        command,
-        cwd=str(platform_script.parent.parent),
-        capture_output=True,
-        text=True,
-        timeout=timeout_seconds,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(platform_script.parent.parent),
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return HTTPStatus.GATEWAY_TIMEOUT, {
+            "artifact_kind": "specspace_managed_promotion_execution",
+            "ok": False,
+            "status": "platform_execution_timeout",
+            "workspace_id": selected_workspace_id,
+            "promotion_request_ref": (
+                f"runs/{GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT}"
+            ),
+            "approval_decision_ref": f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}",
+            "output_ref": output_ref,
+            "git_service_output_ref": git_service_output_ref,
+            "platform_timeout_seconds": timeout_seconds,
+            "stderr_tail": (exc.stderr or "")[-2000:]
+            if isinstance(exc.stderr, str)
+            else "",
+            "authority_boundary": {
+                "browser_executes_platform": False,
+                "specspace_backend_executes_platform": True,
+                "executes_git_service_dry_run": False,
+                "creates_candidate_worktree_or_branch": False,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+                "mutates_canonical_specs": False,
+            },
+            "summary": {
+                "status": "managed_promotion_execution_dry_run_timeout",
+                "executed": True,
+                "dry_run": True,
+                "open_review_dry_run": True,
+                "output_ref": output_ref,
+                "git_service_output_ref": git_service_output_ref,
+                "promotion_execution_ok": False,
+                "next_action": "Inspect Platform promotion execution timeout and retry.",
+            },
+        }
     stdout = completed.stdout.strip()
     try:
         report = json.loads(stdout) if stdout else {}
