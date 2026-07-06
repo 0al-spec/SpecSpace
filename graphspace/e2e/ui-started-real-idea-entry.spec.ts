@@ -458,6 +458,10 @@ async function emitRunsChange(page: Page) {
   });
 }
 
+async function gotoAppRoot(page: Page) {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+}
+
 async function submitRawIdeaEntryFromUi(
   page: Page,
   ideaText: string,
@@ -467,6 +471,32 @@ async function submitRawIdeaEntryFromUi(
   await page.getByTestId("real-idea-entry-text").fill(ideaText);
   await page.getByTestId("real-idea-entry-summary").fill(summary);
   await page.getByTestId("real-idea-entry-submit").click();
+}
+
+async function createWorkspaceRequestFromSidebar(args: {
+  page: Page;
+  displayName: string;
+  initialIdea: string;
+  expectedRoute: string;
+}) {
+  await gotoAppRoot(args.page);
+  await args.page.getByRole("button", { name: "Toggle Sidebar" }).click();
+  const sidebar = args.page.getByLabel("SpecSpace Sidebar");
+  await sidebar.getByRole("button", { name: "New workspace" }).click();
+  const wizard = args.page.getByRole("dialog", { name: "New workspace" });
+  await expect(wizard).toBeVisible();
+  await wizard
+    .getByRole("textbox", { name: "Workspace display name" })
+    .fill(args.displayName);
+  await wizard.getByRole("textbox", { name: "Initial idea" }).fill(args.initialIdea);
+  await expect(wizard.getByTestId("new-idea-workspace-route")).toContainText(
+    args.expectedRoute,
+  );
+  await wizard.getByRole("button", { name: "Create workspace request" }).click();
+  await expect(args.page).toHaveURL(new RegExp(`${args.expectedRoute}$`));
+  await expect(
+    args.page.getByTestId("workspace-creation-status"),
+  ).toContainText("Workspace creation requested");
 }
 
 async function copyIfPresent(source: string, destination: string) {
@@ -1483,6 +1513,18 @@ function productWorkspaceOverviewForScenario(
   };
 }
 
+function defaultOverviewStageForScenario(
+  scenario: UiStartedIdeaScenario,
+): ProductWorkspaceOverviewScenario {
+  if (scenario.approvalPathPublished || scenario.approvalPath) {
+    return "approval";
+  }
+  if (scenario.intakeExecutionPublished) {
+    return "clarification";
+  }
+  return "initialized";
+}
+
 async function workspacePayload(
   backendBaseUrl: string,
   scenario: UiStartedIdeaScenario,
@@ -1517,11 +1559,9 @@ async function workspacePayload(
     (scenario.approvalPathPublished === true
       ? reviewMergeWaitingGuidedApprovalPath()
       : missingGuidedApprovalPath());
-  if (scenario.overviewStage) {
-    payload.product_workspace_overview = productWorkspaceOverviewForScenario(
-      scenario.overviewStage,
-    );
-  }
+  payload.product_workspace_overview = productWorkspaceOverviewForScenario(
+    scenario.overviewStage ?? defaultOverviewStageForScenario(scenario),
+  );
 
   if (!hasSubmittedEntry) {
     payload.real_idea_intake = {
@@ -1996,7 +2036,7 @@ test("renders bootstrap workspace metadata as human-readable sidebar labels", as
   await installRunsWatchMock(page);
   await installBootstrapChromeApiRoutes(page);
 
-  await page.goto("/");
+  await gotoAppRoot(page);
   await page.getByRole("button", { name: "Toggle Sidebar" }).click();
 
   const sidebar = page.getByLabel("SpecSpace Sidebar");
@@ -2014,7 +2054,7 @@ test("switches workspaces through the compact sidebar dropdown", async ({ page }
   await installRunsWatchMock(page);
   await installBootstrapChromeApiRoutes(page);
 
-  await page.goto("/");
+  await gotoAppRoot(page);
   await page.getByRole("button", { name: "Toggle Sidebar" }).click();
 
   const sidebar = page.getByLabel("SpecSpace Sidebar");
@@ -2032,7 +2072,7 @@ test("opens a new idea workspace from the sidebar wizard entry point", async ({ 
     await installRunsWatchMock(page);
     await installRealBackendApiRoutes(page, backend.baseUrl);
 
-    await page.goto("/");
+    await gotoAppRoot(page);
     await page.getByRole("button", { name: "Toggle Sidebar" }).click();
 
     const sidebar = page.getByLabel("SpecSpace Sidebar");
@@ -2114,7 +2154,7 @@ test("explains unavailable workspace creation API from the sidebar wizard", asyn
     return route.continue();
   });
 
-  await page.goto("/");
+  await gotoAppRoot(page);
   await page.getByRole("button", { name: "Toggle Sidebar" }).click();
 
   const sidebar = page.getByLabel("SpecSpace Sidebar");
@@ -2143,7 +2183,7 @@ test("opens a backend-allocated route for a non-English workspace name", async (
     await installRunsWatchMock(page);
     await installRealBackendApiRoutes(page, backend.baseUrl);
 
-    await page.goto("/");
+    await gotoAppRoot(page);
     await page.getByRole("button", { name: "Toggle Sidebar" }).click();
 
     const sidebar = page.getByLabel("SpecSpace Sidebar");
@@ -2185,7 +2225,7 @@ test("refreshes an opened workspace after controlled initialization is published
     await installRunsWatchMock(page);
     await installRealBackendApiRoutes(page, backend.baseUrl);
 
-    await page.goto("/");
+    await gotoAppRoot(page);
     await page.getByRole("button", { name: "Toggle Sidebar" }).click();
 
     const sidebar = page.getByLabel("SpecSpace Sidebar");
@@ -2266,7 +2306,7 @@ test("runs workspace initialization through SpecSpace backend managed execution"
     await installRunsWatchMock(page);
     await installRealBackendApiRoutes(page, backend.baseUrl);
 
-    await page.goto("/");
+    await gotoAppRoot(page);
     await page.getByRole("button", { name: "Toggle Sidebar" }).click();
 
     const sidebar = page.getByLabel("SpecSpace Sidebar");
@@ -2610,18 +2650,12 @@ test("builds an active candidate from a non-demo product workspace route", async
   try {
     await installRunsWatchMock(page);
     await installRealBackendApiRoutes(page, backend.baseUrl);
-    const creationResponse = await fetch(
-      `${backend.baseUrl}/api/v1/product-workspace-creation-requests?workspace=${executionBackedWorkspaceId}`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          workspace_id: executionBackedWorkspaceId,
-          display_name: "Household Pantry Rotation",
-        }),
-      },
-    );
-    expect(creationResponse.ok).toBeTruthy();
+    await createWorkspaceRequestFromSidebar({
+      page,
+      displayName: "Household Pantry Rotation",
+      initialIdea: executionBackedRawIdea,
+      expectedRoute: `/${executionBackedWorkspaceId}`,
+    });
     const initializationReportPath = await writeWorkspaceInitializationReport({
       runsDir: backend.runsDir,
       workspaceId: executionBackedWorkspaceId,
@@ -2982,18 +3016,12 @@ test("can refresh from a real Platform intake execution when checkouts are provi
   try {
     await installRunsWatchMock(page);
     await installRealBackendApiRoutes(page, backend.baseUrl);
-    const creationResponse = await fetch(
-      `${backend.baseUrl}/api/v1/product-workspace-creation-requests?workspace=${lifecycleWorkspaceId}`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          workspace_id: lifecycleWorkspaceId,
-          display_name: "Household Pantry Rotation",
-        }),
-      },
-    );
-    expect(creationResponse.ok).toBeTruthy();
+    await createWorkspaceRequestFromSidebar({
+      page,
+      displayName: "Household Pantry Rotation",
+      initialIdea: fullLifecycleRawIdea,
+      expectedRoute: `/${lifecycleWorkspaceId}`,
+    });
     const initializationReportPath = await writeWorkspaceInitializationReport({
       runsDir: backend.runsDir,
       workspaceId: lifecycleWorkspaceId,

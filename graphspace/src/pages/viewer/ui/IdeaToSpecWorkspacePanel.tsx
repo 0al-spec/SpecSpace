@@ -997,6 +997,7 @@ export function IdeaToSpecWorkspacePanel({
       entryRequests={realIdeaEntryRequests}
       executionRequests={realIdeaIntakeExecutionRequests}
       executeUrl={realIdeaIntakeExecuteUrl}
+      workspaceInitializationPath={data.workspaceInitializationPath}
       workspace={data.workspace}
       workspaceCreation={data.workspaceCreation}
       workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
@@ -1599,6 +1600,7 @@ function IdeaIntakeDraftSection({
   entryRequests,
   executionRequests,
   executeUrl,
+  workspaceInitializationPath,
   workspace,
   workspaceCreation,
   workspaceId,
@@ -1610,6 +1612,7 @@ function IdeaIntakeDraftSection({
   entryRequests: ReturnType<typeof useRealIdeaEntryRequests>;
   executionRequests: ReturnType<typeof useRealIdeaIntakeExecutionRequests>;
   executeUrl?: string;
+  workspaceInitializationPath: IdeaToSpecWorkspace["workspaceInitializationPath"];
   workspace: IdeaToSpecWorkspace["workspace"];
   workspaceCreation: IdeaToSpecWorkspace["workspaceCreation"];
   workspaceId: string | null;
@@ -1725,7 +1728,7 @@ function IdeaIntakeDraftSection({
   const canRunManagedIntakeExecution =
     !readOnly &&
     Boolean(executeUrl) &&
-    data.workspaceInitializationPath.managedExecutionAvailable &&
+    workspaceInitializationPath.managedExecutionAvailable &&
     activeExecutionRequest !== null &&
     executionRequestTargetsCurrentEntry &&
     !realIdeaIntake.entryExecution.available &&
@@ -2093,7 +2096,7 @@ function IdeaIntakeDraftSection({
                 className={styles.statusDetail}
                 data-testid="real-idea-intake-managed-execute-status"
               >
-                {executeUrl && data.workspaceInitializationPath.managedExecutionAvailable
+                {executeUrl && workspaceInitializationPath.managedExecutionAvailable
                   ? "SpecSpace backend can call the allowlisted Platform intake operation."
                   : "Managed backend execution is not configured; use the Platform command hint."}
               </p>
