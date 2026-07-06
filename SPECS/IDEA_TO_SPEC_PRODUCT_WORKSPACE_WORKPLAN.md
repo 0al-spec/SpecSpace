@@ -229,7 +229,7 @@ reviews, or publish read models.
 
 ### 0. Product Workspace Overview Follow-Ups
 
-Status: open follow-up after the first overview API/UI slice.
+Status: closed.
 
 Acceptance criteria:
 
@@ -243,6 +243,14 @@ Acceptance criteria:
 - Keep the overview inspect/request-only; it may link to existing request
   surfaces, but must not execute Platform, SpecGraph, Git Service, or mutate
   specs/ontology/read models.
+  Done.
+
+Follow-up note:
+
+- Execution-backed arbitrary-route smokes now create workspace requests through
+  the sidebar `New workspace` wizard. The remaining `fetch` calls in the e2e
+  harness are validation reads, backend proxy plumbing, external publication
+  setup, or operations whose browser form is intentionally absent.
 
 ### 1. UI-Started Intake Execution Visibility
 
@@ -549,7 +557,8 @@ Acceptance criteria:
 
 ### 11. Backend-Backed Workspace Creation
 
-Status: in progress, cross-repo.
+Status: closed for the current SpecSpace-managed creation, initialization,
+intake, and clarification continuation slices.
 
 The `New workspace` wizard records backend-owned workspace creation request
 state before opening a product workspace route. Platform-owned initialization
@@ -637,16 +646,20 @@ Acceptance criteria:
   Done: the direct state endpoint keeps root intent redacted, while the selected
   Product Workspace read model can prefill the raw idea draft.
 
-Likely repositories:
+Implemented repositories:
 
-- SpecSpace: workspace creation UI/state projection, route status, hygiene.
-- Platform: workspace catalog / creation request endpoint or wrapper.
-- SpecGraph: product workspace initializer contract if canonical workspace
-  files are required before intake.
+- SpecSpace: workspace creation UI/state projection, route status, hygiene,
+  initialization request status, raw idea intake request, and clarification
+  continuation request surfaces.
+- Platform: controlled workspace initialization, real idea intake execution, and
+  answer continuation wrappers.
+- SpecGraph: existing real idea intake and candidate-source contracts used by
+  the controlled execution wrappers.
 
 ### 12. Controlled SpecSpace Authority Transition
 
-Status: open, cross-repo strategy.
+Status: strategy active; first managed-operation chain implemented for
+product idea-to-spec workspace lifecycle.
 
 SpecSpace is currently an inspect/request surface. That boundary is correct for
 the current product flow, but the roadmap needs an explicit transition strategy
@@ -671,6 +684,35 @@ Phased strategy:
 6. **Audited lifecycle management**: every execution-capable action must have
    idempotency, source refs, policy checks, audit report, and public-safe
    read-model publication.
+
+Implemented in the current Product Workspace stack:
+
+- UI actions save operator-owned request state or call SpecSpace backend-managed
+  endpoints; React components do not execute Platform, SpecGraph, Git Service, or
+  Ontology tools directly.
+- Backend-managed endpoints exist for workspace initialization, real idea intake
+  execution, answer continuation, repair rerun gate/execution/publication,
+  candidate approval, promotion request, promotion dry-run, promotion review,
+  review-status inspection, and read-model publication.
+- Each managed endpoint is scoped to the current workspace, uses an allowlisted
+  Platform wrapper, and returns durable execution/report evidence that the
+  Product Workspace reads back through the normal artifact surface.
+- Playwright coverage exercises the managed lifecycle through the user-facing
+  Product Workspace controls, including workspace wizard creation, intake,
+  clarification continuation, repair, approval, promotion dry-run/review, and
+  publication states.
+
+Remaining scope:
+
+- Keep adding managed endpoints only when the upstream Platform/SpecGraph
+  operation already has a typed contract, source-ref validation, idempotency, and
+  report-only authority boundary.
+- Keep write-capable browser actions out of scope. If a future operation needs
+  stronger authority, add it as a backend/Platform capability first, then expose a
+  request/execute surface with audit evidence.
+- Keep external producer contracts synchronized when report schemas or source
+  refs change, because the UI projections are intentionally strict about stale or
+  write-capable artifacts.
 
 Non-goals:
 
@@ -711,9 +753,9 @@ Acceptance criteria:
 
 Follow-up:
 
-- Add Playwright lifecycle overview transition coverage across route-only ->
-  initialized -> intake -> clarification -> candidate -> repair -> approval /
-  published.
+- Done: Playwright lifecycle overview transition coverage now exercises
+  route-only, creation-requested, initialized, clarification, repair, approval,
+  and published states.
 
 ## Accepted Constraints And Runbook Notes
 
