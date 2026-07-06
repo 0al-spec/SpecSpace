@@ -9718,6 +9718,58 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 409)
         self.assertEqual(body["reason"], "promotion_execution_report_not_dry_run")
 
+    def test_promotion_execute_refuses_to_overwrite_real_git_service_report(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": "platform_git_service_promotion_execution_report",
+                    "ok": True,
+                    "dry_run": False,
+                    "open_review_dry_run": False,
+                    "summary": {"status": "promotion_executed"},
+                },
+            )
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(
+            body["reason"],
+            "git_service_promotion_execution_report_not_dry_run",
+        )
+
     def test_promotion_execute_returns_timeout_payload(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

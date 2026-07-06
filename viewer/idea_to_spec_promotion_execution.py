@@ -144,6 +144,18 @@ def _is_real_promotion_execution_report(path: Path) -> bool:
     )
 
 
+def _is_real_git_service_execution_report(path: Path) -> bool:
+    payload = _load_json(path)
+    if payload is None:
+        return False
+    return (
+        payload.get("artifact_kind")
+        == "platform_git_service_promotion_execution_report"
+        and payload.get("dry_run") is False
+        and payload.get("open_review_dry_run") is False
+    )
+
+
 def _workspace_dir(specgraph_dir: Path, workspace_id: str) -> Path:
     return specgraph_dir / ".platform" / "candidates" / workspace_id
 
@@ -255,6 +267,12 @@ def execute_promotion_dry_run(
             "error": "Refusing to overwrite an existing non-dry-run promotion execution report.",
             "output_ref": output_ref,
             "reason": "promotion_execution_report_not_dry_run",
+        }
+    if _is_real_git_service_execution_report(git_service_output_path):
+        return HTTPStatus.CONFLICT, {
+            "error": "Refusing to overwrite an existing non-dry-run Git Service promotion execution report.",
+            "git_service_output_ref": git_service_output_ref,
+            "reason": "git_service_promotion_execution_report_not_dry_run",
         }
 
     timeout = getattr(server, "platform_execution_timeout_seconds", 120)
