@@ -9847,6 +9847,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             runs_dir.mkdir(parents=True)
             (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
             _write_product_promotion_artifacts(runs_dir, include_execution=True)
+            execution_path = (
+                runs_dir
+                / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+            )
+            execution = json.loads(execution_path.read_text(encoding="utf-8"))
+            del execution["open_review_dry_run"]
+            _write_json(execution_path, execution)
             platform_dir = root / "Platform"
             scripts_dir = platform_dir / "scripts"
             scripts_dir.mkdir(parents=True)
@@ -9970,6 +9977,48 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(
             body["reason"], "promotion_execution_not_ready_for_review_status"
         )
+
+    def test_review_status_execute_rejects_cross_workspace_execution_report(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_product_promotion_artifacts(runs_dir, include_execution=True)
+            execution_path = (
+                runs_dir
+                / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+            )
+            execution = json.loads(execution_path.read_text(encoding="utf-8"))
+            execution["candidate_id"] = "different-workspace"
+            _write_json(execution_path, execution)
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-review-status/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "promotion_execution_workspace_mismatch")
 
     def test_product_workspace_creation_requests_v1_reads_route_only_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -2638,7 +2638,6 @@ function GuidedApprovalPathSection({
     !readOnly &&
     Boolean(reviewStatusExecuteUrl) &&
     showManagedReviewStatus &&
-    path.state.promotionExecutionStatus !== null &&
     !reviewStatusExecutionState?.pending;
   const stateItems = [
     ["Readiness", path.state.approvalReadinessStatus],

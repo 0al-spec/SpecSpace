@@ -102,9 +102,15 @@ def _promotion_execution_ready_for_review_status(path: Path) -> bool:
         payload.get("artifact_kind")
         == "platform_product_candidate_promotion_execution_report"
         and payload.get("ok") is True
-        and payload.get("dry_run") is False
-        and payload.get("open_review_dry_run") is False
+        and payload.get("dry_run") is not True
+        and payload.get("open_review_dry_run") is not True
         and (summary.get("review_opened") is True or git_review.get("review_opened") is True)
+    )
+
+
+def _promotion_execution_candidate_id(payload: dict[str, Any]) -> str | None:
+    return _text(payload.get("candidate_id")) or _text(
+        _record(payload.get("summary")).get("candidate_id")
     )
 
 
@@ -164,6 +170,17 @@ def execute_review_status(
                 f"runs/{PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT}"
             ),
             "reason": "promotion_execution_not_ready_for_review_status",
+        }
+    execution_report = _load_json(execution_report_path) or {}
+    execution_candidate_id = specspace_provider.normalize_product_workspace_id(
+        _promotion_execution_candidate_id(execution_report)
+    )
+    if execution_candidate_id != selected_workspace_id:
+        return HTTPStatus.CONFLICT, {
+            "error": "Promotion execution candidate_id does not match selected workspace.",
+            "expected": selected_workspace_id,
+            "actual": execution_candidate_id,
+            "reason": "promotion_execution_workspace_mismatch",
         }
 
     runs_dir = _runs_dir(server)

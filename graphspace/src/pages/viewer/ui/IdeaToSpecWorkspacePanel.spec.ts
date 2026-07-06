@@ -589,7 +589,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     raw.guided_approval_path.next_action =
       "Inspect repository review status for the opened promotion PR.";
     raw.guided_approval_path.state.promotion_request_ok = true;
-    raw.guided_approval_path.state.promotion_execution_status = "completed";
+    raw.guided_approval_path.state.promotion_execution_status = null;
     raw.guided_approval_path.state.review_state = null;
     const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
     if (parsedWorkspace.kind !== "ok") {
