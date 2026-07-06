@@ -459,6 +459,48 @@ def execute_requested_rerun(
     output_path = runs_dir / EXECUTION_REPORT_ARTIFACT
     plan_ref = f"runs/{plan_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
+    consume_status, consume_body = idea_to_spec_repair_rerun_requests.mark_request_consumed(
+        server,
+        workspace_id=selected_workspace_id,
+        request_id=str(request.get("id")),
+    )
+    if consume_status != HTTPStatus.OK:
+        return consume_status, {
+            "artifact_kind": "specspace_managed_repair_rerun_execution",
+            "ok": False,
+            "status": "repair_rerun_request_not_active",
+            "workspace_id": selected_workspace_id,
+            "request_id": request.get("id"),
+            "rerun_request_ref": (
+                "specspace-state://"
+                f"{idea_to_spec_repair_rerun_requests.RERUN_REQUEST_FILENAME}"
+            ),
+            "import_preview_ref": import_preview_ref,
+            "repair_session_ref": repair_session_ref,
+            "request_gate_ref": f"runs/{REQUEST_GATE_ARTIFACT}",
+            "plan_ref": plan_ref,
+            "output_ref": output_ref,
+            "summary": {
+                "status": "managed_repair_rerun_request_not_active",
+                "executed": False,
+            },
+            "error": consume_body.get("error")
+            if isinstance(consume_body.get("error"), str)
+            else "Repair rerun request is no longer active.",
+            "authority_boundary": {
+                "browser_executes_platform": False,
+                "specspace_backend_executes_platform": False,
+                "executes_specgraph": False,
+                "executes_repair_rerun": False,
+                "builds_repaired_handoff": False,
+                "publishes_public_bundle": False,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+            },
+        }
 
     timeout = getattr(server, "platform_execution_timeout_seconds", 120)
     try:
@@ -488,11 +530,50 @@ def execute_requested_rerun(
         "--format",
         "json",
     ]
-    plan_completed, plan_report = _run_json_command(
-        plan_command,
-        cwd=platform_cwd,
-        timeout_seconds=timeout_seconds,
-    )
+    try:
+        plan_completed, plan_report = _run_json_command(
+            plan_command,
+            cwd=platform_cwd,
+            timeout_seconds=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as error:
+        return HTTPStatus.GATEWAY_TIMEOUT, {
+            "artifact_kind": "specspace_managed_repair_rerun_execution",
+            "ok": False,
+            "status": "platform_execution_timeout",
+            "workspace_id": selected_workspace_id,
+            "request_id": request.get("id"),
+            "rerun_request_ref": (
+                "specspace-state://"
+                f"{idea_to_spec_repair_rerun_requests.RERUN_REQUEST_FILENAME}"
+            ),
+            "import_preview_ref": import_preview_ref,
+            "repair_session_ref": repair_session_ref,
+            "request_gate_ref": f"runs/{REQUEST_GATE_ARTIFACT}",
+            "plan_ref": plan_ref,
+            "output_ref": output_ref,
+            "summary": {
+                "status": "managed_repair_rerun_plan_timeout",
+                "executed": False,
+                "timeout_seconds": timeout_seconds,
+            },
+            "stderr_tail": (error.stderr or "")[-2000:]
+            if isinstance(error.stderr, str)
+            else "",
+            "authority_boundary": {
+                "browser_executes_platform": False,
+                "specspace_backend_executes_platform": True,
+                "executes_specgraph": False,
+                "executes_repair_rerun": False,
+                "builds_repaired_handoff": False,
+                "publishes_public_bundle": False,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+            },
+        }
 
     execute_completed: subprocess.CompletedProcess[str] | None = None
     execution_report: dict[str, Any] = {}
@@ -510,11 +591,50 @@ def execute_requested_rerun(
             "--format",
             "json",
         ]
-        execute_completed, execution_report = _run_json_command(
-            execute_command,
-            cwd=platform_cwd,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            execute_completed, execution_report = _run_json_command(
+                execute_command,
+                cwd=platform_cwd,
+                timeout_seconds=timeout_seconds,
+            )
+        except subprocess.TimeoutExpired as error:
+            return HTTPStatus.GATEWAY_TIMEOUT, {
+                "artifact_kind": "specspace_managed_repair_rerun_execution",
+                "ok": False,
+                "status": "platform_execution_timeout",
+                "workspace_id": selected_workspace_id,
+                "request_id": request.get("id"),
+                "rerun_request_ref": (
+                    "specspace-state://"
+                    f"{idea_to_spec_repair_rerun_requests.RERUN_REQUEST_FILENAME}"
+                ),
+                "import_preview_ref": import_preview_ref,
+                "repair_session_ref": repair_session_ref,
+                "request_gate_ref": f"runs/{REQUEST_GATE_ARTIFACT}",
+                "plan_ref": plan_ref,
+                "output_ref": output_ref,
+                "summary": {
+                    "status": "managed_repair_rerun_execute_timeout",
+                    "executed": False,
+                    "timeout_seconds": timeout_seconds,
+                },
+                "stderr_tail": (error.stderr or "")[-2000:]
+                if isinstance(error.stderr, str)
+                else "",
+                "authority_boundary": {
+                    "browser_executes_platform": False,
+                    "specspace_backend_executes_platform": True,
+                    "executes_specgraph": False,
+                    "executes_repair_rerun": False,
+                    "builds_repaired_handoff": False,
+                    "publishes_public_bundle": False,
+                    "creates_git_commits": False,
+                    "opens_pull_requests": False,
+                    "publishes_read_models": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                },
+            }
 
     execution_returncode = (
         execute_completed.returncode if execute_completed is not None else None

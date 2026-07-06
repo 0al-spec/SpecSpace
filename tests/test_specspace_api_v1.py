@@ -8501,6 +8501,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 report_file_exists = (
                     runs_dir / "platform_product_repair_rerun_execution_report.json"
                 ).is_file()
+                request_state_status, request_state = _get(
+                    f"{base}/api/v1/idea-to-spec-repair-rerun-requests?workspace=pantry-rotation"
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -8534,6 +8537,98 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(body["authority_boundary"]["publishes_public_bundle"])
         self.assertTrue(plan_file_exists)
         self.assertTrue(report_file_exists)
+        self.assertEqual(request_state_status, 200)
+        self.assertEqual(request_state["summary"]["active_request_count"], 0)
+        self.assertEqual(request_state["requests"][0]["status"], "consumed")
+
+    def test_repair_rerun_execute_reports_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "import time\ntime.sleep(5)\n",
+                encoding="utf-8",
+            )
+            _write_json(
+                runs_dir / "specspace_repair_draft_import_preview.json",
+                {
+                    "artifact_kind": "specspace_repair_draft_import_preview",
+                    "summary": {"accepted_for_rerun_count": 1},
+                },
+            )
+            _write_json(
+                runs_dir / "idea_to_spec_repair_session.json",
+                {
+                    "artifact_kind": "idea_to_spec_repair_session",
+                    "summary": {"ready_for_candidate_approval": False},
+                },
+            )
+            _write_json(
+                runs_dir / "specspace_repair_rerun_request_gate.json",
+                {
+                    "artifact_kind": "specspace_repair_rerun_request_gate",
+                    "status": "specspace_repair_rerun_request_gate_ready",
+                    "readiness": {"ready": True, "blocked_by": []},
+                },
+            )
+            _write_json(
+                state_dir / "idea_to_spec_repair_rerun_requests.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_repair_rerun_request_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "requests": [
+                        {
+                            "id": "repair-rerun-request.pantry-rotation.1",
+                            "status": "requested",
+                            "requested_action": "prepare_repair_draft_rerun",
+                            "workspace_id": "pantry-rotation",
+                            "candidate_id": "pantry-rotation",
+                            "created_at": "2026-01-01T00:00:00Z",
+                            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                            "import_preview_ref": (
+                                "runs/specspace_repair_draft_import_preview.json"
+                            ),
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+                platform_execution_timeout_seconds=1,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-repair-rerun/execute"
+                        "?workspace=pantry-rotation"
+                    ),
+                    {"workspace_id": "pantry-rotation"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 504)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_execution_timeout")
+        self.assertEqual(
+            body["summary"]["status"],
+            "managed_repair_rerun_plan_timeout",
+        )
 
     def test_repair_rerun_execute_requires_request_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
