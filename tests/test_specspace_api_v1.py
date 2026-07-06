@@ -9105,6 +9105,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 decision_exists = (
                     runs_dir / "candidate_approval_decision.json"
                 ).is_file()
+                intent_state_status, intent_state = _get(
+                    f"{base}/api/v1/idea-to-spec-candidate-approval-intents?workspace=team-decision-log"
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -9124,6 +9127,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertTrue(execution_exists)
         self.assertTrue(decision_exists)
+        self.assertEqual(intent_state_status, 200)
+        self.assertEqual(intent_state["summary"]["active_intent_count"], 0)
+        self.assertEqual(intent_state["intents"][0]["status"], "consumed")
 
     def test_candidate_approval_execute_requires_current_intent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

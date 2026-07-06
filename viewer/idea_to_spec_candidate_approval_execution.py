@@ -361,6 +361,49 @@ def execute_candidate_approval(
     decision_output_path = runs_dir / CANDIDATE_APPROVAL_DECISION_ARTIFACT
     execution_output_path = runs_dir / APPROVAL_EXECUTION_REPORT_ARTIFACT
     output_ref = f"runs/{execution_output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
+    selected_intent = matching_intents[0]
+    consume_status, consume_body = (
+        idea_to_spec_candidate_approval_intents.mark_intent_consumed(
+            server,
+            workspace_id=selected_workspace_id,
+            intent_id=str(selected_intent.get("id")),
+        )
+    )
+    if consume_status != HTTPStatus.OK:
+        return consume_status, {
+            "artifact_kind": "specspace_managed_candidate_approval_execution",
+            "ok": False,
+            "status": "candidate_approval_intent_not_active",
+            "workspace_id": selected_workspace_id,
+            "approval_intents_ref": (
+                "specspace-state://"
+                f"{idea_to_spec_candidate_approval_intents.APPROVAL_INTENT_FILENAME}"
+            ),
+            "repair_session_ref": f"runs/{repair_session_path.name}",
+            "promotion_gate_ref": f"runs/{promotion_gate_path.name}",
+            "repair_execution_ref": f"runs/{REPAIR_EXECUTION_REPORT_ARTIFACT}",
+            "repair_publication_ref": f"runs/{REPAIR_PUBLICATION_REPORT_ARTIFACT}",
+            "output_ref": output_ref,
+            "summary": {
+                "status": "managed_candidate_approval_intent_not_active",
+                "executed": False,
+            },
+            "error": consume_body.get("error")
+            if isinstance(consume_body.get("error"), str)
+            else "Candidate approval intent is no longer active.",
+            "authority_boundary": {
+                "browser_executes_platform": False,
+                "specspace_backend_executes_platform": False,
+                "materializes_candidate_approval_decision": False,
+                "executes_git_commands": False,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+                "mutates_canonical_specs": False,
+            },
+        }
 
     timeout = getattr(server, "platform_execution_timeout_seconds", 120)
     try:

@@ -508,6 +508,55 @@ def _refresh_summary(state: dict[str, Any]) -> None:
     }
 
 
+def mark_intent_consumed(
+    server: Any,
+    *,
+    workspace_id: str,
+    intent_id: str,
+) -> tuple[HTTPStatus, dict[str, Any]]:
+    with _STATE_LOCK:
+        status, state = _read_persisted_state(server)
+        if status != HTTPStatus.OK:
+            return status, state
+        path = state_path(server)
+        now = now_iso()
+        matched = False
+        updated: list[dict[str, Any]] = []
+        for item in _records(state.get("intents")):
+            if (
+                item.get("workspace_id") == workspace_id
+                and item.get("id") == intent_id
+                and item.get("status") == "requested"
+            ):
+                updated.append(
+                    {
+                        **item,
+                        "status": "consumed",
+                        "consumed_at": now,
+                        "updated_at": now,
+                    }
+                )
+                matched = True
+            else:
+                updated.append(item)
+        if not matched:
+            return HTTPStatus.CONFLICT, {
+                "error": "Candidate approval intent is no longer active or has already been consumed.",
+                "workspace_id": workspace_id,
+                "intent_id": intent_id,
+            }
+        state["intents"] = sorted(
+            updated,
+            key=lambda entry: (entry["workspace_id"], entry["created_at"], entry["id"]),
+        )
+        _refresh_summary(state)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(f"{path.suffix}.tmp")
+        tmp.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        tmp.replace(path)
+        return HTTPStatus.OK, _filtered_state(state, workspace_id)
+
+
 def _normalize_existing_intent(entry: dict[str, Any]) -> dict[str, Any] | None:
     intent_id = _text(entry.get("id"))
     status = _text(entry.get("status")) or "requested"
