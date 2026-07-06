@@ -203,6 +203,10 @@ POST_ROUTES: dict[str, RouteSpec] = {
         "handle_v1_idea_to_spec_repair_rerun_execute_post",
         pass_parsed=True,
     ),
+    "/api/v1/idea-to-spec-repair-rerun/publish": RouteSpec(
+        "handle_v1_idea_to_spec_repair_rerun_publish_post",
+        pass_parsed=True,
+    ),
     "/api/v1/project-local-ontology-review-decisions": RouteSpec(
         "handle_v1_project_local_ontology_review_decision_post",
         pass_parsed=True,

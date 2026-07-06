@@ -8887,6 +8887,122 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["status"], "failed")
         self.assertEqual(body["platform_report"]["summary"]["status"], "blocked")
 
+    def test_repair_rerun_publish_disabled_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            httpd, thread, base = _start(root / "dialogs")
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-repair-rerun/publish"
+                        "?workspace=pantry-rotation"
+                    ),
+                    {"workspace_id": "pantry-rotation"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 503)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_execution_unavailable")
+        self.assertFalse(body["authority_boundary"]["browser_executes_platform"])
+        self.assertFalse(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+
+    def test_repair_rerun_publish_runs_allowlisted_platform_publish(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text(
+                "publish-bundle:\n\t@true\n",
+                encoding="utf-8",
+            )
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "\n".join(
+                    [
+                        "import json",
+                        "import sys",
+                        "from pathlib import Path",
+                        "output = Path(sys.argv[sys.argv.index('--output') + 1])",
+                        "report = {",
+                        "    'artifact_kind': 'platform_product_repair_rerun_publication_report',",
+                        "    'schema_version': 1,",
+                        "    'ok': True,",
+                        "    'dry_run': False,",
+                        "    'summary': {'status': 'published'},",
+                        "    'authority_boundary': {",
+                        "        'executes_specgraph_make_target': True,",
+                        "        'executes_git_commands': False,",
+                        "        'opens_pull_requests': False,",
+                        "        'publishes_read_models': False,",
+                        "        'writes_ontology_packages': False,",
+                        "        'accepts_ontology_terms': False,",
+                        "    },",
+                        "}",
+                        "output.write_text(json.dumps(report), encoding='utf-8')",
+                        "print(json.dumps(report))",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            _write_json(
+                runs_dir / "platform_product_repair_rerun_execution_report.json",
+                {
+                    "artifact_kind": "platform_product_repair_rerun_execution_report",
+                    "ok": True,
+                    "dry_run": False,
+                    "specgraph_dir": str(specgraph_dir),
+                    "summary": {"status": "completed"},
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-repair-rerun/publish"
+                        "?workspace=pantry-rotation"
+                    ),
+                    {"workspace_id": "pantry-rotation"},
+                )
+                report_file_exists = (
+                    runs_dir / "platform_product_repair_rerun_publication_report.json"
+                ).is_file()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["status"], "completed")
+        self.assertEqual(body["workspace_id"], "pantry-rotation")
+        self.assertEqual(
+            body["execution_report_ref"],
+            "runs/platform_product_repair_rerun_execution_report.json",
+        )
+        self.assertEqual(
+            body["output_ref"],
+            "runs/platform_product_repair_rerun_publication_report.json",
+        )
+        self.assertFalse(body["authority_boundary"]["browser_executes_platform"])
+        self.assertTrue(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+        self.assertTrue(body["authority_boundary"]["executes_specgraph"])
+        self.assertTrue(body["authority_boundary"]["publishes_public_bundle"])
+        self.assertTrue(report_file_exists)
+
     def test_product_workspace_creation_requests_v1_reads_route_only_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

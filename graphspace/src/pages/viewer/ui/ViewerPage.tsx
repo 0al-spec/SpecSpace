@@ -334,6 +334,10 @@ export function ViewerPage({
         "/api/v1/idea-to-spec-repair-rerun/execute",
         workspace,
       ),
+      ideaToSpecRepairRerunPublish: workspaceApiUrl(
+        "/api/v1/idea-to-spec-repair-rerun/publish",
+        workspace,
+      ),
       ideaToSpecCandidateApprovalIntents: workspaceApiUrl(
         "/api/v1/idea-to-spec-candidate-approval-intents",
         workspace,
@@ -1692,6 +1696,7 @@ export function ViewerPage({
                 workspaceApiUrls.ideaToSpecRepairRerunRequestGateExecute
               }
               repairRerunExecuteUrl={workspaceApiUrls.ideaToSpecRepairRerunExecute}
+              repairRerunPublishUrl={workspaceApiUrls.ideaToSpecRepairRerunPublish}
               candidateApprovalIntentsUrl={workspaceApiUrls.ideaToSpecCandidateApprovalIntents}
               projectLocalOntologyReviewDecisionsUrl={
                 workspaceApiUrls.projectLocalOntologyReviewDecisions

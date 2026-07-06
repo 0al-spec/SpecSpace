@@ -144,6 +144,13 @@ reviews, or publish read models.
   repaired handoff / publication. Browser authority remains request-only; this
   does not publish the public bundle, create Git artifacts, or mutate
   canonical specs/Ontology.
+- Backend-managed repair rerun publication. After successful repair rerun
+  execution, SpecSpace can expose an opt-in backend endpoint that calls the
+  allowlisted Platform `product-repair-rerun publish` operation, writes the
+  publication report, and refreshes the guided repair path from the published
+  public-safe bundle evidence. Browser authority remains request-only; this
+  does not create Git artifacts, publish read models, or mutate canonical
+  specs/Ontology.
 - Guided approval and promotion is now a dedicated Product Workspace path rather
   than a scattered set of approval readiness and controlled-promotion sections.
   The UI shows approval intent, Platform approval materialization, promotion
@@ -347,9 +354,9 @@ Follow-up scope:
   interactions where the Product Workspace already has forms.
 - Keep repair/promotion command hints read-only until Platform owns each
   controlled execution wrapper. The repair rerun request gate and full
-  requested repair rerun execution are now covered by backend-managed Platform
-  wrappers; repair rerun publication remains the next repair-side execution
-  wrapper.
+  requested repair rerun execution and repair rerun publication are now covered
+  by backend-managed Platform wrappers. Approval/promotion execution remains on
+  separate request/report surfaces.
 - If approval/promotion becomes request-driven from the browser, add
   SpecSpace-owned request artifacts first and keep Platform as the executor
   boundary.

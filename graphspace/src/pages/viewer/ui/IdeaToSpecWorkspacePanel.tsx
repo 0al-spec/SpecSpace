@@ -87,6 +87,7 @@ type Props = {
   repairRerunRequestsUrl?: string;
   repairRerunRequestGateExecuteUrl?: string;
   repairRerunExecuteUrl?: string;
+  repairRerunPublishUrl?: string;
   candidateApprovalIntentsUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
   productWorkspaceInitializationExecuteUrl?: string;
@@ -402,6 +403,7 @@ export function IdeaToSpecWorkspacePanel({
   repairRerunRequestsUrl,
   repairRerunRequestGateExecuteUrl,
   repairRerunExecuteUrl,
+  repairRerunPublishUrl,
   candidateApprovalIntentsUrl,
   projectLocalOntologyReviewDecisionsUrl,
   productWorkspaceInitializationExecuteUrl,
@@ -641,6 +643,7 @@ export function IdeaToSpecWorkspacePanel({
       path={data.guidedRepairPath}
       executeRequestGateUrl={repairRerunRequestGateExecuteUrl}
       executeRerunUrl={repairRerunExecuteUrl}
+      publishRerunUrl={repairRerunPublishUrl}
       workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
       onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
       readOnly={readOnly}
@@ -1891,6 +1894,7 @@ function GuidedRepairPathSection({
   path,
   executeRequestGateUrl,
   executeRerunUrl,
+  publishRerunUrl,
   workspaceId,
   onWorkspaceRefreshRequest,
   readOnly,
@@ -1898,6 +1902,7 @@ function GuidedRepairPathSection({
   path: IdeaToSpecWorkspace["guidedRepairPath"];
   executeRequestGateUrl?: string;
   executeRerunUrl?: string;
+  publishRerunUrl?: string;
   workspaceId: string | null;
   onWorkspaceRefreshRequest?: () => void;
   readOnly: boolean;
@@ -1908,6 +1913,11 @@ function GuidedRepairPathSection({
     error: string | null;
   }>({ pending: false, status: null, error: null });
   const [managedRerunState, setManagedRerunState] = useState<{
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  }>({ pending: false, status: null, error: null });
+  const [managedPublicationState, setManagedPublicationState] = useState<{
     pending: boolean;
     status: string | null;
     error: string | null;
@@ -1928,6 +1938,14 @@ function GuidedRepairPathSection({
     path.state.rerunRequestStatus === "usable" &&
     path.state.requestGateStatus !== null &&
     managedRerunState.pending === false;
+  const canRunManagedPublication =
+    !readOnly &&
+    Boolean(publishRerunUrl) &&
+    Boolean(workspaceId) &&
+    path.stage === "rerun_running_or_waiting" &&
+    path.state.rerunExecutionStatus !== null &&
+    path.state.rerunPublicationStatus === null &&
+    managedPublicationState.pending === false;
   const runManagedRequestGate = async () => {
     if (!executeRequestGateUrl || !workspaceId) return;
     setManagedRequestGateState({ pending: true, status: null, error: null });
@@ -1972,6 +1990,53 @@ function GuidedRepairPathSection({
           error instanceof Error
             ? error.message
             : "Managed repair request gate execution failed.",
+      });
+    }
+  };
+  const runManagedPublication = async () => {
+    if (!publishRerunUrl || !workspaceId) return;
+    setManagedPublicationState({ pending: true, status: null, error: null });
+    try {
+      const response = await fetch(publishRerunUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace_id: workspaceId }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        summary?: { status?: unknown };
+        status?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok) {
+        setManagedPublicationState({
+          pending: false,
+          status: typeof body.status === "string" ? body.status : null,
+          error:
+            typeof body.error === "string"
+              ? body.error
+              : `Managed repair rerun publication failed with HTTP ${response.status}.`,
+        });
+        return;
+      }
+      setManagedPublicationState({
+        pending: false,
+        status:
+          typeof body.summary?.status === "string"
+            ? body.summary.status
+            : typeof body.status === "string"
+              ? body.status
+              : "completed",
+        error: null,
+      });
+      onWorkspaceRefreshRequest?.();
+    } catch (error) {
+      setManagedPublicationState({
+        pending: false,
+        status: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Managed repair rerun publication failed.",
       });
     }
   };
@@ -2121,6 +2186,27 @@ function GuidedRepairPathSection({
             </span>
           </div>
         ) : null}
+        {path.stage === "rerun_running_or_waiting" &&
+        path.state.rerunExecutionStatus !== null &&
+        path.state.rerunPublicationStatus === null ? (
+          <div className={styles.rowActions}>
+            <button
+              type="button"
+              className={styles.actionButton}
+              disabled={!canRunManagedPublication}
+              onClick={runManagedPublication}
+            >
+              {managedPublicationState.pending
+                ? "Publishing repair artifacts..."
+                : "Publish repaired artifacts"}
+            </button>
+            <span className={styles.statusDetail}>
+              {publishRerunUrl
+                ? "SpecSpace backend will call the allowlisted Platform repair publication operation."
+                : "Managed backend execution is not configured; use the Platform command hint."}
+            </span>
+          </div>
+        ) : null}
         {managedRequestGateState.status ? (
           <p className={styles.statusDetail}>
             Request gate execution: {managedRequestGateState.status}
@@ -2136,6 +2222,14 @@ function GuidedRepairPathSection({
         ) : null}
         {managedRerunState.error ? (
           <p className={styles.statusDetail}>{managedRerunState.error}</p>
+        ) : null}
+        {managedPublicationState.status ? (
+          <p className={styles.statusDetail}>
+            Repair publication: {managedPublicationState.status}
+          </p>
+        ) : null}
+        {managedPublicationState.error ? (
+          <p className={styles.statusDetail}>{managedPublicationState.error}</p>
         ) : null}
       </div>
       {path.available && path.checkpoints.length > 0 ? (
