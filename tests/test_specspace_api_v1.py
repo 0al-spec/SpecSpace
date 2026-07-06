@@ -7671,6 +7671,27 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["authority_boundary"]["specspace_backend_executes_platform"]
         )
 
+    def test_real_idea_answer_continuation_execute_accepts_workspace_aliases(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs",
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation/execute?workspace=specgraph",
+                    {"workspace_id": "bootstrap"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 503)
+        self.assertEqual(body["status"], "platform_execution_unavailable")
+
     def test_real_idea_answer_continuation_execute_runs_allowlisted_platform(
         self,
     ) -> None:

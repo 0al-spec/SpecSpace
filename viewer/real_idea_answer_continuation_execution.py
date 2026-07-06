@@ -178,7 +178,7 @@ def execute_requested_continuation(
             "Configured SpecGraph directory does not contain a Makefile."
         )
 
-    payload_workspace_id = specspace_provider.normalize_product_workspace_id(
+    payload_workspace_id = specspace_provider.normalize_workspace_id(
         _text(payload.get("workspace_id"))
     )
     selected_workspace_id = workspace_id or payload_workspace_id
