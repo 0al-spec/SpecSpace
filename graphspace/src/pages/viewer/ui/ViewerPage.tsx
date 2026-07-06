@@ -326,6 +326,10 @@ export function ViewerPage({
         "/api/v1/idea-to-spec-repair-rerun-requests",
         workspace,
       ),
+      ideaToSpecRepairRerunRequestGateExecute: workspaceApiUrl(
+        "/api/v1/idea-to-spec-repair-rerun-request-gate/execute",
+        workspace,
+      ),
       ideaToSpecCandidateApprovalIntents: workspaceApiUrl(
         "/api/v1/idea-to-spec-candidate-approval-intents",
         workspace,
@@ -1680,6 +1684,9 @@ export function ViewerPage({
                 workspaceApiUrls.realIdeaAnswerContinuationExecute
               }
               repairRerunRequestsUrl={workspaceApiUrls.ideaToSpecRepairRerunRequests}
+              repairRerunRequestGateExecuteUrl={
+                workspaceApiUrls.ideaToSpecRepairRerunRequestGateExecute
+              }
               candidateApprovalIntentsUrl={workspaceApiUrls.ideaToSpecCandidateApprovalIntents}
               projectLocalOntologyReviewDecisionsUrl={
                 workspaceApiUrls.projectLocalOntologyReviewDecisions

@@ -12,6 +12,7 @@ from viewer import (
     idea_to_spec_candidate_approval_intents,
     idea_to_spec_intake_clarification_answers,
     idea_to_spec_repair_drafts,
+    idea_to_spec_repair_rerun_request_gate_execution,
     idea_to_spec_repair_rerun_requests,
     idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
@@ -1200,6 +1201,41 @@ def handle_v1_idea_to_spec_repair_rerun_request_post(
         workspace_payload,
         draft_state,
         workspace_id=workspace_id,
+    )
+    json_response(handler, status, response)
+
+
+def handle_v1_idea_to_spec_repair_rerun_request_gate_execute_post(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    query_workspace_id = _query_workspace_id(parsed)
+    payload_workspace_id = specspace_provider.normalize_workspace_id(
+        payload.get("workspace_id")
+        if isinstance(payload.get("workspace_id"), str)
+        else None
+    )
+    if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
+        json_response(
+            handler,
+            HTTPStatus.CONFLICT,
+            {
+                "error": "Repair rerun request gate execution workspace_id does not match selected workspace.",
+                "expected": query_workspace_id,
+                "actual": payload_workspace_id,
+            },
+        )
+        return
+    workspace_id = query_workspace_id or payload_workspace_id
+    status, response = (
+        idea_to_spec_repair_rerun_request_gate_execution.execute_requested_request_gate(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        )
     )
     json_response(handler, status, response)
 

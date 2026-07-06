@@ -129,6 +129,13 @@ reviews, or publish read models.
   ontology decision progress, project-local ontology review, rerun request/gate
   state, repaired handoff state, blockers, evidence refs, and target anchors
   without giving the browser Platform/SpecGraph execution authority.
+- Backend-managed repair rerun request gate execution. After repair drafts are
+  saved, imported, and the operator requests a repair rerun, SpecSpace can
+  expose an opt-in backend endpoint that calls the allowlisted Platform
+  `product-repair-rerun request-gate` operation, writes the request-gate and
+  Platform execution reports, and refreshes the guided repair path from the
+  resulting artifacts. Browser authority remains request-only and this step
+  does not execute the repair rerun itself.
 - Guided approval and promotion is now a dedicated Product Workspace path rather
   than a scattered set of approval readiness and controlled-promotion sections.
   The UI shows approval intent, Platform approval materialization, promotion
@@ -331,7 +338,9 @@ Follow-up scope:
 - Replace remaining direct API writes in the e2e harness with browser-level UI
   interactions where the Product Workspace already has forms.
 - Keep repair/promotion command hints read-only until Platform owns each
-  controlled execution wrapper.
+  controlled execution wrapper. The repair rerun request gate is now covered by
+  a backend-managed Platform wrapper; the full requested repair rerun execution
+  remains the next repair-side execution wrapper.
 - If approval/promotion becomes request-driven from the browser, add
   SpecSpace-owned request artifacts first and keep Platform as the executor
   boundary.
