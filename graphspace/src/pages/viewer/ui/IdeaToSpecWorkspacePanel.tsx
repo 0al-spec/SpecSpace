@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type MouseEvent,
+} from "react";
 import {
   buildCandidateWorkflowTopology,
   type CandidateWorkflowTopologyView,
@@ -83,6 +90,54 @@ type Props = {
   auxiliaryDataEnabled?: boolean;
   readOnly?: boolean;
 };
+
+const FRESH_WORKSPACE_FOCUS_STATUSES = new Set([
+  "route_only",
+  "creation_requested",
+  "initialized",
+  "intake",
+  "clarification",
+]);
+const FRESH_WORKSPACE_FOCUS_BLOCKED_PHASES = new Set([
+  "workspace",
+  "intake",
+  "clarification",
+]);
+const FRESH_WORKSPACE_FOCUS_TARGET_SECTIONS = new Set([
+  "idea-to-spec-workspace-creation",
+  "idea-to-spec-workspace-initialization-path",
+  "idea-to-spec-idea-intake",
+  "idea-to-spec-intake-clarification",
+]);
+
+function usesFreshWorkspaceFocus(overview: IdeaToSpecWorkspace["productWorkspaceOverview"]) {
+  if (FRESH_WORKSPACE_FOCUS_STATUSES.has(overview.status)) return true;
+  if (overview.status !== "blocked") return false;
+  return (
+    FRESH_WORKSPACE_FOCUS_BLOCKED_PHASES.has(overview.currentPhase) ||
+    FRESH_WORKSPACE_FOCUS_TARGET_SECTIONS.has(overview.primaryTargetSection ?? "")
+  );
+}
+
+function targetIdFromHash(hash: string): string | null {
+  if (!hash.startsWith("#") || hash.length <= 1) return null;
+  try {
+    return decodeURIComponent(hash.slice(1));
+  } catch {
+    return hash.slice(1);
+  }
+}
+
+function diagnosticsBodyContainsHashTarget(
+  body: HTMLDivElement | null,
+  hash: string,
+): boolean {
+  const targetId = targetIdFromHash(hash);
+  if (!body || !targetId) return false;
+  return Array.from(body.querySelectorAll<HTMLElement>("[id]")).some(
+    (element) => element.id === targetId,
+  );
+}
 
 function errorDetail(
   state: Exclude<UseIdeaToSpecWorkspaceState, { kind: "ok" | "idle" | "loading" }>,
@@ -390,6 +445,19 @@ export function IdeaToSpecWorkspacePanel({
       enabled: auxiliaryDataEnabled && state.kind === "ok",
       refreshKey: repairDraftRefreshKey,
     });
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const diagnosticsBodyRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const openDiagnosticsForHash = () => {
+      if (diagnosticsBodyContainsHashTarget(diagnosticsBodyRef.current, window.location.hash)) {
+        setDiagnosticsOpen(true);
+      }
+    };
+    openDiagnosticsForHash();
+    window.addEventListener("hashchange", openDiagnosticsForHash);
+    return () => window.removeEventListener("hashchange", openDiagnosticsForHash);
+  }, [state.kind]);
 
   if (state.kind === "idle" || state.kind === "loading") {
     return (
@@ -422,6 +490,149 @@ export function IdeaToSpecWorkspacePanel({
       reason: "Approve candidate for promotion review.",
     });
   };
+  const freshWorkspaceFocus = usesFreshWorkspaceFocus(data.productWorkspaceOverview);
+  const focusStatus = data.productWorkspaceOverview.status;
+  const focusPhase = data.productWorkspaceOverview.currentPhase;
+  const focusTarget = data.productWorkspaceOverview.primaryTargetSection;
+  const focusShowsWorkspaceCreation =
+    ["route_only", "creation_requested"].includes(focusStatus) ||
+    focusPhase === "workspace" ||
+    focusTarget === "idea-to-spec-workspace-creation";
+  const focusShowsWorkspaceInitialization =
+    ["route_only", "creation_requested", "initialized", "intake"].includes(
+      focusStatus,
+    ) ||
+    ["workspace", "intake"].includes(focusPhase) ||
+    focusTarget === "idea-to-spec-workspace-initialization-path";
+  const focusShowsIdeaIntake =
+    ["initialized", "intake", "clarification"].includes(focusStatus) ||
+    ["intake", "clarification"].includes(focusPhase) ||
+    focusTarget === "idea-to-spec-idea-intake";
+  const focusShowsIntakeClarification =
+    focusStatus === "clarification" ||
+    focusPhase === "clarification" ||
+    focusTarget === "idea-to-spec-intake-clarification";
+  const openDiagnosticsForHash = (hash: string): boolean => {
+    if (!diagnosticsBodyContainsHashTarget(diagnosticsBodyRef.current, hash)) {
+      return false;
+    }
+    setDiagnosticsOpen(true);
+    return true;
+  };
+  const handleWorkspaceAnchorClick = (event: MouseEvent<HTMLDivElement>) => {
+    const target =
+      event.target instanceof Element ? event.target.closest("a[href^='#']") : null;
+    const hash = target?.getAttribute("href");
+    if (hash) openDiagnosticsForHash(hash);
+  };
+
+  const productWorkspaceOverviewSection = (
+    <ProductWorkspaceOverviewSection
+      overview={data.productWorkspaceOverview}
+      workspace={data.workspace}
+    />
+  );
+  const ideaIntakeDraftSection = (
+    <IdeaIntakeDraftSection
+      activeFrame={frame}
+      realIdeaIntake={data.realIdeaIntake}
+      entryRequests={realIdeaEntryRequests}
+      executionRequests={realIdeaIntakeExecutionRequests}
+      workspace={data.workspace}
+      workspaceCreation={data.workspaceCreation}
+      workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+      onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
+      readOnly={readOnly}
+    />
+  );
+  const guidedWorkspaceInitializationPathSection = (
+    <GuidedWorkspaceInitializationPathSection
+      path={data.workspaceInitializationPath}
+    />
+  );
+  const workspaceCreationSection = (
+    <WorkspaceCreationSection creation={data.workspaceCreation} />
+  );
+  const guidedFlowSection = <GuidedFlowSection flow={data.guidedFlow} />;
+  const guidedRepairPathSection = (
+    <GuidedRepairPathSection path={data.guidedRepairPath} />
+  );
+  const guidedApprovalPathSection = (
+    <GuidedApprovalPathSection path={data.guidedApprovalPath} />
+  );
+  const intakeClarificationSection = (
+    <IntakeClarificationSection
+      state={state}
+      answers={intakeClarificationAnswers}
+      continuationExecutionRequests={realIdeaAnswerContinuationExecutionRequests}
+      workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+      workspaceInitialized={
+        data.workspaceCreation.initialization.initialized === true ||
+        data.workspace.available === true ||
+        data.workspace.ready === true
+      }
+      onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
+      readOnly={readOnly}
+    />
+  );
+  const renderDiagnosticSections = (includeIntakeClarification = true) => (
+    <>
+      <CandidateOverviewSection overview={data.candidateOverview} />
+      <WorkflowSection workflow={data.workflow} />
+      <WorkspaceSection workspace={data.workspace} />
+      <FrameSection
+        project={frame.project}
+        domains={frame.domainRefs}
+        contexts={frame.contextRefs}
+      />
+      <ArtifactSection artifacts={data.artifacts} />
+      <IntakeSection state={state} />
+      {includeIntakeClarification ? intakeClarificationSection : null}
+      <OntologySeedSection seed={data.ontologySeed} />
+      <ProjectLocalOntologyReviewSection
+        lane={data.projectLocalOntologyReview}
+        importPreview={data.projectLocalOntologyDecisionImportPreview}
+        decisions={projectLocalOntologyReviewDecisions}
+        workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+        readOnly={readOnly}
+      />
+      <CandidateGraphSection nodes={data.candidateGraph.nodes} />
+      <PreSibSection state={state} />
+      <RepairSection actions={data.repairLoop.actions} />
+      <RepairSessionSection state={state} />
+      <IdeaMaturitySection maturity={data.ideaMaturity} />
+      <WorkspaceStateHygieneSection hygiene={data.workspaceStateHygiene} />
+      <ProductRepairReviewSection
+        state={state}
+        repairDrafts={repairDrafts}
+        repairRerunRequests={repairRerunRequests}
+        workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+        onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
+        readOnly={readOnly}
+      />
+      <MaterializationSection state={state} />
+      <PromotionGateSection state={state} />
+      <ApprovalReadinessSection
+        readiness={data.approvalReadiness}
+        intentRequestReady={
+          candidateApprovalIntents.state.kind === "ok" &&
+          candidateApprovalIntents.state.data.workflowStatus.requestReady
+        }
+        pending={candidateApprovalIntents.pending}
+        requestError={candidateApprovalIntents.requestError}
+        onRequest={requestCandidateApprovalIntent}
+        readOnly={readOnly}
+      />
+      <CandidateApprovalIntentSection
+        state={candidateApprovalIntents.state}
+        pending={candidateApprovalIntents.pending}
+        requestError={candidateApprovalIntents.requestError}
+        onRequest={requestCandidateApprovalIntent}
+        showRequestButton={false}
+      />
+      <ControlledPromotionSection state={state} />
+    </>
+  );
 
   return (
     <section className={styles.panel} aria-label="Idea-to-spec workspace">
@@ -490,91 +701,90 @@ export function IdeaToSpecWorkspacePanel({
         />
       </div>
 
-      <div className={styles.entries}>
-        <ProductWorkspaceOverviewSection
-          overview={data.productWorkspaceOverview}
-          workspace={data.workspace}
-        />
-        <IdeaIntakeDraftSection
-          activeFrame={frame}
-          realIdeaIntake={data.realIdeaIntake}
-          entryRequests={realIdeaEntryRequests}
-          executionRequests={realIdeaIntakeExecutionRequests}
-          workspace={data.workspace}
-          workspaceCreation={data.workspaceCreation}
-          workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
-          onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
-          readOnly={readOnly}
-        />
-        <GuidedWorkspaceInitializationPathSection
-          path={data.workspaceInitializationPath}
-        />
-        <WorkspaceCreationSection creation={data.workspaceCreation} />
-        <GuidedFlowSection flow={data.guidedFlow} />
-        <GuidedRepairPathSection path={data.guidedRepairPath} />
-        <GuidedApprovalPathSection path={data.guidedApprovalPath} />
-        <CandidateOverviewSection overview={data.candidateOverview} />
-        <WorkflowSection workflow={data.workflow} />
-        <WorkspaceSection workspace={data.workspace} />
-        <FrameSection project={frame.project} domains={frame.domainRefs} contexts={frame.contextRefs} />
-        <ArtifactSection artifacts={data.artifacts} />
-        <IntakeSection state={state} />
-        <IntakeClarificationSection
-          state={state}
-          answers={intakeClarificationAnswers}
-          continuationExecutionRequests={realIdeaAnswerContinuationExecutionRequests}
-          workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
-          workspaceInitialized={
-            data.workspaceCreation.initialization.initialized === true ||
-            data.workspace.available === true ||
-            data.workspace.ready === true
-          }
-          onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
-          readOnly={readOnly}
-        />
-        <OntologySeedSection seed={data.ontologySeed} />
-        <ProjectLocalOntologyReviewSection
-          lane={data.projectLocalOntologyReview}
-          importPreview={data.projectLocalOntologyDecisionImportPreview}
-          decisions={projectLocalOntologyReviewDecisions}
-          workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
-          readOnly={readOnly}
-        />
-        <CandidateGraphSection nodes={data.candidateGraph.nodes} />
-        <PreSibSection state={state} />
-        <RepairSection actions={data.repairLoop.actions} />
-        <RepairSessionSection state={state} />
-        <IdeaMaturitySection maturity={data.ideaMaturity} />
-        <WorkspaceStateHygieneSection hygiene={data.workspaceStateHygiene} />
-        <ProductRepairReviewSection
-          state={state}
-          repairDrafts={repairDrafts}
-          repairRerunRequests={repairRerunRequests}
-          workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
-          onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
-          readOnly={readOnly}
-        />
-        <MaterializationSection state={state} />
-        <PromotionGateSection state={state} />
-        <ApprovalReadinessSection
-          readiness={data.approvalReadiness}
-          intentRequestReady={
-            candidateApprovalIntents.state.kind === "ok" &&
-            candidateApprovalIntents.state.data.workflowStatus.requestReady
-          }
-          pending={candidateApprovalIntents.pending}
-          requestError={candidateApprovalIntents.requestError}
-          onRequest={requestCandidateApprovalIntent}
-          readOnly={readOnly}
-        />
-        <CandidateApprovalIntentSection
-          state={candidateApprovalIntents.state}
-          pending={candidateApprovalIntents.pending}
-          requestError={candidateApprovalIntents.requestError}
-          onRequest={requestCandidateApprovalIntent}
-          showRequestButton={false}
-        />
-        <ControlledPromotionSection state={state} />
+      <div className={styles.entries} onClickCapture={handleWorkspaceAnchorClick}>
+        {productWorkspaceOverviewSection}
+        {freshWorkspaceFocus ? (
+          <>
+            <FreshWorkspaceFocusSection
+              overview={data.productWorkspaceOverview}
+              workspace={data.workspace}
+            />
+            {focusShowsWorkspaceInitialization
+              ? guidedWorkspaceInitializationPathSection
+              : null}
+            {focusShowsWorkspaceCreation ? workspaceCreationSection : null}
+            {focusShowsIdeaIntake ? ideaIntakeDraftSection : null}
+            {focusShowsIntakeClarification ? intakeClarificationSection : null}
+            <details
+              className={styles.diagnosticsDisclosure}
+              data-testid="fresh-workspace-diagnostics"
+              open={diagnosticsOpen}
+              onToggle={(event) => setDiagnosticsOpen(event.currentTarget.open)}
+            >
+              <summary className={styles.diagnosticsSummary}>
+                Diagnostics / advanced artifacts
+              </summary>
+              <div className={styles.diagnosticsBody} ref={diagnosticsBodyRef}>
+                {guidedFlowSection}
+                {!focusShowsWorkspaceInitialization
+                  ? guidedWorkspaceInitializationPathSection
+                  : null}
+                {!focusShowsWorkspaceCreation ? workspaceCreationSection : null}
+                {!focusShowsIdeaIntake ? ideaIntakeDraftSection : null}
+                {guidedRepairPathSection}
+                {guidedApprovalPathSection}
+                {renderDiagnosticSections(!focusShowsIntakeClarification)}
+              </div>
+            </details>
+          </>
+        ) : (
+          <>
+            {ideaIntakeDraftSection}
+            {guidedWorkspaceInitializationPathSection}
+            {workspaceCreationSection}
+            {guidedFlowSection}
+            {guidedRepairPathSection}
+            {guidedApprovalPathSection}
+            {renderDiagnosticSections()}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function FreshWorkspaceFocusSection({
+  overview,
+  workspace,
+}: {
+  overview: IdeaToSpecWorkspace["productWorkspaceOverview"];
+  workspace: IdeaToSpecWorkspace["workspace"];
+}) {
+  return (
+    <section className={styles.reviewSection} data-testid="fresh-workspace-focus">
+      <SectionHeader title="Fresh workspace focus" count={overview.readiness.blockerCount} />
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>
+            {workspace.displayName ?? workspace.id ?? "Product workspace"}
+          </span>
+          <Pill value={overview.status.replace(/_/g, " ")} />
+        </div>
+        <h3 className={styles.title}>
+          {overview.nextSafeAction}
+        </h3>
+        <p className={styles.statusDetail}>
+          Early workspace mode is focused on the current product step. Candidate,
+          repair, approval, and publication diagnostics stay available below as
+          advanced artifacts, but they are not the primary path until this
+          workspace publishes the matching evidence.
+        </p>
+        <div className={styles.postureStrip}>
+          <PostureItem label="Current phase" value={overview.currentPhaseLabel} />
+          <PostureItem label="Route" value={workspace.publicRoute ?? "route"} />
+          <PostureItem label="Readiness" value={overview.readiness.status} />
+          <PostureItem label="Confidence" value={overview.confidence.level} />
+        </div>
       </div>
     </section>
   );
