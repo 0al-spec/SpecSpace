@@ -229,14 +229,17 @@ reviews, or publish read models.
 
 ### 0. Product Workspace Overview Follow-Ups
 
-Status: closed.
+Status: mostly closed; lifecycle coverage still has explicit follow-up gaps.
 
 Acceptance criteria:
 
 - Add Playwright coverage that asserts overview transitions through:
   wizard -> initialization, initialized -> raw idea, intake -> clarification,
   repaired handoff -> approval, and publication -> published.
-  Done through lifecycle overview transition e2e.
+  Partially done through lifecycle overview transition e2e. Coverage now
+  exercises route-only, creation-requested, initialized, clarification, repair,
+  approval, and published states. Add explicit `intake` and `candidate_review`
+  transition cases before closing this follow-up completely.
 - Reduce the fresh-workspace "wall of empty sections" below the overview, while
   preserving access to diagnostic sections when they have evidence or blockers.
   Done through Fresh Workspace Focus Mode.
@@ -247,10 +250,11 @@ Acceptance criteria:
 
 Follow-up note:
 
-- Execution-backed arbitrary-route smokes now create workspace requests through
-  the sidebar `New workspace` wizard. The remaining `fetch` calls in the e2e
-  harness are validation reads, backend proxy plumbing, external publication
-  setup, or operations whose browser form is intentionally absent.
+- Sidebar wizard coverage now exists for creating and opening a selected product
+  workspace route. Some execution-backed arbitrary-route smokes still seed
+  workspace creation requests through direct backend API setup so they can focus
+  on downstream Platform/SpecGraph handoffs. Converting those mutating setup
+  calls to wizard-driven setup remains open follow-up coverage.
 
 ### 1. UI-Started Intake Execution Visibility
 
@@ -557,8 +561,8 @@ Acceptance criteria:
 
 ### 11. Backend-Backed Workspace Creation
 
-Status: closed for the current SpecSpace-managed creation, initialization,
-intake, and clarification continuation slices.
+Status: closed for the current SpecSpace-managed creation UI/state slice;
+durable workspace binding remains open for Platform/SpecGraph follow-up.
 
 The `New workspace` wizard records backend-owned workspace creation request
 state before opening a product workspace route. Platform-owned initialization
@@ -588,8 +592,9 @@ Acceptance criteria:
 - Submitting a new workspace request writes a SpecSpace-owned operator intent or
   calls a Platform-owned workspace creation endpoint; it must not mutate
   SpecGraph or Git directly from the browser.
-  Done for SpecSpace-owned operator intent; Platform-owned initialization
-  remains open.
+  Done for SpecSpace-owned operator intent and controlled Platform-owned
+  initialization execution. Durable artifact-base/state-namespace/run-dir
+  binding remains open.
 - The backend allocates or resolves a durable workspace id, display name,
   artifact base, SpecSpace state namespace, and run-dir binding.
   Partially done for workspace id, display name, and route; artifact base,
@@ -753,9 +758,10 @@ Acceptance criteria:
 
 Follow-up:
 
-- Done: Playwright lifecycle overview transition coverage now exercises
-  route-only, creation-requested, initialized, clarification, repair, approval,
-  and published states.
+- Add the remaining Playwright lifecycle overview transition cases for `intake`
+  and `candidate_review`. Current coverage exercises route-only,
+  creation-requested, initialized, clarification, repair, approval, and
+  published states.
 
 ## Accepted Constraints And Runbook Notes
 
