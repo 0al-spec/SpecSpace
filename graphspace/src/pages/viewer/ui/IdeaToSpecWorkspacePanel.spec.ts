@@ -553,6 +553,34 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
   });
 
+  it("shows managed promotion execution dry-run action after promotion request is ready", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_approval_path.available = true;
+    raw.guided_approval_path.stage = "promotion_execution_needed";
+    raw.guided_approval_path.status = "waiting_for_operator";
+    raw.guided_approval_path.next_action =
+      "Run controlled product promotion execution.";
+    raw.guided_approval_path.state.promotion_request_ok = true;
+    raw.guided_approval_path.state.promotion_execution_status = null;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+        promotionExecuteUrl: "/api/v1/idea-to-spec-promotion/execute",
+      }),
+    );
+
+    expect(html).toContain("Run controlled product promotion execution.");
+    expect(html).toContain("Run promotion dry-run");
+    expect(html).toContain(
+      "SpecSpace backend will call the allowlisted Platform promotion execution dry-run.",
+    );
+  });
+
   it("renders template-backed intake answers for all required fields", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     const target =
