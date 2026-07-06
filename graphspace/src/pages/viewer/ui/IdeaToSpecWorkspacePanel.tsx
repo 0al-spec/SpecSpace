@@ -1308,6 +1308,7 @@ function IdeaIntakeDraftSection({
   const canRunManagedIntakeExecution =
     !readOnly &&
     Boolean(executeUrl) &&
+    data.workspaceInitializationPath.managedExecutionAvailable &&
     activeExecutionRequest !== null &&
     executionRequestTargetsCurrentEntry &&
     !realIdeaIntake.entryExecution.available &&
@@ -1675,7 +1676,7 @@ function IdeaIntakeDraftSection({
                 className={styles.statusDetail}
                 data-testid="real-idea-intake-managed-execute-status"
               >
-                {executeUrl
+                {executeUrl && data.workspaceInitializationPath.managedExecutionAvailable
                   ? "SpecSpace backend can call the allowlisted Platform intake operation."
                   : "Managed backend execution is not configured; use the Platform command hint."}
               </p>

@@ -92,6 +92,96 @@ def _safe_runs_ref_to_path(server: Any, ref: str | None, *, filename: str) -> Pa
     return candidate
 
 
+def _read_json_object(path: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _initialization_report_error(
+    report: dict[str, Any] | None,
+    *,
+    selected_workspace_id: str,
+) -> dict[str, Any] | None:
+    if report is None:
+        return {
+            "error": "Workspace initialization report artifact is not valid JSON.",
+            "field": "workspace_initialization_ref",
+        }
+    if (
+        report.get("artifact_kind")
+        != "platform_product_workspace_initialization_execution_report"
+    ):
+        return {
+            "error": "Workspace initialization report artifact kind mismatch.",
+            "expected": "platform_product_workspace_initialization_execution_report",
+            "actual": report.get("artifact_kind"),
+        }
+    report_workspace_id = specspace_provider.normalize_product_workspace_id(
+        _text(_record(report.get("workspace")).get("workspace_id"))
+    )
+    if report_workspace_id != selected_workspace_id:
+        return {
+            "error": "Workspace initialization report workspace_id does not match selected workspace.",
+            "expected": selected_workspace_id,
+            "actual": report_workspace_id,
+        }
+    summary = _record(report.get("summary"))
+    if report.get("ok") is not True or report.get("dry_run") is True:
+        return {
+            "error": "Workspace initialization report is not a successful non-dry-run execution.",
+            "field": "workspace_initialization_ref",
+        }
+    if (
+        summary.get("catalog_written") is not True
+        or summary.get("workspace_files_created") is not True
+    ):
+        return {
+            "error": "Workspace initialization report does not show initialized workspace files and catalog.",
+            "field": "workspace_initialization_ref",
+        }
+    return None
+
+
+def _entry_request_error(
+    server: Any,
+    *,
+    selected_workspace_id: str,
+    entry_request_id: str | None,
+) -> dict[str, Any] | None:
+    if entry_request_id is None:
+        return {
+            "error": "Real idea intake execution request is missing entry_request_id.",
+            "field": "entry_request_id",
+        }
+    status, state = real_idea_entry_requests.read_state(
+        server,
+        workspace_id=selected_workspace_id,
+    )
+    if status != HTTPStatus.OK:
+        return {
+            "error": "Real idea entry request state is not readable.",
+            "status": int(status),
+        }
+    matches = [
+        item
+        for item in state.get("requests", [])
+        if isinstance(item, dict)
+        and item.get("workspace_id") == selected_workspace_id
+        and item.get("request_id") == entry_request_id
+        and item.get("status") == "submitted"
+    ]
+    if len(matches) != 1:
+        return {
+            "error": "Real idea entry request is not the active submitted request for this workspace.",
+            "workspace_id": selected_workspace_id,
+            "entry_request_id": entry_request_id,
+        }
+    return None
+
+
 def _active_requested_intake_execution(
     server: Any,
     *,
@@ -199,6 +289,13 @@ def execute_requested_intake(
             "error": "Workspace initialization report artifact not found.",
             "workspace_initialization_ref": initialization_ref,
         }
+    initialization_report = _read_json_object(initialization_path)
+    initialization_error = _initialization_report_error(
+        initialization_report,
+        selected_workspace_id=selected_workspace_id,
+    )
+    if initialization_error is not None:
+        return HTTPStatus.CONFLICT, initialization_error
 
     runs_dir = getattr(server, "runs_dir", None)
     if not isinstance(runs_dir, Path):
@@ -211,6 +308,13 @@ def execute_requested_intake(
             "error": "Real idea entry request state artifact not found.",
             "entry_requests_ref": "specspace-state://real_idea_entry_requests.json",
         }
+    entry_error = _entry_request_error(
+        server,
+        selected_workspace_id=selected_workspace_id,
+        entry_request_id=_text(request.get("entry_request_id")),
+    )
+    if entry_error is not None:
+        return HTTPStatus.CONFLICT, entry_error
     output_path = runs_dir / EXECUTION_REPORT_ARTIFACT
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
 
@@ -246,23 +350,64 @@ def execute_requested_intake(
         "--format",
         "json",
     ]
-    completed = subprocess.run(
-        command,
-        cwd=str(platform_script.parent.parent),
-        capture_output=True,
-        text=True,
-        timeout=timeout_seconds,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(platform_script.parent.parent),
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as error:
+        return HTTPStatus.GATEWAY_TIMEOUT, {
+            "artifact_kind": "specspace_managed_real_idea_intake_execution",
+            "ok": False,
+            "status": "platform_execution_timeout",
+            "workspace_id": selected_workspace_id,
+            "request_id": request.get("request_id"),
+            "entry_request_id": request.get("entry_request_id"),
+            "execution_request_ref": f"specspace-state://{real_idea_intake_execution_requests.EXECUTION_REQUEST_FILENAME}",
+            "workspace_initialization_ref": initialization_ref,
+            "output_ref": output_ref,
+            "summary": {
+                "status": "managed_real_idea_intake_timeout",
+                "executed": False,
+                "timeout_seconds": timeout_seconds,
+            },
+            "stderr_tail": (error.stderr or "")[-2000:]
+            if isinstance(error.stderr, str)
+            else "",
+            "authority_boundary": {
+                "browser_executes_platform": False,
+                "specspace_backend_executes_platform": True,
+                "executes_specgraph": False,
+                "creates_workspace_files": False,
+                "updates_workspace_catalog": False,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+            },
+        }
     stdout = completed.stdout.strip()
     try:
         report = json.loads(stdout) if stdout else {}
     except json.JSONDecodeError:
         report = {}
 
+    success = completed.returncode == 0
+    if success:
+        real_idea_intake_execution_requests.mark_request_consumed(
+            server,
+            workspace_id=selected_workspace_id,
+            request_id=str(request.get("request_id")),
+        )
+
     response = {
         "artifact_kind": "specspace_managed_real_idea_intake_execution",
-        "ok": completed.returncode == 0,
-        "status": "completed" if completed.returncode == 0 else "failed",
+        "ok": success,
+        "status": "completed" if success else "failed",
         "workspace_id": selected_workspace_id,
         "request_id": request.get("request_id"),
         "entry_request_id": request.get("entry_request_id"),
@@ -291,13 +436,13 @@ def execute_requested_intake(
         },
         "summary": {
             "status": "managed_real_idea_intake_executed"
-            if completed.returncode == 0
+            if success
             else "managed_real_idea_intake_failed",
             "executed": True,
             "output_ref": output_ref,
         },
     }
     return (
-        HTTPStatus.OK if completed.returncode == 0 else HTTPStatus.BAD_GATEWAY,
+        HTTPStatus.OK if success else HTTPStatus.BAD_GATEWAY,
         response,
     )
