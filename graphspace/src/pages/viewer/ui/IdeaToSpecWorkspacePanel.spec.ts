@@ -581,6 +581,37 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
   });
 
+  it("shows managed review-status inspection action after promotion execution opens review", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_approval_path.available = true;
+    raw.guided_approval_path.stage = "review_merge_waiting";
+    raw.guided_approval_path.status = "waiting_for_operator";
+    raw.guided_approval_path.next_action =
+      "Inspect repository review status for the opened promotion PR.";
+    raw.guided_approval_path.state.promotion_request_ok = true;
+    raw.guided_approval_path.state.promotion_execution_status = null;
+    raw.guided_approval_path.state.review_state = null;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+        reviewStatusExecuteUrl: "/api/v1/idea-to-spec-review-status/execute",
+      }),
+    );
+
+    expect(html).toContain(
+      "Inspect repository review status for the opened promotion PR.",
+    );
+    expect(html).toContain("Inspect review status");
+    expect(html).toContain(
+      "SpecSpace backend will call the allowlisted Platform review-status inspection.",
+    );
+  });
+
   it("renders template-backed intake answers for all required fields", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     const target =
