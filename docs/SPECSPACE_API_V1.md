@@ -1087,6 +1087,61 @@ Authority boundary:
 - SpecSpace does not create Git commits, open PRs, publish read models, write
   Ontology packages, accept Ontology terms, or mutate canonical specs.
 
+### `POST /api/v1/real-idea-intake/execute`
+
+Optionally executes a previously requested real idea intake handoff through the
+SpecSpace backend. This is the intake counterpart to managed workspace
+initialization: the browser records request-only state, and an explicitly
+enabled SpecSpace backend calls only the allowlisted Platform
+`product-real-idea-intake execute-requested` wrapper.
+
+Server opt-in:
+
+```bash
+python viewer/server.py \
+  --dialog-dir /data/dialogs \
+  --runs-dir /repo/SpecGraph/runs \
+  --specspace-state-dir /data/specspace-state \
+  --platform-dir /repo/Platform \
+  --specgraph-dir /repo/SpecGraph \
+  --enable-platform-execution
+```
+
+Request:
+
+```json
+{
+  "workspace_id": "team-decision-log",
+  "request_id": "real-idea-intake-execute.team-decision-log.20260706.abcd12"
+}
+```
+
+`request_id` is optional when exactly one active
+`real_idea_intake_execution_requests.json` entry exists for the selected
+workspace. SpecSpace validates the matching SpecSpace-owned execution request,
+the local raw idea entry state, the referenced workspace initialization report,
+the configured Platform checkout, and the configured SpecGraph checkout before
+execution. On success Platform writes:
+
+```text
+runs/platform_real_idea_entry_intake_execution_report.json
+```
+
+The Product Workspace then refreshes from that report and the generated
+SpecGraph intake artifacts. Deployments should point `--runs-dir` at the
+SpecGraph run directory used by Platform so the resulting artifacts are visible
+to the same workspace provider.
+
+Authority boundary:
+
+- the browser does not execute Platform directly;
+- SpecSpace backend may execute only the allowlisted Platform real idea intake
+  wrapper when explicitly enabled;
+- raw idea text remains SpecSpace/local-operator state and is not published by
+  this endpoint;
+- SpecSpace does not create Git commits, open PRs, publish read models, write
+  Ontology packages, accept Ontology terms, or mutate canonical specs.
+
 ### `GET/POST /api/v1/real-idea-entry-requests`
 
 Stores SpecSpace-owned raw idea entry requests for a product workspace. This is

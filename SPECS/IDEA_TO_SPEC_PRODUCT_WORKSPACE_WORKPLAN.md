@@ -50,6 +50,12 @@ reviews, or publish read models.
   initialization operation, writes the Platform execution report, and refreshes
   Product Workspace lifecycle from the resulting artifact. Browser authority is
   still limited to requesting the SpecSpace backend operation.
+- Backend-managed real idea intake execution. After the user saves raw idea
+  state and requests controlled intake, SpecSpace can expose an opt-in backend
+  endpoint that calls the allowlisted Platform
+  `product-real-idea-intake execute-requested` operation, writes the Platform
+  execution report, and refreshes Product Workspace lifecycle into
+  clarification/intake state. Browser authority remains request-only.
 - Visible handoff command for controlled Platform intake execution.
 - Product Workspace visibility for the Platform real idea intake execution
   report, including operations and generated output artifacts.
@@ -522,6 +528,14 @@ Acceptance criteria:
   evidence, and can call the allowlisted Platform initialization command when
   the backend is explicitly started with Platform execution enabled. The
   browser still does not execute Platform directly.
+- The real idea intake surface can execute the controlled Platform intake
+  handoff after the operator has saved raw idea state and requested intake
+  execution. Done for opt-in backend-managed execution: SpecSpace validates the
+  current workspace request, raw idea entry state, and workspace initialization
+  report, then calls the allowlisted Platform
+  `product-real-idea-intake execute-requested` wrapper. The browser still only
+  requests the SpecSpace backend operation and does not execute Platform or
+  SpecGraph directly.
 - The initial idea captured by the wizard is available only as selected
   workspace local UI state and is not exposed by the standalone
   `product-workspace-creation-requests` endpoint or public artifacts.

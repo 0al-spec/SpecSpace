@@ -183,6 +183,10 @@ POST_ROUTES: dict[str, RouteSpec] = {
         "handle_v1_product_workspace_initialization_execute_post",
         pass_parsed=True,
     ),
+    "/api/v1/real-idea-intake/execute": RouteSpec(
+        "handle_v1_real_idea_intake_execute_post",
+        pass_parsed=True,
+    ),
     "/api/v1/idea-to-spec-repair-rerun-requests": RouteSpec(
         "handle_v1_idea_to_spec_repair_rerun_request_post",
         pass_parsed=True,

@@ -6959,6 +6959,210 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertIn("may_execute_platform", body["error"])
         self.assertFalse(state_written)
 
+    def test_real_idea_intake_execute_disabled_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs",
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/real-idea-intake/execute?workspace=pantry-rotation",
+                    {"workspace_id": "pantry-rotation"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 503)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_execution_unavailable")
+        self.assertFalse(body["authority_boundary"]["browser_executes_platform"])
+        self.assertFalse(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+
+    def test_real_idea_intake_execute_runs_allowlisted_platform(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text(
+                "real-idea-intake-from-entry-request:\n\t@true\n",
+                encoding="utf-8",
+            )
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "\n".join(
+                    [
+                        "import json",
+                        "import sys",
+                        "from pathlib import Path",
+                        "output = Path(sys.argv[sys.argv.index('--output') + 1])",
+                        "report = {",
+                        "    'artifact_kind': 'platform_real_idea_entry_intake_execution_report',",
+                        "    'schema_version': 1,",
+                        "    'ok': True,",
+                        "    'dry_run': True,",
+                        "    'summary': {",
+                        "        'status': 'real_idea_entry_intake_dry_run',",
+                        "        'workspace_id': 'pantry-rotation',",
+                        "        'specgraph_executed': False,",
+                        "    },",
+                        "    'authority_boundary': {",
+                        "        'executes_specgraph_make_target': False,",
+                        "        'creates_git_commits': False,",
+                        "        'opens_pull_requests': False,",
+                        "        'publishes_read_models': False,",
+                        "        'writes_ontology_packages': False,",
+                        "        'accepts_ontology_terms': False,",
+                        "    },",
+                        "}",
+                        "output.write_text(json.dumps(report), encoding='utf-8')",
+                        "print(json.dumps(report))",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": (
+                        "platform_product_workspace_initialization_execution_report"
+                    ),
+                    "ok": True,
+                    "workspace": {"workspace_id": "pantry-rotation"},
+                    "summary": {"status": "workspace_initialization_executed"},
+                },
+            )
+            _write_json(
+                state_dir / "real_idea_entry_requests.json",
+                {
+                    "artifact_kind": "specspace_real_idea_entry_request_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "requests": [],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                request_status, _request_body = _post(
+                    f"{base}/api/v1/real-idea-intake-execution-requests?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "entry_request_id": "real-idea-entry.pantry-rotation.20260704.abcd12",
+                        "workspace_initialization_ref": (
+                            "runs/platform_product_workspace_initialization_execution_report.json"
+                        ),
+                    },
+                )
+                status, body = _post(
+                    f"{base}/api/v1/real-idea-intake/execute?workspace=pantry-rotation",
+                    {"workspace_id": "pantry-rotation"},
+                )
+                report_file_exists = (
+                    runs_dir
+                    / idea_to_spec_workspace.PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT
+                ).is_file()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(request_status, 200)
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["status"], "completed")
+        self.assertEqual(
+            body["output_ref"],
+            "runs/platform_real_idea_entry_intake_execution_report.json",
+        )
+        self.assertEqual(body["workspace_id"], "pantry-rotation")
+        self.assertEqual(
+            body["entry_request_id"],
+            "real-idea-entry.pantry-rotation.20260704.abcd12",
+        )
+        self.assertFalse(body["authority_boundary"]["browser_executes_platform"])
+        self.assertTrue(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+        self.assertTrue(report_file_exists)
+
+    def test_real_idea_intake_execute_requires_initialization_report(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            _write_json(
+                state_dir / "real_idea_entry_requests.json",
+                {
+                    "artifact_kind": "specspace_real_idea_entry_request_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "requests": [],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                request_status, _request_body = _post(
+                    f"{base}/api/v1/real-idea-intake-execution-requests?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "entry_request_id": "real-idea-entry.pantry-rotation.20260704.abcd12",
+                        "workspace_initialization_ref": (
+                            "runs/platform_product_workspace_initialization_execution_report.json"
+                        ),
+                    },
+                )
+                status, body = _post(
+                    f"{base}/api/v1/real-idea-intake/execute?workspace=pantry-rotation",
+                    {"workspace_id": "pantry-rotation"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(request_status, 200)
+        self.assertEqual(status, 404)
+        self.assertEqual(
+            body["workspace_initialization_ref"],
+            "runs/platform_product_workspace_initialization_execution_report.json",
+        )
+
     def test_real_idea_answer_continuation_execution_requests_v1_reads_empty_state(
         self,
     ) -> None:

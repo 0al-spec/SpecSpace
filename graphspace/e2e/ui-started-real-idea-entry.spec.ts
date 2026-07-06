@@ -192,6 +192,7 @@ async function runCommand(
 async function startSpecSpaceBackend(options: {
   seedIntakeRuns?: boolean;
   platformDir?: string;
+  specGraphDir?: string;
   enablePlatformExecution?: boolean;
 } = {}): Promise<SpecSpaceBackend> {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "specspace-ui-e2e-"));
@@ -222,6 +223,7 @@ async function startSpecSpaceBackend(options: {
       ...(options.platformDir
         ? ["--platform-dir", options.platformDir]
         : []),
+      ...(options.specGraphDir ? ["--specgraph-dir", options.specGraphDir] : []),
       ...(options.enablePlatformExecution ? ["--enable-platform-execution"] : []),
     ],
     {
@@ -608,6 +610,56 @@ async function writeFakePlatformForWorkspaceInitialization(root: string) {
       "request = Path(sys.argv[sys.argv.index('--execution-request') + 1])",
       "output = Path(sys.argv[sys.argv.index('--output') + 1])",
       "request_payload = json.loads(request.read_text(encoding='utf-8'))",
+      "if 'product-real-idea-intake' in sys.argv:",
+      "    report = {",
+      "        'artifact_kind': 'platform_real_idea_entry_intake_execution_report',",
+      "        'schema_version': 1,",
+      "        'ok': True,",
+      "        'dry_run': False,",
+      "        'canonical_mutations_allowed': False,",
+      "        'tracked_artifacts_written': False,",
+      "        'run_dir': 'runs/pantry-rotation',",
+      "        'target_make': {'target': 'real-idea-intake-from-entry-request'},",
+      "        'summary': {",
+      "            'status': 'real_idea_entry_intake_executed',",
+      "            'workspace_id': 'pantry-rotation',",
+      "            'specgraph_executed': True,",
+      "        },",
+      "        'operations': [",
+      "            {",
+      "                'name': 'execute_specgraph_real_idea_entry_intake',",
+      "                'status': 'succeeded',",
+      "                'evidence': ['real-idea-intake-from-entry-request'],",
+      "            }",
+      "        ],",
+      "        'output_artifacts': {",
+      "            'entry_intake_report': {",
+      "                'path': 'runs/pantry-rotation/real_idea_entry_request_intake_report.json',",
+      "                'present': True,",
+      "                'ready': True,",
+      "                'artifact_kind': 'real_idea_entry_request_intake_report',",
+      "                'status': 'ready',",
+      "            },",
+      "            'clarification_requests': {",
+      "                'path': 'runs/pantry-rotation/idea_intake_clarification_requests.json',",
+      "                'present': True,",
+      "                'ready': True,",
+      "                'artifact_kind': 'idea_intake_clarification_requests',",
+      "                'status': 'ready',",
+      "            },",
+      "        },",
+      "        'authority_boundary': {",
+      "            'executes_specgraph_make_target': True,",
+      "            'creates_git_commits': False,",
+      "            'opens_pull_requests': False,",
+      "            'publishes_read_models': False,",
+      "            'writes_ontology_packages': False,",
+      "            'accepts_ontology_terms': False,",
+      "        },",
+      "    }",
+      "    output.write_text(json.dumps(report), encoding='utf-8')",
+      "    print(json.dumps(report))",
+      "    raise SystemExit(0)",
       "report = {",
       "    'artifact_kind': 'platform_product_workspace_initialization_execution_report',",
       "    'schema_version': 1,",
@@ -640,6 +692,17 @@ async function writeFakePlatformForWorkspaceInitialization(root: string) {
     "utf-8",
   );
   return platformDir;
+}
+
+async function writeFakeSpecGraphForManagedExecution(root: string) {
+  const specGraphDir = path.join(root, "fake-specgraph");
+  await mkdir(specGraphDir, { recursive: true });
+  await writeFile(
+    path.join(specGraphDir, "Makefile"),
+    "real-idea-intake-from-entry-request:\n\t@true\n",
+    "utf-8",
+  );
+  return specGraphDir;
 }
 
 async function publishRealIdeaContinuationArtifacts(args: {
@@ -1980,8 +2043,10 @@ test("runs workspace initialization through SpecSpace backend managed execution"
   const platformDir = await writeFakePlatformForWorkspaceInitialization(
     fakePlatformRoot,
   );
+  const specGraphDir = await writeFakeSpecGraphForManagedExecution(fakePlatformRoot);
   const backend = await startSpecSpaceBackend({
     platformDir,
+    specGraphDir,
     enablePlatformExecution: true,
   });
   try {
@@ -2023,6 +2088,28 @@ test("runs workspace initialization through SpecSpace backend managed execution"
       page.getByTestId("workspace-initialization-path-next-action"),
     ).toContainText("Start or continue raw idea intake in this workspace.");
     await expect(page.getByTestId("real-idea-entry-text")).toBeEnabled();
+    await page
+      .getByTestId("real-idea-entry-text")
+      .fill("A pantry rotation assistant for household food inventory.");
+    await page.getByTestId("real-idea-entry-summary").fill("Pantry Rotation");
+    await page.getByTestId("real-idea-entry-submit").click();
+    await expect(page.getByTestId("real-idea-intake-execution-request")).toBeEnabled();
+    await page.getByTestId("real-idea-intake-execution-request").click();
+    await expect(
+      page.getByTestId("real-idea-intake-execution-request-status"),
+    ).toContainText("Requested execution");
+    await expect(page.getByTestId("real-idea-intake-managed-execute")).toBeEnabled();
+    await page.getByTestId("real-idea-intake-managed-execute").click();
+
+    await expect(
+      page.getByText("Execution: managed_real_idea_intake_executed"),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Platform intake execution", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("execute_specgraph_real_idea_entry_intake"),
+    ).toBeVisible();
   } finally {
     await backend.stop();
     await rm(fakePlatformRoot, { recursive: true, force: true });
