@@ -164,6 +164,16 @@ def test_route_table_resolves_repair_rerun_request_gate_execute() -> None:
     assert post_route.pass_parsed is True
 
 
+def test_route_table_resolves_repair_rerun_execute() -> None:
+    post_route = routes.route_for(
+        "POST", "/api/v1/idea-to-spec-repair-rerun/execute"
+    )
+
+    assert post_route is not None
+    assert post_route.handler == "handle_v1_idea_to_spec_repair_rerun_execute_post"
+    assert post_route.pass_parsed is True
+
+
 def test_route_table_resolves_real_idea_intake_execution_requests() -> None:
     get_route = routes.route_for("GET", "/api/v1/real-idea-intake-execution-requests")
     post_route = routes.route_for("POST", "/api/v1/real-idea-intake-execution-requests")

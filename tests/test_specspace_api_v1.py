@@ -8265,6 +8265,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "runs/specspace_repair_draft_import_preview.json",
         )
 
+
     def test_repair_rerun_request_gate_execute_rejects_stale_request(
         self,
     ) -> None:
@@ -8340,6 +8341,456 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         state = body["workspace_state_hygiene"]["states"][0]
         self.assertEqual(state["kind"], "repair_rerun_request")
         self.assertEqual(state["status"], "stale")
+
+    def test_repair_rerun_execute_disabled_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs",
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-repair-rerun/execute"
+                        "?workspace=pantry-rotation"
+                    ),
+                    {"workspace_id": "pantry-rotation"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 503)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_execution_unavailable")
+        self.assertFalse(body["authority_boundary"]["browser_executes_platform"])
+        self.assertFalse(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+
+    def test_repair_rerun_execute_runs_allowlisted_platform_plan_and_execute(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text(
+                "product-workspace-requested-repair-draft-rerun:\n\t@true\n"
+                "product-workspace-repaired-promotion-handoff:\n\t@true\n",
+                encoding="utf-8",
+            )
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "\n".join(
+                    [
+                        "import json",
+                        "import sys",
+                        "from pathlib import Path",
+                        "cmd = sys.argv[1:3]",
+                        "output = Path(sys.argv[sys.argv.index('--output') + 1])",
+                        "if cmd == ['product-repair-rerun', 'plan']:",
+                        "    report = {",
+                        "        'artifact_kind': 'platform_product_repair_rerun_execution_plan',",
+                        "        'schema_version': 1,",
+                        "        'ready_to_execute': True,",
+                        "        'specgraph_dir': sys.argv[sys.argv.index('--specgraph-dir') + 1],",
+                        "        'summary': {'status': 'ready_to_execute'},",
+                        "    }",
+                        "else:",
+                        "    report = {",
+                        "        'artifact_kind': 'platform_product_repair_rerun_execution_report',",
+                        "        'schema_version': 1,",
+                        "        'ok': True,",
+                        "        'dry_run': False,",
+                        "        'summary': {'status': 'completed'},",
+                        "        'authority_boundary': {",
+                        "            'executes_specgraph_make_target': True,",
+                        "            'executes_git_commands': False,",
+                        "            'opens_pull_requests': False,",
+                        "            'publishes_read_models': False,",
+                        "            'writes_ontology_packages': False,",
+                        "            'accepts_ontology_terms': False,",
+                        "        },",
+                        "        'operations': [",
+                        "            {'name': 'execute_specgraph_requested_rerun', 'status': 'succeeded'},",
+                        "            {'name': 'execute_specgraph_repaired_promotion_handoff', 'status': 'succeeded'},",
+                        "        ],",
+                        "    }",
+                        "output.write_text(json.dumps(report), encoding='utf-8')",
+                        "print(json.dumps(report))",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            _write_json(
+                runs_dir / "specspace_repair_draft_import_preview.json",
+                {
+                    "artifact_kind": "specspace_repair_draft_import_preview",
+                    "summary": {"accepted_for_rerun_count": 1},
+                },
+            )
+            _write_json(
+                runs_dir / "idea_to_spec_repair_session.json",
+                {
+                    "artifact_kind": "idea_to_spec_repair_session",
+                    "summary": {"ready_for_candidate_approval": False},
+                },
+            )
+            _write_json(
+                runs_dir / "specspace_repair_rerun_request_gate.json",
+                {
+                    "artifact_kind": "specspace_repair_rerun_request_gate",
+                    "status": "specspace_repair_rerun_request_gate_ready",
+                    "readiness": {"ready": True, "blocked_by": []},
+                },
+            )
+            _write_json(
+                state_dir / "idea_to_spec_repair_rerun_requests.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_repair_rerun_request_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "requests": [
+                        {
+                            "id": "repair-rerun-request.pantry-rotation.1",
+                            "status": "requested",
+                            "requested_action": "prepare_repair_draft_rerun",
+                            "workspace_id": "pantry-rotation",
+                            "candidate_id": "pantry-rotation",
+                            "created_at": "2026-01-01T00:00:00Z",
+                            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                            "import_preview_ref": (
+                                "runs/specspace_repair_draft_import_preview.json"
+                            ),
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-repair-rerun/execute"
+                        "?workspace=pantry-rotation"
+                    ),
+                    {"workspace_id": "pantry-rotation"},
+                )
+                plan_file_exists = (
+                    runs_dir
+                    / "managed_repair_rerun_plans"
+                    / (
+                        "repair-rerun-request-pantry-rotation-1."
+                        "platform_product_repair_rerun_execution_plan.json"
+                    )
+                ).is_file()
+                report_file_exists = (
+                    runs_dir / "platform_product_repair_rerun_execution_report.json"
+                ).is_file()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["status"], "completed")
+        self.assertEqual(body["workspace_id"], "pantry-rotation")
+        self.assertEqual(
+            body["request_id"],
+            "repair-rerun-request.pantry-rotation.1",
+        )
+        self.assertEqual(
+            body["plan_ref"],
+            (
+                "runs/managed_repair_rerun_plans/"
+                "repair-rerun-request-pantry-rotation-1."
+                "platform_product_repair_rerun_execution_plan.json"
+            ),
+        )
+        self.assertEqual(
+            body["output_ref"],
+            "runs/platform_product_repair_rerun_execution_report.json",
+        )
+        self.assertFalse(body["authority_boundary"]["browser_executes_platform"])
+        self.assertTrue(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+        self.assertTrue(body["authority_boundary"]["executes_specgraph"])
+        self.assertTrue(body["authority_boundary"]["executes_repair_rerun"])
+        self.assertTrue(body["authority_boundary"]["builds_repaired_handoff"])
+        self.assertFalse(body["authority_boundary"]["publishes_public_bundle"])
+        self.assertTrue(plan_file_exists)
+        self.assertTrue(report_file_exists)
+
+    def test_repair_rerun_execute_requires_request_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            _write_json(
+                runs_dir / "specspace_repair_draft_import_preview.json",
+                {"artifact_kind": "specspace_repair_draft_import_preview"},
+            )
+            _write_json(
+                runs_dir / "idea_to_spec_repair_session.json",
+                {"artifact_kind": "idea_to_spec_repair_session"},
+            )
+            _write_json(
+                state_dir / "idea_to_spec_repair_rerun_requests.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_repair_rerun_request_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "requests": [
+                        {
+                            "id": "repair-rerun-request.pantry-rotation.1",
+                            "status": "requested",
+                            "requested_action": "prepare_repair_draft_rerun",
+                            "workspace_id": "pantry-rotation",
+                            "candidate_id": "pantry-rotation",
+                            "created_at": "2026-01-01T00:00:00Z",
+                            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                            "import_preview_ref": (
+                                "runs/specspace_repair_draft_import_preview.json"
+                            ),
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-repair-rerun/execute"
+                        "?workspace=pantry-rotation"
+                    ),
+                    {"workspace_id": "pantry-rotation"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "request_gate_missing")
+        self.assertEqual(
+            body["request_gate_ref"],
+            "runs/specspace_repair_rerun_request_gate.json",
+        )
+
+    def test_repair_rerun_execute_rejects_unready_request_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            _write_json(
+                runs_dir / "specspace_repair_draft_import_preview.json",
+                {"artifact_kind": "specspace_repair_draft_import_preview"},
+            )
+            _write_json(
+                runs_dir / "idea_to_spec_repair_session.json",
+                {"artifact_kind": "idea_to_spec_repair_session"},
+            )
+            _write_json(
+                runs_dir / "specspace_repair_rerun_request_gate.json",
+                {
+                    "artifact_kind": "specspace_repair_rerun_request_gate",
+                    "status": "specspace_repair_rerun_request_gate_blocked",
+                    "readiness": {"ready": False, "blocked_by": ["stale_request"]},
+                    "workspace_id": "pantry-rotation",
+                },
+            )
+            _write_json(
+                state_dir / "idea_to_spec_repair_rerun_requests.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_repair_rerun_request_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "requests": [
+                        {
+                            "id": "repair-rerun-request.pantry-rotation.1",
+                            "status": "requested",
+                            "requested_action": "prepare_repair_draft_rerun",
+                            "workspace_id": "pantry-rotation",
+                            "candidate_id": "pantry-rotation",
+                            "created_at": "2026-01-01T00:00:00Z",
+                            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                            "import_preview_ref": (
+                                "runs/specspace_repair_draft_import_preview.json"
+                            ),
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-repair-rerun/execute"
+                        "?workspace=pantry-rotation"
+                    ),
+                    {"workspace_id": "pantry-rotation"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "request_gate_not_ready")
+        self.assertEqual(
+            body["request_gate_ref"],
+            "runs/specspace_repair_rerun_request_gate.json",
+        )
+
+    def test_repair_rerun_execute_treats_failed_platform_report_as_failed(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text(
+                "product-workspace-requested-repair-draft-rerun:\n\t@true\n"
+                "product-workspace-repaired-promotion-handoff:\n\t@true\n",
+                encoding="utf-8",
+            )
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "\n".join(
+                    [
+                        "import json",
+                        "import sys",
+                        "from pathlib import Path",
+                        "cmd = sys.argv[1:3]",
+                        "output = Path(sys.argv[sys.argv.index('--output') + 1])",
+                        "if cmd == ['product-repair-rerun', 'plan']:",
+                        "    report = {'ready_to_execute': True, 'ok': True}",
+                        "else:",
+                        "    report = {",
+                        "        'artifact_kind': 'platform_product_repair_rerun_execution_report',",
+                        "        'ok': False,",
+                        "        'summary': {'status': 'blocked'},",
+                        "        'authority_boundary': {'executes_specgraph_make_target': False},",
+                        "    }",
+                        "output.write_text(json.dumps(report), encoding='utf-8')",
+                        "print(json.dumps(report))",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            _write_json(
+                runs_dir / "specspace_repair_draft_import_preview.json",
+                {"artifact_kind": "specspace_repair_draft_import_preview"},
+            )
+            _write_json(
+                runs_dir / "idea_to_spec_repair_session.json",
+                {"artifact_kind": "idea_to_spec_repair_session"},
+            )
+            _write_json(
+                runs_dir / "specspace_repair_rerun_request_gate.json",
+                {
+                    "artifact_kind": "specspace_repair_rerun_request_gate",
+                    "status": "specspace_repair_rerun_request_gate_ready",
+                    "readiness": {"ready": True, "blocked_by": []},
+                },
+            )
+            _write_json(
+                state_dir / "idea_to_spec_repair_rerun_requests.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_repair_rerun_request_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "requests": [
+                        {
+                            "id": "repair-rerun-request.pantry-rotation.1",
+                            "status": "requested",
+                            "requested_action": "prepare_repair_draft_rerun",
+                            "workspace_id": "pantry-rotation",
+                            "candidate_id": "pantry-rotation",
+                            "created_at": "2026-01-01T00:00:00Z",
+                            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                            "import_preview_ref": (
+                                "runs/specspace_repair_draft_import_preview.json"
+                            ),
+                        }
+                    ],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-repair-rerun/execute"
+                        "?workspace=pantry-rotation"
+                    ),
+                    {"workspace_id": "pantry-rotation"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 502)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "failed")
+        self.assertEqual(body["platform_report"]["summary"]["status"], "blocked")
 
     def test_product_workspace_creation_requests_v1_reads_route_only_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
