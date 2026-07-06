@@ -440,6 +440,34 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
   });
 
+  it("shows managed repair publication action after rerun execution completes", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_repair_path.stage = "rerun_running_or_waiting";
+    raw.guided_repair_path.next_action = "Wait for repaired artifacts to publish.";
+    raw.guided_repair_path.state.rerun_request_status = "requested";
+    raw.guided_repair_path.state.request_gate_status =
+      "specspace_repair_rerun_request_gate_ready";
+    raw.guided_repair_path.state.rerun_execution_status = "completed";
+    raw.guided_repair_path.state.rerun_publication_status = null;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+        repairRerunPublishUrl: "/api/v1/idea-to-spec-repair-rerun/publish",
+      }),
+    );
+
+    expect(html).toContain("Wait for repaired artifacts to publish.");
+    expect(html).toContain("Publish repaired artifacts");
+    expect(html).toContain(
+      "SpecSpace backend will call the allowlisted Platform repair publication operation.",
+    );
+  });
+
   it("renders template-backed intake answers for all required fields", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     const target =

@@ -392,6 +392,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_idea_to_spec_repair_rerun_execute_post = (
         specspace_v1_api.handle_v1_idea_to_spec_repair_rerun_execute_post
     )
+    handle_v1_idea_to_spec_repair_rerun_publish_post = (
+        specspace_v1_api.handle_v1_idea_to_spec_repair_rerun_publish_post
+    )
     handle_v1_project_local_ontology_review_decisions = (
         specspace_v1_api.handle_v1_project_local_ontology_review_decisions
     )
