@@ -208,13 +208,48 @@ def execute_review_status(
         "--format",
         "json",
     ]
-    completed = subprocess.run(
-        command,
-        cwd=str(platform_script.parent.parent),
-        capture_output=True,
-        text=True,
-        timeout=timeout_seconds,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(platform_script.parent.parent),
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return HTTPStatus.GATEWAY_TIMEOUT, {
+            "artifact_kind": "specspace_managed_review_status_execution",
+            "ok": False,
+            "status": "platform_execution_timeout",
+            "workspace_id": selected_workspace_id,
+            "execution_report_ref": (
+                f"runs/{PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT}"
+            ),
+            "output_ref": output_ref,
+            "platform_timeout_seconds": timeout_seconds,
+            "stderr_tail": (exc.stderr or "")[-2000:]
+            if isinstance(exc.stderr, str)
+            else "",
+            "authority_boundary": {
+                "browser_executes_platform": False,
+                "specspace_backend_executes_platform": True,
+                "inspects_review_status": False,
+                "merges_pull_requests": False,
+                "publishes_read_models": False,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+                "mutates_canonical_specs": False,
+            },
+            "summary": {
+                "status": "managed_review_status_timeout",
+                "executed": True,
+                "output_ref": output_ref,
+                "review_merged": False,
+                "next_action": "Inspect Platform review-status timeout and retry.",
+            },
+        }
     stdout = completed.stdout.strip()
     try:
         report = json.loads(stdout) if stdout else {}
