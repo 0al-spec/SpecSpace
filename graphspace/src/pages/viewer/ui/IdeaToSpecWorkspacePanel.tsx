@@ -83,6 +83,7 @@ type Props = {
   realIdeaIntakeExecutionRequestsUrl?: string;
   realIdeaIntakeExecuteUrl?: string;
   realIdeaAnswerContinuationExecutionRequestsUrl?: string;
+  realIdeaAnswerContinuationExecuteUrl?: string;
   repairRerunRequestsUrl?: string;
   candidateApprovalIntentsUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
@@ -395,6 +396,7 @@ export function IdeaToSpecWorkspacePanel({
   realIdeaIntakeExecutionRequestsUrl,
   realIdeaIntakeExecuteUrl,
   realIdeaAnswerContinuationExecutionRequestsUrl,
+  realIdeaAnswerContinuationExecuteUrl,
   repairRerunRequestsUrl,
   candidateApprovalIntentsUrl,
   projectLocalOntologyReviewDecisionsUrl,
@@ -647,6 +649,7 @@ export function IdeaToSpecWorkspacePanel({
         data.workspace.available === true ||
         data.workspace.ready === true
       }
+      executeUrl={realIdeaAnswerContinuationExecuteUrl}
       onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
       readOnly={readOnly}
     />
@@ -2459,6 +2462,7 @@ function IntakeClarificationSection({
   continuationExecutionRequests,
   workspaceId,
   workspaceInitialized,
+  executeUrl,
   onWorkspaceRefreshRequest,
   readOnly,
 }: {
@@ -2469,9 +2473,16 @@ function IntakeClarificationSection({
   >;
   workspaceId: string | null;
   workspaceInitialized: boolean;
+  executeUrl?: string;
   onWorkspaceRefreshRequest?: () => void;
   readOnly: boolean;
 }) {
+  const [managedContinuationExecutionState, setManagedContinuationExecutionState] =
+    useState<{
+      pending: boolean;
+      status: string | null;
+      error: string | null;
+    }>({ pending: false, status: null, error: null });
   const lane = state.data.intakeClarification;
   const draftCount = answers.state.kind === "ok" ? answers.state.data.summary.answerCount : 0;
   const acceptedAnswerCount =
@@ -2507,6 +2518,66 @@ function IntakeClarificationSection({
     !lane.answerContinuation.available &&
     !continuationExecutionRequests.pending &&
     activeContinuationRequest === null;
+  const canRunManagedContinuationExecution =
+    !readOnly &&
+    Boolean(executeUrl) &&
+    activeContinuationRequest !== null &&
+    !lane.answerContinuation.available &&
+    !managedContinuationExecutionState.pending;
+  const runManagedAnswerContinuationExecution = async () => {
+    if (!executeUrl || !activeContinuationRequest || !workspaceId) return;
+    setManagedContinuationExecutionState({
+      pending: true,
+      status: null,
+      error: null,
+    });
+    try {
+      const response = await fetch(executeUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          request_id: activeContinuationRequest.requestId,
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        summary?: { status?: unknown };
+        status?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok) {
+        setManagedContinuationExecutionState({
+          pending: false,
+          status: typeof body.status === "string" ? body.status : null,
+          error:
+            typeof body.error === "string"
+              ? body.error
+              : `Managed answer continuation execution failed with HTTP ${response.status}.`,
+        });
+        return;
+      }
+      setManagedContinuationExecutionState({
+        pending: false,
+        status:
+          typeof body.summary?.status === "string"
+            ? body.summary.status
+            : typeof body.status === "string"
+              ? body.status
+              : "completed",
+        error: null,
+      });
+      onWorkspaceRefreshRequest?.();
+    } catch (error) {
+      setManagedContinuationExecutionState({
+        pending: false,
+        status: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Managed answer continuation execution failed.",
+      });
+    }
+  };
   const requestAnswerContinuationExecution = () => {
     void continuationExecutionRequests
       .requestExecution({
@@ -2570,8 +2641,11 @@ function IntakeClarificationSection({
         continuationExecutionRequests={continuationExecutionRequests}
         realIdeaIntake={state.data.realIdeaIntake}
         canRequestExecution={continuationRequestReady}
+        canRunManagedExecution={canRunManagedContinuationExecution}
+        managedExecutionState={managedContinuationExecutionState}
         workspaceId={workspaceId}
         onRequestExecution={requestAnswerContinuationExecution}
+        onRunManagedExecution={runManagedAnswerContinuationExecution}
       />
       <IntakeAnswerAuthoringStatus authoring={lane.answerAuthoring} />
       <IntakeAnswerContinuationStatus
@@ -2632,8 +2706,11 @@ function ClarificationContinuationGuide({
   continuationExecutionRequests,
   realIdeaIntake,
   canRequestExecution,
+  canRunManagedExecution,
+  managedExecutionState,
   workspaceId,
   onRequestExecution,
+  onRunManagedExecution,
 }: {
   lane: IdeaToSpecWorkspace["intakeClarification"];
   answers: ReturnType<typeof useIdeaToSpecIntakeClarificationAnswers>;
@@ -2642,8 +2719,15 @@ function ClarificationContinuationGuide({
   >;
   realIdeaIntake: IdeaToSpecWorkspace["realIdeaIntake"];
   canRequestExecution: boolean;
+  canRunManagedExecution: boolean;
+  managedExecutionState: {
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  };
   workspaceId: string | null;
   onRequestExecution: () => void;
+  onRunManagedExecution: () => void;
 }) {
   const savedAnswerCount =
     answers.state.kind === "ok" ? answers.state.data.summary.answerCount : 0;
@@ -2765,6 +2849,19 @@ function ClarificationContinuationGuide({
             : "Request continuation"}
         </button>
       ) : null}
+      {canRunManagedExecution ? (
+        <button
+          data-testid="guided-clarification-continuation-managed-execute"
+          className={styles.ackButton}
+          type="button"
+          disabled={managedExecutionState.pending}
+          onClick={onRunManagedExecution}
+        >
+          {managedExecutionState.pending
+            ? "Running controlled continuation"
+            : "Run controlled continuation"}
+        </button>
+      ) : null}
       {activeRequest ? (
         <p
           className={styles.statusDetail}
@@ -2772,6 +2869,15 @@ function ClarificationContinuationGuide({
         >
           Requested execution · {activeRequest.requestId} · answers{" "}
           {activeRequest.answerStateRef}
+        </p>
+      ) : null}
+      {managedExecutionState.status || managedExecutionState.error ? (
+        <p
+          className={styles.statusDetail}
+          data-testid="guided-clarification-continuation-managed-execute-status"
+        >
+          Execution: {managedExecutionState.status ?? "failed"}
+          {managedExecutionState.error ? ` · ${managedExecutionState.error}` : ""}
         </p>
       ) : null}
       {continuationExecutionRequests.saveError ? (

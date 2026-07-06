@@ -377,6 +377,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_real_idea_intake_execute_post = (
         specspace_v1_api.handle_v1_real_idea_intake_execute_post
     )
+    handle_v1_real_idea_answer_continuation_execute_post = (
+        specspace_v1_api.handle_v1_real_idea_answer_continuation_execute_post
+    )
     handle_v1_idea_to_spec_repair_rerun_requests = (
         specspace_v1_api.handle_v1_idea_to_spec_repair_rerun_requests
     )
