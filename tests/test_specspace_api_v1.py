@@ -8447,6 +8447,63 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["expected"], "pantry-rotation")
         self.assertEqual(body["actual"], "other-workspace")
 
+    def test_product_workspace_initialization_execute_rejects_invalid_platform_json(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir(parents=True)
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "print('not json')\n",
+                encoding="utf-8",
+            )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT,
+                {
+                    "artifact_kind": (
+                        "platform_product_workspace_initialization_execution_request"
+                    ),
+                    "workspace": {"workspace_id": "pantry-rotation"},
+                    "requested_operation": "workspace.execute-initialization-plan",
+                    "summary": {"ready_for_managed_execution": True},
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/product-workspace-initialization/execute"
+                        "?workspace=pantry-rotation"
+                    ),
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "execution_request_ref": (
+                            "runs/"
+                            + idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT
+                        ),
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 502)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_report_invalid_json")
+        self.assertEqual(
+            body["summary"]["status"],
+            "managed_initialization_invalid_platform_report",
+        )
+
     def test_product_workspace_initialization_execute_returns_timeout_payload(
         self,
     ) -> None:

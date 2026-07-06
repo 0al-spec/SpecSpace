@@ -254,8 +254,35 @@ def execute_requested_initialization(
     stdout = completed.stdout.strip()
     try:
         report = json.loads(stdout) if stdout else {}
-    except json.JSONDecodeError:
-        report = {}
+    except json.JSONDecodeError as error:
+        return HTTPStatus.BAD_GATEWAY, {
+            "artifact_kind": "specspace_managed_workspace_initialization_execution",
+            "ok": False,
+            "status": "platform_report_invalid_json",
+            "workspace_id": selected_workspace_id,
+            "execution_request_ref": request_ref,
+            "output_ref": output_ref,
+            "platform_returncode": completed.returncode,
+            "summary": {
+                "status": "managed_initialization_invalid_platform_report",
+                "executed": completed.returncode == 0,
+                "error": str(error),
+            },
+            "stdout_tail": stdout[-2000:],
+            "stderr_tail": completed.stderr[-2000:] if completed.stderr else "",
+            "authority_boundary": {
+                "browser_executes_platform": False,
+                "specspace_backend_executes_platform": True,
+                "executes_specgraph": False,
+                "creates_workspace_files": False,
+                "updates_workspace_catalog": False,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+            },
+        }
 
     response = {
         "artifact_kind": "specspace_managed_workspace_initialization_execution",
