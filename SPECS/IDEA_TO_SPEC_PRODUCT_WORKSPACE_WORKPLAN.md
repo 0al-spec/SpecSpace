@@ -1,7 +1,7 @@
 # Idea-to-Spec Product Workspace Workplan
 
 Status: active planning
-Updated: 2026-07-05
+Updated: 2026-07-06
 
 ## Purpose
 
@@ -131,6 +131,10 @@ reviews, or publish read models.
   guided clarification path. Later candidate, repair, approval, publication, and
   technical artifact sections stay accessible under collapsed diagnostics /
   advanced artifacts.
+- Playwright lifecycle overview transition coverage now verifies the overview
+  across route-only, workspace creation requested, initialized, clarification,
+  repair, approval, and published states. It checks the current phase, next safe
+  action anchors, early focus mode, and late full lifecycle sections.
 
 ## Next Tasks
 
@@ -143,6 +147,7 @@ Acceptance criteria:
 - Add Playwright coverage that asserts overview transitions through:
   wizard -> initialization, initialized -> raw idea, intake -> clarification,
   repaired handoff -> approval, and publication -> published.
+  Done through lifecycle overview transition e2e.
 - Reduce the fresh-workspace "wall of empty sections" below the overview, while
   preserving access to diagnostic sections when they have evidence or blockers.
   Done through Fresh Workspace Focus Mode.

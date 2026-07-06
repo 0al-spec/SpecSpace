@@ -63,7 +63,17 @@ type UiStartedIdeaScenario = {
   partialBlockingClarification?: boolean;
   blockedAnswerContinuationPublished?: boolean;
   approvalPathPublished?: boolean;
+  overviewStage?: ProductWorkspaceOverviewScenario;
 };
+
+type ProductWorkspaceOverviewScenario =
+  | "route_only"
+  | "creation_requested"
+  | "initialized"
+  | "clarification"
+  | "repair"
+  | "approval"
+  | "published";
 
 declare global {
   interface Window {
@@ -973,6 +983,173 @@ function reviewMergeWaitingGuidedApprovalPath() {
   };
 }
 
+const overviewPhases = [
+  ["workspace", "Workspace", "idea-to-spec-workspace-creation"],
+  ["intake", "Intake", "idea-to-spec-idea-intake"],
+  ["clarification", "Clarification", "idea-to-spec-intake-clarification"],
+  ["candidate", "Candidate", "idea-to-spec-candidate-graph"],
+  ["repair", "Repair", "idea-to-spec-guided-repair-path"],
+  ["approval", "Approval", "idea-to-spec-guided-approval-path"],
+  ["publication", "Publication", "idea-to-spec-controlled-promotion"],
+] as const;
+
+const overviewStageConfig: Record<
+  ProductWorkspaceOverviewScenario,
+  {
+    status: string;
+    currentPhase: string;
+    currentPhaseLabel: string;
+    nextSafeAction: string;
+    targetSection: string;
+    completedPhaseCount: number;
+    lastHandoff: { stageId: string | null; label: string | null; targetSection: string | null };
+  }
+> = {
+  route_only: {
+    status: "route_only",
+    currentPhase: "workspace",
+    currentPhaseLabel: "Workspace",
+    nextSafeAction: "Create a workspace request before starting intake.",
+    targetSection: "idea-to-spec-workspace-creation",
+    completedPhaseCount: 0,
+    lastHandoff: { stageId: null, label: null, targetSection: null },
+  },
+  creation_requested: {
+    status: "creation_requested",
+    currentPhase: "workspace",
+    currentPhaseLabel: "Workspace",
+    nextSafeAction: "Request controlled Platform workspace initialization.",
+    targetSection: "idea-to-spec-workspace-initialization-path",
+    completedPhaseCount: 0,
+    lastHandoff: {
+      stageId: "workspace_creation",
+      label: "Workspace creation request",
+      targetSection: "idea-to-spec-workspace-creation",
+    },
+  },
+  initialized: {
+    status: "initialized",
+    currentPhase: "intake",
+    currentPhaseLabel: "Intake",
+    nextSafeAction: "Start raw idea intake in this workspace.",
+    targetSection: "idea-to-spec-idea-intake",
+    completedPhaseCount: 1,
+    lastHandoff: {
+      stageId: "workspace_initialization",
+      label: "Workspace initialization",
+      targetSection: "idea-to-spec-workspace-initialization-path",
+    },
+  },
+  clarification: {
+    status: "clarification",
+    currentPhase: "clarification",
+    currentPhaseLabel: "Clarification",
+    nextSafeAction: "Answer intake clarification questions before candidate generation.",
+    targetSection: "idea-to-spec-intake-clarification",
+    completedPhaseCount: 2,
+    lastHandoff: {
+      stageId: "intake_execution",
+      label: "Intake execution",
+      targetSection: "idea-to-spec-idea-intake",
+    },
+  },
+  repair: {
+    status: "repair",
+    currentPhase: "repair",
+    currentPhaseLabel: "Repair",
+    nextSafeAction: "Request controlled repair rerun.",
+    targetSection: "idea-to-spec-guided-repair-path",
+    completedPhaseCount: 4,
+    lastHandoff: {
+      stageId: "candidate_graph",
+      label: "Candidate graph",
+      targetSection: "idea-to-spec-candidate-graph",
+    },
+  },
+  approval: {
+    status: "approval",
+    currentPhase: "approval",
+    currentPhaseLabel: "Approval",
+    nextSafeAction: "Request candidate approval materialization.",
+    targetSection: "idea-to-spec-guided-approval-path",
+    completedPhaseCount: 5,
+    lastHandoff: {
+      stageId: "repaired_handoff",
+      label: "Repaired candidate handoff",
+      targetSection: "idea-to-spec-guided-repair-path",
+    },
+  },
+  published: {
+    status: "published",
+    currentPhase: "publication",
+    currentPhaseLabel: "Publication",
+    nextSafeAction: "Inspect the published read model.",
+    targetSection: "idea-to-spec-controlled-promotion",
+    completedPhaseCount: 7,
+    lastHandoff: {
+      stageId: "read_model_publication",
+      label: "Read-model publication",
+      targetSection: "idea-to-spec-controlled-promotion",
+    },
+  },
+};
+
+function productWorkspaceOverviewForScenario(
+  scenario: ProductWorkspaceOverviewScenario,
+) {
+  const config = overviewStageConfig[scenario];
+  const currentIndex = overviewPhases.findIndex(
+    ([phaseId]) => phaseId === config.currentPhase,
+  );
+  return {
+    available: true,
+    status: config.status,
+    current_phase: config.currentPhase,
+    current_phase_label: config.currentPhaseLabel,
+    next_safe_action: config.nextSafeAction,
+    primary_target_section: config.targetSection,
+    readiness: {
+      status: scenario === "published" ? "ready" : "action_required",
+      ready: scenario === "published",
+      blocker_count: 0,
+      blockers: [],
+    },
+    completed_phase_count: config.completedPhaseCount,
+    total_phase_count: overviewPhases.length,
+    last_successful_handoff: {
+      stage_id: config.lastHandoff.stageId,
+      label: config.lastHandoff.label,
+      target_section: config.lastHandoff.targetSection,
+      evidence_refs:
+        config.lastHandoff.stageId === null
+          ? []
+          : [`runs/${config.lastHandoff.stageId}.json`],
+    },
+    confidence: {
+      level: scenario === "published" ? "ready" : "projected",
+      reason: "Projected lifecycle overview transition fixture.",
+      source_refs: [`runs/${scenario}_overview_fixture.json`],
+      maturity_lifecycle_state: config.currentPhase,
+    },
+    phases: overviewPhases.map(([id, label, targetSection], index) => ({
+      id,
+      label,
+      state:
+        scenario === "published"
+          ? "complete"
+          : index < currentIndex
+            ? "complete"
+            : index === currentIndex
+              ? "current"
+              : "pending",
+      target_section: targetSection,
+      blockers: [],
+      evidence_refs: index <= currentIndex ? [`runs/${id}_evidence.json`] : [],
+    })),
+    authority_boundary: safeActionBoundary(),
+  };
+}
+
 async function workspacePayload(
   backendBaseUrl: string,
   scenario: UiStartedIdeaScenario,
@@ -1006,6 +1183,11 @@ async function workspacePayload(
     scenario.approvalPathPublished === true
       ? reviewMergeWaitingGuidedApprovalPath()
       : missingGuidedApprovalPath();
+  if (scenario.overviewStage) {
+    payload.product_workspace_overview = productWorkspaceOverviewForScenario(
+      scenario.overviewStage,
+    );
+  }
 
   if (!hasSubmittedEntry) {
     payload.real_idea_intake = {
@@ -1347,6 +1529,45 @@ async function installIdeaToSpecApiRoutes(
   });
 }
 
+async function expectProductWorkspaceOverviewStage(
+  page: Page,
+  scenario: ProductWorkspaceOverviewScenario,
+) {
+  const config = overviewStageConfig[scenario];
+  const overview = page.locator("#idea-to-spec-product-workspace-overview");
+  await expect(overview.getByTestId("product-workspace-overview-next-action")).toContainText(
+    config.nextSafeAction,
+  );
+  await expect(overview).toContainText(config.currentPhaseLabel);
+  await expect(page.getByTestId("product-workspace-phase-timeline")).toContainText(
+    config.currentPhaseLabel,
+  );
+  const nextActionLink = overview
+    .locator("a")
+    .filter({ hasText: config.nextSafeAction })
+    .first();
+  await expect(nextActionLink).toHaveAttribute("href", `#${config.targetSection}`);
+
+  const freshWorkspaceFocus = page.getByTestId("fresh-workspace-focus");
+  const shouldUseFocus = [
+    "route_only",
+    "creation_requested",
+    "initialized",
+    "clarification",
+  ].includes(scenario);
+  if (shouldUseFocus) {
+    await expect(freshWorkspaceFocus).toBeVisible();
+    await expect(page.locator("#idea-to-spec-candidate-graph")).not.toBeVisible();
+  } else {
+    await expect(freshWorkspaceFocus).toHaveCount(0);
+  }
+
+  await nextActionLink.evaluate((element) => {
+    (element as HTMLAnchorElement).click();
+  });
+  await expect(page.locator(`#${config.targetSection}`)).toBeVisible();
+}
+
 test("submits a raw real idea entry request from the product workspace UI", async ({
   page,
 }) => {
@@ -1652,6 +1873,39 @@ test("refreshes an opened workspace after controlled initialization is published
       "Pantry Rotation",
     );
     await expect(page.getByTestId("real-idea-entry-submit")).toBeEnabled();
+  } finally {
+    await backend.stop();
+  }
+});
+
+test("updates product workspace overview across lifecycle transitions", async ({
+  page,
+}) => {
+  const backend = await startSpecSpaceBackend();
+  const scenario: UiStartedIdeaScenario = {
+    intakeExecutionPublished: false,
+    overviewStage: "route_only",
+  };
+  try {
+    await installRunsWatchMock(page);
+    await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
+
+    await page.goto(`/${workspaceId}`);
+    await expect(page.getByText("Idea-to-Spec Workspace")).toBeVisible();
+
+    for (const overviewStage of [
+      "route_only",
+      "creation_requested",
+      "initialized",
+      "clarification",
+      "repair",
+      "approval",
+      "published",
+    ] as const) {
+      scenario.overviewStage = overviewStage;
+      await emitRunsChange(page);
+      await expectProductWorkspaceOverviewStage(page, overviewStage);
+    }
   } finally {
     await backend.stop();
   }
