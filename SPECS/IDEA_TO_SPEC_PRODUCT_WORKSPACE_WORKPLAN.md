@@ -44,6 +44,16 @@ reviews, or publish read models.
 
 ## Recently Closed
 
+- Managed Operations Contract and regression inventory. The Product Workspace
+  backend-managed operations introduced across workspace initialization, intake,
+  clarification continuation, repair rerun, candidate approval, promotion
+  request/execution, review-status inspection, and read-model publication now
+  have a single machine-readable registry in
+  `viewer/managed_operations_registry.py` plus a human-readable contract in
+  `docs/MANAGED_OPERATIONS_CONTRACT.md`. Tests verify operation ids, route and
+  handler coverage, normalized UI state vocabulary, output evidence, idempotency
+  metadata, and authority-flag policy before future managed actions can be
+  added casually.
 - Raw idea entry state in SpecSpace.
 - Browser E2E for raw idea submit into SpecSpace-owned mutable state.
 - Workspace and `guided_flow` refresh after successful raw idea submit.
