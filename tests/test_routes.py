@@ -251,6 +251,14 @@ def test_route_table_resolves_idea_to_spec_candidate_approval_intents() -> None:
     assert post_route.pass_parsed is True
 
 
+def test_route_table_resolves_candidate_approval_execute() -> None:
+    route = routes.route_for("POST", "/api/v1/idea-to-spec-candidate-approval/execute")
+
+    assert route is not None
+    assert route.handler == "handle_v1_idea_to_spec_candidate_approval_execute_post"
+    assert route.pass_parsed is True
+
+
 def test_route_table_resolves_ontology_compliance_review() -> None:
     route = routes.route_for("GET", "/api/v1/ontology-compliance-review")
 

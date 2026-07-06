@@ -151,6 +151,15 @@ reviews, or publish read models.
   public-safe bundle evidence. Browser authority remains request-only; this
   does not create Git artifacts, publish read models, or mutate canonical
   specs/Ontology.
+- Backend-managed candidate approval materialization. After the repaired
+  candidate is approval-ready, repair rerun artifacts are published, and the
+  operator records approval intent, SpecSpace can expose an opt-in backend
+  endpoint that calls the allowlisted Platform
+  `product-candidate-approval approve` operation, writes the candidate approval
+  gate, `candidate_approval_decision.json`, and Platform approval execution
+  report, then refreshes the guided approval path. Browser authority remains
+  request-only; this does not create Git artifacts, open PRs, publish read
+  models, or mutate canonical specs/Ontology.
 - Guided approval and promotion is now a dedicated Product Workspace path rather
   than a scattered set of approval readiness and controlled-promotion sections.
   The UI shows approval intent, Platform approval materialization, promotion
@@ -353,10 +362,11 @@ Follow-up scope:
 - Replace remaining direct API writes in the e2e harness with browser-level UI
   interactions where the Product Workspace already has forms.
 - Keep repair/promotion command hints read-only until Platform owns each
-  controlled execution wrapper. The repair rerun request gate and full
-  requested repair rerun execution and repair rerun publication are now covered
-  by backend-managed Platform wrappers. Approval/promotion execution remains on
-  separate request/report surfaces.
+  controlled execution wrapper. The repair rerun request gate, full requested
+  repair rerun execution, repair rerun publication, and candidate approval
+  materialization are now covered by backend-managed Platform wrappers.
+  Promotion request, Git Service execution, review status, and read-model
+  publication remain on separate request/report surfaces.
 - If approval/promotion becomes request-driven from the browser, add
   SpecSpace-owned request artifacts first and keep Platform as the executor
   boundary.

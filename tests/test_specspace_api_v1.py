@@ -9032,6 +9032,199 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(body["authority_boundary"]["publishes_public_bundle"])
         self.assertTrue(report_file_exists)
 
+    def test_candidate_approval_execute_runs_allowlisted_platform_approve(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_candidate_approval_intent_state(state_dir)
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "\n".join(
+                    [
+                        "import json",
+                        "import sys",
+                        "from pathlib import Path",
+                        "gate = Path(sys.argv[sys.argv.index('--gate-output') + 1])",
+                        "decision = Path(sys.argv[sys.argv.index('--decision-output') + 1])",
+                        "output = Path(sys.argv[sys.argv.index('--output') + 1])",
+                        "paths = [sys.argv[index + 1] for index, value in enumerate(sys.argv) if value == '--path']",
+                        "gate_report = {'artifact_kind': 'platform_candidate_approval_intent_gate_report', 'ok': True, 'ready_to_materialize': True, 'approved_paths': paths, 'summary': {'candidate_id': 'team-decision-log', 'workspace_id': 'team-decision-log'}}",
+                        "decision_report = {'artifact_kind': 'candidate_approval_decision', 'readiness': {'ready': True}, 'promotion_request': {'paths': paths}}",
+                        "report = {",
+                        "    'artifact_kind': 'platform_candidate_approval_execution_report',",
+                        "    'schema_version': 1,",
+                        "    'ok': True,",
+                        "    'dry_run': False,",
+                        "    'status': 'candidate_approval_materialized',",
+                        "    'candidate_id': 'team-decision-log',",
+                        "    'workspace_id': 'team-decision-log',",
+                        "    'candidate_approval_decision_ref': str(decision),",
+                        "    'summary': {'status': 'candidate_approval_materialized', 'decision_written': True, 'approved_path_count': len(paths), 'gate_ready': True, 'error_count': 0},",
+                        "    'authority_boundary': {'executes_git_commands': False, 'opens_pull_requests': False, 'publishes_read_models': False, 'writes_ontology_packages': False, 'accepts_ontology_terms': False, 'mutates_canonical_specs': False},",
+                        "}",
+                        "gate.write_text(json.dumps(gate_report), encoding='utf-8')",
+                        "decision.write_text(json.dumps(decision_report), encoding='utf-8')",
+                        "output.write_text(json.dumps(report), encoding='utf-8')",
+                        "print(json.dumps(report))",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-candidate-approval/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+                execution_exists = (
+                    runs_dir / "platform_candidate_approval_execution_report.json"
+                ).is_file()
+                decision_exists = (
+                    runs_dir / "candidate_approval_decision.json"
+                ).is_file()
+                intent_state_status, intent_state = _get(
+                    f"{base}/api/v1/idea-to-spec-candidate-approval-intents?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["status"], "completed")
+        self.assertEqual(body["workspace_id"], "team-decision-log")
+        self.assertEqual(
+            body["output_ref"],
+            "runs/platform_candidate_approval_execution_report.json",
+        )
+        self.assertTrue(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+        self.assertTrue(
+            body["authority_boundary"]["materializes_candidate_approval_decision"]
+        )
+        self.assertTrue(execution_exists)
+        self.assertTrue(decision_exists)
+        self.assertEqual(intent_state_status, 200)
+        self.assertEqual(intent_state["summary"]["active_intent_count"], 0)
+        self.assertEqual(intent_state["intents"][0]["status"], "consumed")
+
+    def test_candidate_approval_execute_requires_current_intent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_candidate_approval_intent_state(state_dir)
+            state_path = state_dir / "idea_to_spec_candidate_approval_intents.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["intents"][0]["repair_session_ref"] = "runs/old_repair_session.json"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-candidate-approval/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "candidate_approval_intent_not_current")
+
+    def test_candidate_approval_execute_requires_successful_repair_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(
+                runs_dir,
+                include_platform_rerun_reports=True,
+                include_repaired_handoff=True,
+                ready_for_candidate_approval=True,
+            )
+            _write_candidate_approval_intent_state(state_dir)
+            execution_path = runs_dir / "platform_product_repair_rerun_execution_report.json"
+            execution = json.loads(execution_path.read_text(encoding="utf-8"))
+            execution["dry_run"] = True
+            execution_path.write_text(json.dumps(execution), encoding="utf-8")
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-candidate-approval/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "repair_execution_report_not_approval_ready")
+
     def test_product_workspace_creation_requests_v1_reads_route_only_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

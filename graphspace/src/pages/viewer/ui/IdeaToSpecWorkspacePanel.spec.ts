@@ -468,6 +468,60 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
   });
 
+  it("shows managed candidate approval action after approval intent is ready", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_approval_path.available = true;
+    raw.guided_approval_path.stage = "approval_execution_needed";
+    raw.guided_approval_path.status = "waiting_for_operator";
+    raw.guided_approval_path.next_action =
+      "Run Platform candidate approval materialization.";
+    raw.guided_approval_path.state.approval_intent_status = "usable";
+    raw.guided_approval_path.state.approval_execution_status = null;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+        candidateApprovalExecuteUrl:
+          "/api/v1/idea-to-spec-candidate-approval/execute",
+      }),
+    );
+
+    expect(html).toContain("Run Platform candidate approval materialization.");
+    expect(html).toContain("Materialize approval decision");
+    expect(html).toContain(
+      "SpecSpace backend will call the allowlisted Platform candidate approval operation.",
+    );
+  });
+
+  it("keeps managed candidate approval retry available after failed execution", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_approval_path.available = true;
+    raw.guided_approval_path.stage = "approval_execution_needed";
+    raw.guided_approval_path.status = "waiting_for_operator";
+    raw.guided_approval_path.next_action =
+      "Run Platform candidate approval materialization.";
+    raw.guided_approval_path.state.approval_intent_status = "usable";
+    raw.guided_approval_path.state.approval_execution_status = "failed";
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+        candidateApprovalExecuteUrl:
+          "/api/v1/idea-to-spec-candidate-approval/execute",
+      }),
+    );
+
+    expect(html).toContain("Materialize approval decision");
+  });
+
   it("renders template-backed intake answers for all required fields", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     const target =
