@@ -300,13 +300,62 @@ def execute_requested_continuation(
         "--format",
         "json",
     ]
-    completed = subprocess.run(
-        command,
-        cwd=str(platform_script.parent.parent),
-        capture_output=True,
-        text=True,
-        timeout=timeout_seconds,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(platform_script.parent.parent),
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout or ""
+        stderr = exc.stderr or ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode("utf-8", errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        return (
+            HTTPStatus.GATEWAY_TIMEOUT,
+            {
+                "artifact_kind": (
+                    "specspace_managed_real_idea_answer_continuation_execution"
+                ),
+                "ok": False,
+                "status": "platform_execution_timeout",
+                "workspace_id": selected_workspace_id,
+                "request_id": request.get("request_id"),
+                "execution_request_ref": (
+                    "specspace-state://"
+                    f"{real_idea_answer_continuation_execution_requests.EXECUTION_REQUEST_FILENAME}"
+                ),
+                "answer_state_ref": answer_state_ref,
+                "workspace_initialization_ref": initialization_ref,
+                "intake_execution_ref": intake_execution_ref,
+                "output_ref": output_ref,
+                "platform_returncode": None,
+                "platform_report": {},
+                "stderr_tail": stderr[-2000:],
+                "stdout_tail": stdout[-2000:],
+                "authority_boundary": {
+                    "browser_executes_platform": False,
+                    "specspace_backend_executes_platform": True,
+                    "executes_specgraph": False,
+                    "applies_answers": False,
+                    "creates_git_commits": False,
+                    "opens_pull_requests": False,
+                    "publishes_read_models": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                },
+                "summary": {
+                    "status": "managed_real_idea_answer_continuation_timeout",
+                    "executed": False,
+                    "timeout_seconds": timeout_seconds,
+                    "output_ref": output_ref,
+                },
+            },
+        )
     stdout = completed.stdout.strip()
     try:
         report = json.loads(stdout) if stdout else {}

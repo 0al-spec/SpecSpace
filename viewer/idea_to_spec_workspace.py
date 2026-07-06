@@ -44,6 +44,9 @@ REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT = (
 PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT = (
     "platform_real_idea_entry_intake_execution_report.json"
 )
+PLATFORM_REAL_IDEA_ANSWER_CONTINUATION_EXECUTION_REPORT_ARTIFACT = (
+    "platform_real_idea_answer_continuation_execution_report.json"
+)
 PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT = (
     "product_workspace_initialization_plan.json"
 )
@@ -175,6 +178,7 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
     REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
     PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT,
+    PLATFORM_REAL_IDEA_ANSWER_CONTINUATION_EXECUTION_REPORT_ARTIFACT,
     PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT,
     PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT,
     PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
@@ -266,6 +270,9 @@ ARTIFACT_KEYS: dict[str, str] = {
     ),
     PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT: (
         "platform_real_idea_entry_intake_execution"
+    ),
+    PLATFORM_REAL_IDEA_ANSWER_CONTINUATION_EXECUTION_REPORT_ARTIFACT: (
+        "platform_real_idea_answer_continuation_execution"
     ),
     PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT: (
         "workspace_initialization_plan"
@@ -369,6 +376,9 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     ),
     PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT: (
         "platform_real_idea_entry_intake_execution_report"
+    ),
+    PLATFORM_REAL_IDEA_ANSWER_CONTINUATION_EXECUTION_REPORT_ARTIFACT: (
+        "platform_real_idea_answer_continuation_execution_report"
     ),
     PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT: (
         "platform_product_workspace_initialization_plan"
@@ -645,6 +655,33 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "tracked_artifacts_written must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == PLATFORM_REAL_IDEA_ANSWER_CONTINUATION_EXECUTION_REPORT_ARTIFACT:
+        authority_boundary = _record(value.get("authority_boundary"))
+        for flag, enabled in authority_boundary.items():
+            if flag == "executes_specgraph_make_target":
+                continue
+            if enabled is True:
+                return {
+                    "reason": "invalid_artifact_contract",
+                    "detail": (
+                        "real idea answer continuation execution authority flags "
+                        "must remain false except executes_specgraph_make_target."
+                    ),
+                    "artifact_kind": _optional_text(value.get("artifact_kind")),
+                }
+        if value.get("canonical_mutations_allowed") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "canonical_mutations_allowed must not be true.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if value.get("tracked_artifacts_written") is True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "tracked_artifacts_written must not be true.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
@@ -2062,12 +2099,14 @@ def _real_idea_answer_continuation(
     *,
     import_preview: dict[str, Any] | None,
     continuation_report: dict[str, Any] | None,
+    execution_report: dict[str, Any] | None,
 ) -> dict[str, Any]:
     preview_summary = _record((import_preview or {}).get("summary"))
     continuation_summary = _record((continuation_report or {}).get("summary"))
     preview_import = _record((import_preview or {}).get("import_preview"))
     preview_sources = _record((import_preview or {}).get("source_artifacts"))
     continuation_outputs = _record((continuation_report or {}).get("outputs"))
+    execution_summary = _record((execution_report or {}).get("summary"))
     ready = (
         import_preview is not None
         and _readiness(import_preview)["ready"]
@@ -2137,7 +2176,10 @@ def _real_idea_answer_continuation(
             }
         )
     return {
-        "available": import_preview is not None or continuation_report is not None,
+        "available": any(
+            artifact is not None
+            for artifact in (import_preview, continuation_report, execution_report)
+        ),
         "ready": ready,
         "import_preview": {
             "available": import_preview is not None,
@@ -2158,6 +2200,15 @@ def _real_idea_answer_continuation(
             "summary": continuation_summary,
             "outputs": continuation_outputs,
             "findings": _findings(continuation_report),
+        },
+        "execution": {
+            "available": execution_report is not None,
+            "ok": (execution_report or {}).get("ok") is True,
+            "status": _optional_text(execution_summary.get("status")),
+            "output_ref": _safe_ref((execution_report or {}).get("output_ref")),
+            "platform_returncode": _number(
+                (execution_report or {}).get("platform_returncode")
+            ),
         },
         "recommended_actions": recommended_actions,
         "action_boundary": {
@@ -2446,6 +2497,7 @@ def _intake_clarification_lane(
     real_idea_answer_set: dict[str, Any] | None,
     specspace_answer_import_preview: dict[str, Any] | None,
     answer_continuation_report: dict[str, Any] | None,
+    answer_continuation_execution_report: dict[str, Any] | None,
 ) -> dict[str, Any]:
     requests = _clarification_request_rows(clarification_requests)
     answer_rows = _intake_answer_rows(clarification_answers)
@@ -2520,6 +2572,7 @@ def _intake_clarification_lane(
         "answer_continuation": _real_idea_answer_continuation(
             import_preview=specspace_answer_import_preview,
             continuation_report=answer_continuation_report,
+            execution_report=answer_continuation_execution_report,
         ),
         "action_boundary": {
             "inspect_only": True,
@@ -7148,6 +7201,9 @@ def build_idea_to_spec_workspace(
     real_idea_answer_continuation_report = _artifact_data(
         artifacts, REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT
     )
+    real_idea_answer_continuation_execution = _artifact_data(
+        artifacts, PLATFORM_REAL_IDEA_ANSWER_CONTINUATION_EXECUTION_REPORT_ARTIFACT
+    )
     real_idea_entry_intake_execution = _artifact_data(
         artifacts, PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT
     )
@@ -7360,6 +7416,7 @@ def build_idea_to_spec_workspace(
         real_idea_answer_set=real_idea_answer_set,
         specspace_answer_import_preview=specspace_real_idea_answer_import_preview,
         answer_continuation_report=real_idea_answer_continuation_report,
+        answer_continuation_execution_report=real_idea_answer_continuation_execution,
     )
     repair_session = _repair_session(selected_repair_session_journal)
     downstream_promotion_succeeded = (

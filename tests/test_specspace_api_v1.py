@@ -7815,6 +7815,114 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(body["authority_boundary"]["applies_answers"])
         self.assertTrue(report_file_exists)
 
+    def test_real_idea_answer_continuation_execute_reports_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text(
+                "real-idea-intake-continue-from-specspace-answers:\n\t@true\n",
+                encoding="utf-8",
+            )
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "import time\ntime.sleep(2)\n",
+                encoding="utf-8",
+            )
+            _write_json(
+                runs_dir
+                / "platform_product_workspace_initialization_execution_report.json",
+                {
+                    "artifact_kind": (
+                        "platform_product_workspace_initialization_execution_report"
+                    ),
+                    "ok": True,
+                    "workspace": {"workspace_id": "pantry-rotation"},
+                    "summary": {"status": "workspace_initialization_executed"},
+                },
+            )
+            _write_json(
+                runs_dir / "platform_real_idea_entry_intake_execution_report.json",
+                {
+                    "artifact_kind": "platform_real_idea_entry_intake_execution_report",
+                    "ok": True,
+                    "summary": {
+                        "status": "real_idea_entry_intake_executed",
+                        "workspace_id": "pantry-rotation",
+                    },
+                    "authority_boundary": {
+                        "executes_specgraph_make_target": True,
+                        "executes_git_commands": False,
+                        "opens_pull_requests": False,
+                        "publishes_read_models": False,
+                    },
+                },
+            )
+            _write_json(
+                state_dir / "idea_to_spec_intake_clarification_answers.json",
+                {
+                    "artifact_kind": "specspace_idea_intake_clarification_answer_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "answers": [],
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                platform_execution_timeout_seconds=1,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                request_status, request_body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "answer_state_ref": (
+                            "specspace-state://idea_to_spec_intake_clarification_answers.json"
+                        ),
+                        "intake_execution_ref": (
+                            "runs/platform_real_idea_entry_intake_execution_report.json"
+                        ),
+                        "workspace_initialization_ref": (
+                            "runs/platform_product_workspace_initialization_execution_report.json"
+                        ),
+                    },
+                )
+                request_id = request_body["requests"][0]["request_id"]
+                status, body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "request_id": request_id,
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(request_status, 200)
+        self.assertEqual(status, 504)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_execution_timeout")
+        self.assertEqual(
+            body["summary"]["status"],
+            "managed_real_idea_answer_continuation_timeout",
+        )
+        self.assertFalse(body["authority_boundary"]["browser_executes_platform"])
+        self.assertTrue(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+        self.assertFalse(body["authority_boundary"]["executes_specgraph"])
+
     def test_real_idea_answer_continuation_execute_requires_answer_state(
         self,
     ) -> None:
@@ -8341,6 +8449,57 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(entry_state["requests"][0]["workspace_id"], "team-decision-log")
         self.assertNotIn("idea_text", entry_state["requests"][0])
         self.assertTrue(entry_state["requests"][0]["idea_summary_hint_present"])
+
+    def test_idea_to_spec_workspace_embeds_answer_continuation_execution(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            _write_product_workspace_runs(runs_dir)
+            _write_json(
+                runs_dir
+                / "platform_real_idea_answer_continuation_execution_report.json",
+                {
+                    "artifact_kind": (
+                        "platform_real_idea_answer_continuation_execution_report"
+                    ),
+                    "ok": True,
+                    "platform_returncode": 0,
+                    "output_ref": "runs/real_idea_answer_continuation_report.json",
+                    "summary": {
+                        "status": "real_idea_answer_continuation_executed",
+                        "workspace_id": "team-decision-log",
+                    },
+                    "authority_boundary": {
+                        "executes_specgraph_make_target": True,
+                        "executes_git_commands": False,
+                        "opens_pull_requests": False,
+                        "publishes_read_models": False,
+                    },
+                },
+            )
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        execution = body["intake_clarification"]["answer_continuation"]["execution"]
+        self.assertTrue(execution["available"])
+        self.assertTrue(execution["ok"])
+        self.assertEqual(execution["status"], "real_idea_answer_continuation_executed")
+        artifact_status = body["artifacts"][
+            "platform_real_idea_answer_continuation_execution"
+        ]
+        self.assertTrue(artifact_status["available"])
+        self.assertEqual(
+            artifact_status["status"],
+            "real_idea_answer_continuation_executed",
+        )
 
     def test_idea_to_spec_workspace_embeds_workspace_creation_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
