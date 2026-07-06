@@ -118,6 +118,10 @@ def publish_repair_rerun(
             "expected": workspace_id,
             "actual": payload_workspace_id,
         }
+    if selected_workspace_id is None:
+        return HTTPStatus.BAD_REQUEST, {
+            "error": "workspace_id is required for managed repair rerun publication."
+        }
 
     execution_report_path = _runs_path(server, EXECUTION_REPORT_ARTIFACT)
     if execution_report_path is None:
