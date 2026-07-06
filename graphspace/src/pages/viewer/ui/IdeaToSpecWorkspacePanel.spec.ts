@@ -411,6 +411,35 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
   });
 
+  it("shows managed repair rerun action after the request gate is ready", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_repair_path.stage = "rerun_requested";
+    raw.guided_repair_path.next_action =
+      "Wait for Platform to execute the requested repair rerun.";
+    raw.guided_repair_path.state.rerun_request_status = "usable";
+    raw.guided_repair_path.state.request_gate_status =
+      "specspace_repair_rerun_request_gate_ready";
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+        repairRerunExecuteUrl: "/api/v1/idea-to-spec-repair-rerun/execute",
+      }),
+    );
+
+    expect(html).toContain(
+      "Wait for Platform to execute the requested repair rerun.",
+    );
+    expect(html).toContain("Run controlled repair rerun");
+    expect(html).toContain(
+      "SpecSpace backend will call the allowlisted Platform plan and repair rerun operations.",
+    );
+  });
+
   it("renders template-backed intake answers for all required fields", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     const target =
