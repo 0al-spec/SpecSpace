@@ -89,6 +89,7 @@ type Props = {
   repairRerunExecuteUrl?: string;
   repairRerunPublishUrl?: string;
   candidateApprovalIntentsUrl?: string;
+  candidateApprovalExecuteUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
   productWorkspaceInitializationExecuteUrl?: string;
   repairRerunRequestsRefreshKey?: number | string;
@@ -405,6 +406,7 @@ export function IdeaToSpecWorkspacePanel({
   repairRerunExecuteUrl,
   repairRerunPublishUrl,
   candidateApprovalIntentsUrl,
+  candidateApprovalExecuteUrl,
   projectLocalOntologyReviewDecisionsUrl,
   productWorkspaceInitializationExecuteUrl,
   repairRerunRequestsRefreshKey = 0,
@@ -459,6 +461,12 @@ export function IdeaToSpecWorkspacePanel({
     });
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [workspaceInitializationExecutionState, setWorkspaceInitializationExecutionState] =
+    useState<{
+      pending: boolean;
+      status: string | null;
+      error: string | null;
+    }>({ pending: false, status: null, error: null });
+  const [candidateApprovalExecutionState, setCandidateApprovalExecutionState] =
     useState<{
       pending: boolean;
       status: string | null;
@@ -604,6 +612,61 @@ export function IdeaToSpecWorkspacePanel({
       });
     }
   };
+  const executeCandidateApproval = async () => {
+    const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
+    if (readOnly || !candidateApprovalExecuteUrl || !workspaceId) {
+      return;
+    }
+    setCandidateApprovalExecutionState({
+      pending: true,
+      status: null,
+      error: null,
+    });
+    try {
+      const response = await fetch(candidateApprovalExecuteUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace_id: workspaceId }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        summary?: { status?: unknown };
+        status?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok) {
+        const detail =
+          typeof body.error === "string"
+            ? body.error
+            : `Managed candidate approval failed with HTTP ${response.status}.`;
+        setCandidateApprovalExecutionState({
+          pending: false,
+          status: typeof body.status === "string" ? body.status : null,
+          error: detail,
+        });
+        return;
+      }
+      setCandidateApprovalExecutionState({
+        pending: false,
+        status:
+          typeof body.summary?.status === "string"
+            ? body.summary.status
+            : typeof body.status === "string"
+              ? body.status
+              : "managed_candidate_approval_executed",
+        error: null,
+      });
+      onWorkspaceRefreshRequest?.();
+    } catch (error) {
+      setCandidateApprovalExecutionState({
+        pending: false,
+        status: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Managed candidate approval failed.",
+      });
+    }
+  };
 
   const productWorkspaceOverviewSection = (
     <ProductWorkspaceOverviewSection
@@ -650,7 +713,13 @@ export function IdeaToSpecWorkspacePanel({
     />
   );
   const guidedApprovalPathSection = (
-    <GuidedApprovalPathSection path={data.guidedApprovalPath} />
+    <GuidedApprovalPathSection
+      path={data.guidedApprovalPath}
+      executeUrl={candidateApprovalExecuteUrl}
+      executionState={candidateApprovalExecutionState}
+      onExecute={executeCandidateApproval}
+      readOnly={readOnly}
+    />
   );
   const intakeClarificationSection = (
     <IntakeClarificationSection
@@ -2294,10 +2363,33 @@ function GuidedRepairPathSection({
 
 function GuidedApprovalPathSection({
   path,
+  executeUrl,
+  executionState,
+  onExecute,
+  readOnly = false,
 }: {
   path: IdeaToSpecWorkspace["guidedApprovalPath"];
+  executeUrl?: string;
+  executionState?: {
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  };
+  onExecute?: () => void;
+  readOnly?: boolean;
 }) {
   const primaryHref = path.targetSection ? `#${path.targetSection}` : null;
+  const approvalExecutionCanRetry =
+    path.state.approvalExecutionStatus === null ||
+    path.state.approvalExecutionStatus === "failed" ||
+    path.state.approvalExecutionStatus === "blocked";
+  const canRunManagedApproval =
+    !readOnly &&
+    Boolean(executeUrl) &&
+    path.stage === "approval_execution_needed" &&
+    path.state.approvalIntentStatus === "usable" &&
+    approvalExecutionCanRetry &&
+    !executionState?.pending;
   const stateItems = [
     ["Readiness", path.state.approvalReadinessStatus],
     ["Intent", path.state.approvalIntentStatus],
@@ -2364,6 +2456,33 @@ function GuidedApprovalPathSection({
           <a className={styles.ackButton} href={primaryHref}>
             Open target section
           </a>
+        ) : null}
+        {path.stage === "approval_execution_needed" ? (
+          <div className={styles.draftControls}>
+            <button
+              className={styles.ackButton}
+              type="button"
+              disabled={!canRunManagedApproval}
+              onClick={onExecute}
+            >
+              {executionState?.pending
+                ? "Materializing approval..."
+                : "Materialize approval decision"}
+            </button>
+            <span className={styles.statusDetail}>
+              SpecSpace backend will call the allowlisted Platform candidate approval operation.
+            </span>
+          </div>
+        ) : null}
+        {executionState?.status ? (
+          <span className={styles.statusDetail}>
+            Candidate approval execution: {executionState.status}
+          </span>
+        ) : null}
+        {executionState?.error ? (
+          <span className={styles.statusDetail}>
+            Candidate approval execution failed · {executionState.error}
+          </span>
         ) : null}
       </div>
       {path.available && path.checkpoints.length > 0 ? (

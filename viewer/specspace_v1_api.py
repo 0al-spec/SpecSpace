@@ -9,6 +9,7 @@ from urllib.parse import unquote
 
 from viewer import (
     agent_workbench,
+    idea_to_spec_candidate_approval_execution,
     idea_to_spec_candidate_approval_intents,
     idea_to_spec_intake_clarification_answers,
     idea_to_spec_repair_drafts,
@@ -1372,6 +1373,25 @@ def handle_v1_idea_to_spec_candidate_approval_intent_post(
         handler.server,
         payload,
         workspace_payload,
+        workspace_id=workspace_id,
+    )
+    json_response(handler, status, response)
+
+
+def handle_v1_idea_to_spec_candidate_approval_execute_post(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    params = query_params(parsed)
+    workspace_id = specspace_provider.normalize_product_workspace_id(
+        query_value(params, "workspace")
+    )
+    status, response = idea_to_spec_candidate_approval_execution.execute_candidate_approval(
+        handler.server,
+        payload,
         workspace_id=workspace_id,
     )
     json_response(handler, status, response)
