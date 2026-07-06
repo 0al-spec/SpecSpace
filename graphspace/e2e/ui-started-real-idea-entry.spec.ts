@@ -1513,6 +1513,18 @@ function productWorkspaceOverviewForScenario(
   };
 }
 
+function defaultOverviewStageForScenario(
+  scenario: UiStartedIdeaScenario,
+): ProductWorkspaceOverviewScenario {
+  if (scenario.approvalPathPublished || scenario.approvalPath) {
+    return "approval";
+  }
+  if (scenario.intakeExecutionPublished) {
+    return "clarification";
+  }
+  return "initialized";
+}
+
 async function workspacePayload(
   backendBaseUrl: string,
   scenario: UiStartedIdeaScenario,
@@ -1547,11 +1559,9 @@ async function workspacePayload(
     (scenario.approvalPathPublished === true
       ? reviewMergeWaitingGuidedApprovalPath()
       : missingGuidedApprovalPath());
-  if (scenario.overviewStage) {
-    payload.product_workspace_overview = productWorkspaceOverviewForScenario(
-      scenario.overviewStage,
-    );
-  }
+  payload.product_workspace_overview = productWorkspaceOverviewForScenario(
+    scenario.overviewStage ?? defaultOverviewStageForScenario(scenario),
+  );
 
   if (!hasSubmittedEntry) {
     payload.real_idea_intake = {
