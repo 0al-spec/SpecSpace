@@ -9323,6 +9323,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 request_exists = (
                     runs_dir / "graph_repository_promotion_request.json"
                 ).is_file()
+                second_status, second_body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion-request/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -9351,6 +9358,11 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(body["authority_boundary"]["publishes_read_models"])
         self.assertTrue(body["summary"]["promotion_ready"])
         self.assertTrue(request_exists)
+        self.assertEqual(second_status, 200)
+        self.assertTrue(second_body["reused_existing_report"])
+        self.assertFalse(
+            second_body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
 
     def test_promotion_request_execute_requires_ready_approval_decision(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

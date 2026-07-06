@@ -167,6 +167,51 @@ def execute_promotion_request(
         return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload()
     output_path = runs_dir / GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
+    if output_path.exists():
+        existing = _load_json(output_path)
+        if (
+            existing is not None
+            and existing.get("artifact_kind")
+            == "platform_graph_repository_promotion_request"
+            and existing.get("ok") is True
+            and _text(existing.get("candidate_id")) == selected_workspace_id
+            and _record(existing.get("summary")).get("promotion_ready") is True
+        ):
+            return HTTPStatus.OK, {
+                "artifact_kind": "specspace_managed_promotion_request_execution",
+                "ok": True,
+                "status": "completed",
+                "workspace_id": selected_workspace_id,
+                "plan_ref": f"runs/{GRAPH_REPOSITORY_EXECUTION_PLAN_ARTIFACT}",
+                "approval_decision_ref": f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}",
+                "output_ref": output_ref,
+                "platform_returncode": 0,
+                "platform_report": existing,
+                "reused_existing_report": True,
+                "authority_boundary": {
+                    "browser_executes_platform": False,
+                    "specspace_backend_executes_platform": False,
+                    "creates_promotion_request": False,
+                    "executes_git_commands": False,
+                    "creates_git_commits": False,
+                    "opens_pull_requests": False,
+                    "publishes_read_models": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                    "mutates_canonical_specs": False,
+                },
+                "summary": {
+                    "status": "managed_promotion_request_reused",
+                    "executed": False,
+                    "output_ref": output_ref,
+                    "promotion_ready": True,
+                },
+            }
+        return HTTPStatus.CONFLICT, {
+            "error": "Refusing to overwrite existing promotion request artifact.",
+            "output_ref": output_ref,
+            "reason": "promotion_request_output_exists",
+        }
 
     timeout = getattr(server, "platform_execution_timeout_seconds", 120)
     try:
