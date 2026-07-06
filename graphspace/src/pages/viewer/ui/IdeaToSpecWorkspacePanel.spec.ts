@@ -496,6 +496,144 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("written");
   });
 
+  it("renders backend-managed workspace initialization action when requested", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.workspace_creation = {
+      artifact_kind: "specspace_product_workspace_creation_request_state",
+      selected_workspace_id: "pantry-rotation",
+      active_request: {
+        request_id: "product-workspace-request.pantry-rotation",
+        workspace_id: "pantry-rotation",
+        display_name: "Pantry Rotation",
+        route: "/pantry-rotation",
+        root_intent_summary: "Track pantry stock before food expires.",
+        status: "creation_requested",
+        created_at: "2026-07-04T08:00:00Z",
+        updated_at: "2026-07-04T08:05:00Z",
+      },
+      summary: {
+        status: "workspace_creation_requested",
+        request_count: 1,
+        active_requested_count: 1,
+        invalid_request_count: 0,
+        next_gap: "run_platform_workspace_initialization",
+      },
+      initialization: {
+        available: true,
+        trusted: true,
+        initialized: false,
+        execution_request: {
+          status: "workspace_initialization_execution_requested",
+          ready_for_managed_execution: true,
+          requested_operation: "workspace.execute-initialization-plan",
+          idempotency_key: "a".repeat(64),
+        },
+      },
+    };
+    raw.workspace_initialization_path = {
+      available: true,
+      status: "initialization_request_ready",
+      workspace_id: "pantry-rotation",
+      display_name: "Pantry Rotation",
+      initial_idea_present: true,
+      creation_request_ref: "specspace-state://product_workspace_creation_requests.json",
+      initialization_request_ref:
+        "runs/pantry-rotation/product_workspace_initialization_execution_request.json",
+      initialization_report_ref: null,
+      next_safe_action: "Run controlled Platform workspace initialization.",
+      blockers: [],
+      managed_execution_available: true,
+    };
+    const parsedRequested = parseIdeaToSpecWorkspace(raw);
+    if (parsedRequested.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedRequested.data },
+        productWorkspaceInitializationExecuteUrl:
+          "/api/v1/product-workspace-initialization/execute?workspace=pantry-rotation",
+      }),
+    );
+
+    expect(html).toContain("Run controlled initialization");
+    expect(html).toContain(
+      "SpecSpace backend will call the allowlisted Platform operation.",
+    );
+    expect(html).toContain(
+      "runs/pantry-rotation/product_workspace_initialization_execution_request.json",
+    );
+  });
+
+  it("does not enable backend-managed workspace initialization when backend capability is unavailable", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.workspace_creation = {
+      artifact_kind: "specspace_product_workspace_creation_request_state",
+      selected_workspace_id: "pantry-rotation",
+      active_request: {
+        request_id: "product-workspace-request.pantry-rotation",
+        workspace_id: "pantry-rotation",
+        display_name: "Pantry Rotation",
+        route: "/pantry-rotation",
+        root_intent_summary: "Track pantry stock before food expires.",
+        status: "creation_requested",
+        created_at: "2026-07-04T08:00:00Z",
+        updated_at: "2026-07-04T08:05:00Z",
+      },
+      summary: {
+        status: "workspace_creation_requested",
+        request_count: 1,
+        active_requested_count: 1,
+        invalid_request_count: 0,
+        next_gap: "run_platform_workspace_initialization",
+      },
+      initialization: {
+        available: true,
+        trusted: true,
+        initialized: false,
+        execution_request: {
+          status: "workspace_initialization_execution_requested",
+          ready_for_managed_execution: true,
+          requested_operation: "workspace.execute-initialization-plan",
+          idempotency_key: "a".repeat(64),
+        },
+      },
+    };
+    raw.workspace_initialization_path = {
+      available: true,
+      status: "initialization_request_ready",
+      workspace_id: "pantry-rotation",
+      display_name: "Pantry Rotation",
+      initial_idea_present: true,
+      creation_request_ref: "specspace-state://product_workspace_creation_requests.json",
+      initialization_request_ref:
+        "runs/pantry-rotation/product_workspace_initialization_execution_request.json",
+      initialization_report_ref: null,
+      next_safe_action: "Run controlled Platform workspace initialization.",
+      blockers: [],
+      managed_execution_available: false,
+    };
+    const parsedRequested = parseIdeaToSpecWorkspace(raw);
+    if (parsedRequested.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedRequested.data },
+        productWorkspaceInitializationExecuteUrl:
+          "/api/v1/product-workspace-initialization/execute?workspace=pantry-rotation",
+      }),
+    );
+
+    expect(html).toContain("Run controlled initialization");
+    expect(html).toContain(
+      "Managed backend execution is not configured; use the Platform command hint.",
+    );
+    expect(html).toContain("disabled");
+  });
+
   it("does not treat a different active candidate as selected route readiness", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.selected_workspace_id = "pantry-rotation";

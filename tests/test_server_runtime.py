@@ -78,6 +78,19 @@ def test_build_arg_parser_accepts_agent_workbench_dir_env(monkeypatch) -> None:
     assert args.agent_workbench_dir == Path("/tmp/specspace-workbench")
 
 
+def test_build_arg_parser_ignores_malformed_platform_execution_timeout_env(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("SPECSPACE_PLATFORM_EXECUTION_TIMEOUT_SECONDS", "not-a-number")
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+    args = parser.parse_args(["--dialog-dir", "/tmp/dialogs"])
+
+    assert args.platform_execution_timeout_seconds == 120
+
+
 def test_build_arg_parser_treats_blank_agent_workbench_dir_env_as_unset(monkeypatch) -> None:
     monkeypatch.setenv("SPECSPACE_AGENT_WORKBENCH_DIR", "   ")
     parser = server_runtime.build_arg_parser(

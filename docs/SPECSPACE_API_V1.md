@@ -1045,6 +1045,48 @@ SpecSpace owns this mutable state, but it is not authority:
 SpecGraph must later validate/export this state through its intake
 clarification rerun flow before any clarified intake source is published.
 
+### `POST /api/v1/product-workspace-initialization/execute`
+
+Optionally executes a previously prepared product workspace initialization
+request through the SpecSpace backend. This is a controlled backend handoff for
+local/operator deployments: the browser sends the request to SpecSpace, and
+SpecSpace calls the allowlisted Platform command only when the server was
+started with Platform execution enabled.
+
+Server opt-in:
+
+```bash
+python viewer/server.py \
+  --dialog-dir /data/dialogs \
+  --runs-dir /repo/SpecGraph/runs \
+  --platform-dir /repo/Platform \
+  --enable-platform-execution
+```
+
+Request:
+
+```json
+{
+  "workspace_id": "team-decision-log",
+  "execution_request_ref": "runs/product_workspace_initialization_execution_request.json"
+}
+```
+
+The `execution_request_ref` must point at a local `runs/*`
+`product_workspace_initialization_execution_request.json` artifact. SpecSpace
+rejects parent-directory traversal, missing request artifacts, and mismatched
+workspace ids. When successful, Platform writes
+`platform_product_workspace_initialization_execution_report.json` next to the
+request artifact, and Product Workspace lifecycle refreshes from that report.
+
+Authority boundary:
+
+- the browser does not execute Platform directly;
+- SpecSpace backend may execute only the allowlisted Platform workspace
+  initialization wrapper when explicitly enabled;
+- SpecSpace does not create Git commits, open PRs, publish read models, write
+  Ontology packages, accept Ontology terms, or mutate canonical specs.
+
 ### `GET/POST /api/v1/real-idea-entry-requests`
 
 Stores SpecSpace-owned raw idea entry requests for a product workspace. This is

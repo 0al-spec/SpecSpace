@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import unquote
 
@@ -15,6 +16,7 @@ from viewer import (
     idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
     ontology_acknowledgements,
+    product_workspace_initialization_execution,
     product_workspace_creation_requests,
     project_local_ontology_review_decisions,
     real_idea_answer_continuation_execution_requests,
@@ -104,6 +106,7 @@ def _apply_real_idea_entry_projection(
 
 def _workspace_initialization_path(
     *,
+    server: Any,
     workspace_id: str | None,
     creation: dict[str, Any],
 ) -> dict[str, Any]:
@@ -116,6 +119,12 @@ def _workspace_initialization_path(
     status = "route_only"
     next_safe_action = "Create a workspace request before starting product intake."
     blockers: list[str] = []
+    platform_dir = getattr(server, "platform_dir", None)
+    managed_execution_available = (
+        getattr(server, "platform_execution_enabled", False) is True
+        and isinstance(platform_dir, Path)
+        and (platform_dir / "scripts" / "platform.py").is_file()
+    )
 
     creation_status = summary.get("status")
     if creation_status in {
@@ -174,6 +183,7 @@ def _workspace_initialization_path(
         else None,
         "next_safe_action": next_safe_action,
         "blockers": blockers,
+        "managed_execution_available": managed_execution_available,
         "authority_boundary": {
             "inspect_only": True,
             "acknowledge_only": True,
@@ -588,6 +598,7 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
                 )
             )
             payload["workspace_initialization_path"] = _workspace_initialization_path(
+                server=handler.server,
                 workspace_id=workspace_id,
                 creation=payload["workspace_creation"],
             )
@@ -1020,6 +1031,41 @@ def handle_v1_product_workspace_creation_request_post(
         handler.server,
         payload,
         workspace_id=workspace_id,
+    )
+    json_response(handler, status, response)
+
+
+def handle_v1_product_workspace_initialization_execute_post(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    query_workspace_id = _query_workspace_id(parsed)
+    payload_workspace_id = specspace_provider.normalize_product_workspace_id(
+        payload.get("workspace_id")
+        if isinstance(payload.get("workspace_id"), str)
+        else None
+    )
+    if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
+        json_response(
+            handler,
+            HTTPStatus.CONFLICT,
+            {
+                "error": "Workspace initialization execution workspace_id does not match selected workspace.",
+                "expected": query_workspace_id,
+                "actual": payload_workspace_id,
+            },
+        )
+        return
+    workspace_id = query_workspace_id or payload_workspace_id
+    status, response = (
+        product_workspace_initialization_execution.execute_requested_initialization(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        )
     )
     json_response(handler, status, response)
 
