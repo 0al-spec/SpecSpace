@@ -10248,6 +10248,114 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 409)
         self.assertEqual(body["reason"], "review_status_not_merged")
 
+    def test_read_model_publication_execute_rejects_cross_workspace_review_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            bundle_dir = (
+                specgraph_dir
+                / "dist"
+                / "specgraph-public"
+                / "workspaces"
+                / "team-decision-log"
+            )
+            bundle_dir.mkdir(parents=True)
+            _write_product_promotion_artifacts(
+                runs_dir,
+                include_execution=True,
+                include_review_status=True,
+            )
+            review_path = (
+                runs_dir
+                / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+            )
+            review = json.loads(review_path.read_text(encoding="utf-8"))
+            review["candidate_id"] = "different-workspace"
+            _write_json(review_path, review)
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-read-model-publication/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "review_status_workspace_mismatch")
+
+    def test_read_model_publication_execute_returns_timeout_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            bundle_dir = (
+                specgraph_dir
+                / "dist"
+                / "specgraph-public"
+                / "workspaces"
+                / "team-decision-log"
+            )
+            bundle_dir.mkdir(parents=True)
+            _write_product_promotion_artifacts(
+                runs_dir,
+                include_execution=True,
+                include_review_status=True,
+            )
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "import time\ntime.sleep(5)\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+                platform_execution_timeout_seconds=1,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-read-model-publication/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 504)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_execution_timeout")
+        self.assertEqual(
+            body["summary"]["status"],
+            "managed_read_model_publication_timeout",
+        )
+
     def test_product_workspace_creation_requests_v1_reads_route_only_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

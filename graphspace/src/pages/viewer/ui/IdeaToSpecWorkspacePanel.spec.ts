@@ -619,7 +619,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     raw.guided_approval_path.status = "waiting_for_operator";
     raw.guided_approval_path.next_action =
       "Publish the public read model after repository review merge.";
-    raw.guided_approval_path.state.review_state = "merged";
+    raw.guided_approval_path.state.review_state = null;
     raw.guided_approval_path.state.read_model_published = false;
     const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
     if (parsedWorkspace.kind !== "ok") {

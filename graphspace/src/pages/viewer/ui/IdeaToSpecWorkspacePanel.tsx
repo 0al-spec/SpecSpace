@@ -2717,7 +2717,6 @@ function GuidedApprovalPathSection({
     !reviewStatusExecutionState?.pending;
   const showManagedReadModelPublication =
     path.stage === "read_model_publication_needed" &&
-    path.state.reviewState === "merged" &&
     path.state.readModelPublished === false;
   const canRunManagedReadModelPublication =
     !readOnly &&

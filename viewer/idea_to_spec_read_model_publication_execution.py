@@ -104,6 +104,12 @@ def _review_status_merged(path: Path) -> bool:
     )
 
 
+def _review_status_candidate_id(payload: dict[str, Any]) -> str | None:
+    return _text(payload.get("candidate_id")) or _text(
+        _record(payload.get("summary")).get("candidate_id")
+    )
+
+
 def _bundle_dir(specgraph_dir: Path, workspace_id: str) -> Path:
     return specgraph_dir / "dist" / "specgraph-public" / "workspaces" / workspace_id
 
@@ -169,6 +175,17 @@ def execute_read_model_publication(
             ),
             "reason": "review_status_not_merged",
         }
+    review_status = _load_json(review_status_path) or {}
+    review_candidate_id = specspace_provider.normalize_product_workspace_id(
+        _review_status_candidate_id(review_status)
+    )
+    if review_candidate_id != selected_workspace_id:
+        return HTTPStatus.CONFLICT, {
+            "error": "Review-status report candidate_id does not match selected workspace.",
+            "expected": selected_workspace_id,
+            "actual": review_candidate_id,
+            "reason": "review_status_workspace_mismatch",
+        }
 
     bundle_dir = _bundle_dir(specgraph_dir, selected_workspace_id)
     if not bundle_dir.is_dir():
@@ -207,13 +224,49 @@ def execute_read_model_publication(
         "--format",
         "json",
     ]
-    completed = subprocess.run(
-        command,
-        cwd=str(platform_script.parent.parent),
-        capture_output=True,
-        text=True,
-        timeout=timeout_seconds,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(platform_script.parent.parent),
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return HTTPStatus.GATEWAY_TIMEOUT, {
+            "artifact_kind": "specspace_managed_read_model_publication_execution",
+            "ok": False,
+            "status": "platform_execution_timeout",
+            "workspace_id": selected_workspace_id,
+            "review_status_ref": (
+                f"runs/{PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT}"
+            ),
+            "output_ref": output_ref,
+            "bundle_dir": str(bundle_dir),
+            "read_model_dir": str(read_model_dir),
+            "platform_timeout_seconds": timeout_seconds,
+            "stderr_tail": (exc.stderr or "")[-2000:]
+            if isinstance(exc.stderr, str)
+            else "",
+            "authority_boundary": {
+                "browser_executes_platform": False,
+                "specspace_backend_executes_platform": True,
+                "publishes_read_models": False,
+                "merges_pull_requests": False,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+                "mutates_canonical_specs": False,
+            },
+            "summary": {
+                "status": "managed_read_model_publication_timeout",
+                "executed": True,
+                "output_ref": output_ref,
+                "published": False,
+                "next_action": "Inspect Platform read-model publication timeout and retry.",
+            },
+        }
     stdout = completed.stdout.strip()
     try:
         report = json.loads(stdout) if stdout else {}
