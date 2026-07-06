@@ -416,6 +416,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_idea_to_spec_promotion_execute_post = (
         specspace_v1_api.handle_v1_idea_to_spec_promotion_execute_post
     )
+    handle_v1_idea_to_spec_promotion_review_execute_post = (
+        specspace_v1_api.handle_v1_idea_to_spec_promotion_review_execute_post
+    )
     handle_v1_idea_to_spec_review_status_execute_post = (
         specspace_v1_api.handle_v1_idea_to_spec_review_status_execute_post
     )

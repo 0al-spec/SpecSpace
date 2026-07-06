@@ -9560,6 +9560,328 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(execution_exists)
         self.assertTrue(git_execution_exists)
 
+    def test_promotion_review_execute_requires_confirmation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion-review/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(body["reason"], "missing_open_review_confirmation")
+
+    def test_promotion_review_execute_requires_successful_prior_dry_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion-review/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {
+                        "workspace_id": "team-decision-log",
+                        "confirm_open_review": True,
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "promotion_dry_run_not_ready")
+
+    def test_promotion_review_execute_runs_allowlisted_platform_open_review(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": "platform_product_candidate_promotion_execution_report",
+                    "ok": True,
+                    "dry_run": True,
+                    "open_review_dry_run": True,
+                    "summary": {"error_count": 0},
+                },
+            )
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "\n".join(
+                    [
+                        "import json",
+                        "import sys",
+                        "from pathlib import Path",
+                        "args = sys.argv",
+                        "output = Path(args[args.index('--output') + 1])",
+                        "git_output = Path(args[args.index('--git-service-output') + 1])",
+                        "promotion_request = args[args.index('--promotion-request') + 1]",
+                        "approval = args[args.index('--approval-decision') + 1]",
+                        "repository_dir = args[args.index('--repository-dir') + 1]",
+                        "workspace_dir = args[args.index('--workspace-dir') + 1]",
+                        "assert '--dry-run' not in args",
+                        "assert '--open-review-dry-run' not in args",
+                        "git_report = {",
+                        "    'artifact_kind': 'platform_git_service_promotion_execution_report',",
+                        "    'ok': True,",
+                        "    'dry_run': False,",
+                        "    'open_review_dry_run': False,",
+                        "    'summary': {'error_count': 0, 'operation_count': 4},",
+                        "}",
+                        "git_output.write_text(json.dumps(git_report), encoding='utf-8')",
+                        "report = {",
+                        "    'artifact_kind': 'platform_product_candidate_promotion_execution_report',",
+                        "    'schema_version': 1,",
+                        "    'ok': True,",
+                        "    'dry_run': False,",
+                        "    'open_review_dry_run': False,",
+                        "    'workflow_lane': 'product_idea_to_spec',",
+                        "    'promotion_request_ref': promotion_request,",
+                        "    'approval_decision_ref': approval,",
+                        "    'repository_dir': repository_dir,",
+                        "    'workspace_dir': workspace_dir,",
+                        "    'git_service_execution_report_ref': str(git_output),",
+                        "    'summary': {'status': 'promotion_review_opened', 'error_count': 0, 'review_opened': True},",
+                        "    'git_review': {'review_opened': True, 'review_state': 'open'},",
+                        "    'authority_boundary': {",
+                        "        'controlled_git_service_execution': True,",
+                        "        'creates_candidate_worktree_or_branch': True,",
+                        "        'creates_candidate_commit': True,",
+                        "        'opens_pull_requests': True,",
+                        "        'publishes_read_models': False,",
+                        "        'mutates_canonical_specs': False,",
+                        "        'writes_ontology_packages': False,",
+                        "    },",
+                        "}",
+                        "output.write_text(json.dumps(report), encoding='utf-8')",
+                        "print(json.dumps(report))",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion-review/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {
+                        "workspace_id": "team-decision-log",
+                        "confirm_open_review": True,
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(
+            body["artifact_kind"],
+            "specspace_managed_promotion_review_execution",
+        )
+        self.assertFalse(body["authority_boundary"]["executes_git_service_dry_run"])
+        self.assertTrue(
+            body["authority_boundary"]["creates_candidate_worktree_or_branch"]
+        )
+        self.assertTrue(body["authority_boundary"]["creates_git_commits"])
+        self.assertTrue(body["authority_boundary"]["opens_pull_requests"])
+        self.assertFalse(body["authority_boundary"]["publishes_read_models"])
+        self.assertFalse(body["summary"]["dry_run"])
+        self.assertFalse(body["summary"]["open_review_dry_run"])
+        self.assertTrue(body["summary"]["review_opened"])
+        self.assertTrue(body["summary"]["opens_pull_requests"])
+
+    def test_promotion_review_execute_reuses_existing_open_review_report(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": "platform_product_candidate_promotion_execution_report",
+                    "ok": True,
+                    "dry_run": False,
+                    "workflow_lane": "product_idea_to_spec",
+                    "candidate_id": "team-decision-log",
+                    "summary": {
+                        "status": "promotion_review_opened",
+                        "error_count": 0,
+                        "review_opened": True,
+                    },
+                    "git_review": {"review_opened": True, "review_state": "open"},
+                },
+            )
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion-review/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {
+                        "workspace_id": "team-decision-log",
+                        "confirm_open_review": True,
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertTrue(body["reused_existing_report"])
+        self.assertFalse(body["summary"]["executed"])
+        self.assertTrue(body["summary"]["review_opened"])
+
+    def test_promotion_review_execute_requires_review_opened_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": "platform_product_candidate_promotion_execution_report",
+                    "ok": True,
+                    "dry_run": True,
+                    "open_review_dry_run": True,
+                    "summary": {"error_count": 0},
+                },
+            )
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "\n".join(
+                    [
+                        "import json",
+                        "import sys",
+                        "from pathlib import Path",
+                        "args = sys.argv",
+                        "output = Path(args[args.index('--output') + 1])",
+                        "git_output = Path(args[args.index('--git-service-output') + 1])",
+                        "git_output.write_text(json.dumps({'ok': True}), encoding='utf-8')",
+                        "report = {",
+                        "    'artifact_kind': 'platform_product_candidate_promotion_execution_report',",
+                        "    'ok': True,",
+                        "    'dry_run': False,",
+                        "    'open_review_dry_run': False,",
+                        "    'summary': {'status': 'promotion_execution_without_review', 'error_count': 0},",
+                        "}",
+                        "output.write_text(json.dumps(report), encoding='utf-8')",
+                        "print(json.dumps(report))",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion-review/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {
+                        "workspace_id": "team-decision-log",
+                        "confirm_open_review": True,
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 502)
+        self.assertFalse(body["ok"])
+        self.assertFalse(body["authority_boundary"]["opens_pull_requests"])
+        self.assertFalse(body["summary"]["review_opened"])
+        self.assertFalse(body["summary"]["opens_pull_requests"])
+
     def test_promotion_execute_requires_ready_promotion_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

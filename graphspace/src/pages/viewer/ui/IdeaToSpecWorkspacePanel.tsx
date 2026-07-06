@@ -92,6 +92,7 @@ type Props = {
   candidateApprovalExecuteUrl?: string;
   promotionRequestExecuteUrl?: string;
   promotionExecuteUrl?: string;
+  promotionReviewExecuteUrl?: string;
   reviewStatusExecuteUrl?: string;
   readModelPublicationExecuteUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
@@ -413,6 +414,7 @@ export function IdeaToSpecWorkspacePanel({
   candidateApprovalExecuteUrl,
   promotionRequestExecuteUrl,
   promotionExecuteUrl,
+  promotionReviewExecuteUrl,
   reviewStatusExecuteUrl,
   readModelPublicationExecuteUrl,
   projectLocalOntologyReviewDecisionsUrl,
@@ -491,6 +493,12 @@ export function IdeaToSpecWorkspacePanel({
     status: string | null;
     error: string | null;
   }>({ pending: false, status: null, error: null });
+  const [promotionReviewExecutionState, setPromotionReviewExecutionState] =
+    useState<{
+      pending: boolean;
+      status: string | null;
+      error: string | null;
+    }>({ pending: false, status: null, error: null });
   const [reviewStatusExecutionState, setReviewStatusExecutionState] = useState<{
     pending: boolean;
     status: string | null;
@@ -807,6 +815,64 @@ export function IdeaToSpecWorkspacePanel({
       });
     }
   };
+  const executePromotionReview = async () => {
+    const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
+    if (readOnly || !promotionReviewExecuteUrl || !workspaceId) {
+      return;
+    }
+    setPromotionReviewExecutionState({
+      pending: true,
+      status: null,
+      error: null,
+    });
+    try {
+      const response = await fetch(promotionReviewExecuteUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          confirm_open_review: true,
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        summary?: { status?: unknown };
+        status?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok) {
+        const detail =
+          typeof body.error === "string"
+            ? body.error
+            : `Managed promotion review execution failed with HTTP ${response.status}.`;
+        setPromotionReviewExecutionState({
+          pending: false,
+          status: typeof body.status === "string" ? body.status : null,
+          error: detail,
+        });
+        return;
+      }
+      setPromotionReviewExecutionState({
+        pending: false,
+        status:
+          typeof body.summary?.status === "string"
+            ? body.summary.status
+            : typeof body.status === "string"
+              ? body.status
+              : "managed_promotion_review_execution_completed",
+        error: null,
+      });
+      onWorkspaceRefreshRequest?.();
+    } catch (error) {
+      setPromotionReviewExecutionState({
+        pending: false,
+        status: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Managed promotion review execution failed.",
+      });
+    }
+  };
   const executeReviewStatus = async () => {
     const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
     if (readOnly || !reviewStatusExecuteUrl || !workspaceId) {
@@ -968,16 +1034,19 @@ export function IdeaToSpecWorkspacePanel({
       executeUrl={candidateApprovalExecuteUrl}
       promotionRequestExecuteUrl={promotionRequestExecuteUrl}
       promotionExecuteUrl={promotionExecuteUrl}
+      promotionReviewExecuteUrl={promotionReviewExecuteUrl}
       reviewStatusExecuteUrl={reviewStatusExecuteUrl}
       readModelPublicationExecuteUrl={readModelPublicationExecuteUrl}
       executionState={candidateApprovalExecutionState}
       promotionRequestExecutionState={promotionRequestExecutionState}
       promotionExecutionState={promotionExecutionState}
+      promotionReviewExecutionState={promotionReviewExecutionState}
       reviewStatusExecutionState={reviewStatusExecutionState}
       readModelPublicationExecutionState={readModelPublicationExecutionState}
       onExecute={executeCandidateApproval}
       onPromotionRequestExecute={executePromotionRequest}
       onPromotionExecute={executePromotionDryRun}
+      onPromotionReviewExecute={executePromotionReview}
       onReviewStatusExecute={executeReviewStatus}
       onReadModelPublicationExecute={executeReadModelPublication}
       readOnly={readOnly}
@@ -2628,16 +2697,19 @@ function GuidedApprovalPathSection({
   executeUrl,
   promotionRequestExecuteUrl,
   promotionExecuteUrl,
+  promotionReviewExecuteUrl,
   reviewStatusExecuteUrl,
   readModelPublicationExecuteUrl,
   executionState,
   promotionRequestExecutionState,
   promotionExecutionState,
+  promotionReviewExecutionState,
   reviewStatusExecutionState,
   readModelPublicationExecutionState,
   onExecute,
   onPromotionRequestExecute,
   onPromotionExecute,
+  onPromotionReviewExecute,
   onReviewStatusExecute,
   onReadModelPublicationExecute,
   readOnly = false,
@@ -2646,6 +2718,7 @@ function GuidedApprovalPathSection({
   executeUrl?: string;
   promotionRequestExecuteUrl?: string;
   promotionExecuteUrl?: string;
+  promotionReviewExecuteUrl?: string;
   reviewStatusExecuteUrl?: string;
   readModelPublicationExecuteUrl?: string;
   executionState?: {
@@ -2663,6 +2736,11 @@ function GuidedApprovalPathSection({
     status: string | null;
     error: string | null;
   };
+  promotionReviewExecutionState?: {
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  };
   reviewStatusExecutionState?: {
     pending: boolean;
     status: string | null;
@@ -2676,6 +2754,7 @@ function GuidedApprovalPathSection({
   onExecute?: () => void;
   onPromotionRequestExecute?: () => void;
   onPromotionExecute?: () => void;
+  onPromotionReviewExecute?: () => void;
   onReviewStatusExecute?: () => void;
   onReadModelPublicationExecute?: () => void;
   readOnly?: boolean;
@@ -2708,6 +2787,16 @@ function GuidedApprovalPathSection({
     showManagedPromotionExecution &&
     path.state.promotionRequestOk === true &&
     !promotionExecutionState?.pending;
+  const showManagedPromotionReviewExecution =
+    path.stage === "promotion_execution_needed" &&
+    path.state.promotionExecutionStatus !== null &&
+    path.status !== "blocked";
+  const canRunManagedPromotionReviewExecution =
+    !readOnly &&
+    Boolean(promotionReviewExecuteUrl) &&
+    showManagedPromotionReviewExecution &&
+    path.state.promotionRequestOk === true &&
+    !promotionReviewExecutionState?.pending;
   const showManagedReviewStatus =
     path.stage === "review_merge_waiting" && path.state.reviewState === null;
   const canRunManagedReviewStatus =
@@ -2841,6 +2930,23 @@ function GuidedApprovalPathSection({
             </span>
           </div>
         ) : null}
+        {showManagedPromotionReviewExecution ? (
+          <div className={styles.draftControls}>
+            <button
+              className={styles.ackButton}
+              type="button"
+              disabled={!canRunManagedPromotionReviewExecution}
+              onClick={onPromotionReviewExecute}
+            >
+              {promotionReviewExecutionState?.pending
+                ? "Opening review PR..."
+                : "Open review PR"}
+            </button>
+            <span className={styles.statusDetail}>
+              SpecSpace backend will call the allowlisted Platform non-dry-run promotion execution.
+            </span>
+          </div>
+        ) : null}
         {showManagedReviewStatus ? (
           <div className={styles.draftControls}>
             <button
@@ -2903,6 +3009,16 @@ function GuidedApprovalPathSection({
         {promotionExecutionState?.error ? (
           <span className={styles.statusDetail}>
             Promotion execution failed · {promotionExecutionState.error}
+          </span>
+        ) : null}
+        {promotionReviewExecutionState?.status ? (
+          <span className={styles.statusDetail}>
+            Promotion review execution: {promotionReviewExecutionState.status}
+          </span>
+        ) : null}
+        {promotionReviewExecutionState?.error ? (
+          <span className={styles.statusDetail}>
+            Promotion review execution failed · {promotionReviewExecutionState.error}
           </span>
         ) : null}
         {reviewStatusExecutionState?.status ? (
