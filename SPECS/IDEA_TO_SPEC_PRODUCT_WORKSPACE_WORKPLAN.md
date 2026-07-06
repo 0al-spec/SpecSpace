@@ -221,6 +221,9 @@ reviews, or publish read models.
   across route-only, workspace creation requested, initialized, clarification,
   repair, approval, and published states. It checks the current phase, next safe
   action anchors, early focus mode, and late full lifecycle sections.
+- Execution-backed arbitrary-route browser smokes now create the product
+  workspace request through the sidebar `New workspace` wizard instead of
+  seeding `product_workspace_creation_requests.json` with a direct API POST.
 
 ## Next Tasks
 
@@ -398,6 +401,9 @@ Follow-up scope:
 
 - Replace remaining direct API writes in the e2e harness with browser-level UI
   interactions where the Product Workspace already has forms.
+  Done for workspace creation in the execution-backed arbitrary-route smokes;
+  remaining direct writes are harness validation, external publication setup, or
+  operations whose browser form is intentionally absent.
 - Keep repair/promotion command hints read-only until Platform owns each
   controlled execution wrapper. The repair rerun request gate, full requested
   repair rerun execution, repair rerun publication, candidate approval
