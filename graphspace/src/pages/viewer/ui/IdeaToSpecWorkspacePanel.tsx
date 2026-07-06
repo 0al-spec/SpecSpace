@@ -85,6 +85,7 @@ type Props = {
   realIdeaAnswerContinuationExecutionRequestsUrl?: string;
   realIdeaAnswerContinuationExecuteUrl?: string;
   repairRerunRequestsUrl?: string;
+  repairRerunRequestGateExecuteUrl?: string;
   candidateApprovalIntentsUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
   productWorkspaceInitializationExecuteUrl?: string;
@@ -398,6 +399,7 @@ export function IdeaToSpecWorkspacePanel({
   realIdeaAnswerContinuationExecutionRequestsUrl,
   realIdeaAnswerContinuationExecuteUrl,
   repairRerunRequestsUrl,
+  repairRerunRequestGateExecuteUrl,
   candidateApprovalIntentsUrl,
   projectLocalOntologyReviewDecisionsUrl,
   productWorkspaceInitializationExecuteUrl,
@@ -633,7 +635,13 @@ export function IdeaToSpecWorkspacePanel({
   );
   const guidedFlowSection = <GuidedFlowSection flow={data.guidedFlow} />;
   const guidedRepairPathSection = (
-    <GuidedRepairPathSection path={data.guidedRepairPath} />
+    <GuidedRepairPathSection
+      path={data.guidedRepairPath}
+      executeRequestGateUrl={repairRerunRequestGateExecuteUrl}
+      workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+      onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
+      readOnly={readOnly}
+    />
   );
   const guidedApprovalPathSection = (
     <GuidedApprovalPathSection path={data.guidedApprovalPath} />
@@ -1878,10 +1886,77 @@ function GuidedFlowSection({ flow }: { flow: IdeaToSpecGuidedFlow }) {
 
 function GuidedRepairPathSection({
   path,
+  executeRequestGateUrl,
+  workspaceId,
+  onWorkspaceRefreshRequest,
+  readOnly,
 }: {
   path: IdeaToSpecWorkspace["guidedRepairPath"];
+  executeRequestGateUrl?: string;
+  workspaceId: string | null;
+  onWorkspaceRefreshRequest?: () => void;
+  readOnly: boolean;
 }) {
+  const [managedRequestGateState, setManagedRequestGateState] = useState<{
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  }>({ pending: false, status: null, error: null });
   const primaryHref = path.targetSection ? `#${path.targetSection}` : null;
+  const canRunManagedRequestGate =
+    !readOnly &&
+    Boolean(executeRequestGateUrl) &&
+    Boolean(workspaceId) &&
+    path.stage === "rerun_request_gate_needed" &&
+    path.state.rerunRequestStatus === "usable" &&
+    managedRequestGateState.pending === false;
+  const runManagedRequestGate = async () => {
+    if (!executeRequestGateUrl || !workspaceId) return;
+    setManagedRequestGateState({ pending: true, status: null, error: null });
+    try {
+      const response = await fetch(executeRequestGateUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace_id: workspaceId }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        summary?: { status?: unknown };
+        status?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok) {
+        setManagedRequestGateState({
+          pending: false,
+          status: typeof body.status === "string" ? body.status : null,
+          error:
+            typeof body.error === "string"
+              ? body.error
+              : `Managed repair request gate execution failed with HTTP ${response.status}.`,
+        });
+        return;
+      }
+      setManagedRequestGateState({
+        pending: false,
+        status:
+          typeof body.summary?.status === "string"
+            ? body.summary.status
+            : typeof body.status === "string"
+              ? body.status
+              : "completed",
+        error: null,
+      });
+      onWorkspaceRefreshRequest?.();
+    } catch (error) {
+      setManagedRequestGateState({
+        pending: false,
+        status: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Managed repair request gate execution failed.",
+      });
+    }
+  };
   const stateItems = [
     ["Drafts", path.state.repairDraftsStatus],
     ["Request", path.state.rerunRequestStatus],
@@ -1942,6 +2017,33 @@ function GuidedRepairPathSection({
           <a className={styles.ackButton} href={primaryHref}>
             Open target section
           </a>
+        ) : null}
+        {path.stage === "rerun_request_gate_needed" ? (
+          <div className={styles.rowActions}>
+            <button
+              type="button"
+              className={styles.actionButton}
+              disabled={!canRunManagedRequestGate}
+              onClick={runManagedRequestGate}
+            >
+              {managedRequestGateState.pending
+                ? "Running request gate..."
+                : "Run controlled request gate"}
+            </button>
+            <span className={styles.statusDetail}>
+              {executeRequestGateUrl
+                ? "SpecSpace backend will call the allowlisted Platform request-gate operation."
+                : "Managed backend execution is not configured; use the Platform command hint."}
+            </span>
+          </div>
+        ) : null}
+        {managedRequestGateState.status ? (
+          <p className={styles.statusDetail}>
+            Request gate execution: {managedRequestGateState.status}
+          </p>
+        ) : null}
+        {managedRequestGateState.error ? (
+          <p className={styles.statusDetail}>{managedRequestGateState.error}</p>
         ) : null}
       </div>
       {path.available && path.checkpoints.length > 0 ? (

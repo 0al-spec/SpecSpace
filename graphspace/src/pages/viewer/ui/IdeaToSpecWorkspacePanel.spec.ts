@@ -384,6 +384,33 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).not.toContain("Create branch");
   });
 
+  it("shows managed repair request gate action when the gate is the next step", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_repair_path.stage = "rerun_request_gate_needed";
+    raw.guided_repair_path.next_action =
+      "Build or refresh the repair rerun request gate.";
+    raw.guided_repair_path.state.rerun_request_status = "usable";
+    raw.guided_repair_path.state.request_gate_status = "missing";
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+        repairRerunRequestGateExecuteUrl:
+          "/api/v1/idea-to-spec-repair-rerun-request-gate/execute",
+      }),
+    );
+
+    expect(html).toContain("Build or refresh the repair rerun request gate.");
+    expect(html).toContain("Run controlled request gate");
+    expect(html).toContain(
+      "SpecSpace backend will call the allowlisted Platform request-gate operation.",
+    );
+  });
+
   it("renders template-backed intake answers for all required fields", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     const target =

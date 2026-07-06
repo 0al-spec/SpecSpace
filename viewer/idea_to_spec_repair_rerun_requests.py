@@ -380,6 +380,55 @@ def save_rerun_request(
         )
 
 
+def mark_request_consumed(
+    server: Any,
+    *,
+    workspace_id: str,
+    request_id: str,
+) -> tuple[HTTPStatus, dict[str, Any]]:
+    with _STATE_LOCK:
+        status, state = _read_persisted_state(server)
+        if status != HTTPStatus.OK:
+            return status, state
+        path = state_path(server)
+        now = now_iso()
+        matched = False
+        updated: list[dict[str, Any]] = []
+        for item in _records(state.get("requests")):
+            if (
+                item.get("workspace_id") == workspace_id
+                and item.get("id") == request_id
+                and item.get("status") == "requested"
+            ):
+                updated.append(
+                    {
+                        **item,
+                        "status": "consumed",
+                        "consumed_at": now,
+                        "updated_at": now,
+                    }
+                )
+                matched = True
+            else:
+                updated.append(item)
+        if not matched:
+            return HTTPStatus.CONFLICT, {
+                "error": "Repair rerun request is no longer active or has already been consumed.",
+                "workspace_id": workspace_id,
+                "request_id": request_id,
+            }
+        state["requests"] = sorted(
+            updated,
+            key=lambda entry: (entry["workspace_id"], entry["created_at"], entry["id"]),
+        )
+        _refresh_summary(state)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(f"{path.suffix}.tmp")
+        tmp.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        tmp.replace(path)
+        return HTTPStatus.OK, _filtered_state(state, workspace_id)
+
+
 def _filtered_state(state: dict[str, Any], workspace_id: str | None) -> dict[str, Any]:
     if not workspace_id:
         return state
