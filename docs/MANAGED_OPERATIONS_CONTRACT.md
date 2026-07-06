@@ -47,9 +47,9 @@ operation paths:
 | `real_idea_intake_execute` | Real idea intake | `POST /api/v1/real-idea-intake/execute` | `product-real-idea-intake execute-requested` | `runs/platform_real_idea_entry_intake_execution_report.json` |
 | `real_idea_answer_continuation_execute` | Guided clarification continuation | `POST /api/v1/real-idea-answer-continuation/execute` | `product-real-idea-continuation execute-requested` | `runs/platform_real_idea_answer_continuation_execution_report.json` |
 | `repair_rerun_request_gate_execute` | Guided repair request gate | `POST /api/v1/idea-to-spec-repair-rerun-request-gate/execute` | `product-repair-rerun request-gate` | `runs/platform_product_repair_rerun_request_gate_execution_report.json`, `runs/specspace_repair_rerun_request_gate.json` |
-| `repair_rerun_execute` | Guided repair rerun | `POST /api/v1/idea-to-spec-repair-rerun/execute` | `product-repair-rerun plan` then `product-repair-rerun execute` | `runs/platform_product_repair_rerun_execution_plan.json`, `runs/platform_product_repair_rerun_execution_report.json`, `runs/repaired_candidate_promotion_handoff_report.json` |
+| `repair_rerun_execute` | Guided repair rerun | `POST /api/v1/idea-to-spec-repair-rerun/execute` | `product-repair-rerun plan` then `product-repair-rerun execute` | `runs/managed_repair_rerun_plans/<request-id>.platform_product_repair_rerun_execution_plan.json`, `runs/platform_product_repair_rerun_execution_report.json` |
 | `repair_rerun_publish` | Guided repair publication | `POST /api/v1/idea-to-spec-repair-rerun/publish` | `product-repair-rerun publish` | `runs/platform_product_repair_rerun_publication_report.json` |
-| `candidate_approval_execute` | Guided candidate approval | `POST /api/v1/idea-to-spec-candidate-approval/execute` | `product-candidate-approval approve` | `runs/platform_candidate_approval_execution_report.json`, `runs/candidate_approval_decision.json` |
+| `candidate_approval_execute` | Guided candidate approval | `POST /api/v1/idea-to-spec-candidate-approval/execute` | `product-candidate-approval approve` | `runs/platform_candidate_approval_intent_gate_report.json`, `runs/platform_candidate_approval_execution_report.json`, `runs/candidate_approval_decision.json` |
 | `promotion_request_execute` | Guided promotion request | `POST /api/v1/idea-to-spec-promotion-request/execute` | `product-candidate-promotion request` | `runs/graph_repository_promotion_request.json` |
 | `promotion_execute_dry_run` | Guided promotion dry-run | `POST /api/v1/idea-to-spec-promotion/execute` | `product-candidate-promotion execute --dry-run --open-review-dry-run` | `runs/product_candidate_promotion_execution_report.json`, `runs/git_service_promotion_execution_report.json` |
 | `promotion_review_execute` | Guided promotion review | `POST /api/v1/idea-to-spec-promotion-review/execute` | `product-candidate-promotion execute` | `runs/product_candidate_promotion_execution_report.json`, `runs/git_service_promotion_execution_report.json` |
@@ -68,8 +68,10 @@ Each operation has a declared idempotency source in
 - read-model publication uses merged review evidence.
 
 Replay is acceptable only when the selected workspace, request/artifact refs,
-and digests still match. Stale or cross-workspace state must remain `stale` or
-`blocked`, not `ready_to_execute`.
+and digests still match. Some operations consume their request or intent before
+invoking Platform; after timeout or failure, retry requires a newly submitted UI
+request/intent rather than resubmitting the same request id. Stale or
+cross-workspace state must remain `stale` or `blocked`, not `ready_to_execute`.
 
 ## Overwrite Policy
 
@@ -78,16 +80,17 @@ workspace-scoped request/ref set is being refreshed. Failed imports, failed
 materialization, malformed reports, and timeout reports must not silently replace
 ready candidate, approval, promotion, or publication artifacts.
 
-Non-dry-run Git review execution and read-model publication require explicit
-operator confirmation. Dry-run promotion must not create worktrees, commits,
-pull requests, or read models.
+Non-dry-run Git review execution requires explicit operator confirmation.
+Read-model publication requires merged review-status evidence but is not
+currently protected by an extra confirmation field. Dry-run promotion must not
+create worktrees, commits, pull requests, or read models.
 
 ## Timeout Policy
 
 Every backend-managed operation is bounded by
 `platform_execution_timeout_seconds`. A timeout is a durable failed execution
-state and should keep the next UI action as retry/inspect, not advance the
-lifecycle.
+state and should keep the next UI action as inspect/recreate request or retry
+only when the operation is still replayable; it must not advance the lifecycle.
 
 ## Regression Matrix
 

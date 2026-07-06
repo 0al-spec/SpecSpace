@@ -1,8 +1,8 @@
 """Registry for SpecSpace backend-managed product workspace operations.
 
 The registry is intentionally descriptive. Execution remains implemented in the
-per-operation modules, while tests use this table to catch route, handler, and
-safety-policy drift.
+per-operation modules, while tests use this table to catch route, handler,
+selected command, report-path, and safety-policy drift.
 """
 
 from __future__ import annotations
@@ -47,6 +47,7 @@ class ManagedOperation:
     ui_stage: str
     endpoint: str
     handler_name: str
+    implementation_module: str
     platform_command: tuple[str, ...]
     input_refs: tuple[str, ...]
     output_reports: tuple[str, ...]
@@ -96,6 +97,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ui_stage="Workspace initialization",
         endpoint="/api/v1/product-workspace-initialization/execute",
         handler_name="handle_v1_product_workspace_initialization_execute_post",
+        implementation_module="viewer.product_workspace_initialization_execution",
         platform_command=("workspace", "execute-requested-initialization"),
         input_refs=("runs/product_workspace_initialization_execution_request.json",),
         output_reports=(
@@ -114,6 +116,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ui_stage="Real idea intake",
         endpoint="/api/v1/real-idea-intake/execute",
         handler_name="handle_v1_real_idea_intake_execute_post",
+        implementation_module="viewer.real_idea_intake_execution",
         platform_command=("product-real-idea-intake", "execute-requested"),
         input_refs=(
             "specspace-state://real_idea_intake_execution_requests.json",
@@ -124,7 +127,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         idempotency_key="execution_request.request_id",
         overwrite_policy="Consumes only the active SpecSpace-owned execution request for the selected workspace and existing initialization evidence.",
         timeout_policy="Bounded by platform_execution_timeout_seconds; timeout leaves raw idea state local-only and reports executed=false.",
-        replay_policy="Replay must keep the same workspace, request id, entry request, and initialization refs.",
+        replay_policy="The request is consumed before Platform execution; retry after timeout or failure requires a new UI execution request.",
         expected_ui_states=_COMMON_EARLY_STATES,
     ),
     ManagedOperation(
@@ -134,10 +137,12 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ui_stage="Guided clarification continuation",
         endpoint="/api/v1/real-idea-answer-continuation/execute",
         handler_name="handle_v1_real_idea_answer_continuation_execute_post",
+        implementation_module="viewer.real_idea_answer_continuation_execution",
         platform_command=("product-real-idea-continuation", "execute-requested"),
         input_refs=(
             "specspace-state://real_idea_answer_continuation_execution_requests.json",
             "specspace-state://idea_to_spec_intake_clarification_answers.json",
+            "runs/platform_product_workspace_initialization_execution_report.json",
             "runs/platform_real_idea_entry_intake_execution_report.json",
         ),
         output_reports=(
@@ -146,7 +151,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         idempotency_key="execution_request.request_id",
         overwrite_policy="Refuses stale continuation requests and preserves existing ready artifacts on failed materialization.",
         timeout_policy="Bounded by platform_execution_timeout_seconds; timeout returns managed continuation report with executed=false.",
-        replay_policy="Replay must reference the same answer state, intake execution, and workspace initialization evidence.",
+        replay_policy="The request is consumed before Platform execution; retry after timeout or failure requires a new UI continuation request.",
         expected_ui_states=_COMMON_EARLY_STATES,
     ),
     ManagedOperation(
@@ -156,6 +161,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ui_stage="Guided repair request gate",
         endpoint="/api/v1/idea-to-spec-repair-rerun-request-gate/execute",
         handler_name="handle_v1_idea_to_spec_repair_rerun_request_gate_execute_post",
+        implementation_module="viewer.idea_to_spec_repair_rerun_request_gate_execution",
         platform_command=("product-repair-rerun", "request-gate"),
         input_refs=(
             "specspace-state://idea_to_spec_repair_rerun_requests.json",
@@ -169,7 +175,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         idempotency_key="rerun_request.request_id",
         overwrite_policy="Builds or refreshes only the request gate for the active repair request/session.",
         timeout_policy="Bounded by platform_execution_timeout_seconds; timeout does not execute repair rerun.",
-        replay_policy="Replay is blocked when workspace hygiene marks request state stale for the current repair session.",
+        replay_policy="The request is consumed before Platform execution; retry after timeout or failure requires a new UI repair rerun request.",
         expected_ui_states=_COMMON_GATE_STATES,
     ),
     ManagedOperation(
@@ -179,20 +185,22 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ui_stage="Guided repair rerun",
         endpoint="/api/v1/idea-to-spec-repair-rerun/execute",
         handler_name="handle_v1_idea_to_spec_repair_rerun_execute_post",
+        implementation_module="viewer.idea_to_spec_repair_rerun_execution",
         platform_command=("product-repair-rerun", "plan", "execute"),
         input_refs=(
             "specspace-state://idea_to_spec_repair_rerun_requests.json",
+            "runs/specspace_repair_draft_import_preview.json",
+            "runs/idea_to_spec_repair_session.json",
             "runs/specspace_repair_rerun_request_gate.json",
         ),
         output_reports=(
-            "runs/platform_product_repair_rerun_execution_plan.json",
+            "runs/managed_repair_rerun_plans/<request-id>.platform_product_repair_rerun_execution_plan.json",
             "runs/platform_product_repair_rerun_execution_report.json",
-            "runs/repaired_candidate_promotion_handoff_report.json",
         ),
         idempotency_key="rerun_request.request_id",
         overwrite_policy="Writes a managed plan path and executes only after the request gate is ready.",
         timeout_policy="Plan and execute phases are separately timeout bounded and surfaced as failed/pending evidence.",
-        replay_policy="Replay must keep the same request gate, import preview, and repair session refs.",
+        replay_policy="The request is consumed before Platform execution; retry after timeout or failure requires a new UI repair rerun request.",
         expected_ui_states=_COMMON_GATE_STATES,
     ),
     ManagedOperation(
@@ -202,6 +210,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ui_stage="Guided repair publication",
         endpoint="/api/v1/idea-to-spec-repair-rerun/publish",
         handler_name="handle_v1_idea_to_spec_repair_rerun_publish_post",
+        implementation_module="viewer.idea_to_spec_repair_rerun_publication",
         platform_command=("product-repair-rerun", "publish"),
         input_refs=("runs/platform_product_repair_rerun_execution_report.json",),
         output_reports=("runs/platform_product_repair_rerun_publication_report.json",),
@@ -218,20 +227,25 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ui_stage="Guided candidate approval",
         endpoint="/api/v1/idea-to-spec-candidate-approval/execute",
         handler_name="handle_v1_idea_to_spec_candidate_approval_execute_post",
+        implementation_module="viewer.idea_to_spec_candidate_approval_execution",
         platform_command=("product-candidate-approval", "approve"),
         input_refs=(
             "specspace-state://idea_to_spec_candidate_approval_intents.json",
-            "runs/repaired_candidate_promotion_handoff_report.json",
+            "runs/repaired_active_idea_to_spec_candidate.json",
+            "runs/repaired_idea_to_spec_repair_session.json",
+            "runs/repaired_idea_to_spec_promotion_gate.json",
+            "runs/platform_product_repair_rerun_execution_report.json",
             "runs/platform_product_repair_rerun_publication_report.json",
         ),
         output_reports=(
+            "runs/platform_candidate_approval_intent_gate_report.json",
             "runs/platform_candidate_approval_execution_report.json",
             "runs/candidate_approval_decision.json",
         ),
         idempotency_key="approval_intent.intent_id",
         overwrite_policy="Materializes approval only when gate is ready; failed execution cannot replace a ready decision.",
         timeout_policy="Bounded by platform_execution_timeout_seconds; timeout leaves Git and promotion state untouched.",
-        replay_policy="Replay must reference the same approval intent, repaired handoff, promotion gate, and publication evidence.",
+        replay_policy="The approval intent is consumed before Platform execution; retry after timeout or failure requires a new UI approval intent.",
         expected_ui_states=_COMMON_GATE_STATES,
     ),
     ManagedOperation(
@@ -241,8 +255,12 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ui_stage="Guided promotion request",
         endpoint="/api/v1/idea-to-spec-promotion-request/execute",
         handler_name="handle_v1_idea_to_spec_promotion_request_execute_post",
+        implementation_module="viewer.idea_to_spec_promotion_request_execution",
         platform_command=("product-candidate-promotion", "request"),
-        input_refs=("runs/candidate_approval_decision.json",),
+        input_refs=(
+            "runs/graph_repository_execution_plan.json",
+            "runs/candidate_approval_decision.json",
+        ),
         output_reports=("runs/graph_repository_promotion_request.json",),
         idempotency_key="candidate_approval_decision.decision_id",
         overwrite_policy="Creates the promotion request only from the selected approval decision and product graph plan.",
@@ -257,6 +275,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ui_stage="Guided promotion dry-run",
         endpoint="/api/v1/idea-to-spec-promotion/execute",
         handler_name="handle_v1_idea_to_spec_promotion_execute_post",
+        implementation_module="viewer.idea_to_spec_promotion_execution",
         platform_command=(
             "product-candidate-promotion",
             "execute",
@@ -285,6 +304,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ui_stage="Guided promotion review",
         endpoint="/api/v1/idea-to-spec-promotion-review/execute",
         handler_name="handle_v1_idea_to_spec_promotion_review_execute_post",
+        implementation_module="viewer.idea_to_spec_promotion_execution",
         platform_command=("product-candidate-promotion", "execute"),
         input_refs=(
             "runs/graph_repository_promotion_request.json",
@@ -311,6 +331,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ui_stage="Guided review status",
         endpoint="/api/v1/idea-to-spec-review-status/execute",
         handler_name="handle_v1_idea_to_spec_review_status_execute_post",
+        implementation_module="viewer.idea_to_spec_review_status_execution",
         platform_command=("product-candidate-promotion", "review-status"),
         input_refs=("runs/product_candidate_promotion_execution_report.json",),
         output_reports=(
@@ -329,6 +350,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ui_stage="Guided read-model publication",
         endpoint="/api/v1/idea-to-spec-read-model-publication/execute",
         handler_name="handle_v1_idea_to_spec_read_model_publication_execute_post",
+        implementation_module="viewer.idea_to_spec_read_model_publication_execution",
         platform_command=("product-candidate-promotion", "publish-read-model"),
         input_refs=(
             "runs/product_candidate_promotion_review_status_report.json",
@@ -343,7 +365,6 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         replay_policy="Replay must use the same merged review evidence and workspace output directory.",
         expected_ui_states=_COMMON_GATE_STATES,
         irreversible=True,
-        requires_explicit_confirmation=True,
         notes="This publishes public read-model files through Platform; it still does not mutate specs or Ontology.",
     ),
 )
