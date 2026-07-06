@@ -1090,6 +1090,7 @@ function GuidedWorkspaceInitializationPathSection({
 }) {
   const canRequestManagedExecution =
     Boolean(path.initializationRequestRef) &&
+    path.managedExecutionAvailable &&
     path.status !== "initialized" &&
     path.status !== "blocked" &&
     !readOnly;
@@ -1155,7 +1156,7 @@ function GuidedWorkspaceInitializationPathSection({
                 : "Run controlled initialization"}
             </button>
             <span className={styles.statusDetail}>
-              {executeUrl
+              {executeUrl && path.managedExecutionAvailable
                 ? "SpecSpace backend will call the allowlisted Platform operation."
                 : "Managed backend execution is not configured; use the Platform command hint."}
             </span>

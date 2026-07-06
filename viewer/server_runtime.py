@@ -71,6 +71,14 @@ def build_arg_parser(
         "SPECSPACE_PLATFORM_EXECUTION_ENABLED",
         "",
     ).strip()
+    platform_execution_timeout_env = os.environ.get(
+        "SPECSPACE_PLATFORM_EXECUTION_TIMEOUT_SECONDS",
+        "",
+    ).strip()
+    try:
+        platform_execution_timeout_default = int(platform_execution_timeout_env)
+    except ValueError:
+        platform_execution_timeout_default = 120
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--host",
@@ -230,7 +238,7 @@ def build_arg_parser(
     parser.add_argument(
         "--platform-execution-timeout-seconds",
         type=int,
-        default=int(os.environ.get("SPECSPACE_PLATFORM_EXECUTION_TIMEOUT_SECONDS", "120")),
+        default=platform_execution_timeout_default,
         help="Timeout for allowlisted Platform subprocess calls. Defaults to 120.",
     )
     return parser
@@ -351,9 +359,11 @@ def configure_server(
     )
     platform_dir = getattr(args, "platform_dir", None)
     server.platform_dir = platform_dir.expanduser().resolve() if platform_dir else None
-    server.platform_execution_enabled = bool(args.enable_platform_execution)
+    server.platform_execution_enabled = bool(
+        getattr(args, "enable_platform_execution", False)
+    )
     server.platform_execution_timeout_seconds = int(
-        args.platform_execution_timeout_seconds
+        getattr(args, "platform_execution_timeout_seconds", 120)
     )
     server.agent_available = args.agent
 

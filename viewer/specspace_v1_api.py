@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import unquote
 
@@ -105,6 +106,7 @@ def _apply_real_idea_entry_projection(
 
 def _workspace_initialization_path(
     *,
+    server: Any,
     workspace_id: str | None,
     creation: dict[str, Any],
 ) -> dict[str, Any]:
@@ -117,6 +119,12 @@ def _workspace_initialization_path(
     status = "route_only"
     next_safe_action = "Create a workspace request before starting product intake."
     blockers: list[str] = []
+    platform_dir = getattr(server, "platform_dir", None)
+    managed_execution_available = (
+        getattr(server, "platform_execution_enabled", False) is True
+        and isinstance(platform_dir, Path)
+        and (platform_dir / "scripts" / "platform.py").is_file()
+    )
 
     creation_status = summary.get("status")
     if creation_status in {
@@ -175,6 +183,7 @@ def _workspace_initialization_path(
         else None,
         "next_safe_action": next_safe_action,
         "blockers": blockers,
+        "managed_execution_available": managed_execution_available,
         "authority_boundary": {
             "inspect_only": True,
             "acknowledge_only": True,
@@ -589,6 +598,7 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
                 )
             )
             payload["workspace_initialization_path"] = _workspace_initialization_path(
+                server=handler.server,
                 workspace_id=workspace_id,
                 creation=payload["workspace_creation"],
             )

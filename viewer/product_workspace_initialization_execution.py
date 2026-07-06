@@ -45,6 +45,14 @@ def _safe_runs_ref_to_path(server: Any, ref: str | None) -> Path | None:
     return candidate
 
 
+def _read_json_object(path: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def _platform_script(server: Any) -> Path | None:
     platform_dir = getattr(server, "platform_dir", None)
     if not isinstance(platform_dir, Path):
@@ -79,6 +87,49 @@ def _execution_disabled_payload() -> dict[str, Any]:
             "accepts_ontology_terms": False,
         },
     }
+
+
+def _request_artifact_error(
+    request: dict[str, Any] | None,
+    *,
+    selected_workspace_id: str,
+) -> dict[str, Any] | None:
+    if request is None:
+        return {
+            "error": "Workspace initialization execution request artifact is not valid JSON.",
+            "field": "execution_request_ref",
+        }
+    if (
+        request.get("artifact_kind")
+        != "platform_product_workspace_initialization_execution_request"
+    ):
+        return {
+            "error": "Workspace initialization execution request artifact kind mismatch.",
+            "expected": "platform_product_workspace_initialization_execution_request",
+            "actual": request.get("artifact_kind"),
+        }
+    request_workspace_id = specspace_provider.normalize_product_workspace_id(
+        _text(_record(request.get("workspace")).get("workspace_id"))
+    )
+    if request_workspace_id != selected_workspace_id:
+        return {
+            "error": "Workspace initialization execution request workspace_id does not match selected workspace.",
+            "expected": selected_workspace_id,
+            "actual": request_workspace_id,
+        }
+    if request.get("requested_operation") != "workspace.execute-initialization-plan":
+        return {
+            "error": "Workspace initialization execution request operation mismatch.",
+            "expected": "workspace.execute-initialization-plan",
+            "actual": request.get("requested_operation"),
+        }
+    summary = _record(request.get("summary"))
+    if summary.get("ready_for_managed_execution") is not True:
+        return {
+            "error": "Workspace initialization execution request is not ready for managed execution.",
+            "field": "summary.ready_for_managed_execution",
+        }
+    return None
 
 
 def execute_requested_initialization(
@@ -131,11 +182,18 @@ def execute_requested_initialization(
             "error": "Workspace initialization execution request artifact not found.",
             "execution_request_ref": request_ref,
         }
+    request_artifact = _read_json_object(request_path)
+    request_error = _request_artifact_error(
+        request_artifact,
+        selected_workspace_id=selected_workspace_id,
+    )
+    if request_error is not None:
+        return HTTPStatus.CONFLICT, request_error
 
     runs_dir = getattr(server, "runs_dir", None)
     if not isinstance(runs_dir, Path):
         return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload()
-    output_path = request_path.parent / EXECUTION_REPORT_ARTIFACT
+    output_path = runs_dir / EXECUTION_REPORT_ARTIFACT
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     timeout = getattr(server, "platform_execution_timeout_seconds", 120)
     try:
@@ -156,13 +214,43 @@ def execute_requested_initialization(
         "--format",
         "json",
     ]
-    completed = subprocess.run(
-        command,
-        cwd=str(platform_script.parent.parent),
-        capture_output=True,
-        text=True,
-        timeout=timeout_seconds,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(platform_script.parent.parent),
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as error:
+        return HTTPStatus.GATEWAY_TIMEOUT, {
+            "artifact_kind": "specspace_managed_workspace_initialization_execution",
+            "ok": False,
+            "status": "platform_execution_timeout",
+            "workspace_id": selected_workspace_id,
+            "execution_request_ref": request_ref,
+            "output_ref": output_ref,
+            "summary": {
+                "status": "managed_initialization_timeout",
+                "executed": False,
+                "timeout_seconds": timeout_seconds,
+            },
+            "stderr_tail": (error.stderr or "")[-2000:]
+            if isinstance(error.stderr, str)
+            else "",
+            "authority_boundary": {
+                "browser_executes_platform": False,
+                "specspace_backend_executes_platform": True,
+                "executes_specgraph": False,
+                "creates_workspace_files": False,
+                "updates_workspace_catalog": False,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+            },
+        }
     stdout = completed.stdout.strip()
     try:
         report = json.loads(stdout) if stdout else {}

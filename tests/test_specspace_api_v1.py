@@ -8257,6 +8257,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "platform_product_workspace_initialization_execution_request"
                     ),
                     "workspace": {"workspace_id": "pantry-rotation"},
+                    "requested_operation": "workspace.execute-initialization-plan",
+                    "summary": {"ready_for_managed_execution": True},
                 },
             )
             httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
@@ -8338,6 +8340,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "platform_product_workspace_initialization_execution_request"
                     ),
                     "workspace": {"workspace_id": "pantry-rotation"},
+                    "requested_operation": "workspace.execute-initialization-plan",
+                    "summary": {"ready_for_managed_execution": True},
                 },
             )
             httpd, thread, base = _start(
@@ -8360,8 +8364,12 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         ),
                     },
                 )
-                report_file_exists = (
+                nested_report_file_exists = (
                     workspace_runs_dir
+                    / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
+                ).is_file()
+                report_file_exists = (
+                    runs_dir
                     / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
                 ).is_file()
             finally:
@@ -8372,10 +8380,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["status"], "completed")
         self.assertEqual(
             body["output_ref"],
-            (
-                "runs/pantry-rotation/"
-                + idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
-            ),
+            "runs/"
+            + idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
         )
         self.assertEqual(
             body["platform_report"]["summary"]["status"],
@@ -8386,6 +8392,115 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["authority_boundary"]["specspace_backend_executes_platform"]
         )
         self.assertTrue(report_file_exists)
+        self.assertFalse(nested_report_file_exists)
+
+    def test_product_workspace_initialization_execute_rejects_cross_workspace_request_artifact(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir(parents=True)
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT,
+                {
+                    "artifact_kind": (
+                        "platform_product_workspace_initialization_execution_request"
+                    ),
+                    "workspace": {"workspace_id": "other-workspace"},
+                    "requested_operation": "workspace.execute-initialization-plan",
+                    "summary": {"ready_for_managed_execution": True},
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/product-workspace-initialization/execute"
+                        "?workspace=pantry-rotation"
+                    ),
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "execution_request_ref": (
+                            "runs/"
+                            + idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT
+                        ),
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertIn("workspace_id does not match", body["error"])
+        self.assertEqual(body["expected"], "pantry-rotation")
+        self.assertEqual(body["actual"], "other-workspace")
+
+    def test_product_workspace_initialization_execute_returns_timeout_payload(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir(parents=True)
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "import time\ntime.sleep(5)\n",
+                encoding="utf-8",
+            )
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT,
+                {
+                    "artifact_kind": (
+                        "platform_product_workspace_initialization_execution_request"
+                    ),
+                    "workspace": {"workspace_id": "pantry-rotation"},
+                    "requested_operation": "workspace.execute-initialization-plan",
+                    "summary": {"ready_for_managed_execution": True},
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                platform_execution_timeout_seconds=1,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/product-workspace-initialization/execute"
+                        "?workspace=pantry-rotation"
+                    ),
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "execution_request_ref": (
+                            "runs/"
+                            + idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT
+                        ),
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 504)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_execution_timeout")
+        self.assertEqual(body["summary"]["status"], "managed_initialization_timeout")
 
     def test_product_workspace_initialization_execute_rejects_unsafe_request_ref(
         self,
