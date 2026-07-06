@@ -2355,9 +2355,9 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - Desktop and mobile/narrow smoke verify that keyboard affordance additions do not overlap canvas controls or panel chrome.
 
 ### CTXB-P13-T57 — Reserve Feature Evidence derived artifact UI slots — Planned, blocked on SpecGraph artifacts
-- **Description:** Prepare the SpecSpace plan for future Feature Runtime Evidence surfaces once SpecGraph materializes derived artifacts from Feature Passport evidence. This task must not implement UI against raw logs or external RFC text.
+- **Description:** Prepare the SpecSpace plan for future Feature Runtime Evidence surfaces once SpecGraph materializes derived artifacts from Feature Passport evidence. This task must not implement UI against raw logs, raw receipts, external RFC text, or private Feature Passport material.
 - **Priority:** P2
-- **Dependencies:** CTXB-P13-T6, CTXB-P13-T21, CTXB-P13-T22, SpecGraph `0058 Feature Runtime Evidence Layer`
+- **Dependencies:** CTXB-P13-T6, CTXB-P13-T21, CTXB-P13-T22, SpecGraph `0058 Feature Runtime Evidence Layer`, SpecGraph `0203 Feature Passport RFC 0.2 Adoption Contract`, producer schemas for Feature Passport indexes and claim-evaluation results
 - **Parallelizable:** yes
 - **Expected Derived Artifacts:** `runs/feature_passport_index.json`, `runs/feature_evidence_index.json`, `runs/feature_evidence_ladder.json`
 - **Outputs / Artifacts:** Feature Evidence panel contract slot, data adapter plan, evidence-ladder UI mapping, validation report
@@ -2365,8 +2365,10 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
   - SpecSpace reads only safe derived SpecGraph `runs/*.json` projections for Feature Evidence.
   - UI model is an evidence ladder, not a boolean deployed/implemented flag.
   - Ladder levels are represented as `L0 Specified`, `L1 Implemented`, `L2 Built`, `L3 Released`, `L4 Runtime Seen`, `L5 Feature Exposed`, `L6 Code Path Executed`, `L7 Effect Committed`, and `L8 Outcome Completed`.
-  - The panel can show strongest proof, missing evidence, receipt/source summary, and boundary notes.
-  - Client-side telemetry is labeled as observation; canonical proof is server-side or signed receipt.
+  - The panel can show strongest proof, missing evidence, skipped/not-applicable levels, failure observations that do not satisfy levels, aggregate-pending claim states, receipt/source summary, and boundary notes.
+  - Client-side telemetry is labeled as observation; canonical proof is server-side or signed/hash-linked receipt evidence from a safe derived producer artifact.
+  - Aggregate adoption claims are shown from producer claim-evaluation results, not inferred by the UI from individual receipts.
+  - Feature Passport lifecycle/version state is visible enough to explain which passport version a receipt or ladder projection used.
   - Feature Passport remains the canonical vocabulary authority; SpecSpace does not duplicate or reinterpret its RFC as source of truth.
 
 ### CTXB-P13-T58 — Reserve Agent Identity and passport verification UI slots — Planned, blocked on SpecGraph artifacts
