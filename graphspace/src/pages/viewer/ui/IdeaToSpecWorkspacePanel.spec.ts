@@ -612,6 +612,37 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
   });
 
+  it("shows managed read-model publication action after review is merged", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_approval_path.available = true;
+    raw.guided_approval_path.stage = "read_model_publication_needed";
+    raw.guided_approval_path.status = "waiting_for_operator";
+    raw.guided_approval_path.next_action =
+      "Publish the public read model after repository review merge.";
+    raw.guided_approval_path.state.review_state = null;
+    raw.guided_approval_path.state.read_model_published = false;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+        readModelPublicationExecuteUrl:
+          "/api/v1/idea-to-spec-read-model-publication/execute",
+      }),
+    );
+
+    expect(html).toContain(
+      "Publish the public read model after repository review merge.",
+    );
+    expect(html).toContain("Publish read model");
+    expect(html).toContain(
+      "SpecSpace backend will call the allowlisted Platform read-model publication.",
+    );
+  });
+
   it("renders template-backed intake answers for all required fields", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     const target =

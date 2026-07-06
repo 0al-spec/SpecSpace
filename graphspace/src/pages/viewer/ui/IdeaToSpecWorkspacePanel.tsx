@@ -93,6 +93,7 @@ type Props = {
   promotionRequestExecuteUrl?: string;
   promotionExecuteUrl?: string;
   reviewStatusExecuteUrl?: string;
+  readModelPublicationExecuteUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
   productWorkspaceInitializationExecuteUrl?: string;
   repairRerunRequestsRefreshKey?: number | string;
@@ -413,6 +414,7 @@ export function IdeaToSpecWorkspacePanel({
   promotionRequestExecuteUrl,
   promotionExecuteUrl,
   reviewStatusExecuteUrl,
+  readModelPublicationExecuteUrl,
   projectLocalOntologyReviewDecisionsUrl,
   productWorkspaceInitializationExecuteUrl,
   repairRerunRequestsRefreshKey = 0,
@@ -494,6 +496,12 @@ export function IdeaToSpecWorkspacePanel({
     status: string | null;
     error: string | null;
   }>({ pending: false, status: null, error: null });
+  const [readModelPublicationExecutionState, setReadModelPublicationExecutionState] =
+    useState<{
+      pending: boolean;
+      status: string | null;
+      error: string | null;
+    }>({ pending: false, status: null, error: null });
   const diagnosticsBodyRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -854,6 +862,61 @@ export function IdeaToSpecWorkspacePanel({
       });
     }
   };
+  const executeReadModelPublication = async () => {
+    const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
+    if (readOnly || !readModelPublicationExecuteUrl || !workspaceId) {
+      return;
+    }
+    setReadModelPublicationExecutionState({
+      pending: true,
+      status: null,
+      error: null,
+    });
+    try {
+      const response = await fetch(readModelPublicationExecuteUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace_id: workspaceId }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        summary?: { status?: unknown };
+        status?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok) {
+        const detail =
+          typeof body.error === "string"
+            ? body.error
+            : `Managed read-model publication failed with HTTP ${response.status}.`;
+        setReadModelPublicationExecutionState({
+          pending: false,
+          status: typeof body.status === "string" ? body.status : null,
+          error: detail,
+        });
+        return;
+      }
+      setReadModelPublicationExecutionState({
+        pending: false,
+        status:
+          typeof body.summary?.status === "string"
+            ? body.summary.status
+            : typeof body.status === "string"
+              ? body.status
+              : "managed_read_model_published",
+        error: null,
+      });
+      onWorkspaceRefreshRequest?.();
+    } catch (error) {
+      setReadModelPublicationExecutionState({
+        pending: false,
+        status: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Managed read-model publication failed.",
+      });
+    }
+  };
 
   const productWorkspaceOverviewSection = (
     <ProductWorkspaceOverviewSection
@@ -906,14 +969,17 @@ export function IdeaToSpecWorkspacePanel({
       promotionRequestExecuteUrl={promotionRequestExecuteUrl}
       promotionExecuteUrl={promotionExecuteUrl}
       reviewStatusExecuteUrl={reviewStatusExecuteUrl}
+      readModelPublicationExecuteUrl={readModelPublicationExecuteUrl}
       executionState={candidateApprovalExecutionState}
       promotionRequestExecutionState={promotionRequestExecutionState}
       promotionExecutionState={promotionExecutionState}
       reviewStatusExecutionState={reviewStatusExecutionState}
+      readModelPublicationExecutionState={readModelPublicationExecutionState}
       onExecute={executeCandidateApproval}
       onPromotionRequestExecute={executePromotionRequest}
       onPromotionExecute={executePromotionDryRun}
       onReviewStatusExecute={executeReviewStatus}
+      onReadModelPublicationExecute={executeReadModelPublication}
       readOnly={readOnly}
     />
   );
@@ -2563,14 +2629,17 @@ function GuidedApprovalPathSection({
   promotionRequestExecuteUrl,
   promotionExecuteUrl,
   reviewStatusExecuteUrl,
+  readModelPublicationExecuteUrl,
   executionState,
   promotionRequestExecutionState,
   promotionExecutionState,
   reviewStatusExecutionState,
+  readModelPublicationExecutionState,
   onExecute,
   onPromotionRequestExecute,
   onPromotionExecute,
   onReviewStatusExecute,
+  onReadModelPublicationExecute,
   readOnly = false,
 }: {
   path: IdeaToSpecWorkspace["guidedApprovalPath"];
@@ -2578,6 +2647,7 @@ function GuidedApprovalPathSection({
   promotionRequestExecuteUrl?: string;
   promotionExecuteUrl?: string;
   reviewStatusExecuteUrl?: string;
+  readModelPublicationExecuteUrl?: string;
   executionState?: {
     pending: boolean;
     status: string | null;
@@ -2598,10 +2668,16 @@ function GuidedApprovalPathSection({
     status: string | null;
     error: string | null;
   };
+  readModelPublicationExecutionState?: {
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  };
   onExecute?: () => void;
   onPromotionRequestExecute?: () => void;
   onPromotionExecute?: () => void;
   onReviewStatusExecute?: () => void;
+  onReadModelPublicationExecute?: () => void;
   readOnly?: boolean;
 }) {
   const primaryHref = path.targetSection ? `#${path.targetSection}` : null;
@@ -2639,6 +2715,14 @@ function GuidedApprovalPathSection({
     Boolean(reviewStatusExecuteUrl) &&
     showManagedReviewStatus &&
     !reviewStatusExecutionState?.pending;
+  const showManagedReadModelPublication =
+    path.stage === "read_model_publication_needed" &&
+    path.state.readModelPublished === false;
+  const canRunManagedReadModelPublication =
+    !readOnly &&
+    Boolean(readModelPublicationExecuteUrl) &&
+    showManagedReadModelPublication &&
+    !readModelPublicationExecutionState?.pending;
   const stateItems = [
     ["Readiness", path.state.approvalReadinessStatus],
     ["Intent", path.state.approvalIntentStatus],
@@ -2774,6 +2858,23 @@ function GuidedApprovalPathSection({
             </span>
           </div>
         ) : null}
+        {showManagedReadModelPublication ? (
+          <div className={styles.draftControls}>
+            <button
+              className={styles.ackButton}
+              type="button"
+              disabled={!canRunManagedReadModelPublication}
+              onClick={onReadModelPublicationExecute}
+            >
+              {readModelPublicationExecutionState?.pending
+                ? "Publishing read model..."
+                : "Publish read model"}
+            </button>
+            <span className={styles.statusDetail}>
+              SpecSpace backend will call the allowlisted Platform read-model publication.
+            </span>
+          </div>
+        ) : null}
         {executionState?.status ? (
           <span className={styles.statusDetail}>
             Candidate approval execution: {executionState.status}
@@ -2812,6 +2913,16 @@ function GuidedApprovalPathSection({
         {reviewStatusExecutionState?.error ? (
           <span className={styles.statusDetail}>
             Review-status inspection failed · {reviewStatusExecutionState.error}
+          </span>
+        ) : null}
+        {readModelPublicationExecutionState?.status ? (
+          <span className={styles.statusDetail}>
+            Read-model publication: {readModelPublicationExecutionState.status}
+          </span>
+        ) : null}
+        {readModelPublicationExecutionState?.error ? (
+          <span className={styles.statusDetail}>
+            Read-model publication failed · {readModelPublicationExecutionState.error}
           </span>
         ) : null}
       </div>
