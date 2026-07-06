@@ -9407,6 +9407,412 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 409)
         self.assertEqual(body["reason"], "candidate_approval_decision_not_ready")
 
+    def test_promotion_execute_disabled_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 503)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_execution_unavailable")
+        self.assertFalse(body["authority_boundary"]["browser_executes_platform"])
+        self.assertFalse(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+        self.assertFalse(
+            body["authority_boundary"]["executes_git_service_dry_run"]
+        )
+
+    def test_promotion_execute_runs_allowlisted_platform_dry_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "\n".join(
+                    [
+                        "import json",
+                        "import sys",
+                        "from pathlib import Path",
+                        "args = sys.argv",
+                        "output = Path(args[args.index('--output') + 1])",
+                        "git_output = Path(args[args.index('--git-service-output') + 1])",
+                        "promotion_request = args[args.index('--promotion-request') + 1]",
+                        "approval = args[args.index('--approval-decision') + 1]",
+                        "repository_dir = args[args.index('--repository-dir') + 1]",
+                        "workspace_dir = args[args.index('--workspace-dir') + 1]",
+                        "assert '--dry-run' in args",
+                        "assert '--open-review-dry-run' in args",
+                        "git_report = {",
+                        "    'artifact_kind': 'platform_git_service_promotion_execution_report',",
+                        "    'ok': True,",
+                        "    'dry_run': True,",
+                        "    'open_review_dry_run': True,",
+                        "    'summary': {'error_count': 0, 'operation_count': 3},",
+                        "}",
+                        "git_output.write_text(json.dumps(git_report), encoding='utf-8')",
+                        "report = {",
+                        "    'artifact_kind': 'platform_product_candidate_promotion_execution_report',",
+                        "    'schema_version': 1,",
+                        "    'ok': True,",
+                        "    'dry_run': True,",
+                        "    'open_review_dry_run': True,",
+                        "    'workflow_lane': 'product_idea_to_spec',",
+                        "    'promotion_request_ref': promotion_request,",
+                        "    'approval_decision_ref': approval,",
+                        "    'repository_dir': repository_dir,",
+                        "    'workspace_dir': workspace_dir,",
+                        "    'git_service_execution_report_ref': str(git_output),",
+                        "    'summary': {'status': 'promotion_execution_dry_run', 'error_count': 0},",
+                        "    'authority_boundary': {",
+                        "        'controlled_git_service_execution': True,",
+                        "        'creates_candidate_worktree_or_branch': False,",
+                        "        'creates_candidate_commit': False,",
+                        "        'opens_pull_requests': False,",
+                        "        'publishes_read_models': False,",
+                        "        'mutates_canonical_specs': False,",
+                        "        'writes_ontology_packages': False,",
+                        "    },",
+                        "}",
+                        "output.write_text(json.dumps(report), encoding='utf-8')",
+                        "print(json.dumps(report))",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+                execution_exists = (
+                    runs_dir
+                    / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+                ).is_file()
+                git_execution_exists = (
+                    runs_dir
+                    / idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+                ).is_file()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["status"], "completed")
+        self.assertEqual(body["workspace_id"], "team-decision-log")
+        self.assertEqual(
+            body["promotion_request_ref"],
+            "runs/graph_repository_promotion_request.json",
+        )
+        self.assertEqual(
+            body["approval_decision_ref"],
+            "runs/candidate_approval_decision.json",
+        )
+        self.assertEqual(
+            body["output_ref"],
+            "runs/product_candidate_promotion_execution_report.json",
+        )
+        self.assertEqual(
+            body["git_service_output_ref"],
+            "runs/git_service_promotion_execution_report.json",
+        )
+        self.assertTrue(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+        self.assertTrue(body["authority_boundary"]["executes_git_service_dry_run"])
+        self.assertFalse(
+            body["authority_boundary"]["creates_candidate_worktree_or_branch"]
+        )
+        self.assertFalse(body["authority_boundary"]["creates_git_commits"])
+        self.assertFalse(body["authority_boundary"]["opens_pull_requests"])
+        self.assertFalse(body["authority_boundary"]["publishes_read_models"])
+        self.assertTrue(body["summary"]["dry_run"])
+        self.assertTrue(body["summary"]["open_review_dry_run"])
+        self.assertTrue(execution_exists)
+        self.assertTrue(git_execution_exists)
+
+    def test_promotion_execute_requires_ready_promotion_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            request_path = runs_dir / "graph_repository_promotion_request.json"
+            request = json.loads(request_path.read_text(encoding="utf-8"))
+            request["summary"]["promotion_ready"] = False
+            _write_json(request_path, request)
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "promotion_request_not_ready")
+
+    def test_promotion_execute_rejects_cross_workspace_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            request_path = runs_dir / "graph_repository_promotion_request.json"
+            request = json.loads(request_path.read_text(encoding="utf-8"))
+            request["candidate_id"] = "different-workspace"
+            _write_json(request_path, request)
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "promotion_request_workspace_mismatch")
+
+    def test_promotion_execute_rejects_cross_workspace_approval_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            decision_path = runs_dir / "candidate_approval_decision.json"
+            decision = json.loads(decision_path.read_text(encoding="utf-8"))
+            decision["candidate"]["candidate_id"] = "different-workspace"
+            _write_json(decision_path, decision)
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(
+            body["reason"], "candidate_approval_decision_workspace_mismatch"
+        )
+
+    def test_promotion_execute_refuses_to_overwrite_real_execution_report(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir, include_execution=True)
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "promotion_execution_report_not_dry_run")
+
+    def test_promotion_execute_refuses_to_overwrite_real_git_service_report(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            _write_json(
+                runs_dir
+                / idea_to_spec_workspace.GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+                {
+                    "artifact_kind": "platform_git_service_promotion_execution_report",
+                    "ok": True,
+                    "dry_run": False,
+                    "open_review_dry_run": False,
+                    "summary": {"status": "promotion_executed"},
+                },
+            )
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(
+            body["reason"],
+            "git_service_promotion_execution_report_not_dry_run",
+        )
+
+    def test_promotion_execute_returns_timeout_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_product_promotion_artifacts(runs_dir)
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "import time\ntime.sleep(5)\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+                platform_execution_timeout_seconds=1,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 504)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_execution_timeout")
+        self.assertEqual(
+            body["summary"]["status"],
+            "managed_promotion_execution_dry_run_timeout",
+        )
+
     def test_product_workspace_creation_requests_v1_reads_route_only_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

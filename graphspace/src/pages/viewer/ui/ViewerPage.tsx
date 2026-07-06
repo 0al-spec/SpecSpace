@@ -350,6 +350,10 @@ export function ViewerPage({
         "/api/v1/idea-to-spec-promotion-request/execute",
         workspace,
       ),
+      ideaToSpecPromotionExecute: workspaceApiUrl(
+        "/api/v1/idea-to-spec-promotion/execute",
+        workspace,
+      ),
       projectLocalOntologyReviewDecisions: workspaceApiUrl(
         "/api/v1/project-local-ontology-review-decisions",
         workspace,
@@ -1708,6 +1712,7 @@ export function ViewerPage({
               candidateApprovalIntentsUrl={workspaceApiUrls.ideaToSpecCandidateApprovalIntents}
               candidateApprovalExecuteUrl={workspaceApiUrls.ideaToSpecCandidateApprovalExecute}
               promotionRequestExecuteUrl={workspaceApiUrls.ideaToSpecPromotionRequestExecute}
+              promotionExecuteUrl={workspaceApiUrls.ideaToSpecPromotionExecute}
               projectLocalOntologyReviewDecisionsUrl={
                 workspaceApiUrls.projectLocalOntologyReviewDecisions
               }
