@@ -389,7 +389,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     raw.guided_repair_path.stage = "rerun_request_gate_needed";
     raw.guided_repair_path.next_action =
       "Build or refresh the repair rerun request gate.";
-    raw.guided_repair_path.state.rerun_request_status = "requested";
+    raw.guided_repair_path.state.rerun_request_status = "usable";
     raw.guided_repair_path.state.request_gate_status = "missing";
     const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
     if (parsedWorkspace.kind !== "ok") {

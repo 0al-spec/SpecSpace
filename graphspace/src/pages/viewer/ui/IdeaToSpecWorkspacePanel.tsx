@@ -1908,7 +1908,7 @@ function GuidedRepairPathSection({
     Boolean(executeRequestGateUrl) &&
     Boolean(workspaceId) &&
     path.stage === "rerun_request_gate_needed" &&
-    path.state.rerunRequestStatus === "requested" &&
+    path.state.rerunRequestStatus === "usable" &&
     managedRequestGateState.pending === false;
   const runManagedRequestGate = async () => {
     if (!executeRequestGateUrl || !workspaceId) return;

@@ -9,7 +9,11 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
-from viewer import idea_to_spec_repair_rerun_requests, specspace_provider
+from viewer import (
+    idea_to_spec_repair_rerun_requests,
+    idea_to_spec_workspace_state_hygiene,
+    specspace_provider,
+)
 
 EXECUTION_REPORT_ARTIFACT = (
     "platform_product_repair_rerun_request_gate_execution_report.json"
@@ -88,17 +92,75 @@ def _safe_runs_ref_to_path(
     rel = ref.removeprefix("runs/")
     if not rel or rel.startswith("/") or ".." in Path(rel).parts:
         return None
+    if Path(rel).name not in filenames:
+        return None
+    roots: list[Path] = []
     runs_dir = getattr(server, "runs_dir", None)
-    if not isinstance(runs_dir, Path):
-        return None
-    candidate = (runs_dir / rel).resolve()
-    try:
-        candidate.relative_to(runs_dir.resolve())
-    except ValueError:
-        return None
-    if candidate.name not in filenames:
-        return None
-    return candidate
+    if isinstance(runs_dir, Path):
+        roots.append(runs_dir)
+    specgraph_dir = getattr(server, "specgraph_dir", None)
+    if isinstance(specgraph_dir, Path):
+        roots.append(specgraph_dir / "runs")
+    safe_candidates: list[Path] = []
+    for root in roots:
+        candidate = (root / rel).resolve()
+        try:
+            candidate.relative_to(root.resolve())
+        except ValueError:
+            continue
+        safe_candidates.append(candidate)
+        if candidate.is_file():
+            return candidate
+    return safe_candidates[0] if safe_candidates else None
+
+
+def _workspace_hygiene(
+    server: Any,
+    *,
+    workspace_id: str,
+) -> tuple[HTTPStatus, dict[str, Any]]:
+    provider = specspace_provider.provider_from_server(server, workspace_id)
+    workspace_status, workspace_payload = provider.read_idea_to_spec_workspace()
+    if workspace_status != HTTPStatus.OK:
+        return workspace_status, {
+            "error": "Cannot execute repair rerun request gate without readable idea-to-spec workspace.",
+            "source_status": int(workspace_status),
+            "source": workspace_payload,
+        }
+    return idea_to_spec_workspace_state_hygiene.build_hygiene(
+        server,
+        workspace_id=workspace_id,
+        workspace_payload=workspace_payload,
+    )
+
+
+def _request_usable_for_current_workspace(
+    request: dict[str, Any],
+    hygiene: dict[str, Any],
+) -> bool:
+    request_state = next(
+        (
+            item
+            for item in hygiene.get("states", [])
+            if isinstance(item, dict) and item.get("kind") == "repair_rerun_request"
+        ),
+        {},
+    )
+    if request_state.get("status") != "usable":
+        return False
+    workspace_id = _text(hygiene.get("workspace_id"))
+    candidate_id = _text(hygiene.get("candidate_id"))
+    repair_session_id = _text(hygiene.get("repair_session_id"))
+    repair_session_ref = _text(hygiene.get("repair_session_ref"))
+    if workspace_id and _text(request.get("workspace_id")) != workspace_id:
+        return False
+    if candidate_id and _text(request.get("candidate_id")) != candidate_id:
+        return False
+    if repair_session_id and _text(request.get("repair_session_id")) != repair_session_id:
+        return False
+    if repair_session_ref and _text(request.get("repair_session_ref")) != repair_session_ref:
+        return False
+    return True
 
 
 def _active_requested_gate(
@@ -191,6 +253,29 @@ def execute_requested_request_gate(
         assert state_or_error is not None
         return status, state_or_error
     assert request is not None
+
+    hygiene_status, hygiene = _workspace_hygiene(
+        server,
+        workspace_id=selected_workspace_id,
+    )
+    if hygiene_status != HTTPStatus.OK:
+        return hygiene_status, hygiene
+    if not _request_usable_for_current_workspace(request, hygiene):
+        return HTTPStatus.CONFLICT, {
+            "error": "Repair rerun request is not usable for the current workspace repair session.",
+            "reason": "repair_rerun_request_not_usable",
+            "workspace_id": selected_workspace_id,
+            "request_id": request.get("id"),
+            "workspace_state_hygiene": {
+                "status": _record(hygiene.get("summary")).get("status"),
+                "states": [
+                    item
+                    for item in hygiene.get("states", [])
+                    if isinstance(item, dict)
+                    and item.get("kind") == "repair_rerun_request"
+                ],
+            },
+        }
 
     request_state_path = idea_to_spec_repair_rerun_requests.state_path(server)
     if not request_state_path.is_file():
