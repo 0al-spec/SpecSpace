@@ -63,6 +63,8 @@ type UiStartedIdeaScenario = {
   partialBlockingClarification?: boolean;
   blockedAnswerContinuationPublished?: boolean;
   approvalPathPublished?: boolean;
+  approvalPath?: Record<string, unknown>;
+  managedEndpointPosts?: Record<string, unknown[]>;
   overviewStage?: ProductWorkspaceOverviewScenario;
 };
 
@@ -1261,6 +1263,59 @@ function reviewMergeWaitingGuidedApprovalPath() {
   };
 }
 
+function managedApprovalPathForStage(
+  stage:
+    | "approval_execution_needed"
+    | "promotion_request_needed"
+    | "promotion_execution_dry_run_needed"
+    | "promotion_review_execution_needed"
+    | "review_status_needed"
+    | "read_model_publication_needed",
+) {
+  const path = reviewMergeWaitingGuidedApprovalPath();
+  const state = path.state;
+  state.approval_intent_status = "usable";
+  state.approval_execution_status = "candidate_approval_materialized";
+  state.candidate_approval_state = "approved";
+  state.promotion_request_ok = true;
+  state.promotion_execution_status = "completed";
+  state.review_state = "open";
+  state.read_model_published = false;
+  if (stage === "approval_execution_needed") {
+    path.stage = "approval_execution_needed";
+    path.next_action = "Materialize candidate approval decision.";
+    state.approval_execution_status = null;
+    state.candidate_approval_state = null;
+    state.promotion_request_ok = false;
+    state.promotion_execution_status = null;
+    state.review_state = null;
+  } else if (stage === "promotion_request_needed") {
+    path.stage = "promotion_request_needed";
+    path.next_action = "Create the report-only graph repository promotion request.";
+    state.promotion_request_ok = false;
+    state.promotion_execution_status = null;
+    state.review_state = null;
+  } else if (stage === "promotion_execution_dry_run_needed") {
+    path.stage = "promotion_execution_needed";
+    path.next_action = "Run controlled product promotion execution.";
+    state.promotion_execution_status = null;
+    state.review_state = null;
+  } else if (stage === "promotion_review_execution_needed") {
+    path.stage = "promotion_execution_needed";
+    path.next_action = "Run non-dry-run product promotion execution when ready.";
+    state.review_state = null;
+  } else if (stage === "review_status_needed") {
+    path.stage = "review_merge_waiting";
+    path.next_action = "Inspect repository review status for the opened promotion PR.";
+    state.review_state = null;
+  } else {
+    path.stage = "read_model_publication_needed";
+    path.next_action = "Publish the public read model after repository review merge.";
+    state.review_state = "merged";
+  }
+  return path;
+}
+
 const overviewPhases = [
   ["workspace", "Workspace", "idea-to-spec-workspace-creation"],
   ["intake", "Intake", "idea-to-spec-idea-intake"],
@@ -1458,9 +1513,10 @@ async function workspacePayload(
   };
   const actionBoundary = safeActionBoundary();
   payload.guided_approval_path =
-    scenario.approvalPathPublished === true
+    scenario.approvalPath ??
+    (scenario.approvalPathPublished === true
       ? reviewMergeWaitingGuidedApprovalPath()
-      : missingGuidedApprovalPath();
+      : missingGuidedApprovalPath());
   if (scenario.overviewStage) {
     payload.product_workspace_overview = productWorkspaceOverviewForScenario(
       scenario.overviewStage,
@@ -1785,6 +1841,41 @@ async function installIdeaToSpecApiRoutes(
 
     if (path === "/api/v1/idea-to-spec-intake-clarification-answers") {
       await proxyRouteToBackend(route, backendBaseUrl);
+      return;
+    }
+
+    const managedEndpointStatuses: Record<string, string> = {
+      "/api/v1/idea-to-spec-candidate-approval/execute":
+        "managed_candidate_approval_materialized",
+      "/api/v1/idea-to-spec-promotion-request/execute":
+        "managed_promotion_request_executed",
+      "/api/v1/idea-to-spec-promotion/execute":
+        "managed_promotion_execution_dry_run_completed",
+      "/api/v1/idea-to-spec-promotion-review/execute":
+        "managed_promotion_review_execution_completed",
+      "/api/v1/idea-to-spec-review-status/execute":
+        "managed_review_status_inspected",
+      "/api/v1/idea-to-spec-read-model-publication/execute":
+        "managed_read_model_published",
+    };
+    if (path in managedEndpointStatuses) {
+      scenario.managedEndpointPosts ??= {};
+      let payload: unknown = {};
+      try {
+        payload = request.postDataJSON();
+      } catch {
+        payload = {};
+      }
+      scenario.managedEndpointPosts[path] ??= [];
+      scenario.managedEndpointPosts[path].push(payload);
+      await route.fulfill({
+        json: {
+          artifact_kind: "specspace_managed_execution_mock",
+          ok: true,
+          status: "completed",
+          summary: { status: managedEndpointStatuses[path] },
+        },
+      });
       return;
     }
 
@@ -2345,6 +2436,125 @@ test("shows guided approval and promotion lifecycle path", async ({ page }) => {
     await expect(guidedApprovalPath.getByRole("link", {
       name: /Open target section/i,
     })).toHaveAttribute("href", "#idea-to-spec-controlled-promotion");
+  } finally {
+    await backend.stop();
+  }
+});
+
+test("runs guided approval managed actions through backend endpoints", async ({
+  page,
+}) => {
+  const backend = await startSpecSpaceBackend();
+  const scenario: UiStartedIdeaScenario = {
+    intakeExecutionPublished: true,
+    answerContinuationPublished: true,
+    managedEndpointPosts: {},
+    approvalPath: managedApprovalPathForStage("approval_execution_needed"),
+  };
+  try {
+    await installRunsWatchMock(page);
+    await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
+
+    await submitRawIdeaEntryFromUi(
+      page,
+      "A decision log that is ready for managed approval handoffs.",
+      "Decision log managed handoffs",
+    );
+
+    const guidedApprovalPath = page.locator("#idea-to-spec-guided-approval-path");
+    await expect(guidedApprovalPath).toContainText("Materialize approval decision");
+    await guidedApprovalPath.getByRole("button", {
+      name: "Materialize approval decision",
+    }).click();
+    await expect(guidedApprovalPath).toContainText(
+      "Candidate approval execution: managed_candidate_approval_materialized",
+    );
+
+    scenario.approvalPath = managedApprovalPathForStage("promotion_request_needed");
+    await emitRunsChange(page);
+    await expect(guidedApprovalPath).toContainText("Create promotion request");
+    await guidedApprovalPath.getByRole("button", {
+      name: "Create promotion request",
+    }).click();
+    await expect(guidedApprovalPath).toContainText(
+      "Promotion request execution: managed_promotion_request_executed",
+    );
+
+    scenario.approvalPath = managedApprovalPathForStage(
+      "promotion_execution_dry_run_needed",
+    );
+    await emitRunsChange(page);
+    await expect(guidedApprovalPath).toContainText("Run promotion dry-run");
+    await guidedApprovalPath.getByRole("button", {
+      name: "Run promotion dry-run",
+    }).click();
+    await expect(guidedApprovalPath).toContainText(
+      "Promotion execution: managed_promotion_execution_dry_run_completed",
+    );
+
+    scenario.approvalPath = managedApprovalPathForStage(
+      "promotion_review_execution_needed",
+    );
+    await emitRunsChange(page);
+    await expect(guidedApprovalPath).toContainText("Open review PR");
+    await guidedApprovalPath.getByRole("button", { name: "Open review PR" }).click();
+    await expect(guidedApprovalPath).toContainText(
+      "Promotion review execution: managed_promotion_review_execution_completed",
+    );
+
+    scenario.approvalPath = managedApprovalPathForStage("review_status_needed");
+    await emitRunsChange(page);
+    await expect(guidedApprovalPath).toContainText("Inspect review status");
+    await guidedApprovalPath.getByRole("button", {
+      name: "Inspect review status",
+    }).click();
+    await expect(guidedApprovalPath).toContainText(
+      "Review-status inspection: managed_review_status_inspected",
+    );
+
+    scenario.approvalPath = managedApprovalPathForStage(
+      "read_model_publication_needed",
+    );
+    await emitRunsChange(page);
+    await expect(guidedApprovalPath).toContainText("Publish read model");
+    await guidedApprovalPath.getByRole("button", {
+      name: "Publish read model",
+    }).click();
+    await expect(guidedApprovalPath).toContainText(
+      "Read-model publication: managed_read_model_published",
+    );
+
+    expect(
+      scenario.managedEndpointPosts?.[
+        "/api/v1/idea-to-spec-candidate-approval/execute"
+      ]?.[0],
+    ).toMatchObject({ workspace_id: workspaceId });
+    expect(
+      scenario.managedEndpointPosts?.[
+        "/api/v1/idea-to-spec-promotion-request/execute"
+      ]?.[0],
+    ).toMatchObject({ workspace_id: workspaceId });
+    expect(
+      scenario.managedEndpointPosts?.["/api/v1/idea-to-spec-promotion/execute"]?.[0],
+    ).toMatchObject({ workspace_id: workspaceId });
+    expect(
+      scenario.managedEndpointPosts?.[
+        "/api/v1/idea-to-spec-promotion-review/execute"
+      ]?.[0],
+    ).toMatchObject({
+      workspace_id: workspaceId,
+      confirm_open_review: true,
+    });
+    expect(
+      scenario.managedEndpointPosts?.[
+        "/api/v1/idea-to-spec-review-status/execute"
+      ]?.[0],
+    ).toMatchObject({ workspace_id: workspaceId });
+    expect(
+      scenario.managedEndpointPosts?.[
+        "/api/v1/idea-to-spec-read-model-publication/execute"
+      ]?.[0],
+    ).toMatchObject({ workspace_id: workspaceId });
   } finally {
     await backend.stop();
   }
