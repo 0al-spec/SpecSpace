@@ -14,6 +14,7 @@ from viewer import (
     idea_to_spec_intake_clarification_answers,
     idea_to_spec_promotion_execution,
     idea_to_spec_promotion_request_execution,
+    idea_to_spec_read_model_publication_execution,
     idea_to_spec_review_status_execution,
     idea_to_spec_repair_drafts,
     idea_to_spec_repair_rerun_request_gate_execution,
@@ -1453,6 +1454,27 @@ def handle_v1_idea_to_spec_review_status_execute_post(
         handler.server,
         payload,
         workspace_id=workspace_id,
+    )
+    json_response(handler, status, response)
+
+
+def handle_v1_idea_to_spec_read_model_publication_execute_post(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    params = query_params(parsed)
+    workspace_id = specspace_provider.normalize_product_workspace_id(
+        query_value(params, "workspace")
+    )
+    status, response = (
+        idea_to_spec_read_model_publication_execution.execute_read_model_publication(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        )
     )
     json_response(handler, status, response)
 

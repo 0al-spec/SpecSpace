@@ -10059,6 +10059,195 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["status"], "platform_execution_timeout")
         self.assertEqual(body["summary"]["status"], "managed_review_status_timeout")
 
+    def test_read_model_publication_execute_disabled_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-read-model-publication/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 503)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_execution_unavailable")
+        self.assertFalse(body["authority_boundary"]["browser_executes_platform"])
+        self.assertFalse(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+        self.assertFalse(body["authority_boundary"]["publishes_read_models"])
+
+    def test_read_model_publication_execute_runs_allowlisted_platform_publish(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            bundle_dir = (
+                specgraph_dir
+                / "dist"
+                / "specgraph-public"
+                / "workspaces"
+                / "team-decision-log"
+            )
+            bundle_dir.mkdir(parents=True)
+            (bundle_dir / "artifact_manifest.json").write_text(
+                '{"artifact_count": 1}\n',
+                encoding="utf-8",
+            )
+            _write_product_promotion_artifacts(
+                runs_dir,
+                include_execution=True,
+                include_review_status=True,
+            )
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "\n".join(
+                    [
+                        "import json",
+                        "import sys",
+                        "from pathlib import Path",
+                        "args = sys.argv",
+                        "output = Path(args[args.index('--output') + 1])",
+                        "review = args[args.index('--review-status-report') + 1]",
+                        "bundle = Path(args[args.index('--bundle-dir') + 1])",
+                        "outdir = Path(args[args.index('--output-dir') + 1])",
+                        "outdir.mkdir(parents=True, exist_ok=True)",
+                        "(outdir / 'artifact_manifest.json').write_text('{}', encoding='utf-8')",
+                        "report = {",
+                        "    'artifact_kind': 'platform_product_candidate_promotion_read_model_publication_report',",
+                        "    'schema_version': 1,",
+                        "    'ok': True,",
+                        "    'dry_run': False,",
+                        "    'workflow_lane': 'product_idea_to_spec',",
+                        "    'candidate_id': 'team-decision-log',",
+                        "    'review_status_report_ref': review,",
+                        "    'bundle_dir': str(bundle),",
+                        "    'output_dir': str(outdir),",
+                        "    'summary': {'status': 'read_model_published', 'published': True, 'read_model_published': True, 'file_count': 1},",
+                        "    'authority_boundary': {",
+                        "        'may_publish_read_model': True,",
+                        "        'may_merge_review': False,",
+                        "        'may_mutate_canonical_specs': False,",
+                        "    },",
+                        "}",
+                        "output.write_text(json.dumps(report), encoding='utf-8')",
+                        "print(json.dumps(report))",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-read-model-publication/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+                publication_exists = (
+                    runs_dir
+                    / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+                ).is_file()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["status"], "completed")
+        self.assertEqual(body["workspace_id"], "team-decision-log")
+        self.assertEqual(
+            body["review_status_ref"],
+            "runs/product_candidate_promotion_review_status_report.json",
+        )
+        self.assertEqual(
+            body["output_ref"],
+            "runs/product_candidate_promotion_read_model_publication_report.json",
+        )
+        self.assertTrue(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+        self.assertTrue(body["authority_boundary"]["publishes_read_models"])
+        self.assertFalse(body["authority_boundary"]["merges_pull_requests"])
+        self.assertFalse(body["authority_boundary"]["creates_git_commits"])
+        self.assertFalse(body["authority_boundary"]["opens_pull_requests"])
+        self.assertTrue(body["summary"]["published"])
+        self.assertEqual(body["summary"]["file_count"], 1)
+        self.assertTrue(publication_exists)
+
+    def test_read_model_publication_execute_requires_merged_review_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            bundle_dir = (
+                specgraph_dir
+                / "dist"
+                / "specgraph-public"
+                / "workspaces"
+                / "team-decision-log"
+            )
+            bundle_dir.mkdir(parents=True)
+            _write_product_promotion_artifacts(
+                runs_dir,
+                include_execution=True,
+                include_review_status=True,
+            )
+            review_path = (
+                runs_dir
+                / idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+            )
+            review = json.loads(review_path.read_text(encoding="utf-8"))
+            review["review_merged"] = False
+            review["summary"]["review_merged"] = False
+            _write_json(review_path, review)
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-read-model-publication/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "review_status_not_merged")
+
     def test_product_workspace_creation_requests_v1_reads_route_only_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

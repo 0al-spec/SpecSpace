@@ -419,6 +419,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_idea_to_spec_review_status_execute_post = (
         specspace_v1_api.handle_v1_idea_to_spec_review_status_execute_post
     )
+    handle_v1_idea_to_spec_read_model_publication_execute_post = (
+        specspace_v1_api.handle_v1_idea_to_spec_read_model_publication_execute_post
+    )
     handle_v1_ontology_workbench = specspace_v1_api.handle_v1_ontology_workbench
     handle_v1_practical_ontology = specspace_v1_api.handle_v1_practical_ontology
     handle_v1_proposals = specspace_v1_api.handle_v1_proposals

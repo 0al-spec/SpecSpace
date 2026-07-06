@@ -283,6 +283,19 @@ def test_route_table_resolves_review_status_execute() -> None:
     assert route.pass_parsed is True
 
 
+def test_route_table_resolves_read_model_publication_execute() -> None:
+    route = routes.route_for(
+        "POST", "/api/v1/idea-to-spec-read-model-publication/execute"
+    )
+
+    assert route is not None
+    assert (
+        route.handler
+        == "handle_v1_idea_to_spec_read_model_publication_execute_post"
+    )
+    assert route.pass_parsed is True
+
+
 def test_route_table_resolves_ontology_compliance_review() -> None:
     route = routes.route_for("GET", "/api/v1/ontology-compliance-review")
 
