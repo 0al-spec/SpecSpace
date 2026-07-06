@@ -1027,6 +1027,46 @@ export type IdeaToSpecGuidedFlow = {
   authorityBoundary: IdeaToSpecGuidedFlowBoundary;
 };
 
+export type IdeaToSpecProductWorkspaceOverviewPhase = {
+  id: string;
+  label: string;
+  state: string;
+  targetSection: string | null;
+  blockers: readonly string[];
+  evidenceRefs: readonly string[];
+};
+
+export type IdeaToSpecProductWorkspaceOverview = {
+  available: boolean;
+  status: string;
+  currentPhase: string;
+  currentPhaseLabel: string;
+  nextSafeAction: string;
+  primaryTargetSection: string | null;
+  readiness: {
+    status: string;
+    ready: boolean;
+    blockerCount: number;
+    blockers: readonly string[];
+  };
+  completedPhaseCount: number;
+  totalPhaseCount: number;
+  lastSuccessfulHandoff: {
+    stageId: string | null;
+    label: string | null;
+    targetSection: string | null;
+    evidenceRefs: readonly string[];
+  };
+  confidence: {
+    level: string;
+    reason: string | null;
+    sourceRefs: readonly string[];
+    maturityLifecycleState: string | null;
+  };
+  phases: readonly IdeaToSpecProductWorkspaceOverviewPhase[];
+  authorityBoundary: IdeaToSpecGuidedFlowBoundary;
+};
+
 export type IdeaToSpecGuidedRepairCheckpoint = {
   id: string;
   label: string;
@@ -1285,6 +1325,7 @@ export type IdeaToSpecWorkspace = {
   workspace: IdeaToSpecWorkspaceIdentity;
   workspaceCreation: IdeaToSpecWorkspaceCreation;
   workspaceInitializationPath: IdeaToSpecWorkspaceInitializationPath;
+  productWorkspaceOverview: IdeaToSpecProductWorkspaceOverview;
   summary: {
     status: string;
     availableArtifactCount: number;
@@ -3843,6 +3884,147 @@ function parseGuidedFlow(raw: unknown): IdeaToSpecGuidedFlow {
   };
 }
 
+function parseProductWorkspaceOverviewPhase(
+  raw: unknown,
+): IdeaToSpecProductWorkspaceOverviewPhase | null {
+  const phase = recordValue(raw);
+  const id = optionalString(phase.id);
+  if (!id) return null;
+  return {
+    id,
+    label: stringValue(phase.label, id),
+    state: stringValue(phase.state, "pending"),
+    targetSection: optionalString(phase.target_section),
+    blockers: strings(phase.blockers),
+    evidenceRefs: strings(phase.evidence_refs),
+  };
+}
+
+function parseProductWorkspaceOverview(
+  raw: unknown,
+  guidedFlow: IdeaToSpecGuidedFlow,
+): IdeaToSpecProductWorkspaceOverview {
+  if (!isRecord(raw)) {
+    const current = guidedFlow.nextActions[0] ?? null;
+    const phaseDefinitions = [
+      ["workspace", "Workspace", ["workspace_initialization"]],
+      ["intake", "Intake", ["idea_intake"]],
+      ["clarification", "Clarification", ["intake_clarification"]],
+      ["candidate", "Candidate", ["candidate_graph"]],
+      [
+        "repair",
+        "Repair",
+        [
+          "repair_review",
+          "ontology_decisions",
+          "project_local_ontology_review",
+          "rerun_request",
+          "repaired_handoff",
+        ],
+      ],
+      [
+        "approval",
+        "Approval",
+        [
+          "candidate_approval_intent",
+          "platform_approval_decision",
+          "promotion_request",
+        ],
+      ],
+      ["publication", "Publication", ["git_dry_run", "review_publication"]],
+    ] as const;
+    const currentPhase =
+      phaseDefinitions.find(([, , stageIds]) =>
+        (stageIds as readonly string[]).includes(guidedFlow.currentStage),
+      ) ?? null;
+    return {
+      available: false,
+      status: guidedFlow.overallStatus,
+      currentPhase: currentPhase?.[0] ?? "missing",
+      currentPhaseLabel: currentPhase?.[1] ?? guidedFlow.currentStageLabel,
+      nextSafeAction:
+        current?.label ?? "Inspect the current product workspace lifecycle stage.",
+      primaryTargetSection: current?.targetSection ?? null,
+      readiness: {
+        status: guidedFlow.overallStatus,
+        ready: false,
+        blockerCount: guidedFlow.stages.reduce(
+          (total, stage) => total + stage.blockers.length,
+          0,
+        ),
+        blockers: guidedFlow.stages.flatMap((stage) => stage.blockers),
+      },
+      completedPhaseCount: guidedFlow.stages.filter((stage) =>
+        ["completed", "ready"].includes(stage.status),
+      ).length,
+      totalPhaseCount: guidedFlow.stages.length,
+      lastSuccessfulHandoff: {
+        stageId: null,
+        label: null,
+        targetSection: null,
+        evidenceRefs: [],
+      },
+      confidence: {
+        level: "compatibility",
+        reason: "Overview was derived from legacy guided_flow payload.",
+        sourceRefs: current?.evidenceRefs ?? [],
+        maturityLifecycleState: null,
+      },
+      phases: phaseDefinitions.map(([id, label, stageIds]) => ({
+        id,
+        label,
+        state: (stageIds as readonly string[]).includes(guidedFlow.currentStage)
+          ? "current"
+          : "pending",
+        targetSection: current?.targetSection ?? null,
+        blockers: [],
+        evidenceRefs: [],
+      })),
+      authorityBoundary: parseGuidedFlowBoundary(),
+    };
+  }
+  const overview = recordValue(raw);
+  const readiness = recordValue(overview.readiness);
+  const lastSuccessfulHandoff = recordValue(overview.last_successful_handoff);
+  const confidence = recordValue(overview.confidence);
+  return {
+    available: overview.available === true,
+    status: stringValue(overview.status, "missing"),
+    currentPhase: stringValue(overview.current_phase, "unknown"),
+    currentPhaseLabel: stringValue(overview.current_phase_label, "Current phase"),
+    nextSafeAction: stringValue(
+      overview.next_safe_action,
+      "Inspect the current product workspace lifecycle stage.",
+    ),
+    primaryTargetSection: optionalString(overview.primary_target_section),
+    readiness: {
+      status: stringValue(readiness.status, "unknown"),
+      ready: readiness.ready === true,
+      blockerCount: numberValue(readiness.blocker_count),
+      blockers: strings(readiness.blockers),
+    },
+    completedPhaseCount: numberValue(overview.completed_phase_count),
+    totalPhaseCount: numberValue(overview.total_phase_count),
+    lastSuccessfulHandoff: {
+      stageId: optionalString(lastSuccessfulHandoff.stage_id),
+      label: optionalString(lastSuccessfulHandoff.label),
+      targetSection: optionalString(lastSuccessfulHandoff.target_section),
+      evidenceRefs: strings(lastSuccessfulHandoff.evidence_refs),
+    },
+    confidence: {
+      level: stringValue(confidence.level, "unknown"),
+      reason: optionalString(confidence.reason),
+      sourceRefs: strings(confidence.source_refs),
+      maturityLifecycleState: optionalString(confidence.maturity_lifecycle_state),
+    },
+    phases: records(overview.phases).flatMap((item) => {
+      const parsed = parseProductWorkspaceOverviewPhase(item);
+      return parsed ? [parsed] : [];
+    }),
+    authorityBoundary: parseGuidedFlowBoundary(),
+  };
+}
+
 function parseGuidedRepairCheckpoint(
   raw: unknown,
 ): IdeaToSpecGuidedRepairCheckpoint | null {
@@ -4167,6 +4349,27 @@ function guidedFlowBoundariesAreSafe(raw: unknown): boolean {
   return true;
 }
 
+function productWorkspaceOverviewBoundaryIsSafe(raw: unknown): boolean {
+  if (!isRecord(raw)) return true;
+  const boundary = recordValue(raw.authority_boundary);
+  const allowedMayFlags = new Set([
+    "may_execute_specgraph",
+    "may_execute_platform",
+    "may_execute_git_service",
+    "may_mutate_candidate_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_branch_or_commit",
+    "may_open_pull_request",
+    "may_merge_review",
+  ]);
+  for (const key of Object.keys(boundary)) {
+    if (key.startsWith("may_") && !allowedMayFlags.has(key)) return false;
+  }
+  return guidedFlowBoundaryIsSafe(boundary);
+}
+
 function guidedRepairPathBoundaryIsSafe(raw: unknown): boolean {
   if (!isRecord(raw)) return true;
   const boundary = recordValue(raw.authority_boundary);
@@ -4468,6 +4671,12 @@ export function parseIdeaToSpecWorkspace(
     !guidedRepairPathBoundaryIsSafe(raw.guided_repair_path)
   ) {
     return { kind: "parse-error", reason: "guided repair path boundary expanded", raw };
+  }
+  if (
+    isRecord(raw.product_workspace_overview) &&
+    !productWorkspaceOverviewBoundaryIsSafe(raw.product_workspace_overview)
+  ) {
+    return { kind: "parse-error", reason: "product workspace overview boundary expanded", raw };
   }
   if (
     isRecord(raw.guided_approval_path) &&
@@ -4853,6 +5062,7 @@ export function parseIdeaToSpecWorkspace(
       parseArtifactStatus(value),
     ]),
   );
+  const guidedFlow = parseGuidedFlow(raw.guided_flow);
   return {
     kind: "ok",
     data: {
@@ -4868,6 +5078,10 @@ export function parseIdeaToSpecWorkspace(
       workspaceCreation: parseWorkspaceCreation(raw.workspace_creation),
       workspaceInitializationPath: parseWorkspaceInitializationPath(
         raw.workspace_initialization_path,
+      ),
+      productWorkspaceOverview: parseProductWorkspaceOverview(
+        raw.product_workspace_overview,
+        guidedFlow,
       ),
       summary: {
         status: stringValue(summary.status, "unknown"),
@@ -4929,7 +5143,7 @@ export function parseIdeaToSpecWorkspace(
         nextArtifact: optionalString(summary.next_artifact),
       },
       workflow: parseWorkflow(raw.workflow),
-      guidedFlow: parseGuidedFlow(raw.guided_flow),
+      guidedFlow,
       guidedRepairPath: parseGuidedRepairPath(raw.guided_repair_path),
       guidedApprovalPath: parseGuidedApprovalPath(raw.guided_approval_path),
       realIdeaIntake: parseRealIdeaIntake(raw.real_idea_intake),

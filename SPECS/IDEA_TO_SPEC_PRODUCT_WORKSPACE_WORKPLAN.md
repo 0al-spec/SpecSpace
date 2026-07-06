@@ -117,8 +117,30 @@ reviews, or publish read models.
   request, promotion execution, repository review, read-model publication,
   blockers, evidence refs, and target anchors without giving the browser
   Platform/Git Service execution authority.
+- Product Workspace lifecycle overview API/UI slice now acts as the top landing
+  layer over the guided paths. It summarizes the current phase, progress,
+  blockers, last successful handoff, confidence, and one next safe action across
+  Workspace, Intake, Clarification, Candidate, Repair, Approval, and Publication
+  without giving the browser execution or mutation authority. Route-only
+  workspaces now point to the workspace creation request section before later
+  lifecycle sections.
 
 ## Next Tasks
+
+### 0. Product Workspace Overview Follow-Ups
+
+Status: open follow-up after the first overview API/UI slice.
+
+Acceptance criteria:
+
+- Add Playwright coverage that asserts overview transitions through:
+  wizard -> initialization, initialized -> raw idea, intake -> clarification,
+  repaired handoff -> approval, and publication -> published.
+- Reduce the fresh-workspace "wall of empty sections" below the overview, while
+  preserving access to diagnostic sections when they have evidence or blockers.
+- Keep the overview inspect/request-only; it may link to existing request
+  surfaces, but must not execute Platform, SpecGraph, Git Service, or mutate
+  specs/ontology/read models.
 
 ### 1. UI-Started Intake Execution Visibility
 

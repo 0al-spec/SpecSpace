@@ -70,6 +70,21 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(
       parsed.data.guidedFlow.authorityBoundary.mayExecutePlatform,
     ).toBe(false);
+    expect(parsed.data.productWorkspaceOverview.available).toBe(true);
+    expect(parsed.data.productWorkspaceOverview.status).toBe("blocked");
+    expect(parsed.data.productWorkspaceOverview.currentPhase).toBe("repair");
+    expect(parsed.data.productWorkspaceOverview.nextSafeAction).toBe(
+      "Replace the rerun request for the current workspace and repair session.",
+    );
+    expect(parsed.data.productWorkspaceOverview.phases).toHaveLength(7);
+    expect(parsed.data.productWorkspaceOverview.phases[4].id).toBe("repair");
+    expect(parsed.data.productWorkspaceOverview.phases[4].state).toBe("blocked");
+    expect(
+      parsed.data.productWorkspaceOverview.lastSuccessfulHandoff.stageId,
+    ).toBe("candidate_graph");
+    expect(
+      parsed.data.productWorkspaceOverview.authorityBoundary.mayExecutePlatform,
+    ).toBe(false);
     expect(parsed.data.guidedRepairPath.available).toBe(true);
     expect(parsed.data.guidedRepairPath.stage).toBe("ready_to_request_rerun");
     expect(parsed.data.guidedRepairPath.nextAction).toBe(
@@ -310,6 +325,29 @@ describe("parseIdeaToSpecWorkspace", () => {
         .productReviewStatusReportRef,
     ).toBe("runs/product_candidate_promotion_review_status_report.json");
     expect(parsed.data.authorityBoundary.mayMutateCanonicalSpecs).toBe(false);
+  });
+
+  it("maps legacy guided stage ids to fallback overview phases", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    delete raw.product_workspace_overview;
+    raw.guided_flow.current_stage = "candidate_graph";
+    raw.guided_flow.current_stage_label = "Candidate graph";
+    raw.guided_flow.overall_status = "waiting_for_operator";
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.productWorkspaceOverview.available).toBe(false);
+    expect(parsed.data.productWorkspaceOverview.currentPhase).toBe("candidate");
+    expect(parsed.data.productWorkspaceOverview.currentPhaseLabel).toBe(
+      "Candidate",
+    );
+    expect(
+      parsed.data.productWorkspaceOverview.phases.find(
+        (phase) => phase.id === "candidate",
+      )?.state,
+    ).toBe("current");
   });
 
   it("parses project-local ontology review lane terms", () => {
