@@ -75,6 +75,28 @@ operation paths:
 | `completed` | Durable success evidence exists for this operation. |
 | `blocked` | A policy, gate, authority, or lifecycle condition blocks the next step. |
 
+## Observability Surface
+
+The Product Workspace API exposes a read-only
+`managed_operations_observability` projection. It is not a new execution gate
+and it does not grant additional authority. It renders the registry inventory
+with runtime evidence from the selected workspace artifacts:
+
+- operation id, lifecycle phase, UI stage, endpoint, and Platform command
+  family;
+- required input refs and output report refs;
+- missing input refs and available output refs;
+- idempotency, overwrite, timeout, and replay policy text;
+- read-only status such as `available`, `input_missing`, `gate_needed`,
+  `succeeded`, `failed`, or `consume_on_attempt_needs_new_request`;
+- explicit authority boundary with all execution, Git, SpecGraph, Ontology,
+  and publication flags set to `false`.
+
+SpecSpace may display this surface as an operator observability panel, but it
+must not use it as the source of execution permission. Actual execution remains
+owned by the per-operation backend handlers and Platform wrappers listed in the
+registry.
+
 ## Operation Inventory
 
 | Operation id | UI stage | Endpoint | Platform command | Primary outputs |

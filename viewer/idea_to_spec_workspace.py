@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from viewer import idea_maturity
+from viewer import idea_maturity, managed_operations_registry
 from viewer.real_idea_answer_authoring_contract import (
     real_idea_answer_authoring_contract_error,
     real_idea_answer_set_contract_error,
@@ -7155,11 +7155,346 @@ def _product_workspace_overview(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+MANAGED_OPERATION_PHASES: tuple[tuple[str, str], ...] = (
+    ("workspace", "Workspace"),
+    ("intake", "Intake"),
+    ("repair", "Repair"),
+    ("approval", "Approval"),
+    ("promotion", "Promotion"),
+    ("publication", "Publication"),
+)
+
+MANAGED_OPERATION_CONSUME_REPLAY_PHRASES = (
+    "requires a new ui",
+    "consumed before platform execution",
+)
+
+MANAGED_OPERATION_SUCCESS_MARKERS = (
+    "ok",
+    "ready",
+    "passed",
+    "completed",
+    "published",
+    "approval_ready",
+    "promotion_ready",
+    "ready_for_platform_promotion_request",
+    "review_opened",
+    "waiting_for_review_merge",
+)
+
+MANAGED_OPERATION_FAILURE_MARKERS = (
+    "failed",
+    "blocked",
+    "invalid",
+    "error",
+    "untrusted",
+    "timeout",
+    "not_ready",
+)
+
+
+def _managed_operations_boundary() -> dict[str, bool]:
+    return {
+        "inspect_only": True,
+        "acknowledge_only": True,
+        "managed_operations_observability_is_authority": False,
+        "may_execute_specgraph": False,
+        "may_execute_platform": False,
+        "may_execute_git_service": False,
+        "may_run_shell": False,
+        "may_mutate_candidate_artifacts": False,
+        "may_mutate_canonical_specs": False,
+        "may_write_ontology_package": False,
+        "may_accept_ontology_terms": False,
+        "may_create_branch_or_commit": False,
+        "may_open_pull_request": False,
+        "may_merge_review": False,
+        "may_publish_read_model": False,
+    }
+
+
+def _managed_operation_target_section(operation: managed_operations_registry.ManagedOperation) -> str:
+    return {
+        "workspace": "idea-to-spec-workspace-initialization-path",
+        "intake": (
+            "idea-to-spec-intake-clarification"
+            if operation.lifecycle_stage == "clarification"
+            else "idea-to-spec-idea-intake"
+        ),
+        "repair": "idea-to-spec-guided-repair-path",
+        "approval": "idea-to-spec-guided-approval-path",
+        "promotion": "idea-to-spec-controlled-promotion",
+        "publication": "idea-to-spec-controlled-promotion",
+    }.get(operation.category, "idea-to-spec-product-workspace-overview")
+
+
+def _managed_operation_ref_payload(
+    payload: dict[str, Any],
+    ref: str,
+) -> dict[str, Any]:
+    artifacts = _record(payload.get("artifacts"))
+    if ref.startswith("runs/"):
+        filename = ref.removeprefix("runs/")
+        if "<" in filename:
+            return {
+                "ref": ref,
+                "kind": "run_artifact",
+                "dynamic": True,
+                "available": False,
+                "status": "dynamic_ref",
+                "reason": "Dynamic managed-operation ref is resolved by the execution report.",
+            }
+        artifact_key = ARTIFACT_KEYS.get(filename)
+        if artifact_key:
+            status = _record(artifacts.get(artifact_key))
+            return {
+                "ref": ref,
+                "kind": "run_artifact",
+                "artifact_key": artifact_key,
+                "available": status.get("available") is True,
+                "status": _optional_text(status.get("status")),
+                "reason": _optional_text(status.get("reason")),
+                "artifact_kind": _optional_text(status.get("artifact_kind")),
+                "contract_ref": _optional_text(status.get("contract_ref")),
+            }
+        return {
+            "ref": ref,
+            "kind": "run_artifact",
+            "available": False,
+            "status": "unknown_artifact_ref",
+            "reason": "Ref is not in the Product Workspace artifact catalog.",
+        }
+    if ref.startswith("specspace-state://"):
+        state_name = ref.removeprefix("specspace-state://")
+        status = "state_evidence"
+        available = False
+        reason = "SpecSpace-owned mutable state is not published as a raw workspace artifact."
+        if state_name == "real_idea_entry_requests.json":
+            real_idea = _record(payload.get("real_idea_intake"))
+            available = _text(real_idea.get("status"), "missing") != "missing"
+            status = _text(real_idea.get("status"), status)
+        elif state_name == "idea_to_spec_intake_clarification_answers.json":
+            clarification = _record(payload.get("intake_clarification"))
+            answers = _record(clarification.get("answer_progress"))
+            available = _number(answers.get("answered_count")) > 0
+            status = "answers_saved" if available else "missing"
+        elif state_name == "idea_to_spec_repair_rerun_requests.json":
+            repair = _record(payload.get("guided_repair_path"))
+            state = _record(repair.get("state"))
+            available = _text(state.get("rerun_request_status"), "missing") not in {
+                "",
+                "missing",
+            }
+            status = _text(state.get("rerun_request_status"), status)
+        elif state_name == "idea_to_spec_candidate_approval_intents.json":
+            approval = _record(payload.get("guided_approval_path"))
+            state = _record(approval.get("state"))
+            available = _text(state.get("approval_intent_status"), "missing") not in {
+                "",
+                "missing",
+            }
+            status = _text(state.get("approval_intent_status"), status)
+        return {
+            "ref": ref,
+            "kind": "specspace_state",
+            "available": available,
+            "status": status,
+            "reason": None if available else reason,
+        }
+    if ref.startswith("dist/"):
+        published = (
+            _record(
+                _record(payload.get("controlled_promotion")).get(
+                    "read_model_publication"
+                )
+            ).get("published")
+            is True
+        )
+        return {
+            "ref": ref,
+            "kind": "output_directory",
+            "dynamic": "<" in ref,
+            "available": published,
+            "status": "published" if published else "pending_publication",
+            "reason": None if published else "Read-model publication has not completed.",
+        }
+    return {
+        "ref": ref,
+        "kind": "external_ref",
+        "available": False,
+        "status": "unknown",
+        "reason": "Unsupported managed-operation ref type.",
+    }
+
+
+def _managed_operation_status_from_reports(
+    *,
+    operation: managed_operations_registry.ManagedOperation,
+    reports: list[dict[str, Any]],
+) -> str | None:
+    concrete_reports = [report for report in reports if report.get("dynamic") is not True]
+    available_reports = [
+        report for report in concrete_reports if report.get("available") is True
+    ]
+    failed_reports = []
+    for report in concrete_reports:
+        status = _text(report.get("status")).lower()
+        reason = _text(report.get("reason")).lower()
+        if any(marker in status or marker in reason for marker in MANAGED_OPERATION_FAILURE_MARKERS):
+            failed_reports.append(report)
+    if failed_reports:
+        replay = operation.replay_policy.lower()
+        if any(phrase in replay for phrase in MANAGED_OPERATION_CONSUME_REPLAY_PHRASES):
+            return "consume_on_attempt_needs_new_request"
+        return "failed"
+    if available_reports:
+        if len(available_reports) == len(concrete_reports) or any(
+            any(
+                marker in _text(report.get("status")).lower()
+                for marker in MANAGED_OPERATION_SUCCESS_MARKERS
+            )
+            for report in available_reports
+        ):
+            return "succeeded"
+        return "requested"
+    return None
+
+
+def _managed_operation_status(
+    *,
+    operation: managed_operations_registry.ManagedOperation,
+    inputs: list[dict[str, Any]],
+    outputs: list[dict[str, Any]],
+) -> str:
+    report_status = _managed_operation_status_from_reports(
+        operation=operation,
+        reports=outputs,
+    )
+    if report_status is not None:
+        return report_status
+    missing_required = [
+        item
+        for item in inputs
+        if item.get("dynamic") is not True and item.get("available") is not True
+    ]
+    if missing_required:
+        return "input_missing"
+    if operation.category == "repair" and operation.operation_id.endswith("_gate_execute"):
+        return "gate_needed"
+    return "available"
+
+
+def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]:
+    operations: list[dict[str, Any]] = []
+    for operation in managed_operations_registry.MANAGED_OPERATIONS:
+        inputs = [
+            _managed_operation_ref_payload(payload, ref)
+            for ref in operation.input_refs
+        ]
+        outputs = [
+            _managed_operation_ref_payload(payload, ref)
+            for ref in operation.output_reports
+        ]
+        missing_inputs = [
+            _text(item.get("ref"))
+            for item in inputs
+            if item.get("dynamic") is not True and item.get("available") is not True
+        ]
+        output_refs = [
+            _text(item.get("ref"))
+            for item in outputs
+            if item.get("available") is True
+        ]
+        status = _managed_operation_status(
+            operation=operation,
+            inputs=inputs,
+            outputs=outputs,
+        )
+        if status == "succeeded":
+            next_safe_action = "Inspect the durable execution report and continue to the next lifecycle step."
+        elif status == "consume_on_attempt_needs_new_request":
+            next_safe_action = "Create a fresh UI request or intent before retrying this consume-on-attempt operation."
+        elif status in {"input_missing", "gate_needed"}:
+            next_safe_action = "Complete the required request, gate, or artifact evidence before execution."
+        elif status == "failed":
+            next_safe_action = "Inspect the failed report before retrying or creating a replacement request."
+        else:
+            next_safe_action = "This operation is ready for controlled execution when the operator chooses it."
+        operations.append(
+            {
+                "operation_id": operation.operation_id,
+                "category": operation.category,
+                "lifecycle_stage": operation.lifecycle_stage,
+                "ui_stage": operation.ui_stage,
+                "endpoint": operation.endpoint,
+                "platform_command": list(operation.platform_command),
+                "status": status,
+                "target_section": _managed_operation_target_section(operation),
+                "next_safe_action": next_safe_action,
+                "input_refs": inputs,
+                "output_reports": outputs,
+                "missing_input_refs": missing_inputs,
+                "available_output_refs": output_refs,
+                "idempotency_key": operation.idempotency_key,
+                "overwrite_policy": operation.overwrite_policy,
+                "timeout_policy": operation.timeout_policy,
+                "replay_policy": operation.replay_policy,
+                "dry_run_only": operation.dry_run_only,
+                "irreversible": operation.irreversible,
+                "requires_explicit_confirmation": operation.requires_explicit_confirmation,
+                "notes": operation.notes,
+                "authority_boundary": _managed_operations_boundary(),
+            }
+        )
+
+    groups = [
+        {
+            "phase": phase,
+            "label": label,
+            "operation_ids": [
+                operation["operation_id"]
+                for operation in operations
+                if operation["category"] == phase
+            ],
+        }
+        for phase, label in MANAGED_OPERATION_PHASES
+    ]
+    status_counts: dict[str, int] = {}
+    for operation in operations:
+        status = _text(operation.get("status"), "unknown")
+        status_counts[status] = status_counts.get(status, 0) + 1
+    return {
+        "available": True,
+        "surface_id": "specspace.managed-operations.observability.v0.1",
+        "surface_kind": "managed_operations_observability",
+        "summary": {
+            "operation_count": len(operations),
+            "succeeded_count": status_counts.get("succeeded", 0),
+            "failed_count": status_counts.get("failed", 0),
+            "stale_count": status_counts.get("stale", 0),
+            "input_missing_count": status_counts.get("input_missing", 0),
+            "consume_on_attempt_needs_new_request_count": status_counts.get(
+                "consume_on_attempt_needs_new_request",
+                0,
+            ),
+            "available_count": status_counts.get("available", 0),
+            "gate_needed_count": status_counts.get("gate_needed", 0),
+        },
+        "status_counts": status_counts,
+        "groups": groups,
+        "operations": operations,
+        "authority_boundary": _managed_operations_boundary(),
+    }
+
+
 def attach_guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     payload["guided_repair_path"] = _guided_repair_path(payload)
     payload["guided_approval_path"] = _guided_approval_path(payload)
     payload["guided_flow"] = _guided_flow(payload)
     payload["product_workspace_overview"] = _product_workspace_overview(payload)
+    payload["managed_operations_observability"] = (
+        _managed_operations_observability(payload)
+    )
     return payload
 
 

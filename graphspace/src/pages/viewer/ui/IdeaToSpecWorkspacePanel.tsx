@@ -990,6 +990,11 @@ export function IdeaToSpecWorkspacePanel({
       workspace={data.workspace}
     />
   );
+  const managedOperationsSection = (
+    <ManagedOperationsObservabilitySection
+      observability={data.managedOperations}
+    />
+  );
   const ideaIntakeDraftSection = (
     <IdeaIntakeDraftSection
       activeFrame={frame}
@@ -1197,6 +1202,7 @@ export function IdeaToSpecWorkspacePanel({
 
       <div className={styles.entries} onClickCapture={handleWorkspaceAnchorClick}>
         {productWorkspaceOverviewSection}
+        {managedOperationsSection}
         {freshWorkspaceFocus ? (
           <>
             <FreshWorkspaceFocusSection
@@ -1411,6 +1417,160 @@ function ProductWorkspaceOverviewSection({
           </p>
         </div>
       ) : null}
+    </section>
+  );
+}
+
+function ManagedOperationsObservabilitySection({
+  observability,
+}: {
+  observability: IdeaToSpecWorkspace["managedOperations"];
+}) {
+  const operationsById = new Map(
+    observability.operations.map((operation) => [operation.operationId, operation]),
+  );
+  const groups =
+    observability.groups.length > 0
+      ? observability.groups
+      : [
+          {
+            phase: "managed_operations",
+            label: "Managed operations",
+            operationIds: observability.operations.map(
+              (operation) => operation.operationId,
+            ),
+          },
+        ];
+  return (
+    <section
+      id="idea-to-spec-managed-operations"
+      className={styles.reviewSection}
+      data-testid="managed-operations-panel"
+    >
+      <SectionHeader
+        title="Managed operations"
+        count={observability.summary.operationCount}
+      />
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Backend-managed execution surface</span>
+          <Pill value={observability.available ? "available" : "missing"} />
+        </div>
+        <h3 className={styles.title}>
+          Inspect controlled operations, evidence, and retry policy.
+        </h3>
+        <div className={styles.postureStrip}>
+          <PostureItem
+            label="Operations"
+            value={String(observability.summary.operationCount)}
+          />
+          <PostureItem
+            label="Succeeded"
+            value={String(observability.summary.succeededCount)}
+          />
+          <PostureItem
+            label="Available"
+            value={String(observability.summary.availableCount)}
+          />
+          <PostureItem
+            label="Missing inputs"
+            value={String(observability.summary.inputMissingCount)}
+          />
+          <PostureItem
+            label="Failed"
+            value={String(observability.summary.failedCount)}
+          />
+          <PostureItem
+            label="New request"
+            value={String(
+              observability.summary.consumeOnAttemptNeedsNewRequestCount,
+            )}
+          />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Surface" value={observability.surfaceId} />
+          <Meta label="Kind" value={observability.surfaceKind} />
+          <Meta
+            label="Execution authority"
+            value={boolText(observability.authorityBoundary.mayExecutePlatform)}
+          />
+          <Meta
+            label="Git authority"
+            value={boolText(
+              observability.authorityBoundary.mayCreateBranchOrCommit,
+            )}
+          />
+        </div>
+      </div>
+      {groups.map((group) => {
+        const operations = group.operationIds.flatMap((operationId) => {
+          const operation = operationsById.get(operationId);
+          return operation ? [operation] : [];
+        });
+        if (operations.length === 0) return null;
+        return (
+          <div className={styles.row} key={group.phase}>
+            <div className={styles.rowHeader}>
+              <span className={styles.rowId}>{group.label}</span>
+              <span className={styles.sectionCount}>{operations.length}</span>
+            </div>
+            <div className={styles.guidedRail}>
+              {operations.map((operation) => {
+                const href = operation.targetSection
+                  ? `#${operation.targetSection}`
+                  : undefined;
+                const content = (
+                  <>
+                    <span className={styles.navLabel}>{operation.uiStage}</span>
+                    <span className={styles.navHint}>
+                      {operation.nextSafeAction}
+                    </span>
+                    <span className={styles.guidedStageMeta}>
+                      {operation.status.replace(/_/g, " ")}
+                    </span>
+                  </>
+                );
+                return href ? (
+                  <a
+                    key={operation.operationId}
+                    className={styles.guidedStage}
+                    data-testid="managed-operation-row"
+                    href={href}
+                  >
+                    {content}
+                  </a>
+                ) : (
+                  <div
+                    key={operation.operationId}
+                    className={styles.guidedStage}
+                    data-testid="managed-operation-row"
+                  >
+                    {content}
+                  </div>
+                );
+              })}
+            </div>
+            <div className={styles.metaGrid}>
+              {operations.map((operation) => (
+                <Meta
+                  key={operation.operationId}
+                  label={operation.operationId}
+                  value={[
+                    operation.platformCommand.join(" "),
+                    operation.availableOutputRefs.length > 0
+                      ? `outputs ${joined(operation.availableOutputRefs)}`
+                      : operation.missingInputRefs.length > 0
+                        ? `missing ${joined(operation.missingInputRefs)}`
+                        : operation.endpoint,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </section>
   );
 }

@@ -1089,6 +1089,15 @@ function safeActionBoundary() {
   };
 }
 
+function safeManagedOperationsBoundary() {
+  return {
+    ...safeActionBoundary(),
+    managed_operations_observability_is_authority: false,
+    may_run_shell: false,
+    may_publish_read_model: false,
+  };
+}
+
 function safeAnswerContinuationBoundary() {
   return {
     inspect_only: true,
@@ -1513,6 +1522,78 @@ function productWorkspaceOverviewForScenario(
   };
 }
 
+function managedOperationsObservabilityForScenario(
+  scenario: ProductWorkspaceOverviewScenario,
+) {
+  const status =
+    scenario === "published"
+      ? "succeeded"
+      : scenario === "route_only"
+        ? "input_missing"
+        : "available";
+  return {
+    available: true,
+    surface_id: "specspace.managed-operations.observability.v0.1",
+    surface_kind: "managed_operations_observability",
+    summary: {
+      operation_count: 1,
+      succeeded_count: status === "succeeded" ? 1 : 0,
+      failed_count: 0,
+      stale_count: 0,
+      input_missing_count: status === "input_missing" ? 1 : 0,
+      consume_on_attempt_needs_new_request_count: 0,
+      available_count: status === "available" ? 1 : 0,
+      gate_needed_count: 0,
+    },
+    status_counts: {
+      [status]: 1,
+    },
+    groups: [
+      {
+        phase: "workspace",
+        label: "Workspace",
+        operation_ids: ["workspace_initialization_execute"],
+      },
+    ],
+    operations: [
+      {
+        operation_id: "workspace_initialization_execute",
+        category: "workspace",
+        lifecycle_stage: "workspace_initialization",
+        ui_stage: "Workspace initialization",
+        endpoint: "/api/v1/product-workspace-initialization/execute",
+        platform_command: ["workspace", "execute-requested-initialization"],
+        status,
+        target_section: "idea-to-spec-workspace-initialization-path",
+        next_safe_action: "Inspect managed operation evidence.",
+        input_refs: [
+          {
+            ref: "runs/product_workspace_initialization_execution_request.json",
+            kind: "run_artifact",
+            available: status !== "input_missing",
+            status: status === "input_missing" ? "missing" : "ready",
+          },
+        ],
+        output_reports: [],
+        missing_input_refs:
+          status === "input_missing"
+            ? ["runs/product_workspace_initialization_execution_request.json"]
+            : [],
+        available_output_refs: [],
+        idempotency_key: "execution_request.summary.idempotency_key",
+        overwrite_policy: "reject mismatched request",
+        timeout_policy: "bounded",
+        replay_policy: "idempotent",
+        dry_run_only: false,
+        irreversible: false,
+        requires_explicit_confirmation: false,
+        authority_boundary: safeManagedOperationsBoundary(),
+      },
+    ],
+    authority_boundary: safeManagedOperationsBoundary(),
+  };
+}
+
 function defaultOverviewStageForScenario(
   scenario: UiStartedIdeaScenario,
 ): ProductWorkspaceOverviewScenario {
@@ -1562,6 +1643,10 @@ async function workspacePayload(
   payload.product_workspace_overview = productWorkspaceOverviewForScenario(
     scenario.overviewStage ?? defaultOverviewStageForScenario(scenario),
   );
+  payload.managed_operations_observability =
+    managedOperationsObservabilityForScenario(
+      scenario.overviewStage ?? defaultOverviewStageForScenario(scenario),
+    );
 
   if (!hasSubmittedEntry) {
     payload.real_idea_intake = {
@@ -1951,6 +2036,10 @@ async function expectProductWorkspaceOverviewStage(
   await expect(page.getByTestId("product-workspace-phase-timeline")).toContainText(
     config.currentPhaseLabel,
   );
+  const managedOperations = page.getByTestId("managed-operations-panel");
+  await expect(managedOperations).toBeVisible();
+  await expect(managedOperations).toContainText("Workspace initialization");
+  await expect(managedOperations).toContainText("workspace execute-requested-initialization");
   const nextActionLink = overview
     .locator("a")
     .filter({ hasText: config.nextSafeAction })

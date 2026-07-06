@@ -24,6 +24,7 @@ from viewer import (
     idea_to_spec_repair_rerun_requests,
     idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
+    managed_operations_registry,
     server,
     specspace_v1_api,
     specspace_provider,
@@ -11355,6 +11356,50 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertEqual(overview["phases"][0]["state"], "not_applicable")
         self.assertFalse(overview["authority_boundary"]["may_create_branch_or_commit"])
+
+    def test_idea_to_spec_workspace_embeds_managed_operations_observability(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            _write_product_workspace_runs(runs_dir)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        observability = body["managed_operations_observability"]
+        self.assertTrue(observability["available"])
+        self.assertEqual(
+            observability["summary"]["operation_count"],
+            len(managed_operations_registry.MANAGED_OPERATIONS),
+        )
+        self.assertEqual(
+            {operation["operation_id"] for operation in observability["operations"]},
+            {
+                operation.operation_id
+                for operation in managed_operations_registry.MANAGED_OPERATIONS
+            },
+        )
+        self.assertIn(
+            "workspace_initialization_execute",
+            observability["groups"][0]["operation_ids"],
+        )
+        self.assertFalse(
+            observability["authority_boundary"]["may_execute_platform"]
+        )
+        self.assertFalse(
+            observability["operations"][0]["authority_boundary"][
+                "may_create_branch_or_commit"
+            ]
+        )
+        dumped = json.dumps(observability)
+        self.assertNotIn(str(runs_dir), dumped)
 
     def test_idea_to_spec_workspace_overview_covers_lifecycle_statuses(
         self,

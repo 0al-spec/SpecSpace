@@ -1067,6 +1067,68 @@ export type IdeaToSpecProductWorkspaceOverview = {
   authorityBoundary: IdeaToSpecGuidedFlowBoundary;
 };
 
+export type IdeaToSpecManagedOperationRef = {
+  ref: string;
+  kind: string;
+  artifactKey: string | null;
+  available: boolean;
+  status: string | null;
+  reason: string | null;
+  artifactKind: string | null;
+  contractRef: string | null;
+  dynamic: boolean;
+};
+
+export type IdeaToSpecManagedOperation = {
+  operationId: string;
+  category: string;
+  lifecycleStage: string;
+  uiStage: string;
+  endpoint: string;
+  platformCommand: readonly string[];
+  status: string;
+  targetSection: string | null;
+  nextSafeAction: string;
+  inputRefs: readonly IdeaToSpecManagedOperationRef[];
+  outputReports: readonly IdeaToSpecManagedOperationRef[];
+  missingInputRefs: readonly string[];
+  availableOutputRefs: readonly string[];
+  idempotencyKey: string | null;
+  overwritePolicy: string | null;
+  timeoutPolicy: string | null;
+  replayPolicy: string | null;
+  dryRunOnly: boolean;
+  irreversible: boolean;
+  requiresExplicitConfirmation: boolean;
+  notes: string | null;
+};
+
+export type IdeaToSpecManagedOperationsGroup = {
+  phase: string;
+  label: string;
+  operationIds: readonly string[];
+};
+
+export type IdeaToSpecManagedOperationsObservability = {
+  available: boolean;
+  surfaceId: string | null;
+  surfaceKind: string | null;
+  summary: {
+    operationCount: number;
+    succeededCount: number;
+    failedCount: number;
+    staleCount: number;
+    inputMissingCount: number;
+    consumeOnAttemptNeedsNewRequestCount: number;
+    availableCount: number;
+    gateNeededCount: number;
+  };
+  statusCounts: Record<string, number>;
+  groups: readonly IdeaToSpecManagedOperationsGroup[];
+  operations: readonly IdeaToSpecManagedOperation[];
+  authorityBoundary: IdeaToSpecGuidedFlowBoundary;
+};
+
 export type IdeaToSpecGuidedRepairCheckpoint = {
   id: string;
   label: string;
@@ -1364,6 +1426,7 @@ export type IdeaToSpecWorkspace = {
   guidedFlow: IdeaToSpecGuidedFlow;
   guidedRepairPath: IdeaToSpecGuidedRepairPath;
   guidedApprovalPath: IdeaToSpecGuidedApprovalPath;
+  managedOperations: IdeaToSpecManagedOperationsObservability;
   realIdeaIntake: IdeaToSpecRealIdeaIntake;
   intake: {
     available: boolean;
@@ -4026,6 +4089,137 @@ function parseProductWorkspaceOverview(
   };
 }
 
+function parseManagedOperationRef(raw: unknown): IdeaToSpecManagedOperationRef | null {
+  const ref = recordValue(raw);
+  const value = optionalString(ref.ref);
+  if (!value) return null;
+  return {
+    ref: value,
+    kind: stringValue(ref.kind, "unknown"),
+    artifactKey: optionalString(ref.artifact_key),
+    available: ref.available === true,
+    status: optionalString(ref.status),
+    reason: optionalString(ref.reason),
+    artifactKind: optionalString(ref.artifact_kind),
+    contractRef: optionalString(ref.contract_ref),
+    dynamic: ref.dynamic === true,
+  };
+}
+
+function parseManagedOperation(raw: unknown): IdeaToSpecManagedOperation | null {
+  const operation = recordValue(raw);
+  const operationId = optionalString(operation.operation_id);
+  if (!operationId) return null;
+  return {
+    operationId,
+    category: stringValue(operation.category, "unknown"),
+    lifecycleStage: stringValue(operation.lifecycle_stage, "unknown"),
+    uiStage: stringValue(operation.ui_stage, operationId),
+    endpoint: stringValue(operation.endpoint, ""),
+    platformCommand: strings(operation.platform_command),
+    status: stringValue(operation.status, "unknown"),
+    targetSection: optionalString(operation.target_section),
+    nextSafeAction: stringValue(
+      operation.next_safe_action,
+      "Inspect managed operation evidence.",
+    ),
+    inputRefs: records(operation.input_refs).flatMap((item) => {
+      const parsed = parseManagedOperationRef(item);
+      return parsed ? [parsed] : [];
+    }),
+    outputReports: records(operation.output_reports).flatMap((item) => {
+      const parsed = parseManagedOperationRef(item);
+      return parsed ? [parsed] : [];
+    }),
+    missingInputRefs: strings(operation.missing_input_refs),
+    availableOutputRefs: strings(operation.available_output_refs),
+    idempotencyKey: optionalString(operation.idempotency_key),
+    overwritePolicy: optionalString(operation.overwrite_policy),
+    timeoutPolicy: optionalString(operation.timeout_policy),
+    replayPolicy: optionalString(operation.replay_policy),
+    dryRunOnly: operation.dry_run_only === true,
+    irreversible: operation.irreversible === true,
+    requiresExplicitConfirmation: operation.requires_explicit_confirmation === true,
+    notes: optionalString(operation.notes),
+  };
+}
+
+function parseManagedOperationsGroup(
+  raw: unknown,
+): IdeaToSpecManagedOperationsGroup | null {
+  const group = recordValue(raw);
+  const phase = optionalString(group.phase);
+  if (!phase) return null;
+  return {
+    phase,
+    label: stringValue(group.label, phase),
+    operationIds: strings(group.operation_ids),
+  };
+}
+
+function parseStatusCounts(raw: unknown): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(recordValue(raw))
+      .filter(([, value]) => typeof value === "number" && Number.isFinite(value))
+      .map(([key, value]) => [key, numberValue(value)]),
+  );
+}
+
+function parseManagedOperationsObservability(
+  raw: unknown,
+): IdeaToSpecManagedOperationsObservability {
+  const surface = recordValue(raw);
+  const summary = recordValue(surface.summary);
+  if (!isRecord(raw)) {
+    return {
+      available: false,
+      surfaceId: null,
+      surfaceKind: null,
+      summary: {
+        operationCount: 0,
+        succeededCount: 0,
+        failedCount: 0,
+        staleCount: 0,
+        inputMissingCount: 0,
+        consumeOnAttemptNeedsNewRequestCount: 0,
+        availableCount: 0,
+        gateNeededCount: 0,
+      },
+      statusCounts: {},
+      groups: [],
+      operations: [],
+      authorityBoundary: parseGuidedFlowBoundary(),
+    };
+  }
+  return {
+    available: surface.available === true,
+    surfaceId: optionalString(surface.surface_id),
+    surfaceKind: optionalString(surface.surface_kind),
+    summary: {
+      operationCount: numberValue(summary.operation_count),
+      succeededCount: numberValue(summary.succeeded_count),
+      failedCount: numberValue(summary.failed_count),
+      staleCount: numberValue(summary.stale_count),
+      inputMissingCount: numberValue(summary.input_missing_count),
+      consumeOnAttemptNeedsNewRequestCount: numberValue(
+        summary.consume_on_attempt_needs_new_request_count,
+      ),
+      availableCount: numberValue(summary.available_count),
+      gateNeededCount: numberValue(summary.gate_needed_count),
+    },
+    statusCounts: parseStatusCounts(surface.status_counts),
+    groups: records(surface.groups).flatMap((item) => {
+      const parsed = parseManagedOperationsGroup(item);
+      return parsed ? [parsed] : [];
+    }),
+    operations: records(surface.operations).flatMap((item) => {
+      const parsed = parseManagedOperation(item);
+      return parsed ? [parsed] : [];
+    }),
+    authorityBoundary: parseGuidedFlowBoundary(),
+  };
+}
+
 function parseGuidedRepairCheckpoint(
   raw: unknown,
 ): IdeaToSpecGuidedRepairCheckpoint | null {
@@ -4371,6 +4565,45 @@ function productWorkspaceOverviewBoundaryIsSafe(raw: unknown): boolean {
   return guidedFlowBoundaryIsSafe(boundary);
 }
 
+function managedOperationsBoundaryIsSafe(raw: unknown): boolean {
+  if (!isRecord(raw)) return true;
+  const boundary = recordValue(raw.authority_boundary);
+  const falseFlags = [
+    "managed_operations_observability_is_authority",
+    "may_execute_specgraph",
+    "may_execute_platform",
+    "may_execute_git_service",
+    "may_run_shell",
+    "may_mutate_candidate_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_branch_or_commit",
+    "may_open_pull_request",
+    "may_merge_review",
+    "may_publish_read_model",
+  ];
+  if (boundary.inspect_only !== true || boundary.acknowledge_only !== true) {
+    return false;
+  }
+  for (const flag of falseFlags) {
+    if (boundary[flag] !== false) return false;
+  }
+  for (const operation of records(raw.operations)) {
+    const operationBoundary = recordValue(operation.authority_boundary);
+    if (
+      operationBoundary.inspect_only !== true ||
+      operationBoundary.acknowledge_only !== true
+    ) {
+      return false;
+    }
+    for (const flag of falseFlags) {
+      if (operationBoundary[flag] !== false) return false;
+    }
+  }
+  return true;
+}
+
 function guidedRepairPathBoundaryIsSafe(raw: unknown): boolean {
   if (!isRecord(raw)) return true;
   const boundary = recordValue(raw.authority_boundary);
@@ -4679,6 +4912,12 @@ export function parseIdeaToSpecWorkspace(
     !productWorkspaceOverviewBoundaryIsSafe(raw.product_workspace_overview)
   ) {
     return { kind: "parse-error", reason: "product workspace overview boundary expanded", raw };
+  }
+  if (
+    isRecord(raw.managed_operations_observability) &&
+    !managedOperationsBoundaryIsSafe(raw.managed_operations_observability)
+  ) {
+    return { kind: "parse-error", reason: "managed operations observability boundary expanded", raw };
   }
   if (
     isRecord(raw.guided_approval_path) &&
@@ -5148,6 +5387,9 @@ export function parseIdeaToSpecWorkspace(
       guidedFlow,
       guidedRepairPath: parseGuidedRepairPath(raw.guided_repair_path),
       guidedApprovalPath: parseGuidedApprovalPath(raw.guided_approval_path),
+      managedOperations: parseManagedOperationsObservability(
+        raw.managed_operations_observability,
+      ),
       realIdeaIntake: parseRealIdeaIntake(raw.real_idea_intake),
       intake: {
         available: intake.available === true,
