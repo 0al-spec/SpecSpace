@@ -1115,12 +1115,13 @@ export type IdeaToSpecManagedOperationsObservability = {
   surfaceKind: string | null;
   summary: {
     operationCount: number;
-    succeededCount: number;
+    completedCount: number;
     failedCount: number;
     staleCount: number;
-    inputMissingCount: number;
-    consumeOnAttemptNeedsNewRequestCount: number;
-    availableCount: number;
+    requestNeededCount: number;
+    readyToExecuteCount: number;
+    executionRequestedCount: number;
+    newRequestRequiredCount: number;
     gateNeededCount: number;
   };
   statusCounts: Record<string, number>;
@@ -4177,12 +4178,13 @@ function parseManagedOperationsObservability(
       surfaceKind: null,
       summary: {
         operationCount: 0,
-        succeededCount: 0,
+        completedCount: 0,
         failedCount: 0,
         staleCount: 0,
-        inputMissingCount: 0,
-        consumeOnAttemptNeedsNewRequestCount: 0,
-        availableCount: 0,
+        requestNeededCount: 0,
+        readyToExecuteCount: 0,
+        executionRequestedCount: 0,
+        newRequestRequiredCount: 0,
         gateNeededCount: 0,
       },
       statusCounts: {},
@@ -4197,14 +4199,13 @@ function parseManagedOperationsObservability(
     surfaceKind: optionalString(surface.surface_kind),
     summary: {
       operationCount: numberValue(summary.operation_count),
-      succeededCount: numberValue(summary.succeeded_count),
+      completedCount: numberValue(summary.completed_count),
       failedCount: numberValue(summary.failed_count),
       staleCount: numberValue(summary.stale_count),
-      inputMissingCount: numberValue(summary.input_missing_count),
-      consumeOnAttemptNeedsNewRequestCount: numberValue(
-        summary.consume_on_attempt_needs_new_request_count,
-      ),
-      availableCount: numberValue(summary.available_count),
+      requestNeededCount: numberValue(summary.request_needed_count),
+      readyToExecuteCount: numberValue(summary.ready_to_execute_count),
+      executionRequestedCount: numberValue(summary.execution_requested_count),
+      newRequestRequiredCount: numberValue(summary.new_request_required_count),
       gateNeededCount: numberValue(summary.gate_needed_count),
     },
     statusCounts: parseStatusCounts(surface.status_counts),
@@ -4583,8 +4584,16 @@ function managedOperationsBoundaryIsSafe(raw: unknown): boolean {
     "may_merge_review",
     "may_publish_read_model",
   ];
+  const allowedMayFlags = new Set(
+    falseFlags.filter((flag) => flag.startsWith("may_")),
+  );
   if (boundary.inspect_only !== true || boundary.acknowledge_only !== true) {
     return false;
+  }
+  for (const [flag, value] of Object.entries(boundary)) {
+    if (flag.startsWith("may_") && !allowedMayFlags.has(flag) && value !== false) {
+      return false;
+    }
   }
   for (const flag of falseFlags) {
     if (boundary[flag] !== false) return false;
@@ -4596,6 +4605,15 @@ function managedOperationsBoundaryIsSafe(raw: unknown): boolean {
       operationBoundary.acknowledge_only !== true
     ) {
       return false;
+    }
+    for (const [flag, value] of Object.entries(operationBoundary)) {
+      if (
+        flag.startsWith("may_") &&
+        !allowedMayFlags.has(flag) &&
+        value !== false
+      ) {
+        return false;
+      }
     }
     for (const flag of falseFlags) {
       if (operationBoundary[flag] !== false) return false;

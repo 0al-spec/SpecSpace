@@ -1527,22 +1527,22 @@ function managedOperationsObservabilityForScenario(
 ) {
   const status =
     scenario === "published"
-      ? "succeeded"
+      ? "completed"
       : scenario === "route_only"
-        ? "input_missing"
-        : "available";
+        ? "request_needed"
+        : "ready_to_execute";
   return {
     available: true,
     surface_id: "specspace.managed-operations.observability.v0.1",
     surface_kind: "managed_operations_observability",
     summary: {
       operation_count: 1,
-      succeeded_count: status === "succeeded" ? 1 : 0,
+      completed_count: status === "completed" ? 1 : 0,
       failed_count: 0,
       stale_count: 0,
-      input_missing_count: status === "input_missing" ? 1 : 0,
-      consume_on_attempt_needs_new_request_count: 0,
-      available_count: status === "available" ? 1 : 0,
+      request_needed_count: status === "request_needed" ? 1 : 0,
+      new_request_required_count: 0,
+      ready_to_execute_count: status === "ready_to_execute" ? 1 : 0,
       gate_needed_count: 0,
     },
     status_counts: {
@@ -1570,13 +1570,13 @@ function managedOperationsObservabilityForScenario(
           {
             ref: "runs/product_workspace_initialization_execution_request.json",
             kind: "run_artifact",
-            available: status !== "input_missing",
-            status: status === "input_missing" ? "missing" : "ready",
+            available: status !== "request_needed",
+            status: status === "request_needed" ? "missing" : "ready",
           },
         ],
         output_reports: [],
         missing_input_refs:
-          status === "input_missing"
+          status === "request_needed"
             ? ["runs/product_workspace_initialization_execution_request.json"]
             : [],
         available_output_refs: [],

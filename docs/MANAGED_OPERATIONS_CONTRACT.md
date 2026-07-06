@@ -87,8 +87,9 @@ with runtime evidence from the selected workspace artifacts:
 - required input refs and output report refs;
 - missing input refs and available output refs;
 - idempotency, overwrite, timeout, and replay policy text;
-- read-only status such as `available`, `input_missing`, `gate_needed`,
-  `succeeded`, `failed`, or `consume_on_attempt_needs_new_request`;
+- read-only status from the normalized managed-operation vocabulary, such as
+  `request_needed`, `gate_needed`, `ready_to_execute`, `execution_requested`,
+  `failed`, `stale`, `completed`, or `blocked`;
 - explicit authority boundary with all execution, Git, SpecGraph, Ontology,
   and publication flags set to `false`.
 

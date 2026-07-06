@@ -1465,16 +1465,16 @@ function ManagedOperationsObservabilitySection({
             value={String(observability.summary.operationCount)}
           />
           <PostureItem
-            label="Succeeded"
-            value={String(observability.summary.succeededCount)}
+            label="Completed"
+            value={String(observability.summary.completedCount)}
           />
           <PostureItem
-            label="Available"
-            value={String(observability.summary.availableCount)}
+            label="Ready"
+            value={String(observability.summary.readyToExecuteCount)}
           />
           <PostureItem
-            label="Missing inputs"
-            value={String(observability.summary.inputMissingCount)}
+            label="Requests"
+            value={String(observability.summary.requestNeededCount)}
           />
           <PostureItem
             label="Failed"
@@ -1483,7 +1483,7 @@ function ManagedOperationsObservabilitySection({
           <PostureItem
             label="New request"
             value={String(
-              observability.summary.consumeOnAttemptNeedsNewRequestCount,
+              observability.summary.newRequestRequiredCount,
             )}
           />
         </div>

@@ -122,15 +122,15 @@ describe("IdeaToSpecWorkspacePanel", () => {
       surface_kind: "managed_operations_observability",
       summary: {
         operation_count: 1,
-        succeeded_count: 0,
+        completed_count: 0,
         failed_count: 0,
         stale_count: 0,
-        input_missing_count: 1,
-        consume_on_attempt_needs_new_request_count: 0,
-        available_count: 0,
+        request_needed_count: 1,
+        new_request_required_count: 0,
+        ready_to_execute_count: 0,
         gate_needed_count: 0,
       },
-      status_counts: { input_missing: 1 },
+      status_counts: { request_needed: 1 },
       groups: [
         {
           phase: "workspace",
@@ -146,7 +146,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
           ui_stage: "Workspace initialization",
           endpoint: "/api/v1/product-workspace-initialization/execute",
           platform_command: ["workspace", "execute-requested-initialization"],
-          status: "input_missing",
+          status: "request_needed",
           target_section: "idea-to-spec-workspace-initialization-path",
           next_safe_action: "Complete required request evidence.",
           input_refs: [
@@ -197,7 +197,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
 
     expect(html).toContain("Managed operations");
     expect(html).toContain("Workspace initialization");
-    expect(html).toContain("input missing");
+    expect(html).toContain("request needed");
     expect(html).toContain("workspace execute-requested-initialization");
   });
 

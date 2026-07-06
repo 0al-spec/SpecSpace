@@ -337,15 +337,15 @@ describe("parseIdeaToSpecWorkspace", () => {
       surface_kind: "managed_operations_observability",
       summary: {
         operation_count: 1,
-        succeeded_count: 1,
+        completed_count: 1,
         failed_count: 0,
         stale_count: 0,
-        input_missing_count: 0,
-        consume_on_attempt_needs_new_request_count: 0,
-        available_count: 0,
+        request_needed_count: 0,
+        new_request_required_count: 0,
+        ready_to_execute_count: 0,
         gate_needed_count: 0,
       },
-      status_counts: { succeeded: 1 },
+      status_counts: { completed: 1 },
       groups: [
         {
           phase: "workspace",
@@ -361,7 +361,7 @@ describe("parseIdeaToSpecWorkspace", () => {
           ui_stage: "Workspace initialization",
           endpoint: "/api/v1/product-workspace-initialization/execute",
           platform_command: ["workspace", "execute-requested-initialization"],
-          status: "succeeded",
+          status: "completed",
           target_section: "idea-to-spec-workspace-initialization-path",
           next_safe_action: "Inspect the durable execution report.",
           input_refs: [
@@ -414,7 +414,7 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.managedOperations.available).toBe(true);
     expect(parsed.data.managedOperations.summary.operationCount).toBe(1);
     expect(parsed.data.managedOperations.groups[0].phase).toBe("workspace");
-    expect(parsed.data.managedOperations.operations[0].status).toBe("succeeded");
+    expect(parsed.data.managedOperations.operations[0].status).toBe("completed");
     expect(parsed.data.managedOperations.operations[0].availableOutputRefs).toEqual([
       "runs/platform_product_workspace_initialization_execution_report.json",
     ]);
@@ -430,6 +430,37 @@ describe("parseIdeaToSpecWorkspace", () => {
         managed_operations_observability_is_authority: false,
         may_run_shell: false,
         may_publish_read_model: true,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("parse-error");
+    if (parsed.kind !== "parse-error") return;
+    expect(parsed.reason).toContain("managed operations observability");
+  });
+
+  it("rejects unknown managed operations authority flags", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.managed_operations_observability = {
+      available: true,
+      operations: [
+        {
+          authority_boundary: {
+            ...raw.guided_flow.authority_boundary,
+            managed_operations_observability_is_authority: false,
+            may_run_shell: false,
+            may_publish_read_model: false,
+            may_apply_answers: true,
+          },
+        },
+      ],
+      authority_boundary: {
+        ...raw.guided_flow.authority_boundary,
+        managed_operations_observability_is_authority: false,
+        may_run_shell: false,
+        may_publish_read_model: false,
+        may_apply_answers: true,
       },
     };
 

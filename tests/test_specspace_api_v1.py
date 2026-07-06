@@ -11390,6 +11390,22 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "workspace_initialization_execute",
             observability["groups"][0]["operation_ids"],
         )
+        vocabulary = set(managed_operations_registry.MANAGED_OPERATION_STATES)
+        self.assertTrue(
+            {operation["status"] for operation in observability["operations"]}.issubset(
+                vocabulary
+            )
+        )
+        dumped_refs = json.dumps(
+            [
+                item
+                for operation in observability["operations"]
+                for item in (
+                    operation["input_refs"] + operation["output_reports"]
+                )
+            ]
+        )
+        self.assertNotIn("unknown_artifact_ref", dumped_refs)
         self.assertFalse(
             observability["authority_boundary"]["may_execute_platform"]
         )
@@ -11400,6 +11416,97 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         dumped = json.dumps(observability)
         self.assertNotIn(str(runs_dir), dumped)
+
+    def test_managed_operations_dry_run_does_not_complete_review_execution(
+        self,
+    ) -> None:
+        payload = {
+            "artifacts": {
+                "platform_promotion_request": {
+                    "available": True,
+                    "status": "ready",
+                },
+                "candidate_approval": {
+                    "available": True,
+                    "status": "approved",
+                },
+                "product_promotion_execution": {
+                    "available": True,
+                    "status": "completed",
+                    "dry_run": True,
+                },
+                "git_service_execution": {
+                    "available": True,
+                    "status": "completed",
+                    "dry_run": True,
+                },
+            }
+        }
+        operation = managed_operations_registry.operation_by_id(
+            "promotion_review_execute"
+        )
+        self.assertIsNotNone(operation)
+        assert operation is not None
+
+        inputs = [
+            idea_to_spec_workspace._managed_operation_ref_payload(payload, ref)
+            for ref in operation.input_refs
+        ]
+        outputs = [
+            idea_to_spec_workspace._managed_operation_ref_payload(payload, ref)
+            for ref in operation.output_reports
+        ]
+
+        self.assertEqual(
+            idea_to_spec_workspace._managed_operation_status(
+                operation=operation,
+                inputs=inputs,
+                outputs=outputs,
+            ),
+            "ready_to_execute",
+        )
+
+    def test_managed_operations_dynamic_inputs_are_missing_until_resolved(
+        self,
+    ) -> None:
+        payload = {
+            "artifacts": {
+                "product_review_status": {
+                    "available": True,
+                    "status": "merged",
+                }
+            },
+            "controlled_promotion": {
+                "read_model_publication": {"published": False}
+            },
+        }
+        operation = managed_operations_registry.operation_by_id(
+            "read_model_publication_execute"
+        )
+        self.assertIsNotNone(operation)
+        assert operation is not None
+
+        inputs = [
+            idea_to_spec_workspace._managed_operation_ref_payload(payload, ref)
+            for ref in operation.input_refs
+        ]
+
+        self.assertEqual(
+            idea_to_spec_workspace._managed_operation_status(
+                operation=operation,
+                inputs=inputs,
+                outputs=[],
+            ),
+            "request_needed",
+        )
+        self.assertIn(
+            "dist/specgraph-public/workspaces/<workspace-id>",
+            [
+                item["ref"]
+                for item in inputs
+                if item.get("available") is not True
+            ],
+        )
 
     def test_idea_to_spec_workspace_overview_covers_lifecycle_statuses(
         self,

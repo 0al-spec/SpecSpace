@@ -133,7 +133,11 @@ IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT = "idea_to_spec_promotion_gate.json"
 PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT = (
     "platform_candidate_approval_execution_report.json"
 )
+PLATFORM_CANDIDATE_APPROVAL_INTENT_GATE_REPORT_ARTIFACT = (
+    "platform_candidate_approval_intent_gate_report.json"
+)
 CANDIDATE_APPROVAL_DECISION_ARTIFACT = "candidate_approval_decision.json"
+GRAPH_REPOSITORY_EXECUTION_PLAN_ARTIFACT = "graph_repository_execution_plan.json"
 GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT = "graph_repository_promotion_request.json"
 PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT = (
     "product_candidate_promotion_execution_report.json"
@@ -214,8 +218,10 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
 )
 PLATFORM_PROMOTION_ARTIFACTS: tuple[str, ...] = (
+    PLATFORM_CANDIDATE_APPROVAL_INTENT_GATE_REPORT_ARTIFACT,
     PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT,
     CANDIDATE_APPROVAL_DECISION_ARTIFACT,
+    GRAPH_REPOSITORY_EXECUTION_PLAN_ARTIFACT,
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT,
     PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
@@ -325,8 +331,12 @@ ARTIFACT_KEYS: dict[str, str] = {
     CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT: "repair_loop",
     CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT: "materialization",
     IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT: "promotion_gate",
+    PLATFORM_CANDIDATE_APPROVAL_INTENT_GATE_REPORT_ARTIFACT: (
+        "candidate_approval_gate"
+    ),
     PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT: "candidate_approval_execution",
     CANDIDATE_APPROVAL_DECISION_ARTIFACT: "candidate_approval",
+    GRAPH_REPOSITORY_EXECUTION_PLAN_ARTIFACT: "graph_repository_execution_plan",
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: "platform_promotion_request",
     PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT: "product_promotion_execution",
     GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT: "git_service_execution",
@@ -456,7 +466,13 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
     PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT: (
         "platform_candidate_approval_execution_report"
     ),
+    PLATFORM_CANDIDATE_APPROVAL_INTENT_GATE_REPORT_ARTIFACT: (
+        "platform_candidate_approval_intent_gate_report"
+    ),
     CANDIDATE_APPROVAL_DECISION_ARTIFACT: "candidate_approval_decision",
+    GRAPH_REPOSITORY_EXECUTION_PLAN_ARTIFACT: (
+        "platform_graph_repository_execution_plan"
+    ),
     GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT: (
         "platform_graph_repository_promotion_request"
     ),
@@ -975,6 +991,15 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
+    if filename == PLATFORM_CANDIDATE_APPROVAL_INTENT_GATE_REPORT_ARTIFACT:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "candidate approval gate authority boundary flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
     if filename == CANDIDATE_APPROVAL_DECISION_ARTIFACT:
         authority_boundary = _record(value.get("authority_boundary"))
         if any(flag is True for flag in authority_boundary.values()):
@@ -993,6 +1018,15 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             return {
                 "reason": "invalid_artifact_contract",
                 "detail": "tracked_artifacts_written must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
+    if filename == GRAPH_REPOSITORY_EXECUTION_PLAN_ARTIFACT:
+        authority_boundary = _record(value.get("authority_boundary"))
+        if any(flag is True for flag in authority_boundary.values()):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "graph repository execution plan authority boundary flags must remain false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
@@ -1267,13 +1301,24 @@ def _artifact_status(
     if filename in {
         PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT,
         PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT,
+        PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+        GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
     }:
         status_payload["ok"] = data.get("ok") is True
-        status_payload["dry_run"] = data.get("dry_run") is True
+        status_payload["dry_run"] = (
+            data.get("dry_run") is True
+            or summary.get("dry_run") is True
+            or summary.get("worktree_prepare_dry_run") is True
+            or summary.get("open_review_dry_run") is True
+        )
         status_payload["authority_boundary"] = _record(data.get("authority_boundary"))
-        status_payload["output_artifacts"] = {
-            row["key"]: row for row in _product_repair_rerun_output_artifacts(data)
-        }
+        if filename in {
+            PLATFORM_PRODUCT_REPAIR_DRAFT_IMPORT_EXECUTION_REPORT_ARTIFACT,
+            PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT,
+        }:
+            status_payload["output_artifacts"] = {
+                row["key"]: row for row in _product_repair_rerun_output_artifacts(data)
+            }
     session = _session_projection(data.get("session"))
     if session:
         status_payload["session"] = session
@@ -7256,6 +7301,7 @@ def _managed_operation_ref_payload(
                 "reason": _optional_text(status.get("reason")),
                 "artifact_kind": _optional_text(status.get("artifact_kind")),
                 "contract_ref": _optional_text(status.get("contract_ref")),
+                "dry_run": status.get("dry_run") is True,
             }
         return {
             "ref": ref,
@@ -7273,6 +7319,27 @@ def _managed_operation_ref_payload(
             real_idea = _record(payload.get("real_idea_intake"))
             available = _text(real_idea.get("status"), "missing") != "missing"
             status = _text(real_idea.get("status"), status)
+        elif state_name == "real_idea_intake_execution_requests.json":
+            real_idea = _record(payload.get("real_idea_intake"))
+            entry_execution = _record(real_idea.get("entry_execution"))
+            available = entry_execution.get("available") is True
+            status = "execution_requested" if available else "request_needed"
+            reason = (
+                None
+                if available
+                else "Real-idea intake execution request evidence is not embedded."
+            )
+        elif state_name == "real_idea_answer_continuation_execution_requests.json":
+            real_idea = _record(payload.get("real_idea_intake"))
+            continuation = _record(real_idea.get("answer_continuation"))
+            execution = _record(continuation.get("execution"))
+            available = execution.get("available") is True
+            status = "execution_requested" if available else "request_needed"
+            reason = (
+                None
+                if available
+                else "Real-idea continuation execution request evidence is not embedded."
+            )
         elif state_name == "idea_to_spec_intake_clarification_answers.json":
             clarification = _record(payload.get("intake_clarification"))
             answers = _record(clarification.get("answer_progress"))
@@ -7343,10 +7410,12 @@ def _managed_operation_status_from_reports(
         if any(marker in status or marker in reason for marker in MANAGED_OPERATION_FAILURE_MARKERS):
             failed_reports.append(report)
     if failed_reports:
-        replay = operation.replay_policy.lower()
-        if any(phrase in replay for phrase in MANAGED_OPERATION_CONSUME_REPLAY_PHRASES):
-            return "consume_on_attempt_needs_new_request"
         return "failed"
+    if (
+        operation.operation_id == "promotion_review_execute"
+        and any(report.get("dry_run") is True for report in available_reports)
+    ):
+        return None
     if available_reports:
         if len(available_reports) == len(concrete_reports) or any(
             any(
@@ -7355,8 +7424,8 @@ def _managed_operation_status_from_reports(
             )
             for report in available_reports
         ):
-            return "succeeded"
-        return "requested"
+            return "completed"
+        return "execution_requested"
     return None
 
 
@@ -7375,13 +7444,13 @@ def _managed_operation_status(
     missing_required = [
         item
         for item in inputs
-        if item.get("dynamic") is not True and item.get("available") is not True
+        if item.get("available") is not True
     ]
     if missing_required:
-        return "input_missing"
-    if operation.category == "repair" and operation.operation_id.endswith("_gate_execute"):
-        return "gate_needed"
-    return "available"
+        if any("gate" in _text(item.get("ref")).lower() for item in missing_required):
+            return "gate_needed"
+        return "request_needed"
+    return "ready_to_execute"
 
 
 def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]:
@@ -7398,7 +7467,7 @@ def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]
         missing_inputs = [
             _text(item.get("ref"))
             for item in inputs
-            if item.get("dynamic") is not True and item.get("available") is not True
+            if item.get("available") is not True
         ]
         output_refs = [
             _text(item.get("ref"))
@@ -7410,14 +7479,19 @@ def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]
             inputs=inputs,
             outputs=outputs,
         )
-        if status == "succeeded":
+        if status == "completed":
             next_safe_action = "Inspect the durable execution report and continue to the next lifecycle step."
-        elif status == "consume_on_attempt_needs_new_request":
-            next_safe_action = "Create a fresh UI request or intent before retrying this consume-on-attempt operation."
-        elif status in {"input_missing", "gate_needed"}:
+        elif status in {"request_needed", "gate_needed"}:
             next_safe_action = "Complete the required request, gate, or artifact evidence before execution."
         elif status == "failed":
-            next_safe_action = "Inspect the failed report before retrying or creating a replacement request."
+            replay = operation.replay_policy.lower()
+            if any(
+                phrase in replay
+                for phrase in MANAGED_OPERATION_CONSUME_REPLAY_PHRASES
+            ):
+                next_safe_action = "Inspect the failed report and create a fresh UI request or intent before retrying this consume-on-attempt operation."
+            else:
+                next_safe_action = "Inspect the failed report before retrying or creating a replacement request."
         else:
             next_safe_action = "This operation is ready for controlled execution when the operator chooses it."
         operations.append(
@@ -7469,15 +7543,24 @@ def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]
         "surface_kind": "managed_operations_observability",
         "summary": {
             "operation_count": len(operations),
-            "succeeded_count": status_counts.get("succeeded", 0),
+            "completed_count": status_counts.get("completed", 0),
             "failed_count": status_counts.get("failed", 0),
             "stale_count": status_counts.get("stale", 0),
-            "input_missing_count": status_counts.get("input_missing", 0),
-            "consume_on_attempt_needs_new_request_count": status_counts.get(
-                "consume_on_attempt_needs_new_request",
+            "request_needed_count": status_counts.get("request_needed", 0),
+            "ready_to_execute_count": status_counts.get("ready_to_execute", 0),
+            "execution_requested_count": status_counts.get(
+                "execution_requested",
                 0,
             ),
-            "available_count": status_counts.get("available", 0),
+            "new_request_required_count": sum(
+                1
+                for operation in operations
+                if operation["status"] == "failed"
+                and any(
+                    phrase in _text(operation.get("replay_policy")).lower()
+                    for phrase in MANAGED_OPERATION_CONSUME_REPLAY_PHRASES
+                )
+            ),
             "gate_needed_count": status_counts.get("gate_needed", 0),
         },
         "status_counts": status_counts,
