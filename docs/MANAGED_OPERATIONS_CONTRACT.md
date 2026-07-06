@@ -21,6 +21,42 @@ The authority boundary is:
 - SpecSpace does not write Ontology packages or accept Ontology terms;
 - Git and read-model effects stay behind Platform/Git Service wrappers.
 
+## Agent Surface Alignment
+
+SpecSpace intends to use the Agent Surface Protocol as the future vocabulary
+for describing Product Workspace operations to agents and external runtimes.
+That alignment is not a production conformance claim yet.
+
+Current state:
+
+- SpecSpace has an internal managed operation registry with operation ids,
+  UI stages, endpoints, Platform command families, outputs, idempotency
+  metadata, and authority flags.
+- The registry is a candidate Agent Surface action catalog, but SpecSpace does
+  not publish `/.well-known/agent-surface.json` as a stable public surface.
+- Durable Platform and SpecGraph reports are candidate receipt evidence, but
+  they are not normalized Agent Surface receipts yet.
+- SpecSpace is not a grant-enforcing application: it does not issue Agent
+  Grants, bind external runtimes to grants, accept external runtime action
+  requests, or implement revocation UI.
+- Production may remain read-only even when the local/development backend has
+  managed operations enabled.
+
+Near-term Agent Surface mapping should be additive:
+
+| Managed operations field | Agent Surface-aligned meaning |
+| --- | --- |
+| `operation_id` | Candidate action id. |
+| UI stage and state vocabulary | Human-readable action lifecycle. |
+| Platform command family | Backend executor binding, not browser authority. |
+| Required inputs and output refs | Action request preconditions and receipt refs. |
+| Idempotency metadata | Action retry scope. |
+| Authority flags | App-side enforcement summary. |
+
+Do not add Agent Surface grants, runtime pairing, external agent execution, or
+public well-known manifest publication until the protocol draft and local
+operation registry are intentionally versioned together.
+
 ## UI State Vocabulary
 
 Product Workspace UI projections should use this vocabulary for managed

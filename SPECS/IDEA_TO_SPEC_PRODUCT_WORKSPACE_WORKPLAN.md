@@ -42,6 +42,14 @@ SpecGraph, Platform, Git Service, mutate candidate/canonical specs, write
 Ontology packages, accept ontology terms, create branches, open PRs, merge
 reviews, or publish read models.
 
+Agent Surface is the intended future vocabulary for this managed lifecycle, but
+not a production dependency yet. The current SpecSpace surface is an internal
+managed-operation registry plus durable report evidence. It should evolve toward
+Agent Surface action and receipt semantics only after the draft protocol and
+local registry are versioned together. Until then, do not publish a stable
+`/.well-known/agent-surface.json`, issue Agent Grants, or accept external agent
+runtime action requests from Product Workspace routes.
+
 ## Recently Closed
 
 - Managed Operations Contract and regression inventory. The Product Workspace
@@ -807,6 +815,8 @@ contracts or execution boundaries, update the corresponding repo as well:
 - Platform: controlled execution wrappers, Git Service handoff, product
   runbooks, smoke profiles.
 - Metrics: idea maturity schema/validator contracts.
+- Agent Surface: future action/receipt/grant vocabulary for managed operations
+  once the protocol draft is stable enough to version against.
 
 When a cross-repo task lands, keep this workplan focused on the remaining
 SpecSpace-facing behavior rather than duplicating full PR histories.
