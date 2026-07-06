@@ -542,6 +542,242 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).not.toContain("Raw idea intake will use this workspace namespace.");
   });
 
+  it("focuses a route-only workspace on creation before diagnostics", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.selected_workspace_id = "pantry-rotation";
+    raw.workspace = {
+      ...raw.workspace,
+      id: "pantry-rotation",
+      display_name: "Pantry Rotation",
+      public_route: "/pantry-rotation",
+      available: false,
+      ready: false,
+    };
+    raw.workspace_creation = {
+      artifact_kind: "specspace_product_workspace_creation_request_state",
+      selected_workspace_id: "pantry-rotation",
+      summary: {
+        status: "route_only_workspace",
+        request_count: 0,
+        active_requested_count: 0,
+        invalid_request_count: 0,
+        next_gap: "submit_product_workspace_creation_request",
+      },
+      initialization: {
+        available: false,
+        trusted: true,
+        initialized: false,
+      },
+    };
+    raw.workspace_initialization_path = {
+      available: true,
+      status: "route_only",
+      workspace_id: "pantry-rotation",
+      display_name: "Pantry Rotation",
+      initial_idea_present: false,
+      creation_request_ref: null,
+      initialization_request_ref: null,
+      initialization_report_ref: null,
+      next_safe_action: "Create this workspace before raw idea intake.",
+      blockers: ["workspace_creation_request_missing"],
+    };
+    raw.product_workspace_overview = {
+      available: true,
+      status: "route_only",
+      current_phase: "workspace",
+      current_phase_label: "Workspace",
+      next_safe_action: "Create this workspace before raw idea intake.",
+      primary_target_section: "idea-to-spec-workspace-creation",
+      readiness: {
+        status: "action_required",
+        ready: false,
+        blocker_count: 1,
+        blockers: ["workspace_creation_request_missing"],
+      },
+      completed_phase_count: 0,
+      total_phase_count: 7,
+      last_successful_handoff: {},
+      confidence: {
+        level: "route_only",
+        reason: "Route opened without backend workspace state.",
+        source_refs: [],
+      },
+      phases: [
+        {
+          id: "workspace",
+          label: "Workspace",
+          state: "current",
+          target_section: "idea-to-spec-workspace-creation",
+          blockers: ["workspace_creation_request_missing"],
+          evidence_refs: [],
+        },
+      ],
+      authority_boundary: raw.guided_flow.authority_boundary,
+    };
+    const parsedRouteOnly = parseIdeaToSpecWorkspace(raw);
+    if (parsedRouteOnly.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedRouteOnly.data },
+      }),
+    );
+    const focusIndex = html.indexOf("Fresh workspace focus");
+    const creationIndex = html.indexOf("Workspace creation");
+    const diagnosticsIndex = html.indexOf("Diagnostics / advanced artifacts");
+    const rawIdeaIndex = html.indexOf("Start here: raw product idea");
+    const candidateGraphIndex = html.indexOf('id="idea-to-spec-candidate-graph"');
+    const guidedFlowIndex = html.indexOf("Guided product flow");
+
+    expect(html).toContain('data-testid="fresh-workspace-focus"');
+    expect(html).toContain('data-testid="fresh-workspace-diagnostics"');
+    expect(focusIndex).toBeGreaterThanOrEqual(0);
+    expect(creationIndex).toBeGreaterThan(focusIndex);
+    expect(diagnosticsIndex).toBeGreaterThan(creationIndex);
+    expect(guidedFlowIndex).toBeGreaterThan(diagnosticsIndex);
+    expect(rawIdeaIndex).toBeGreaterThan(diagnosticsIndex);
+    expect(candidateGraphIndex).toBeGreaterThan(diagnosticsIndex);
+    expect(html).toContain("Create this workspace before raw idea intake.");
+  });
+
+  it("focuses an initialized workspace on raw idea intake", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.product_workspace_overview.status = "initialized";
+    raw.product_workspace_overview.current_phase = "intake";
+    raw.product_workspace_overview.current_phase_label = "Intake";
+    raw.product_workspace_overview.next_safe_action =
+      "Start or continue raw idea intake in this workspace.";
+    raw.product_workspace_overview.primary_target_section = "idea-to-spec-idea-intake";
+    raw.product_workspace_overview.readiness = {
+      status: "action_required",
+      ready: false,
+      blocker_count: 0,
+      blockers: [],
+    };
+    raw.workspace_creation = {
+      artifact_kind: "specspace_product_workspace_creation_request_state",
+      selected_workspace_id: "team-decision-log",
+      active_request: {
+        request_id: "product-workspace-request.team-decision-log",
+        workspace_id: "team-decision-log",
+        display_name: "Team Decision Log",
+        route: "/team-decision-log",
+        root_intent_summary: "Capture team decisions.",
+        status: "initialized",
+      },
+      summary: {
+        status: "workspace_initialized",
+        request_count: 1,
+        active_requested_count: 1,
+        invalid_request_count: 0,
+        next_gap: "start_real_idea_intake",
+      },
+      initialization: {
+        available: true,
+        trusted: true,
+        initialized: true,
+      },
+    };
+    const parsedInitialized = parseIdeaToSpecWorkspace(raw);
+    if (parsedInitialized.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedInitialized.data },
+      }),
+    );
+    const focusIndex = html.indexOf("Fresh workspace focus");
+    const intakeIndex = html.indexOf("Start here: raw product idea");
+    const diagnosticsIndex = html.indexOf("Diagnostics / advanced artifacts");
+    const repairPathIndex = html.indexOf("Guided repair path");
+
+    expect(focusIndex).toBeGreaterThanOrEqual(0);
+    expect(intakeIndex).toBeGreaterThan(focusIndex);
+    expect(intakeIndex).toBeLessThan(diagnosticsIndex);
+    expect(repairPathIndex).toBeGreaterThan(diagnosticsIndex);
+    expect(html).toContain("Start or continue raw idea intake in this workspace.");
+  });
+
+  it("focuses clarification work before later lifecycle diagnostics", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.product_workspace_overview.status = "clarification";
+    raw.product_workspace_overview.current_phase = "clarification";
+    raw.product_workspace_overview.current_phase_label = "Clarification";
+    raw.product_workspace_overview.next_safe_action =
+      "Answer intake clarification questions before candidate generation.";
+    raw.product_workspace_overview.primary_target_section =
+      "idea-to-spec-intake-clarification";
+    raw.product_workspace_overview.readiness = {
+      status: "action_required",
+      ready: false,
+      blocker_count: 1,
+      blockers: ["clarification_answers_required"],
+    };
+    const parsedClarification = parseIdeaToSpecWorkspace(raw);
+    if (parsedClarification.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedClarification.data },
+      }),
+    );
+    const focusIndex = html.indexOf("Fresh workspace focus");
+    const clarificationIndex = html.indexOf("Guided clarification path");
+    const diagnosticsIndex = html.indexOf("Diagnostics / advanced artifacts");
+    const repairPathIndex = html.indexOf("Guided repair path");
+
+    expect(focusIndex).toBeGreaterThanOrEqual(0);
+    expect(clarificationIndex).toBeGreaterThan(focusIndex);
+    expect(clarificationIndex).toBeLessThan(diagnosticsIndex);
+    expect(repairPathIndex).toBeGreaterThan(diagnosticsIndex);
+    expect(html).toContain("Answer intake clarification questions before candidate generation.");
+  });
+
+  it("keeps blocked clarification work focused and reachable", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.product_workspace_overview.status = "blocked";
+    raw.product_workspace_overview.current_phase = "clarification";
+    raw.product_workspace_overview.current_phase_label = "Clarification";
+    raw.product_workspace_overview.next_safe_action =
+      "Resolve clarification blockers before candidate generation.";
+    raw.product_workspace_overview.primary_target_section =
+      "idea-to-spec-intake-clarification";
+    raw.product_workspace_overview.readiness = {
+      status: "blocked",
+      ready: false,
+      blocker_count: 1,
+      blockers: ["clarification_answers_invalid"],
+    };
+    const parsedBlockedClarification = parseIdeaToSpecWorkspace(raw);
+    if (parsedBlockedClarification.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedBlockedClarification.data },
+      }),
+    );
+    const focusIndex = html.indexOf("Fresh workspace focus");
+    const clarificationIdIndex = html.indexOf('id="idea-to-spec-intake-clarification"');
+    const diagnosticsIndex = html.indexOf("Diagnostics / advanced artifacts");
+    const guidedFlowIndex = html.indexOf("Guided product flow");
+
+    expect(html).toContain('data-testid="fresh-workspace-focus"');
+    expect(html).toContain('href="#idea-to-spec-intake-clarification"');
+    expect(focusIndex).toBeGreaterThanOrEqual(0);
+    expect(clarificationIdIndex).toBeGreaterThan(focusIndex);
+    expect(clarificationIdIndex).toBeLessThan(diagnosticsIndex);
+    expect(guidedFlowIndex).toBeGreaterThan(diagnosticsIndex);
+    expect(html).toContain("Resolve clarification blockers before candidate generation.");
+  });
+
   it("renders template-backed term list answers with compatible payload keys", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     const target =

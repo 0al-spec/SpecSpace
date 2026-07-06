@@ -223,6 +223,41 @@
   border-bottom: 0;
 }
 
+.diagnosticsDisclosure {
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+}
+
+.diagnosticsDisclosure:last-child {
+  border-bottom: 0;
+}
+
+.diagnosticsSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gs-space-3);
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: var(--gs-space-4) var(--gs-space-6);
+  background: var(--gs-panel);
+  color: var(--gs-muted);
+  cursor: pointer;
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.diagnosticsSummary:hover,
+.diagnosticsSummary:focus-visible {
+  color: var(--gs-ink);
+}
+
+.diagnosticsBody {
+  border-top: 1px solid var(--gs-rule-soft);
+}
+
 .sectionHeader {
   display: flex;
   align-items: center;

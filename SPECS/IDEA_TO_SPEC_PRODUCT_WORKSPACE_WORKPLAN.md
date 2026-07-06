@@ -124,6 +124,13 @@ reviews, or publish read models.
   without giving the browser execution or mutation authority. Route-only
   workspaces now point to the workspace creation request section before later
   lifecycle sections.
+- Fresh workspace focus mode now keeps early workspaces on the current stage
+  instead of rendering the full diagnostics wall. Route-only / creation-requested
+  workspaces focus on creation and initialization; initialized/intake
+  workspaces focus on raw idea intake; clarification workspaces focus on the
+  guided clarification path. Later candidate, repair, approval, publication, and
+  technical artifact sections stay accessible under collapsed diagnostics /
+  advanced artifacts.
 
 ## Next Tasks
 
@@ -138,6 +145,7 @@ Acceptance criteria:
   repaired handoff -> approval, and publication -> published.
 - Reduce the fresh-workspace "wall of empty sections" below the overview, while
   preserving access to diagnostic sections when they have evidence or blockers.
+  Done through Fresh Workspace Focus Mode.
 - Keep the overview inspect/request-only; it may link to existing request
   surfaces, but must not execute Platform, SpecGraph, Git Service, or mutate
   specs/ontology/read models.
@@ -548,6 +556,42 @@ Non-goals:
 - Direct writes to canonical specs, ontology packages, branches, PRs, or read
   models from React components.
 - Treating a UI route as proof that a product workspace exists.
+
+### 13. Fresh Workspace Focus Mode
+
+Status: closed.
+
+Fresh product workspaces no longer render as a full dashboard of empty or future
+sections. The Product Workspace uses `product_workspace_overview.status` to
+choose a focused early surface:
+
+- `route_only` / `creation_requested`: overview, guided workspace
+  initialization, and workspace creation status;
+- `initialized` / `intake`: overview, initialization evidence, and raw idea
+  entry;
+- `clarification`: overview, real idea intake, and guided clarification path.
+
+Candidate, repair, approval, publication, and technical artifact sections stay
+accessible, but they are collapsed under `Diagnostics / advanced artifacts`
+until the workspace reaches the corresponding lifecycle evidence.
+
+Acceptance criteria:
+
+- Fresh workspaces expose the current guided path and relevant form before
+  diagnostics.
+  Done.
+- Future lifecycle sections remain accessible without becoming the primary
+  screen.
+  Done.
+- Component coverage proves route-only, initialized/intake, and clarification
+  focus ordering.
+  Done.
+
+Follow-up:
+
+- Add Playwright lifecycle overview transition coverage across route-only ->
+  initialized -> intake -> clarification -> candidate -> repair -> approval /
+  published.
 
 ## Accepted Constraints And Runbook Notes
 
