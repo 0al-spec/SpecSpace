@@ -90,6 +90,7 @@ type Props = {
   repairRerunPublishUrl?: string;
   candidateApprovalIntentsUrl?: string;
   candidateApprovalExecuteUrl?: string;
+  promotionRequestExecuteUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
   productWorkspaceInitializationExecuteUrl?: string;
   repairRerunRequestsRefreshKey?: number | string;
@@ -407,6 +408,7 @@ export function IdeaToSpecWorkspacePanel({
   repairRerunPublishUrl,
   candidateApprovalIntentsUrl,
   candidateApprovalExecuteUrl,
+  promotionRequestExecuteUrl,
   projectLocalOntologyReviewDecisionsUrl,
   productWorkspaceInitializationExecuteUrl,
   repairRerunRequestsRefreshKey = 0,
@@ -467,6 +469,12 @@ export function IdeaToSpecWorkspacePanel({
       error: string | null;
     }>({ pending: false, status: null, error: null });
   const [candidateApprovalExecutionState, setCandidateApprovalExecutionState] =
+    useState<{
+      pending: boolean;
+      status: string | null;
+      error: string | null;
+    }>({ pending: false, status: null, error: null });
+  const [promotionRequestExecutionState, setPromotionRequestExecutionState] =
     useState<{
       pending: boolean;
       status: string | null;
@@ -667,6 +675,61 @@ export function IdeaToSpecWorkspacePanel({
       });
     }
   };
+  const executePromotionRequest = async () => {
+    const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
+    if (readOnly || !promotionRequestExecuteUrl || !workspaceId) {
+      return;
+    }
+    setPromotionRequestExecutionState({
+      pending: true,
+      status: null,
+      error: null,
+    });
+    try {
+      const response = await fetch(promotionRequestExecuteUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace_id: workspaceId }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        summary?: { status?: unknown };
+        status?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok) {
+        const detail =
+          typeof body.error === "string"
+            ? body.error
+            : `Managed promotion request failed with HTTP ${response.status}.`;
+        setPromotionRequestExecutionState({
+          pending: false,
+          status: typeof body.status === "string" ? body.status : null,
+          error: detail,
+        });
+        return;
+      }
+      setPromotionRequestExecutionState({
+        pending: false,
+        status:
+          typeof body.summary?.status === "string"
+            ? body.summary.status
+            : typeof body.status === "string"
+              ? body.status
+              : "managed_promotion_request_executed",
+        error: null,
+      });
+      onWorkspaceRefreshRequest?.();
+    } catch (error) {
+      setPromotionRequestExecutionState({
+        pending: false,
+        status: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Managed promotion request failed.",
+      });
+    }
+  };
 
   const productWorkspaceOverviewSection = (
     <ProductWorkspaceOverviewSection
@@ -716,8 +779,11 @@ export function IdeaToSpecWorkspacePanel({
     <GuidedApprovalPathSection
       path={data.guidedApprovalPath}
       executeUrl={candidateApprovalExecuteUrl}
+      promotionRequestExecuteUrl={promotionRequestExecuteUrl}
       executionState={candidateApprovalExecutionState}
+      promotionRequestExecutionState={promotionRequestExecutionState}
       onExecute={executeCandidateApproval}
+      onPromotionRequestExecute={executePromotionRequest}
       readOnly={readOnly}
     />
   );
@@ -2364,18 +2430,28 @@ function GuidedRepairPathSection({
 function GuidedApprovalPathSection({
   path,
   executeUrl,
+  promotionRequestExecuteUrl,
   executionState,
+  promotionRequestExecutionState,
   onExecute,
+  onPromotionRequestExecute,
   readOnly = false,
 }: {
   path: IdeaToSpecWorkspace["guidedApprovalPath"];
   executeUrl?: string;
+  promotionRequestExecuteUrl?: string;
   executionState?: {
     pending: boolean;
     status: string | null;
     error: string | null;
   };
+  promotionRequestExecutionState?: {
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  };
   onExecute?: () => void;
+  onPromotionRequestExecute?: () => void;
   readOnly?: boolean;
 }) {
   const primaryHref = path.targetSection ? `#${path.targetSection}` : null;
@@ -2390,6 +2466,13 @@ function GuidedApprovalPathSection({
     path.state.approvalIntentStatus === "usable" &&
     approvalExecutionCanRetry &&
     !executionState?.pending;
+  const canRunManagedPromotionRequest =
+    !readOnly &&
+    Boolean(promotionRequestExecuteUrl) &&
+    path.stage === "promotion_request_needed" &&
+    path.state.candidateApprovalState === "approved" &&
+    path.state.promotionRequestOk === false &&
+    !promotionRequestExecutionState?.pending;
   const stateItems = [
     ["Readiness", path.state.approvalReadinessStatus],
     ["Intent", path.state.approvalIntentStatus],
@@ -2474,6 +2557,23 @@ function GuidedApprovalPathSection({
             </span>
           </div>
         ) : null}
+        {path.stage === "promotion_request_needed" ? (
+          <div className={styles.draftControls}>
+            <button
+              className={styles.ackButton}
+              type="button"
+              disabled={!canRunManagedPromotionRequest}
+              onClick={onPromotionRequestExecute}
+            >
+              {promotionRequestExecutionState?.pending
+                ? "Creating promotion request..."
+                : "Create promotion request"}
+            </button>
+            <span className={styles.statusDetail}>
+              SpecSpace backend will call the allowlisted Platform promotion request operation.
+            </span>
+          </div>
+        ) : null}
         {executionState?.status ? (
           <span className={styles.statusDetail}>
             Candidate approval execution: {executionState.status}
@@ -2482,6 +2582,16 @@ function GuidedApprovalPathSection({
         {executionState?.error ? (
           <span className={styles.statusDetail}>
             Candidate approval execution failed · {executionState.error}
+          </span>
+        ) : null}
+        {promotionRequestExecutionState?.status ? (
+          <span className={styles.statusDetail}>
+            Promotion request execution: {promotionRequestExecutionState.status}
+          </span>
+        ) : null}
+        {promotionRequestExecutionState?.error ? (
+          <span className={styles.statusDetail}>
+            Promotion request execution failed · {promotionRequestExecutionState.error}
           </span>
         ) : null}
       </div>

@@ -9225,6 +9225,176 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 409)
         self.assertEqual(body["reason"], "repair_execution_report_not_approval_ready")
 
+    def test_promotion_request_execute_disabled_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion-request/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 503)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_execution_unavailable")
+        self.assertFalse(body["authority_boundary"]["browser_executes_platform"])
+        self.assertFalse(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+
+    def test_promotion_request_execute_runs_allowlisted_platform_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            _write_json(
+                runs_dir / "graph_repository_execution_plan.json",
+                {
+                    "artifact_kind": "platform_graph_repository_execution_plan",
+                    "ok": True,
+                    "runs_dir": str(runs_dir),
+                },
+            )
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "\n".join(
+                    [
+                        "import json",
+                        "import sys",
+                        "from pathlib import Path",
+                        "output = Path(sys.argv[sys.argv.index('--output') + 1])",
+                        "approval = sys.argv[sys.argv.index('--approval-decision') + 1]",
+                        "plan = sys.argv[sys.argv.index('--plan') + 1]",
+                        "report = {",
+                        "    'artifact_kind': 'platform_graph_repository_promotion_request',",
+                        "    'schema_version': 1,",
+                        "    'ok': True,",
+                        "    'candidate_id': 'team-decision-log',",
+                        "    'workflow_lane': 'product_idea_to_spec',",
+                        "    'target_repository_role': 'product_spec_workspace',",
+                        "    'commit_paths': ['runs/materialized_candidate_specs/CANDIDATE-TEAM-DECISION-LOG.yaml'],",
+                        "    'plan_ref': plan,",
+                        "    'approval_decision_ref': approval,",
+                        "    'summary': {'promotion_ready': True, 'error_count': 0},",
+                        "    'authority_boundary': {",
+                        "        'executes_git_commands': False,",
+                        "        'creates_commits': False,",
+                        "        'opens_pull_requests': False,",
+                        "        'merges_pull_requests': False,",
+                        "        'writes_ontology_packages': False,",
+                        "        'mutates_canonical_specs': False,",
+                        "        'publishes_read_models': False,",
+                        "    },",
+                        "}",
+                        "output.write_text(json.dumps(report), encoding='utf-8')",
+                        "print(json.dumps(report))",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion-request/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+                request_exists = (
+                    runs_dir / "graph_repository_promotion_request.json"
+                ).is_file()
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["status"], "completed")
+        self.assertEqual(body["workspace_id"], "team-decision-log")
+        self.assertEqual(
+            body["plan_ref"],
+            "runs/graph_repository_execution_plan.json",
+        )
+        self.assertEqual(
+            body["approval_decision_ref"],
+            "runs/candidate_approval_decision.json",
+        )
+        self.assertEqual(
+            body["output_ref"],
+            "runs/graph_repository_promotion_request.json",
+        )
+        self.assertTrue(
+            body["authority_boundary"]["specspace_backend_executes_platform"]
+        )
+        self.assertTrue(body["authority_boundary"]["creates_promotion_request"])
+        self.assertFalse(body["authority_boundary"]["executes_git_commands"])
+        self.assertFalse(body["authority_boundary"]["opens_pull_requests"])
+        self.assertFalse(body["authority_boundary"]["publishes_read_models"])
+        self.assertTrue(body["summary"]["promotion_ready"])
+        self.assertTrue(request_exists)
+
+    def test_promotion_request_execute_requires_ready_approval_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specgraph_dir = root / "SpecGraph"
+            runs_dir = specgraph_dir / "runs"
+            runs_dir.mkdir(parents=True)
+            (specgraph_dir / "Makefile").write_text("noop:\n\t@true\n", encoding="utf-8")
+            _write_candidate_approval_artifacts(runs_dir)
+            decision_path = runs_dir / "candidate_approval_decision.json"
+            decision = json.loads(decision_path.read_text(encoding="utf-8"))
+            decision["readiness"]["ready"] = False
+            _write_json(decision_path, decision)
+            _write_json(
+                runs_dir / "graph_repository_execution_plan.json",
+                {"artifact_kind": "platform_graph_repository_execution_plan"},
+            )
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "raise SystemExit('must not execute')\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    (
+                        f"{base}/api/v1/idea-to-spec-promotion-request/execute"
+                        "?workspace=team-decision-log"
+                    ),
+                    {"workspace_id": "team-decision-log"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "candidate_approval_decision_not_ready")
+
     def test_product_workspace_creation_requests_v1_reads_route_only_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
