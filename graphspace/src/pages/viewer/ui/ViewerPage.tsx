@@ -354,6 +354,10 @@ export function ViewerPage({
         "/api/v1/idea-to-spec-promotion/execute",
         workspace,
       ),
+      ideaToSpecPromotionReviewExecute: workspaceApiUrl(
+        "/api/v1/idea-to-spec-promotion-review/execute",
+        workspace,
+      ),
       ideaToSpecReviewStatusExecute: workspaceApiUrl(
         "/api/v1/idea-to-spec-review-status/execute",
         workspace,
@@ -1721,6 +1725,9 @@ export function ViewerPage({
               candidateApprovalExecuteUrl={workspaceApiUrls.ideaToSpecCandidateApprovalExecute}
               promotionRequestExecuteUrl={workspaceApiUrls.ideaToSpecPromotionRequestExecute}
               promotionExecuteUrl={workspaceApiUrls.ideaToSpecPromotionExecute}
+              promotionReviewExecuteUrl={
+                workspaceApiUrls.ideaToSpecPromotionReviewExecute
+              }
               reviewStatusExecuteUrl={workspaceApiUrls.ideaToSpecReviewStatusExecute}
               readModelPublicationExecuteUrl={
                 workspaceApiUrls.ideaToSpecReadModelPublicationExecute

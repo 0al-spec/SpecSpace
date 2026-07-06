@@ -1,4 +1,4 @@
-"""Managed Platform execution for idea-to-spec promotion dry-run handoff."""
+"""Managed Platform execution for idea-to-spec promotion handoff."""
 
 from __future__ import annotations
 
@@ -36,9 +36,17 @@ def _text(value: Any) -> str | None:
     return stripped or None
 
 
-def _execution_disabled_payload(next_action: str | None = None) -> dict[str, Any]:
+def _execution_disabled_payload(
+    next_action: str | None = None,
+    *,
+    review_execution: bool = False,
+) -> dict[str, Any]:
     return {
-        "artifact_kind": "specspace_managed_promotion_execution",
+        "artifact_kind": (
+            "specspace_managed_promotion_review_execution"
+            if review_execution
+            else "specspace_managed_promotion_execution"
+        ),
         "ok": False,
         "status": "platform_execution_unavailable",
         "summary": {
@@ -47,7 +55,7 @@ def _execution_disabled_payload(next_action: str | None = None) -> dict[str, Any
             "next_action": next_action
             or (
                 "Start SpecSpace with --enable-platform-execution, --platform-dir, "
-                "and --specgraph-dir to run managed promotion execution dry-run."
+                "and --specgraph-dir to run managed promotion execution."
             ),
         },
         "authority_boundary": {
@@ -156,28 +164,50 @@ def _is_real_git_service_execution_report(path: Path) -> bool:
     )
 
 
+def _promotion_review_opened(payload: dict[str, Any]) -> bool:
+    summary = _record(payload.get("summary"))
+    git_review = _record(payload.get("git_review"))
+    return (
+        payload.get("artifact_kind")
+        == "platform_product_candidate_promotion_execution_report"
+        and payload.get("ok") is True
+        and payload.get("dry_run") is False
+        and payload.get("open_review_dry_run") is not True
+        and (
+            payload.get("review_opened") is True
+            or summary.get("review_opened") is True
+            or git_review.get("review_opened") is True
+        )
+    )
+
+
 def _workspace_dir(specgraph_dir: Path, workspace_id: str) -> Path:
     return specgraph_dir / ".platform" / "candidates" / workspace_id
 
 
-def execute_promotion_dry_run(
+def _execute_promotion(
     server: Any,
     payload: dict[str, Any],
     *,
     workspace_id: str | None,
+    review_execution: bool,
 ) -> tuple[HTTPStatus, dict[str, Any]]:
     if getattr(server, "platform_execution_enabled", False) is not True:
-        return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload()
+        return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload(
+            review_execution=review_execution
+        )
 
     platform_script = _platform_script(server)
     if platform_script is None:
         return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload(
-            "Configured Platform directory does not contain scripts/platform.py."
+            "Configured Platform directory does not contain scripts/platform.py.",
+            review_execution=review_execution,
         )
     specgraph_dir = _specgraph_dir(server)
     if specgraph_dir is None:
         return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload(
-            "Configured SpecGraph directory does not contain a Makefile."
+            "Configured SpecGraph directory does not contain a Makefile.",
+            review_execution=review_execution,
         )
 
     payload_workspace_id = specspace_provider.normalize_product_workspace_id(
@@ -197,6 +227,11 @@ def execute_promotion_dry_run(
     if selected_workspace_id is None:
         return HTTPStatus.BAD_REQUEST, {
             "error": "workspace_id is required for managed promotion execution."
+        }
+    if review_execution and payload.get("confirm_open_review") is not True:
+        return HTTPStatus.BAD_REQUEST, {
+            "error": "Non-dry-run promotion review execution requires confirm_open_review=true.",
+            "reason": "missing_open_review_confirmation",
         }
 
     promotion_request_path = _runs_path(
@@ -255,7 +290,9 @@ def execute_promotion_dry_run(
 
     runs_dir = _runs_dir(server)
     if runs_dir is None:
-        return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload()
+        return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload(
+            review_execution=review_execution
+        )
     output_path = runs_dir / PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
     git_service_output_path = runs_dir / GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
@@ -263,6 +300,50 @@ def execute_promotion_dry_run(
         f"runs/{git_service_output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     )
     if _is_real_promotion_execution_report(output_path):
+        existing_report = _load_json(output_path) or {}
+        if review_execution and _promotion_review_opened(existing_report):
+            return HTTPStatus.OK, {
+                "artifact_kind": "specspace_managed_promotion_review_execution",
+                "ok": True,
+                "status": "completed",
+                "workspace_id": selected_workspace_id,
+                "promotion_request_ref": (
+                    f"runs/{GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT}"
+                ),
+                "approval_decision_ref": (
+                    f"runs/{CANDIDATE_APPROVAL_DECISION_ARTIFACT}"
+                ),
+                "output_ref": output_ref,
+                "git_service_output_ref": git_service_output_ref,
+                "platform_returncode": 0,
+                "platform_report": existing_report,
+                "reused_existing_report": True,
+                "stderr_tail": "",
+                "authority_boundary": {
+                    "browser_executes_platform": False,
+                    "specspace_backend_executes_platform": False,
+                    "executes_git_service_dry_run": False,
+                    "creates_candidate_worktree_or_branch": False,
+                    "creates_git_commits": False,
+                    "opens_pull_requests": False,
+                    "publishes_read_models": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                    "mutates_canonical_specs": False,
+                },
+                "summary": {
+                    "status": "managed_promotion_review_execution_reused",
+                    "executed": False,
+                    "dry_run": False,
+                    "open_review_dry_run": False,
+                    "opens_pull_requests": False,
+                    "review_opened": True,
+                    "output_ref": output_ref,
+                    "git_service_output_ref": git_service_output_ref,
+                    "promotion_execution_ok": True,
+                    "next_action": "Inspect review status for the existing promotion review.",
+                },
+            }
         return HTTPStatus.CONFLICT, {
             "error": "Refusing to overwrite an existing non-dry-run promotion execution report.",
             "output_ref": output_ref,
@@ -297,13 +378,13 @@ def execute_promotion_dry_run(
         str(_workspace_dir(specgraph_dir, selected_workspace_id)),
         "--git-service-output",
         str(git_service_output_path),
-        "--dry-run",
-        "--open-review-dry-run",
         "--output",
         str(output_path),
         "--format",
         "json",
     ]
+    if not review_execution:
+        command.extend(["--dry-run", "--open-review-dry-run"])
     try:
         completed = subprocess.run(
             command,
@@ -314,7 +395,11 @@ def execute_promotion_dry_run(
         )
     except subprocess.TimeoutExpired as exc:
         return HTTPStatus.GATEWAY_TIMEOUT, {
-            "artifact_kind": "specspace_managed_promotion_execution",
+            "artifact_kind": (
+                "specspace_managed_promotion_review_execution"
+                if review_execution
+                else "specspace_managed_promotion_execution"
+            ),
             "ok": False,
             "status": "platform_execution_timeout",
             "workspace_id": selected_workspace_id,
@@ -341,10 +426,14 @@ def execute_promotion_dry_run(
                 "mutates_canonical_specs": False,
             },
             "summary": {
-                "status": "managed_promotion_execution_dry_run_timeout",
+                "status": (
+                    "managed_promotion_review_execution_timeout"
+                    if review_execution
+                    else "managed_promotion_execution_dry_run_timeout"
+                ),
                 "executed": True,
-                "dry_run": True,
-                "open_review_dry_run": True,
+                "dry_run": not review_execution,
+                "open_review_dry_run": not review_execution,
                 "output_ref": output_ref,
                 "git_service_output_ref": git_service_output_ref,
                 "promotion_execution_ok": False,
@@ -359,7 +448,11 @@ def execute_promotion_dry_run(
 
     ok = completed.returncode == 0
     response = {
-        "artifact_kind": "specspace_managed_promotion_execution",
+        "artifact_kind": (
+            "specspace_managed_promotion_review_execution"
+            if review_execution
+            else "specspace_managed_promotion_execution"
+        ),
         "ok": ok,
         "status": "completed" if ok else "failed",
         "workspace_id": selected_workspace_id,
@@ -373,25 +466,62 @@ def execute_promotion_dry_run(
         "authority_boundary": {
             "browser_executes_platform": False,
             "specspace_backend_executes_platform": True,
-            "executes_git_service_dry_run": bool(ok),
-            "creates_candidate_worktree_or_branch": False,
-            "creates_git_commits": False,
-            "opens_pull_requests": False,
+            "executes_git_service_dry_run": bool(ok) and not review_execution,
+            "creates_candidate_worktree_or_branch": bool(ok) and review_execution,
+            "creates_git_commits": bool(ok) and review_execution,
+            "opens_pull_requests": bool(ok) and review_execution,
             "publishes_read_models": False,
             "writes_ontology_packages": False,
             "accepts_ontology_terms": False,
             "mutates_canonical_specs": False,
         },
         "summary": {
-            "status": "managed_promotion_execution_dry_run_completed"
+            "status": (
+                "managed_promotion_review_execution_completed"
+                if review_execution
+                else "managed_promotion_execution_dry_run_completed"
+            )
             if ok
-            else "managed_promotion_execution_dry_run_failed",
+            else (
+                "managed_promotion_review_execution_failed"
+                if review_execution
+                else "managed_promotion_execution_dry_run_failed"
+            ),
             "executed": True,
-            "dry_run": True,
-            "open_review_dry_run": True,
+            "dry_run": not review_execution,
+            "open_review_dry_run": not review_execution,
+            "opens_pull_requests": bool(ok) and review_execution,
             "output_ref": output_ref,
             "git_service_output_ref": git_service_output_ref,
             "promotion_execution_ok": _record(report).get("ok") is True,
         },
     }
     return HTTPStatus.OK if ok else HTTPStatus.BAD_GATEWAY, response
+
+
+def execute_promotion_dry_run(
+    server: Any,
+    payload: dict[str, Any],
+    *,
+    workspace_id: str | None,
+) -> tuple[HTTPStatus, dict[str, Any]]:
+    return _execute_promotion(
+        server,
+        payload,
+        workspace_id=workspace_id,
+        review_execution=False,
+    )
+
+
+def execute_promotion_review(
+    server: Any,
+    payload: dict[str, Any],
+    *,
+    workspace_id: str | None,
+) -> tuple[HTTPStatus, dict[str, Any]]:
+    return _execute_promotion(
+        server,
+        payload,
+        workspace_id=workspace_id,
+        review_execution=True,
+    )

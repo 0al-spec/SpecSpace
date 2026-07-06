@@ -227,6 +227,10 @@ POST_ROUTES: dict[str, RouteSpec] = {
         "handle_v1_idea_to_spec_promotion_execute_post",
         pass_parsed=True,
     ),
+    "/api/v1/idea-to-spec-promotion-review/execute": RouteSpec(
+        "handle_v1_idea_to_spec_promotion_review_execute_post",
+        pass_parsed=True,
+    ),
     "/api/v1/idea-to-spec-review-status/execute": RouteSpec(
         "handle_v1_idea_to_spec_review_status_execute_post",
         pass_parsed=True,

@@ -32,6 +32,8 @@ user enters raw idea in SpecSpace
   -> user reviews project-local ontology terms in SpecSpace
   -> Platform materializes candidate approval and promotion request
   -> Platform runs Git Service promotion dry-run
+  -> Platform opens the controlled repository review PR after explicit operator confirmation
+  -> Platform inspects review status and publishes the public read model after merge
   -> SpecSpace refreshes the Product Workspace lifecycle through each handoff
 ```
 
@@ -173,6 +175,14 @@ reviews, or publish read models.
   --open-review-dry-run` operation and writes product/Git Service execution
   reports. Browser authority remains request-only; this does not create
   worktrees, commits, PRs, read models, or mutate canonical specs/Ontology.
+- Backend-managed promotion review execution. After a promotion dry-run report
+  exists and the operator explicitly confirms review creation, SpecSpace can
+  expose an opt-in backend endpoint that calls the allowlisted Platform
+  non-dry-run `product-candidate-promotion execute` operation and writes the
+  product/Git Service execution reports. Browser authority remains request-only;
+  this may create the candidate worktree/branch, candidate commit, and review PR
+  through Platform/Git Service, but it does not merge PRs, publish read models,
+  or mutate Ontology packages.
 - Backend-managed review-status inspection. After a non-dry-run promotion
   execution has opened a review PR, SpecSpace can expose an opt-in backend
   endpoint that calls the allowlisted Platform
@@ -392,10 +402,10 @@ Follow-up scope:
   controlled execution wrapper. The repair rerun request gate, full requested
   repair rerun execution, repair rerun publication, candidate approval
   materialization, promotion request creation, and promotion execution dry-run
-  are now covered by backend-managed Platform wrappers. Review-status
-  inspection is covered after non-dry-run promotion execution, and read-model
-  publication is covered after merged review status. Non-dry-run Git Service
-  execution remains on a separate request/report surface.
+  are now covered by backend-managed Platform wrappers. Non-dry-run promotion
+  review execution is covered as an explicit confirmed action after dry-run
+  evidence. Review-status inspection is covered after non-dry-run promotion
+  execution, and read-model publication is covered after merged review status.
 - If approval/promotion becomes request-driven from the browser, add
   SpecSpace-owned request artifacts first and keep Platform as the executor
   boundary.

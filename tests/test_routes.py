@@ -275,6 +275,16 @@ def test_route_table_resolves_promotion_execute() -> None:
     assert route.pass_parsed is True
 
 
+def test_route_table_resolves_promotion_review_execute() -> None:
+    route = routes.route_for(
+        "POST", "/api/v1/idea-to-spec-promotion-review/execute"
+    )
+
+    assert route is not None
+    assert route.handler == "handle_v1_idea_to_spec_promotion_review_execute_post"
+    assert route.pass_parsed is True
+
+
 def test_route_table_resolves_review_status_execute() -> None:
     route = routes.route_for("POST", "/api/v1/idea-to-spec-review-status/execute")
 
