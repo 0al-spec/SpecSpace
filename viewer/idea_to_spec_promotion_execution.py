@@ -148,7 +148,7 @@ def _is_real_promotion_execution_report(path: Path) -> bool:
         payload.get("artifact_kind")
         == "platform_product_candidate_promotion_execution_report"
         and payload.get("dry_run") is False
-        and payload.get("open_review_dry_run") is False
+        and payload.get("open_review_dry_run") is not True
     )
 
 
