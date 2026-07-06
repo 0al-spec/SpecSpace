@@ -302,6 +302,10 @@ export function ViewerPage({
         "/api/v1/real-idea-intake-execution-requests",
         workspace,
       ),
+      realIdeaIntakeExecute: workspaceApiUrl(
+        "/api/v1/real-idea-intake/execute",
+        workspace,
+      ),
       realIdeaAnswerContinuationExecutionRequests: workspaceApiUrl(
         "/api/v1/real-idea-answer-continuation-execution-requests",
         workspace,
@@ -1664,6 +1668,7 @@ export function ViewerPage({
               realIdeaIntakeExecutionRequestsUrl={
                 workspaceApiUrls.realIdeaIntakeExecutionRequests
               }
+              realIdeaIntakeExecuteUrl={workspaceApiUrls.realIdeaIntakeExecute}
               realIdeaAnswerContinuationExecutionRequestsUrl={
                 workspaceApiUrls.realIdeaAnswerContinuationExecutionRequests
               }

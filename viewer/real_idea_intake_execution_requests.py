@@ -277,6 +277,61 @@ def save_request(
         return HTTPStatus.OK, _filtered_state(state, workspace_id_value)
 
 
+def mark_request_consumed(
+    server: Any,
+    *,
+    workspace_id: str,
+    request_id: str,
+) -> tuple[HTTPStatus, dict[str, Any]]:
+    with _STATE_LOCK:
+        status_code, state = read_state(server)
+        if status_code != HTTPStatus.OK:
+            return status_code, state
+        path = state_path(server)
+        now = now_iso()
+        matched = False
+        updated: list[dict[str, Any]] = []
+        for item in state.get("requests", []):
+            if (
+                isinstance(item, dict)
+                and item.get("workspace_id") == workspace_id
+                and item.get("request_id") == request_id
+                and item.get("status") == "requested"
+            ):
+                updated.append(
+                    {
+                        **item,
+                        "status": "consumed",
+                        "consumed_at": now,
+                        "updated_at": now,
+                    }
+                )
+                matched = True
+            else:
+                updated.append(item)
+        if not matched:
+            return HTTPStatus.CONFLICT, {
+                "error": "Real idea intake execution request is no longer active or has already been consumed.",
+                "workspace_id": workspace_id,
+                "request_id": request_id,
+            }
+        state["requests"] = _cap_superseded_history(updated)
+        _refresh_summary(state)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            "w",
+            dir=path.parent,
+            encoding="utf-8",
+            prefix=f"{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as tmp_file:
+            tmp_file.write(json.dumps(state, indent=2, sort_keys=True) + "\n")
+            tmp = Path(tmp_file.name)
+        tmp.replace(path)
+        return HTTPStatus.OK, _filtered_state(state, workspace_id)
+
+
 def _normalize_existing_request(entry: dict[str, Any]) -> dict[str, Any] | None:
     workspace_id = specspace_provider.normalize_workspace_id(
         entry.get("workspace_id") if isinstance(entry.get("workspace_id"), str) else None
@@ -314,6 +369,7 @@ def _normalize_existing_request(entry: dict[str, Any]) -> dict[str, Any] | None:
         "created_at": _clean_text(entry.get("created_at")) or "unknown",
         "updated_at": _clean_text(entry.get("updated_at")) or _clean_text(entry.get("created_at")) or "unknown",
         "superseded_at": _clean_text(entry.get("superseded_at")),
+        "consumed_at": _clean_text(entry.get("consumed_at")),
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
         "consumer_boundary": empty_state()["consumer_boundary"],

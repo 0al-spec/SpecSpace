@@ -81,6 +81,7 @@ type Props = {
   intakeClarificationAnswersUrl?: string;
   realIdeaEntryRequestsUrl?: string;
   realIdeaIntakeExecutionRequestsUrl?: string;
+  realIdeaIntakeExecuteUrl?: string;
   realIdeaAnswerContinuationExecutionRequestsUrl?: string;
   repairRerunRequestsUrl?: string;
   candidateApprovalIntentsUrl?: string;
@@ -392,6 +393,7 @@ export function IdeaToSpecWorkspacePanel({
   intakeClarificationAnswersUrl,
   realIdeaEntryRequestsUrl,
   realIdeaIntakeExecutionRequestsUrl,
+  realIdeaIntakeExecuteUrl,
   realIdeaAnswerContinuationExecutionRequestsUrl,
   repairRerunRequestsUrl,
   candidateApprovalIntentsUrl,
@@ -607,6 +609,7 @@ export function IdeaToSpecWorkspacePanel({
       realIdeaIntake={data.realIdeaIntake}
       entryRequests={realIdeaEntryRequests}
       executionRequests={realIdeaIntakeExecutionRequests}
+      executeUrl={realIdeaIntakeExecuteUrl}
       workspace={data.workspace}
       workspaceCreation={data.workspaceCreation}
       workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
@@ -1178,6 +1181,7 @@ function IdeaIntakeDraftSection({
   realIdeaIntake,
   entryRequests,
   executionRequests,
+  executeUrl,
   workspace,
   workspaceCreation,
   workspaceId,
@@ -1188,6 +1192,7 @@ function IdeaIntakeDraftSection({
   realIdeaIntake: IdeaToSpecWorkspace["realIdeaIntake"];
   entryRequests: ReturnType<typeof useRealIdeaEntryRequests>;
   executionRequests: ReturnType<typeof useRealIdeaIntakeExecutionRequests>;
+  executeUrl?: string;
   workspace: IdeaToSpecWorkspace["workspace"];
   workspaceCreation: IdeaToSpecWorkspace["workspaceCreation"];
   workspaceId: string | null;
@@ -1198,6 +1203,11 @@ function IdeaIntakeDraftSection({
   const [publicSummary, setPublicSummary] = useState("");
   const [prefilledCreationRequestId, setPrefilledCreationRequestId] =
     useState<string | null>(null);
+  const [managedExecutionState, setManagedExecutionState] = useState<{
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  }>({ pending: false, status: null, error: null });
   const draft = useMemo(
     () => buildIdeaToSpecIntakeDraft({ idea, activeFrame }),
     [idea, activeFrame],
@@ -1295,6 +1305,62 @@ function IdeaIntakeDraftSection({
     !realIdeaIntake.entryExecution.available &&
     !executionRequests.pending &&
     !executionRequestTargetsCurrentEntry;
+  const canRunManagedIntakeExecution =
+    !readOnly &&
+    Boolean(executeUrl) &&
+    data.workspaceInitializationPath.managedExecutionAvailable &&
+    activeExecutionRequest !== null &&
+    executionRequestTargetsCurrentEntry &&
+    !realIdeaIntake.entryExecution.available &&
+    !managedExecutionState.pending;
+  const runManagedIntakeExecution = async () => {
+    if (!executeUrl || !activeExecutionRequest || !workspaceId) return;
+    setManagedExecutionState({ pending: true, status: null, error: null });
+    try {
+      const response = await fetch(executeUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          request_id: activeExecutionRequest.requestId,
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        summary?: { status?: unknown };
+        status?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok) {
+        setManagedExecutionState({
+          pending: false,
+          status: typeof body.status === "string" ? body.status : null,
+          error:
+            typeof body.error === "string"
+              ? body.error
+              : `Managed intake execution failed with HTTP ${response.status}.`,
+        });
+        return;
+      }
+      setManagedExecutionState({
+        pending: false,
+        status:
+          typeof body.summary?.status === "string"
+            ? body.summary.status
+            : typeof body.status === "string"
+              ? body.status
+              : "managed_real_idea_intake_executed",
+        error: null,
+      });
+      onWorkspaceRefreshRequest?.();
+    } catch (error) {
+      setManagedExecutionState({
+        pending: false,
+        status: null,
+        error:
+          error instanceof Error ? error.message : "Managed intake execution failed.",
+      });
+    }
+  };
   const canSubmit =
     !readOnly &&
     entryRequests.configured &&
@@ -1579,6 +1645,21 @@ function IdeaIntakeDraftSection({
                   : "Request intake execution"}
             </button>
             {activeExecutionRequest ? (
+              <button
+                data-testid="real-idea-intake-managed-execute"
+                className={styles.ackButton}
+                type="button"
+                disabled={!canRunManagedIntakeExecution}
+                onClick={() => {
+                  void runManagedIntakeExecution();
+                }}
+              >
+                {managedExecutionState.pending
+                  ? "Running intake"
+                  : "Run controlled intake"}
+              </button>
+            ) : null}
+            {activeExecutionRequest ? (
               <p
                 className={styles.statusDetail}
                 data-testid="real-idea-intake-execution-request-status"
@@ -1589,6 +1670,24 @@ function IdeaIntakeDraftSection({
                 · {activeExecutionRequest.requestId} · entry{" "}
                 {activeExecutionRequest.entryRequestId}
               </p>
+            ) : null}
+            {activeExecutionRequest ? (
+              <p
+                className={styles.statusDetail}
+                data-testid="real-idea-intake-managed-execute-status"
+              >
+                {executeUrl && data.workspaceInitializationPath.managedExecutionAvailable
+                  ? "SpecSpace backend can call the allowlisted Platform intake operation."
+                  : "Managed backend execution is not configured; use the Platform command hint."}
+              </p>
+            ) : null}
+            {managedExecutionState.status ? (
+              <p className={styles.statusDetail}>
+                Execution: {managedExecutionState.status}
+              </p>
+            ) : null}
+            {managedExecutionState.error ? (
+              <p className={styles.statusDetail}>{managedExecutionState.error}</p>
             ) : null}
             <pre
               className={styles.codeBlock}

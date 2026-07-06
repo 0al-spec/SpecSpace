@@ -21,6 +21,7 @@ from viewer import (
     project_local_ontology_review_decisions,
     real_idea_answer_continuation_execution_requests,
     real_idea_entry_requests,
+    real_idea_intake_execution,
     real_idea_intake_execution_requests,
     spec_compile,
     specspace_provider,
@@ -1066,6 +1067,39 @@ def handle_v1_product_workspace_initialization_execute_post(
             payload,
             workspace_id=workspace_id,
         )
+    )
+    json_response(handler, status, response)
+
+
+def handle_v1_real_idea_intake_execute_post(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    query_workspace_id = _query_workspace_id(parsed)
+    payload_workspace_id = specspace_provider.normalize_product_workspace_id(
+        payload.get("workspace_id")
+        if isinstance(payload.get("workspace_id"), str)
+        else None
+    )
+    if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
+        json_response(
+            handler,
+            HTTPStatus.CONFLICT,
+            {
+                "error": "Real idea intake execution workspace_id does not match selected workspace.",
+                "expected": query_workspace_id,
+                "actual": payload_workspace_id,
+            },
+        )
+        return
+    workspace_id = query_workspace_id or payload_workspace_id
+    status, response = real_idea_intake_execution.execute_requested_intake(
+        handler.server,
+        payload,
+        workspace_id=workspace_id,
     )
     json_response(handler, status, response)
 
