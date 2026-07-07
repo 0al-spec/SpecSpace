@@ -219,6 +219,11 @@ function joined(values: readonly string[], fallback = "none"): string {
   return values.length > 0 ? values.join(", ") : fallback;
 }
 
+function currentBrowserPath(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.location.pathname || null;
+}
+
 function sourceArtifactRefs(sourceArtifacts: Record<string, unknown>): string[] {
   return Object.entries(sourceArtifacts).flatMap(([key, value]) => {
     if (!value || typeof value !== "object" || Array.isArray(value)) return [];
@@ -1319,9 +1324,15 @@ function ProductDemoPresentationSection({
   const managed = data.managedOperations;
   const rawIdeaOperatorOwned =
     data.workspaceCreation.activeRequest?.rootIntentSummaryPresent === true ||
+    Boolean(data.realIdeaIntake.entryExecution.entryRequestsHandoffRef) ||
     data.realIdeaIntake.sourceRefs.some((ref) =>
       ref.includes("real_idea_entry_requests"),
     );
+  const candidateAvailable =
+    candidate.available === true ||
+    data.candidateGraph.available === true ||
+    data.candidateGraph.summary.nodeCount > 0 ||
+    data.candidateGraph.nodes.length > 0;
   const noWriteAuthority =
     !data.authorityBoundary.mayMutateCanonicalSpecs &&
     !data.authorityBoundary.mayCreateBranchOrCommit &&
@@ -1402,7 +1413,17 @@ function ProductDemoPresentationSection({
     managed.available && managed.summary.operationCount > 0
       ? `${managed.summary.completedCount}/${managed.summary.operationCount}`
       : "not published";
-  const operatorHref = operatorWorkspaceHref ?? "#idea-to-spec-product-workspace-overview";
+  const browserPath = currentBrowserPath();
+  const operatorHref = browserPath ?? operatorWorkspaceHref ?? "/";
+  const candidateCardLabel = candidateAvailable
+    ? "Candidate generated"
+    : "Candidate pending";
+  const demoSubtitle = candidateAvailable
+    ? "Idea-to-spec converted a workspace idea into a reviewable candidate while keeping execution controlled and raw input protected."
+    : "Idea-to-spec is preparing this workspace. The presentation view stays read-only until candidate evidence is available.";
+  const candidateHeadline = candidateAvailable
+    ? compact(candidate.narrative.productIntent, overview.nextSafeAction)
+    : compact(overview.nextSafeAction, "Start or continue idea intake.");
   return (
     <section
       className={styles.demoPresentation}
@@ -1415,10 +1436,7 @@ function ProductDemoPresentationSection({
           <h2 className={styles.demoTitle}>
             {data.workspace.displayName ?? data.workspace.id ?? "Product workspace"}
           </h2>
-          <p className={styles.demoSubtitle}>
-            Idea-to-spec converted a workspace idea into a reviewable candidate
-            while keeping execution controlled and raw input protected.
-          </p>
+          <p className={styles.demoSubtitle}>{demoSubtitle}</p>
         </div>
         <div className={styles.demoHeroActions}>
           <a className={styles.actionButton} href={operatorHref}>
@@ -1442,15 +1460,16 @@ function ProductDemoPresentationSection({
       <div className={styles.demoGrid}>
         <article className={styles.demoCard} data-testid="product-demo-candidate">
           <div className={styles.rowHeader}>
-            <span className={styles.rowId}>Candidate generated</span>
-            <Pill value={compact(candidate.readiness.reviewState, "candidate")} />
+            <span className={styles.rowId}>{candidateCardLabel}</span>
+            <Pill
+              value={
+                candidateAvailable
+                  ? compact(candidate.readiness.reviewState, "candidate")
+                  : "waiting for candidate"
+              }
+            />
           </div>
-          <h3 className={styles.demoCardTitle}>
-            {compact(
-              candidate.narrative.productIntent,
-              overview.nextSafeAction,
-            )}
-          </h3>
+          <h3 className={styles.demoCardTitle}>{candidateHeadline}</h3>
           <div className={styles.postureStrip}>
             <PostureItem label="Nodes" value={String(candidateNodeCount)} />
             <PostureItem
@@ -1464,8 +1483,15 @@ function ProductDemoPresentationSection({
           </div>
           <div className={styles.metaGrid}>
             <Meta label="Candidate" value={candidate.summary.candidateId} />
-            <Meta label="Route" value={data.workspace.publicRoute} />
-            <Meta label="Readiness" value={candidate.narrative.readiness} />
+            <Meta label="Route" value={browserPath ?? data.workspace.publicRoute} />
+            <Meta
+              label="Readiness"
+              value={
+                candidateAvailable
+                  ? candidate.narrative.readiness
+                  : "candidate evidence pending"
+              }
+            />
             <Meta
               label="Next action"
               value={compact(candidate.nextAction.label, overview.nextSafeAction)}
@@ -1556,9 +1582,8 @@ function ProductWorkspaceOverviewSection({
   const lastHandoffHref = overview.lastSuccessfulHandoff.targetSection
     ? `#${overview.lastSuccessfulHandoff.targetSection}`
     : null;
-  const demoViewHref = workspace.publicRoute
-    ? `${workspace.publicRoute}?view=demo`
-    : "?view=demo";
+  const currentPath = currentBrowserPath();
+  const demoViewHref = `${currentPath ?? workspace.publicRoute ?? ""}?view=demo`;
   return (
     <section
       id="idea-to-spec-product-workspace-overview"

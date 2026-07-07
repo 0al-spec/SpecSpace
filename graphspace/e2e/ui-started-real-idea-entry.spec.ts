@@ -2511,6 +2511,8 @@ test("opens a presentation demo view from product workspace overview", async ({
     await expect(page.getByTestId("product-demo-evidence")).toContainText(
       "Raw idea state",
     );
+    await page.getByRole("link", { name: "Operator workspace" }).click();
+    await expect(page).toHaveURL(/\/team-decision-log$/);
   } finally {
     await backend.stop();
   }
@@ -2993,6 +2995,18 @@ test("blocks raw idea submit for a route-only product workspace", async ({ page 
       "Request and initialize this workspace before submitting a raw idea.",
     );
     await expect(page.getByTestId("real-idea-entry-submit")).toBeDisabled();
+
+    await page.getByTestId("product-demo-view-link").click();
+    await expect(page).toHaveURL(/\/route-only-idea\?view=demo$/);
+    await expect(page.getByTestId("product-demo-presentation")).toBeVisible();
+    await expect(page.getByTestId("product-demo-candidate")).toContainText(
+      "Candidate pending",
+    );
+    await expect(page.getByTestId("product-demo-candidate")).not.toContainText(
+      "Candidate generated",
+    );
+    await page.getByRole("link", { name: "Operator workspace" }).click();
+    await expect(page).toHaveURL(/\/route-only-idea$/);
   } finally {
     await backend.stop();
   }
@@ -3303,6 +3317,9 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     );
     await expect(page.getByTestId("product-demo-evidence")).toContainText(
       "Raw idea state",
+    );
+    await expect(page.getByTestId("product-demo-evidence")).toContainText(
+      "operator-owned",
     );
     await captureProductDemoScreenshot(page, artifactDir, "08-demo-view");
 
