@@ -103,6 +103,34 @@ must not use it as the source of execution permission. Actual execution remains
 owned by the per-operation backend handlers and Platform wrappers listed in the
 registry.
 
+## Managed Mode Readiness Surface
+
+The Product Workspace API also exposes a read-only
+`managed_mode_readiness` projection. It explains whether the selected SpecSpace
+server is running in production/read-only mode, backend-managed local mode, or a
+misconfigured backend-managed mode.
+
+The surface is report-only telemetry. It may show:
+
+- whether backend Platform execution is enabled;
+- whether the Platform checkout contains `scripts/platform.py`;
+- whether the SpecSpace-owned state directory is ready;
+- the selected artifact provider kind/status;
+- whether a product workspace artifact base is configured;
+- registered, enabled, and disabled managed-operation counts;
+- the reason execution is unavailable, such as
+  `platform_execution_disabled`, `platform_cli_missing`, or
+  `artifact_provider_unavailable`.
+
+The surface must not expose local checkout paths, private state directories,
+secrets, or machine-local tokens. It must keep all execution, Git, SpecGraph,
+Ontology, and publication authority flags explicitly `false`.
+
+Production deployments may intentionally report `status: read_only` even when
+the operation registry is available. In that case the UI should keep execution
+actions unavailable and explain that Platform must be run outside SpecSpace or
+through a separately configured backend-managed environment.
+
 ## Operation Inventory
 
 | Operation id | UI stage | Endpoint | Platform command | Primary outputs |

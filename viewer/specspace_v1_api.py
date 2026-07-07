@@ -23,6 +23,7 @@ from viewer import (
     idea_to_spec_repair_rerun_requests,
     idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
+    managed_operations_registry,
     ontology_acknowledgements,
     product_workspace_initialization_execution,
     product_workspace_creation_requests,
@@ -208,6 +209,141 @@ def _workspace_initialization_path(
             "may_open_pull_request": False,
             "may_publish_read_model": False,
         },
+    }
+
+
+def _managed_mode_boundary() -> dict[str, bool]:
+    return {
+        "inspect_only": True,
+        "acknowledge_only": True,
+        "managed_mode_readiness_is_authority": False,
+        "may_execute_specgraph": False,
+        "may_execute_platform": False,
+        "may_execute_git_service": False,
+        "may_run_shell": False,
+        "may_mutate_candidate_artifacts": False,
+        "may_mutate_canonical_specs": False,
+        "may_write_ontology_package": False,
+        "may_accept_ontology_terms": False,
+        "may_create_branch_or_commit": False,
+        "may_open_pull_request": False,
+        "may_merge_review": False,
+        "may_publish_read_model": False,
+    }
+
+
+def _provider_status(provider: specspace_provider.SpecSpaceProvider) -> dict[str, Any]:
+    try:
+        health = provider.health()
+    except Exception as exc:  # pragma: no cover - defensive API projection
+        return {
+            "status": "unavailable",
+            "kind": "unknown",
+            "read_only": True,
+            "reason": f"provider_health_failed:{exc.__class__.__name__}",
+        }
+    return {
+        "status": str(health.get("status") or "unknown"),
+        "kind": str(health.get("provider") or "unknown"),
+        "read_only": health.get("read_only") is not False,
+        "reason": None,
+    }
+
+
+def _managed_mode_readiness(
+    *,
+    server: Any,
+    provider: specspace_provider.SpecSpaceProvider,
+    workspace_id: str | None,
+) -> dict[str, Any]:
+    platform_dir = getattr(server, "platform_dir", None)
+    platform_execution_enabled = getattr(server, "platform_execution_enabled", False) is True
+    platform_dir_configured = isinstance(platform_dir, Path)
+    platform_cli_present = (
+        platform_dir_configured and (platform_dir / "scripts" / "platform.py").is_file()
+    )
+    state_dir = getattr(server, "specspace_state_dir", None)
+    state_dir_configured = isinstance(state_dir, Path)
+    state_dir_ready = state_dir_configured and state_dir.exists() and state_dir.is_dir()
+    provider_state = _provider_status(provider)
+    artifact_base_url = specspace_provider.artifact_base_url_for_workspace(
+        server,
+        workspace_id,
+    )
+    product_workspace = (
+        workspace_id is not None
+        and specspace_provider.normalize_workspace_id(workspace_id)
+        != specspace_provider.BOOTSTRAP_WORKSPACE_ID
+    )
+    product_artifact_base_configured = bool(artifact_base_url) if product_workspace else None
+
+    disabled_reasons: list[str] = []
+    if not platform_execution_enabled:
+        disabled_reasons.append("platform_execution_disabled")
+    if not platform_dir_configured:
+        disabled_reasons.append("platform_dir_not_configured")
+    elif not platform_cli_present:
+        disabled_reasons.append("platform_cli_missing")
+    if not state_dir_configured:
+        disabled_reasons.append("specspace_state_dir_not_configured")
+    elif not state_dir_ready:
+        disabled_reasons.append("specspace_state_dir_missing")
+    if provider_state["status"] == "unavailable":
+        disabled_reasons.append("artifact_provider_unavailable")
+
+    executor_ready = (
+        platform_execution_enabled
+        and platform_cli_present
+        and state_dir_ready
+        and provider_state["status"] != "unavailable"
+    )
+    operation_count = len(managed_operations_registry.MANAGED_OPERATIONS)
+    if executor_ready:
+        status = "backend_managed_ready"
+        next_safe_action = "Use guided Product Workspace actions for allowlisted Platform operations."
+    elif platform_execution_enabled:
+        status = "backend_managed_misconfigured"
+        next_safe_action = "Fix backend Platform executor configuration before using managed actions."
+    else:
+        status = "read_only"
+        next_safe_action = "Inspect workspace state or create request-only intents; run Platform outside SpecSpace if execution is needed."
+
+    return {
+        "available": True,
+        "surface_id": "specspace.managed-mode.readiness.v0.1",
+        "surface_kind": "managed_mode_readiness",
+        "status": status,
+        "mode": "backend_managed" if platform_execution_enabled else "read_only",
+        "next_safe_action": next_safe_action,
+        "disabled_reasons": disabled_reasons,
+        "executor": {
+            "enabled": platform_execution_enabled,
+            "configured": executor_ready,
+            "platform_dir_configured": platform_dir_configured,
+            "platform_cli_present": platform_cli_present,
+            "timeout_seconds": getattr(
+                server,
+                "platform_execution_timeout_seconds",
+                None,
+            ),
+        },
+        "operations": {
+            "registered_count": operation_count,
+            "enabled_count": operation_count if executor_ready else 0,
+            "disabled_count": 0 if executor_ready else operation_count,
+        },
+        "state": {
+            "specspace_state_dir_configured": state_dir_configured,
+            "specspace_state_dir_ready": state_dir_ready,
+        },
+        "provider": provider_state,
+        "workspace": {
+            "workspace_id": workspace_id,
+            "product_workspace": product_workspace,
+            "product_workspace_artifact_base_configured": product_artifact_base_configured,
+            "artifact_base_status": "configured" if artifact_base_url else "not_configured",
+        },
+        "authority_boundary": _managed_mode_boundary(),
     }
 
 
@@ -570,7 +706,8 @@ def handle_v1_ontology_workbench(handler: SpecSpaceV1Handler, parsed: Any) -> No
 
 def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     workspace_id = _query_workspace_id(parsed)
-    status, payload = _provider(handler, workspace_id).read_idea_to_spec_workspace()
+    provider = _provider(handler, workspace_id)
+    status, payload = provider.read_idea_to_spec_workspace()
     if status == HTTPStatus.OK and workspace_id is not None:
         payload["selected_workspace_id"] = workspace_id
     if status == HTTPStatus.OK:
@@ -613,6 +750,11 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
                 creation=payload["workspace_creation"],
             )
         idea_to_spec_workspace.attach_guided_flow(payload)
+        payload["managed_mode_readiness"] = _managed_mode_readiness(
+            server=handler.server,
+            provider=provider,
+            workspace_id=workspace_id,
+        )
     json_response(handler, status, payload)
 
 

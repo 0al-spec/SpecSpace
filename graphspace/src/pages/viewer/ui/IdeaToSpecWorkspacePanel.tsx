@@ -993,6 +993,7 @@ export function IdeaToSpecWorkspacePanel({
   const managedOperationsSection = (
     <ManagedOperationsObservabilitySection
       observability={data.managedOperations}
+      readiness={data.managedModeReadiness}
     />
   );
   const ideaIntakeDraftSection = (
@@ -1423,8 +1424,10 @@ function ProductWorkspaceOverviewSection({
 
 function ManagedOperationsObservabilitySection({
   observability,
+  readiness,
 }: {
   observability: IdeaToSpecWorkspace["managedOperations"];
+  readiness: IdeaToSpecWorkspace["managedModeReadiness"];
 }) {
   const operationsById = new Map(
     observability.operations.map((operation) => [operation.operationId, operation]),
@@ -1451,6 +1454,59 @@ function ManagedOperationsObservabilitySection({
         title="Managed operations"
         count={observability.summary.operationCount}
       />
+      <div className={styles.row} data-testid="managed-mode-readiness">
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Managed mode readiness</span>
+          <Pill value={readiness.status.replace(/_/g, " ")} />
+        </div>
+        <h3 className={styles.title}>{readiness.nextSafeAction}</h3>
+        <div className={styles.postureStrip}>
+          <PostureItem label="Mode" value={readiness.mode.replace(/_/g, " ")} />
+          <PostureItem
+            label="Executor"
+            value={readiness.executor.configured ? "configured" : "unavailable"}
+          />
+          <PostureItem
+            label="Allowed"
+            value={String(readiness.operations.enabledCount)}
+          />
+          <PostureItem
+            label="Disabled"
+            value={String(readiness.operations.disabledCount)}
+          />
+          <PostureItem label="Provider" value={readiness.provider.status} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta label="Surface" value={readiness.surfaceId} />
+          <Meta label="Kind" value={readiness.surfaceKind} />
+          <Meta
+            label="Platform execution"
+            value={readiness.executor.enabled ? "enabled" : "disabled"}
+          />
+          <Meta
+            label="Platform CLI"
+            value={readiness.executor.platformCliPresent ? "present" : "missing"}
+          />
+          <Meta
+            label="State directory"
+            value={readiness.state.specspaceStateDirReady ? "ready" : "missing"}
+          />
+          <Meta label="Provider kind" value={readiness.provider.kind} />
+          <Meta
+            label="Product artifact base"
+            value={readiness.workspace.artifactBaseStatus}
+          />
+          <Meta
+            label="Execution authority"
+            value={boolText(readiness.authorityBoundary.mayExecutePlatform)}
+          />
+        </div>
+        {readiness.disabledReasons.length > 0 ? (
+          <p className={styles.statusDetail}>
+            Execution unavailable: {joined(readiness.disabledReasons)}
+          </p>
+        ) : null}
+      </div>
       <div className={styles.row}>
         <div className={styles.rowHeader}>
           <span className={styles.rowId}>Backend-managed execution surface</span>

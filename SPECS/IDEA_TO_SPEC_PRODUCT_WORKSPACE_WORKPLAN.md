@@ -70,6 +70,14 @@ runtime action requests from Product Workspace routes.
   counts, while keeping all execution, Git, SpecGraph, Ontology, and
   publication authority flags explicitly false. This is operator telemetry, not
   a new permission source.
+- Managed Mode Readiness Projection. Product Workspace now exposes
+  `managed_mode_readiness` so local backend-managed execution and production
+  read-only deployments are visibly different. The projection reports executor
+  availability, Platform CLI presence, SpecSpace-owned state readiness,
+  artifact provider status, product workspace artifact-base status, enabled and
+  disabled operation counts, and unavailable reasons without exposing local
+  checkout paths. It is report-only telemetry and keeps all execution, Git,
+  SpecGraph, Ontology, and publication authority flags explicitly false.
 - Raw idea entry state in SpecSpace.
 - Browser E2E for raw idea submit into SpecSpace-owned mutable state.
 - Workspace and `guided_flow` refresh after successful raw idea submit.
