@@ -184,6 +184,48 @@ describe("IdeaToSpecWorkspacePanel", () => {
         may_publish_read_model: false,
       },
     };
+    raw.managed_mode_readiness = {
+      available: true,
+      surface_id: "specspace.managed-mode.readiness.v0.1",
+      surface_kind: "managed_mode_readiness",
+      status: "read_only",
+      mode: "read_only",
+      next_safe_action: "Inspect workspace state or create request-only intents.",
+      disabled_reasons: ["platform_execution_disabled"],
+      executor: {
+        enabled: false,
+        configured: false,
+        platform_dir_configured: false,
+        platform_cli_present: false,
+        timeout_seconds: 120,
+      },
+      operations: {
+        registered_count: 12,
+        enabled_count: 0,
+        disabled_count: 12,
+      },
+      state: {
+        specspace_state_dir_configured: true,
+        specspace_state_dir_ready: true,
+      },
+      provider: {
+        status: "ok",
+        kind: "http-product-workspace",
+        read_only: true,
+      },
+      workspace: {
+        workspace_id: "team-decision-log",
+        product_workspace: true,
+        product_workspace_artifact_base_configured: true,
+        artifact_base_status: "configured",
+      },
+      authority_boundary: {
+        ...raw.guided_flow.authority_boundary,
+        managed_mode_readiness_is_authority: false,
+        may_run_shell: false,
+        may_publish_read_model: false,
+      },
+    };
     const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
     if (parsedWorkspace.kind !== "ok") {
       throw new Error("Modified idea-to-spec fixture must parse");
@@ -196,6 +238,8 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
 
     expect(html).toContain("Managed operations");
+    expect(html).toContain("Managed mode readiness");
+    expect(html).toContain("Execution unavailable: platform_execution_disabled");
     expect(html).toContain("Workspace initialization");
     expect(html).toContain("request needed");
     expect(html).toContain("workspace execute-requested-initialization");

@@ -11417,6 +11417,191 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         dumped = json.dumps(observability)
         self.assertNotIn(str(runs_dir), dumped)
 
+    def test_idea_to_spec_workspace_embeds_managed_mode_readiness_default_read_only(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            _write_product_workspace_runs(runs_dir)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        readiness = body["managed_mode_readiness"]
+        self.assertTrue(readiness["available"])
+        self.assertEqual(readiness["surface_kind"], "managed_mode_readiness")
+        self.assertEqual(readiness["status"], "read_only")
+        self.assertEqual(readiness["mode"], "read_only")
+        self.assertFalse(readiness["executor"]["enabled"])
+        self.assertFalse(readiness["executor"]["configured"])
+        self.assertEqual(
+            readiness["operations"]["registered_count"],
+            len(managed_operations_registry.MANAGED_OPERATIONS),
+        )
+        self.assertEqual(readiness["operations"]["enabled_count"], 0)
+        self.assertEqual(
+            readiness["operations"]["disabled_count"],
+            len(managed_operations_registry.MANAGED_OPERATIONS),
+        )
+        self.assertIn("platform_execution_disabled", readiness["disabled_reasons"])
+        self.assertFalse(
+            readiness["authority_boundary"]["may_execute_platform"]
+        )
+        dumped = json.dumps(readiness)
+        self.assertNotIn(str(root), dumped)
+
+    def test_idea_to_spec_workspace_managed_mode_readiness_enabled_with_executor(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "state"
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "#!/usr/bin/env python3\n",
+                encoding="utf-8",
+            )
+            state_dir.mkdir()
+            _write_product_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                platform_execution_timeout_seconds=45,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        readiness = body["managed_mode_readiness"]
+        self.assertEqual(readiness["status"], "backend_managed_ready")
+        self.assertEqual(readiness["mode"], "backend_managed")
+        self.assertTrue(readiness["executor"]["enabled"])
+        self.assertTrue(readiness["executor"]["configured"])
+        self.assertTrue(readiness["executor"]["platform_cli_present"])
+        self.assertEqual(readiness["executor"]["timeout_seconds"], 45)
+        self.assertEqual(
+            readiness["operations"]["enabled_count"],
+            body["managed_operations_observability"]["summary"][
+                "ready_to_execute_count"
+            ],
+        )
+        self.assertEqual(
+            readiness["operations"]["disabled_count"],
+            len(managed_operations_registry.MANAGED_OPERATIONS)
+            - body["managed_operations_observability"]["summary"][
+                "ready_to_execute_count"
+            ],
+        )
+        self.assertEqual(
+            readiness["operations"]["counting_basis"],
+            "managed_operations_observability.status",
+        )
+        self.assertTrue(readiness["state"]["specspace_state_dir_writable"])
+        self.assertTrue(readiness["state"]["runs_dir_ready"])
+        self.assertTrue(readiness["state"]["runs_dir_writable"])
+        self.assertEqual(readiness["disabled_reasons"], [])
+        dumped = json.dumps(readiness)
+        self.assertNotIn(str(platform_dir), dumped)
+        self.assertNotIn(str(state_dir), dumped)
+
+    def test_idea_to_spec_workspace_managed_mode_readiness_reports_unavailable_provider(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "state"
+            platform_dir = root / "Platform"
+            runs_dir.mkdir()
+            state_dir.mkdir()
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "#!/usr/bin/env python3\n",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                product_workspace_artifact_base_urls={
+                    "team-decision-log": "http://127.0.0.1:1",
+                },
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 503)
+        self.assertEqual(body["selected_workspace_id"], "team-decision-log")
+        readiness = body["managed_mode_readiness"]
+        self.assertEqual(readiness["status"], "backend_managed_misconfigured")
+        self.assertEqual(readiness["provider"]["status"], "unavailable")
+        self.assertIn("artifact_provider_unavailable", readiness["disabled_reasons"])
+        self.assertEqual(readiness["operations"]["enabled_count"], 0)
+        self.assertEqual(
+            readiness["operations"]["disabled_count"],
+            len(managed_operations_registry.MANAGED_OPERATIONS),
+        )
+
+    def test_idea_to_spec_workspace_managed_mode_readiness_requires_writable_state(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "state"
+            platform_dir = root / "Platform"
+            runs_dir.mkdir()
+            state_dir.mkdir()
+            state_dir.chmod(0o555)
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "#!/usr/bin/env python3\n",
+                encoding="utf-8",
+            )
+            _write_product_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                )
+            finally:
+                _stop(httpd, thread)
+                state_dir.chmod(0o755)
+
+        self.assertEqual(status, 200)
+        readiness = body["managed_mode_readiness"]
+        self.assertEqual(readiness["status"], "backend_managed_misconfigured")
+        self.assertFalse(readiness["state"]["specspace_state_dir_ready"])
+        self.assertFalse(readiness["state"]["specspace_state_dir_writable"])
+        self.assertIn("specspace_state_dir_not_writable", readiness["disabled_reasons"])
+
     def test_managed_operations_dry_run_does_not_complete_review_execution(
         self,
     ) -> None:

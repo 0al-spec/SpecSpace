@@ -1130,6 +1130,49 @@ export type IdeaToSpecManagedOperationsObservability = {
   authorityBoundary: IdeaToSpecGuidedFlowBoundary;
 };
 
+export type IdeaToSpecManagedModeReadiness = {
+  available: boolean;
+  surfaceId: string | null;
+  surfaceKind: string | null;
+  status: string;
+  mode: string;
+  nextSafeAction: string;
+  disabledReasons: readonly string[];
+  executor: {
+    enabled: boolean;
+    configured: boolean;
+    platformDirConfigured: boolean;
+    platformCliPresent: boolean;
+    timeoutSeconds: number | null;
+  };
+  operations: {
+    registeredCount: number;
+    enabledCount: number;
+    disabledCount: number;
+  };
+  state: {
+    specspaceStateDirConfigured: boolean;
+    specspaceStateDirReady: boolean;
+    specspaceStateDirWritable: boolean;
+    runsDirConfigured: boolean;
+    runsDirReady: boolean;
+    runsDirWritable: boolean;
+  };
+  provider: {
+    status: string;
+    kind: string;
+    readOnly: boolean;
+    reason: string | null;
+  };
+  workspace: {
+    workspaceId: string | null;
+    productWorkspace: boolean;
+    productWorkspaceArtifactBaseConfigured: boolean | null;
+    artifactBaseStatus: string;
+  };
+  authorityBoundary: IdeaToSpecGuidedFlowBoundary;
+};
+
 export type IdeaToSpecGuidedRepairCheckpoint = {
   id: string;
   label: string;
@@ -1428,6 +1471,7 @@ export type IdeaToSpecWorkspace = {
   guidedRepairPath: IdeaToSpecGuidedRepairPath;
   guidedApprovalPath: IdeaToSpecGuidedApprovalPath;
   managedOperations: IdeaToSpecManagedOperationsObservability;
+  managedModeReadiness: IdeaToSpecManagedModeReadiness;
   realIdeaIntake: IdeaToSpecRealIdeaIntake;
   intake: {
     available: boolean;
@@ -4272,6 +4316,107 @@ function parseManagedOperationsObservability(
   };
 }
 
+function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness {
+  const surface = recordValue(raw);
+  const executor = recordValue(surface.executor);
+  const operations = recordValue(surface.operations);
+  const state = recordValue(surface.state);
+  const provider = recordValue(surface.provider);
+  const workspace = recordValue(surface.workspace);
+  if (!isRecord(raw)) {
+    return {
+      available: false,
+      surfaceId: null,
+      surfaceKind: null,
+      status: "missing",
+      mode: "unknown",
+      nextSafeAction: "Managed-mode readiness is not available in this workspace payload.",
+      disabledReasons: [],
+      executor: {
+        enabled: false,
+        configured: false,
+        platformDirConfigured: false,
+        platformCliPresent: false,
+        timeoutSeconds: null,
+      },
+      operations: {
+        registeredCount: 0,
+        enabledCount: 0,
+        disabledCount: 0,
+      },
+      state: {
+        specspaceStateDirConfigured: false,
+        specspaceStateDirReady: false,
+        specspaceStateDirWritable: false,
+        runsDirConfigured: false,
+        runsDirReady: false,
+        runsDirWritable: false,
+      },
+      provider: {
+        status: "unknown",
+        kind: "unknown",
+        readOnly: true,
+        reason: null,
+      },
+      workspace: {
+        workspaceId: null,
+        productWorkspace: false,
+        productWorkspaceArtifactBaseConfigured: null,
+        artifactBaseStatus: "unknown",
+      },
+      authorityBoundary: parseGuidedFlowBoundary(),
+    };
+  }
+  return {
+    available: surface.available === true,
+    surfaceId: optionalString(surface.surface_id),
+    surfaceKind: optionalString(surface.surface_kind),
+    status: stringValue(surface.status, "unknown"),
+    mode: stringValue(surface.mode, "unknown"),
+    nextSafeAction: stringValue(
+      surface.next_safe_action,
+      "Inspect workspace state before running managed operations.",
+    ),
+    disabledReasons: strings(surface.disabled_reasons),
+    executor: {
+      enabled: executor.enabled === true,
+      configured: executor.configured === true,
+      platformDirConfigured: executor.platform_dir_configured === true,
+      platformCliPresent: executor.platform_cli_present === true,
+      timeoutSeconds: optionalNumberValue(executor.timeout_seconds),
+    },
+    operations: {
+      registeredCount: numberValue(operations.registered_count),
+      enabledCount: numberValue(operations.enabled_count),
+      disabledCount: numberValue(operations.disabled_count),
+    },
+    state: {
+      specspaceStateDirConfigured: state.specspace_state_dir_configured === true,
+      specspaceStateDirReady: state.specspace_state_dir_ready === true,
+      specspaceStateDirWritable: state.specspace_state_dir_writable === true,
+      runsDirConfigured: state.runs_dir_configured === true,
+      runsDirReady: state.runs_dir_ready === true,
+      runsDirWritable: state.runs_dir_writable === true,
+    },
+    provider: {
+      status: stringValue(provider.status, "unknown"),
+      kind: stringValue(provider.kind, "unknown"),
+      readOnly: provider.read_only !== false,
+      reason: optionalString(provider.reason),
+    },
+    workspace: {
+      workspaceId: optionalString(workspace.workspace_id),
+      productWorkspace: workspace.product_workspace === true,
+      productWorkspaceArtifactBaseConfigured:
+        typeof workspace.product_workspace_artifact_base_configured === "boolean"
+          ? workspace.product_workspace_artifact_base_configured
+          : null,
+      artifactBaseStatus: stringValue(workspace.artifact_base_status, "unknown"),
+    },
+    authorityBoundary: parseGuidedFlowBoundary(),
+  };
+}
+
 function parseGuidedRepairCheckpoint(
   raw: unknown,
 ): IdeaToSpecGuidedRepairCheckpoint | null {
@@ -4673,6 +4818,41 @@ function managedOperationsBoundaryIsSafe(raw: unknown): boolean {
   return true;
 }
 
+function managedModeReadinessBoundaryIsSafe(raw: unknown): boolean {
+  if (!isRecord(raw)) return true;
+  const boundary = recordValue(raw.authority_boundary);
+  const falseFlags = [
+    "managed_mode_readiness_is_authority",
+    "may_execute_specgraph",
+    "may_execute_platform",
+    "may_execute_git_service",
+    "may_run_shell",
+    "may_mutate_candidate_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_branch_or_commit",
+    "may_open_pull_request",
+    "may_merge_review",
+    "may_publish_read_model",
+  ];
+  const allowedMayFlags = new Set(
+    falseFlags.filter((flag) => flag.startsWith("may_")),
+  );
+  if (boundary.inspect_only !== true || boundary.acknowledge_only !== true) {
+    return false;
+  }
+  for (const [flag, value] of Object.entries(boundary)) {
+    if (flag.startsWith("may_") && !allowedMayFlags.has(flag) && value !== false) {
+      return false;
+    }
+  }
+  for (const flag of falseFlags) {
+    if (boundary[flag] !== false) return false;
+  }
+  return true;
+}
+
 function guidedRepairPathBoundaryIsSafe(raw: unknown): boolean {
   if (!isRecord(raw)) return true;
   const boundary = recordValue(raw.authority_boundary);
@@ -4987,6 +5167,12 @@ export function parseIdeaToSpecWorkspace(
     !managedOperationsBoundaryIsSafe(raw.managed_operations_observability)
   ) {
     return { kind: "parse-error", reason: "managed operations observability boundary expanded", raw };
+  }
+  if (
+    isRecord(raw.managed_mode_readiness) &&
+    !managedModeReadinessBoundaryIsSafe(raw.managed_mode_readiness)
+  ) {
+    return { kind: "parse-error", reason: "managed mode readiness boundary expanded", raw };
   }
   if (
     isRecord(raw.guided_approval_path) &&
@@ -5459,6 +5645,7 @@ export function parseIdeaToSpecWorkspace(
       managedOperations: parseManagedOperationsObservability(
         raw.managed_operations_observability,
       ),
+      managedModeReadiness: parseManagedModeReadiness(raw.managed_mode_readiness),
       realIdeaIntake: parseRealIdeaIntake(raw.real_idea_intake),
       intake: {
         available: intake.available === true,

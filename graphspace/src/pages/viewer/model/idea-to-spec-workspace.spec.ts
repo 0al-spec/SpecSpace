@@ -87,6 +87,8 @@ describe("parseIdeaToSpecWorkspace", () => {
     ).toBe(false);
     expect(parsed.data.managedOperations.available).toBe(false);
     expect(parsed.data.managedOperations.operations).toHaveLength(0);
+    expect(parsed.data.managedModeReadiness.available).toBe(false);
+    expect(parsed.data.managedModeReadiness.status).toBe("missing");
     expect(parsed.data.guidedRepairPath.available).toBe(true);
     expect(parsed.data.guidedRepairPath.stage).toBe("ready_to_request_rerun");
     expect(parsed.data.guidedRepairPath.nextAction).toBe(
@@ -469,6 +471,84 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.kind).toBe("parse-error");
     if (parsed.kind !== "parse-error") return;
     expect(parsed.reason).toContain("managed operations observability");
+  });
+
+  it("parses managed mode readiness", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.managed_mode_readiness = {
+      available: true,
+      surface_id: "specspace.managed-mode.readiness.v0.1",
+      surface_kind: "managed_mode_readiness",
+      status: "read_only",
+      mode: "read_only",
+      next_safe_action: "Inspect workspace state or create request-only intents.",
+      disabled_reasons: ["platform_execution_disabled"],
+      executor: {
+        enabled: false,
+        configured: false,
+        platform_dir_configured: false,
+        platform_cli_present: false,
+        timeout_seconds: 120,
+      },
+      operations: {
+        registered_count: 12,
+        enabled_count: 0,
+        disabled_count: 12,
+      },
+      state: {
+        specspace_state_dir_configured: true,
+        specspace_state_dir_ready: true,
+      },
+      provider: {
+        status: "ok",
+        kind: "http-product-workspace",
+        read_only: true,
+      },
+      workspace: {
+        workspace_id: "team-decision-log",
+        product_workspace: true,
+        product_workspace_artifact_base_configured: true,
+        artifact_base_status: "configured",
+      },
+      authority_boundary: {
+        ...raw.guided_flow.authority_boundary,
+        managed_mode_readiness_is_authority: false,
+        may_run_shell: false,
+        may_publish_read_model: false,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.managedModeReadiness.available).toBe(true);
+    expect(parsed.data.managedModeReadiness.status).toBe("read_only");
+    expect(parsed.data.managedModeReadiness.executor.configured).toBe(false);
+    expect(parsed.data.managedModeReadiness.operations.disabledCount).toBe(12);
+    expect(parsed.data.managedModeReadiness.disabledReasons).toEqual([
+      "platform_execution_disabled",
+    ]);
+  });
+
+  it("rejects managed mode readiness authority expansion", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.managed_mode_readiness = {
+      available: true,
+      authority_boundary: {
+        ...raw.guided_flow.authority_boundary,
+        managed_mode_readiness_is_authority: false,
+        may_run_shell: false,
+        may_publish_read_model: false,
+        may_execute_platform: true,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("parse-error");
+    if (parsed.kind !== "parse-error") return;
+    expect(parsed.reason).toContain("managed mode readiness");
   });
 
   it("maps legacy guided stage ids to fallback overview phases", () => {
