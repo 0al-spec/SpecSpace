@@ -114,10 +114,13 @@ The surface is report-only telemetry. It may show:
 
 - whether backend Platform execution is enabled;
 - whether the Platform checkout contains `scripts/platform.py`;
-- whether the SpecSpace-owned state directory is ready;
+- whether the SpecSpace-owned state directory and runs directory are present
+  and writable;
 - the selected artifact provider kind/status;
 - whether a product workspace artifact base is configured;
-- registered, enabled, and disabled managed-operation counts;
+- registered, ready-now, and not-ready managed-operation counts, derived from
+  `managed_operations_observability` operation statuses rather than from
+  executor configuration alone;
 - the reason execution is unavailable, such as
   `platform_execution_disabled`, `platform_cli_missing`, or
   `artifact_provider_unavailable`.

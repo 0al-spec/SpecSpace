@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Protocol
@@ -250,11 +251,42 @@ def _provider_status(provider: specspace_provider.SpecSpaceProvider) -> dict[str
     }
 
 
+def _directory_readiness(path: Any) -> dict[str, Any]:
+    configured = isinstance(path, Path)
+    exists = configured and path.exists()
+    is_dir = exists and path.is_dir()
+    writable = is_dir and os.access(path, os.W_OK)
+    return {
+        "configured": configured,
+        "ready": bool(is_dir and writable),
+        "exists": bool(exists),
+        "is_directory": bool(is_dir),
+        "writable": bool(writable),
+    }
+
+
+def _managed_operation_status_counts(
+    observability: dict[str, Any] | None,
+) -> dict[str, int]:
+    if not isinstance(observability, dict):
+        return {}
+    counts: dict[str, int] = {}
+    for operation in observability.get("operations", []):
+        if not isinstance(operation, dict):
+            continue
+        status = operation.get("status")
+        if not isinstance(status, str) or not status.strip():
+            continue
+        counts[status] = counts.get(status, 0) + 1
+    return counts
+
+
 def _managed_mode_readiness(
     *,
     server: Any,
     provider: specspace_provider.SpecSpaceProvider,
     workspace_id: str | None,
+    observability: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     platform_dir = getattr(server, "platform_dir", None)
     platform_execution_enabled = getattr(server, "platform_execution_enabled", False) is True
@@ -262,9 +294,8 @@ def _managed_mode_readiness(
     platform_cli_present = (
         platform_dir_configured and (platform_dir / "scripts" / "platform.py").is_file()
     )
-    state_dir = getattr(server, "specspace_state_dir", None)
-    state_dir_configured = isinstance(state_dir, Path)
-    state_dir_ready = state_dir_configured and state_dir.exists() and state_dir.is_dir()
+    state_dir_status = _directory_readiness(getattr(server, "specspace_state_dir", None))
+    runs_dir_status = _directory_readiness(getattr(server, "runs_dir", None))
     provider_state = _provider_status(provider)
     artifact_base_url = specspace_provider.artifact_base_url_for_workspace(
         server,
@@ -284,20 +315,35 @@ def _managed_mode_readiness(
         disabled_reasons.append("platform_dir_not_configured")
     elif not platform_cli_present:
         disabled_reasons.append("platform_cli_missing")
-    if not state_dir_configured:
+    if not state_dir_status["configured"]:
         disabled_reasons.append("specspace_state_dir_not_configured")
-    elif not state_dir_ready:
+    elif not state_dir_status["is_directory"]:
         disabled_reasons.append("specspace_state_dir_missing")
+    elif not state_dir_status["writable"]:
+        disabled_reasons.append("specspace_state_dir_not_writable")
+    if not runs_dir_status["configured"]:
+        disabled_reasons.append("runs_dir_not_configured")
+    elif not runs_dir_status["is_directory"]:
+        disabled_reasons.append("runs_dir_missing")
+    elif not runs_dir_status["writable"]:
+        disabled_reasons.append("runs_dir_not_writable")
     if provider_state["status"] == "unavailable":
         disabled_reasons.append("artifact_provider_unavailable")
 
     executor_ready = (
         platform_execution_enabled
         and platform_cli_present
-        and state_dir_ready
+        and state_dir_status["ready"]
+        and runs_dir_status["ready"]
         and provider_state["status"] != "unavailable"
     )
     operation_count = len(managed_operations_registry.MANAGED_OPERATIONS)
+    operation_status_counts = _managed_operation_status_counts(observability)
+    ready_now_count = (
+        operation_status_counts.get("ready_to_execute", 0)
+        if executor_ready
+        else 0
+    )
     if executor_ready:
         status = "backend_managed_ready"
         next_safe_action = "Use guided Product Workspace actions for allowlisted Platform operations."
@@ -329,12 +375,18 @@ def _managed_mode_readiness(
         },
         "operations": {
             "registered_count": operation_count,
-            "enabled_count": operation_count if executor_ready else 0,
-            "disabled_count": 0 if executor_ready else operation_count,
+            "enabled_count": ready_now_count,
+            "disabled_count": operation_count - ready_now_count,
+            "status_counts": operation_status_counts,
+            "counting_basis": "managed_operations_observability.status",
         },
         "state": {
-            "specspace_state_dir_configured": state_dir_configured,
-            "specspace_state_dir_ready": state_dir_ready,
+            "specspace_state_dir_configured": state_dir_status["configured"],
+            "specspace_state_dir_ready": state_dir_status["ready"],
+            "specspace_state_dir_writable": state_dir_status["writable"],
+            "runs_dir_configured": runs_dir_status["configured"],
+            "runs_dir_ready": runs_dir_status["ready"],
+            "runs_dir_writable": runs_dir_status["writable"],
         },
         "provider": provider_state,
         "workspace": {
@@ -708,7 +760,7 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
     workspace_id = _query_workspace_id(parsed)
     provider = _provider(handler, workspace_id)
     status, payload = provider.read_idea_to_spec_workspace()
-    if status == HTTPStatus.OK and workspace_id is not None:
+    if workspace_id is not None and isinstance(payload, dict):
         payload["selected_workspace_id"] = workspace_id
     if status == HTTPStatus.OK:
         _, hygiene = idea_to_spec_workspace_state_hygiene.build_hygiene(
@@ -750,6 +802,15 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
                 creation=payload["workspace_creation"],
             )
         idea_to_spec_workspace.attach_guided_flow(payload)
+        payload["managed_mode_readiness"] = _managed_mode_readiness(
+            server=handler.server,
+            provider=provider,
+            workspace_id=workspace_id,
+            observability=payload.get("managed_operations_observability")
+            if isinstance(payload.get("managed_operations_observability"), dict)
+            else None,
+        )
+    elif isinstance(payload, dict):
         payload["managed_mode_readiness"] = _managed_mode_readiness(
             server=handler.server,
             provider=provider,

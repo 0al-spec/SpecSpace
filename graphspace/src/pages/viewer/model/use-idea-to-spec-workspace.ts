@@ -1153,6 +1153,10 @@ export type IdeaToSpecManagedModeReadiness = {
   state: {
     specspaceStateDirConfigured: boolean;
     specspaceStateDirReady: boolean;
+    specspaceStateDirWritable: boolean;
+    runsDirConfigured: boolean;
+    runsDirReady: boolean;
+    runsDirWritable: boolean;
   };
   provider: {
     status: string;
@@ -4343,6 +4347,10 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
       state: {
         specspaceStateDirConfigured: false,
         specspaceStateDirReady: false,
+        specspaceStateDirWritable: false,
+        runsDirConfigured: false,
+        runsDirReady: false,
+        runsDirWritable: false,
       },
       provider: {
         status: "unknown",
@@ -4385,6 +4393,10 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
     state: {
       specspaceStateDirConfigured: state.specspace_state_dir_configured === true,
       specspaceStateDirReady: state.specspace_state_dir_ready === true,
+      specspaceStateDirWritable: state.specspace_state_dir_writable === true,
+      runsDirConfigured: state.runs_dir_configured === true,
+      runsDirReady: state.runs_dir_ready === true,
+      runsDirWritable: state.runs_dir_writable === true,
     },
     provider: {
       status: stringValue(provider.status, "unknown"),

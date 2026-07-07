@@ -1467,11 +1467,11 @@ function ManagedOperationsObservabilitySection({
             value={readiness.executor.configured ? "configured" : "unavailable"}
           />
           <PostureItem
-            label="Allowed"
+            label="Ready now"
             value={String(readiness.operations.enabledCount)}
           />
           <PostureItem
-            label="Disabled"
+            label="Not ready"
             value={String(readiness.operations.disabledCount)}
           />
           <PostureItem label="Provider" value={readiness.provider.status} />
@@ -1490,6 +1490,10 @@ function ManagedOperationsObservabilitySection({
           <Meta
             label="State directory"
             value={readiness.state.specspaceStateDirReady ? "ready" : "missing"}
+          />
+          <Meta
+            label="Runs directory"
+            value={readiness.state.runsDirReady ? "ready" : "missing"}
           />
           <Meta label="Provider kind" value={readiness.provider.kind} />
           <Meta
