@@ -502,7 +502,7 @@ ContextBuilder/
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.12+
 - Node.js 18+ (for the React UI)
 - [Hyperprompt](https://github.com/0AL/Hyperprompt) compiler binary (for compile tests and runtime compile)
 

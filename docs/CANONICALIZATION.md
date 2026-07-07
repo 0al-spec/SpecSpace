@@ -17,7 +17,7 @@ Imported JSON files from [ChatGPTDialogs](https://github.com/0AL/ChatGPTDialogs)
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.12+
 - Source directory with imported JSON files
 - (Optional) `lineage.json` manifest defining parent-child relationships
 
