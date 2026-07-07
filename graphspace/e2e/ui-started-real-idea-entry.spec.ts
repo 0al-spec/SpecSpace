@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync } from "node:fs";
 import {
@@ -22,6 +22,11 @@ const executionBackedRawIdea =
 const executionBackedPublicSummary = "Household pantry rotation planner";
 const fullLifecycleRawIdea = executionBackedRawIdea;
 const fullLifecyclePublicSummary = executionBackedPublicSummary;
+const productDemoWorkspaceId = "local-pantry-demo";
+const productDemoDisplayName = "Local Pantry Demo";
+const productDemoRawIdea =
+  "Хочу приложение для домашнего контроля запасов еды.";
+const productDemoPublicSummary = "Local pantry demo";
 
 test.describe.configure({ mode: "serial" });
 
@@ -260,6 +265,205 @@ async function startSpecSpaceBackend(options: {
 async function writeJson(filePath: string, payload: unknown) {
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
+function productDemoArtifactDir(testInfo: TestInfo): string {
+  return process.env.SPECSPACE_PRODUCT_DEMO_ARTIFACT_DIR
+    ? path.resolve(process.env.SPECSPACE_PRODUCT_DEMO_ARTIFACT_DIR)
+    : testInfo.outputPath("product-demo");
+}
+
+async function prepareProductDemoArtifacts(testInfo: TestInfo): Promise<string> {
+  const artifactDir = productDemoArtifactDir(testInfo);
+  await mkdir(artifactDir, { recursive: true });
+  await rm(path.join(artifactDir, "screenshots"), { recursive: true, force: true });
+  await rm(path.join(artifactDir, "product-demo-report.json"), { force: true });
+  await mkdir(path.join(artifactDir, "screenshots"), { recursive: true });
+  return artifactDir;
+}
+
+async function captureProductDemoScreenshot(
+  page: Page,
+  artifactDir: string,
+  name: string,
+) {
+  await page.screenshot({
+    fullPage: true,
+    path: path.join(artifactDir, "screenshots", `${name}.png`),
+  });
+}
+
+async function writeProductDemoReport(artifactDir: string, payload: unknown) {
+  await writeJson(path.join(artifactDir, "product-demo-report.json"), payload);
+}
+
+async function writeDeterministicProductDemoClarificationArtifacts(args: {
+  backendRunsDir: string;
+  specGraphRunDir: string;
+}) {
+  const requests = [
+    {
+      id: "question.active-frame.domain_refs",
+      kind: "active_frame",
+      severity: "blocking",
+      status: "open",
+      target_artifact: "user_idea_intake_session",
+      target_ref: "active_frame_hints.domain_refs",
+      question: "Which product domain refs bound this idea?",
+      suggested_answer_shape: "domain_ref[]",
+      suggested_actions: ["answer_question", "defer_candidate"],
+    },
+    {
+      id: "question.event-storming.actors",
+      kind: "missing_event_storming_context",
+      severity: "blocking",
+      status: "open",
+      target_artifact: "user_idea_intake_session",
+      target_ref: "event_storming_hints.actors",
+      question: "Which actors participate in this product workflow?",
+      suggested_answer_shape: "event_storming_entry[]",
+      suggested_actions: ["answer_question", "defer_candidate"],
+    },
+    {
+      id: "question.event-storming.domain_events",
+      kind: "missing_event_storming_context",
+      severity: "blocking",
+      status: "open",
+      target_artifact: "user_idea_intake_session",
+      target_ref: "event_storming_hints.domain_events",
+      question: "Which domain events should the product track?",
+      suggested_answer_shape: "event_storming_entry[]",
+      suggested_actions: ["answer_question", "defer_candidate"],
+    },
+    {
+      id: "question.event-storming.commands",
+      kind: "missing_event_storming_context",
+      severity: "blocking",
+      status: "open",
+      target_artifact: "user_idea_intake_session",
+      target_ref: "event_storming_hints.commands",
+      question: "Which commands should users or systems perform?",
+      suggested_answer_shape: "event_storming_entry[]",
+      suggested_actions: ["answer_question", "defer_candidate"],
+    },
+    {
+      id: "question.event-storming.constraints",
+      kind: "missing_event_storming_context",
+      severity: "blocking",
+      status: "open",
+      target_artifact: "user_idea_intake_session",
+      target_ref: "event_storming_hints.constraints",
+      question: "Which constraints must the candidate preserve?",
+      suggested_answer_shape: "event_storming_entry[]",
+      suggested_actions: ["answer_question", "defer_candidate"],
+    },
+  ];
+  const clarification = {
+    artifact_kind: "idea_to_spec_clarification_requests",
+    schema_version: 1,
+    contract_ref: "specgraph.idea-to-spec.clarification-requests.v0.1",
+    workspace_id: productDemoWorkspaceId,
+    workspace: {
+      workspace_id: productDemoWorkspaceId,
+      candidate_id: productDemoWorkspaceId,
+      display_name: productDemoDisplayName,
+      public_route: `/${productDemoWorkspaceId}`,
+    },
+    canonical_mutations_allowed: false,
+    tracked_artifacts_written: false,
+    readiness: {
+      ready: false,
+      review_state: "clarification_required",
+      blocked_by: requests.map((request) => request.id),
+      next_artifact: "idea_intake_clarification_answers",
+    },
+    clarification_requests: requests,
+    request_counts: {
+      total: requests.length,
+      blocking: requests.length,
+      by_kind: { active_frame: 1, missing_event_storming_context: 4 },
+      by_status: { open: requests.length },
+    },
+    summary: {
+      status: "clarification_required",
+      request_count: requests.length,
+      blocking_request_count: requests.length,
+    },
+  };
+  const template = {
+    artifact_kind: "real_idea_answer_template",
+    schema_version: 1,
+    contract_ref: "specgraph.real-idea.answer-template.v0.1",
+    stage: "intake",
+    run_dir: "runs/product-demo",
+    workspace_id: productDemoWorkspaceId,
+    workspace: {
+      workspace_id: productDemoWorkspaceId,
+      candidate_id: productDemoWorkspaceId,
+      display_name: productDemoDisplayName,
+      public_route: `/${productDemoWorkspaceId}`,
+    },
+    answer_targets: requests.map((request) => ({
+      target_id: `answer-target.${request.id.replace(/^clarification\.intake\.question-/, "")}`,
+      target_type: request.target_ref.startsWith("active_frame")
+        ? "active_frame_ref"
+        : "event_storming_entry",
+      request_id: request.id,
+      request_kind: request.kind,
+      severity: request.severity,
+      status: request.status,
+      question: request.question,
+      target_artifact: request.target_artifact,
+      target_ref: request.target_ref,
+      accepted_actions: ["answer_question", "defer_candidate"],
+      suggested_answer_shape: request.suggested_answer_shape,
+      value_templates_by_action: request.target_ref.startsWith("active_frame")
+        ? {
+            answer_question: { refs: [""] },
+            defer_candidate: { follow_up: "" },
+          }
+        : {
+            answer_question: { entries: [""] },
+            defer_candidate: { follow_up: "" },
+          },
+      required_fields_by_action: request.target_ref.startsWith("active_frame")
+        ? {
+            answer_question: ["value.refs[]"],
+            defer_candidate: ["value.follow_up"],
+          }
+        : {
+            answer_question: ["value.entries[]"],
+            defer_candidate: ["value.follow_up"],
+          },
+    })),
+    readiness: {
+      ready: true,
+      review_state: "answer_template_ready",
+      blocked_by: [],
+    },
+    authority_boundary: {
+      may_execute_specgraph: false,
+      may_write_ontology_package: false,
+      may_accept_ontology_terms: false,
+    },
+  };
+  for (const root of [args.backendRunsDir, args.specGraphRunDir]) {
+    await writeJson(path.join(root, "idea_intake_clarification_requests.json"), clarification);
+    await writeJson(
+      path.join(root, "real_idea_smoke", "real_idea_answer_template.json"),
+      template,
+    );
+  }
+}
+
+function requiredExecutionCheckout(name: string, value: string | undefined, marker: string) {
+  if (!value) {
+    throw new Error(`${name} is required for the product demo harness.`);
+  }
+  if (!existsSync(marker)) {
+    throw new Error(`${name} does not point at the expected checkout: ${marker}`);
+  }
+  return value;
 }
 
 async function writeRealIdeaIntakeRuns(runsDir: string) {
@@ -2759,6 +2963,358 @@ test("blocks raw idea submit for a route-only product workspace", async ({ page 
     );
     await expect(page.getByTestId("real-idea-entry-submit")).toBeDisabled();
   } finally {
+    await backend.stop();
+  }
+});
+
+test("product demo harness: UI-started real idea reaches candidate with explicit fallback policy", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(240_000);
+  test.skip(
+    !process.env.SPECG_E2E_PLATFORM_DIR || !process.env.SPECG_E2E_SPECG_DIR,
+    "product demo harness requires SPECG_E2E_PLATFORM_DIR and SPECG_E2E_SPECG_DIR",
+  );
+  const artifactDir = await prepareProductDemoArtifacts(testInfo);
+  const platformDir = requiredExecutionCheckout(
+    "SPECG_E2E_PLATFORM_DIR",
+    process.env.SPECG_E2E_PLATFORM_DIR,
+    path.join(process.env.SPECG_E2E_PLATFORM_DIR ?? "", "scripts/platform.py"),
+  );
+  const specGraphDir = requiredExecutionCheckout(
+    "SPECG_E2E_SPECG_DIR",
+    process.env.SPECG_E2E_SPECG_DIR,
+    path.join(process.env.SPECG_E2E_SPECG_DIR ?? "", "Makefile"),
+  );
+
+  const platformScript = path.join(platformDir, "scripts/platform.py");
+  const backend = await startSpecSpaceBackend({ seedIntakeRuns: false });
+  const runDirName = `specspace-product-demo-${Date.now()}`;
+  const specGraphRunDirRef = `runs/${runDirName}`;
+  const specGraphRunDir = path.join(specGraphDir, specGraphRunDirRef);
+  const platformReportPath = path.join(
+    specGraphRunDir,
+    "platform_real_idea_entry_intake_execution_report.json",
+  );
+  const continuationReportPath = path.join(
+    specGraphRunDir,
+    "platform_real_idea_answer_continuation_execution_report.json",
+  );
+  let reportPayload: Record<string, unknown> = {
+    status: "started",
+    workspace: productDemoWorkspaceId,
+    route: `/${productDemoWorkspaceId}`,
+    raw_idea_public_leak_detected: null,
+    team_decision_log_fallback: null,
+  };
+  let completed = false;
+
+  try {
+    await installRunsWatchMock(page);
+    await installRealBackendApiRoutes(page, backend.baseUrl);
+    await createWorkspaceRequestFromSidebar({
+      page,
+      displayName: productDemoDisplayName,
+      initialIdea: productDemoRawIdea,
+      expectedRoute: `/${productDemoWorkspaceId}`,
+    });
+    await captureProductDemoScreenshot(page, artifactDir, "01-workspace-requested");
+
+    const initializationReportPath = await writeWorkspaceInitializationReport({
+      runsDir: backend.runsDir,
+      workspaceId: productDemoWorkspaceId,
+      displayName: productDemoDisplayName,
+    });
+    await emitRunsChange(page);
+    await expect(page.getByTestId("workspace-creation-status")).toContainText(
+      "Workspace initialized through backend-owned state.",
+    );
+    await expect(page.getByTestId("real-idea-entry-workspace-gate")).toContainText(
+      "Raw idea intake will use this workspace namespace.",
+    );
+    await captureProductDemoScreenshot(page, artifactDir, "02-workspace-initialized");
+
+    await page.getByTestId("real-idea-entry-text").fill(productDemoRawIdea);
+    await page.getByTestId("real-idea-entry-summary").fill(productDemoPublicSummary);
+    await page.getByTestId("real-idea-entry-submit").click();
+    await expect(page.getByTestId("guided-flow-next-action")).toContainText(
+      "Import the submitted raw idea entry",
+    );
+    await captureProductDemoScreenshot(page, artifactDir, "03-raw-idea-submitted");
+
+    await page.getByTestId("real-idea-intake-execution-request").click();
+    await expect(
+      page.getByTestId("real-idea-intake-execution-request-status"),
+    ).toContainText("Requested execution");
+
+    const intakeCommand = platformCliInvocation(platformDir, platformScript, [
+      "product-real-idea-intake",
+      "execute-requested",
+      "--specgraph-dir",
+      specGraphDir,
+      "--execution-request",
+      path.join(backend.stateDir, "real_idea_intake_execution_requests.json"),
+      "--workspace-initialization",
+      initializationReportPath,
+      "--run-dir",
+      specGraphRunDirRef,
+      "--output",
+      platformReportPath,
+      "--format",
+      "json",
+    ]);
+    const execution = await runCommand(intakeCommand.command, intakeCommand.args, {
+      cwd: platformDir,
+    });
+    expect(execution.code, execution.stderr).toBe(0);
+    const intakeReport = JSON.parse(await readFile(platformReportPath, "utf8")) as {
+      ok?: boolean;
+      diagnostics?: unknown[];
+      target_make?: { variables?: Record<string, string> };
+    };
+    expect(intakeReport.ok, JSON.stringify(intakeReport.diagnostics ?? [])).toBe(true);
+    expect(
+      intakeReport.target_make?.variables?.SPECSPACE_REAL_IDEA_ENTRY_WORKSPACE_ID,
+    ).toBe(productDemoWorkspaceId);
+
+    await publishRealIdeaIntakeExecutionArtifacts({
+      backendRunsDir: backend.runsDir,
+      platformReportPath,
+      specGraphRunDir,
+    });
+    await emitRunsChange(page);
+    await expect(page.getByText("Platform intake execution", { exact: true })).toBeVisible();
+    await expect(page.getByText("execute_specgraph_real_idea_entry_intake")).toBeVisible();
+    await captureProductDemoScreenshot(page, artifactDir, "04-intake-executed");
+
+    let clarificationSource = "specgraph_generated";
+    const answerFields = page.locator('textarea[data-testid^="intake-clarification-answer-"]');
+    let answerCount = await answerFields.count();
+    if (answerCount === 0) {
+      if (process.env.SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK !== "1") {
+        const fallbackFailureReport = {
+          ...reportPayload,
+          status: "failed",
+          failed_step: "real_intake_clarification_fields_missing",
+          message:
+            "Real Platform/SpecGraph intake execution did not render browser-answerable clarification fields. Set SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1 only for demo fallback mode.",
+          artifact_dir: artifactDir,
+          run_dir: specGraphRunDirRef,
+        };
+        reportPayload = fallbackFailureReport;
+        await writeProductDemoReport(artifactDir, fallbackFailureReport);
+        throw new Error(
+          "Real intake execution did not render browser-answerable clarification fields; set SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1 only for demo fallback mode.",
+        );
+      }
+      clarificationSource = "deterministic_demo_fixture";
+      await writeDeterministicProductDemoClarificationArtifacts({
+        backendRunsDir: backend.runsDir,
+        specGraphRunDir,
+      });
+      await emitRunsChange(page);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByText("Idea-to-Spec Workspace")).toBeVisible();
+      await expect(answerFields).toHaveCount(5);
+      answerCount = await answerFields.count();
+    }
+    await expect(page.getByText("Template-backed answer").first()).toBeVisible();
+    await captureProductDemoScreenshot(page, artifactDir, "05-clarification-questions");
+
+    const answerValuesByRequest: Record<string, string> = {
+      "clarification.intake.question-active-frame-ontology-refs":
+        "ontology://specgraph-core",
+      "clarification.intake.question-active-frame-ontology-layer-refs":
+        "objective\nmechanics",
+      "clarification.intake.question-active-frame-domain-refs":
+        "domain.local_pantry_demo",
+      "clarification.intake.question-active-frame-context-refs":
+        "context.idea_to_spec\ncontext.local_pantry_demo",
+      "clarification.intake.question-active-frame-model-applicability-refs":
+        "model-applicability://specgraph-core/product-spec-mvp",
+      "question.active-frame.domain_refs": "domain.local_pantry_demo",
+      "question.event-storming.actors": "Household cook\nGrocery shopper",
+      "question.event-storming.domain_events":
+        "Pantry item recorded\nExpiration reviewed\nShopping need identified",
+      "question.event-storming.commands":
+        "Record pantry item\nReview expiring item\nCreate shopping reminder",
+      "question.event-storming.constraints":
+        "Expiration date required\nHousehold-only storage\nShopping reminder must be reviewable",
+      "clarification.intake.question-event-storming-actors":
+        "Household cook\nGrocery shopper",
+      "clarification.intake.question-event-storming-domain-events":
+        "Pantry item recorded\nExpiration reviewed\nShopping need identified",
+      "clarification.intake.question-event-storming-commands":
+        "Record pantry item\nReview expiring item\nCreate shopping reminder",
+      "clarification.intake.question-event-storming-constraints":
+        "Expiration date required\nHousehold-only storage\nShopping reminder must be reviewable",
+    };
+    for (let index = 0; index < answerCount; index += 1) {
+      const field = answerFields.nth(index);
+      const testId = await field.getAttribute("data-testid");
+      expect(testId).toBeTruthy();
+      const requestId = testId!.replace("intake-clarification-answer-", "");
+      await field.fill(answerValuesByRequest[requestId] ?? `Answer ${index + 1}`);
+      await page.getByTestId(`intake-clarification-answer-save-${requestId}`).click();
+    }
+    await expect(
+      page.locator('[data-testid^="intake-clarification-answer-saved-"]'),
+    ).toHaveCount(answerCount);
+    await expect(
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("request_continuation");
+    await captureProductDemoScreenshot(page, artifactDir, "06-clarification-answered");
+
+    await page.getByTestId("guided-clarification-continuation-request").click();
+    await expect(
+      page.getByTestId("guided-clarification-continuation-request-status"),
+    ).toContainText("real-idea-answer-continuation-execute");
+
+    const continuationCommand = platformCliInvocation(platformDir, platformScript, [
+      "product-real-idea-continuation",
+      "execute-requested",
+      "--specgraph-dir",
+      specGraphDir,
+      "--execution-request",
+      path.join(backend.stateDir, "real_idea_answer_continuation_execution_requests.json"),
+      "--run-dir",
+      specGraphRunDirRef,
+      "--workspace-initialization",
+      initializationReportPath,
+      "--intake-execution",
+      platformReportPath,
+      "--output",
+      continuationReportPath,
+      "--format",
+      "json",
+    ]);
+    const continuation = await runCommand(
+      continuationCommand.command,
+      continuationCommand.args,
+      { cwd: platformDir },
+    );
+    if (continuation.code !== 0) {
+      await writeProductDemoReport(artifactDir, {
+        ...reportPayload,
+        status: "failed",
+        failed_step: "platform_real_idea_answer_continuation",
+        continuation_exit_code: continuation.code,
+        continuation_stdout: continuation.stdout,
+        continuation_stderr: continuation.stderr,
+        artifact_dir: artifactDir,
+        run_dir: specGraphRunDirRef,
+        preserved_specgraph_run_dir: specGraphRunDir,
+      });
+    }
+    expect(continuation.code, continuation.stderr || continuation.stdout).toBe(0);
+    const continuationReport = JSON.parse(
+      await readFile(continuationReportPath, "utf8"),
+    ) as {
+      ok?: boolean;
+      diagnostics?: unknown[];
+    };
+    expect(
+      continuationReport.ok,
+      JSON.stringify(continuationReport.diagnostics ?? []),
+    ).toBe(true);
+
+    await publishRealIdeaContinuationArtifacts({
+      backendRunsDir: backend.runsDir,
+      platformReportPath: continuationReportPath,
+      specGraphRunDir,
+    });
+    const generatedIdeaArtifactsText = await readExistingFilesAsText([
+      path.join(specGraphRunDir, "platform_real_idea_entry_intake_execution_report.json"),
+      path.join(specGraphRunDir, "user_idea_intake_session.json"),
+      path.join(specGraphRunDir, "clarified_user_idea_intake_session.json"),
+      path.join(specGraphRunDir, "clarified_user_idea_intake_source.json"),
+      path.join(specGraphRunDir, "idea_event_storming_intake.json"),
+      path.join(specGraphRunDir, "candidate_spec_graph_seed.json"),
+      path.join(specGraphRunDir, "candidate_spec_graph.json"),
+      path.join(specGraphRunDir, "active_idea_to_spec_candidate.json"),
+      path.join(specGraphRunDir, "platform_real_idea_answer_continuation_execution_report.json"),
+    ]);
+    const rawIdeaPublicLeakDetected = generatedIdeaArtifactsText.includes(productDemoRawIdea);
+    const teamDecisionLogFallback = generatedIdeaArtifactsText.includes("team-decision-log");
+    expect(rawIdeaPublicLeakDetected).toBe(false);
+    expect(generatedIdeaArtifactsText).toContain(productDemoPublicSummary);
+    expect(generatedIdeaArtifactsText).toContain(productDemoWorkspaceId);
+    expect(generatedIdeaArtifactsText).toContain("Pantry item recorded");
+    expect(generatedIdeaArtifactsText).toContain("Record pantry item");
+    expect(generatedIdeaArtifactsText).not.toContain("Decision owner");
+    expect(generatedIdeaArtifactsText).not.toContain("Record decision");
+    expect(teamDecisionLogFallback).toBe(false);
+
+    await emitRunsChange(page);
+    await expect(page.getByTestId("real-idea-intake-next-action")).toContainText(
+      "Inspect active candidate readiness before continuing.",
+    );
+    await expect(
+      page.getByTestId("guided-clarification-continuation"),
+    ).toContainText("continuation_ready");
+    const graphCanvas = page.getByRole("region", { name: "SpecGraph canvas" });
+    await expect(graphCanvas.getByText("Record pantry item").first()).toBeVisible();
+    await expect(graphCanvas.getByText("Review expiring item").first()).toBeVisible();
+    await expect(page.getByText("active_candidate_review_required").first()).toBeVisible();
+    await captureProductDemoScreenshot(page, artifactDir, "07-candidate-review-state");
+
+    const activeCandidate = JSON.parse(
+      await readFile(path.join(specGraphRunDir, "active_idea_to_spec_candidate.json"), "utf8"),
+    ) as {
+      candidate_id?: string;
+      status?: string;
+      summary?: { status?: string; promotion_path_count?: number };
+    };
+    reportPayload = {
+      status: "completed",
+      workspace: productDemoWorkspaceId,
+      route: `/${productDemoWorkspaceId}`,
+      artifact_dir: artifactDir,
+      run_dir: specGraphRunDirRef,
+      clarification_source: clarificationSource,
+      clarification_question_count: answerCount,
+      answers_saved: answerCount,
+      candidate_id: activeCandidate.candidate_id,
+      active_candidate_status:
+        activeCandidate.status ?? activeCandidate.summary?.status ?? "unknown",
+      promotion_path_count: activeCandidate.summary?.promotion_path_count ?? null,
+      raw_idea_public_leak_detected: rawIdeaPublicLeakDetected,
+      public_summary_present: generatedIdeaArtifactsText.includes(productDemoPublicSummary),
+      workspace_id_present: generatedIdeaArtifactsText.includes(productDemoWorkspaceId),
+      team_decision_log_fallback: teamDecisionLogFallback,
+      screenshots: [
+        "01-workspace-requested.png",
+        "02-workspace-initialized.png",
+        "03-raw-idea-submitted.png",
+        "04-intake-executed.png",
+        "05-clarification-questions.png",
+        "06-clarification-answered.png",
+        "07-candidate-review-state.png",
+      ],
+    };
+    await writeProductDemoReport(artifactDir, reportPayload);
+    completed = true;
+
+    const pauseMs = Number(process.env.SPECSPACE_PRODUCT_DEMO_PAUSE_MS ?? 0);
+    if (pauseMs > 0) {
+      console.log(
+        `Product demo route is open at ${page.url()} for ${pauseMs}ms; artifacts: ${artifactDir}`,
+      );
+      await page.waitForTimeout(pauseMs);
+    }
+  } catch (error) {
+    await writeProductDemoReport(artifactDir, {
+      ...reportPayload,
+      status: "failed",
+      error: String(error),
+      artifact_dir: artifactDir,
+      run_dir: specGraphRunDirRef,
+    });
+    throw error;
+  } finally {
+    if (completed && process.env.SPECSPACE_PRODUCT_DEMO_KEEP_RUN_DIR !== "1") {
+      await rm(specGraphRunDir, { recursive: true, force: true });
+    }
     await backend.stop();
   }
 });

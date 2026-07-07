@@ -1,7 +1,7 @@
 # Idea-to-Spec Product Workspace Workplan
 
 Status: active planning
-Updated: 2026-07-06
+Updated: 2026-07-07
 
 ## Purpose
 
@@ -79,6 +79,19 @@ runtime action requests from Product Workspace routes.
   managed operation statuses, and unavailable reasons without exposing local
   checkout paths. It is report-only telemetry and keeps all execution, Git,
   SpecGraph, Ontology, and publication authority flags explicitly false.
+- Playwright Product Demo Harness. `make ui-e2e-product-demo` now runs a
+  focused execution-backed browser demo for a non-demo workspace
+  (`local-pantry-demo`). The test creates the workspace through the sidebar,
+  simulates controlled initialization evidence, submits a raw idea in the UI,
+  requests intake execution, runs real Platform wrappers against a real
+  SpecGraph checkout outside browser authority, saves clarification answers in
+  SpecSpace, requests continuation, verifies the generated candidate artifacts,
+  captures screenshots and Playwright trace/video output, and writes a durable
+  `graphspace/test-results/product-demo/product-demo-report.json`. The report
+  verifies that raw idea text is not published, the public summary/workspace id
+  are present, and `team-decision-log` fixture terms do not leak into the new
+  candidate. `make ui-e2e-product-demo-live` runs the same harness headed with
+  a short pause for live inspection.
 - Raw idea entry state in SpecSpace.
 - Browser E2E for raw idea submit into SpecSpace-owned mutable state.
 - Workspace and `guided_flow` refresh after successful raw idea submit.
@@ -797,6 +810,13 @@ Follow-up:
   and `candidate_review`. Current coverage exercises route-only,
   creation-requested, initialized, clarification, repair, approval, and
   published states.
+- Improve live product-demo presentation. The Playwright product demo harness
+  proves the execution flow and captures screenshots, but the final view can
+  still feel cramped because the graph canvas, sidebar focus mode, and utility
+  panel compete for space. A follow-up should add a demo-friendly visual mode
+  or route state that emphasizes the candidate graph, Product Workspace
+  overview, guided clarification/repair state, and public-safety checks without
+  requiring the operator to manually resize panels during a live walkthrough.
 
 ## Accepted Constraints And Runbook Notes
 
@@ -810,6 +830,15 @@ hidden UI mutations.
   execution-backed answer continuation, repair rerun, project-local ontology
   review import/effect, approval materialization, promotion request, Git
   Service dry-run, and runs-watch refresh.
+- `make ui-e2e-product-demo` is the focused local proof for a UI-started
+  product demo. It intentionally uses a deterministic clarification fixture only
+  when the real intake execution does not emit user-facing clarification
+  fields and `SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1` is set.
+  The Make target sets that flag because it is a demo harness, while direct
+  Playwright runs without the flag fail fast so producer regressions do not pass
+  silently. The fixture uses the same `active_frame_hints.*` and
+  `event_storming_hints.*` target refs that SpecGraph materializes, so saved UI
+  answers still flow through the real Platform/SpecGraph continuation path.
 - Fast browser tests still use fixture-backed `/api/v1/idea-to-spec-workspace`
   projections for UI-only coverage. Keep the env-gated execution-backed smoke as
   the authority for real cross-repo lifecycle behavior, and only replace a fast

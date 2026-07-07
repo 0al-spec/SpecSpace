@@ -1,5 +1,7 @@
 LOCAL_PYTHON := .venv/bin/python
 PYTHON ?= $(if $(wildcard $(LOCAL_PYTHON)),$(LOCAL_PYTHON),python)
+DEFAULT_PLATFORM_DIR := $(abspath ../Platform)
+DEFAULT_SPECG_DIR := $(abspath ../SpecGraph)
 PORT ?= 8000
 API_PORT ?= 8001
 UI_PORT ?= 5173
@@ -15,7 +17,7 @@ SPECGRAPH_DIR ?= $(CLAUDE_SPECGRAPH_DIR)
 HYPERPROMPT_BINARY ?= $(CLAUDE_HYPERPROMPT_BINARY)
 AGENT ?= 1
 
-.PHONY: help serve api ui legacy-ui dev legacy-dev start stop specspace-start specspace-stop specspace-restart specspace-status ui-e2e-raw-idea-entry test lint canonicalize canon quickstart
+.PHONY: help serve api ui legacy-ui dev legacy-dev start stop specspace-start specspace-stop specspace-restart specspace-status ui-e2e-raw-idea-entry ui-e2e-product-demo ui-e2e-product-demo-live test lint canonicalize canon quickstart
 
 help:
 	@echo "Targets:"
@@ -33,6 +35,8 @@ help:
 	@echo "  make specspace-restart     Restart SpecSpace API + GraphSpace dev UI in detached screen sessions"
 	@echo "  make specspace-status      Show SpecSpace dev screen sessions and port listeners"
 	@echo "  make ui-e2e-raw-idea-entry Run Playwright UI-started raw idea entry smoke"
+	@echo "  make ui-e2e-product-demo   Run deterministic Playwright product demo E2E"
+	@echo "  make ui-e2e-product-demo-live Run headed product demo E2E and pause at the final route"
 	@echo "  make test"
 	@echo "  make lint"
 
@@ -125,6 +129,30 @@ specspace-status:
 
 ui-e2e-raw-idea-entry:
 	@PYTHON="$(PYTHON)" SPECSPACE_E2E_PORT="$(UI_PORT)" npm run e2e:ui-started --prefix graphspace
+
+ui-e2e-product-demo:
+	@test -f "$${SPECG_E2E_PLATFORM_DIR:-$(DEFAULT_PLATFORM_DIR)}/scripts/platform.py" || (printf '%s\n' 'SPECG_E2E_PLATFORM_DIR must point at a Platform checkout.' >&2; exit 2)
+	@test -f "$${SPECG_E2E_SPECG_DIR:-$(DEFAULT_SPECG_DIR)}/Makefile" || (printf '%s\n' 'SPECG_E2E_SPECG_DIR must point at a SpecGraph checkout.' >&2; exit 2)
+	@rm -rf graphspace/test-results/product-demo
+	@mkdir -p graphspace/test-results/product-demo
+	@PYTHON="$(PYTHON)" \
+		SPECG_E2E_PLATFORM_DIR="$${SPECG_E2E_PLATFORM_DIR:-$(DEFAULT_PLATFORM_DIR)}" \
+		SPECG_E2E_SPECG_DIR="$${SPECG_E2E_SPECG_DIR:-$(DEFAULT_SPECG_DIR)}" \
+		SPECSPACE_E2E_PORT="$(UI_PORT)" \
+		SPECSPACE_E2E_TRACE=on \
+		SPECSPACE_E2E_VIDEO=on \
+		SPECSPACE_E2E_HEADLESS="$${SPECSPACE_E2E_HEADLESS:-1}" \
+		SPECSPACE_E2E_OUTPUT_DIR=test-results/product-demo/playwright-output \
+		SPECSPACE_PRODUCT_DEMO_ARTIFACT_DIR="$(CURDIR)/graphspace/test-results/product-demo" \
+		SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK="$${SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK:-1}" \
+		SPECSPACE_PRODUCT_DEMO_PAUSE_MS="$${SPECSPACE_PRODUCT_DEMO_PAUSE_MS:-0}" \
+		npm run e2e:ui-started --prefix graphspace -- --grep "product demo harness"
+
+ui-e2e-product-demo-live:
+	@$(MAKE) ui-e2e-product-demo \
+		UI_PORT="$(UI_PORT)" \
+		SPECSPACE_PRODUCT_DEMO_PAUSE_MS="$${SPECSPACE_PRODUCT_DEMO_PAUSE_MS:-30000}" \
+		SPECSPACE_E2E_HEADLESS=0
 
 test:
 	@$(PYTHON) -m unittest discover -s tests -p 'test_*.py'
