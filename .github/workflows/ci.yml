@@ -24,7 +24,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install Python test dependencies
         run: python -m pip install -r requirements-dev.txt
@@ -489,6 +489,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
       - name: Wait for production deploy to pick up published manifest
         env:
           SPECSPACE_DEPLOY_URL: ${{ vars.SPECSPACE_DEPLOY_URL }}
@@ -499,7 +504,7 @@ jobs:
           echo "Waiting for ${health_url} to report ${SPECSPACE_RELEASE_COMMIT}"
           for attempt in $(seq 1 30); do
             body="$(curl --connect-timeout 5 --max-time 15 -fsS "$health_url" || true)"
-            deployed_commit="$(BODY="$body" python3 - <<'PY'
+            deployed_commit="$(BODY="$body" python - <<'PY'
           import json
           import os
 
@@ -545,6 +550,28 @@ jobs:
           if ! curl --connect-timeout 5 --max-time 20 -fsS "${base}/api/v1/specpm/registry" >/dev/null; then
             echo "::warning::SpecPM registry endpoint is unavailable; deploy smoke keeps this diagnostic non-blocking because it depends on an external registry."
           fi
+
+      - name: Verify product workspace production route
+        env:
+          SPECSPACE_DEPLOY_URL: ${{ vars.SPECSPACE_DEPLOY_URL }}
+          SPECSPACE_PRODUCT_WORKSPACE_ID: ${{ vars.SPECSPACE_PRODUCT_WORKSPACE_ID || 'team-decision-log' }}
+          SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL: ${{ vars.SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL || 'https://specgraph.tech/workspaces/team-decision-log' }}
+        run: |
+          set -euo pipefail
+          python scripts/product_workspace_production_smoke.py \
+            --base-url "$SPECSPACE_DEPLOY_URL" \
+            --workspace "$SPECSPACE_PRODUCT_WORKSPACE_ID" \
+            --artifact-base "$SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL" \
+            --expect-managed-mode read_only \
+            --format json > "$RUNNER_TEMP/product-workspace-production-smoke.json"
+          cat "$RUNNER_TEMP/product-workspace-production-smoke.json"
+
+      - name: Upload product workspace production smoke report
+        uses: actions/upload-artifact@v7
+        with:
+          name: product-workspace-production-smoke
+          path: ${{ runner.temp }}/product-workspace-production-smoke.json
+          if-no-files-found: error
 
   docker-compose-smoke:
     name: Docker Compose Smoke

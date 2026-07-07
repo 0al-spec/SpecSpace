@@ -338,3 +338,20 @@ Expected for the current HTTP artifact deployment:
 - The graph contains `SG-SPEC-0001`.
 - SpecSpace UI loads without sample fallback.
 - Runtime data reads go through `/api/v1/*`.
+
+For product workspace production smoke, use the read-only workspace checker:
+
+```bash
+PYTHON="${PYTHON:-.venv/bin/python}"
+"$PYTHON" scripts/product_workspace_production_smoke.py \
+  --base-url https://specgraph.space \
+  --workspace team-decision-log \
+  --artifact-base https://specgraph.tech/workspaces/team-decision-log \
+  --expect-managed-mode read_only
+```
+
+This smoke verifies that `/team-decision-log` is a SpecSpace Product Workspace,
+not the legacy ContextBuilder UI; that the Product Workspace API reads the
+workspace-specific static artifact base instead of the root SpecGraph showcase
+bundle; and that production reports `managed_mode_readiness.status =
+read_only` with managed execution authority disabled.
