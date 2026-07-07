@@ -85,6 +85,8 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(
       parsed.data.productWorkspaceOverview.authorityBoundary.mayExecutePlatform,
     ).toBe(false);
+    expect(parsed.data.managedOperations.available).toBe(false);
+    expect(parsed.data.managedOperations.operations).toHaveLength(0);
     expect(parsed.data.guidedRepairPath.available).toBe(true);
     expect(parsed.data.guidedRepairPath.stage).toBe("ready_to_request_rerun");
     expect(parsed.data.guidedRepairPath.nextAction).toBe(
@@ -325,6 +327,148 @@ describe("parseIdeaToSpecWorkspace", () => {
         .productReviewStatusReportRef,
     ).toBe("runs/product_candidate_promotion_review_status_report.json");
     expect(parsed.data.authorityBoundary.mayMutateCanonicalSpecs).toBe(false);
+  });
+
+  it("parses managed operations observability", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.managed_operations_observability = {
+      available: true,
+      surface_id: "specspace.managed-operations.observability.v0.1",
+      surface_kind: "managed_operations_observability",
+      summary: {
+        operation_count: 1,
+        completed_count: 1,
+        failed_count: 0,
+        stale_count: 0,
+        request_needed_count: 0,
+        new_request_required_count: 0,
+        ready_to_execute_count: 0,
+        gate_needed_count: 0,
+      },
+      status_counts: { completed: 1 },
+      groups: [
+        {
+          phase: "workspace",
+          label: "Workspace",
+          operation_ids: ["workspace_initialization_execute"],
+        },
+      ],
+      operations: [
+        {
+          operation_id: "workspace_initialization_execute",
+          category: "workspace",
+          lifecycle_stage: "workspace_initialization",
+          ui_stage: "Workspace initialization",
+          endpoint: "/api/v1/product-workspace-initialization/execute",
+          platform_command: ["workspace", "execute-requested-initialization"],
+          status: "completed",
+          target_section: "idea-to-spec-workspace-initialization-path",
+          next_safe_action: "Inspect the durable execution report.",
+          input_refs: [
+            {
+              ref: "runs/product_workspace_initialization_execution_request.json",
+              kind: "run_artifact",
+              available: true,
+              status: "ready",
+            },
+          ],
+          output_reports: [
+            {
+              ref: "runs/platform_product_workspace_initialization_execution_report.json",
+              kind: "run_artifact",
+              available: true,
+              status: "completed",
+            },
+          ],
+          missing_input_refs: [],
+          available_output_refs: [
+            "runs/platform_product_workspace_initialization_execution_report.json",
+          ],
+          idempotency_key: "execution_request.summary.idempotency_key",
+          overwrite_policy: "reject mismatched request",
+          timeout_policy: "bounded",
+          replay_policy: "idempotent",
+          dry_run_only: false,
+          irreversible: false,
+          requires_explicit_confirmation: false,
+          authority_boundary: {
+            ...raw.guided_flow.authority_boundary,
+            managed_operations_observability_is_authority: false,
+            may_run_shell: false,
+            may_publish_read_model: false,
+          },
+        },
+      ],
+      authority_boundary: {
+        ...raw.guided_flow.authority_boundary,
+        managed_operations_observability_is_authority: false,
+        may_run_shell: false,
+        may_publish_read_model: false,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.managedOperations.available).toBe(true);
+    expect(parsed.data.managedOperations.summary.operationCount).toBe(1);
+    expect(parsed.data.managedOperations.groups[0].phase).toBe("workspace");
+    expect(parsed.data.managedOperations.operations[0].status).toBe("completed");
+    expect(parsed.data.managedOperations.operations[0].availableOutputRefs).toEqual([
+      "runs/platform_product_workspace_initialization_execution_report.json",
+    ]);
+  });
+
+  it("rejects managed operations observability authority expansion", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.managed_operations_observability = {
+      available: true,
+      operations: [],
+      authority_boundary: {
+        ...raw.guided_flow.authority_boundary,
+        managed_operations_observability_is_authority: false,
+        may_run_shell: false,
+        may_publish_read_model: true,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("parse-error");
+    if (parsed.kind !== "parse-error") return;
+    expect(parsed.reason).toContain("managed operations observability");
+  });
+
+  it("rejects unknown managed operations authority flags", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.managed_operations_observability = {
+      available: true,
+      operations: [
+        {
+          authority_boundary: {
+            ...raw.guided_flow.authority_boundary,
+            managed_operations_observability_is_authority: false,
+            may_run_shell: false,
+            may_publish_read_model: false,
+            may_apply_answers: true,
+          },
+        },
+      ],
+      authority_boundary: {
+        ...raw.guided_flow.authority_boundary,
+        managed_operations_observability_is_authority: false,
+        may_run_shell: false,
+        may_publish_read_model: false,
+        may_apply_answers: true,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("parse-error");
+    if (parsed.kind !== "parse-error") return;
+    expect(parsed.reason).toContain("managed operations observability");
   });
 
   it("maps legacy guided stage ids to fallback overview phases", () => {

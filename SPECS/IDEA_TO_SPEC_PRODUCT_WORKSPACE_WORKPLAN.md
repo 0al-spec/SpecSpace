@@ -62,6 +62,14 @@ runtime action requests from Product Workspace routes.
   handler coverage, normalized UI state vocabulary, output evidence, idempotency
   metadata, and authority-flag policy before future managed actions can be
   added casually.
+- Managed Operations Observability Panel. Product Workspace now exposes a
+  read-only `managed_operations_observability` projection built from
+  `viewer/managed_operations_registry.py` plus selected workspace artifact
+  evidence. The UI groups operations by lifecycle phase, shows missing inputs,
+  available output reports, retry/overwrite/timeout policy text, and status
+  counts, while keeping all execution, Git, SpecGraph, Ontology, and
+  publication authority flags explicitly false. This is operator telemetry, not
+  a new permission source.
 - Raw idea entry state in SpecSpace.
 - Browser E2E for raw idea submit into SpecSpace-owned mutable state.
 - Workspace and `guided_flow` refresh after successful raw idea submit.
