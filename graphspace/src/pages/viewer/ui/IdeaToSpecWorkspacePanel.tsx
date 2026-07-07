@@ -101,6 +101,7 @@ type Props = {
   onWorkspaceRefreshRequest?: () => void;
   auxiliaryDataEnabled?: boolean;
   readOnly?: boolean;
+  demoView?: boolean;
 };
 
 const FRESH_WORKSPACE_FOCUS_STATUSES = new Set([
@@ -216,6 +217,11 @@ function boolText(value: boolean): string {
 
 function joined(values: readonly string[], fallback = "none"): string {
   return values.length > 0 ? values.join(", ") : fallback;
+}
+
+function currentBrowserPath(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.location.pathname || null;
 }
 
 function sourceArtifactRefs(sourceArtifacts: Record<string, unknown>): string[] {
@@ -423,6 +429,7 @@ export function IdeaToSpecWorkspacePanel({
   onWorkspaceRefreshRequest,
   auxiliaryDataEnabled = true,
   readOnly = false,
+  demoView = false,
 }: Props) {
   const repairDrafts = useIdeaToSpecRepairDrafts({
     url: repairDraftsUrl,
@@ -990,6 +997,14 @@ export function IdeaToSpecWorkspacePanel({
       workspace={data.workspace}
     />
   );
+  const productDemoPresentationSection = (
+    <ProductDemoPresentationSection
+      data={data}
+      operatorWorkspaceHref={
+        data.workspace.publicRoute ? data.workspace.publicRoute : undefined
+      }
+    />
+  );
   const managedOperationsSection = (
     <ManagedOperationsObservabilitySection
       observability={data.managedOperations}
@@ -1075,6 +1090,11 @@ export function IdeaToSpecWorkspacePanel({
       readOnly={readOnly}
     />
   );
+
+  if (demoView) {
+    return productDemoPresentationSection;
+  }
+
   const renderDiagnosticSections = (includeIntakeClarification = true) => (
     <>
       <CandidateOverviewSection overview={data.candidateOverview} />
@@ -1291,6 +1311,264 @@ function FreshWorkspaceFocusSection({
   );
 }
 
+function ProductDemoPresentationSection({
+  data,
+  operatorWorkspaceHref,
+}: {
+  data: IdeaToSpecWorkspace;
+  operatorWorkspaceHref?: string;
+}) {
+  const overview = data.productWorkspaceOverview;
+  const candidate = data.candidateOverview;
+  const maturity = data.ideaMaturity;
+  const managed = data.managedOperations;
+  const rawIdeaOperatorOwned =
+    data.workspaceCreation.activeRequest?.rootIntentSummaryPresent === true ||
+    Boolean(data.realIdeaIntake.entryExecution.entryRequestsHandoffRef) ||
+    data.realIdeaIntake.sourceRefs.some((ref) =>
+      ref.includes("real_idea_entry_requests"),
+    );
+  const candidateAvailable =
+    candidate.available === true ||
+    data.candidateGraph.available === true ||
+    data.candidateGraph.summary.nodeCount > 0 ||
+    data.candidateGraph.nodes.length > 0;
+  const noWriteAuthority =
+    !data.authorityBoundary.mayMutateCanonicalSpecs &&
+    !data.authorityBoundary.mayCreateBranchOrCommit &&
+    !data.authorityBoundary.mayExecuteGitServiceOperation;
+  const graphNodeLabel = (node: IdeaToSpecCandidateNode): string =>
+    compact(node.title, node.id);
+  const graphNodeText = (node: IdeaToSpecCandidateNode): string =>
+    `${node.kind ?? ""} ${node.id} ${node.title ?? ""}`.toLowerCase();
+  const graphNodeFallbacks = (kind: string): readonly string[] =>
+    data.candidateGraph.nodes
+      .filter((node) => graphNodeText(node).includes(kind))
+      .slice(0, 3)
+      .map(graphNodeLabel);
+  const candidateNodeFallbacks = data.candidateGraph.nodes
+    .slice(0, 3)
+    .map(graphNodeLabel);
+  const overviewDetails = (
+    items: readonly { id: string; label: string | null }[],
+    fallback: readonly string[] = [],
+  ): string => {
+    const overviewValues = items
+      .slice(0, 3)
+      .map((item) => compact(item.label, item.id));
+    return joined(overviewValues.length > 0 ? overviewValues : fallback, "");
+  };
+  const overviewCount = (
+    count: number,
+    fallback: readonly string[] = [],
+  ): string => String(count > 0 ? count : fallback.length);
+  const actorFallbacks = graphNodeFallbacks("actor");
+  const commandFallbacks = graphNodeFallbacks("command");
+  const eventFallbacks = graphNodeFallbacks("event");
+  const constraintFallbacks = graphNodeFallbacks("constraint");
+  const broadCommandFallbacks =
+    commandFallbacks.length > 0 ? commandFallbacks : candidateNodeFallbacks;
+  const domainItems = [
+    {
+      label: "Actors",
+      value: overviewCount(candidate.eventStorming.actorCount, actorFallbacks),
+      detail: overviewDetails(candidate.eventStorming.actors, actorFallbacks),
+    },
+    {
+      label: "Commands",
+      value: overviewCount(
+        candidate.eventStorming.commandCount,
+        broadCommandFallbacks,
+      ),
+      detail: overviewDetails(
+        candidate.eventStorming.commands,
+        broadCommandFallbacks,
+      ),
+    },
+    {
+      label: "Events",
+      value: overviewCount(
+        candidate.eventStorming.domainEventCount,
+        eventFallbacks,
+      ),
+      detail: overviewDetails(candidate.eventStorming.domainEvents, eventFallbacks),
+    },
+    {
+      label: "Constraints",
+      value: overviewCount(
+        candidate.eventStorming.constraintCount,
+        constraintFallbacks,
+      ),
+      detail: overviewDetails(
+        candidate.eventStorming.constraints,
+        constraintFallbacks,
+      ),
+    },
+  ];
+  const candidateNodeCount =
+    candidate.summary.nodeCount > 0
+      ? candidate.summary.nodeCount
+      : data.candidateGraph.summary.nodeCount;
+  const completedOperations =
+    managed.available && managed.summary.operationCount > 0
+      ? `${managed.summary.completedCount}/${managed.summary.operationCount}`
+      : "not published";
+  const browserPath = currentBrowserPath();
+  const operatorHref = browserPath ?? operatorWorkspaceHref ?? "/";
+  const candidateCardLabel = candidateAvailable
+    ? "Candidate generated"
+    : "Candidate pending";
+  const demoSubtitle = candidateAvailable
+    ? "Idea-to-spec converted a workspace idea into a reviewable candidate while keeping execution controlled and raw input protected."
+    : "Idea-to-spec is preparing this workspace. The presentation view stays read-only until candidate evidence is available.";
+  const candidateHeadline = candidateAvailable
+    ? compact(candidate.narrative.productIntent, overview.nextSafeAction)
+    : compact(overview.nextSafeAction, "Start or continue idea intake.");
+  return (
+    <section
+      className={styles.demoPresentation}
+      aria-label="Product demo presentation"
+      data-testid="product-demo-presentation"
+    >
+      <header className={styles.demoHero}>
+        <div className={styles.demoHeroText}>
+          <span className={styles.kicker}>Product demo view</span>
+          <h2 className={styles.demoTitle}>
+            {data.workspace.displayName ?? data.workspace.id ?? "Product workspace"}
+          </h2>
+          <p className={styles.demoSubtitle}>{demoSubtitle}</p>
+        </div>
+        <div className={styles.demoHeroActions}>
+          <a className={styles.actionButton} href={operatorHref}>
+            Operator workspace
+          </a>
+          <Pill value={overview.status.replace(/_/g, " ")} />
+        </div>
+      </header>
+
+      <div className={styles.demoTimeline} data-testid="product-demo-timeline">
+        {overview.phases.map((phase) => (
+          <div key={phase.id} className={styles.demoTimelineItem}>
+            <span className={styles.navLabel}>{phase.label}</span>
+            <span className={styles.demoTimelineState}>
+              {phase.state.replace(/_/g, " ")}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className={styles.demoGrid}>
+        <article className={styles.demoCard} data-testid="product-demo-candidate">
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>{candidateCardLabel}</span>
+            <Pill
+              value={
+                candidateAvailable
+                  ? compact(candidate.readiness.reviewState, "candidate")
+                  : "waiting for candidate"
+              }
+            />
+          </div>
+          <h3 className={styles.demoCardTitle}>{candidateHeadline}</h3>
+          <div className={styles.postureStrip}>
+            <PostureItem label="Nodes" value={String(candidateNodeCount)} />
+            <PostureItem
+              label="Requirements"
+              value={String(data.candidateGraph.summary.requirementCount)}
+            />
+            <PostureItem
+              label="Acceptance"
+              value={String(data.candidateGraph.summary.acceptanceCriteriaCount)}
+            />
+          </div>
+          <div className={styles.metaGrid}>
+            <Meta label="Candidate" value={candidate.summary.candidateId} />
+            <Meta label="Route" value={browserPath ?? data.workspace.publicRoute} />
+            <Meta
+              label="Readiness"
+              value={
+                candidateAvailable
+                  ? candidate.narrative.readiness
+                  : "candidate evidence pending"
+              }
+            />
+            <Meta
+              label="Next action"
+              value={compact(candidate.nextAction.label, overview.nextSafeAction)}
+            />
+          </div>
+        </article>
+
+        <article className={styles.demoCard} data-testid="product-demo-controls">
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>Controlled execution</span>
+            <Pill value={data.managedModeReadiness.status.replace(/_/g, " ")} />
+          </div>
+          <h3 className={styles.demoCardTitle}>
+            Platform-owned execution, browser read/request authority.
+          </h3>
+          <div className={styles.metaGrid}>
+            <Meta label="Managed operations" value={completedOperations} />
+            <Meta
+              label="Executor"
+              value={
+                data.managedModeReadiness.executor.enabled ? "enabled" : "disabled"
+              }
+            />
+            <Meta label="Spec mutations" value={boolText(false)} />
+            <Meta label="Git writes" value={boolText(false)} />
+          </div>
+        </article>
+      </div>
+
+      <section className={styles.demoCard} data-testid="product-demo-domain">
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Domain understanding</span>
+          <Pill value={`${candidate.topology.workflowEdgeCount} workflow edges`} />
+        </div>
+        <div className={styles.demoDomainGrid}>
+          {domainItems.map((item) => (
+            <div key={item.label} className={styles.demoDomainItem}>
+              <span className={styles.metricLabel}>{item.label}</span>
+              <strong>{item.value}</strong>
+              <span>{item.detail || "pending evidence"}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.demoEvidence} data-testid="product-demo-evidence">
+        <div>
+          <span className={styles.navLabel}>Evidence</span>
+          <h3 className={styles.demoCardTitle}>{overview.nextSafeAction}</h3>
+        </div>
+        <div className={styles.demoEvidenceGrid}>
+          <PostureItem
+            label="Raw idea state"
+            value={rawIdeaOperatorOwned ? "operator-owned" : "not started"}
+          />
+          <PostureItem
+            label="No direct writes"
+            value={noWriteAuthority ? "yes" : "review needed"}
+          />
+          <PostureItem
+            label="Idea maturity"
+            value={
+              maturity.available
+                ? compact(maturity.report.derivedState.lifecycleState, maturity.status)
+                : maturity.status
+            }
+          />
+          <PostureItem
+            label="Next"
+            value={compact(overview.primaryTargetSection, "review candidate")}
+          />
+        </div>
+      </section>
+    </section>
+  );
+}
+
 function ProductWorkspaceOverviewSection({
   overview,
   workspace,
@@ -1304,6 +1582,8 @@ function ProductWorkspaceOverviewSection({
   const lastHandoffHref = overview.lastSuccessfulHandoff.targetSection
     ? `#${overview.lastSuccessfulHandoff.targetSection}`
     : null;
+  const currentPath = currentBrowserPath();
+  const demoViewHref = `${currentPath ?? workspace.publicRoute ?? ""}?view=demo`;
   return (
     <section
       id="idea-to-spec-product-workspace-overview"
@@ -1318,7 +1598,16 @@ function ProductWorkspaceOverviewSection({
           <span className={styles.rowId}>
             {workspace.displayName ?? workspace.id ?? "Product workspace"}
           </span>
-          <Pill value={overview.status.replace(/_/g, " ")} />
+          <div className={styles.statusGroup}>
+            <a
+              className={styles.actionButton}
+              href={demoViewHref}
+              data-testid="product-demo-view-link"
+            >
+              Demo view
+            </a>
+            <Pill value={overview.status.replace(/_/g, " ")} />
+          </div>
         </div>
         <h3 className={styles.title} data-testid="product-workspace-overview-next-action">
           {overview.nextSafeAction}
@@ -1366,6 +1655,16 @@ function ProductWorkspaceOverviewSection({
             </span>
           </a>
         ) : null}
+        <a
+          className={styles.guidedStage}
+          href={demoViewHref}
+        >
+          <span className={styles.navLabel}>Demo view</span>
+          <span className={styles.navHint}>
+            Open a presentation projection for pitching this product workspace.
+          </span>
+          <span className={styles.guidedStageMeta}>readonly projection</span>
+        </a>
         {lastHandoffHref ? (
           <a className={styles.guidedStage} href={lastHandoffHref}>
             <span className={styles.navLabel}>Last successful handoff</span>

@@ -209,6 +209,10 @@ export function ViewerPage({
   workspace = SPECGRAPH_BOOTSTRAP_WORKSPACE,
 }: ViewerPageProps) {
   const productWorkspace = workspace.surfaceMode === "product_idea_to_spec";
+  const productDemoView =
+    productWorkspace &&
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("view") === "demo";
   const workspaceSwitcherItems = useMemo(() => {
     if (SPECSPACE_WORKSPACES.some((item) => item.id === workspace.id)) {
       return SPECSPACE_WORKSPACES;
@@ -1048,6 +1052,52 @@ export function ViewerPage({
         return null;
     }
   })();
+  const ideaToSpecPanel = (
+    <IdeaToSpecWorkspacePanel
+      state={ideaToSpecWorkspaceState}
+      repairDraftsUrl={workspaceApiUrls.ideaToSpecRepairDrafts}
+      intakeClarificationAnswersUrl={
+        workspaceApiUrls.ideaToSpecIntakeClarificationAnswers
+      }
+      realIdeaEntryRequestsUrl={workspaceApiUrls.realIdeaEntryRequests}
+      realIdeaIntakeExecutionRequestsUrl={
+        workspaceApiUrls.realIdeaIntakeExecutionRequests
+      }
+      realIdeaIntakeExecuteUrl={workspaceApiUrls.realIdeaIntakeExecute}
+      realIdeaAnswerContinuationExecutionRequestsUrl={
+        workspaceApiUrls.realIdeaAnswerContinuationExecutionRequests
+      }
+      realIdeaAnswerContinuationExecuteUrl={
+        workspaceApiUrls.realIdeaAnswerContinuationExecute
+      }
+      repairRerunRequestsUrl={workspaceApiUrls.ideaToSpecRepairRerunRequests}
+      repairRerunRequestGateExecuteUrl={
+        workspaceApiUrls.ideaToSpecRepairRerunRequestGateExecute
+      }
+      repairRerunExecuteUrl={workspaceApiUrls.ideaToSpecRepairRerunExecute}
+      repairRerunPublishUrl={workspaceApiUrls.ideaToSpecRepairRerunPublish}
+      candidateApprovalIntentsUrl={workspaceApiUrls.ideaToSpecCandidateApprovalIntents}
+      candidateApprovalExecuteUrl={workspaceApiUrls.ideaToSpecCandidateApprovalExecute}
+      promotionRequestExecuteUrl={workspaceApiUrls.ideaToSpecPromotionRequestExecute}
+      promotionExecuteUrl={workspaceApiUrls.ideaToSpecPromotionExecute}
+      promotionReviewExecuteUrl={workspaceApiUrls.ideaToSpecPromotionReviewExecute}
+      reviewStatusExecuteUrl={workspaceApiUrls.ideaToSpecReviewStatusExecute}
+      readModelPublicationExecuteUrl={
+        workspaceApiUrls.ideaToSpecReadModelPublicationExecute
+      }
+      projectLocalOntologyReviewDecisionsUrl={
+        workspaceApiUrls.projectLocalOntologyReviewDecisions
+      }
+      productWorkspaceInitializationExecuteUrl={
+        workspaceApiUrls.productWorkspaceInitializationExecute
+      }
+      repairRerunRequestsRefreshKey={runsWatchVersion}
+      onWorkspaceRefreshRequest={() =>
+        setIdeaToSpecWorkspaceRefreshKey((current) => current + 1)
+      }
+      demoView={productDemoView}
+    />
+  );
 
   useEffect(() => {
     if (!productWorkspace) return;
@@ -1103,6 +1153,10 @@ export function ViewerPage({
     specSelectionHistory.forward.length,
     utilityPanelExpanded,
   ]);
+
+  if (productDemoView) {
+    return <main className={styles.productDemoShell}>{ideaToSpecPanel}</main>;
+  }
 
   return (
     <div className={styles.root}>
@@ -1698,51 +1752,7 @@ export function ViewerPage({
           ) : null}
 
           {activeUtilityPanel === "idea-to-spec" ? (
-            <IdeaToSpecWorkspacePanel
-              state={ideaToSpecWorkspaceState}
-              repairDraftsUrl={workspaceApiUrls.ideaToSpecRepairDrafts}
-              intakeClarificationAnswersUrl={
-                workspaceApiUrls.ideaToSpecIntakeClarificationAnswers
-              }
-              realIdeaEntryRequestsUrl={workspaceApiUrls.realIdeaEntryRequests}
-              realIdeaIntakeExecutionRequestsUrl={
-                workspaceApiUrls.realIdeaIntakeExecutionRequests
-              }
-              realIdeaIntakeExecuteUrl={workspaceApiUrls.realIdeaIntakeExecute}
-              realIdeaAnswerContinuationExecutionRequestsUrl={
-                workspaceApiUrls.realIdeaAnswerContinuationExecutionRequests
-              }
-              realIdeaAnswerContinuationExecuteUrl={
-                workspaceApiUrls.realIdeaAnswerContinuationExecute
-              }
-              repairRerunRequestsUrl={workspaceApiUrls.ideaToSpecRepairRerunRequests}
-              repairRerunRequestGateExecuteUrl={
-                workspaceApiUrls.ideaToSpecRepairRerunRequestGateExecute
-              }
-              repairRerunExecuteUrl={workspaceApiUrls.ideaToSpecRepairRerunExecute}
-              repairRerunPublishUrl={workspaceApiUrls.ideaToSpecRepairRerunPublish}
-              candidateApprovalIntentsUrl={workspaceApiUrls.ideaToSpecCandidateApprovalIntents}
-              candidateApprovalExecuteUrl={workspaceApiUrls.ideaToSpecCandidateApprovalExecute}
-              promotionRequestExecuteUrl={workspaceApiUrls.ideaToSpecPromotionRequestExecute}
-              promotionExecuteUrl={workspaceApiUrls.ideaToSpecPromotionExecute}
-              promotionReviewExecuteUrl={
-                workspaceApiUrls.ideaToSpecPromotionReviewExecute
-              }
-              reviewStatusExecuteUrl={workspaceApiUrls.ideaToSpecReviewStatusExecute}
-              readModelPublicationExecuteUrl={
-                workspaceApiUrls.ideaToSpecReadModelPublicationExecute
-              }
-              projectLocalOntologyReviewDecisionsUrl={
-                workspaceApiUrls.projectLocalOntologyReviewDecisions
-              }
-              productWorkspaceInitializationExecuteUrl={
-                workspaceApiUrls.productWorkspaceInitializationExecute
-              }
-              repairRerunRequestsRefreshKey={runsWatchVersion}
-              onWorkspaceRefreshRequest={() =>
-                setIdeaToSpecWorkspaceRefreshKey((current) => current + 1)
-              }
-            />
+            ideaToSpecPanel
           ) : null}
 
           {activeUtilityPanel === "ontology-workbench" ? (
