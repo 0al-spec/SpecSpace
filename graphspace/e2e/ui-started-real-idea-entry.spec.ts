@@ -3309,8 +3309,23 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     await expect(page.getByTestId("product-demo-presentation")).toBeVisible();
     await expect(page.locator('[aria-label="SpecGraph canvas"]')).toHaveCount(0);
     await expect(page.locator('[aria-label="SpecSpace Sidebar"]')).toHaveCount(0);
+    await expect(page.getByTestId("product-demo-story-original-idea")).toContainText(
+      productDemoRawIdea,
+    );
+    await expect(page.getByTestId("product-demo-story-understood-domain")).toContainText(
+      "Record pantry item",
+    );
+    await expect(page.getByTestId("product-demo-story-generated-candidate")).toContainText(
+      "Candidate generated",
+    );
+    await expect(page.getByTestId("product-demo-story-next-safe-action")).toContainText(
+      "Next safe action",
+    );
     await expect(page.getByTestId("product-demo-candidate")).toContainText(
       "Candidate generated",
+    );
+    await expect(page.getByTestId("product-demo-controls")).toContainText(
+      "Platform-owned execution",
     );
     await expect(page.getByTestId("product-demo-domain")).toContainText(
       "Record pantry item",

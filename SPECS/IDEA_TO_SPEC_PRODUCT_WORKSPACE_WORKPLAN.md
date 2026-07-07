@@ -816,6 +816,12 @@ Follow-up:
   controlled execution evidence, and next safe action for pitch/live demo use.
   The product demo harness now captures `08-demo-view.png` and the live target
   pauses on the presentation projection rather than the dense operator console.
+- Demo content quality is now covered by the local product demo harness. The
+  presentation view renders a compact story sequence: original operator-owned
+  idea, interpreted domain frame, generated candidate evidence, and next safe
+  action. The E2E assertion checks that this story comes from the fresh
+  `local-pantry-demo` workspace and not from the Team Decision Log demo
+  artifacts.
 
 ## Accepted Constraints And Runbook Notes
 

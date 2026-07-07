@@ -287,6 +287,20 @@
   overflow-wrap: anywhere;
 }
 
+.demoStoryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-rule-soft);
+}
+
+.demoStoryCard {
+  min-width: 0;
+  padding: var(--gs-space-6);
+  background: var(--gs-paper);
+}
+
 .demoGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
@@ -309,6 +323,25 @@
   font-size: 22px;
   font-weight: 400;
   line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.demoStoryDetail {
+  margin: var(--gs-space-4) 0 0;
+  color: var(--gs-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.demoStoryEvidence {
+  display: block;
+  margin-top: var(--gs-space-4);
+  color: var(--gs-muted-2);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
@@ -1220,6 +1253,18 @@
 
   .demoGraphInspector {
     min-height: 260px;
+  }
+
+  .demoHero,
+  .demoGrid,
+  .demoStoryGrid,
+  .demoDomainGrid,
+  .demoEvidence {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .demoHeroActions {
+    justify-content: flex-start;
   }
 
   .navGrid,
