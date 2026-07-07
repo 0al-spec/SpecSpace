@@ -823,6 +823,10 @@ contracts or execution boundaries, update the corresponding repo as well:
 - Platform: controlled execution wrappers, Git Service handoff, product
   runbooks, smoke profiles.
 - Metrics: idea maturity schema/validator contracts.
+- Feature Passport: external authority for future feature evidence receipt,
+  ladder, and claim-evaluation semantics. SpecSpace Feature Evidence UI work
+  must wait for SpecGraph safe derived artifacts and producer schemas aligned
+  with `FP-RFC-0001` `0.2.0`.
 - Agent Surface: future action/receipt/grant vocabulary for managed operations
   once the protocol draft is stable enough to version against.
 

@@ -27,6 +27,11 @@ SpecSpace intends to use the Agent Surface Protocol as the future vocabulary
 for describing Product Workspace operations to agents and external runtimes.
 That alignment is not a production conformance claim yet.
 
+Feature Passport evidence is a separate future viewer line. SpecSpace should
+not normalize managed-operation reports into Feature Passport receipts or infer
+Feature Evidence ladder state locally; it should wait for SpecGraph-owned
+derived artifacts aligned with `FP-RFC-0001` `0.2.0`.
+
 Current state:
 
 - SpecSpace has an internal managed operation registry with operation ids,
