@@ -558,15 +558,20 @@ jobs:
           SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL: ${{ vars.SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL || 'https://specgraph.tech/workspaces/team-decision-log' }}
         run: |
           set -euo pipefail
+          set +e
           python scripts/product_workspace_production_smoke.py \
             --base-url "$SPECSPACE_DEPLOY_URL" \
             --workspace "$SPECSPACE_PRODUCT_WORKSPACE_ID" \
             --artifact-base "$SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL" \
             --expect-managed-mode read_only \
             --format json > "$RUNNER_TEMP/product-workspace-production-smoke.json"
+          smoke_status=$?
+          set -e
           cat "$RUNNER_TEMP/product-workspace-production-smoke.json"
+          exit "$smoke_status"
 
       - name: Upload product workspace production smoke report
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: product-workspace-production-smoke

@@ -151,8 +151,25 @@ class ProductWorkspaceProductionSmokeTests(unittest.TestCase):
         self.assertFalse(report["ok"])
         self.assert_error_check(report, "product_provider")
 
+    def test_wrong_artifact_workspace_id_blocks(self) -> None:
+        payload = _workspace_payload(
+            selected_workspace_id="team-decision-log",
+            workspace={"id": "other-product"},
+        )
+
+        report = _report(payload)
+
+        self.assertFalse(report["ok"])
+        self.assert_error_check(report, "workspace")
+
     def test_legacy_contextbuilder_shell_blocks(self) -> None:
         report = _report(html="<html><body>ContextBuilder Viewer</body></html>")
+
+        self.assertFalse(report["ok"])
+        self.assert_error_check(report, "app_shell")
+
+    def test_contextbuilder_title_shell_blocks(self) -> None:
+        report = _report(html="<html><head><title>ContextBuilder</title></head></html>")
 
         self.assertFalse(report["ok"])
         self.assert_error_check(report, "app_shell")
@@ -162,6 +179,17 @@ class ProductWorkspaceProductionSmokeTests(unittest.TestCase):
         payload["managed_operations_observability"]["operations"][0][
             "authority_boundary"
         ]["may_create_branch_or_commit"] = "false"
+
+        report = _report(payload)
+
+        self.assertFalse(report["ok"])
+        self.assert_error_check(report, "authority_boundary")
+
+    def test_unknown_may_write_authority_flag_blocks(self) -> None:
+        payload = _workspace_payload()
+        payload["managed_operations_observability"]["operations"][0][
+            "authority_boundary"
+        ]["may_run_shell"] = True
 
         report = _report(payload)
 

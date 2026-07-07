@@ -41,6 +41,7 @@ WRITE_AUTHORITY_KEYS = {
 }
 
 LEGACY_SHELL_MARKERS = (
+    "<title>ContextBuilder</title>",
     "ContextBuilder Viewer",
     "ContextBuilder conversation",
     "legacy ContextBuilder",
@@ -122,7 +123,7 @@ def _false_authority_errors(value: Any, prefix: str = "") -> list[JsonObject]:
     if isinstance(value, dict):
         for key, child in value.items():
             child_prefix = f"{prefix}.{key}" if prefix else str(key)
-            if key in WRITE_AUTHORITY_KEYS and child is not False:
+            if (key in WRITE_AUTHORITY_KEYS or key.startswith("may_")) and child is not False:
                 _add_error(
                     errors,
                     "authority_boundary",
@@ -169,11 +170,18 @@ def validate_smoke_payloads(
 
     selected_workspace = workspace_payload.get("selected_workspace_id")
     workspace = _as_dict(workspace_payload.get("workspace"))
-    if selected_workspace != config.workspace and workspace.get("id") != config.workspace:
+    workspace_id = workspace.get("id")
+    if workspace_id != config.workspace:
         _add_error(
             errors,
             "workspace",
-            f"selected workspace must be {config.workspace!r}",
+            f"artifact workspace.id must be {config.workspace!r}",
+        )
+    if selected_workspace is not None and selected_workspace != config.workspace:
+        _add_error(
+            errors,
+            "workspace",
+            f"selected_workspace_id must be {config.workspace!r}",
         )
 
     source = _as_dict(workspace_payload.get("source"))
