@@ -2485,6 +2485,37 @@ test("opens a new idea workspace from the sidebar wizard entry point", async ({ 
   }
 });
 
+test("opens a presentation demo view from product workspace overview", async ({
+  page,
+}) => {
+  const backend = await startSpecSpaceBackend();
+  try {
+    await installRunsWatchMock(page);
+    await installIdeaToSpecApiRoutes(page, backend.baseUrl);
+
+    await page.goto(`/${workspaceId}`);
+    await expect(page.getByText("Product workspace overview")).toBeVisible();
+    await page.getByTestId("product-demo-view-link").click();
+
+    await expect(page).toHaveURL(/\/team-decision-log\?view=demo$/);
+    await expect(page.getByTestId("product-demo-presentation")).toBeVisible();
+    await expect(page.locator('[aria-label="SpecGraph canvas"]')).toHaveCount(0);
+    await expect(page.locator('[aria-label="SpecSpace Sidebar"]')).toHaveCount(0);
+    await expect(page.getByText("Product demo view")).toBeVisible();
+    await expect(page.getByTestId("product-demo-candidate")).toContainText(
+      "Candidate generated",
+    );
+    await expect(page.getByTestId("product-demo-controls")).toContainText(
+      "Controlled execution",
+    );
+    await expect(page.getByTestId("product-demo-evidence")).toContainText(
+      "Raw idea state",
+    );
+  } finally {
+    await backend.stop();
+  }
+});
+
 test("explains unavailable workspace creation API from the sidebar wizard", async ({
   page,
 }) => {
@@ -3258,6 +3289,23 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     await expect(page.getByText("active_candidate_review_required").first()).toBeVisible();
     await captureProductDemoScreenshot(page, artifactDir, "07-candidate-review-state");
 
+    await page.goto(`/${productDemoWorkspaceId}?view=demo`, {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(page.getByTestId("product-demo-presentation")).toBeVisible();
+    await expect(page.locator('[aria-label="SpecGraph canvas"]')).toHaveCount(0);
+    await expect(page.locator('[aria-label="SpecSpace Sidebar"]')).toHaveCount(0);
+    await expect(page.getByTestId("product-demo-candidate")).toContainText(
+      "Candidate generated",
+    );
+    await expect(page.getByTestId("product-demo-domain")).toContainText(
+      "Record pantry item",
+    );
+    await expect(page.getByTestId("product-demo-evidence")).toContainText(
+      "Raw idea state",
+    );
+    await captureProductDemoScreenshot(page, artifactDir, "08-demo-view");
+
     const activeCandidate = JSON.parse(
       await readFile(path.join(specGraphRunDir, "active_idea_to_spec_candidate.json"), "utf8"),
     ) as {
@@ -3290,6 +3338,7 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
         "05-clarification-questions.png",
         "06-clarification-answered.png",
         "07-candidate-review-state.png",
+        "08-demo-view.png",
       ],
     };
     await writeProductDemoReport(artifactDir, reportPayload);

@@ -810,13 +810,12 @@ Follow-up:
   and `candidate_review`. Current coverage exercises route-only,
   creation-requested, initialized, clarification, repair, approval, and
   published states.
-- Improve live product-demo presentation. The Playwright product demo harness
-  proves the execution flow and captures screenshots, but the final view can
-  still feel cramped because the graph canvas, sidebar focus mode, and utility
-  panel compete for space. A follow-up should add a demo-friendly visual mode
-  or route state that emphasizes the candidate graph, Product Workspace
-  overview, guided clarification/repair state, and public-safety checks without
-  requiring the operator to manually resize panels during a live walkthrough.
+- Product demo presentation view is now a read-only projection at
+  `?view=demo`. It keeps the operator console intact while presenting the
+  workspace story, lifecycle timeline, candidate summary, domain understanding,
+  controlled execution evidence, and next safe action for pitch/live demo use.
+  The product demo harness now captures `08-demo-view.png` and the live target
+  pauses on the presentation projection rather than the dense operator console.
 
 ## Accepted Constraints And Runbook Notes
 
