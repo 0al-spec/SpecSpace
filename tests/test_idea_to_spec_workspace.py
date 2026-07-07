@@ -3228,6 +3228,96 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["authority_boundary"]["may_create_branch_or_commit"]
         )
 
+    def test_controlled_promotion_sanitizes_local_display_paths(self) -> None:
+        artifacts = _workspace_artifacts()
+        approval_execution = _candidate_approval_execution()
+        approval_execution["gate_report_ref"] = (
+            "/Users/egor/Development/GitHub/0AL/SpecGraph/runs/"
+            "platform_candidate_approval_intent_gate_report.json"
+        )
+        approval_execution["candidate_approval_decision_ref"] = (
+            "/Users/egor/Development/GitHub/0AL/SpecGraph/runs/"
+            "candidate_approval_decision.json"
+        )
+        approval_execution["output_artifacts"]["gate_report"]["path"] = (
+            "/Users/egor/Development/GitHub/0AL/SpecGraph/runs/"
+            "platform_candidate_approval_intent_gate_report.json"
+        )
+        product_execution = _product_promotion_execution()
+        product_execution["repository_dir"] = (
+            "/Users/egor/Development/GitHub/0AL/SpecGraph"
+        )
+        product_execution["workspace_dir"] = (
+            "/private/tmp/specgraph-product-promotion-review-worktree"
+        )
+        product_execution["materialized_source_dir"] = (
+            "/Users/egor/Development/GitHub/0AL/SpecGraph/runs/"
+            "materialized_candidate_specs"
+        )
+        product_execution["child_report_refs"] = {
+            "prepare_worktree": (
+                "/private/tmp/specgraph-product-promotion-review-worktree/.platform/"
+                "graph_repository_worktree_prepare_report.json"
+            )
+        }
+        product_execution["git_service_execution"]["workspace_dir"] = (
+            "/private/tmp/specgraph-product-promotion-review-worktree"
+        )
+        product_execution["git_service_execution"]["operations"][0]["report_ref"] = (
+            "/private/tmp/specgraph-product-promotion-review-worktree/.platform/"
+            "graph_repository_worktree_prepare_report.json"
+        )
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+        ] = approval_execution
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+        ] = product_execution
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        ] = _product_review_status("merged")
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+        ] = _product_read_model_publication(published=True)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        controlled_promotion = body["controlled_promotion"]
+        rendered = json.dumps(controlled_promotion, sort_keys=True)
+        for prefix in ("/Users/", "/home/", "/tmp/", "/private/tmp/", "file://"):
+            self.assertNotIn(prefix, rendered)
+        self.assertEqual(
+            controlled_promotion["candidate_approval_execution"]["gate_report_ref"],
+            "runs/platform_candidate_approval_intent_gate_report.json",
+        )
+        self.assertEqual(
+            controlled_promotion["product_promotion_execution"]["workspace_dir"],
+            "local:specgraph-product-promotion-review-worktree",
+        )
+        self.assertEqual(
+            controlled_promotion["product_promotion_execution"]["repository_dir"],
+            "local:SpecGraph",
+        )
+        self.assertEqual(
+            controlled_promotion["product_promotion_execution"][
+                "materialized_source_dir"
+            ],
+            "runs/materialized_candidate_specs",
+        )
+        self.assertEqual(
+            controlled_promotion["product_promotion_execution"]["child_report_refs"][
+                "prepare_worktree"
+            ],
+            ".platform/graph_repository_worktree_prepare_report.json",
+        )
+        self.assertEqual(
+            controlled_promotion["read_model_publication"]["output_dir"],
+            "local:published-read-model",
+        )
+
     def test_guided_repair_path_counts_only_accepted_product_answers(self) -> None:
         artifacts = _workspace_artifacts()
         requests = _clarification_requests()

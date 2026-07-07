@@ -912,6 +912,50 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.kind).toBe("parse-error");
   });
 
+  it("sanitizes controlled promotion local display refs", () => {
+    const payload: any = structuredClone(ideaToSpecWorkspace);
+    payload.controlled_promotion.candidate_approval_execution.gate_report_ref =
+      "/Users/egor/Development/GitHub/0AL/SpecGraph/runs/platform_candidate_approval_intent_gate_report.json";
+    payload.controlled_promotion.candidate_approval_execution.candidate_approval_decision_ref =
+      "/Users/egor/Development/GitHub/0AL/SpecGraph/runs/candidate_approval_decision.json";
+    payload.controlled_promotion.product_promotion_execution.workspace_dir =
+      "/private/tmp/specgraph-product-promotion-review-worktree";
+    payload.controlled_promotion.product_promotion_execution.repository_dir =
+      "/Users/egor/Development/GitHub/0AL/SpecGraph";
+    payload.controlled_promotion.product_promotion_execution.materialized_source_dir =
+      "/Users/egor/Development/GitHub/0AL/SpecGraph/runs/materialized_candidate_specs";
+    payload.controlled_promotion.product_promotion_execution.child_report_refs = {
+      prepare_worktree:
+        "/private/tmp/specgraph-product-promotion-review-worktree/.platform/graph_repository_worktree_prepare_report.json",
+    };
+    payload.controlled_promotion.review_status.graph_repository_review_status_report_ref =
+      "/private/tmp/specgraph-product-promotion-review-worktree/.platform/graph_repository_review_status_report.json";
+    payload.controlled_promotion.read_model_publication.output_dir =
+      "/private/tmp/specgraph-read-model/team-decision-log";
+    payload.controlled_promotion.read_model_publication.bundle_dir =
+      "/Users/egor/Development/GitHub/0AL/SpecGraph/dist/specgraph-public";
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    const rendered = JSON.stringify(parsed.data.controlledPromotion);
+    expect(rendered).not.toContain("/Users/");
+    expect(rendered).not.toContain("/tmp/");
+    expect(rendered).not.toContain("/private/tmp/");
+    expect(rendered).toContain(
+      "runs/platform_candidate_approval_intent_gate_report.json",
+    );
+    expect(rendered).toContain(
+      "local:specgraph-product-promotion-review-worktree",
+    );
+    expect(rendered).toContain(
+      ".platform/graph_repository_worktree_prepare_report.json",
+    );
+    expect(rendered).toContain("local:team-decision-log");
+    expect(rendered).toContain("local:specgraph-public");
+  });
+
   it("rejects candidate overview action expansion", () => {
     const parsed = parseIdeaToSpecWorkspace({
       ...ideaToSpecWorkspace,

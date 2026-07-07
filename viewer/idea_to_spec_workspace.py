@@ -557,6 +557,49 @@ def _optional_text(value: Any) -> str | None:
     return text or None
 
 
+def _safe_display_ref(value: Any) -> str | None:
+    text = _optional_text(value)
+    if text is None:
+        return None
+    normalized = text.replace("\\", "/")
+    for marker, prefix in (
+        ("/runs/", "runs/"),
+        ("/dist/specgraph-public/", "dist/specgraph-public/"),
+        ("/.platform/", ".platform/"),
+    ):
+        if marker in normalized:
+            return f"{prefix}{normalized.rsplit(marker, 1)[1]}"
+    if normalized.startswith("file://"):
+        normalized = normalized.removeprefix("file://")
+    if normalized.startswith(("/", "~", "../")):
+        local_name = normalized.rstrip("/").rsplit("/", 1)[-1]
+        return f"local:{local_name}" if local_name else "local:path"
+    return normalized
+
+
+def _safe_display_refs(value: Any) -> list[str]:
+    refs = []
+    for item in _string_list(value):
+        ref = _safe_display_ref(item)
+        if ref is not None:
+            refs.append(ref)
+    return refs
+
+
+def _safe_display_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return _safe_display_ref(value)
+    if isinstance(value, list):
+        return [_safe_display_value(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _safe_display_value(item) for key, item in value.items()}
+    return value
+
+
+def _safe_display_record(value: Any) -> dict[str, Any]:
+    return _safe_display_value(_record(value))
+
+
 def _number(value: Any) -> int:
     if isinstance(value, bool):
         return 0
@@ -3724,7 +3767,7 @@ def _platform_promotion_request(report: dict[str, Any] | None) -> dict[str, Any]
         "ok": (report or {}).get("ok") is True,
         "candidate_id": _optional_text((report or {}).get("candidate_id")),
         "candidate_branch": _optional_text((report or {}).get("candidate_branch")),
-        "commit_paths": _string_list((report or {}).get("commit_paths")),
+        "commit_paths": _safe_display_refs((report or {}).get("commit_paths")),
         "requested_operations": _string_list(
             (report or {}).get("requested_operations")
         ),
@@ -3749,7 +3792,7 @@ def _candidate_approval_decision(report: dict[str, Any] | None) -> dict[str, Any
         "operator_ref": _optional_text(decision.get("operator_ref")),
         "reason": _optional_text(decision.get("reason")),
         "candidate_id": _optional_text(candidate.get("candidate_id")),
-        "promotion_paths": _string_list(
+        "promotion_paths": _safe_display_refs(
             _record((report or {}).get("promotion_request")).get("paths")
         ),
         "blocked_by": _string_list(readiness.get("blocked_by")),
@@ -3769,11 +3812,11 @@ def _candidate_approval_execution(report: dict[str, Any] | None) -> dict[str, An
         or _optional_text(summary.get("candidate_id")),
         "workspace_id": _optional_text((report or {}).get("workspace_id"))
         or _optional_text(summary.get("workspace_id")),
-        "gate_report_ref": _optional_text((report or {}).get("gate_report_ref")),
-        "candidate_approval_decision_ref": _optional_text(
+        "gate_report_ref": _safe_display_ref((report or {}).get("gate_report_ref")),
+        "candidate_approval_decision_ref": _safe_display_ref(
             (report or {}).get("candidate_approval_decision_ref")
         ),
-        "approval_intent_ref": _optional_text(
+        "approval_intent_ref": _safe_display_ref(
             (report or {}).get("approval_intent_ref")
         ),
         "approved_path_count": _number(summary.get("approved_path_count")),
@@ -3801,7 +3844,7 @@ def _git_service_operations(report: dict[str, Any] | None) -> list[dict[str, Any
                 "response_artifact_kind": _optional_text(
                     item.get("response_artifact_kind")
                 ),
-                "report_ref": _optional_text(item.get("report_ref")),
+                "report_ref": _safe_display_ref(item.get("report_ref")),
                 "diagnostic_count": len(_records(item.get("diagnostics"))),
             }
         )
@@ -3817,13 +3860,13 @@ def _git_service_execution(report: dict[str, Any] | None) -> dict[str, Any]:
         "open_review_dry_run": (report or {}).get("open_review_dry_run") is True,
         "candidate_id": _optional_text((report or {}).get("candidate_id")),
         "candidate_ref": _optional_text((report or {}).get("candidate_ref")),
-        "workspace_dir": _optional_text((report or {}).get("workspace_dir")),
+        "workspace_dir": _safe_display_ref((report or {}).get("workspace_dir")),
         "operation_count": _number(summary.get("operation_count")),
         "completed_operation_count": _number(summary.get("completed_operation_count")),
         "error_count": _number(summary.get("error_count")),
         "copied_file_count": len(_records((report or {}).get("copied_materialized_files"))),
         "operations": _git_service_operations(report),
-        "report_refs": _record((report or {}).get("report_refs")),
+        "report_refs": _safe_display_record((report or {}).get("report_refs")),
     }
 
 
@@ -3849,19 +3892,19 @@ def _product_promotion_execution(report: dict[str, Any] | None) -> dict[str, Any
         "candidate_id": _optional_text((report or {}).get("candidate_id")),
         "candidate_branch": _optional_text((report or {}).get("candidate_branch"))
         or _optional_text(git_review.get("candidate_branch")),
-        "workspace_dir": _optional_text((report or {}).get("workspace_dir"))
-        or _optional_text(git_review.get("worktree_dir")),
-        "repository_dir": _optional_text((report or {}).get("repository_dir")),
-        "materialized_source_dir": _optional_text(
+        "workspace_dir": _safe_display_ref((report or {}).get("workspace_dir"))
+        or _safe_display_ref(git_review.get("worktree_dir")),
+        "repository_dir": _safe_display_ref((report or {}).get("repository_dir")),
+        "materialized_source_dir": _safe_display_ref(
             (report or {}).get("materialized_source_dir")
         ),
-        "promotion_request_ref": _optional_text(
+        "promotion_request_ref": _safe_display_ref(
             (report or {}).get("promotion_request_ref")
         ),
-        "approval_decision_ref": _optional_text(
+        "approval_decision_ref": _safe_display_ref(
             (report or {}).get("approval_decision_ref")
         ),
-        "git_service_execution_report_ref": _optional_text(
+        "git_service_execution_report_ref": _safe_display_ref(
             (report or {}).get("git_service_execution_report_ref")
         ),
         "commit_sha": _optional_text(git_review.get("commit_sha")),
@@ -3881,7 +3924,9 @@ def _product_promotion_execution(report: dict[str, Any] | None) -> dict[str, Any
         "diagnostic_count": len(_records((report or {}).get("diagnostics"))),
         "operations": operations,
         "git_service_operations": _git_service_operations(git_service_execution),
-        "child_report_refs": _record((report or {}).get("child_report_refs")),
+        "child_report_refs": _safe_display_record(
+            (report or {}).get("child_report_refs")
+        ),
     }
 
 
@@ -3937,10 +3982,10 @@ def _review_status(report: dict[str, Any] | None) -> dict[str, Any]:
         "merged_at": _optional_text(pull_request.get("mergedAt")),
         "merge_commit": _optional_text(_record(pull_request.get("mergeCommit")).get("oid")),
         "review_merged": review_merged,
-        "promotion_execution_report_ref": _optional_text(
+        "promotion_execution_report_ref": _safe_display_ref(
             (report or {}).get("promotion_execution_report_ref")
         ),
-        "graph_repository_review_status_report_ref": _optional_text(
+        "graph_repository_review_status_report_ref": _safe_display_ref(
             (report or {}).get("graph_repository_review_status_report_ref")
         ),
         "operation_count": len(_records((report or {}).get("operations"))),
@@ -3993,24 +4038,24 @@ def _read_model_publication(report: dict[str, Any] | None) -> dict[str, Any]:
         "candidate_id": _optional_text((report or {}).get("candidate_id")),
         "candidate_branch": _optional_text((report or {}).get("candidate_branch")),
         "review_state": _optional_text((report or {}).get("review_state")),
-        "manifest": _optional_text(
+        "manifest": _safe_display_ref(
             summary.get("published_manifest")
             or (report or {}).get("manifest")
             or (report or {}).get("manifest_name")
         ),
         "manifest_name": _optional_text((report or {}).get("manifest_name")),
-        "bundle_dir": _optional_text((report or {}).get("bundle_dir")),
-        "output_dir": _optional_text((report or {}).get("output_dir")),
+        "bundle_dir": _safe_display_ref((report or {}).get("bundle_dir")),
+        "output_dir": _safe_display_ref((report or {}).get("output_dir")),
         "published": published,
         "read_model_published": published,
         "file_count": file_count,
-        "product_review_status_report_ref": _optional_text(
+        "product_review_status_report_ref": _safe_display_ref(
             (report or {}).get("product_review_status_report_ref")
         ),
-        "graph_repository_review_status_report_ref": _optional_text(
+        "graph_repository_review_status_report_ref": _safe_display_ref(
             (report or {}).get("graph_repository_review_status_report_ref")
         ),
-        "graph_repository_publish_read_model_report_ref": _optional_text(
+        "graph_repository_publish_read_model_report_ref": _safe_display_ref(
             (report or {}).get("graph_repository_publish_read_model_report_ref")
         ),
         "operation_count": len(_records((report or {}).get("operations"))),
@@ -4032,7 +4077,7 @@ def _promotion_finalization(report: dict[str, Any] | None) -> dict[str, Any]:
         "completed_operation_count": _number(summary.get("completed_operation_count")),
         "error_count": _number(summary.get("error_count")),
         "operations": _git_service_operations(report),
-        "report_refs": _record((report or {}).get("report_refs")),
+        "report_refs": _safe_display_record((report or {}).get("report_refs")),
     }
 
 
@@ -4048,7 +4093,7 @@ def _product_repair_rerun_operations(
                 "name": _text(item.get("name"), "operation"),
                 "status": _text(item.get("status"), "unknown"),
                 "reason": _optional_text(item.get("reason")),
-                "evidence": _string_list(item.get("evidence")),
+                "evidence": _safe_display_refs(item.get("evidence")),
             }
         )
     return rows
@@ -4067,7 +4112,7 @@ def _product_repair_rerun_output_artifacts(
         rows.append(
             {
                 "key": _text(key, "artifact"),
-                "path": _optional_text(item.get("path")),
+                "path": _safe_display_ref(item.get("path")),
                 "present": item.get("present") is True,
                 "artifact_kind": _optional_text(item.get("artifact_kind")),
                 "contract_ref": _optional_text(item.get("contract_ref")),

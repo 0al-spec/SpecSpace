@@ -1975,6 +1975,57 @@ function optionalString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function displayRef(value: unknown): string | null {
+  const text = optionalString(value);
+  if (!text) return null;
+  let normalized = text.replace(/\\/g, "/");
+  const markerPairs: readonly [string, string][] = [
+    ["/runs/", "runs/"],
+    ["/dist/specgraph-public/", "dist/specgraph-public/"],
+    ["/.platform/", ".platform/"],
+  ];
+  for (const [marker, prefix] of markerPairs) {
+    const index = normalized.lastIndexOf(marker);
+    if (index >= 0) {
+      return `${prefix}${normalized.slice(index + marker.length)}`;
+    }
+  }
+  if (normalized.startsWith("file://")) {
+    normalized = normalized.slice("file://".length);
+  }
+  if (
+    normalized.startsWith("/") ||
+    normalized.startsWith("~") ||
+    normalized.startsWith("../")
+  ) {
+    const localName = normalized.replace(/\/+$/g, "").split("/").pop();
+    return localName ? `local:${localName}` : "local:path";
+  }
+  return normalized;
+}
+
+function displayRefs(value: unknown): string[] {
+  return strings(value).flatMap((item) => {
+    const ref = displayRef(item);
+    return ref ? [ref] : [];
+  });
+}
+
+function displayValue(value: unknown): unknown {
+  if (typeof value === "string") return displayRef(value);
+  if (Array.isArray(value)) return value.map(displayValue);
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, displayValue(item)]),
+    );
+  }
+  return value;
+}
+
+function displayRecord(value: unknown): Record<string, unknown> {
+  return recordValue(displayValue(recordValue(value)));
+}
+
 function numberValue(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
@@ -3131,7 +3182,7 @@ function parsePlatformPromotionRequest(
     ok: request.ok === true,
     candidateId: optionalString(request.candidate_id),
     candidateBranch: optionalString(request.candidate_branch),
-    commitPaths: strings(request.commit_paths),
+    commitPaths: displayRefs(request.commit_paths),
     requestedOperations: strings(request.requested_operations),
     review: {
       title: optionalString(review.title),
@@ -3154,7 +3205,7 @@ function parseCandidateApprovalDecision(
     operatorRef: optionalString(approval.operator_ref),
     reason: optionalString(approval.reason),
     candidateId: optionalString(approval.candidate_id),
-    promotionPaths: strings(approval.promotion_paths),
+    promotionPaths: displayRefs(approval.promotion_paths),
     blockedBy: strings(approval.blocked_by),
   };
 }
@@ -3170,11 +3221,11 @@ function parseCandidateApprovalExecution(
     status: optionalString(execution.status),
     candidateId: optionalString(execution.candidate_id),
     workspaceId: optionalString(execution.workspace_id),
-    gateReportRef: optionalString(execution.gate_report_ref),
-    candidateApprovalDecisionRef: optionalString(
+    gateReportRef: displayRef(execution.gate_report_ref),
+    candidateApprovalDecisionRef: displayRef(
       execution.candidate_approval_decision_ref,
     ),
-    approvalIntentRef: optionalString(execution.approval_intent_ref),
+    approvalIntentRef: displayRef(execution.approval_intent_ref),
     approvedPathCount: numberValue(execution.approved_path_count),
     decisionWritten: execution.decision_written === true,
     gateReady: execution.gate_ready === true,
@@ -3202,7 +3253,7 @@ function parseGitServiceOperation(
     status: stringValue(operation.status, "unknown"),
     requestArtifactKind: optionalString(operation.request_artifact_kind),
     responseArtifactKind: optionalString(operation.response_artifact_kind),
-    reportRef: optionalString(operation.report_ref),
+    reportRef: displayRef(operation.report_ref),
     diagnosticCount: numberValue(operation.diagnostic_count),
   };
 }
@@ -3216,7 +3267,7 @@ function parseGitServiceExecution(raw: unknown): IdeaToSpecGitServiceExecution {
     openReviewDryRun: execution.open_review_dry_run === true,
     candidateId: optionalString(execution.candidate_id),
     candidateRef: optionalString(execution.candidate_ref),
-    workspaceDir: optionalString(execution.workspace_dir),
+    workspaceDir: displayRef(execution.workspace_dir),
     operationCount: numberValue(execution.operation_count),
     completedOperationCount: numberValue(execution.completed_operation_count),
     errorCount: numberValue(execution.error_count),
@@ -3225,7 +3276,7 @@ function parseGitServiceExecution(raw: unknown): IdeaToSpecGitServiceExecution {
       const parsed = parseGitServiceOperation(item);
       return parsed ? [parsed] : [];
     }),
-    reportRefs: recordValue(execution.report_refs),
+    reportRefs: displayRecord(execution.report_refs),
   };
 }
 
@@ -3241,12 +3292,12 @@ function parseProductPromotionExecution(
     status: optionalString(execution.status),
     candidateId: optionalString(execution.candidate_id),
     candidateBranch: optionalString(execution.candidate_branch),
-    workspaceDir: optionalString(execution.workspace_dir),
-    repositoryDir: optionalString(execution.repository_dir),
-    materializedSourceDir: optionalString(execution.materialized_source_dir),
-    promotionRequestRef: optionalString(execution.promotion_request_ref),
-    approvalDecisionRef: optionalString(execution.approval_decision_ref),
-    gitServiceExecutionReportRef: optionalString(
+    workspaceDir: displayRef(execution.workspace_dir),
+    repositoryDir: displayRef(execution.repository_dir),
+    materializedSourceDir: displayRef(execution.materialized_source_dir),
+    promotionRequestRef: displayRef(execution.promotion_request_ref),
+    approvalDecisionRef: displayRef(execution.approval_decision_ref),
+    gitServiceExecutionReportRef: displayRef(
       execution.git_service_execution_report_ref,
     ),
     commitSha: optionalString(execution.commit_sha),
@@ -3270,7 +3321,7 @@ function parseProductPromotionExecution(
         return parsed ? [parsed] : [];
       },
     ),
-    childReportRefs: recordValue(execution.child_report_refs),
+    childReportRefs: displayRecord(execution.child_report_refs),
   };
 }
 
@@ -3292,10 +3343,10 @@ function parseReviewStatus(raw: unknown): IdeaToSpecReviewStatus {
     mergedAt: optionalString(status.merged_at),
     mergeCommit: optionalString(status.merge_commit),
     reviewMerged: status.review_merged === true,
-    promotionExecutionReportRef: optionalString(
+    promotionExecutionReportRef: displayRef(
       status.promotion_execution_report_ref,
     ),
-    graphRepositoryReviewStatusReportRef: optionalString(
+    graphRepositoryReviewStatusReportRef: displayRef(
       status.graph_repository_review_status_report_ref,
     ),
     operationCount: numberValue(status.operation_count),
@@ -3319,20 +3370,20 @@ function parseReadModelPublication(raw: unknown): IdeaToSpecReadModelPublication
     candidateId: optionalString(publication.candidate_id),
     candidateBranch: optionalString(publication.candidate_branch),
     reviewState: optionalString(publication.review_state),
-    manifest: optionalString(publication.manifest),
+    manifest: displayRef(publication.manifest),
     manifestName: optionalString(publication.manifest_name),
-    bundleDir: optionalString(publication.bundle_dir),
-    outputDir: optionalString(publication.output_dir),
+    bundleDir: displayRef(publication.bundle_dir),
+    outputDir: displayRef(publication.output_dir),
     published: publication.published === true,
     readModelPublished: publication.read_model_published === true,
     fileCount: numberValue(publication.file_count),
-    productReviewStatusReportRef: optionalString(
+    productReviewStatusReportRef: displayRef(
       publication.product_review_status_report_ref,
     ),
-    graphRepositoryReviewStatusReportRef: optionalString(
+    graphRepositoryReviewStatusReportRef: displayRef(
       publication.graph_repository_review_status_report_ref,
     ),
-    graphRepositoryPublishReadModelReportRef: optionalString(
+    graphRepositoryPublishReadModelReportRef: displayRef(
       publication.graph_repository_publish_read_model_report_ref,
     ),
     operationCount: numberValue(publication.operation_count),
@@ -3362,7 +3413,7 @@ function parsePromotionFinalization(raw: unknown): IdeaToSpecPromotionFinalizati
       const parsed = parseGitServiceOperation(item);
       return parsed ? [parsed] : [];
     }),
-    reportRefs: recordValue(finalization.report_refs),
+    reportRefs: displayRecord(finalization.report_refs),
   };
 }
 
@@ -3376,7 +3427,7 @@ function parseProductRepairRerunOperation(
     name,
     status: stringValue(operation.status, "unknown"),
     reason: optionalString(operation.reason),
-    evidence: strings(operation.evidence),
+    evidence: displayRefs(operation.evidence),
   };
 }
 
@@ -3388,7 +3439,7 @@ function parseProductRepairRerunOutputArtifact(
   if (!key) return null;
   return {
     key,
-    path: optionalString(artifact.path),
+    path: displayRef(artifact.path),
     present: artifact.present === true,
     artifactKind: optionalString(artifact.artifact_kind),
     contractRef: optionalString(artifact.contract_ref),
