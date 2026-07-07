@@ -151,6 +151,17 @@ Expected outputs:
 - screenshots under `screenshots/`, including `08-demo-view.png`;
 - Playwright trace/video under `playwright-output/`.
 
+The final presentation screen is meant to support a short demo script:
+
+1. **Original idea** - the submitted idea is visible as operator-owned state, not
+   as a public/canonical artifact.
+2. **What the system understood** - the frame is summarized as actors,
+   commands, events, and constraints.
+3. **Candidate generated** - SpecGraph evidence is shown as nodes,
+   requirements, acceptance criteria, and topology.
+4. **Next safe action** - SpecSpace points to the next lifecycle step while
+   Platform remains the execution boundary.
+
 The Make target sets `SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1`.
 That fallback is intentional for the demo harness: current real intake may not
 always emit browser-answerable clarification fields. Direct Playwright runs

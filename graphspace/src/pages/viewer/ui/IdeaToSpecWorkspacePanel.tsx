@@ -27,6 +27,7 @@ import type {
   IdeaToSpecIntakeAnswer,
   IdeaToSpecMaterializedFile,
   IdeaToSpecOntologyDecision,
+  IdeaToSpecOverviewItem,
   IdeaToSpecProjectLocalOntologyTerm,
   IdeaToSpecProductRepairRerunPlatformExecution,
   IdeaToSpecRealIdeaAnswerTarget,
@@ -209,6 +210,16 @@ function compact(
 ): string {
   if (value && value.length > 0) return value;
   return fallback && fallback.length > 0 ? fallback : "unknown";
+}
+
+function firstText(
+  ...values: readonly (string | null | undefined)[]
+): string | null {
+  return (
+    values.find(
+      (value) => value !== null && value !== undefined && value.length > 0,
+    ) ?? null
+  );
 }
 
 function boolText(value: boolean): string {
@@ -1311,16 +1322,57 @@ function FreshWorkspaceFocusSection({
   );
 }
 
-function ProductDemoPresentationSection({
-  data,
-  operatorWorkspaceHref,
-}: {
-  data: IdeaToSpecWorkspace;
-  operatorWorkspaceHref?: string;
-}) {
+type ProductDemoStoryCard = {
+  id: string;
+  kicker: string;
+  title: string;
+  detail: string;
+  evidence: string;
+};
+
+type ProductDemoDomainItem = {
+  label: string;
+  value: string;
+  detail: string;
+};
+
+type ProductDemoStory = {
+  candidateAvailable: boolean;
+  rawIdeaOperatorOwned: boolean;
+  noWriteAuthority: boolean;
+  candidateCardLabel: string;
+  subtitle: string;
+  storyCards: readonly ProductDemoStoryCard[];
+  domainItems: readonly ProductDemoDomainItem[];
+  candidateNodeCount: number;
+  completedOperations: string;
+  currentPath: string | null;
+  operatorHref: string;
+};
+
+function readableItemLabel(item: IdeaToSpecOverviewItem): string {
+  return compact(item.label, humanizeIdentifier(item.id));
+}
+
+function humanizeIdentifier(value: string | null | undefined): string {
+  if (!value) return "unknown";
+  const withoutKnownPrefix = value
+    .replace(/^candidate-spec\./, "")
+    .replace(/^candidate\./, "")
+    .replace(/^spec\./, "");
+  return withoutKnownPrefix
+    .replace(/[_\-./]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function productDemoStory(
+  data: IdeaToSpecWorkspace,
+  operatorWorkspaceHref?: string,
+): ProductDemoStory {
   const overview = data.productWorkspaceOverview;
   const candidate = data.candidateOverview;
-  const maturity = data.ideaMaturity;
   const managed = data.managedOperations;
   const rawIdeaOperatorOwned =
     data.workspaceCreation.activeRequest?.rootIntentSummaryPresent === true ||
@@ -1338,7 +1390,7 @@ function ProductDemoPresentationSection({
     !data.authorityBoundary.mayCreateBranchOrCommit &&
     !data.authorityBoundary.mayExecuteGitServiceOperation;
   const graphNodeLabel = (node: IdeaToSpecCandidateNode): string =>
-    compact(node.title, node.id);
+    compact(node.title, humanizeIdentifier(node.id));
   const graphNodeText = (node: IdeaToSpecCandidateNode): string =>
     `${node.kind ?? ""} ${node.id} ${node.title ?? ""}`.toLowerCase();
   const graphNodeFallbacks = (kind: string): readonly string[] =>
@@ -1350,12 +1402,10 @@ function ProductDemoPresentationSection({
     .slice(0, 3)
     .map(graphNodeLabel);
   const overviewDetails = (
-    items: readonly { id: string; label: string | null }[],
+    items: readonly IdeaToSpecOverviewItem[],
     fallback: readonly string[] = [],
   ): string => {
-    const overviewValues = items
-      .slice(0, 3)
-      .map((item) => compact(item.label, item.id));
+    const overviewValues = items.slice(0, 3).map(readableItemLabel);
     return joined(overviewValues.length > 0 ? overviewValues : fallback, "");
   };
   const overviewCount = (
@@ -1368,7 +1418,7 @@ function ProductDemoPresentationSection({
   const constraintFallbacks = graphNodeFallbacks("constraint");
   const broadCommandFallbacks =
     commandFallbacks.length > 0 ? commandFallbacks : candidateNodeFallbacks;
-  const domainItems = [
+  const domainItems: readonly ProductDemoDomainItem[] = [
     {
       label: "Actors",
       value: overviewCount(candidate.eventStorming.actorCount, actorFallbacks),
@@ -1418,12 +1468,101 @@ function ProductDemoPresentationSection({
   const candidateCardLabel = candidateAvailable
     ? "Candidate generated"
     : "Candidate pending";
-  const demoSubtitle = candidateAvailable
-    ? "Idea-to-spec converted a workspace idea into a reviewable candidate while keeping execution controlled and raw input protected."
-    : "Idea-to-spec is preparing this workspace. The presentation view stays read-only until candidate evidence is available.";
-  const candidateHeadline = candidateAvailable
-    ? compact(candidate.narrative.productIntent, overview.nextSafeAction)
-    : compact(overview.nextSafeAction, "Start or continue idea intake.");
+  const originalIdea = firstText(
+    data.workspaceCreation.activeRequest?.rootIntentSummary,
+    candidate.narrative.productIntent,
+    data.workspace.displayName,
+  );
+  const understoodScope = firstText(
+    candidate.narrative.understoodScope,
+    joined(
+      [
+        domainItems.find((item) => item.label === "Commands")?.detail ?? "",
+        domainItems.find((item) => item.label === "Events")?.detail ?? "",
+      ].filter(Boolean),
+      "",
+    ),
+  );
+  const generatedCandidate = candidateAvailable
+    ? firstText(
+        candidate.narrative.productIntent,
+        candidate.summary.displayName,
+        candidate.candidate.displayName,
+        data.workspace.displayName,
+        humanizeIdentifier(candidate.summary.candidateId ?? data.workspace.id),
+      )
+    : firstText(overview.nextSafeAction, "Candidate evidence is still pending.");
+  const nextAction = firstText(candidate.nextAction.label, overview.nextSafeAction);
+  return {
+    candidateAvailable,
+    rawIdeaOperatorOwned,
+    noWriteAuthority,
+    candidateCardLabel,
+    subtitle: candidateAvailable
+      ? "A user idea became a reviewable candidate while raw input stayed protected and execution stayed behind managed Platform operations."
+      : "This workspace is still before candidate generation. The demo projection stays read-only until candidate evidence exists.",
+    storyCards: [
+      {
+        id: "original-idea",
+        kicker: "Original idea",
+        title: compact(originalIdea, "Raw idea summary is operator-owned."),
+        detail:
+          "SpecSpace stores the submitted idea as operator-owned state and passes only validated handoff evidence downstream.",
+        evidence: rawIdeaOperatorOwned
+          ? "operator-owned state present"
+          : "not submitted yet",
+      },
+      {
+        id: "understood-domain",
+        kicker: "What the system understood",
+        title: compact(understoodScope, "Domain understanding pending."),
+        detail:
+          "The candidate frame is expressed as actors, commands, events, and constraints rather than free-form prose.",
+        evidence: `${domainItems[0]?.value ?? "0"} actors · ${
+          domainItems[1]?.value ?? "0"
+        } commands · ${domainItems[2]?.value ?? "0"} events`,
+      },
+      {
+        id: "generated-candidate",
+        kicker: candidateCardLabel,
+        title: compact(generatedCandidate, "Candidate pending."),
+        detail: candidateAvailable
+          ? "SpecGraph produced a candidate graph with requirements, acceptance criteria, and workflow topology."
+          : "The product workspace has not published candidate graph evidence yet.",
+        evidence: `${candidateNodeCount} nodes · ${
+          data.candidateGraph.summary.requirementCount
+        } requirements · ${
+          data.candidateGraph.summary.acceptanceCriteriaCount
+        } acceptance criteria`,
+      },
+      {
+        id: "next-safe-action",
+        kicker: "Next safe action",
+        title: compact(nextAction, "Inspect the product lifecycle."),
+        detail:
+          "The UI points to the next lifecycle step without granting direct Git, Ontology, or SpecGraph write authority.",
+        evidence: compact(overview.currentPhaseLabel, "Lifecycle"),
+      },
+    ],
+    domainItems,
+    candidateNodeCount,
+    completedOperations,
+    currentPath: browserPath,
+    operatorHref,
+  };
+}
+
+function ProductDemoPresentationSection({
+  data,
+  operatorWorkspaceHref,
+}: {
+  data: IdeaToSpecWorkspace;
+  operatorWorkspaceHref?: string;
+}) {
+  const overview = data.productWorkspaceOverview;
+  const candidate = data.candidateOverview;
+  const maturity = data.ideaMaturity;
+  const story = productDemoStory(data, operatorWorkspaceHref);
   return (
     <section
       className={styles.demoPresentation}
@@ -1436,10 +1575,10 @@ function ProductDemoPresentationSection({
           <h2 className={styles.demoTitle}>
             {data.workspace.displayName ?? data.workspace.id ?? "Product workspace"}
           </h2>
-          <p className={styles.demoSubtitle}>{demoSubtitle}</p>
+          <p className={styles.demoSubtitle}>{story.subtitle}</p>
         </div>
         <div className={styles.demoHeroActions}>
-          <a className={styles.actionButton} href={operatorHref}>
+          <a className={styles.actionButton} href={story.operatorHref}>
             Operator workspace
           </a>
           <Pill value={overview.status.replace(/_/g, " ")} />
@@ -1457,21 +1596,38 @@ function ProductDemoPresentationSection({
         ))}
       </div>
 
+      <div className={styles.demoStoryGrid} data-testid="product-demo-story">
+        {story.storyCards.map((card) => (
+          <article
+            key={card.id}
+            className={styles.demoStoryCard}
+            data-testid={`product-demo-story-${card.id}`}
+          >
+            <span className={styles.navLabel}>{card.kicker}</span>
+            <h3 className={styles.demoCardTitle}>{card.title}</h3>
+            <p className={styles.demoStoryDetail}>{card.detail}</p>
+            <span className={styles.demoStoryEvidence}>{card.evidence}</span>
+          </article>
+        ))}
+      </div>
+
       <div className={styles.demoGrid}>
         <article className={styles.demoCard} data-testid="product-demo-candidate">
           <div className={styles.rowHeader}>
-            <span className={styles.rowId}>{candidateCardLabel}</span>
+            <span className={styles.rowId}>{story.candidateCardLabel}</span>
             <Pill
               value={
-                candidateAvailable
+                story.candidateAvailable
                   ? compact(candidate.readiness.reviewState, "candidate")
                   : "waiting for candidate"
               }
             />
           </div>
-          <h3 className={styles.demoCardTitle}>{candidateHeadline}</h3>
+          <h3 className={styles.demoCardTitle}>
+            {story.storyCards.find((card) => card.id === "generated-candidate")?.title}
+          </h3>
           <div className={styles.postureStrip}>
-            <PostureItem label="Nodes" value={String(candidateNodeCount)} />
+            <PostureItem label="Nodes" value={String(story.candidateNodeCount)} />
             <PostureItem
               label="Requirements"
               value={String(data.candidateGraph.summary.requirementCount)}
@@ -1483,11 +1639,11 @@ function ProductDemoPresentationSection({
           </div>
           <div className={styles.metaGrid}>
             <Meta label="Candidate" value={candidate.summary.candidateId} />
-            <Meta label="Route" value={browserPath ?? data.workspace.publicRoute} />
+            <Meta label="Route" value={story.currentPath ?? data.workspace.publicRoute} />
             <Meta
               label="Readiness"
               value={
-                candidateAvailable
+                story.candidateAvailable
                   ? candidate.narrative.readiness
                   : "candidate evidence pending"
               }
@@ -1508,7 +1664,7 @@ function ProductDemoPresentationSection({
             Platform-owned execution, browser read/request authority.
           </h3>
           <div className={styles.metaGrid}>
-            <Meta label="Managed operations" value={completedOperations} />
+            <Meta label="Managed operations" value={story.completedOperations} />
             <Meta
               label="Executor"
               value={
@@ -1527,7 +1683,7 @@ function ProductDemoPresentationSection({
           <Pill value={`${candidate.topology.workflowEdgeCount} workflow edges`} />
         </div>
         <div className={styles.demoDomainGrid}>
-          {domainItems.map((item) => (
+          {story.domainItems.map((item) => (
             <div key={item.label} className={styles.demoDomainItem}>
               <span className={styles.metricLabel}>{item.label}</span>
               <strong>{item.value}</strong>
@@ -1545,11 +1701,11 @@ function ProductDemoPresentationSection({
         <div className={styles.demoEvidenceGrid}>
           <PostureItem
             label="Raw idea state"
-            value={rawIdeaOperatorOwned ? "operator-owned" : "not started"}
+            value={story.rawIdeaOperatorOwned ? "operator-owned" : "not started"}
           />
           <PostureItem
             label="No direct writes"
-            value={noWriteAuthority ? "yes" : "review needed"}
+            value={story.noWriteAuthority ? "yes" : "review needed"}
           />
           <PostureItem
             label="Idea maturity"
