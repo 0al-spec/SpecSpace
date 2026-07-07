@@ -354,4 +354,8 @@ This smoke verifies that `/team-decision-log` is a SpecSpace Product Workspace,
 not the legacy ContextBuilder UI; that the Product Workspace API reads the
 workspace-specific static artifact base instead of the root SpecGraph showcase
 bundle; and that production reports `managed_mode_readiness.status =
-read_only` with managed execution authority disabled.
+read_only` with managed execution authority disabled. It also checks the
+presentation route `/team-decision-log?view=demo` returns the SpecSpace shell
+without legacy ContextBuilder markers. The production route renders the
+published product workspace state; locally generated demo candidates are covered
+by `make ui-e2e-product-demo`.
