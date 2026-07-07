@@ -111,6 +111,62 @@ Platform and SpecGraph as external operator actions, then publishes selected
 public-safe artifacts into the temporary backend `runs` directory and emits a
 `change` event on `/api/v1/runs-watch`.
 
+## Product Demo Harness
+
+Use the product demo harness when preparing a live demonstration of the
+UI-started idea-to-spec flow:
+
+```sh
+SPECG_E2E_PLATFORM_DIR=../Platform \
+SPECG_E2E_SPECG_DIR=../SpecGraph \
+UI_PORT=5190 make ui-e2e-product-demo
+```
+
+For a headed browser that pauses on the final presentation screen:
+
+```sh
+SPECG_E2E_PLATFORM_DIR=../Platform \
+SPECG_E2E_SPECG_DIR=../SpecGraph \
+UI_PORT=5190 make ui-e2e-product-demo-live
+```
+
+The harness creates a fresh `local-pantry-demo` workspace, enters the raw idea
+through SpecSpace, runs the controlled Platform/SpecGraph handoffs externally,
+saves clarification answers through the UI, and opens the final presentation
+route:
+
+```text
+/local-pantry-demo?view=demo
+```
+
+Artifacts are written under:
+
+```text
+graphspace/test-results/product-demo/
+```
+
+Expected outputs:
+
+- `product-demo-report.json`;
+- screenshots under `screenshots/`, including `08-demo-view.png`;
+- Playwright trace/video under `playwright-output/`.
+
+The Make target sets `SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1`.
+That fallback is intentional for the demo harness: current real intake may not
+always emit browser-answerable clarification fields. Direct Playwright runs
+without that flag fail at `real_intake_clarification_fields_missing` instead of
+silently masking a producer-side regression.
+
+Local demo mode and production demo mode are different:
+
+- local demo mode generates a fresh candidate from the Playwright harness;
+- production `/team-decision-log?view=demo` renders the published product
+  workspace state from the workspace-specific artifact base.
+
+The production smoke checks the route is renderable and not legacy
+ContextBuilder, while the local Playwright harness verifies rendered candidate
+summary, raw idea protection, and controlled execution evidence.
+
 ### State And Run-Dir Hygiene
 
 Manual UI-started smoke runs are easiest to reason about when these three paths

@@ -56,6 +56,7 @@ class SmokeConfig:
     expect_managed_mode: str
     timeout_seconds: float
     require_deployment_metadata: bool = True
+    require_demo_view: bool = True
 
 
 def _join_url(base_url: str, path: str) -> str:
@@ -143,6 +144,7 @@ def validate_smoke_payloads(
     health: JsonObject,
     workspace_payload: JsonObject,
     shell_html: str,
+    demo_view_html: str | None = None,
 ) -> JsonObject:
     errors: list[JsonObject] = []
     warnings: list[JsonObject] = []
@@ -167,6 +169,23 @@ def validate_smoke_payloads(
                 "app_shell",
                 f"workspace route contains legacy marker {marker!r}",
             )
+    if config.require_demo_view:
+        if not isinstance(demo_view_html, str):
+            _add_error(errors, "demo_view", "demo view route was not fetched")
+        else:
+            if "<html" not in demo_view_html.lower():
+                _add_error(
+                    errors,
+                    "demo_view",
+                    "demo view route did not return an HTML shell",
+                )
+            for marker in LEGACY_SHELL_MARKERS:
+                if marker in demo_view_html:
+                    _add_error(
+                        errors,
+                        "demo_view",
+                        f"demo view route contains legacy marker {marker!r}",
+                    )
 
     selected_workspace = workspace_payload.get("selected_workspace_id")
     workspace = _as_dict(workspace_payload.get("workspace"))
@@ -293,6 +312,11 @@ def validate_smoke_payloads(
             "managed_operations": {
                 "operation_count": len(operation_rows),
             },
+            "demo_view": {
+                "checked": config.require_demo_view,
+                "html_shell": isinstance(demo_view_html, str)
+                and "<html" in demo_view_html.lower(),
+            },
         },
         "errors": errors,
         "warnings": warnings,
@@ -319,6 +343,15 @@ def run_smoke(config: SmokeConfig, fetch: Fetcher | None = None) -> JsonObject:
         expect_json=False,
         timeout_seconds=config.timeout_seconds,
     )
+    demo_view_payload: JsonObject | str | None = None
+    demo_view_status = 200
+    if config.require_demo_view:
+        demo_view_status, demo_view_payload = _wait_fetch(
+            fetcher,
+            _join_url(config.base_url, f"/{config.workspace}?view=demo"),
+            expect_json=False,
+            timeout_seconds=config.timeout_seconds,
+        )
 
     if health_status != 200:
         raise RuntimeError(f"health endpoint returned HTTP {health_status}")
@@ -334,12 +367,18 @@ def run_smoke(config: SmokeConfig, fetch: Fetcher | None = None) -> JsonObject:
         raise RuntimeError("product workspace endpoint returned non-object JSON")
     if not isinstance(shell_payload, str):
         raise RuntimeError("workspace route returned non-text payload")
+    if config.require_demo_view:
+        if demo_view_status != 200:
+            raise RuntimeError(f"demo view route returned HTTP {demo_view_status}")
+        if not isinstance(demo_view_payload, str):
+            raise RuntimeError("demo view route returned non-text payload")
 
     return validate_smoke_payloads(
         config,
         health=health_payload,
         workspace_payload=workspace_payload,
         shell_html=shell_payload,
+        demo_view_html=demo_view_payload if isinstance(demo_view_payload, str) else None,
     )
 
 
@@ -375,6 +414,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not require deployment.version and deployment.commit.",
     )
     parser.add_argument(
+        "--no-require-demo-view",
+        action="store_true",
+        help="Do not require the product workspace ?view=demo route to return the SpecSpace shell.",
+    )
+    parser.add_argument(
         "--format",
         choices=("text", "json"),
         default="text",
@@ -392,6 +436,7 @@ def main(argv: list[str] | None = None) -> int:
         expect_managed_mode=args.expect_managed_mode,
         timeout_seconds=args.timeout,
         require_deployment_metadata=not args.no_require_deployment_metadata,
+        require_demo_view=not args.no_require_demo_view,
     )
     try:
         report = run_smoke(config)

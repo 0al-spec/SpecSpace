@@ -838,6 +838,11 @@ hidden UI mutations.
   silently. The fixture uses the same `active_frame_hints.*` and
   `event_storming_hints.*` target refs that SpecGraph materializes, so saved UI
   answers still flow through the real Platform/SpecGraph continuation path.
+- Product demo runbook and production demo smoke are covered. The local runbook
+  documents `make ui-e2e-product-demo`, `make ui-e2e-product-demo-live`, output
+  artifacts, fallback policy, and `?view=demo`. Production smoke now checks that
+  the product presentation route returns the SpecSpace shell without legacy
+  ContextBuilder markers while preserving `read_only` managed mode.
 - Fast browser tests still use fixture-backed `/api/v1/idea-to-spec-workspace`
   projections for UI-only coverage. Keep the env-gated execution-backed smoke as
   the authority for real cross-repo lifecycle behavior, and only replace a fast

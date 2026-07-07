@@ -26,6 +26,7 @@ def _config(**overrides):
         "expect_managed_mode": "read_only",
         "timeout_seconds": 1.0,
         "require_deployment_metadata": True,
+        "require_demo_view": True,
     }
     data.update(overrides)
     return smoke.SmokeConfig(**data)
@@ -92,12 +93,18 @@ def _workspace_payload(**overrides):
     return payload
 
 
-def _report(payload=None, html="<html><body>SpecSpace</body></html>", health=None):
+def _report(
+    payload=None,
+    html="<html><body>SpecSpace</body></html>",
+    health=None,
+    demo_view_html="<html><body>SpecSpace demo route</body></html>",
+):
     return smoke.validate_smoke_payloads(
         _config(),
         health=health or _health(),
         workspace_payload=payload or _workspace_payload(),
         shell_html=html,
+        demo_view_html=demo_view_html,
     )
 
 
@@ -113,6 +120,8 @@ class ProductWorkspaceProductionSmokeTests(unittest.TestCase):
         self.assertEqual(report["summary"]["managed_mode"], "read_only")
         self.assertEqual(report["summary"]["provider"], "http-product-workspace")
         self.assertEqual(report["summary"]["operation_count"], 1)
+        self.assertTrue(report["checks"]["demo_view"]["checked"])
+        self.assertTrue(report["checks"]["demo_view"]["html_shell"])
 
     def test_wrong_managed_mode_blocks(self) -> None:
         payload = _workspace_payload(
@@ -173,6 +182,26 @@ class ProductWorkspaceProductionSmokeTests(unittest.TestCase):
 
         self.assertFalse(report["ok"])
         self.assert_error_check(report, "app_shell")
+
+    def test_demo_view_legacy_contextbuilder_shell_blocks(self) -> None:
+        report = _report(
+            demo_view_html="<html><body>legacy ContextBuilder</body></html>",
+        )
+
+        self.assertFalse(report["ok"])
+        self.assert_error_check(report, "demo_view")
+
+    def test_demo_view_check_can_be_disabled_for_legacy_smoke_targets(self) -> None:
+        report = smoke.validate_smoke_payloads(
+            _config(require_demo_view=False),
+            health=_health(),
+            workspace_payload=_workspace_payload(),
+            shell_html="<html><body>SpecSpace</body></html>",
+            demo_view_html=None,
+        )
+
+        self.assertTrue(report["ok"])
+        self.assertFalse(report["checks"]["demo_view"]["checked"])
 
     def test_truthy_write_authority_flag_blocks(self) -> None:
         payload = _workspace_payload()
