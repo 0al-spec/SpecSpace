@@ -480,7 +480,9 @@ def _normalize_answer_value(action: str, raw: Any) -> tuple[dict[str, Any], dict
             result["follow_up"] = follow_up
         return result, None
     if action == "answer_question":
-        entries = _entry_list(value.get("entries"))
+        entries, entries_error = _entry_list(value.get("entries"))
+        if entries_error is not None:
+            return {}, {"error": entries_error}
         text = _text(value.get("text") or value.get("answer"))
         if text is None and not entries:
             return {}, {"error": "answer_question requires answer_value.text or answer_value.entries"}
@@ -556,26 +558,28 @@ def _string_list(value: Any) -> list[str]:
     return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
-def _entry_list(value: Any) -> list[Any]:
+def _entry_list(value: Any) -> tuple[list[Any], str | None]:
     if not isinstance(value, list):
-        return []
+        return [], None
     entries: list[Any] = []
-    for item in value:
-        entry = _entry_value(item)
+    for index, item in enumerate(value):
+        entry, error = _entry_value(item)
+        if error is not None:
+            return [], f"answer_value.entries[{index}].{error}"
         if entry is not None:
             entries.append(entry)
-    return entries
+    return entries, None
 
 
-def _entry_value(value: Any) -> Any | None:
+def _entry_value(value: Any) -> tuple[Any | None, str | None]:
     if isinstance(value, str):
         text = value.strip()
-        return text or None
+        return (text or None), None
     if not isinstance(value, dict):
-        return None
+        return None, None
     mutation_field = _first_true(value, PRODUCT_REPAIR_FALSE_FIELDS)
     if mutation_field is not None:
-        return None
+        return None, f"{mutation_field} must be false"
     entry: dict[str, Any] = {}
     for key, item in value.items():
         if not isinstance(key, str) or key not in ENTRY_ALLOWED_FIELDS:
@@ -588,7 +592,7 @@ def _entry_value(value: Any) -> Any | None:
         if isinstance(item, str) and item.strip():
             entry[key] = item.strip()
     has_label = any(entry.get(field) for field in ("id", "name", "statement", "question", "term"))
-    return entry if has_label else None
+    return (entry if has_label else None), None
 
 
 def _string_map(value: Any) -> dict[str, str]:

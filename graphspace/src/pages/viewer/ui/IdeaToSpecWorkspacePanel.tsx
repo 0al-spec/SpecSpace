@@ -7175,10 +7175,7 @@ function isStructuredProductSpecAction(action: string): boolean {
 }
 
 function isEventStormingDepthRequest(request: IdeaToSpecClarificationRequest): boolean {
-  return (
-    ["event_storming_gap", "workflow_topology_gap"].includes(request.kind) &&
-    (request.targetRef ?? "").startsWith("event_storming_hints.")
-  );
+  return (request.targetRef ?? "").startsWith("event_storming_hints.");
 }
 
 function eventStormingDepthCategory(
@@ -7931,7 +7928,7 @@ function productSpecDraftFields(
   };
 }
 
-function repairDraftText(draft: IdeaToSpecRepairDraft | undefined): string | null {
+export function repairDraftText(draft: IdeaToSpecRepairDraft | undefined): string | null {
   if (!draft) return null;
   const value = draft.answerValue;
   if (typeof value.ontology_ref === "string") return value.ontology_ref;
@@ -7954,9 +7951,13 @@ function repairDraftText(draft: IdeaToSpecRepairDraft | undefined): string | nul
               : typeof entry.id === "string"
                 ? entry.id
                 : "";
-        const eventRefs = Array.isArray(entry.produces_event_refs)
+        const producedEventRefs = Array.isArray(entry.produces_event_refs)
           ? entry.produces_event_refs.filter((ref): ref is string => typeof ref === "string")
           : [];
+        const triggerEventRefs = Array.isArray(entry.trigger_event_refs)
+          ? entry.trigger_event_refs.filter((ref): ref is string => typeof ref === "string")
+          : [];
+        const eventRefs = producedEventRefs.length > 0 ? producedEventRefs : triggerEventRefs;
         return eventRefs.length > 0 ? `${label} -> ${eventRefs[0]}` : label;
       })
       .filter(Boolean)

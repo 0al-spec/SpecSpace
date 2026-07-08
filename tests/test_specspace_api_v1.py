@@ -16056,6 +16056,46 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertEqual(draft["target_ref"], "event_storming_hints.actors")
 
+    def test_idea_to_spec_repair_drafts_v1_rejects_unsafe_depth_entry_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            request_id = _append_depth_repair_request(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": request_id,
+                        "action": "answer_question",
+                        "answer_value": {
+                            "entries": [
+                                {
+                                    "id": "actor.household-member",
+                                    "name": "Household member",
+                                },
+                                {
+                                    "id": "actor.unsafe",
+                                    "name": "Unsafe actor",
+                                    "may_apply_state": True,
+                                },
+                            ]
+                        },
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertIn("answer_value.entries[1].may_apply_state", body["error"])
+
     def test_idea_to_spec_repair_drafts_v1_rejects_product_context_authority_claim(
         self,
     ) -> None:
