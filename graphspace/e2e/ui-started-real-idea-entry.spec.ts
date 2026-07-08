@@ -347,6 +347,17 @@ async function writeDeterministicProductDemoClarificationArtifacts(args: {
       suggested_actions: ["answer_question", "defer_candidate"],
     },
     {
+      id: "question.event-storming.policies",
+      kind: "missing_event_storming_context",
+      severity: "blocking",
+      status: "open",
+      target_artifact: "user_idea_intake_session",
+      target_ref: "event_storming_hints.policies",
+      question: "Which policies govern the product workflow?",
+      suggested_answer_shape: "event_storming_entry[]",
+      suggested_actions: ["answer_question", "defer_candidate"],
+    },
+    {
       id: "question.event-storming.constraints",
       kind: "missing_event_storming_context",
       severity: "blocking",
@@ -381,7 +392,7 @@ async function writeDeterministicProductDemoClarificationArtifacts(args: {
     request_counts: {
       total: requests.length,
       blocking: requests.length,
-      by_kind: { active_frame: 1, missing_event_storming_context: 4 },
+      by_kind: { active_frame: 1, missing_event_storming_context: 5 },
       by_status: { open: requests.length },
     },
     summary: {
@@ -1113,6 +1124,10 @@ async function publishRealIdeaContinuationArtifacts(args: {
     "idea_to_spec_clarification_requests.json",
     "candidate_spec_materialization_report.json",
     "idea_to_spec_promotion_gate.json",
+    "candidate_overview.json",
+    "idea_maturity_metrics_report.json",
+    "idea_maturity_metrics_validation_report.json",
+    "product_demo_depth_report.json",
   ]) {
     await copyIfPresent(
       path.join(args.specGraphRunDir, artifactName),
@@ -3160,12 +3175,80 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       await emitRunsChange(page);
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(page.getByText("Idea-to-Spec Workspace")).toBeVisible();
-      await expect(answerFields).toHaveCount(5);
+      await expect(answerFields).toHaveCount(6);
       answerCount = await answerFields.count();
     }
     await expect(page.getByText("Template-backed answer").first()).toBeVisible();
     await captureProductDemoScreenshot(page, artifactDir, "05-clarification-questions");
 
+    const structuredEntries = (entries: readonly Record<string, unknown>[]) =>
+      JSON.stringify(entries, null, 2);
+    const demoActors = structuredEntries([
+      { id: "actor.household-cook", name: "Household cook" },
+      { id: "actor.grocery-shopper", name: "Grocery shopper" },
+    ]);
+    const demoEvents = structuredEntries([
+      {
+        id: "event.pantry-item-recorded",
+        name: "Pantry item recorded",
+        actor_refs: ["actor.household-cook"],
+      },
+      {
+        id: "event.expiration-reviewed",
+        name: "Expiration reviewed",
+        actor_refs: ["actor.household-cook"],
+      },
+      {
+        id: "event.shopping-need-identified",
+        name: "Shopping need identified",
+        actor_refs: ["actor.grocery-shopper"],
+      },
+    ]);
+    const demoCommands = structuredEntries([
+      {
+        id: "command.record-pantry-item",
+        name: "Record pantry item",
+        actor_refs: ["actor.household-cook"],
+        produces_event_refs: ["event.pantry-item-recorded"],
+      },
+      {
+        id: "command.review-expiring-item",
+        name: "Review expiring item",
+        actor_refs: ["actor.household-cook"],
+        produces_event_refs: ["event.expiration-reviewed"],
+      },
+      {
+        id: "command.create-shopping-reminder",
+        name: "Create shopping reminder",
+        actor_refs: ["actor.grocery-shopper"],
+        produces_event_refs: ["event.shopping-need-identified"],
+      },
+    ]);
+    const demoPolicies = structuredEntries([
+      {
+        id: "policy.expiration-review",
+        name: "Expiration review policy",
+        trigger_event_refs: ["event.expiration-reviewed"],
+        command_refs: ["command.review-expiring-item"],
+      },
+    ]);
+    const demoConstraints = structuredEntries([
+      {
+        id: "constraint.expiration-date-required",
+        statement: "Expiration date is required for tracked pantry items.",
+        command_refs: ["command.record-pantry-item"],
+      },
+      {
+        id: "constraint.household-only-storage",
+        statement: "Pantry data stays scoped to the household workspace.",
+        command_refs: ["command.record-pantry-item"],
+      },
+      {
+        id: "constraint.shopping-reminder-reviewable",
+        statement: "Shopping reminders must be reviewable before action.",
+        command_refs: ["command.create-shopping-reminder"],
+      },
+    ]);
     const answerValuesByRequest: Record<string, string> = {
       "clarification.intake.question-active-frame-ontology-refs":
         "ontology://specgraph-core",
@@ -3178,21 +3261,21 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       "clarification.intake.question-active-frame-model-applicability-refs":
         "model-applicability://specgraph-core/product-spec-mvp",
       "question.active-frame.domain_refs": "domain.local_pantry_demo",
-      "question.event-storming.actors": "Household cook\nGrocery shopper",
-      "question.event-storming.domain_events":
-        "Pantry item recorded\nExpiration reviewed\nShopping need identified",
-      "question.event-storming.commands":
-        "Record pantry item\nReview expiring item\nCreate shopping reminder",
-      "question.event-storming.constraints":
-        "Expiration date required\nHousehold-only storage\nShopping reminder must be reviewable",
+      "question.event-storming.actors": demoActors,
+      "question.event-storming.domain_events": demoEvents,
+      "question.event-storming.commands": demoCommands,
+      "question.event-storming.policies": demoPolicies,
+      "question.event-storming.constraints": demoConstraints,
       "clarification.intake.question-event-storming-actors":
-        "Household cook\nGrocery shopper",
+        demoActors,
       "clarification.intake.question-event-storming-domain-events":
-        "Pantry item recorded\nExpiration reviewed\nShopping need identified",
+        demoEvents,
       "clarification.intake.question-event-storming-commands":
-        "Record pantry item\nReview expiring item\nCreate shopping reminder",
+        demoCommands,
+      "clarification.intake.question-event-storming-policies":
+        demoPolicies,
       "clarification.intake.question-event-storming-constraints":
-        "Expiration date required\nHousehold-only storage\nShopping reminder must be reviewable",
+        demoConstraints,
     };
     for (let index = 0; index < answerCount; index += 1) {
       const field = answerFields.nth(index);
@@ -3263,6 +3346,29 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       JSON.stringify(continuationReport.diagnostics ?? []),
     ).toBe(true);
 
+    const depthBaseline = await runCommand(
+      "make",
+      [
+        "real-idea-smoke-depth-baseline",
+        `REAL_IDEA_SMOKE_RUN_DIR=${specGraphRunDirRef}`,
+      ],
+      { cwd: specGraphDir },
+    );
+    if (depthBaseline.code !== 0) {
+      await writeProductDemoReport(artifactDir, {
+        ...reportPayload,
+        status: "failed",
+        failed_step: "product_demo_depth_baseline",
+        depth_exit_code: depthBaseline.code,
+        depth_stdout: depthBaseline.stdout,
+        depth_stderr: depthBaseline.stderr,
+        artifact_dir: artifactDir,
+        run_dir: specGraphRunDirRef,
+        preserved_specgraph_run_dir: specGraphRunDir,
+      });
+    }
+    expect(depthBaseline.code, depthBaseline.stderr || depthBaseline.stdout).toBe(0);
+
     await publishRealIdeaContinuationArtifacts({
       backendRunsDir: backend.runsDir,
       platformReportPath: continuationReportPath,
@@ -3276,6 +3382,10 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       path.join(specGraphRunDir, "idea_event_storming_intake.json"),
       path.join(specGraphRunDir, "candidate_spec_graph_seed.json"),
       path.join(specGraphRunDir, "candidate_spec_graph.json"),
+      path.join(specGraphRunDir, "candidate_overview.json"),
+      path.join(specGraphRunDir, "idea_maturity_metrics_report.json"),
+      path.join(specGraphRunDir, "idea_maturity_metrics_validation_report.json"),
+      path.join(specGraphRunDir, "product_demo_depth_report.json"),
       path.join(specGraphRunDir, "active_idea_to_spec_candidate.json"),
       path.join(specGraphRunDir, "platform_real_idea_answer_continuation_execution_report.json"),
     ]);
@@ -3286,6 +3396,7 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     expect(generatedIdeaArtifactsText).toContain(productDemoWorkspaceId);
     expect(generatedIdeaArtifactsText).toContain("Pantry item recorded");
     expect(generatedIdeaArtifactsText).toContain("Record pantry item");
+    expect(generatedIdeaArtifactsText).toContain("Expiration review policy");
     expect(generatedIdeaArtifactsText).not.toContain("Decision owner");
     expect(generatedIdeaArtifactsText).not.toContain("Record decision");
     expect(teamDecisionLogFallback).toBe(false);
@@ -3313,7 +3424,10 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       productDemoRawIdea,
     );
     await expect(page.getByTestId("product-demo-story-understood-domain")).toContainText(
-      "Record pantry item",
+      "3 commands",
+    );
+    await expect(page.getByTestId("product-demo-story-understood-domain")).toContainText(
+      "workflow topology edges",
     );
     await expect(page.getByTestId("product-demo-story-generated-candidate")).toContainText(
       "Candidate generated",
@@ -3330,11 +3444,23 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     await expect(page.getByTestId("product-demo-domain")).toContainText(
       "Record pantry item",
     );
+    await expect(page.getByTestId("product-demo-domain")).toContainText(
+      "Pantry item recorded",
+    );
+    await expect(page.getByTestId("product-demo-domain")).toContainText(
+      "Expiration review policy",
+    );
+    await expect(page.getByTestId("product-demo-domain")).not.toContainText(
+      "0 workflow edges",
+    );
     await expect(page.getByTestId("product-demo-evidence")).toContainText(
       "Raw idea state",
     );
     await expect(page.getByTestId("product-demo-evidence")).toContainText(
       "operator-owned",
+    );
+    await expect(page.getByTestId("product-demo-evidence")).not.toContainText(
+      "Idea maturity missing",
     );
     await captureProductDemoScreenshot(page, artifactDir, "08-demo-view");
 
@@ -3345,6 +3471,32 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       status?: string;
       summary?: { status?: string; promotion_path_count?: number };
     };
+    const depthReport = JSON.parse(
+      await readFile(path.join(backend.runsDir, "product_demo_depth_report.json"), "utf8"),
+    ) as {
+      summary?: {
+        status?: string;
+        actor_count?: number;
+        domain_event_count?: number;
+        workflow_edge_count?: number;
+        idea_maturity_status?: string;
+      };
+      depth?: {
+        policy_count?: number;
+        constraint_count?: number;
+        requirement_count?: number;
+        acceptance_criteria_count?: number;
+      };
+    };
+    expect(depthReport.summary?.status).toBe("depth_baseline_met");
+    expect(depthReport.summary?.actor_count ?? 0).toBeGreaterThan(0);
+    expect(depthReport.summary?.domain_event_count ?? 0).toBeGreaterThan(0);
+    expect(depthReport.summary?.workflow_edge_count ?? 0).toBeGreaterThan(0);
+    expect(depthReport.depth?.policy_count ?? 0).toBeGreaterThan(0);
+    expect(depthReport.depth?.constraint_count ?? 0).toBeGreaterThan(0);
+    expect(depthReport.depth?.requirement_count ?? 0).toBeGreaterThan(0);
+    expect(depthReport.depth?.acceptance_criteria_count ?? 0).toBeGreaterThan(0);
+    expect(depthReport.summary?.idea_maturity_status).not.toBe("missing");
     reportPayload = {
       status: "completed",
       workspace: productDemoWorkspaceId,
@@ -3358,6 +3510,12 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       active_candidate_status:
         activeCandidate.status ?? activeCandidate.summary?.status ?? "unknown",
       promotion_path_count: activeCandidate.summary?.promotion_path_count ?? null,
+      depth_baseline_status: depthReport.summary?.status ?? "unknown",
+      depth_actor_count: depthReport.summary?.actor_count ?? null,
+      depth_domain_event_count: depthReport.summary?.domain_event_count ?? null,
+      depth_workflow_edge_count: depthReport.summary?.workflow_edge_count ?? null,
+      depth_policy_count: depthReport.depth?.policy_count ?? null,
+      idea_maturity_status: depthReport.summary?.idea_maturity_status ?? null,
       raw_idea_public_leak_detected: rawIdeaPublicLeakDetected,
       public_summary_present: generatedIdeaArtifactsText.includes(productDemoPublicSummary),
       workspace_id_present: generatedIdeaArtifactsText.includes(productDemoWorkspaceId),

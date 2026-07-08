@@ -260,32 +260,54 @@ def _candidate_overview() -> dict:
         },
         "sections": {
             "event_storming": {
-                "actor_count": 1,
-                "command_count": 1,
-                "domain_event_count": 1,
-                "policy_count": 1,
-                "constraint_count": 1,
-                "actors": [
-                    {"id": "actor.team-member", "label": "Team member", "kind": "actor"}
-                ],
-                "commands": [
-                    {
-                        "id": "command.record-decision",
-                        "label": "Record decision",
-                        "kind": "command",
-                        "detail": "Team member records a decision.",
-                    }
-                ],
-                "domain_events": [
-                    {
-                        "id": "event.decision-recorded",
-                        "label": "Decision recorded",
-                        "kind": "domain_event",
-                        "detail": "Decision entry becomes reviewable.",
-                    }
-                ],
-                "policies": [],
-                "constraints": [],
+                "actors": {
+                    "count": 1,
+                    "items": [
+                        {"id": "actor.team-member", "label": "Team member", "kind": "actor"}
+                    ],
+                },
+                "commands": {
+                    "count": 1,
+                    "items": [
+                        {
+                            "id": "command.record-decision",
+                            "label": "Record decision",
+                            "kind": "command",
+                            "detail": "Team member records a decision.",
+                        }
+                    ],
+                },
+                "domain_events": {
+                    "count": 1,
+                    "items": [
+                        {
+                            "id": "event.decision-recorded",
+                            "label": "Decision recorded",
+                            "kind": "domain_event",
+                            "detail": "Decision entry becomes reviewable.",
+                        }
+                    ],
+                },
+                "policies": {
+                    "count": 1,
+                    "items": [
+                        {
+                            "id": "policy.review-before-close",
+                            "label": "Review before close",
+                            "kind": "policy",
+                        }
+                    ],
+                },
+                "constraints": {
+                    "count": 1,
+                    "items": [
+                        {
+                            "id": "constraint.owner-required",
+                            "label": "Owner required",
+                            "kind": "constraint",
+                        }
+                    ],
+                },
             },
             "candidate_nodes": {
                 "nodes": [
@@ -2928,6 +2950,16 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["candidate_overview"]["narrative"]["product_intent"],
             "Capture team decisions with explicit owner and outcome.",
+        )
+        self.assertEqual(body["candidate_overview"]["event_storming"]["actor_count"], 1)
+        self.assertEqual(
+            body["candidate_overview"]["event_storming"]["domain_event_count"],
+            1,
+        )
+        self.assertEqual(body["candidate_overview"]["event_storming"]["policy_count"], 1)
+        self.assertEqual(
+            body["candidate_overview"]["event_storming"]["actors"][0]["label"],
+            "Team member",
         )
         self.assertEqual(
             body["candidate_overview"]["topology"]["relation_counts"][

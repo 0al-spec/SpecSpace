@@ -89,9 +89,11 @@ runtime action requests from Product Workspace routes.
   captures screenshots and Playwright trace/video output, and writes a durable
   `graphspace/test-results/product-demo/product-demo-report.json`. The report
   verifies that raw idea text is not published, the public summary/workspace id
-  are present, and `team-decision-log` fixture terms do not leak into the new
-  candidate. `make ui-e2e-product-demo-live` runs the same harness headed with
-  a short pause for live inspection.
+  are present, `team-decision-log` fixture terms do not leak into the new
+  candidate, and SpecGraph's product demo depth baseline is met with actors,
+  domain events, policies, workflow edges, requirements, acceptance criteria,
+  and non-missing Idea Maturity. `make ui-e2e-product-demo-live` runs the same
+  harness headed with a short pause for live inspection.
 - Raw idea entry state in SpecSpace.
 - Browser E2E for raw idea submit into SpecSpace-owned mutable state.
 - Workspace and `guided_flow` refresh after successful raw idea submit.
@@ -843,7 +845,10 @@ hidden UI mutations.
   Playwright runs without the flag fail fast so producer regressions do not pass
   silently. The fixture uses the same `active_frame_hints.*` and
   `event_storming_hints.*` target refs that SpecGraph materializes, so saved UI
-  answers still flow through the real Platform/SpecGraph continuation path.
+  answers still flow through the real Platform/SpecGraph continuation path. The
+  fixture now uses structured event-storming entries with actor/command/event
+  refs, so the browser demo must produce non-zero workflow topology rather than
+  a shallow candidate sketch.
 - Product demo runbook and production demo smoke are covered. The local runbook
   documents `make ui-e2e-product-demo`, `make ui-e2e-product-demo-live`, output
   artifacts, fallback policy, and `?view=demo`. Production smoke now checks that

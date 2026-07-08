@@ -151,12 +151,19 @@ Expected outputs:
 - screenshots under `screenshots/`, including `08-demo-view.png`;
 - Playwright trace/video under `playwright-output/`.
 
+`product-demo-report.json` includes the SpecGraph depth baseline status. A
+passing demo must have non-zero actors, domain events, policies, workflow
+topology, requirements, acceptance criteria, and a non-missing Idea Maturity
+surface. The harness builds this evidence through
+`make real-idea-smoke-depth-baseline` before publishing artifacts to the local
+SpecSpace backend.
+
 The final presentation screen is meant to support a short demo script:
 
 1. **Original idea** - the submitted idea is visible as operator-owned state, not
    as a public/canonical artifact.
 2. **What the system understood** - the frame is summarized as actors,
-   commands, events, and constraints.
+   commands, events, policies, and constraints.
 3. **Candidate generated** - SpecGraph evidence is shown as nodes,
    requirements, acceptance criteria, and topology.
 4. **Next safe action** - SpecSpace points to the next lifecycle step while

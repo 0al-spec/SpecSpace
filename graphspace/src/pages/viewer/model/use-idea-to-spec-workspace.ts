@@ -4580,14 +4580,17 @@ function parseCandidateOverview(
 ): IdeaToSpecCandidateOverview {
   const overview = recordValue(raw);
   const summary = recordValue(overview.summary);
+  const sections = recordValue(overview.sections);
   const candidate = recordValue(overview.candidate);
   const narrative = recordValue(overview.narrative);
-  const eventStorming = recordValue(overview.event_storming);
-  const candidateNodes = recordValue(overview.candidate_nodes);
-  const topology = recordValue(overview.topology);
-  const repair = recordValue(overview.repair);
-  const ideaMaturity = recordValue(overview.idea_maturity);
-  const projectLocalOntology = recordValue(overview.project_local_ontology);
+  const eventStorming = recordValue(overview.event_storming ?? sections.event_storming);
+  const candidateNodes = recordValue(overview.candidate_nodes ?? sections.candidate_nodes);
+  const topology = recordValue(overview.topology ?? sections.topology);
+  const repair = recordValue(overview.repair ?? sections.repair);
+  const ideaMaturity = recordValue(overview.idea_maturity ?? sections.idea_maturity);
+  const projectLocalOntology = recordValue(
+    overview.project_local_ontology ?? sections.project_local_ontology,
+  );
   const nextAction = recordValue(overview.next_action);
   return {
     available: overview.available === true,

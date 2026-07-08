@@ -1415,6 +1415,7 @@ function productDemoStory(
   const actorFallbacks = graphNodeFallbacks("actor");
   const commandFallbacks = graphNodeFallbacks("command");
   const eventFallbacks = graphNodeFallbacks("event");
+  const policyFallbacks = graphNodeFallbacks("policy");
   const constraintFallbacks = graphNodeFallbacks("constraint");
   const broadCommandFallbacks =
     commandFallbacks.length > 0 ? commandFallbacks : candidateNodeFallbacks;
@@ -1442,6 +1443,11 @@ function productDemoStory(
         eventFallbacks,
       ),
       detail: overviewDetails(candidate.eventStorming.domainEvents, eventFallbacks),
+    },
+    {
+      label: "Policies",
+      value: overviewCount(candidate.eventStorming.policyCount, policyFallbacks),
+      detail: overviewDetails(candidate.eventStorming.policies, policyFallbacks),
     },
     {
       label: "Constraints",
@@ -1520,7 +1526,9 @@ function productDemoStory(
           "The candidate frame is expressed as actors, commands, events, and constraints rather than free-form prose.",
         evidence: `${domainItems[0]?.value ?? "0"} actors · ${
           domainItems[1]?.value ?? "0"
-        } commands · ${domainItems[2]?.value ?? "0"} events`,
+        } commands · ${domainItems[2]?.value ?? "0"} events · ${
+          domainItems[3]?.value ?? "0"
+        } policies`,
       },
       {
         id: "generated-candidate",
@@ -7349,7 +7357,7 @@ function intakeAnswerText(
       return value.refs.filter((item): item is string => typeof item === "string").join(", ");
     }
     if (Array.isArray(value.entries)) {
-      return value.entries.filter((item): item is string => typeof item === "string").join("\n");
+      return JSON.stringify(value.entries, null, 2);
     }
     if (typeof value.text === "string") return value.text;
     if (typeof value.answer === "string") return value.answer;
@@ -7376,6 +7384,27 @@ function splitIntakeAnswerList(text: string): string[] {
     .filter(Boolean);
 }
 
+function parseIntakeAnswerEntries(text: string): unknown[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (item) =>
+            (typeof item === "string" && item.trim().length > 0) ||
+            (!!item && typeof item === "object" && !Array.isArray(item)),
+        );
+      }
+      if (parsed && typeof parsed === "object") return [parsed];
+    } catch {
+      // Fall through to line/comma splitting so the ordinary text mode stays usable.
+    }
+  }
+  return splitIntakeAnswerList(trimmed);
+}
+
 function intakeClarificationValueForRequest(
   request: IdeaToSpecClarificationRequest,
   action: string,
@@ -7386,8 +7415,8 @@ function intakeClarificationValueForRequest(
     return { reason: value };
   }
   const haystack = `${request.id} ${request.targetRef ?? ""} ${request.question ?? ""}`.toLowerCase();
-  if (haystack.includes("actors") || haystack.includes("domain-events") || haystack.includes("domain_events") || haystack.includes("commands") || haystack.includes("constraints")) {
-    return { entries: splitIntakeAnswerList(value) };
+  if (haystack.includes("actors") || haystack.includes("domain-events") || haystack.includes("domain_events") || haystack.includes("commands") || haystack.includes("policies") || haystack.includes("constraints")) {
+    return { entries: parseIntakeAnswerEntries(value) };
   }
   if (haystack.includes("refs") || haystack.includes("ontology") || haystack.includes("domain") || haystack.includes("context") || haystack.includes("applicability")) {
     return { refs: splitIntakeAnswerList(value) };
@@ -7408,7 +7437,7 @@ function intakeClarificationValueForTemplate(
       value.refs = splitIntakeAnswerList(trimmed);
     }
     if (field === "value.entries[]" || field === "value.entries") {
-      value.entries = splitIntakeAnswerList(trimmed);
+      value.entries = parseIntakeAnswerEntries(trimmed);
     }
     if (field === "value.terms[]" || field === "value.terms") {
       value.terms = splitIntakeAnswerList(trimmed);
@@ -7426,7 +7455,7 @@ function intakeClarificationValueForTemplate(
     if (keys.includes("answer")) return { answer: trimmed };
     if (keys.includes("context")) return { context: trimmed };
     if (keys.includes("refs")) return { refs: splitIntakeAnswerList(trimmed) };
-    if (keys.includes("entries")) return { entries: splitIntakeAnswerList(trimmed) };
+    if (keys.includes("entries")) return { entries: parseIntakeAnswerEntries(trimmed) };
     if (keys.includes("terms")) return { terms: splitIntakeAnswerList(trimmed) };
     if (keys.includes("term")) return { term: trimmed };
     if (keys.includes("follow_up")) return { follow_up: trimmed };

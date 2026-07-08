@@ -1516,6 +1516,16 @@ def _overview_items(value: Any) -> list[dict[str, Any]]:
     return rows
 
 
+def _overview_group_count(group: Any, legacy_count: Any = None) -> int:
+    group_record = _record(group)
+    return _first_optional_number(group_record.get("count"), legacy_count)
+
+
+def _overview_group_items(group: Any) -> list[dict[str, Any]]:
+    group_record = _record(group)
+    return _overview_items(group_record.get("items") or group)
+
+
 def _overview_edges(value: Any) -> list[dict[str, Any]]:
     rows = []
     limit = DISPLAY_LIMITS["candidate_overview_items"]
@@ -1578,16 +1588,31 @@ def _candidate_overview(report: dict[str, Any] | None) -> dict[str, Any]:
             "next_action": _optional_text(narrative.get("next_action")),
         },
         "event_storming": {
-            "actor_count": _number(event_storming.get("actor_count")),
-            "command_count": _number(event_storming.get("command_count")),
-            "domain_event_count": _number(event_storming.get("domain_event_count")),
-            "policy_count": _number(event_storming.get("policy_count")),
-            "constraint_count": _number(event_storming.get("constraint_count")),
-            "actors": _overview_items(event_storming.get("actors")),
-            "commands": _overview_items(event_storming.get("commands")),
-            "domain_events": _overview_items(event_storming.get("domain_events")),
-            "policies": _overview_items(event_storming.get("policies")),
-            "constraints": _overview_items(event_storming.get("constraints")),
+            "actor_count": _overview_group_count(
+                event_storming.get("actors"),
+                event_storming.get("actor_count"),
+            ),
+            "command_count": _overview_group_count(
+                event_storming.get("commands"),
+                event_storming.get("command_count"),
+            ),
+            "domain_event_count": _overview_group_count(
+                event_storming.get("domain_events"),
+                event_storming.get("domain_event_count"),
+            ),
+            "policy_count": _overview_group_count(
+                event_storming.get("policies"),
+                event_storming.get("policy_count"),
+            ),
+            "constraint_count": _overview_group_count(
+                event_storming.get("constraints"),
+                event_storming.get("constraint_count"),
+            ),
+            "actors": _overview_group_items(event_storming.get("actors")),
+            "commands": _overview_group_items(event_storming.get("commands")),
+            "domain_events": _overview_group_items(event_storming.get("domain_events")),
+            "policies": _overview_group_items(event_storming.get("policies")),
+            "constraints": _overview_group_items(event_storming.get("constraints")),
         },
         "candidate_nodes": {
             "nodes": _overview_items(candidate_nodes.get("nodes")),

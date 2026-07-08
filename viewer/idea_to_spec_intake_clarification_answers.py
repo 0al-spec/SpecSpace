@@ -79,6 +79,25 @@ VALUE_FALSE_FIELDS = (
     "may_create_branch_or_commit",
     "may_open_pull_request",
 )
+ENTRY_ALLOWED_FIELDS = {
+    "id",
+    "name",
+    "statement",
+    "question",
+    "term",
+    "role",
+    "kind",
+    "actor_refs",
+    "produces_event_refs",
+    "trigger_event_refs",
+    "command_refs",
+}
+ENTRY_REF_FIELDS = {
+    "actor_refs",
+    "produces_event_refs",
+    "trigger_event_refs",
+    "command_refs",
+}
 _STATE_LOCK = threading.Lock()
 
 
@@ -513,7 +532,10 @@ def _template_field_present(value: dict[str, Any], field: str) -> bool:
         return True
     path = field.removeprefix("value.")
     if path.endswith("[]"):
-        item = value.get(path[:-2])
+        key = path[:-2]
+        item = value.get(key)
+        if key == "entries":
+            return bool(_entry_list(item))
         return bool(_string_list(item))
     if path == "context":
         return _substantive(value.get("context") or value.get("text"))
@@ -639,12 +661,12 @@ def _normalize_existing_answer(entry: dict[str, Any]) -> dict[str, Any] | None:
 
 def _normalize_answer_value(answer_kind: str, raw: Any) -> tuple[dict[str, Any], dict[str, Any] | None]:
     value = raw if isinstance(raw, dict) else {}
-    mutation_field = _first_true(value, VALUE_FALSE_FIELDS)
+    mutation_field = _first_true(value, VALUE_FALSE_FIELDS) or _unsafe_value_field(value)
     if mutation_field is not None:
         return {}, {"error": f"intake clarification value cannot claim {mutation_field}"}
     if answer_kind in {"answer_question", "provide_candidate_context"}:
         refs = _string_list(value.get("refs"))
-        entries = _string_list(value.get("entries"))
+        entries = _entry_list(value.get("entries"))
         terms = _string_list(value.get("terms"))
         term = _text(value.get("term"))
         text = _text(value.get("text") or value.get("answer") or value.get("context"))
@@ -692,6 +714,40 @@ def _string_list(value: Any) -> list[str]:
     return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
+def _entry_list(value: Any) -> list[Any]:
+    if not isinstance(value, list):
+        return []
+    entries: list[Any] = []
+    for item in value:
+        entry = _entry_value(item)
+        if entry is not None:
+            entries.append(entry)
+    return entries
+
+
+def _entry_value(value: Any) -> Any | None:
+    if isinstance(value, str):
+        text = value.strip()
+        return text or None
+    if not isinstance(value, dict):
+        return None
+    if _unsafe_value_field(value) is not None:
+        return None
+    entry: dict[str, Any] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or key not in ENTRY_ALLOWED_FIELDS:
+            continue
+        if key in ENTRY_REF_FIELDS:
+            refs = _string_list(item)
+            if refs:
+                entry[key] = refs
+            continue
+        if isinstance(item, str) and item.strip():
+            entry[key] = item.strip()
+    has_label = any(entry.get(field) for field in ("id", "name", "statement", "question", "term"))
+    return entry if has_label else None
+
+
 def _string_map(value: Any) -> dict[str, str]:
     if not isinstance(value, dict):
         return {}
@@ -714,3 +770,24 @@ def _first_true(value: Any, fields: tuple[str, ...]) -> str | None:
     if not isinstance(value, dict):
         return None
     return next((field for field in fields if value.get(field) is True), None)
+
+
+def _unsafe_value_field(value: Any, path: str = "value") -> str | None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                continue
+            child_path = f"{path}.{key}" if path else key
+            if key.startswith("raw_"):
+                return child_path
+            if (key.startswith("may_") or key in VALUE_FALSE_FIELDS) and item is not False:
+                return child_path
+            found = _unsafe_value_field(item, child_path)
+            if found is not None:
+                return found
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            found = _unsafe_value_field(item, f"{path}[{index}]")
+            if found is not None:
+                return found
+    return None
