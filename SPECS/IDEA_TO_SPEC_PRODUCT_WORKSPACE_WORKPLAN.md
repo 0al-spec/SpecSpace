@@ -94,6 +94,11 @@ runtime action requests from Product Workspace routes.
   domain events, policies, workflow edges, requirements, acceptance criteria,
   and non-missing Idea Maturity. `make ui-e2e-product-demo-live` runs the same
   harness headed with a short pause for live inspection.
+- Idea Maturity structural depth observations. Product Workspace now surfaces
+  Metrics-owned `groups.candidate_structure_depth` as a diagnostic panel inside
+  Idea Maturity, showing actors, commands, domain events, policies,
+  constraints, topology edges, workflow edges, requirements, and acceptance
+  criteria without turning them into a score or a promotion gate.
 - Raw idea entry state in SpecSpace.
 - Browser E2E for raw idea submit into SpecSpace-owned mutable state.
 - Workspace and `guided_flow` refresh after successful raw idea submit.

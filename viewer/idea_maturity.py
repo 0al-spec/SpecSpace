@@ -343,6 +343,9 @@ def _validation_ok(validation: dict[str, Any]) -> bool:
 
 def _metrics(report: dict[str, Any] | None) -> dict[str, Any]:
     metrics = _record((report or {}).get("metrics"))
+    candidate_structure_depth = _record(
+        metrics.get("candidate_structure_depth")
+    ) or _group(report, "candidate_structure_depth")
     project_local_ontology_review = _record(
         _metric_source_value(
             report,
@@ -352,6 +355,29 @@ def _metrics(report: dict[str, Any] | None) -> dict[str, Any]:
     )
     return {
         "candidate_node_count": _number(metrics.get("candidate_node_count")),
+        "candidate_structure_depth": {
+            "actor_count": _number(candidate_structure_depth.get("actor_count")),
+            "command_count": _number(candidate_structure_depth.get("command_count")),
+            "domain_event_count": _number(
+                candidate_structure_depth.get("domain_event_count")
+            ),
+            "policy_count": _number(candidate_structure_depth.get("policy_count")),
+            "constraint_count": _number(
+                candidate_structure_depth.get("constraint_count")
+            ),
+            "topology_edge_count": _number(
+                candidate_structure_depth.get("topology_edge_count")
+            ),
+            "workflow_edge_count": _number(
+                candidate_structure_depth.get("workflow_edge_count")
+            ),
+            "requirement_count": _number(
+                candidate_structure_depth.get("requirement_count")
+            ),
+            "acceptance_criteria_count": _number(
+                candidate_structure_depth.get("acceptance_criteria_count")
+            ),
+        },
         "clarification_question_count": _number(
             _metric_source_value(report, "clarification_load", "clarification_question_count")
         ),
@@ -652,6 +678,7 @@ def _report_surface(report: dict[str, Any] | None) -> dict[str, Any]:
             "answer_materialization": _group(report, "answer_materialization"),
             "ontology_grounding": _ontology_grounding_group(report),
             "candidate_repair": _group(report, "candidate_repair"),
+            "candidate_structure_depth": _group(report, "candidate_structure_depth"),
             "workflow_friction": _group(report, "workflow_friction"),
             "promotion_readiness": _group(report, "promotion_readiness"),
             "review_publication": _group(report, "review_publication"),

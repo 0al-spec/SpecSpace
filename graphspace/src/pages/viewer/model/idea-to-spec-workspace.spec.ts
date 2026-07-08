@@ -1127,6 +1127,21 @@ describe("parseIdeaToSpecWorkspace", () => {
     );
   });
 
+  it("parses idea maturity structural depth observations", () => {
+    const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(
+      parsed.data.ideaMaturity.report.metrics.candidateStructureDepth,
+    ).toMatchObject({
+      actorCount: 2,
+      domainEventCount: 3,
+      workflowEdgeCount: 8,
+      acceptanceCriteriaCount: 8,
+    });
+  });
+
   it("parses idea maturity finding next actions", () => {
     const parsed = parseIdeaToSpecWorkspace({
       ...ideaToSpecWorkspace,

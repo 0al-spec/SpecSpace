@@ -2570,6 +2570,17 @@ def _idea_maturity_metrics_report() -> dict:
                 "candidate_gap_closure_rate": 1.0,
                 "remaining_blocker_count": 0,
             },
+            "candidate_structure_depth": {
+                "actor_count": 2,
+                "command_count": 3,
+                "domain_event_count": 3,
+                "policy_count": 1,
+                "constraint_count": 2,
+                "topology_edge_count": 11,
+                "workflow_edge_count": 8,
+                "requirement_count": 8,
+                "acceptance_criteria_count": 8,
+            },
             "workflow_friction": {
                 "stale_ref_count": 0,
                 "failed_gate_count": 0,
@@ -2648,6 +2659,17 @@ def _idea_maturity_metrics_report() -> dict:
             "candidate_gap_resolved_count": 4,
             "candidate_gap_unresolved_count": 0,
             "candidate_gap_closure_rate": 1.0,
+            "candidate_structure_depth": {
+                "actor_count": 2,
+                "command_count": 3,
+                "domain_event_count": 3,
+                "policy_count": 1,
+                "constraint_count": 2,
+                "topology_edge_count": 11,
+                "workflow_edge_count": 8,
+                "requirement_count": 8,
+                "acceptance_criteria_count": 8,
+            },
             "remaining_blocker_count": 0,
             "stale_ref_count": 0,
             "failed_gate_count": 0,
@@ -3048,6 +3070,18 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 "project_local_ontology_review"
             ]["accepted_decision_count"],
             2,
+        )
+        self.assertEqual(
+            body["idea_maturity"]["report"]["metrics"][
+                "candidate_structure_depth"
+            ]["workflow_edge_count"],
+            8,
+        )
+        self.assertEqual(
+            body["idea_maturity"]["report"]["groups"][
+                "candidate_structure_depth"
+            ]["domain_event_count"],
+            3,
         )
         self.assertEqual(
             body["idea_maturity"]["report"]["contract"]["schema_ref"],
