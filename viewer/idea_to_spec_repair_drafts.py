@@ -80,6 +80,25 @@ PRODUCT_CONTEXT_FIELDS = (
     "affected_ref",
     "follow_up",
 )
+ENTRY_ALLOWED_FIELDS = {
+    "id",
+    "name",
+    "statement",
+    "question",
+    "term",
+    "role",
+    "kind",
+    "actor_refs",
+    "produces_event_refs",
+    "trigger_event_refs",
+    "command_refs",
+}
+ENTRY_REF_FIELDS = {
+    "actor_refs",
+    "produces_event_refs",
+    "trigger_event_refs",
+    "command_refs",
+}
 SUBSTANTIVE_PRODUCT_CONTEXT_FIELDS = (
     "mechanism",
     "owner",
@@ -461,10 +480,17 @@ def _normalize_answer_value(action: str, raw: Any) -> tuple[dict[str, Any], dict
             result["follow_up"] = follow_up
         return result, None
     if action == "answer_question":
+        entries, entries_error = _entry_list(value.get("entries"))
+        if entries_error is not None:
+            return {}, {"error": entries_error}
         text = _text(value.get("text") or value.get("answer"))
-        if text is None:
-            return {}, {"error": "answer_question requires answer_value.text"}
-        result = {"text": text}
+        if text is None and not entries:
+            return {}, {"error": "answer_question requires answer_value.text or answer_value.entries"}
+        result: dict[str, Any] = {}
+        if text is not None:
+            result["text"] = text
+        if entries:
+            result["entries"] = entries
         affected_ref = _text(value.get("affected_ref"))
         if affected_ref is not None:
             result["affected_ref"] = affected_ref
@@ -530,6 +556,43 @@ def _string_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
     return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+
+
+def _entry_list(value: Any) -> tuple[list[Any], str | None]:
+    if not isinstance(value, list):
+        return [], None
+    entries: list[Any] = []
+    for index, item in enumerate(value):
+        entry, error = _entry_value(item)
+        if error is not None:
+            return [], f"answer_value.entries[{index}].{error}"
+        if entry is not None:
+            entries.append(entry)
+    return entries, None
+
+
+def _entry_value(value: Any) -> tuple[Any | None, str | None]:
+    if isinstance(value, str):
+        text = value.strip()
+        return (text or None), None
+    if not isinstance(value, dict):
+        return None, None
+    mutation_field = _first_true(value, PRODUCT_REPAIR_FALSE_FIELDS)
+    if mutation_field is not None:
+        return None, f"{mutation_field} must be false"
+    entry: dict[str, Any] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or key not in ENTRY_ALLOWED_FIELDS:
+            continue
+        if key in ENTRY_REF_FIELDS:
+            refs = _string_list(item)
+            if refs:
+                entry[key] = refs
+            continue
+        if isinstance(item, str) and item.strip():
+            entry[key] = item.strip()
+    has_label = any(entry.get(field) for field in ("id", "name", "statement", "question", "term"))
+    return (entry if has_label else None), None
 
 
 def _string_map(value: Any) -> dict[str, str]:

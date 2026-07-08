@@ -6,7 +6,10 @@ import {
   parseIdeaToSpecWorkspace,
   type UseIdeaToSpecWorkspaceState,
 } from "../model/use-idea-to-spec-workspace";
-import { IdeaToSpecWorkspacePanel } from "./IdeaToSpecWorkspacePanel";
+import {
+  IdeaToSpecWorkspacePanel,
+  repairDraftText,
+} from "./IdeaToSpecWorkspacePanel";
 
 const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
 if (parsed.kind !== "ok") {
@@ -1819,6 +1822,75 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Scope");
     expect(html).toContain("Risk decision");
     expect(html).toContain("Mitigation");
+  });
+
+  it("renders event-storming hint targets as structured entries regardless of kind", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.repair_review.clarification_requests.requests.push({
+      id: "clarification.depth.actors",
+      kind: "missing_event_storming_context",
+      severity: "review_required",
+      status: "open",
+      target_ref: "event_storming_hints.actors",
+      target_artifact: "runs/idea_event_storming_intake.json",
+      question: "Which actors should participate?",
+      suggested_actions: ["answer_question", "defer_candidate"],
+    });
+    raw.repair_review.clarification_requests.request_count += 1;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toContain("Which actors should participate?");
+    expect(html).toContain("Repair draft event-storming entries");
+    expect(html).toContain("One actors per line.");
+  });
+
+  it("round-trips trigger refs in event-storming repair drafts", () => {
+    const text = repairDraftText({
+      draftId: "draft.clarification.depth.policies",
+      workspaceId: "team-decision-log",
+      candidateId: "team-decision-log",
+      repairSessionId: "repair-session.team-decision-log",
+      repairSessionRef: "runs/idea_to_spec_repair_session.json",
+      requestId: "clarification.depth.policies",
+      requestKind: "event_storming_gap",
+      requestStatus: "open",
+      allowedAction: "answer_question",
+      targetRef: "event_storming_hints.policies",
+      targetArtifact: "runs/idea_event_storming_intake.json",
+      answerValue: {
+        entries: [
+          {
+            id: "policy.notify-household",
+            name: "Notify household",
+            trigger_event_refs: ["event.expiration-reviewed"],
+          },
+        ],
+      },
+      operatorRef: "operator://specspace-local",
+      createdAt: "2026-07-08T00:00:00Z",
+      updatedAt: "2026-07-08T00:00:00Z",
+      sourceArtifact: "idea_to_spec_repair_drafts.json",
+      canonicalMutationsAllowed: false,
+      trackedArtifactsWritten: false,
+      appliesToSpecgraph: false,
+      appliesToCandidateArtifacts: false,
+      mutatesCanonicalSpecs: false,
+      writesOntologyPackage: false,
+      acceptsOntologyTerms: false,
+      createsBranchOrCommit: false,
+      opensPullRequest: false,
+    });
+
+    expect(text).toBe("Notify household -> event.expiration-reviewed");
   });
 
   it("renders unknown accepted answer count for unavailable continuation preview", () => {
