@@ -15,6 +15,10 @@ with screenshots/DOM measurements for relevant viewports, and only then wire the
 component into production pages or panels.
 
 Store important lessons learned during SpecSpace work in [CONTRIBUTING.md](CONTRIBUTING.md), and check it first when recurring implementation, review, or deployment problems appear.
+When reviewing API, artifact, or UI-state changes, apply the code review
+heuristics in [CONTRIBUTING.md](CONTRIBUTING.md): distinguish data presence from
+readiness/status, preserve producer lifecycle semantics, prefer authoritative
+artifact versions, and avoid leaking state through shared temporary paths.
 
 For idea-to-spec Product Workspace work, keep the active UI/product backlog in
 [SPECS/IDEA_TO_SPEC_PRODUCT_WORKSPACE_WORKPLAN.md](SPECS/IDEA_TO_SPEC_PRODUCT_WORKSPACE_WORKPLAN.md).
