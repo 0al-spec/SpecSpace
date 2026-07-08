@@ -118,14 +118,47 @@
   - mobile/narrow: примерно `390x844`, особенно если менялись `position: fixed`, rail/panel heights, scroll containers, overlays, bottom status bar или toolbar;
   - проверять не только наличие панели, но и достижимость нижнего контента через scroll.
 
-## 8) Рекомендованная структура «быстрого старта» для нового участника
+## 8) Code review heuristics для API, artifacts и UI-state
+
+Эти правила применяем систематически при review изменений, которые читают
+SpecGraph artifacts, backend API, live-status, polling/watch state или
+quality-gate результаты:
+
+- **Presence is not readiness.** Не считать, что файл, endpoint response,
+  non-empty field или rendered panel уже означают пригодное состояние. Если
+  producer отдаёт статусы вроде `ready`, `review_required`, `blocked`,
+  `missing`, `verified`, `in_progress` или HTTP 503, consumer/UI должен иметь
+  явную ветку поведения.
+- **Prefer authoritative data.** Если workflow поддерживает repair, retry,
+  regeneration, draft/final или promoted artifacts, проверять, что UI/API layer
+  берёт актуальную/авторитетную версию, а не первый найденный payload.
+- **Do not leak run state.** Любой temporary или intermediate path должен быть
+  run-local/task-local либо явно documented shared location. Особенно проверять
+  artifact roots, deploy bundles, cache dirs и inputs из соседних repos.
+- **Model operator misuse.** Кроме плохих данных проверять вероятные ошибки
+  оператора: wrong path, wrong env var, wrong branch, wrong deploy target, wrong
+  workspace/root или путаница между local artifact и published artifact.
+- **Enumerate UI failure modes.** Для новых panels, badges, lists и gates
+  перечислять состояния: missing, empty, malformed JSON, partial data, stale
+  data, not-ready status, backend unavailable. Каждому состоянию нужен
+  intentional fallback, diagnostic status или structured finding.
+- **Trace producer semantics.** При чтении SpecGraph payloads проверять реальные
+  значения producer'а, а не только TypeScript shape. Если значение приходит из
+  SpecGraph tool, proposal, или generated run artifact, смотреть producer
+  contract/tests и сохранять unknown future statuses pass-through friendly.
+- **Separate crashes from silent skips.** Crash заметен, silent skip скрывает
+  проблему. Для smoke/report/UI diagnostic surfaces лучше structured findings и
+  degraded rendering; если это только улучшение устойчивости, так и называть
+  robustness-improvement, не завышая criticality.
+
+## 9) Рекомендованная структура «быстрого старта» для нового участника
 
 1. Обновить `main` и прочитать текущий `SPECS/Workplan.md` + `SPECS/INPROGRESS/next.md`.
 2. Пройти последний merged PR, понять текущий state UI (canvas/utility/agent panels).
 3. Проверить Timeweb/CI статус для последнего релиза.
 4. Выбирать следующую задачу из плана и делать маленький, изолированный PR.
 
-## 9) Что делать с этим файлом
+## 10) Что делать с этим файлом
 
 - `CONTRIBUTING.md` — для onboarding и правил код-ревью.
 - Если появляются новые важные нюансы (например новый deploy-провайдер, новые guardrails для SpecPM/SpecGraph), добавлять в этот документ отдельным пунктом.

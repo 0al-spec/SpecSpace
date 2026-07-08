@@ -37,4 +37,6 @@ Results:
 - [ ] PR title clearly describes the change
 - [ ] Scope is focused and minimal
 - [ ] Documentation updated (or N/A)
+- [ ] API/artifact/UI-state changes distinguish presence from readiness/status
+- [ ] Temporary or intermediate paths are scoped to the current run/task where relevant
 - [ ] No secrets or sensitive data added
