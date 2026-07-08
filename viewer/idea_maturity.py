@@ -341,6 +341,40 @@ def _validation_ok(validation: dict[str, Any]) -> bool:
     return bool(reports) and all(_text(item.get("status")) == "ok" for item in reports)
 
 
+def _candidate_structure_depth(report: dict[str, Any] | None) -> dict[str, Any]:
+    metrics = _record((report or {}).get("metrics"))
+    groups = _record((report or {}).get("groups"))
+    raw_depth = metrics.get("candidate_structure_depth")
+    if not isinstance(raw_depth, dict):
+        raw_depth = groups.get("candidate_structure_depth")
+    if not isinstance(raw_depth, dict):
+        return {
+            "available": False,
+            "actor_count": 0,
+            "command_count": 0,
+            "domain_event_count": 0,
+            "policy_count": 0,
+            "constraint_count": 0,
+            "topology_edge_count": 0,
+            "workflow_edge_count": 0,
+            "requirement_count": 0,
+            "acceptance_criteria_count": 0,
+        }
+    depth = _safe_record(raw_depth)
+    return {
+        "available": True,
+        "actor_count": _number(depth.get("actor_count")),
+        "command_count": _number(depth.get("command_count")),
+        "domain_event_count": _number(depth.get("domain_event_count")),
+        "policy_count": _number(depth.get("policy_count")),
+        "constraint_count": _number(depth.get("constraint_count")),
+        "topology_edge_count": _number(depth.get("topology_edge_count")),
+        "workflow_edge_count": _number(depth.get("workflow_edge_count")),
+        "requirement_count": _number(depth.get("requirement_count")),
+        "acceptance_criteria_count": _number(depth.get("acceptance_criteria_count")),
+    }
+
+
 def _metrics(report: dict[str, Any] | None) -> dict[str, Any]:
     metrics = _record((report or {}).get("metrics"))
     project_local_ontology_review = _record(
@@ -352,6 +386,7 @@ def _metrics(report: dict[str, Any] | None) -> dict[str, Any]:
     )
     return {
         "candidate_node_count": _number(metrics.get("candidate_node_count")),
+        "candidate_structure_depth": _candidate_structure_depth(report),
         "clarification_question_count": _number(
             _metric_source_value(report, "clarification_load", "clarification_question_count")
         ),
@@ -652,6 +687,7 @@ def _report_surface(report: dict[str, Any] | None) -> dict[str, Any]:
             "answer_materialization": _group(report, "answer_materialization"),
             "ontology_grounding": _ontology_grounding_group(report),
             "candidate_repair": _group(report, "candidate_repair"),
+            "candidate_structure_depth": _group(report, "candidate_structure_depth"),
             "workflow_friction": _group(report, "workflow_friction"),
             "promotion_readiness": _group(report, "promotion_readiness"),
             "review_publication": _group(report, "review_publication"),

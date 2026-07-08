@@ -778,6 +778,18 @@ export type IdeaToSpecApprovalReadiness = {
 
 export type IdeaToSpecIdeaMaturityMetrics = {
   candidateNodeCount: number;
+  candidateStructureDepth: {
+    available: boolean;
+    actorCount: number;
+    commandCount: number;
+    domainEventCount: number;
+    policyCount: number;
+    constraintCount: number;
+    topologyEdgeCount: number;
+    workflowEdgeCount: number;
+    requirementCount: number;
+    acceptanceCriteriaCount: number;
+  };
   clarificationQuestionCount: number;
   reviewRequiredQuestionCount: number;
   blockingQuestionCount: number;
@@ -3630,11 +3642,34 @@ function parseApprovalReadiness(raw: unknown): IdeaToSpecApprovalReadiness {
 
 function parseIdeaMaturityMetrics(raw: unknown): IdeaToSpecIdeaMaturityMetrics {
   const metrics = recordValue(raw);
+  const hasCandidateStructureDepth = isRecord(metrics.candidate_structure_depth);
+  const candidateStructureDepth = recordValue(metrics.candidate_structure_depth);
   const nestedProjectLocalReview = recordValue(
     metrics.project_local_ontology_review,
   );
   return {
     candidateNodeCount: numberValue(metrics.candidate_node_count),
+    candidateStructureDepth: {
+      available:
+        hasCandidateStructureDepth && candidateStructureDepth.available !== false,
+      actorCount: numberValue(candidateStructureDepth.actor_count),
+      commandCount: numberValue(candidateStructureDepth.command_count),
+      domainEventCount: numberValue(
+        candidateStructureDepth.domain_event_count,
+      ),
+      policyCount: numberValue(candidateStructureDepth.policy_count),
+      constraintCount: numberValue(candidateStructureDepth.constraint_count),
+      topologyEdgeCount: numberValue(
+        candidateStructureDepth.topology_edge_count,
+      ),
+      workflowEdgeCount: numberValue(
+        candidateStructureDepth.workflow_edge_count,
+      ),
+      requirementCount: numberValue(candidateStructureDepth.requirement_count),
+      acceptanceCriteriaCount: numberValue(
+        candidateStructureDepth.acceptance_criteria_count,
+      ),
+    },
     clarificationQuestionCount: numberValue(
       metrics.clarification_question_count,
     ),

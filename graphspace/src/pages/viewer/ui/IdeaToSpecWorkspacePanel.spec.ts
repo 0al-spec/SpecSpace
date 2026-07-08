@@ -1519,6 +1519,45 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toMatch(/Ordinary unmaterialized<\/span><span[^>]*>0/);
   });
 
+  it("renders idea maturity structural depth observations", () => {
+    const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
+    if (parsed.kind !== "ok") {
+      throw new Error("Idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsed.data },
+      }),
+    );
+
+    expect(html).toContain("Candidate structure depth");
+    expect(html).toContain("workflow mapped");
+    expect(html).toContain("Domain events");
+    expect(html).toMatch(/Workflow edges<\/span><span[^>]*>8/);
+    expect(html).toMatch(/Acceptance criteria<\/span><span[^>]*>8/);
+  });
+
+  it("renders missing idea maturity structural depth as not published", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    delete raw.idea_maturity.report.metrics.candidate_structure_depth;
+    const parsed = parseIdeaToSpecWorkspace(raw);
+    if (parsed.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsed.data },
+      }),
+    );
+
+    expect(html).toContain("Candidate structure depth");
+    expect(html).toContain("not published");
+    expect(html).toContain("Structural depth not published");
+    expect(html).not.toContain("flat candidate");
+  });
+
   it("does not prefill project-local keep decisions with the term text", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.project_local_ontology_review = {
