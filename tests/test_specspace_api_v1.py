@@ -13605,6 +13605,41 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "value": {"entries": ["Decision Owner"]},
                     },
                 )
+                structured_status, structured_body = _post(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.intake.question-active-frame-domain-refs",
+                        "answer_kind": "answer_question",
+                        "value": {
+                            "entries": [
+                                {
+                                    "id": "command.record-pantry-item",
+                                    "name": "Record pantry item",
+                                    "actor_refs": ["actor.household-cook"],
+                                    "produces_event_refs": ["event.pantry-item-recorded"],
+                                }
+                            ]
+                        },
+                    },
+                )
+                authority_status, authority_body = _post(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.intake.question-active-frame-domain-refs",
+                        "answer_kind": "answer_question",
+                        "value": {
+                            "entries": [
+                                {
+                                    "id": "command.bad",
+                                    "name": "Bad command",
+                                    "may_execute_platform": True,
+                                }
+                            ]
+                        },
+                    },
+                )
             finally:
                 _stop(httpd, thread)
 
@@ -13612,6 +13647,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(bad_body["missing_fields"], ["value.entries[]"])
         self.assertEqual(ok_status, 200)
         self.assertEqual(ok_body["answers"][0]["value"]["entries"], ["Decision Owner"])
+        self.assertEqual(structured_status, 200)
+        self.assertEqual(
+            structured_body["answers"][0]["value"]["entries"][0]["produces_event_refs"],
+            ["event.pantry-item-recorded"],
+        )
+        self.assertEqual(authority_status, 400)
+        self.assertIn("value.entries[0].may_execute_platform", authority_body["error"])
 
     def test_idea_to_spec_intake_answers_reject_bad_template_contracts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
