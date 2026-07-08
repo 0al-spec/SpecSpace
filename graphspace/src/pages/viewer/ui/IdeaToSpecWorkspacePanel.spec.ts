@@ -1853,6 +1853,35 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("One actors per line.");
   });
 
+  it("renders workflow topology hint targets as typed relation drafts", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.repair_review.clarification_requests.requests.push({
+      id: "clarification.depth.workflow-topology",
+      kind: "workflow_topology_gap",
+      severity: "review_required",
+      status: "open",
+      target_ref: "event_storming_hints.workflow_relations",
+      target_artifact: "runs/idea_event_storming_intake.json",
+      question: "Which typed workflow relations connect existing entries?",
+      suggested_actions: ["answer_question", "defer_candidate"],
+    });
+    raw.repair_review.clarification_requests.request_count += 1;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toContain("Which typed workflow relations connect existing entries?");
+    expect(html).toContain("event_storming_hints.workflow_relations");
+    expect(html).toContain("command_emits_event command.record-pantry-item");
+  });
+
   it("round-trips trigger refs in event-storming repair drafts", () => {
     const text = repairDraftText({
       draftId: "draft.clarification.depth.policies",
@@ -1891,6 +1920,48 @@ describe("IdeaToSpecWorkspacePanel", () => {
     });
 
     expect(text).toBe("Notify household -> event.expiration-reviewed");
+  });
+
+  it("round-trips workflow relation repair drafts", () => {
+    const text = repairDraftText({
+      draftId: "draft.clarification.depth.workflow-topology",
+      workspaceId: "team-decision-log",
+      candidateId: "team-decision-log",
+      repairSessionId: "repair-session.team-decision-log",
+      repairSessionRef: "runs/idea_to_spec_repair_session.json",
+      requestId: "clarification.depth.workflow-topology",
+      requestKind: "workflow_topology_gap",
+      requestStatus: "open",
+      allowedAction: "answer_question",
+      targetRef: "event_storming_hints.workflow_relations",
+      targetArtifact: "runs/idea_event_storming_intake.json",
+      answerValue: {
+        relations: [
+          {
+            relation: "command_emits_event",
+            source_ref: "command.record-pantry-item",
+            target_ref: "event.pantry-item-recorded",
+          },
+        ],
+      },
+      operatorRef: "operator://specspace-local",
+      createdAt: "2026-07-08T00:00:00Z",
+      updatedAt: "2026-07-08T00:00:00Z",
+      sourceArtifact: "idea_to_spec_repair_drafts.json",
+      canonicalMutationsAllowed: false,
+      trackedArtifactsWritten: false,
+      appliesToSpecgraph: false,
+      appliesToCandidateArtifacts: false,
+      mutatesCanonicalSpecs: false,
+      writesOntologyPackage: false,
+      acceptsOntologyTerms: false,
+      createsBranchOrCommit: false,
+      opensPullRequest: false,
+    });
+
+    expect(text).toBe(
+      "command_emits_event command.record-pantry-item -> event.pantry-item-recorded",
+    );
   });
 
   it("renders unknown accepted answer count for unavailable continuation preview", () => {

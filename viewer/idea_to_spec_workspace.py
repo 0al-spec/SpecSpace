@@ -2027,9 +2027,13 @@ REAL_IDEA_ANSWER_TEMPLATE_VALUE_KEYS = {
     "entries",
     "follow_up",
     "reason",
+    "relation",
     "refs",
+    "relations",
+    "source_ref",
     "term",
     "terms",
+    "target_ref",
     "text",
 }
 LOCAL_PATH_PREFIXES = ("/Users/", "/home/", "/tmp/", "/var/", "/private/")

@@ -98,6 +98,12 @@ ENTRY_REF_FIELDS = {
     "trigger_event_refs",
     "command_refs",
 }
+RELATION_ALLOWED_FIELDS = {
+    "relation",
+    "source_ref",
+    "target_ref",
+    "rationale",
+}
 _STATE_LOCK = threading.Lock()
 
 
@@ -536,6 +542,8 @@ def _template_field_present(value: dict[str, Any], field: str) -> bool:
         item = value.get(key)
         if key == "entries":
             return bool(_entry_list(item))
+        if key == "relations":
+            return bool(_relation_list(item))
         return bool(_string_list(item))
     if path == "context":
         return _substantive(value.get("context") or value.get("text"))
@@ -667,6 +675,7 @@ def _normalize_answer_value(answer_kind: str, raw: Any) -> tuple[dict[str, Any],
     if answer_kind in {"answer_question", "provide_candidate_context"}:
         refs = _string_list(value.get("refs"))
         entries = _entry_list(value.get("entries"))
+        relations = _relation_list(value.get("relations"))
         terms = _string_list(value.get("terms"))
         term = _text(value.get("term"))
         text = _text(value.get("text") or value.get("answer") or value.get("context"))
@@ -675,6 +684,8 @@ def _normalize_answer_value(answer_kind: str, raw: Any) -> tuple[dict[str, Any],
             result["refs"] = refs
         if entries:
             result["entries"] = entries
+        if relations:
+            result["relations"] = relations
         if terms:
             result["terms"] = terms
         if term is not None:
@@ -685,7 +696,7 @@ def _normalize_answer_value(answer_kind: str, raw: Any) -> tuple[dict[str, Any],
             return {}, {
                 "error": (
                     f"{answer_kind} requires value.text, value.refs, "
-                    "value.entries, value.terms, or value.term"
+                    "value.entries, value.relations, value.terms, or value.term"
                 )
             }
         return result, None
@@ -746,6 +757,33 @@ def _entry_value(value: Any) -> Any | None:
             entry[key] = item.strip()
     has_label = any(entry.get(field) for field in ("id", "name", "statement", "question", "term"))
     return entry if has_label else None
+
+
+def _relation_list(value: Any) -> list[dict[str, str]]:
+    if not isinstance(value, list):
+        return []
+    relations: list[dict[str, str]] = []
+    for item in value:
+        relation = _relation_value(item)
+        if relation is not None:
+            relations.append(relation)
+    return relations
+
+
+def _relation_value(value: Any) -> dict[str, str] | None:
+    if not isinstance(value, dict):
+        return None
+    if _unsafe_value_field(value) is not None:
+        return None
+    relation: dict[str, str] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or key not in RELATION_ALLOWED_FIELDS:
+            continue
+        if isinstance(item, str) and item.strip():
+            relation[key] = item.strip()
+    if relation.get("relation") and relation.get("source_ref") and relation.get("target_ref"):
+        return relation
+    return None
 
 
 def _string_map(value: Any) -> dict[str, str]:

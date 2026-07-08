@@ -1477,6 +1477,32 @@ def _append_depth_repair_request(runs_dir: Path) -> str:
     return request_id
 
 
+def _append_workflow_topology_repair_request(runs_dir: Path) -> str:
+    path = runs_dir / idea_to_spec_workspace.IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    request_id = "clarification.depth.workflow-topology"
+    payload["clarification_requests"].append(
+        {
+            "id": request_id,
+            "kind": "workflow_topology_gap",
+            "severity": "review_required",
+            "status": "open",
+            "target_ref": "event_storming_hints.workflow_relations",
+            "target_artifact": "runs/idea_event_storming_intake.json",
+            "question": "Which typed workflow relations connect existing entries?",
+            "suggested_answer_shape": "event_storming_relation[]",
+            "suggested_actions": ["answer_question", "defer_candidate"],
+        }
+    )
+    payload["request_counts"] = {
+        "total": len(payload["clarification_requests"]),
+        "by_kind": {"ontology_gap": 1, "workflow_topology_gap": 1},
+        "by_status": {"open": len(payload["clarification_requests"])},
+    }
+    _write_json(path, payload)
+    return request_id
+
+
 def _write_intake_clarification_workspace_runs(runs_dir: Path) -> None:
     _write_product_workspace_runs(runs_dir)
     _write_json(
@@ -13575,6 +13601,95 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(body["answers"][0]["value"]["terms"], ["Payment", "Subscription"])
 
+    def test_idea_to_spec_intake_answers_support_template_relations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_intake_clarification_workspace_runs(runs_dir)
+            (runs_dir / "real_idea_smoke").mkdir(parents=True, exist_ok=True)
+            _write_json(
+                runs_dir / "real_idea_smoke" / "real_idea_answer_template.json",
+                {
+                    "artifact_kind": "real_idea_answer_template",
+                    "schema_version": 1,
+                    "contract_ref": "specgraph.real-idea.answer-template.v0.1",
+                    "stage": "intake",
+                    "answer_targets": [
+                        {
+                            "target_id": "answer-target.workflow-relations",
+                            "target_type": "workflow_relation_hint",
+                            "request_id": "clarification.intake.question-active-frame-domain-refs",
+                            "accepted_actions": ["answer_question"],
+                            "required_fields_by_action": {
+                                "answer_question": ["value.relations[]"],
+                            },
+                            "value_templates_by_action": {
+                                "answer_question": {
+                                    "relations": [
+                                        {
+                                            "relation": "",
+                                            "source_ref": "",
+                                            "target_ref": "",
+                                        }
+                                    ]
+                                },
+                            },
+                        }
+                    ],
+                    "authority_boundary": {"may_execute_specgraph": False},
+                    "privacy_boundary": {"raw_idea_text_published": False},
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                bad_status, bad_body = _post(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.intake.question-active-frame-domain-refs",
+                        "answer_kind": "answer_question",
+                        "value": {"text": "command emits event"},
+                    },
+                )
+                ok_status, ok_body = _post(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": "clarification.intake.question-active-frame-domain-refs",
+                        "answer_kind": "answer_question",
+                        "value": {
+                            "relations": [
+                                {
+                                    "relation": "command_emits_event",
+                                    "source_ref": "command.record-pantry-item",
+                                    "target_ref": "event.pantry-item-recorded",
+                                }
+                            ]
+                        },
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(bad_status, 400)
+        self.assertEqual(bad_body["missing_fields"], ["value.relations[]"])
+        self.assertEqual(ok_status, 200)
+        self.assertEqual(
+            ok_body["answers"][0]["value"]["relations"],
+            [
+                {
+                    "relation": "command_emits_event",
+                    "source_ref": "command.record-pantry-item",
+                    "target_ref": "event.pantry-item-recorded",
+                }
+            ],
+        )
+
     def test_idea_to_spec_intake_answers_expand_generic_template_value_shape(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -16095,6 +16210,93 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 400)
         self.assertIn("answer_value.entries[1].may_apply_state", body["error"])
+
+    def test_idea_to_spec_repair_drafts_v1_preserves_workflow_relation_hints(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            request_id = _append_workflow_topology_repair_request(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": request_id,
+                        "action": "answer_question",
+                        "answer_value": {
+                            "relations": [
+                                {
+                                    "relation": "command_emits_event",
+                                    "source_ref": "command.record-pantry-item",
+                                    "target_ref": "event.pantry-item-recorded",
+                                }
+                            ]
+                        },
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        draft = body["drafts"][0]
+        self.assertEqual(draft["allowed_action"], "answer_question")
+        self.assertEqual(
+            draft["answer_value"]["relations"],
+            [
+                {
+                    "relation": "command_emits_event",
+                    "source_ref": "command.record-pantry-item",
+                    "target_ref": "event.pantry-item-recorded",
+                }
+            ],
+        )
+        self.assertEqual(draft["target_ref"], "event_storming_hints.workflow_relations")
+
+    def test_idea_to_spec_repair_drafts_v1_rejects_unsafe_relation_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            request_id = _append_workflow_topology_repair_request(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": request_id,
+                        "action": "answer_question",
+                        "answer_value": {
+                            "relations": [
+                                {
+                                    "relation": "command_emits_event",
+                                    "source_ref": "command.record-pantry-item",
+                                    "target_ref": "event.pantry-item-recorded",
+                                    "may_write_ontology_package": True,
+                                }
+                            ]
+                        },
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 400)
+        self.assertIn("answer_value.relations[0].may_write_ontology_package", body["error"])
 
     def test_idea_to_spec_repair_drafts_v1_rejects_product_context_authority_claim(
         self,

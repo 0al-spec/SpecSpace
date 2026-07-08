@@ -4100,6 +4100,54 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(authoring["action_boundary"]["may_execute_specgraph"])
         self.assertFalse(authoring["action_boundary"]["may_apply_answers"])
 
+    def test_build_workspace_preserves_workflow_relation_answer_template(self) -> None:
+        template = _real_idea_answer_template()
+        target = template["answer_targets"][0]
+        target["request_kind"] = "workflow_topology_gap"
+        target["target_type"] = "workflow_relation_hint"
+        target["target_ref"] = "event_storming_hints.workflow_relations"
+        target["suggested_answer_shape"] = "event_storming_relation[]"
+        target["required_fields_by_action"] = {
+            "answer_question": ["value.relations[]"],
+        }
+        target["value_templates_by_action"] = {
+            "answer_question": {
+                "relations": [
+                    {
+                        "relation": "",
+                        "source_ref": "",
+                        "target_ref": "",
+                    }
+                ]
+            }
+        }
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: template,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        target = body["intake_clarification"]["answer_authoring"]["template"]["targets"][0]
+        self.assertEqual(
+            target["required_fields_by_action"]["answer_question"],
+            ["value.relations[]"],
+        )
+        self.assertEqual(
+            target["value_templates_by_action"]["answer_question"]["relations"],
+            [
+                {
+                    "relation": "",
+                    "source_ref": "",
+                    "target_ref": "",
+                }
+            ],
+        )
+
     def test_build_workspace_projects_real_idea_answer_continuation(self) -> None:
         artifacts = {
             **_workspace_artifacts(),

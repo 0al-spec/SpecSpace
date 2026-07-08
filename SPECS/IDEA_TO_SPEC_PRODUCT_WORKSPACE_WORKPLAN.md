@@ -111,6 +111,16 @@ runtime action requests from Product Workspace routes.
   import/rerun machinery can apply them as review-only event-storming hints.
   Browser authority remains request-only; SpecSpace still does not execute
   SpecGraph, mutate specs, write Ontology packages, or create Git artifacts.
+- Safe workflow-topology repair. SpecGraph proposal `0208` handles the next
+  structural-depth follow-up without asking operators to patch existing graph
+  edges directly. When a candidate has commands plus actors/events/policies or
+  constraints but no workflow edges, clarification requests target
+  `event_storming_hints.workflow_relations` and expect typed relation rows such
+  as `actor_triggers_command` or `command_emits_event` between already-published
+  event-storming refs. SpecSpace preserves these rows in repair/intake answer
+  drafts and keeps them request-only; SpecGraph validates relation type,
+  endpoint existence, and endpoint kind before previewing review-only workflow
+  topology edges.
 - Raw idea entry state in SpecSpace.
 - Browser E2E for raw idea submit into SpecSpace-owned mutable state.
 - Workspace and `guided_flow` refresh after successful raw idea submit.
