@@ -103,6 +103,14 @@ runtime action requests from Product Workspace routes.
   SpecGraph-owned candidate-structure readiness explainers next to the raw depth
   counts, so shallow candidate narratives can point operators toward candidate
   overview/topology review while Metrics remains objective telemetry.
+- Depth-driven clarification requests. SpecGraph proposal `0207` can turn
+  shallow `groups.candidate_structure_depth` observations into ordinary
+  `idea_to_spec_clarification_requests` with `event_storming_hints.*` targets.
+  SpecSpace reuses the Product repair review lane and saves these answers as
+  SpecSpace-owned repair drafts with typed `entries[]`, so existing
+  import/rerun machinery can apply them as review-only event-storming hints.
+  Browser authority remains request-only; SpecSpace still does not execute
+  SpecGraph, mutate specs, write Ontology packages, or create Git artifacts.
 - Raw idea entry state in SpecSpace.
 - Browser E2E for raw idea submit into SpecSpace-owned mutable state.
 - Workspace and `guided_flow` refresh after successful raw idea submit.

@@ -6971,6 +6971,7 @@ function ClarificationRequestRow({
 }) {
   const defaultAction = request.suggestedActions[0] ?? "";
   const ontologyGapRequest = request.kind === "ontology_gap";
+  const eventStormingDepthRequest = isEventStormingDepthRequest(request);
   const productSpecGapRequest = isProductSpecRepairRequest(request);
   const [selectedAction, setSelectedAction] = useState(
     () => draft?.allowedAction ?? defaultAction,
@@ -6992,10 +6993,16 @@ function ClarificationRequestRow({
 
   const structuredOntologyGapRequest =
     ontologyGapRequest && isStructuredOntologyGapAction(selectedAction);
+  const structuredEventStormingDepthRequest =
+    eventStormingDepthRequest && selectedAction === "answer_question";
   const structuredProductSpecRequest =
-    productSpecGapRequest && isStructuredProductSpecAction(selectedAction);
+    !structuredEventStormingDepthRequest &&
+    productSpecGapRequest &&
+    isStructuredProductSpecAction(selectedAction);
   const answerValue = structuredOntologyGapRequest
     ? answerValueForOntologyGapAction(selectedAction, ontologyDraft)
+    : structuredEventStormingDepthRequest
+      ? answerValueForEventStormingDepthRequest(request, draftText)
     : structuredProductSpecRequest
       ? answerValueForProductSpecAction(selectedAction, productSpecDraft)
     : answerValueForDraftAction(selectedAction, draftText || ontologyDraft.term);
@@ -7003,6 +7010,8 @@ function ClarificationRequestRow({
     !!selectedAction &&
     (structuredOntologyGapRequest
       ? ontologyGapDraftCanSave(selectedAction, ontologyDraft)
+      : structuredEventStormingDepthRequest
+        ? eventStormingDepthDraftCanSave(draftText)
       : structuredProductSpecRequest
         ? productSpecGapDraftCanSave(selectedAction, productSpecDraft)
       : draftText.trim().length > 0) &&
@@ -7067,6 +7076,16 @@ function ClarificationRequestRow({
             action={selectedAction}
             fields={ontologyDraft}
             onChange={setOntologyDraft}
+          />
+        ) : structuredEventStormingDepthRequest ? (
+          <textarea
+            className={styles.draftTextarea}
+            value={draftText}
+            onChange={(event) => setDraftText(event.currentTarget.value)}
+            placeholder={eventStormingDepthPlaceholder(request)}
+            rows={4}
+            aria-label="Repair draft event-storming entries"
+            readOnly={readOnly}
           />
         ) : structuredProductSpecRequest ? (
           <ProductSpecGapDraftFields
@@ -7155,8 +7174,102 @@ function isStructuredProductSpecAction(action: string): boolean {
   return STRUCTURED_PRODUCT_SPEC_ACTIONS.has(action);
 }
 
+function isEventStormingDepthRequest(request: IdeaToSpecClarificationRequest): boolean {
+  return (
+    ["event_storming_gap", "workflow_topology_gap"].includes(request.kind) &&
+    (request.targetRef ?? "").startsWith("event_storming_hints.")
+  );
+}
+
+function eventStormingDepthCategory(
+  request: IdeaToSpecClarificationRequest,
+): string {
+  return (request.targetRef ?? "").replace(/^event_storming_hints\./, "");
+}
+
+function eventStormingDepthPlaceholder(
+  request: IdeaToSpecClarificationRequest,
+): string {
+  const category = eventStormingDepthCategory(request).replace(/_/g, " ");
+  if (request.kind === "workflow_topology_gap") {
+    return "One command per line. Use `Command name -> event.ref` when the command should emit an event.";
+  }
+  return `One ${category || "event-storming entry"} per line.`;
+}
+
+function eventStormingDepthDraftCanSave(text: string): boolean {
+  return eventStormingDepthLines(text).length > 0;
+}
+
+function answerValueForEventStormingDepthRequest(
+  request: IdeaToSpecClarificationRequest,
+  text: string,
+): Record<string, unknown> {
+  const category = eventStormingDepthCategory(request);
+  return {
+    entries: eventStormingDepthLines(text).map((line) =>
+      eventStormingDepthEntry(category, line),
+    ),
+  };
+}
+
+function eventStormingDepthLines(text: string): string[] {
+  return text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function eventStormingDepthEntry(
+  category: string,
+  line: string,
+): Record<string, unknown> {
+  const [labelRaw, refRaw] = line.split(/\s*->\s*/, 2);
+  const label = (labelRaw ?? line).trim();
+  const ref = (refRaw ?? "").trim();
+  const entry: Record<string, unknown> = {
+    id: `${eventStormingDepthEntryPrefix(category)}.${slugForId(label)}`,
+  };
+  if (category === "domain_events" || category === "constraints") {
+    entry.statement = label;
+  } else {
+    entry.name = label;
+  }
+  if (category === "commands" && ref.length > 0) {
+    entry.produces_event_refs = [ref];
+  }
+  if (category === "policies" && ref.length > 0) {
+    entry.trigger_event_refs = [ref];
+  }
+  return entry;
+}
+
+function eventStormingDepthEntryPrefix(category: string): string {
+  const prefixes: Record<string, string> = {
+    actors: "actor",
+    commands: "command",
+    domain_events: "event",
+    policies: "policy",
+    constraints: "constraint",
+  };
+  return prefixes[category] ?? "entry";
+}
+
+function slugForId(value: string): string {
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "entry"
+  );
+}
+
 function isProductSpecRepairRequest(request: IdeaToSpecClarificationRequest): boolean {
-  return request.kind !== "ontology_gap" && request.suggestedActions.some(isStructuredProductSpecAction);
+  return (
+    request.kind !== "ontology_gap" &&
+    !isEventStormingDepthRequest(request) &&
+    request.suggestedActions.some(isStructuredProductSpecAction)
+  );
 }
 
 function OntologyGapDraftFields({
@@ -7826,6 +7939,28 @@ function repairDraftText(draft: IdeaToSpecRepairDraft | undefined): string | nul
   if (typeof value.reason === "string") return value.reason;
   if (Array.isArray(value.terms)) {
     return value.terms.filter((item): item is string => typeof item === "string").join(", ");
+  }
+  if (Array.isArray(value.entries)) {
+    return value.entries
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (!item || typeof item !== "object") return "";
+        const entry = item as Record<string, unknown>;
+        const label =
+          typeof entry.name === "string"
+            ? entry.name
+            : typeof entry.statement === "string"
+              ? entry.statement
+              : typeof entry.id === "string"
+                ? entry.id
+                : "";
+        const eventRefs = Array.isArray(entry.produces_event_refs)
+          ? entry.produces_event_refs.filter((ref): ref is string => typeof ref === "string")
+          : [];
+        return eventRefs.length > 0 ? `${label} -> ${eventRefs[0]}` : label;
+      })
+      .filter(Boolean)
+      .join("\n");
   }
   if (typeof value.text === "string") return value.text;
   return null;

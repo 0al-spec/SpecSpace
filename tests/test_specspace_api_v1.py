@@ -1451,6 +1451,32 @@ def _append_product_repair_request(runs_dir: Path) -> str:
     return request_id
 
 
+def _append_depth_repair_request(runs_dir: Path) -> str:
+    path = runs_dir / idea_to_spec_workspace.IDEA_TO_SPEC_CLARIFICATION_REQUESTS_ARTIFACT
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    request_id = "clarification.depth.actors"
+    payload["clarification_requests"].append(
+        {
+            "id": request_id,
+            "kind": "event_storming_gap",
+            "severity": "review_required",
+            "status": "open",
+            "target_ref": "event_storming_hints.actors",
+            "target_artifact": "runs/idea_event_storming_intake.json",
+            "question": "Which actors should participate in this product workflow?",
+            "suggested_answer_shape": "event_storming_entry[]",
+            "suggested_actions": ["answer_question", "defer_candidate"],
+        }
+    )
+    payload["request_counts"] = {
+        "total": len(payload["clarification_requests"]),
+        "by_kind": {"ontology_gap": 1, "event_storming_gap": 1},
+        "by_status": {"open": len(payload["clarification_requests"])},
+    }
+    _write_json(path, payload)
+    return request_id
+
+
 def _write_intake_clarification_workspace_runs(runs_dir: Path) -> None:
     _write_product_workspace_runs(runs_dir)
     _write_json(
@@ -15988,6 +16014,47 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             draft["answer_value"]["affected_ref"],
             "candidate-spec.subscription-payment",
         )
+
+    def test_idea_to_spec_repair_drafts_v1_preserves_depth_event_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_repair_draft_workspace_runs(runs_dir)
+            request_id = _append_depth_repair_request(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-repair-drafts?workspace=team-decision-log",
+                    {
+                        "workspace_id": "team-decision-log",
+                        "request_id": request_id,
+                        "action": "answer_question",
+                        "answer_value": {
+                            "entries": [
+                                {
+                                    "id": "actor.household-member",
+                                    "name": "Household member",
+                                }
+                            ]
+                        },
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        draft = body["drafts"][0]
+        self.assertEqual(draft["allowed_action"], "answer_question")
+        self.assertEqual(
+            draft["answer_value"]["entries"],
+            [{"id": "actor.household-member", "name": "Household member"}],
+        )
+        self.assertEqual(draft["target_ref"], "event_storming_hints.actors")
 
     def test_idea_to_spec_repair_drafts_v1_rejects_product_context_authority_claim(
         self,
