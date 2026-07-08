@@ -7357,16 +7357,7 @@ function intakeAnswerText(
       return value.refs.filter((item): item is string => typeof item === "string").join(", ");
     }
     if (Array.isArray(value.entries)) {
-      return value.entries
-        .map((item) => {
-          if (typeof item === "string") return item;
-          if (item && typeof item === "object" && !Array.isArray(item)) {
-            return JSON.stringify(item);
-          }
-          return "";
-        })
-        .filter(Boolean)
-        .join("\n");
+      return JSON.stringify(value.entries, null, 2);
     }
     if (typeof value.text === "string") return value.text;
     if (typeof value.answer === "string") return value.answer;
