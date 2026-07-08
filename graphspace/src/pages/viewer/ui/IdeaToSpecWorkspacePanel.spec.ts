@@ -1538,6 +1538,41 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toMatch(/Acceptance criteria<\/span><span[^>]*>8/);
   });
 
+  it("renders idea maturity structural depth interpretation from readiness explainers", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.idea_maturity.report.readiness_explainers = [
+      ...(raw.idea_maturity.report.readiness_explainers ?? []),
+      {
+        id: "readiness-explainer.candidate-structure-workflow-topology-flat",
+        proposal_id: "0206",
+        kind: "candidate_structure_workflow_topology_flat",
+        source: "idea_maturity_metrics_report.groups.candidate_structure_depth",
+        severity: "medium",
+        blocks: ["pre_sib_review"],
+        message: "Candidate graph has no workflow topology edges.",
+        next_action: "Regenerate or repair event-storming topology.",
+        evidence_refs: [
+          "runs/idea_maturity_metrics_report.json#groups.candidate_structure_depth.workflow_edge_count",
+        ],
+      },
+    ];
+    const parsed = parseIdeaToSpecWorkspace(raw);
+    if (parsed.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsed.data },
+      }),
+    );
+
+    expect(html).toContain("Depth interpretation");
+    expect(html).toContain("Candidate graph has no workflow topology edges.");
+    expect(html).toContain("Regenerate or repair event-storming topology.");
+    expect(html).toContain("#idea-to-spec-candidate-overview");
+  });
+
   it("renders missing idea maturity structural depth as not published", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     delete raw.idea_maturity.report.metrics.candidate_structure_depth;
@@ -1556,6 +1591,41 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("not published");
     expect(html).toContain("Structural depth not published");
     expect(html).not.toContain("flat candidate");
+  });
+
+  it("keeps structural depth interpretation visible when depth counts are unpublished", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    delete raw.idea_maturity.report.metrics.candidate_structure_depth;
+    raw.idea_maturity.report.readiness_explainers = [
+      {
+        id: "readiness-explainer.candidate-structure-actors-missing",
+        proposal_id: "0206",
+        kind: "candidate_structure_actor_model_missing",
+        source: "idea_maturity_metrics_report.groups.candidate_structure_depth",
+        severity: "medium",
+        blocks: ["pre_sib_review"],
+        message: "Candidate structure has no explicit actor model.",
+        next_action: "Clarify the product actors before treating the candidate narrative as mature.",
+        evidence_refs: [
+          "runs/idea_maturity_metrics_report.json#groups.candidate_structure_depth.actor_count",
+        ],
+      },
+    ];
+    const parsed = parseIdeaToSpecWorkspace(raw);
+    if (parsed.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsed.data },
+      }),
+    );
+
+    expect(html).toContain("Structural depth not published");
+    expect(html).toContain("Depth interpretation");
+    expect(html).toContain("Candidate structure has no explicit actor model.");
+    expect(html).toContain("Clarify the product actors");
   });
 
   it("does not prefill project-local keep decisions with the term text", () => {

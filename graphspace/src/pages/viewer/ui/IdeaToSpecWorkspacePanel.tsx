@@ -383,6 +383,12 @@ function maturityExplainerHref(
   const source = `${explainer.source ?? ""} ${explainer.kind} ${explainer.blocks.join(
     " ",
   )}`.toLowerCase();
+  if (
+    source.includes("candidate_structure") ||
+    source.includes("candidate-structure")
+  ) {
+    return "#idea-to-spec-candidate-overview";
+  }
   if (source.includes("pre_sib") || source.includes("pre-sib")) {
     return "#idea-to-spec-pre-sib";
   }
@@ -407,6 +413,18 @@ function maturityExplainerNextAction(
   return (
     explainer.nextAction ??
     "Inspect the linked lifecycle section and source evidence for this blocker."
+  );
+}
+
+function isCandidateStructureExplainer(
+  explainer: IdeaToSpecIdeaMaturityReadinessExplainer,
+): boolean {
+  const source = `${explainer.source ?? ""} ${explainer.kind} ${explainer.blocks.join(
+    " ",
+  )}`.toLowerCase();
+  return (
+    source.includes("candidate_structure") ||
+    source.includes("candidate-structure")
   );
 }
 
@@ -5807,6 +5825,9 @@ function IdeaMaturitySection({
     metrics.ordinaryUnmaterializedAnswerCount ??
     metrics.unmaterializedAnswerCount;
   const structure = metrics.candidateStructureDepth;
+  const structureExplainers = maturity.report.readinessExplainers.filter(
+    isCandidateStructureExplainer,
+  );
   const derived = maturity.report.derivedState;
   const contract = maturity.report.contract;
   const validationStatus = maturity.validation.available
@@ -6070,6 +6091,24 @@ function IdeaMaturitySection({
             detail="Regenerate and publish Idea Maturity artifacts with the 0205 metrics contract to show structural counts."
           />
         )}
+        {structureExplainers.length > 0 ? (
+          <div className={styles.navGrid}>
+            {structureExplainers.map((explainer) => (
+              <div key={`structure-${explainer.id}`} className={styles.subRow}>
+                <span className={styles.rowId}>Depth interpretation</span>
+                <Pill value={explainer.severity} />
+                <span className={styles.statusDetail}>{explainer.message}</span>
+                <div className={styles.metaGrid}>
+                  <Meta
+                    label="Next action"
+                    value={maturityExplainerNextAction(explainer)}
+                  />
+                  <Meta label="Evidence" value={joined(explainer.evidenceRefs)} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className={styles.row}>

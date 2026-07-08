@@ -99,6 +99,10 @@ runtime action requests from Product Workspace routes.
   Idea Maturity, showing actors, commands, domain events, policies,
   constraints, topology edges, workflow edges, requirements, and acceptance
   criteria without turning them into a score or a promotion gate.
+- Idea Maturity structural depth interpretation. Product Workspace now renders
+  SpecGraph-owned candidate-structure readiness explainers next to the raw depth
+  counts, so shallow candidate narratives can point operators toward candidate
+  overview/topology review while Metrics remains objective telemetry.
 - Raw idea entry state in SpecSpace.
 - Browser E2E for raw idea submit into SpecSpace-owned mutable state.
 - Workspace and `guided_flow` refresh after successful raw idea submit.
