@@ -6071,46 +6071,44 @@ function IdeaMaturitySection({
           />
         </div>
         {structure.available ? (
-          <>
-            <div className={styles.metaGrid}>
-              <Meta label="Actors" value={String(structure.actorCount)} />
-              <Meta label="Commands" value={String(structure.commandCount)} />
-              <Meta label="Domain events" value={String(structure.domainEventCount)} />
-              <Meta label="Policies" value={String(structure.policyCount)} />
-              <Meta label="Constraints" value={String(structure.constraintCount)} />
-              <Meta label="Topology edges" value={String(structure.topologyEdgeCount)} />
-              <Meta label="Workflow edges" value={String(structure.workflowEdgeCount)} />
-              <Meta label="Requirements" value={String(structure.requirementCount)} />
-              <Meta
-                label="Acceptance criteria"
-                value={String(structure.acceptanceCriteriaCount)}
-              />
-            </div>
-            {structureExplainers.length > 0 ? (
-              <div className={styles.navGrid}>
-                {structureExplainers.map((explainer) => (
-                  <div key={`structure-${explainer.id}`} className={styles.subRow}>
-                    <span className={styles.rowId}>Depth interpretation</span>
-                    <Pill value={explainer.severity} />
-                    <span className={styles.statusDetail}>{explainer.message}</span>
-                    <div className={styles.metaGrid}>
-                      <Meta
-                        label="Next action"
-                        value={maturityExplainerNextAction(explainer)}
-                      />
-                      <Meta label="Evidence" value={joined(explainer.evidenceRefs)} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </>
+          <div className={styles.metaGrid}>
+            <Meta label="Actors" value={String(structure.actorCount)} />
+            <Meta label="Commands" value={String(structure.commandCount)} />
+            <Meta label="Domain events" value={String(structure.domainEventCount)} />
+            <Meta label="Policies" value={String(structure.policyCount)} />
+            <Meta label="Constraints" value={String(structure.constraintCount)} />
+            <Meta label="Topology edges" value={String(structure.topologyEdgeCount)} />
+            <Meta label="Workflow edges" value={String(structure.workflowEdgeCount)} />
+            <Meta label="Requirements" value={String(structure.requirementCount)} />
+            <Meta
+              label="Acceptance criteria"
+              value={String(structure.acceptanceCriteriaCount)}
+            />
+          </div>
         ) : (
           <Status
             label="Structural depth not published"
             detail="Regenerate and publish Idea Maturity artifacts with the 0205 metrics contract to show structural counts."
           />
         )}
+        {structureExplainers.length > 0 ? (
+          <div className={styles.navGrid}>
+            {structureExplainers.map((explainer) => (
+              <div key={`structure-${explainer.id}`} className={styles.subRow}>
+                <span className={styles.rowId}>Depth interpretation</span>
+                <Pill value={explainer.severity} />
+                <span className={styles.statusDetail}>{explainer.message}</span>
+                <div className={styles.metaGrid}>
+                  <Meta
+                    label="Next action"
+                    value={maturityExplainerNextAction(explainer)}
+                  />
+                  <Meta label="Evidence" value={joined(explainer.evidenceRefs)} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className={styles.row}>
