@@ -779,6 +779,7 @@ export type IdeaToSpecApprovalReadiness = {
 export type IdeaToSpecIdeaMaturityMetrics = {
   candidateNodeCount: number;
   candidateStructureDepth: {
+    available: boolean;
     actorCount: number;
     commandCount: number;
     domainEventCount: number;
@@ -3641,15 +3642,16 @@ function parseApprovalReadiness(raw: unknown): IdeaToSpecApprovalReadiness {
 
 function parseIdeaMaturityMetrics(raw: unknown): IdeaToSpecIdeaMaturityMetrics {
   const metrics = recordValue(raw);
-  const candidateStructureDepth = recordValue(
-    metrics.candidate_structure_depth,
-  );
+  const hasCandidateStructureDepth = isRecord(metrics.candidate_structure_depth);
+  const candidateStructureDepth = recordValue(metrics.candidate_structure_depth);
   const nestedProjectLocalReview = recordValue(
     metrics.project_local_ontology_review,
   );
   return {
     candidateNodeCount: numberValue(metrics.candidate_node_count),
     candidateStructureDepth: {
+      available:
+        hasCandidateStructureDepth && candidateStructureDepth.available !== false,
       actorCount: numberValue(candidateStructureDepth.actor_count),
       commandCount: numberValue(candidateStructureDepth.command_count),
       domainEventCount: numberValue(

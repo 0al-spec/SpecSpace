@@ -1135,10 +1135,28 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(
       parsed.data.ideaMaturity.report.metrics.candidateStructureDepth,
     ).toMatchObject({
+      available: true,
       actorCount: 2,
       domainEventCount: 3,
       workflowEdgeCount: 8,
       acceptanceCriteriaCount: 8,
+    });
+  });
+
+  it("parses missing idea maturity structural depth as unpublished", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    delete raw.idea_maturity.report.metrics.candidate_structure_depth;
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(
+      parsed.data.ideaMaturity.report.metrics.candidateStructureDepth,
+    ).toMatchObject({
+      available: false,
+      actorCount: 0,
+      workflowEdgeCount: 0,
     });
   });
 

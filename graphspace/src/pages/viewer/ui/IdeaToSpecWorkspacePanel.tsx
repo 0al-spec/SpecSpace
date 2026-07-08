@@ -6041,26 +6041,35 @@ function IdeaMaturitySection({
           <span className={styles.rowId}>Candidate structure depth</span>
           <Pill
             value={
-              structure.workflowEdgeCount > 0
+              !structure.available
+                ? "not published"
+                : structure.workflowEdgeCount > 0
                 ? "workflow mapped"
                 : "flat candidate"
             }
           />
         </div>
-        <div className={styles.metaGrid}>
-          <Meta label="Actors" value={String(structure.actorCount)} />
-          <Meta label="Commands" value={String(structure.commandCount)} />
-          <Meta label="Domain events" value={String(structure.domainEventCount)} />
-          <Meta label="Policies" value={String(structure.policyCount)} />
-          <Meta label="Constraints" value={String(structure.constraintCount)} />
-          <Meta label="Topology edges" value={String(structure.topologyEdgeCount)} />
-          <Meta label="Workflow edges" value={String(structure.workflowEdgeCount)} />
-          <Meta label="Requirements" value={String(structure.requirementCount)} />
-          <Meta
-            label="Acceptance criteria"
-            value={String(structure.acceptanceCriteriaCount)}
+        {structure.available ? (
+          <div className={styles.metaGrid}>
+            <Meta label="Actors" value={String(structure.actorCount)} />
+            <Meta label="Commands" value={String(structure.commandCount)} />
+            <Meta label="Domain events" value={String(structure.domainEventCount)} />
+            <Meta label="Policies" value={String(structure.policyCount)} />
+            <Meta label="Constraints" value={String(structure.constraintCount)} />
+            <Meta label="Topology edges" value={String(structure.topologyEdgeCount)} />
+            <Meta label="Workflow edges" value={String(structure.workflowEdgeCount)} />
+            <Meta label="Requirements" value={String(structure.requirementCount)} />
+            <Meta
+              label="Acceptance criteria"
+              value={String(structure.acceptanceCriteriaCount)}
+            />
+          </div>
+        ) : (
+          <Status
+            label="Structural depth not published"
+            detail="Regenerate and publish Idea Maturity artifacts with the 0205 metrics contract to show structural counts."
           />
-        </div>
+        )}
       </div>
 
       <div className={styles.row}>

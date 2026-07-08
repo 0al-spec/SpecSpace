@@ -4436,6 +4436,26 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "runs/idea_maturity_metrics_report.json",
         )
 
+    def test_idea_maturity_marks_missing_structural_depth_as_unpublished(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        report = _idea_maturity_metrics_report()
+        report["metrics"].pop("candidate_structure_depth", None)
+        report["groups"].pop("candidate_structure_depth", None)
+        artifacts[idea_maturity.IDEA_MATURITY_METRICS_REPORT_ARTIFACT] = report
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        depth = body["idea_maturity"]["report"]["metrics"][
+            "candidate_structure_depth"
+        ]
+        self.assertFalse(depth["available"])
+        self.assertEqual(depth["workflow_edge_count"], 0)
+
     def test_idea_maturity_preserves_finding_next_action(self) -> None:
         artifacts = _workspace_artifacts()
         report = _idea_maturity_metrics_report()
