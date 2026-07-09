@@ -3106,6 +3106,7 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     route: `/${productDemoWorkspaceId}`,
     raw_idea_public_leak_detected: null,
     team_decision_log_fallback: null,
+    clarification_fallback_used: null,
   };
   let completed = false;
 
@@ -3188,6 +3189,28 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     await captureProductDemoScreenshot(page, artifactDir, "04-intake-executed");
 
     let clarificationSource = "specgraph_generated";
+    let clarificationFallbackUsed = false;
+    const generatedTemplate = JSON.parse(
+      await readFile(
+        path.join(specGraphRunDir, "real_idea_answer_template.json"),
+        "utf8",
+      ),
+    ) as {
+      workspace_id?: string;
+      candidate_id?: string;
+      clarification_outcome?: string;
+      summary?: { answerable_target_count?: number; unsupported_target_count?: number };
+      readiness?: { ready?: boolean; blocked_by?: string[] };
+    };
+    expect(generatedTemplate.workspace_id).toBe(productDemoWorkspaceId);
+    expect(generatedTemplate.candidate_id).toBe(productDemoWorkspaceId);
+    expect(
+      generatedTemplate.clarification_outcome,
+      JSON.stringify(generatedTemplate.readiness?.blocked_by ?? []),
+    ).toBe("answers_required");
+    expect(generatedTemplate.readiness?.ready).toBe(true);
+    expect(generatedTemplate.summary?.answerable_target_count ?? 0).toBeGreaterThan(0);
+    expect(generatedTemplate.summary?.unsupported_target_count ?? 0).toBe(0);
     const answerFields = page.locator('textarea[data-testid^="intake-clarification-answer-"]');
     let answerCount = await answerFields.count();
     if (answerCount === 0) {
@@ -3208,6 +3231,7 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
         );
       }
       clarificationSource = "deterministic_demo_fixture";
+      clarificationFallbackUsed = true;
       await writeDeterministicProductDemoClarificationArtifacts({
         backendRunsDir: backend.runsDir,
         specGraphRunDir,
@@ -3509,8 +3533,15 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     ) as {
       candidate_id?: string;
       status?: string;
-      summary?: { status?: string; promotion_path_count?: number };
+      summary?: {
+        candidate_id?: string;
+        status?: string;
+        promotion_path_count?: number;
+      };
     };
+    const generatedCandidateId =
+      activeCandidate.candidate_id ?? activeCandidate.summary?.candidate_id;
+    expect(generatedCandidateId).toBe(productDemoWorkspaceId);
     const depthReport = JSON.parse(
       await readFile(path.join(backend.runsDir, "product_demo_depth_report.json"), "utf8"),
     ) as {
@@ -3544,9 +3575,10 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       artifact_dir: artifactDir,
       run_dir: specGraphRunDirRef,
       clarification_source: clarificationSource,
+      clarification_fallback_used: clarificationFallbackUsed,
       clarification_question_count: answerCount,
       answers_saved: answerCount,
-      candidate_id: activeCandidate.candidate_id,
+      candidate_id: generatedCandidateId,
       active_candidate_status:
         activeCandidate.status ?? activeCandidate.summary?.status ?? "unknown",
       promotion_path_count: activeCandidate.summary?.promotion_path_count ?? null,

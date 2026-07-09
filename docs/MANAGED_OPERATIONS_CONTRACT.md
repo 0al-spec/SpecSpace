@@ -89,7 +89,7 @@ with runtime evidence from the selected workspace artifacts:
 
 - operation id, lifecycle phase, UI stage, endpoint, and Platform command
   family;
-- required input refs and output report refs;
+- required or lifecycle-conditional input refs and output report refs;
 - missing input refs and available output refs;
 - idempotency, overwrite, timeout, and replay policy text;
 - read-only status from the normalized managed-operation vocabulary, such as
@@ -102,6 +102,11 @@ SpecSpace may display this surface as an operator observability panel, but it
 must not use it as the source of execution permission. Actual execution remains
 owned by the per-operation backend handlers and Platform wrappers listed in the
 registry.
+
+Conditional inputs remain visible in the inventory with `required: false` when
+the current lifecycle state does not need them. In particular, a trusted
+fallback-free intake template with `clarification_not_required` does not require
+SpecSpace-owned clarification answer state.
 
 ## Managed Mode Readiness Surface
 

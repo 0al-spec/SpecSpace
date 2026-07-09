@@ -1250,10 +1250,13 @@ export const ideaToSpecWorkspace = {
       ],
     },
     answer_template: {
+      clarification_outcome: "answers_required",
       status: "answers_review_required",
       template_ref: "runs/real_idea_smoke/real_idea_answer_template.json",
       target_count: 1,
       blocking_target_count: 1,
+      answerable_target_count: 1,
+      unsupported_target_count: 0,
       required_fields: ["value.follow_up", "value.refs[]"],
       validation_status: "answers_review_required",
       validation_ready: false,
@@ -1413,22 +1416,27 @@ export const ideaToSpecWorkspace = {
       available: true,
       template: {
         available: true,
+        clarification_outcome: "answers_required",
+        workspace_id: "team-decision-log",
+        candidate_id: "team-decision-log",
         readiness: {
           ready: true,
-          review_state: "answer_template_ready",
+          review_state: "answers_required",
           blocked_by: [],
           next_artifact: "real_idea_answer_set.json",
         },
         stage: "intake",
         run_dir: "runs/real_idea_smoke",
-        contract_ref: "specgraph.real-idea.answer-template.v0.1",
+        contract_ref: "specgraph.idea-to-spec.real-idea-answer-template.v0.2",
         summary: {
-          status: "answer_template_ready",
+          status: "answers_required",
           target_count: 1,
           blocking_target_count: 1,
         },
         target_count: 1,
         blocking_target_count: 1,
+        answerable_target_count: 1,
+        unsupported_target_count: 0,
         targets: [
           {
             target_id: "answer-target.active-frame-domain-refs",
@@ -1453,6 +1461,7 @@ export const ideaToSpecWorkspace = {
             evidence_refs: [],
           },
         ],
+        findings: [],
       },
       report: {
         available: true,

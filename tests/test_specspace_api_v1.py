@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import shutil
@@ -7999,6 +8000,145 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertFalse(body["authority_boundary"]["executes_specgraph"])
 
+    def test_real_idea_answer_continuation_execute_skips_missing_answer_state_when_not_required(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            template_dir = runs_dir / "real_idea_smoke"
+            template_dir.mkdir(parents=True)
+            state_dir = root / "specspace-state"
+            state_dir.mkdir()
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text(
+                "real-idea-intake-continue-without-answers:\n\t@true\n",
+                encoding="utf-8",
+            )
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text(
+                "\n".join(
+                    [
+                        "import json",
+                        "import sys",
+                        "from pathlib import Path",
+                        "output = Path(sys.argv[sys.argv.index('--output') + 1])",
+                        "report = {",
+                        "  'artifact_kind': 'platform_real_idea_answer_continuation_execution_report',",
+                        "  'ok': True,",
+                        "  'continuation_mode': 'clarification_not_required',",
+                        "  'summary': {'status': 'completed', 'specgraph_executed': True},",
+                        "  'authority_boundary': {'executes_specgraph_make_target': True},",
+                        "}",
+                        "output.write_text(json.dumps(report), encoding='utf-8')",
+                        "print(json.dumps(report))",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            clarification_requests = {
+                "artifact_kind": "idea_to_spec_clarification_requests",
+                "contract_ref": "specgraph.idea-to-spec.clarification-requests.v0.1",
+                "workspace_id": "pantry-rotation",
+                "candidate_id": "pantry-rotation",
+                "clarification_outcome": "clarification_not_required",
+                "clarification_requests": [],
+                "readiness": {"ready": True},
+            }
+            encoded_requests = json.dumps(
+                clarification_requests,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+            _write_json(
+                template_dir / "idea_intake_clarification_requests.json",
+                clarification_requests,
+            )
+            _write_json(
+                template_dir / "real_idea_answer_template.json",
+                {
+                    "artifact_kind": "real_idea_answer_template",
+                    "contract_ref": "specgraph.idea-to-spec.real-idea-answer-template.v0.2",
+                    "workspace_id": "pantry-rotation",
+                    "clarification_outcome": "clarification_not_required",
+                    "answer_targets": [],
+                    "source_artifacts": {
+                        "clarification_requests": {
+                            "source_ref": (
+                                "runs/real_idea_smoke/"
+                                "idea_intake_clarification_requests.json"
+                            ),
+                            "source_digest": (
+                                "sha256:"
+                                + hashlib.sha256(encoded_requests).hexdigest()
+                            ),
+                        }
+                    },
+                    "readiness": {"ready": True},
+                },
+            )
+            _write_json(
+                runs_dir / "platform_product_workspace_initialization_execution_report.json",
+                {
+                    "artifact_kind": "platform_product_workspace_initialization_execution_report",
+                    "ok": True,
+                    "workspace": {"workspace_id": "pantry-rotation"},
+                },
+            )
+            _write_json(
+                runs_dir / "platform_real_idea_entry_intake_execution_report.json",
+                {
+                    "artifact_kind": "platform_real_idea_entry_intake_execution_report",
+                    "ok": True,
+                    "summary": {"workspace_id": "pantry-rotation"},
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                request_status, request_body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "answer_state_ref": (
+                            "specspace-state://idea_to_spec_intake_clarification_answers.json"
+                        ),
+                        "answer_template_ref": (
+                            "runs/real_idea_smoke/real_idea_answer_template.json"
+                        ),
+                        "intake_execution_ref": (
+                            "runs/platform_real_idea_entry_intake_execution_report.json"
+                        ),
+                        "workspace_initialization_ref": (
+                            "runs/platform_product_workspace_initialization_execution_report.json"
+                        ),
+                    },
+                )
+                request_id = request_body["requests"][0]["request_id"]
+                status, body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
+                    {"workspace_id": "pantry-rotation", "request_id": request_id},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(request_status, 200)
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(
+            body["platform_report"]["continuation_mode"],
+            "clarification_not_required",
+        )
+
     def test_real_idea_answer_continuation_execute_requires_answer_state(
         self,
     ) -> None:
@@ -11748,6 +11888,41 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 for item in inputs
                 if item.get("available") is not True
             ],
+        )
+
+    def test_managed_continuation_does_not_require_answers_when_clarification_is_not_required(
+        self,
+    ) -> None:
+        payload = {
+            "real_idea_intake": {
+                "answer_authoring": {
+                    "template_outcome": "clarification_not_required",
+                    "template_ready": True,
+                }
+            },
+            "artifacts": {},
+        }
+
+        observability = idea_to_spec_workspace._managed_operations_observability(
+            payload
+        )
+        continuation = next(
+            operation
+            for operation in observability["operations"]
+            if operation["operation_id"]
+            == "real_idea_answer_continuation_execute"
+        )
+        answer_input = next(
+            item
+            for item in continuation["input_refs"]
+            if item["ref"]
+            == "specspace-state://idea_to_spec_intake_clarification_answers.json"
+        )
+
+        self.assertFalse(answer_input["required"])
+        self.assertNotIn(
+            answer_input["ref"],
+            continuation["missing_input_refs"],
         )
 
     def test_idea_to_spec_workspace_overview_covers_lifecycle_statuses(
