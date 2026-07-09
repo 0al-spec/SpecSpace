@@ -76,6 +76,21 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.productWorkspaceOverview.nextSafeAction).toBe(
       "Replace the rerun request for the current workspace and repair session.",
     );
+    expect(parsed.data.productWorkspaceOverview.actionRanking.available).toBe(true);
+    expect(parsed.data.productWorkspaceOverview.actionRanking.policyId).toBe(
+      "specspace.product-workspace.quality-guided-next-action.v0.1",
+    );
+    expect(
+      parsed.data.productWorkspaceOverview.actionRanking.primaryAction.category,
+    ).toBe("state_hygiene");
+    expect(
+      parsed.data.productWorkspaceOverview.actionRanking.primaryAction.rank,
+    ).toBe(1);
+    expect(
+      parsed.data.productWorkspaceOverview.actionRanking.secondaryActions.map(
+        (action) => action.category,
+      ),
+    ).toEqual(["clarification_repair", "approval"]);
     expect(parsed.data.productWorkspaceOverview.phases).toHaveLength(7);
     expect(parsed.data.productWorkspaceOverview.phases[4].id).toBe("repair");
     expect(parsed.data.productWorkspaceOverview.phases[4].state).toBe("blocked");
@@ -572,6 +587,22 @@ describe("parseIdeaToSpecWorkspace", () => {
         (phase) => phase.id === "candidate",
       )?.state,
     ).toBe("current");
+  });
+
+  it("does not claim ranking availability without a valid primary action", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    delete raw.product_workspace_overview.action_ranking.primary_action;
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.productWorkspaceOverview.actionRanking.available).toBe(
+      false,
+    );
+    expect(
+      parsed.data.productWorkspaceOverview.actionRanking.primaryAction.id,
+    ).toBe("quality.legacy_overview");
   });
 
   it("parses project-local ontology review lane terms", () => {

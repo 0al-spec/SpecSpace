@@ -312,7 +312,7 @@ runtime action requests from Product Workspace routes.
 
 ### Immediate Priority: Quality-Guided Next Safe Action Ranking
 
-Status: planned.
+Status: implemented.
 
 The Product Workspace now has multiple accurate guided paths: workspace
 initialization, real idea intake, clarification continuation, repair rerun,
@@ -322,7 +322,7 @@ sections can publish a valid `next_safe_action` at the same time, and the top
 overview currently chooses one action without a single lifecycle-wide priority
 model.
 
-Target behavior:
+Implemented behavior:
 
 - Product Workspace exposes one primary next safe action plus a bounded list of
   secondary follow-up actions.
@@ -342,8 +342,18 @@ Target behavior:
   approval-ready candidate, blocking repair plus promotion readiness, and
   depth-only improvement after all blockers are closed.
 
-This should be a SpecSpace-first slice. SpecGraph and Platform should only need
-changes if an existing report lacks the evidence needed to rank safely.
+This is a SpecSpace-only slice. Existing SpecGraph and Platform reports already
+carry the evidence needed to rank safely.
+
+The additive `product_workspace_overview.action_ranking` contract now exposes
+one primary action and at most three secondary actions. The existing
+`next_safe_action` and `primary_target_section` fields mirror the selected
+primary action for backward compatibility. Ranking uses the existing
+workspace-state hygiene, managed-operation reports, guided stages, and
+SpecGraph-owned structural-depth explainers; it does not create a score, gate,
+command surface, or execution authority. Backend and frontend regression tests
+cover the four conflict cases above, and the overview UI labels required,
+recommended-quality, and optional actions distinctly.
 
 ### Immediate Priority: Fallback-Free Real Idea Clarification Templates
 

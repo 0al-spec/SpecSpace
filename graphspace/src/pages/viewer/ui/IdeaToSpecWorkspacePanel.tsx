@@ -1823,8 +1823,10 @@ function ProductWorkspaceOverviewSection({
   overview: IdeaToSpecWorkspace["productWorkspaceOverview"];
   workspace: IdeaToSpecWorkspace["workspace"];
 }) {
-  const primaryHref = overview.primaryTargetSection
-    ? `#${overview.primaryTargetSection}`
+  const primaryAction = overview.actionRanking.primaryAction;
+  const visibleActionCount = 1 + overview.actionRanking.secondaryActions.length;
+  const primaryHref = primaryAction.targetSection
+    ? `#${primaryAction.targetSection}`
     : null;
   const lastHandoffHref = overview.lastSuccessfulHandoff.targetSection
     ? `#${overview.lastSuccessfulHandoff.targetSection}`
@@ -1857,9 +1859,12 @@ function ProductWorkspaceOverviewSection({
           </div>
         </div>
         <h3 className={styles.title} data-testid="product-workspace-overview-next-action">
-          {overview.nextSafeAction}
+          {primaryAction.label}
         </h3>
-        <div className={styles.postureStrip}>
+        <div
+          className={`${styles.postureStrip} ${styles.overviewPostureStrip}`}
+          data-testid="product-workspace-overview-posture"
+        >
           <PostureItem label="Current phase" value={overview.currentPhaseLabel} />
           <PostureItem
             label="Progress"
@@ -1880,6 +1885,12 @@ function ProductWorkspaceOverviewSection({
           <Meta label="Workspace id" value={workspace.id} />
           <Meta label="Route" value={workspace.publicRoute} />
           <Meta label="Target section" value={overview.primaryTargetSection} />
+          <Meta label="Action owner" value={primaryAction.owner} />
+          <Meta label="Action policy" value={overview.actionRanking.policyId} />
+          <Meta
+            label="Action queue"
+            value={`${visibleActionCount}/${overview.actionRanking.candidateCount}`}
+          />
           <Meta
             label="Confidence reason"
             value={overview.confidence.reason}
@@ -1894,13 +1905,76 @@ function ProductWorkspaceOverviewSection({
           />
         </div>
         {primaryHref ? (
-          <a className={styles.guidedStage} href={primaryHref}>
-            <span className={styles.navLabel}>Next safe action</span>
-            <span className={styles.navHint}>{overview.nextSafeAction}</span>
+          <a
+            className={`${styles.guidedStage} ${styles.qualityActionStage}`}
+            href={primaryHref}
+            data-testid="quality-guided-primary-action"
+          >
+            <span className={styles.navLabel}>
+              {primaryAction.disposition === "recommended"
+                ? "Recommended quality improvement"
+                : primaryAction.disposition === "optional"
+                  ? "Optional follow-up"
+                  : "Required next step"}
+            </span>
+            <span className={styles.navHint}>{primaryAction.label}</span>
+            <span className={styles.statusDetail}>{primaryAction.reason}</span>
+            {primaryAction.blockers.length > 0 ? (
+              <span className={styles.statusDetail}>
+                Blocked by: {joined(primaryAction.blockers)}
+              </span>
+            ) : null}
             <span className={styles.guidedStageMeta}>
-              {overview.currentPhaseLabel}
+              {primaryAction.owner} / {primaryAction.category.replace(/_/g, " ")}
             </span>
           </a>
+        ) : null}
+        {overview.actionRanking.secondaryActions.length > 0 ? (
+          <div
+            className={`${styles.guidedRail} ${styles.qualityActionRail}`}
+            data-testid="quality-guided-secondary-actions"
+          >
+            {overview.actionRanking.secondaryActions.map((action) => {
+              const content = (
+                <>
+                  <span className={styles.navLabel}>
+                    {action.disposition === "recommended"
+                      ? "Quality recommendation"
+                      : action.disposition === "optional"
+                        ? "Optional follow-up"
+                        : "Required follow-up"}
+                  </span>
+                  <span className={styles.navHint}>{action.label}</span>
+                  {action.blockers.length > 0 ? (
+                    <span className={styles.statusDetail}>
+                      Blocked by: {joined(action.blockers)}
+                    </span>
+                  ) : null}
+                  <span className={styles.guidedStageMeta}>
+                    {action.owner} / {action.category.replace(/_/g, " ")}
+                  </span>
+                </>
+              );
+              return action.targetSection ? (
+                <a
+                  key={action.id}
+                  className={`${styles.guidedStage} ${styles.qualityActionStage}`}
+                  href={`#${action.targetSection}`}
+                  data-testid="quality-guided-secondary-action"
+                >
+                  {content}
+                </a>
+              ) : (
+                <div
+                  key={action.id}
+                  className={`${styles.guidedStage} ${styles.qualityActionStage}`}
+                  data-testid="quality-guided-secondary-action"
+                >
+                  {content}
+                </div>
+              );
+            })}
+          </div>
         ) : null}
         <a
           className={styles.guidedStage}

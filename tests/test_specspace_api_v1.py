@@ -11315,6 +11315,11 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertEqual(overview["readiness"]["blocker_count"], 0)
         self.assertEqual(
+            overview["action_ranking"]["primary_action"]["category"],
+            "lifecycle",
+        )
+        self.assertEqual(overview["action_ranking"]["secondary_actions"], [])
+        self.assertEqual(
             [phase["id"] for phase in overview["phases"]],
             [
                 "workspace",

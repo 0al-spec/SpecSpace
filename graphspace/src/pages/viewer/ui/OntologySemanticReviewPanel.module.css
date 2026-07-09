@@ -188,6 +188,10 @@
   border-right: 0;
 }
 
+.overviewPostureStrip > .postureItem:nth-child(n + 4) {
+  border-top: 1px solid var(--gs-rule-soft);
+}
+
 .postureLabel,
 .postureValue {
   display: block;
@@ -747,7 +751,19 @@
   background: var(--gs-rule-soft);
 }
 
+.qualityActionRail {
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, 280px), 1fr)
+  );
+}
+
+.guidedStage.qualityActionStage {
+  min-height: 0;
+}
+
 .guidedStage {
+  display: block;
   min-width: 0;
   min-height: 118px;
   box-sizing: border-box;

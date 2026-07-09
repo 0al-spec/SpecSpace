@@ -2509,7 +2509,11 @@ test("opens a presentation demo view from product workspace overview", async ({
     await installIdeaToSpecApiRoutes(page, backend.baseUrl);
 
     await page.goto(`/${workspaceId}`);
-    await expect(page.getByText("Product workspace overview")).toBeVisible();
+    await expect(
+      page
+        .locator("#idea-to-spec-product-workspace-overview")
+        .getByText("Product workspace overview", { exact: true }),
+    ).toBeVisible();
     await page.getByTestId("product-demo-view-link").click();
 
     await expect(page).toHaveURL(/\/team-decision-log\?view=demo$/);
@@ -2531,6 +2535,42 @@ test("opens a presentation demo view from product workspace overview", async ({
   } finally {
     await backend.stop();
   }
+});
+
+test("keeps overview counters separated and ranked action rows compact", async ({
+  page,
+}) => {
+  await page.goto("/dev/idea-to-spec-fixtures#team-decision-rail");
+
+  const overview = page
+    .getByTestId("team-decision-rail-frame")
+    .locator("#idea-to-spec-product-workspace-overview");
+  await expect(overview).toBeVisible();
+
+  const separatorWidths = await overview
+    .getByTestId("product-workspace-overview-posture")
+    .evaluate((element) =>
+      Array.from(element.children).map(
+        (item) => getComputedStyle(item).borderTopWidth,
+      ),
+    );
+  expect(separatorWidths).toEqual(["0px", "0px", "0px", "1px", "1px", "1px"]);
+
+  const rankedActionStyles = await overview.evaluate((element) =>
+    Array.from(
+      element.querySelectorAll(
+        '[data-testid="quality-guided-primary-action"], [data-testid="quality-guided-secondary-action"]',
+      ),
+    ).map((item) => ({
+      display: getComputedStyle(item).display,
+      minHeight: getComputedStyle(item).minHeight,
+    })),
+  );
+  expect(rankedActionStyles).toEqual([
+    { display: "block", minHeight: "0px" },
+    { display: "block", minHeight: "0px" },
+    { display: "block", minHeight: "0px" },
+  ]);
 });
 
 test("explains unavailable workspace creation API from the sidebar wizard", async ({
