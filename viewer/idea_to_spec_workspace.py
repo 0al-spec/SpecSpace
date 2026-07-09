@@ -2015,9 +2015,30 @@ def _intake_answer_rows(
                 ),
                 "refs": _string_list(value.get("refs")),
                 "entries": _string_list(value.get("entries")),
+                "relations": _relation_rows(value.get("relations")),
                 "text": _optional_text(value.get("text")),
             }
         )
+    return rows
+
+
+def _relation_rows(value: Any) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for item in _records(value):
+        relation = _optional_text(item.get("relation"))
+        source_ref = _optional_text(item.get("source_ref"))
+        target_ref = _optional_text(item.get("target_ref"))
+        if not relation or not source_ref or not target_ref:
+            continue
+        row = {
+            "relation": relation,
+            "source_ref": source_ref,
+            "target_ref": target_ref,
+        }
+        rationale = _optional_text(item.get("rationale"))
+        if rationale:
+            row["rationale"] = rationale
+        rows.append(row)
     return rows
 
 

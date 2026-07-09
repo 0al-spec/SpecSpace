@@ -9,6 +9,7 @@ import {
 import {
   IdeaToSpecWorkspacePanel,
   repairDraftText,
+  workflowRelationHintDraftCanSave,
 } from "./IdeaToSpecWorkspacePanel";
 
 const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
@@ -1882,6 +1883,25 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("command_emits_event command.record-pantry-item");
   });
 
+  it("blocks workflow relation drafts with unparsed lines", () => {
+    expect(
+      workflowRelationHintDraftCanSave(
+        [
+          "command_emits_event command.record-pantry-item -> event.pantry-item-recorded",
+          "actor_triggers_command actor.household-member command.record-pantry-item",
+        ].join("\n"),
+      ),
+    ).toBe(false);
+    expect(
+      workflowRelationHintDraftCanSave(
+        [
+          "command_emits_event command.record-pantry-item -> event.pantry-item-recorded",
+          "actor_triggers_command actor.household-member -> command.record-pantry-item",
+        ].join("\n"),
+      ),
+    ).toBe(true);
+  });
+
   it("round-trips trigger refs in event-storming repair drafts", () => {
     const text = repairDraftText({
       draftId: "draft.clarification.depth.policies",
@@ -1941,6 +1961,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
             relation: "command_emits_event",
             source_ref: "command.record-pantry-item",
             target_ref: "event.pantry-item-recorded",
+            rationale: "Pantry item creation emits the record event.",
           },
         ],
       },
@@ -1960,7 +1981,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     });
 
     expect(text).toBe(
-      "command_emits_event command.record-pantry-item -> event.pantry-item-recorded",
+      "command_emits_event command.record-pantry-item -> event.pantry-item-recorded # Pantry item creation emits the record event.",
     );
   });
 

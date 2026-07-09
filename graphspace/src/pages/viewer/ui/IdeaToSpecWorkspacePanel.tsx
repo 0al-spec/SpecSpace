@@ -4895,9 +4895,15 @@ function IntakeClarificationRequestRow({
   const value = answerTarget
     ? intakeClarificationValueForTemplate(answerTarget, selectedAction, answerText)
     : intakeClarificationValueForRequest(request, selectedAction, answerText);
+  const workflowRelationAnswer = intakeClarificationUsesWorkflowRelations(
+    request,
+    answerTarget,
+    requiredFields,
+  );
   const canSave =
     selectedAction.length > 0 &&
     intakeClarificationTemplateValueIsComplete(requiredFields, value) &&
+    (!workflowRelationAnswer || workflowRelationHintDraftCanSave(answerText)) &&
     !readOnly &&
     !pending;
   return (
@@ -7210,7 +7216,7 @@ function eventStormingDepthDraftCanSave(
   text: string,
 ): boolean {
   if (isWorkflowRelationDepthRequest(request)) {
-    return workflowRelationHintLines(text).length > 0;
+    return workflowRelationHintDraftCanSave(text);
   }
   return eventStormingDepthLines(text).length > 0;
 }
@@ -7280,19 +7286,31 @@ function workflowRelationHintLines(text: string): Record<string, unknown>[] {
     .filter((item): item is Record<string, unknown> => item !== null);
 }
 
+export function workflowRelationHintDraftCanSave(text: string): boolean {
+  const lines = eventStormingDepthLines(text);
+  return lines.length > 0 && workflowRelationHintLines(text).length === lines.length;
+}
+
 function workflowRelationHintLine(line: string): Record<string, unknown> | null {
   const [leftRaw, targetRaw] = line.split(/\s*->\s*/, 2);
   const left = (leftRaw ?? "").trim();
-  const targetRef = (targetRaw ?? "").trim();
+  const targetWithRationale = (targetRaw ?? "").trim();
   const match = left.match(/^([a-z_]+)\s+(.+)$/);
   const relation = match?.[1]?.trim() ?? "";
   const sourceRef = match?.[2]?.trim() ?? "";
+  const rationaleMatch = targetWithRationale.match(/^(.*?)\s+#\s+(.+)$/);
+  const targetRef = (rationaleMatch?.[1] ?? targetWithRationale).trim();
+  const rationale = rationaleMatch?.[2]?.trim() ?? "";
   if (!relation || !sourceRef || !targetRef) return null;
-  return {
+  const result: Record<string, unknown> = {
     relation,
     source_ref: sourceRef,
     target_ref: targetRef,
   };
+  if (rationale) {
+    result.rationale = rationale;
+  }
+  return result;
 }
 
 function workflowRelationHintText(value: unknown): string | null {
@@ -7300,9 +7318,11 @@ function workflowRelationHintText(value: unknown): string | null {
   const lines = value
     .map((item) => {
       if (!item || typeof item !== "object") return "";
-      const relation = (item as Record<string, unknown>).relation;
-      const sourceRef = (item as Record<string, unknown>).source_ref;
-      const targetRef = (item as Record<string, unknown>).target_ref;
+      const record = item as Record<string, unknown>;
+      const relation = record.relation;
+      const sourceRef = record.source_ref ?? record.sourceRef;
+      const targetRef = record.target_ref ?? record.targetRef;
+      const rationale = record.rationale;
       if (
         typeof relation !== "string" ||
         typeof sourceRef !== "string" ||
@@ -7310,7 +7330,10 @@ function workflowRelationHintText(value: unknown): string | null {
       ) {
         return "";
       }
-      return `${relation} ${sourceRef} -> ${targetRef}`;
+      const base = `${relation} ${sourceRef} -> ${targetRef}`;
+      return typeof rationale === "string" && rationale.trim()
+        ? `${base} # ${rationale.trim()}`
+        : base;
     })
     .filter(Boolean);
   return lines.length > 0 ? lines.join("\n") : null;
@@ -7625,6 +7648,9 @@ function intakeAnswerText(
   if (publishedAnswer) {
     if (publishedAnswer.refs.length > 0) return publishedAnswer.refs.join(", ");
     if (publishedAnswer.entries.length > 0) return publishedAnswer.entries.join("\n");
+    if (publishedAnswer.relations.length > 0) {
+      return workflowRelationHintText(publishedAnswer.relations);
+    }
     return publishedAnswer.text;
   }
   return null;
@@ -7678,6 +7704,21 @@ function intakeClarificationValueForRequest(
     return { refs: splitIntakeAnswerList(value) };
   }
   return { text: value };
+}
+
+function intakeClarificationUsesWorkflowRelations(
+  request: IdeaToSpecClarificationRequest,
+  answerTarget: IdeaToSpecRealIdeaAnswerTarget | undefined,
+  requiredFields: readonly string[],
+): boolean {
+  return (
+    request.kind === "workflow_topology_gap" ||
+    request.targetRef === "event_storming_hints.workflow_relations" ||
+    answerTarget?.targetRef === "event_storming_hints.workflow_relations" ||
+    requiredFields.some(
+      (field) => field === "value.relations[]" || field === "value.relations",
+    )
+  );
 }
 
 function intakeClarificationValueForTemplate(
@@ -7789,6 +7830,9 @@ function templateFieldValueIsPresent(value: unknown): boolean {
 
 function intakeClarificationPlaceholder(request: IdeaToSpecClarificationRequest): string {
   const haystack = `${request.id} ${request.targetRef ?? ""} ${request.question ?? ""}`.toLowerCase();
+  if (haystack.includes("workflow_relations") || haystack.includes("workflow-topology")) {
+    return "relation source.ref -> target.ref";
+  }
   if (haystack.includes("actors") || haystack.includes("domain-events") || haystack.includes("domain_events") || haystack.includes("commands") || haystack.includes("constraints")) {
     return "One entry per line";
   }

@@ -406,7 +406,15 @@ export type IdeaToSpecIntakeAnswer = {
   targetRef: string | null;
   refs: readonly string[];
   entries: readonly string[];
+  relations: readonly IdeaToSpecWorkflowRelation[];
   text: string | null;
+};
+
+export type IdeaToSpecWorkflowRelation = {
+  relation: string;
+  sourceRef: string;
+  targetRef: string;
+  rationale: string | null;
 };
 
 export type IdeaToSpecRepairSessionStage = {
@@ -2480,8 +2488,26 @@ function parseIntakeAnswer(raw: unknown): IdeaToSpecIntakeAnswer | null {
     targetRef: optionalString(answer.target_ref),
     refs: strings(answer.refs),
     entries: strings(answer.entries),
+    relations: parseWorkflowRelations(answer.relations),
     text: optionalString(answer.text),
   };
+}
+
+function parseWorkflowRelations(raw: unknown): IdeaToSpecWorkflowRelation[] {
+  return records(raw).flatMap((item) => {
+    const relation = optionalString(item.relation);
+    const sourceRef = optionalString(item.source_ref);
+    const targetRef = optionalString(item.target_ref);
+    if (!relation || !sourceRef || !targetRef) return [];
+    return [
+      {
+        relation,
+        sourceRef,
+        targetRef,
+        rationale: optionalString(item.rationale),
+      },
+    ];
+  });
 }
 
 function parseOntologyDecision(raw: unknown): IdeaToSpecOntologyDecision | null {

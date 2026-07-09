@@ -4052,6 +4052,46 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(lane["rerun_report"]["accepted_target_count"], 1)
         self.assertFalse(lane["action_boundary"]["may_execute_specgraph"])
 
+    def test_build_workspace_preserves_published_workflow_relation_answers(self) -> None:
+        answers = _intake_clarification_answers()
+        answers["answers"][0]["request_snapshot"]["target_ref"] = (
+            "event_storming_hints.workflow_relations"
+        )
+        answers["answers"][0]["value"] = {
+            "relations": [
+                {
+                    "relation": "command_emits_event",
+                    "source_ref": "command.record-pantry-item",
+                    "target_ref": "event.pantry-item-recorded",
+                    "rationale": "Pantry item creation emits the record event.",
+                }
+            ]
+        }
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_ANSWERS_ARTIFACT: answers,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["intake_clarification"]["clarification_answers"]["answers"][0][
+                "relations"
+            ],
+            [
+                {
+                    "relation": "command_emits_event",
+                    "source_ref": "command.record-pantry-item",
+                    "target_ref": "event.pantry-item-recorded",
+                    "rationale": "Pantry item creation emits the record event.",
+                }
+            ],
+        )
+
     def test_build_workspace_projects_real_idea_answer_authoring(self) -> None:
         authoring_report = _real_idea_answer_authoring_report()
         authoring_report["findings"] = [
