@@ -2925,7 +2925,12 @@ def _real_idea_intake_projection(
     elif template_outcome == "clarification_blocked":
         status = "blocked"
         next_action = "Inspect blocked clarification findings before continuation."
-    elif continuation_ready or template_outcome == "clarification_not_required":
+    elif template_outcome == "clarification_not_required" and not template_ready:
+        status = "blocked"
+        next_action = "Inspect answer template readiness before continuation."
+    elif continuation_ready or (
+        template_outcome == "clarification_not_required" and template_ready
+    ):
         status = "continuation_ready"
         next_action = (
             "Continue candidate generation; this intake does not require clarification answers."
@@ -3056,7 +3061,10 @@ def _real_idea_intake_projection(
                 else "unknown"
             ),
             "safe_to_continue": continuation_ready
-            or template_outcome == "clarification_not_required",
+            or (
+                template_outcome == "clarification_not_required"
+                and template_ready
+            ),
             "output_refs": _safe_refs(
                 list(_record(continuation_report.get("outputs")).values())
             ),
@@ -8146,11 +8154,13 @@ def _managed_operation_input_required(
         return True
     if operation.operation_id != "real_idea_answer_continuation_execute":
         return True
-    real_idea = _record(payload.get("real_idea_intake"))
-    authoring = _record(real_idea.get("answer_authoring"))
+    clarification = _record(payload.get("intake_clarification"))
+    authoring = _record(clarification.get("answer_authoring"))
+    template = _record(authoring.get("template"))
     return not (
-        _text(authoring.get("template_outcome")) == "clarification_not_required"
-        and authoring.get("template_ready") is True
+        _text(template.get("clarification_outcome"))
+        == "clarification_not_required"
+        and _record(template.get("readiness")).get("ready") is True
     )
 
 
