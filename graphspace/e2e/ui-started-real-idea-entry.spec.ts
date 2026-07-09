@@ -2556,14 +2556,21 @@ test("keeps overview counters separated and ranked action rows compact", async (
     );
   expect(separatorWidths).toEqual(["0px", "0px", "0px", "1px", "1px", "1px"]);
 
-  const rankedActionMinHeights = await overview.evaluate((element) =>
+  const rankedActionStyles = await overview.evaluate((element) =>
     Array.from(
       element.querySelectorAll(
         '[data-testid="quality-guided-primary-action"], [data-testid="quality-guided-secondary-action"]',
       ),
-    ).map((item) => getComputedStyle(item).minHeight),
+    ).map((item) => ({
+      display: getComputedStyle(item).display,
+      minHeight: getComputedStyle(item).minHeight,
+    })),
   );
-  expect(rankedActionMinHeights).toEqual(["0px", "0px", "0px"]);
+  expect(rankedActionStyles).toEqual([
+    { display: "block", minHeight: "0px" },
+    { display: "block", minHeight: "0px" },
+    { display: "block", minHeight: "0px" },
+  ]);
 });
 
 test("explains unavailable workspace creation API from the sidebar wizard", async ({

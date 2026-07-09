@@ -763,6 +763,7 @@
 }
 
 .guidedStage {
+  display: block;
   min-width: 0;
   min-height: 118px;
   box-sizing: border-box;
