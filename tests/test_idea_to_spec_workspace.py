@@ -1345,6 +1345,40 @@ def _rerun_materialization() -> dict:
             "delta": {
                 "removed_gap_ids": ["ontology-gap.numeric-input"],
                 "unresolved_ontology_gap_ids": [],
+                "structural_depth_delta": {
+                    "proposal_id": "0209",
+                    "status": "improved",
+                    "before": {
+                        "actor_count": 1,
+                        "workflow_edge_count": 0,
+                    },
+                    "after": {
+                        "actor_count": 2,
+                        "workflow_edge_count": 3,
+                    },
+                    "delta": {
+                        "actor_count": 1,
+                        "workflow_edge_count": 3,
+                    },
+                    "added_event_storming_entry_refs": {
+                        "actors": ["actor.shopping-planner"],
+                    },
+                    "added_workflow_relation_count": 3,
+                    "added_workflow_relations": [
+                        {
+                            "relation": "command_emits_event",
+                            "source_ref": "command.record-pantry-item",
+                            "target_ref": "event.pantry-item-recorded",
+                            "review_only": True,
+                            "materialization_dependency": False,
+                            "raw_prompt": "private trace",
+                        }
+                    ],
+                    "remaining_shallow_dimensions": ["constraint_count"],
+                    "review_only": True,
+                    "canonical_mutations_allowed": False,
+                    "materialization_dependency": False,
+                },
                 "resolved_ontology_gap_count": 1,
                 "unresolved_ontology_gap_count": 0,
             }
@@ -3053,6 +3087,20 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             ],
             ["ontology-gap.numeric-input"],
         )
+        depth_delta = body["repair_review"]["rerun_materialization"]["delta"][
+            "structural_depth_delta"
+        ]
+        self.assertTrue(depth_delta["available"])
+        self.assertEqual(depth_delta["status"], "improved")
+        self.assertEqual(depth_delta["delta"]["workflow_edge_count"], 3)
+        self.assertEqual(depth_delta["added_event_storming_entry_count"], 1)
+        self.assertEqual(depth_delta["added_workflow_relation_count"], 3)
+        self.assertEqual(
+            depth_delta["added_workflow_relations"][0]["relation"],
+            "command_emits_event",
+        )
+        self.assertNotIn("raw_prompt", depth_delta["added_workflow_relations"][0])
+        self.assertFalse(depth_delta["canonical_mutations_allowed"])
         self.assertEqual(body["idea_maturity"]["status"], "available")
         self.assertTrue(body["idea_maturity"]["trusted"])
         self.assertEqual(

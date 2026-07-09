@@ -1143,6 +1143,34 @@ describe("parseIdeaToSpecWorkspace", () => {
     });
   });
 
+  it("parses structural depth repair effect from rerun materialization", () => {
+    const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    const depthDelta =
+      parsed.data.repairReview.rerunMaterialization.delta.structuralDepthDelta;
+    expect(depthDelta).toMatchObject({
+      available: true,
+      proposalId: "0209",
+      status: "improved",
+      addedEventStormingEntryCount: 1,
+      addedWorkflowRelationCount: 3,
+      reviewOnly: true,
+      canonicalMutationsAllowed: false,
+      materializationDependency: false,
+    });
+    expect(depthDelta.delta.workflow_edge_count).toBe(3);
+    expect(depthDelta.addedEventStormingEntryRefs.actors).toEqual([
+      "actor.shopping-planner",
+    ]);
+    expect(depthDelta.addedWorkflowRelations[0]).toMatchObject({
+      relation: "command_emits_event",
+      sourceRef: "command.record-pantry-item",
+      targetRef: "event.pantry-item-recorded",
+    });
+  });
+
   it("parses missing idea maturity structural depth as unpublished", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     delete raw.idea_maturity.report.metrics.candidate_structure_depth;

@@ -3572,6 +3572,61 @@ def _resolved_gap_rows(rerun_preview: dict[str, Any] | None) -> list[dict[str, A
     return rows
 
 
+def _structural_depth_delta(raw: Any) -> dict[str, Any]:
+    delta = _record(raw)
+    if not delta:
+        return {"available": False}
+    entry_refs = {
+        key: _string_list(value)
+        for key, value in _record(delta.get("added_event_storming_entry_refs")).items()
+        if _string_list(value)
+    }
+    relation_rows: list[dict[str, Any]] = []
+    for raw_relation in _records(delta.get("added_workflow_relations")):
+        relation = _optional_text(raw_relation.get("relation"))
+        source_ref = _optional_text(raw_relation.get("source_ref"))
+        target_ref = _optional_text(raw_relation.get("target_ref"))
+        if not relation or not source_ref or not target_ref:
+            continue
+        relation_rows.append(
+            {
+                "relation": relation,
+                "source_ref": source_ref,
+                "target_ref": target_ref,
+                "review_only": raw_relation.get("review_only") is True,
+                "materialization_dependency": (
+                    raw_relation.get("materialization_dependency") is True
+                ),
+            }
+        )
+    return {
+        "available": True,
+        "proposal_id": _optional_text(delta.get("proposal_id")),
+        "status": _optional_text(delta.get("status")),
+        "before": {
+            key: _number(value) for key, value in _record(delta.get("before")).items()
+        },
+        "after": {
+            key: _number(value) for key, value in _record(delta.get("after")).items()
+        },
+        "delta": {
+            key: _number(value) for key, value in _record(delta.get("delta")).items()
+        },
+        "added_event_storming_entry_refs": entry_refs,
+        "added_event_storming_entry_count": sum(len(value) for value in entry_refs.values()),
+        "added_workflow_relation_count": _number(
+            delta.get("added_workflow_relation_count")
+        ),
+        "added_workflow_relations": relation_rows,
+        "remaining_shallow_dimensions": _string_list(
+            delta.get("remaining_shallow_dimensions")
+        ),
+        "review_only": delta.get("review_only") is True,
+        "canonical_mutations_allowed": delta.get("canonical_mutations_allowed") is True,
+        "materialization_dependency": delta.get("materialization_dependency") is True,
+    }
+
+
 def _repair_review_lane(
     *,
     repair_session: dict[str, Any] | None,
@@ -3713,6 +3768,9 @@ def _repair_review_lane(
                 "removed_gap_ids": _string_list(delta.get("removed_gap_ids")),
                 "unresolved_ontology_gap_ids": _string_list(
                     delta.get("unresolved_ontology_gap_ids")
+                ),
+                "structural_depth_delta": _structural_depth_delta(
+                    delta.get("structural_depth_delta")
                 ),
                 "resolved_ontology_gap_count": _number(
                     delta.get("resolved_ontology_gap_count")

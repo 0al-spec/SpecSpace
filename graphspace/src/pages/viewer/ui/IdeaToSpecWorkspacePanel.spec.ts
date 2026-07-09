@@ -1577,6 +1577,26 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("#idea-to-spec-candidate-overview");
   });
 
+  it("renders structural depth repair effect visibility", () => {
+    const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
+    if (parsed.kind !== "ok") {
+      throw new Error("Idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsed.data },
+      }),
+    );
+
+    expect(html).toContain("Depth impact");
+    expect(html).toContain("improved");
+    expect(html).toMatch(/Workflow edges<\/span><span[^>]*>0 -&gt; 3 \(\+3\)/);
+    expect(html).toContain("actor.shopping-planner");
+    expect(html).toContain("command emits event");
+    expect(html).toContain("review-only");
+  });
+
   it("renders missing idea maturity structural depth as not published", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     delete raw.idea_maturity.report.metrics.candidate_structure_depth;
