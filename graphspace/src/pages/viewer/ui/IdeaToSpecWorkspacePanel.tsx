@@ -36,6 +36,7 @@ import type {
   IdeaToSpecRepairSessionStage,
   IdeaToSpecRepairTarget,
   IdeaToSpecResolvedOntologyGap,
+  IdeaToSpecStructuralDepthDelta,
   IdeaToSpecWorkspaceStateHygiene,
   IdeaToSpecWorkflow,
   IdeaToSpecWorkspace,
@@ -228,6 +229,65 @@ function boolText(value: boolean): string {
 
 function joined(values: readonly string[], fallback = "none"): string {
   return values.length > 0 ? values.join(", ") : fallback;
+}
+
+function signedNumber(value: number): string {
+  if (value > 0) return `+${value}`;
+  return String(value);
+}
+
+const STRUCTURAL_DEPTH_KEYS = [
+  "actor_count",
+  "command_count",
+  "domain_event_count",
+  "policy_count",
+  "constraint_count",
+  "topology_edge_count",
+  "workflow_edge_count",
+  "requirement_count",
+  "acceptance_criteria_count",
+] as const;
+
+const STRUCTURAL_DEPTH_LABELS: Record<string, string> = {
+  actor_count: "Actors",
+  command_count: "Commands",
+  domain_event_count: "Domain events",
+  policy_count: "Policies",
+  constraint_count: "Constraints",
+  topology_edge_count: "Topology edges",
+  workflow_edge_count: "Workflow edges",
+  requirement_count: "Requirements",
+  acceptance_criteria_count: "Acceptance criteria",
+};
+
+function structuralDepthDeltaKeys(
+  delta: IdeaToSpecStructuralDepthDelta,
+): string[] {
+  const reported = new Set([
+    ...Object.keys(delta.before),
+    ...Object.keys(delta.after),
+    ...Object.keys(delta.delta),
+    ...delta.remainingShallowDimensions,
+  ]);
+  const ordered = STRUCTURAL_DEPTH_KEYS.filter((key) => reported.has(key));
+  const extras = [...reported]
+    .filter((key) => !(STRUCTURAL_DEPTH_KEYS as readonly string[]).includes(key))
+    .sort();
+  return [...ordered, ...extras];
+}
+
+function depthDeltaText(
+  delta: IdeaToSpecStructuralDepthDelta,
+  key: string,
+): string {
+  const before = delta.before[key] ?? 0;
+  const after = delta.after[key] ?? 0;
+  const change = delta.delta[key] ?? after - before;
+  return `${before} -> ${after} (${signedNumber(change)})`;
+}
+
+function depthLabel(value: string): string {
+  return STRUCTURAL_DEPTH_LABELS[value] ?? value.replace(/_/g, " ");
 }
 
 function currentBrowserPath(): string | null {
@@ -1149,7 +1209,12 @@ export function IdeaToSpecWorkspacePanel({
       <PreSibSection state={state} />
       <RepairSection actions={data.repairLoop.actions} />
       <RepairSessionSection state={state} />
-      <IdeaMaturitySection maturity={data.ideaMaturity} />
+      <IdeaMaturitySection
+        maturity={data.ideaMaturity}
+        structuralDepthDelta={
+          data.repairReview.rerunMaterialization.delta.structuralDepthDelta
+        }
+      />
       <WorkspaceStateHygieneSection hygiene={data.workspaceStateHygiene} />
       <ProductRepairReviewSection
         state={state}
@@ -5787,8 +5852,10 @@ function AcceptedAnswerRow({
 
 function IdeaMaturitySection({
   maturity,
+  structuralDepthDelta,
 }: {
   maturity: IdeaToSpecIdeaMaturity;
+  structuralDepthDelta: IdeaToSpecStructuralDepthDelta;
 }) {
   if (!maturity.available) {
     return (
@@ -6116,6 +6183,82 @@ function IdeaMaturitySection({
           </div>
         ) : null}
       </div>
+
+      {structuralDepthDelta.available ? (
+        <div className={styles.row}>
+          <div className={styles.rowHeader}>
+            <span className={styles.rowId}>Depth impact</span>
+            <Pill value={compact(structuralDepthDelta.status, "not measured")} />
+          </div>
+          <div className={styles.metaGrid}>
+            {structuralDepthDeltaKeys(structuralDepthDelta).map((key) => (
+              <Meta
+                key={`depth-delta-${key}`}
+                label={depthLabel(key)}
+                value={depthDeltaText(structuralDepthDelta, key)}
+              />
+            ))}
+            <Meta
+              label="Added entries"
+              value={String(structuralDepthDelta.addedEventStormingEntryCount)}
+            />
+            <Meta
+              label="Entry refs"
+              value={joined(
+                Object.values(
+                  structuralDepthDelta.addedEventStormingEntryRefs,
+                ).flat(),
+              )}
+            />
+            <Meta
+              label="Added relations"
+              value={String(structuralDepthDelta.addedWorkflowRelationCount)}
+            />
+            <Meta
+              label="Remaining shallow"
+              value={joined(
+                structuralDepthDelta.remainingShallowDimensions.map(depthLabel),
+              )}
+            />
+            <Meta label="Proposal" value={structuralDepthDelta.proposalId} />
+            <Meta
+              label="Boundary"
+              value={
+                structuralDepthDelta.reviewOnly &&
+                !structuralDepthDelta.canonicalMutationsAllowed &&
+                !structuralDepthDelta.materializationDependency
+                  ? "review-only"
+                  : "needs review"
+              }
+            />
+          </div>
+          {structuralDepthDelta.addedWorkflowRelations.length > 0 ? (
+            <div className={styles.navGrid}>
+              {structuralDepthDelta.addedWorkflowRelations
+                .slice(0, 4)
+                .map((relation, index) => (
+                  <div
+                    key={`depth-relation-${relation.relation}-${index}`}
+                    className={styles.subRow}
+                  >
+                    <span className={styles.rowId}>
+                      {compact(relation.relation, "workflow relation").replace(
+                        /_/g,
+                        " ",
+                      )}
+                    </span>
+                    <Pill value={relation.reviewOnly ? "review only" : "review"} />
+                    <span className={styles.statusDetail}>
+                      {compact(relation.sourceRef, "source")}
+                      {" -> "}
+                      {compact(relation.targetRef, "target")}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className={styles.row}>
         <div className={styles.rowHeader}>

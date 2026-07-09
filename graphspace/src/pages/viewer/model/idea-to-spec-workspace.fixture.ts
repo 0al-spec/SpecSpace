@@ -2133,6 +2133,44 @@ export const ideaToSpecWorkspace = {
         unresolved_ontology_gap_ids: [],
         resolved_ontology_gap_count: 1,
         unresolved_ontology_gap_count: 0,
+        structural_depth_delta: {
+          available: true,
+          proposal_id: "0209",
+          status: "improved",
+          before: {
+            actor_count: 1,
+            command_count: 2,
+            workflow_edge_count: 0,
+          },
+          after: {
+            actor_count: 2,
+            command_count: 1,
+            workflow_edge_count: 3,
+          },
+          delta: {
+            actor_count: 1,
+            command_count: -1,
+            workflow_edge_count: 3,
+          },
+          added_event_storming_entry_refs: {
+            actors: ["actor.shopping-planner"],
+          },
+          added_event_storming_entry_count: 1,
+          added_workflow_relation_count: 3,
+          added_workflow_relations: [
+            {
+              relation: "command_emits_event",
+              source_ref: "command.record-pantry-item",
+              target_ref: "event.pantry-item-recorded",
+              review_only: true,
+              materialization_dependency: false,
+            },
+          ],
+          remaining_shallow_dimensions: ["constraint_count"],
+          review_only: true,
+          canonical_mutations_allowed: false,
+          materialization_dependency: false,
+        },
       },
     },
     platform_execution: {

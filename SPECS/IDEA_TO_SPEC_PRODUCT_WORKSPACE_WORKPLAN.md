@@ -121,6 +121,12 @@ runtime action requests from Product Workspace routes.
   drafts and keeps them request-only; SpecGraph validates relation type,
   endpoint existence, and endpoint kind before previewing review-only workflow
   topology edges.
+- Depth repair effect visibility. Product Workspace now reads SpecGraph
+  proposal `0209` `structural_depth_delta` from rerun materialization and shows
+  a read-only `Depth impact` surface inside Idea Maturity. Operators can see
+  before/after counts, added event-storming refs, added workflow relations,
+  remaining shallow dimensions, and review-only boundary evidence without
+  treating depth as a score, gate, or execution authority.
 - Raw idea entry state in SpecSpace.
 - Browser E2E for raw idea submit into SpecSpace-owned mutable state.
 - Workspace and `guided_flow` refresh after successful raw idea submit.

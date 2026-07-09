@@ -3,6 +3,7 @@ import math
 import tempfile
 import time
 import unittest
+from copy import deepcopy
 from http import HTTPStatus
 from pathlib import Path
 from unittest import mock
@@ -1345,6 +1346,43 @@ def _rerun_materialization() -> dict:
             "delta": {
                 "removed_gap_ids": ["ontology-gap.numeric-input"],
                 "unresolved_ontology_gap_ids": [],
+                "structural_depth_delta": {
+                    "proposal_id": "0209",
+                    "status": "improved",
+                    "before": {
+                        "actor_count": 1,
+                        "command_count": 2,
+                        "workflow_edge_count": 0,
+                    },
+                    "after": {
+                        "actor_count": 2,
+                        "command_count": 1,
+                        "workflow_edge_count": 3,
+                    },
+                    "delta": {
+                        "actor_count": 1,
+                        "command_count": -1,
+                        "workflow_edge_count": 3,
+                    },
+                    "added_event_storming_entry_refs": {
+                        "actors": ["actor.shopping-planner"],
+                    },
+                    "added_workflow_relation_count": 3,
+                    "added_workflow_relations": [
+                        {
+                            "relation": "command_emits_event",
+                            "source_ref": "command.record-pantry-item",
+                            "target_ref": "event.pantry-item-recorded",
+                            "review_only": True,
+                            "materialization_dependency": False,
+                            "raw_prompt": "private trace",
+                        }
+                    ],
+                    "remaining_shallow_dimensions": ["constraint_count"],
+                    "review_only": True,
+                    "canonical_mutations_allowed": False,
+                    "materialization_dependency": False,
+                },
                 "resolved_ontology_gap_count": 1,
                 "unresolved_ontology_gap_count": 0,
             }
@@ -3053,6 +3091,21 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             ],
             ["ontology-gap.numeric-input"],
         )
+        depth_delta = body["repair_review"]["rerun_materialization"]["delta"][
+            "structural_depth_delta"
+        ]
+        self.assertTrue(depth_delta["available"])
+        self.assertEqual(depth_delta["status"], "improved")
+        self.assertEqual(depth_delta["delta"]["command_count"], -1)
+        self.assertEqual(depth_delta["delta"]["workflow_edge_count"], 3)
+        self.assertEqual(depth_delta["added_event_storming_entry_count"], 1)
+        self.assertEqual(depth_delta["added_workflow_relation_count"], 3)
+        self.assertEqual(
+            depth_delta["added_workflow_relations"][0]["relation"],
+            "command_emits_event",
+        )
+        self.assertNotIn("raw_prompt", depth_delta["added_workflow_relations"][0])
+        self.assertFalse(depth_delta["canonical_mutations_allowed"])
         self.assertEqual(body["idea_maturity"]["status"], "available")
         self.assertTrue(body["idea_maturity"]["trusted"])
         self.assertEqual(
@@ -3293,6 +3346,38 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(
             body["authority_boundary"]["may_create_branch_or_commit"]
         )
+
+    def test_build_workspace_preserves_unavailable_structural_depth_delta(
+        self,
+    ) -> None:
+        artifacts = deepcopy(_workspace_artifacts())
+        depth_delta = artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT
+        ]["materialization_preview"]["delta"]["structural_depth_delta"]
+        depth_delta.clear()
+        depth_delta.update(
+            {
+                "available": False,
+                "proposal_id": "0209",
+                "status": "missing",
+                "before": {"actor_count": 9},
+                "after": {"actor_count": 9},
+                "delta": {"actor_count": 0},
+            }
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        projected_delta = body["repair_review"]["rerun_materialization"]["delta"][
+            "structural_depth_delta"
+        ]
+        self.assertFalse(projected_delta["available"])
+        self.assertEqual(projected_delta["status"], "missing")
+        self.assertNotIn("before", projected_delta)
+        self.assertNotIn("after", projected_delta)
 
     def test_controlled_promotion_sanitizes_local_display_paths(self) -> None:
         artifacts = _workspace_artifacts()

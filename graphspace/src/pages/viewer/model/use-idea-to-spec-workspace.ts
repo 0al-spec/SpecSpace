@@ -736,6 +736,29 @@ export type IdeaToSpecProductRepairRerunPlatformExecution = {
   };
 };
 
+export type IdeaToSpecStructuralDepthDelta = {
+  available: boolean;
+  proposalId: string | null;
+  status: string | null;
+  before: Record<string, number>;
+  after: Record<string, number>;
+  delta: Record<string, number>;
+  addedEventStormingEntryRefs: Record<string, readonly string[]>;
+  addedEventStormingEntryCount: number;
+  addedWorkflowRelationCount: number;
+  addedWorkflowRelations: readonly {
+    relation: string | null;
+    sourceRef: string | null;
+    targetRef: string | null;
+    reviewOnly: boolean;
+    materializationDependency: boolean;
+  }[];
+  remainingShallowDimensions: readonly string[];
+  reviewOnly: boolean;
+  canonicalMutationsAllowed: boolean;
+  materializationDependency: boolean;
+};
+
 export type IdeaToSpecApprovalReadiness = {
   available: boolean;
   sourceMode: string;
@@ -1809,6 +1832,7 @@ export type IdeaToSpecWorkspace = {
       delta: {
         removedGapIds: readonly string[];
         unresolvedOntologyGapIds: readonly string[];
+        structuralDepthDelta: IdeaToSpecStructuralDepthDelta;
         resolvedOntologyGapCount: number;
         unresolvedOntologyGapCount: number;
       };
@@ -2094,6 +2118,10 @@ function numberValue(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
     : 0;
+}
+
+function signedNumberValue(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function optionalNumberValue(value: unknown): number | null {
@@ -3032,6 +3060,65 @@ function parseNumberRecord(raw: unknown): Record<string, number> {
   );
 }
 
+function parseSignedNumberRecord(raw: unknown): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(recordValue(raw)).map(([key, value]) => [
+      key,
+      signedNumberValue(value),
+    ]),
+  );
+}
+
+function parseStringListRecord(raw: unknown): Record<string, readonly string[]> {
+  return Object.fromEntries(
+    Object.entries(recordValue(raw)).map(([key, value]) => [key, strings(value)]),
+  );
+}
+
+function parseStructuralDepthDelta(raw: unknown): IdeaToSpecStructuralDepthDelta {
+  const delta = recordValue(raw);
+  const before = parseNumberRecord(delta.before);
+  const after = parseNumberRecord(delta.after);
+  const signedDelta = parseSignedNumberRecord(delta.delta);
+  const hasDepthContent =
+    Object.keys(before).length > 0 ||
+    Object.keys(after).length > 0 ||
+    Object.keys(signedDelta).length > 0;
+  return {
+    available:
+      delta.available === false
+        ? false
+        : delta.available === true || hasDepthContent,
+    proposalId: optionalString(delta.proposal_id),
+    status: optionalString(delta.status),
+    before,
+    after,
+    delta: signedDelta,
+    addedEventStormingEntryRefs: parseStringListRecord(
+      delta.added_event_storming_entry_refs,
+    ),
+    addedEventStormingEntryCount: numberValue(
+      delta.added_event_storming_entry_count,
+    ),
+    addedWorkflowRelationCount: numberValue(
+      delta.added_workflow_relation_count,
+    ),
+    addedWorkflowRelations: records(delta.added_workflow_relations).map(
+      (relation) => ({
+        relation: optionalString(relation.relation),
+        sourceRef: optionalString(relation.source_ref),
+        targetRef: optionalString(relation.target_ref),
+        reviewOnly: relation.review_only === true,
+        materializationDependency: relation.materialization_dependency === true,
+      }),
+    ),
+    remainingShallowDimensions: strings(delta.remaining_shallow_dimensions),
+    reviewOnly: delta.review_only === true,
+    canonicalMutationsAllowed: delta.canonical_mutations_allowed === true,
+    materializationDependency: delta.materialization_dependency === true,
+  };
+}
+
 function parseIntakeClarification(
   raw: unknown,
 ): IdeaToSpecWorkspace["intakeClarification"] {
@@ -3211,6 +3298,9 @@ function parseRepairReview(
       delta: {
         removedGapIds: strings(delta.removed_gap_ids),
         unresolvedOntologyGapIds: strings(delta.unresolved_ontology_gap_ids),
+        structuralDepthDelta: parseStructuralDepthDelta(
+          delta.structural_depth_delta,
+        ),
         resolvedOntologyGapCount: numberValue(
           delta.resolved_ontology_gap_count,
         ),

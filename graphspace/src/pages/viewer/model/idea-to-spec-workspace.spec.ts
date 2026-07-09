@@ -1143,6 +1143,59 @@ describe("parseIdeaToSpecWorkspace", () => {
     });
   });
 
+  it("parses structural depth repair effect from rerun materialization", () => {
+    const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    const depthDelta =
+      parsed.data.repairReview.rerunMaterialization.delta.structuralDepthDelta;
+    expect(depthDelta).toMatchObject({
+      available: true,
+      proposalId: "0209",
+      status: "improved",
+      addedEventStormingEntryCount: 1,
+      addedWorkflowRelationCount: 3,
+      reviewOnly: true,
+      canonicalMutationsAllowed: false,
+      materializationDependency: false,
+    });
+    expect(depthDelta.delta.command_count).toBe(-1);
+    expect(depthDelta.delta.workflow_edge_count).toBe(3);
+    expect(depthDelta.addedEventStormingEntryRefs.actors).toEqual([
+      "actor.shopping-planner",
+    ]);
+    expect(depthDelta.addedWorkflowRelations[0]).toMatchObject({
+      relation: "command_emits_event",
+      sourceRef: "command.record-pantry-item",
+      targetRef: "event.pantry-item-recorded",
+    });
+  });
+
+  it("preserves explicitly unavailable structural depth repair effect", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.repair_review.rerun_materialization.delta.structural_depth_delta = {
+      available: false,
+      proposal_id: "0209",
+      status: "missing",
+      before: { actor_count: 9 },
+      after: { actor_count: 9 },
+      delta: { actor_count: 0 },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(
+      parsed.data.repairReview.rerunMaterialization.delta.structuralDepthDelta,
+    ).toMatchObject({
+      available: false,
+      proposalId: "0209",
+      status: "missing",
+    });
+  });
+
   it("parses missing idea maturity structural depth as unpublished", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     delete raw.idea_maturity.report.metrics.candidate_structure_depth;
