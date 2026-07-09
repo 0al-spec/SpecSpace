@@ -1326,6 +1326,41 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(finding.nextAction).toBe("Add at least one value.refs[] entry.");
   });
 
+  it("preserves published workflow relation answer rows", () => {
+    const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    payload.intake_clarification.clarification_answers.answers = [
+      {
+        request_id: "clarification.depth.workflow-topology",
+        answer_kind: "answer_question",
+        status: "accepted_for_candidate",
+        target_ref: "event_storming_hints.workflow_relations",
+        relations: [
+          {
+            relation: "command_emits_event",
+            source_ref: "command.record-pantry-item",
+            target_ref: "event.pantry-item-recorded",
+            rationale: "Pantry item creation emits the record event.",
+          },
+        ],
+      },
+    ];
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(
+      parsed.data.intakeClarification.clarificationAnswers.answers[0].relations,
+    ).toEqual([
+      {
+        relation: "command_emits_event",
+        sourceRef: "command.record-pantry-item",
+        targetRef: "event.pantry-item-recorded",
+        rationale: "Pantry item creation emits the record event.",
+      },
+    ]);
+  });
+
   it("builds a deterministic candidate workflow topology view", () => {
     const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
 

@@ -4052,6 +4052,46 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(lane["rerun_report"]["accepted_target_count"], 1)
         self.assertFalse(lane["action_boundary"]["may_execute_specgraph"])
 
+    def test_build_workspace_preserves_published_workflow_relation_answers(self) -> None:
+        answers = _intake_clarification_answers()
+        answers["answers"][0]["request_snapshot"]["target_ref"] = (
+            "event_storming_hints.workflow_relations"
+        )
+        answers["answers"][0]["value"] = {
+            "relations": [
+                {
+                    "relation": "command_emits_event",
+                    "source_ref": "command.record-pantry-item",
+                    "target_ref": "event.pantry-item-recorded",
+                    "rationale": "Pantry item creation emits the record event.",
+                }
+            ]
+        }
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_ANSWERS_ARTIFACT: answers,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["intake_clarification"]["clarification_answers"]["answers"][0][
+                "relations"
+            ],
+            [
+                {
+                    "relation": "command_emits_event",
+                    "source_ref": "command.record-pantry-item",
+                    "target_ref": "event.pantry-item-recorded",
+                    "rationale": "Pantry item creation emits the record event.",
+                }
+            ],
+        )
+
     def test_build_workspace_projects_real_idea_answer_authoring(self) -> None:
         authoring_report = _real_idea_answer_authoring_report()
         authoring_report["findings"] = [
@@ -4099,6 +4139,54 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(finding["next_action"], "Add at least one value.refs[] entry.")
         self.assertFalse(authoring["action_boundary"]["may_execute_specgraph"])
         self.assertFalse(authoring["action_boundary"]["may_apply_answers"])
+
+    def test_build_workspace_preserves_workflow_relation_answer_template(self) -> None:
+        template = _real_idea_answer_template()
+        target = template["answer_targets"][0]
+        target["request_kind"] = "workflow_topology_gap"
+        target["target_type"] = "workflow_relation_hint"
+        target["target_ref"] = "event_storming_hints.workflow_relations"
+        target["suggested_answer_shape"] = "event_storming_relation[]"
+        target["required_fields_by_action"] = {
+            "answer_question": ["value.relations[]"],
+        }
+        target["value_templates_by_action"] = {
+            "answer_question": {
+                "relations": [
+                    {
+                        "relation": "",
+                        "source_ref": "",
+                        "target_ref": "",
+                    }
+                ]
+            }
+        }
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: template,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        target = body["intake_clarification"]["answer_authoring"]["template"]["targets"][0]
+        self.assertEqual(
+            target["required_fields_by_action"]["answer_question"],
+            ["value.relations[]"],
+        )
+        self.assertEqual(
+            target["value_templates_by_action"]["answer_question"]["relations"],
+            [
+                {
+                    "relation": "",
+                    "source_ref": "",
+                    "target_ref": "",
+                }
+            ],
+        )
 
     def test_build_workspace_projects_real_idea_answer_continuation(self) -> None:
         artifacts = {
