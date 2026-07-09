@@ -149,10 +149,12 @@ def _no_clarification_template_ready(
     )
     if not template_ready:
         return False
-    requests_ref = (
-        template_ref.rsplit("/", 1)[0]
-        + "/idea_intake_clarification_requests.json"
+    source = _record(
+        _record(template.get("source_artifacts")).get("clarification_requests")
     )
+    requests_ref = _text(source.get("source_ref"))
+    if requests_ref is None:
+        return False
     requests_path = _safe_runs_ref_to_path(
         server,
         requests_ref,
@@ -174,9 +176,6 @@ def _no_clarification_template_ready(
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
-    source = _record(
-        _record(template.get("source_artifacts")).get("clarification_requests")
-    )
     return (
         source.get("source_ref") == requests_ref
         and source.get("source_digest")

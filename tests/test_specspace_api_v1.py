@@ -8054,7 +8054,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 separators=(",", ":"),
             ).encode("utf-8")
             _write_json(
-                template_dir / "idea_intake_clarification_requests.json",
+                runs_dir / "idea_intake_clarification_requests.json",
                 clarification_requests,
             )
             _write_json(
@@ -8068,8 +8068,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     "source_artifacts": {
                         "clarification_requests": {
                             "source_ref": (
-                                "runs/real_idea_smoke/"
-                                "idea_intake_clarification_requests.json"
+                                "runs/idea_intake_clarification_requests.json"
                             ),
                             "source_digest": (
                                 "sha256:"
@@ -11894,11 +11893,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self,
     ) -> None:
         payload = {
-            "real_idea_intake": {
+            "intake_clarification": {
                 "answer_authoring": {
-                    "template_outcome": "clarification_not_required",
-                    "template_ready": True,
-                }
+                    "template": {
+                        "clarification_outcome": "clarification_not_required",
+                        "readiness": {"ready": True},
+                    },
+                },
             },
             "artifacts": {},
         }
@@ -11924,6 +11925,23 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             answer_input["ref"],
             continuation["missing_input_refs"],
         )
+
+        payload["intake_clarification"]["answer_authoring"]["template"][
+            "readiness"
+        ]["ready"] = False
+        blocked = idea_to_spec_workspace._managed_operations_observability(payload)
+        blocked_continuation = next(
+            operation
+            for operation in blocked["operations"]
+            if operation["operation_id"]
+            == "real_idea_answer_continuation_execute"
+        )
+        blocked_answer_input = next(
+            item
+            for item in blocked_continuation["input_refs"]
+            if item["ref"] == answer_input["ref"]
+        )
+        self.assertTrue(blocked_answer_input["required"])
 
     def test_idea_to_spec_workspace_overview_covers_lifecycle_statuses(
         self,

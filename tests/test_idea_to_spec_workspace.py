@@ -4612,6 +4612,46 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "make real-idea-intake-active-candidate",
         )
 
+    def test_build_workspace_does_not_continue_unready_not_required_template(
+        self,
+    ) -> None:
+        template = _real_idea_answer_template()
+        template["clarification_outcome"] = "clarification_not_required"
+        template["answer_targets"] = []
+        template["readiness"] = {
+            "ready": False,
+            "review_state": "clarification_blocked",
+            "blocked_by": ["answer_template_requests_digest_mismatch"],
+        }
+        template["summary"].update(
+            {
+                "status": "clarification_not_required",
+                "target_count": 0,
+            }
+        )
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: template,
+        }
+        artifacts.pop(
+            idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
+            None,
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["real_idea_intake"]["status"], "blocked")
+        self.assertFalse(
+            body["real_idea_intake"]["continuation_handoff"]["safe_to_continue"]
+        )
+        self.assertIn(
+            "answer_template_requests_digest_mismatch",
+            body["real_idea_intake"]["blockers"],
+        )
+
     def test_build_workspace_blocks_unsupported_clarification_template(self) -> None:
         template = _real_idea_answer_template()
         template["clarification_outcome"] = "clarification_blocked"
