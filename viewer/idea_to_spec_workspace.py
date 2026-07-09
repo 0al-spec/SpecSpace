@@ -6682,7 +6682,8 @@ def _quality_guided_action_ranking(
                         _text(state.get("kind"), "stale_state"),
                     )
                     for state in hygiene_states
-                ],
+                ]
+                + _string_list(selected_action.get("blockers")),
                 evidence_refs=[
                     "workspace_state_hygiene",
                     *_string_list(selected_action.get("evidence_refs")),

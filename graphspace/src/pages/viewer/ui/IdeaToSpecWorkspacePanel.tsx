@@ -1919,6 +1919,11 @@ function ProductWorkspaceOverviewSection({
             </span>
             <span className={styles.navHint}>{primaryAction.label}</span>
             <span className={styles.statusDetail}>{primaryAction.reason}</span>
+            {primaryAction.blockers.length > 0 ? (
+              <span className={styles.statusDetail}>
+                Blocked by: {joined(primaryAction.blockers)}
+              </span>
+            ) : null}
             <span className={styles.guidedStageMeta}>
               {primaryAction.owner} / {primaryAction.category.replace(/_/g, " ")}
             </span>
@@ -1940,6 +1945,11 @@ function ProductWorkspaceOverviewSection({
                         : "Required follow-up"}
                   </span>
                   <span className={styles.navHint}>{action.label}</span>
+                  {action.blockers.length > 0 ? (
+                    <span className={styles.statusDetail}>
+                      Blocked by: {joined(action.blockers)}
+                    </span>
+                  ) : null}
                   <span className={styles.guidedStageMeta}>
                     {action.owner} / {action.category.replace(/_/g, " ")}
                   </span>

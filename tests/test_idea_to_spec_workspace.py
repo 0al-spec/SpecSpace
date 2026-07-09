@@ -2969,7 +2969,8 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                             "label": "Recreate candidate approval intent",
                             "reason": "The saved intent belongs to an older repair session.",
                             "target_section": "idea-to-spec-workspace-state-hygiene",
-                            "enabled": True,
+                            "enabled": False,
+                            "blockers": ["candidate_approval_not_ready"],
                             "evidence_refs": ["specspace-state://approval-intents"],
                         }
                     ],
@@ -2990,6 +2991,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         ranking = result["action_ranking"]
         self.assertEqual(ranking["primary_action"]["category"], "state_hygiene")
         self.assertEqual(result["next_safe_action"], "Recreate candidate approval intent")
+        self.assertEqual(
+            ranking["primary_action"]["blockers"],
+            ["approval_intent_stale", "candidate_approval_not_ready"],
+        )
         self.assertIn(
             "structural_depth",
             [action["category"] for action in ranking["secondary_actions"]],

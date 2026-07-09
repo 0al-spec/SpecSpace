@@ -568,6 +568,31 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("SpecGraph / structural depth");
   });
 
+  it("renders blocker context for primary and secondary ranked actions", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.product_workspace_overview.action_ranking.primary_action.blockers = [
+      "managed_operation.candidate_approval_failed",
+    ];
+    raw.product_workspace_overview.action_ranking.secondary_actions[0].blockers = [
+      "repair_answer_missing",
+    ];
+
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    expect(parsedWorkspace.kind).toBe("ok");
+    if (parsedWorkspace.kind !== "ok") return;
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toContain(
+      "Blocked by: managed_operation.candidate_approval_failed",
+    );
+    expect(html).toContain("Blocked by: repair_answer_missing");
+  });
+
   it("shows managed repair request gate action when the gate is the next step", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.guided_repair_path.stage = "rerun_request_gate_needed";
