@@ -606,6 +606,12 @@ def _number(value: Any) -> int:
     return value if isinstance(value, int) and value >= 0 else 0
 
 
+def _signed_number(value: Any) -> int:
+    if isinstance(value, bool):
+        return 0
+    return value if isinstance(value, int) else 0
+
+
 def _optional_number(value: Any) -> int | None:
     if isinstance(value, bool):
         return None
@@ -1481,6 +1487,14 @@ def _candidate_counts(candidate_graph: dict[str, Any] | None) -> dict[str, int]:
 def _number_record(value: Any) -> dict[str, int]:
     return {
         key: _number(item)
+        for key, item in _record(value).items()
+        if _optional_text(key) is not None
+    }
+
+
+def _signed_number_record(value: Any) -> dict[str, int]:
+    return {
+        key: _signed_number(item)
         for key, item in _record(value).items()
         if _optional_text(key) is not None
     }
@@ -3576,6 +3590,12 @@ def _structural_depth_delta(raw: Any) -> dict[str, Any]:
     delta = _record(raw)
     if not delta:
         return {"available": False}
+    if delta.get("available") is False:
+        return {
+            "available": False,
+            "proposal_id": _optional_text(delta.get("proposal_id")),
+            "status": _optional_text(delta.get("status")),
+        }
     entry_refs = {
         key: _string_list(value)
         for key, value in _record(delta.get("added_event_storming_entry_refs")).items()
@@ -3609,9 +3629,7 @@ def _structural_depth_delta(raw: Any) -> dict[str, Any]:
         "after": {
             key: _number(value) for key, value in _record(delta.get("after")).items()
         },
-        "delta": {
-            key: _number(value) for key, value in _record(delta.get("delta")).items()
-        },
+        "delta": _signed_number_record(delta.get("delta")),
         "added_event_storming_entry_refs": entry_refs,
         "added_event_storming_entry_count": sum(len(value) for value in entry_refs.values()),
         "added_workflow_relation_count": _number(

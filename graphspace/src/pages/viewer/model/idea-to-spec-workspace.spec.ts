@@ -1160,6 +1160,7 @@ describe("parseIdeaToSpecWorkspace", () => {
       canonicalMutationsAllowed: false,
       materializationDependency: false,
     });
+    expect(depthDelta.delta.command_count).toBe(-1);
     expect(depthDelta.delta.workflow_edge_count).toBe(3);
     expect(depthDelta.addedEventStormingEntryRefs.actors).toEqual([
       "actor.shopping-planner",
@@ -1168,6 +1169,30 @@ describe("parseIdeaToSpecWorkspace", () => {
       relation: "command_emits_event",
       sourceRef: "command.record-pantry-item",
       targetRef: "event.pantry-item-recorded",
+    });
+  });
+
+  it("preserves explicitly unavailable structural depth repair effect", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.repair_review.rerun_materialization.delta.structural_depth_delta = {
+      available: false,
+      proposal_id: "0209",
+      status: "missing",
+      before: { actor_count: 9 },
+      after: { actor_count: 9 },
+      delta: { actor_count: 0 },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(
+      parsed.data.repairReview.rerunMaterialization.delta.structuralDepthDelta,
+    ).toMatchObject({
+      available: false,
+      proposalId: "0209",
+      status: "missing",
     });
   });
 

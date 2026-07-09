@@ -2139,14 +2139,17 @@ export const ideaToSpecWorkspace = {
           status: "improved",
           before: {
             actor_count: 1,
+            command_count: 2,
             workflow_edge_count: 0,
           },
           after: {
             actor_count: 2,
+            command_count: 1,
             workflow_edge_count: 3,
           },
           delta: {
             actor_count: 1,
+            command_count: -1,
             workflow_edge_count: 3,
           },
           added_event_storming_entry_refs: {

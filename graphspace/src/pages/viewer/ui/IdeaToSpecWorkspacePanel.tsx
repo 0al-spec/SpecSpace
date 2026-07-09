@@ -236,6 +236,46 @@ function signedNumber(value: number): string {
   return String(value);
 }
 
+const STRUCTURAL_DEPTH_KEYS = [
+  "actor_count",
+  "command_count",
+  "domain_event_count",
+  "policy_count",
+  "constraint_count",
+  "topology_edge_count",
+  "workflow_edge_count",
+  "requirement_count",
+  "acceptance_criteria_count",
+] as const;
+
+const STRUCTURAL_DEPTH_LABELS: Record<string, string> = {
+  actor_count: "Actors",
+  command_count: "Commands",
+  domain_event_count: "Domain events",
+  policy_count: "Policies",
+  constraint_count: "Constraints",
+  topology_edge_count: "Topology edges",
+  workflow_edge_count: "Workflow edges",
+  requirement_count: "Requirements",
+  acceptance_criteria_count: "Acceptance criteria",
+};
+
+function structuralDepthDeltaKeys(
+  delta: IdeaToSpecStructuralDepthDelta,
+): string[] {
+  const reported = new Set([
+    ...Object.keys(delta.before),
+    ...Object.keys(delta.after),
+    ...Object.keys(delta.delta),
+    ...delta.remainingShallowDimensions,
+  ]);
+  const ordered = STRUCTURAL_DEPTH_KEYS.filter((key) => reported.has(key));
+  const extras = [...reported]
+    .filter((key) => !(STRUCTURAL_DEPTH_KEYS as readonly string[]).includes(key))
+    .sort();
+  return [...ordered, ...extras];
+}
+
 function depthDeltaText(
   delta: IdeaToSpecStructuralDepthDelta,
   key: string,
@@ -247,7 +287,7 @@ function depthDeltaText(
 }
 
 function depthLabel(value: string): string {
-  return value.replace(/_/g, " ");
+  return STRUCTURAL_DEPTH_LABELS[value] ?? value.replace(/_/g, " ");
 }
 
 function currentBrowserPath(): string | null {
@@ -6151,22 +6191,13 @@ function IdeaMaturitySection({
             <Pill value={compact(structuralDepthDelta.status, "not measured")} />
           </div>
           <div className={styles.metaGrid}>
-            <Meta
-              label="Actors"
-              value={depthDeltaText(structuralDepthDelta, "actor_count")}
-            />
-            <Meta
-              label="Domain events"
-              value={depthDeltaText(structuralDepthDelta, "domain_event_count")}
-            />
-            <Meta
-              label="Policies"
-              value={depthDeltaText(structuralDepthDelta, "policy_count")}
-            />
-            <Meta
-              label="Workflow edges"
-              value={depthDeltaText(structuralDepthDelta, "workflow_edge_count")}
-            />
+            {structuralDepthDeltaKeys(structuralDepthDelta).map((key) => (
+              <Meta
+                key={`depth-delta-${key}`}
+                label={depthLabel(key)}
+                value={depthDeltaText(structuralDepthDelta, key)}
+              />
+            ))}
             <Meta
               label="Added entries"
               value={String(structuralDepthDelta.addedEventStormingEntryCount)}

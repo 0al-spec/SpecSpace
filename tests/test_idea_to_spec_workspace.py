@@ -3,6 +3,7 @@ import math
 import tempfile
 import time
 import unittest
+from copy import deepcopy
 from http import HTTPStatus
 from pathlib import Path
 from unittest import mock
@@ -1350,14 +1351,17 @@ def _rerun_materialization() -> dict:
                     "status": "improved",
                     "before": {
                         "actor_count": 1,
+                        "command_count": 2,
                         "workflow_edge_count": 0,
                     },
                     "after": {
                         "actor_count": 2,
+                        "command_count": 1,
                         "workflow_edge_count": 3,
                     },
                     "delta": {
                         "actor_count": 1,
+                        "command_count": -1,
                         "workflow_edge_count": 3,
                     },
                     "added_event_storming_entry_refs": {
@@ -3092,6 +3096,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         ]
         self.assertTrue(depth_delta["available"])
         self.assertEqual(depth_delta["status"], "improved")
+        self.assertEqual(depth_delta["delta"]["command_count"], -1)
         self.assertEqual(depth_delta["delta"]["workflow_edge_count"], 3)
         self.assertEqual(depth_delta["added_event_storming_entry_count"], 1)
         self.assertEqual(depth_delta["added_workflow_relation_count"], 3)
@@ -3341,6 +3346,38 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(
             body["authority_boundary"]["may_create_branch_or_commit"]
         )
+
+    def test_build_workspace_preserves_unavailable_structural_depth_delta(
+        self,
+    ) -> None:
+        artifacts = deepcopy(_workspace_artifacts())
+        depth_delta = artifacts[
+            idea_to_spec_workspace.IDEA_TO_SPEC_RERUN_MATERIALIZATION_ARTIFACT
+        ]["materialization_preview"]["delta"]["structural_depth_delta"]
+        depth_delta.clear()
+        depth_delta.update(
+            {
+                "available": False,
+                "proposal_id": "0209",
+                "status": "missing",
+                "before": {"actor_count": 9},
+                "after": {"actor_count": 9},
+                "delta": {"actor_count": 0},
+            }
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        projected_delta = body["repair_review"]["rerun_materialization"]["delta"][
+            "structural_depth_delta"
+        ]
+        self.assertFalse(projected_delta["available"])
+        self.assertEqual(projected_delta["status"], "missing")
+        self.assertNotIn("before", projected_delta)
+        self.assertNotIn("after", projected_delta)
 
     def test_controlled_promotion_sanitizes_local_display_paths(self) -> None:
         artifacts = _workspace_artifacts()

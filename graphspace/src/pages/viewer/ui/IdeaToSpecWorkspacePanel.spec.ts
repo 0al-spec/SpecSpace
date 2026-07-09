@@ -1591,10 +1591,37 @@ describe("IdeaToSpecWorkspacePanel", () => {
 
     expect(html).toContain("Depth impact");
     expect(html).toContain("improved");
+    expect(html).toMatch(/Commands<\/span><span[^>]*>2 -&gt; 1 \(-1\)/);
+    expect(html).toMatch(/Constraints<\/span><span[^>]*>0 -&gt; 0 \(0\)/);
     expect(html).toMatch(/Workflow edges<\/span><span[^>]*>0 -&gt; 3 \(\+3\)/);
     expect(html).toContain("actor.shopping-planner");
     expect(html).toContain("command emits event");
     expect(html).toContain("review-only");
+  });
+
+  it("does not render unavailable structural depth repair effect as measured", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.repair_review.rerun_materialization.delta.structural_depth_delta = {
+      available: false,
+      proposal_id: "0209",
+      status: "missing",
+      before: { actor_count: 9 },
+      after: { actor_count: 9 },
+      delta: { actor_count: 0 },
+    };
+    const parsed = parseIdeaToSpecWorkspace(raw);
+    if (parsed.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsed.data },
+      }),
+    );
+
+    expect(html).not.toContain("Depth impact");
+    expect(html).not.toContain("9 -&gt; 9");
   });
 
   it("renders missing idea maturity structural depth as not published", () => {

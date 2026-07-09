@@ -2120,6 +2120,10 @@ function numberValue(value: unknown): number {
     : 0;
 }
 
+function signedNumberValue(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 function optionalNumberValue(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
@@ -3056,6 +3060,15 @@ function parseNumberRecord(raw: unknown): Record<string, number> {
   );
 }
 
+function parseSignedNumberRecord(raw: unknown): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(recordValue(raw)).map(([key, value]) => [
+      key,
+      signedNumberValue(value),
+    ]),
+  );
+}
+
 function parseStringListRecord(raw: unknown): Record<string, readonly string[]> {
   return Object.fromEntries(
     Object.entries(recordValue(raw)).map(([key, value]) => [key, strings(value)]),
@@ -3064,13 +3077,23 @@ function parseStringListRecord(raw: unknown): Record<string, readonly string[]> 
 
 function parseStructuralDepthDelta(raw: unknown): IdeaToSpecStructuralDepthDelta {
   const delta = recordValue(raw);
+  const before = parseNumberRecord(delta.before);
+  const after = parseNumberRecord(delta.after);
+  const signedDelta = parseSignedNumberRecord(delta.delta);
+  const hasDepthContent =
+    Object.keys(before).length > 0 ||
+    Object.keys(after).length > 0 ||
+    Object.keys(signedDelta).length > 0;
   return {
-    available: delta.available === true,
+    available:
+      delta.available === false
+        ? false
+        : delta.available === true || hasDepthContent,
     proposalId: optionalString(delta.proposal_id),
     status: optionalString(delta.status),
-    before: parseNumberRecord(delta.before),
-    after: parseNumberRecord(delta.after),
-    delta: parseNumberRecord(delta.delta),
+    before,
+    after,
+    delta: signedDelta,
     addedEventStormingEntryRefs: parseStringListRecord(
       delta.added_event_storming_entry_refs,
     ),
