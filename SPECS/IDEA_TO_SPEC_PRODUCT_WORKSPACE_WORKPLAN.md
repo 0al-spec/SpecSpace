@@ -357,13 +357,13 @@ recommended-quality, and optional actions distinctly.
 
 ### Immediate Priority: Fallback-Free Real Idea Clarification Templates
 
-Status: planned with SpecGraph producer dependency.
+Status: implemented with SpecGraph proposal `0210`; execution-backed browser
+verification is part of the completion gate.
 
-`make ui-e2e-product-demo` currently allows a deterministic clarification
-fixture when real intake execution does not emit browser-answerable
-clarification fields. That keeps the local demo stable, but it is no longer the
-desired product proof. The next real-intake slice should make the producer
-contract explicit enough that the browser demo can run without fixture fallback.
+`make ui-e2e-product-demo` now disables deterministic clarification fallback.
+SpecGraph emits workspace-bound `answers_required`,
+`clarification_not_required`, or `clarification_blocked` outcomes, and SpecSpace
+renders those outcomes without treating a missing template as a safe skip.
 
 Acceptance criteria:
 
@@ -943,28 +943,23 @@ hidden UI mutations.
   review import/effect, approval materialization, promotion request, Git
   Service dry-run, and runs-watch refresh.
 - `make ui-e2e-product-demo` is the focused local proof for a UI-started
-  product demo. The Make target currently enables its deterministic
-  clarification fixture by default through
-  `SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1` when real intake
-  execution does not emit user-facing clarification fields. Operators can
-  explicitly disable the fallback, and direct Playwright runs do not enable it
-  implicitly.
-  Treat that as temporary producer-contract coverage, not the target product
-  proof. The next real-intake slice should let the normal demo pass without the
-  fallback by emitting browser-answerable templates or an explicit
-  `clarification_not_required` state. Until then, direct Playwright runs without
-  the flag must fail fast so producer regressions do not pass silently. The
-  fixture uses the same `active_frame_hints.*` and `event_storming_hints.*`
-  target refs that SpecGraph materializes, so saved UI answers still flow
-  through the real Platform/SpecGraph continuation path. The fixture now uses
-  structured event-storming entries with actor/command/event refs, so the
-  browser demo must produce non-zero workflow topology rather than a shallow
-  candidate sketch.
+  product demo. It sets
+  `SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=0`, requires the
+  SpecGraph producer template to match the new workspace, and records
+  `clarification_fallback_used=false`. Direct Playwright debugging may still opt
+  into the deterministic fixture with value `1`, but that run is explicitly not
+  accepted as product proof.
 - Product demo runbook and production demo smoke are covered. The local runbook
   documents `make ui-e2e-product-demo`, `make ui-e2e-product-demo-live`, output
   artifacts, fallback policy, and `?view=demo`. Production smoke now checks that
   the product presentation route returns the SpecSpace shell without legacy
   ContextBuilder markers while preserving `read_only` managed mode.
+- The fallback-free E2E contract is authoritative through browser interaction,
+  generated-template assertions, and `product-demo-report.json`. The current
+  intermediate full-page screenshots keep the dense operator shell in frame and
+  do not focus the clarification form reliably. A presentation-only harness
+  follow-up should capture the clarification section itself; this does not block
+  the execution-backed lifecycle proof.
 - Fast browser tests still use fixture-backed `/api/v1/idea-to-spec-workspace`
   projections for UI-only coverage. Keep the env-gated execution-backed smoke as
   the authority for real cross-repo lifecycle behavior, and only replace a fast

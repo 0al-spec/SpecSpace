@@ -115,6 +115,9 @@ export type IdeaToSpecRealIdeaAnswerAuthoring = {
   available: boolean;
   template: {
     available: boolean;
+    clarificationOutcome: string;
+    workspaceId: string | null;
+    candidateId: string | null;
     readiness: {
       ready: boolean;
       reviewState: string | null;
@@ -127,7 +130,10 @@ export type IdeaToSpecRealIdeaAnswerAuthoring = {
     summary: Record<string, unknown>;
     targetCount: number;
     blockingTargetCount: number;
+    answerableTargetCount: number;
+    unsupportedTargetCount: number;
     targets: readonly IdeaToSpecRealIdeaAnswerTarget[];
+    findings: readonly IdeaToSpecFinding[];
   };
   report: {
     available: boolean;
@@ -241,10 +247,13 @@ export type IdeaToSpecRealIdeaIntake = {
     requiredFieldFindings: readonly IdeaToSpecFinding[];
   };
   answerTemplate: {
+    clarificationOutcome: string;
     status: string;
     templateRef: string | null;
     targetCount: number;
     blockingTargetCount: number;
+    answerableTargetCount: number;
+    unsupportedTargetCount: number;
     requiredFields: readonly string[];
     validationStatus: string;
     validationReady: boolean;
@@ -2397,6 +2406,9 @@ function parseRealIdeaAnswerAuthoring(
     available: lane.available === true,
     template: {
       available: template.available === true,
+      clarificationOutcome: stringValue(template.clarification_outcome, "missing"),
+      workspaceId: optionalString(template.workspace_id),
+      candidateId: optionalString(template.candidate_id),
       readiness: parseReadiness(template.readiness),
       stage: optionalString(template.stage),
       runDir: optionalString(template.run_dir),
@@ -2404,8 +2416,14 @@ function parseRealIdeaAnswerAuthoring(
       summary: recordValue(template.summary),
       targetCount: numberValue(template.target_count),
       blockingTargetCount: numberValue(template.blocking_target_count),
+      answerableTargetCount: numberValue(template.answerable_target_count),
+      unsupportedTargetCount: numberValue(template.unsupported_target_count),
       targets: records(template.targets).flatMap((item) => {
         const parsed = parseRealIdeaAnswerTarget(item);
+        return parsed ? [parsed] : [];
+      }),
+      findings: records(template.findings).flatMap((item) => {
+        const parsed = parseFinding(item);
         return parsed ? [parsed] : [];
       }),
     },
@@ -3001,10 +3019,16 @@ function parseRealIdeaIntake(raw: unknown): IdeaToSpecRealIdeaIntake {
       ),
     },
     answerTemplate: {
+      clarificationOutcome: stringValue(
+        answerTemplate.clarification_outcome,
+        "missing",
+      ),
       status: stringValue(answerTemplate.status, "missing"),
       templateRef: optionalString(answerTemplate.template_ref),
       targetCount: numberValue(answerTemplate.target_count),
       blockingTargetCount: numberValue(answerTemplate.blocking_target_count),
+      answerableTargetCount: numberValue(answerTemplate.answerable_target_count),
+      unsupportedTargetCount: numberValue(answerTemplate.unsupported_target_count),
       requiredFields: strings(answerTemplate.required_fields),
       validationStatus: stringValue(answerTemplate.validation_status, "unknown"),
       validationReady: answerTemplate.validation_ready === true,

@@ -77,6 +77,7 @@ def test_managed_operations_safety_metadata_is_complete() -> None:
         assert operation.platform_command[0] not in {"sh", "bash", "zsh"}
         assert "-c" not in operation.platform_command
         assert operation.input_refs
+        assert set(operation.conditional_input_refs).issubset(operation.input_refs)
         assert operation.output_reports
         assert operation.idempotency_key
         assert operation.overwrite_policy
@@ -145,6 +146,9 @@ def test_managed_operation_registry_records_reviewed_artifact_edges() -> None:
     assert (
         "runs/platform_product_workspace_initialization_execution_report.json"
         in continuation.input_refs
+    )
+    assert continuation.conditional_input_refs == (
+        "specspace-state://idea_to_spec_intake_clarification_answers.json",
     )
 
     repair = _operation("repair_rerun_execute")

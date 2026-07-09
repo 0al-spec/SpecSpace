@@ -380,7 +380,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("make real-idea-intake-continue-from-specspace-answers");
     expect(html).toContain("Real idea answer authoring");
     expect(html).toContain("Real idea answer continuation");
-    expect(html).toContain("answer_template_ready");
+    expect(html).toContain("answers_required");
     expect(html).toContain("real_idea_answer_continuation_ready");
     expect(html).toContain("runs/idea_intake_clarification_answers.json");
     expect(html).toContain(
@@ -538,6 +538,65 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).not.toContain("Apply to SpecGraph");
     expect(html).not.toContain("Accept ontology term");
     expect(html).not.toContain("Create branch");
+  });
+
+  it("renders an explicit clarification-not-required continuation state", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.real_idea_intake.status = "continuation_ready";
+    raw.real_idea_intake.active_candidate_ref = null;
+    raw.real_idea_intake.answer_template.clarification_outcome =
+      "clarification_not_required";
+    raw.intake_clarification.clarification_requests.requests = [];
+    raw.intake_clarification.clarification_requests.request_count = 0;
+    raw.intake_clarification.clarification_requests.blocking_request_count = 0;
+    raw.intake_clarification.answer_authoring.template.clarification_outcome =
+      "clarification_not_required";
+    raw.intake_clarification.answer_authoring.template.targets = [];
+    raw.intake_clarification.answer_authoring.template.target_count = 0;
+    raw.intake_clarification.answer_authoring.template.blocking_target_count = 0;
+    raw.intake_clarification.answer_authoring.template.answerable_target_count = 0;
+    raw.intake_clarification.answer_continuation.available = false;
+    raw.intake_clarification.answer_continuation.ready = false;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    expect(parsedWorkspace.kind).toBe("ok");
+    if (parsedWorkspace.kind !== "ok") return;
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toContain("Clarification not required");
+    expect(html).toContain(
+      "Continue candidate generation from the ready intake session.",
+    );
+    expect(html).not.toContain("Answer template missing");
+  });
+
+  it("does not expose generic answer controls when the producer template is missing", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.real_idea_intake.status = "needs_clarification";
+    raw.real_idea_intake.active_candidate_ref = null;
+    raw.intake_clarification.answer_authoring.available = false;
+    raw.intake_clarification.answer_authoring.template.available = false;
+    raw.intake_clarification.answer_authoring.template.targets = [];
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    expect(parsedWorkspace.kind).toBe("ok");
+    if (parsedWorkspace.kind !== "ok") return;
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toContain("Answer template missing");
+    expect(html).toContain("Missing is not equivalent to clarification_not_required");
+    expect(html).toContain("template_missing");
+    expect(html).not.toContain(
+      'data-testid="intake-clarification-answer-clarification.intake.question-active-frame-domain-refs"',
+    );
   });
 
   it("distinguishes structural depth recommendations from required actions", () => {

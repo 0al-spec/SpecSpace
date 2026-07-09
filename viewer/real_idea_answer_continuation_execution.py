@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -22,6 +23,7 @@ INTAKE_EXECUTION_REPORT_ARTIFACT = "platform_real_idea_entry_intake_execution_re
 WORKSPACE_INITIALIZATION_REPORT_ARTIFACT = (
     "platform_product_workspace_initialization_execution_report.json"
 )
+ANSWER_TEMPLATE_ARTIFACT = "real_idea_answer_template.json"
 
 
 def _record(value: Any) -> dict[str, Any]:
@@ -117,6 +119,75 @@ def _safe_specspace_state_ref_to_path(server: Any, ref: str | None, *, filename:
     return candidate
 
 
+def _no_clarification_template_ready(
+    server: Any,
+    *,
+    template_ref: str | None,
+    workspace_id: str,
+) -> bool:
+    template_path = _safe_runs_ref_to_path(
+        server,
+        template_ref,
+        filename=ANSWER_TEMPLATE_ARTIFACT,
+    )
+    if template_path is None or not template_path.is_file():
+        return False
+    try:
+        template = json.loads(template_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if not isinstance(template, dict):
+        return False
+    template_ready = (
+        template.get("artifact_kind") == "real_idea_answer_template"
+        and template.get("contract_ref")
+        == "specgraph.idea-to-spec.real-idea-answer-template.v0.2"
+        and template.get("workspace_id") == workspace_id
+        and template.get("clarification_outcome") == "clarification_not_required"
+        and _record(template.get("readiness")).get("ready") is True
+        and not template.get("answer_targets")
+    )
+    if not template_ready:
+        return False
+    requests_ref = (
+        template_ref.rsplit("/", 1)[0]
+        + "/idea_intake_clarification_requests.json"
+    )
+    requests_path = _safe_runs_ref_to_path(
+        server,
+        requests_ref,
+        filename="idea_intake_clarification_requests.json",
+    )
+    if requests_path is None or not requests_path.is_file():
+        return False
+    try:
+        requests = json.loads(requests_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if not isinstance(requests, dict):
+        return False
+    stable_requests = {
+        key: value for key, value in requests.items() if key != "generated_at"
+    }
+    encoded = json.dumps(
+        stable_requests,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    source = _record(
+        _record(template.get("source_artifacts")).get("clarification_requests")
+    )
+    return (
+        source.get("source_ref") == requests_ref
+        and source.get("source_digest")
+        == f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+        and requests.get("artifact_kind") == "idea_to_spec_clarification_requests"
+        and requests.get("clarification_outcome") == "clarification_not_required"
+        and requests.get("workspace_id") == workspace_id
+        and not requests.get("clarification_requests")
+    )
+
+
 def _active_requested_continuation_execution(
     server: Any,
     *,
@@ -209,6 +280,11 @@ def execute_requested_continuation(
     assert request is not None
 
     answer_state_ref = _text(request.get("answer_state_ref"))
+    no_clarification_ready = _no_clarification_template_ready(
+        server,
+        template_ref=_text(request.get("answer_template_ref")),
+        workspace_id=selected_workspace_id,
+    )
     answer_state_path = _safe_specspace_state_ref_to_path(
         server,
         answer_state_ref,
@@ -219,7 +295,7 @@ def execute_requested_continuation(
             "error": "answer_state_ref must point to a safe SpecSpace answer state artifact.",
             "field": "answer_state_ref",
         }
-    if not answer_state_path.is_file():
+    if not answer_state_path.is_file() and not no_clarification_ready:
         return HTTPStatus.NOT_FOUND, {
             "error": "Real idea clarification answer state artifact not found.",
             "answer_state_ref": answer_state_ref,

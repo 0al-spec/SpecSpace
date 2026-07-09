@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { ideaToSpecWorkspace } from "./idea-to-spec-workspace.fixture";
 import { parseIdeaToSpecWorkspace } from "./use-idea-to-spec-workspace";
 
 function guidedFlowBoundary() {
@@ -119,6 +120,22 @@ function minimalWorkspacePayload() {
 }
 
 describe("parseIdeaToSpecWorkspace guided approval path", () => {
+  it("preserves fallback-free clarification template outcomes", () => {
+    const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(
+      parsed.data.intakeClarification.answerAuthoring.template.clarificationOutcome,
+    ).toBe("answers_required");
+    expect(
+      parsed.data.intakeClarification.answerAuthoring.template.answerableTargetCount,
+    ).toBe(1);
+    expect(parsed.data.realIdeaIntake.answerTemplate.clarificationOutcome).toBe(
+      "answers_required",
+    );
+  });
+
   it("parses the approval path lifecycle surface", () => {
     const parsed = parseIdeaToSpecWorkspace(minimalWorkspacePayload());
 

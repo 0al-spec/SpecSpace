@@ -169,11 +169,12 @@ The final presentation screen is meant to support a short demo script:
 4. **Next safe action** - SpecSpace points to the next lifecycle step while
    Platform remains the execution boundary.
 
-The Make target sets `SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1`.
-That fallback is intentional for the demo harness: current real intake may not
-always emit browser-answerable clarification fields. Direct Playwright runs
-without that flag fail at `real_intake_clarification_fields_missing` instead of
-silently masking a producer-side regression.
+The standard Make target disables deterministic clarification fallback and
+requires SpecGraph to publish a workspace-bound `answers_required` template.
+`product-demo-report.json` records `clarification_fallback_used=false` on the
+successful path. For isolated harness debugging only, a direct Playwright run
+may opt in with `SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1`; that
+mode is not accepted as the standard product demo contract.
 
 Local demo mode and production demo mode are different:
 

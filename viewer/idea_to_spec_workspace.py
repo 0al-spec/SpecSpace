@@ -2153,9 +2153,18 @@ def _real_idea_answer_authoring(
     answer_set: dict[str, Any] | None,
 ) -> dict[str, Any]:
     template_summary = _record((template or {}).get("summary"))
+    template_readiness = _readiness(template)
+    template_outcome = (
+        _optional_text((template or {}).get("clarification_outcome"))
+        or _optional_text(template_readiness.get("review_state"))
+        or "missing"
+    )
+    if template_outcome == "answer_template_ready":
+        template_outcome = "answers_required"
     report_summary = _record((report or {}).get("summary"))
     template_targets = _real_idea_answer_targets(template)
     report_findings = _findings(report)
+    template_findings = _findings(template)
     answer_count = len(_records((answer_set or {}).get("answers")))
     validation_status = (
         _optional_text(report_summary.get("status"))
@@ -2169,6 +2178,22 @@ def _real_idea_answer_authoring(
                 "id": "generate_real_idea_answer_template",
                 "label": "Generate answer template",
                 "next_action": "Run `make real-idea-smoke-answer-template` in SpecGraph.",
+            }
+        )
+    elif template_outcome == "clarification_blocked":
+        recommended_actions.append(
+            {
+                "id": "review_blocked_real_idea_clarification",
+                "label": "Review blocked clarification",
+                "next_action": "Inspect template findings before continuing the real idea intake.",
+            }
+        )
+    elif template_outcome == "clarification_not_required":
+        recommended_actions.append(
+            {
+                "id": "continue_without_clarification_answers",
+                "label": "Continue without clarification answers",
+                "next_action": "Continue candidate-source generation from the ready intake session.",
             }
         )
     elif answer_count == 0:
@@ -2199,7 +2224,10 @@ def _real_idea_answer_authoring(
         "available": any(artifact is not None for artifact in (template, report, answer_set)),
         "template": {
             "available": template is not None,
-            "readiness": _readiness(template),
+            "readiness": template_readiness,
+            "clarification_outcome": template_outcome,
+            "workspace_id": _optional_text((template or {}).get("workspace_id")),
+            "candidate_id": _optional_text((template or {}).get("candidate_id")),
             "stage": _optional_text((template or {}).get("stage")),
             "run_dir": _optional_text((template or {}).get("run_dir")),
             "contract_ref": _optional_text((template or {}).get("contract_ref")),
@@ -2209,7 +2237,14 @@ def _real_idea_answer_authoring(
             "blocking_target_count": _number(
                 template_summary.get("blocking_target_count")
             ),
+            "answerable_target_count": _number(
+                template_summary.get("answerable_target_count")
+            ),
+            "unsupported_target_count": _number(
+                template_summary.get("unsupported_target_count")
+            ),
             "targets": template_targets,
+            "findings": template_findings,
         },
         "report": {
             "available": report is not None,
@@ -2228,8 +2263,14 @@ def _real_idea_answer_authoring(
         },
         "validation": {
             "status": validation_status,
-            "ready": _readiness(report)["ready"] if report is not None else False,
-            "finding_count": _finding_count(report),
+            "ready": (
+                True
+                if template_outcome == "clarification_not_required"
+                else _readiness(report)["ready"]
+                if report is not None
+                else False
+            ),
+            "finding_count": _finding_count(report) + len(template_findings),
         },
         "recommended_actions": recommended_actions,
         "action_boundary": {
@@ -2775,7 +2816,11 @@ def _safe_refs(values: list[Any]) -> list[str]:
     return refs
 
 
-def _real_idea_intake_command_hint(status: str) -> str | None:
+def _real_idea_intake_command_hint(
+    status: str, *, clarification_outcome: str = "missing"
+) -> str | None:
+    if clarification_outcome == "clarification_not_required":
+        return "make real-idea-intake-active-candidate"
     if status == "continuation_ready":
         return "make real-idea-intake-continue-from-specspace-answers"
     if status == "answers_ready":
@@ -2801,6 +2846,7 @@ def _real_idea_intake_projection(
     clarified_session = _record(intake_clarification.get("clarified_session"))
     clarified_source = _record(intake_clarification.get("clarified_source"))
     template = _record(answer_authoring.get("template"))
+    template_outcome = _text(template.get("clarification_outcome"), "missing")
     validation = _record(answer_authoring.get("validation"))
     answer_set = _record(answer_authoring.get("answer_set"))
     import_preview = _record(answer_continuation.get("import_preview"))
@@ -2876,9 +2922,16 @@ def _real_idea_intake_projection(
     elif candidate_source_ready:
         status = "candidate_source_ready"
         next_action = "Build or inspect the active idea-to-spec candidate."
-    elif continuation_ready:
+    elif template_outcome == "clarification_blocked":
+        status = "blocked"
+        next_action = "Inspect blocked clarification findings before continuation."
+    elif continuation_ready or template_outcome == "clarification_not_required":
         status = "continuation_ready"
-        next_action = "Continue the real idea intake into candidate source generation."
+        next_action = (
+            "Continue candidate generation; this intake does not require clarification answers."
+            if template_outcome == "clarification_not_required"
+            else "Continue the real idea intake into candidate source generation."
+        )
     elif answer_set_available and validation.get("ready") is not True:
         status = "needs_clarification"
         next_action = "Validate saved intake clarification answers before import preview."
@@ -2963,11 +3016,11 @@ def _real_idea_intake_projection(
             "missing_count": missing_count,
             "invalid_answer_count": invalid_answer_count,
             "stale_answer_count": 0,
-            "required_field_findings": _findings(
-                _record(answer_authoring.get("report"))
-            ),
+            "required_field_findings": _findings(_record(answer_authoring.get("report")))
+            + _findings(_record(answer_authoring.get("template"))),
         },
         "answer_template": {
+            "clarification_outcome": template_outcome,
             "status": _optional_text(validation.get("status"))
             or _optional_text(_record(template.get("readiness")).get("review_state"))
             or "missing",
@@ -2976,6 +3029,8 @@ def _real_idea_intake_projection(
             else None,
             "target_count": _number(template.get("target_count")),
             "blocking_target_count": _number(template.get("blocking_target_count")),
+            "answerable_target_count": _number(template.get("answerable_target_count")),
+            "unsupported_target_count": _number(template.get("unsupported_target_count")),
             "required_fields": sorted(
                 {
                     field
@@ -3000,11 +3055,14 @@ def _real_idea_intake_projection(
                 if continuation_report.get("available") is not True
                 else "unknown"
             ),
-            "safe_to_continue": continuation_ready,
+            "safe_to_continue": continuation_ready
+            or template_outcome == "clarification_not_required",
             "output_refs": _safe_refs(
                 list(_record(continuation_report.get("outputs")).values())
             ),
-            "command_hint": _real_idea_intake_command_hint(status),
+            "command_hint": _real_idea_intake_command_hint(
+                status, clarification_outcome=template_outcome
+            ),
         },
         "entry_execution": entry_execution,
         "source_refs": _safe_refs(
@@ -8069,7 +8127,7 @@ def _managed_operation_status(
     missing_required = [
         item
         for item in inputs
-        if item.get("available") is not True
+        if item.get("required") is not False and item.get("available") is not True
     ]
     if missing_required:
         if any("gate" in _text(item.get("ref")).lower() for item in missing_required):
@@ -8078,13 +8136,36 @@ def _managed_operation_status(
     return "ready_to_execute"
 
 
+def _managed_operation_input_required(
+    payload: dict[str, Any],
+    *,
+    operation: managed_operations_registry.ManagedOperation,
+    ref: str,
+) -> bool:
+    if ref not in operation.conditional_input_refs:
+        return True
+    if operation.operation_id != "real_idea_answer_continuation_execute":
+        return True
+    real_idea = _record(payload.get("real_idea_intake"))
+    authoring = _record(real_idea.get("answer_authoring"))
+    return not (
+        _text(authoring.get("template_outcome")) == "clarification_not_required"
+        and authoring.get("template_ready") is True
+    )
+
+
 def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]:
     operations: list[dict[str, Any]] = []
     for operation in managed_operations_registry.MANAGED_OPERATIONS:
-        inputs = [
-            _managed_operation_ref_payload(payload, ref)
-            for ref in operation.input_refs
-        ]
+        inputs = []
+        for ref in operation.input_refs:
+            input_payload = _managed_operation_ref_payload(payload, ref)
+            input_payload["required"] = _managed_operation_input_required(
+                payload,
+                operation=operation,
+                ref=ref,
+            )
+            inputs.append(input_payload)
         outputs = [
             _managed_operation_ref_payload(payload, ref)
             for ref in operation.output_reports
@@ -8092,7 +8173,7 @@ def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]
         missing_inputs = [
             _text(item.get("ref"))
             for item in inputs
-            if item.get("available") is not True
+            if item.get("required") is not False and item.get("available") is not True
         ]
         output_refs = [
             _text(item.get("ref"))

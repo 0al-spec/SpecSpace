@@ -59,6 +59,7 @@ class ManagedOperation:
     dry_run_only: bool = False
     irreversible: bool = False
     requires_explicit_confirmation: bool = False
+    conditional_input_refs: tuple[str, ...] = ()
     write_capable_flags_must_be_false: tuple[str, ...] = (
         SPECSPACE_WRITE_FLAGS_MUST_BE_FALSE
     )
@@ -144,6 +145,9 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
             "specspace-state://idea_to_spec_intake_clarification_answers.json",
             "runs/platform_product_workspace_initialization_execution_report.json",
             "runs/platform_real_idea_entry_intake_execution_report.json",
+        ),
+        conditional_input_refs=(
+            "specspace-state://idea_to_spec_intake_clarification_answers.json",
         ),
         output_reports=(
             "runs/platform_real_idea_answer_continuation_execution_report.json",

@@ -4320,8 +4320,11 @@ function IntakeClarificationSection({
     workspaceInitialized &&
     lane.available &&
     lane.answerAuthoring.template.available &&
-    blockingRequestCount > 0 &&
-    acceptedAnswerCount >= blockingRequestCount &&
+    (lane.answerAuthoring.template.clarificationOutcome ===
+      "clarification_not_required" ||
+      (lane.answerAuthoring.template.clarificationOutcome === "answers_required" &&
+        blockingRequestCount > 0 &&
+        acceptedAnswerCount >= blockingRequestCount)) &&
     !lane.answerContinuation.available &&
     !continuationExecutionRequests.pending &&
     activeContinuationRequest === null;
@@ -4547,12 +4550,25 @@ function ClarificationContinuationGuide({
   const candidateReady =
     realIdeaIntake.status === "active_candidate_ready" &&
     Boolean(realIdeaIntake.activeCandidateRef);
+  const clarificationOutcome = lane.answerAuthoring.template.clarificationOutcome;
   const stage = candidateReady
     ? {
         status: "candidate_ready",
         label: "Candidate ready",
         nextAction: "Continue with repair, ontology review, and promotion readiness.",
       }
+    : clarificationOutcome === "clarification_blocked"
+      ? {
+          status: "clarification_blocked",
+          label: "Clarification blocked",
+          nextAction: "Inspect producer findings before attempting continuation.",
+        }
+    : clarificationOutcome === "clarification_not_required"
+      ? {
+          status: "clarification_not_required",
+          label: "Clarification not required",
+          nextAction: "Continue candidate generation from the ready intake session.",
+        }
     : lane.answerContinuation.ready
       ? {
           status: "continuation_ready",
@@ -4592,8 +4608,9 @@ function ClarificationContinuationGuide({
               }
             : {
                 status: "clarification_missing",
-                label: "No clarification requests",
-                nextAction: "Wait for SpecGraph to publish clarification requests.",
+                label: "Clarification contract missing",
+                nextAction:
+                  "Wait for SpecGraph to publish an answer template or an explicit clarification_not_required outcome.",
               };
   const requestState =
     continuationExecutionRequests.state.kind === "ok"
@@ -4633,6 +4650,7 @@ function ClarificationContinuationGuide({
           label="Template"
           value={lane.answerAuthoring.template.available ? "available" : "missing"}
         />
+        <Meta label="Outcome" value={clarificationOutcome} />
         <Meta
           label="Import preview"
           value={lane.answerContinuation.importPreview.readiness.reviewState}
@@ -4708,7 +4726,7 @@ function IntakeAnswerAuthoringStatus({
     return (
       <Status
         label="Answer template missing"
-        detail="Run `make real-idea-smoke-answer-template` in SpecGraph to publish typed answer targets."
+        detail="SpecGraph has not published a template outcome. Missing is not equivalent to clarification_not_required."
       />
     );
   }
@@ -4721,8 +4739,12 @@ function IntakeAnswerAuthoringStatus({
       <div className={styles.metaGrid}>
         <Meta label="Template" value={authoring.template.available ? "available" : "missing"} />
         <Meta label="Template status" value={authoring.template.readiness.reviewState} />
+        <Meta label="Outcome" value={authoring.template.clarificationOutcome} />
+        <Meta label="Workspace" value={authoring.template.workspaceId} />
         <Meta label="Stage" value={authoring.template.stage} />
         <Meta label="Targets" value={String(authoring.template.targetCount)} />
+        <Meta label="Answerable" value={String(authoring.template.answerableTargetCount)} />
+        <Meta label="Unsupported" value={String(authoring.template.unsupportedTargetCount)} />
         <Meta label="Saved answer set" value={String(authoring.answerSet.answerCount)} />
         <Meta label="Validation ready" value={boolText(authoring.validation.ready)} />
         <Meta label="Findings" value={String(authoring.validation.findingCount)} />
@@ -4733,6 +4755,7 @@ function IntakeAnswerAuthoringStatus({
         </p>
       ))}
       <IntakeAnswerFindingDiagnostics findings={authoring.report.findings} />
+      <IntakeAnswerFindingDiagnostics findings={authoring.template.findings} />
     </div>
   );
 }
@@ -5045,6 +5068,21 @@ function IntakeClarificationRequestRow({
     (!workflowRelationAnswer || workflowRelationHintDraftCanSave(answerText)) &&
     !readOnly &&
     !pending;
+  if (!answerTarget) {
+    return (
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>{request.id}</span>
+          <Pill value="template_missing" />
+        </div>
+        <h3 className={styles.title}>{compact(request.question, request.kind)}</h3>
+        <p className={styles.statusDetail}>
+          SpecGraph published a clarification request without a matching browser-answerable
+          template target. Inspect the producer contract before saving an answer.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className={styles.row}>
       <div className={styles.rowHeader}>

@@ -597,9 +597,19 @@ def _real_idea_answer_template() -> dict:
         "artifact_kind": "real_idea_answer_template",
         "schema_version": 1,
         "proposal_id": "0194",
-        "contract_ref": "specgraph.real-idea.answer-template.v0.1",
+        "contract_extensions": ["0210"],
+        "contract_ref": "specgraph.idea-to-spec.real-idea-answer-template.v0.2",
         "stage": "intake",
         "run_dir": "runs/real_idea_smoke",
+        "workspace_id": "team-decision-log",
+        "candidate_id": "team-decision-log",
+        "workspace": {
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "display_name": "Team Decision Log",
+            "public_route": "/team-decision-log",
+        },
+        "clarification_outcome": "answers_required",
         "source_artifacts": {
             "clarification_requests": {
                 "artifact_kind": "idea_to_spec_clarification_requests",
@@ -634,7 +644,7 @@ def _real_idea_answer_template() -> dict:
         ],
         "readiness": {
             "ready": True,
-            "review_state": "answer_template_ready",
+            "review_state": "answers_required",
             "blocked_by": [],
             "next_artifact": "real_idea_answer_set.json",
         },
@@ -652,10 +662,12 @@ def _real_idea_answer_template() -> dict:
         },
         "findings": [],
         "summary": {
-            "status": "answer_template_ready",
+            "status": "answers_required",
             "stage": "intake",
             "target_count": 1,
             "blocking_target_count": 1,
+            "answerable_target_count": 1,
+            "unsupported_target_count": 0,
             "finding_count": 0,
         },
     }
@@ -4546,6 +4558,101 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(finding["next_action"], "Add at least one value.refs[] entry.")
         self.assertFalse(authoring["action_boundary"]["may_execute_specgraph"])
         self.assertFalse(authoring["action_boundary"]["may_apply_answers"])
+
+    def test_build_workspace_projects_clarification_not_required(self) -> None:
+        template = _real_idea_answer_template()
+        template["clarification_outcome"] = "clarification_not_required"
+        template["answer_targets"] = []
+        template["readiness"] = {
+            "ready": True,
+            "review_state": "clarification_not_required",
+            "blocked_by": [],
+            "next_artifact": "user_idea_intake_source.json",
+        }
+        template["summary"].update(
+            {
+                "status": "clarification_not_required",
+                "target_count": 0,
+                "blocking_target_count": 0,
+                "answerable_target_count": 0,
+            }
+        )
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: {
+                **_intake_clarification_requests(),
+                "clarification_requests": [],
+                "clarification_outcome": "clarification_not_required",
+                "readiness": {
+                    "ready": True,
+                    "review_state": "clarification_clear",
+                    "blocked_by": [],
+                },
+                "summary": {"request_count": 0, "blocking_request_count": 0},
+            },
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: template,
+        }
+        artifacts.pop(idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT, None)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        authoring = body["intake_clarification"]["answer_authoring"]
+        self.assertEqual(
+            authoring["template"]["clarification_outcome"],
+            "clarification_not_required",
+        )
+        self.assertTrue(authoring["validation"]["ready"])
+        self.assertEqual(body["real_idea_intake"]["status"], "continuation_ready")
+        self.assertTrue(body["real_idea_intake"]["continuation_handoff"]["safe_to_continue"])
+        self.assertEqual(
+            body["real_idea_intake"]["continuation_handoff"]["command_hint"],
+            "make real-idea-intake-active-candidate",
+        )
+
+    def test_build_workspace_blocks_unsupported_clarification_template(self) -> None:
+        template = _real_idea_answer_template()
+        template["clarification_outcome"] = "clarification_blocked"
+        template["readiness"] = {
+            "ready": False,
+            "review_state": "clarification_blocked",
+            "blocked_by": ["clarification_request_not_browser_answerable"],
+            "next_artifact": None,
+        }
+        template["findings"] = [
+            {
+                "finding_id": "clarification_request_not_browser_answerable",
+                "severity": "blocking",
+                "message": "Mandatory clarification cannot be represented.",
+            }
+        ]
+        template["summary"]["status"] = "clarification_blocked"
+        template["summary"]["unsupported_target_count"] = 1
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: template,
+        }
+        artifacts.pop(idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT, None)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(body["real_idea_intake"]["status"], "blocked")
+        self.assertIn(
+            "clarification_request_not_browser_answerable",
+            body["real_idea_intake"]["blockers"],
+        )
+        self.assertEqual(
+            body["intake_clarification"]["answer_authoring"]["template"][
+                "unsupported_target_count"
+            ],
+            1,
+        )
 
     def test_build_workspace_preserves_workflow_relation_answer_template(self) -> None:
         template = _real_idea_answer_template()
