@@ -1,7 +1,7 @@
 # Idea-to-Spec Product Workspace Workplan
 
 Status: active planning
-Updated: 2026-07-07
+Updated: 2026-07-09
 
 ## Purpose
 
@@ -309,6 +309,66 @@ runtime action requests from Product Workspace routes.
   seeding `product_workspace_creation_requests.json` with a direct API POST.
 
 ## Next Tasks
+
+### Immediate Priority: Quality-Guided Next Safe Action Ranking
+
+Status: planned.
+
+The Product Workspace now has multiple accurate guided paths: workspace
+initialization, real idea intake, clarification continuation, repair rerun,
+approval, promotion, publication, managed operations, Idea Maturity, candidate
+overview, and depth impact. The remaining UX risk is action competition: several
+sections can publish a valid `next_safe_action` at the same time, and the top
+overview currently chooses one action without a single lifecycle-wide priority
+model.
+
+Target behavior:
+
+- Product Workspace exposes one primary next safe action plus a bounded list of
+  secondary follow-up actions.
+- Ranking is deterministic and conservative:
+  stale or unsafe state hygiene before failed managed operations; failed
+  managed operations before blocking clarification/repair; blocking
+  clarification/repair before structural-depth improvement; structural-depth
+  improvement before approval; approval before promotion; promotion before
+  publication; publication before demo/presentation polish.
+- The primary action never grants authority. It links to an existing section,
+  request surface, or managed operation row and carries public-safe evidence
+  refs only.
+- UI copy distinguishes "must fix before lifecycle can advance" from
+  "quality/depth improvement recommended".
+- Backend and frontend tests cover conflicting signals, especially:
+  stale mutable state plus structural-depth hints, failed Platform execution plus
+  approval-ready candidate, blocking repair plus promotion readiness, and
+  depth-only improvement after all blockers are closed.
+
+This should be a SpecSpace-first slice. SpecGraph and Platform should only need
+changes if an existing report lacks the evidence needed to rank safely.
+
+### Immediate Priority: Fallback-Free Real Idea Clarification Templates
+
+Status: planned with SpecGraph producer dependency.
+
+`make ui-e2e-product-demo` currently allows a deterministic clarification
+fixture when real intake execution does not emit browser-answerable
+clarification fields. That keeps the local demo stable, but it is no longer the
+desired product proof. The next real-intake slice should make the producer
+contract explicit enough that the browser demo can run without fixture fallback.
+
+Acceptance criteria:
+
+- SpecGraph real intake emits either:
+  `real_idea_answer_template` with browser-answerable fields, or an explicit
+  `clarification_not_required` state with enough evidence to continue safely.
+- SpecSpace treats missing browser-answerable fields as a producer/gate problem,
+  not a UI fixture problem.
+- The product demo harness runs strict by default without
+  `SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1`.
+- If a fallback remains for debugging, it is opt-in, clearly labelled as
+  non-product proof, and excluded from the normal `make ui-e2e-product-demo`
+  success path.
+- The final smoke still proves that the generated candidate belongs to the new
+  workspace and not to `team-decision-log`.
 
 ### 0. Product Workspace Overview Follow-Ups
 
@@ -645,7 +705,7 @@ Acceptance criteria:
 ### 11. Backend-Backed Workspace Creation
 
 Status: closed for the current SpecSpace-managed creation UI/state slice;
-durable workspace binding remains open for Platform/SpecGraph follow-up.
+durable workspace binding is the next Platform/SpecGraph follow-up.
 
 The `New workspace` wizard records backend-owned workspace creation request
 state before opening a product workspace route. Platform-owned initialization
@@ -680,8 +740,10 @@ Acceptance criteria:
   binding remains open.
 - The backend allocates or resolves a durable workspace id, display name,
   artifact base, SpecSpace state namespace, and run-dir binding.
-  Partially done for workspace id, display name, and route; artifact base,
-  state namespace, and run-dir binding remain open for Platform/SpecGraph.
+  Partially done for workspace id, display name, and route. The next
+  cross-repo slice should make artifact base, state namespace, run-dir binding,
+  and repository/worktree identity durable enough that later managed operations
+  do not infer paths from a route slug or local default `runs/`.
 - `guided_flow` and `workspace_state_hygiene` can distinguish:
   route-only workspace, workspace creation requested, workspace initialized,
   intake-ready, and blocked creation.
@@ -871,17 +933,23 @@ hidden UI mutations.
   review import/effect, approval materialization, promotion request, Git
   Service dry-run, and runs-watch refresh.
 - `make ui-e2e-product-demo` is the focused local proof for a UI-started
-  product demo. It intentionally uses a deterministic clarification fixture only
-  when the real intake execution does not emit user-facing clarification
-  fields and `SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1` is set.
-  The Make target sets that flag because it is a demo harness, while direct
-  Playwright runs without the flag fail fast so producer regressions do not pass
-  silently. The fixture uses the same `active_frame_hints.*` and
-  `event_storming_hints.*` target refs that SpecGraph materializes, so saved UI
-  answers still flow through the real Platform/SpecGraph continuation path. The
-  fixture now uses structured event-storming entries with actor/command/event
-  refs, so the browser demo must produce non-zero workflow topology rather than
-  a shallow candidate sketch.
+  product demo. The Make target currently enables its deterministic
+  clarification fixture by default through
+  `SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1` when real intake
+  execution does not emit user-facing clarification fields. Operators can
+  explicitly disable the fallback, and direct Playwright runs do not enable it
+  implicitly.
+  Treat that as temporary producer-contract coverage, not the target product
+  proof. The next real-intake slice should let the normal demo pass without the
+  fallback by emitting browser-answerable templates or an explicit
+  `clarification_not_required` state. Until then, direct Playwright runs without
+  the flag must fail fast so producer regressions do not pass silently. The
+  fixture uses the same `active_frame_hints.*` and `event_storming_hints.*`
+  target refs that SpecGraph materializes, so saved UI answers still flow
+  through the real Platform/SpecGraph continuation path. The fixture now uses
+  structured event-storming entries with actor/command/event refs, so the
+  browser demo must produce non-zero workflow topology rather than a shallow
+  candidate sketch.
 - Product demo runbook and production demo smoke are covered. The local runbook
   documents `make ui-e2e-product-demo`, `make ui-e2e-product-demo-live`, output
   artifacts, fallback policy, and `?view=demo`. Production smoke now checks that
