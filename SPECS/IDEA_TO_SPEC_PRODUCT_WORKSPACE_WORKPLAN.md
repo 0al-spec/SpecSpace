@@ -933,9 +933,12 @@ hidden UI mutations.
   review import/effect, approval materialization, promotion request, Git
   Service dry-run, and runs-watch refresh.
 - `make ui-e2e-product-demo` is the focused local proof for a UI-started
-  product demo. It still has an opt-in deterministic clarification fixture for
-  the case where real intake execution does not emit user-facing clarification
-  fields and `SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1` is set.
+  product demo. The Make target currently enables its deterministic
+  clarification fixture by default through
+  `SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK=1` when real intake
+  execution does not emit user-facing clarification fields. Operators can
+  explicitly disable the fallback, and direct Playwright runs do not enable it
+  implicitly.
   Treat that as temporary producer-contract coverage, not the target product
   proof. The next real-intake slice should let the normal demo pass without the
   fallback by emitting browser-answerable templates or an explicit
