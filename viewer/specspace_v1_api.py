@@ -27,6 +27,7 @@ from viewer import (
     managed_operations_registry,
     ontology_acknowledgements,
     product_workspace_initialization_execution,
+    product_workspace_binding,
     product_workspace_creation_requests,
     project_local_ontology_review_decisions,
     real_idea_answer_continuation_execution,
@@ -128,6 +129,13 @@ def _workspace_initialization_path(
     execution_request = _record(initialization.get("execution_request"))
     execution = _record(initialization.get("execution"))
     refs = _record(initialization.get("refs"))
+    binding = _record(initialization.get("binding"))
+    binding_run_dir_ref = (
+        binding.get("platform_default_run_dir_ref")
+        if binding.get("trusted") is True
+        and isinstance(binding.get("platform_default_run_dir_ref"), str)
+        else None
+    )
     status = "route_only"
     next_safe_action = "Create a workspace request before starting product intake."
     blockers: list[str] = []
@@ -190,7 +198,11 @@ def _workspace_initialization_path(
         "initialization_request_ref": refs.get("execution_request")
         if execution_request.get("available") is True
         else None,
-        "initialization_report_ref": "runs/platform_product_workspace_initialization_execution_report.json"
+        "initialization_report_ref": (
+            f"{binding_run_dir_ref}/platform_product_workspace_initialization_execution_report.json"
+            if binding_run_dir_ref
+            else "runs/platform_product_workspace_initialization_execution_report.json"
+        )
         if execution.get("available") is True
         else None,
         "next_safe_action": next_safe_action,
@@ -209,6 +221,81 @@ def _workspace_initialization_path(
             "may_create_branch_or_commit": False,
             "may_open_pull_request": False,
             "may_publish_read_model": False,
+        },
+    }
+
+
+def _apply_durable_workspace_binding_initialization(
+    payload: dict[str, Any],
+    binding: dict[str, Any],
+) -> None:
+    if binding.get("status") != "ready" or binding.get("trusted") is not True:
+        return
+    existing = _record(payload.get("workspace_initialization"))
+    if existing.get("initialized") is True:
+        return
+    identity = _record(binding.get("identity"))
+    routing = _record(binding.get("routing"))
+    initialization = _record(binding.get("initialization"))
+    if (
+        initialization.get("status") != "workspace_initialization_executed"
+        or initialization.get("specgraph_executed") is not True
+        or initialization.get("catalog_written") is not True
+        or initialization.get("workspace_files_created") is not True
+    ):
+        return
+    payload["workspace_initialization"] = {
+        **existing,
+        "available": True,
+        "trusted": True,
+        "initialized": True,
+        "execution": {
+            "available": True,
+            "ok": True,
+            "dry_run": False,
+            **initialization,
+            "operations": [],
+        },
+        "workspace": {
+            "workspace_id": identity.get("workspace_id"),
+            "display_name": identity.get("display_name"),
+            "route": identity.get("route"),
+            "repository_role": identity.get("repository_role"),
+        },
+        "binding": {
+            "available": True,
+            "trusted": True,
+            "status": "ready",
+            "binding_id": binding.get("binding_id"),
+            "binding_revision_sha256": binding.get(
+                "binding_revision_sha256"
+            ),
+            "specspace_state_namespace_ref": routing.get(
+                "specspace_state_namespace_ref"
+            ),
+            "platform_default_run_dir_ref": routing.get(
+                "platform_default_run_dir_ref"
+            ),
+            "product_artifact_manifest_ref": routing.get(
+                "product_artifact_manifest_ref"
+            ),
+            "reasons": [],
+        },
+        "refs": {
+            **_record(existing.get("refs")),
+            "execution_report": binding.get("source_ref"),
+        },
+        "diagnostic_count": 0,
+        "authority_boundary": _record(existing.get("authority_boundary"))
+        or {
+            "executes_platform": False,
+            "executes_specgraph": False,
+            "creates_workspace_files": False,
+            "updates_workspace_catalog": False,
+            "may_execute_platform": False,
+            "may_execute_specgraph": False,
+            "may_create_workspace_files": False,
+            "may_write_catalog": False,
         },
     }
 
@@ -306,6 +393,17 @@ def _managed_mode_readiness(
         and specspace_provider.normalize_workspace_id(workspace_id)
         != specspace_provider.BOOTSTRAP_WORKSPACE_ID
     )
+    workspace_binding = product_workspace_binding.discover_binding(
+        server,
+        workspace_id=workspace_id,
+    )
+    binding_ready = (
+        not product_workspace
+        or (
+            workspace_binding.get("status") == "ready"
+            and workspace_binding.get("trusted") is True
+        )
+    )
     product_artifact_base_configured = bool(artifact_base_url) if product_workspace else None
 
     disabled_reasons: list[str] = []
@@ -329,6 +427,8 @@ def _managed_mode_readiness(
         disabled_reasons.append("runs_dir_not_writable")
     if provider_state["status"] == "unavailable":
         disabled_reasons.append("artifact_provider_unavailable")
+    if product_workspace and not binding_ready:
+        disabled_reasons.append("durable_workspace_binding_not_ready")
 
     executor_ready = (
         platform_execution_enabled
@@ -336,6 +436,7 @@ def _managed_mode_readiness(
         and state_dir_status["ready"]
         and runs_dir_status["ready"]
         and provider_state["status"] != "unavailable"
+        and binding_ready
     )
     operation_count = len(managed_operations_registry.MANAGED_OPERATIONS)
     operation_status_counts = _managed_operation_status_counts(observability)
@@ -394,6 +495,8 @@ def _managed_mode_readiness(
             "product_workspace": product_workspace,
             "product_workspace_artifact_base_configured": product_artifact_base_configured,
             "artifact_base_status": "configured" if artifact_base_url else "not_configured",
+            "binding_status": workspace_binding.get("status"),
+            "binding_id": workspace_binding.get("binding_id"),
         },
         "authority_boundary": _managed_mode_boundary(),
     }
@@ -763,6 +866,14 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
     if workspace_id is not None and isinstance(payload, dict):
         payload["selected_workspace_id"] = workspace_id
     if status == HTTPStatus.OK:
+        payload["workspace_binding"] = product_workspace_binding.discover_binding(
+            handler.server,
+            workspace_id=workspace_id,
+        )
+        _apply_durable_workspace_binding_initialization(
+            payload,
+            payload["workspace_binding"],
+        )
         _, hygiene = idea_to_spec_workspace_state_hygiene.build_hygiene(
             handler.server,
             workspace_id=workspace_id,

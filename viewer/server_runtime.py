@@ -43,6 +43,7 @@ class ViewerRuntimeServer(Protocol):
     specspace_state_dir: Path
     platform_dir: Path | None
     platform_execution_enabled: bool
+    allow_legacy_workspace_execution: bool
     platform_execution_timeout_seconds: int
     agent_available: bool
 
@@ -69,6 +70,10 @@ def build_arg_parser(
     platform_dir_env = os.environ.get("SPECSPACE_PLATFORM_DIR", "").strip()
     platform_execution_enabled_env = os.environ.get(
         "SPECSPACE_PLATFORM_EXECUTION_ENABLED",
+        "",
+    ).strip()
+    allow_legacy_workspace_execution_env = os.environ.get(
+        "SPECSPACE_ALLOW_LEGACY_WORKSPACE_EXECUTION",
         "",
     ).strip()
     platform_execution_timeout_env = os.environ.get(
@@ -241,6 +246,16 @@ def build_arg_parser(
         default=platform_execution_timeout_default,
         help="Timeout for allowlisted Platform subprocess calls. Defaults to 120.",
     )
+    parser.add_argument(
+        "--allow-legacy-workspace-execution",
+        action="store_true",
+        default=allow_legacy_workspace_execution_env.lower()
+        in {"1", "true", "yes", "on"},
+        help=(
+            "Debug-only migration override allowing managed operations without "
+            "a ready durable workspace binding. Disabled by default."
+        ),
+    )
     return parser
 
 
@@ -361,6 +376,9 @@ def configure_server(
     server.platform_dir = platform_dir.expanduser().resolve() if platform_dir else None
     server.platform_execution_enabled = bool(
         getattr(args, "enable_platform_execution", False)
+    )
+    server.allow_legacy_workspace_execution = bool(
+        getattr(args, "allow_legacy_workspace_execution", False)
     )
     server.platform_execution_timeout_seconds = int(
         getattr(args, "platform_execution_timeout_seconds", 120)

@@ -26,6 +26,7 @@ from viewer import (
     metrics,
     ontology_workbench,
     practical_ontology,
+    product_workspace_binding,
     proposals,
     spec_compile,
     specgraph,
@@ -3217,9 +3218,64 @@ def normalize_workspace_id(value: Any) -> str | None:
 def artifact_base_url_for_workspace(server: Any, workspace_id: str | None) -> str | None:
     normalized_workspace_id = normalize_workspace_id(workspace_id)
     if normalized_workspace_id is not None and normalized_workspace_id != BOOTSTRAP_WORKSPACE_ID:
+        binding = product_workspace_binding.discover_binding(
+            server,
+            workspace_id=normalized_workspace_id,
+        )
+        bound_url = _text(
+            _record(binding.get("routing")).get("product_artifact_base_url")
+        ).strip() or None
+        if binding.get("status") == "ready" and bound_url is not None:
+            return bound_url
         return product_workspace_artifact_base_url_map(server).get(normalized_workspace_id)
     artifact_base_url = getattr(server, "artifact_base_url", None)
     return artifact_base_url.strip() if isinstance(artifact_base_url, str) and artifact_base_url.strip() else None
+
+
+def runs_dir_for_workspace(server: Any, workspace_id: str | None) -> Path | None:
+    """Resolve the local product run directory from a trusted durable binding."""
+    return product_workspace_binding.workspace_runs_dir(
+        server,
+        workspace_id=normalize_product_workspace_id(workspace_id),
+    )
+
+
+def managed_workspace_binding_error(
+    server: Any,
+    workspace_id: str | None,
+) -> dict[str, Any] | None:
+    normalized = normalize_product_workspace_id(workspace_id)
+    if normalized is None:
+        return {
+            "error": "Managed product operation requires a safe workspace_id.",
+            "reason": "durable_workspace_binding_workspace_invalid",
+        }
+    binding = product_workspace_binding.discover_binding(
+        server,
+        workspace_id=normalized,
+    )
+    if binding.get("status") == "ready" and binding.get("trusted") is True:
+        return None
+    if getattr(server, "allow_legacy_workspace_execution", False) is True:
+        return None
+    return {
+        "error": "Managed product operation requires a ready durable workspace binding.",
+        "reason": "durable_workspace_binding_not_ready",
+        "workspace_id": normalized,
+        "binding_status": binding.get("status"),
+        "binding_reasons": binding.get("reasons", []),
+        "next_action": "Run controlled workspace initialization or migrate the legacy workspace binding before retrying.",
+    }
+
+
+def workspace_initialization_report_path(
+    server: Any,
+    workspace_id: str | None,
+) -> Path | None:
+    return product_workspace_binding.binding_report_path(
+        server,
+        workspace_id=normalize_product_workspace_id(workspace_id),
+    )
 
 
 def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSpaceProvider:
@@ -3247,6 +3303,13 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
     runs_dir = getattr(server, "runs_dir", None)
     if runs_dir is None:
         runs_dir = specgraph_surfaces.runs_dir_from_context(spec_dir, specgraph_dir)
+    if normalized_workspace_id is not None and normalized_workspace_id != BOOTSTRAP_WORKSPACE_ID:
+        bound_runs_dir = product_workspace_binding.workspace_runs_dir(
+            server,
+            workspace_id=normalized_workspace_id,
+        )
+        if bound_runs_dir is not None:
+            runs_dir = bound_runs_dir
     file_provider = FileSpecGraphProvider(
         spec_nodes_dir=spec_dir,
         runs_dir=runs_dir,

@@ -237,6 +237,8 @@ describe("IdeaToSpecWorkspacePanel", () => {
         product_workspace: true,
         product_workspace_artifact_base_configured: true,
         artifact_base_status: "configured",
+        binding_status: "ready",
+        binding_id: "product-workspace-binding://team-decision-log",
       },
       authority_boundary: {
         ...raw.guided_flow.authority_boundary,
@@ -258,6 +260,8 @@ describe("IdeaToSpecWorkspacePanel", () => {
 
     expect(html).toContain("Managed operations");
     expect(html).toContain("Managed mode readiness");
+    expect(html).toContain("Workspace binding");
+    expect(html).toContain("product-workspace-binding://team-decision-log");
     expect(html).toContain("Execution unavailable: platform_execution_disabled");
     expect(html).toContain("Workspace initialization");
     expect(html).toContain("request needed");

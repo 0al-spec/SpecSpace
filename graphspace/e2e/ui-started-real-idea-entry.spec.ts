@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import {
   copyFile,
@@ -747,6 +748,133 @@ async function publishRealIdeaIntakeExecutionArtifacts(args: {
   );
 }
 
+async function executeDurableWorkspaceInitialization(args: {
+  backend: SpecSpaceBackend;
+  platformDir: string;
+  platformScript: string;
+  specGraphDir: string;
+  workspaceId: string;
+}) {
+  const workspaceRunsDir = path.join(args.backend.runsDir, args.workspaceId);
+  const workspaceOrgRoot = path.join(args.backend.tmpRoot, "product-workspaces");
+  const workspaceRoot = path.join(workspaceOrgRoot, args.workspaceId);
+  const catalogPath = path.join(args.backend.tmpRoot, "workspaces.local.yaml");
+  const planPath = path.join(
+    workspaceRunsDir,
+    "platform_product_workspace_initialization_plan.json",
+  );
+  const executionRequestPath = path.join(
+    workspaceRunsDir,
+    "product_workspace_initialization_execution_request.json",
+  );
+  const executionReportPath = path.join(
+    workspaceRunsDir,
+    "platform_product_workspace_initialization_execution_report.json",
+  );
+  await mkdir(workspaceOrgRoot, { recursive: true });
+  await writeJson(catalogPath, {
+    schema_version: 1,
+    artifact_kind: "platform_workspace_catalog",
+    organization_root: workspaceOrgRoot,
+    workspaces: [],
+  });
+  const commandEnv = {
+    ...process.env,
+    ORG_ROOT: workspaceOrgRoot,
+    SPECGRAPH_HOME: args.specGraphDir,
+  };
+  const runPlatform = async (cliArgs: string[], label: string) => {
+    const invocation = platformCliInvocation(
+      args.platformDir,
+      args.platformScript,
+      cliArgs,
+    );
+    const result = await runCommand(invocation.command, invocation.args, {
+      cwd: args.platformDir,
+      env: commandEnv,
+    });
+    if (result.code !== 0) {
+      throw new Error(
+        `${label} failed (${result.code}): ${result.stderr || result.stdout}`,
+      );
+    }
+  };
+  await runPlatform(
+    [
+      "workspace",
+      "initialize-from-request",
+      "--creation-request",
+      path.join(args.backend.stateDir, "product_workspace_creation_requests.json"),
+      "--workspace-id",
+      args.workspaceId,
+      "--catalog",
+      catalogPath,
+      "--path",
+      workspaceRoot,
+      "--output",
+      planPath,
+      "--format",
+      "json",
+    ],
+    "workspace initialization plan",
+  );
+  await runPlatform(
+    [
+      "workspace",
+      "request-initialization-execution",
+      "--plan",
+      planPath,
+      "--operator-ref",
+      "operator://specspace-product-demo",
+      "--output",
+      executionRequestPath,
+      "--format",
+      "json",
+    ],
+    "workspace initialization request",
+  );
+  await runPlatform(
+    [
+      "workspace",
+      "execute-requested-initialization",
+      "--execution-request",
+      executionRequestPath,
+      "--catalog",
+      catalogPath,
+      "--output",
+      executionReportPath,
+      "--format",
+      "json",
+    ],
+    "workspace initialization execution",
+  );
+  const report = JSON.parse(await readFile(executionReportPath, "utf8")) as {
+    ok?: boolean;
+    workspace_binding?: {
+      status?: string;
+      binding_id?: string;
+      execution?: { platform_default_run_dir_ref?: string };
+      routing?: { specspace_state_namespace_ref?: string };
+    };
+  };
+  expect(report.ok).toBe(true);
+  expect(report.workspace_binding?.status).toBe("ready");
+  expect(report.workspace_binding?.binding_id).toBe(
+    `product-workspace-binding://${args.workspaceId}`,
+  );
+  expect(
+    report.workspace_binding?.execution?.platform_default_run_dir_ref,
+  ).toBe(`runs/${args.workspaceId}`);
+  expect(
+    report.workspace_binding?.routing?.specspace_state_namespace_ref,
+  ).toBe(`specspace-state://workspace/${args.workspaceId}`);
+  return {
+    executionReportPath,
+    workspaceRunsDir,
+    binding: report.workspace_binding,
+  };
+}
+
 async function writeWorkspaceInitializationReport(args: {
   runsDir: string;
   workspaceId: string;
@@ -754,8 +882,79 @@ async function writeWorkspaceInitializationReport(args: {
 }) {
   const reportPath = path.join(
     args.runsDir,
+    args.workspaceId,
     "platform_product_workspace_initialization_execution_report.json",
   );
+  const logicalBinding = {
+    display_name: args.displayName,
+    governance_profile: "product_workspace",
+    platform_default_run_dir_ref: `runs/${args.workspaceId}`,
+    product_artifact_base_url: null,
+    product_artifact_bundle_ref: `workspaces/${args.workspaceId}`,
+    product_artifact_manifest_ref: `workspaces/${args.workspaceId}/artifact_manifest.json`,
+    repository_role: "product_spec_workspace",
+    root_artifact_base_url: null,
+    route: `/${args.workspaceId}`,
+    specspace_state_namespace_ref: `specspace-state://workspace/${args.workspaceId}`,
+    workspace_id: args.workspaceId,
+  };
+  const bindingRevision = createHash("sha256")
+    .update(JSON.stringify(logicalBinding))
+    .digest("hex");
+  const workspaceBinding = {
+    artifact_kind: "platform_product_workspace_binding",
+    schema_version: 1,
+    contract_ref: "platform.product-workspace.binding.v1",
+    binding_id: `product-workspace-binding://${args.workspaceId}`,
+    binding_revision_sha256: bindingRevision,
+    status: "ready",
+    identity: {
+      workspace_id: args.workspaceId,
+      display_name: args.displayName,
+      route: `/${args.workspaceId}`,
+      governance_profile: "product_workspace",
+      repository_role: "product_spec_workspace",
+    },
+    routing: {
+      specspace_state_namespace_ref: `specspace-state://workspace/${args.workspaceId}`,
+      product_artifact_bundle_ref: `workspaces/${args.workspaceId}`,
+      product_artifact_manifest_ref: `workspaces/${args.workspaceId}/artifact_manifest.json`,
+      root_artifact_base_url: null,
+      product_artifact_base_url: null,
+      product_artifact_manifest_url: null,
+    },
+    execution: {
+      workspace_root: `/tmp/${args.workspaceId}`,
+      workspace_runs_root: `/tmp/${args.workspaceId}/runs`,
+      platform_default_run_dir_ref: `runs/${args.workspaceId}`,
+      local_only: true,
+    },
+    repository: {
+      repository_role: "product_spec_workspace",
+      workspace_identity: args.workspaceId,
+      worktree_identity: `product-workspace/${args.workspaceId}`,
+      creates_worktree: false,
+    },
+    provenance: {
+      plan_ref: `runs/${args.workspaceId}/product_workspace_initialization_plan.json`,
+      plan_sha256: "1".repeat(64),
+      specgraph_initialization_report_ref: `runs/${args.workspaceId}/product_workspace_initialization.json`,
+      specgraph_initialization_report_sha256: "2".repeat(64),
+    },
+    privacy_boundary: {
+      public_safe_projection_available: true,
+      local_execution_paths_public: false,
+      raw_idea_public: false,
+    },
+    binding_authority: {
+      report_only: true,
+      may_execute_platform: false,
+      may_execute_specgraph: false,
+      may_mutate_specspace_state: false,
+      may_write_catalog: false,
+      may_create_git_commit: false,
+    },
+  };
   await writeJson(
     reportPath,
     {
@@ -768,7 +967,8 @@ async function writeWorkspaceInitializationReport(args: {
       plan_ref: `runs/${args.workspaceId}/platform_product_workspace_initialization_plan.json`,
       catalog_ref: "workspaces.local.yaml",
       specgraph_initialization_report_ref:
-        "runs/product_workspace_initialization.json",
+        `runs/${args.workspaceId}/product_workspace_initialization.json`,
+      workspace_binding: workspaceBinding,
       workspace: {
         workspace_id: args.workspaceId,
         display_name: args.displayName,
@@ -852,6 +1052,7 @@ async function writeFakePlatformForWorkspaceInitialization(root: string) {
     path.join(scriptsDir, "platform.py"),
     [
       "import json",
+      "import hashlib",
       "import sys",
       "from pathlib import Path",
       "request = Path(sys.argv[sys.argv.index('--execution-request') + 1])",
@@ -1023,6 +1224,76 @@ async function writeFakePlatformForWorkspaceInitialization(root: string) {
       "    output.write_text(json.dumps(report), encoding='utf-8')",
       "    print(json.dumps(report))",
       "    raise SystemExit(0)",
+      "workspace = request_payload.get('workspace', {})",
+      "workspace_id = workspace.get('workspace_id')",
+      "logical_binding = {",
+      "    'workspace_id': workspace_id,",
+      "    'display_name': workspace.get('display_name'),",
+      "    'route': workspace.get('route'),",
+      "    'repository_role': 'product_spec_workspace',",
+      "    'governance_profile': 'product_workspace',",
+      "    'specspace_state_namespace_ref': f'specspace-state://workspace/{workspace_id}',",
+      "    'platform_default_run_dir_ref': f'runs/{workspace_id}',",
+      "    'product_artifact_bundle_ref': f'workspaces/{workspace_id}',",
+      "    'product_artifact_manifest_ref': f'workspaces/{workspace_id}/artifact_manifest.json',",
+      "    'root_artifact_base_url': None,",
+      "    'product_artifact_base_url': None,",
+      "}",
+      "binding_revision = hashlib.sha256(json.dumps(logical_binding, sort_keys=True, separators=(',', ':')).encode()).hexdigest()",
+      "workspace_binding = {",
+      "    'artifact_kind': 'platform_product_workspace_binding',",
+      "    'schema_version': 1,",
+      "    'contract_ref': 'platform.product-workspace.binding.v1',",
+      "    'binding_id': f'product-workspace-binding://{workspace_id}',",
+      "    'binding_revision_sha256': binding_revision,",
+      "    'status': 'ready',",
+      "    'identity': {",
+      "        'workspace_id': workspace_id,",
+      "        'display_name': workspace.get('display_name'),",
+      "        'route': workspace.get('route'),",
+      "        'governance_profile': 'product_workspace',",
+      "        'repository_role': 'product_spec_workspace',",
+      "    },",
+      "    'routing': {",
+      "        'specspace_state_namespace_ref': f'specspace-state://workspace/{workspace_id}',",
+      "        'product_artifact_bundle_ref': f'workspaces/{workspace_id}',",
+      "        'product_artifact_manifest_ref': f'workspaces/{workspace_id}/artifact_manifest.json',",
+      "        'root_artifact_base_url': None,",
+      "        'product_artifact_base_url': None,",
+      "        'product_artifact_manifest_url': None,",
+      "    },",
+      "    'execution': {",
+      "        'workspace_root': f'/tmp/{workspace_id}',",
+      "        'workspace_runs_root': f'/tmp/{workspace_id}/runs',",
+      "        'platform_default_run_dir_ref': f'runs/{workspace_id}',",
+      "        'local_only': True,",
+      "    },",
+      "    'repository': {",
+      "        'repository_role': 'product_spec_workspace',",
+      "        'workspace_identity': workspace_id,",
+      "        'worktree_identity': f'product-workspace/{workspace_id}',",
+      "        'creates_worktree': False,",
+      "    },",
+      "    'provenance': {",
+      "        'plan_ref': f'runs/{workspace_id}/plan.json',",
+      "        'plan_sha256': '1' * 64,",
+      "        'specgraph_initialization_report_ref': f'runs/{workspace_id}/product_workspace_initialization.json',",
+      "        'specgraph_initialization_report_sha256': '2' * 64,",
+      "    },",
+      "    'privacy_boundary': {",
+      "        'public_safe_projection_available': True,",
+      "        'local_execution_paths_public': False,",
+      "        'raw_idea_public': False,",
+      "    },",
+      "    'binding_authority': {",
+      "        'report_only': True,",
+      "        'may_execute_platform': False,",
+      "        'may_execute_specgraph': False,",
+      "        'may_mutate_specspace_state': False,",
+      "        'may_write_catalog': False,",
+      "        'may_create_git_commit': False,",
+      "    },",
+      "}",
       "report = {",
       "    'artifact_kind': 'platform_product_workspace_initialization_execution_report',",
       "    'schema_version': 1,",
@@ -1030,7 +1301,8 @@ async function writeFakePlatformForWorkspaceInitialization(root: string) {
       "    'dry_run': False,",
       "    'canonical_mutations_allowed': False,",
       "    'tracked_artifacts_written': False,",
-      "    'workspace': request_payload.get('workspace', {}),",
+      "    'workspace': workspace,",
+      "    'workspace_binding': workspace_binding,",
       "    'summary': {",
       "        'status': 'workspace_initialization_executed',",
       "        'specgraph_executed': True,",
@@ -3089,8 +3361,7 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
 
   const platformScript = path.join(platformDir, "scripts/platform.py");
   const backend = await startSpecSpaceBackend({ seedIntakeRuns: false });
-  const runDirName = `specspace-product-demo-${Date.now()}`;
-  const specGraphRunDirRef = `runs/${runDirName}`;
+  const specGraphRunDirRef = `runs/${productDemoWorkspaceId}`;
   const specGraphRunDir = path.join(specGraphDir, specGraphRunDirRef);
   const platformReportPath = path.join(
     specGraphRunDir,
@@ -3111,6 +3382,7 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
   let completed = false;
 
   try {
+    await rm(specGraphRunDir, { recursive: true, force: true });
     await installRunsWatchMock(page);
     await installRealBackendApiRoutes(page, backend.baseUrl);
     await createWorkspaceRequestFromSidebar({
@@ -3121,12 +3393,50 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     });
     await captureProductDemoScreenshot(page, artifactDir, "01-workspace-requested");
 
-    const initializationReportPath = await writeWorkspaceInitializationReport({
-      runsDir: backend.runsDir,
+    const initialization = await executeDurableWorkspaceInitialization({
+      backend,
+      platformDir,
+      platformScript,
+      specGraphDir,
       workspaceId: productDemoWorkspaceId,
-      displayName: productDemoDisplayName,
     });
+    const initializationReportPath = initialization.executionReportPath;
     await emitRunsChange(page);
+    const workspaceResponse = await fetch(
+      `${backend.baseUrl}/api/v1/idea-to-spec-workspace?workspace=${productDemoWorkspaceId}`,
+    );
+    expect(workspaceResponse.ok).toBeTruthy();
+    const workspacePayload = (await workspaceResponse.json()) as {
+      workspace_binding?: {
+        status?: string;
+        trusted?: boolean;
+        binding_id?: string;
+        routing?: { platform_default_run_dir_ref?: string };
+        local_resolution?: Record<string, unknown>;
+      };
+      workspace_initialization?: {
+        initialized?: boolean;
+        execution?: Record<string, unknown>;
+        binding?: Record<string, unknown>;
+      };
+    };
+    expect(workspacePayload.workspace_binding?.status).toBe("ready");
+    expect(workspacePayload.workspace_binding?.trusted).toBe(true);
+    expect(workspacePayload.workspace_binding?.binding_id).toBe(
+      `product-workspace-binding://${productDemoWorkspaceId}`,
+    );
+    expect(
+      workspacePayload.workspace_binding?.routing?.platform_default_run_dir_ref,
+    ).toBe(specGraphRunDirRef);
+    expect(JSON.stringify(workspacePayload.workspace_binding)).not.toContain(
+      backend.tmpRoot,
+    );
+    expect(
+      workspacePayload.workspace_initialization?.initialized,
+      JSON.stringify(workspacePayload.workspace_initialization ?? {}),
+    ).toBe(true);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Idea-to-Spec Workspace")).toBeVisible();
     await expect(page.getByTestId("workspace-creation-status")).toContainText(
       "Workspace initialized through backend-owned state.",
     );
@@ -3179,7 +3489,7 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     ).toBe(productDemoWorkspaceId);
 
     await publishRealIdeaIntakeExecutionArtifacts({
-      backendRunsDir: backend.runsDir,
+      backendRunsDir: initialization.workspaceRunsDir,
       platformReportPath,
       specGraphRunDir,
     });
@@ -3434,7 +3744,7 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     expect(depthBaseline.code, depthBaseline.stderr || depthBaseline.stdout).toBe(0);
 
     await publishRealIdeaContinuationArtifacts({
-      backendRunsDir: backend.runsDir,
+      backendRunsDir: initialization.workspaceRunsDir,
       platformReportPath: continuationReportPath,
       specGraphRunDir,
     });
@@ -3543,7 +3853,10 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       activeCandidate.candidate_id ?? activeCandidate.summary?.candidate_id;
     expect(generatedCandidateId).toBe(productDemoWorkspaceId);
     const depthReport = JSON.parse(
-      await readFile(path.join(backend.runsDir, "product_demo_depth_report.json"), "utf8"),
+      await readFile(
+        path.join(initialization.workspaceRunsDir, "product_demo_depth_report.json"),
+        "utf8",
+      ),
     ) as {
       summary?: {
         status?: string;
@@ -3592,6 +3905,8 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       public_summary_present: generatedIdeaArtifactsText.includes(productDemoPublicSummary),
       workspace_id_present: generatedIdeaArtifactsText.includes(productDemoWorkspaceId),
       team_decision_log_fallback: teamDecisionLogFallback,
+      workspace_binding_status: initialization.binding?.status ?? null,
+      workspace_binding_id: initialization.binding?.binding_id ?? null,
       screenshots: [
         "01-workspace-requested.png",
         "02-workspace-initialized.png",
@@ -3649,8 +3964,7 @@ test("builds an active candidate from a non-demo product workspace route", async
   );
 
   const backend = await startSpecSpaceBackend({ seedIntakeRuns: false });
-  const runDirName = `specspace-ui-e2e-route-${Date.now()}`;
-  const specGraphRunDirRef = `runs/${runDirName}`;
+  const specGraphRunDirRef = `runs/${executionBackedWorkspaceId}`;
   const specGraphRunDir = path.join(specGraphDir!, specGraphRunDirRef);
   const platformReportPath = path.join(
     specGraphRunDir,
@@ -4015,8 +4329,7 @@ test("can refresh from a real Platform intake execution when checkouts are provi
   );
 
   const backend = await startSpecSpaceBackend({ seedIntakeRuns: false });
-  const runDirName = `specspace-ui-e2e-real-${Date.now()}`;
-  const specGraphRunDirRef = `runs/${runDirName}`;
+  const specGraphRunDirRef = `runs/${lifecycleWorkspaceId}`;
   const specGraphRunDir = path.join(specGraphDir!, specGraphRunDirRef);
   const platformReportPath = path.join(
     specGraphRunDir,

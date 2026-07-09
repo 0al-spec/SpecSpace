@@ -714,12 +714,13 @@ Acceptance criteria:
 
 ### 11. Backend-Backed Workspace Creation
 
-Status: closed for the current SpecSpace-managed creation UI/state slice;
-durable workspace binding is the next Platform/SpecGraph follow-up.
+Status: closed, including the durable workspace binding rollout across
+Platform, SpecGraph, and SpecSpace.
 
 The `New workspace` wizard records backend-owned workspace creation request
 state before opening a product workspace route. Platform-owned initialization
-and durable workspace binding remain separate controlled handoff steps.
+remains a separate controlled handoff and now publishes the durable binding
+used by later managed operations.
 
 Current SpecSpace slice:
 
@@ -746,14 +747,17 @@ Acceptance criteria:
   calls a Platform-owned workspace creation endpoint; it must not mutate
   SpecGraph or Git directly from the browser.
   Done for SpecSpace-owned operator intent and controlled Platform-owned
-  initialization execution. Durable artifact-base/state-namespace/run-dir
-  binding remains open.
+  initialization execution. Durable artifact-base/state-namespace/run-dir and
+  repository identity binding is implemented and verified through the v1
+  initialization contract.
 - The backend allocates or resolves a durable workspace id, display name,
   artifact base, SpecSpace state namespace, and run-dir binding.
-  Partially done for workspace id, display name, and route. The next
-  cross-repo slice should make artifact base, state namespace, run-dir binding,
-  and repository/worktree identity durable enough that later managed operations
-  do not infer paths from a route slug or local default `runs/`.
+  Implemented for the v1 initialization binding: Product Workspace exposes a
+  sanitized projection, local providers resolve product runs from the binding,
+  and managed readiness blocks missing or invalid bindings. Downstream repair,
+  approval, promotion, review, and publication operations preserve the binding
+  context. Execution-backed Playwright covers real initialization, browser
+  reload, workspace-scoped runs, and raw-idea privacy.
 - `guided_flow` and `workspace_state_hygiene` can distinguish:
   route-only workspace, workspace creation requested, workspace initialized,
   intake-ready, and blocked creation.
@@ -764,7 +768,8 @@ Acceptance criteria:
   visible diagnostics and do not silently fall back to `team-decision-log`.
   Done at the SpecSpace request boundary for malformed, reserved,
   already-initialized, and published catalog workspace ids. Platform-owned
-  catalog/run-dir binding validation remains a separate downstream concern.
+  catalog/run-dir binding validation now rejects foreign, stale, or mismatched
+  binding inputs before managed execution.
 - Human-facing workspace display name and raw idea text are separated from the
   route slug. The backend should allocate or validate an ASCII route id for
   non-English ideas instead of forcing the user to hand-craft a Latin slug.
