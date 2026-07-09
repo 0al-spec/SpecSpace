@@ -80,8 +80,8 @@ def _runs_dir(server: Any) -> Path | None:
     return runs_dir if isinstance(runs_dir, Path) else None
 
 
-def _runs_path(server: Any, filename: str) -> Path | None:
-    runs_dir = _runs_dir(server)
+def _runs_path(server: Any, filename: str, *, workspace_id: str) -> Path | None:
+    runs_dir = specspace_provider.runs_dir_for_workspace(server, workspace_id)
     return runs_dir / filename if runs_dir is not None else None
 
 
@@ -142,14 +142,27 @@ def execute_promotion_request(
         return HTTPStatus.BAD_REQUEST, {
             "error": "workspace_id is required for managed promotion request execution."
         }
+    binding_error = specspace_provider.managed_workspace_binding_error(
+        server, selected_workspace_id
+    )
+    if binding_error is not None:
+        return HTTPStatus.CONFLICT, binding_error
 
-    plan_path = _runs_path(server, GRAPH_REPOSITORY_EXECUTION_PLAN_ARTIFACT)
+    plan_path = _runs_path(
+        server,
+        GRAPH_REPOSITORY_EXECUTION_PLAN_ARTIFACT,
+        workspace_id=selected_workspace_id,
+    )
     if plan_path is None or not plan_path.is_file():
         return HTTPStatus.NOT_FOUND, {
             "error": "Graph repository execution plan artifact not found.",
             "plan_ref": f"runs/{GRAPH_REPOSITORY_EXECUTION_PLAN_ARTIFACT}",
         }
-    approval_decision_path = _runs_path(server, CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+    approval_decision_path = _runs_path(
+        server,
+        CANDIDATE_APPROVAL_DECISION_ARTIFACT,
+        workspace_id=selected_workspace_id,
+    )
     if approval_decision_path is None or not approval_decision_path.is_file():
         return HTTPStatus.NOT_FOUND, {
             "error": "Candidate approval decision artifact not found.",
@@ -165,7 +178,12 @@ def execute_promotion_request(
     runs_dir = _runs_dir(server)
     if runs_dir is None:
         return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload()
-    output_path = runs_dir / GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT
+    output_dir = (
+        specspace_provider.runs_dir_for_workspace(server, selected_workspace_id)
+        or runs_dir
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     if output_path.exists():
         existing = _load_json(output_path)
@@ -234,6 +252,15 @@ def execute_promotion_request(
         "--format",
         "json",
     ]
+    workspace_initialization_path = (
+        specspace_provider.workspace_initialization_report_path(
+            server, selected_workspace_id
+        )
+    )
+    if workspace_initialization_path is not None:
+        command.extend(
+            ["--workspace-initialization", str(workspace_initialization_path)]
+        )
     completed = subprocess.run(
         command,
         cwd=str(platform_script.parent.parent),

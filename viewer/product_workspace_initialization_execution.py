@@ -193,7 +193,9 @@ def execute_requested_initialization(
     runs_dir = getattr(server, "runs_dir", None)
     if not isinstance(runs_dir, Path):
         return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload()
-    output_path = runs_dir / EXECUTION_REPORT_ARTIFACT
+    # Keep the execution receipt in the same workspace-scoped run directory as
+    # the digest-pinned request. Legacy root-level requests remain root-level.
+    output_path = request_path.parent / EXECUTION_REPORT_ARTIFACT
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     timeout = getattr(server, "platform_execution_timeout_seconds", 120)
     try:

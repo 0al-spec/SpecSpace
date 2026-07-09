@@ -5,6 +5,31 @@ backend-managed operations. The machine-readable source is
 `viewer/managed_operations_registry.py`; tests assert that this registry stays
 aligned with `viewer/routes.py` and `viewer/specspace_v1_api.py`.
 
+## Durable workspace binding
+
+Product-workspace managed operations require a trusted
+`platform.product-workspace.binding.v1` initialization binding. The binding
+selects the workspace run directory, SpecSpace state namespace, artifact bundle,
+and repository/worktree identity. A route slug is display/navigation state, not
+path authority. Legacy workspaces remain inspectable, but managed readiness is
+misconfigured until a durable binding is available.
+
+The initialization execution report remains a local operator artifact because
+it contains local resolution paths. SpecSpace validates it server-side, exposes
+only a sanitized binding/initialization projection, and rehydrates that
+projection after process or browser restart. Product file providers read
+`runs/<workspace-id>` only after the binding is trusted.
+
+Post-initialization Platform calls receive the selected initialization report.
+Repair, approval, promotion, review-status, and publication reports carry a
+compact binding context so a later operation can detect cross-workspace or
+cross-run reuse before execution.
+
+For bounded local migration diagnostics only,
+`--allow-legacy-workspace-execution` (or
+`SPECSPACE_ALLOW_LEGACY_WORKSPACE_EXECUTION=1`) can bypass this guard. The flag
+is disabled by default and must not be used as a production profile.
+
 ## Scope
 
 Managed operations are opt-in backend actions where the browser asks SpecSpace

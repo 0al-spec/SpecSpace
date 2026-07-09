@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from viewer import idea_maturity, managed_operations_registry
+from viewer import idea_maturity, managed_operations_registry, product_workspace_binding
 from viewer.real_idea_answer_authoring_contract import (
     real_idea_answer_authoring_contract_error,
     real_idea_answer_set_contract_error,
@@ -2544,6 +2544,15 @@ def _workspace_initialization_surface(
         )
     )
     selected_execution = execution if execution_workspace_matches else None
+    selected_binding = _record((selected_execution or {}).get("workspace_binding"))
+    binding_reasons = (
+        product_workspace_binding.validate_binding(
+            selected_binding,
+            workspace_id=execution_workspace_id,
+        )
+        if selected_execution is not None and execution_workspace_id is not None
+        else ["workspace_binding_missing"]
+    )
     plan_summary = _record((selected_plan or {}).get("summary"))
     request_summary = _record((selected_request or {}).get("summary"))
     execution_summary = _record((selected_execution or {}).get("summary"))
@@ -2582,6 +2591,11 @@ def _workspace_initialization_surface(
         and selected_execution.get("dry_run") is not True
         and execution_summary.get("catalog_written") is True
         and execution_summary.get("workspace_files_created") is True
+    )
+    binding_execution = _record(selected_binding.get("execution"))
+    binding_routing = _record(selected_binding.get("routing"))
+    bound_run_dir_ref = _optional_text(
+        binding_execution.get("platform_default_run_dir_ref")
     )
     return {
         "available": selected_plan is not None
@@ -2646,12 +2660,43 @@ def _workspace_initialization_surface(
             "route": _optional_text(workspace.get("route")),
             "repository_role": _optional_text(workspace.get("repository_role")),
         },
+        "binding": {
+            "available": bool(selected_binding),
+            "trusted": not binding_reasons,
+            "status": _optional_text(selected_binding.get("status"))
+            if not binding_reasons
+            else "invalid",
+            "binding_id": _optional_text(selected_binding.get("binding_id"))
+            if not binding_reasons
+            else None,
+            "binding_revision_sha256": _optional_text(
+                selected_binding.get("binding_revision_sha256")
+            )
+            if not binding_reasons
+            else None,
+            "specspace_state_namespace_ref": _safe_ref(
+                binding_routing.get("specspace_state_namespace_ref")
+            )
+            if not binding_reasons
+            else None,
+            "platform_default_run_dir_ref": bound_run_dir_ref
+            if not binding_reasons
+            else None,
+            "product_artifact_manifest_ref": _safe_ref(
+                binding_routing.get("product_artifact_manifest_ref")
+            )
+            if not binding_reasons
+            else None,
+            "reasons": binding_reasons,
+        },
         "refs": {
             "plan": _safe_ref(
                 (selected_execution or selected_request or {}).get("plan_ref")
             ),
             "execution_request": (
-                f"runs/{PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT}"
+                f"{bound_run_dir_ref}/{PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT}"
+                if selected_request is not None and bound_run_dir_ref
+                else f"runs/{PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REQUEST_ARTIFACT}"
                 if selected_request is not None
                 else None
             ),
@@ -8164,22 +8209,41 @@ def _managed_operation_input_required(
     )
 
 
+def _managed_operation_bound_ref(payload: dict[str, Any], ref: str) -> str:
+    if not ref.startswith("runs/"):
+        return ref
+    binding = _record(payload.get("workspace_binding"))
+    if binding.get("status") != "ready" or binding.get("trusted") is not True:
+        return ref
+    run_dir_ref = _optional_text(
+        _record(binding.get("routing")).get("platform_default_run_dir_ref")
+    )
+    if run_dir_ref is None:
+        return ref
+    suffix = ref.removeprefix("runs/")
+    if suffix.startswith(run_dir_ref.removeprefix("runs/") + "/"):
+        return ref
+    return f"{run_dir_ref}/{suffix}"
+
+
 def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]:
     operations: list[dict[str, Any]] = []
     for operation in managed_operations_registry.MANAGED_OPERATIONS:
         inputs = []
         for ref in operation.input_refs:
             input_payload = _managed_operation_ref_payload(payload, ref)
+            input_payload["ref"] = _managed_operation_bound_ref(payload, ref)
             input_payload["required"] = _managed_operation_input_required(
                 payload,
                 operation=operation,
                 ref=ref,
             )
             inputs.append(input_payload)
-        outputs = [
-            _managed_operation_ref_payload(payload, ref)
-            for ref in operation.output_reports
-        ]
+        outputs = []
+        for ref in operation.output_reports:
+            output_payload = _managed_operation_ref_payload(payload, ref)
+            output_payload["ref"] = _managed_operation_bound_ref(payload, ref)
+            outputs.append(output_payload)
         missing_inputs = [
             _text(item.get("ref"))
             for item in inputs

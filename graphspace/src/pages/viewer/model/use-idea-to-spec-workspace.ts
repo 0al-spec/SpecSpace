@@ -1247,6 +1247,8 @@ export type IdeaToSpecManagedModeReadiness = {
     productWorkspace: boolean;
     productWorkspaceArtifactBaseConfigured: boolean | null;
     artifactBaseStatus: string;
+    bindingStatus: string;
+    bindingId: string | null;
   };
   authorityBoundary: IdeaToSpecGuidedFlowBoundary;
 };
@@ -4652,6 +4654,8 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
         productWorkspace: false,
         productWorkspaceArtifactBaseConfigured: null,
         artifactBaseStatus: "unknown",
+        bindingStatus: "missing",
+        bindingId: null,
       },
       authorityBoundary: parseGuidedFlowBoundary(),
     };
@@ -4701,6 +4705,8 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
           ? workspace.product_workspace_artifact_base_configured
           : null,
       artifactBaseStatus: stringValue(workspace.artifact_base_status, "unknown"),
+      bindingStatus: stringValue(workspace.binding_status, "missing"),
+      bindingId: optionalString(workspace.binding_id),
     },
     authorityBoundary: parseGuidedFlowBoundary(),
   };

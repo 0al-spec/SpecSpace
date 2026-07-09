@@ -78,8 +78,8 @@ def _runs_dir(server: Any) -> Path | None:
     return runs_dir if isinstance(runs_dir, Path) else None
 
 
-def _runs_path(server: Any, filename: str) -> Path | None:
-    runs_dir = _runs_dir(server)
+def _runs_path(server: Any, filename: str, *, workspace_id: str) -> Path | None:
+    runs_dir = specspace_provider.runs_dir_for_workspace(server, workspace_id)
     return runs_dir / filename if runs_dir is not None else None
 
 
@@ -156,9 +156,16 @@ def execute_read_model_publication(
         return HTTPStatus.BAD_REQUEST, {
             "error": "workspace_id is required for managed read-model publication."
         }
+    binding_error = specspace_provider.managed_workspace_binding_error(
+        server, selected_workspace_id
+    )
+    if binding_error is not None:
+        return HTTPStatus.CONFLICT, binding_error
 
     review_status_path = _runs_path(
-        server, PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT
+        server,
+        PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT,
+        workspace_id=selected_workspace_id,
     )
     if review_status_path is None or not review_status_path.is_file():
         return HTTPStatus.NOT_FOUND, {
@@ -197,7 +204,12 @@ def execute_read_model_publication(
     runs_dir = _runs_dir(server)
     if runs_dir is None:
         return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload()
-    output_path = runs_dir / PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
+    output_dir = (
+        specspace_provider.runs_dir_for_workspace(server, selected_workspace_id)
+        or runs_dir
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     read_model_dir = _output_dir(specgraph_dir, selected_workspace_id)
 

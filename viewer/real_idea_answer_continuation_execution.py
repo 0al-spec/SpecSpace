@@ -266,6 +266,11 @@ def execute_requested_continuation(
         return HTTPStatus.BAD_REQUEST, {
             "error": "workspace_id is required for managed answer continuation execution."
         }
+    binding_error = specspace_provider.managed_workspace_binding_error(
+        server, selected_workspace_id
+    )
+    if binding_error is not None:
+        return HTTPStatus.CONFLICT, binding_error
 
     request_id = _text(payload.get("request_id"))
     status, state_or_error, request = _active_requested_continuation_execution(
@@ -341,7 +346,12 @@ def execute_requested_continuation(
     execution_request_path = (
         real_idea_answer_continuation_execution_requests.state_path(server)
     )
-    output_path = runs_dir / EXECUTION_REPORT_ARTIFACT
+    output_dir = (
+        specspace_provider.runs_dir_for_workspace(server, selected_workspace_id)
+        or runs_dir
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / EXECUTION_REPORT_ARTIFACT
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
 
     timeout = getattr(server, "platform_execution_timeout_seconds", 120)

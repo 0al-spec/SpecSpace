@@ -2121,6 +2121,11 @@ function ManagedOperationsObservabilitySection({
             value={readiness.workspace.artifactBaseStatus}
           />
           <Meta
+            label="Workspace binding"
+            value={readiness.workspace.bindingStatus.replace(/_/g, " ")}
+          />
+          <Meta label="Binding id" value={readiness.workspace.bindingId} />
+          <Meta
             label="Execution authority"
             value={boolText(readiness.authorityBoundary.mayExecutePlatform)}
           />

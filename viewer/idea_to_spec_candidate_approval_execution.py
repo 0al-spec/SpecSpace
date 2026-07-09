@@ -96,8 +96,17 @@ def _runs_dir(server: Any) -> Path | None:
     return runs_dir if isinstance(runs_dir, Path) else None
 
 
-def _runs_path(server: Any, filename: str) -> Path | None:
-    runs_dir = _runs_dir(server)
+def _runs_path(
+    server: Any,
+    filename: str,
+    *,
+    workspace_id: str | None = None,
+) -> Path | None:
+    runs_dir = (
+        specspace_provider.runs_dir_for_workspace(server, workspace_id)
+        if workspace_id is not None
+        else _runs_dir(server)
+    )
     return runs_dir / filename if runs_dir is not None else None
 
 
@@ -199,11 +208,12 @@ def _current_artifact_path(
     *,
     preferred_filename: str,
     fallback_filename: str,
+    workspace_id: str,
 ) -> Path | None:
-    preferred = _runs_path(server, preferred_filename)
+    preferred = _runs_path(server, preferred_filename, workspace_id=workspace_id)
     if preferred is not None and preferred.is_file():
         return preferred
-    fallback = _runs_path(server, fallback_filename)
+    fallback = _runs_path(server, fallback_filename, workspace_id=workspace_id)
     return fallback if fallback is not None and fallback.is_file() else None
 
 
@@ -245,6 +255,11 @@ def execute_candidate_approval(
         return HTTPStatus.BAD_REQUEST, {
             "error": "workspace_id is required for managed candidate approval execution."
         }
+    binding_error = specspace_provider.managed_workspace_binding_error(
+        server, selected_workspace_id
+    )
+    if binding_error is not None:
+        return HTTPStatus.CONFLICT, binding_error
 
     approval_intents_path = _state_path(
         server,
@@ -269,16 +284,19 @@ def execute_candidate_approval(
         server,
         preferred_filename=idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
         fallback_filename=idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
+        workspace_id=selected_workspace_id,
     )
     repair_session_path = _current_artifact_path(
         server,
         preferred_filename=idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
         fallback_filename=idea_to_spec_workspace.IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT,
+        workspace_id=selected_workspace_id,
     )
     promotion_gate_path = _current_artifact_path(
         server,
         preferred_filename=idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
         fallback_filename=idea_to_spec_workspace.IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT,
+        workspace_id=selected_workspace_id,
     )
     if repair_session_path is None or promotion_gate_path is None:
         return HTTPStatus.CONFLICT, {
@@ -321,8 +339,16 @@ def execute_candidate_approval(
             "matching_intent_count": len(matching_intents),
         }
 
-    repair_execution_path = _runs_path(server, REPAIR_EXECUTION_REPORT_ARTIFACT)
-    repair_publication_path = _runs_path(server, REPAIR_PUBLICATION_REPORT_ARTIFACT)
+    repair_execution_path = _runs_path(
+        server,
+        REPAIR_EXECUTION_REPORT_ARTIFACT,
+        workspace_id=selected_workspace_id,
+    )
+    repair_publication_path = _runs_path(
+        server,
+        REPAIR_PUBLICATION_REPORT_ARTIFACT,
+        workspace_id=selected_workspace_id,
+    )
     if repair_execution_path is None or not repair_execution_path.is_file():
         return HTTPStatus.NOT_FOUND, {
             "error": "Repair rerun execution report artifact not found.",
@@ -355,11 +381,17 @@ def execute_candidate_approval(
     repaired_handoff_path = _runs_path(
         server,
         idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT,
+        workspace_id=selected_workspace_id,
     )
 
-    gate_output_path = runs_dir / CANDIDATE_APPROVAL_GATE_REPORT_ARTIFACT
-    decision_output_path = runs_dir / CANDIDATE_APPROVAL_DECISION_ARTIFACT
-    execution_output_path = runs_dir / APPROVAL_EXECUTION_REPORT_ARTIFACT
+    output_dir = (
+        specspace_provider.runs_dir_for_workspace(server, selected_workspace_id)
+        or runs_dir
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    gate_output_path = output_dir / CANDIDATE_APPROVAL_GATE_REPORT_ARTIFACT
+    decision_output_path = output_dir / CANDIDATE_APPROVAL_DECISION_ARTIFACT
+    execution_output_path = output_dir / APPROVAL_EXECUTION_REPORT_ARTIFACT
     output_ref = f"runs/{execution_output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     selected_intent = matching_intents[0]
     consume_status, consume_body = (
@@ -440,6 +472,15 @@ def execute_candidate_approval(
         "--format",
         "json",
     ]
+    workspace_initialization_path = (
+        specspace_provider.workspace_initialization_report_path(
+            server, selected_workspace_id
+        )
+    )
+    if workspace_initialization_path is not None:
+        command.extend(
+            ["--workspace-initialization", str(workspace_initialization_path)]
+        )
     if active_candidate_path is not None:
         command.extend(["--active-candidate", str(active_candidate_path)])
     if repaired_handoff_path is not None and repaired_handoff_path.is_file():

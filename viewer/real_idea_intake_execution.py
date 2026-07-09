@@ -261,6 +261,11 @@ def execute_requested_intake(
         return HTTPStatus.BAD_REQUEST, {
             "error": "workspace_id is required for managed real idea intake execution."
         }
+    binding_error = specspace_provider.managed_workspace_binding_error(
+        server, selected_workspace_id
+    )
+    if binding_error is not None:
+        return HTTPStatus.CONFLICT, binding_error
 
     request_id = _text(payload.get("request_id"))
     status, state_or_error, request = _active_requested_intake_execution(
@@ -315,7 +320,12 @@ def execute_requested_intake(
     )
     if entry_error is not None:
         return HTTPStatus.CONFLICT, entry_error
-    output_path = runs_dir / EXECUTION_REPORT_ARTIFACT
+    output_dir = (
+        specspace_provider.runs_dir_for_workspace(server, selected_workspace_id)
+        or runs_dir
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / EXECUTION_REPORT_ARTIFACT
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     consume_status, consume_body = (
         real_idea_intake_execution_requests.mark_request_consumed(

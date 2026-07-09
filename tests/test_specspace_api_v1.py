@@ -1567,6 +1567,7 @@ def _start(
     specspace_state_dir: Path | None = None,
     platform_dir: Path | None = None,
     platform_execution_enabled: bool = False,
+    allow_legacy_workspace_execution: bool = True,
     platform_execution_timeout_seconds: int = 120,
 ) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.ViewerHandler)
@@ -1593,6 +1594,7 @@ def _start(
     httpd.runs_watcher = server.RunsWatcher(runs_dir) if runs_dir else None
     httpd.platform_dir = platform_dir
     httpd.platform_execution_enabled = platform_execution_enabled
+    httpd.allow_legacy_workspace_execution = allow_legacy_workspace_execution
     httpd.platform_execution_timeout_seconds = platform_execution_timeout_seconds
     httpd.artifact_base_url = artifact_base_url
     httpd.team_decision_log_artifact_base_url = team_decision_log_artifact_base_url
@@ -7037,6 +7039,42 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["authority_boundary"]["specspace_backend_executes_platform"]
         )
 
+    def test_real_idea_intake_execute_requires_durable_workspace_binding(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "#!/usr/bin/env python3\n",
+                encoding="utf-8",
+            )
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text("all:\n\t@true\n", encoding="utf-8")
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                allow_legacy_workspace_execution=False,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/real-idea-intake/execute?workspace=pantry-rotation",
+                    {"workspace_id": "pantry-rotation"},
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(body["reason"], "durable_workspace_binding_not_ready")
+        self.assertEqual(body["binding_status"], "legacy_read_only")
+
     def test_real_idea_intake_execute_runs_allowlisted_platform(
         self,
     ) -> None:
@@ -11684,24 +11722,19 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 200)
         readiness = body["managed_mode_readiness"]
-        self.assertEqual(readiness["status"], "backend_managed_ready")
+        self.assertEqual(readiness["status"], "backend_managed_misconfigured")
         self.assertEqual(readiness["mode"], "backend_managed")
         self.assertTrue(readiness["executor"]["enabled"])
-        self.assertTrue(readiness["executor"]["configured"])
+        self.assertFalse(readiness["executor"]["configured"])
         self.assertTrue(readiness["executor"]["platform_cli_present"])
         self.assertEqual(readiness["executor"]["timeout_seconds"], 45)
         self.assertEqual(
             readiness["operations"]["enabled_count"],
-            body["managed_operations_observability"]["summary"][
-                "ready_to_execute_count"
-            ],
+            0,
         )
         self.assertEqual(
             readiness["operations"]["disabled_count"],
-            len(managed_operations_registry.MANAGED_OPERATIONS)
-            - body["managed_operations_observability"]["summary"][
-                "ready_to_execute_count"
-            ],
+            len(managed_operations_registry.MANAGED_OPERATIONS),
         )
         self.assertEqual(
             readiness["operations"]["counting_basis"],
@@ -11710,7 +11743,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(readiness["state"]["specspace_state_dir_writable"])
         self.assertTrue(readiness["state"]["runs_dir_ready"])
         self.assertTrue(readiness["state"]["runs_dir_writable"])
-        self.assertEqual(readiness["disabled_reasons"], [])
+        self.assertEqual(
+            readiness["disabled_reasons"],
+            ["durable_workspace_binding_not_ready"],
+        )
         dumped = json.dumps(readiness)
         self.assertNotIn(str(platform_dir), dumped)
         self.assertNotIn(str(state_dir), dumped)
@@ -12604,7 +12640,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(body["status"], "completed")
         self.assertEqual(
             body["output_ref"],
-            "runs/"
+            "runs/pantry-rotation/"
             + idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
         )
         self.assertEqual(
@@ -12615,8 +12651,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(
             body["authority_boundary"]["specspace_backend_executes_platform"]
         )
-        self.assertTrue(report_file_exists)
-        self.assertFalse(nested_report_file_exists)
+        self.assertFalse(report_file_exists)
+        self.assertTrue(nested_report_file_exists)
 
     def test_product_workspace_initialization_execute_rejects_cross_workspace_request_artifact(
         self,

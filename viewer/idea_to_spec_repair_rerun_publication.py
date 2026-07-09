@@ -69,8 +69,8 @@ def _specgraph_dir(server: Any) -> Path | None:
     return specgraph_dir if (specgraph_dir / "Makefile").is_file() else None
 
 
-def _runs_path(server: Any, filename: str) -> Path | None:
-    runs_dir = getattr(server, "runs_dir", None)
+def _runs_path(server: Any, filename: str, *, workspace_id: str) -> Path | None:
+    runs_dir = specspace_provider.runs_dir_for_workspace(server, workspace_id)
     if not isinstance(runs_dir, Path):
         return None
     return runs_dir / filename
@@ -122,8 +122,17 @@ def publish_repair_rerun(
         return HTTPStatus.BAD_REQUEST, {
             "error": "workspace_id is required for managed repair rerun publication."
         }
+    binding_error = specspace_provider.managed_workspace_binding_error(
+        server, selected_workspace_id
+    )
+    if binding_error is not None:
+        return HTTPStatus.CONFLICT, binding_error
 
-    execution_report_path = _runs_path(server, EXECUTION_REPORT_ARTIFACT)
+    execution_report_path = _runs_path(
+        server,
+        EXECUTION_REPORT_ARTIFACT,
+        workspace_id=selected_workspace_id,
+    )
     if execution_report_path is None:
         return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload()
     if not execution_report_path.is_file():
@@ -153,7 +162,12 @@ def publish_repair_rerun(
 
     runs_dir = getattr(server, "runs_dir", None)
     assert isinstance(runs_dir, Path)
-    output_path = runs_dir / PUBLICATION_REPORT_ARTIFACT
+    output_dir = (
+        specspace_provider.runs_dir_for_workspace(server, selected_workspace_id)
+        or runs_dir
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / PUBLICATION_REPORT_ARTIFACT
     output_ref = (
         f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     )

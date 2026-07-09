@@ -351,6 +351,11 @@ def execute_requested_rerun(
         return HTTPStatus.BAD_REQUEST, {
             "error": "workspace_id is required for managed repair rerun execution."
         }
+    binding_error = specspace_provider.managed_workspace_binding_error(
+        server, selected_workspace_id
+    )
+    if binding_error is not None:
+        return HTTPStatus.CONFLICT, binding_error
 
     request_id = _text(payload.get("request_id"))
     status, state_or_error, request = _active_requested_rerun(
@@ -453,10 +458,15 @@ def execute_requested_rerun(
             **gate_error,
         }
 
-    plan_dir = runs_dir / "managed_repair_rerun_plans"
+    output_dir = (
+        specspace_provider.runs_dir_for_workspace(server, selected_workspace_id)
+        or runs_dir
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    plan_dir = output_dir / "managed_repair_rerun_plans"
     plan_dir.mkdir(parents=True, exist_ok=True)
     plan_path = plan_dir / f"{_safe_fragment(_text(request.get('id')))}.{PLAN_ARTIFACT}"
-    output_path = runs_dir / EXECUTION_REPORT_ARTIFACT
+    output_path = output_dir / EXECUTION_REPORT_ARTIFACT
     plan_ref = f"runs/{plan_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     consume_status, consume_body = idea_to_spec_repair_rerun_requests.mark_request_consumed(
@@ -530,6 +540,15 @@ def execute_requested_rerun(
         "--format",
         "json",
     ]
+    workspace_initialization_path = (
+        specspace_provider.workspace_initialization_report_path(
+            server, selected_workspace_id
+        )
+    )
+    if workspace_initialization_path is not None:
+        plan_command.extend(
+            ["--workspace-initialization", str(workspace_initialization_path)]
+        )
     try:
         plan_completed, plan_report = _run_json_command(
             plan_command,

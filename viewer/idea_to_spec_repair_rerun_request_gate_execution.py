@@ -242,6 +242,17 @@ def execute_requested_request_gate(
         return HTTPStatus.BAD_REQUEST, {
             "error": "workspace_id is required for managed repair rerun request gate execution."
         }
+    binding_error = specspace_provider.managed_workspace_binding_error(
+        server, selected_workspace_id
+    )
+    if binding_error is not None:
+        return HTTPStatus.CONFLICT, binding_error
+    workspace_initialization_path = (
+        specspace_provider.workspace_initialization_report_path(
+            server,
+            selected_workspace_id,
+        )
+    )
 
     request_id = _text(payload.get("request_id"))
     status, state_or_error, request = _active_requested_gate(
@@ -325,8 +336,13 @@ def execute_requested_request_gate(
     if not isinstance(runs_dir, Path):
         return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload()
 
-    output_gate_path = runs_dir / REQUEST_GATE_ARTIFACT
-    output_report_path = runs_dir / EXECUTION_REPORT_ARTIFACT
+    output_dir = (
+        specspace_provider.runs_dir_for_workspace(server, selected_workspace_id)
+        or runs_dir
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_gate_path = output_dir / REQUEST_GATE_ARTIFACT
+    output_report_path = output_dir / EXECUTION_REPORT_ARTIFACT
     output_gate_ref = (
         f"runs/{output_gate_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     )
@@ -403,6 +419,10 @@ def execute_requested_request_gate(
         "--format",
         "json",
     ]
+    if workspace_initialization_path is not None:
+        command.extend(
+            ["--workspace-initialization", str(workspace_initialization_path)]
+        )
     completed = subprocess.run(
         command,
         cwd=str(platform_script.parent.parent),
