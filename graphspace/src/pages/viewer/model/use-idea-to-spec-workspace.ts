@@ -1079,6 +1079,31 @@ export type IdeaToSpecProductWorkspaceOverviewPhase = {
   evidenceRefs: readonly string[];
 };
 
+export type IdeaToSpecQualityGuidedAction = {
+  id: string;
+  rank: number;
+  category: string;
+  disposition: string;
+  label: string;
+  reason: string;
+  owner: string;
+  status: string;
+  targetSection: string | null;
+  blockers: readonly string[];
+  evidenceRefs: readonly string[];
+  authorityBoundary: IdeaToSpecGuidedFlowBoundary;
+};
+
+export type IdeaToSpecQualityGuidedActionRanking = {
+  available: boolean;
+  policyId: string | null;
+  candidateCount: number;
+  omittedCount: number;
+  primaryAction: IdeaToSpecQualityGuidedAction;
+  secondaryActions: readonly IdeaToSpecQualityGuidedAction[];
+  authorityBoundary: IdeaToSpecGuidedFlowBoundary;
+};
+
 export type IdeaToSpecProductWorkspaceOverview = {
   available: boolean;
   status: string;
@@ -1086,6 +1111,7 @@ export type IdeaToSpecProductWorkspaceOverview = {
   currentPhaseLabel: string;
   nextSafeAction: string;
   primaryTargetSection: string | null;
+  actionRanking: IdeaToSpecQualityGuidedActionRanking;
   readiness: {
     status: string;
     ready: boolean;
@@ -4211,6 +4237,52 @@ function parseProductWorkspaceOverviewPhase(
   };
 }
 
+function legacyQualityGuidedAction(
+  label: string,
+  targetSection: string | null,
+  status: string,
+  blockers: readonly string[],
+  evidenceRefs: readonly string[],
+): IdeaToSpecQualityGuidedAction {
+  return {
+    id: "quality.legacy_overview",
+    rank: 1,
+    category: "lifecycle",
+    disposition: "required",
+    label,
+    reason: "Derived from legacy Product Workspace overview fields.",
+    owner: "Product workspace",
+    status,
+    targetSection,
+    blockers,
+    evidenceRefs,
+    authorityBoundary: parseGuidedFlowBoundary(),
+  };
+}
+
+function parseQualityGuidedAction(
+  raw: unknown,
+): IdeaToSpecQualityGuidedAction | null {
+  const action = recordValue(raw);
+  const id = optionalString(action.id);
+  const label = optionalString(action.label);
+  if (!id || !label) return null;
+  return {
+    id,
+    rank: numberValue(action.rank),
+    category: stringValue(action.category, "lifecycle"),
+    disposition: stringValue(action.disposition, "required"),
+    label,
+    reason: stringValue(action.reason, "Inspect the selected lifecycle evidence."),
+    owner: stringValue(action.owner, "Product workspace"),
+    status: stringValue(action.status, "unknown"),
+    targetSection: optionalString(action.target_section),
+    blockers: strings(action.blockers),
+    evidenceRefs: strings(action.evidence_refs),
+    authorityBoundary: parseGuidedFlowBoundary(),
+  };
+}
+
 function parseProductWorkspaceOverview(
   raw: unknown,
   guidedFlow: IdeaToSpecGuidedFlow,
@@ -4248,14 +4320,32 @@ function parseProductWorkspaceOverview(
       phaseDefinitions.find(([, , stageIds]) =>
         (stageIds as readonly string[]).includes(guidedFlow.currentStage),
       ) ?? null;
+    const nextSafeAction =
+      current?.label ?? "Inspect the current product workspace lifecycle stage.";
+    const primaryTargetSection = current?.targetSection ?? null;
+    const legacyAction = legacyQualityGuidedAction(
+      nextSafeAction,
+      primaryTargetSection,
+      guidedFlow.overallStatus,
+      guidedFlow.stages.flatMap((stage) => stage.blockers),
+      current?.evidenceRefs ?? [],
+    );
     return {
       available: false,
       status: guidedFlow.overallStatus,
       currentPhase: currentPhase?.[0] ?? "missing",
       currentPhaseLabel: currentPhase?.[1] ?? guidedFlow.currentStageLabel,
-      nextSafeAction:
-        current?.label ?? "Inspect the current product workspace lifecycle stage.",
-      primaryTargetSection: current?.targetSection ?? null,
+      nextSafeAction,
+      primaryTargetSection,
+      actionRanking: {
+        available: false,
+        policyId: null,
+        candidateCount: 1,
+        omittedCount: 0,
+        primaryAction: legacyAction,
+        secondaryActions: [],
+        authorityBoundary: parseGuidedFlowBoundary(),
+      },
       readiness: {
         status: guidedFlow.overallStatus,
         ready: false,
@@ -4298,16 +4388,40 @@ function parseProductWorkspaceOverview(
   const readiness = recordValue(overview.readiness);
   const lastSuccessfulHandoff = recordValue(overview.last_successful_handoff);
   const confidence = recordValue(overview.confidence);
+  const nextSafeAction = stringValue(
+    overview.next_safe_action,
+    "Inspect the current product workspace lifecycle stage.",
+  );
+  const primaryTargetSection = optionalString(overview.primary_target_section);
+  const legacyAction = legacyQualityGuidedAction(
+    nextSafeAction,
+    primaryTargetSection,
+    stringValue(overview.status, "missing"),
+    strings(readiness.blockers),
+    strings(confidence.source_refs),
+  );
+  const ranking = recordValue(overview.action_ranking);
+  const parsedPrimaryAction = parseQualityGuidedAction(ranking.primary_action);
+  const primaryAction = parsedPrimaryAction ?? legacyAction;
   return {
     available: overview.available === true,
     status: stringValue(overview.status, "missing"),
     currentPhase: stringValue(overview.current_phase, "unknown"),
     currentPhaseLabel: stringValue(overview.current_phase_label, "Current phase"),
-    nextSafeAction: stringValue(
-      overview.next_safe_action,
-      "Inspect the current product workspace lifecycle stage.",
-    ),
-    primaryTargetSection: optionalString(overview.primary_target_section),
+    nextSafeAction,
+    primaryTargetSection,
+    actionRanking: {
+      available: ranking.available === true && parsedPrimaryAction !== null,
+      policyId: optionalString(ranking.policy_id),
+      candidateCount: numberValue(ranking.candidate_count),
+      omittedCount: numberValue(ranking.omitted_count),
+      primaryAction,
+      secondaryActions: records(ranking.secondary_actions).flatMap((item) => {
+        const parsed = parseQualityGuidedAction(item);
+        return parsed ? [parsed] : [];
+      }),
+      authorityBoundary: parseGuidedFlowBoundary(),
+    },
     readiness: {
       status: stringValue(readiness.status, "unknown"),
       ready: readiness.ready === true,
@@ -4898,6 +5012,36 @@ function guidedFlowBoundariesAreSafe(raw: unknown): boolean {
 function productWorkspaceOverviewBoundaryIsSafe(raw: unknown): boolean {
   if (!isRecord(raw)) return true;
   const boundary = recordValue(raw.authority_boundary);
+  const allowedMayFlags = new Set([
+    "may_execute_specgraph",
+    "may_execute_platform",
+    "may_execute_git_service",
+    "may_mutate_candidate_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_branch_or_commit",
+    "may_open_pull_request",
+    "may_merge_review",
+  ]);
+  for (const key of Object.keys(boundary)) {
+    if (key.startsWith("may_") && !allowedMayFlags.has(key)) return false;
+  }
+  if (!guidedFlowBoundaryIsSafe(boundary)) return false;
+  const ranking = recordValue(raw.action_ranking);
+  if (Object.keys(ranking).length === 0) return true;
+  if (!qualityGuidedActionBoundaryIsSafe(ranking.authority_boundary)) return false;
+  const actions = [
+    ...records(ranking.secondary_actions),
+    ...(isRecord(ranking.primary_action) ? [ranking.primary_action] : []),
+  ];
+  return actions.every((action) =>
+    qualityGuidedActionBoundaryIsSafe(action.authority_boundary),
+  );
+}
+
+function qualityGuidedActionBoundaryIsSafe(raw: unknown): boolean {
+  const boundary = recordValue(raw);
   const allowedMayFlags = new Set([
     "may_execute_specgraph",
     "may_execute_platform",

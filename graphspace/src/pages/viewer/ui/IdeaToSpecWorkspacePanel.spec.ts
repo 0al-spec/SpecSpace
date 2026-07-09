@@ -118,6 +118,21 @@ describe("IdeaToSpecWorkspacePanel", () => {
     }
   });
 
+  it("rejects authority expansion inside quality-guided actions", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.product_workspace_overview.action_ranking.primary_action.authority_boundary.may_apply_state =
+      true;
+
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsedWorkspace.kind).toBe("parse-error");
+    if (parsedWorkspace.kind === "parse-error") {
+      expect(parsedWorkspace.reason).toBe(
+        "product workspace overview boundary expanded",
+      );
+    }
+  });
+
   it("shows managed operations observability rows", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.managed_operations_observability = {
@@ -274,7 +289,13 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Idea-to-Spec Workspace");
     expect(html).toContain("Product workspace overview");
     expect(html).toContain('id="idea-to-spec-product-workspace-overview"');
-    expect(html).toContain("Next safe action");
+    expect(html).toContain("Required next step");
+    expect(html).toContain("Required follow-up");
+    expect(html).toContain('data-testid="quality-guided-primary-action"');
+    expect(html).toContain('data-testid="quality-guided-secondary-actions"');
+    expect(html).toContain(
+      "specspace.product-workspace.quality-guided-next-action.v0.1",
+    );
     expect(html).toContain("Current phase");
     expect(html).toContain("Progress");
     expect(html).toContain("Workspace");
@@ -517,6 +538,34 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).not.toContain("Apply to SpecGraph");
     expect(html).not.toContain("Accept ontology term");
     expect(html).not.toContain("Create branch");
+  });
+
+  it("distinguishes structural depth recommendations from required actions", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    const primary = raw.product_workspace_overview.action_ranking.primary_action;
+    primary.id = "quality.structural_depth";
+    primary.category = "structural_depth";
+    primary.disposition = "recommended";
+    primary.label = "Clarify product actors before presenting the candidate.";
+    primary.reason = "Quality guidance only; this does not replace lifecycle gates.";
+    primary.owner = "SpecGraph";
+    primary.target_section = "idea-to-spec-candidate-overview";
+    raw.product_workspace_overview.next_safe_action = primary.label;
+    raw.product_workspace_overview.primary_target_section = primary.target_section;
+
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    expect(parsedWorkspace.kind).toBe("ok");
+    if (parsedWorkspace.kind !== "ok") return;
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toContain("Recommended quality improvement");
+    expect(html).toContain("Quality guidance only");
+    expect(html).toContain("SpecGraph / structural depth");
   });
 
   it("shows managed repair request gate action when the gate is the next step", () => {

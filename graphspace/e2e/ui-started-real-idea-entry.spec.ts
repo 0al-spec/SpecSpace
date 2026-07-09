@@ -2509,7 +2509,11 @@ test("opens a presentation demo view from product workspace overview", async ({
     await installIdeaToSpecApiRoutes(page, backend.baseUrl);
 
     await page.goto(`/${workspaceId}`);
-    await expect(page.getByText("Product workspace overview")).toBeVisible();
+    await expect(
+      page
+        .locator("#idea-to-spec-product-workspace-overview")
+        .getByText("Product workspace overview", { exact: true }),
+    ).toBeVisible();
     await page.getByTestId("product-demo-view-link").click();
 
     await expect(page).toHaveURL(/\/team-decision-log\?view=demo$/);

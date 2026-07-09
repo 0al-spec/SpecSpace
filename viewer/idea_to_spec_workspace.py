@@ -6520,6 +6520,441 @@ PRODUCT_WORKSPACE_OVERVIEW_PHASES: tuple[
     ("publication", "Publication", (STAGE_GIT_DRY_RUN, STAGE_REVIEW_PUBLICATION)),
 )
 
+QUALITY_GUIDED_ACTION_LIMIT = 4
+QUALITY_GUIDED_REPAIR_STAGE_IDS = (
+    STAGE_INTAKE_CLARIFICATION,
+    STAGE_REPAIR_REVIEW,
+    STAGE_ONTOLOGY_DECISIONS,
+    STAGE_PROJECT_LOCAL_ONTOLOGY_REVIEW,
+    STAGE_RERUN_REQUEST,
+    STAGE_REPAIRED_HANDOFF,
+)
+QUALITY_GUIDED_APPROVAL_STAGE_IDS = (
+    STAGE_CANDIDATE_APPROVAL_INTENT,
+    STAGE_PLATFORM_APPROVAL_DECISION,
+)
+QUALITY_GUIDED_PROMOTION_STAGE_IDS = (
+    STAGE_PROMOTION_REQUEST,
+    STAGE_GIT_DRY_RUN,
+)
+
+
+def _quality_guided_action(
+    *,
+    action_id: str,
+    category: str,
+    disposition: str,
+    label: str,
+    reason: str,
+    owner: str,
+    status: str,
+    target_section: str | None,
+    blockers: list[str] | None = None,
+    evidence_refs: list[str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "id": action_id,
+        "category": category,
+        "disposition": disposition,
+        "label": label,
+        "reason": reason,
+        "owner": owner,
+        "status": status,
+        "target_section": target_section,
+        "blockers": list(dict.fromkeys(blockers or []))[:12],
+        "evidence_refs": sorted(set(_safe_refs(evidence_refs or [])))[:12],
+        "authority_boundary": _guided_flow_boundary(),
+    }
+
+
+def _quality_guided_stage_action(
+    stage: dict[str, Any],
+    *,
+    category: str,
+    disposition: str,
+    owner: str,
+    reason: str,
+) -> dict[str, Any]:
+    return _quality_guided_action(
+        action_id=f"quality.{category}.{_text(stage.get('id'), 'unknown')}",
+        category=category,
+        disposition=disposition,
+        label=_text(
+            stage.get("primary_next_action"),
+            "Inspect the current product workspace lifecycle stage.",
+        ),
+        reason=reason,
+        owner=owner,
+        status=_text(stage.get("status"), "unknown"),
+        target_section=_optional_text(stage.get("target_section")),
+        blockers=_string_list(stage.get("blockers")),
+        evidence_refs=_string_list(stage.get("evidence_refs")),
+    )
+
+
+def _quality_guided_first_actionable_stage(
+    stages: list[dict[str, Any]],
+    stage_ids: tuple[str, ...],
+    *,
+    current_stage: str,
+) -> dict[str, Any]:
+    stage_order = {stage_id: index for index, stage_id in enumerate(stage_ids)}
+    candidates = [
+        stage
+        for stage in stages
+        if _text(stage.get("id")) in stage_order
+        and _text(stage.get("status"), "missing") not in {"completed", "ready"}
+        and (
+            _text(stage.get("id")) == current_stage
+            or _text(stage.get("status")) in {"available", "waiting_for_operator"}
+        )
+    ]
+    return min(
+        candidates,
+        key=lambda stage: stage_order[_text(stage.get("id"))],
+        default={},
+    )
+
+
+def _quality_guided_action_ranking(
+    payload: dict[str, Any],
+    *,
+    overview_status: str,
+    current_phase_id: str,
+) -> dict[str, Any]:
+    guided = _record(payload.get("guided_flow"))
+    stages = _records(guided.get("stages"))
+    current_stage = _text(guided.get("current_stage"), "unknown")
+    current_stage_record = next(
+        (stage for stage in stages if _text(stage.get("id")) == current_stage),
+        {},
+    )
+    candidates: list[tuple[int, int, dict[str, Any]]] = []
+
+    def append(priority: int, action: dict[str, Any]) -> None:
+        candidates.append((priority, len(candidates), action))
+
+    hygiene = _record(payload.get("workspace_state_hygiene"))
+    hygiene_summary = _record(hygiene.get("summary"))
+    hygiene_states = [
+        state
+        for state in _records(hygiene.get("states"))
+        if _text(state.get("status")) in {"stale", "invalid"}
+    ]
+    if _number(hygiene_summary.get("blocking_state_count")) > 0 or hygiene_states:
+        recommended_actions = [
+            action
+            for action in _records(hygiene.get("recommended_actions"))
+            if action.get("enabled") is True
+        ]
+        selected_action = _record(
+            recommended_actions[0]
+            if recommended_actions
+            else (_records(hygiene.get("recommended_actions")) or [{}])[0]
+        )
+        append(
+            10,
+            _quality_guided_action(
+                action_id="quality.state_hygiene",
+                category="state_hygiene",
+                disposition="required",
+                label=_text(
+                    selected_action.get("label"),
+                    _text(
+                        hygiene_summary.get("next_action"),
+                        "Repair stale or invalid workspace state before continuing.",
+                    ),
+                ),
+                reason=_text(
+                    selected_action.get("reason"),
+                    (
+                        "SpecSpace-owned mutable state is stale or invalid for the "
+                        "current workspace lifecycle."
+                    ),
+                ),
+                owner="SpecSpace",
+                status="blocked",
+                target_section=_optional_text(selected_action.get("target_section"))
+                or "idea-to-spec-workspace-state-hygiene",
+                blockers=[
+                    _text(
+                        state.get("reason"),
+                        _text(state.get("kind"), "stale_state"),
+                    )
+                    for state in hygiene_states
+                ],
+                evidence_refs=[
+                    "workspace_state_hygiene",
+                    *_string_list(selected_action.get("evidence_refs")),
+                ],
+            ),
+        )
+
+    managed = _record(payload.get("managed_operations_observability"))
+    failed_operations = [
+        operation
+        for operation in _records(managed.get("operations"))
+        if _text(operation.get("status")) in {"failed", "stale"}
+    ]
+    if failed_operations:
+        failed_refs = [
+            ref
+            for operation in failed_operations
+            for ref in (
+                _string_list(operation.get("available_output_refs"))
+                or [
+                    _text(report.get("ref"))
+                    for report in _records(operation.get("output_reports"))
+                ]
+            )
+            if ref
+        ]
+        append(
+            20,
+            _quality_guided_action(
+                action_id="quality.managed_operation_failure",
+                category="managed_operation_failure",
+                disposition="required",
+                label=(
+                    _text(failed_operations[0].get("next_safe_action"))
+                    if len(failed_operations) == 1
+                    else (
+                        f"Inspect {len(failed_operations)} failed managed operations "
+                        "before continuing."
+                    )
+                ),
+                reason=(
+                    "A durable managed-operation report records failure or stale "
+                    "execution evidence."
+                ),
+                owner="Platform",
+                status="blocked",
+                target_section="idea-to-spec-managed-operations",
+                blockers=[
+                    _text(operation.get("operation_id"), "managed_operation")
+                    for operation in failed_operations
+                ],
+                evidence_refs=failed_refs,
+            ),
+        )
+
+    if (
+        current_stage
+        in {
+            STAGE_WORKSPACE_INITIALIZATION,
+            STAGE_IDEA_INTAKE,
+            STAGE_CANDIDATE_GRAPH,
+        }
+        and current_stage_record
+    ):
+        stage_action = _quality_guided_stage_action(
+            current_stage_record,
+            category="lifecycle",
+            disposition="required",
+            owner="SpecSpace",
+            reason="Complete the current lifecycle stage before advancing to later product work.",
+        )
+        if overview_status == "route_only":
+            stage_action.update(
+                {
+                    "label": "Create workspace request before initialization.",
+                    "target_section": "idea-to-spec-workspace-creation",
+                }
+            )
+        append(25, stage_action)
+
+    repair_stages = (
+        [
+            stage
+            for stage in stages
+            if _text(stage.get("id")) in QUALITY_GUIDED_REPAIR_STAGE_IDS
+            and (
+                _text(stage.get("id")) == current_stage
+                or bool(_string_list(stage.get("blockers")))
+            )
+            and _text(stage.get("status"), "missing")
+            not in {"completed", "ready"}
+        ]
+        if current_stage in QUALITY_GUIDED_REPAIR_STAGE_IDS
+        else []
+    )
+    repair_stage = (
+        _quality_guided_first_actionable_stage(
+            stages,
+            QUALITY_GUIDED_REPAIR_STAGE_IDS,
+            current_stage=current_stage,
+        )
+        if repair_stages
+        else {}
+    )
+    if repair_stage:
+        repair_action = _quality_guided_stage_action(
+            repair_stage,
+            category="clarification_repair",
+            disposition="required",
+            owner="SpecSpace + SpecGraph",
+            reason="Blocking clarification or repair evidence must be resolved before approval.",
+        )
+        repair_action["blockers"] = list(
+            dict.fromkeys(
+                blocker
+                for stage in repair_stages
+                for blocker in _string_list(stage.get("blockers"))
+            )
+        )[:12]
+        append(30, repair_action)
+
+    maturity = _record(payload.get("idea_maturity"))
+    maturity_report = _record(maturity.get("report"))
+    depth_explainers = [
+        explainer
+        for explainer in _records(maturity_report.get("readiness_explainers"))
+        if _text(explainer.get("kind")).startswith("candidate_structure_")
+        or _text(explainer.get("id")).startswith("candidate-structure-")
+    ]
+    if (
+        maturity.get("trusted") is True
+        and depth_explainers
+        and current_phase_id in {"candidate", "repair", "approval"}
+    ):
+        append(
+            40,
+            _quality_guided_action(
+                action_id="quality.structural_depth",
+                category="structural_depth",
+                disposition="recommended",
+                label=_text(
+                    depth_explainers[0].get("next_action"),
+                    "Improve the candidate structure before presenting it as mature.",
+                ),
+                reason=(
+                    f"{len(depth_explainers)} structural-depth recommendation(s) remain. "
+                    "This is quality guidance, not an approval or promotion gate."
+                ),
+                owner="SpecGraph",
+                status="recommended",
+                target_section="idea-to-spec-candidate-overview",
+                evidence_refs=[
+                    ref
+                    for explainer in depth_explainers
+                    for ref in _string_list(explainer.get("evidence_refs"))
+                ],
+            ),
+        )
+
+    for priority, category, owner, stage_ids, reason in (
+        (
+            50,
+            "approval",
+            "Platform",
+            QUALITY_GUIDED_APPROVAL_STAGE_IDS,
+            "Complete candidate approval evidence before requesting promotion.",
+        ),
+        (
+            60,
+            "promotion",
+            "Platform",
+            QUALITY_GUIDED_PROMOTION_STAGE_IDS,
+            "Complete the controlled promotion handoff before publication.",
+        ),
+        (
+            70,
+            "publication",
+            "Platform",
+            (STAGE_REVIEW_PUBLICATION,),
+            "Complete repository review and public read-model publication.",
+        ),
+    ):
+        stage = _quality_guided_first_actionable_stage(
+            stages,
+            stage_ids,
+            current_stage=current_stage,
+        )
+        if stage:
+            append(
+                priority,
+                _quality_guided_stage_action(
+                    stage,
+                    category=category,
+                    disposition="required",
+                    owner=(
+                        "SpecSpace"
+                        if _text(stage.get("id"))
+                        == STAGE_CANDIDATE_APPROVAL_INTENT
+                        else owner
+                    ),
+                    reason=reason,
+                ),
+            )
+
+    if overview_status == "published":
+        append(
+            80,
+            _quality_guided_action(
+                action_id="quality.presentation",
+                category="presentation",
+                disposition="optional",
+                label="Inspect the published candidate narrative and presentation view.",
+                reason="The lifecycle is complete; presentation review is optional follow-up work.",
+                owner="SpecSpace",
+                status="available",
+                target_section="idea-to-spec-candidate-overview",
+                evidence_refs=_string_list(
+                    _record(
+                        _record(payload.get("controlled_promotion")).get(
+                            "read_model_publication"
+                        )
+                    ).get("source_refs")
+                ),
+            ),
+        )
+
+    if not candidates:
+        next_actions = _records(guided.get("next_actions"))
+        next_action = _record(next_actions[0] if next_actions else {})
+        append(
+            90,
+            _quality_guided_action(
+                action_id="quality.lifecycle_fallback",
+                category="lifecycle",
+                disposition="required",
+                label=_text(
+                    next_action.get("label"),
+                    "Inspect the current product workspace lifecycle stage.",
+                ),
+                reason="No higher-priority state, execution, repair, or quality signal is available.",
+                owner="Product workspace",
+                status=_text(next_action.get("status"), "available"),
+                target_section=_optional_text(next_action.get("target_section")),
+                evidence_refs=_string_list(next_action.get("evidence_refs")),
+            ),
+        )
+
+    ordered: list[dict[str, Any]] = []
+    seen: set[tuple[str, str | None, str]] = set()
+    for _priority, _sequence, action in sorted(candidates, key=lambda item: item[:2]):
+        key = (
+            _text(action.get("category")),
+            _optional_text(action.get("target_section")),
+            _text(action.get("label")),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        ranked_action = {**action, "rank": len(ordered) + 1}
+        ordered.append(ranked_action)
+
+    visible = ordered[:QUALITY_GUIDED_ACTION_LIMIT]
+    return {
+        "available": True,
+        "policy_id": "specspace.product-workspace.quality-guided-next-action.v0.1",
+        "candidate_count": len(ordered),
+        "omitted_count": max(0, len(ordered) - len(visible)),
+        "primary_action": visible[0] if visible else None,
+        "secondary_actions": visible[1:],
+        "authority_boundary": _guided_flow_boundary(),
+    }
+
 
 def _workspace_initialization_guided_stage(
     payload: dict[str, Any],
@@ -7297,14 +7732,29 @@ def _product_workspace_overview(payload: dict[str, Any]) -> dict[str, Any]:
             "publication": "promotion",
         }.get(current_phase_id, "missing" if not stages else workflow_status)
 
-    next_safe_action = _text(
+    legacy_next_safe_action = _text(
         next_action.get("label"),
         "Inspect the current product workspace lifecycle stage.",
     )
-    primary_target_section = _optional_text(next_action.get("target_section"))
+    legacy_primary_target_section = _optional_text(next_action.get("target_section"))
     if status == "route_only":
-        next_safe_action = "Create workspace request before initialization."
-        primary_target_section = "idea-to-spec-workspace-creation"
+        legacy_next_safe_action = "Create workspace request before initialization."
+        legacy_primary_target_section = "idea-to-spec-workspace-creation"
+
+    action_ranking = _quality_guided_action_ranking(
+        payload,
+        overview_status=status,
+        current_phase_id=current_phase_id,
+    )
+    primary_action = _record(action_ranking.get("primary_action"))
+    next_safe_action = _text(
+        primary_action.get("label"),
+        legacy_next_safe_action,
+    )
+    primary_target_section = (
+        _optional_text(primary_action.get("target_section"))
+        or legacy_primary_target_section
+    )
 
     current_stage_index = next(
         (
@@ -7322,7 +7772,9 @@ def _product_workspace_overview(payload: dict[str, Any]) -> dict[str, Any]:
     ]
     last_successful = successful_stages[-1] if successful_stages else {}
     confidence_refs = []
-    confidence_refs.extend(_string_list(next_action.get("evidence_refs")))
+    confidence_refs.extend(_string_list(primary_action.get("evidence_refs")))
+    if not confidence_refs:
+        confidence_refs.extend(_string_list(next_action.get("evidence_refs")))
     confidence_refs.extend(_string_list(last_successful.get("evidence_refs")))
     confidence_level = "trusted"
     confidence_reason = "Current lifecycle projection is backed by guided flow evidence."
@@ -7343,6 +7795,7 @@ def _product_workspace_overview(payload: dict[str, Any]) -> dict[str, Any]:
         "current_phase_label": _text(current_phase.get("label"), "Unknown"),
         "next_safe_action": next_safe_action,
         "primary_target_section": primary_target_section,
+        "action_ranking": action_ranking,
         "readiness": {
             "status": workflow_status,
             "ready": status == "published",
@@ -7745,10 +8198,10 @@ def attach_guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     payload["guided_repair_path"] = _guided_repair_path(payload)
     payload["guided_approval_path"] = _guided_approval_path(payload)
     payload["guided_flow"] = _guided_flow(payload)
-    payload["product_workspace_overview"] = _product_workspace_overview(payload)
     payload["managed_operations_observability"] = (
         _managed_operations_observability(payload)
     )
+    payload["product_workspace_overview"] = _product_workspace_overview(payload)
     return payload
 
 

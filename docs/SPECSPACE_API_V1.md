@@ -769,6 +769,20 @@ stage, and every next action include an `authority_boundary` object with
 capabilities set to `false`; consumers should treat any expanded authority as
 invalid.
 
+The response also embeds `product_workspace_overview.action_ranking`, an
+additive lifecycle-wide ranking over those existing read-only surfaces. It
+selects one `primary_action` and at most three `secondary_actions` using this
+order: stale/invalid SpecSpace-owned state, failed managed operations, blocking
+clarification or repair, structural-depth recommendations, approval, promotion,
+publication, then optional presentation follow-up. Structural-depth actions are
+labelled `recommended` and never become blockers or gates. Each action includes
+an owner, reason, target section, bounded public-safe evidence refs, and the same
+closed authority boundary as `guided_flow`; command templates are intentionally
+not copied into the ranking. For backward compatibility,
+`product_workspace_overview.next_safe_action` and `primary_target_section`
+mirror the selected primary action. Consumers of older payloads may derive a
+single legacy action from those two fields.
+
 The response embeds `real_idea_intake`, a compact read-only projection for the
 real idea intake workspace. It summarizes the current intake status, clarification
 progress, answer-template validation, SpecSpace answer import/continuation

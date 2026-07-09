@@ -2876,7 +2876,324 @@ def _guided_repair_checkpoint(body: dict, checkpoint_id: str) -> dict:
     ][0]
 
 
+def _quality_overview_stage(
+    stage_id: str,
+    status: str,
+    *,
+    blockers: list[str] | None = None,
+) -> dict:
+    return {
+        "id": stage_id,
+        "label": stage_id.replace("_", " ").title(),
+        "status": status,
+        "primary_next_action": f"Next action for {stage_id}",
+        "target_section": f"section-{stage_id}",
+        "blockers": blockers or [],
+        "evidence_refs": [f"runs/{stage_id}.json"],
+    }
+
+
+def _quality_overview_payload(
+    *,
+    stages: list[dict],
+    current_stage: str,
+    hygiene: dict | None = None,
+    managed_operations: list[dict] | None = None,
+    depth_explainers: list[dict] | None = None,
+    overall_status: str = "waiting_for_operator",
+) -> dict:
+    return {
+        "guided_flow": {
+            "current_stage": current_stage,
+            "current_stage_label": current_stage.replace("_", " ").title(),
+            "overall_status": overall_status,
+            "next_actions": [
+                {
+                    "label": f"Next action for {current_stage}",
+                    "target_section": f"section-{current_stage}",
+                    "evidence_refs": [f"runs/{current_stage}.json"],
+                }
+            ],
+            "stages": stages,
+        },
+        "summary": {"read_model_published": False},
+        "workspace": {"available": True, "ready": True},
+        "workspace_initialization_path": {},
+        "workspace_state_hygiene": hygiene or {},
+        "managed_operations_observability": {
+            "operations": managed_operations or [],
+        },
+        "idea_maturity": {
+            "trusted": True,
+            "report": {
+                "readiness_explainers": depth_explainers or [],
+                "summary": {"lifecycle_state": "candidate_review"},
+            },
+        },
+    }
+
+
 class IdeaToSpecWorkspaceTests(unittest.TestCase):
+    def test_quality_guided_ranking_puts_stale_state_before_depth(self) -> None:
+        stages = [
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_REPAIR_REVIEW, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                "available",
+            ),
+        ]
+        result = idea_to_spec_workspace._product_workspace_overview(
+            _quality_overview_payload(
+                stages=stages,
+                current_stage=idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                hygiene={
+                    "summary": {"blocking_state_count": 1},
+                    "states": [
+                        {
+                            "kind": "candidate_approval_intent",
+                            "status": "stale",
+                            "reason": "approval_intent_stale",
+                        }
+                    ],
+                    "recommended_actions": [
+                        {
+                            "id": "workspace_state.recreate_candidate_approval_intent",
+                            "label": "Recreate candidate approval intent",
+                            "reason": "The saved intent belongs to an older repair session.",
+                            "target_section": "idea-to-spec-workspace-state-hygiene",
+                            "enabled": True,
+                            "evidence_refs": ["specspace-state://approval-intents"],
+                        }
+                    ],
+                },
+                depth_explainers=[
+                    {
+                        "id": "candidate-structure-actors-missing",
+                        "kind": "candidate_structure_actor_model_missing",
+                        "next_action": "Clarify product actors.",
+                        "evidence_refs": [
+                            "runs/idea_maturity_metrics_report.json#groups.candidate_structure_depth.actor_count"
+                        ],
+                    }
+                ],
+            )
+        )
+
+        ranking = result["action_ranking"]
+        self.assertEqual(ranking["primary_action"]["category"], "state_hygiene")
+        self.assertEqual(result["next_safe_action"], "Recreate candidate approval intent")
+        self.assertIn(
+            "structural_depth",
+            [action["category"] for action in ranking["secondary_actions"]],
+        )
+
+    def test_quality_guided_ranking_puts_failed_operation_before_approval(self) -> None:
+        stages = [
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_REPAIR_REVIEW, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                "available",
+            ),
+        ]
+        result = idea_to_spec_workspace._product_workspace_overview(
+            _quality_overview_payload(
+                stages=stages,
+                current_stage=idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                managed_operations=[
+                    {
+                        "operation_id": "candidate_approval_execute",
+                        "status": "failed",
+                        "next_safe_action": "Inspect the failed approval report.",
+                        "available_output_refs": [
+                            "runs/platform_candidate_approval_execution_report.json"
+                        ],
+                    }
+                ],
+            )
+        )
+
+        ranking = result["action_ranking"]
+        self.assertEqual(
+            ranking["primary_action"]["category"],
+            "managed_operation_failure",
+        )
+        self.assertEqual(
+            ranking["secondary_actions"][0]["category"],
+            "approval",
+        )
+
+    def test_quality_guided_ranking_puts_repair_before_promotion(self) -> None:
+        stages = [
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_REPAIR_REVIEW,
+                "blocked",
+                blockers=["repair_context_required"],
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_PROMOTION_REQUEST, "available"
+            ),
+        ]
+        result = idea_to_spec_workspace._product_workspace_overview(
+            _quality_overview_payload(
+                stages=stages,
+                current_stage=idea_to_spec_workspace.STAGE_REPAIR_REVIEW,
+                overall_status="blocked",
+            )
+        )
+
+        ranking = result["action_ranking"]
+        self.assertEqual(
+            ranking["primary_action"]["category"],
+            "clarification_repair",
+        )
+        self.assertIn(
+            "promotion",
+            [action["category"] for action in ranking["secondary_actions"]],
+        )
+
+    def test_quality_guided_ranking_labels_depth_only_as_recommended(self) -> None:
+        stages = [
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_REPAIR_REVIEW, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                "available",
+            ),
+        ]
+        result = idea_to_spec_workspace._product_workspace_overview(
+            _quality_overview_payload(
+                stages=stages,
+                current_stage=idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                depth_explainers=[
+                    {
+                        "id": "candidate-structure-workflow-topology-flat",
+                        "kind": "candidate_structure_workflow_topology_flat",
+                        "next_action": "Repair event-storming topology.",
+                        "evidence_refs": [
+                            "runs/idea_maturity_metrics_report.json#groups.candidate_structure_depth.workflow_edge_count"
+                        ],
+                    }
+                ],
+            )
+        )
+
+        ranking = result["action_ranking"]
+        self.assertEqual(ranking["primary_action"]["category"], "structural_depth")
+        self.assertEqual(ranking["primary_action"]["disposition"], "recommended")
+        self.assertEqual(
+            ranking["primary_action"]["target_section"],
+            "idea-to-spec-candidate-overview",
+        )
+        self.assertEqual(ranking["primary_action"]["blockers"], [])
+        self.assertEqual(result["readiness"]["blocker_count"], 0)
+
+    def test_quality_guided_ranking_bounds_secondary_follow_ups(self) -> None:
+        stages = [
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_REPAIR_REVIEW,
+                "blocked",
+                blockers=["repair_context_required"],
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                "available",
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_PROMOTION_REQUEST, "available"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_REVIEW_PUBLICATION, "available"
+            ),
+        ]
+        result = idea_to_spec_workspace._product_workspace_overview(
+            _quality_overview_payload(
+                stages=stages,
+                current_stage=idea_to_spec_workspace.STAGE_REPAIR_REVIEW,
+                overall_status="blocked",
+                hygiene={
+                    "summary": {"blocking_state_count": 1},
+                    "states": [
+                        {
+                            "kind": "repair_drafts",
+                            "status": "stale",
+                            "reason": "repair_drafts_stale",
+                        }
+                    ],
+                },
+                managed_operations=[
+                    {
+                        "operation_id": "repair_rerun_execute",
+                        "status": "failed",
+                        "next_safe_action": "Inspect failed repair execution.",
+                        "available_output_refs": [
+                            "runs/platform_product_repair_rerun_execution_report.json"
+                        ],
+                    }
+                ],
+                depth_explainers=[
+                    {
+                        "id": "candidate-structure-actors-missing",
+                        "kind": "candidate_structure_actor_model_missing",
+                        "next_action": "Clarify product actors.",
+                        "evidence_refs": [
+                            "runs/idea_maturity_metrics_report.json#groups.candidate_structure_depth.actor_count"
+                        ],
+                    }
+                ],
+            )
+        )
+
+        ranking = result["action_ranking"]
+        visible = [ranking["primary_action"], *ranking["secondary_actions"]]
+        self.assertEqual(len(visible), idea_to_spec_workspace.QUALITY_GUIDED_ACTION_LIMIT)
+        self.assertEqual([action["rank"] for action in visible], [1, 2, 3, 4])
+        self.assertEqual(
+            [action["category"] for action in visible],
+            [
+                "state_hygiene",
+                "managed_operation_failure",
+                "clarification_repair",
+                "structural_depth",
+            ],
+        )
+        self.assertEqual(ranking["candidate_count"], 7)
+        self.assertEqual(ranking["omitted_count"], 3)
+
     def test_build_workspace_summarizes_candidate_graph_and_repairs(self) -> None:
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
             artifacts=_workspace_artifacts(),
