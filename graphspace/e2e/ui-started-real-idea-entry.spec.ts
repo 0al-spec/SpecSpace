@@ -2537,6 +2537,35 @@ test("opens a presentation demo view from product workspace overview", async ({
   }
 });
 
+test("keeps overview counters separated and ranked action rows compact", async ({
+  page,
+}) => {
+  await page.goto("/dev/idea-to-spec-fixtures#team-decision-rail");
+
+  const overview = page
+    .getByTestId("team-decision-rail-frame")
+    .locator("#idea-to-spec-product-workspace-overview");
+  await expect(overview).toBeVisible();
+
+  const separatorWidths = await overview
+    .getByTestId("product-workspace-overview-posture")
+    .evaluate((element) =>
+      Array.from(element.children).map(
+        (item) => getComputedStyle(item).borderTopWidth,
+      ),
+    );
+  expect(separatorWidths).toEqual(["0px", "0px", "0px", "1px", "1px", "1px"]);
+
+  const rankedActionMinHeights = await overview.evaluate((element) =>
+    Array.from(
+      element.querySelectorAll(
+        '[data-testid="quality-guided-primary-action"], [data-testid="quality-guided-secondary-action"]',
+      ),
+    ).map((item) => getComputedStyle(item).minHeight),
+  );
+  expect(rankedActionMinHeights).toEqual(["0px", "0px", "0px"]);
+});
+
 test("explains unavailable workspace creation API from the sidebar wizard", async ({
   page,
 }) => {

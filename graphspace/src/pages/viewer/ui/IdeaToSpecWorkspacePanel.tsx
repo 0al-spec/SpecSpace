@@ -1861,7 +1861,10 @@ function ProductWorkspaceOverviewSection({
         <h3 className={styles.title} data-testid="product-workspace-overview-next-action">
           {primaryAction.label}
         </h3>
-        <div className={styles.postureStrip}>
+        <div
+          className={`${styles.postureStrip} ${styles.overviewPostureStrip}`}
+          data-testid="product-workspace-overview-posture"
+        >
           <PostureItem label="Current phase" value={overview.currentPhaseLabel} />
           <PostureItem
             label="Progress"
@@ -1903,7 +1906,7 @@ function ProductWorkspaceOverviewSection({
         </div>
         {primaryHref ? (
           <a
-            className={styles.guidedStage}
+            className={`${styles.guidedStage} ${styles.qualityActionStage}`}
             href={primaryHref}
             data-testid="quality-guided-primary-action"
           >
@@ -1945,7 +1948,7 @@ function ProductWorkspaceOverviewSection({
               return action.targetSection ? (
                 <a
                   key={action.id}
-                  className={styles.guidedStage}
+                  className={`${styles.guidedStage} ${styles.qualityActionStage}`}
                   href={`#${action.targetSection}`}
                   data-testid="quality-guided-secondary-action"
                 >
@@ -1954,7 +1957,7 @@ function ProductWorkspaceOverviewSection({
               ) : (
                 <div
                   key={action.id}
-                  className={styles.guidedStage}
+                  className={`${styles.guidedStage} ${styles.qualityActionStage}`}
                   data-testid="quality-guided-secondary-action"
                 >
                   {content}
