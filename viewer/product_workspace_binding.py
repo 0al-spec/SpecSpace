@@ -262,7 +262,14 @@ def discover_binding(
     provenance = _record(binding.get("provenance"))
     initialization_summary = _record(report.get("summary"))
     try:
-        source_ref = f"runs/{path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
+        relative_source = path.resolve().relative_to(runs_dir.resolve())
+        run_dir_ref = _text(execution.get("platform_default_run_dir_ref"))
+        if relative_source.parts and relative_source.parts[0] == workspace_id:
+            source_ref = f"runs/{relative_source.as_posix()}"
+        elif runs_dir.name == workspace_id and run_dir_ref == f"runs/{workspace_id}":
+            source_ref = f"{run_dir_ref}/{relative_source.as_posix()}"
+        else:
+            source_ref = f"runs/{relative_source.as_posix()}"
     except ValueError:
         source_ref = None
     return {

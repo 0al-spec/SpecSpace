@@ -870,6 +870,15 @@ Implemented in the current Product Workspace stack:
   Platform enqueue/status service. SpecSpace stores compact queue state and
   displays transport status separately from authoritative Platform report
   readiness. Local and hosted executors are mutually exclusive.
+- Platform now provides both the isolated SQLite queue used by local/browser
+  tests and a PostgreSQL queue/store for production deployment. The service and
+  long-running worker expose health/heartbeat evidence, and secret files keep
+  database credentials and bearer tokens out of child process arguments.
+- The execution-backed product demo now has a hosted variant that drives the
+  real Platform HTTP service and worker from the SpecSpace browser flow. It
+  requires authoritative Platform reports before advancing the lifecycle and
+  verifies workspace binding, clarification continuation, candidate identity,
+  public-safe raw-idea handling, and absence of demo-workspace fallback.
 
 Remaining scope:
 
@@ -882,8 +891,12 @@ Remaining scope:
 - Keep external producer contracts synchronized when report schemas or source
   refs change, because the UI projections are intentionally strict about stale or
   write-capable artifacts.
-- Add the production PostgreSQL queue/store adapter, split least-privilege worker
-  profiles, deployment health checks, and execution-backed hosted browser E2E.
+- Exercise the documented local-to-hosted cutover and rollback procedure in a
+  deployment-like recovery drill, including expired leases, quarantined
+  consume-on-attempt work, and queue drain evidence.
+- Define operational SLOs and alerts for queue age, lease recovery,
+  quarantined requests, worker heartbeat, and authoritative report publication
+  latency without treating queue success as lifecycle completion.
 
 Non-goals:
 

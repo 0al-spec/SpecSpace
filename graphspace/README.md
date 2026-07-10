@@ -122,6 +122,20 @@ SPECG_E2E_SPECG_DIR=../SpecGraph \
 UI_PORT=5190 make ui-e2e-product-demo
 ```
 
+To run the same browser flow through the Platform hosted HTTP queue and a
+long-running worker instead of direct CLI continuation, use:
+
+```sh
+SPECG_E2E_PLATFORM_DIR=../Platform \
+SPECG_E2E_SPECG_DIR=../SpecGraph \
+UI_PORT=5190 make ui-e2e-product-demo-hosted
+```
+
+This target uses isolated SQLite transport for the browser integration test;
+Platform separately validates the production PostgreSQL adapter and Compose
+profile. Queue success is not accepted as lifecycle completion until the
+expected Platform report appears.
+
 For a headed browser that pauses on the final presentation screen:
 
 ```sh

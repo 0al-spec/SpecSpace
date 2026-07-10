@@ -31,15 +31,26 @@ IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT = (
 REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT = (
     "real_idea_smoke/real_idea_answer_template.json"
 )
+REAL_IDEA_ANSWER_TEMPLATE_DIRECT_ARTIFACT = "real_idea_answer_template.json"
 REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT = (
     "real_idea_smoke/real_idea_answer_authoring_report.json"
 )
+REAL_IDEA_ANSWER_AUTHORING_REPORT_DIRECT_ARTIFACT = (
+    "real_idea_answer_authoring_report.json"
+)
 REAL_IDEA_ANSWER_SET_ARTIFACT = "real_idea_smoke/real_idea_answer_set.json"
+REAL_IDEA_ANSWER_SET_DIRECT_ARTIFACT = "real_idea_answer_set.json"
 SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT = (
     "real_idea_smoke/specspace_real_idea_answer_import_preview.json"
 )
+SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_DIRECT_ARTIFACT = (
+    "specspace_real_idea_answer_import_preview.json"
+)
 REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT = (
     "real_idea_smoke/real_idea_answer_continuation_report.json"
+)
+REAL_IDEA_ANSWER_CONTINUATION_REPORT_DIRECT_ARTIFACT = (
+    "real_idea_answer_continuation_report.json"
 )
 PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT = (
     "platform_real_idea_entry_intake_execution_report.json"
@@ -177,10 +188,15 @@ OPTIONAL_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT,
     IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT,
     REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT,
+    REAL_IDEA_ANSWER_TEMPLATE_DIRECT_ARTIFACT,
     REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT,
+    REAL_IDEA_ANSWER_AUTHORING_REPORT_DIRECT_ARTIFACT,
     REAL_IDEA_ANSWER_SET_ARTIFACT,
+    REAL_IDEA_ANSWER_SET_DIRECT_ARTIFACT,
     SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
+    SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_DIRECT_ARTIFACT,
     REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
+    REAL_IDEA_ANSWER_CONTINUATION_REPORT_DIRECT_ARTIFACT,
     PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT,
     PLATFORM_REAL_IDEA_ANSWER_CONTINUATION_EXECUTION_REPORT_ARTIFACT,
     PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_PLAN_ARTIFACT,
@@ -237,7 +253,9 @@ IDEA_MATURITY_ARTIFACTS: tuple[str, ...] = (
 )
 REAL_IDEA_ANSWER_AUTHORING_ARTIFACTS: tuple[str, ...] = (
     REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT,
+    REAL_IDEA_ANSWER_TEMPLATE_DIRECT_ARTIFACT,
     REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT,
+    REAL_IDEA_ANSWER_AUTHORING_REPORT_DIRECT_ARTIFACT,
 )
 SPECSPACE_REPAIR_DRAFT_HANDOFF_ARTIFACTS: tuple[str, ...] = (
     SPECSPACE_REPAIR_DRAFT_IMPORT_PREVIEW_ARTIFACT,
@@ -266,12 +284,23 @@ ARTIFACT_KEYS: dict[str, str] = {
     CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT: "clarified_intake_source",
     IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT: "intake_clarification_rerun",
     REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: "real_idea_answer_template",
+    REAL_IDEA_ANSWER_TEMPLATE_DIRECT_ARTIFACT: "real_idea_answer_template",
     REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT: "real_idea_answer_authoring_report",
+    REAL_IDEA_ANSWER_AUTHORING_REPORT_DIRECT_ARTIFACT: (
+        "real_idea_answer_authoring_report"
+    ),
     REAL_IDEA_ANSWER_SET_ARTIFACT: "real_idea_answer_set",
+    REAL_IDEA_ANSWER_SET_DIRECT_ARTIFACT: "real_idea_answer_set",
     SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT: (
         "specspace_real_idea_answer_import_preview"
     ),
+    SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_DIRECT_ARTIFACT: (
+        "specspace_real_idea_answer_import_preview"
+    ),
     REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT: (
+        "real_idea_answer_continuation_report"
+    ),
+    REAL_IDEA_ANSWER_CONTINUATION_REPORT_DIRECT_ARTIFACT: (
         "real_idea_answer_continuation_report"
     ),
     PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT: (
@@ -374,14 +403,25 @@ EXPECTED_ARTIFACT_KINDS: dict[str, str] = {
         "idea_intake_clarification_rerun_report"
     ),
     REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: "real_idea_answer_template",
+    REAL_IDEA_ANSWER_TEMPLATE_DIRECT_ARTIFACT: "real_idea_answer_template",
     REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT: "real_idea_answer_authoring_report",
+    REAL_IDEA_ANSWER_AUTHORING_REPORT_DIRECT_ARTIFACT: (
+        "real_idea_answer_authoring_report"
+    ),
     # Intentionally reuses the generic clarification answer-set contract; the
     # artifact path and workspace key identify the real-idea authoring source.
     REAL_IDEA_ANSWER_SET_ARTIFACT: "idea_to_spec_clarification_answer_set",
+    REAL_IDEA_ANSWER_SET_DIRECT_ARTIFACT: "idea_to_spec_clarification_answer_set",
     SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT: (
         "specspace_real_idea_answer_import_preview"
     ),
+    SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_DIRECT_ARTIFACT: (
+        "specspace_real_idea_answer_import_preview"
+    ),
     REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT: (
+        "real_idea_answer_continuation_report"
+    ),
+    REAL_IDEA_ANSWER_CONTINUATION_REPORT_DIRECT_ARTIFACT: (
         "real_idea_answer_continuation_report"
     ),
     PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT: (
@@ -656,7 +696,10 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "field": contract_error.get("field"),
             }
         return None
-    if filename == REAL_IDEA_ANSWER_SET_ARTIFACT:
+    if filename in {
+        REAL_IDEA_ANSWER_SET_ARTIFACT,
+        REAL_IDEA_ANSWER_SET_DIRECT_ARTIFACT,
+    }:
         contract_error = real_idea_answer_set_contract_error(value)
         if contract_error is not None:
             return {
@@ -668,7 +711,9 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
         return None
     if filename in {
         SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
+        SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_DIRECT_ARTIFACT,
         REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
+        REAL_IDEA_ANSWER_CONTINUATION_REPORT_DIRECT_ARTIFACT,
     }:
         for field in ("canonical_mutations_allowed", "tracked_artifacts_written"):
             if value.get(field) is True:
@@ -8422,18 +8467,22 @@ def build_idea_to_spec_workspace(
         artifacts, IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT
     )
     real_idea_answer_template = _artifact_data(
-        artifacts, REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT
-    )
+        artifacts, REAL_IDEA_ANSWER_TEMPLATE_DIRECT_ARTIFACT
+    ) or _artifact_data(artifacts, REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT)
     real_idea_answer_authoring_report = _artifact_data(
-        artifacts, REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT
-    )
-    real_idea_answer_set = _artifact_data(artifacts, REAL_IDEA_ANSWER_SET_ARTIFACT)
+        artifacts, REAL_IDEA_ANSWER_AUTHORING_REPORT_DIRECT_ARTIFACT
+    ) or _artifact_data(artifacts, REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT)
+    real_idea_answer_set = _artifact_data(
+        artifacts, REAL_IDEA_ANSWER_SET_DIRECT_ARTIFACT
+    ) or _artifact_data(artifacts, REAL_IDEA_ANSWER_SET_ARTIFACT)
     specspace_real_idea_answer_import_preview = _artifact_data(
+        artifacts, SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_DIRECT_ARTIFACT
+    ) or _artifact_data(
         artifacts, SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT
     )
     real_idea_answer_continuation_report = _artifact_data(
-        artifacts, REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT
-    )
+        artifacts, REAL_IDEA_ANSWER_CONTINUATION_REPORT_DIRECT_ARTIFACT
+    ) or _artifact_data(artifacts, REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT)
     real_idea_answer_continuation_execution = _artifact_data(
         artifacts, PLATFORM_REAL_IDEA_ANSWER_CONTINUATION_EXECUTION_REPORT_ARTIFACT
     )
@@ -8566,6 +8615,45 @@ def build_idea_to_spec_workspace(
         key: _artifact_status(artifacts, filename)
         for filename, key in ARTIFACT_KEYS.items()
     }
+    direct_template_status = _artifact_status(
+        artifacts, REAL_IDEA_ANSWER_TEMPLATE_DIRECT_ARTIFACT
+    )
+    statuses["real_idea_answer_template"] = (
+        direct_template_status
+        if direct_template_status["available"]
+        else _artifact_status(artifacts, REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT)
+    )
+    direct_authoring_status = _artifact_status(
+        artifacts, REAL_IDEA_ANSWER_AUTHORING_REPORT_DIRECT_ARTIFACT
+    )
+    statuses["real_idea_answer_authoring_report"] = (
+        direct_authoring_status
+        if direct_authoring_status["available"]
+        else _artifact_status(artifacts, REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT)
+    )
+    for status_key, direct_filename, legacy_filename in (
+        (
+            "real_idea_answer_set",
+            REAL_IDEA_ANSWER_SET_DIRECT_ARTIFACT,
+            REAL_IDEA_ANSWER_SET_ARTIFACT,
+        ),
+        (
+            "specspace_real_idea_answer_import_preview",
+            SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_DIRECT_ARTIFACT,
+            SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
+        ),
+        (
+            "real_idea_answer_continuation_report",
+            REAL_IDEA_ANSWER_CONTINUATION_REPORT_DIRECT_ARTIFACT,
+            REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
+        ),
+    ):
+        direct_status = _artifact_status(artifacts, direct_filename)
+        statuses[status_key] = (
+            direct_status
+            if direct_status["available"]
+            else _artifact_status(artifacts, legacy_filename)
+        )
     source_workspace_id = _optional_text(source.get("workspace_id"))
     if not _candidate_matches_workspace(active_candidate, source_workspace_id):
         active_candidate = None

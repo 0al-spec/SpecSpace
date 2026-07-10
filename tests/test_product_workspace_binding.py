@@ -144,6 +144,9 @@ def test_discovers_ready_binding_and_resolves_bound_runs_dir(tmp_path: Path) -> 
     assert projection["binding_id"] == (
         "product-workspace-binding://pantry-rotation"
     )
+    assert projection["source_ref"] == (
+        "runs/pantry-rotation/platform_product_workspace_initialization_execution_report.json"
+    )
     assert projection["routing"]["specspace_state_namespace_ref"] == (
         "specspace-state://workspace/pantry-rotation"
     )
@@ -152,6 +155,25 @@ def test_discovers_ready_binding_and_resolves_bound_runs_dir(tmp_path: Path) -> 
         server,
         workspace_id="pantry-rotation",
     ) == runs_dir / "pantry-rotation"
+
+
+def test_workspace_scoped_runs_dir_keeps_globally_unambiguous_source_ref(
+    tmp_path: Path,
+) -> None:
+    runs_dir = tmp_path / "runs"
+    workspace_runs_dir = runs_dir / "pantry-rotation"
+    _write_report(runs_dir, "pantry-rotation", "Pantry Rotation")
+    server = SimpleNamespace(runs_dir=workspace_runs_dir)
+
+    projection = product_workspace_binding.discover_binding(
+        server,
+        workspace_id="pantry-rotation",
+    )
+
+    assert projection["status"] == "ready"
+    assert projection["source_ref"] == (
+        "runs/pantry-rotation/platform_product_workspace_initialization_execution_report.json"
+    )
 
 
 def test_ready_binding_rehydrates_initialization_after_restart(
