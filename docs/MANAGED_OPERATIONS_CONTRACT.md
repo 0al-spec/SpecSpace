@@ -180,6 +180,16 @@ Production deployments should mount the token as a secret and set
 token sources are mutually exclusive, and the token value is never returned in
 readiness, observability, or state artifacts.
 
+Hosted deployment profiles may expose a bounded operation subset through the
+Platform health field `enabled_operation_ids`. SpecSpace validates that every
+reported id belongs to the local managed-operation registry, that the reported
+count matches the list, and uses the subset when calculating `ready now`
+operations. A legacy health response without this field remains compatible
+only when its `operation_count` equals the complete registry size. Production
+canaries should begin with `review_status_execute`; adding the registered
+promotion dry-run requires an explicit deployment decision. Git review,
+publication, and consume-on-attempt operations must not be enabled by default.
+
 In this mode the existing twelve POST endpoints enqueue logical requests through
 the Platform-owned hosted service. SpecSpace does not import Platform modules,
 open queue storage, or invoke a subprocess. It persists only compact
