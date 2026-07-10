@@ -563,6 +563,39 @@ class HostedManagedExecutionTests(unittest.TestCase):
             ]
         )
 
+    def test_rejected_enqueue_is_visible_as_blocked_operation(self) -> None:
+        payload = {
+            "artifacts": {},
+            "hosted_managed_execution": {
+                "operations": {
+                    "review_status_execute": {
+                        "request_id": (
+                            "managed-operation://pantry-control/"
+                            "review_status_execute/0123456789abcdef01234567"
+                        ),
+                        "status": "rejected",
+                        "attempt": 0,
+                        "output_reports": [],
+                    }
+                }
+            },
+        }
+
+        observability = idea_to_spec_workspace._managed_operations_observability(
+            payload
+        )
+        review_status = next(
+            item
+            for item in observability["operations"]
+            if item["operation_id"] == "review_status_execute"
+        )
+
+        self.assertEqual(review_status["status"], "blocked")
+        self.assertEqual(
+            review_status["hosted_transport"]["status"], "rejected"
+        )
+        self.assertIn("rejected", review_status["next_safe_action"])
+
 
 if __name__ == "__main__":
     unittest.main()
