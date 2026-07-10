@@ -438,6 +438,7 @@ def _managed_mode_readiness(
 
     hosted_service_configured = False
     hosted_service_reachable = False
+    hosted_health: dict[str, Any] = {}
     if hosted_execution_enabled:
         try:
             hosted_client = hosted_managed_execution.client_from_server(server)
@@ -447,8 +448,13 @@ def _managed_mode_readiness(
                 hosted_health.get("artifact_kind")
                 == "platform_hosted_managed_operation_service_health"
                 and hosted_health.get("ok") is True
+                and hosted_health.get("status") == "ready"
                 and hosted_health.get("contract_ref")
                 == "platform.hosted-managed-operation.request.v1"
+                and hosted_health.get("registry_contract_ref")
+                == "platform.managed-operation.registry.v1"
+                and hosted_health.get("operation_count")
+                == len(managed_operations_registry.MANAGED_OPERATIONS)
             )
         except hosted_managed_execution.HostedExecutionError:
             hosted_service_reachable = False
@@ -558,6 +564,17 @@ def _managed_mode_readiness(
             "hosted_enabled": hosted_execution_enabled,
             "hosted_service_configured": hosted_service_configured,
             "hosted_service_reachable": hosted_service_reachable,
+            "hosted_service_adapter": (
+                hosted_health.get("adapter")
+                if hosted_service_reachable
+                and hosted_health.get("adapter") in {"sqlite", "postgresql"}
+                else None
+            ),
+            "hosted_registry_contract_ref": (
+                hosted_health.get("registry_contract_ref")
+                if hosted_service_reachable
+                else None
+            ),
         },
         "operations": {
             "registered_count": operation_count,

@@ -175,6 +175,11 @@ SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN=<secret> \
 python viewer/server.py --dialog-dir /data/dialogs
 ```
 
+Production deployments should mount the token as a secret and set
+`SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN_FILE` instead. Environment and file
+token sources are mutually exclusive, and the token value is never returned in
+readiness, observability, or state artifacts.
+
 In this mode the existing twelve POST endpoints enqueue logical requests through
 the Platform-owned hosted service. SpecSpace does not import Platform modules,
 open queue storage, or invoke a subprocess. It persists only compact

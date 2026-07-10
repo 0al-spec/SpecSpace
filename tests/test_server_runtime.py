@@ -117,6 +117,26 @@ def test_build_arg_parser_accepts_hosted_managed_executor_env(monkeypatch) -> No
     assert args.hosted_managed_executor_timeout_seconds == 3.5
 
 
+def test_build_arg_parser_accepts_hosted_executor_token_file_env(
+    monkeypatch, tmp_path: Path
+) -> None:
+    token_file = tmp_path / "managed-operation-token"
+    token_file.write_text("hosted-token-0123456789abcdef0123456789\n")
+    monkeypatch.delenv("SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN", raising=False)
+    monkeypatch.setenv(
+        "SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN_FILE", str(token_file)
+    )
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+
+    args = parser.parse_args(["--dialog-dir", str(tmp_path / "dialogs")])
+
+    assert args.hosted_managed_executor_token is None
+    assert args.hosted_managed_executor_token_file == token_file
+
+
 def test_build_arg_parser_treats_blank_agent_workbench_dir_env_as_unset(monkeypatch) -> None:
     monkeypatch.setenv("SPECSPACE_AGENT_WORKBENCH_DIR", "   ")
     parser = server_runtime.build_arg_parser(

@@ -37,7 +37,11 @@ class PlatformStubHandler(BaseHTTPRequestHandler):
                 {
                     "artifact_kind": "platform_hosted_managed_operation_service_health",
                     "ok": True,
+                    "status": "ready",
                     "contract_ref": "platform.hosted-managed-operation.request.v1",
+                    "registry_contract_ref": "platform.managed-operation.registry.v1",
+                    "operation_count": 12,
+                    "adapter": "postgresql",
                 },
             )
             return
@@ -327,7 +331,11 @@ class HostedManagedExecutionTests(unittest.TestCase):
                 health=lambda: {
                     "artifact_kind": "platform_hosted_managed_operation_service_health",
                     "ok": True,
+                    "status": "ready",
                     "contract_ref": "platform.hosted-managed-operation.request.v1",
+                    "registry_contract_ref": "platform.managed-operation.registry.v1",
+                    "operation_count": 12,
+                    "adapter": "postgresql",
                 }
             )
             with patch.object(
@@ -353,6 +361,9 @@ class HostedManagedExecutionTests(unittest.TestCase):
         self.assertEqual(readiness["mode"], "hosted_managed")
         self.assertEqual(readiness["executor"]["transport"], "hosted_queue")
         self.assertTrue(readiness["executor"]["hosted_service_reachable"])
+        self.assertEqual(
+            readiness["executor"]["hosted_service_adapter"], "postgresql"
+        )
         self.assertFalse(readiness["executor"]["platform_cli_present"])
 
     def test_enabling_local_and_hosted_executors_is_misconfigured(self) -> None:
@@ -386,7 +397,11 @@ class HostedManagedExecutionTests(unittest.TestCase):
                 health=lambda: {
                     "artifact_kind": "platform_hosted_managed_operation_service_health",
                     "ok": True,
+                    "status": "ready",
                     "contract_ref": "platform.hosted-managed-operation.request.v1",
+                    "registry_contract_ref": "platform.managed-operation.registry.v1",
+                    "operation_count": 12,
+                    "adapter": "postgresql",
                 }
             )
             with patch.object(
