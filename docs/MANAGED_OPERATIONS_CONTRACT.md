@@ -137,12 +137,14 @@ SpecSpace-owned clarification answer state.
 
 The Product Workspace API also exposes a read-only
 `managed_mode_readiness` projection. It explains whether the selected SpecSpace
-server is running in production/read-only mode, backend-managed local mode, or a
-misconfigured backend-managed mode.
+server is running in production/read-only mode, backend-managed local mode,
+hosted queue-backed mode, or a misconfigured managed mode.
 
 The surface is report-only telemetry. It may show:
 
 - whether backend Platform execution is enabled;
+- whether hosted execution is enabled and its service health contract is
+  reachable;
 - whether the Platform checkout contains `scripts/platform.py`;
 - whether the SpecSpace-owned state directory and runs directory are present
   and writable;
@@ -163,6 +165,29 @@ Production deployments may intentionally report `status: read_only` even when
 the operation registry is available. In that case the UI should keep execution
 actions unavailable and explain that Platform must be run outside SpecSpace or
 through a separately configured backend-managed environment.
+
+Hosted mode is enabled with:
+
+```bash
+SPECSPACE_HOSTED_MANAGED_EXECUTION_ENABLED=1 \
+SPECSPACE_HOSTED_MANAGED_EXECUTOR_URL=https://platform-executor.example \
+SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN=<secret> \
+python viewer/server.py --dialog-dir /data/dialogs
+```
+
+In this mode the existing twelve POST endpoints enqueue logical requests through
+the Platform-owned hosted service. SpecSpace does not import Platform modules,
+open queue storage, or invoke a subprocess. It persists only compact
+`hosted_managed_operation_requests.json` state: operation/workspace identity,
+request/idempotency ids, queue status, attempt count, binding identity, and
+sanitized output report refs/digests. Executor URL, token, local paths, raw idea,
+operator notes, and the full request envelope are not stored.
+
+Local and hosted execution cannot be enabled together. That configuration is
+`hosted_managed_misconfigured` and every managed POST fails closed. Queue states
+`queued`, `leased`, and `running` are shown in Managed Operations observability.
+Even queue `succeeded` remains `running_or_waiting` until the normal Product
+Workspace artifact provider reads the authoritative Platform output report.
 
 ## Operation Inventory
 
@@ -216,6 +241,9 @@ Every backend-managed operation is bounded by
 `platform_execution_timeout_seconds`. A timeout is a durable failed execution
 state and should keep the next UI action as inspect/recreate request or retry
 only when the operation is still replayable; it must not advance the lifecycle.
+Hosted enqueue/status calls use the separately bounded
+`hosted_managed_executor_timeout_seconds`; worker execution remains bounded by
+the Platform operation contract.
 
 ## Regression Matrix
 

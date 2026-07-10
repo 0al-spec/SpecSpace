@@ -546,6 +546,100 @@ describe("parseIdeaToSpecWorkspace", () => {
     ]);
   });
 
+  it("parses hosted managed readiness and queue transport telemetry", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.managed_mode_readiness = {
+      available: true,
+      surface_id: "specspace.managed-mode.readiness.v0.1",
+      surface_kind: "managed_mode_readiness",
+      status: "hosted_managed_ready",
+      mode: "hosted_managed",
+      next_safe_action: "Enqueue the next allowlisted operation.",
+      disabled_reasons: [],
+      executor: {
+        enabled: true,
+        configured: true,
+        transport: "hosted_queue",
+        platform_dir_configured: false,
+        platform_cli_present: false,
+        timeout_seconds: 5,
+        hosted_enabled: true,
+        hosted_service_configured: true,
+        hosted_service_reachable: true,
+      },
+      operations: { registered_count: 12, enabled_count: 1, disabled_count: 11 },
+      state: {},
+      provider: { status: "ok", kind: "local", read_only: false },
+      workspace: { workspace_id: "pantry-control", product_workspace: true },
+      authority_boundary: {
+        ...raw.guided_flow.authority_boundary,
+        managed_mode_readiness_is_authority: false,
+        may_run_shell: false,
+        may_publish_read_model: false,
+      },
+    };
+    raw.managed_operations_observability = {
+      available: true,
+      surface_id: "specspace.managed-operations.observability.v0.1",
+      surface_kind: "managed_operations_observability",
+      summary: { operation_count: 1 },
+      groups: [],
+      operations: [
+        {
+          operation_id: "workspace_initialization_execute",
+          category: "workspace",
+          lifecycle_stage: "workspace_initialization",
+          ui_stage: "Workspace initialization",
+          endpoint: "/api/v1/product-workspace-initialization/execute",
+          platform_command: ["workspace", "execute-requested-initialization"],
+          status: "running_or_waiting",
+          input_refs: [],
+          output_reports: [],
+          hosted_transport: {
+            available: true,
+            status: "running",
+            request_id:
+              "managed-operation://pantry-control/workspace_initialization_execute/abc",
+            attempt: 1,
+            output_reports: [],
+            transport_status_is_lifecycle_evidence: false,
+          },
+          authority_boundary: {
+            ...raw.guided_flow.authority_boundary,
+            managed_operations_observability_is_authority: false,
+            may_run_shell: false,
+            may_publish_read_model: false,
+          },
+        },
+      ],
+      authority_boundary: {
+        ...raw.guided_flow.authority_boundary,
+        managed_operations_observability_is_authority: false,
+        may_run_shell: false,
+        may_publish_read_model: false,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.managedModeReadiness.mode).toBe("hosted_managed");
+    expect(parsed.data.managedModeReadiness.executor.transport).toBe(
+      "hosted_queue",
+    );
+    expect(parsed.data.managedModeReadiness.executor.hostedServiceReachable).toBe(
+      true,
+    );
+    expect(
+      parsed.data.managedOperations.operations[0].hostedTransport.status,
+    ).toBe("running");
+    expect(
+      parsed.data.managedOperations.operations[0].hostedTransport
+        .transportStatusIsLifecycleEvidence,
+    ).toBe(false);
+  });
+
   it("rejects managed mode readiness authority expansion", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.managed_mode_readiness = {

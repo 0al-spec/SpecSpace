@@ -91,6 +91,32 @@ def test_build_arg_parser_ignores_malformed_platform_execution_timeout_env(
     assert args.platform_execution_timeout_seconds == 120
 
 
+def test_build_arg_parser_accepts_hosted_managed_executor_env(monkeypatch) -> None:
+    monkeypatch.setenv("SPECSPACE_HOSTED_MANAGED_EXECUTION_ENABLED", "true")
+    monkeypatch.setenv(
+        "SPECSPACE_HOSTED_MANAGED_EXECUTOR_URL",
+        "https://executor.example.test/",
+    )
+    monkeypatch.setenv(
+        "SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN",
+        "hosted-token-0123456789abcdef0123456789",
+    )
+    monkeypatch.setenv(
+        "SPECSPACE_HOSTED_MANAGED_EXECUTOR_TIMEOUT_SECONDS",
+        "3.5",
+    )
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+    args = parser.parse_args(["--dialog-dir", "/tmp/dialogs"])
+
+    assert args.enable_hosted_managed_execution is True
+    assert args.hosted_managed_executor_url == "https://executor.example.test/"
+    assert args.hosted_managed_executor_token.startswith("hosted-token-")
+    assert args.hosted_managed_executor_timeout_seconds == 3.5
+
+
 def test_build_arg_parser_treats_blank_agent_workbench_dir_env_as_unset(monkeypatch) -> None:
     monkeypatch.setenv("SPECSPACE_AGENT_WORKBENCH_DIR", "   ")
     parser = server_runtime.build_arg_parser(

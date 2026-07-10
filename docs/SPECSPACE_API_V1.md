@@ -1077,6 +1077,24 @@ python viewer/server.py \
   --enable-platform-execution
 ```
 
+The same endpoint can enqueue through the Platform hosted service without
+starting a local subprocess:
+
+```bash
+SPECSPACE_HOSTED_MANAGED_EXECUTION_ENABLED=1 \
+SPECSPACE_HOSTED_MANAGED_EXECUTOR_URL=https://platform-executor.example \
+SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN=<secret> \
+python viewer/server.py \
+  --dialog-dir /data/dialogs \
+  --runs-dir /repo/SpecGraph/runs
+```
+
+Hosted responses use HTTP `202` with
+`artifact_kind=specspace_hosted_managed_operation_request` and a queue request
+id. The browser does not receive the hosted bearer token. Queue completion is
+transport telemetry and does not replace normal Platform report validation in
+`GET /api/v1/idea-to-spec-workspace`.
+
 Request:
 
 ```json

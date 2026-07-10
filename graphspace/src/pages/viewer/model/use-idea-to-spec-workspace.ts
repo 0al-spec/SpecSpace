@@ -1171,6 +1171,14 @@ export type IdeaToSpecManagedOperation = {
   outputReports: readonly IdeaToSpecManagedOperationRef[];
   missingInputRefs: readonly string[];
   availableOutputRefs: readonly string[];
+  hostedTransport: {
+    available: boolean;
+    status: string | null;
+    requestId: string | null;
+    attempt: number | null;
+    outputReports: readonly { logicalRef: string; sha256: string }[];
+    transportStatusIsLifecycleEvidence: false;
+  };
   idempotencyKey: string | null;
   overwritePolicy: string | null;
   timeoutPolicy: string | null;
@@ -1219,9 +1227,13 @@ export type IdeaToSpecManagedModeReadiness = {
   executor: {
     enabled: boolean;
     configured: boolean;
+    transport: string;
     platformDirConfigured: boolean;
     platformCliPresent: boolean;
     timeoutSeconds: number | null;
+    hostedEnabled: boolean;
+    hostedServiceConfigured: boolean;
+    hostedServiceReachable: boolean;
   };
   operations: {
     registeredCount: number;
@@ -4496,6 +4508,7 @@ function parseManagedOperationRef(raw: unknown): IdeaToSpecManagedOperationRef |
 function parseManagedOperation(raw: unknown): IdeaToSpecManagedOperation | null {
   const operation = recordValue(raw);
   const operationId = optionalString(operation.operation_id);
+  const hostedTransport = recordValue(operation.hosted_transport);
   if (!operationId) return null;
   return {
     operationId,
@@ -4520,6 +4533,18 @@ function parseManagedOperation(raw: unknown): IdeaToSpecManagedOperation | null 
     }),
     missingInputRefs: strings(operation.missing_input_refs),
     availableOutputRefs: strings(operation.available_output_refs),
+    hostedTransport: {
+      available: hostedTransport.available === true,
+      status: optionalString(hostedTransport.status),
+      requestId: optionalString(hostedTransport.request_id),
+      attempt: optionalNumberValue(hostedTransport.attempt),
+      outputReports: records(hostedTransport.output_reports).flatMap((item) => {
+        const logicalRef = optionalString(item.logical_ref);
+        const sha256 = optionalString(item.sha256);
+        return logicalRef && sha256 ? [{ logicalRef, sha256 }] : [];
+      }),
+      transportStatusIsLifecycleEvidence: false,
+    },
     idempotencyKey: optionalString(operation.idempotency_key),
     overwritePolicy: optionalString(operation.overwrite_policy),
     timeoutPolicy: optionalString(operation.timeout_policy),
@@ -4626,9 +4651,13 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
       executor: {
         enabled: false,
         configured: false,
+        transport: "none",
         platformDirConfigured: false,
         platformCliPresent: false,
         timeoutSeconds: null,
+        hostedEnabled: false,
+        hostedServiceConfigured: false,
+        hostedServiceReachable: false,
       },
       operations: {
         registeredCount: 0,
@@ -4674,9 +4703,13 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
     executor: {
       enabled: executor.enabled === true,
       configured: executor.configured === true,
+      transport: stringValue(executor.transport, "none"),
       platformDirConfigured: executor.platform_dir_configured === true,
       platformCliPresent: executor.platform_cli_present === true,
       timeoutSeconds: optionalNumberValue(executor.timeout_seconds),
+      hostedEnabled: executor.hosted_enabled === true,
+      hostedServiceConfigured: executor.hosted_service_configured === true,
+      hostedServiceReachable: executor.hosted_service_reachable === true,
     },
     operations: {
       registeredCount: numberValue(operations.registered_count),

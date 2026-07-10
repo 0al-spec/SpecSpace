@@ -165,7 +165,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
           ui_stage: "Workspace initialization",
           endpoint: "/api/v1/product-workspace-initialization/execute",
           platform_command: ["workspace", "execute-requested-initialization"],
-          status: "request_needed",
+          status: "execution_requested",
           target_section: "idea-to-spec-workspace-initialization-path",
           next_safe_action: "Complete required request evidence.",
           input_refs: [
@@ -188,6 +188,17 @@ describe("IdeaToSpecWorkspacePanel", () => {
           dry_run_only: false,
           irreversible: false,
           requires_explicit_confirmation: false,
+          hosted_transport: {
+            available: true,
+            status: "queued",
+            request_id: (
+              "managed-operation://team-decision-log/"
+              + "workspace_initialization_execute/0123456789abcdef01234567"
+            ),
+            attempt: 0,
+            output_reports: [],
+            transport_status_is_lifecycle_evidence: false,
+          },
           authority_boundary: {
             ...raw.guided_flow.authority_boundary,
             managed_operations_observability_is_authority: false,
@@ -207,16 +218,20 @@ describe("IdeaToSpecWorkspacePanel", () => {
       available: true,
       surface_id: "specspace.managed-mode.readiness.v0.1",
       surface_kind: "managed_mode_readiness",
-      status: "read_only",
-      mode: "read_only",
-      next_safe_action: "Inspect workspace state or create request-only intents.",
-      disabled_reasons: ["platform_execution_disabled"],
+      status: "hosted_managed_ready",
+      mode: "hosted_managed",
+      next_safe_action: "Enqueue allowlisted Platform operations.",
+      disabled_reasons: [],
       executor: {
-        enabled: false,
-        configured: false,
+        enabled: true,
+        configured: true,
+        transport: "hosted_queue",
         platform_dir_configured: false,
         platform_cli_present: false,
-        timeout_seconds: 120,
+        timeout_seconds: 5,
+        hosted_enabled: true,
+        hosted_service_configured: true,
+        hosted_service_reachable: true,
       },
       operations: {
         registered_count: 12,
@@ -262,9 +277,11 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Managed mode readiness");
     expect(html).toContain("Workspace binding");
     expect(html).toContain("product-workspace-binding://team-decision-log");
-    expect(html).toContain("Execution unavailable: platform_execution_disabled");
+    expect(html).toContain("hosted queue");
+    expect(html).toContain("Hosted service");
+    expect(html).toContain("queue queued");
     expect(html).toContain("Workspace initialization");
-    expect(html).toContain("request needed");
+    expect(html).toContain("execution requested");
     expect(html).toContain("workspace execute-requested-initialization");
   });
 
