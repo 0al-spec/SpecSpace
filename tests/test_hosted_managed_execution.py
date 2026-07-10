@@ -631,6 +631,20 @@ class HostedManagedExecutionTests(unittest.TestCase):
             ]
         )
 
+    def test_allowlist_blocks_excluded_observability_operation(self) -> None:
+        observability = idea_to_spec_workspace._managed_operations_observability(
+            {"artifacts": {}},
+            allowed_operation_ids={"review_status_execute"},
+        )
+        promotion_review = next(
+            item
+            for item in observability["operations"]
+            if item["operation_id"] == "promotion_review_execute"
+        )
+
+        self.assertEqual(promotion_review["status"], "blocked")
+        self.assertIn("deployment allowlist", promotion_review["next_safe_action"])
+
     def test_rejected_enqueue_is_visible_as_blocked_operation(self) -> None:
         payload = {
             "artifacts": {},

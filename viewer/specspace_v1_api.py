@@ -1092,8 +1092,7 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
                 workspace_id=workspace_id,
             )
         )
-        idea_to_spec_workspace.attach_guided_flow(payload)
-        payload["managed_mode_readiness"] = _managed_mode_readiness(
+        managed_mode_readiness = _managed_mode_readiness(
             server=handler.server,
             provider=provider,
             workspace_id=workspace_id,
@@ -1101,6 +1100,25 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
             if isinstance(payload.get("managed_operations_observability"), dict)
             else None,
         )
+        hosted_enabled_operation_ids = _record(
+            managed_mode_readiness.get("executor")
+        ).get("hosted_enabled_operation_ids")
+        allowed_operation_ids = (
+            set(hosted_enabled_operation_ids)
+            if isinstance(hosted_enabled_operation_ids, list)
+            and all(isinstance(item, str) for item in hosted_enabled_operation_ids)
+            else None
+        )
+        if (
+            getattr(handler.server, "hosted_managed_execution_enabled", False) is True
+            and allowed_operation_ids is None
+        ):
+            allowed_operation_ids = set()
+        idea_to_spec_workspace.attach_guided_flow(
+            payload,
+            allowed_operation_ids=allowed_operation_ids,
+        )
+        payload["managed_mode_readiness"] = managed_mode_readiness
     elif isinstance(payload, dict):
         payload["managed_mode_readiness"] = _managed_mode_readiness(
             server=handler.server,
