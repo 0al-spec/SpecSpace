@@ -1346,6 +1346,8 @@ export type IdeaToSpecGuidedApprovalPath = {
 
 export type IdeaToSpecOverviewItem = {
   id: string;
+  displayAlias: string | null;
+  title: string | null;
   label: string | null;
   kind: string | null;
   detail: string | null;
@@ -1355,7 +1357,9 @@ export type IdeaToSpecOverviewEdge = {
   id: string;
   relation: string | null;
   from: string | null;
+  fromDisplayAlias: string | null;
   to: string | null;
+  toDisplayAlias: string | null;
   label: string | null;
 };
 
@@ -1405,6 +1409,8 @@ export type IdeaToSpecCandidateOverview = {
     constraints: readonly IdeaToSpecOverviewItem[];
   };
   candidateNodes: {
+    aliasCount: number;
+    aliasByNodeId: Readonly<Record<string, string>>;
     nodes: readonly IdeaToSpecOverviewItem[];
   };
   topology: {
@@ -4884,7 +4890,9 @@ function parseOverviewItem(raw: unknown): IdeaToSpecOverviewItem | null {
   if (!id) return null;
   return {
     id,
-    label: optionalString(item.label),
+    displayAlias: optionalString(item.display_alias),
+    title: optionalString(item.title),
+    label: optionalString(item.display_alias) ?? optionalString(item.label),
     kind: optionalString(item.kind),
     detail: optionalString(item.detail),
   };
@@ -4898,7 +4906,9 @@ function parseOverviewEdge(raw: unknown): IdeaToSpecOverviewEdge | null {
     id,
     relation: optionalString(edge.relation),
     from: optionalString(edge.from),
+    fromDisplayAlias: optionalString(edge.from_display_alias),
     to: optionalString(edge.to),
+    toDisplayAlias: optionalString(edge.to_display_alias),
     label: optionalString(edge.label),
   };
 }
@@ -4980,6 +4990,15 @@ function parseCandidateOverview(
       }),
     },
     candidateNodes: {
+      aliasCount: numberValue(candidateNodes.alias_count),
+      aliasByNodeId: Object.fromEntries(
+        Object.entries(recordValue(candidateNodes.alias_by_node_id)).flatMap(
+          ([nodeId, alias]) => {
+            const value = optionalString(alias);
+            return value ? [[nodeId, value]] : [];
+          },
+        ),
+      ),
       nodes: records(candidateNodes.nodes).flatMap((item) => {
         const parsed = parseOverviewItem(item);
         return parsed ? [parsed] : [];

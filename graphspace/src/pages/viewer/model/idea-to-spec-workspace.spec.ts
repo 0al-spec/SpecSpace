@@ -157,6 +157,18 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.candidateOverview.nextAction.label).toBe(
       "Resolve repair blockers",
     );
+    expect(parsed.data.candidateOverview.candidateNodes.aliasCount).toBe(2);
+    expect(
+      parsed.data.candidateOverview.candidateNodes.aliasByNodeId[
+        "candidate-spec.numeric-input"
+      ],
+    ).toBe("Capture numeric input");
+    expect(parsed.data.candidateOverview.candidateNodes.nodes[1].label).toBe(
+      "Capture numeric input",
+    );
+    expect(parsed.data.candidateOverview.topology.edges[0].toDisplayAlias).toBe(
+      "Record a decision",
+    );
     expect(parsed.data.preSib.findings[0].findingId).toBe(
       "pre_sib_ontology_coverage_gap",
     );

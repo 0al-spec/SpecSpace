@@ -1801,15 +1801,24 @@ export const ideaToSpecWorkspace = {
       ],
     },
     candidate_nodes: {
+      alias_count: 2,
+      alias_by_node_id: {
+        "candidate-spec.calculator-product": "Calculator boundary",
+        "candidate-spec.numeric-input": "Capture numeric input",
+      },
       nodes: [
         {
           id: "candidate-spec.calculator-product",
+          display_alias: "Calculator boundary",
+          title: "Calculator Product",
           label: "Calculator Product",
           kind: "product_boundary",
           detail: "Product boundary node.",
         },
         {
           id: "candidate-spec.numeric-input",
+          display_alias: "Capture numeric input",
+          title: "Numeric Input",
           label: "Numeric Input",
           kind: "feature",
           detail: "Input node with one repair gap.",
@@ -1829,7 +1838,9 @@ export const ideaToSpecWorkspace = {
           id: "edge.actor-command",
           relation: "actor_triggers_command",
           from: "actor.team-member",
+          from_display_alias: "Team member",
           to: "command.record-decision",
+          to_display_alias: "Record a decision",
           label: "Team member records decision",
         },
       ],
