@@ -257,6 +257,58 @@ class HostedManagedExecutionTests(unittest.TestCase):
         )
         self.assertEqual(record["idempotency_key"], "1" * 64)
 
+    def test_enqueue_accepts_idempotent_terminal_receipt(self) -> None:
+        report = {
+            "artifact_kind": "platform_hosted_managed_operation_enqueue_report",
+            "ok": True,
+            "request": {
+                "idempotency_key": "2" * 64,
+                "generated_at": "2026-07-10T00:00:00Z",
+                "operation": {"operation_id": "review_status_execute"},
+                "workspace": {"workspace_id": "pantry-control"},
+                "workspace_binding": {},
+                "expected_output_reports": [
+                    "runs/product_candidate_promotion_review_status_report.json"
+                ],
+            },
+            "receipt": {
+                "status": "succeeded",
+                "attempt": 1,
+                "request_ref": "managed-operation://pantry-control/review/succeeded",
+                "idempotency_key": "1" * 64,
+                "operation_id": "review_status_execute",
+                "workspace_id": "pantry-control",
+                "output_reports": [
+                    {
+                        "logical_ref": "runs/product_candidate_promotion_review_status_report.json",
+                        "sha256": "3" * 64,
+                    }
+                ],
+            },
+            "authority_boundary": {
+                "enqueue_is_execution_authority": False,
+                "queue_status_is_lifecycle_evidence": False,
+                "platform_output_reports_are_authoritative": True,
+            },
+        }
+
+        record = hosted_managed_execution._compact_enqueue_record(report)
+
+        self.assertEqual(record["status"], "succeeded")
+        self.assertEqual(record["attempt"], 1)
+        self.assertEqual(len(record["output_reports"]), 1)
+
+    def test_replay_safe_operator_actions_receive_distinct_refs(self) -> None:
+        first = hosted_managed_execution._operator_ref("review_status_execute")
+        second = hosted_managed_execution._operator_ref("review_status_execute")
+
+        self.assertNotEqual(first, second)
+        self.assertTrue(first.startswith("operator://specspace-"))
+        self.assertEqual(
+            hosted_managed_execution._operator_ref("real_idea_intake_execute"),
+            "operator://specspace-backend",
+        )
+
     def test_enqueue_rejects_nested_authority_expansion(self) -> None:
         report = {
             "artifact_kind": "platform_hosted_managed_operation_enqueue_report",

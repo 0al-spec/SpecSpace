@@ -21,6 +21,7 @@ STATE_KIND = "specspace_hosted_managed_operation_request_state"
 CONFIRMATION_DIR = "hosted-managed-confirmations"
 ACTIVE_STATUSES = {"queued", "leased", "running"}
 TERMINAL_STATUSES = {"rejected", "succeeded", "failed", "timed_out", "quarantined"}
+REPLAY_SAFE_OPERATION_IDS = {"promotion_execute_dry_run", "review_status_execute"}
 _STATE_LOCK = threading.Lock()
 
 
@@ -202,6 +203,12 @@ def _safe_output_reports(receipt: dict[str, Any]) -> list[dict[str, str]]:
     return reports
 
 
+def _operator_ref(operation_id: str) -> str:
+    if operation_id in REPLAY_SAFE_OPERATION_IDS:
+        return f"operator://specspace-{uuid.uuid4().hex}"
+    return "operator://specspace-backend"
+
+
 def _compact_enqueue_record(report: dict[str, Any]) -> dict[str, Any]:
     request = _record(report.get("request"))
     receipt = _record(report.get("receipt"))
@@ -221,7 +228,7 @@ def _compact_enqueue_record(report: dict[str, Any]) -> dict[str, Any]:
         or idempotency_key is None
         or operation_id is None
         or workspace_id is None
-        or status != "queued"
+        or status not in ACTIVE_STATUSES | TERMINAL_STATUSES
         or receipt.get("operation_id") != operation_id
         or receipt.get("workspace_id") != workspace_id
         or _authority_expansion(report) is not None
@@ -248,7 +255,7 @@ def _compact_enqueue_record(report: dict[str, Any]) -> dict[str, Any]:
             for item in request.get("expected_output_reports", [])
             if isinstance(item, str) and item.startswith("runs/")
         ],
-        "output_reports": [],
+        "output_reports": _safe_output_reports(receipt),
         "created_at": _text(request.get("generated_at")) or now_iso(),
         "updated_at": now_iso(),
         "last_poll_error": None,
@@ -490,12 +497,13 @@ def enqueue_operation(
         if operation.requires_explicit_confirmation
         else None
     )
+    operator_ref = _operator_ref(operation_id)
     request_payload = {
         "operation_id": operation_id,
         "workspace_id": workspace_id,
         "workspace_binding_ref": binding_ref,
         "input_refs": input_refs,
-        "operator_ref": "operator://specspace-backend",
+        "operator_ref": operator_ref,
         "confirmation_ref": confirmation_ref,
     }
     try:
@@ -511,20 +519,25 @@ def enqueue_operation(
             "operation_id": operation_id,
             "authority_boundary": authority_boundary(),
         }
+    terminal = record["status"] in TERMINAL_STATUSES
     return HTTPStatus.ACCEPTED, {
         "artifact_kind": "specspace_hosted_managed_operation_request",
         "schema_version": 1,
         "ok": True,
-        "status": "execution_requested",
+        "status": "execution_already_recorded" if terminal else "execution_requested",
         "workspace_id": workspace_id,
         "operation_id": operation_id,
         "request_id": record["request_id"],
         "idempotency_key": record["idempotency_key"],
         "queue_status": record["status"],
         "summary": {
-            "status": "hosted_managed_operation_queued",
+            "status": f"hosted_managed_operation_{record['status']}",
             "executed": False,
-            "next_action": "Wait for the hosted Platform worker and refresh Product Workspace status.",
+            "next_action": (
+                "Refresh Product Workspace and inspect the authoritative Platform report."
+                if terminal
+                else "Wait for the hosted Platform worker and refresh Product Workspace status."
+            ),
         },
         "authority_boundary": authority_boundary(),
     }

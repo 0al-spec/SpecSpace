@@ -194,6 +194,14 @@ Local and hosted execution cannot be enabled together. That configuration is
 Even queue `succeeded` remains `running_or_waiting` until the normal Product
 Workspace artifact provider reads the authoritative Platform output report.
 
+An idempotent enqueue response may already contain an active or terminal
+receipt. SpecSpace stores that compact transport state instead of returning a
+false executor-unavailable error; terminal queue state still does not replace
+the authoritative Platform report. Explicit replay-safe actions such as review
+status refresh and promotion dry-run use a fresh opaque operator action ref, so
+Platform can perform a new safe inspection while transport retries of the same
+request remain idempotent.
+
 ## Operation Inventory
 
 | Operation id | UI stage | Endpoint | Platform command | Primary outputs |
