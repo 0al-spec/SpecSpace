@@ -2122,6 +2122,16 @@ function ManagedOperationsObservabilitySection({
             }
           />
           <Meta
+            label="Hosted scope"
+            value={
+              readiness.executor.hostedEnabledOperationIds.length > 0
+                ? `${readiness.executor.hostedEnabledOperationIds.length} allowlisted operation(s)`
+                : readiness.executor.hostedEnabled
+                  ? "not reported"
+                  : "not applicable"
+            }
+          />
+          <Meta
             label="State directory"
             value={readiness.state.specspaceStateDirReady ? "ready" : "missing"}
           />

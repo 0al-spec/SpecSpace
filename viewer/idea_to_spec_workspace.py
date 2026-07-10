@@ -8299,7 +8299,11 @@ def _managed_operation_bound_ref(payload: dict[str, Any], ref: str) -> str:
     return f"{run_dir_ref}/{suffix}"
 
 
-def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]:
+def _managed_operations_observability(
+    payload: dict[str, Any],
+    *,
+    allowed_operation_ids: set[str] | frozenset[str] | None = None,
+) -> dict[str, Any]:
     operations: list[dict[str, Any]] = []
     hosted_operations = _record(
         _record(payload.get("hosted_managed_execution")).get("operations")
@@ -8337,6 +8341,10 @@ def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]
         )
         hosted_record = _record(hosted_operations.get(operation.operation_id))
         hosted_status = _text(hosted_record.get("status")).lower()
+        deployment_disabled = (
+            allowed_operation_ids is not None
+            and operation.operation_id not in allowed_operation_ids
+        )
         if status != "completed":
             if hosted_status == "queued":
                 status = "execution_requested"
@@ -8346,7 +8354,13 @@ def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]
                 status = "failed"
             elif hosted_status in {"quarantined", "rejected"}:
                 status = "blocked"
-        if status == "completed":
+        if deployment_disabled:
+            status = "blocked"
+            next_safe_action = (
+                "This operation is disabled by the hosted deployment allowlist; "
+                "use an enabled operation or update deployment configuration."
+            )
+        elif status == "completed":
             next_safe_action = "Inspect the durable execution report and continue to the next lifecycle step."
         elif status in {"request_needed", "gate_needed"}:
             next_safe_action = "Complete the required request, gate, or artifact evidence before execution."
@@ -8460,12 +8474,19 @@ def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]
     }
 
 
-def attach_guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
+def attach_guided_flow(
+    payload: dict[str, Any],
+    *,
+    allowed_operation_ids: set[str] | frozenset[str] | None = None,
+) -> dict[str, Any]:
     payload["guided_repair_path"] = _guided_repair_path(payload)
     payload["guided_approval_path"] = _guided_approval_path(payload)
     payload["guided_flow"] = _guided_flow(payload)
     payload["managed_operations_observability"] = (
-        _managed_operations_observability(payload)
+        _managed_operations_observability(
+            payload,
+            allowed_operation_ids=allowed_operation_ids,
+        )
     )
     payload["product_workspace_overview"] = _product_workspace_overview(payload)
     return payload

@@ -405,6 +405,28 @@ def _managed_operation_status_counts(
     return counts
 
 
+def _managed_operation_ready_count(
+    observability: dict[str, Any] | None,
+    *,
+    allowed_operation_ids: set[str] | frozenset[str] | None,
+) -> int:
+    if not isinstance(observability, dict):
+        return 0
+    count = 0
+    for operation in observability.get("operations", []):
+        if not isinstance(operation, dict):
+            continue
+        operation_id = operation.get("operation_id")
+        if (
+            allowed_operation_ids is not None
+            and operation_id not in allowed_operation_ids
+        ):
+            continue
+        if operation.get("status") == "ready_to_execute":
+            count += 1
+    return count
+
+
 def _managed_mode_readiness(
     *,
     server: Any,
@@ -449,11 +471,32 @@ def _managed_mode_readiness(
     hosted_service_configured = False
     hosted_service_reachable = False
     hosted_health: dict[str, Any] = {}
+    hosted_allowed_operation_ids: frozenset[str] | None = None
     if hosted_execution_enabled:
         try:
             hosted_client = hosted_managed_execution.client_from_server(server)
             hosted_service_configured = True
             hosted_health = hosted_client.health()
+            registry_operation_ids = {
+                item.operation_id for item in managed_operations_registry.MANAGED_OPERATIONS
+            }
+            raw_enabled_operation_ids = hosted_health.get("enabled_operation_ids")
+            if raw_enabled_operation_ids is None:
+                operation_count_matches = hosted_health.get("operation_count") == len(
+                    registry_operation_ids
+                )
+                hosted_allowed_operation_ids = frozenset(registry_operation_ids)
+            elif isinstance(raw_enabled_operation_ids, list) and all(
+                isinstance(item, str) for item in raw_enabled_operation_ids
+            ):
+                hosted_allowed_operation_ids = frozenset(raw_enabled_operation_ids)
+                operation_count_matches = (
+                    hosted_health.get("operation_count") == len(hosted_allowed_operation_ids)
+                    and hosted_allowed_operation_ids <= registry_operation_ids
+                    and len(raw_enabled_operation_ids) == len(hosted_allowed_operation_ids)
+                )
+            else:
+                operation_count_matches = False
             hosted_service_reachable = (
                 hosted_health.get("artifact_kind")
                 == "platform_hosted_managed_operation_service_health"
@@ -463,8 +506,7 @@ def _managed_mode_readiness(
                 == "platform.hosted-managed-operation.request.v1"
                 and hosted_health.get("registry_contract_ref")
                 == "platform.managed-operation.registry.v1"
-                and hosted_health.get("operation_count")
-                == len(managed_operations_registry.MANAGED_OPERATIONS)
+                and operation_count_matches
             )
         except hosted_managed_execution.HostedExecutionError:
             hosted_service_reachable = False
@@ -523,7 +565,12 @@ def _managed_mode_readiness(
     operation_count = len(managed_operations_registry.MANAGED_OPERATIONS)
     operation_status_counts = _managed_operation_status_counts(observability)
     ready_now_count = (
-        operation_status_counts.get("ready_to_execute", 0)
+        _managed_operation_ready_count(
+            observability,
+            allowed_operation_ids=hosted_allowed_operation_ids
+            if hosted_execution_enabled
+            else None,
+        )
         if executor_ready
         else 0
     )
@@ -583,6 +630,11 @@ def _managed_mode_readiness(
             "hosted_registry_contract_ref": (
                 hosted_health.get("registry_contract_ref")
                 if hosted_service_reachable
+                else None
+            ),
+            "hosted_enabled_operation_ids": (
+                sorted(hosted_allowed_operation_ids)
+                if hosted_service_reachable and hosted_allowed_operation_ids is not None
                 else None
             ),
         },
@@ -1040,8 +1092,7 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
                 workspace_id=workspace_id,
             )
         )
-        idea_to_spec_workspace.attach_guided_flow(payload)
-        payload["managed_mode_readiness"] = _managed_mode_readiness(
+        managed_mode_readiness = _managed_mode_readiness(
             server=handler.server,
             provider=provider,
             workspace_id=workspace_id,
@@ -1049,6 +1100,25 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
             if isinstance(payload.get("managed_operations_observability"), dict)
             else None,
         )
+        hosted_enabled_operation_ids = _record(
+            managed_mode_readiness.get("executor")
+        ).get("hosted_enabled_operation_ids")
+        allowed_operation_ids = (
+            set(hosted_enabled_operation_ids)
+            if isinstance(hosted_enabled_operation_ids, list)
+            and all(isinstance(item, str) for item in hosted_enabled_operation_ids)
+            else None
+        )
+        if (
+            getattr(handler.server, "hosted_managed_execution_enabled", False) is True
+            and allowed_operation_ids is None
+        ):
+            allowed_operation_ids = set()
+        idea_to_spec_workspace.attach_guided_flow(
+            payload,
+            allowed_operation_ids=allowed_operation_ids,
+        )
+        payload["managed_mode_readiness"] = managed_mode_readiness
     elif isinstance(payload, dict):
         payload["managed_mode_readiness"] = _managed_mode_readiness(
             server=handler.server,
