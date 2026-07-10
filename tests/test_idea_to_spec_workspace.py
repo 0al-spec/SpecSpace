@@ -4559,6 +4559,34 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertFalse(authoring["action_boundary"]["may_execute_specgraph"])
         self.assertFalse(authoring["action_boundary"]["may_apply_answers"])
 
+    def test_build_workspace_prefers_direct_managed_intake_answer_template(self) -> None:
+        legacy_template = _real_idea_answer_template()
+        direct_template = _real_idea_answer_template()
+        direct_template["answer_targets"][0]["question"] = (
+            "Which domain belongs to the current managed intake?"
+        )
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT: legacy_template,
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_DIRECT_ARTIFACT: direct_template,
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertEqual(
+            body["intake_clarification"]["answer_authoring"]["template"][
+                "targets"
+            ][0]["question"],
+            "Which domain belongs to the current managed intake?",
+        )
+        self.assertEqual(
+            body["artifacts"]["real_idea_answer_template"]["path"],
+            "runs/real_idea_answer_template.json",
+        )
+
     def test_build_workspace_projects_clarification_not_required(self) -> None:
         template = _real_idea_answer_template()
         template["clarification_outcome"] = "clarification_not_required"

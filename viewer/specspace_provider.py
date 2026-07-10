@@ -591,10 +591,15 @@ PRE_CANDIDATE_WORKSPACE_ARTIFACTS: frozenset[str] = frozenset(
         idea_to_spec_workspace.CLARIFIED_USER_IDEA_INTAKE_SOURCE_ARTIFACT,
         idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_RERUN_REPORT_ARTIFACT,
         idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT,
+        idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_DIRECT_ARTIFACT,
         idea_to_spec_workspace.REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT,
+        idea_to_spec_workspace.REAL_IDEA_ANSWER_AUTHORING_REPORT_DIRECT_ARTIFACT,
         idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_ARTIFACT,
+        idea_to_spec_workspace.REAL_IDEA_ANSWER_SET_DIRECT_ARTIFACT,
         idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_ARTIFACT,
+        idea_to_spec_workspace.SPECSPACE_REAL_IDEA_ANSWER_IMPORT_PREVIEW_DIRECT_ARTIFACT,
         idea_to_spec_workspace.REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
+        idea_to_spec_workspace.REAL_IDEA_ANSWER_CONTINUATION_REPORT_DIRECT_ARTIFACT,
     }
 )
 

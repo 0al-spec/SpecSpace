@@ -3,12 +3,14 @@ from __future__ import annotations
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import io
 from pathlib import Path
 import tempfile
 import threading
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
+import urllib.error
 
 from viewer import hosted_managed_execution, idea_to_spec_workspace, specspace_v1_api
 
@@ -194,6 +196,33 @@ class HostedManagedExecutionTests(unittest.TestCase):
                 timeout_seconds=2,
             )
 
+    def test_client_surfaces_safe_platform_contract_rejection(self) -> None:
+        client = hosted_managed_execution.HostedManagedOperationClient(
+            base_url="https://executor.example.test",
+            token=TOKEN,
+            timeout_seconds=2,
+        )
+        error = urllib.error.HTTPError(
+            "https://executor.example.test/v1/managed-operations",
+            409,
+            "Conflict",
+            {},
+            io.BytesIO(json.dumps({"error": "workspace binding source is missing"}).encode()),
+        )
+
+        with patch("urllib.request.urlopen", side_effect=error), self.assertRaisesRegex(
+            hosted_managed_execution.HostedExecutionError,
+            "HTTP 409: workspace binding source is missing",
+        ):
+            client.enqueue({"operation_id": "review_status_execute"})
+
+    def test_remote_error_sanitizer_rejects_local_paths_and_secrets(self) -> None:
+        self.assertIsNone(
+            hosted_managed_execution._safe_remote_error(
+                "token failed at /Users/operator/private"
+            )
+        )
+
     def test_enqueue_uses_canonical_receipt_request_identity(self) -> None:
         report = {
             "artifact_kind": "platform_hosted_managed_operation_enqueue_report",
@@ -298,6 +327,24 @@ class HostedManagedExecutionTests(unittest.TestCase):
         self.assertEqual(status, HTTPStatus.ACCEPTED)
         self.assertEqual(response["status"], "execution_requested")
         enqueue.assert_called_once()
+
+    def test_workspace_initialization_path_enables_configured_hosted_executor(self) -> None:
+        server = SimpleNamespace(
+            platform_execution_enabled=False,
+            platform_dir=None,
+            hosted_managed_execution_enabled=True,
+            hosted_managed_executor_url="https://executor.example.test",
+            hosted_managed_executor_token=TOKEN,
+            hosted_managed_executor_timeout_seconds=2,
+        )
+
+        path = specspace_v1_api._workspace_initialization_path(
+            server=server,
+            workspace_id="pantry-control",
+            creation={"summary": {"status": "workspace_creation_requested"}},
+        )
+
+        self.assertTrue(path["managed_execution_available"])
 
     def test_hosted_managed_readiness_does_not_require_local_platform_cli(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

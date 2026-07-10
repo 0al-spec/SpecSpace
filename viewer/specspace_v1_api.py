@@ -167,10 +167,20 @@ def _workspace_initialization_path(
     next_safe_action = "Create a workspace request before starting product intake."
     blockers: list[str] = []
     platform_dir = getattr(server, "platform_dir", None)
-    managed_execution_available = (
+    local_managed_execution_available = (
         getattr(server, "platform_execution_enabled", False) is True
         and isinstance(platform_dir, Path)
         and (platform_dir / "scripts" / "platform.py").is_file()
+    )
+    hosted_managed_execution_available = False
+    if getattr(server, "hosted_managed_execution_enabled", False) is True:
+        try:
+            hosted_managed_execution.client_from_server(server)
+            hosted_managed_execution_available = True
+        except hosted_managed_execution.HostedExecutionError:
+            pass
+    managed_execution_available = (
+        local_managed_execution_available or hosted_managed_execution_available
     )
 
     creation_status = summary.get("status")

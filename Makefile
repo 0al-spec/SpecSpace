@@ -17,7 +17,7 @@ SPECGRAPH_DIR ?= $(CLAUDE_SPECGRAPH_DIR)
 HYPERPROMPT_BINARY ?= $(CLAUDE_HYPERPROMPT_BINARY)
 AGENT ?= 1
 
-.PHONY: help serve api ui legacy-ui dev legacy-dev start stop specspace-start specspace-stop specspace-restart specspace-status ui-e2e-raw-idea-entry ui-e2e-product-demo ui-e2e-product-demo-live test lint canonicalize canon quickstart
+.PHONY: help serve api ui legacy-ui dev legacy-dev start stop specspace-start specspace-stop specspace-restart specspace-status ui-e2e-raw-idea-entry ui-e2e-product-demo ui-e2e-product-demo-hosted ui-e2e-product-demo-live test lint canonicalize canon quickstart
 
 help:
 	@echo "Targets:"
@@ -36,6 +36,7 @@ help:
 	@echo "  make specspace-status      Show SpecSpace dev screen sessions and port listeners"
 	@echo "  make ui-e2e-raw-idea-entry Run Playwright UI-started raw idea entry smoke"
 	@echo "  make ui-e2e-product-demo   Run deterministic Playwright product demo E2E"
+	@echo "  make ui-e2e-product-demo-hosted Run product demo through Platform queue/service/worker"
 	@echo "  make ui-e2e-product-demo-live Run headed product demo E2E and pause at the final route"
 	@echo "  make test"
 	@echo "  make lint"
@@ -153,6 +154,11 @@ ui-e2e-product-demo-live:
 		UI_PORT="$(UI_PORT)" \
 		SPECSPACE_PRODUCT_DEMO_PAUSE_MS="$${SPECSPACE_PRODUCT_DEMO_PAUSE_MS:-30000}" \
 		SPECSPACE_E2E_HEADLESS=0
+
+ui-e2e-product-demo-hosted:
+	@$(MAKE) ui-e2e-product-demo \
+		UI_PORT="$(UI_PORT)" \
+		SPECSPACE_PRODUCT_DEMO_HOSTED=1
 
 test:
 	@$(PYTHON) -m unittest discover -s tests -p 'test_*.py'

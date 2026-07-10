@@ -39,6 +39,11 @@ type SpecSpaceBackend = {
   stop: () => Promise<void>;
 };
 
+type HostedPlatformRuntime = {
+  baseUrl: string;
+  stop: () => Promise<void>;
+};
+
 async function stopChildProcess(
   child: ChildProcessWithoutNullStreams,
   timeoutMs = 5_000,
@@ -157,7 +162,11 @@ function platformCliInvocation(
       };
 }
 
-async function waitForBackend(baseUrl: string, child: ChildProcessWithoutNullStreams) {
+async function waitForBackend(
+  baseUrl: string,
+  child: ChildProcessWithoutNullStreams,
+  healthPath = "/api/v1/health",
+) {
   const deadline = Date.now() + 10_000;
   let lastError: unknown = null;
   while (Date.now() < deadline) {
@@ -165,7 +174,7 @@ async function waitForBackend(baseUrl: string, child: ChildProcessWithoutNullStr
       throw new Error(`SpecSpace backend exited early with code ${child.exitCode}`);
     }
     try {
-      const response = await fetch(`${baseUrl}/api/v1/health`);
+      const response = await fetch(`${baseUrl}${healthPath}`);
       if (response.ok) return;
     } catch (error) {
       lastError = error;
@@ -202,11 +211,14 @@ async function startSpecSpaceBackend(options: {
   platformDir?: string;
   specGraphDir?: string;
   enablePlatformExecution?: boolean;
+  hostedExecutorUrl?: string;
+  hostedExecutorToken?: string;
+  runsDir?: string;
 } = {}): Promise<SpecSpaceBackend> {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "specspace-ui-e2e-"));
   const dialogDir = path.join(tmpRoot, "dialogs");
   const stateDir = path.join(tmpRoot, "state");
-  const runsDir = path.join(tmpRoot, "runs");
+  const runsDir = options.runsDir ?? path.join(tmpRoot, "runs");
   await mkdir(dialogDir, { recursive: true });
   await mkdir(stateDir, { recursive: true });
   if (options.seedIntakeRuns !== false) {
@@ -233,9 +245,25 @@ async function startSpecSpaceBackend(options: {
         : []),
       ...(options.specGraphDir ? ["--specgraph-dir", options.specGraphDir] : []),
       ...(options.enablePlatformExecution ? ["--enable-platform-execution"] : []),
+      ...(options.hostedExecutorUrl
+        ? [
+            "--enable-hosted-managed-execution",
+            "--hosted-managed-executor-url",
+            options.hostedExecutorUrl,
+          ]
+        : []),
     ],
     {
       cwd: repoRoot,
+      env: {
+        ...process.env,
+        ...(options.hostedExecutorToken
+          ? {
+              SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN:
+                options.hostedExecutorToken,
+            }
+          : {}),
+      },
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
@@ -259,6 +287,125 @@ async function startSpecSpaceBackend(options: {
     stop: async () => {
       await stopChildProcess(child);
       await rm(tmpRoot, { recursive: true, force: true });
+    },
+  };
+}
+
+async function waitForPath(filePath: string, timeoutMs = 180_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (existsSync(filePath)) return;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(`Timed out waiting for ${filePath}`);
+}
+
+async function waitForPathOrManagedError(
+  page: Page,
+  filePath: string,
+  statusTestId: string,
+  timeoutMs = 180_000,
+) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (existsSync(filePath)) return;
+    const status = await page.getByTestId(statusTestId).textContent();
+    if (status?.includes("HTTP ")) {
+      throw new Error(status);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(`Timed out waiting for ${filePath}`);
+}
+
+async function startHostedPlatformRuntime(args: {
+  platformDir: string;
+  specGraphDir: string;
+  artifactRoot: string;
+  stateDir: string;
+  runtimeDir: string;
+  token: string;
+  port?: number;
+}): Promise<HostedPlatformRuntime> {
+  const port = args.port ?? (await freePort());
+  const database = path.join(args.runtimeDir, "managed-operations.sqlite3");
+  const python = executablePythonForSubprocess(args.platformDir);
+  const platformScript = path.join(args.platformDir, "scripts/platform.py");
+  const common = [
+    "--database",
+    database,
+    "--artifact-root",
+    args.artifactRoot,
+    "--state-dir",
+    args.stateDir,
+    "--specgraph-dir",
+    args.specGraphDir,
+  ];
+  const service = spawn(
+    python,
+    [
+      platformScript,
+      "managed-operation",
+      "serve",
+      ...common,
+      "--host",
+      "127.0.0.1",
+      "--port",
+      String(port),
+    ],
+    {
+      cwd: args.platformDir,
+      env: {
+        ...process.env,
+        PLATFORM_MANAGED_OPERATION_TOKEN: args.token,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  const serviceErrors: string[] = [];
+  service.stderr.on("data", (chunk: Buffer) =>
+    serviceErrors.push(chunk.toString("utf8")),
+  );
+  service.stdout.on("data", () => undefined);
+  const baseUrl = `http://127.0.0.1:${port}`;
+  try {
+    await waitForBackend(baseUrl, service, "/v1/health");
+  } catch (error) {
+    await stopChildProcess(service);
+    throw new Error(`${String(error)}\n${serviceErrors.join("")}`);
+  }
+  const worker = spawn(
+    python,
+    [
+      platformScript,
+      "managed-operation",
+      "worker",
+      ...common,
+      "--worker-id",
+      "specspace-playwright-hosted-worker",
+      "--poll-interval",
+      "0.2",
+    ],
+    {
+      cwd: args.platformDir,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  const workerErrors: string[] = [];
+  worker.stderr.on("data", (chunk: Buffer) =>
+    workerErrors.push(chunk.toString("utf8")),
+  );
+  worker.stdout.on("data", () => undefined);
+  worker.once("exit", (code) => {
+    if (code !== null && code !== 0) {
+      serviceErrors.push(`worker exited ${code}: ${workerErrors.join("")}`);
+    }
+  });
+  return {
+    baseUrl,
+    stop: async () => {
+      await stopChildProcess(worker);
+      await stopChildProcess(service);
     },
   };
 }
@@ -755,7 +902,10 @@ async function executeDurableWorkspaceInitialization(args: {
   specGraphDir: string;
   workspaceId: string;
 }) {
-  const workspaceRunsDir = path.join(args.backend.runsDir, args.workspaceId);
+  const workspaceRunsDir =
+    path.basename(args.backend.runsDir) === args.workspaceId
+      ? args.backend.runsDir
+      : path.join(args.backend.runsDir, args.workspaceId);
   const workspaceOrgRoot = path.join(args.backend.tmpRoot, "product-workspaces");
   const workspaceRoot = path.join(workspaceOrgRoot, args.workspaceId);
   const catalogPath = path.join(args.backend.tmpRoot, "workspaces.local.yaml");
@@ -3360,9 +3510,29 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
   );
 
   const platformScript = path.join(platformDir, "scripts/platform.py");
-  const backend = await startSpecSpaceBackend({ seedIntakeRuns: false });
   const specGraphRunDirRef = `runs/${productDemoWorkspaceId}`;
   const specGraphRunDir = path.join(specGraphDir, specGraphRunDirRef);
+  const hostedMode = process.env.SPECSPACE_PRODUCT_DEMO_HOSTED === "1";
+  const hostedToken = "playwright-hosted-token-0123456789abcdef";
+  const hostedPort = hostedMode ? await freePort() : null;
+  const backend = await startSpecSpaceBackend({
+    seedIntakeRuns: false,
+    runsDir: hostedMode ? specGraphRunDir : undefined,
+    hostedExecutorUrl:
+      hostedPort === null ? undefined : `http://127.0.0.1:${hostedPort}`,
+    hostedExecutorToken: hostedMode ? hostedToken : undefined,
+  });
+  const hostedRuntime = hostedMode
+    ? await startHostedPlatformRuntime({
+        platformDir,
+        specGraphDir,
+        artifactRoot: specGraphDir,
+        stateDir: backend.stateDir,
+        runtimeDir: backend.tmpRoot,
+        token: hostedToken,
+        port: hostedPort!,
+      })
+    : null;
   const platformReportPath = path.join(
     specGraphRunDir,
     "platform_real_idea_entry_intake_execution_report.json",
@@ -3474,9 +3644,22 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       "--format",
       "json",
     ]);
-    const execution = await runCommand(intakeCommand.command, intakeCommand.args, {
-      cwd: platformDir,
-    });
+    const execution = hostedMode
+      ? await (async () => {
+          await expect(
+            page.getByTestId("real-idea-intake-managed-execute"),
+          ).toBeEnabled();
+          await page.getByTestId("real-idea-intake-managed-execute").click();
+          await waitForPathOrManagedError(
+            page,
+            platformReportPath,
+            "real-idea-intake-managed-execute-status",
+          );
+          return { code: 0, stdout: "hosted queue completed", stderr: "" };
+        })()
+      : await runCommand(intakeCommand.command, intakeCommand.args, {
+          cwd: platformDir,
+        });
     expect(execution.code, execution.stderr).toBe(0);
     const intakeReport = JSON.parse(await readFile(platformReportPath, "utf8")) as {
       ok?: boolean;
@@ -3488,11 +3671,13 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       intakeReport.target_make?.variables?.SPECSPACE_REAL_IDEA_ENTRY_WORKSPACE_ID,
     ).toBe(productDemoWorkspaceId);
 
-    await publishRealIdeaIntakeExecutionArtifacts({
-      backendRunsDir: initialization.workspaceRunsDir,
-      platformReportPath,
-      specGraphRunDir,
-    });
+    if (!hostedMode) {
+      await publishRealIdeaIntakeExecutionArtifacts({
+        backendRunsDir: initialization.workspaceRunsDir,
+        platformReportPath,
+        specGraphRunDir,
+      });
+    }
     await emitRunsChange(page);
     await expect(page.getByText("Platform intake execution", { exact: true })).toBeVisible();
     await expect(page.getByText("execute_specgraph_real_idea_entry_intake")).toBeVisible();
@@ -3522,6 +3707,11 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     expect(generatedTemplate.summary?.answerable_target_count ?? 0).toBeGreaterThan(0);
     expect(generatedTemplate.summary?.unsupported_target_count ?? 0).toBe(0);
     const answerFields = page.locator('textarea[data-testid^="intake-clarification-answer-"]');
+    if (hostedMode) {
+      await expect
+        .poll(() => answerFields.count(), { timeout: 15_000 })
+        .toBeGreaterThan(0);
+    }
     let answerCount = await answerFields.count();
     if (answerCount === 0) {
       if (process.env.SPECSPACE_PRODUCT_DEMO_ALLOW_CLARIFICATION_FALLBACK !== "1") {
@@ -3690,11 +3880,26 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       "--format",
       "json",
     ]);
-    const continuation = await runCommand(
-      continuationCommand.command,
-      continuationCommand.args,
-      { cwd: platformDir },
-    );
+    const continuation = hostedMode
+      ? await (async () => {
+          await expect(
+            page.getByTestId(
+              "guided-clarification-continuation-managed-execute",
+            ),
+          ).toBeEnabled();
+          await page
+            .getByTestId("guided-clarification-continuation-managed-execute")
+            .click();
+          await waitForPathOrManagedError(
+            page,
+            continuationReportPath,
+            "guided-clarification-continuation-managed-execute-status",
+          );
+          return { code: 0, stdout: "hosted queue completed", stderr: "" };
+        })()
+      : await runCommand(continuationCommand.command, continuationCommand.args, {
+          cwd: platformDir,
+        });
     if (continuation.code !== 0) {
       await writeProductDemoReport(artifactDir, {
         ...reportPayload,
@@ -3743,11 +3948,13 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     }
     expect(depthBaseline.code, depthBaseline.stderr || depthBaseline.stdout).toBe(0);
 
-    await publishRealIdeaContinuationArtifacts({
-      backendRunsDir: initialization.workspaceRunsDir,
-      platformReportPath: continuationReportPath,
-      specGraphRunDir,
-    });
+    if (!hostedMode) {
+      await publishRealIdeaContinuationArtifacts({
+        backendRunsDir: initialization.workspaceRunsDir,
+        platformReportPath: continuationReportPath,
+        specGraphRunDir,
+      });
+    }
     const generatedIdeaArtifactsText = await readExistingFilesAsText([
       path.join(specGraphRunDir, "platform_real_idea_entry_intake_execution_report.json"),
       path.join(specGraphRunDir, "user_idea_intake_session.json"),
@@ -3905,6 +4112,7 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
       public_summary_present: generatedIdeaArtifactsText.includes(productDemoPublicSummary),
       workspace_id_present: generatedIdeaArtifactsText.includes(productDemoWorkspaceId),
       team_decision_log_fallback: teamDecisionLogFallback,
+      execution_transport: hostedMode ? "hosted_queue" : "external_cli",
       workspace_binding_status: initialization.binding?.status ?? null,
       workspace_binding_id: initialization.binding?.binding_id ?? null,
       screenshots: [
@@ -3941,6 +4149,7 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     if (completed && process.env.SPECSPACE_PRODUCT_DEMO_KEEP_RUN_DIR !== "1") {
       await rm(specGraphRunDir, { recursive: true, force: true });
     }
+    await hostedRuntime?.stop();
     await backend.stop();
   }
 });

@@ -28,6 +28,21 @@ class HostedExecutionError(ValueError):
     pass
 
 
+def _safe_remote_error(value: Any) -> str | None:
+    message = _text(value)
+    if message is None or len(message) > 240:
+        return None
+    lowered = message.lower()
+    if any(
+        marker in lowered
+        for marker in ("/users/", "/home/", "/tmp/", "token", "password", "secret")
+    ):
+        return None
+    if any(ord(character) < 32 for character in message):
+        return None
+    return message
+
+
 def now_iso() -> str:
     return (
         datetime.now(timezone.utc)
@@ -339,6 +354,18 @@ class HostedManagedOperationClient:
                 timeout=self.timeout_seconds,
             ) as response:
                 body = json.loads(response.read())
+        except urllib.error.HTTPError as exc:
+            try:
+                error_body = json.loads(exc.read(16 * 1024))
+            except (OSError, json.JSONDecodeError):
+                error_body = {}
+            remote_error = _safe_remote_error(
+                error_body.get("error") if isinstance(error_body, dict) else None
+            )
+            detail = f": {remote_error}" if remote_error else ""
+            raise HostedExecutionError(
+                f"hosted executor rejected the request with HTTP {exc.code}{detail}"
+            ) from exc
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             raise HostedExecutionError("hosted executor is unavailable or returned invalid JSON") from exc
         if not isinstance(body, dict):
