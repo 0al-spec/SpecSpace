@@ -1234,6 +1234,7 @@ export type IdeaToSpecManagedModeReadiness = {
     hostedEnabled: boolean;
     hostedServiceConfigured: boolean;
     hostedServiceReachable: boolean;
+    hostedEnabledOperationIds: readonly string[];
   };
   operations: {
     registeredCount: number;
@@ -4664,6 +4665,7 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
         hostedEnabled: false,
         hostedServiceConfigured: false,
         hostedServiceReachable: false,
+        hostedEnabledOperationIds: [],
       },
       operations: {
         registeredCount: 0,
@@ -4716,6 +4718,7 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
       hostedEnabled: executor.hosted_enabled === true,
       hostedServiceConfigured: executor.hosted_service_configured === true,
       hostedServiceReachable: executor.hosted_service_reachable === true,
+      hostedEnabledOperationIds: strings(executor.hosted_enabled_operation_ids),
     },
     operations: {
       registeredCount: numberValue(operations.registered_count),
