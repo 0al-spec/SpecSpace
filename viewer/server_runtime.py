@@ -43,6 +43,11 @@ class ViewerRuntimeServer(Protocol):
     specspace_state_dir: Path
     platform_dir: Path | None
     platform_execution_enabled: bool
+    hosted_managed_execution_enabled: bool
+    hosted_managed_executor_url: str | None
+    hosted_managed_executor_token: str | None
+    hosted_managed_executor_token_file: Path | None
+    hosted_managed_executor_timeout_seconds: float
     allow_legacy_workspace_execution: bool
     platform_execution_timeout_seconds: int
     agent_available: bool
@@ -80,11 +85,45 @@ def build_arg_parser(
         "SPECSPACE_PLATFORM_EXECUTION_TIMEOUT_SECONDS",
         "",
     ).strip()
+    hosted_managed_execution_enabled_env = os.environ.get(
+        "SPECSPACE_HOSTED_MANAGED_EXECUTION_ENABLED",
+        "",
+    ).strip()
+    hosted_managed_executor_url_env = os.environ.get(
+        "SPECSPACE_HOSTED_MANAGED_EXECUTOR_URL",
+        "",
+    ).strip()
+    hosted_managed_executor_token_env = os.environ.get(
+        "SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN",
+        "",
+    ).strip()
+    hosted_managed_executor_token_file_env = os.environ.get(
+        "SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN_FILE",
+        "",
+    ).strip()
+    hosted_managed_executor_timeout_env = os.environ.get(
+        "SPECSPACE_HOSTED_MANAGED_EXECUTOR_TIMEOUT_SECONDS",
+        "",
+    ).strip()
+    try:
+        hosted_managed_executor_timeout_default = float(
+            hosted_managed_executor_timeout_env
+        )
+    except ValueError:
+        hosted_managed_executor_timeout_default = 5.0
     try:
         platform_execution_timeout_default = int(platform_execution_timeout_env)
     except ValueError:
         platform_execution_timeout_default = 120
     parser = argparse.ArgumentParser(description=description)
+    parser.set_defaults(
+        hosted_managed_executor_token=hosted_managed_executor_token_env or None,
+        hosted_managed_executor_token_file=(
+            Path(hosted_managed_executor_token_file_env)
+            if hosted_managed_executor_token_file_env
+            else None
+        ),
+    )
     parser.add_argument(
         "--host",
         type=str,
@@ -241,6 +280,35 @@ def build_arg_parser(
         ),
     )
     parser.add_argument(
+        "--enable-hosted-managed-execution",
+        action="store_true",
+        default=hosted_managed_execution_enabled_env.lower()
+        in {"1", "true", "yes", "on"},
+        help=(
+            "Enqueue allowlisted managed operations through the configured "
+            "Platform hosted service instead of invoking local subprocesses."
+        ),
+    )
+    parser.add_argument(
+        "--hosted-managed-executor-token-file",
+        type=Path,
+        help="Mounted secret file containing the hosted executor bearer token.",
+    )
+    parser.add_argument(
+        "--hosted-managed-executor-url",
+        default=hosted_managed_executor_url_env or None,
+        help=(
+            "Platform hosted managed-operation service URL. Plain HTTP is "
+            "accepted only for loopback development."
+        ),
+    )
+    parser.add_argument(
+        "--hosted-managed-executor-timeout-seconds",
+        type=float,
+        default=hosted_managed_executor_timeout_default,
+        help="Bounded HTTP timeout for hosted enqueue/status requests.",
+    )
+    parser.add_argument(
         "--platform-execution-timeout-seconds",
         type=int,
         default=platform_execution_timeout_default,
@@ -376,6 +444,41 @@ def configure_server(
     server.platform_dir = platform_dir.expanduser().resolve() if platform_dir else None
     server.platform_execution_enabled = bool(
         getattr(args, "enable_platform_execution", False)
+    )
+    server.hosted_managed_execution_enabled = bool(
+        getattr(args, "enable_hosted_managed_execution", False)
+    )
+    hosted_executor_url = getattr(args, "hosted_managed_executor_url", None)
+    server.hosted_managed_executor_url = (
+        hosted_executor_url.strip().rstrip("/")
+        if isinstance(hosted_executor_url, str) and hosted_executor_url.strip()
+        else None
+    )
+    hosted_executor_token = getattr(
+        args,
+        "hosted_managed_executor_token",
+        None,
+    )
+    hosted_executor_token_file = getattr(
+        args,
+        "hosted_managed_executor_token_file",
+        None,
+    )
+    if hosted_executor_token and hosted_executor_token_file is not None:
+        raise ValueError(
+            "hosted executor token must use either environment or file input, not both"
+        )
+    if hosted_executor_token_file is not None:
+        try:
+            hosted_executor_token = Path(hosted_executor_token_file).read_text(
+                encoding="utf-8"
+            ).strip()
+        except OSError as exc:
+            raise ValueError("hosted executor token file is unreadable") from exc
+    server.hosted_managed_executor_token = hosted_executor_token
+    server.hosted_managed_executor_token_file = hosted_executor_token_file
+    server.hosted_managed_executor_timeout_seconds = float(
+        getattr(args, "hosted_managed_executor_timeout_seconds", 5.0)
     )
     server.allow_legacy_workspace_execution = bool(
         getattr(args, "allow_legacy_workspace_execution", False)

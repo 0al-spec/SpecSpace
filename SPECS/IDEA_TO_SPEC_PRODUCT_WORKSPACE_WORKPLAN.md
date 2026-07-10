@@ -866,6 +866,10 @@ Implemented in the current Product Workspace stack:
   Product Workspace controls, including workspace wizard creation, intake,
   clarification continuation, repair, approval, promotion dry-run/review, and
   publication states.
+- Hosted managed mode now routes the same endpoints through an authenticated
+  Platform enqueue/status service. SpecSpace stores compact queue state and
+  displays transport status separately from authoritative Platform report
+  readiness. Local and hosted executors are mutually exclusive.
 
 Remaining scope:
 
@@ -878,6 +882,8 @@ Remaining scope:
 - Keep external producer contracts synchronized when report schemas or source
   refs change, because the UI projections are intentionally strict about stale or
   write-capable artifacts.
+- Add the production PostgreSQL queue/store adapter, split least-privilege worker
+  profiles, deployment health checks, and execution-backed hosted browser E2E.
 
 Non-goals:
 

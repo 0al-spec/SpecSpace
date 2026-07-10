@@ -24,6 +24,7 @@ from viewer import (
     idea_to_spec_repair_rerun_requests,
     idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
+    hosted_managed_execution,
     managed_operations_registry,
     ontology_acknowledgements,
     product_workspace_initialization_execution,
@@ -69,6 +70,32 @@ def _query_workspace_id(parsed: Any) -> str | None:
     return specspace_provider.normalize_workspace_id(
         query_value(query_params(parsed), "workspace", None)
     )
+
+
+def _managed_execution(
+    server: Any,
+    *,
+    operation_id: str,
+    payload: dict[str, Any],
+    workspace_id: str | None,
+    local_execute: Any,
+) -> tuple[HTTPStatus, dict[str, Any]]:
+    if (
+        getattr(server, "hosted_managed_execution_enabled", False) is True
+        and getattr(server, "platform_execution_enabled", False) is True
+    ):
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "error": "Local and hosted managed executors cannot be enabled together.",
+            "reason": "multiple_managed_executors_enabled",
+        }
+    if getattr(server, "hosted_managed_execution_enabled", False) is True:
+        return hosted_managed_execution.enqueue_operation(
+            server,
+            operation_id=operation_id,
+            workspace_id=workspace_id,
+            payload=payload,
+        )
+    return local_execute()
 
 
 def _query_provider(
@@ -377,6 +404,9 @@ def _managed_mode_readiness(
 ) -> dict[str, Any]:
     platform_dir = getattr(server, "platform_dir", None)
     platform_execution_enabled = getattr(server, "platform_execution_enabled", False) is True
+    hosted_execution_enabled = (
+        getattr(server, "hosted_managed_execution_enabled", False) is True
+    )
     platform_dir_configured = isinstance(platform_dir, Path)
     platform_cli_present = (
         platform_dir_configured and (platform_dir / "scripts" / "platform.py").is_file()
@@ -406,13 +436,44 @@ def _managed_mode_readiness(
     )
     product_artifact_base_configured = bool(artifact_base_url) if product_workspace else None
 
+    hosted_service_configured = False
+    hosted_service_reachable = False
+    hosted_health: dict[str, Any] = {}
+    if hosted_execution_enabled:
+        try:
+            hosted_client = hosted_managed_execution.client_from_server(server)
+            hosted_service_configured = True
+            hosted_health = hosted_client.health()
+            hosted_service_reachable = (
+                hosted_health.get("artifact_kind")
+                == "platform_hosted_managed_operation_service_health"
+                and hosted_health.get("ok") is True
+                and hosted_health.get("status") == "ready"
+                and hosted_health.get("contract_ref")
+                == "platform.hosted-managed-operation.request.v1"
+                and hosted_health.get("registry_contract_ref")
+                == "platform.managed-operation.registry.v1"
+                and hosted_health.get("operation_count")
+                == len(managed_operations_registry.MANAGED_OPERATIONS)
+            )
+        except hosted_managed_execution.HostedExecutionError:
+            hosted_service_reachable = False
+
     disabled_reasons: list[str] = []
-    if not platform_execution_enabled:
+    if platform_execution_enabled and hosted_execution_enabled:
+        disabled_reasons.append("multiple_managed_executors_enabled")
+    if not platform_execution_enabled and not hosted_execution_enabled:
         disabled_reasons.append("platform_execution_disabled")
-    if not platform_dir_configured:
-        disabled_reasons.append("platform_dir_not_configured")
-    elif not platform_cli_present:
-        disabled_reasons.append("platform_cli_missing")
+    if platform_execution_enabled:
+        if not platform_dir_configured:
+            disabled_reasons.append("platform_dir_not_configured")
+        elif not platform_cli_present:
+            disabled_reasons.append("platform_cli_missing")
+    if hosted_execution_enabled:
+        if not hosted_service_configured:
+            disabled_reasons.append("hosted_executor_not_configured")
+        elif not hosted_service_reachable:
+            disabled_reasons.append("hosted_executor_unavailable")
     if not state_dir_status["configured"]:
         disabled_reasons.append("specspace_state_dir_not_configured")
     elif not state_dir_status["is_directory"]:
@@ -427,17 +488,28 @@ def _managed_mode_readiness(
         disabled_reasons.append("runs_dir_not_writable")
     if provider_state["status"] == "unavailable":
         disabled_reasons.append("artifact_provider_unavailable")
-    if product_workspace and not binding_ready:
+    if product_workspace and not binding_ready and not hosted_execution_enabled:
         disabled_reasons.append("durable_workspace_binding_not_ready")
 
-    executor_ready = (
+    local_executor_ready = (
         platform_execution_enabled
+        and not hosted_execution_enabled
         and platform_cli_present
         and state_dir_status["ready"]
         and runs_dir_status["ready"]
         and provider_state["status"] != "unavailable"
         and binding_ready
     )
+    hosted_executor_ready = (
+        hosted_execution_enabled
+        and not platform_execution_enabled
+        and hosted_service_configured
+        and hosted_service_reachable
+        and state_dir_status["ready"]
+        and runs_dir_status["ready"]
+        and provider_state["status"] != "unavailable"
+    )
+    executor_ready = local_executor_ready or hosted_executor_ready
     operation_count = len(managed_operations_registry.MANAGED_OPERATIONS)
     operation_status_counts = _managed_operation_status_counts(observability)
     ready_now_count = (
@@ -445,14 +517,25 @@ def _managed_mode_readiness(
         if executor_ready
         else 0
     )
-    if executor_ready:
+    if hosted_executor_ready:
+        status = "hosted_managed_ready"
+        mode = "hosted_managed"
+        next_safe_action = "Use guided Product Workspace actions to enqueue allowlisted Platform operations."
+    elif hosted_execution_enabled:
+        status = "hosted_managed_misconfigured"
+        mode = "hosted_managed"
+        next_safe_action = "Fix hosted executor connectivity or disable the conflicting local executor."
+    elif local_executor_ready:
         status = "backend_managed_ready"
+        mode = "backend_managed"
         next_safe_action = "Use guided Product Workspace actions for allowlisted Platform operations."
     elif platform_execution_enabled:
         status = "backend_managed_misconfigured"
+        mode = "backend_managed"
         next_safe_action = "Fix backend Platform executor configuration before using managed actions."
     else:
         status = "read_only"
+        mode = "read_only"
         next_safe_action = "Inspect workspace state or create request-only intents; run Platform outside SpecSpace if execution is needed."
 
     return {
@@ -460,18 +543,37 @@ def _managed_mode_readiness(
         "surface_id": "specspace.managed-mode.readiness.v0.1",
         "surface_kind": "managed_mode_readiness",
         "status": status,
-        "mode": "backend_managed" if platform_execution_enabled else "read_only",
+        "mode": mode,
         "next_safe_action": next_safe_action,
         "disabled_reasons": disabled_reasons,
         "executor": {
-            "enabled": platform_execution_enabled,
+            "enabled": platform_execution_enabled or hosted_execution_enabled,
             "configured": executor_ready,
+            "transport": "local_subprocess"
+            if platform_execution_enabled
+            else "hosted_queue"
+            if hosted_execution_enabled
+            else "none",
             "platform_dir_configured": platform_dir_configured,
             "platform_cli_present": platform_cli_present,
             "timeout_seconds": getattr(
                 server,
                 "platform_execution_timeout_seconds",
                 None,
+            ),
+            "hosted_enabled": hosted_execution_enabled,
+            "hosted_service_configured": hosted_service_configured,
+            "hosted_service_reachable": hosted_service_reachable,
+            "hosted_service_adapter": (
+                hosted_health.get("adapter")
+                if hosted_service_reachable
+                and hosted_health.get("adapter") in {"sqlite", "postgresql"}
+                else None
+            ),
+            "hosted_registry_contract_ref": (
+                hosted_health.get("registry_contract_ref")
+                if hosted_service_reachable
+                else None
             ),
         },
         "operations": {
@@ -911,7 +1013,23 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
                 server=handler.server,
                 workspace_id=workspace_id,
                 creation=payload["workspace_creation"],
+                )
+        payload["hosted_managed_execution"] = (
+            hosted_managed_execution.refresh_workspace(
+                handler.server,
+                workspace_id=workspace_id,
             )
+            if getattr(
+                handler.server,
+                "hosted_managed_execution_enabled",
+                False,
+            )
+            is True
+            else hosted_managed_execution.workspace_projection(
+                hosted_managed_execution.read_state(handler.server),
+                workspace_id=workspace_id,
+            )
+        )
         idea_to_spec_workspace.attach_guided_flow(payload)
         payload["managed_mode_readiness"] = _managed_mode_readiness(
             server=handler.server,
@@ -1351,10 +1469,16 @@ def handle_v1_real_idea_answer_continuation_execute_post(
         )
         return
     workspace_id = query_workspace_id or payload_workspace_id
-    status, response = real_idea_answer_continuation_execution.execute_requested_continuation(
+    status, response = _managed_execution(
         handler.server,
-        payload,
+        operation_id="real_idea_answer_continuation_execute",
+        payload=payload,
         workspace_id=workspace_id,
+        local_execute=lambda: real_idea_answer_continuation_execution.execute_requested_continuation(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        ),
     )
     json_response(handler, status, response)
 
@@ -1417,12 +1541,16 @@ def handle_v1_product_workspace_initialization_execute_post(
         )
         return
     workspace_id = query_workspace_id or payload_workspace_id
-    status, response = (
-        product_workspace_initialization_execution.execute_requested_initialization(
+    status, response = _managed_execution(
+        handler.server,
+        operation_id="workspace_initialization_execute",
+        payload=payload,
+        workspace_id=workspace_id,
+        local_execute=lambda: product_workspace_initialization_execution.execute_requested_initialization(
             handler.server,
             payload,
             workspace_id=workspace_id,
-        )
+        ),
     )
     json_response(handler, status, response)
 
@@ -1452,10 +1580,16 @@ def handle_v1_real_idea_intake_execute_post(
         )
         return
     workspace_id = query_workspace_id or payload_workspace_id
-    status, response = real_idea_intake_execution.execute_requested_intake(
+    status, response = _managed_execution(
         handler.server,
-        payload,
+        operation_id="real_idea_intake_execute",
+        payload=payload,
         workspace_id=workspace_id,
+        local_execute=lambda: real_idea_intake_execution.execute_requested_intake(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        ),
     )
     json_response(handler, status, response)
 
@@ -1551,12 +1685,16 @@ def handle_v1_idea_to_spec_repair_rerun_request_gate_execute_post(
         )
         return
     workspace_id = query_workspace_id or payload_workspace_id
-    status, response = (
-        idea_to_spec_repair_rerun_request_gate_execution.execute_requested_request_gate(
+    status, response = _managed_execution(
+        handler.server,
+        operation_id="repair_rerun_request_gate_execute",
+        payload=payload,
+        workspace_id=workspace_id,
+        local_execute=lambda: idea_to_spec_repair_rerun_request_gate_execution.execute_requested_request_gate(
             handler.server,
             payload,
             workspace_id=workspace_id,
-        )
+        ),
     )
     json_response(handler, status, response)
 
@@ -1586,10 +1724,16 @@ def handle_v1_idea_to_spec_repair_rerun_execute_post(
         )
         return
     workspace_id = query_workspace_id or payload_workspace_id
-    status, response = idea_to_spec_repair_rerun_execution.execute_requested_rerun(
+    status, response = _managed_execution(
         handler.server,
-        payload,
+        operation_id="repair_rerun_execute",
+        payload=payload,
         workspace_id=workspace_id,
+        local_execute=lambda: idea_to_spec_repair_rerun_execution.execute_requested_rerun(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        ),
     )
     json_response(handler, status, response)
 
@@ -1619,10 +1763,16 @@ def handle_v1_idea_to_spec_repair_rerun_publish_post(
         )
         return
     workspace_id = query_workspace_id or payload_workspace_id
-    status, response = idea_to_spec_repair_rerun_publication.publish_repair_rerun(
+    status, response = _managed_execution(
         handler.server,
-        payload,
+        operation_id="repair_rerun_publish",
+        payload=payload,
         workspace_id=workspace_id,
+        local_execute=lambda: idea_to_spec_repair_rerun_publication.publish_repair_rerun(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        ),
     )
     json_response(handler, status, response)
 
@@ -1707,10 +1857,16 @@ def handle_v1_idea_to_spec_candidate_approval_execute_post(
     workspace_id = specspace_provider.normalize_product_workspace_id(
         query_value(params, "workspace")
     )
-    status, response = idea_to_spec_candidate_approval_execution.execute_candidate_approval(
+    status, response = _managed_execution(
         handler.server,
-        payload,
+        operation_id="candidate_approval_execute",
+        payload=payload,
         workspace_id=workspace_id,
+        local_execute=lambda: idea_to_spec_candidate_approval_execution.execute_candidate_approval(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        ),
     )
     json_response(handler, status, response)
 
@@ -1726,10 +1882,16 @@ def handle_v1_idea_to_spec_promotion_request_execute_post(
     workspace_id = specspace_provider.normalize_product_workspace_id(
         query_value(params, "workspace")
     )
-    status, response = idea_to_spec_promotion_request_execution.execute_promotion_request(
+    status, response = _managed_execution(
         handler.server,
-        payload,
+        operation_id="promotion_request_execute",
+        payload=payload,
         workspace_id=workspace_id,
+        local_execute=lambda: idea_to_spec_promotion_request_execution.execute_promotion_request(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        ),
     )
     json_response(handler, status, response)
 
@@ -1745,10 +1907,16 @@ def handle_v1_idea_to_spec_promotion_execute_post(
     workspace_id = specspace_provider.normalize_product_workspace_id(
         query_value(params, "workspace")
     )
-    status, response = idea_to_spec_promotion_execution.execute_promotion_dry_run(
+    status, response = _managed_execution(
         handler.server,
-        payload,
+        operation_id="promotion_execute_dry_run",
+        payload=payload,
         workspace_id=workspace_id,
+        local_execute=lambda: idea_to_spec_promotion_execution.execute_promotion_dry_run(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        ),
     )
     json_response(handler, status, response)
 
@@ -1764,10 +1932,16 @@ def handle_v1_idea_to_spec_promotion_review_execute_post(
     workspace_id = specspace_provider.normalize_product_workspace_id(
         query_value(params, "workspace")
     )
-    status, response = idea_to_spec_promotion_execution.execute_promotion_review(
+    status, response = _managed_execution(
         handler.server,
-        payload,
+        operation_id="promotion_review_execute",
+        payload=payload,
         workspace_id=workspace_id,
+        local_execute=lambda: idea_to_spec_promotion_execution.execute_promotion_review(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        ),
     )
     json_response(handler, status, response)
 
@@ -1783,10 +1957,16 @@ def handle_v1_idea_to_spec_review_status_execute_post(
     workspace_id = specspace_provider.normalize_product_workspace_id(
         query_value(params, "workspace")
     )
-    status, response = idea_to_spec_review_status_execution.execute_review_status(
+    status, response = _managed_execution(
         handler.server,
-        payload,
+        operation_id="review_status_execute",
+        payload=payload,
         workspace_id=workspace_id,
+        local_execute=lambda: idea_to_spec_review_status_execution.execute_review_status(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        ),
     )
     json_response(handler, status, response)
 
@@ -1802,12 +1982,16 @@ def handle_v1_idea_to_spec_read_model_publication_execute_post(
     workspace_id = specspace_provider.normalize_product_workspace_id(
         query_value(params, "workspace")
     )
-    status, response = (
-        idea_to_spec_read_model_publication_execution.execute_read_model_publication(
+    status, response = _managed_execution(
+        handler.server,
+        operation_id="read_model_publication_execute",
+        payload=payload,
+        workspace_id=workspace_id,
+        local_execute=lambda: idea_to_spec_read_model_publication_execution.execute_read_model_publication(
             handler.server,
             payload,
             workspace_id=workspace_id,
-        )
+        ),
     )
     json_response(handler, status, response)
 

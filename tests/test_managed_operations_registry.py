@@ -160,8 +160,11 @@ def test_managed_operation_registry_records_reviewed_artifact_edges() -> None:
     )
 
     approval = _operation("candidate_approval_execute")
-    assert "runs/repaired_candidate_promotion_handoff_report.json" not in (
+    assert "runs/repaired_candidate_promotion_handoff_report.json" in (
         approval.input_refs
+    )
+    assert approval.conditional_input_refs == (
+        "runs/repaired_candidate_promotion_handoff_report.json",
     )
     assert "runs/repaired_idea_to_spec_repair_session.json" in approval.input_refs
     assert "runs/repaired_idea_to_spec_promotion_gate.json" in approval.input_refs

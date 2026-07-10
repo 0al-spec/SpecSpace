@@ -8198,7 +8198,7 @@ def _managed_operation_input_required(
     if ref not in operation.conditional_input_refs:
         return True
     if operation.operation_id != "real_idea_answer_continuation_execute":
-        return True
+        return False
     clarification = _record(payload.get("intake_clarification"))
     authoring = _record(clarification.get("answer_authoring"))
     template = _record(authoring.get("template"))
@@ -8228,6 +8228,9 @@ def _managed_operation_bound_ref(payload: dict[str, Any], ref: str) -> str:
 
 def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]:
     operations: list[dict[str, Any]] = []
+    hosted_operations = _record(
+        _record(payload.get("hosted_managed_execution")).get("operations")
+    )
     for operation in managed_operations_registry.MANAGED_OPERATIONS:
         inputs = []
         for ref in operation.input_refs:
@@ -8259,6 +8262,17 @@ def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]
             inputs=inputs,
             outputs=outputs,
         )
+        hosted_record = _record(hosted_operations.get(operation.operation_id))
+        hosted_status = _text(hosted_record.get("status")).lower()
+        if status != "completed":
+            if hosted_status == "queued":
+                status = "execution_requested"
+            elif hosted_status in {"leased", "running", "succeeded"}:
+                status = "running_or_waiting"
+            elif hosted_status in {"failed", "timed_out"}:
+                status = "failed"
+            elif hosted_status == "quarantined":
+                status = "blocked"
         if status == "completed":
             next_safe_action = "Inspect the durable execution report and continue to the next lifecycle step."
         elif status in {"request_needed", "gate_needed"}:
@@ -8272,6 +8286,12 @@ def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]
                 next_safe_action = "Inspect the failed report and create a fresh UI request or intent before retrying this consume-on-attempt operation."
             else:
                 next_safe_action = "Inspect the failed report before retrying or creating a replacement request."
+        elif status == "execution_requested":
+            next_safe_action = "Wait for the hosted worker to lease this operation."
+        elif status == "running_or_waiting":
+            next_safe_action = "Wait for authoritative Platform output reports to become visible."
+        elif status == "blocked" and hosted_status == "quarantined":
+            next_safe_action = "Inspect the quarantined lease and reconcile before creating a new operator request."
         else:
             next_safe_action = "This operation is ready for controlled execution when the operator chooses it."
         operations.append(
@@ -8289,6 +8309,21 @@ def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]
                 "output_reports": outputs,
                 "missing_input_refs": missing_inputs,
                 "available_output_refs": output_refs,
+                "hosted_transport": {
+                    "available": bool(hosted_record),
+                    "status": hosted_status or None,
+                    "request_id": _optional_text(hosted_record.get("request_id")),
+                    "attempt": (
+                        hosted_record.get("attempt")
+                        if isinstance(hosted_record.get("attempt"), int)
+                        and not isinstance(hosted_record.get("attempt"), bool)
+                        else None
+                    ),
+                    "output_reports": _records(
+                        hosted_record.get("output_reports")
+                    )[:20],
+                    "transport_status_is_lifecycle_evidence": False,
+                },
                 "idempotency_key": operation.idempotency_key,
                 "overwrite_policy": operation.overwrite_policy,
                 "timeout_policy": operation.timeout_policy,

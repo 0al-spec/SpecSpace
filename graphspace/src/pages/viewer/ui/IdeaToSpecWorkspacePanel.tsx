@@ -2087,6 +2087,10 @@ function ManagedOperationsObservabilitySection({
             value={readiness.executor.configured ? "configured" : "unavailable"}
           />
           <PostureItem
+            label="Transport"
+            value={readiness.executor.transport.replace(/_/g, " ")}
+          />
+          <PostureItem
             label="Ready now"
             value={String(readiness.operations.enabledCount)}
           />
@@ -2106,6 +2110,16 @@ function ManagedOperationsObservabilitySection({
           <Meta
             label="Platform CLI"
             value={readiness.executor.platformCliPresent ? "present" : "missing"}
+          />
+          <Meta
+            label="Hosted service"
+            value={
+              readiness.executor.hostedEnabled
+                ? readiness.executor.hostedServiceReachable
+                  ? "reachable"
+                  : "unavailable"
+                : "disabled"
+            }
           />
           <Meta
             label="State directory"
@@ -2212,6 +2226,9 @@ function ManagedOperationsObservabilitySection({
                     </span>
                     <span className={styles.guidedStageMeta}>
                       {operation.status.replace(/_/g, " ")}
+                      {operation.hostedTransport.available && operation.hostedTransport.status
+                        ? ` · queue ${operation.hostedTransport.status.replace(/_/g, " ")}`
+                        : ""}
                     </span>
                   </>
                 );
