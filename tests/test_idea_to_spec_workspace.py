@@ -311,9 +311,14 @@ def _candidate_overview() -> dict:
                 },
             },
             "candidate_nodes": {
-                "nodes": [
+                "alias_count": 1,
+                "alias_by_node_id": {
+                    "candidate-spec.numeric-input": "Capture numeric input"
+                },
+                "items": [
                     {
                         "id": "candidate-spec.numeric-input",
+                        "title": "Numeric Input",
                         "label": "Numeric Input",
                         "kind": "feature",
                         "detail": "Input node with one repair gap.",
@@ -328,12 +333,14 @@ def _candidate_overview() -> dict:
                     "command_emits_event": 1,
                     "event_informs_policy": 1,
                 },
-                "edges": [
+                "examples": [
                     {
                         "id": "edge.actor-command",
                         "relation": "actor_triggers_command",
                         "from": "actor.team-member",
+                        "from_display_alias": "Team member",
                         "to": "command.record-decision",
+                        "to_display_alias": "Record a decision",
                     }
                 ],
             },
@@ -3360,6 +3367,24 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 "actor_triggers_command"
             ],
             1,
+        )
+        self.assertEqual(
+            body["candidate_overview"]["candidate_nodes"]["alias_by_node_id"][
+                "candidate-spec.numeric-input"
+            ],
+            "Capture numeric input",
+        )
+        self.assertEqual(
+            body["candidate_overview"]["candidate_nodes"]["nodes"][0][
+                "label"
+            ],
+            "Capture numeric input",
+        )
+        self.assertEqual(
+            body["candidate_overview"]["topology"]["edges"][0][
+                "to_display_alias"
+            ],
+            "Record a decision",
         )
         self.assertEqual(
             body["artifacts"]["candidate_overview"]["contract_ref"],

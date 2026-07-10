@@ -52,6 +52,12 @@ runtime action requests from Product Workspace routes.
 
 ## Recently Closed
 
+- Human-friendly candidate display aliases. SpecSpace now consumes the
+  SpecGraph `0212` presentation-only `display_alias` contract: Candidate
+  Overview and topology use readable aliases as primary labels while canonical
+  node ids remain available for evidence, navigation, and managed-operation
+  inputs. Older artifacts fall back to title and id; aliases never become
+  ontology aliases, routing aliases, or promotion inputs.
 - Managed Operations Contract and regression inventory. The Product Workspace
   backend-managed operations introduced across workspace initialization, intake,
   clarification continuation, repair rerun, candidate approval, promotion

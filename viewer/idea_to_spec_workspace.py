@@ -1498,6 +1498,10 @@ def _candidate_nodes(candidate_graph: dict[str, Any] | None) -> list[dict[str, A
         rows.append(
             {
                 "id": node_id,
+                "display_alias": _optional_text(node.get("display_alias")),
+                "display_alias_source": _optional_text(
+                    node.get("display_alias_source")
+                ),
                 "title": _optional_text(node.get("title")),
                 "kind": _optional_text(node.get("kind")),
                 "ontology_refs": _string_list(node.get("ontology_refs")),
@@ -1557,8 +1561,11 @@ def _overview_items(value: Any) -> list[dict[str, Any]]:
         rows.append(
             {
                 "id": item_id,
+                "display_alias": _optional_text(item.get("display_alias")),
+                "title": _optional_text(item.get("title")),
                 "label": _optional_text(
-                    item.get("label")
+                    item.get("display_alias")
+                    or item.get("label")
                     or item.get("title")
                     or item.get("name")
                     or item.get("term")
@@ -1595,7 +1602,9 @@ def _overview_edges(value: Any) -> list[dict[str, Any]]:
                 "id": edge_id,
                 "relation": _optional_text(item.get("relation") or item.get("type")),
                 "from": _optional_text(item.get("from") or item.get("source")),
+                "from_display_alias": _optional_text(item.get("from_display_alias")),
                 "to": _optional_text(item.get("to") or item.get("target")),
+                "to_display_alias": _optional_text(item.get("to_display_alias")),
                 "label": _optional_text(item.get("label") or item.get("title")),
             }
         )
@@ -1614,6 +1623,22 @@ def _candidate_overview(report: dict[str, Any] | None) -> dict[str, Any]:
     idea_maturity_section = _record(sections.get("idea_maturity"))
     project_local_ontology = _record(sections.get("project_local_ontology"))
     next_action = _record((report or {}).get("next_action"))
+    alias_by_node_id: dict[str, str] = {}
+    for raw_node_id, raw_alias in _record(
+        candidate_nodes.get("alias_by_node_id")
+    ).items():
+        node_id = _optional_text(raw_node_id)
+        display_alias = _optional_text(raw_alias)
+        if node_id is not None and display_alias is not None:
+            alias_by_node_id[node_id] = display_alias
+    candidate_node_rows = _overview_items(
+        candidate_nodes.get("items") or candidate_nodes.get("nodes")
+    )
+    for row in candidate_node_rows:
+        display_alias = alias_by_node_id.get(row["id"])
+        if display_alias is not None:
+            row["display_alias"] = display_alias
+            row["label"] = display_alias
     return {
         "available": report is not None,
         "readiness": _readiness(report),
@@ -1674,14 +1699,17 @@ def _candidate_overview(report: dict[str, Any] | None) -> dict[str, Any]:
             "constraints": _overview_group_items(event_storming.get("constraints")),
         },
         "candidate_nodes": {
-            "nodes": _overview_items(candidate_nodes.get("nodes")),
+            "alias_count": _number(candidate_nodes.get("alias_count")),
+            "alias_by_node_id": alias_by_node_id,
+            "nodes": candidate_node_rows,
         },
         "topology": {
             "edge_count": _number(topology.get("edge_count")),
             "workflow_edge_count": _number(topology.get("workflow_edge_count")),
             "relation_counts": _number_record(topology.get("relation_counts")),
             "edges": _overview_edges(
-                topology.get("edges")
+                topology.get("examples")
+                or topology.get("edges")
                 or topology.get("sample_edges")
                 or topology.get("workflow_edges")
             ),

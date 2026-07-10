@@ -3978,6 +3978,7 @@ function CandidateOverviewSection({
       .slice(0, 2)
       .map((item) => ({ collection: "domain-event", item })),
   ];
+  const candidateNodes = overview.candidateNodes.nodes.slice(0, 4);
   return (
     <section id="idea-to-spec-candidate-overview" className={styles.reviewSection}>
       <SectionHeader
@@ -4061,6 +4062,15 @@ function CandidateOverviewSection({
             <span className={styles.statusDetail}>{compact(item.detail, item.id)}</span>
           </div>
         ))}
+        {candidateNodes.map((item) => (
+          <div key={`overview:candidate-node:${item.id}`} className={styles.subRow}>
+            <span title={item.id}>{compact(item.label, item.id)}</span>
+            <Pill value={compact(item.kind, "node")} />
+            <span className={styles.statusDetail}>
+              {compact(item.title ?? item.detail, "Candidate node")}
+            </span>
+          </div>
+        ))}
       </div>
       <div className={styles.row}>
         <div className={styles.rowHeader}>
@@ -4118,7 +4128,7 @@ function CandidateWorkflowTopologyMap({
               {column.nodes.slice(0, 5).map((node) => (
                 <div key={`${column.id}:${node.id}`} className={styles.topologyNode}>
                   <span className={styles.topologyNodeLabel}>
-                    {compact(node.label, node.id)}
+                    <span title={node.id}>{compact(node.label, node.id)}</span>
                   </span>
                   <span className={styles.topologyNodeMeta}>
                     {compact(node.kind, node.id)}
@@ -4145,13 +4155,17 @@ function CandidateWorkflowTopologyMap({
               className={styles.topologyEdge}
             >
               <span className={styles.topologyEndpoint}>
-                {compact(edge.fromNode?.label, edge.from)}
+                <span title={compact(edge.from, "")}>
+                  {compact(edge.fromDisplayAlias ?? edge.fromNode?.label, edge.from)}
+                </span>
               </span>
               <span className={styles.topologyRelation}>
                 {edge.relationLabel}
               </span>
               <span className={styles.topologyEndpoint}>
-                {compact(edge.toNode?.label, edge.to)}
+                <span title={compact(edge.to, "")}>
+                  {compact(edge.toDisplayAlias ?? edge.toNode?.label, edge.to)}
+                </span>
               </span>
             </div>
           ))}

@@ -815,6 +815,12 @@ branches/commits, write tracked artifacts, or allow canonical mutations. The
 response `candidate_overview.action_boundary` is a SpecSpace-generated read-only
 projection for the UI.
 
+Candidate Overview may include SpecGraph `0212` `display_alias` values for
+candidate nodes and topology endpoints. They are deterministic presentation
+labels only: canonical node ids remain the only refs used by evidence,
+navigation, materialization, managed operations, and promotion. Older producer
+artifacts without aliases continue to render from title or id.
+
 The Product Workspace may render `candidate_overview.topology` as a read-only
 workflow map. This visualization groups event-storming items into actors,
 commands, events, policies, and constraints, then displays relation rows such as
