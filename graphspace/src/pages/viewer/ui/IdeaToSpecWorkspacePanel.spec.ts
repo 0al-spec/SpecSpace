@@ -362,6 +362,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("actor triggers command");
     expect(html).toContain("Team member");
     expect(html).toContain("Record decision");
+    expect(html).toContain('title="command.record-decision">Record a decision');
     expect(html).toContain("Calculator boundary");
     expect(html).toContain("Capture numeric input");
     expect(html).toContain("Git dry-run");

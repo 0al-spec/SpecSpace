@@ -4155,13 +4155,17 @@ function CandidateWorkflowTopologyMap({
               className={styles.topologyEdge}
             >
               <span className={styles.topologyEndpoint}>
-                <span title={compact(edge.from, "")}>{compact(edge.fromNode?.label ?? edge.fromDisplayAlias, edge.from)}</span>
+                <span title={compact(edge.from, "")}>
+                  {compact(edge.fromDisplayAlias ?? edge.fromNode?.label, edge.from)}
+                </span>
               </span>
               <span className={styles.topologyRelation}>
                 {edge.relationLabel}
               </span>
               <span className={styles.topologyEndpoint}>
-                <span title={compact(edge.to, "")}>{compact(edge.toNode?.label ?? edge.toDisplayAlias, edge.to)}</span>
+                <span title={compact(edge.to, "")}>
+                  {compact(edge.toDisplayAlias ?? edge.toNode?.label, edge.to)}
+                </span>
               </span>
             </div>
           ))}

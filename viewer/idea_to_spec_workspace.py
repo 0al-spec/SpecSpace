@@ -1631,6 +1631,14 @@ def _candidate_overview(report: dict[str, Any] | None) -> dict[str, Any]:
         display_alias = _optional_text(raw_alias)
         if node_id is not None and display_alias is not None:
             alias_by_node_id[node_id] = display_alias
+    candidate_node_rows = _overview_items(
+        candidate_nodes.get("items") or candidate_nodes.get("nodes")
+    )
+    for row in candidate_node_rows:
+        display_alias = alias_by_node_id.get(row["id"])
+        if display_alias is not None:
+            row["display_alias"] = display_alias
+            row["label"] = display_alias
     return {
         "available": report is not None,
         "readiness": _readiness(report),
@@ -1693,16 +1701,15 @@ def _candidate_overview(report: dict[str, Any] | None) -> dict[str, Any]:
         "candidate_nodes": {
             "alias_count": _number(candidate_nodes.get("alias_count")),
             "alias_by_node_id": alias_by_node_id,
-            "nodes": _overview_items(
-                candidate_nodes.get("items") or candidate_nodes.get("nodes")
-            ),
+            "nodes": candidate_node_rows,
         },
         "topology": {
             "edge_count": _number(topology.get("edge_count")),
             "workflow_edge_count": _number(topology.get("workflow_edge_count")),
             "relation_counts": _number_record(topology.get("relation_counts")),
             "edges": _overview_edges(
-                topology.get("edges")
+                topology.get("examples")
+                or topology.get("edges")
                 or topology.get("sample_edges")
                 or topology.get("workflow_edges")
             ),

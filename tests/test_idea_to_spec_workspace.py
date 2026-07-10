@@ -315,10 +315,9 @@ def _candidate_overview() -> dict:
                 "alias_by_node_id": {
                     "candidate-spec.numeric-input": "Capture numeric input"
                 },
-                "nodes": [
+                "items": [
                     {
                         "id": "candidate-spec.numeric-input",
-                        "display_alias": "Capture numeric input",
                         "title": "Numeric Input",
                         "label": "Numeric Input",
                         "kind": "feature",
@@ -334,7 +333,7 @@ def _candidate_overview() -> dict:
                     "command_emits_event": 1,
                     "event_informs_policy": 1,
                 },
-                "edges": [
+                "examples": [
                     {
                         "id": "edge.actor-command",
                         "relation": "actor_triggers_command",
