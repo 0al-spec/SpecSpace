@@ -8316,7 +8316,7 @@ def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]
                 status = "running_or_waiting"
             elif hosted_status in {"failed", "timed_out"}:
                 status = "failed"
-            elif hosted_status == "quarantined":
+            elif hosted_status in {"quarantined", "rejected"}:
                 status = "blocked"
         if status == "completed":
             next_safe_action = "Inspect the durable execution report and continue to the next lifecycle step."
@@ -8337,6 +8337,8 @@ def _managed_operations_observability(payload: dict[str, Any]) -> dict[str, Any]
             next_safe_action = "Wait for authoritative Platform output reports to become visible."
         elif status == "blocked" and hosted_status == "quarantined":
             next_safe_action = "Inspect the quarantined lease and reconcile before creating a new operator request."
+        elif status == "blocked" and hosted_status == "rejected":
+            next_safe_action = "Inspect why the queue rejected this request, then create a valid replacement operator request."
         else:
             next_safe_action = "This operation is ready for controlled execution when the operator chooses it."
         operations.append(
