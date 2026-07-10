@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from viewer import idea_maturity, managed_operations_registry, product_workspace_binding
@@ -8098,7 +8099,11 @@ def _managed_operation_ref_payload(
                 "status": "dynamic_ref",
                 "reason": "Dynamic managed-operation ref is resolved by the execution report.",
             }
-        artifact_key = ARTIFACT_KEYS.get(filename)
+        # A ready durable binding scopes managed-operation refs below its
+        # workspace run directory. Artifact status is already selected for
+        # that workspace, so resolve known catalog entries by filename rather
+        # than treating the scope prefix as part of the artifact identity.
+        artifact_key = ARTIFACT_KEYS.get(Path(filename).name)
         if artifact_key:
             status = _record(artifacts.get(artifact_key))
             return {
@@ -8311,8 +8316,8 @@ def _managed_operations_observability(
     for operation in managed_operations_registry.MANAGED_OPERATIONS:
         inputs = []
         for ref in operation.input_refs:
-            input_payload = _managed_operation_ref_payload(payload, ref)
-            input_payload["ref"] = _managed_operation_bound_ref(payload, ref)
+            bound_ref = _managed_operation_bound_ref(payload, ref)
+            input_payload = _managed_operation_ref_payload(payload, bound_ref)
             input_payload["required"] = _managed_operation_input_required(
                 payload,
                 operation=operation,
@@ -8321,8 +8326,8 @@ def _managed_operations_observability(
             inputs.append(input_payload)
         outputs = []
         for ref in operation.output_reports:
-            output_payload = _managed_operation_ref_payload(payload, ref)
-            output_payload["ref"] = _managed_operation_bound_ref(payload, ref)
+            bound_ref = _managed_operation_bound_ref(payload, ref)
+            output_payload = _managed_operation_ref_payload(payload, bound_ref)
             outputs.append(output_payload)
         missing_inputs = [
             _text(item.get("ref"))

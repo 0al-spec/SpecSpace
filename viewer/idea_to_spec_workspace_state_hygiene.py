@@ -10,6 +10,7 @@ from viewer import (
     idea_to_spec_candidate_approval_intents,
     idea_to_spec_repair_drafts,
     idea_to_spec_repair_rerun_requests,
+    product_workspace_binding,
 )
 from viewer.idea_to_spec_authority import authority_boundary_has_disallowed_true
 
@@ -423,6 +424,15 @@ def _current_identity(
             if repaired_selected
             else "runs/idea_to_spec_repair_session.json"
         )
+    binding = _record(workspace_payload.get("workspace_binding"))
+    repair_session_ref = product_workspace_binding.bound_run_ref(
+        binding, repair_session_ref
+    )
+    source_repair_session_ref = product_workspace_binding.bound_run_ref(
+        binding,
+        _text(standard_repair_session.get("path"))
+        or "runs/idea_to_spec_repair_session.json",
+    )
     selected_workspace = workspace_id or _text(workspace.get("id"))
     return {
         "workspace_id": selected_workspace,
@@ -432,8 +442,7 @@ def _current_identity(
         "source_repair_session_id": _text(
             _record(standard_repair_session.get("session")).get("session_id")
         ),
-        "source_repair_session_ref": _text(standard_repair_session.get("path"))
-        or "runs/idea_to_spec_repair_session.json",
+        "source_repair_session_ref": source_repair_session_ref,
         "repaired_selected": "true" if repaired_selected else None,
         "repaired_handoff_selected": "true" if repaired_handoff_selected else None,
     }

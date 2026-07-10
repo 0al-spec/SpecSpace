@@ -3223,6 +3223,7 @@ def normalize_workspace_id(value: Any) -> str | None:
 def artifact_base_url_for_workspace(server: Any, workspace_id: str | None) -> str | None:
     normalized_workspace_id = normalize_workspace_id(workspace_id)
     if normalized_workspace_id is not None and normalized_workspace_id != BOOTSTRAP_WORKSPACE_ID:
+        configured_product_urls = product_workspace_artifact_base_url_map(server)
         binding = product_workspace_binding.discover_binding(
             server,
             workspace_id=normalized_workspace_id,
@@ -3231,8 +3232,18 @@ def artifact_base_url_for_workspace(server: Any, workspace_id: str | None) -> st
             _record(binding.get("routing")).get("product_artifact_base_url")
         ).strip() or None
         if binding.get("status") == "ready" and bound_url is not None:
-            return bound_url
-        return product_workspace_artifact_base_url_map(server).get(normalized_workspace_id)
+            root_artifact_base_url = getattr(server, "artifact_base_url", None)
+            has_root_static_base = (
+                isinstance(root_artifact_base_url, str)
+                and bool(root_artifact_base_url.strip())
+            )
+            if has_root_static_base or normalized_workspace_id in configured_product_urls:
+                return bound_url
+            # A local initialized workspace has a trusted binding before its
+            # first static bundle exists. Keep production HTTP routing explicit,
+            # but let local development read the binding-scoped file runs.
+            return None
+        return configured_product_urls.get(normalized_workspace_id)
     artifact_base_url = getattr(server, "artifact_base_url", None)
     return artifact_base_url.strip() if isinstance(artifact_base_url, str) and artifact_base_url.strip() else None
 

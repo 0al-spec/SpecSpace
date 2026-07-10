@@ -11651,6 +11651,50 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         dumped = json.dumps(observability)
         self.assertNotIn(str(runs_dir), dumped)
 
+    def test_managed_operations_observability_resolves_bound_workspace_refs(
+        self,
+    ) -> None:
+        payload = {
+            "workspace_binding": {
+                "status": "ready",
+                "trusted": True,
+                "routing": {
+                    "platform_default_run_dir_ref": "runs/pantry-rotation"
+                },
+            },
+            "artifacts": {
+                "workspace_initialization_execution_request": {
+                    "available": True,
+                    "status": "workspace_initialization_execution_requested",
+                },
+                "workspace_initialization_execution": {
+                    "available": True,
+                    "status": "workspace_initialization_executed",
+                },
+            },
+        }
+
+        observability = idea_to_spec_workspace._managed_operations_observability(
+            payload
+        )
+        initialization = next(
+            operation
+            for operation in observability["operations"]
+            if operation["operation_id"] == "workspace_initialization_execute"
+        )
+
+        self.assertEqual(initialization["status"], "completed")
+        self.assertEqual(
+            initialization["input_refs"][0]["ref"],
+            "runs/pantry-rotation/product_workspace_initialization_execution_request.json",
+        )
+        self.assertTrue(initialization["input_refs"][0]["available"])
+        self.assertEqual(
+            initialization["output_reports"][0]["ref"],
+            "runs/pantry-rotation/platform_product_workspace_initialization_execution_report.json",
+        )
+        self.assertTrue(initialization["output_reports"][0]["available"])
+
     def test_idea_to_spec_workspace_embeds_managed_mode_readiness_default_read_only(
         self,
     ) -> None:

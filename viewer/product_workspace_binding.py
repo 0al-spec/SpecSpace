@@ -40,6 +40,25 @@ def _safe_public_ref(value: Any) -> str | None:
     return None
 
 
+def bound_run_ref(binding: Any, ref: str) -> str:
+    """Resolve a logical run ref under a ready workspace binding."""
+    if not ref.startswith("runs/") or not isinstance(binding, dict):
+        return ref
+    if binding.get("status") != "ready" or binding.get("trusted") is not True:
+        return ref
+    routing = _record(binding.get("routing"))
+    execution = _record(binding.get("execution"))
+    run_dir_ref = _text(
+        routing.get("platform_default_run_dir_ref")
+        or execution.get("platform_default_run_dir_ref")
+    )
+    if run_dir_ref is None or not run_dir_ref.startswith("runs/"):
+        return ref
+    suffix = ref.removeprefix("runs/")
+    prefix = run_dir_ref.removeprefix("runs/") + "/"
+    return ref if suffix.startswith(prefix) else f"{run_dir_ref}/{suffix}"
+
+
 def _binding_revision(binding: dict[str, Any]) -> str:
     identity = _record(binding.get("identity"))
     routing = _record(binding.get("routing"))
