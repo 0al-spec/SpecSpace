@@ -11670,6 +11670,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 "workspace_initialization_execution": {
                     "available": True,
                     "status": "workspace_initialization_executed",
+                    "ok": True,
+                    "dry_run": False,
                 },
             },
         }

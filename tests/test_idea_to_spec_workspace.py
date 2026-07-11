@@ -6029,6 +6029,55 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
     def test_build_workspace_rejects_expanded_initialization_execution_authority(
         self,
     ) -> None:
+        cases = (
+            ("canonical_mutations_allowed", "true"),
+            ("tracked_artifacts_written", True),
+            ("authority_boundary.executes_git_commands", True),
+            ("authority_boundary.writes_ontology_package", "true"),
+            ("authority_boundary.may_open_pull_request", "true"),
+        )
+        for field, value in cases:
+            with self.subTest(field=field):
+                artifacts = _workspace_artifacts()
+                report = {
+                    "artifact_kind": (
+                        "platform_product_workspace_initialization_execution_report"
+                    ),
+                    "schema_version": 1,
+                    "ok": True,
+                    "dry_run": False,
+                    "workspace": {"workspace_id": "team-decision-log"},
+                    "summary": {"status": "workspace_initialization_executed"},
+                    "authority_boundary": {
+                        "executes_platform": True,
+                        "creates_git_commits": False,
+                        "opens_pull_requests": False,
+                        "publishes_read_models": False,
+                        "mutates_canonical_specs": False,
+                        "writes_ontology_packages": False,
+                        "accepts_ontology_terms": False,
+                    },
+                }
+                if field.startswith("authority_boundary."):
+                    report["authority_boundary"][
+                        field.removeprefix("authority_boundary.")
+                    ] = value
+                else:
+                    report[field] = value
+                artifacts[
+                    idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
+                ] = report
+
+                body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+                    artifacts=artifacts,
+                    source={"provider": "fixture", "read_only": True},
+                )
+
+                artifact = body["artifacts"]["workspace_initialization_execution"]
+                self.assertFalse(artifact["available"])
+                self.assertEqual(artifact["reason"], "invalid_artifact_contract")
+
+    def test_initialization_dry_run_is_not_a_completed_managed_operation(self) -> None:
         artifacts = _workspace_artifacts()
         artifacts[
             idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
@@ -6036,9 +6085,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "artifact_kind": "platform_product_workspace_initialization_execution_report",
             "schema_version": 1,
             "ok": True,
-            "dry_run": False,
+            "dry_run": True,
             "workspace": {"workspace_id": "team-decision-log"},
-            "summary": {"status": "workspace_initialization_executed"},
+            "summary": {"status": "workspace_initialization_dry_run"},
             "authority_boundary": {
                 "executes_platform": True,
                 "creates_git_commits": False,
@@ -6047,18 +6096,28 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 "mutates_canonical_specs": False,
                 "writes_ontology_packages": False,
                 "accepts_ontology_terms": False,
-                "may_open_pull_request": "true",
             },
         }
-
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
             artifacts=artifacts,
             source={"provider": "fixture", "read_only": True},
         )
+        body["workspace_binding"] = {
+            "status": "ready",
+            "trusted": True,
+            "routing": {
+                "platform_default_run_dir_ref": "runs/team-decision-log"
+            },
+        }
+        idea_to_spec_workspace.attach_guided_flow(body)
+        initialization = next(
+            operation
+            for operation in body["managed_operations_observability"]["operations"]
+            if operation["operation_id"] == "workspace_initialization_execute"
+        )
 
-        report = body["artifacts"]["workspace_initialization_execution"]
-        self.assertFalse(report["available"])
-        self.assertEqual(report["reason"], "invalid_artifact_contract")
+        self.assertNotEqual(initialization["status"], "completed")
+        self.assertTrue(initialization["output_reports"][0]["dry_run"])
 
     def test_build_workspace_rejects_unknown_raw_repair_session_privacy_flag(
         self,
