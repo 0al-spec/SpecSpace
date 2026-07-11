@@ -796,6 +796,24 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
+    if filename == PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT:
+        # Initialization is a Platform-owned execution report. It intentionally
+        # records workspace/catalog creation, so it does not use the generic
+        # read-only artifact fields required by SpecGraph review artifacts.
+        authority_boundary = value.get("authority_boundary")
+        if not isinstance(authority_boundary, dict):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "workspace initialization execution report requires an authority_boundary object.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if not _workspace_initialization_authority_trusted(value):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "workspace initialization execution report must not expand Git, canonical-spec, or Ontology authority.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
     if filename in {
         PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT,
         SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT,
@@ -1398,6 +1416,7 @@ def _artifact_status(
         PLATFORM_PRODUCT_REPAIR_RERUN_REQUEST_GATE_EXECUTION_REPORT_ARTIFACT,
         PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
         GIT_SERVICE_PROMOTION_EXECUTION_REPORT_ARTIFACT,
+        PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT,
     }:
         status_payload["ok"] = data.get("ok") is True
         status_payload["dry_run"] = (
@@ -2521,17 +2540,40 @@ def _real_idea_entry_execution(report: dict[str, Any] | None) -> dict[str, Any]:
 def _workspace_initialization_authority_trusted(report: dict[str, Any] | None) -> bool:
     if report is None:
         return False
+    for field in ("canonical_mutations_allowed", "tracked_artifacts_written"):
+        if field in report and report.get(field) is not False:
+            return False
     boundary = _record(report.get("authority_boundary"))
     for key in (
+        "canonical_spec_mutation_without_review",
+        "creates_branch_or_commit",
+        "creates_candidate_commit",
+        "creates_candidate_worktree_or_branch",
+        "creates_git_branch",
         "creates_git_commits",
+        "creates_git_commit",
+        "executes_git_commands",
+        "executes_git_service_operation",
+        "merges_pull_request",
+        "merges_pull_requests",
+        "opens_pull_request",
         "opens_pull_requests",
+        "private_artifact_publication",
+        "publishes_read_model",
         "publishes_read_models",
+        "specspace_direct_git_write",
         "mutates_canonical_specs",
+        "updates_ontology_lockfile",
+        "writes_ontology_lockfile",
+        "writes_ontology_package",
         "writes_ontology_packages",
+        "accepts_ontology_term",
         "accepts_ontology_terms",
     ):
-        if boundary.get(key) is True:
+        if key in boundary and boundary.get(key) is not False:
             return False
+    if any(key.startswith("may_") and value is not False for key, value in boundary.items()):
+        return False
     return True
 
 
@@ -8115,6 +8157,7 @@ def _managed_operation_ref_payload(
                 "reason": _optional_text(status.get("reason")),
                 "artifact_kind": _optional_text(status.get("artifact_kind")),
                 "contract_ref": _optional_text(status.get("contract_ref")),
+                "ok": status.get("ok") is True,
                 "dry_run": status.get("dry_run") is True,
             }
         return {
@@ -8225,6 +8268,16 @@ def _managed_operation_status_from_reports(
             failed_reports.append(report)
     if failed_reports:
         return "failed"
+    if operation.operation_id == "workspace_initialization_execute":
+        for report in available_reports:
+            if (
+                report.get("ok") is True
+                and report.get("dry_run") is not True
+                and _text(report.get("status"))
+                == "workspace_initialization_executed"
+            ):
+                return "completed"
+        return None
     if (
         operation.operation_id == "promotion_review_execute"
         and any(report.get("dry_run") is True for report in available_reports)
