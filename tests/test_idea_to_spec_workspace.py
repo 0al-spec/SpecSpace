@@ -5969,6 +5969,97 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "invalid_artifact_contract",
         )
 
+    def test_build_workspace_accepts_platform_initialization_execution_report(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
+        ] = {
+            "artifact_kind": "platform_product_workspace_initialization_execution_report",
+            "schema_version": 1,
+            "ok": True,
+            "dry_run": False,
+            "workspace": {
+                "workspace_id": "team-decision-log",
+                "route": "/team-decision-log",
+                "repository_role": "product_spec_workspace",
+            },
+            "summary": {
+                "status": "workspace_initialization_executed",
+                "catalog_written": True,
+                "specgraph_executed": True,
+                "workspace_files_created": True,
+            },
+            "authority_boundary": {
+                "executes_platform": True,
+                "executes_specgraph": True,
+                "creates_workspace_files": True,
+                "updates_workspace_catalog": True,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+                "mutates_canonical_specs": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+            },
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        report = body["artifacts"]["workspace_initialization_execution"]
+        self.assertTrue(report["available"])
+        self.assertEqual(report["status"], "workspace_initialization_executed")
+        body["workspace_binding"] = {
+            "status": "ready",
+            "trusted": True,
+            "routing": {
+                "platform_default_run_dir_ref": "runs/team-decision-log"
+            },
+        }
+        idea_to_spec_workspace.attach_guided_flow(body)
+        initialization = next(
+            operation
+            for operation in body["managed_operations_observability"]["operations"]
+            if operation["operation_id"] == "workspace_initialization_execute"
+        )
+        self.assertEqual(initialization["status"], "completed")
+
+    def test_build_workspace_rejects_expanded_initialization_execution_authority(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
+        ] = {
+            "artifact_kind": "platform_product_workspace_initialization_execution_report",
+            "schema_version": 1,
+            "ok": True,
+            "dry_run": False,
+            "workspace": {"workspace_id": "team-decision-log"},
+            "summary": {"status": "workspace_initialization_executed"},
+            "authority_boundary": {
+                "executes_platform": True,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+                "mutates_canonical_specs": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+                "may_open_pull_request": "true",
+            },
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        report = body["artifacts"]["workspace_initialization_execution"]
+        self.assertFalse(report["available"])
+        self.assertEqual(report["reason"], "invalid_artifact_contract")
+
     def test_build_workspace_rejects_unknown_raw_repair_session_privacy_flag(
         self,
     ) -> None:

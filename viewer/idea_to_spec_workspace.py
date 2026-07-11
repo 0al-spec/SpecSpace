@@ -796,6 +796,33 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         return None
+    if filename == PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT:
+        # Initialization is a Platform-owned execution report. It intentionally
+        # records workspace/catalog creation, so it does not use the generic
+        # read-only artifact fields required by SpecGraph review artifacts.
+        authority_boundary = value.get("authority_boundary")
+        if not isinstance(authority_boundary, dict):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "workspace initialization execution report requires an authority_boundary object.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if not _workspace_initialization_authority_trusted(value):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "workspace initialization execution report must not expand Git, canonical-spec, or Ontology authority.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        if any(
+            key.startswith("may_") and enabled is not False
+            for key, enabled in authority_boundary.items()
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "workspace initialization execution report may_* authority flags must be false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
     if filename in {
         PROJECT_LOCAL_ONTOLOGY_REVIEW_LANE_ARTIFACT,
         SPECSPACE_PROJECT_LOCAL_ONTOLOGY_DECISION_IMPORT_PREVIEW_ARTIFACT,
