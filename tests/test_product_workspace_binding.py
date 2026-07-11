@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from viewer import product_workspace_binding, specspace_v1_api
+from viewer import product_workspace_binding, specspace_provider, specspace_v1_api
 
 
 def _binding(workspace_id: str, display_name: str) -> dict:
@@ -155,6 +155,85 @@ def test_discovers_ready_binding_and_resolves_bound_runs_dir(tmp_path: Path) -> 
         server,
         workspace_id="pantry-rotation",
     ) == runs_dir / "pantry-rotation"
+
+
+def test_ready_binding_uses_local_runs_before_static_workspace_bundle_exists(
+    tmp_path: Path,
+) -> None:
+    runs_dir = tmp_path / "runs"
+    _write_report(runs_dir, "pantry-rotation", "Pantry Rotation")
+    server = SimpleNamespace(
+        runs_dir=runs_dir,
+        artifact_base_url=None,
+        product_workspace_artifact_base_urls={},
+        spec_dir=None,
+        specgraph_dir=tmp_path,
+    )
+
+    assert specspace_provider.artifact_base_url_for_workspace(
+        server,
+        "pantry-rotation",
+    ) is None
+    assert specspace_provider.provider_from_server(
+        server,
+        "pantry-rotation",
+    ).kind == "file-product-workspace"
+
+
+def test_ready_binding_keeps_http_provider_when_static_base_is_configured(
+    tmp_path: Path,
+) -> None:
+    runs_dir = tmp_path / "runs"
+    _write_report(runs_dir, "pantry-rotation", "Pantry Rotation")
+    server = SimpleNamespace(
+        runs_dir=runs_dir,
+        artifact_base_url="https://specgraph.tech",
+        product_workspace_artifact_base_urls={},
+    )
+
+    assert specspace_provider.artifact_base_url_for_workspace(
+        server,
+        "pantry-rotation",
+    ) == "https://specgraph.tech/workspaces/pantry-rotation"
+
+
+def test_ready_binding_keeps_local_runs_for_unrelated_bootstrap_base(
+    tmp_path: Path,
+) -> None:
+    runs_dir = tmp_path / "runs"
+    _write_report(runs_dir, "pantry-rotation", "Pantry Rotation")
+    server = SimpleNamespace(
+        runs_dir=runs_dir,
+        artifact_base_url="https://bootstrap.example",
+        product_workspace_artifact_base_urls={},
+    )
+
+    assert specspace_provider.artifact_base_url_for_workspace(
+        server,
+        "pantry-rotation",
+    ) is None
+    assert specspace_provider.provider_from_server(
+        server,
+        "pantry-rotation",
+    ).kind == "file-product-workspace"
+
+
+def test_ready_binding_scopes_logical_run_refs_once(tmp_path: Path) -> None:
+    runs_dir = tmp_path / "runs"
+    _write_report(runs_dir, "pantry-rotation", "Pantry Rotation")
+    projection = product_workspace_binding.discover_binding(
+        SimpleNamespace(runs_dir=runs_dir),
+        workspace_id="pantry-rotation",
+    )
+
+    assert product_workspace_binding.bound_run_ref(
+        projection,
+        "runs/idea_to_spec_repair_session.json",
+    ) == "runs/pantry-rotation/idea_to_spec_repair_session.json"
+    assert product_workspace_binding.bound_run_ref(
+        projection,
+        "runs/pantry-rotation/idea_to_spec_repair_session.json",
+    ) == "runs/pantry-rotation/idea_to_spec_repair_session.json"
 
 
 def test_workspace_scoped_runs_dir_keeps_globally_unambiguous_source_ref(

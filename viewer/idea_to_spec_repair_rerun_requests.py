@@ -10,7 +10,7 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
-from viewer import specspace_provider
+from viewer import product_workspace_binding, specspace_provider
 from viewer.idea_to_spec_authority import authority_boundary_has_disallowed_true
 
 RERUN_REQUEST_ARTIFACT_KIND = "specspace_idea_to_spec_repair_rerun_request_state"
@@ -269,7 +269,10 @@ def save_rerun_request(
     candidate_id = _text(session.get("candidate_id")) or _text(workspace.get("id")) or workspace_id_value
     repair_session_id = _text(session.get("session_id"))
     repair_session_artifact = _record(artifacts.get("repair_session"))
-    repair_session_ref = _text(repair_session_artifact.get("path")) or REPAIR_SESSION_PATH
+    repair_session_ref = product_workspace_binding.bound_run_ref(
+        _record(workspace_payload.get("workspace_binding")),
+        _text(repair_session_artifact.get("path")) or REPAIR_SESSION_PATH,
+    )
     workspace_drafts = [
         draft
         for draft in _records(repair_draft_state.get("drafts"))
@@ -310,7 +313,15 @@ def save_rerun_request(
         }
     draft_count = len(drafts) if drafts else accepted_count
 
-    import_preview_ref = _text(import_preview_status.get("path")) or IMPORT_PREVIEW_PATH
+    binding = _record(workspace_payload.get("workspace_binding"))
+    import_preview_ref = product_workspace_binding.bound_run_ref(
+        binding,
+        _text(import_preview_status.get("path")) or IMPORT_PREVIEW_PATH,
+    )
+    rerun_report_ref = product_workspace_binding.bound_run_ref(
+        binding,
+        RERUN_REPORT_PATH,
+    )
     operator_ref = _text(payload.get("operator_ref")) or "operator://specspace-local"
     now = now_iso()
 
@@ -325,7 +336,7 @@ def save_rerun_request(
         "repair_session_ref": repair_session_ref,
         "draft_state_ref": REPAIR_DRAFT_STATE_REF,
         "import_preview_ref": import_preview_ref,
-        "rerun_report_ref": RERUN_REPORT_PATH,
+        "rerun_report_ref": rerun_report_ref,
         "requested_by": operator_ref,
         "created_at": now,
         "updated_at": now,
@@ -453,7 +464,11 @@ def _with_workflow_status(
     repair_session = _record((workspace_payload or {}).get("repair_session"))
     session = _record(repair_session.get("session"))
     current_session_id = _text(session.get("session_id"))
-    current_session_ref = _text(_record(artifacts.get("repair_session")).get("path")) or REPAIR_SESSION_PATH
+    current_session_ref = product_workspace_binding.bound_run_ref(
+        _record((workspace_payload or {}).get("workspace_binding")),
+        _text(_record(artifacts.get("repair_session")).get("path"))
+        or REPAIR_SESSION_PATH,
+    )
     import_preview = _effective_import_preview_status(artifacts)
     rerun_report = _record(artifacts.get(RERUN_REPORT_ARTIFACT_KEY))
     latest_request = _latest_active_request(state)

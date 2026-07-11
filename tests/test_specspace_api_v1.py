@@ -11651,6 +11651,50 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         dumped = json.dumps(observability)
         self.assertNotIn(str(runs_dir), dumped)
 
+    def test_managed_operations_observability_resolves_bound_workspace_refs(
+        self,
+    ) -> None:
+        payload = {
+            "workspace_binding": {
+                "status": "ready",
+                "trusted": True,
+                "routing": {
+                    "platform_default_run_dir_ref": "runs/pantry-rotation"
+                },
+            },
+            "artifacts": {
+                "workspace_initialization_execution_request": {
+                    "available": True,
+                    "status": "workspace_initialization_execution_requested",
+                },
+                "workspace_initialization_execution": {
+                    "available": True,
+                    "status": "workspace_initialization_executed",
+                },
+            },
+        }
+
+        observability = idea_to_spec_workspace._managed_operations_observability(
+            payload
+        )
+        initialization = next(
+            operation
+            for operation in observability["operations"]
+            if operation["operation_id"] == "workspace_initialization_execute"
+        )
+
+        self.assertEqual(initialization["status"], "completed")
+        self.assertEqual(
+            initialization["input_refs"][0]["ref"],
+            "runs/pantry-rotation/product_workspace_initialization_execution_request.json",
+        )
+        self.assertTrue(initialization["input_refs"][0]["available"])
+        self.assertEqual(
+            initialization["output_reports"][0]["ref"],
+            "runs/pantry-rotation/platform_product_workspace_initialization_execution_report.json",
+        )
+        self.assertTrue(initialization["output_reports"][0]["available"])
+
     def test_idea_to_spec_workspace_embeds_managed_mode_readiness_default_read_only(
         self,
     ) -> None:
@@ -17378,6 +17422,65 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             "runs/repaired_idea_to_spec_promotion_gate.json",
         )
         self.assertEqual(intent["reason"], "Review repaired candidate.")
+
+    def test_candidate_approval_workflow_status_scopes_refs_to_workspace_binding(
+        self,
+    ) -> None:
+        payload = {
+            "workspace_binding": {
+                "status": "ready",
+                "trusted": True,
+                "routing": {
+                    "platform_default_run_dir_ref": "runs/hosted-operation-canary"
+                },
+            },
+            "artifacts": {
+                "repair_session": {
+                    "path": "runs/repaired_idea_to_spec_repair_session.json"
+                },
+                "promotion_gate": {
+                    "path": "runs/repaired_idea_to_spec_promotion_gate.json"
+                },
+            },
+            "repair_session": {
+                "available": True,
+                "source_mode": "journal",
+                "readiness": {"ready": True},
+                "readiness_impact": {
+                    "ready_for_candidate_approval": True,
+                    "ready_for_platform_promotion": False,
+                },
+                "open_blockers": [],
+            },
+            "approval_readiness": {
+                "available": True,
+                "source_refs": {
+                    "repair_session": "runs/repaired_idea_to_spec_repair_session.json",
+                    "promotion_gate": "runs/repaired_idea_to_spec_promotion_gate.json",
+                },
+                "ready_for_candidate_approval": True,
+                "ready_for_platform_promotion": False,
+                "promotion_review_can_be_requested": True,
+                "platform_approval_gate_can_materialize_decision": True,
+                "platform_rerun_executed": True,
+                "platform_rerun_published": True,
+                "blockers": [],
+            },
+        }
+
+        workflow = idea_to_spec_candidate_approval_intents._workflow_status(
+            payload,
+            "hosted-operation-canary",
+        )
+
+        self.assertEqual(
+            workflow["repair_session_ref"],
+            "runs/hosted-operation-canary/repaired_idea_to_spec_repair_session.json",
+        )
+        self.assertEqual(
+            workflow["promotion_gate_ref"],
+            "runs/hosted-operation-canary/repaired_idea_to_spec_promotion_gate.json",
+        )
 
     def test_idea_to_spec_candidate_approval_intents_v1_rejects_unready_journal(
         self,

@@ -10,7 +10,7 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
-from viewer import specspace_provider
+from viewer import product_workspace_binding, specspace_provider
 
 APPROVAL_INTENT_ARTIFACT_KIND = "specspace_idea_to_spec_candidate_approval_intent_state"
 APPROVAL_INTENT_SCHEMA_VERSION = 1
@@ -401,6 +401,11 @@ def _workflow_status(workspace_payload: dict[str, Any], workspace_id: str | None
         or (publication_status.get("ok") is True and publication_status.get("dry_run") is not True)
     )
     blocked_by = []
+    binding = _record(workspace_payload.get("workspace_binding"))
+
+    def bound_ref(ref: str) -> str:
+        return product_workspace_binding.bound_run_ref(binding, ref)
+
     repair_session_ref = (
         _text(_record(_record(workspace_payload.get("artifacts")).get("repair_session")).get("path"))
         or REPAIR_SESSION_PATH
@@ -409,9 +414,15 @@ def _workflow_status(workspace_payload: dict[str, Any], workspace_id: str | None
         _text(_record(_record(workspace_payload.get("artifacts")).get("promotion_gate")).get("path"))
         or PROMOTION_GATE_PATH
     )
+    repair_session_ref = bound_ref(repair_session_ref)
+    promotion_gate_ref = bound_ref(promotion_gate_ref)
     if approval_available:
-        repair_session_ref = _text(approval_refs.get("repair_session")) or repair_session_ref
-        promotion_gate_ref = _text(approval_refs.get("promotion_gate")) or promotion_gate_ref
+        repair_session_ref = bound_ref(
+            _text(approval_refs.get("repair_session")) or repair_session_ref
+        )
+        promotion_gate_ref = bound_ref(
+            _text(approval_refs.get("promotion_gate")) or promotion_gate_ref
+        )
         ready_for_candidate_approval = (
             approval_readiness.get("ready_for_candidate_approval") is True
         )

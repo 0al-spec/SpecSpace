@@ -9,7 +9,7 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
-from viewer import specspace_provider
+from viewer import product_workspace_binding, specspace_provider
 
 REPAIR_DRAFT_ARTIFACT_KIND = "specspace_idea_to_spec_repair_draft_state"
 REPAIR_DRAFT_SCHEMA_VERSION = 1
@@ -317,7 +317,11 @@ def save_repair_draft(
     repair_session_id = _text(session.get("session_id"))
     artifacts = _record(workspace_payload.get("artifacts"))
     repair_session_artifact = _record(artifacts.get("repair_session"))
-    repair_session_ref = _text(repair_session_artifact.get("path")) or "runs/idea_to_spec_repair_session.json"
+    repair_session_ref = product_workspace_binding.bound_run_ref(
+        _record(workspace_payload.get("workspace_binding")),
+        _text(repair_session_artifact.get("path"))
+        or "runs/idea_to_spec_repair_session.json",
+    )
     now = now_iso()
 
     with _STATE_LOCK:
