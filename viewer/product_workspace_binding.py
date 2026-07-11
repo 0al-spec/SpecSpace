@@ -313,6 +313,9 @@ def discover_binding(
             "specspace_state_namespace_ref": _text(
                 routing.get("specspace_state_namespace_ref")
             ),
+            "root_artifact_base_url": _text(
+                routing.get("root_artifact_base_url")
+            ),
             "platform_default_run_dir_ref": _text(
                 execution.get("platform_default_run_dir_ref")
             ),

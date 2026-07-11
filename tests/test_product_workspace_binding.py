@@ -197,6 +197,27 @@ def test_ready_binding_keeps_http_provider_when_static_base_is_configured(
     ) == "https://specgraph.tech/workspaces/pantry-rotation"
 
 
+def test_ready_binding_keeps_local_runs_for_unrelated_bootstrap_base(
+    tmp_path: Path,
+) -> None:
+    runs_dir = tmp_path / "runs"
+    _write_report(runs_dir, "pantry-rotation", "Pantry Rotation")
+    server = SimpleNamespace(
+        runs_dir=runs_dir,
+        artifact_base_url="https://bootstrap.example",
+        product_workspace_artifact_base_urls={},
+    )
+
+    assert specspace_provider.artifact_base_url_for_workspace(
+        server,
+        "pantry-rotation",
+    ) is None
+    assert specspace_provider.provider_from_server(
+        server,
+        "pantry-rotation",
+    ).kind == "file-product-workspace"
+
+
 def test_ready_binding_scopes_logical_run_refs_once(tmp_path: Path) -> None:
     runs_dir = tmp_path / "runs"
     _write_report(runs_dir, "pantry-rotation", "Pantry Rotation")

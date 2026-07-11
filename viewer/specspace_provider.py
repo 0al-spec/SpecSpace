@@ -3237,7 +3237,19 @@ def artifact_base_url_for_workspace(server: Any, workspace_id: str | None) -> st
                 isinstance(root_artifact_base_url, str)
                 and bool(root_artifact_base_url.strip())
             )
-            if has_root_static_base or normalized_workspace_id in configured_product_urls:
+            binding_root_artifact_base_url = _text(
+                _record(binding.get("routing")).get("root_artifact_base_url")
+            )
+            root_static_base_matches_binding = (
+                has_root_static_base
+                and binding_root_artifact_base_url is not None
+                and root_artifact_base_url.strip()
+                == binding_root_artifact_base_url
+            )
+            if (
+                root_static_base_matches_binding
+                or normalized_workspace_id in configured_product_urls
+            ):
                 return bound_url
             # A local initialized workspace has a trusted binding before its
             # first static bundle exists. Keep production HTTP routing explicit,
