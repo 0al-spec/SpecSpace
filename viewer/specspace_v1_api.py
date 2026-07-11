@@ -1250,6 +1250,10 @@ def handle_v1_idea_to_spec_repair_rerun_requests(
         )
         if workspace_status == HTTPStatus.OK:
             workspace_payload = workspace_payload_candidate
+            workspace_payload["workspace_binding"] = product_workspace_binding.discover_binding(
+                handler.server,
+                workspace_id=workspace_id,
+            )
         draft_status, draft_payload = idea_to_spec_repair_drafts.read_state(
             handler.server,
             workspace_id=workspace_id,
@@ -1881,6 +1885,10 @@ def handle_v1_idea_to_spec_candidate_approval_intents(
         )
         if workspace_status == HTTPStatus.OK:
             workspace_payload = workspace_payload_candidate
+            workspace_payload["workspace_binding"] = product_workspace_binding.discover_binding(
+                handler.server,
+                workspace_id=workspace_id,
+            )
     status, payload = idea_to_spec_candidate_approval_intents.read_state(
         handler.server,
         workspace_id=workspace_id,
@@ -1929,6 +1937,10 @@ def handle_v1_idea_to_spec_candidate_approval_intent_post(
             },
         )
         return
+    workspace_payload["workspace_binding"] = product_workspace_binding.discover_binding(
+        handler.server,
+        workspace_id=workspace_id,
+    )
     status, response = idea_to_spec_candidate_approval_intents.save_candidate_approval_intent(
         handler.server,
         payload,
