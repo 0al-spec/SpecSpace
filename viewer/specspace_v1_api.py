@@ -1013,6 +1013,24 @@ def handle_v1_artifact_content(handler: SpecSpaceV1Handler, parsed: Any) -> None
     json_response(handler, status, payload)
 
 
+def _select_workspace_binding(
+    local_binding: dict[str, Any],
+    provider_binding: Any,
+) -> dict[str, Any]:
+    provider_record = _record(provider_binding)
+    if (
+        local_binding.get("status") == "ready"
+        and local_binding.get("trusted") is True
+    ):
+        return local_binding
+    if (
+        provider_record.get("status") == "ready"
+        and provider_record.get("trusted") is True
+    ):
+        return provider_record
+    return local_binding
+
+
 def handle_v1_practical_ontology(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     status, payload = _query_provider(handler, parsed).read_practical_ontology()
     json_response(handler, status, payload)
@@ -1030,9 +1048,13 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
     if workspace_id is not None and isinstance(payload, dict):
         payload["selected_workspace_id"] = workspace_id
     if status == HTTPStatus.OK:
-        payload["workspace_binding"] = product_workspace_binding.discover_binding(
+        local_binding = product_workspace_binding.discover_binding(
             handler.server,
             workspace_id=workspace_id,
+        )
+        payload["workspace_binding"] = _select_workspace_binding(
+            local_binding,
+            payload.get("workspace_binding"),
         )
         _apply_durable_workspace_binding_initialization(
             payload,

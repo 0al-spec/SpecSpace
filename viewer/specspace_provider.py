@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -2774,13 +2775,80 @@ class ProductWorkspaceHttpProvider:
             },
         )
 
-    def _workspace_artifacts(self, manifest: dict[str, Any]) -> dict[str, Any]:
-        return {
+    def _read_runs_json_path(
+        self,
+        manifest: dict[str, Any],
+        path: str,
+    ) -> dict[str, Any] | None:
+        if not self.delegate._has_artifact(manifest, path):
+            return None
+        expected_sha256 = self._manifest_sha256(manifest, path)
+        if (
+            expected_sha256 is None
+            or re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None
+        ):
+            return None
+        status, text, error = self.delegate._read_artifact_text(path)
+        if error is not None or status != HTTPStatus.OK or text is None:
+            return None
+        if hashlib.sha256(text.encode("utf-8")).hexdigest() != expected_sha256:
+            return None
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            return None
+        return payload if isinstance(payload, dict) else None
+
+    def _manifest_sha256(self, manifest: dict[str, Any], path: str) -> str | None:
+        for entry in self.delegate._manifest_files(manifest):
+            if entry.get("path") == path and isinstance(entry.get("sha256"), str):
+                return entry["sha256"]
+        return None
+
+    def _workspace_artifacts(
+        self,
+        manifest: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        initialization_filename = (
+            idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
+        )
+        artifacts = {
             filename: payload
             for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS
+            if filename != initialization_filename
             if (payload := self.delegate._read_optional_runs_json_data(manifest, filename))
             is not None
         }
+        initialization_path = f"runs/{initialization_filename}"
+        initialization = self._read_runs_json_path(manifest, initialization_path)
+        if initialization is not None:
+            artifacts[initialization_filename] = initialization
+        source_sha256 = self._manifest_sha256(manifest, initialization_path)
+        binding = product_workspace_binding.project_published_initialization_binding(
+            initialization,
+            workspace_id=self.workspace_id,
+            source_ref=initialization_path,
+            source_sha256=source_sha256 or "",
+        )
+        if binding.get("status") != "ready" or binding.get("trusted") is not True:
+            return artifacts, binding
+        run_dir_ref = _text(
+            _record(binding.get("routing")).get("platform_default_run_dir_ref")
+        )
+        if run_dir_ref != f"runs/{self.workspace_id}":
+            return artifacts, {
+                "available": True,
+                "status": "invalid",
+                "trusted": False,
+                "workspace_id": self.workspace_id,
+                "reasons": ["workspace_binding_run_dir_invalid"],
+            }
+        artifacts = {initialization_filename: initialization}
+        for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS:
+            scoped = self._read_runs_json_path(manifest, f"{run_dir_ref}/{filename}")
+            if scoped is not None:
+                artifacts[filename] = scoped
+        return artifacts, binding
 
     def _candidate_spec_nodes(
         self,
@@ -3005,10 +3073,13 @@ class ProductWorkspaceHttpProvider:
         if manifest_error is not None:
             return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
         assert manifest is not None
-        return HTTPStatus.OK, idea_to_spec_workspace.build_idea_to_spec_workspace(
-            artifacts=self._workspace_artifacts(manifest),
+        artifacts, binding = self._workspace_artifacts(manifest)
+        payload = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
             source=self._source(surface="idea_to_spec_workspace"),
         )
+        payload["workspace_binding"] = binding
+        return HTTPStatus.OK, payload
 
     def read_metrics(self) -> tuple[int, dict[str, Any]]:
         return metrics.read_file_metrics_index(runs_dir=None)
