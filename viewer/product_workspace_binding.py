@@ -193,6 +193,139 @@ def validate_binding(
     return sorted(set(reasons))
 
 
+def project_published_initialization_binding(
+    report: Any,
+    *,
+    workspace_id: str,
+    source_ref: str,
+    source_sha256: str,
+) -> dict[str, Any]:
+    """Validate and sanitize a public initialization report without local paths."""
+    if (
+        not isinstance(report, dict)
+        or report.get("artifact_kind") != INITIALIZATION_REPORT_KIND
+    ):
+        return {
+            "available": False,
+            "status": "invalid",
+            "trusted": False,
+            "workspace_id": workspace_id,
+            "reasons": ["workspace_initialization_report_invalid"],
+        }
+    binding = _record(report.get("workspace_binding"))
+    reasons = validate_binding(binding, workspace_id=workspace_id)
+    summary = _record(report.get("summary"))
+    if (
+        report.get("ok") is not True
+        or report.get("dry_run") is True
+        or summary.get("status") != "workspace_initialization_executed"
+    ):
+        reasons.append("workspace_initialization_not_ready")
+    if _safe_public_ref(source_ref) is None:
+        reasons.append("workspace_binding_source_ref_invalid")
+    if not re.fullmatch(r"[0-9a-f]{64}", source_sha256):
+        reasons.append("workspace_binding_source_digest_invalid")
+    if reasons:
+        return {
+            "available": True,
+            "status": "invalid",
+            "trusted": False,
+            "workspace_id": workspace_id,
+            "reasons": sorted(set(reasons)),
+        }
+
+    identity = _record(binding.get("identity"))
+    routing = _record(binding.get("routing"))
+    execution = _record(binding.get("execution"))
+    repository = _record(binding.get("repository"))
+    provenance = _record(binding.get("provenance"))
+    return {
+        "available": True,
+        "status": "ready",
+        "trusted": True,
+        "workspace_id": workspace_id,
+        "binding_id": _text(binding.get("binding_id")),
+        "binding_revision_sha256": _text(binding.get("binding_revision_sha256")),
+        "source_ref": source_ref,
+        "source_sha256": source_sha256,
+        "identity": {
+            "workspace_id": workspace_id,
+            "display_name": _text(identity.get("display_name")),
+            "route": _text(identity.get("route")),
+            "governance_profile": _text(identity.get("governance_profile")),
+            "repository_role": _text(identity.get("repository_role")),
+        },
+        "routing": {
+            "specspace_state_namespace_ref": _text(
+                routing.get("specspace_state_namespace_ref")
+            ),
+            "root_artifact_base_url": _text(routing.get("root_artifact_base_url")),
+            "platform_default_run_dir_ref": _text(
+                execution.get("platform_default_run_dir_ref")
+            ),
+            "product_artifact_bundle_ref": _text(
+                routing.get("product_artifact_bundle_ref")
+            ),
+            "product_artifact_manifest_ref": _text(
+                routing.get("product_artifact_manifest_ref")
+            ),
+            "product_artifact_base_url": _text(
+                routing.get("product_artifact_base_url")
+            ),
+            "product_artifact_manifest_url": _text(
+                routing.get("product_artifact_manifest_url")
+            ),
+        },
+        "repository": {
+            "repository_role": _text(repository.get("repository_role")),
+            "workspace_identity": _text(repository.get("workspace_identity")),
+            "worktree_identity": _text(repository.get("worktree_identity")),
+            "creates_worktree": repository.get("creates_worktree") is True,
+        },
+        "provenance": {
+            "plan_ref": _safe_public_ref(provenance.get("plan_ref")),
+            "plan_sha256": _text(provenance.get("plan_sha256")),
+            "specgraph_initialization_report_ref": _safe_public_ref(
+                provenance.get("specgraph_initialization_report_ref")
+            ),
+            "specgraph_initialization_report_sha256": _text(
+                provenance.get("specgraph_initialization_report_sha256")
+            ),
+        },
+        "local_resolution": {
+            "workspace_root_configured": bool(_text(execution.get("workspace_root"))),
+            "workspace_runs_root_configured": bool(
+                _text(execution.get("workspace_runs_root"))
+            ),
+            "local_only": execution.get("local_only") is True,
+        },
+        "initialization": {
+            "status": _text(summary.get("status")),
+            "specgraph_executed": summary.get("specgraph_executed") is True,
+            "catalog_written": summary.get("catalog_written") is True,
+            "workspace_files_created": summary.get("workspace_files_created") is True,
+            "error_count": (
+                summary.get("error_count")
+                if isinstance(summary.get("error_count"), int)
+                and not isinstance(summary.get("error_count"), bool)
+                else None
+            ),
+        },
+        "reasons": [],
+        "authority_boundary": {
+            "report_only": True,
+            "workspace_binding_is_execution_authority": False,
+            "may_execute_platform": False,
+            "may_execute_specgraph": False,
+            "may_mutate_specspace_state": False,
+            "may_write_catalog": False,
+            "may_create_git_commit": False,
+            "may_open_pull_request": False,
+            "may_publish_read_model": False,
+        },
+    }
+
+
 def _candidate_reports(runs_dir: Path) -> list[Path]:
     candidates = [runs_dir / INITIALIZATION_REPORT_FILENAME]
     if runs_dir.exists() and runs_dir.is_dir():
