@@ -876,6 +876,9 @@ Implemented in the current Product Workspace stack:
   Platform enqueue/status service. SpecSpace stores compact queue state and
   displays transport status separately from authoritative Platform report
   readiness. Local and hosted executors are mutually exclusive.
+- Hosted promotion dry-run/review requests include the separately pinned graph
+  repository execution plan, keeping SpecSpace's request inventory aligned with
+  Platform's portable `plan_sha256` contract across worker hosts.
 - Platform now provides both the isolated SQLite queue used by local/browser
   tests and a PostgreSQL queue/store for production deployment. The service and
   long-running worker expose health/heartbeat evidence, and secret files keep
