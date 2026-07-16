@@ -12,10 +12,49 @@ import unittest
 from unittest.mock import patch
 import urllib.error
 
-from viewer import hosted_managed_execution, idea_to_spec_workspace, specspace_v1_api
+from viewer import (
+    hosted_managed_execution,
+    idea_to_spec_workspace,
+    product_workspace_binding,
+    specspace_v1_api,
+)
 
 
 TOKEN = "specspace-hosted-token-0123456789abcdef"
+
+
+def ready_binding(workspace_id: str = "pantry-control") -> dict:
+    return {
+        "available": True,
+        "status": "ready",
+        "trusted": True,
+        "workspace_id": workspace_id,
+        "binding_id": f"product-workspace-binding://{workspace_id}",
+        "binding_revision_sha256": "2" * 64,
+        "source_ref": "runs/platform_product_workspace_initialization_execution_report.json",
+        "source_sha256": "3" * 64,
+        "identity": {
+            "workspace_id": workspace_id,
+            "route": f"/{workspace_id}",
+            "repository_role": "product_spec_workspace",
+        },
+        "routing": {
+            "specspace_state_namespace_ref": f"specspace-state://workspace/{workspace_id}",
+            "platform_default_run_dir_ref": f"runs/{workspace_id}",
+            "product_artifact_bundle_ref": f"workspaces/{workspace_id}",
+        },
+        "repository": {
+            "repository_role": "product_spec_workspace",
+            "workspace_identity": workspace_id,
+            "worktree_identity": f"product-workspace/{workspace_id}",
+            "creates_worktree": False,
+        },
+        "authority_boundary": {
+            "report_only": True,
+            "workspace_binding_is_execution_authority": False,
+            "may_execute_platform": False,
+        },
+    }
 
 
 class PlatformStubHandler(BaseHTTPRequestHandler):
@@ -186,6 +225,38 @@ class HostedManagedExecutionTests(unittest.TestCase):
         self.assertEqual(
             PlatformStubHandler.received[0]["input_refs"],
             ["runs/product_workspace_initialization_execution_request.json"],
+        )
+
+    def test_hosted_operation_uses_scoped_provider_binding_ref(self) -> None:
+        server, thread, base_url = self.start_stub()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp = Path(temp_dir)
+                runtime = SimpleNamespace(
+                    repo_root=temp,
+                    specspace_state_dir=temp / "state",
+                    runs_dir=temp / "runs",
+                    hosted_managed_execution_enabled=True,
+                    hosted_managed_executor_url=base_url,
+                    hosted_managed_executor_token=TOKEN,
+                    hosted_managed_executor_timeout_seconds=2,
+                )
+                status, _ = hosted_managed_execution.enqueue_operation(
+                    runtime,
+                    operation_id="review_status_execute",
+                    workspace_id="pantry-control",
+                    payload={"workspace_id": "pantry-control"},
+                    workspace_binding=ready_binding(),
+                )
+        finally:
+            server.shutdown()
+            thread.join(timeout=5)
+            server.server_close()
+
+        self.assertEqual(status, HTTPStatus.ACCEPTED)
+        self.assertEqual(
+            PlatformStubHandler.received[0]["workspace_binding_ref"],
+            "runs/pantry-control/platform_product_workspace_initialization_execution_report.json",
         )
 
     def test_non_loopback_plain_http_executor_is_rejected(self) -> None:
@@ -367,7 +438,18 @@ class HostedManagedExecutionTests(unittest.TestCase):
             hosted_managed_execution,
             "enqueue_operation",
             return_value=(HTTPStatus.ACCEPTED, {"status": "execution_requested"}),
-        ) as enqueue:
+        ) as enqueue, patch.object(
+            specspace_v1_api.specspace_provider,
+            "provider_from_server",
+        ) as provider_from_server, patch.object(
+            product_workspace_binding,
+            "discover_binding",
+            return_value=ready_binding(),
+        ):
+            provider_from_server.return_value.read_idea_to_spec_workspace.return_value = (
+                HTTPStatus.OK,
+                {"workspace_binding": ready_binding()},
+            )
             status, response = specspace_v1_api._managed_execution(
                 server,
                 operation_id="review_status_execute",
@@ -441,19 +523,13 @@ class HostedManagedExecutionTests(unittest.TestCase):
                 hosted_managed_execution,
                 "client_from_server",
                 return_value=client,
-            ), patch(
-                "viewer.product_workspace_binding.discover_binding",
-                return_value={
-                    "status": "legacy_read_only",
-                    "trusted": False,
-                    "binding_id": None,
-                },
             ):
                 readiness = specspace_v1_api._managed_mode_readiness(
                     server=server,
                     provider=provider,
                     workspace_id="pantry-control",
                     observability={"operations": []},
+                    workspace_binding=ready_binding(),
                 )
 
         self.assertEqual(readiness["status"], "hosted_managed_ready")
@@ -507,15 +583,13 @@ class HostedManagedExecutionTests(unittest.TestCase):
                 hosted_managed_execution,
                 "client_from_server",
                 return_value=client,
-            ), patch(
-                "viewer.product_workspace_binding.discover_binding",
-                return_value={"status": "ready", "trusted": True, "binding_id": "x"},
             ):
                 readiness = specspace_v1_api._managed_mode_readiness(
                     server=server,
                     provider=provider,
                     workspace_id="pantry-control",
                     observability={"operations": []},
+                    workspace_binding=ready_binding(),
                 )
 
         self.assertEqual(readiness["status"], "hosted_managed_misconfigured")
@@ -571,15 +645,13 @@ class HostedManagedExecutionTests(unittest.TestCase):
                 hosted_managed_execution,
                 "client_from_server",
                 return_value=client,
-            ), patch(
-                "viewer.product_workspace_binding.discover_binding",
-                return_value={"status": "ready", "trusted": True, "binding_id": "x"},
             ):
                 readiness = specspace_v1_api._managed_mode_readiness(
                     server=server,
                     provider=provider,
                     workspace_id="pantry-control",
                     observability=observability,
+                    workspace_binding=ready_binding(),
                 )
 
         self.assertEqual(readiness["status"], "hosted_managed_ready")

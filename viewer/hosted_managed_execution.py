@@ -449,6 +449,7 @@ def enqueue_operation(
     operation_id: str,
     workspace_id: str | None,
     payload: dict[str, Any],
+    workspace_binding: dict[str, Any] | None = None,
 ) -> tuple[HTTPStatus, dict[str, Any]]:
     if getattr(server, "hosted_managed_execution_enabled", False) is not True:
         return HTTPStatus.SERVICE_UNAVAILABLE, {
@@ -471,16 +472,23 @@ def enqueue_operation(
             f"runs/{workspace_id}/product_workspace_initialization_execution_request.json"
         )
     else:
-        binding = product_workspace_binding.discover_binding(
-            server,
-            workspace_id=workspace_id,
+        binding = workspace_binding or product_workspace_binding.discover_binding(
+            server, workspace_id=workspace_id
         )
-        if binding.get("status") != "ready" or binding.get("trusted") is not True:
+        if product_workspace_binding.validate_projection(
+            binding,
+            workspace_id=workspace_id,
+        ):
             return HTTPStatus.CONFLICT, {
                 "error": "Hosted managed execution requires a ready durable workspace binding.",
                 "reason": "durable_workspace_binding_not_ready",
             }
-        binding_ref = _text(binding.get("source_ref"))
+        source_ref = _text(binding.get("source_ref"))
+        binding_ref = (
+            product_workspace_binding.bound_run_ref(binding, source_ref)
+            if source_ref is not None
+            else None
+        )
     if binding_ref is None or not binding_ref.startswith("runs/") or ".." in Path(binding_ref).parts:
         return HTTPStatus.CONFLICT, {
             "error": "Hosted managed execution binding ref is invalid.",

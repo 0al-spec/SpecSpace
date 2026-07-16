@@ -4,6 +4,7 @@ import hashlib
 import json
 from http import HTTPStatus
 from pathlib import Path
+import tempfile
 from types import SimpleNamespace
 from unittest import mock
 
@@ -185,32 +186,74 @@ def test_readonly_provider_binding_survives_missing_local_binding() -> None:
         "trusted": False,
         "workspace_id": "pantry-rotation",
     }
-    provider_binding = {
-        "available": True,
-        "status": "ready",
-        "trusted": True,
-        "workspace_id": "pantry-rotation",
-        "authority_boundary": {
-            "report_only": True,
-            "workspace_binding_is_execution_authority": False,
-        },
-    }
+    with tempfile.TemporaryDirectory() as tmp:
+        report_path = _write_report(Path(tmp) / "runs", "pantry-rotation", "Pantry Rotation")
+        report_bytes = report_path.read_bytes()
+        provider_binding = product_workspace_binding.project_published_initialization_binding(
+            json.loads(report_bytes),
+            workspace_id="pantry-rotation",
+            source_ref="runs/platform_product_workspace_initialization_execution_report.json",
+            source_sha256=hashlib.sha256(report_bytes).hexdigest(),
+        )
 
     selected = specspace_v1_api._select_workspace_binding(
         local_binding,
         provider_binding,
+        workspace_id="pantry-rotation",
     )
 
     assert selected is provider_binding
 
 
 def test_local_ready_binding_has_priority_over_provider_projection() -> None:
-    local_binding = {"status": "ready", "trusted": True, "source": "local"}
-    provider_binding = {"status": "ready", "trusted": True, "source": "http"}
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        local_path = _write_report(root / "local", "pantry-rotation", "Pantry Rotation")
+        provider_path = _write_report(root / "provider", "pantry-rotation", "Pantry Rotation")
+        local_bytes = local_path.read_bytes()
+        provider_bytes = provider_path.read_bytes()
+        local_binding = product_workspace_binding.project_published_initialization_binding(
+            json.loads(local_bytes),
+            workspace_id="pantry-rotation",
+            source_ref="runs/pantry-rotation/platform_product_workspace_initialization_execution_report.json",
+            source_sha256=hashlib.sha256(local_bytes).hexdigest(),
+        )
+        provider_binding = product_workspace_binding.project_published_initialization_binding(
+            json.loads(provider_bytes),
+            workspace_id="pantry-rotation",
+            source_ref="runs/platform_product_workspace_initialization_execution_report.json",
+            source_sha256=hashlib.sha256(provider_bytes).hexdigest(),
+        )
 
     selected = specspace_v1_api._select_workspace_binding(
         local_binding,
         provider_binding,
+        workspace_id="pantry-rotation",
+    )
+
+    assert selected is local_binding
+
+
+def test_spoofed_provider_binding_is_not_selected() -> None:
+    local_binding = {
+        "available": False,
+        "status": "legacy_read_only",
+        "trusted": False,
+        "workspace_id": "pantry-rotation",
+    }
+    provider_binding = {
+        "available": True,
+        "status": "ready",
+        "trusted": True,
+        "workspace_id": "pantry-rotation",
+        "binding_id": "product-workspace-binding://pantry-rotation",
+        "authority_boundary": {"report_only": True, "may_execute_platform": True},
+    }
+
+    selected = specspace_v1_api._select_workspace_binding(
+        local_binding,
+        provider_binding,
+        workspace_id="pantry-rotation",
     )
 
     assert selected is local_binding
