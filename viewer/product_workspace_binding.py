@@ -326,6 +326,66 @@ def project_published_initialization_binding(
     }
 
 
+def validate_projection(projection: Any, *, workspace_id: str) -> list[str]:
+    """Validate the public-safe binding projection used by hosted consumers."""
+    if not isinstance(projection, dict):
+        return ["workspace_binding_projection_missing"]
+    reasons: list[str] = []
+    if projection.get("available") is not True:
+        reasons.append("workspace_binding_projection_unavailable")
+    if projection.get("status") != "ready" or projection.get("trusted") is not True:
+        reasons.append("workspace_binding_projection_not_ready")
+    if projection.get("workspace_id") != workspace_id:
+        reasons.append("workspace_binding_projection_workspace_mismatch")
+    if projection.get("binding_id") != f"product-workspace-binding://{workspace_id}":
+        reasons.append("workspace_binding_projection_id_mismatch")
+    for field in ("binding_revision_sha256", "source_sha256"):
+        if not re.fullmatch(r"[0-9a-f]{64}", _text(projection.get(field)) or ""):
+            reasons.append(f"workspace_binding_projection_digest_invalid:{field}")
+
+    source_ref = _safe_public_ref(projection.get("source_ref"))
+    if source_ref is None or not source_ref.startswith("runs/"):
+        reasons.append("workspace_binding_projection_source_ref_invalid")
+
+    identity = _record(projection.get("identity"))
+    if (
+        identity.get("workspace_id") != workspace_id
+        or identity.get("route") != f"/{workspace_id}"
+        or identity.get("repository_role") != "product_spec_workspace"
+    ):
+        reasons.append("workspace_binding_projection_identity_mismatch")
+
+    routing = _record(projection.get("routing"))
+    if routing.get("specspace_state_namespace_ref") != (
+        f"specspace-state://workspace/{workspace_id}"
+    ):
+        reasons.append("workspace_binding_projection_state_namespace_mismatch")
+    if routing.get("platform_default_run_dir_ref") != f"runs/{workspace_id}":
+        reasons.append("workspace_binding_projection_run_dir_mismatch")
+    if routing.get("product_artifact_bundle_ref") != f"workspaces/{workspace_id}":
+        reasons.append("workspace_binding_projection_artifact_bundle_mismatch")
+
+    repository = _record(projection.get("repository"))
+    if (
+        repository.get("repository_role") != "product_spec_workspace"
+        or repository.get("workspace_identity") != workspace_id
+        or repository.get("worktree_identity") != f"product-workspace/{workspace_id}"
+        or repository.get("creates_worktree") is not False
+    ):
+        reasons.append("workspace_binding_projection_repository_mismatch")
+
+    authority = _record(projection.get("authority_boundary"))
+    if (
+        authority.get("report_only") is not True
+        or authority.get("workspace_binding_is_execution_authority") is not False
+    ):
+        reasons.append("workspace_binding_projection_authority_invalid")
+    for key, value in authority.items():
+        if key.startswith("may_") and value is not False:
+            reasons.append(f"workspace_binding_projection_authority_expanded:{key}")
+    return sorted(set(reasons))
+
+
 def _candidate_reports(runs_dir: Path) -> list[Path]:
     candidates = [runs_dir / INITIALIZATION_REPORT_FILENAME]
     if runs_dir.exists() and runs_dir.is_dir():

@@ -89,11 +89,33 @@ def _managed_execution(
             "reason": "multiple_managed_executors_enabled",
         }
     if getattr(server, "hosted_managed_execution_enabled", False) is True:
+        workspace_binding: dict[str, Any] | None = None
+        if workspace_id is not None:
+            local_binding = product_workspace_binding.discover_binding(
+                server,
+                workspace_id=workspace_id,
+            )
+            provider_status, provider_payload = specspace_provider.provider_from_server(
+                server,
+                workspace_id,
+            ).read_idea_to_spec_workspace()
+            provider_binding = (
+                provider_payload.get("workspace_binding")
+                if provider_status == HTTPStatus.OK
+                and isinstance(provider_payload, dict)
+                else None
+            )
+            workspace_binding = _select_workspace_binding(
+                local_binding,
+                provider_binding,
+                workspace_id=workspace_id,
+            )
         return hosted_managed_execution.enqueue_operation(
             server,
             operation_id=operation_id,
             workspace_id=workspace_id,
             payload=payload,
+            workspace_binding=workspace_binding,
         )
     return local_execute()
 
@@ -433,6 +455,7 @@ def _managed_mode_readiness(
     provider: specspace_provider.SpecSpaceProvider,
     workspace_id: str | None,
     observability: dict[str, Any] | None = None,
+    workspace_binding: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     platform_dir = getattr(server, "platform_dir", None)
     platform_execution_enabled = getattr(server, "platform_execution_enabled", False) is True
@@ -455,9 +478,8 @@ def _managed_mode_readiness(
         and specspace_provider.normalize_workspace_id(workspace_id)
         != specspace_provider.BOOTSTRAP_WORKSPACE_ID
     )
-    workspace_binding = product_workspace_binding.discover_binding(
-        server,
-        workspace_id=workspace_id,
+    workspace_binding = workspace_binding or product_workspace_binding.discover_binding(
+        server, workspace_id=workspace_id
     )
     binding_ready = (
         not product_workspace
@@ -532,15 +554,16 @@ def _managed_mode_readiness(
         disabled_reasons.append("specspace_state_dir_missing")
     elif not state_dir_status["writable"]:
         disabled_reasons.append("specspace_state_dir_not_writable")
-    if not runs_dir_status["configured"]:
-        disabled_reasons.append("runs_dir_not_configured")
-    elif not runs_dir_status["is_directory"]:
-        disabled_reasons.append("runs_dir_missing")
-    elif not runs_dir_status["writable"]:
-        disabled_reasons.append("runs_dir_not_writable")
+    if not hosted_execution_enabled:
+        if not runs_dir_status["configured"]:
+            disabled_reasons.append("runs_dir_not_configured")
+        elif not runs_dir_status["is_directory"]:
+            disabled_reasons.append("runs_dir_missing")
+        elif not runs_dir_status["writable"]:
+            disabled_reasons.append("runs_dir_not_writable")
     if provider_state["status"] == "unavailable":
         disabled_reasons.append("artifact_provider_unavailable")
-    if product_workspace and not binding_ready and not hosted_execution_enabled:
+    if product_workspace and not binding_ready:
         disabled_reasons.append("durable_workspace_binding_not_ready")
 
     local_executor_ready = (
@@ -558,8 +581,8 @@ def _managed_mode_readiness(
         and hosted_service_configured
         and hosted_service_reachable
         and state_dir_status["ready"]
-        and runs_dir_status["ready"]
         and provider_state["status"] != "unavailable"
+        and binding_ready
     )
     executor_ready = local_executor_ready or hosted_executor_ready
     operation_count = len(managed_operations_registry.MANAGED_OPERATIONS)
@@ -1016,16 +1039,18 @@ def handle_v1_artifact_content(handler: SpecSpaceV1Handler, parsed: Any) -> None
 def _select_workspace_binding(
     local_binding: dict[str, Any],
     provider_binding: Any,
+    *,
+    workspace_id: str,
 ) -> dict[str, Any]:
     provider_record = _record(provider_binding)
-    if (
-        local_binding.get("status") == "ready"
-        and local_binding.get("trusted") is True
+    if not product_workspace_binding.validate_projection(
+        local_binding,
+        workspace_id=workspace_id,
     ):
         return local_binding
-    if (
-        provider_record.get("status") == "ready"
-        and provider_record.get("trusted") is True
+    if not product_workspace_binding.validate_projection(
+        provider_record,
+        workspace_id=workspace_id,
     ):
         return provider_record
     return local_binding
@@ -1055,6 +1080,7 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
         payload["workspace_binding"] = _select_workspace_binding(
             local_binding,
             payload.get("workspace_binding"),
+            workspace_id=workspace_id,
         )
         _apply_durable_workspace_binding_initialization(
             payload,
@@ -1120,6 +1146,9 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
             workspace_id=workspace_id,
             observability=payload.get("managed_operations_observability")
             if isinstance(payload.get("managed_operations_observability"), dict)
+            else None,
+            workspace_binding=payload.get("workspace_binding")
+            if isinstance(payload.get("workspace_binding"), dict)
             else None,
         )
         hosted_enabled_operation_ids = _record(

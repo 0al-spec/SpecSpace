@@ -180,6 +180,19 @@ Production deployments should mount the token as a secret and set
 token sources are mutually exclusive, and the token value is never returned in
 readiness, observability, or state artifacts.
 
+Hosted deployments may consume a durable binding from the configured read-only
+product-workspace HTTP provider when no local initialization report exists.
+SpecSpace validates the public projection's workspace identity, source and
+revision digests, scoped run/artifact routing, repository identity, and closed
+authority boundary before enqueue. Its logical binding ref is then scoped under
+`runs/<workspace-id>`; the hosted Platform service remains responsible for
+resolving the authoritative file and revalidating its digest.
+
+Hosted mode requires a writable persistent `SPECSPACE_STATE_DIR` for compact
+queue/request state. It does not require a writable local SpecGraph `runs`
+mirror because queue receipts are transport telemetry and Platform reports are
+the lifecycle authority.
+
 Hosted deployment profiles may expose a bounded operation subset through the
 Platform health field `enabled_operation_ids`. SpecSpace validates that every
 reported id belongs to the local managed-operation registry, that the reported

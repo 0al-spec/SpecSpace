@@ -1092,8 +1092,14 @@ SPECSPACE_HOSTED_MANAGED_EXECUTOR_URL=https://platform-executor.example \
 SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN=<secret> \
 python viewer/server.py \
   --dialog-dir /data/dialogs \
-  --runs-dir /repo/SpecGraph/runs
+  --specspace-state-dir /data/specspace-state
 ```
+
+For production, prefer `SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN_FILE` and a
+persistent SpecSpace state directory. A trusted HTTP product-workspace provider
+may supply the durable binding projection; SpecSpace validates its identity,
+digests, routing, repository identity, and authority boundary before enqueue.
+Hosted execution does not require a local writable SpecGraph `runs` mirror.
 
 Hosted responses use HTTP `202` with
 `artifact_kind=specspace_hosted_managed_operation_request` and a queue request
