@@ -190,6 +190,12 @@ canaries should begin with `review_status_execute`; adding the registered
 promotion dry-run requires an explicit deployment decision. Git review,
 publication, and consume-on-attempt operations must not be enabled by default.
 
+Hosted promotion dry-run and review requests pin the execution plan separately
+from the promotion request and approval decision. Their input set includes
+`runs/graph_repository_execution_plan.json`; Platform verifies it against
+`promotion_request.plan_sha256` and does not follow producer-machine absolute
+plan paths.
+
 In this mode the existing twelve POST endpoints enqueue logical requests through
 the Platform-owned hosted service. SpecSpace does not import Platform modules,
 open queue storage, or invoke a subprocess. It persists only compact

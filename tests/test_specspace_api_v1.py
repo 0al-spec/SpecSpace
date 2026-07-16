@@ -11893,6 +11893,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     "available": True,
                     "status": "approved",
                 },
+                "graph_repository_execution_plan": {
+                    "available": True,
+                    "status": "ready",
+                },
                 "product_promotion_execution": {
                     "available": True,
                     "status": "completed",

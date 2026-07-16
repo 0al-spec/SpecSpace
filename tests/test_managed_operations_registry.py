@@ -180,6 +180,12 @@ def test_managed_operation_registry_records_reviewed_artifact_edges() -> None:
     promotion_request = _operation("promotion_request_execute")
     assert "runs/graph_repository_execution_plan.json" in promotion_request.input_refs
 
+    promotion_dry_run = _operation("promotion_execute_dry_run")
+    assert "runs/graph_repository_execution_plan.json" in promotion_dry_run.input_refs
+
+    promotion_review = _operation("promotion_review_execute")
+    assert "runs/graph_repository_execution_plan.json" in promotion_review.input_refs
+
 
 def test_consume_on_attempt_operations_require_new_request_for_retry() -> None:
     consume_on_attempt_operation_ids = {

@@ -293,6 +293,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         input_refs=(
             "runs/graph_repository_promotion_request.json",
             "runs/candidate_approval_decision.json",
+            "runs/graph_repository_execution_plan.json",
         ),
         output_reports=(
             "runs/product_candidate_promotion_execution_report.json",
@@ -318,6 +319,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
             "runs/graph_repository_promotion_request.json",
             "runs/candidate_approval_decision.json",
             "runs/product_candidate_promotion_execution_report.json",
+            "runs/graph_repository_execution_plan.json",
         ),
         output_reports=(
             "runs/product_candidate_promotion_execution_report.json",
