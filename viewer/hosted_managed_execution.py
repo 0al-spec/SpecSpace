@@ -407,7 +407,20 @@ def client_from_server(server: Any) -> HostedManagedOperationClient:
     )
 
 
-def _conditional_ref_available(server: Any, workspace_id: str, ref: str) -> bool:
+def _conditional_ref_available(
+    server: Any,
+    workspace_id: str,
+    ref: str,
+    *,
+    workspace_payload: dict[str, Any] | None = None,
+) -> bool:
+    if ref == "runs/product_candidate_promotion_review_object_evidence.json":
+        artifact = _record(
+            _record((workspace_payload or {}).get("artifacts")).get(
+                "product_promotion_review_object_evidence"
+            )
+        )
+        return artifact.get("available") is True and artifact.get("valid") is not False
     if ref.startswith("specspace-state://"):
         return (_state_dir(server) / ref.removeprefix("specspace-state://")).is_file()
     if ref.startswith("runs/"):
@@ -450,6 +463,7 @@ def enqueue_operation(
     workspace_id: str | None,
     payload: dict[str, Any],
     workspace_binding: dict[str, Any] | None = None,
+    workspace_payload: dict[str, Any] | None = None,
 ) -> tuple[HTTPStatus, dict[str, Any]]:
     if getattr(server, "hosted_managed_execution_enabled", False) is not True:
         return HTTPStatus.SERVICE_UNAVAILABLE, {
@@ -498,7 +512,12 @@ def enqueue_operation(
         ref
         for ref in operation.input_refs
         if ref not in operation.conditional_input_refs
-        or _conditional_ref_available(server, workspace_id, ref)
+        or _conditional_ref_available(
+            server,
+            workspace_id,
+            ref,
+            workspace_payload=workspace_payload,
+        )
     ]
     confirmation_ref = (
         _confirmation_ref(server, workspace_id, operation_id)

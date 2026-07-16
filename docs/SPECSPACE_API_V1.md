@@ -1101,6 +1101,12 @@ may supply the durable binding projection; SpecSpace validates its identity,
 digests, routing, repository identity, and authority boundary before enqueue.
 Hosted execution does not require a local writable SpecGraph `runs` mirror.
 
+For `review_status_execute`, a published and valid
+`product_candidate_promotion_review_object_evidence.json` is included as an
+optional digest-pinned input. Missing or invalid evidence is not inferred from
+the route or browser payload; the ordinary promotion execution remains the
+default review target.
+
 Hosted responses use HTTP `202` with
 `artifact_kind=specspace_hosted_managed_operation_request` and a queue request
 id. The browser does not receive the hosted bearer token. Queue completion is

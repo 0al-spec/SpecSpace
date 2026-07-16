@@ -343,7 +343,13 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         handler_name="handle_v1_idea_to_spec_review_status_execute_post",
         implementation_module="viewer.idea_to_spec_review_status_execution",
         platform_command=("product-candidate-promotion", "review-status"),
-        input_refs=("runs/product_candidate_promotion_execution_report.json",),
+        input_refs=(
+            "runs/product_candidate_promotion_execution_report.json",
+            "runs/product_candidate_promotion_review_object_evidence.json",
+        ),
+        conditional_input_refs=(
+            "runs/product_candidate_promotion_review_object_evidence.json",
+        ),
         output_reports=(
             "runs/product_candidate_promotion_review_status_report.json",
         ),

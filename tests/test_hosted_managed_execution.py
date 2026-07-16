@@ -258,6 +258,53 @@ class HostedManagedExecutionTests(unittest.TestCase):
             PlatformStubHandler.received[0]["workspace_binding_ref"],
             "runs/pantry-control/platform_product_workspace_initialization_execution_report.json",
         )
+        self.assertEqual(
+            PlatformStubHandler.received[0]["input_refs"],
+            ["runs/product_candidate_promotion_execution_report.json"],
+        )
+
+    def test_review_status_enqueues_published_review_object_evidence(self) -> None:
+        server, thread, base_url = self.start_stub()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp = Path(temp_dir)
+                runtime = SimpleNamespace(
+                    repo_root=temp,
+                    specspace_state_dir=temp / "state",
+                    runs_dir=temp / "runs",
+                    hosted_managed_execution_enabled=True,
+                    hosted_managed_executor_url=base_url,
+                    hosted_managed_executor_token=TOKEN,
+                    hosted_managed_executor_timeout_seconds=2,
+                )
+                status, _ = hosted_managed_execution.enqueue_operation(
+                    runtime,
+                    operation_id="review_status_execute",
+                    workspace_id="pantry-control",
+                    payload={"workspace_id": "pantry-control"},
+                    workspace_binding=ready_binding(),
+                    workspace_payload={
+                        "artifacts": {
+                            "product_promotion_review_object_evidence": {
+                                "available": True,
+                                "valid": True,
+                            }
+                        }
+                    },
+                )
+        finally:
+            server.shutdown()
+            thread.join(timeout=5)
+            server.server_close()
+
+        self.assertEqual(status, HTTPStatus.ACCEPTED)
+        self.assertEqual(
+            PlatformStubHandler.received[0]["input_refs"],
+            [
+                "runs/product_candidate_promotion_execution_report.json",
+                "runs/product_candidate_promotion_review_object_evidence.json",
+            ],
+        )
 
     def test_non_loopback_plain_http_executor_is_rejected(self) -> None:
         with self.assertRaises(hosted_managed_execution.HostedExecutionError):

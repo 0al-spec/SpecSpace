@@ -90,19 +90,26 @@ def _managed_execution(
         }
     if getattr(server, "hosted_managed_execution_enabled", False) is True:
         workspace_binding: dict[str, Any] | None = None
+        provider_payload: dict[str, Any] | None = None
         if workspace_id is not None:
             local_binding = product_workspace_binding.discover_binding(
                 server,
                 workspace_id=workspace_id,
             )
-            provider_status, provider_payload = specspace_provider.provider_from_server(
+            provider_status, provider_workspace_payload = specspace_provider.provider_from_server(
                 server,
                 workspace_id,
             ).read_idea_to_spec_workspace()
             provider_binding = (
-                provider_payload.get("workspace_binding")
+                provider_workspace_payload.get("workspace_binding")
                 if provider_status == HTTPStatus.OK
-                and isinstance(provider_payload, dict)
+                and isinstance(provider_workspace_payload, dict)
+                else None
+            )
+            provider_payload = (
+                provider_workspace_payload
+                if provider_status == HTTPStatus.OK
+                and isinstance(provider_workspace_payload, dict)
                 else None
             )
             workspace_binding = _select_workspace_binding(
@@ -116,6 +123,7 @@ def _managed_execution(
             workspace_id=workspace_id,
             payload=payload,
             workspace_binding=workspace_binding,
+            workspace_payload=provider_payload,
         )
     return local_execute()
 

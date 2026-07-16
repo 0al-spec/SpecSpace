@@ -209,6 +209,13 @@ from the promotion request and approval decision. Their input set includes
 `promotion_request.plan_sha256` and does not follow producer-machine absolute
 plan paths.
 
+`review_status_execute` may additionally pin
+`runs/product_candidate_promotion_review_object_evidence.json` when the
+workspace publishes that optional, validated artifact. It identifies an
+external open PR used only as a read-only canary target. SpecSpace never derives
+or accepts the PR URL from browser input, and a probe-only review report cannot
+authorize read-model publication.
+
 In this mode the existing twelve POST endpoints enqueue logical requests through
 the Platform-owned hosted service. SpecSpace does not import Platform modules,
 open queue storage, or invoke a subprocess. It persists only compact
