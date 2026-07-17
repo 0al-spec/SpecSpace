@@ -774,7 +774,10 @@ additive lifecycle-wide ranking over those existing read-only surfaces. It
 selects one `primary_action` and at most three `secondary_actions` using this
 order: stale/invalid SpecSpace-owned state, failed managed operations, blocking
 clarification or repair, structural-depth recommendations, approval, promotion,
-publication, then optional presentation follow-up. Structural-depth actions are
+publication, then optional presentation follow-up. A failed managed operation
+remains visible in managed-operation observability but is not ranked once a
+later guided lifecycle stage proves that operation was superseded successfully.
+Structural-depth actions are
 labelled `recommended` and never become blockers or gates. Each action includes
 an owner, reason, target section, bounded public-safe evidence refs, and the same
 closed authority boundary as `guided_flow`; command templates are intentionally

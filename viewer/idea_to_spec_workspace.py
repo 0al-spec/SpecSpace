@@ -6876,6 +6876,18 @@ QUALITY_GUIDED_PROMOTION_STAGE_IDS = (
     STAGE_GIT_DRY_RUN,
 )
 
+QUALITY_GUIDED_OPERATION_COMPLETION_STAGES = {
+    "workspace_initialization_execute": STAGE_WORKSPACE_INITIALIZATION,
+    "real_idea_intake_execute": STAGE_IDEA_INTAKE,
+    "real_idea_answer_continuation_execute": STAGE_INTAKE_CLARIFICATION,
+    "repair_rerun_request_gate_execute": STAGE_RERUN_REQUEST,
+    "repair_rerun_execute": STAGE_REPAIRED_HANDOFF,
+    "repair_rerun_publish": STAGE_REPAIRED_HANDOFF,
+    "candidate_approval_execute": STAGE_PLATFORM_APPROVAL_DECISION,
+    "promotion_request_execute": STAGE_PROMOTION_REQUEST,
+    "promotion_execute_dry_run": STAGE_GIT_DRY_RUN,
+}
+
 
 def _quality_guided_action(
     *,
@@ -6951,6 +6963,40 @@ def _quality_guided_first_actionable_stage(
         candidates,
         key=lambda stage: stage_order[_text(stage.get("id"))],
         default={},
+    )
+
+
+def _quality_guided_operation_failure_is_actionable(
+    operation: dict[str, Any],
+    *,
+    stages: list[dict[str, Any]],
+    current_stage: str,
+) -> bool:
+    completion_stage = QUALITY_GUIDED_OPERATION_COMPLETION_STAGES.get(
+        _text(operation.get("operation_id"))
+    )
+    if completion_stage is None:
+        return True
+    stage_indexes = {
+        _text(stage.get("id")): index for index, stage in enumerate(stages)
+    }
+    completion_index = stage_indexes.get(completion_stage)
+    current_index = stage_indexes.get(current_stage)
+    if completion_index is None or current_index is None:
+        return True
+    completion = next(
+        (
+            stage
+            for stage in stages
+            if _text(stage.get("id")) == completion_stage
+        ),
+        {},
+    )
+    if current_index > completion_index:
+        return False
+    return not (
+        current_index == completion_index
+        and _stage_done(_text(completion.get("status")))
     )
 
 
@@ -7034,6 +7080,11 @@ def _quality_guided_action_ranking(
         operation
         for operation in _records(managed.get("operations"))
         if _text(operation.get("status")) in {"failed", "stale"}
+        and _quality_guided_operation_failure_is_actionable(
+            operation,
+            stages=stages,
+            current_stage=current_stage,
+        )
     ]
     if failed_operations:
         failed_refs = [

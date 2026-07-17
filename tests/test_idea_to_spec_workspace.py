@@ -3100,6 +3100,65 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "approval",
         )
 
+    def test_quality_guided_ranking_ignores_failure_superseded_by_review(self) -> None:
+        stages = [
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_IDEA_INTAKE, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_REPAIR_REVIEW, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                "completed",
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_PLATFORM_APPROVAL_DECISION,
+                "completed",
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_PROMOTION_REQUEST, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_GIT_DRY_RUN, "completed"
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_REVIEW_PUBLICATION, "available"
+            ),
+        ]
+        result = idea_to_spec_workspace._product_workspace_overview(
+            _quality_overview_payload(
+                stages=stages,
+                current_stage=idea_to_spec_workspace.STAGE_REVIEW_PUBLICATION,
+                managed_operations=[
+                    {
+                        "operation_id": "candidate_approval_execute",
+                        "status": "failed",
+                        "next_safe_action": "Inspect the old approval failure.",
+                        "available_output_refs": [
+                            "runs/platform_candidate_approval_execution_report.json"
+                        ],
+                    }
+                ],
+            )
+        )
+
+        ranking = result["action_ranking"]
+        self.assertEqual(ranking["primary_action"]["category"], "publication")
+        self.assertNotIn(
+            "managed_operation_failure",
+            [
+                ranking["primary_action"]["category"],
+                *[
+                    action["category"]
+                    for action in ranking["secondary_actions"]
+                ],
+            ],
+        )
+
     def test_quality_guided_ranking_puts_repair_before_promotion(self) -> None:
         stages = [
             _quality_overview_stage(
