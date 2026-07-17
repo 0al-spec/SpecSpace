@@ -2231,6 +2231,44 @@ def _product_promotion_execution() -> dict:
     }
 
 
+def _product_promotion_review_object_evidence() -> dict:
+    return {
+        "artifact_kind": (
+            "platform_product_candidate_promotion_review_object_evidence"
+        ),
+        "schema_version": 1,
+        "ok": True,
+        "probe_only": True,
+        "workspace_id": "idea-alpha",
+        "candidate_id": "idea-alpha",
+        "candidate_branch": "graph-candidate/idea-alpha",
+        "review_number": 690,
+        "review_url": "https://github.com/0al-spec/SpecGraph/pull/690",
+        "review_head_sha": "a" * 40,
+        "review_state_at_capture": "open",
+        "promotion_execution_report_sha256": "b" * 64,
+        "privacy_boundary": {
+            "public_safe": True,
+            "raw_idea_included": False,
+            "local_paths_included": False,
+        },
+        "authority_boundary": {
+            "opens_pull_requests": False,
+            "merges_pull_requests": False,
+            "publishes_read_models": False,
+            "creates_git_commits": False,
+            "mutates_canonical_specs": False,
+            "writes_ontology_packages": False,
+            "accepts_ontology_terms": False,
+        },
+        "workspace_binding": {
+            "status": "ready",
+            "workspace_id": "idea-alpha",
+            "binding_id": "product-workspace-binding://idea-alpha",
+        },
+    }
+
+
 def _review_status(review_state: str = "open") -> dict:
     return {
         "artifact_kind": "platform_graph_repository_review_status_report",
@@ -7308,6 +7346,68 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["artifacts"]["product_promotion_execution"]["reason"],
             "invalid_artifact_contract",
+        )
+
+    def test_product_promotion_review_object_uses_platform_contract(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_OBJECT_EVIDENCE_ARTIFACT
+        ] = _product_promotion_review_object_evidence()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertTrue(
+            body["artifacts"]["product_promotion_review_object_evidence"][
+                "available"
+            ]
+        )
+
+    def test_product_promotion_review_object_authority_expansion_is_invalid(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_EXECUTION_REPORT_ARTIFACT
+        ] = _product_promotion_execution()
+        artifacts.pop(
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_STATUS_REPORT_ARTIFACT,
+            None,
+        )
+        evidence = _product_promotion_review_object_evidence()
+        evidence["authority_boundary"]["may_replace_review"] = True
+        artifacts[
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_REVIEW_OBJECT_EVIDENCE_ARTIFACT
+        ] = evidence
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        artifact = body["artifacts"]["product_promotion_review_object_evidence"]
+        self.assertFalse(artifact["available"])
+        self.assertEqual(artifact["reason"], "invalid_artifact_contract")
+        body["workspace_binding"] = {
+            "status": "ready",
+            "trusted": True,
+            "routing": {"platform_default_run_dir_ref": "runs/idea-alpha"},
+        }
+        idea_to_spec_workspace.attach_guided_flow(body)
+        review_status = next(
+            operation
+            for operation in body["managed_operations_observability"]["operations"]
+            if operation["operation_id"] == "review_status_execute"
+        )
+        self.assertEqual(review_status["status"], "request_needed")
+        self.assertEqual(
+            review_status["missing_input_refs"],
+            [
+                "runs/idea-alpha/"
+                "product_candidate_promotion_review_object_evidence.json"
+            ],
         )
 
     def test_platform_repair_rerun_output_artifacts_are_limited(self) -> None:

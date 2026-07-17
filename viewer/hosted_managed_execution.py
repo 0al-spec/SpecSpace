@@ -535,6 +535,19 @@ def enqueue_operation(
             "error": "Hosted managed execution binding ref is invalid.",
             "reason": "durable_workspace_binding_ref_invalid",
         }
+    if operation_id == "review_status_execute":
+        artifacts = _record((workspace_payload or {}).get("artifacts"))
+        evidence_key = "product_promotion_review_object_evidence"
+        if evidence_key in artifacts:
+            evidence = _record(artifacts.get(evidence_key))
+            if (
+                evidence.get("available") is not True
+                and evidence.get("reason") != "missing_artifact"
+            ):
+                return HTTPStatus.CONFLICT, {
+                    "error": "Published review object evidence is invalid.",
+                    "reason": "review_object_evidence_invalid",
+                }
     input_refs = [
         ref
         for ref in operation.input_refs

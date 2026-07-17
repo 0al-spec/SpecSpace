@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 from typing import Any
 
 from viewer import idea_maturity, managed_operations_registry, product_workspace_binding
@@ -697,6 +698,106 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
             "detail": f"artifact_kind must be {expected_kind}.",
             "artifact_kind": _optional_text(value.get("artifact_kind")),
         }
+    if filename == PRODUCT_CANDIDATE_PROMOTION_REVIEW_OBJECT_EVIDENCE_ARTIFACT:
+        if value.get("ok") is not True or value.get("probe_only") is not True:
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "review object evidence must be ready and probe_only.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        workspace_id = _optional_text(value.get("workspace_id"))
+        candidate_id = _optional_text(value.get("candidate_id"))
+        candidate_branch = _optional_text(value.get("candidate_branch"))
+        if (
+            workspace_id is None
+            or candidate_id is None
+            or candidate_branch is None
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "review object evidence requires matching workspace and candidate identity.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        review_number = value.get("review_number")
+        review_url = _optional_text(value.get("review_url"))
+        review_url_match = (
+            re.fullmatch(
+                r"https://github\.com/[^/\s]+/[^/\s]+/pull/([1-9][0-9]*)",
+                review_url,
+            )
+            if review_url is not None
+            else None
+        )
+        if (
+            isinstance(review_number, bool)
+            or not isinstance(review_number, int)
+            or review_number < 1
+            or review_url_match is None
+            or int(review_url_match.group(1)) != review_number
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "review object evidence requires a matching GitHub review URL and number.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        review_head_sha = _optional_text(value.get("review_head_sha"))
+        if (
+            review_head_sha is None
+            or re.fullmatch(r"[0-9a-f]{40}", review_head_sha) is None
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "review object evidence requires a pinned review head SHA.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        privacy_boundary = _record(value.get("privacy_boundary"))
+        if any(
+            privacy_boundary.get(field) is not expected
+            for field, expected in (
+                ("public_safe", True),
+                ("raw_idea_included", False),
+                ("local_paths_included", False),
+            )
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "review object evidence must be explicitly public-safe.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        authority_boundary = _record(value.get("authority_boundary"))
+        required_false = (
+            "opens_pull_requests",
+            "merges_pull_requests",
+            "publishes_read_models",
+            "creates_git_commits",
+            "mutates_canonical_specs",
+            "writes_ontology_packages",
+            "accepts_ontology_terms",
+        )
+        if any(
+            authority_boundary.get(field) is not False for field in required_false
+        ) or any(
+            key.startswith("may_") and flag is not False
+            for key, flag in authority_boundary.items()
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "review object evidence authority flags must remain false.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        binding = _record(value.get("workspace_binding"))
+        if (
+            binding.get("status") != "ready"
+            or binding.get("workspace_id") != workspace_id
+            or binding.get("binding_id")
+            != f"product-workspace-binding://{workspace_id}"
+        ):
+            return {
+                "reason": "invalid_artifact_contract",
+                "detail": "review object evidence requires a matching ready workspace binding.",
+                "artifact_kind": _optional_text(value.get("artifact_kind")),
+            }
+        return None
     if filename in REAL_IDEA_ANSWER_AUTHORING_ARTIFACTS:
         contract_error = real_idea_answer_authoring_contract_error(value)
         if contract_error is not None:
@@ -8338,6 +8439,13 @@ def _managed_operation_input_required(
 ) -> bool:
     if ref not in operation.conditional_input_refs:
         return True
+    if operation.operation_id == "review_status_execute":
+        bound_ref = _managed_operation_bound_ref(payload, ref)
+        evidence = _managed_operation_ref_payload(payload, bound_ref)
+        return (
+            evidence.get("available") is not True
+            and evidence.get("reason") != "missing_artifact"
+        )
     if operation.operation_id != "real_idea_answer_continuation_execute":
         return False
     clarification = _record(payload.get("intake_clarification"))
