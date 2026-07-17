@@ -1,7 +1,7 @@
 # Idea-to-Spec Product Workspace Workplan
 
 Status: active planning
-Updated: 2026-07-09
+Updated: 2026-07-18
 
 ## Purpose
 
@@ -316,17 +316,55 @@ runtime action requests from Product Workspace routes.
 
 ## Next Tasks
 
-### Immediate Priority: Quality-Guided Next Safe Action Ranking
+### Immediate Priority: External Production State Backend
+
+Status: planned; this is the next major SpecSpace/Platform milestone.
+
+The Timeweb production profile remains `read_only_no_mutable_state`. The
+bounded hosted canary can use ephemeral request state, but continuous production
+managed mode must not store drafts, clarification answers, ontology decisions,
+execution requests, approval intents, or compact receipts in a replaceable
+application container.
+
+Target boundary:
+
+```text
+SpecSpace Product Workspace
+  -> authenticated SpecSpace state API
+  -> PostgreSQL beside hosted Platform
+```
+
+Acceptance criteria:
+
+- the browser talks only to the SpecSpace API and never receives PostgreSQL
+  credentials or a direct database endpoint;
+- the state service uses a separate database/schema and least-privileged role
+  from the Platform managed-operation queue;
+- records are workspace-scoped and versioned, with revision/CAS semantics,
+  content digests, idempotency keys, timestamps, and explicit
+  `consumed`/`superseded` lifecycle states;
+- raw idea text and operator answers remain private state and do not enter
+  public Product Workspace artifacts;
+- existing file-backed state can be exported/migrated without changing
+  workspace binding identity;
+- backup/restore, concurrent edit, replay, retention/deletion, and provider
+  failure tests pass before production managed mode is enabled;
+- `managed_mode_readiness` reports external state availability without
+  granting execution authority;
+- Platform authoritative reports remain the source of execution completion.
+
+This milestone does not enable continuous workers or expand the production
+operation allowlist by itself.
+
+### Completed: Quality-Guided Next Safe Action Ranking
 
 Status: implemented.
 
 The Product Workspace now has multiple accurate guided paths: workspace
 initialization, real idea intake, clarification continuation, repair rerun,
 approval, promotion, publication, managed operations, Idea Maturity, candidate
-overview, and depth impact. The remaining UX risk is action competition: several
-sections can publish a valid `next_safe_action` at the same time, and the top
-overview currently chooses one action without a single lifecycle-wide priority
-model.
+overview, and depth impact. The action-competition risk is closed through a
+single lifecycle-wide priority model.
 
 Implemented behavior:
 
@@ -361,7 +399,11 @@ command surface, or execution authority. Backend and frontend regression tests
 cover the four conflict cases above, and the overview UI labels required,
 recommended-quality, and optional actions distinctly.
 
-### Immediate Priority: Fallback-Free Real Idea Clarification Templates
+Follow-up hardening is also implemented: a failed managed operation is ignored
+by ranking after a later successful lifecycle stage supersedes it, including
+promotion review, review-status, and read-model publication completion.
+
+### Completed: Fallback-Free Real Idea Clarification Templates
 
 Status: implemented with SpecGraph proposal `0210`; execution-backed browser
 verification is part of the completion gate.
@@ -385,6 +427,16 @@ Acceptance criteria:
   success path.
 - The final smoke still proves that the generated candidate belongs to the new
   workspace and not to `team-decision-log`.
+
+### Operational Follow-Up: Bounded HTTP Product Workspace Loading
+
+Status: implemented in SpecSpace PR `#400`; production measurement remains.
+
+The HTTP product-workspace provider now bounds concurrent artifact fetches and
+keeps workspace binding and artifact allowlisting authoritative. Measure
+production projection latency after rollout and record whether the previous
+30-35 second assembly time improves. Concurrency is a latency/resource control,
+not permission to fetch arbitrary artifact paths.
 
 ### 0. Product Workspace Overview Follow-Ups
 
