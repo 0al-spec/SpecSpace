@@ -223,6 +223,10 @@ def test_configure_server_sets_runtime_capabilities() -> None:
             artifact_base_url=None,
             specpm_registry_url=None,
             agent_workbench_dir=root / "workbench",
+            specspace_state_dir=root / "hosted-state",
+            enable_hosted_managed_execution=True,
+            hosted_managed_state_durability="ephemeral",
+            hosted_managed_operation_allowlist="review_status_execute",
             agent=True,
         )
         server = SimpleNamespace()
@@ -258,6 +262,8 @@ def test_configure_server_sets_runtime_capabilities() -> None:
         assert server.runs_dir == (root / "specgraph" / "runs").resolve()
         assert runs_watchers == [(root / "specgraph" / "runs").resolve()]
         assert server.agent_workbench_dir == (root / "workbench").resolve()
+        assert server.specspace_state_dir == (root / "hosted-state").resolve()
+        assert server.specspace_state_dir.is_dir()
         assert server.agent_available is True
 
 
