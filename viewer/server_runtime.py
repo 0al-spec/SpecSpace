@@ -483,6 +483,14 @@ def configure_server(
     server.hosted_managed_execution_enabled = bool(
         getattr(args, "enable_hosted_managed_execution", False)
     )
+    if server.hosted_managed_execution_enabled:
+        try:
+            server.specspace_state_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise ValueError(
+                "hosted managed state directory is not writable: "
+                f"{server.specspace_state_dir}"
+            ) from exc
     hosted_executor_url = getattr(args, "hosted_managed_executor_url", None)
     server.hosted_managed_executor_url = (
         hosted_executor_url.strip().rstrip("/")
