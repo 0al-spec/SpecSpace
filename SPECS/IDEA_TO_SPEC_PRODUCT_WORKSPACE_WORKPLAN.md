@@ -21,7 +21,7 @@ End-to-end UI-started product idea flow:
 
 ```text
 user enters raw idea in SpecSpace
-  -> SpecSpace stores operator-owned local state
+  -> SpecSpace stores operator-owned mutable state
   -> Platform executes the controlled intake handoff
   -> SpecGraph emits intake / clarification artifacts
   -> user answers clarification requests in SpecSpace
@@ -49,6 +49,60 @@ Agent Surface action and receipt semantics only after the draft protocol and
 local registry are versioned together. Until then, do not publish a stable
 `/.well-known/agent-surface.json`, issue Agent Grants, or accept external agent
 runtime action requests from Product Workspace routes.
+
+## Near-Term Delivery Order
+
+### 1. External Durable State Backend
+
+Status: next major implementation slice.
+
+Move drafts, clarification answers, repair decisions, execution requests,
+approval intents, and compact hosted receipts out of the replaceable SpecSpace
+application container. The browser continues to use existing SpecSpace APIs;
+only the backend talks to an authenticated Platform-owned state service.
+
+Acceptance criteria:
+
+- records are workspace-scoped, versioned, digest-pinned, and updated with CAS
+  revisions plus idempotency keys;
+- raw idea and other private operator state never enter public workspace
+  artifacts, queue receipts, logs, health payloads, or frontend configuration;
+- restart, concurrent-write, provider-failure, replay, consumed/superseded
+  lifecycle, migration, export, retention, backup, and restore behavior are
+  covered;
+- local file state remains available for development, but production readiness
+  reports it as non-durable and blocks continuous managed mode;
+- durable state is operator intent only; Platform authoritative reports remain
+  lifecycle completion evidence.
+
+### 2. Production Managed-Mode Rollout
+
+Status: blocked on external durable state.
+
+Roll out the external state provider without widening execution authority. Start
+with the existing read-only operation allowlist, worker stopped, migration and
+backup complete, and fail-closed provider diagnostics. Then open one bounded
+worker window and verify authoritative report publication, queue drain,
+`attempt=1`, restart persistence, rollback, and post-operation backup before any
+continuous worker policy is considered.
+
+Production must not enable local subprocess execution, container-local mutable
+authority, irreversible Git review, ontology writes, or a broader allowlist as
+part of this rollout.
+
+### 3. Ontology Applicability Review
+
+Status: follows durable-state production evidence.
+
+Consume the Ontology ONT-040 compiler contract through SpecGraph-produced
+artifacts. Product Workspace should show applicability scopes, assumptions,
+exclusions, invalidation triggers, and structural/annotation/applicability
+change classification with provenance and navigation to the relevant candidate
+or ontology review section.
+
+This is read-only review evidence. It is not an Idea Maturity score, runtime
+policy, automatic term acceptance, repair mutation, approval gate, or promotion
+authority.
 
 ## Recently Closed
 
@@ -943,6 +997,15 @@ Implemented in the current Product Workspace stack:
 
 Remaining scope:
 
+- Replace production container-local SpecSpace mutable state with the external
+  durable state backend described above before enabling continuous hosted
+  managed mode.
+- Keep production managed mode blocked until migration, restart, concurrency,
+  provider-failure, backup/restore, rollback, and one bounded read-only
+  operation have durable evidence.
+- Add Ontology applicability review only from the compiler-backed ONT-040
+  contract through SpecGraph producer artifacts; do not infer another
+  applicability vocabulary in SpecSpace.
 - Keep adding managed endpoints only when the upstream Platform/SpecGraph
   operation already has a typed contract, source-ref validation, idempotency, and
   report-only authority boundary.
