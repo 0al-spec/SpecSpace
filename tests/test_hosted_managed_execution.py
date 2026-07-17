@@ -306,6 +306,39 @@ class HostedManagedExecutionTests(unittest.TestCase):
             ],
         )
 
+    def test_review_status_rejects_invalid_published_review_object_evidence(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            runtime = SimpleNamespace(
+                repo_root=temp,
+                specspace_state_dir=temp / "state",
+                runs_dir=temp / "runs",
+                hosted_managed_execution_enabled=True,
+                hosted_managed_executor_url="https://executor.example.test",
+                hosted_managed_executor_token=TOKEN,
+                hosted_managed_executor_timeout_seconds=2,
+            )
+            status, payload = hosted_managed_execution.enqueue_operation(
+                runtime,
+                operation_id="review_status_execute",
+                workspace_id="pantry-control",
+                payload={"workspace_id": "pantry-control"},
+                workspace_binding=ready_binding(),
+                workspace_payload={
+                    "artifacts": {
+                        "product_promotion_review_object_evidence": {
+                            "available": False,
+                            "reason": "invalid_artifact_contract",
+                        }
+                    }
+                },
+            )
+
+        self.assertEqual(status, HTTPStatus.CONFLICT)
+        self.assertEqual(payload["reason"], "review_object_evidence_invalid")
+
     def test_non_loopback_plain_http_executor_is_rejected(self) -> None:
         with self.assertRaises(hosted_managed_execution.HostedExecutionError):
             hosted_managed_execution.HostedManagedOperationClient(
