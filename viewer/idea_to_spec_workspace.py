@@ -6886,6 +6886,9 @@ QUALITY_GUIDED_OPERATION_COMPLETION_STAGES = {
     "candidate_approval_execute": STAGE_PLATFORM_APPROVAL_DECISION,
     "promotion_request_execute": STAGE_PROMOTION_REQUEST,
     "promotion_execute_dry_run": STAGE_GIT_DRY_RUN,
+    "promotion_review_execute": STAGE_REVIEW_PUBLICATION,
+    "review_status_execute": STAGE_REVIEW_PUBLICATION,
+    "read_model_publication_execute": STAGE_REVIEW_PUBLICATION,
 }
 
 
@@ -6953,7 +6956,7 @@ def _quality_guided_first_actionable_stage(
         stage
         for stage in stages
         if _text(stage.get("id")) in stage_order
-        and _text(stage.get("status"), "missing") not in {"completed", "ready"}
+        and not _stage_done(_text(stage.get("status"), "missing"))
         and (
             _text(stage.get("id")) == current_stage
             or _text(stage.get("status")) in {"available", "waiting_for_operator"}
