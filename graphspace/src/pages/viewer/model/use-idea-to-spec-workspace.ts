@@ -1235,6 +1235,8 @@ export type IdeaToSpecManagedModeReadiness = {
     hostedServiceConfigured: boolean;
     hostedServiceReachable: boolean;
     hostedEnabledOperationIds: readonly string[];
+    hostedServiceOperationIds: readonly string[];
+    hostedClientOperationIds: readonly string[];
   };
   operations: {
     registeredCount: number;
@@ -1242,6 +1244,8 @@ export type IdeaToSpecManagedModeReadiness = {
     disabledCount: number;
   };
   state: {
+    durability: string | null;
+    restartPersistent: boolean | null;
     specspaceStateDirConfigured: boolean;
     specspaceStateDirReady: boolean;
     specspaceStateDirWritable: boolean;
@@ -4666,6 +4670,8 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
         hostedServiceConfigured: false,
         hostedServiceReachable: false,
         hostedEnabledOperationIds: [],
+        hostedServiceOperationIds: [],
+        hostedClientOperationIds: [],
       },
       operations: {
         registeredCount: 0,
@@ -4673,6 +4679,8 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
         disabledCount: 0,
       },
       state: {
+        durability: null,
+        restartPersistent: null,
         specspaceStateDirConfigured: false,
         specspaceStateDirReady: false,
         specspaceStateDirWritable: false,
@@ -4719,6 +4727,8 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
       hostedServiceConfigured: executor.hosted_service_configured === true,
       hostedServiceReachable: executor.hosted_service_reachable === true,
       hostedEnabledOperationIds: strings(executor.hosted_enabled_operation_ids),
+      hostedServiceOperationIds: strings(executor.hosted_service_operation_ids),
+      hostedClientOperationIds: strings(executor.hosted_client_operation_ids),
     },
     operations: {
       registeredCount: numberValue(operations.registered_count),
@@ -4726,6 +4736,11 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
       disabledCount: numberValue(operations.disabled_count),
     },
     state: {
+      durability: optionalString(state.durability),
+      restartPersistent:
+        typeof state.restart_persistent === "boolean"
+          ? state.restart_persistent
+          : null,
       specspaceStateDirConfigured: state.specspace_state_dir_configured === true,
       specspaceStateDirReady: state.specspace_state_dir_ready === true,
       specspaceStateDirWritable: state.specspace_state_dir_writable === true,

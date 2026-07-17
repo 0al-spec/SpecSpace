@@ -110,6 +110,17 @@ def state_path(server: Any) -> Path:
     return _state_dir(server) / STATE_FILENAME
 
 
+def configured_operation_allowlist(server: Any) -> frozenset[str] | None:
+    value = getattr(server, "hosted_managed_operation_allowlist", None)
+    if value is None:
+        return None
+    if not isinstance(value, (set, frozenset)) or not all(
+        isinstance(item, str) and item for item in value
+    ):
+        return frozenset()
+    return frozenset(value)
+
+
 def _empty_state() -> dict[str, Any]:
     return {
         "artifact_kind": STATE_KIND,
@@ -475,6 +486,12 @@ def enqueue_operation(
         return HTTPStatus.BAD_REQUEST, {
             "error": "Managed operation or workspace identity is invalid.",
             "reason": "hosted_managed_operation_invalid",
+        }
+    configured_allowlist = configured_operation_allowlist(server)
+    if configured_allowlist is not None and operation_id not in configured_allowlist:
+        return HTTPStatus.FORBIDDEN, {
+            "error": "Managed operation is not enabled by the SpecSpace deployment profile.",
+            "reason": "hosted_managed_operation_not_allowlisted",
         }
     if operation.requires_explicit_confirmation and payload.get("confirm") is not True:
         return HTTPStatus.CONFLICT, {

@@ -2132,6 +2132,34 @@ function ManagedOperationsObservabilitySection({
             }
           />
           <Meta
+            label="Client allowlist"
+            value={
+              readiness.executor.hostedClientOperationIds.length > 0
+                ? readiness.executor.hostedClientOperationIds.join(", ")
+                : readiness.executor.hostedEnabled
+                  ? "not configured"
+                  : "not applicable"
+            }
+          />
+          <Meta
+            label="State durability"
+            value={
+              readiness.state.durability
+                ? readiness.state.durability.replace(/_/g, " ")
+                : "not reported"
+            }
+          />
+          <Meta
+            label="Restart persistence"
+            value={
+              readiness.state.restartPersistent === null
+                ? "not reported"
+                : readiness.state.restartPersistent
+                  ? "persistent"
+                  : "ephemeral"
+            }
+          />
+          <Meta
             label="State directory"
             value={readiness.state.specspaceStateDirReady ? "ready" : "missing"}
           />

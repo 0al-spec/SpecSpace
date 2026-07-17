@@ -502,6 +502,11 @@ def _managed_mode_readiness(
     hosted_service_reachable = False
     hosted_health: dict[str, Any] = {}
     hosted_allowed_operation_ids: frozenset[str] | None = None
+    hosted_service_operation_ids: frozenset[str] | None = None
+    hosted_client_operation_ids = (
+        hosted_managed_execution.configured_operation_allowlist(server)
+    )
+    hosted_client_allowlist_valid = True
     if hosted_execution_enabled:
         try:
             hosted_client = hosted_managed_execution.client_from_server(server)
@@ -515,18 +520,32 @@ def _managed_mode_readiness(
                 operation_count_matches = hosted_health.get("operation_count") == len(
                     registry_operation_ids
                 )
-                hosted_allowed_operation_ids = frozenset(registry_operation_ids)
+                hosted_service_operation_ids = frozenset(registry_operation_ids)
             elif isinstance(raw_enabled_operation_ids, list) and all(
                 isinstance(item, str) for item in raw_enabled_operation_ids
             ):
-                hosted_allowed_operation_ids = frozenset(raw_enabled_operation_ids)
+                hosted_service_operation_ids = frozenset(raw_enabled_operation_ids)
                 operation_count_matches = (
-                    hosted_health.get("operation_count") == len(hosted_allowed_operation_ids)
-                    and hosted_allowed_operation_ids <= registry_operation_ids
-                    and len(raw_enabled_operation_ids) == len(hosted_allowed_operation_ids)
+                    hosted_health.get("operation_count") == len(hosted_service_operation_ids)
+                    and hosted_service_operation_ids <= registry_operation_ids
+                    and len(raw_enabled_operation_ids) == len(hosted_service_operation_ids)
                 )
             else:
                 operation_count_matches = False
+            if hosted_client_operation_ids is not None:
+                hosted_client_allowlist_valid = bool(
+                    hosted_client_operation_ids
+                    and hosted_client_operation_ids <= registry_operation_ids
+                    and hosted_service_operation_ids is not None
+                    and hosted_client_operation_ids <= hosted_service_operation_ids
+                )
+                hosted_allowed_operation_ids = (
+                    hosted_client_operation_ids
+                    if hosted_client_allowlist_valid
+                    else frozenset()
+                )
+            else:
+                hosted_allowed_operation_ids = hosted_service_operation_ids
             hosted_service_reachable = (
                 hosted_health.get("artifact_kind")
                 == "platform_hosted_managed_operation_service_health"
@@ -537,6 +556,7 @@ def _managed_mode_readiness(
                 and hosted_health.get("registry_contract_ref")
                 == "platform.managed-operation.registry.v1"
                 and operation_count_matches
+                and hosted_client_allowlist_valid
             )
         except hosted_managed_execution.HostedExecutionError:
             hosted_service_reachable = False
@@ -556,6 +576,8 @@ def _managed_mode_readiness(
             disabled_reasons.append("hosted_executor_not_configured")
         elif not hosted_service_reachable:
             disabled_reasons.append("hosted_executor_unavailable")
+        if not hosted_client_allowlist_valid:
+            disabled_reasons.append("hosted_client_operation_allowlist_invalid")
     if not state_dir_status["configured"]:
         disabled_reasons.append("specspace_state_dir_not_configured")
     elif not state_dir_status["is_directory"]:
@@ -608,7 +630,13 @@ def _managed_mode_readiness(
     if hosted_executor_ready:
         status = "hosted_managed_ready"
         mode = "hosted_managed"
-        next_safe_action = "Use guided Product Workspace actions to enqueue allowlisted Platform operations."
+        next_safe_action = (
+            "Use the bounded review-status action; request state is ephemeral "
+            "and must not be treated as restart-persistent."
+            if getattr(server, "hosted_managed_state_durability", "persistent")
+            == "ephemeral"
+            else "Use guided Product Workspace actions to enqueue allowlisted Platform operations."
+        )
     elif hosted_execution_enabled:
         status = "hosted_managed_misconfigured"
         mode = "hosted_managed"
@@ -668,6 +696,16 @@ def _managed_mode_readiness(
                 if hosted_service_reachable and hosted_allowed_operation_ids is not None
                 else None
             ),
+            "hosted_service_operation_ids": (
+                sorted(hosted_service_operation_ids)
+                if hosted_service_reachable and hosted_service_operation_ids is not None
+                else None
+            ),
+            "hosted_client_operation_ids": (
+                sorted(hosted_client_operation_ids)
+                if hosted_client_operation_ids is not None
+                else None
+            ),
         },
         "operations": {
             "registered_count": operation_count,
@@ -677,6 +715,23 @@ def _managed_mode_readiness(
             "counting_basis": "managed_operations_observability.status",
         },
         "state": {
+            "durability": getattr(
+                server,
+                "hosted_managed_state_durability",
+                "persistent",
+            )
+            if hosted_execution_enabled
+            else None,
+            "restart_persistent": (
+                getattr(
+                    server,
+                    "hosted_managed_state_durability",
+                    "persistent",
+                )
+                == "persistent"
+            )
+            if hosted_execution_enabled
+            else None,
             "specspace_state_dir_configured": state_dir_status["configured"],
             "specspace_state_dir_ready": state_dir_status["ready"],
             "specspace_state_dir_writable": state_dir_status["writable"],

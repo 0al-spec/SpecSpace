@@ -56,6 +56,19 @@ missing. Therefore the Timeweb compose file is intentionally different from
 This keeps Timeweb zero-config while avoiding bundled demo data. SpecGraph owns
 artifact publishing; SpecSpace only consumes the static manifest and files.
 
+For a bounded hosted-operation canary, Timeweb must provide the bearer token as
+the global environment variable `SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN`.
+Platform's generated canary manifest contains only the variable reference, not
+the value. It still contains no `volumes` or Compose `secrets`; SpecSpace-owned
+request state is stored under `/tmp` and reported as ephemeral/non-persistent.
+The client-side operation allowlist is exactly `review_status_execute`.
+
+This profile is a temporary production canary, not the default operating mode.
+After the single request reaches an authoritative Platform report and the queue
+is drained, publish the read-only profile again. A restart during the window may
+discard the SpecSpace-side compact receipt, so recovery must use the durable
+Platform queue/report evidence rather than blind resubmission.
+
 ## Guardrails
 
 Enable the optional local pre-push hook:

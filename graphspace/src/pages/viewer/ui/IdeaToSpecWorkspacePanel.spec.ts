@@ -232,6 +232,9 @@ describe("IdeaToSpecWorkspacePanel", () => {
         hosted_enabled: true,
         hosted_service_configured: true,
         hosted_service_reachable: true,
+        hosted_enabled_operation_ids: ["review_status_execute"],
+        hosted_service_operation_ids: ["review_status_execute"],
+        hosted_client_operation_ids: ["review_status_execute"],
       },
       operations: {
         registered_count: 12,
@@ -239,6 +242,8 @@ describe("IdeaToSpecWorkspacePanel", () => {
         disabled_count: 12,
       },
       state: {
+        durability: "ephemeral",
+        restart_persistent: false,
         specspace_state_dir_configured: true,
         specspace_state_dir_ready: true,
       },
@@ -279,6 +284,11 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("product-workspace-binding://team-decision-log");
     expect(html).toContain("hosted queue");
     expect(html).toContain("Hosted service");
+    expect(html).toContain("Client allowlist");
+    expect(html).toContain("review_status_execute");
+    expect(html).toContain("State durability");
+    expect(html).toContain("Restart persistence");
+    expect(html).toContain("ephemeral");
     expect(html).toContain("queue queued");
     expect(html).toContain("Workspace initialization");
     expect(html).toContain("execution requested");
