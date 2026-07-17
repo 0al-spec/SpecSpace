@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import threading
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
-from viewer import specspace_provider
+from viewer import specspace_provider, specspace_state_backend
 
 DECISION_STATE_ARTIFACT_KIND = "specspace_project_local_ontology_review_decision_state"
 DECISION_STATE_SCHEMA_VERSION = 1
@@ -130,16 +129,24 @@ def read_state(
     workspace_id: str | None = None,
 ) -> tuple[HTTPStatus, dict[str, Any]]:
     path = state_path(server)
-    if not path.exists():
-        return HTTPStatus.OK, _filtered_state(empty_state(path), workspace_id)
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
+        raw = specspace_state_backend.read_state(
+            server,
+            DECISION_STATE_FILENAME,
+            workspace_id=workspace_id,
+        )
+    except specspace_state_backend.StateBackendUnavailable:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "error": "External SpecSpace state is unavailable.",
+            "reason": "external_state_unavailable",
+        }
+    except specspace_state_backend.StateBackendError:
         return HTTPStatus.UNPROCESSABLE_ENTITY, {
-            "error": f"{DECISION_STATE_FILENAME} is not valid JSON",
-            "detail": str(exc),
+            "error": f"{DECISION_STATE_FILENAME} is unreadable",
             "path": str(path),
         }
+    if raw is None:
+        return HTTPStatus.OK, _filtered_state(empty_state(path), workspace_id)
     state, error = normalize_state(raw, path)
     if error is not None:
         error["path"] = str(path)
@@ -345,10 +352,28 @@ def save_decision(
             "project_local_ontology_review_lane": lane_ref,
         }
         _refresh_summary(state)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(f"{path.suffix}.tmp")
-        tmp.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        tmp.replace(path)
+        try:
+            specspace_state_backend.write_state(
+                server,
+                DECISION_STATE_FILENAME,
+                workspace_id=workspace_id_value,
+                state=state,
+            )
+        except specspace_state_backend.StateBackendConflict:
+            return HTTPStatus.CONFLICT, {
+                "error": "Project-local ontology decision state changed concurrently.",
+                "reason": "external_state_revision_conflict",
+            }
+        except specspace_state_backend.StateBackendUnavailable:
+            return HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": "External SpecSpace state is unavailable.",
+                "reason": "external_state_unavailable",
+            }
+        except specspace_state_backend.StateBackendError:
+            return HTTPStatus.UNPROCESSABLE_ENTITY, {
+                "error": "Project-local ontology decision state could not be persisted.",
+                "reason": "state_persistence_failed",
+            }
         return HTTPStatus.OK, _filtered_state(state, workspace_id)
 
 

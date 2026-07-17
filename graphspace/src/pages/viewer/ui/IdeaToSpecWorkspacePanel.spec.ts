@@ -242,8 +242,14 @@ describe("IdeaToSpecWorkspacePanel", () => {
         disabled_count: 12,
       },
       state: {
-        durability: "ephemeral",
-        restart_persistent: false,
+        durability: "persistent",
+        restart_persistent: true,
+        provider_kind: "external_http",
+        provider_status: "ready",
+        provider_ready: true,
+        provider_contract_ref: "platform.specspace-state.service.v1",
+        provider_adapter: "postgresql",
+        external_required: true,
         specspace_state_dir_configured: true,
         specspace_state_dir_ready: true,
       },
@@ -288,7 +294,12 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("review_status_execute");
     expect(html).toContain("State durability");
     expect(html).toContain("Restart persistence");
-    expect(html).toContain("ephemeral");
+    expect(html).toContain("State backend");
+    expect(html).toContain("external http");
+    expect(html).toContain("State service");
+    expect(html).toContain("postgresql");
+    expect(html).toContain("platform.specspace-state.service.v1");
+    expect(html).toContain("persistent");
     expect(html).toContain("queue queued");
     expect(html).toContain("Workspace initialization");
     expect(html).toContain("execution requested");

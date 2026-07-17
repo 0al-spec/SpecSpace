@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from viewer import real_idea_entry_requests, real_idea_intake_execution_requests
-from viewer import specspace_provider
+from viewer import specspace_provider, specspace_state_backend
 
 EXECUTION_REPORT_ARTIFACT = "platform_real_idea_entry_intake_execution_report.json"
 WORKSPACE_INITIALIZATION_REPORT_ARTIFACT = (
@@ -306,9 +306,31 @@ def execute_requested_intake(
     if not isinstance(runs_dir, Path):
         return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload()
 
-    execution_request_path = real_idea_intake_execution_requests.state_path(server)
-    entry_requests_path = real_idea_entry_requests.state_path(server)
-    if not entry_requests_path.is_file():
+    try:
+        execution_request_path = specspace_state_backend.materialize_state(
+            server,
+            real_idea_intake_execution_requests.EXECUTION_REQUEST_FILENAME,
+            workspace_id=selected_workspace_id,
+        )
+        entry_requests_path = specspace_state_backend.materialize_state(
+            server,
+            real_idea_entry_requests.ENTRY_REQUEST_FILENAME,
+            workspace_id=selected_workspace_id,
+        )
+    except specspace_state_backend.StateBackendError:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "error": "SpecSpace state provider is unavailable.",
+            "reason": "specspace_state_provider_unavailable",
+        }
+    if execution_request_path is None:
+        return HTTPStatus.NOT_FOUND, {
+            "error": "Real idea intake execution request state artifact not found.",
+            "execution_requests_ref": (
+                "specspace-state://"
+                f"{real_idea_intake_execution_requests.EXECUTION_REQUEST_FILENAME}"
+            ),
+        }
+    if entry_requests_path is None:
         return HTTPStatus.NOT_FOUND, {
             "error": "Real idea entry request state artifact not found.",
             "entry_requests_ref": "specspace-state://real_idea_entry_requests.json",

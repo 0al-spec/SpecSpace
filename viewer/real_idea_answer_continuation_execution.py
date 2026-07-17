@@ -13,6 +13,7 @@ from typing import Any
 from viewer import (
     idea_to_spec_intake_clarification_answers,
     real_idea_answer_continuation_execution_requests,
+    specspace_state_backend,
 )
 from viewer import specspace_provider
 
@@ -99,24 +100,30 @@ def _safe_runs_ref_to_path(server: Any, ref: str | None, *, filename: str) -> Pa
     return candidate
 
 
-def _safe_specspace_state_ref_to_path(server: Any, ref: str | None, *, filename: str) -> Path | None:
+def _safe_specspace_state_ref_to_path(
+    server: Any,
+    ref: str | None,
+    *,
+    filename: str,
+    workspace_id: str,
+) -> Path | None:
     if ref is None or not ref.startswith("specspace-state://"):
         return None
     rel = ref.removeprefix("specspace-state://")
     if not rel or rel.startswith("/") or ".." in Path(rel).parts:
         return None
-    state_dir = getattr(server, "specspace_state_dir", None)
-    if state_dir is None:
-        state_dir = Path(getattr(server, "repo_root")) / ".specspace-dev" / "state"
-    state_dir = Path(state_dir).resolve()
-    candidate = (state_dir / rel).resolve()
-    try:
-        candidate.relative_to(state_dir)
-    except ValueError:
+    if Path(rel).as_posix() != filename:
         return None
-    if candidate.name != filename:
-        return None
-    return candidate
+    materialized = specspace_state_backend.materialize_state(
+        server,
+        filename,
+        workspace_id=workspace_id,
+    )
+    return materialized or specspace_state_backend.materialization_path(
+        server,
+        filename,
+        workspace_id=workspace_id,
+    )
 
 
 def _no_clarification_template_ready(
@@ -289,11 +296,18 @@ def execute_requested_continuation(
         template_ref=_text(request.get("answer_template_ref")),
         workspace_id=selected_workspace_id,
     )
-    answer_state_path = _safe_specspace_state_ref_to_path(
-        server,
-        answer_state_ref,
-        filename=idea_to_spec_intake_clarification_answers.INTAKE_ANSWER_FILENAME,
-    )
+    try:
+        answer_state_path = _safe_specspace_state_ref_to_path(
+            server,
+            answer_state_ref,
+            filename=idea_to_spec_intake_clarification_answers.INTAKE_ANSWER_FILENAME,
+            workspace_id=selected_workspace_id,
+        )
+    except specspace_state_backend.StateBackendError:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "error": "SpecSpace state provider is unavailable.",
+            "reason": "specspace_state_provider_unavailable",
+        }
     if answer_state_path is None:
         return HTTPStatus.BAD_REQUEST, {
             "error": "answer_state_ref must point to a safe SpecSpace answer state artifact.",
@@ -343,9 +357,25 @@ def execute_requested_continuation(
     if not isinstance(runs_dir, Path):
         return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload()
 
-    execution_request_path = (
-        real_idea_answer_continuation_execution_requests.state_path(server)
-    )
+    try:
+        execution_request_path = specspace_state_backend.materialize_state(
+            server,
+            real_idea_answer_continuation_execution_requests.EXECUTION_REQUEST_FILENAME,
+            workspace_id=selected_workspace_id,
+        )
+    except specspace_state_backend.StateBackendError:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "error": "SpecSpace state provider is unavailable.",
+            "reason": "specspace_state_provider_unavailable",
+        }
+    if execution_request_path is None:
+        return HTTPStatus.NOT_FOUND, {
+            "error": "Answer continuation execution request state artifact not found.",
+            "execution_requests_ref": (
+                "specspace-state://"
+                f"{real_idea_answer_continuation_execution_requests.EXECUTION_REQUEST_FILENAME}"
+            ),
+        }
     output_dir = (
         specspace_provider.runs_dir_for_workspace(server, selected_workspace_id)
         or runs_dir

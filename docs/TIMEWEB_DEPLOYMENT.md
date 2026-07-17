@@ -69,6 +69,21 @@ is drained, publish the read-only profile again. A restart during the window may
 discard the SpecSpace-side compact receipt, so recovery must use the durable
 Platform queue/report evidence rather than blind resubmission.
 
+A persistent hosted profile must not reuse this container-local state pattern.
+It requires the external Platform-owned SpecSpace state service and
+`SPECSPACE_EXTERNAL_STATE_ENABLED=1`. In that profile `/tmp` remains an
+expendable private materialization cache; drafts, answers, decisions, intents,
+requests, compact receipts, and confirmation records live in the external
+PostgreSQL state database. `managed_mode_readiness` must report
+`provider_kind: external_http`, `restart_persistent: true`, and
+`hosted_managed_ready` before any continuous worker policy is considered.
+
+Timeweb's lack of Compose volumes does not make the external profile unsafe:
+the application container owns no durable state. The external service URL and
+token still must be supplied as private deployment configuration. Until
+Platform's production rollout publishes that routing and backup contract,
+Timeweb remains read-only except for the explicitly bounded ephemeral canary.
+
 ## Guardrails
 
 Enable the optional local pre-push hook:

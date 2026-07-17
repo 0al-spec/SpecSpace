@@ -9,8 +9,9 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Protocol, cast
+import urllib.parse
 
-from viewer import managed_operations_registry
+from viewer import managed_operations_registry, specspace_state_backend
 
 
 ResolveHyperpromptBinary = Callable[[str], tuple[str | None, list[str], str]]
@@ -43,6 +44,12 @@ class ViewerRuntimeServer(Protocol):
     specpm_registry_url: str | None
     agent_workbench_dir: Path | None
     specspace_state_dir: Path
+    specspace_state_backend: Any
+    external_state_enabled: bool
+    external_state_url: str | None
+    external_state_token: str | None
+    external_state_token_file: Path | None
+    external_state_timeout_seconds: float
     platform_dir: Path | None
     platform_execution_enabled: bool
     hosted_managed_execution_enabled: bool
@@ -68,6 +75,21 @@ def build_arg_parser(
     http_compile_enabled_env = os.environ.get("SPECSPACE_HYPERPROMPT_HTTP_COMPILE_ENABLED", "").strip()
     agent_workbench_dir_env = os.environ.get("SPECSPACE_AGENT_WORKBENCH_DIR", "").strip()
     specspace_state_dir_env = os.environ.get("SPECSPACE_STATE_DIR", "").strip()
+    external_state_enabled_env = os.environ.get(
+        "SPECSPACE_EXTERNAL_STATE_ENABLED", ""
+    ).strip()
+    external_state_url_env = os.environ.get(
+        "SPECSPACE_EXTERNAL_STATE_URL", ""
+    ).strip()
+    external_state_token_env = os.environ.get(
+        "SPECSPACE_EXTERNAL_STATE_TOKEN", ""
+    ).strip()
+    external_state_token_file_env = os.environ.get(
+        "SPECSPACE_EXTERNAL_STATE_TOKEN_FILE", ""
+    ).strip()
+    external_state_timeout_env = os.environ.get(
+        "SPECSPACE_EXTERNAL_STATE_TIMEOUT_SECONDS", ""
+    ).strip()
     team_decision_log_artifact_base_url_env = os.environ.get(
         "SPECSPACE_TEAM_DECISION_LOG_ARTIFACT_BASE_URL",
         "",
@@ -129,6 +151,10 @@ def build_arg_parser(
     except ValueError:
         hosted_managed_executor_timeout_default = 5.0
     try:
+        external_state_timeout_default = float(external_state_timeout_env)
+    except ValueError:
+        external_state_timeout_default = 5.0
+    try:
         platform_execution_timeout_default = int(platform_execution_timeout_env)
     except ValueError:
         platform_execution_timeout_default = 120
@@ -138,6 +164,12 @@ def build_arg_parser(
         hosted_managed_executor_token_file=(
             Path(hosted_managed_executor_token_file_env)
             if hosted_managed_executor_token_file_env
+            else None
+        ),
+        external_state_token=external_state_token_env or None,
+        external_state_token_file=(
+            Path(external_state_token_file_env)
+            if external_state_token_file_env
             else None
         ),
     )
@@ -277,6 +309,35 @@ def build_arg_parser(
             "SpecSpace-owned local state directory for operator workflow state. "
             "Defaults to .specspace-dev/state under the repository root."
         ),
+    )
+    parser.add_argument(
+        "--enable-external-state",
+        action="store_true",
+        default=external_state_enabled_env.lower() in {"1", "true", "yes", "on"},
+        help=(
+            "Persist SpecSpace-owned mutable state through the authenticated "
+            "external state service. The local state directory becomes a "
+            "private ephemeral materialization cache."
+        ),
+    )
+    parser.add_argument(
+        "--external-state-url",
+        default=external_state_url_env or None,
+        help=(
+            "External SpecSpace state service URL. Plain HTTP is accepted only "
+            "for loopback development."
+        ),
+    )
+    parser.add_argument(
+        "--external-state-token-file",
+        type=Path,
+        help="Mounted secret file containing the external state bearer token.",
+    )
+    parser.add_argument(
+        "--external-state-timeout-seconds",
+        type=float,
+        default=external_state_timeout_default,
+        help="Bounded HTTP timeout for external state requests.",
     )
     parser.add_argument(
         "--platform-dir",
@@ -475,6 +536,94 @@ def configure_server(
         if specspace_state_dir
         else repo_root / ".specspace-dev" / "state"
     )
+    server.external_state_enabled = bool(
+        getattr(args, "enable_external_state", False)
+    )
+    external_state_url = getattr(args, "external_state_url", None)
+    server.external_state_url = (
+        external_state_url.strip().rstrip("/")
+        if isinstance(external_state_url, str) and external_state_url.strip()
+        else None
+    )
+    external_state_token = getattr(args, "external_state_token", None)
+    external_state_token_file = getattr(args, "external_state_token_file", None)
+    if external_state_token and external_state_token_file is not None:
+        raise ValueError(
+            "external state token must use either environment or file input, not both"
+        )
+    if external_state_token_file is not None:
+        token_path = Path(external_state_token_file)
+        if token_path.is_symlink() or not token_path.is_file():
+            raise ValueError("external state token file is unavailable")
+        try:
+            external_state_token = token_path.read_text(
+                encoding="utf-8"
+            ).strip()
+        except OSError as exc:
+            raise ValueError("external state token file is unreadable") from exc
+    server.external_state_token = external_state_token
+    server.external_state_token_file = external_state_token_file
+    server.external_state_timeout_seconds = float(
+        getattr(args, "external_state_timeout_seconds", 5.0)
+    )
+    if not 0.1 <= server.external_state_timeout_seconds <= 30:
+        raise ValueError(
+            "external state timeout must be between 0.1 and 30 seconds"
+        )
+    if server.external_state_enabled:
+        if server.external_state_url is None:
+            raise ValueError("external state URL is required")
+        parsed_external_state_url = urllib.parse.urlparse(
+            server.external_state_url
+        )
+        if (
+            parsed_external_state_url.username is not None
+            or parsed_external_state_url.password is not None
+            or parsed_external_state_url.query
+            or parsed_external_state_url.fragment
+        ):
+            raise ValueError(
+                "external state URL must not contain credentials, query, or fragment"
+            )
+        loopback = parsed_external_state_url.hostname in {
+            "127.0.0.1",
+            "::1",
+            "localhost",
+            "specspace-state-service",
+        }
+        if parsed_external_state_url.scheme != "https" and not (
+            parsed_external_state_url.scheme == "http" and loopback
+        ):
+            raise ValueError(
+                "external state URL must use HTTPS outside loopback development"
+            )
+        if not isinstance(external_state_token, str) or len(
+            external_state_token
+        ) < 32:
+            raise ValueError(
+                "external state service token must contain at least 32 characters"
+            )
+        try:
+            server.specspace_state_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise ValueError(
+                "external state materialization directory is not writable: "
+                f"{server.specspace_state_dir}"
+            ) from exc
+        server.specspace_state_backend = (
+            specspace_state_backend.ExternalHTTPStateBackend(
+                config=specspace_state_backend.ExternalStateConfig(
+                    base_url=server.external_state_url,
+                    token=external_state_token,
+                    timeout_seconds=server.external_state_timeout_seconds,
+                ),
+                materialization_root=server.specspace_state_dir,
+            )
+        )
+    else:
+        server.specspace_state_backend = specspace_state_backend.FileStateBackend(
+            server.specspace_state_dir
+        )
     platform_dir = getattr(args, "platform_dir", None)
     server.platform_dir = platform_dir.expanduser().resolve() if platform_dir else None
     server.platform_execution_enabled = bool(

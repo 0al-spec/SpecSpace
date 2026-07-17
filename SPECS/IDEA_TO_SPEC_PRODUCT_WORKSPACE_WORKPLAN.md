@@ -54,7 +54,8 @@ runtime action requests from Product Workspace routes.
 
 ### 1. External Durable State Backend
 
-Status: next major implementation slice.
+Status: SpecSpace consumer and migration tooling implemented; production
+deployment evidence pending.
 
 Move drafts, clarification answers, repair decisions, execution requests,
 approval intents, and compact hosted receipts out of the replaceable SpecSpace
@@ -75,9 +76,34 @@ Acceptance criteria:
 - durable state is operator intent only; Platform authoritative reports remain
   lifecycle completion evidence.
 
+Implemented in SpecSpace:
+
+- a file/external adapter boundary covers all Product Workspace drafts,
+  clarification answers, repair and ontology decisions, execution requests,
+  approval intents, hosted receipts, and dynamic confirmation records;
+- the external HTTP adapter validates Platform service/record contracts,
+  workspace identity, content digests, CAS revisions, lifecycle state, and
+  closed authority flags before materializing private workspace-scoped cache
+  files;
+- persistent hosted readiness requires a trusted external provider, while the
+  file backend remains available for local development and explicitly bounded
+  ephemeral canaries;
+- `scripts/migrate_specspace_state.py` provides dry-run/apply migration,
+  digest-based replay, workspace splitting, confirmation migration, private
+  reports, and source-preserving rollback;
+- tests cover workspace isolation, stale CAS rejection, restart rehydration,
+  provider authority drift, legacy file preservation, migration replay, and
+  continuation behavior with missing optional answer state.
+
+Remaining evidence belongs to the production rollout: deploy the state service
+and database, migrate the current private state, verify backup/restore and
+restart, then run one bounded read-only operation with the worker stopped
+outside that window.
+
 ### 2. Production Managed-Mode Rollout
 
-Status: blocked on external durable state.
+Status: unblocked by the SpecSpace external-state consumer; Platform deployment,
+migration, recovery, and bounded production evidence are next.
 
 Roll out the external state provider without widening execution authority. Start
 with the existing read-only operation allowlist, worker stopped, migration and

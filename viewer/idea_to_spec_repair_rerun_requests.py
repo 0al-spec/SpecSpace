@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -10,7 +9,11 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
-from viewer import product_workspace_binding, specspace_provider
+from viewer import (
+    product_workspace_binding,
+    specspace_provider,
+    specspace_state_backend,
+)
 from viewer.idea_to_spec_authority import authority_boundary_has_disallowed_true
 
 RERUN_REQUEST_ARTIFACT_KIND = "specspace_idea_to_spec_repair_rerun_request_state"
@@ -137,7 +140,7 @@ def read_state(
     workspace_payload: dict[str, Any] | None = None,
     repair_draft_state: dict[str, Any] | None = None,
 ) -> tuple[HTTPStatus, dict[str, Any]]:
-    status, state = _read_persisted_state(server)
+    status, state = _read_persisted_state(server, workspace_id=workspace_id)
     if status != HTTPStatus.OK:
         return status, state
     return HTTPStatus.OK, _with_workflow_status(
@@ -147,18 +150,30 @@ def read_state(
     )
 
 
-def _read_persisted_state(server: Any) -> tuple[HTTPStatus, dict[str, Any]]:
+def _read_persisted_state(
+    server: Any,
+    *,
+    workspace_id: str | None = None,
+) -> tuple[HTTPStatus, dict[str, Any]]:
     path = state_path(server)
-    if not path.exists():
-        return HTTPStatus.OK, empty_state(path)
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
+        raw = specspace_state_backend.read_state(
+            server,
+            RERUN_REQUEST_FILENAME,
+            workspace_id=workspace_id,
+        )
+    except specspace_state_backend.StateBackendUnavailable:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "error": "External SpecSpace state is unavailable.",
+            "reason": "external_state_unavailable",
+        }
+    except specspace_state_backend.StateBackendError:
         return HTTPStatus.UNPROCESSABLE_ENTITY, {
-            "error": f"{RERUN_REQUEST_FILENAME} is not valid JSON",
-            "detail": str(exc),
+            "error": f"{RERUN_REQUEST_FILENAME} is unreadable",
             "path": str(path),
         }
+    if raw is None:
+        return HTTPStatus.OK, empty_state(path)
     state, error = normalize_state(raw, path)
     if error is not None:
         error["path"] = str(path)
@@ -207,6 +222,37 @@ def normalize_state(raw: Any, path: Path) -> tuple[dict[str, Any] | None, dict[s
     state["source_artifacts"] = _string_map(raw.get("source_artifacts"))
     _refresh_summary(state)
     return state, None
+
+
+def _persist_state(
+    server: Any,
+    state: dict[str, Any],
+    *,
+    workspace_id: str,
+) -> tuple[HTTPStatus, dict[str, Any]] | None:
+    try:
+        specspace_state_backend.write_state(
+            server,
+            RERUN_REQUEST_FILENAME,
+            workspace_id=workspace_id,
+            state=state,
+        )
+    except specspace_state_backend.StateBackendConflict:
+        return HTTPStatus.CONFLICT, {
+            "error": "Repair rerun request state changed concurrently.",
+            "reason": "external_state_revision_conflict",
+        }
+    except specspace_state_backend.StateBackendUnavailable:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "error": "External SpecSpace state is unavailable.",
+            "reason": "external_state_unavailable",
+        }
+    except specspace_state_backend.StateBackendError:
+        return HTTPStatus.UNPROCESSABLE_ENTITY, {
+            "error": "Repair rerun request state could not be persisted.",
+            "reason": "state_persistence_failed",
+        }
+    return None
 
 
 def save_rerun_request(
@@ -357,10 +403,12 @@ def save_rerun_request(
     }
 
     with _STATE_LOCK:
-        status, state = _read_persisted_state(server)
+        status, state = _read_persisted_state(
+            server,
+            workspace_id=workspace_id_value,
+        )
         if status != HTTPStatus.OK:
             return status, state
-        path = state_path(server)
         requests = _records(state.get("requests"))
         for existing in requests:
             if existing.get("workspace_id") == workspace_id_value and existing.get("status") == "requested":
@@ -379,10 +427,13 @@ def save_rerun_request(
             "specspace_repair_draft_import_preview": import_preview_ref,
         }
         _refresh_summary(state)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(f"{path.suffix}.tmp")
-        tmp.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        tmp.replace(path)
+        persistence_error = _persist_state(
+            server,
+            state,
+            workspace_id=workspace_id_value,
+        )
+        if persistence_error is not None:
+            return persistence_error
         return read_state(
             server,
             workspace_id=workspace_id,
@@ -398,10 +449,12 @@ def mark_request_consumed(
     request_id: str,
 ) -> tuple[HTTPStatus, dict[str, Any]]:
     with _STATE_LOCK:
-        status, state = _read_persisted_state(server)
+        status, state = _read_persisted_state(
+            server,
+            workspace_id=workspace_id,
+        )
         if status != HTTPStatus.OK:
             return status, state
-        path = state_path(server)
         now = now_iso()
         matched = False
         updated: list[dict[str, Any]] = []
@@ -433,10 +486,13 @@ def mark_request_consumed(
             key=lambda entry: (entry["workspace_id"], entry["created_at"], entry["id"]),
         )
         _refresh_summary(state)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(f"{path.suffix}.tmp")
-        tmp.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        tmp.replace(path)
+        persistence_error = _persist_state(
+            server,
+            state,
+            workspace_id=workspace_id,
+        )
+        if persistence_error is not None:
+            return persistence_error
         return HTTPStatus.OK, _filtered_state(state, workspace_id)
 
 
