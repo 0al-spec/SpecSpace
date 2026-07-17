@@ -528,6 +528,47 @@ class HostedManagedExecutionTests(unittest.TestCase):
             "hosted_managed_operation_not_allowlisted",
         )
 
+    def test_hosted_enqueue_rejects_entire_allowlist_with_unknown_id(self) -> None:
+        server = SimpleNamespace(
+            hosted_managed_execution_enabled=True,
+            hosted_managed_operation_allowlist=frozenset(
+                {"review_status_execute", "typo"}
+            ),
+        )
+
+        status, response = hosted_managed_execution.enqueue_operation(
+            server,
+            operation_id="review_status_execute",
+            workspace_id="pantry-control",
+            payload={},
+        )
+
+        self.assertEqual(status, HTTPStatus.FORBIDDEN)
+        self.assertEqual(
+            response["reason"],
+            "hosted_managed_operation_not_allowlisted",
+        )
+
+    def test_ephemeral_hosted_enqueue_requires_explicit_allowlist(self) -> None:
+        server = SimpleNamespace(
+            hosted_managed_execution_enabled=True,
+            hosted_managed_state_durability="ephemeral",
+            hosted_managed_operation_allowlist=None,
+        )
+
+        status, response = hosted_managed_execution.enqueue_operation(
+            server,
+            operation_id="review_status_execute",
+            workspace_id="pantry-control",
+            payload={},
+        )
+
+        self.assertEqual(status, HTTPStatus.FORBIDDEN)
+        self.assertEqual(
+            response["reason"],
+            "hosted_managed_operation_not_allowlisted",
+        )
+
     def test_workspace_initialization_path_enables_configured_hosted_executor(self) -> None:
         server = SimpleNamespace(
             platform_execution_enabled=False,
@@ -815,6 +856,75 @@ class HostedManagedExecutionTests(unittest.TestCase):
         )
         self.assertEqual(readiness["state"]["durability"], "ephemeral")
         self.assertFalse(readiness["state"]["restart_persistent"])
+
+    def test_ephemeral_readiness_without_client_allowlist_is_misconfigured(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            state_dir = temp / "state"
+            runs_dir = temp / "runs"
+            state_dir.mkdir()
+            runs_dir.mkdir()
+            server = SimpleNamespace(
+                platform_dir=None,
+                platform_execution_enabled=False,
+                hosted_managed_execution_enabled=True,
+                hosted_managed_executor_url="https://executor.example.test",
+                hosted_managed_executor_token=TOKEN,
+                hosted_managed_executor_timeout_seconds=2,
+                hosted_managed_state_durability="ephemeral",
+                hosted_managed_operation_allowlist=None,
+                specspace_state_dir=state_dir,
+                runs_dir=runs_dir,
+                artifact_base_url=None,
+                product_workspace_artifact_base_urls={},
+                team_decision_log_artifact_base_url=None,
+                platform_execution_timeout_seconds=120,
+            )
+            provider = SimpleNamespace(
+                health=lambda: {
+                    "status": "ok",
+                    "provider": "local",
+                    "read_only": False,
+                }
+            )
+            client = SimpleNamespace(
+                health=lambda: {
+                    "artifact_kind": "platform_hosted_managed_operation_service_health",
+                    "ok": True,
+                    "status": "ready",
+                    "contract_ref": "platform.hosted-managed-operation.request.v1",
+                    "registry_contract_ref": "platform.managed-operation.registry.v1",
+                    "operation_count": 1,
+                    "enabled_operation_ids": ["review_status_execute"],
+                    "adapter": "postgresql",
+                }
+            )
+            with patch.object(
+                hosted_managed_execution,
+                "client_from_server",
+                return_value=client,
+            ):
+                readiness = specspace_v1_api._managed_mode_readiness(
+                    server=server,
+                    provider=provider,
+                    workspace_id="pantry-control",
+                    observability={
+                        "operations": [
+                            {
+                                "operation_id": "review_status_execute",
+                                "status": "ready_to_execute",
+                            }
+                        ]
+                    },
+                    workspace_binding=ready_binding(),
+                )
+
+        self.assertEqual(readiness["status"], "hosted_managed_misconfigured")
+        self.assertEqual(readiness["operations"]["enabled_count"], 0)
+        self.assertIn(
+            "hosted_client_operation_allowlist_invalid",
+            readiness["disabled_reasons"],
+        )
 
     def test_queue_success_waits_for_authoritative_platform_report(self) -> None:
         payload = {

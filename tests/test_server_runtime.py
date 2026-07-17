@@ -3,6 +3,8 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from viewer import server_runtime
 
 
@@ -125,6 +127,19 @@ def test_build_arg_parser_accepts_hosted_managed_executor_env(monkeypatch) -> No
     assert args.hosted_managed_executor_timeout_seconds == 3.5
     assert args.hosted_managed_state_durability == "ephemeral"
     assert args.hosted_managed_operation_allowlist == "review_status_execute"
+
+
+def test_build_arg_parser_rejects_invalid_hosted_state_durability(monkeypatch) -> None:
+    monkeypatch.setenv(
+        "SPECSPACE_HOSTED_MANAGED_STATE_DURABILITY",
+        "ephemral",
+    )
+
+    with pytest.raises(ValueError, match="state durability is invalid"):
+        server_runtime.build_arg_parser(
+            description=None,
+            default_hyperprompt_binary="/bin/hyperprompt",
+        )
 
 
 def test_build_arg_parser_accepts_hosted_executor_token_file_env(

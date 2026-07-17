@@ -10,6 +10,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Protocol, cast
 
+from viewer import managed_operations_registry
+
 
 ResolveHyperpromptBinary = Callable[[str], tuple[str | None, list[str], str]]
 
@@ -115,6 +117,11 @@ def build_arg_parser(
         "SPECSPACE_HOSTED_MANAGED_OPERATION_ALLOWLIST",
         "",
     ).strip()
+    if (
+        hosted_managed_state_durability_env
+        and hosted_managed_state_durability_env not in {"persistent", "ephemeral"}
+    ):
+        raise ValueError("hosted managed state durability is invalid")
     try:
         hosted_managed_executor_timeout_default = float(
             hosted_managed_executor_timeout_env
@@ -508,9 +515,12 @@ def configure_server(
     server.hosted_managed_executor_timeout_seconds = float(
         getattr(args, "hosted_managed_executor_timeout_seconds", 5.0)
     )
-    server.hosted_managed_state_durability = str(
+    hosted_state_durability = str(
         getattr(args, "hosted_managed_state_durability", "persistent")
     )
+    if hosted_state_durability not in {"persistent", "ephemeral"}:
+        raise ValueError("hosted managed state durability is invalid")
+    server.hosted_managed_state_durability = hosted_state_durability
     raw_hosted_allowlist = getattr(args, "hosted_managed_operation_allowlist", None)
     if isinstance(raw_hosted_allowlist, str) and raw_hosted_allowlist.strip():
         values = [item.strip() for item in raw_hosted_allowlist.split(",")]
@@ -518,9 +528,26 @@ def configure_server(
             raise ValueError("hosted managed operation allowlist is invalid")
         if len(values) != len(set(values)):
             raise ValueError("hosted managed operation allowlist contains duplicates")
+        registered_operation_ids = {
+            operation.operation_id
+            for operation in managed_operations_registry.MANAGED_OPERATIONS
+        }
+        unknown_operation_ids = sorted(set(values) - registered_operation_ids)
+        if unknown_operation_ids:
+            raise ValueError(
+                "hosted managed operation allowlist contains unknown operation ids: "
+                + ", ".join(unknown_operation_ids)
+            )
         server.hosted_managed_operation_allowlist = frozenset(values)
     else:
         server.hosted_managed_operation_allowlist = None
+    if (
+        server.hosted_managed_state_durability == "ephemeral"
+        and not server.hosted_managed_operation_allowlist
+    ):
+        raise ValueError(
+            "ephemeral hosted managed state requires an explicit operation allowlist"
+        )
     server.allow_legacy_workspace_execution = bool(
         getattr(args, "allow_legacy_workspace_execution", False)
     )

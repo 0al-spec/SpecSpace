@@ -113,12 +113,22 @@ def state_path(server: Any) -> Path:
 def configured_operation_allowlist(server: Any) -> frozenset[str] | None:
     value = getattr(server, "hosted_managed_operation_allowlist", None)
     if value is None:
-        return None
+        return (
+            frozenset()
+            if getattr(server, "hosted_managed_state_durability", "persistent")
+            == "ephemeral"
+            else None
+        )
     if not isinstance(value, (set, frozenset)) or not all(
         isinstance(item, str) and item for item in value
     ):
         return frozenset()
-    return frozenset(value)
+    configured = frozenset(value)
+    registered = frozenset(
+        operation.operation_id
+        for operation in managed_operations_registry.MANAGED_OPERATIONS
+    )
+    return configured if configured and configured <= registered else frozenset()
 
 
 def _empty_state() -> dict[str, Any]:
