@@ -8,10 +8,11 @@ import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path, PurePosixPath
+from threading import RLock
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, unquote
@@ -41,6 +42,7 @@ HTTP_ARTIFACT_TIMEOUT_SECONDS = 10
 HTTP_ARTIFACT_CACHE_TTL_SECONDS = 30
 HTTP_ARTIFACT_MAX_BYTES = 10_000_000
 HTTP_ARTIFACT_PREFIX_BYTES = 4096
+HTTP_PRODUCT_WORKSPACE_MAX_WORKERS = 12
 ARTIFACT_CONTENT_MAX_BYTES = 1_000_000
 SPECSPACE_APP_VERSION = "0.0.1"
 SPECPM_REGISTRY_SOURCE_NAME = "specpm_registry"
@@ -1684,6 +1686,7 @@ class HttpArtifactCache:
     manifest: dict[str, Any] | None = None
     manifest_loaded_at: float = 0.0
     text_by_path: dict[str, tuple[float, str]] | None = None
+    lock: RLock = field(default_factory=RLock, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.text_by_path is None:
@@ -1724,8 +1727,12 @@ class HttpSpecGraphProvider:
 
     def _read_manifest(self) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
         now = time.time()
-        if self.cache.manifest is not None and now - self.cache.manifest_loaded_at <= self.cache_ttl_seconds:
-            return self.cache.manifest, None
+        with self.cache.lock:
+            if (
+                self.cache.manifest is not None
+                and now - self.cache.manifest_loaded_at <= self.cache_ttl_seconds
+            ):
+                return self.cache.manifest, None
 
         status, text, error = http_get_text(self.manifest_url)
         if error is not None:
@@ -1741,8 +1748,9 @@ class HttpSpecGraphProvider:
         if data.get("artifact_kind") != "specgraph_static_artifact_manifest":
             return None, self._manifest_error("manifest artifact_kind is not specgraph_static_artifact_manifest")
 
-        self.cache.manifest = data
-        self.cache.manifest_loaded_at = now
+        with self.cache.lock:
+            self.cache.manifest = data
+            self.cache.manifest_loaded_at = now
         return data, None
 
     def _manifest_files(self, manifest: dict[str, Any]) -> list[dict[str, Any]]:
@@ -1781,8 +1789,17 @@ class HttpSpecGraphProvider:
             return HTTPStatus.BAD_REQUEST, None, {"error": "Invalid artifact path.", "path": path}
 
         now = time.time()
-        prune_expired_text_cache(self.cache, now=now, ttl_seconds=self.cache_ttl_seconds)
-        cached = self.cache.text_by_path.get(path) if self.cache.text_by_path is not None else None
+        with self.cache.lock:
+            prune_expired_text_cache(
+                self.cache,
+                now=now,
+                ttl_seconds=self.cache_ttl_seconds,
+            )
+            cached = (
+                self.cache.text_by_path.get(path)
+                if self.cache.text_by_path is not None
+                else None
+            )
         if cached is not None and now - cached[0] <= self.cache_ttl_seconds:
             return HTTPStatus.OK, cached[1], None
 
@@ -1792,8 +1809,9 @@ class HttpSpecGraphProvider:
             return status, None, {"error": f"{path} could not be read.", "detail": error["detail"], "path": url}
         if text is None:
             return status, None, {"error": f"{path} could not be read.", "path": url}
-        if self.cache.text_by_path is not None:
-            self.cache.text_by_path[path] = (now, text)
+        with self.cache.lock:
+            if self.cache.text_by_path is not None:
+                self.cache.text_by_path[path] = (now, text)
         return status, text, None
 
     def _read_artifact_prefix(self, path: str) -> tuple[int, str | None, dict[str, Any] | None]:
@@ -2805,6 +2823,57 @@ class ProductWorkspaceHttpProvider:
                 return entry["sha256"]
         return None
 
+    def _read_workspace_run_artifacts(
+        self,
+        manifest: dict[str, Any],
+        *,
+        filenames: tuple[str, ...],
+        run_dir_ref: str | None = None,
+    ) -> dict[str, Any]:
+        initialization_filename = (
+            idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
+        )
+        selected = [
+            filename
+            for filename in filenames
+            if filename != initialization_filename
+            and self.delegate._has_artifact(
+                manifest,
+                (
+                    f"{run_dir_ref}/{filename}"
+                    if run_dir_ref is not None
+                    else f"runs/{filename}"
+                ),
+            )
+        ]
+        if not selected:
+            return {}
+
+        def load(filename: str) -> tuple[str, dict[str, Any] | None]:
+            if run_dir_ref is None:
+                payload = self.delegate._read_optional_runs_json_data(
+                    manifest,
+                    filename,
+                )
+            else:
+                payload = self._read_runs_json_path(
+                    manifest,
+                    f"{run_dir_ref}/{filename}",
+                )
+            return filename, payload
+
+        max_workers = min(
+            HTTP_PRODUCT_WORKSPACE_MAX_WORKERS,
+            max(1, len(selected)),
+        )
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            loaded = executor.map(load, selected)
+            return {
+                filename: payload
+                for filename, payload in loaded
+                if payload is not None
+            }
+
     def _workspace_artifacts(
         self,
         manifest: dict[str, Any],
@@ -2812,17 +2881,8 @@ class ProductWorkspaceHttpProvider:
         initialization_filename = (
             idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
         )
-        artifacts = {
-            filename: payload
-            for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS
-            if filename != initialization_filename
-            if (payload := self.delegate._read_optional_runs_json_data(manifest, filename))
-            is not None
-        }
         initialization_path = f"runs/{initialization_filename}"
         initialization = self._read_runs_json_path(manifest, initialization_path)
-        if initialization is not None:
-            artifacts[initialization_filename] = initialization
         source_sha256 = self._manifest_sha256(manifest, initialization_path)
         binding = product_workspace_binding.project_published_initialization_binding(
             initialization,
@@ -2831,6 +2891,12 @@ class ProductWorkspaceHttpProvider:
             source_sha256=source_sha256 or "",
         )
         if binding.get("status") != "ready" or binding.get("trusted") is not True:
+            artifacts = self._read_workspace_run_artifacts(
+                manifest,
+                filenames=idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS,
+            )
+            if initialization is not None:
+                artifacts[initialization_filename] = initialization
             return artifacts, binding
         run_dir_ref = _text(
             _record(binding.get("routing")).get("platform_default_run_dir_ref")
@@ -2843,11 +2909,12 @@ class ProductWorkspaceHttpProvider:
                 "workspace_id": self.workspace_id,
                 "reasons": ["workspace_binding_run_dir_invalid"],
             }
-        artifacts = {initialization_filename: initialization}
-        for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS:
-            scoped = self._read_runs_json_path(manifest, f"{run_dir_ref}/{filename}")
-            if scoped is not None:
-                artifacts[filename] = scoped
+        artifacts = self._read_workspace_run_artifacts(
+            manifest,
+            filenames=idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS,
+            run_dir_ref=run_dir_ref,
+        )
+        artifacts[initialization_filename] = initialization
         return artifacts, binding
 
     def _candidate_spec_nodes(

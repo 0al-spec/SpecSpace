@@ -5,6 +5,7 @@ import json
 from http import HTTPStatus
 from pathlib import Path
 import tempfile
+import threading
 from types import SimpleNamespace
 from unittest import mock
 
@@ -322,6 +323,90 @@ def test_http_workspace_bootstrap_binding_loads_scoped_candidate(tmp_path: Path)
     assert payload["workspace"]["id"] == "pantry-rotation"
     assert payload["workspace_binding"]["status"] == "ready"
     assert payload["workspace_binding"]["trusted"] is True
+
+
+def test_bound_http_workspace_loads_only_scoped_artifacts_concurrently(
+    tmp_path: Path,
+) -> None:
+    report_path = _write_report(
+        tmp_path / "runs",
+        "pantry-rotation",
+        "Pantry Rotation",
+    )
+    initialization = json.loads(report_path.read_text(encoding="utf-8"))
+    initialization_bytes = report_path.read_bytes()
+    initialization_path = (
+        "runs/platform_product_workspace_initialization_execution_report.json"
+    )
+    scoped_paths = {
+        "runs/pantry-rotation/active_idea_to_spec_candidate.json",
+        "runs/pantry-rotation/candidate_spec_graph.json",
+    }
+    manifest = {
+        "artifact_kind": "specgraph_static_artifact_manifest",
+        "files": [
+            {
+                "path": initialization_path,
+                "sha256": hashlib.sha256(initialization_bytes).hexdigest(),
+            },
+            *[
+                {"path": path, "sha256": "1" * 64}
+                for path in sorted(scoped_paths)
+            ],
+            {
+                "path": "runs/active_idea_to_spec_candidate.json",
+                "sha256": "2" * 64,
+            },
+        ],
+    }
+    provider = specspace_provider.ProductWorkspaceHttpProvider(
+        delegate=specspace_provider.HttpSpecGraphProvider(
+            base_url="https://specgraph.tech/workspaces/pantry-rotation",
+            cache=specspace_provider.HttpArtifactCache(
+                manifest=manifest,
+                manifest_loaded_at=float("inf"),
+            ),
+        ),
+        workspace_id="pantry-rotation",
+    )
+    lock = threading.Lock()
+    release = threading.Event()
+    fetched_paths: list[str] = []
+    active = 0
+    max_active = 0
+
+    def read_path(
+        _provider: object,
+        _manifest: dict,
+        path: str,
+    ) -> dict:
+        nonlocal active, max_active
+        if path == initialization_path:
+            return initialization
+        with lock:
+            fetched_paths.append(path)
+            active += 1
+            max_active = max(max_active, active)
+            if active >= 2:
+                release.set()
+        release.wait(timeout=1)
+        with lock:
+            active -= 1
+        return {"artifact_kind": Path(path).stem}
+
+    with mock.patch.object(
+        specspace_provider.ProductWorkspaceHttpProvider,
+        "_read_runs_json_path",
+        autospec=True,
+        side_effect=read_path,
+    ):
+        artifacts, binding = provider._workspace_artifacts(manifest)
+
+    assert binding["status"] == "ready"
+    assert max_active >= 2
+    assert set(fetched_paths) == scoped_paths
+    assert "active_idea_to_spec_candidate.json" in artifacts
+    assert "candidate_spec_graph.json" in artifacts
 
 
 def test_bound_http_workspace_does_not_fallback_to_shared_candidate(tmp_path: Path) -> None:

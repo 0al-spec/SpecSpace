@@ -737,6 +737,12 @@ The endpoint accepts `?workspace=team-decision-log` so a public product route
 can select a product artifact provider. If no product-specific provider is
 configured, the route reads the default artifact base.
 
+For an HTTP product provider, SpecSpace reads initialization evidence first.
+A trusted durable binding selects either `runs/<workspace-id>/*` or the legacy
+read-only artifact set before payload fetches begin, so scoped workspaces never
+prefetch and discard shared `runs/*`. Independent selected artifacts are read
+with bounded concurrency and retain per-artifact manifest digest validation.
+
 The ontology-bound seed is shown as a workflow item even when absent. Missing
 seed artifacts do not by themselves block legacy or in-flight workspaces that
 already have candidate graph artifacts; a present seed with review findings can
