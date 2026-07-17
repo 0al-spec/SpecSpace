@@ -13,12 +13,16 @@ import urllib.parse
 import urllib.request
 import uuid
 
-from viewer import managed_operations_registry, product_workspace_binding
+from viewer import (
+    managed_operations_registry,
+    product_workspace_binding,
+    specspace_state_backend,
+)
 
 
 STATE_FILENAME = "hosted_managed_operation_requests.json"
 STATE_KIND = "specspace_hosted_managed_operation_request_state"
-CONFIRMATION_DIR = "hosted-managed-confirmations"
+CONFIRMATION_DIR = "confirmations"
 ACTIVE_STATUSES = {"queued", "leased", "running"}
 TERMINAL_STATUSES = {"rejected", "succeeded", "failed", "timed_out", "quarantined"}
 REPLAY_SAFE_OPERATION_IDS = {"promotion_execute_dry_run", "review_status_execute"}
@@ -161,17 +165,24 @@ def authority_boundary() -> dict[str, bool]:
     }
 
 
-def read_state(server: Any) -> dict[str, Any]:
-    path = state_path(server)
+def read_state(
+    server: Any,
+    *,
+    workspace_id: str | None = None,
+) -> dict[str, Any]:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return _empty_state()
-    except (OSError, json.JSONDecodeError):
+        payload = specspace_state_backend.read_state(
+            server,
+            STATE_FILENAME,
+            workspace_id=workspace_id,
+        )
+    except specspace_state_backend.StateBackendError:
         state = _empty_state()
         state["status"] = "invalid"
-        state["reasons"] = ["hosted_managed_operation_state_unreadable"]
+        state["reasons"] = ["hosted_managed_operation_state_provider_unavailable"]
         return state
+    if payload is None:
+        return _empty_state()
     if not isinstance(payload, dict) or payload.get("artifact_kind") != STATE_KIND:
         state = _empty_state()
         state["status"] = "invalid"
@@ -196,15 +207,18 @@ def read_state(server: Any) -> dict[str, Any]:
     return payload
 
 
-def _write_state(server: Any, state: dict[str, Any]) -> None:
-    path = state_path(server)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(
-        json.dumps(state, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+def _write_state(
+    server: Any,
+    state: dict[str, Any],
+    *,
+    workspace_id: str,
+) -> None:
+    specspace_state_backend.write_state(
+        server,
+        STATE_FILENAME,
+        workspace_id=workspace_id,
+        state=state,
     )
-    temporary.replace(path)
 
 
 def _safe_output_reports(receipt: dict[str, Any]) -> list[dict[str, str]]:
@@ -287,7 +301,11 @@ def _compact_enqueue_record(report: dict[str, Any]) -> dict[str, Any]:
 def save_enqueue_report(server: Any, report: dict[str, Any]) -> dict[str, Any]:
     record = _compact_enqueue_record(report)
     with _STATE_LOCK:
-        state = read_state(server)
+        state = read_state(server, workspace_id=record["workspace_id"])
+        if state.get("status") == "invalid":
+            raise specspace_state_backend.StateBackendUnavailable(
+                "hosted managed operation state is unavailable"
+            )
         requests = [
             item
             for item in state.get("requests", [])
@@ -299,11 +317,20 @@ def save_enqueue_report(server: Any, report: dict[str, Any]) -> dict[str, Any]:
             "updated_at": now_iso(),
             "requests": requests[-500:],
         }
-        _write_state(server, state)
+        _write_state(
+            server,
+            state,
+            workspace_id=record["workspace_id"],
+        )
     return record
 
 
-def update_status_report(server: Any, report: dict[str, Any]) -> dict[str, Any]:
+def update_status_report(
+    server: Any,
+    report: dict[str, Any],
+    *,
+    workspace_id: str,
+) -> dict[str, Any]:
     job = _record(report.get("job"))
     request_id = _text(job.get("request_id"))
     status = _text(job.get("status"))
@@ -325,7 +352,11 @@ def update_status_report(server: Any, report: dict[str, Any]) -> dict[str, Any]:
     ):
         raise HostedExecutionError("hosted status report authority boundary is invalid")
     with _STATE_LOCK:
-        state = read_state(server)
+        state = read_state(server, workspace_id=workspace_id)
+        if state.get("status") == "invalid":
+            raise specspace_state_backend.StateBackendUnavailable(
+                "hosted managed operation state is unavailable"
+            )
         matched: dict[str, Any] | None = None
         for item in state.get("requests", []):
             if item.get("request_id") != request_id:
@@ -341,7 +372,7 @@ def update_status_report(server: Any, report: dict[str, Any]) -> dict[str, Any]:
             raise HostedExecutionError("hosted status does not match SpecSpace-owned request state")
         state["updated_at"] = now_iso()
         state["authority_boundary"] = authority_boundary()
-        _write_state(server, state)
+        _write_state(server, state, workspace_id=workspace_id)
     return matched
 
 
@@ -443,7 +474,11 @@ def _conditional_ref_available(
         )
         return artifact.get("available") is True and artifact.get("valid") is not False
     if ref.startswith("specspace-state://"):
-        return (_state_dir(server) / ref.removeprefix("specspace-state://")).is_file()
+        return specspace_state_backend.state_ref_exists(
+            server,
+            ref,
+            workspace_id=workspace_id,
+        )
     if ref.startswith("runs/"):
         runs_dir = getattr(server, "runs_dir", None)
         if not isinstance(runs_dir, Path):
@@ -455,24 +490,19 @@ def _conditional_ref_available(
 def _confirmation_ref(server: Any, workspace_id: str, operation_id: str) -> str:
     identifier = uuid.uuid4().hex
     relative = Path(CONFIRMATION_DIR) / workspace_id / operation_id / f"{identifier}.json"
-    path = _state_dir(server) / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(
-            {
-                "artifact_kind": "specspace_hosted_managed_operation_confirmation",
-                "schema_version": 1,
-                "workspace_id": workspace_id,
-                "operation_id": operation_id,
-                "confirmed": True,
-                "created_at": now_iso(),
-                "authority_boundary": authority_boundary(),
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
+    specspace_state_backend.write_state_record(
+        server,
+        relative.as_posix(),
+        workspace_id=workspace_id,
+        content={
+            "artifact_kind": "specspace_hosted_managed_operation_confirmation",
+            "schema_version": 1,
+            "workspace_id": workspace_id,
+            "operation_id": operation_id,
+            "confirmed": True,
+            "created_at": now_iso(),
+            "authority_boundary": authority_boundary(),
+        },
     )
     return f"specspace-state://{relative.as_posix()}"
 
@@ -491,6 +521,21 @@ def enqueue_operation(
             "error": "Hosted managed execution is not enabled.",
             "reason": "hosted_managed_execution_disabled",
         }
+    if getattr(server, "hosted_managed_state_durability", None) == "persistent":
+        state_backend = specspace_state_backend.backend(server)
+        state_health = state_backend.health()
+        if (
+            state_backend.kind != "external_http"
+            or state_health.get("ready") is not True
+            or state_health.get("restart_persistent") is not True
+        ):
+            return HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": (
+                    "Persistent hosted managed execution requires a ready "
+                    "external SpecSpace state provider."
+                ),
+                "reason": "external_state_provider_required",
+            }
     operation = managed_operations_registry.operation_by_id(operation_id)
     if operation is None or workspace_id is None:
         return HTTPStatus.BAD_REQUEST, {
@@ -559,11 +604,23 @@ def enqueue_operation(
             workspace_payload=workspace_payload,
         )
     ]
-    confirmation_ref = (
-        _confirmation_ref(server, workspace_id, operation_id)
-        if operation.requires_explicit_confirmation
-        else None
-    )
+    try:
+        confirmation_ref = (
+            _confirmation_ref(server, workspace_id, operation_id)
+            if operation.requires_explicit_confirmation
+            else None
+        )
+    except specspace_state_backend.StateBackendError:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "artifact_kind": "specspace_hosted_managed_operation_state_error",
+            "ok": False,
+            "status": "hosted_confirmation_state_unavailable",
+            "error": "SpecSpace could not persist the required confirmation.",
+            "workspace_id": workspace_id,
+            "operation_id": operation_id,
+            "may_have_enqueued": False,
+            "authority_boundary": authority_boundary(),
+        }
     operator_ref = _operator_ref(operation_id)
     request_payload = {
         "operation_id": operation_id,
@@ -584,6 +641,21 @@ def enqueue_operation(
             "error": str(exc),
             "workspace_id": workspace_id,
             "operation_id": operation_id,
+            "authority_boundary": authority_boundary(),
+        }
+    except specspace_state_backend.StateBackendError:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "artifact_kind": "specspace_hosted_managed_operation_state_error",
+            "ok": False,
+            "status": "hosted_request_state_unavailable",
+            "error": (
+                "Hosted execution may have accepted the request, but SpecSpace "
+                "could not persist its compact receipt. Inspect Platform "
+                "authoritative reports before creating another request."
+            ),
+            "workspace_id": workspace_id,
+            "operation_id": operation_id,
+            "may_have_enqueued": True,
             "authority_boundary": authority_boundary(),
         }
     terminal = record["status"] in TERMINAL_STATUSES
@@ -611,7 +683,7 @@ def enqueue_operation(
 
 
 def refresh_workspace(server: Any, *, workspace_id: str | None) -> dict[str, Any]:
-    state = read_state(server)
+    state = read_state(server, workspace_id=workspace_id)
     if workspace_id is None or state.get("status") == "invalid":
         return workspace_projection(state, workspace_id=workspace_id)
     active = [
@@ -628,10 +700,17 @@ def refresh_workspace(server: Any, *, workspace_id: str | None) -> dict[str, Any
         for item in active:
             try:
                 report = client.status(str(item.get("request_id") or ""))
-                update_status_report(server, report)
-            except HostedExecutionError:
+                update_status_report(
+                    server,
+                    report,
+                    workspace_id=workspace_id,
+                )
+            except (
+                HostedExecutionError,
+                specspace_state_backend.StateBackendError,
+            ):
                 continue
-        state = read_state(server)
+        state = read_state(server, workspace_id=workspace_id)
     return workspace_projection(state, workspace_id=workspace_id)
 
 

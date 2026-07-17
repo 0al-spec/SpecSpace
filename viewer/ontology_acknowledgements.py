@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
+from viewer import specspace_state_backend
+
 ACKNOWLEDGEMENT_ARTIFACT_KIND = "specspace_ontology_owner_decision_acknowledgement_state"
 ACKNOWLEDGEMENT_SCHEMA_VERSION = 1
 ACKNOWLEDGEMENT_FILENAME = "ontology_owner_decision_acknowledgements.json"
+ONTOLOGY_WORKBENCH_WORKSPACE_ID = "ontology-workbench"
 TOP_LEVEL_FALSE_FIELDS = (
     "canonical_mutations_allowed",
     "tracked_artifacts_written",
@@ -125,6 +127,7 @@ def normalize_state(raw: Any, path: Path) -> tuple[dict[str, Any] | None, dict[s
             continue
         acknowledgements.append({
             **entry,
+            "workspace_id": ONTOLOGY_WORKBENCH_WORKSPACE_ID,
             "preview_id": preview_id,
             "decision_id": decision_id,
             "candidate_id": candidate_id,
@@ -142,16 +145,24 @@ def normalize_state(raw: Any, path: Path) -> tuple[dict[str, Any] | None, dict[s
 
 def read_state(server: Any) -> tuple[HTTPStatus, dict[str, Any]]:
     path = state_path(server)
-    if not path.exists():
-        return HTTPStatus.OK, empty_state(path)
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        return HTTPStatus.UNPROCESSABLE_ENTITY, {
-            "error": f"{ACKNOWLEDGEMENT_FILENAME} is not valid JSON",
-            "detail": str(exc),
-            "path": str(path),
+        state_backend = specspace_state_backend.backend(server)
+        raw = specspace_state_backend.read_state(
+            server,
+            ACKNOWLEDGEMENT_FILENAME,
+            workspace_id=(
+                ONTOLOGY_WORKBENCH_WORKSPACE_ID
+                if state_backend.kind == "external_http"
+                else None
+            ),
+        )
+    except specspace_state_backend.StateBackendError:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "error": "SpecSpace state provider is unavailable.",
+            "reason": "specspace_state_provider_unavailable",
         }
+    if raw is None:
+        return HTTPStatus.OK, empty_state(path)
     state, error = normalize_state(raw, path)
     if error is not None:
         error["path"] = str(path)
@@ -200,6 +211,7 @@ def acknowledge_owner_decision(
     operator_note = _text(payload.get("operator_note"))
     record = {
         "acknowledgement_id": f"specspace-ack::{preview_id}",
+        "workspace_id": ONTOLOGY_WORKBENCH_WORKSPACE_ID,
         "preview_id": preview_id,
         "decision_id": preview["decision_id"],
         "candidate_id": preview["candidate_id"],
@@ -236,10 +248,23 @@ def acknowledge_owner_decision(
         "next_gap": "operator_review_acknowledgements_available",
     }
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(f"{path.suffix}.tmp")
-    tmp.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    try:
+        specspace_state_backend.write_state(
+            server,
+            ACKNOWLEDGEMENT_FILENAME,
+            workspace_id=ONTOLOGY_WORKBENCH_WORKSPACE_ID,
+            state=state,
+        )
+    except specspace_state_backend.StateBackendConflict:
+        return HTTPStatus.CONFLICT, {
+            "error": "SpecSpace state changed concurrently. Reload and retry.",
+            "reason": "specspace_state_revision_conflict",
+        }
+    except specspace_state_backend.StateBackendError:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "error": "SpecSpace state provider is unavailable.",
+            "reason": "specspace_state_provider_unavailable",
+        }
     return HTTPStatus.OK, state
 
 

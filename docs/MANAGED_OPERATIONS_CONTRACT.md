@@ -179,6 +179,85 @@ SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN=<secret> \
 python viewer/server.py --dialog-dir /data/dialogs
 ```
 
+### External durable SpecSpace state
+
+Persistent hosted mode requires the authenticated external state service. A
+container-local `SPECSPACE_STATE_DIR` is only a private materialization cache;
+it is not the system of record and may be deleted during deployment or restart.
+The Platform-owned service persists one versioned record per
+`workspace_id + record_key`, requires CAS revisions and idempotency keys, and
+keeps its PostgreSQL database separate from the managed-operation queue.
+
+Configure SpecSpace with:
+
+```bash
+SPECSPACE_EXTERNAL_STATE_ENABLED=1 \
+SPECSPACE_EXTERNAL_STATE_URL=https://state.platform.example \
+SPECSPACE_EXTERNAL_STATE_TOKEN_FILE=/run/secrets/specspace_state_token \
+SPECSPACE_STATE_DIR=/tmp/specspace-state-cache \
+SPECSPACE_HOSTED_MANAGED_STATE_DURABILITY=persistent \
+python viewer/server.py --dialog-dir /data/dialogs
+```
+
+Plain HTTP is accepted only for loopback development and the private
+`specspace-state-service` Compose hostname. The token must contain at least 32
+characters. Environment and file token inputs are mutually exclusive. Health,
+Product Workspace, readiness, observability, logs, and migration reports must
+never expose the token, service URL, raw idea, operator notes, or state content.
+
+The state service is private persistence, not lifecycle authority. Platform
+execution reports remain authoritative for operation completion. SpecSpace
+fails persistent hosted readiness and direct managed-operation enqueue closed
+when the service is unavailable, untrusted, non-workspace-scoped, lacks CAS,
+expands authority, or reports a contract other than:
+
+```text
+platform.specspace-state.service.v1
+platform.specspace-state.record.v1
+```
+
+Local development keeps the file backend by default. Before a production
+cutover, migrate the legacy directory with a dry run and an explicit apply:
+
+```bash
+.venv/bin/python scripts/migrate_specspace_state.py \
+  --source-dir /private/specspace-state \
+  --state-service-url https://state.platform.example \
+  --token-file /run/secrets/specspace_state_token \
+  --materialization-dir /tmp/specspace-state-migration-cache \
+  --report /private/reports/specspace-state-migration-plan.json
+
+.venv/bin/python scripts/migrate_specspace_state.py \
+  --source-dir /private/specspace-state \
+  --state-service-url https://state.platform.example \
+  --token-file /run/secrets/specspace_state_token \
+  --materialization-dir /tmp/specspace-state-migration-cache \
+  --report /private/reports/specspace-state-migration.json \
+  --apply
+```
+
+The migration:
+
+- splits legacy collection files into workspace-scoped records;
+- migrates dynamic confirmation records under
+  `confirmations/<workspace>/<operation>/`;
+- normalizes legacy Ontology acknowledgements into the
+  `ontology-workbench` state namespace;
+- compares content digests before mutation, so a completed migration can be
+  replayed without creating redundant revisions;
+- blocks instead of overwriting when the destination already contains a
+  different digest, protecting state written after cutover;
+- writes only identities, digests, lifecycle state, and actions to its private
+  report; state content remains absent;
+- never deletes or rewrites the legacy source directory.
+
+Cutover order is: backup legacy state, dry-run migration, apply migration,
+verify counts/digests, start SpecSpace with external state and worker stopped,
+verify `hosted_managed_ready`, restart SpecSpace and re-read the same state,
+then open one bounded read-only worker window. Rollback stops the worker,
+restores the prior read-only SpecSpace profile, and keeps both the legacy backup
+and external database intact. Do not perform a reverse merge automatically.
+
 Timeweb Cloud Apps uses a bounded canary variant because its Compose sanitizer
 rejects `volumes` and Compose `secrets`. That deployment sets:
 

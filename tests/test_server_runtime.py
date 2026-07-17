@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from viewer import server_runtime
+from viewer import server_runtime, specspace_state_backend
 
 
 def test_build_arg_parser_defaults_to_loopback_host() -> None:
@@ -162,6 +162,37 @@ def test_build_arg_parser_accepts_hosted_executor_token_file_env(
     assert args.hosted_managed_executor_token_file == token_file
 
 
+def test_build_arg_parser_accepts_external_state_env(
+    monkeypatch, tmp_path: Path
+) -> None:
+    token_file = tmp_path / "state-token"
+    token_file.write_text("state-token-0123456789abcdef0123456789\n")
+    monkeypatch.setenv("SPECSPACE_EXTERNAL_STATE_ENABLED", "true")
+    monkeypatch.setenv(
+        "SPECSPACE_EXTERNAL_STATE_URL",
+        "https://state.example.test/",
+    )
+    monkeypatch.setenv(
+        "SPECSPACE_EXTERNAL_STATE_TOKEN_FILE",
+        str(token_file),
+    )
+    monkeypatch.setenv(
+        "SPECSPACE_EXTERNAL_STATE_TIMEOUT_SECONDS",
+        "2.5",
+    )
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+
+    args = parser.parse_args(["--dialog-dir", str(tmp_path / "dialogs")])
+
+    assert args.enable_external_state is True
+    assert args.external_state_url == "https://state.example.test/"
+    assert args.external_state_token_file == token_file
+    assert args.external_state_timeout_seconds == 2.5
+
+
 def test_build_arg_parser_treats_blank_agent_workbench_dir_env_as_unset(monkeypatch) -> None:
     monkeypatch.setenv("SPECSPACE_AGENT_WORKBENCH_DIR", "   ")
     parser = server_runtime.build_arg_parser(
@@ -265,6 +296,103 @@ def test_configure_server_sets_runtime_capabilities() -> None:
         assert server.specspace_state_dir == (root / "hosted-state").resolve()
         assert server.specspace_state_dir.is_dir()
         assert server.agent_available is True
+
+
+def test_configure_server_builds_external_state_backend() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        args = argparse.Namespace(
+            dialog_dir=root / "dialogs",
+            hyperprompt_binary="/bin/hyperprompt",
+            hyperprompt_work_dir=None,
+            enable_http_hyperprompt_compile=False,
+            hyperprompt_compile_timeout_seconds=None,
+            hyperprompt_max_input_bytes=None,
+            hyperprompt_max_output_bytes=None,
+            hyperprompt_bundle_retention_count=None,
+            spec_dir=None,
+            specgraph_dir=None,
+            runs_dir=None,
+            artifact_base_url=None,
+            specpm_registry_url=None,
+            agent_workbench_dir=None,
+            specspace_state_dir=root / "cache",
+            enable_external_state=True,
+            external_state_url="https://state.example.test/",
+            external_state_token="state-token-0123456789abcdef0123456789",
+            external_state_token_file=None,
+            external_state_timeout_seconds=2.0,
+            enable_platform_execution=False,
+            enable_hosted_managed_execution=False,
+            agent=False,
+        )
+        server = SimpleNamespace()
+
+        server_runtime.configure_server(
+            server,
+            args,
+            repo_root=root,
+            resolve_hyperprompt_binary=lambda binary: (binary, [], "configured"),
+            workspace_watcher_factory=lambda path: ("workspace", path),
+            spec_watcher_factory=lambda path: ("spec", path),
+            runs_watcher_factory=lambda path: ("runs", path),
+        )
+
+        assert isinstance(
+            server.specspace_state_backend,
+            specspace_state_backend.ExternalHTTPStateBackend,
+        )
+        assert server.external_state_url == "https://state.example.test"
+        assert server.specspace_state_dir == (root / "cache").resolve()
+        assert server.specspace_state_dir.is_dir()
+
+
+def test_configure_server_rejects_non_loopback_plain_http_external_state() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        args = argparse.Namespace(
+            dialog_dir=root / "dialogs",
+            hyperprompt_binary="/bin/hyperprompt",
+            hyperprompt_work_dir=None,
+            enable_http_hyperprompt_compile=False,
+            hyperprompt_compile_timeout_seconds=None,
+            hyperprompt_max_input_bytes=None,
+            hyperprompt_max_output_bytes=None,
+            hyperprompt_bundle_retention_count=None,
+            spec_dir=None,
+            specgraph_dir=None,
+            runs_dir=None,
+            artifact_base_url=None,
+            specpm_registry_url=None,
+            agent_workbench_dir=None,
+            specspace_state_dir=root / "cache",
+            enable_external_state=True,
+            external_state_url="http://state.example.test",
+            external_state_token="state-token-0123456789abcdef0123456789",
+            external_state_token_file=None,
+            external_state_timeout_seconds=2.0,
+            enable_platform_execution=False,
+            enable_hosted_managed_execution=False,
+            agent=False,
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="must use HTTPS outside loopback",
+        ):
+            server_runtime.configure_server(
+                SimpleNamespace(),
+                args,
+                repo_root=root,
+                resolve_hyperprompt_binary=lambda binary: (
+                    binary,
+                    [],
+                    "configured",
+                ),
+                workspace_watcher_factory=lambda path: ("workspace", path),
+                spec_watcher_factory=lambda path: ("spec", path),
+                runs_watcher_factory=lambda path: ("runs", path),
+            )
 
 
 def test_configure_server_accepts_explicit_runs_dir() -> None:

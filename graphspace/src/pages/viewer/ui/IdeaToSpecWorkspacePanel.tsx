@@ -2160,6 +2160,24 @@ function ManagedOperationsObservabilitySection({
             }
           />
           <Meta
+            label="State backend"
+            value={`${readiness.state.providerKind.replace(/_/g, " ")} · ${readiness.state.providerStatus.replace(/_/g, " ")}`}
+          />
+          <Meta
+            label="State service"
+            value={
+              readiness.state.providerAdapter
+                ? `${readiness.state.providerAdapter} · ${readiness.state.providerReady ? "ready" : "not ready"}`
+                : readiness.state.externalRequired
+                  ? "external provider required"
+                  : "local file backend"
+            }
+          />
+          <Meta
+            label="State contract"
+            value={readiness.state.providerContractRef ?? "not reported"}
+          />
+          <Meta
             label="State directory"
             value={readiness.state.specspaceStateDirReady ? "ready" : "missing"}
           />

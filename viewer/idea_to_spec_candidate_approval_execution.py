@@ -13,6 +13,7 @@ from viewer import (
     idea_to_spec_candidate_approval_intents,
     idea_to_spec_workspace,
     specspace_provider,
+    specspace_state_backend,
 )
 
 APPROVAL_EXECUTION_REPORT_ARTIFACT = "platform_candidate_approval_execution_report.json"
@@ -108,13 +109,6 @@ def _runs_path(
         else _runs_dir(server)
     )
     return runs_dir / filename if runs_dir is not None else None
-
-
-def _state_path(server: Any, filename: str) -> Path:
-    state_dir = getattr(server, "specspace_state_dir", None)
-    if state_dir is None:
-        state_dir = Path(getattr(server, "repo_root")) / ".specspace-dev" / "state"
-    return Path(state_dir) / filename
 
 
 def _load_json(path: Path) -> dict[str, Any] | None:
@@ -261,11 +255,18 @@ def execute_candidate_approval(
     if binding_error is not None:
         return HTTPStatus.CONFLICT, binding_error
 
-    approval_intents_path = _state_path(
-        server,
-        idea_to_spec_candidate_approval_intents.APPROVAL_INTENT_FILENAME,
-    )
-    if not approval_intents_path.is_file():
+    try:
+        approval_intents_path = specspace_state_backend.materialize_state(
+            server,
+            idea_to_spec_candidate_approval_intents.APPROVAL_INTENT_FILENAME,
+            workspace_id=selected_workspace_id,
+        )
+    except specspace_state_backend.StateBackendError:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "error": "SpecSpace state provider is unavailable.",
+            "reason": "specspace_state_provider_unavailable",
+        }
+    if approval_intents_path is None:
         return HTTPStatus.NOT_FOUND, {
             "error": "Candidate approval intent state artifact not found.",
             "approval_intents_ref": (

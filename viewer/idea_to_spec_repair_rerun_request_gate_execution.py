@@ -13,6 +13,7 @@ from viewer import (
     idea_to_spec_repair_rerun_requests,
     idea_to_spec_workspace_state_hygiene,
     specspace_provider,
+    specspace_state_backend,
 )
 
 EXECUTION_REPORT_ARTIFACT = (
@@ -288,8 +289,18 @@ def execute_requested_request_gate(
             },
         }
 
-    request_state_path = idea_to_spec_repair_rerun_requests.state_path(server)
-    if not request_state_path.is_file():
+    try:
+        request_state_path = specspace_state_backend.materialize_state(
+            server,
+            idea_to_spec_repair_rerun_requests.RERUN_REQUEST_FILENAME,
+            workspace_id=selected_workspace_id,
+        )
+    except specspace_state_backend.StateBackendError:
+        return HTTPStatus.SERVICE_UNAVAILABLE, {
+            "error": "SpecSpace state provider is unavailable.",
+            "reason": "specspace_state_provider_unavailable",
+        }
+    if request_state_path is None:
         return HTTPStatus.NOT_FOUND, {
             "error": "Repair rerun request state artifact not found.",
             "rerun_request_ref": (

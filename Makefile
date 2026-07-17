@@ -164,7 +164,7 @@ test:
 	@$(PYTHON) -m unittest discover -s tests -p 'test_*.py'
 
 lint:
-	@$(PYTHON) -m py_compile $$(find viewer tests -name '*.py' | sort)
+	@$(PYTHON) -m py_compile $$(find viewer tests scripts -name '*.py' | sort)
 
 quickstart:
 	@if [ -z "$(DIALOG_DIR)" ]; then \

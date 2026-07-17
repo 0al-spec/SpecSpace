@@ -15,7 +15,9 @@ import urllib.error
 from viewer import (
     hosted_managed_execution,
     idea_to_spec_workspace,
+    managed_operations_registry,
     product_workspace_binding,
+    specspace_state_backend,
     specspace_v1_api,
 )
 
@@ -634,6 +636,11 @@ class HostedManagedExecutionTests(unittest.TestCase):
                 hosted_managed_executor_url="https://executor.example.test",
                 hosted_managed_executor_token=TOKEN,
                 hosted_managed_executor_timeout_seconds=2,
+                hosted_managed_state_durability="ephemeral",
+                hosted_managed_operation_allowlist=frozenset(
+                    operation.operation_id
+                    for operation in managed_operations_registry.MANAGED_OPERATIONS
+                ),
                 specspace_state_dir=state_dir,
                 runs_dir=runs_dir,
                 artifact_base_url=None,
@@ -749,6 +756,10 @@ class HostedManagedExecutionTests(unittest.TestCase):
                 hosted_managed_executor_url="https://executor.example.test",
                 hosted_managed_executor_token=TOKEN,
                 hosted_managed_executor_timeout_seconds=2,
+                hosted_managed_state_durability="ephemeral",
+                hosted_managed_operation_allowlist=frozenset(
+                    {"review_status_execute"}
+                ),
                 specspace_state_dir=state_dir,
                 runs_dir=runs_dir,
                 artifact_base_url=None,
@@ -800,6 +811,131 @@ class HostedManagedExecutionTests(unittest.TestCase):
             readiness["executor"]["hosted_enabled_operation_ids"],
             ["review_status_execute"],
         )
+
+    def test_persistent_hosted_mode_requires_ready_external_state(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            state_dir = temp / "state-cache"
+            state_dir.mkdir()
+            external_backend = specspace_state_backend.ExternalHTTPStateBackend(
+                config=specspace_state_backend.ExternalStateConfig(
+                    base_url="https://state.example.test",
+                    token=TOKEN,
+                    timeout_seconds=2,
+                ),
+                materialization_root=state_dir,
+            )
+            server = SimpleNamespace(
+                platform_dir=None,
+                platform_execution_enabled=False,
+                hosted_managed_execution_enabled=True,
+                hosted_managed_executor_url="https://executor.example.test",
+                hosted_managed_executor_token=TOKEN,
+                hosted_managed_executor_timeout_seconds=2,
+                hosted_managed_state_durability="persistent",
+                hosted_managed_operation_allowlist=frozenset(
+                    {"review_status_execute"}
+                ),
+                specspace_state_backend=external_backend,
+                specspace_state_dir=state_dir,
+                runs_dir=temp / "runs",
+                artifact_base_url=None,
+                product_workspace_artifact_base_urls={},
+                team_decision_log_artifact_base_url=None,
+                platform_execution_timeout_seconds=120,
+            )
+            provider = SimpleNamespace(
+                health=lambda: {
+                    "status": "ok",
+                    "provider": "local",
+                    "read_only": False,
+                }
+            )
+            client = SimpleNamespace(
+                health=lambda: {
+                    "artifact_kind": "platform_hosted_managed_operation_service_health",
+                    "ok": True,
+                    "status": "ready",
+                    "contract_ref": "platform.hosted-managed-operation.request.v1",
+                    "registry_contract_ref": "platform.managed-operation.registry.v1",
+                    "operation_count": 1,
+                    "enabled_operation_ids": ["review_status_execute"],
+                    "adapter": "postgresql",
+                }
+            )
+            with (
+                patch.object(
+                    hosted_managed_execution,
+                    "client_from_server",
+                    return_value=client,
+                ),
+                patch.object(
+                    external_backend,
+                    "health",
+                    return_value={
+                        "status": "ready",
+                        "ready": True,
+                        "kind": "external_http",
+                        "restart_persistent": True,
+                        "contract_ref": (
+                            specspace_state_backend.SERVICE_CONTRACT_REF
+                        ),
+                        "adapter": "postgresql",
+                    },
+                ),
+            ):
+                readiness = specspace_v1_api._managed_mode_readiness(
+                    server=server,
+                    provider=provider,
+                    workspace_id="pantry-control",
+                    observability={
+                        "operations": [
+                            {
+                                "operation_id": "review_status_execute",
+                                "status": "ready_to_execute",
+                            }
+                        ]
+                    },
+                    workspace_binding=ready_binding(),
+                )
+
+        self.assertEqual(readiness["status"], "hosted_managed_ready")
+        self.assertTrue(readiness["state"]["restart_persistent"])
+        self.assertEqual(readiness["state"]["provider_kind"], "external_http")
+
+    def test_persistent_hosted_enqueue_rejects_file_state_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            state_dir = temp / "state"
+            state_dir.mkdir()
+            runtime = SimpleNamespace(
+                repo_root=temp,
+                specspace_state_dir=state_dir,
+                specspace_state_backend=specspace_state_backend.FileStateBackend(
+                    state_dir
+                ),
+                runs_dir=temp / "runs",
+                hosted_managed_execution_enabled=True,
+                hosted_managed_state_durability="persistent",
+                hosted_managed_operation_allowlist=frozenset(
+                    {"review_status_execute"}
+                ),
+                hosted_managed_executor_url="https://executor.example.test",
+                hosted_managed_executor_token=TOKEN,
+                hosted_managed_executor_timeout_seconds=2,
+            )
+
+            status, payload = hosted_managed_execution.enqueue_operation(
+                runtime,
+                operation_id="review_status_execute",
+                workspace_id="pantry-control",
+                payload={"workspace_id": "pantry-control"},
+                workspace_binding=ready_binding(),
+            )
+
+        self.assertEqual(status, HTTPStatus.SERVICE_UNAVAILABLE)
+        self.assertEqual(payload["reason"], "external_state_provider_required")
+        self.assertEqual(PlatformStubHandler.received, [])
 
     def test_ephemeral_client_allowlist_is_reported_and_limits_service_scope(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

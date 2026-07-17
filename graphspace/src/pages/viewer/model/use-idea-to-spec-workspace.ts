@@ -1246,6 +1246,12 @@ export type IdeaToSpecManagedModeReadiness = {
   state: {
     durability: string | null;
     restartPersistent: boolean | null;
+    providerKind: string;
+    providerStatus: string;
+    providerReady: boolean;
+    providerContractRef: string | null;
+    providerAdapter: string | null;
+    externalRequired: boolean;
     specspaceStateDirConfigured: boolean;
     specspaceStateDirReady: boolean;
     specspaceStateDirWritable: boolean;
@@ -4681,6 +4687,12 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
       state: {
         durability: null,
         restartPersistent: null,
+        providerKind: "unknown",
+        providerStatus: "unknown",
+        providerReady: false,
+        providerContractRef: null,
+        providerAdapter: null,
+        externalRequired: false,
         specspaceStateDirConfigured: false,
         specspaceStateDirReady: false,
         specspaceStateDirWritable: false,
@@ -4741,6 +4753,12 @@ function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness
         typeof state.restart_persistent === "boolean"
           ? state.restart_persistent
           : null,
+      providerKind: stringValue(state.provider_kind, "unknown"),
+      providerStatus: stringValue(state.provider_status, "unknown"),
+      providerReady: state.provider_ready === true,
+      providerContractRef: optionalString(state.provider_contract_ref),
+      providerAdapter: optionalString(state.provider_adapter),
+      externalRequired: state.external_required === true,
       specspaceStateDirConfigured: state.specspace_state_dir_configured === true,
       specspaceStateDirReady: state.specspace_state_dir_ready === true,
       specspaceStateDirWritable: state.specspace_state_dir_writable === true,

@@ -213,6 +213,8 @@ async function startSpecSpaceBackend(options: {
   enablePlatformExecution?: boolean;
   hostedExecutorUrl?: string;
   hostedExecutorToken?: string;
+  hostedStateDurability?: "persistent" | "ephemeral";
+  hostedOperationAllowlist?: string[];
   runsDir?: string;
 } = {}): Promise<SpecSpaceBackend> {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "specspace-ui-e2e-"));
@@ -250,6 +252,18 @@ async function startSpecSpaceBackend(options: {
             "--enable-hosted-managed-execution",
             "--hosted-managed-executor-url",
             options.hostedExecutorUrl,
+            ...(options.hostedStateDurability
+              ? [
+                  "--hosted-managed-state-durability",
+                  options.hostedStateDurability,
+                ]
+              : []),
+            ...(options.hostedOperationAllowlist?.length
+              ? [
+                  "--hosted-managed-operation-allowlist",
+                  options.hostedOperationAllowlist.join(","),
+                ]
+              : []),
           ]
         : []),
     ],
@@ -3521,6 +3535,13 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     hostedExecutorUrl:
       hostedPort === null ? undefined : `http://127.0.0.1:${hostedPort}`,
     hostedExecutorToken: hostedMode ? hostedToken : undefined,
+    hostedStateDurability: hostedMode ? "ephemeral" : undefined,
+    hostedOperationAllowlist: hostedMode
+      ? [
+          "real_idea_intake_execute",
+          "real_idea_answer_continuation_execute",
+        ]
+      : undefined,
   });
   const hostedRuntime = hostedMode
     ? await startHostedPlatformRuntime({

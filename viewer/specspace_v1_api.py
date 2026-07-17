@@ -38,6 +38,7 @@ from viewer import (
     real_idea_intake_execution_requests,
     spec_compile,
     specspace_provider,
+    specspace_state_backend,
 )
 from viewer.http_response import JsonResponseHandler, json_response
 from viewer.request_query import query_params, query_value
@@ -475,6 +476,23 @@ def _managed_mode_readiness(
         platform_dir_configured and (platform_dir / "scripts" / "platform.py").is_file()
     )
     state_dir_status = _directory_readiness(getattr(server, "specspace_state_dir", None))
+    state_backend = specspace_state_backend.backend(server)
+    state_provider_health = state_backend.health()
+    state_provider_ready = state_provider_health.get("ready") is True
+    state_provider_external = state_backend.kind == "external_http"
+    configured_state_durability = getattr(
+        server,
+        "hosted_managed_state_durability",
+        "persistent",
+    )
+    persistent_hosted_state_ready = (
+        configured_state_durability != "persistent"
+        or (
+            state_provider_external
+            and state_provider_ready
+            and state_provider_health.get("restart_persistent") is True
+        )
+    )
     runs_dir_status = _directory_readiness(getattr(server, "runs_dir", None))
     provider_state = _provider_status(provider)
     artifact_base_url = specspace_provider.artifact_base_url_for_workspace(
@@ -578,6 +596,18 @@ def _managed_mode_readiness(
             disabled_reasons.append("hosted_executor_unavailable")
         if not hosted_client_allowlist_valid:
             disabled_reasons.append("hosted_client_operation_allowlist_invalid")
+        if not state_provider_ready:
+            disabled_reasons.append("specspace_state_provider_unavailable")
+        if (
+            configured_state_durability == "persistent"
+            and not state_provider_external
+        ):
+            disabled_reasons.append("external_state_provider_required")
+        elif (
+            configured_state_durability == "persistent"
+            and not persistent_hosted_state_ready
+        ):
+            disabled_reasons.append("external_state_provider_not_durable")
     if not state_dir_status["configured"]:
         disabled_reasons.append("specspace_state_dir_not_configured")
     elif not state_dir_status["is_directory"]:
@@ -611,6 +641,8 @@ def _managed_mode_readiness(
         and hosted_service_configured
         and hosted_service_reachable
         and state_dir_status["ready"]
+        and state_provider_ready
+        and persistent_hosted_state_ready
         and provider_state["status"] != "unavailable"
         and binding_ready
     )
@@ -631,10 +663,9 @@ def _managed_mode_readiness(
         status = "hosted_managed_ready"
         mode = "hosted_managed"
         next_safe_action = (
-            "Use the bounded review-status action; request state is ephemeral "
+            "Use only the bounded allowlisted action; request state is ephemeral "
             "and must not be treated as restart-persistent."
-            if getattr(server, "hosted_managed_state_durability", "persistent")
-            == "ephemeral"
+            if configured_state_durability == "ephemeral"
             else "Use guided Product Workspace actions to enqueue allowlisted Platform operations."
         )
     elif hosted_execution_enabled:
@@ -715,23 +746,25 @@ def _managed_mode_readiness(
             "counting_basis": "managed_operations_observability.status",
         },
         "state": {
-            "durability": getattr(
-                server,
-                "hosted_managed_state_durability",
-                "persistent",
-            )
+            "durability": configured_state_durability
             if hosted_execution_enabled
             else None,
             "restart_persistent": (
-                getattr(
-                    server,
-                    "hosted_managed_state_durability",
-                    "persistent",
-                )
-                == "persistent"
+                configured_state_durability == "persistent"
+                and state_provider_health.get("restart_persistent") is True
+                and state_provider_external
             )
             if hosted_execution_enabled
             else None,
+            "provider_kind": state_backend.kind,
+            "provider_status": state_provider_health.get("status"),
+            "provider_ready": state_provider_ready,
+            "provider_contract_ref": state_provider_health.get("contract_ref"),
+            "provider_adapter": state_provider_health.get("adapter"),
+            "external_required": (
+                hosted_execution_enabled
+                and configured_state_durability == "persistent"
+            ),
             "specspace_state_dir_configured": state_dir_status["configured"],
             "specspace_state_dir_ready": state_dir_status["ready"],
             "specspace_state_dir_writable": state_dir_status["writable"],
@@ -1199,7 +1232,10 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
             )
             is True
             else hosted_managed_execution.workspace_projection(
-                hosted_managed_execution.read_state(handler.server),
+                hosted_managed_execution.read_state(
+                    handler.server,
+                    workspace_id=workspace_id,
+                ),
                 workspace_id=workspace_id,
             )
         )
