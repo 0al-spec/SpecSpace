@@ -145,6 +145,10 @@ The surface is report-only telemetry. It may show:
 - whether backend Platform execution is enabled;
 - whether hosted execution is enabled and its service health contract is
   reachable;
+- the service-reported operation scope, the narrower SpecSpace client allowlist,
+  and the effective enabled scope;
+- whether SpecSpace-owned hosted request state is `persistent` or `ephemeral`
+  and whether it survives an application restart;
 - whether the Platform checkout contains `scripts/platform.py`;
 - whether the SpecSpace-owned state directory and runs directory are present
   and writable;
@@ -175,10 +179,25 @@ SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN=<secret> \
 python viewer/server.py --dialog-dir /data/dialogs
 ```
 
-Production deployments should mount the token as a secret and set
-`SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN_FILE` instead. Environment and file
-token sources are mutually exclusive, and the token value is never returned in
-readiness, observability, or state artifacts.
+Timeweb Cloud Apps uses a bounded canary variant because its Compose sanitizer
+rejects `volumes` and Compose `secrets`. That deployment sets:
+
+```text
+SPECSPACE_HOSTED_MANAGED_STATE_DURABILITY=ephemeral
+SPECSPACE_HOSTED_MANAGED_OPERATION_ALLOWLIST=review_status_execute
+```
+
+The token is supplied as a Timeweb global environment variable and is never
+written to Git. The client allowlist is a fail-closed maximum: SpecSpace rejects
+every other managed operation even if the Platform service advertises a broader
+allowlist. Ephemeral SpecSpace receipt state is observability only; Platform's
+PostgreSQL queue and digest-pinned reports remain authoritative.
+
+Production deployments should normally mount the token as a secret and set
+`SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN_FILE`. The Timeweb bounded canary is the
+documented exception because its sanitizer rejects Compose secrets. Environment
+and file token sources are mutually exclusive, and the token value is never
+returned in readiness, observability, or state artifacts.
 
 Hosted deployments may consume a durable binding from the configured read-only
 product-workspace HTTP provider when no local initialization report exists.
@@ -188,10 +207,11 @@ authority boundary before enqueue. Its logical binding ref is then scoped under
 `runs/<workspace-id>`; the hosted Platform service remains responsible for
 resolving the authoritative file and revalidating its digest.
 
-Hosted mode requires a writable persistent `SPECSPACE_STATE_DIR` for compact
-queue/request state. It does not require a writable local SpecGraph `runs`
-mirror because queue receipts are transport telemetry and Platform reports are
-the lifecycle authority.
+Hosted mode requires a writable `SPECSPACE_STATE_DIR` for compact queue/request
+state. Normal hosted profiles require it to be persistent. The Timeweb bounded
+canary may use explicitly reported ephemeral state because queue receipts are
+transport telemetry and Platform reports are lifecycle authority. Hosted mode
+does not require a writable local SpecGraph `runs` mirror.
 
 Hosted deployment profiles may expose a bounded operation subset through the
 Platform health field `enabled_operation_ids`. SpecSpace validates that every

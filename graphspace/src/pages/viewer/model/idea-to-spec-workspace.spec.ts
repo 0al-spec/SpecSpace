@@ -578,9 +578,15 @@ describe("parseIdeaToSpecWorkspace", () => {
         hosted_enabled: true,
         hosted_service_configured: true,
         hosted_service_reachable: true,
+        hosted_enabled_operation_ids: ["review_status_execute"],
+        hosted_service_operation_ids: [
+          "promotion_execute_dry_run",
+          "review_status_execute",
+        ],
+        hosted_client_operation_ids: ["review_status_execute"],
       },
       operations: { registered_count: 12, enabled_count: 1, disabled_count: 11 },
-      state: {},
+      state: { durability: "ephemeral", restart_persistent: false },
       provider: { status: "ok", kind: "local", read_only: false },
       workspace: { workspace_id: "pantry-control", product_workspace: true },
       authority_boundary: {
@@ -643,6 +649,14 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.managedModeReadiness.executor.hostedServiceReachable).toBe(
       true,
     );
+    expect(
+      parsed.data.managedModeReadiness.executor.hostedClientOperationIds,
+    ).toEqual(["review_status_execute"]);
+    expect(
+      parsed.data.managedModeReadiness.executor.hostedServiceOperationIds,
+    ).toEqual(["promotion_execute_dry_run", "review_status_execute"]);
+    expect(parsed.data.managedModeReadiness.state.durability).toBe("ephemeral");
+    expect(parsed.data.managedModeReadiness.state.restartPersistent).toBe(false);
     expect(
       parsed.data.managedOperations.operations[0].hostedTransport.status,
     ).toBe("running");
