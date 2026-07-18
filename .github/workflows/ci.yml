@@ -400,6 +400,9 @@ jobs:
           PLATFORM_TIMEWEB_WORKFLOW_REF: ${{ vars.PLATFORM_TIMEWEB_WORKFLOW_REF }}
           PLATFORM_TIMEWEB_ARTIFACT_BASE_URL: ${{ vars.PLATFORM_TIMEWEB_ARTIFACT_BASE_URL }}
           PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL: ${{ vars.PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL }}
+          PLATFORM_TIMEWEB_HOSTED_MANAGED_EXTERNAL_STATE_ENABLED: ${{ vars.PLATFORM_TIMEWEB_HOSTED_MANAGED_EXTERNAL_STATE_ENABLED }}
+          PLATFORM_TIMEWEB_HOSTED_MANAGED_EXECUTOR_URL: ${{ vars.PLATFORM_TIMEWEB_HOSTED_MANAGED_EXECUTOR_URL }}
+          PLATFORM_TIMEWEB_EXTERNAL_STATE_URL: ${{ vars.PLATFORM_TIMEWEB_EXTERNAL_STATE_URL }}
         run: |
           set -euo pipefail
 
@@ -411,6 +414,9 @@ jobs:
           PLATFORM_TIMEWEB_WORKFLOW_REF="${PLATFORM_TIMEWEB_WORKFLOW_REF:-main}"
           PLATFORM_TIMEWEB_ARTIFACT_BASE_URL="${PLATFORM_TIMEWEB_ARTIFACT_BASE_URL:-https://specgraph.tech}"
           PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL="${PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL:-https://specpm.dev}"
+          PLATFORM_TIMEWEB_HOSTED_MANAGED_EXTERNAL_STATE_ENABLED="${PLATFORM_TIMEWEB_HOSTED_MANAGED_EXTERNAL_STATE_ENABLED:-false}"
+          PLATFORM_TIMEWEB_HOSTED_MANAGED_EXECUTOR_URL="${PLATFORM_TIMEWEB_HOSTED_MANAGED_EXECUTOR_URL:-https://managed.specgraph.tech}"
+          PLATFORM_TIMEWEB_EXTERNAL_STATE_URL="${PLATFORM_TIMEWEB_EXTERNAL_STATE_URL:-https://managed.specgraph.tech/specspace-state}"
 
           python3 - <<'PY' > "$RUNNER_TEMP/platform-timeweb-inputs.json"
           import json
@@ -435,6 +441,15 @@ jobs:
               "release_commit": os.environ["GITHUB_SHA"],
               "artifact_base_url": os.environ["PLATFORM_TIMEWEB_ARTIFACT_BASE_URL"],
               "specpm_registry_url": os.environ["PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL"],
+              "hosted_managed_external_state_enabled": os.environ[
+                  "PLATFORM_TIMEWEB_HOSTED_MANAGED_EXTERNAL_STATE_ENABLED"
+              ],
+              "hosted_managed_executor_url": os.environ[
+                  "PLATFORM_TIMEWEB_HOSTED_MANAGED_EXECUTOR_URL"
+              ],
+              "external_state_url": os.environ[
+                  "PLATFORM_TIMEWEB_EXTERNAL_STATE_URL"
+              ],
           }
           print(json.dumps(inputs))
           PY
