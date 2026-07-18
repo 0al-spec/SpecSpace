@@ -1877,9 +1877,14 @@ export const ideaToSpecWorkspace = {
             domains: ["specgraph_core"],
             lifecycle_phases: ["draft_spec_authoring"],
             agent_types: ["SpecAuthorAgent"],
+            subsystems: ["candidate_authoring"],
+            runtimes: ["specgraph_cli"],
+            platforms: ["local_workspace"],
+            contexts: ["idea_to_spec"],
           },
           excludes: {
             domains: ["unrelated_product_domain"],
+            platforms: ["unreviewed_runtime"],
           },
           assumptions: [
             {
@@ -1904,10 +1909,19 @@ export const ideaToSpecWorkspace = {
       ],
       change_classification: {
         status: "published",
+        diff_package_refs: [
+          "org.0al.specgraph.core@0.1.0",
+          "org.0al.specgraph.core@0.2.0",
+        ],
+        matched_package_refs: ["org.0al.specgraph.core@0.1.0"],
         structural_changes: [
           {
             kind: "termAdded",
             ref: "ontology://specgraph-core#Spec",
+            target_kind: "class",
+            before: "missing",
+            after: "Spec",
+            compatibility: "compatible",
           },
         ],
         annotation_changes: [],

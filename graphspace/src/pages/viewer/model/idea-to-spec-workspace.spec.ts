@@ -177,6 +177,10 @@ describe("parseIdeaToSpecWorkspace", () => {
         .lifecyclePhases,
     ).toEqual(["draft_spec_authoring"]);
     expect(
+      parsed.data.candidateOverview.ontologyApplicability.profiles[0].appliesTo
+        .contexts,
+    ).toEqual(["idea_to_spec"]);
+    expect(
       parsed.data.candidateOverview.ontologyApplicability.profiles[0].assumptions[0]
         .text,
     ).toBe("Candidate interpretation remains review-only.");
@@ -184,6 +188,19 @@ describe("parseIdeaToSpecWorkspace", () => {
       parsed.data.candidateOverview.ontologyApplicability.changeClassification
         .classifiedChangeCount,
     ).toBe(2);
+    expect(
+      parsed.data.candidateOverview.ontologyApplicability.changeClassification
+        .matchedPackageRefs,
+    ).toEqual(["org.0al.specgraph.core@0.1.0"]);
+    expect(
+      parsed.data.candidateOverview.ontologyApplicability.changeClassification
+        .structuralChanges[0],
+    ).toMatchObject({
+      targetKind: "class",
+      before: "missing",
+      after: "Spec",
+      compatibility: "compatible",
+    });
     expect(parsed.data.preSib.findings[0].findingId).toBe(
       "pre_sib_ontology_coverage_gap",
     );

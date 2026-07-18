@@ -4177,6 +4177,19 @@ function CandidateOverviewSection({
             }
           />
           <Meta
+            label="Change evidence"
+            value={compact(
+              ontologyApplicability.changeClassification.status,
+              "not published",
+            )}
+          />
+          <Meta
+            label="Matched packages"
+            value={joined(
+              ontologyApplicability.changeClassification.matchedPackageRefs,
+            )}
+          />
+          <Meta
             label="Applicability changes"
             value={
               ontologyApplicabilityPublished
@@ -4210,12 +4223,20 @@ function CandidateOverviewSection({
                 ...profile.appliesTo.domains,
                 ...profile.appliesTo.lifecyclePhases,
                 ...profile.appliesTo.agentTypes,
+                ...profile.appliesTo.subsystems,
+                ...profile.appliesTo.runtimes,
+                ...profile.appliesTo.platforms,
+                ...profile.appliesTo.contexts,
               ])}
               {" · "}Excludes:{" "}
               {joined([
                 ...profile.excludes.domains,
                 ...profile.excludes.lifecyclePhases,
                 ...profile.excludes.agentTypes,
+                ...profile.excludes.subsystems,
+                ...profile.excludes.runtimes,
+                ...profile.excludes.platforms,
+                ...profile.excludes.contexts,
               ])}
             </span>
           </div>
@@ -4256,7 +4277,17 @@ function CandidateOverviewSection({
           >
             <span>Applicability change</span>
             <Pill value={change.kind} />
-            <span className={styles.statusDetail}>{change.ref}</span>
+            <span className={styles.statusDetail}>
+              {change.ref}
+              {change.targetKind ? ` · ${change.targetKind}` : ""}
+              {change.compatibility ? ` · ${change.compatibility}` : ""}
+              {change.before || change.after
+                ? ` · ${compact(change.before, "missing")} -> ${compact(
+                    change.after,
+                    "missing",
+                  )}`
+                : ""}
+            </span>
           </div>
         ))}
       </div>

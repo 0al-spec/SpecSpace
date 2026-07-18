@@ -1384,6 +1384,19 @@ export type IdeaToSpecOntologyApplicabilityScope = {
   domains: readonly string[];
   lifecyclePhases: readonly string[];
   agentTypes: readonly string[];
+  subsystems: readonly string[];
+  runtimes: readonly string[];
+  platforms: readonly string[];
+  contexts: readonly string[];
+};
+
+export type IdeaToSpecOntologyApplicabilityChange = {
+  kind: string;
+  ref: string;
+  targetKind: string | null;
+  before: string | null;
+  after: string | null;
+  compatibility: string | null;
 };
 
 export type IdeaToSpecOntologyApplicabilityProfile = {
@@ -1478,9 +1491,11 @@ export type IdeaToSpecCandidateOverview = {
     profiles: readonly IdeaToSpecOntologyApplicabilityProfile[];
     changeClassification: {
       status: string | null;
-      structuralChanges: readonly { kind: string; ref: string }[];
-      annotationChanges: readonly { kind: string; ref: string }[];
-      applicabilityChanges: readonly { kind: string; ref: string }[];
+      diffPackageRefs: readonly string[];
+      matchedPackageRefs: readonly string[];
+      structuralChanges: readonly IdeaToSpecOntologyApplicabilityChange[];
+      annotationChanges: readonly IdeaToSpecOntologyApplicabilityChange[];
+      applicabilityChanges: readonly IdeaToSpecOntologyApplicabilityChange[];
       classifiedChangeCount: number;
     };
     sourceRefs: readonly string[];
@@ -5004,6 +5019,10 @@ function parseOntologyApplicabilityScope(
     domains: strings(scope.domains),
     lifecyclePhases: strings(scope.lifecycle_phases),
     agentTypes: strings(scope.agent_types),
+    subsystems: strings(scope.subsystems),
+    runtimes: strings(scope.runtimes),
+    platforms: strings(scope.platforms),
+    contexts: strings(scope.contexts),
   };
 }
 
@@ -5048,11 +5067,20 @@ function parseOntologyApplicabilityProfile(
 
 function parseOntologyApplicabilityChange(
   raw: unknown,
-): { kind: string; ref: string } | null {
+): IdeaToSpecOntologyApplicabilityChange | null {
   const change = recordValue(raw);
   const kind = optionalString(change.kind);
   const ref = optionalString(change.ref);
-  return kind && ref ? { kind, ref } : null;
+  return kind && ref
+    ? {
+        kind,
+        ref,
+        targetKind: optionalString(change.target_kind),
+        before: optionalString(change.before),
+        after: optionalString(change.after),
+        compatibility: optionalString(change.compatibility),
+      }
+    : null;
 }
 
 function parseCandidateOverview(
@@ -5200,6 +5228,8 @@ function parseCandidateOverview(
       }),
       changeClassification: {
         status: optionalString(changeClassification.status),
+        diffPackageRefs: strings(changeClassification.diff_package_refs),
+        matchedPackageRefs: strings(changeClassification.matched_package_refs),
         structuralChanges: records(
           changeClassification.structural_changes,
         ).flatMap((item) => {

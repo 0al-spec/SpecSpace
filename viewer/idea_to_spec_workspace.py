@@ -1784,7 +1784,15 @@ def _overview_applicability_scope(value: Any) -> dict[str, list[str]]:
     scope = _record(value)
     return {
         key: _string_list(scope.get(key))
-        for key in ("domains", "lifecycle_phases", "agent_types")
+        for key in (
+            "domains",
+            "lifecycle_phases",
+            "agent_types",
+            "subsystems",
+            "runtimes",
+            "platforms",
+            "contexts",
+        )
         if _string_list(scope.get(key))
     }
 
@@ -1812,7 +1820,16 @@ def _overview_classified_changes(value: Any) -> list[dict[str, Any]]:
         ref = _safe_display_ref(item.get("ref"))
         if kind is None or ref is None:
             continue
-        rows.append({"kind": kind, "ref": ref})
+        rows.append(
+            {
+                "kind": kind,
+                "ref": ref,
+                "target_kind": _optional_text(item.get("target_kind")),
+                "before": _optional_text(item.get("before")),
+                "after": _optional_text(item.get("after")),
+                "compatibility": _optional_text(item.get("compatibility")),
+            }
+        )
     return rows
 
 
@@ -1853,6 +1870,12 @@ def _overview_ontology_applicability(value: Any) -> dict[str, Any]:
         "profiles": profiles,
         "change_classification": {
             "status": _optional_text(classification.get("status")),
+            "diff_package_refs": _safe_display_refs(
+                classification.get("diff_package_refs")
+            ),
+            "matched_package_refs": _safe_display_refs(
+                classification.get("matched_package_refs")
+            ),
             "structural_changes": _overview_classified_changes(
                 classification.get("structural_changes")
             ),

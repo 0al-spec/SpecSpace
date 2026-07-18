@@ -411,6 +411,10 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Reassess when the candidate enters another domain.");
     expect(html).toContain("invalidationTriggerAdded");
     expect(html).toContain("draft_spec_authoring");
+    expect(html).toContain("candidate_authoring");
+    expect(html).toContain("specgraph_cli");
+    expect(html).toContain("idea_to_spec");
+    expect(html).toContain("org.0al.specgraph.core@0.1.0");
     expect(html).toContain("Git dry-run");
     expect(html).toContain("scripts/platform.py product-repair-rerun smoke --profile happy-path-promotion-dry-run");
     expect(html).toContain("Workflow lane");

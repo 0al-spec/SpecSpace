@@ -124,7 +124,9 @@ SpecGraph `0216` now projects the existing Ontology ONT-040 compiler contract
 into Candidate Overview. Product Workspace shows applicability scopes,
 assumptions, exclusions, invalidation triggers, and
 structural/annotation/applicability change classification with sanitized
-provenance.
+provenance. The consumer preserves the full compiler scope vocabulary,
+classification detail, and package correlation status rather than narrowing or
+reinterpreting the producer contract.
 
 This is read-only review evidence. It is not an Idea Maturity score, runtime
 policy, automatic term acceptance, repair mutation, approval gate, or promotion

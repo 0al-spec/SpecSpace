@@ -377,8 +377,15 @@ def _candidate_overview() -> dict:
                             "domains": ["specgraph_core"],
                             "lifecycle_phases": ["draft_spec_authoring"],
                             "agent_types": ["SpecAuthorAgent"],
+                            "subsystems": ["candidate_authoring"],
+                            "runtimes": ["specgraph_cli"],
+                            "platforms": ["local_workspace"],
+                            "contexts": ["idea_to_spec"],
                         },
-                        "excludes": {"domains": ["unrelated_product_domain"]},
+                        "excludes": {
+                            "domains": ["unrelated_product_domain"],
+                            "platforms": ["unreviewed_runtime"],
+                        },
                         "assumptions": [
                             {
                                 "id": "assumption.review-only",
@@ -402,8 +409,22 @@ def _candidate_overview() -> dict:
                 ],
                 "change_classification": {
                     "status": "published",
+                    "diff_package_refs": [
+                        "org.0al.specgraph.core@0.1.0",
+                        "org.0al.specgraph.core@0.2.0",
+                    ],
+                    "matched_package_refs": [
+                        "org.0al.specgraph.core@0.1.0"
+                    ],
                     "structural_changes": [
-                        {"kind": "termAdded", "ref": "ontology://specgraph-core#Spec"}
+                        {
+                            "kind": "termAdded",
+                            "ref": "ontology://specgraph-core#Spec",
+                            "target_kind": "class",
+                            "before": "missing",
+                            "after": "Spec",
+                            "compatibility": "compatible",
+                        }
                     ],
                     "annotation_changes": [],
                     "applicability_changes": [
@@ -3615,10 +3636,22 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "assumption.review-only",
         )
         self.assertEqual(
+            body["candidate_overview"]["ontology_applicability"]["profiles"][0][
+                "applies_to"
+            ]["contexts"],
+            ["idea_to_spec"],
+        )
+        self.assertEqual(
             body["candidate_overview"]["ontology_applicability"][
                 "change_classification"
             ]["classified_change_count"],
             2,
+        )
+        self.assertEqual(
+            body["candidate_overview"]["ontology_applicability"][
+                "change_classification"
+            ]["structural_changes"][0]["target_kind"],
+            "class",
         )
         self.assertEqual(
             body["artifacts"]["candidate_overview"]["contract_ref"],
