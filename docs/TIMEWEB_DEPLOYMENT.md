@@ -385,23 +385,31 @@ Expected for the current HTTP artifact deployment:
 - SpecSpace UI loads without sample fallback.
 - Runtime data reads go through `/api/v1/*`.
 
-For product workspace production smoke, use the read-only workspace checker:
+For the current hosted-managed production profile, smoke the dedicated bound
+workspace:
 
 ```bash
 PYTHON="${PYTHON:-.venv/bin/python}"
 "$PYTHON" scripts/product_workspace_production_smoke.py \
   --base-url https://specgraph.space \
-  --workspace team-decision-log \
-  --artifact-base https://specgraph.tech/workspaces/team-decision-log \
-  --expect-managed-mode read_only
+  --workspace hosted-operation-canary \
+  --artifact-base https://specgraph.tech/workspaces/hosted-operation-canary \
+  --expect-managed-mode hosted_managed_ready
 ```
 
-This smoke verifies that `/team-decision-log` is a SpecSpace Product Workspace,
+This smoke verifies that `/hosted-operation-canary` is a SpecSpace Product Workspace,
 not the legacy ContextBuilder UI; that the Product Workspace API reads the
 workspace-specific static artifact base instead of the root SpecGraph showcase
 bundle; and that production reports `managed_mode_readiness.status =
-read_only` with managed execution authority disabled. It also checks the
-presentation route `/team-decision-log?view=demo` returns the SpecSpace shell
+hosted_managed_ready` with a reachable allowlisted hosted executor. It also checks the
+presentation route `/hosted-operation-canary?view=demo` returns the SpecSpace shell
 without legacy ContextBuilder markers. The production route renders the
 published product workspace state; locally generated demo candidates are covered
 by `make ui-e2e-product-demo`.
+
+For a production deployment intentionally configured without hosted execution,
+run the same checker against its published workspace with
+`--expect-managed-mode read_only`. The CI defaults can be overridden through
+`SPECSPACE_PRODUCT_WORKSPACE_ID`,
+`SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL`, and
+`SPECSPACE_PRODUCT_WORKSPACE_MANAGED_MODE` repository variables.

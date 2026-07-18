@@ -569,8 +569,9 @@ jobs:
       - name: Verify product workspace production route
         env:
           SPECSPACE_DEPLOY_URL: ${{ vars.SPECSPACE_DEPLOY_URL }}
-          SPECSPACE_PRODUCT_WORKSPACE_ID: ${{ vars.SPECSPACE_PRODUCT_WORKSPACE_ID || 'team-decision-log' }}
-          SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL: ${{ vars.SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL || 'https://specgraph.tech/workspaces/team-decision-log' }}
+          SPECSPACE_PRODUCT_WORKSPACE_ID: ${{ vars.SPECSPACE_PRODUCT_WORKSPACE_ID || 'hosted-operation-canary' }}
+          SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL: ${{ vars.SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL || 'https://specgraph.tech/workspaces/hosted-operation-canary' }}
+          SPECSPACE_PRODUCT_WORKSPACE_MANAGED_MODE: ${{ vars.SPECSPACE_PRODUCT_WORKSPACE_MANAGED_MODE || 'hosted_managed_ready' }}
         run: |
           set -euo pipefail
           set +e
@@ -578,7 +579,7 @@ jobs:
             --base-url "$SPECSPACE_DEPLOY_URL" \
             --workspace "$SPECSPACE_PRODUCT_WORKSPACE_ID" \
             --artifact-base "$SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL" \
-            --expect-managed-mode read_only \
+            --expect-managed-mode "$SPECSPACE_PRODUCT_WORKSPACE_MANAGED_MODE" \
             --format json > "$RUNNER_TEMP/product-workspace-production-smoke.json"
           smoke_status=$?
           set -e

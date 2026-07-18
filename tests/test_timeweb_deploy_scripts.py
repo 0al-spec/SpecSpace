@@ -171,3 +171,25 @@ def test_platform_publish_threads_external_state_profile() -> None:
     assert '"hosted_managed_executor_url"' in workflow
     assert '"external_state_url"' in workflow
     assert "SPECSPACE_EXTERNAL_STATE_TOKEN" not in workflow
+
+
+def test_production_smoke_defaults_to_bound_hosted_workspace() -> None:
+    workflow = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert (
+        "vars.SPECSPACE_PRODUCT_WORKSPACE_ID || 'hosted-operation-canary'"
+        in workflow
+    )
+    assert (
+        "vars.SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL || "
+        "'https://specgraph.tech/workspaces/hosted-operation-canary'"
+        in workflow
+    )
+    assert (
+        "vars.SPECSPACE_PRODUCT_WORKSPACE_MANAGED_MODE || "
+        "'hosted_managed_ready'"
+        in workflow
+    )
+    assert '--expect-managed-mode "$SPECSPACE_PRODUCT_WORKSPACE_MANAGED_MODE"' in workflow
