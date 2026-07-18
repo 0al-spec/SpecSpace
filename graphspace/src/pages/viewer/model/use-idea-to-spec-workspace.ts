@@ -1374,6 +1374,28 @@ export type IdeaToSpecOverviewEdge = {
   label: string | null;
 };
 
+export type IdeaToSpecOntologyApplicabilityRecord = {
+  id: string;
+  layer: string | null;
+  text: string | null;
+};
+
+export type IdeaToSpecOntologyApplicabilityScope = {
+  domains: readonly string[];
+  lifecyclePhases: readonly string[];
+  agentTypes: readonly string[];
+};
+
+export type IdeaToSpecOntologyApplicabilityProfile = {
+  packageId: string | null;
+  packageRef: string | null;
+  status: string | null;
+  appliesTo: IdeaToSpecOntologyApplicabilityScope;
+  excludes: IdeaToSpecOntologyApplicabilityScope;
+  assumptions: readonly IdeaToSpecOntologyApplicabilityRecord[];
+  invalidationTriggers: readonly IdeaToSpecOntologyApplicabilityRecord[];
+};
+
 export type IdeaToSpecCandidateOverview = {
   available: boolean;
   readiness: {
@@ -1446,6 +1468,31 @@ export type IdeaToSpecCandidateOverview = {
     termCount: number;
     acceptedDecisionCount: number;
     blockingDecisionCount: number;
+  };
+  ontologyApplicability: {
+    status: string | null;
+    reviewOnly: boolean;
+    profileCount: number;
+    assumptionCount: number;
+    invalidationTriggerCount: number;
+    profiles: readonly IdeaToSpecOntologyApplicabilityProfile[];
+    changeClassification: {
+      status: string | null;
+      structuralChanges: readonly { kind: string; ref: string }[];
+      annotationChanges: readonly { kind: string; ref: string }[];
+      applicabilityChanges: readonly { kind: string; ref: string }[];
+      classifiedChangeCount: number;
+    };
+    sourceRefs: readonly string[];
+    authorityBoundary: {
+      mayInferApplicability: false;
+      mayEnforceRuntimePolicy: false;
+      mayMutateCandidateArtifacts: false;
+      mayWriteOntologyPackage: false;
+      mayAcceptOntologyTerms: false;
+      mayApproveCandidate: false;
+      mayPromoteCandidate: false;
+    };
   };
   nextAction: {
     actionId: string | null;
@@ -4949,6 +4996,65 @@ function parseOverviewEdge(raw: unknown): IdeaToSpecOverviewEdge | null {
   };
 }
 
+function parseOntologyApplicabilityScope(
+  raw: unknown,
+): IdeaToSpecOntologyApplicabilityScope {
+  const scope = recordValue(raw);
+  return {
+    domains: strings(scope.domains),
+    lifecyclePhases: strings(scope.lifecycle_phases),
+    agentTypes: strings(scope.agent_types),
+  };
+}
+
+function parseOntologyApplicabilityRecord(
+  raw: unknown,
+): IdeaToSpecOntologyApplicabilityRecord | null {
+  const record = recordValue(raw);
+  const id = optionalString(record.id);
+  if (!id) return null;
+  return {
+    id,
+    layer: optionalString(record.layer),
+    text: optionalString(record.text),
+  };
+}
+
+function parseOntologyApplicabilityProfile(
+  raw: unknown,
+): IdeaToSpecOntologyApplicabilityProfile | null {
+  const profile = recordValue(raw);
+  const packageId = optionalString(profile.package_id);
+  const packageRef = optionalString(profile.package_ref);
+  if (!packageId && !packageRef) return null;
+  return {
+    packageId,
+    packageRef,
+    status: optionalString(profile.status),
+    appliesTo: parseOntologyApplicabilityScope(profile.applies_to),
+    excludes: parseOntologyApplicabilityScope(profile.excludes),
+    assumptions: records(profile.assumptions).flatMap((item) => {
+      const parsed = parseOntologyApplicabilityRecord(item);
+      return parsed ? [parsed] : [];
+    }),
+    invalidationTriggers: records(profile.invalidation_triggers).flatMap(
+      (item) => {
+        const parsed = parseOntologyApplicabilityRecord(item);
+        return parsed ? [parsed] : [];
+      },
+    ),
+  };
+}
+
+function parseOntologyApplicabilityChange(
+  raw: unknown,
+): { kind: string; ref: string } | null {
+  const change = recordValue(raw);
+  const kind = optionalString(change.kind);
+  const ref = optionalString(change.ref);
+  return kind && ref ? { kind, ref } : null;
+}
+
 function parseCandidateOverview(
   raw: unknown,
 ): IdeaToSpecCandidateOverview {
@@ -4964,6 +5070,12 @@ function parseCandidateOverview(
   const ideaMaturity = recordValue(overview.idea_maturity ?? sections.idea_maturity);
   const projectLocalOntology = recordValue(
     overview.project_local_ontology ?? sections.project_local_ontology,
+  );
+  const ontologyApplicability = recordValue(
+    overview.ontology_applicability ?? sections.ontology_applicability,
+  );
+  const changeClassification = recordValue(
+    ontologyApplicability.change_classification,
   );
   const nextAction = recordValue(overview.next_action);
   return {
@@ -5073,6 +5185,53 @@ function parseCandidateOverview(
       blockingDecisionCount: numberValue(
         projectLocalOntology.blocking_decision_count,
       ),
+    },
+    ontologyApplicability: {
+      status: optionalString(ontologyApplicability.status),
+      reviewOnly: ontologyApplicability.review_only === true,
+      profileCount: numberValue(ontologyApplicability.profile_count),
+      assumptionCount: numberValue(ontologyApplicability.assumption_count),
+      invalidationTriggerCount: numberValue(
+        ontologyApplicability.invalidation_trigger_count,
+      ),
+      profiles: records(ontologyApplicability.profiles).flatMap((item) => {
+        const parsed = parseOntologyApplicabilityProfile(item);
+        return parsed ? [parsed] : [];
+      }),
+      changeClassification: {
+        status: optionalString(changeClassification.status),
+        structuralChanges: records(
+          changeClassification.structural_changes,
+        ).flatMap((item) => {
+          const parsed = parseOntologyApplicabilityChange(item);
+          return parsed ? [parsed] : [];
+        }),
+        annotationChanges: records(
+          changeClassification.annotation_changes,
+        ).flatMap((item) => {
+          const parsed = parseOntologyApplicabilityChange(item);
+          return parsed ? [parsed] : [];
+        }),
+        applicabilityChanges: records(
+          changeClassification.applicability_changes,
+        ).flatMap((item) => {
+          const parsed = parseOntologyApplicabilityChange(item);
+          return parsed ? [parsed] : [];
+        }),
+        classifiedChangeCount: numberValue(
+          changeClassification.classified_change_count,
+        ),
+      },
+      sourceRefs: strings(ontologyApplicability.source_refs),
+      authorityBoundary: {
+        mayInferApplicability: false,
+        mayEnforceRuntimePolicy: false,
+        mayMutateCandidateArtifacts: false,
+        mayWriteOntologyPackage: false,
+        mayAcceptOntologyTerms: false,
+        mayApproveCandidate: false,
+        mayPromoteCandidate: false,
+      },
     },
     nextAction: {
       actionId: optionalString(nextAction.action_id),
@@ -5337,10 +5496,38 @@ function candidateOverviewBoundaryIsSafe(raw: unknown): boolean {
     "may_accept_ontology_terms",
     "may_create_branch_or_commit",
   ];
+  const applicability = recordValue(
+    recordValue(overview.sections).ontology_applicability ??
+      overview.ontology_applicability,
+  );
+  const applicabilityBoundary = recordValue(applicability.authority_boundary);
+  const applicabilityFalseFlags = [
+    "may_infer_applicability",
+    "may_enforce_runtime_policy",
+    "may_mutate_candidate_artifacts",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_approve_candidate",
+    "may_promote_candidate",
+  ];
+  const knownApplicabilityFlags = new Set(applicabilityFalseFlags);
+  const applicabilityIsSafe =
+    Object.keys(applicability).length === 0 ||
+    (applicability.review_only === true &&
+      applicabilityFalseFlags.every(
+        (flag) => applicabilityBoundary[flag] === false,
+      ) &&
+      Object.entries(applicabilityBoundary).every(
+        ([flag, value]) =>
+          !flag.startsWith("may_") ||
+          knownApplicabilityFlags.has(flag) ||
+          value === false,
+      ));
   return (
     boundary.inspect_only === true &&
     boundary.acknowledge_only === true &&
-    falseFlags.every((flag) => boundary[flag] === false)
+    falseFlags.every((flag) => boundary[flag] === false) &&
+    applicabilityIsSafe
   );
 }
 

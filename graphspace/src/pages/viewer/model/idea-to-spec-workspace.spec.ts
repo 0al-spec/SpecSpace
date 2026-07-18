@@ -169,6 +169,21 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.candidateOverview.topology.edges[0].toDisplayAlias).toBe(
       "Record a decision",
     );
+    expect(parsed.data.candidateOverview.ontologyApplicability.status).toBe(
+      "change_review_required",
+    );
+    expect(
+      parsed.data.candidateOverview.ontologyApplicability.profiles[0].appliesTo
+        .lifecyclePhases,
+    ).toEqual(["draft_spec_authoring"]);
+    expect(
+      parsed.data.candidateOverview.ontologyApplicability.profiles[0].assumptions[0]
+        .text,
+    ).toBe("Candidate interpretation remains review-only.");
+    expect(
+      parsed.data.candidateOverview.ontologyApplicability.changeClassification
+        .classifiedChangeCount,
+    ).toBe(2);
     expect(parsed.data.preSib.findings[0].findingId).toBe(
       "pre_sib_ontology_coverage_gap",
     );
@@ -1214,6 +1229,26 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.kind).toBe("parse-error");
   });
 
+  it("rejects candidate overview ontology applicability authority expansion", () => {
+    const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    payload.candidate_overview.ontology_applicability.authority_boundary.may_infer_applicability =
+      true;
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("parse-error");
+  });
+
+  it("rejects candidate overview ontology applicability with unknown authority", () => {
+    const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    payload.candidate_overview.ontology_applicability.authority_boundary.may_execute_runtime =
+      true;
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("parse-error");
+  });
+
   it("rejects repair session action expansion", () => {
     const parsed = parseIdeaToSpecWorkspace({
       ...ideaToSpecWorkspace,
@@ -1575,6 +1610,19 @@ describe("parseIdeaToSpecWorkspace", () => {
         rationale: "Pantry item creation emits the record event.",
       },
     ]);
+  });
+
+  it("preserves missing ontology applicability as not published evidence", () => {
+    const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    delete payload.candidate_overview.ontology_applicability;
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.candidateOverview.ontologyApplicability.status).toBeNull();
+    expect(parsed.data.candidateOverview.ontologyApplicability.profileCount).toBe(0);
+    expect(parsed.data.candidateOverview.ontologyApplicability.reviewOnly).toBe(false);
   });
 
   it("builds a deterministic candidate workflow topology view", () => {

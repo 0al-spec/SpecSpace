@@ -361,6 +361,73 @@ def _candidate_overview() -> dict:
                 "accepted_decision_count": 2,
                 "blocking_decision_count": 0,
             },
+            "ontology_applicability": {
+                "proposal_id": "0216",
+                "status": "change_review_required",
+                "review_only": True,
+                "profile_count": 1,
+                "assumption_count": 2,
+                "invalidation_trigger_count": 1,
+                "profiles": [
+                    {
+                        "package_id": "org.0al.specgraph.core",
+                        "package_ref": "org.0al.specgraph.core@0.1.0",
+                        "status": "declared",
+                        "applies_to": {
+                            "domains": ["specgraph_core"],
+                            "lifecycle_phases": ["draft_spec_authoring"],
+                            "agent_types": ["SpecAuthorAgent"],
+                        },
+                        "excludes": {"domains": ["unrelated_product_domain"]},
+                        "assumptions": [
+                            {
+                                "id": "assumption.review-only",
+                                "layer": "model",
+                                "text": "Candidate interpretation remains review-only.",
+                            },
+                            {
+                                "id": "assumption.explicit-boundary",
+                                "layer": "model",
+                                "text": "The product boundary is declared explicitly.",
+                            },
+                        ],
+                        "invalidation_triggers": [
+                            {
+                                "id": "trigger.domain-expansion",
+                                "layer": "model",
+                                "text": "Reassess when the candidate enters another domain.",
+                            }
+                        ],
+                    }
+                ],
+                "change_classification": {
+                    "status": "published",
+                    "structural_changes": [
+                        {"kind": "termAdded", "ref": "ontology://specgraph-core#Spec"}
+                    ],
+                    "annotation_changes": [],
+                    "applicability_changes": [
+                        {
+                            "kind": "invalidationTriggerAdded",
+                            "ref": "ontology://specgraph-core#Spec",
+                        }
+                    ],
+                    "classified_change_count": 2,
+                },
+                "source_refs": [
+                    "runs/ontology_package_index.json",
+                    "runs/ontology_compatibility_diff_preview.json",
+                ],
+                "authority_boundary": {
+                    "may_infer_applicability": False,
+                    "may_enforce_runtime_policy": False,
+                    "may_mutate_candidate_artifacts": False,
+                    "may_write_ontology_package": False,
+                    "may_accept_ontology_terms": False,
+                    "may_approve_candidate": False,
+                    "may_promote_candidate": False,
+                },
+            },
         },
         "next_action": {
             "action_id": "resolve_repair_blockers",
@@ -3532,6 +3599,28 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "Record a decision",
         )
         self.assertEqual(
+            body["candidate_overview"]["ontology_applicability"]["status"],
+            "change_review_required",
+        )
+        self.assertEqual(
+            body["candidate_overview"]["ontology_applicability"]["profiles"][0][
+                "applies_to"
+            ]["lifecycle_phases"],
+            ["draft_spec_authoring"],
+        )
+        self.assertEqual(
+            body["candidate_overview"]["ontology_applicability"]["profiles"][0][
+                "assumptions"
+            ][0]["id"],
+            "assumption.review-only",
+        )
+        self.assertEqual(
+            body["candidate_overview"]["ontology_applicability"][
+                "change_classification"
+            ]["classified_change_count"],
+            2,
+        )
+        self.assertEqual(
             body["artifacts"]["candidate_overview"]["contract_ref"],
             "specgraph.idea-to-spec.candidate-overview.v0.1",
         )
@@ -4281,6 +4370,41 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
 
                 self.assertFalse(body["candidate_overview"]["available"])
                 self.assertFalse(body["artifacts"]["candidate_overview"]["available"])
+                self.assertEqual(
+                    body["artifacts"]["candidate_overview"]["reason"],
+                    "invalid_artifact_contract",
+                )
+
+    def test_build_workspace_rejects_unsafe_ontology_applicability(self) -> None:
+        cases = (
+            ("missing_required_false", None),
+            ("known_authority_true", ("may_infer_applicability", True)),
+            ("unknown_authority_true", ("may_execute_runtime", True)),
+            ("not_review_only", ("review_only", False)),
+        )
+        for name, mutation in cases:
+            with self.subTest(name=name):
+                artifacts = _workspace_artifacts()
+                overview = deepcopy(_candidate_overview())
+                applicability = overview["sections"]["ontology_applicability"]
+                if name == "missing_required_false":
+                    del applicability["authority_boundary"][
+                        "may_infer_applicability"
+                    ]
+                elif mutation is not None and mutation[0] == "review_only":
+                    applicability["review_only"] = mutation[1]
+                elif mutation is not None:
+                    applicability["authority_boundary"][mutation[0]] = mutation[1]
+                artifacts[
+                    idea_to_spec_workspace.CANDIDATE_OVERVIEW_ARTIFACT
+                ] = overview
+
+                body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+                    artifacts=artifacts,
+                    source={"provider": "fixture", "read_only": True},
+                )
+
+                self.assertFalse(body["candidate_overview"]["available"])
                 self.assertEqual(
                     body["artifacts"]["candidate_overview"]["reason"],
                     "invalid_artifact_contract",

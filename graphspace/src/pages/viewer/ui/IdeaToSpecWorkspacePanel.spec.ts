@@ -323,6 +323,24 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).not.toContain("Product/spec answers");
   });
 
+  it("renders missing ontology applicability as not published", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    delete raw.candidate_overview.ontology_applicability;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    expect(parsedWorkspace.kind).toBe("ok");
+    if (parsedWorkspace.kind !== "ok") return;
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toContain("Ontology applicability");
+    expect(html).toContain("not published");
+    expect(html).toContain("Not published");
+  });
+
   it("renders candidate graph, pre-SIB metrics, and repair actions read-only", () => {
     const html = renderToStaticMarkup(
       createElement(IdeaToSpecWorkspacePanel, { state }),
@@ -386,6 +404,13 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain('title="command.record-decision">Record a decision');
     expect(html).toContain("Calculator boundary");
     expect(html).toContain("Capture numeric input");
+    expect(html).toContain("Ontology applicability");
+    expect(html).toContain("change_review_required");
+    expect(html).toContain("review-only evidence");
+    expect(html).toContain("Candidate interpretation remains review-only.");
+    expect(html).toContain("Reassess when the candidate enters another domain.");
+    expect(html).toContain("invalidationTriggerAdded");
+    expect(html).toContain("draft_spec_authoring");
     expect(html).toContain("Git dry-run");
     expect(html).toContain("scripts/platform.py product-repair-rerun smoke --profile happy-path-promotion-dry-run");
     expect(html).toContain("Workflow lane");
