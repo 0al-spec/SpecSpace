@@ -4571,6 +4571,7 @@ def _review_status(report: dict[str, Any] | None) -> dict[str, Any]:
     graph_review = _record((report or {}).get("graph_repository_review_status"))
     graph_summary = _record(graph_review.get("summary"))
     review_state = _optional_text((report or {}).get("review_state"))
+    review_probe_only = (report or {}).get("review_probe_only") is True
     review_merged = (
         review_state == "merged"
         or summary.get("review_merged") is True
@@ -4586,6 +4587,8 @@ def _review_status(report: dict[str, Any] | None) -> dict[str, Any]:
         next_action = "run_product_candidate_promotion_review_status"
     elif not ok:
         next_action = "repair_review_status_report"
+    elif review_merged and review_probe_only:
+        next_action = "refresh_execution_backed_review_status"
     elif review_merged:
         next_action = "ready_to_publish_read_model"
     else:
@@ -4610,6 +4613,7 @@ def _review_status(report: dict[str, Any] | None) -> dict[str, Any]:
         "merged_at": _optional_text(pull_request.get("mergedAt")),
         "merge_commit": _optional_text(_record(pull_request.get("mergeCommit")).get("oid")),
         "review_merged": review_merged,
+        "review_probe_only": review_probe_only,
         "promotion_execution_report_ref": _safe_display_ref(
             (report or {}).get("promotion_execution_report_ref")
         ),

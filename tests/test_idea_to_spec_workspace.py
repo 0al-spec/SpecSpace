@@ -2383,7 +2383,11 @@ def _review_status(review_state: str = "open") -> dict:
     }
 
 
-def _product_review_status(review_state: str = "open") -> dict:
+def _product_review_status(
+    review_state: str = "open",
+    *,
+    review_probe_only: bool = False,
+) -> dict:
     review_merged = review_state == "merged"
     return {
         "artifact_kind": (
@@ -2397,6 +2401,7 @@ def _product_review_status(review_state: str = "open") -> dict:
         "promotion_execution_report_ref": (
             "runs/product_candidate_promotion_execution_report.json"
         ),
+        "review_probe_only": review_probe_only,
         "graph_repository_review_status_report_ref": (
             "/tmp/team-decision-log-worktree/.platform/"
             "graph_repository_review_status_report.json"
@@ -3079,6 +3084,22 @@ def _quality_overview_payload(
 
 
 class IdeaToSpecWorkspaceTests(unittest.TestCase):
+    def test_review_probe_cannot_offer_read_model_publication(self) -> None:
+        report = _product_review_status(
+            "merged",
+            review_probe_only=True,
+        )
+        report["summary"]["status"] = "review_probe_completed"
+
+        projected = idea_to_spec_workspace._review_status(report)
+
+        self.assertTrue(projected["review_merged"])
+        self.assertTrue(projected["review_probe_only"])
+        self.assertEqual(
+            projected["next_action"],
+            "refresh_execution_backed_review_status",
+        )
+
     def test_quality_guided_ranking_puts_stale_state_before_depth(self) -> None:
         stages = [
             _quality_overview_stage(
@@ -3922,6 +3943,9 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["controlled_promotion"]["review_status"]["next_action"],
             "wait_for_review_merge",
+        )
+        self.assertFalse(
+            body["controlled_promotion"]["review_status"]["review_probe_only"]
         )
         self.assertEqual(
             body["controlled_promotion"]["review_status"]["operations"][1][

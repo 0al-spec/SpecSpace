@@ -365,6 +365,9 @@ describe("parseIdeaToSpecWorkspace", () => {
     );
     expect(parsed.data.controlledPromotion.reviewStatus.reviewNumber).toBe(12);
     expect(parsed.data.controlledPromotion.reviewStatus.baseBranch).toBe("main");
+    expect(parsed.data.controlledPromotion.reviewStatus.reviewProbeOnly).toBe(
+      false,
+    );
     expect(parsed.data.controlledPromotion.reviewStatus.nextAction).toBe(
       "wait_for_review_merge",
     );
