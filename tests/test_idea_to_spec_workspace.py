@@ -3100,6 +3100,87 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "refresh_execution_backed_review_status",
         )
 
+    def test_guided_approval_keeps_merged_probe_out_of_publication_stage(self) -> None:
+        path = idea_to_spec_workspace._guided_approval_path(
+            {
+                "approval_readiness": {
+                    "available": True,
+                    "promotion_review_can_be_requested": True,
+                    "blockers": [],
+                },
+                "controlled_promotion": {
+                    "available": True,
+                    "product_promotion_execution": {
+                        "available": True,
+                        "ok": True,
+                        "dry_run": False,
+                        "open_review_dry_run": False,
+                        "error_count": 0,
+                    },
+                    "review_status": {
+                        "available": True,
+                        "ok": True,
+                        "source_mode": "product",
+                        "review_state": "merged",
+                        "review_merged": True,
+                        "review_probe_only": True,
+                    },
+                },
+            }
+        )
+
+        self.assertEqual(path["stage"], "review_merge_waiting")
+        self.assertEqual(path["status"], "waiting_for_operator")
+        self.assertIn("review_probe_not_publishable", path["blockers"])
+        self.assertEqual(
+            path["next_action"],
+            "Refresh execution-backed review status before publication.",
+        )
+        self.assertEqual(path["checkpoints"][-1]["status"], "required")
+
+    def test_guided_flow_keeps_merged_probe_waiting_for_refresh(self) -> None:
+        flow = idea_to_spec_workspace._guided_flow(
+            {
+                "workflow": {"items": []},
+                "repair_session": {
+                    "readiness_impact": {"ready_for_candidate_approval": True}
+                },
+                "approval_readiness": {
+                    "ready_for_candidate_approval": True,
+                    "promotion_review_can_be_requested": True,
+                    "blockers": [],
+                },
+                "controlled_promotion": {
+                    "candidate_approval": {"available": True, "ready": True},
+                    "platform_request": {"ok": True},
+                    "product_promotion_execution": {
+                        "available": True,
+                        "ok": True,
+                    },
+                    "review_status": {
+                        "available": True,
+                        "ok": True,
+                        "review_merged": True,
+                        "review_probe_only": True,
+                    },
+                    "read_model_publication": {},
+                    "promotion_finalization": {},
+                },
+            }
+        )
+        stage = next(
+            item
+            for item in flow["stages"]
+            if item["id"] == idea_to_spec_workspace.STAGE_REVIEW_PUBLICATION
+        )
+
+        self.assertEqual(stage["status"], "waiting_for_operator")
+        self.assertEqual(
+            stage["primary_next_action"],
+            "Refresh execution-backed review status before publication.",
+        )
+        self.assertEqual(stage["blockers"], ["review_probe_not_publishable"])
+
     def test_quality_guided_ranking_puts_stale_state_before_depth(self) -> None:
         stages = [
             _quality_overview_stage(
