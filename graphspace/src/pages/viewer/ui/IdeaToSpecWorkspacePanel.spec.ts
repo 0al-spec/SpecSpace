@@ -409,6 +409,9 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("review-only evidence");
     expect(html).toContain("Candidate interpretation remains review-only.");
     expect(html).toContain("Reassess when the candidate enters another domain.");
+    expect(html).toContain("Structural change");
+    expect(html).toContain("termAdded");
+    expect(html).toContain("compatible");
     expect(html).toContain("invalidationTriggerAdded");
     expect(html).toContain("draft_spec_authoring");
     expect(html).toContain("candidate_authoring");

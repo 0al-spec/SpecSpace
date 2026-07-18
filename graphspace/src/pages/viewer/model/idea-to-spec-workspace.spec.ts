@@ -1642,6 +1642,43 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(parsed.data.candidateOverview.ontologyApplicability.reviewOnly).toBe(false);
   });
 
+  it("allows a backend not-published ontology applicability placeholder", () => {
+    const payload = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    payload.candidate_overview.ontology_applicability = {
+      status: null,
+      review_only: false,
+      profile_count: 0,
+      assumption_count: 0,
+      invalidation_trigger_count: 0,
+      profiles: [],
+      change_classification: {
+        status: null,
+        diff_package_refs: [],
+        matched_package_refs: [],
+        structural_changes: [],
+        annotation_changes: [],
+        applicability_changes: [],
+        classified_change_count: 0,
+      },
+      source_refs: [],
+      authority_boundary: {
+        may_infer_applicability: false,
+        may_enforce_runtime_policy: false,
+        may_mutate_candidate_artifacts: false,
+        may_write_ontology_package: false,
+        may_accept_ontology_terms: false,
+        may_approve_candidate: false,
+        may_promote_candidate: false,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.candidateOverview.ontologyApplicability.status).toBeNull();
+  });
+
   it("builds a deterministic candidate workflow topology view", () => {
     const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
 

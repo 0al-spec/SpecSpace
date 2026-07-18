@@ -5541,9 +5541,12 @@ function candidateOverviewBoundaryIsSafe(raw: unknown): boolean {
     "may_promote_candidate",
   ];
   const knownApplicabilityFlags = new Set(applicabilityFalseFlags);
+  const applicabilityStatus = optionalString(applicability.status);
+  const applicabilityIsNotPublished =
+    applicabilityStatus === null || applicabilityStatus === "not_published";
   const applicabilityIsSafe =
     Object.keys(applicability).length === 0 ||
-    (applicability.review_only === true &&
+    ((applicabilityIsNotPublished || applicability.review_only === true) &&
       applicabilityFalseFlags.every(
         (flag) => applicabilityBoundary[flag] === false,
       ) &&

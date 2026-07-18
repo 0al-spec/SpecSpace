@@ -4040,8 +4040,17 @@ function CandidateOverviewSection({
   const ontologyApplicabilityPublished =
     ontologyApplicability.status !== null &&
     ontologyApplicability.status !== "not_published";
-  const applicabilityChanges =
-    ontologyApplicability.changeClassification.applicabilityChanges;
+  const classifiedOntologyChanges = [
+    ...ontologyApplicability.changeClassification.structuralChanges.map(
+      (change) => ({ category: "Structural change", change }),
+    ),
+    ...ontologyApplicability.changeClassification.annotationChanges.map(
+      (change) => ({ category: "Annotation change", change }),
+    ),
+    ...ontologyApplicability.changeClassification.applicabilityChanges.map(
+      (change) => ({ category: "Applicability change", change }),
+    ),
+  ];
   return (
     <section id="idea-to-spec-candidate-overview" className={styles.reviewSection}>
       <SectionHeader
@@ -4193,7 +4202,10 @@ function CandidateOverviewSection({
             label="Applicability changes"
             value={
               ontologyApplicabilityPublished
-                ? String(applicabilityChanges.length)
+                ? String(
+                    ontologyApplicability.changeClassification
+                      .applicabilityChanges.length,
+                  )
                 : "Not published"
             }
           />
@@ -4270,12 +4282,12 @@ function CandidateOverviewSection({
               </span>
             </div>
           ))}
-        {applicabilityChanges.slice(0, 3).map((change) => (
+        {classifiedOntologyChanges.slice(0, 6).map(({ category, change }) => (
           <div
-            key={`ontology-applicability-change:${change.kind}:${change.ref}`}
+            key={`ontology-applicability-change:${category}:${change.kind}:${change.ref}`}
             className={styles.subRow}
           >
-            <span>Applicability change</span>
+            <span>{category}</span>
             <Pill value={change.kind} />
             <span className={styles.statusDetail}>
               {change.ref}
