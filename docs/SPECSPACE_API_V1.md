@@ -830,6 +830,20 @@ labels only: canonical node ids remain the only refs used by evidence,
 navigation, materialization, managed operations, and promotion. Older producer
 artifacts without aliases continue to render from title or id.
 
+Candidate Overview may also include SpecGraph `0216`
+`sections.ontology_applicability`. SpecSpace projects the compiler-backed
+applicability profiles, applies-to and exclusion scopes, assumptions,
+invalidation triggers, and structural/annotation/applicability change
+classification. The scope projection preserves domains, lifecycle phases,
+agent types, subsystems, runtimes, platforms, and contexts. Classification rows
+retain compiler-published target kind, before/after, and compatibility detail;
+foreign package diffs remain stale rather than being attached to the candidate.
+Missing `0216` evidence is rendered as `not_published`, not as zero
+applicability. The section is review-only: it cannot infer applicability,
+enforce runtime policy, mutate candidate or Ontology artifacts, accept terms,
+approve a candidate, or promote it. Missing required false flags and unknown
+truthy `may_*` flags invalidate the Candidate Overview consumer contract.
+
 The Product Workspace may render `candidate_overview.topology` as a read-only
 workflow map. This visualization groups event-storming items into actors,
 commands, events, policies, and constraints, then displays relation rows such as

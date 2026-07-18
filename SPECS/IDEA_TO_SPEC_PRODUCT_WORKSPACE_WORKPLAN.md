@@ -118,13 +118,15 @@ part of this rollout.
 
 ### 3. Ontology Applicability Review
 
-Status: follows durable-state production evidence.
+Status: Product Workspace consumer complete.
 
-Consume the Ontology ONT-040 compiler contract through SpecGraph-produced
-artifacts. Product Workspace should show applicability scopes, assumptions,
-exclusions, invalidation triggers, and structural/annotation/applicability
-change classification with provenance and navigation to the relevant candidate
-or ontology review section.
+SpecGraph `0216` now projects the existing Ontology ONT-040 compiler contract
+into Candidate Overview. Product Workspace shows applicability scopes,
+assumptions, exclusions, invalidation triggers, and
+structural/annotation/applicability change classification with sanitized
+provenance. The consumer preserves the full compiler scope vocabulary,
+classification detail, and package correlation status rather than narrowing or
+reinterpreting the producer contract.
 
 This is read-only review evidence. It is not an Idea Maturity score, runtime
 policy, automatic term acceptance, repair mutation, approval gate, or promotion
@@ -132,6 +134,12 @@ authority.
 
 ## Recently Closed
 
+- Ontology applicability review. Product Workspace now consumes the SpecGraph
+  `0216` Candidate Overview projection rather than reading Ontology compiler
+  artifacts independently. Missing evidence remains `not_published`; declared
+  scopes, assumptions, exclusions, invalidation triggers, and classified
+  changes remain review-only and cannot affect approval, promotion, runtime
+  policy, or Ontology authority.
 - Human-friendly candidate display aliases. SpecSpace now consumes the
   SpecGraph `0212` presentation-only `display_alias` contract: Candidate
   Overview and topology use readable aliases as primary labels while canonical

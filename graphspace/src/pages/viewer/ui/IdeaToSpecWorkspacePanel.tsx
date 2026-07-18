@@ -4035,6 +4035,22 @@ function CandidateOverviewSection({
       .map((item) => ({ collection: "domain-event", item })),
   ];
   const candidateNodes = overview.candidateNodes.nodes.slice(0, 4);
+  const ontologyApplicability = overview.ontologyApplicability;
+  const ontologyProfiles = ontologyApplicability.profiles.slice(0, 3);
+  const ontologyApplicabilityPublished =
+    ontologyApplicability.status !== null &&
+    ontologyApplicability.status !== "not_published";
+  const classifiedOntologyChanges = [
+    ...ontologyApplicability.changeClassification.structuralChanges.map(
+      (change) => ({ category: "Structural change", change }),
+    ),
+    ...ontologyApplicability.changeClassification.annotationChanges.map(
+      (change) => ({ category: "Annotation change", change }),
+    ),
+    ...ontologyApplicability.changeClassification.applicabilityChanges.map(
+      (change) => ({ category: "Applicability change", change }),
+    ),
+  ];
   return (
     <section id="idea-to-spec-candidate-overview" className={styles.reviewSection}>
       <SectionHeader
@@ -4124,6 +4140,165 @@ function CandidateOverviewSection({
             <Pill value={compact(item.kind, "node")} />
             <span className={styles.statusDetail}>
               {compact(item.title ?? item.detail, "Candidate node")}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className={styles.row}>
+        <div className={styles.rowHeader}>
+          <span className={styles.rowId}>Ontology applicability</span>
+          <Pill value={compact(ontologyApplicability.status, "not published")} />
+        </div>
+        <div className={styles.metaGrid}>
+          <Meta
+            label="Profiles"
+            value={
+              ontologyApplicabilityPublished
+                ? String(ontologyApplicability.profileCount)
+                : "Not published"
+            }
+          />
+          <Meta
+            label="Assumptions"
+            value={
+              ontologyApplicabilityPublished
+                ? String(ontologyApplicability.assumptionCount)
+                : "Not published"
+            }
+          />
+          <Meta
+            label="Invalidation triggers"
+            value={
+              ontologyApplicabilityPublished
+                ? String(ontologyApplicability.invalidationTriggerCount)
+                : "Not published"
+            }
+          />
+          <Meta
+            label="Classified changes"
+            value={
+              ontologyApplicabilityPublished
+                ? String(
+                    ontologyApplicability.changeClassification
+                      .classifiedChangeCount,
+                  )
+                : "Not published"
+            }
+          />
+          <Meta
+            label="Change evidence"
+            value={compact(
+              ontologyApplicability.changeClassification.status,
+              "not published",
+            )}
+          />
+          <Meta
+            label="Matched packages"
+            value={joined(
+              ontologyApplicability.changeClassification.matchedPackageRefs,
+            )}
+          />
+          <Meta
+            label="Applicability changes"
+            value={
+              ontologyApplicabilityPublished
+                ? String(
+                    ontologyApplicability.changeClassification
+                      .applicabilityChanges.length,
+                  )
+                : "Not published"
+            }
+          />
+          <Meta
+            label="Boundary"
+            value={
+              ontologyApplicability.reviewOnly
+                ? "review-only evidence"
+                : "not published"
+            }
+          />
+          <Meta
+            label="Sources"
+            value={joined(ontologyApplicability.sourceRefs)}
+          />
+        </div>
+        {ontologyProfiles.map((profile) => (
+          <div
+            key={`ontology-applicability:${compact(profile.packageRef, profile.packageId)}`}
+            className={styles.subRow}
+          >
+            <span>{compact(profile.packageRef, profile.packageId)}</span>
+            <Pill value={compact(profile.status, "declared")} />
+            <span className={styles.statusDetail}>
+              Applies to:{" "}
+              {joined([
+                ...profile.appliesTo.domains,
+                ...profile.appliesTo.lifecyclePhases,
+                ...profile.appliesTo.agentTypes,
+                ...profile.appliesTo.subsystems,
+                ...profile.appliesTo.runtimes,
+                ...profile.appliesTo.platforms,
+                ...profile.appliesTo.contexts,
+              ])}
+              {" · "}Excludes:{" "}
+              {joined([
+                ...profile.excludes.domains,
+                ...profile.excludes.lifecyclePhases,
+                ...profile.excludes.agentTypes,
+                ...profile.excludes.subsystems,
+                ...profile.excludes.runtimes,
+                ...profile.excludes.platforms,
+                ...profile.excludes.contexts,
+              ])}
+            </span>
+          </div>
+        ))}
+        {ontologyProfiles.flatMap((profile) => profile.assumptions).slice(0, 3).map(
+          (assumption) => (
+            <div
+              key={`ontology-applicability-assumption:${assumption.id}`}
+              className={styles.subRow}
+            >
+              <span>Assumption</span>
+              <Pill value={compact(assumption.layer, "model")} />
+              <span className={styles.statusDetail}>
+                {compact(assumption.text, assumption.id)}
+              </span>
+            </div>
+          ),
+        )}
+        {ontologyProfiles
+          .flatMap((profile) => profile.invalidationTriggers)
+          .slice(0, 3)
+          .map((trigger) => (
+            <div
+              key={`ontology-applicability-trigger:${trigger.id}`}
+              className={styles.subRow}
+            >
+              <span>Invalidation trigger</span>
+              <Pill value={compact(trigger.layer, "model")} />
+              <span className={styles.statusDetail}>
+                {compact(trigger.text, trigger.id)}
+              </span>
+            </div>
+          ))}
+        {classifiedOntologyChanges.slice(0, 6).map(({ category, change }) => (
+          <div
+            key={`ontology-applicability-change:${category}:${change.kind}:${change.ref}`}
+            className={styles.subRow}
+          >
+            <span>{category}</span>
+            <Pill value={change.kind} />
+            <span className={styles.statusDetail}>
+              {change.ref}
+              {change.targetKind ? ` · ${change.targetKind}` : ""}
+              {change.compatibility ? ` · ${change.compatibility}` : ""}
+              {change.before || change.after
+                ? ` · ${compact(change.before, "missing")} -> ${compact(
+                    change.after,
+                    "missing",
+                  )}`
+                : ""}
             </span>
           </div>
         ))}

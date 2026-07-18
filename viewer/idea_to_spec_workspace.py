@@ -1132,6 +1132,44 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
                 "detail": "candidate overview action boundary flags must remain false.",
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
+        ontology_applicability = _record(
+            _record(value.get("sections")).get("ontology_applicability")
+        )
+        if ontology_applicability:
+            applicability_boundary = _record(
+                ontology_applicability.get("authority_boundary")
+            )
+            required_false_flags = {
+                "may_infer_applicability",
+                "may_enforce_runtime_policy",
+                "may_mutate_candidate_artifacts",
+                "may_write_ontology_package",
+                "may_accept_ontology_terms",
+                "may_approve_candidate",
+                "may_promote_candidate",
+            }
+            if (
+                ontology_applicability.get("review_only") is not True
+                or any(
+                    applicability_boundary.get(flag) is not False
+                    for flag in required_false_flags
+                )
+                or any(
+                    key.startswith("may_")
+                    and key not in required_false_flags
+                    and flag is not False
+                    for key, flag in applicability_boundary.items()
+                )
+            ):
+                return {
+                    "reason": "invalid_artifact_contract",
+                    "detail": (
+                        "candidate overview ontology applicability must remain "
+                        "review-only without inference, policy, mutation, approval, "
+                        "or promotion authority."
+                    ),
+                    "artifact_kind": _optional_text(value.get("artifact_kind")),
+                }
         privacy_boundary = _record(value.get("privacy_boundary"))
         if any(
             key.startswith("raw_") and key.endswith("_published") and flag is True
@@ -1742,6 +1780,128 @@ def _overview_edges(value: Any) -> list[dict[str, Any]]:
     return rows
 
 
+def _overview_applicability_scope(value: Any) -> dict[str, list[str]]:
+    scope = _record(value)
+    return {
+        key: _string_list(scope.get(key))
+        for key in (
+            "domains",
+            "lifecycle_phases",
+            "agent_types",
+            "subsystems",
+            "runtimes",
+            "platforms",
+            "contexts",
+        )
+        if _string_list(scope.get(key))
+    }
+
+
+def _overview_applicability_records(value: Any) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records(value)[: DISPLAY_LIMITS["candidate_overview_items"]]:
+        record_id = _optional_text(item.get("id"))
+        if record_id is None:
+            continue
+        rows.append(
+            {
+                "id": record_id,
+                "layer": _optional_text(item.get("layer")),
+                "text": _optional_text(item.get("text")),
+            }
+        )
+    return rows
+
+
+def _overview_classified_changes(value: Any) -> list[dict[str, Any]]:
+    rows = []
+    for item in _records(value)[: DISPLAY_LIMITS["candidate_overview_items"]]:
+        kind = _optional_text(item.get("kind"))
+        ref = _safe_display_ref(item.get("ref"))
+        if kind is None or ref is None:
+            continue
+        rows.append(
+            {
+                "kind": kind,
+                "ref": ref,
+                "target_kind": _optional_text(item.get("target_kind")),
+                "before": _optional_text(item.get("before")),
+                "after": _optional_text(item.get("after")),
+                "compatibility": _optional_text(item.get("compatibility")),
+            }
+        )
+    return rows
+
+
+def _overview_ontology_applicability(value: Any) -> dict[str, Any]:
+    applicability = _record(value)
+    classification = _record(applicability.get("change_classification"))
+    profiles = []
+    for item in _records(applicability.get("profiles"))[
+        : DISPLAY_LIMITS["candidate_overview_items"]
+    ]:
+        package_id = _optional_text(item.get("package_id"))
+        package_ref = _safe_display_ref(item.get("package_ref"))
+        if package_id is None and package_ref is None:
+            continue
+        profiles.append(
+            {
+                "package_id": package_id,
+                "package_ref": package_ref,
+                "status": _optional_text(item.get("status")),
+                "applies_to": _overview_applicability_scope(item.get("applies_to")),
+                "excludes": _overview_applicability_scope(item.get("excludes")),
+                "assumptions": _overview_applicability_records(
+                    item.get("assumptions")
+                ),
+                "invalidation_triggers": _overview_applicability_records(
+                    item.get("invalidation_triggers")
+                ),
+            }
+        )
+    return {
+        "status": _optional_text(applicability.get("status")),
+        "review_only": applicability.get("review_only") is True,
+        "profile_count": _number(applicability.get("profile_count")),
+        "assumption_count": _number(applicability.get("assumption_count")),
+        "invalidation_trigger_count": _number(
+            applicability.get("invalidation_trigger_count")
+        ),
+        "profiles": profiles,
+        "change_classification": {
+            "status": _optional_text(classification.get("status")),
+            "diff_package_refs": _safe_display_refs(
+                classification.get("diff_package_refs")
+            ),
+            "matched_package_refs": _safe_display_refs(
+                classification.get("matched_package_refs")
+            ),
+            "structural_changes": _overview_classified_changes(
+                classification.get("structural_changes")
+            ),
+            "annotation_changes": _overview_classified_changes(
+                classification.get("annotation_changes")
+            ),
+            "applicability_changes": _overview_classified_changes(
+                classification.get("applicability_changes")
+            ),
+            "classified_change_count": _number(
+                classification.get("classified_change_count")
+            ),
+        },
+        "source_refs": _safe_display_refs(applicability.get("source_refs")),
+        "authority_boundary": {
+            "may_infer_applicability": False,
+            "may_enforce_runtime_policy": False,
+            "may_mutate_candidate_artifacts": False,
+            "may_write_ontology_package": False,
+            "may_accept_ontology_terms": False,
+            "may_approve_candidate": False,
+            "may_promote_candidate": False,
+        },
+    }
+
+
 def _candidate_overview(report: dict[str, Any] | None) -> dict[str, Any]:
     summary = _record((report or {}).get("summary"))
     candidate = _record((report or {}).get("candidate"))
@@ -1753,6 +1913,7 @@ def _candidate_overview(report: dict[str, Any] | None) -> dict[str, Any]:
     repair = _record(sections.get("repair"))
     idea_maturity_section = _record(sections.get("idea_maturity"))
     project_local_ontology = _record(sections.get("project_local_ontology"))
+    ontology_applicability = _record(sections.get("ontology_applicability"))
     next_action = _record((report or {}).get("next_action"))
     alias_by_node_id: dict[str, str] = {}
     for raw_node_id, raw_alias in _record(
@@ -1872,6 +2033,9 @@ def _candidate_overview(report: dict[str, Any] | None) -> dict[str, Any]:
                 project_local_ontology.get("blocking_decision_count")
             ),
         },
+        "ontology_applicability": _overview_ontology_applicability(
+            ontology_applicability
+        ),
         "next_action": {
             "action_id": _optional_text(next_action.get("action_id")),
             "label": _optional_text(next_action.get("label")),

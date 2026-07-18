@@ -1862,6 +1862,91 @@ export const ideaToSpecWorkspace = {
       accepted_decision_count: 2,
       blocking_decision_count: 0,
     },
+    ontology_applicability: {
+      status: "change_review_required",
+      review_only: true,
+      profile_count: 1,
+      assumption_count: 2,
+      invalidation_trigger_count: 1,
+      profiles: [
+        {
+          package_id: "org.0al.specgraph.core",
+          package_ref: "org.0al.specgraph.core@0.1.0",
+          status: "declared",
+          applies_to: {
+            domains: ["specgraph_core"],
+            lifecycle_phases: ["draft_spec_authoring"],
+            agent_types: ["SpecAuthorAgent"],
+            subsystems: ["candidate_authoring"],
+            runtimes: ["specgraph_cli"],
+            platforms: ["local_workspace"],
+            contexts: ["idea_to_spec"],
+          },
+          excludes: {
+            domains: ["unrelated_product_domain"],
+            platforms: ["unreviewed_runtime"],
+          },
+          assumptions: [
+            {
+              id: "assumption.review-only",
+              layer: "model",
+              text: "Candidate interpretation remains review-only.",
+            },
+            {
+              id: "assumption.explicit-boundary",
+              layer: "model",
+              text: "The product boundary is declared explicitly.",
+            },
+          ],
+          invalidation_triggers: [
+            {
+              id: "trigger.domain-expansion",
+              layer: "model",
+              text: "Reassess when the candidate enters another domain.",
+            },
+          ],
+        },
+      ],
+      change_classification: {
+        status: "published",
+        diff_package_refs: [
+          "org.0al.specgraph.core@0.1.0",
+          "org.0al.specgraph.core@0.2.0",
+        ],
+        matched_package_refs: ["org.0al.specgraph.core@0.1.0"],
+        structural_changes: [
+          {
+            kind: "termAdded",
+            ref: "ontology://specgraph-core#Spec",
+            target_kind: "class",
+            before: "missing",
+            after: "Spec",
+            compatibility: "compatible",
+          },
+        ],
+        annotation_changes: [],
+        applicability_changes: [
+          {
+            kind: "invalidationTriggerAdded",
+            ref: "ontology://specgraph-core#Spec",
+          },
+        ],
+        classified_change_count: 2,
+      },
+      source_refs: [
+        "runs/ontology_package_index.json",
+        "runs/ontology_compatibility_diff_preview.json",
+      ],
+      authority_boundary: {
+        may_infer_applicability: false,
+        may_enforce_runtime_policy: false,
+        may_mutate_candidate_artifacts: false,
+        may_write_ontology_package: false,
+        may_accept_ontology_terms: false,
+        may_approve_candidate: false,
+        may_promote_candidate: false,
+      },
+    },
     next_action: {
       action_id: "resolve_repair_blockers",
       label: "Resolve repair blockers",
