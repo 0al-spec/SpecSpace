@@ -16,6 +16,13 @@ from typing import Any, Callable, Union
 
 JsonObject = dict[str, Any]
 Fetcher = Callable[[str, bool], tuple[int, Union[JsonObject, str]]]
+MANAGED_STATUS_MODES = {
+    "read_only": "read_only",
+    "backend_managed_ready": "backend_managed",
+    "backend_managed_misconfigured": "backend_managed",
+    "hosted_managed_ready": "hosted_managed",
+    "hosted_managed_misconfigured": "hosted_managed",
+}
 
 
 WRITE_AUTHORITY_KEYS = {
@@ -232,11 +239,12 @@ def validate_smoke_payloads(
             "managed_mode_readiness",
             f"managed mode must be {config.expect_managed_mode!r}",
         )
-    if readiness.get("mode") != config.expect_managed_mode:
+    expected_mode = MANAGED_STATUS_MODES[config.expect_managed_mode]
+    if readiness.get("mode") != expected_mode:
         _add_error(
             errors,
             "managed_mode_readiness",
-            f"managed mode field must be {config.expect_managed_mode!r}",
+            f"managed mode field must be {expected_mode!r}",
         )
     executor = _as_dict(readiness.get("executor"))
     if config.expect_managed_mode == "read_only":

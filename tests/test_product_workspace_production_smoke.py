@@ -123,6 +123,46 @@ class ProductWorkspaceProductionSmokeTests(unittest.TestCase):
         self.assertTrue(report["checks"]["demo_view"]["checked"])
         self.assertTrue(report["checks"]["demo_view"]["html_shell"])
 
+    def test_happy_production_hosted_managed_workspace_passes(self) -> None:
+        config = _config(
+            workspace="hosted-operation-canary",
+            artifact_base=(
+                "https://specgraph.tech/workspaces/hosted-operation-canary"
+            ),
+            expect_managed_mode="hosted_managed_ready",
+        )
+        payload = _workspace_payload(
+            selected_workspace_id="hosted-operation-canary",
+            workspace={"id": "hosted-operation-canary"},
+            source={
+                "provider": "http-product-workspace",
+                "artifact_base_url": (
+                    "https://specgraph.tech/workspaces/hosted-operation-canary"
+                ),
+            },
+            managed_mode_readiness={
+                "status": "hosted_managed_ready",
+                "mode": "hosted_managed",
+                "executor": {"enabled": True, "configured": True},
+                "operations": {"enabled_count": 1},
+                "authority_boundary": {"may_execute_platform": False},
+            },
+        )
+
+        report = smoke.validate_smoke_payloads(
+            config,
+            health=_health(),
+            workspace_payload=payload,
+            shell_html="<html><body>SpecSpace</body></html>",
+            demo_view_html="<html><body>SpecSpace demo route</body></html>",
+        )
+
+        self.assertTrue(report["ok"])
+        self.assertEqual(
+            report["checks"]["managed_mode_readiness"]["mode"],
+            "hosted_managed",
+        )
+
     def test_wrong_managed_mode_blocks(self) -> None:
         payload = _workspace_payload(
             managed_mode_readiness={
