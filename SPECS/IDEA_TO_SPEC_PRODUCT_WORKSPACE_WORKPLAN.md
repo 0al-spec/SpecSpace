@@ -102,8 +102,9 @@ outside that window.
 
 ### 2. Production Managed-Mode Rollout
 
-Status: unblocked by the SpecSpace external-state consumer; Platform deployment,
-migration, recovery, and bounded production evidence are next.
+Status: external-state consumer and Platform state service are deployed; the
+Timeweb profile handoff, migration/restart verification, recovery, and bounded
+production evidence are next.
 
 Roll out the external state provider without widening execution authority. Start
 with the existing read-only operation allowlist, worker stopped, migration and
@@ -404,15 +405,16 @@ authority.
 
 ## Next Tasks
 
-### Immediate Priority: External Production State Backend
+### Immediate Priority: External Production State Cutover
 
-Status: planned; this is the next major SpecSpace/Platform milestone.
+Status: implementation merged; production cutover in progress.
 
-The Timeweb production profile remains `read_only_no_mutable_state`. The
-bounded hosted canary can use ephemeral request state, but continuous production
-managed mode must not store drafts, clarification answers, ontology decisions,
-execution requests, approval intents, or compact receipts in a replaceable
-application container.
+The Platform-owned PostgreSQL state service and SpecSpace HTTP consumer are
+implemented. Until the `timeweb_external_state` manifest is published and
+migration/restart evidence passes, the Timeweb production profile remains
+`read_only_no_mutable_state`. Continuous production managed mode must not store
+drafts, clarification answers, ontology decisions, execution requests, approval
+intents, or compact receipts in a replaceable application container.
 
 Target boundary:
 

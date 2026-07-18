@@ -157,3 +157,17 @@ def test_render_timeweb_deploy_branch_rejects_latest_tag(tmp_path: Path) -> None
 
     assert result.returncode != 0
     assert "must not use the mutable latest tag" in result.stderr
+
+
+def test_platform_publish_threads_external_state_profile() -> None:
+    workflow = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "PLATFORM_TIMEWEB_HOSTED_MANAGED_EXTERNAL_STATE_ENABLED" in workflow
+    assert "PLATFORM_TIMEWEB_HOSTED_MANAGED_EXECUTOR_URL" in workflow
+    assert "PLATFORM_TIMEWEB_EXTERNAL_STATE_URL" in workflow
+    assert '"hosted_managed_external_state_enabled"' in workflow
+    assert '"hosted_managed_executor_url"' in workflow
+    assert '"external_state_url"' in workflow
+    assert "SPECSPACE_EXTERNAL_STATE_TOKEN" not in workflow

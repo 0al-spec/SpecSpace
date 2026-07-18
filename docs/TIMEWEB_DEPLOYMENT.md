@@ -71,12 +71,13 @@ Platform queue/report evidence rather than blind resubmission.
 
 A persistent hosted profile must not reuse this container-local state pattern.
 It requires the external Platform-owned SpecSpace state service and
-`SPECSPACE_EXTERNAL_STATE_ENABLED=1`. In that profile `/tmp` remains an
-expendable private materialization cache; drafts, answers, decisions, intents,
-requests, compact receipts, and confirmation records live in the external
-PostgreSQL state database. `managed_mode_readiness` must report
-`provider_kind: external_http`, `restart_persistent: true`, and
-`hosted_managed_ready` before any continuous worker policy is considered.
+`SPECSPACE_EXTERNAL_STATE_ENABLED=1`. Platform renders this as the
+`timeweb_external_state` profile: `/tmp` remains an expendable private
+materialization cache; drafts, answers, decisions, intents, requests, compact
+receipts, and confirmation records live in the external PostgreSQL state
+database. `managed_mode_readiness` must report `provider_kind: external_http`,
+`restart_persistent: true`, and `hosted_managed_ready` before any bounded worker
+window opens.
 
 Timeweb's lack of Compose volumes does not make the external profile unsafe:
 the application container owns no durable state. The external service URL and
@@ -248,6 +249,9 @@ Enable it with repository variables and one secret in `0al-spec/SpecSpace`:
 | `PLATFORM_TIMEWEB_WORKFLOW_REF` | variable, optional | Platform ref containing `timeweb-publish.yml`. Defaults to `main`. |
 | `PLATFORM_TIMEWEB_ARTIFACT_BASE_URL` | variable, optional | SpecGraph static artifact base URL. Defaults to `https://specgraph.tech`. |
 | `PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL` | variable, optional | SpecPM registry URL. Defaults to `https://specpm.dev`. |
+| `PLATFORM_TIMEWEB_HOSTED_MANAGED_EXTERNAL_STATE_ENABLED` | variable, optional | Set to `true` only after the external state service rollout is ready. Defaults to `false`. |
+| `PLATFORM_TIMEWEB_HOSTED_MANAGED_EXECUTOR_URL` | variable, optional | Hosted Platform service origin. Defaults to `https://managed.specgraph.tech`. |
+| `PLATFORM_TIMEWEB_EXTERNAL_STATE_URL` | variable, optional | External state service URL. Defaults to `https://managed.specgraph.tech/specspace-state`. |
 
 The token should be a fine-grained GitHub token scoped to `0al-spec/Platform`
 with `Actions: Read and write` permission. It is used only to dispatch
@@ -255,6 +259,20 @@ Platform's workflow; Platform's own workflow token publishes the Platform deploy
 branch.
 SpecSpace CI waits for the dispatched Platform workflow and fails if Platform
 rendering, validation, or branch publishing fails.
+
+The external-state profile also requires two independent Timeweb global secret
+variables on the App itself:
+
+```text
+SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN
+SPECSPACE_EXTERNAL_STATE_TOKEN
+```
+
+Neither value is stored in GitHub variables, workflow inputs, the generated
+deploy branch, or deployment reports. The Platform manifest references only
+their environment names. Keep `PLATFORM_TIMEWEB_HOSTED_MANAGED_EXTERNAL_STATE_ENABLED`
+set to `false` until the state-service preflight, migration plan, and rollback
+evidence are ready.
 
 If the repository variable `SPECSPACE_DEPLOY_URL` is set to the public
 application URL, CI also runs the provider-neutral `Production Deploy Smoke`
