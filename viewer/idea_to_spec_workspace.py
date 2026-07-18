@@ -7688,6 +7688,9 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     promotion_execution_blocked = promotion_execution_status == "blocked"
     review_available = review_status.get("available") is True
     review_ok = review_status.get("ok") is True
+    review_execution_evidenced = (
+        review_available and review_ok and not promotion_execution_blocked
+    )
     review_probe_only = review_status.get("review_probe_only") is True
     review_merged = review_status.get("review_merged") is True
     review_publishable_merged = review_merged and not review_probe_only
@@ -8071,6 +8074,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
                 "completed"
                 if promotion_execution_ready_for_review
                 or promotion_execution_dry_run_complete
+                or review_execution_evidenced
                 else "blocked"
                 if promotion_execution_blocked
                 else "available"
@@ -8089,6 +8093,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
                 for ref in [
                     _stage_path_from_item(workflow, "product_promotion_execution"),
                     _stage_path_from_item(workflow, "git_service_execution"),
+                    _stage_path_from_item(workflow, "review_status"),
                 ]
                 if ref
             ],
@@ -8123,7 +8128,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
                 else ["review_probe_not_publishable"]
                 if review_probe_only and review_merged
                 else []
-                if promotion_execution_ready_for_review
+                if promotion_execution_ready_for_review or review_execution_evidenced
                 else ["git_dry_run_required"]
             ),
             evidence_refs=[

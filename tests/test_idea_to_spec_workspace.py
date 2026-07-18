@@ -3181,6 +3181,84 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(stage["blockers"], ["review_probe_not_publishable"])
 
+    def test_guided_flow_open_review_probe_supersedes_missing_execution_reports(
+        self,
+    ) -> None:
+        flow = idea_to_spec_workspace._guided_flow(
+            {
+                "workflow": {
+                    "items": [
+                        {
+                            "id": "candidate_graph",
+                            "status": "ready",
+                            "artifact_path": "runs/candidate_spec_graph.json",
+                        },
+                        {
+                            "id": "review_status",
+                            "status": "ready",
+                            "artifact_path": (
+                                "runs/hosted-operation-canary/"
+                                "product_candidate_promotion_review_status_report.json"
+                            ),
+                        }
+                    ]
+                },
+                "real_idea_intake": {"status": "active_candidate_ready"},
+                "repair_session": {
+                    "readiness_impact": {"ready_for_candidate_approval": True}
+                },
+                "approval_readiness": {
+                    "ready_for_candidate_approval": True,
+                    "promotion_review_can_be_requested": True,
+                    "blockers": [],
+                },
+                "controlled_promotion": {
+                    "candidate_approval": {"available": True, "ready": True},
+                    "platform_request": {"ok": True},
+                    "product_promotion_execution": {"available": False},
+                    "git_service_execution": {"available": False},
+                    "review_status": {
+                        "available": True,
+                        "ok": True,
+                        "review_state": "open",
+                        "review_merged": False,
+                        "review_probe_only": True,
+                    },
+                    "read_model_publication": {},
+                    "promotion_finalization": {},
+                },
+            }
+        )
+        git_stage = next(
+            item
+            for item in flow["stages"]
+            if item["id"] == idea_to_spec_workspace.STAGE_GIT_DRY_RUN
+        )
+        review_stage = next(
+            item
+            for item in flow["stages"]
+            if item["id"] == idea_to_spec_workspace.STAGE_REVIEW_PUBLICATION
+        )
+
+        self.assertEqual(git_stage["status"], "completed")
+        self.assertIn(
+            (
+                "runs/hosted-operation-canary/"
+                "product_candidate_promotion_review_status_report.json"
+            ),
+            git_stage["evidence_refs"],
+        )
+        self.assertEqual(review_stage["status"], "waiting_for_operator")
+        self.assertEqual(review_stage["blockers"], [])
+        self.assertEqual(
+            flow["current_stage"],
+            idea_to_spec_workspace.STAGE_REVIEW_PUBLICATION,
+        )
+        self.assertEqual(
+            flow["next_actions"][0]["label"],
+            "Inspect repository review status and publish public read model after merge.",
+        )
+
     def test_quality_guided_ranking_puts_stale_state_before_depth(self) -> None:
         stages = [
             _quality_overview_stage(
