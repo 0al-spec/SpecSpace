@@ -634,6 +634,7 @@ export type IdeaToSpecReviewStatus = {
   mergedAt: string | null;
   mergeCommit: string | null;
   reviewMerged: boolean;
+  reviewProbeOnly: boolean;
   promotionExecutionReportRef: string | null;
   graphRepositoryReviewStatusReportRef: string | null;
   operationCount: number;
@@ -3658,6 +3659,7 @@ function parseReviewStatus(raw: unknown): IdeaToSpecReviewStatus {
     mergedAt: optionalString(status.merged_at),
     mergeCommit: optionalString(status.merge_commit),
     reviewMerged: status.review_merged === true,
+    reviewProbeOnly: status.review_probe_only === true,
     promotionExecutionReportRef: displayRef(
       status.promotion_execution_report_ref,
     ),

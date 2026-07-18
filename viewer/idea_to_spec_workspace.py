@@ -4571,6 +4571,7 @@ def _review_status(report: dict[str, Any] | None) -> dict[str, Any]:
     graph_review = _record((report or {}).get("graph_repository_review_status"))
     graph_summary = _record(graph_review.get("summary"))
     review_state = _optional_text((report or {}).get("review_state"))
+    review_probe_only = (report or {}).get("review_probe_only") is True
     review_merged = (
         review_state == "merged"
         or summary.get("review_merged") is True
@@ -4586,6 +4587,8 @@ def _review_status(report: dict[str, Any] | None) -> dict[str, Any]:
         next_action = "run_product_candidate_promotion_review_status"
     elif not ok:
         next_action = "repair_review_status_report"
+    elif review_merged and review_probe_only:
+        next_action = "refresh_execution_backed_review_status"
     elif review_merged:
         next_action = "ready_to_publish_read_model"
     else:
@@ -4610,6 +4613,7 @@ def _review_status(report: dict[str, Any] | None) -> dict[str, Any]:
         "merged_at": _optional_text(pull_request.get("mergedAt")),
         "merge_commit": _optional_text(_record(pull_request.get("mergeCommit")).get("oid")),
         "review_merged": review_merged,
+        "review_probe_only": review_probe_only,
         "promotion_execution_report_ref": _safe_display_ref(
             (report or {}).get("promotion_execution_report_ref")
         ),
@@ -5278,10 +5282,12 @@ def _workflow(
         or journal_blocks_platform_promotion
     )
     review_status_summary = _record((review_status or {}).get("summary"))
+    review_probe_only = (review_status or {}).get("review_probe_only") is True
     review_merged = (
         (review_status or {}).get("review_state") == "merged"
         or review_status_summary.get("review_merged") is True
     )
+    review_publishable_merged = review_merged and not review_probe_only
     review_status_failed = review_status is not None and (review_status.get("ok") is not True)
     publish_summary = _record((read_model_publication or {}).get("summary"))
     publish_child_summary = _record(
@@ -5549,7 +5555,7 @@ def _workflow(
             status=_available_status(
                 statuses,
                 review_status_status_key,
-                review_merged,
+                review_publishable_merged,
                 blocked=review_status_failed,
             ),
             artifact_key=review_status_artifact_key,
@@ -5938,19 +5944,25 @@ def _workflow(
             "command_template": None,
             "authority_boundary": "operator_only",
         }
-    elif review_status is not None and not review_merged:
+    elif review_status is not None and (
+        not review_merged or review_probe_only
+    ):
         stage = "review_pending"
         status = "operator_review_required"
         next_handoff = {
             "kind": "repository_review",
-            "label": "Wait for repository review merge before read-model publish",
+            "label": (
+                "Refresh execution-backed review status before read-model publish"
+                if review_probe_only and review_merged
+                else "Wait for repository review merge before read-model publish"
+            ),
             "status": "operator_review_required",
             "artifact_key": review_status_status_key,
             "artifact_path": f"runs/{review_status_artifact_key}",
             "command_template": None,
             "authority_boundary": "operator_only",
         }
-    elif review_merged and not read_model_published:
+    elif review_publishable_merged and not read_model_published:
         stage = "read_model_publish_required"
         status = "ready_for_handoff"
         next_handoff = {
@@ -6296,7 +6308,9 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         not promotion_execution_available or promotion_execution_ready_for_review
     )
     review_ok = review_status.get("ok") is True
+    review_probe_only = review_status.get("review_probe_only") is True
     review_merged = review_can_be_used and review_status.get("review_merged") is True
+    review_publishable_merged = review_merged and not review_probe_only
     review_failed = review_can_be_used and not review_ok
     read_model_published = (
         read_model_publication.get("published") is True
@@ -6320,6 +6334,8 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         blockers.append("promotion_execution_failed")
     if review_failed:
         blockers.append("review_status_failed")
+    if review_merged and review_probe_only:
+        blockers.append("review_probe_not_publishable")
     if publication_failed:
         blockers.append("read_model_publication_failed")
     unique_blockers: list[str] = []
@@ -6343,7 +6359,12 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         status = "blocked"
         next_action = "Repair read-model publication report."
         target_section = "idea-to-spec-controlled-promotion"
-    elif review_merged:
+    elif review_merged and review_probe_only:
+        stage = "review_merge_waiting"
+        status = "waiting_for_operator"
+        next_action = "Refresh execution-backed review status before publication."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif review_publishable_merged:
         stage = "read_model_publication_needed"
         status = "waiting_for_operator"
         next_action = "Publish the public read model after repository review merge."
@@ -6431,7 +6452,7 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         ),
         "review_status": (
             "completed"
-            if review_merged
+            if review_publishable_merged
             else "waiting_for_operator"
             if review_can_be_used
             else "required"
@@ -6486,6 +6507,7 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
             "promotion_request_ok": promotion_request_ready,
             "promotion_execution_status": _optional_text(product_execution.get("status")),
             "review_state": _optional_text(review_status.get("review_state")),
+            "review_probe_only": review_probe_only,
             "read_model_published": read_model_published,
         },
         "checkpoints": [
@@ -7666,7 +7688,9 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
     promotion_execution_blocked = promotion_execution_status == "blocked"
     review_available = review_status.get("available") is True
     review_ok = review_status.get("ok") is True
+    review_probe_only = review_status.get("review_probe_only") is True
     review_merged = review_status.get("review_merged") is True
+    review_publishable_merged = review_merged and not review_probe_only
     read_model_published = (
         read_model_publication.get("published") is True
         or promotion_finalization.get("read_model_published") is True
@@ -8082,16 +8106,22 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
                 else "blocked"
                 if review_available and not review_ok
                 else "waiting_for_operator"
-                if review_available and not review_merged
+                if review_available and not review_publishable_merged
                 else "available"
                 if promotion_execution_ready_for_review
                 else "blocked"
             ),
-            next_action="Inspect repository review status and publish public read model after merge.",
+            next_action=(
+                "Refresh execution-backed review status before publication."
+                if review_probe_only and review_merged
+                else "Inspect repository review status and publish public read model after merge."
+            ),
             target_section="idea-to-spec-controlled-promotion",
             blockers=(
                 ["review_status_failed"]
                 if review_available and not review_ok
+                else ["review_probe_not_publishable"]
+                if review_probe_only and review_merged
                 else []
                 if promotion_execution_ready_for_review
                 else ["git_dry_run_required"]

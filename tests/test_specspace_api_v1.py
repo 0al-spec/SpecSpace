@@ -22,6 +22,7 @@ from viewer import (
     agent_surfaces,
     idea_to_spec_candidate_approval_intents,
     idea_to_spec_intake_clarification_answers,
+    idea_to_spec_read_model_publication_execution,
     idea_to_spec_repair_rerun_requests,
     idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
@@ -4287,6 +4288,28 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
 
 
 class SpecSpaceApiV1Tests(unittest.TestCase):
+    def test_review_probe_cannot_authorize_read_model_publication(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report_path = Path(tmp) / "review-status.json"
+            _write_json(
+                report_path,
+                {
+                    "artifact_kind": (
+                        "platform_product_candidate_promotion_review_status_report"
+                    ),
+                    "ok": True,
+                    "review_probe_only": True,
+                    "review_merged": True,
+                    "summary": {"review_merged": True},
+                },
+            )
+
+            self.assertFalse(
+                idea_to_spec_read_model_publication_execution._review_status_merged(
+                    report_path
+                )
+            )
+
     def test_agent_surface_runtime_environment_preserves_unknown_values(self) -> None:
         payload = agent_surfaces._runtime_environment(
             {

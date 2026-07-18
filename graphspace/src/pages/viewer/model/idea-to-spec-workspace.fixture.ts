@@ -3000,6 +3000,7 @@ export const ideaToSpecWorkspace = {
       merged_at: null,
       merge_commit: "abc123",
       review_merged: false,
+      review_probe_only: false,
       promotion_execution_report_ref:
         "runs/product_candidate_promotion_execution_report.json",
       graph_repository_review_status_report_ref:

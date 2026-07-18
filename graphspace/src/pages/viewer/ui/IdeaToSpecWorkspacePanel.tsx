@@ -9231,6 +9231,7 @@ function ControlledPromotionSection({
           <Meta label="Base" value={reviewStatus.baseBranch} />
           <Meta label="Head" value={reviewStatus.headBranch} />
           <Meta label="Merged" value={boolText(reviewStatus.reviewMerged)} />
+          <Meta label="Probe only" value={boolText(reviewStatus.reviewProbeOnly)} />
           <Meta label="Merged at" value={reviewStatus.mergedAt} />
           <Meta label="Merge commit" value={reviewStatus.mergeCommit} />
           <Meta

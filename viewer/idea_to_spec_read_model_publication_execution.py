@@ -100,6 +100,7 @@ def _review_status_merged(path: Path) -> bool:
         payload.get("artifact_kind")
         == "platform_product_candidate_promotion_review_status_report"
         and payload.get("ok") is True
+        and payload.get("review_probe_only") is not True
         and (payload.get("review_merged") is True or summary.get("review_merged") is True)
     )
 
