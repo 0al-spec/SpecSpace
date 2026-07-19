@@ -1215,6 +1215,25 @@ Implemented behavior:
   downstream review/publication lifecycle evidence;
 - Regression coverage keeps dry-run and non-dry-run output namespaces disjoint.
 
+### 19. Replay-Safe Promotion Dry-Run Re-entry
+
+Status: closed.
+
+Request-scoped dry-run reports intentionally do not enter the static product
+artifact catalog. A terminal hosted receipt therefore cannot make the reports
+lifecycle evidence, but it must not leave the replay-safe UI action indefinitely
+in `running_or_waiting`.
+
+Implemented behavior:
+
+- A succeeded `promotion_execute_dry_run` receipt returns the operation to
+  `ready_to_execute` when its current inputs remain available;
+- The terminal receipt, attempt, report refs, and digests remain visible as
+  transport evidence;
+- `transport_status_is_lifecycle_evidence` remains false;
+- Non-replay-safe operations still wait for their authoritative Platform
+  reports before becoming complete or executable again.
+
 ## Accepted Constraints And Runbook Notes
 
 The items below are accepted authority boundaries or operator runbook notes, not
