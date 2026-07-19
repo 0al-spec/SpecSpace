@@ -462,6 +462,58 @@ class HostedManagedExecutionTests(unittest.TestCase):
             "operator://specspace-backend",
         )
 
+    def test_workspace_projection_selects_latest_request_by_timestamp(self) -> None:
+        state = {
+            "status": "available",
+            "requests": [
+                {
+                    "workspace_id": "pantry-control",
+                    "operation_id": "review_status_execute",
+                    "request_id": "managed-operation://pantry-control/review/new",
+                    "status": "queued",
+                    "created_at": "2026-07-19T22:30:38Z",
+                    "updated_at": "2026-07-19T22:30:38Z",
+                },
+                {
+                    "workspace_id": "pantry-control",
+                    "operation_id": "review_status_execute",
+                    "request_id": "managed-operation://pantry-control/review/old",
+                    "status": "succeeded",
+                    "created_at": "2026-07-19T08:22:58Z",
+                    "updated_at": "2026-07-19T08:23:12Z",
+                },
+            ],
+        }
+
+        projection = hosted_managed_execution.workspace_projection(
+            state,
+            workspace_id="pantry-control",
+        )
+
+        self.assertEqual(
+            projection["operations"]["review_status_execute"]["request_id"],
+            "managed-operation://pantry-control/review/new",
+        )
+        self.assertEqual(projection["status_counts"], {"queued": 1})
+
+    def test_active_request_polling_order_uses_timestamps(self) -> None:
+        requests = [
+            {
+                "request_id": f"managed-operation://pantry-control/review/{index:02d}",
+                "created_at": f"2026-07-19T00:{index:02d}:00Z",
+                "updated_at": f"2026-07-19T00:{index:02d}:00Z",
+            }
+            for index in reversed(range(14))
+        ]
+
+        selected = sorted(
+            requests,
+            key=hosted_managed_execution._request_order_key,
+        )[-12:]
+
+        self.assertEqual(selected[0]["request_id"].rsplit("/", 1)[-1], "02")
+        self.assertEqual(selected[-1]["request_id"].rsplit("/", 1)[-1], "13")
+
     def test_enqueue_rejects_nested_authority_expansion(self) -> None:
         report = {
             "artifact_kind": "platform_hosted_managed_operation_enqueue_report",
