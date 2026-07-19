@@ -1206,6 +1206,69 @@ class HostedManagedExecutionTests(unittest.TestCase):
             ]
         )
 
+    def test_succeeded_promotion_dry_run_is_ready_for_fresh_replay(self) -> None:
+        payload = {
+            "artifacts": {
+                "platform_promotion_request": {"available": True},
+                "candidate_approval": {"available": True},
+                "graph_repository_execution_plan": {"available": True},
+            },
+            "hosted_managed_execution": {
+                "operations": {
+                    "promotion_execute_dry_run": {
+                        "request_id": (
+                            "managed-operation://pantry-control/"
+                            "promotion_execute_dry_run/0123456789abcdef01234567"
+                        ),
+                        "status": "succeeded",
+                        "attempt": 1,
+                        "output_reports": [
+                            {
+                                "logical_ref": (
+                                    "runs/managed-promotion-dry-runs/"
+                                    "0123456789abcdef01234567."
+                                    "product_candidate_promotion_execution_report.json"
+                                ),
+                                "sha256": "1" * 64,
+                            },
+                            {
+                                "logical_ref": (
+                                    "runs/managed-promotion-dry-runs/"
+                                    "0123456789abcdef01234567."
+                                    "git_service_promotion_execution_report.json"
+                                ),
+                                "sha256": "2" * 64,
+                            },
+                        ],
+                    }
+                }
+            },
+        }
+
+        observability = idea_to_spec_workspace._managed_operations_observability(
+            payload
+        )
+        promotion_dry_run = next(
+            item
+            for item in observability["operations"]
+            if item["operation_id"] == "promotion_execute_dry_run"
+        )
+
+        self.assertEqual(promotion_dry_run["status"], "ready_to_execute")
+        self.assertEqual(
+            promotion_dry_run["hosted_transport"]["status"],
+            "succeeded",
+        )
+        self.assertFalse(
+            promotion_dry_run["hosted_transport"][
+                "transport_status_is_lifecycle_evidence"
+            ]
+        )
+        self.assertIn(
+            "ready for controlled execution",
+            promotion_dry_run["next_safe_action"],
+        )
+
     def test_allowlist_blocks_excluded_observability_operation(self) -> None:
         observability = idea_to_spec_workspace._managed_operations_observability(
             {"artifacts": {}},

@@ -8821,6 +8821,16 @@ def _managed_operations_observability(
         if status != "completed":
             if hosted_status == "queued":
                 status = "execution_requested"
+            elif (
+                hosted_status == "succeeded"
+                and operation.operation_id == "promotion_execute_dry_run"
+                and status == "ready_to_execute"
+            ):
+                # A terminal receipt proves that the previous replay-safe
+                # inspection finished, but it does not replace its Platform
+                # reports as lifecycle evidence. Keep the action available for
+                # a fresh operator request.
+                status = "ready_to_execute"
             elif hosted_status in {"leased", "running", "succeeded"}:
                 status = "running_or_waiting"
             elif hosted_status in {"failed", "timed_out"}:
