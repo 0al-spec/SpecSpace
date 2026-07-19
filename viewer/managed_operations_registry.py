@@ -296,11 +296,13 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
             "runs/graph_repository_execution_plan.json",
         ),
         output_reports=(
-            "runs/product_candidate_promotion_execution_report.json",
-            "runs/git_service_promotion_execution_report.json",
+            "runs/managed-promotion-dry-runs/"
+            "<request-id>.product_candidate_promotion_execution_report.json",
+            "runs/managed-promotion-dry-runs/"
+            "<request-id>.git_service_promotion_execution_report.json",
         ),
         idempotency_key="promotion_request.request_id",
-        overwrite_policy="Dry-run reports are refreshable and must not create worktrees, commits, PRs, or read models.",
+        overwrite_policy="Dry-run reports are request-scoped and must not replace canonical non-dry-run promotion evidence or create worktrees, commits, PRs, or read models.",
         timeout_policy="Bounded by platform_execution_timeout_seconds; timeout is surfaced as dry-run incomplete.",
         replay_policy="Replay is allowed only as dry-run inspection for the same request and approval refs.",
         expected_ui_states=_COMMON_GATE_STATES,

@@ -182,9 +182,19 @@ def test_managed_operation_registry_records_reviewed_artifact_edges() -> None:
 
     promotion_dry_run = _operation("promotion_execute_dry_run")
     assert "runs/graph_repository_execution_plan.json" in promotion_dry_run.input_refs
+    assert promotion_dry_run.output_reports == (
+        "runs/managed-promotion-dry-runs/"
+        "<request-id>.product_candidate_promotion_execution_report.json",
+        "runs/managed-promotion-dry-runs/"
+        "<request-id>.git_service_promotion_execution_report.json",
+    )
 
     promotion_review = _operation("promotion_review_execute")
     assert "runs/graph_repository_execution_plan.json" in promotion_review.input_refs
+    assert promotion_review.output_reports == (
+        "runs/product_candidate_promotion_execution_report.json",
+        "runs/git_service_promotion_execution_report.json",
+    )
 
 
 def test_consume_on_attempt_operations_require_new_request_for_retry() -> None:
