@@ -4587,6 +4587,8 @@ def _review_status(report: dict[str, Any] | None) -> dict[str, Any]:
         next_action = "run_product_candidate_promotion_review_status"
     elif not ok:
         next_action = "repair_review_status_report"
+    elif review_state == "closed":
+        next_action = "open_new_promotion_review"
     elif review_merged and review_probe_only:
         next_action = "refresh_execution_backed_review_status"
     elif review_merged:
@@ -6309,6 +6311,9 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
     )
     review_ok = review_status.get("ok") is True
     review_probe_only = review_status.get("review_probe_only") is True
+    review_closed = (
+        review_can_be_used and review_status.get("review_state") == "closed"
+    )
     review_merged = review_can_be_used and review_status.get("review_merged") is True
     review_publishable_merged = review_merged and not review_probe_only
     review_failed = review_can_be_used and not review_ok
@@ -6334,6 +6339,8 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         blockers.append("promotion_execution_failed")
     if review_failed:
         blockers.append("review_status_failed")
+    if review_closed:
+        blockers.append("review_closed_without_merge")
     if review_merged and review_probe_only:
         blockers.append("review_probe_not_publishable")
     if publication_failed:
@@ -6368,6 +6375,11 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         stage = "read_model_publication_needed"
         status = "waiting_for_operator"
         next_action = "Publish the public read model after repository review merge."
+        target_section = "idea-to-spec-controlled-promotion"
+    elif review_closed:
+        stage = "review_closed"
+        status = "blocked"
+        next_action = "Open a new controlled promotion review before publication."
         target_section = "idea-to-spec-controlled-promotion"
     elif promotion_execution_failed:
         stage = "promotion_execution_needed"
@@ -6467,6 +6479,9 @@ def _guided_approval_path(payload: dict[str, Any]) -> dict[str, Any]:
         checkpoint_status["promotion_execution"] = "blocked"
     if review_failed:
         checkpoint_status["review_status"] = "blocked"
+    if review_closed:
+        checkpoint_status["review_status"] = "blocked"
+        checkpoint_status["read_model_publication"] = "blocked"
     if publication_failed:
         checkpoint_status["read_model_publication"] = "blocked"
 
@@ -7692,6 +7707,11 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         review_available and review_ok and not promotion_execution_blocked
     )
     review_probe_only = review_status.get("review_probe_only") is True
+    review_closed = (
+        review_available
+        and review_ok
+        and review_status.get("review_state") == "closed"
+    )
     review_merged = review_status.get("review_merged") is True
     review_publishable_merged = review_merged and not review_probe_only
     read_model_published = (
@@ -8110,6 +8130,8 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
                 if read_model_published
                 else "blocked"
                 if review_available and not review_ok
+                else "blocked"
+                if review_closed
                 else "waiting_for_operator"
                 if review_available and not review_publishable_merged
                 else "available"
@@ -8119,12 +8141,16 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
             next_action=(
                 "Refresh execution-backed review status before publication."
                 if review_probe_only and review_merged
+                else "Open a new controlled promotion review before publication."
+                if review_closed
                 else "Inspect repository review status and publish public read model after merge."
             ),
             target_section="idea-to-spec-controlled-promotion",
             blockers=(
                 ["review_status_failed"]
                 if review_available and not review_ok
+                else ["review_closed_without_merge"]
+                if review_closed
                 else ["review_probe_not_publishable"]
                 if review_probe_only and review_merged
                 else []

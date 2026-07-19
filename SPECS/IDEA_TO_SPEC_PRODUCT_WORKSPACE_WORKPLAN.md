@@ -1114,6 +1114,25 @@ Follow-up:
   `local-pantry-demo` workspace and not from the Team Decision Log demo
   artifacts.
 
+### 14. Closed Promotion Review Semantics
+
+Status: closed.
+
+An execution-backed promotion review that GitHub reports as `closed` without
+merge is a terminal blocker for that review object. Product Workspace must not
+project it as `waiting_for_review_merge` or expose read-model publication.
+
+Implemented behavior:
+
+- `controlled_promotion.review_status.next_action` requests a new controlled
+  promotion review;
+- Guided approval uses the explicit `review_closed` stage with
+  `review_closed_without_merge` as a blocker;
+- Review and publication stays blocked until a later execution-backed review is
+  opened and merged;
+- The existing digest-pinned bounded worker report can be normalized by the
+  Platform public-safe publication layer without replaying the operation.
+
 ## Accepted Constraints And Runbook Notes
 
 The items below are accepted authority boundaries or operator runbook notes, not
