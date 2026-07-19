@@ -7865,6 +7865,51 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "invalid_artifact_contract",
         )
 
+    def test_candidate_approval_accepts_producer_safety_invariants(self) -> None:
+        artifacts = _workspace_artifacts()
+        decision = _candidate_approval_decision()
+        decision["authority_boundary"].update(
+            {
+                "agent_may_recommend": True,
+                "git_service_execution_remains_separate": True,
+                "read_model_publish_requires_merged_review": True,
+                "review_merge_required_for_canonical_acceptance": True,
+            }
+        )
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT
+        ] = decision
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertTrue(body["artifacts"]["candidate_approval"]["available"])
+        self.assertTrue(
+            body["controlled_promotion"]["candidate_approval"]["ready"]
+        )
+
+    def test_candidate_approval_unknown_true_authority_flag_is_invalid(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        decision = _candidate_approval_decision()
+        decision["authority_boundary"]["may_execute_platform"] = True
+        artifacts[
+            idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT
+        ] = decision
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        artifact = body["artifacts"]["candidate_approval"]
+        self.assertFalse(artifact["available"])
+        self.assertEqual(artifact["reason"], "invalid_artifact_contract")
+        self.assertIn("may_execute_platform", artifact["detail"])
+
     def test_product_promotion_execution_authority_expansion_drops_report(
         self,
     ) -> None:

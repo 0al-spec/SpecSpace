@@ -177,6 +177,15 @@ GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT = (
     "git_service_promotion_finalization_report.json"
 )
 
+CANDIDATE_APPROVAL_SAFETY_INVARIANTS = frozenset(
+    {
+        "agent_may_recommend",
+        "git_service_execution_remains_separate",
+        "read_model_publish_requires_merged_review",
+        "review_merge_required_for_canonical_acceptance",
+    }
+)
+
 CORE_WORKSPACE_RUN_ARTIFACTS: tuple[str, ...] = (
     IDEA_EVENT_STORMING_INTAKE_ARTIFACT,
     CANDIDATE_SPEC_GRAPH_ARTIFACT,
@@ -1264,10 +1273,19 @@ def _artifact_contract_error(value: Any, filename: str) -> dict[str, Any] | None
         return None
     if filename == CANDIDATE_APPROVAL_DECISION_ARTIFACT:
         authority_boundary = _record(value.get("authority_boundary"))
-        if any(flag is True for flag in authority_boundary.values()):
+        unsafe_true_flags = sorted(
+            flag
+            for flag, enabled in authority_boundary.items()
+            if enabled is True
+            and flag not in CANDIDATE_APPROVAL_SAFETY_INVARIANTS
+        )
+        if unsafe_true_flags:
             return {
                 "reason": "invalid_artifact_contract",
-                "detail": "candidate approval authority boundary flags must remain false.",
+                "detail": (
+                    "candidate approval authority boundary contains unsupported "
+                    f"true flags: {', '.join(unsafe_true_flags)}."
+                ),
                 "artifact_kind": _optional_text(value.get("artifact_kind")),
             }
         if value.get("canonical_mutations_allowed") is not False:
