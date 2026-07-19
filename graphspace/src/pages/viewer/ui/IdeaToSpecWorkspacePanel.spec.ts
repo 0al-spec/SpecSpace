@@ -1018,6 +1018,38 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
   });
 
+  it("blocks publication after a promotion review closes without merge", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_approval_path.available = true;
+    raw.guided_approval_path.stage = "review_closed";
+    raw.guided_approval_path.status = "blocked";
+    raw.guided_approval_path.next_action =
+      "Open a new controlled promotion review before publication.";
+    raw.guided_approval_path.blockers = ["review_closed_without_merge"];
+    raw.guided_approval_path.state.review_state = "closed";
+    raw.guided_approval_path.state.read_model_published = false;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+        reviewStatusExecuteUrl: "/api/v1/idea-to-spec-review-status/execute",
+        readModelPublicationExecuteUrl:
+          "/api/v1/idea-to-spec-read-model-publication/execute",
+      }),
+    );
+
+    expect(html).toContain(
+      "Open a new controlled promotion review before publication.",
+    );
+    expect(html).toContain("review_closed_without_merge");
+    expect(html).not.toContain("Inspect review status");
+    expect(html).not.toContain("Publish read model");
+  });
+
   it("shows managed read-model publication action after review is merged", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.guided_approval_path.available = true;

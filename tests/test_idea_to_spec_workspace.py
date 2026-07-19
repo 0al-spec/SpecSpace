@@ -3100,6 +3100,104 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "refresh_execution_backed_review_status",
         )
 
+    def test_closed_review_requires_new_promotion_review(self) -> None:
+        projected = idea_to_spec_workspace._review_status(
+            _product_review_status("closed")
+        )
+
+        self.assertFalse(projected["review_merged"])
+        self.assertEqual(projected["review_state"], "closed")
+        self.assertEqual(projected["next_action"], "open_new_promotion_review")
+
+    def test_guided_approval_blocks_closed_review_without_merge(self) -> None:
+        path = idea_to_spec_workspace._guided_approval_path(
+            {
+                "approval_readiness": {
+                    "available": True,
+                    "promotion_review_can_be_requested": True,
+                    "blockers": [],
+                },
+                "controlled_promotion": {
+                    "available": True,
+                    "product_promotion_execution": {
+                        "available": True,
+                        "ok": True,
+                        "dry_run": False,
+                        "open_review_dry_run": False,
+                        "error_count": 0,
+                    },
+                    "review_status": {
+                        "available": True,
+                        "ok": True,
+                        "source_mode": "product",
+                        "review_state": "closed",
+                        "review_merged": False,
+                        "review_probe_only": False,
+                    },
+                },
+            }
+        )
+
+        self.assertEqual(path["stage"], "review_closed")
+        self.assertEqual(path["status"], "blocked")
+        self.assertEqual(
+            path["next_action"],
+            "Open a new controlled promotion review before publication.",
+        )
+        self.assertIn("review_closed_without_merge", path["blockers"])
+        checkpoint_by_id = {
+            checkpoint["id"]: checkpoint for checkpoint in path["checkpoints"]
+        }
+        self.assertEqual(checkpoint_by_id["review_status"]["status"], "blocked")
+        self.assertEqual(
+            checkpoint_by_id["read_model_publication"]["status"],
+            "blocked",
+        )
+
+    def test_guided_flow_blocks_closed_review_without_merge(self) -> None:
+        flow = idea_to_spec_workspace._guided_flow(
+            {
+                "workflow": {"items": []},
+                "repair_session": {
+                    "readiness_impact": {"ready_for_candidate_approval": True}
+                },
+                "approval_readiness": {
+                    "ready_for_candidate_approval": True,
+                    "promotion_review_can_be_requested": True,
+                    "blockers": [],
+                },
+                "controlled_promotion": {
+                    "candidate_approval": {"available": True, "ready": True},
+                    "platform_request": {"ok": True},
+                    "product_promotion_execution": {
+                        "available": True,
+                        "ok": True,
+                    },
+                    "review_status": {
+                        "available": True,
+                        "ok": True,
+                        "review_state": "closed",
+                        "review_merged": False,
+                        "review_probe_only": False,
+                    },
+                    "read_model_publication": {},
+                    "promotion_finalization": {},
+                },
+            }
+        )
+        stage = next(
+            item
+            for item in flow["stages"]
+            if item["id"] == idea_to_spec_workspace.STAGE_REVIEW_PUBLICATION
+        )
+
+        self.assertEqual(stage["status"], "blocked")
+        self.assertEqual(
+            stage["primary_next_action"],
+            "Open a new controlled promotion review before publication.",
+        )
+        self.assertEqual(stage["blockers"], ["review_closed_without_merge"])
+
     def test_guided_approval_keeps_merged_probe_out_of_publication_stage(self) -> None:
         path = idea_to_spec_workspace._guided_approval_path(
             {
