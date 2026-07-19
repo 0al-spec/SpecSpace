@@ -349,7 +349,7 @@ request remain idempotent.
 | `repair_rerun_publish` | Guided repair publication | `POST /api/v1/idea-to-spec-repair-rerun/publish` | `product-repair-rerun publish` | `runs/platform_product_repair_rerun_publication_report.json` |
 | `candidate_approval_execute` | Guided candidate approval | `POST /api/v1/idea-to-spec-candidate-approval/execute` | `product-candidate-approval approve` | `runs/platform_candidate_approval_intent_gate_report.json`, `runs/platform_candidate_approval_execution_report.json`, `runs/candidate_approval_decision.json` |
 | `promotion_request_execute` | Guided promotion request | `POST /api/v1/idea-to-spec-promotion-request/execute` | `product-candidate-promotion request` | `runs/graph_repository_promotion_request.json` |
-| `promotion_execute_dry_run` | Guided promotion dry-run | `POST /api/v1/idea-to-spec-promotion/execute` | `product-candidate-promotion execute --dry-run --open-review-dry-run` | `runs/product_candidate_promotion_execution_report.json`, `runs/git_service_promotion_execution_report.json` |
+| `promotion_execute_dry_run` | Guided promotion dry-run | `POST /api/v1/idea-to-spec-promotion/execute` | `product-candidate-promotion execute --dry-run --open-review-dry-run` | `runs/managed-promotion-dry-runs/<request-id>.product_candidate_promotion_execution_report.json`, `runs/managed-promotion-dry-runs/<request-id>.git_service_promotion_execution_report.json` |
 | `promotion_review_execute` | Guided promotion review | `POST /api/v1/idea-to-spec-promotion-review/execute` | `product-candidate-promotion execute` | `runs/product_candidate_promotion_execution_report.json`, `runs/git_service_promotion_execution_report.json` |
 | `review_status_execute` | Guided review status | `POST /api/v1/idea-to-spec-review-status/execute` | `product-candidate-promotion review-status` | `runs/product_candidate_promotion_review_status_report.json` |
 | `read_model_publication_execute` | Guided read-model publication | `POST /api/v1/idea-to-spec-read-model-publication/execute` | `product-candidate-promotion publish-read-model` | `runs/product_candidate_promotion_read_model_publication_report.json` |
@@ -364,6 +364,10 @@ Each operation has a declared idempotency source in
   request;
 - review-status inspection uses the review PR identity;
 - read-model publication uses merged review evidence.
+
+Replay-safe promotion dry-runs materialize request-scoped output reports. They
+must not overwrite the canonical non-dry-run promotion execution evidence used
+by review-status and publication lifecycle steps.
 
 Replay is acceptable only when the selected workspace, request/artifact refs,
 and digests still match. Some operations consume their request or intent before

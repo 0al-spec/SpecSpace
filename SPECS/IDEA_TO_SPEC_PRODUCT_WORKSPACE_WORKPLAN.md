@@ -1196,6 +1196,25 @@ Implemented behavior:
 - Regression coverage proves that a canonically reordered old terminal receipt
   cannot mask a newer queued replay-safe request.
 
+### 18. Request-Scoped Promotion Dry-Run Reports
+
+Status: closed.
+
+The first bounded production promotion dry-run exposed a cross-operation
+artifact collision. A successful dry-run replaced the canonical non-dry-run
+promotion execution report, so the following review-status inspection correctly
+rejected its own prerequisite.
+
+Implemented behavior:
+
+- Hosted promotion dry-runs write both Platform and Git Service reports under
+  `runs/managed-promotion-dry-runs/<request-id>.*`;
+- SpecSpace Managed Operations inventory exposes the same request-scoped output
+  contract as Platform;
+- Canonical promotion reports remain reserved for real review execution and
+  downstream review/publication lifecycle evidence;
+- Regression coverage keeps dry-run and non-dry-run output namespaces disjoint.
+
 ## Accepted Constraints And Runbook Notes
 
 The items below are accepted authority boundaries or operator runbook notes, not
