@@ -1133,6 +1133,28 @@ Implemented behavior:
 - The existing digest-pinned bounded worker report can be normalized by the
   Platform public-safe publication layer without replaying the operation.
 
+### 15. Candidate Approval Safety Invariants
+
+Status: closed.
+
+The production `hosted-operation-canary` rollout exposed a consumer mismatch:
+SpecGraph candidate approval decisions use affirmative booleans both for
+authority and for safety guarantees. SpecSpace previously rejected every
+affirmative `authority_boundary` value, so a valid approval decision appeared
+unavailable and blocked the UI-requested promotion dry-run.
+
+Implemented behavior:
+
+- Known producer safety invariants are accepted when true:
+  `agent_may_recommend`, `git_service_execution_remains_separate`,
+  `read_model_publish_requires_merged_review`, and
+  `review_merge_required_for_canonical_acceptance`;
+- Unknown or write-capable true flags remain fail-closed;
+- Top-level canonical mutation and tracked artifact write flags must remain
+  literal false;
+- Regression coverage uses the current producer decision shape and proves that
+  an unknown execution flag still invalidates the artifact.
+
 ## Accepted Constraints And Runbook Notes
 
 The items below are accepted authority boundaries or operator runbook notes, not
