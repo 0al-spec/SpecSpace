@@ -244,6 +244,15 @@ def _operator_ref(operation_id: str) -> str:
     return "operator://specspace-backend"
 
 
+def _request_order_key(item: dict[str, Any]) -> tuple[str, str, str]:
+    created_at = _text(item.get("created_at")) or ""
+    return (
+        _text(item.get("updated_at")) or created_at,
+        created_at,
+        _text(item.get("request_id")) or "",
+    )
+
+
 def _compact_enqueue_record(report: dict[str, Any]) -> dict[str, Any]:
     request = _record(report.get("request"))
     receipt = _record(report.get("receipt"))
@@ -686,12 +695,15 @@ def refresh_workspace(server: Any, *, workspace_id: str | None) -> dict[str, Any
     state = read_state(server, workspace_id=workspace_id)
     if workspace_id is None or state.get("status") == "invalid":
         return workspace_projection(state, workspace_id=workspace_id)
-    active = [
-        item
-        for item in state.get("requests", [])
-        if item.get("workspace_id") == workspace_id
-        and item.get("status") in ACTIVE_STATUSES
-    ][-12:]
+    active = sorted(
+        (
+            item
+            for item in state.get("requests", [])
+            if item.get("workspace_id") == workspace_id
+            and item.get("status") in ACTIVE_STATUSES
+        ),
+        key=_request_order_key,
+    )[-12:]
     if active:
         try:
             client = client_from_server(server)
@@ -727,7 +739,14 @@ def workspace_projection(
     latest_by_operation: dict[str, dict[str, Any]] = {}
     for item in requests:
         operation_id = _text(item.get("operation_id"))
-        if operation_id is not None:
+        latest = latest_by_operation.get(operation_id or "")
+        if (
+            operation_id is not None
+            and (
+                latest is None
+                or _request_order_key(item) > _request_order_key(latest)
+            )
+        ):
             latest_by_operation[operation_id] = item
     status_counts: dict[str, int] = {}
     for item in latest_by_operation.values():

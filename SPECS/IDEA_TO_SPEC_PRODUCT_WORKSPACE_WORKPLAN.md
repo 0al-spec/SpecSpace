@@ -1175,6 +1175,27 @@ Implemented behavior:
 - Non-dry-run promotion review remains a separate operation and is not exposed
   by this completed-lifecycle handling.
 
+### 17. Replay-Safe Hosted Request Ordering
+
+Status: closed.
+
+External state stores workspace documents in canonical order, which is not
+creation order. The first bounded production refresh exposed a projection bug:
+a newly queued replay-safe review-status request existed in PostgreSQL, but an
+older successful receipt could replace it in Product Workspace because the
+consumer treated array position as recency.
+
+Implemented behavior:
+
+- Hosted request recency is derived from `updated_at`, then `created_at`, with
+  `request_id` as a deterministic tie-breaker;
+- Product Workspace selects the latest request for each operation by that
+  ordering rather than document position;
+- Hosted status refresh polls the twelve newest active requests by the same
+  ordering;
+- Regression coverage proves that a canonically reordered old terminal receipt
+  cannot mask a newer queued replay-safe request.
+
 ## Accepted Constraints And Runbook Notes
 
 The items below are accepted authority boundaries or operator runbook notes, not
