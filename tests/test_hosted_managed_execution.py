@@ -514,6 +514,23 @@ class HostedManagedExecutionTests(unittest.TestCase):
         self.assertEqual(selected[0]["request_id"].rsplit("/", 1)[-1], "02")
         self.assertEqual(selected[-1]["request_id"].rsplit("/", 1)[-1], "13")
 
+    def test_request_order_uses_created_at_before_opaque_id(self) -> None:
+        older = {
+            "request_id": "managed-operation://pantry-control/review/ffffffff",
+            "created_at": "2026-07-19T22:30:37Z",
+            "updated_at": "2026-07-19T22:30:38Z",
+        }
+        newer = {
+            "request_id": "managed-operation://pantry-control/review/00000000",
+            "created_at": "2026-07-19T22:30:38Z",
+            "updated_at": "2026-07-19T22:30:38Z",
+        }
+
+        self.assertLess(
+            hosted_managed_execution._request_order_key(older),
+            hosted_managed_execution._request_order_key(newer),
+        )
+
     def test_enqueue_rejects_nested_authority_expansion(self) -> None:
         report = {
             "artifact_kind": "platform_hosted_managed_operation_enqueue_report",

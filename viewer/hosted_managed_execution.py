@@ -244,9 +244,11 @@ def _operator_ref(operation_id: str) -> str:
     return "operator://specspace-backend"
 
 
-def _request_order_key(item: dict[str, Any]) -> tuple[str, str]:
+def _request_order_key(item: dict[str, Any]) -> tuple[str, str, str]:
+    created_at = _text(item.get("created_at")) or ""
     return (
-        _text(item.get("updated_at")) or _text(item.get("created_at")) or "",
+        _text(item.get("updated_at")) or created_at,
+        created_at,
         _text(item.get("request_id")) or "",
     )
 
