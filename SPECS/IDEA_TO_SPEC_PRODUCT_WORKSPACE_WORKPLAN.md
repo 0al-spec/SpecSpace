@@ -1155,6 +1155,26 @@ Implemented behavior:
 - Regression coverage uses the current producer decision shape and proves that
   an unknown execution flag still invalidates the artifact.
 
+### 16. Replay-Safe Operations After Publication
+
+Status: closed.
+
+The bounded production rollout uses an already published dedicated workspace.
+Its lifecycle must remain `published`, but operators still need to request
+allowlisted replay-safe diagnostics without deleting or masking publication
+evidence.
+
+Implemented behavior:
+
+- Guided approval exposes promotion dry-run when Managed Operations reports
+  `promotion_execute_dry_run` as ready or retryable;
+- Guided approval exposes review-status refresh when the replay-safe operation
+  is ready, completed, or retryable;
+- Deployment-disabled, queued, running, quarantined, and rejected operations do
+  not gain action buttons;
+- Non-dry-run promotion review remains a separate operation and is not exposed
+  by this completed-lifecycle handling.
+
 ## Accepted Constraints And Runbook Notes
 
 The items below are accepted authority boundaries or operator runbook notes, not

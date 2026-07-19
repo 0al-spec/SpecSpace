@@ -1139,6 +1139,12 @@ export function IdeaToSpecWorkspacePanel({
       readOnly={readOnly}
     />
   );
+  const managedPromotionDryRunStatus = data.managedOperations.operations.find(
+    (operation) => operation.operationId === "promotion_execute_dry_run",
+  )?.status;
+  const managedReviewStatusStatus = data.managedOperations.operations.find(
+    (operation) => operation.operationId === "review_status_execute",
+  )?.status;
   const guidedApprovalPathSection = (
     <GuidedApprovalPathSection
       path={data.guidedApprovalPath}
@@ -1154,6 +1160,8 @@ export function IdeaToSpecWorkspacePanel({
       promotionReviewExecutionState={promotionReviewExecutionState}
       reviewStatusExecutionState={reviewStatusExecutionState}
       readModelPublicationExecutionState={readModelPublicationExecutionState}
+      managedPromotionDryRunStatus={managedPromotionDryRunStatus}
+      managedReviewStatusStatus={managedReviewStatusStatus}
       onExecute={executeCandidateApproval}
       onPromotionRequestExecute={executePromotionRequest}
       onPromotionExecute={executePromotionDryRun}
@@ -3627,6 +3635,8 @@ function GuidedApprovalPathSection({
   promotionReviewExecutionState,
   reviewStatusExecutionState,
   readModelPublicationExecutionState,
+  managedPromotionDryRunStatus,
+  managedReviewStatusStatus,
   onExecute,
   onPromotionRequestExecute,
   onPromotionExecute,
@@ -3672,6 +3682,8 @@ function GuidedApprovalPathSection({
     status: string | null;
     error: string | null;
   };
+  managedPromotionDryRunStatus?: string;
+  managedReviewStatusStatus?: string;
   onExecute?: () => void;
   onPromotionRequestExecute?: () => void;
   onPromotionExecute?: () => void;
@@ -3699,9 +3711,13 @@ function GuidedApprovalPathSection({
     path.state.candidateApprovalState === "approved" &&
     path.state.promotionRequestOk === false &&
     !promotionRequestExecutionState?.pending;
+  const managedPromotionDryRunCanRun =
+    managedPromotionDryRunStatus === "ready_to_execute" ||
+    managedPromotionDryRunStatus === "failed";
   const showManagedPromotionExecution =
-    path.stage === "promotion_execution_needed" &&
-    (path.state.promotionExecutionStatus === null || path.status === "blocked");
+    (path.stage === "promotion_execution_needed" &&
+      (path.state.promotionExecutionStatus === null || path.status === "blocked")) ||
+    managedPromotionDryRunCanRun;
   const canRunManagedPromotionExecution =
     !readOnly &&
     Boolean(promotionExecuteUrl) &&
@@ -3718,8 +3734,13 @@ function GuidedApprovalPathSection({
     showManagedPromotionReviewExecution &&
     path.state.promotionRequestOk === true &&
     !promotionReviewExecutionState?.pending;
+  const managedReviewStatusCanRun =
+    managedReviewStatusStatus === "ready_to_execute" ||
+    managedReviewStatusStatus === "completed" ||
+    managedReviewStatusStatus === "failed";
   const showManagedReviewStatus =
-    path.stage === "review_merge_waiting" && path.state.reviewState === null;
+    (path.stage === "review_merge_waiting" && path.state.reviewState === null) ||
+    managedReviewStatusCanRun;
   const canRunManagedReviewStatus =
     !readOnly &&
     Boolean(reviewStatusExecuteUrl) &&
@@ -3878,7 +3899,9 @@ function GuidedApprovalPathSection({
             >
               {reviewStatusExecutionState?.pending
                 ? "Inspecting review status..."
-                : "Inspect review status"}
+                : path.state.reviewState === null
+                  ? "Inspect review status"
+                  : "Refresh review status"}
             </button>
             <span className={styles.statusDetail}>
               SpecSpace backend will call the allowlisted Platform review-status inspection.

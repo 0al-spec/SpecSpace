@@ -1018,6 +1018,89 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
   });
 
+  it("keeps replay-safe managed actions available after publication", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.guided_approval_path.available = true;
+    raw.guided_approval_path.stage = "published";
+    raw.guided_approval_path.status = "completed";
+    raw.guided_approval_path.state.promotion_request_ok = true;
+    raw.guided_approval_path.state.review_state = "merged";
+    raw.guided_approval_path.state.read_model_published = true;
+    const authorityBoundary = {
+      ...raw.guided_flow.authority_boundary,
+      managed_operations_observability_is_authority: false,
+      may_run_shell: false,
+      may_publish_read_model: false,
+    };
+    raw.managed_operations_observability = {
+      available: true,
+      surface_id: "specspace.managed-operations.observability.v0.1",
+      surface_kind: "managed_operations_observability",
+      summary: {
+        operation_count: 2,
+        completed_count: 1,
+        failed_count: 0,
+        stale_count: 0,
+        request_needed_count: 0,
+        new_request_required_count: 0,
+        ready_to_execute_count: 1,
+        gate_needed_count: 0,
+      },
+      status_counts: { completed: 1, ready_to_execute: 1 },
+      groups: [],
+      operations: [
+        {
+          operation_id: "promotion_execute_dry_run",
+          category: "promotion",
+          lifecycle_stage: "promotion",
+          ui_stage: "Guided promotion dry-run",
+          endpoint: "/api/v1/idea-to-spec-promotion/execute",
+          platform_command: [
+            "product-candidate-promotion",
+            "execute",
+            "--dry-run",
+          ],
+          status: "ready_to_execute",
+          input_refs: [],
+          output_reports: [],
+          authority_boundary: authorityBoundary,
+        },
+        {
+          operation_id: "review_status_execute",
+          category: "publication",
+          lifecycle_stage: "review_publication",
+          ui_stage: "Guided review status",
+          endpoint: "/api/v1/idea-to-spec-review-status/execute",
+          platform_command: [
+            "product-candidate-promotion",
+            "review-status",
+          ],
+          status: "completed",
+          input_refs: [],
+          output_reports: [],
+          authority_boundary: authorityBoundary,
+        },
+      ],
+      authority_boundary: authorityBoundary,
+    };
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+        promotionExecuteUrl: "/api/v1/idea-to-spec-promotion/execute",
+        reviewStatusExecuteUrl: "/api/v1/idea-to-spec-review-status/execute",
+      }),
+    );
+
+    expect(html).toContain("Run promotion dry-run");
+    expect(html).toContain("Refresh review status");
+    expect(html).not.toContain("Open review PR");
+  });
+
   it("blocks publication after a promotion review closes without merge", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.guided_approval_path.available = true;
