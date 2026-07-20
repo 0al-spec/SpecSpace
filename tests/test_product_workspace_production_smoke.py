@@ -27,6 +27,7 @@ def _config(**overrides):
         "timeout_seconds": 1.0,
         "require_deployment_metadata": True,
         "require_demo_view": True,
+        "require_operator_auth": True,
     }
     data.update(overrides)
     return smoke.SmokeConfig(**data)
@@ -38,6 +39,13 @@ def _health():
         "deployment": {
             "version": "0.0.1",
             "commit": "abc123",
+        },
+        "operator_access_control": {
+            "status": "single_operator",
+            "enabled": True,
+            "operator_authenticated": False,
+            "private_state_requires_operator": True,
+            "managed_operations_require_operator": True,
         },
     }
 
@@ -105,6 +113,8 @@ def _report(
         workspace_payload=payload or _workspace_payload(),
         shell_html=html,
         demo_view_html=demo_view_html,
+        private_state_status=401,
+        managed_execute_status=401,
     )
 
 
@@ -155,6 +165,8 @@ class ProductWorkspaceProductionSmokeTests(unittest.TestCase):
             workspace_payload=payload,
             shell_html="<html><body>SpecSpace</body></html>",
             demo_view_html="<html><body>SpecSpace demo route</body></html>",
+            private_state_status=401,
+            managed_execute_status=401,
         )
 
         self.assertTrue(report["ok"])
@@ -238,6 +250,8 @@ class ProductWorkspaceProductionSmokeTests(unittest.TestCase):
             workspace_payload=_workspace_payload(),
             shell_html="<html><body>SpecSpace</body></html>",
             demo_view_html=None,
+            private_state_status=401,
+            managed_execute_status=401,
         )
 
         self.assertTrue(report["ok"])
@@ -266,10 +280,98 @@ class ProductWorkspaceProductionSmokeTests(unittest.TestCase):
         self.assert_error_check(report, "authority_boundary")
 
     def test_missing_deployment_metadata_blocks_when_required(self) -> None:
-        report = _report(health={"api_version": "v1", "deployment": {}})
+        health = _health()
+        health["deployment"] = {}
+        report = _report(health=health)
 
         self.assertFalse(report["ok"])
         self.assert_error_check(report, "health")
+
+    def test_missing_operator_access_control_blocks(self) -> None:
+        report = _report(
+            health={
+                "api_version": "v1",
+                "deployment": {"version": "0.0.1", "commit": "abc123"},
+            }
+        )
+
+        self.assertFalse(report["ok"])
+        self.assert_error_check(report, "operator_access_control")
+
+    def test_anonymous_private_or_managed_access_blocks(self) -> None:
+        report = smoke.validate_smoke_payloads(
+            _config(),
+            health=_health(),
+            workspace_payload=_workspace_payload(),
+            shell_html="<html><body>SpecSpace</body></html>",
+            demo_view_html="<html><body>SpecSpace demo route</body></html>",
+            private_state_status=200,
+            managed_execute_status=200,
+        )
+
+        self.assertFalse(report["ok"])
+        self.assert_error_check(report, "operator_access_control")
+
+    def test_public_workspace_private_field_blocks(self) -> None:
+        payload = _workspace_payload(
+            workspace_creation={
+                "active_request": {
+                    "workspace_id": "team-decision-log",
+                    "root_intent_summary": "private product idea",
+                }
+            }
+        )
+
+        report = _report(payload)
+
+        self.assertFalse(report["ok"])
+        self.assert_error_check(report, "public_projection_privacy")
+
+    def test_operator_auth_check_can_be_disabled_for_pre_rollout_probe(self) -> None:
+        report = smoke.validate_smoke_payloads(
+            _config(require_operator_auth=False),
+            health={
+                "api_version": "v1",
+                "deployment": {"version": "0.0.1", "commit": "abc123"},
+            },
+            workspace_payload=_workspace_payload(),
+            shell_html="<html><body>SpecSpace</body></html>",
+            demo_view_html="<html><body>SpecSpace demo route</body></html>",
+        )
+
+        self.assertTrue(report["ok"])
+        self.assertFalse(report["checks"]["operator_access_control"]["checked"])
+
+    def test_run_smoke_checks_anonymous_operator_boundaries(self) -> None:
+        calls = []
+
+        def fetch(url, expect_json, method, body, headers):
+            calls.append((url, expect_json, method, body, headers))
+            if url.endswith("/api/v1/health"):
+                return 200, _health()
+            if "/api/v1/idea-to-spec-workspace?" in url:
+                return 200, _workspace_payload()
+            if "/api/v1/real-idea-entry-requests?" in url:
+                return 401, {"error": "operator_auth_required"}
+            if "/api/v1/idea-to-spec-review-status/execute?" in url:
+                return 401, {"error": "operator_auth_required"}
+            return 200, "<html><body>SpecSpace</body></html>"
+
+        report = smoke.run_smoke(_config(), fetch=fetch)
+
+        self.assertTrue(report["ok"])
+        self.assertEqual(
+            report["checks"]["operator_access_control"]["private_state_status"],
+            401,
+        )
+        self.assertEqual(
+            report["checks"]["operator_access_control"]["managed_execute_status"],
+            401,
+        )
+        self.assertIn(
+            "POST",
+            {method for _, _, method, _, _ in calls},
+        )
 
 
 if __name__ == "__main__":

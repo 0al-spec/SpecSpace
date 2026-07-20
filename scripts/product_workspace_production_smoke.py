@@ -15,7 +15,10 @@ from typing import Any, Callable, Union
 
 
 JsonObject = dict[str, Any]
-Fetcher = Callable[[str, bool], tuple[int, Union[JsonObject, str]]]
+Fetcher = Callable[
+    [str, bool, str, bytes | None, dict[str, str] | None],
+    tuple[int, Union[JsonObject, str]],
+]
 MANAGED_STATUS_MODES = {
     "read_only": "read_only",
     "backend_managed_ready": "backend_managed",
@@ -64,6 +67,7 @@ class SmokeConfig:
     timeout_seconds: float
     require_deployment_metadata: bool = True
     require_demo_view: bool = True
+    require_operator_auth: bool = True
 
 
 def _join_url(base_url: str, path: str) -> str:
@@ -77,15 +81,31 @@ def _workspace_api_path(workspace: str) -> str:
 
 
 def _default_fetch(timeout_seconds: float) -> Fetcher:
-    def fetch(url: str, expect_json: bool) -> tuple[int, JsonObject | str]:
-        with urllib.request.urlopen(url, timeout=timeout_seconds) as response:
-            body = response.read().decode("utf-8", errors="replace")
+    def fetch(
+        url: str,
+        expect_json: bool,
+        method: str,
+        body: bytes | None,
+        headers: dict[str, str] | None,
+    ) -> tuple[int, JsonObject | str]:
+        request = urllib.request.Request(
+            url,
+            data=body,
+            headers=headers or {},
+            method=method,
+        )
+        try:
+            response = urllib.request.urlopen(request, timeout=timeout_seconds)
+        except urllib.error.HTTPError as exc:
+            response = exc
+        with response:
+            response_body = response.read().decode("utf-8", errors="replace")
             if expect_json:
-                parsed = json.loads(body)
+                parsed = json.loads(response_body)
                 if not isinstance(parsed, dict):
                     raise ValueError(f"{url} returned non-object JSON")
                 return response.status, parsed
-            return response.status, body
+            return response.status, response_body
 
     return fetch
 
@@ -96,12 +116,15 @@ def _wait_fetch(
     *,
     expect_json: bool,
     timeout_seconds: float,
+    method: str = "GET",
+    body: bytes | None = None,
+    headers: dict[str, str] | None = None,
 ) -> tuple[int, JsonObject | str]:
     deadline = time.time() + timeout_seconds
     last_error: BaseException | None = None
     while time.time() < deadline:
         try:
-            return fetch(url, expect_json)
+            return fetch(url, expect_json, method, body, headers)
         except (
             ConnectionError,
             TimeoutError,
@@ -145,6 +168,21 @@ def _false_authority_errors(value: Any, prefix: str = "") -> list[JsonObject]:
     return errors
 
 
+def _private_field_paths(value: Any, prefix: str = "") -> list[str]:
+    paths: list[str] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_prefix = f"{prefix}.{key}" if prefix else str(key)
+            if key in {"idea_text", "root_intent_summary"}:
+                paths.append(child_prefix)
+            paths.extend(_private_field_paths(child, child_prefix))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            child_prefix = f"{prefix}[{index}]" if prefix else f"[{index}]"
+            paths.extend(_private_field_paths(child, child_prefix))
+    return paths
+
+
 def validate_smoke_payloads(
     config: SmokeConfig,
     *,
@@ -152,6 +190,8 @@ def validate_smoke_payloads(
     workspace_payload: JsonObject,
     shell_html: str,
     demo_view_html: str | None = None,
+    private_state_status: int | None = None,
+    managed_execute_status: int | None = None,
 ) -> JsonObject:
     errors: list[JsonObject] = []
     warnings: list[JsonObject] = []
@@ -165,6 +205,44 @@ def validate_smoke_payloads(
                 errors,
                 "health",
                 "deployment.commit or deployment.version is required",
+            )
+    access_control = _as_dict(health.get("operator_access_control"))
+    if config.require_operator_auth:
+        if access_control.get("enabled") is not True:
+            _add_error(
+                errors,
+                "operator_access_control",
+                "operator access control must be enabled",
+            )
+        if access_control.get("status") != "single_operator":
+            _add_error(
+                errors,
+                "operator_access_control",
+                "operator access control status must be single_operator",
+            )
+        if access_control.get("private_state_requires_operator") is not True:
+            _add_error(
+                errors,
+                "operator_access_control",
+                "private state must require operator authentication",
+            )
+        if access_control.get("managed_operations_require_operator") is not True:
+            _add_error(
+                errors,
+                "operator_access_control",
+                "managed operations must require operator authentication",
+            )
+        if private_state_status != 401:
+            _add_error(
+                errors,
+                "operator_access_control",
+                "anonymous private-state GET must return HTTP 401",
+            )
+        if managed_execute_status != 401:
+            _add_error(
+                errors,
+                "operator_access_control",
+                "anonymous managed-operation POST must return HTTP 401",
             )
 
     if "<html" not in shell_html.lower():
@@ -279,6 +357,14 @@ def validate_smoke_payloads(
             "managed_operations",
             "managed operations observability must list operations",
         )
+    private_field_paths = _private_field_paths(workspace_payload)
+    if private_field_paths:
+        _add_error(
+            errors,
+            "public_projection_privacy",
+            "anonymous Product Workspace payload contains private fields: "
+            + ", ".join(private_field_paths),
+        )
 
     errors.extend(_false_authority_errors(readiness, "managed_mode_readiness"))
     errors.extend(
@@ -306,6 +392,16 @@ def validate_smoke_payloads(
                     "version_present": bool(deployment.get("version")),
                     "commit_present": bool(deployment.get("commit")),
                 },
+                "operator_access_control": {
+                    "enabled": access_control.get("enabled"),
+                    "status": access_control.get("status"),
+                    "private_state_requires_operator": access_control.get(
+                        "private_state_requires_operator"
+                    ),
+                    "managed_operations_require_operator": access_control.get(
+                        "managed_operations_require_operator"
+                    ),
+                },
             },
             "workspace": {
                 "selected_workspace_id": selected_workspace,
@@ -324,6 +420,12 @@ def validate_smoke_payloads(
                 "checked": config.require_demo_view,
                 "html_shell": isinstance(demo_view_html, str)
                 and "<html" in demo_view_html.lower(),
+            },
+            "operator_access_control": {
+                "checked": config.require_operator_auth,
+                "private_state_status": private_state_status,
+                "managed_execute_status": managed_execute_status,
+                "private_field_count": len(private_field_paths),
             },
         },
         "errors": errors,
@@ -360,6 +462,32 @@ def run_smoke(config: SmokeConfig, fetch: Fetcher | None = None) -> JsonObject:
             expect_json=False,
             timeout_seconds=config.timeout_seconds,
         )
+    private_state_status: int | None = None
+    managed_execute_status: int | None = None
+    if config.require_operator_auth:
+        private_state_status, _ = _wait_fetch(
+            fetcher,
+            _join_url(
+                config.base_url,
+                "/api/v1/real-idea-entry-requests?"
+                + urllib.parse.urlencode({"workspace": config.workspace}),
+            ),
+            expect_json=True,
+            timeout_seconds=config.timeout_seconds,
+        )
+        managed_execute_status, _ = _wait_fetch(
+            fetcher,
+            _join_url(
+                config.base_url,
+                "/api/v1/idea-to-spec-review-status/execute?"
+                + urllib.parse.urlencode({"workspace": config.workspace}),
+            ),
+            expect_json=True,
+            timeout_seconds=config.timeout_seconds,
+            method="POST",
+            body=b"{}",
+            headers={"Content-Type": "application/json"},
+        )
 
     if health_status != 200:
         raise RuntimeError(f"health endpoint returned HTTP {health_status}")
@@ -387,6 +515,8 @@ def run_smoke(config: SmokeConfig, fetch: Fetcher | None = None) -> JsonObject:
         workspace_payload=workspace_payload,
         shell_html=shell_payload,
         demo_view_html=demo_view_payload if isinstance(demo_view_payload, str) else None,
+        private_state_status=private_state_status,
+        managed_execute_status=managed_execute_status,
     )
 
 
@@ -427,6 +557,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not require the product workspace ?view=demo route to return the SpecSpace shell.",
     )
     parser.add_argument(
+        "--no-require-operator-auth",
+        action="store_true",
+        help=(
+            "Compatibility-only: do not require single-operator access control "
+            "or anonymous 401 checks."
+        ),
+    )
+    parser.add_argument(
         "--format",
         choices=("text", "json"),
         default="text",
@@ -445,6 +583,7 @@ def main(argv: list[str] | None = None) -> int:
         timeout_seconds=args.timeout,
         require_deployment_metadata=not args.no_require_deployment_metadata,
         require_demo_view=not args.no_require_demo_view,
+        require_operator_auth=not args.no_require_operator_auth,
     )
     try:
         report = run_smoke(config)

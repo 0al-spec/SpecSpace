@@ -27,6 +27,7 @@ from viewer import (
     hosted_managed_execution,
     managed_operations_registry,
     ontology_acknowledgements,
+    operator_auth,
     product_workspace_initialization_execution,
     product_workspace_binding,
     product_workspace_creation_requests,
@@ -46,6 +47,7 @@ from viewer.request_query import query_params, query_value
 
 class SpecSpaceV1Handler(JsonResponseHandler, Protocol):
     server: Any
+    headers: Any
 
     def read_json_body(self) -> dict[str, Any] | None: ...
 
@@ -976,10 +978,49 @@ def _compile_options_from_payload(
 
 
 def handle_v1_health(handler: SpecSpaceV1Handler) -> None:
+    payload = specspace_provider.health_with_specpm_registry(
+        handler.server,
+        _provider(handler),
+    )
+    auth_enabled = (
+        getattr(handler.server, "operator_auth_enabled", False) is True
+    )
+    payload["operator_access_control"] = {
+        "available": True,
+        "status": "single_operator" if auth_enabled else "disabled",
+        "enabled": auth_enabled,
+        "operator_authenticated": (
+            operator_auth.request_is_operator(handler.server, handler.headers)
+            if auth_enabled
+            else False
+        ),
+        "private_state_requires_operator": auth_enabled,
+        "managed_operations_require_operator": auth_enabled,
+        "authority_boundary": {
+            "access_control_is_execution_authority": False,
+            "may_expose_operator_credentials": False,
+        },
+    }
     json_response(
         handler,
         HTTPStatus.OK,
-        specspace_provider.health_with_specpm_registry(handler.server, _provider(handler)),
+        payload,
+    )
+
+
+def handle_v1_operator_session(handler: SpecSpaceV1Handler) -> None:
+    json_response(
+        handler,
+        HTTPStatus.OK,
+        {
+            "authenticated": True,
+            "status": "operator_authenticated",
+            "authentication_scheme": "Basic",
+            "authority_boundary": {
+                "authentication_is_execution_authority": False,
+                "managed_operations_remain_allowlisted": True,
+            },
+        },
     )
 
 
@@ -1212,7 +1253,10 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
                     initialization=payload.get("workspace_initialization")
                     if isinstance(payload.get("workspace_initialization"), dict)
                     else None,
-                    include_root_intent_summary=True,
+                    include_root_intent_summary=operator_auth.request_is_operator(
+                        handler.server,
+                        handler.headers,
+                    ),
                 )
             )
             payload["workspace_initialization_path"] = _workspace_initialization_path(

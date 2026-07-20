@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import json
 import os
@@ -27,6 +28,7 @@ from viewer import (
     idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
     managed_operations_registry,
+    operator_auth,
     server,
     specspace_v1_api,
     specspace_provider,
@@ -11534,6 +11536,67 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(overview["authority_boundary"]["may_execute_platform"])
         dumped = json.dumps(creation)
         self.assertNotIn(str(state_dir), dumped)
+
+    def test_public_workspace_projection_hides_initial_idea_from_anonymous_request(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            _write_product_workspace_runs(runs_dir)
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                post_status, _ = _post(
+                    f"{base}/api/v1/product-workspace-creation-requests",
+                    {
+                        "display_name": "Private Pantry",
+                        "root_intent_summary": "Confidential pantry workflow.",
+                    },
+                )
+                httpd.operator_auth_enabled = True
+                httpd.operator_auth_username = "operator"
+                httpd.operator_auth_password_digest = operator_auth.password_digest(
+                    "a" * 48
+                )
+                httpd.operator_auth_allowed_origin = "https://specgraph.space"
+
+                anonymous_status, anonymous_body = _get(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=private-pantry"
+                )
+                credentials = base64.b64encode(
+                    f"operator:{'a' * 48}".encode("utf-8")
+                ).decode("ascii")
+                request = Request(
+                    f"{base}/api/v1/idea-to-spec-workspace?workspace=private-pantry",
+                    headers={"Authorization": f"Basic {credentials}"},
+                )
+                with urlopen(request) as response:
+                    authenticated_status = response.status
+                    authenticated_body = json.loads(response.read())
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(post_status, 200)
+        self.assertEqual(anonymous_status, 200)
+        anonymous_active = anonymous_body["workspace_creation"]["active_request"]
+        self.assertTrue(anonymous_active["root_intent_summary_present"])
+        self.assertNotIn("root_intent_summary", anonymous_active)
+        self.assertNotIn(
+            "Confidential pantry workflow.",
+            json.dumps(anonymous_body),
+        )
+        self.assertEqual(authenticated_status, 200)
+        self.assertEqual(
+            authenticated_body["workspace_creation"]["active_request"][
+                "root_intent_summary"
+            ],
+            "Confidential pantry workflow.",
+        )
 
     def test_idea_to_spec_workspace_root_does_not_embed_global_workspace_creation_state(
         self,

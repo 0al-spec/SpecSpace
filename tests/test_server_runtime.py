@@ -129,6 +129,65 @@ def test_build_arg_parser_accepts_hosted_managed_executor_env(monkeypatch) -> No
     assert args.hosted_managed_operation_allowlist == "review_status_execute"
 
 
+def test_build_arg_parser_accepts_operator_auth_env(monkeypatch) -> None:
+    monkeypatch.setenv("SPECSPACE_OPERATOR_AUTH_ENABLED", "true")
+    monkeypatch.setenv("SPECSPACE_OPERATOR_AUTH_USERNAME", "release-operator")
+    monkeypatch.setenv("SPECSPACE_OPERATOR_AUTH_PASSWORD", "a" * 48)
+    monkeypatch.setenv(
+        "SPECSPACE_OPERATOR_AUTH_ALLOWED_ORIGIN",
+        "https://specgraph.space",
+    )
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+
+    args = parser.parse_args(["--dialog-dir", "/tmp/dialogs"])
+
+    assert args.enable_operator_auth is True
+    assert args.operator_auth_username == "release-operator"
+    assert args.operator_auth_password == "a" * 48
+    assert args.operator_auth_allowed_origin == "https://specgraph.space"
+
+
+def test_configure_server_rejects_enabled_operator_auth_without_password(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("SPECSPACE_OPERATOR_AUTH_ENABLED", "true")
+    monkeypatch.setenv("SPECSPACE_OPERATOR_AUTH_USERNAME", "operator")
+    monkeypatch.setenv(
+        "SPECSPACE_OPERATOR_AUTH_ALLOWED_ORIGIN",
+        "https://specgraph.space",
+    )
+    monkeypatch.delenv("SPECSPACE_OPERATOR_AUTH_PASSWORD", raising=False)
+    parser = server_runtime.build_arg_parser(
+        description=None,
+        default_hyperprompt_binary="/bin/hyperprompt",
+    )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        args = parser.parse_args(["--dialog-dir", str(root / "dialogs")])
+
+        with pytest.raises(
+            ValueError,
+            match="operator auth password must contain",
+        ):
+            server_runtime.configure_server(
+                SimpleNamespace(),
+                args,
+                repo_root=root,
+                resolve_hyperprompt_binary=lambda binary: (
+                    binary,
+                    [],
+                    "configured",
+                ),
+                workspace_watcher_factory=lambda path: ("workspace", path),
+                spec_watcher_factory=lambda path: ("spec", path),
+                runs_watcher_factory=lambda path: ("runs", path),
+            )
+
+
 def test_build_arg_parser_rejects_invalid_hosted_state_durability(monkeypatch) -> None:
     monkeypatch.setenv(
         "SPECSPACE_HOSTED_MANAGED_STATE_DURABILITY",
@@ -255,6 +314,11 @@ def test_configure_server_sets_runtime_capabilities() -> None:
             specpm_registry_url=None,
             agent_workbench_dir=root / "workbench",
             specspace_state_dir=root / "hosted-state",
+            enable_operator_auth=True,
+            operator_auth_username="operator",
+            operator_auth_password="a" * 48,
+            operator_auth_password_file=None,
+            operator_auth_allowed_origin="https://specgraph.space",
             enable_hosted_managed_execution=True,
             hosted_managed_state_durability="ephemeral",
             hosted_managed_operation_allowlist="review_status_execute",
@@ -317,6 +381,11 @@ def test_configure_server_builds_external_state_backend() -> None:
             specpm_registry_url=None,
             agent_workbench_dir=None,
             specspace_state_dir=root / "cache",
+            enable_operator_auth=True,
+            operator_auth_username="operator",
+            operator_auth_password="a" * 48,
+            operator_auth_password_file=None,
+            operator_auth_allowed_origin="https://specgraph.space",
             enable_external_state=True,
             external_state_url="https://state.example.test/",
             external_state_token="state-token-0123456789abcdef0123456789",
@@ -345,6 +414,60 @@ def test_configure_server_builds_external_state_backend() -> None:
         assert server.external_state_url == "https://state.example.test"
         assert server.specspace_state_dir == (root / "cache").resolve()
         assert server.specspace_state_dir.is_dir()
+        assert server.operator_auth_enabled is True
+        assert server.operator_auth_username == "operator"
+        assert server.operator_auth_password_digest is not None
+        assert server.operator_auth_allowed_origin == "https://specgraph.space"
+        assert args.operator_auth_password is None
+
+
+def test_configure_server_rejects_external_state_without_operator_auth() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        args = argparse.Namespace(
+            dialog_dir=root / "dialogs",
+            hyperprompt_binary="/bin/hyperprompt",
+            hyperprompt_work_dir=None,
+            enable_http_hyperprompt_compile=False,
+            hyperprompt_compile_timeout_seconds=None,
+            hyperprompt_max_input_bytes=None,
+            hyperprompt_max_output_bytes=None,
+            hyperprompt_bundle_retention_count=None,
+            spec_dir=None,
+            specgraph_dir=None,
+            runs_dir=None,
+            artifact_base_url=None,
+            specpm_registry_url=None,
+            agent_workbench_dir=None,
+            specspace_state_dir=root / "cache",
+            enable_external_state=True,
+            external_state_url="https://state.example.test",
+            external_state_token="state-token-0123456789abcdef0123456789",
+            external_state_token_file=None,
+            external_state_timeout_seconds=2.0,
+            enable_platform_execution=False,
+            enable_hosted_managed_execution=False,
+            enable_operator_auth=False,
+            agent=False,
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="require operator authentication",
+        ):
+            server_runtime.configure_server(
+                SimpleNamespace(),
+                args,
+                repo_root=root,
+                resolve_hyperprompt_binary=lambda binary: (
+                    binary,
+                    [],
+                    "configured",
+                ),
+                workspace_watcher_factory=lambda path: ("workspace", path),
+                spec_watcher_factory=lambda path: ("spec", path),
+                runs_watcher_factory=lambda path: ("runs", path),
+            )
 
 
 def test_configure_server_rejects_non_loopback_plain_http_external_state() -> None:

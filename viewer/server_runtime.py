@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Protocol, cast
 import urllib.parse
 
-from viewer import managed_operations_registry, specspace_state_backend
+from viewer import managed_operations_registry, operator_auth, specspace_state_backend
 
 
 ResolveHyperpromptBinary = Callable[[str], tuple[str | None, list[str], str]]
@@ -59,6 +59,10 @@ class ViewerRuntimeServer(Protocol):
     hosted_managed_executor_timeout_seconds: float
     hosted_managed_state_durability: str
     hosted_managed_operation_allowlist: frozenset[str] | None
+    operator_auth_enabled: bool
+    operator_auth_username: str | None
+    operator_auth_password_digest: bytes | None
+    operator_auth_allowed_origin: str | None
     allow_legacy_workspace_execution: bool
     platform_execution_timeout_seconds: int
     agent_available: bool
@@ -139,6 +143,26 @@ def build_arg_parser(
         "SPECSPACE_HOSTED_MANAGED_OPERATION_ALLOWLIST",
         "",
     ).strip()
+    operator_auth_enabled_env = os.environ.get(
+        "SPECSPACE_OPERATOR_AUTH_ENABLED",
+        "",
+    ).strip()
+    operator_auth_username_env = os.environ.get(
+        "SPECSPACE_OPERATOR_AUTH_USERNAME",
+        "",
+    ).strip()
+    operator_auth_password_env = os.environ.get(
+        "SPECSPACE_OPERATOR_AUTH_PASSWORD",
+        "",
+    )
+    operator_auth_password_file_env = os.environ.get(
+        "SPECSPACE_OPERATOR_AUTH_PASSWORD_FILE",
+        "",
+    ).strip()
+    operator_auth_allowed_origin_env = os.environ.get(
+        "SPECSPACE_OPERATOR_AUTH_ALLOWED_ORIGIN",
+        "",
+    ).strip()
     if (
         hosted_managed_state_durability_env
         and hosted_managed_state_durability_env not in {"persistent", "ephemeral"}
@@ -170,6 +194,12 @@ def build_arg_parser(
         external_state_token_file=(
             Path(external_state_token_file_env)
             if external_state_token_file_env
+            else None
+        ),
+        operator_auth_password=operator_auth_password_env or None,
+        operator_auth_password_file=(
+            Path(operator_auth_password_file_env)
+            if operator_auth_password_file_env
             else None
         ),
     )
@@ -420,6 +450,33 @@ def build_arg_parser(
             "a ready durable workspace binding. Disabled by default."
         ),
     )
+    parser.add_argument(
+        "--enable-operator-auth",
+        action="store_true",
+        default=operator_auth_enabled_env.lower() in {"1", "true", "yes", "on"},
+        help=(
+            "Require single-operator HTTP Basic authentication for private "
+            "state and managed-operation routes."
+        ),
+    )
+    parser.add_argument(
+        "--operator-auth-username",
+        default=operator_auth_username_env or "operator",
+        help="Single operator username. The password is accepted only through environment or file input.",
+    )
+    parser.add_argument(
+        "--operator-auth-password-file",
+        type=Path,
+        help="File containing the single-operator password.",
+    )
+    parser.add_argument(
+        "--operator-auth-allowed-origin",
+        default=operator_auth_allowed_origin_env or None,
+        help=(
+            "Exact browser origin allowed to send authenticated mutation "
+            "requests, for example https://specgraph.space."
+        ),
+    )
     return parser
 
 
@@ -473,6 +530,40 @@ def runs_watch_path(spec_dir: Path | None, specgraph_dir: Path | None) -> Path |
     if specgraph_dir is not None:
         return specgraph_dir / "runs"
     return None
+
+
+def _operator_username(value: Any) -> str:
+    username = value.strip() if isinstance(value, str) else ""
+    if (
+        not 1 <= len(username) <= 128
+        or ":" in username
+        or any(ord(char) < 33 or ord(char) == 127 for char in username)
+    ):
+        raise ValueError("operator auth username is invalid")
+    return username
+
+
+def _operator_allowed_origin(value: Any) -> str:
+    origin = value.strip().rstrip("/") if isinstance(value, str) else ""
+    parsed = urllib.parse.urlparse(origin)
+    loopback = parsed.hostname in {"127.0.0.1", "::1", "localhost"}
+    if (
+        not origin
+        or parsed.scheme not in {"http", "https"}
+        or (parsed.scheme != "https" and not loopback)
+        or parsed.hostname is None
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError(
+            "operator auth allowed origin must be an HTTPS origin "
+            "(HTTP is accepted only for loopback development)"
+        )
+    return origin
 
 
 def configure_server(
@@ -536,6 +627,49 @@ def configure_server(
         if specspace_state_dir
         else repo_root / ".specspace-dev" / "state"
     )
+    server.operator_auth_enabled = bool(
+        getattr(args, "enable_operator_auth", False)
+    )
+    operator_auth_password = getattr(args, "operator_auth_password", None)
+    operator_auth_password_file = getattr(args, "operator_auth_password_file", None)
+    if operator_auth_password and operator_auth_password_file is not None:
+        raise ValueError(
+            "operator auth password must use either environment or file input, not both"
+        )
+    if operator_auth_password_file is not None:
+        password_path = Path(operator_auth_password_file)
+        if password_path.is_symlink() or not password_path.is_file():
+            raise ValueError("operator auth password file is unavailable")
+        try:
+            operator_auth_password = password_path.read_text(
+                encoding="utf-8"
+            ).strip()
+        except OSError as exc:
+            raise ValueError("operator auth password file is unreadable") from exc
+    if server.operator_auth_enabled:
+        server.operator_auth_username = _operator_username(
+            getattr(args, "operator_auth_username", None)
+        )
+        if (
+            not isinstance(operator_auth_password, str)
+            or len(operator_auth_password) < 32
+            or len(operator_auth_password) > 4096
+            or any(ord(char) < 32 or ord(char) == 127 for char in operator_auth_password)
+        ):
+            raise ValueError(
+                "operator auth password must contain 32 to 4096 printable characters"
+            )
+        server.operator_auth_password_digest = operator_auth.password_digest(
+            operator_auth_password
+        )
+        args.operator_auth_password = None
+        server.operator_auth_allowed_origin = _operator_allowed_origin(
+            getattr(args, "operator_auth_allowed_origin", None)
+        )
+    else:
+        server.operator_auth_username = None
+        server.operator_auth_password_digest = None
+        server.operator_auth_allowed_origin = None
     server.external_state_enabled = bool(
         getattr(args, "enable_external_state", False)
     )
@@ -632,6 +766,14 @@ def configure_server(
     server.hosted_managed_execution_enabled = bool(
         getattr(args, "enable_hosted_managed_execution", False)
     )
+    if (
+        server.external_state_enabled
+        or server.platform_execution_enabled
+        or server.hosted_managed_execution_enabled
+    ) and not server.operator_auth_enabled:
+        raise ValueError(
+            "mutable external state and managed execution require operator authentication"
+        )
     if server.hosted_managed_execution_enabled:
         try:
             server.specspace_state_dir.mkdir(parents=True, exist_ok=True)

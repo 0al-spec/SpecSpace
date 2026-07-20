@@ -21,6 +21,7 @@ from viewer import graph as conversation_graph  # noqa: E402
 from viewer import capabilities_api  # noqa: E402
 from viewer import export as graph_export  # noqa: E402
 from viewer import hyperprompt_compile  # noqa: E402
+from viewer import operator_auth  # noqa: E402
 from viewer import workspace_cache  # noqa: E402
 from viewer import workspace_io  # noqa: E402
 from viewer import conversation_api  # noqa: E402
@@ -33,7 +34,7 @@ from viewer import server_runtime  # noqa: E402
 from viewer import static_api  # noqa: E402
 from viewer.http_response import json_response  # noqa: E402
 from viewer.request_body import read_json_object_request_body  # noqa: E402
-from viewer.routes import route_for  # noqa: E402
+from viewer.routes import RouteAccess, route_for  # noqa: E402
 from viewer.sse import send_sse_headers, stream_change_events  # noqa: E402
 from viewer.watchers import RunsWatcher, SpecWatcher, WorkspaceWatcher  # noqa: E402
 from viewer.export import (  # noqa: E402
@@ -307,6 +308,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_specpm_preview_get = specpm_exploration_api.handle_specpm_preview_get
     handle_v1_capabilities = specspace_v1_api.handle_v1_capabilities
     handle_v1_health = specspace_v1_api.handle_v1_health
+    handle_v1_operator_session = specspace_v1_api.handle_v1_operator_session
     handle_v1_workspaces = specspace_v1_api.handle_v1_workspaces
     handle_v1_implementation_work_index = specspace_v1_api.handle_v1_implementation_work_index
     handle_v1_metrics = specspace_v1_api.handle_v1_metrics
@@ -447,10 +449,33 @@ class ViewerHandler(BaseHTTPRequestHandler):
         route = route_for(method, parsed.path)
         if route is None:
             return False
+        self._active_route_access = route.access
+        self._operator_request_authenticated = (
+            getattr(self.server, "operator_auth_enabled", False) is True
+            and operator_auth.request_is_operator(
+                cast(operator_auth.OperatorAuthServer, self.server),
+                cast(Mapping[str, str], self.headers),
+            )
+        )
+        if route.access is RouteAccess.OPERATOR and not operator_auth.authorize_operator_request(
+            cast(operator_auth.OperatorAuthHandler, self),
+            method=method,
+        ):
+            return True
         handler = getattr(self, route.handler)
         args = (parsed, *route.args) if route.pass_parsed else route.args
         handler(*args)
         return True
+
+    def end_headers(self) -> None:
+        if (
+            getattr(self, "_active_route_access", None) is RouteAccess.OPERATOR
+            or getattr(self, "_operator_request_authenticated", False) is True
+        ):
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Vary", "Authorization, Origin")
+        super().end_headers()
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
