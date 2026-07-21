@@ -27,6 +27,14 @@
   - строго типизируем payloads;
   - explicit failure contracts вместо «тихих» падений;
   - не возвращаем ложные 200/503 без диагностического контекста.
+- Для HTTP access control:
+  - route policy должна быть backend-enforced и fail-closed, а не только
+    скрывать controls во frontend;
+  - public-safe GET routes перечисляются явно; raw state, все mutations и
+    managed execution требуют operator access;
+  - auth guard выполняется до чтения request body или private state;
+  - включение external state/managed execution без production auth boundary
+    считается invalid runtime configuration.
 - Для UI-сущностей (Spec ID и проч.):
   - сначала «resolver by graph data», потом только рендер/вывод кликабельности;
   - не полагаемся на жёсткие regex по шаблонам вроде `SG-SPEC-*`.

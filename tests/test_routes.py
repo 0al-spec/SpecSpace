@@ -334,3 +334,47 @@ def test_all_route_handlers_exist_on_viewer_handler() -> None:
             assert hasattr(ViewerHandler, route.handler), route.handler
     for route in routes.GET_PREFIX_ROUTES.values():
         assert hasattr(ViewerHandler, route.handler), route.handler
+
+
+def test_private_state_get_routes_require_operator_access() -> None:
+    private_paths = {
+        "/api/v1/agent-workbench/conversations",
+        "/api/v1/artifacts/content",
+        "/api/v1/idea-to-spec-candidate-approval-intents",
+        "/api/v1/idea-to-spec-intake-clarification-answers",
+        "/api/v1/idea-to-spec-repair-drafts",
+        "/api/v1/idea-to-spec-repair-rerun-requests",
+        "/api/v1/idea-to-spec-workspace-state-hygiene",
+        "/api/v1/ontology-owner-decision-acknowledgements",
+        "/api/v1/operator-session",
+        "/api/v1/product-workspace-creation-requests",
+        "/api/v1/project-local-ontology-review-decisions",
+        "/api/v1/real-idea-answer-continuation-execution-requests",
+        "/api/v1/real-idea-entry-requests",
+        "/api/v1/real-idea-intake-execution-requests",
+    }
+
+    assert {
+        path
+        for path in private_paths
+        if routes.route_for("GET", path).access is not routes.RouteAccess.OPERATOR
+    } == set()
+
+
+def test_all_mutation_routes_require_operator_access() -> None:
+    for method in ("POST", "DELETE"):
+        for path, route in routes.ROUTES_BY_METHOD[method].items():
+            assert route.access is routes.RouteAccess.OPERATOR, (method, path)
+
+
+def test_public_get_inventory_is_explicit_and_resolvable() -> None:
+    assert routes.PUBLIC_GET_PATHS <= routes.GET_ROUTES.keys()
+    assert routes.PUBLIC_GET_PREFIXES <= routes.GET_PREFIX_ROUTES.keys()
+    for path in routes.PUBLIC_GET_PATHS:
+        assert routes.route_for("GET", path).access is routes.RouteAccess.PUBLIC
+    for prefix in routes.PUBLIC_GET_PREFIXES:
+        assert routes.route_for("GET", f"{prefix}example").access is routes.RouteAccess.PUBLIC
+
+
+def test_unknown_get_route_defaults_cannot_bypass_route_inventory() -> None:
+    assert routes.route_for("GET", "/api/v1/private-state-added-without-policy") is None

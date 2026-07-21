@@ -85,6 +85,24 @@ token still must be supplied as private deployment configuration. Until
 Platform's production rollout publishes that routing and backup contract,
 Timeweb remains read-only except for the explicitly bounded ephemeral canary.
 
+Mutable state and hosted managed execution must never be exposed by an
+anonymous Timeweb deployment. Before either profile is enabled, configure the
+single-operator API boundary from
+[SINGLE_OPERATOR_ACCESS_CONTROL.md](SINGLE_OPERATOR_ACCESS_CONTROL.md):
+
+```text
+SPECSPACE_OPERATOR_AUTH_ENABLED=true
+SPECSPACE_OPERATOR_AUTH_USERNAME=operator
+SPECSPACE_OPERATOR_AUTH_PASSWORD=<Timeweb global secret>
+SPECSPACE_OPERATOR_AUTH_ALLOWED_ORIGIN=https://specgraph.space
+```
+
+The generated Compose must contain only a value-less
+`SPECSPACE_OPERATOR_AUTH_PASSWORD` reference. Platform validation rejects a
+managed/external-state profile without operator auth. Public health and
+published artifact projections remain anonymous; raw state and every mutation
+must return `401` without credentials.
+
 ## Guardrails
 
 Enable the optional local pre-push hook:
@@ -165,6 +183,15 @@ domain root would hit the backend and return `404`.
 No SpecGraph artifact path variables are required for the current Timeweb
 deployment. The API reads published artifacts from `https://specgraph.tech`
 and readonly SpecPM registry metadata from `https://specpm.dev`.
+
+The production Timeweb profile additionally requires the global secret:
+
+```text
+SPECSPACE_OPERATOR_AUTH_PASSWORD
+```
+
+Use a separate random value of at least 32 characters. Do not reuse the
+Platform bearer token or either PostgreSQL password.
 
 Optional:
 
@@ -260,19 +287,22 @@ branch.
 SpecSpace CI waits for the dispatched Platform workflow and fails if Platform
 rendering, validation, or branch publishing fails.
 
-The external-state profile also requires two independent Timeweb global secret
-variables on the App itself:
+The external-state profile additionally requires two independent Timeweb
+global secret variables on the App itself:
 
 ```text
 SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN
 SPECSPACE_EXTERNAL_STATE_TOKEN
 ```
 
-Neither value is stored in GitHub variables, workflow inputs, the generated
-deploy branch, or deployment reports. The Platform manifest references only
-their environment names. Keep `PLATFORM_TIMEWEB_HOSTED_MANAGED_EXTERNAL_STATE_ENABLED`
-set to `false` until the state-service preflight, migration plan, and rollback
-evidence are ready.
+Together with `SPECSPACE_OPERATOR_AUTH_PASSWORD`, the application therefore
+uses three distinct secrets: browser-to-SpecSpace authentication,
+SpecSpace-to-Platform authentication, and SpecSpace-to-state-service
+authentication. Do not reuse values between these boundaries. None is stored in
+GitHub variables, workflow inputs, the generated deploy branch, or deployment
+reports. The Platform manifest references only their environment names. Keep
+`PLATFORM_TIMEWEB_HOSTED_MANAGED_EXTERNAL_STATE_ENABLED` set to `false` until
+the state-service preflight, migration plan, and rollback evidence are ready.
 
 If the repository variable `SPECSPACE_DEPLOY_URL` is set to the public
 application URL, CI also runs the provider-neutral `Production Deploy Smoke`
@@ -403,9 +433,15 @@ workspace-specific static artifact base instead of the root SpecGraph showcase
 bundle; and that production reports `managed_mode_readiness.status =
 hosted_managed_ready` with a reachable allowlisted hosted executor. It also checks the
 presentation route `/hosted-operation-canary?view=demo` returns the SpecSpace shell
-without legacy ContextBuilder markers. The production route renders the
-published product workspace state; locally generated demo candidates are covered
-by `make ui-e2e-product-demo`.
+without legacy ContextBuilder markers. The smoke also requires the
+single-operator boundary, proves anonymous raw-state GET and managed POST
+requests return `401`, and rejects private idea fields in the anonymous Product
+Workspace projection. The production route renders the published product
+workspace state; locally generated demo candidates are covered by
+`make ui-e2e-product-demo`.
+
+Use `--no-require-operator-auth` only to observe a pre-rollout deployment while
+it remains read-only. That opt-out is not production sign-off.
 
 For a production deployment intentionally configured without hosted execution,
 run the same checker against its published workspace with

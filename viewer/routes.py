@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from enum import Enum
 from typing import Any
+
+
+class RouteAccess(str, Enum):
+    PUBLIC = "public"
+    OPERATOR = "operator"
 
 
 @dataclass(frozen=True)
@@ -11,6 +17,7 @@ class RouteSpec:
     handler: str
     pass_parsed: bool = False
     args: tuple[Any, ...] = ()
+    access: RouteAccess = RouteAccess.OPERATOR
 
 
 GET_ROUTES: dict[str, RouteSpec] = {
@@ -58,6 +65,7 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/exploration-proposal": RouteSpec("handle_exploration_proposal_get", pass_parsed=True),
     "/api/proposal-spec-trace-index": RouteSpec("handle_proposal_spec_trace_index_get"),
     "/api/v1/health": RouteSpec("handle_v1_health"),
+    "/api/v1/operator-session": RouteSpec("handle_v1_operator_session"),
     "/api/v1/capabilities": RouteSpec("handle_v1_capabilities"),
     "/api/v1/workspaces": RouteSpec("handle_v1_workspaces"),
     "/api/v1/spec-graph": RouteSpec("handle_v1_spec_graph", pass_parsed=True),
@@ -142,6 +150,56 @@ GET_PREFIX_ROUTES: dict[str, RouteSpec] = {
     ),
     "/api/v1/spec-nodes/": RouteSpec("handle_v1_spec_node", pass_parsed=True),
 }
+
+
+# GET routes remain private unless they are explicitly reviewed as public-safe.
+# New routes therefore fail closed without relying on naming conventions.
+PUBLIC_GET_PATHS = frozenset(
+    {
+        "/api/v1/agent-surfaces",
+        "/api/v1/artifacts",
+        "/api/v1/capabilities",
+        "/api/v1/health",
+        "/api/v1/idea-to-spec-workspace",
+        "/api/v1/implementation-work-index",
+        "/api/v1/metrics",
+        "/api/v1/ontology-compliance-review",
+        "/api/v1/ontology-owner-decision-review",
+        "/api/v1/ontology-review-dashboard",
+        "/api/v1/ontology-semantic-review-surface",
+        "/api/v1/ontology-workbench",
+        "/api/v1/practical-ontology",
+        "/api/v1/proposal-spec-trace-index",
+        "/api/v1/proposals",
+        "/api/v1/runs-watch",
+        "/api/v1/runs/recent",
+        "/api/v1/spec-activity",
+        "/api/v1/spec-graph",
+        "/api/v1/spec-markdown",
+        "/api/v1/specpm/lifecycle",
+        "/api/v1/specpm/registry",
+        "/api/v1/workspaces",
+    }
+)
+
+PUBLIC_GET_PREFIXES = frozenset(
+    {
+        "/api/v1/spec-nodes/",
+        "/api/v1/specpm/registry/packages/",
+    }
+)
+
+for _path in PUBLIC_GET_PATHS:
+    GET_ROUTES[_path] = replace(
+        GET_ROUTES[_path],
+        access=RouteAccess.PUBLIC,
+    )
+
+for _prefix in PUBLIC_GET_PREFIXES:
+    GET_PREFIX_ROUTES[_prefix] = replace(
+        GET_PREFIX_ROUTES[_prefix],
+        access=RouteAccess.PUBLIC,
+    )
 
 
 POST_ROUTES: dict[str, RouteSpec] = {

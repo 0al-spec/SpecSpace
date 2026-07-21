@@ -8,6 +8,22 @@ versioned HTTP contracts for the UI.
 Deployment topology and mount expectations are documented in
 [SPECSPACE_DEPLOYMENT.md](SPECSPACE_DEPLOYMENT.md).
 
+## Access Control
+
+Public-safe read projections remain anonymous. SpecSpace-owned raw state,
+mutations, and managed-operation endpoints use the bounded single-operator
+profile documented in
+[SINGLE_OPERATOR_ACCESS_CONTROL.md](SINGLE_OPERATOR_ACCESS_CONTROL.md).
+
+The route table is fail-closed: new GET routes default to operator-only, all
+POST/DELETE routes are operator-only, and public GET routes require an explicit
+inventory entry. `GET /api/v1/operator-session` is the browser login target for
+the native HTTP Basic session.
+
+`GET /api/v1/idea-to-spec-workspace` remains public, but anonymous responses
+omit private initial-idea text. Raw state endpoints such as
+`GET /api/v1/real-idea-entry-requests` require operator authentication.
+
 ## Providers
 
 SpecSpace API v1 can read SpecGraph through either readonly provider.
@@ -375,6 +391,11 @@ Response shape:
 ### `GET /api/v1/artifacts/content`
 
 Returns a bounded preview of one artifact from the catalog.
+
+This route is operator-only when single-operator access control is enabled.
+The catalog can include local review artifacts that are safe to inspect only
+inside the authenticated product console; anonymous clients must use the
+curated Product Workspace projection instead.
 
 Query parameters:
 
@@ -1294,7 +1315,8 @@ Example:
 SpecSpace keeps the submitted request as mutable local state and supersedes any
 previous submitted request for the same workspace. The state is not public-safe:
 raw idea text is available to SpecSpace and the local operator, but must not be
-published as a static SpecGraph artifact.
+published as a static SpecGraph artifact. Both GET and POST require operator
+authentication when the single-operator profile is enabled.
 
 Authority boundary:
 
@@ -1318,6 +1340,10 @@ the selected product workspace. The endpoint compares stored repair drafts,
 repair rerun requests, candidate approval intents, and SpecGraph handoff
 artifacts against the currently selected workspace, candidate, and repair
 session.
+
+This route is operator-only when single-operator access control is enabled.
+The anonymous Product Workspace projection does not read or embed this mutable
+state inventory.
 
 The endpoint accepts the same optional `?workspace=team-decision-log` selector
 as `/api/v1/idea-to-spec-workspace`. It reports state as `usable`, `missing`,

@@ -27,6 +27,7 @@ from viewer import (
     hosted_managed_execution,
     managed_operations_registry,
     ontology_acknowledgements,
+    operator_auth,
     product_workspace_initialization_execution,
     product_workspace_binding,
     product_workspace_creation_requests,
@@ -46,6 +47,7 @@ from viewer.request_query import query_params, query_value
 
 class SpecSpaceV1Handler(JsonResponseHandler, Protocol):
     server: Any
+    headers: Any
 
     def read_json_body(self) -> dict[str, Any] | None: ...
 
@@ -785,6 +787,83 @@ def _managed_mode_readiness(
     }
 
 
+def _anonymous_managed_mode_readiness(
+    *,
+    workspace_id: str | None,
+    workspace_binding: Any,
+) -> dict[str, Any]:
+    binding = _record(workspace_binding)
+    operation_count = len(managed_operations_registry.MANAGED_OPERATIONS)
+    product_workspace = (
+        workspace_id is not None
+        and specspace_provider.normalize_workspace_id(workspace_id)
+        != specspace_provider.BOOTSTRAP_WORKSPACE_ID
+    )
+    return {
+        "available": True,
+        "surface_id": "specspace.managed-mode.readiness.v0.1",
+        "surface_kind": "managed_mode_readiness",
+        "status": "read_only",
+        "mode": "read_only",
+        "next_safe_action": "Authenticate as the operator to inspect or request managed operations.",
+        "disabled_reasons": ["operator_authentication_required"],
+        "executor": {
+            "enabled": False,
+            "configured": False,
+            "transport": "none",
+            "platform_dir_configured": False,
+            "platform_cli_present": False,
+            "timeout_seconds": None,
+            "hosted_enabled": False,
+            "hosted_service_configured": False,
+            "hosted_service_reachable": False,
+            "hosted_service_adapter": None,
+            "hosted_registry_contract_ref": None,
+            "hosted_enabled_operation_ids": [],
+            "hosted_service_operation_ids": None,
+            "hosted_client_operation_ids": None,
+        },
+        "operations": {
+            "registered_count": operation_count,
+            "enabled_count": 0,
+            "disabled_count": operation_count,
+            "status_counts": {},
+            "counting_basis": "anonymous_operator_boundary",
+        },
+        "state": {
+            "durability": None,
+            "restart_persistent": None,
+            "provider_kind": "not_inspected",
+            "provider_status": "operator_authentication_required",
+            "provider_ready": False,
+            "provider_contract_ref": None,
+            "provider_adapter": None,
+            "external_required": False,
+            "specspace_state_dir_configured": False,
+            "specspace_state_dir_ready": False,
+            "specspace_state_dir_writable": False,
+            "runs_dir_configured": False,
+            "runs_dir_ready": False,
+            "runs_dir_writable": False,
+        },
+        "provider": {
+            "status": "not_inspected",
+            "kind": "public_projection",
+            "read_only": True,
+            "reason": "operator_authentication_required",
+        },
+        "workspace": {
+            "workspace_id": workspace_id,
+            "product_workspace": product_workspace,
+            "product_workspace_artifact_base_configured": None,
+            "artifact_base_status": "not_inspected",
+            "binding_status": binding.get("status"),
+            "binding_id": binding.get("binding_id"),
+        },
+        "authority_boundary": _managed_mode_boundary(),
+    }
+
+
 def _query_limit(parsed: Any, *, default: int, minimum: int = 1, maximum: int = 500) -> int:
     params = query_params(parsed)
     try:
@@ -976,10 +1055,49 @@ def _compile_options_from_payload(
 
 
 def handle_v1_health(handler: SpecSpaceV1Handler) -> None:
+    payload = specspace_provider.health_with_specpm_registry(
+        handler.server,
+        _provider(handler),
+    )
+    auth_enabled = (
+        getattr(handler.server, "operator_auth_enabled", False) is True
+    )
+    payload["operator_access_control"] = {
+        "available": True,
+        "status": "single_operator" if auth_enabled else "disabled",
+        "enabled": auth_enabled,
+        "operator_authenticated": (
+            operator_auth.request_is_operator(handler.server, handler.headers)
+            if auth_enabled
+            else False
+        ),
+        "private_state_requires_operator": auth_enabled,
+        "managed_operations_require_operator": auth_enabled,
+        "authority_boundary": {
+            "access_control_is_execution_authority": False,
+            "may_expose_operator_credentials": False,
+        },
+    }
     json_response(
         handler,
         HTTPStatus.OK,
-        specspace_provider.health_with_specpm_registry(handler.server, _provider(handler)),
+        payload,
+    )
+
+
+def handle_v1_operator_session(handler: SpecSpaceV1Handler) -> None:
+    json_response(
+        handler,
+        HTTPStatus.OK,
+        {
+            "authenticated": True,
+            "status": "operator_authenticated",
+            "authentication_scheme": "Basic",
+            "authority_boundary": {
+                "authentication_is_execution_authority": False,
+                "managed_operations_remain_allowlisted": True,
+            },
+        },
     )
 
 
@@ -1166,8 +1284,23 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
     workspace_id = _query_workspace_id(parsed)
     provider = _provider(handler, workspace_id)
     status, payload = provider.read_idea_to_spec_workspace()
+    operator_authenticated = operator_auth.request_is_operator(
+        handler.server,
+        handler.headers,
+    )
     if workspace_id is not None and isinstance(payload, dict):
         payload["selected_workspace_id"] = workspace_id
+    if (
+        status == HTTPStatus.OK
+        and not operator_authenticated
+        and isinstance(payload, dict)
+    ):
+        payload["managed_mode_readiness"] = _anonymous_managed_mode_readiness(
+            workspace_id=workspace_id,
+            workspace_binding=payload.get("workspace_binding"),
+        )
+        json_response(handler, status, payload)
+        return
     if status == HTTPStatus.OK:
         local_binding = product_workspace_binding.discover_binding(
             handler.server,

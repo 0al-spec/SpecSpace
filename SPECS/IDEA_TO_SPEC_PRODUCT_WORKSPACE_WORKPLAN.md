@@ -1234,6 +1234,41 @@ Implemented behavior:
 - Non-replay-safe operations still wait for their authoritative Platform
   reports before becoming complete or executable again.
 
+### 20. Single-Operator Production Access Control
+
+Status: implemented, pending production rollout.
+
+The first persistent hosted deployment exposed a missing access-control
+boundary: canonical Git/spec/Ontology authority remained closed, but anonymous
+visitors could read or mutate SpecSpace-owned operator state and proxy an
+allowlisted managed operation.
+
+Implemented behavior:
+
+- route metadata distinguishes `public` and `operator` access;
+- new GET routes fail closed as operator-only;
+- all POST/DELETE routes require the operator;
+- raw ideas, clarification answers, repair drafts, ontology decisions,
+  approval intents, requests, and Agent Workbench state are private;
+- anonymous Product Workspace responses keep public lifecycle telemetry but
+  omit the private initial idea;
+- HTTP Basic credentials are verified before body/state access;
+- mutations require exact same-origin JSON requests;
+- private responses are non-cacheable;
+- external state and managed execution cannot start without operator auth.
+
+Production rollout remains bounded:
+
+1. keep Timeweb in read-only mode until the auth-enabled API image and Platform
+   manifest are merged;
+2. add the independent Timeweb global operator password;
+3. deploy auth with external state and managed execution still disabled;
+4. prove the anonymous/authenticated access matrix;
+5. re-enable the current bounded managed allowlist only after the smoke passes.
+
+Future multi-user work remains separate: backend sessions, workspace ownership,
+roles, rate limiting, and durable security audit logs.
+
 ## Accepted Constraints And Runbook Notes
 
 The items below are accepted authority boundaries or operator runbook notes, not

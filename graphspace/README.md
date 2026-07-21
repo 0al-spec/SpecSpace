@@ -197,8 +197,11 @@ Local demo mode and production demo mode are different:
   workspace state from the workspace-specific artifact base.
 
 The production smoke checks the route is renderable and not legacy
-ContextBuilder, while the local Playwright harness verifies rendered candidate
-summary, raw idea protection, and controlled execution evidence.
+ContextBuilder. It also proves that anonymous private-state and managed
+operation requests receive `401` and that the anonymous Product Workspace
+projection contains no raw idea fields. The local Playwright harness verifies
+rendered candidate summary, raw idea protection, and controlled execution
+evidence.
 
 ### State And Run-Dir Hygiene
 
