@@ -11583,9 +11583,17 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(post_status, 200)
         self.assertEqual(anonymous_status, 200)
-        anonymous_active = anonymous_body["workspace_creation"]["active_request"]
-        self.assertTrue(anonymous_active["root_intent_summary_present"])
-        self.assertNotIn("root_intent_summary", anonymous_active)
+        self.assertNotIn("workspace_creation", anonymous_body)
+        self.assertNotIn("workspace_state_hygiene", anonymous_body)
+        self.assertNotIn("real_idea_entry", anonymous_body)
+        self.assertNotIn("hosted_managed_execution", anonymous_body)
+        self.assertEqual(
+            anonymous_body["managed_mode_readiness"]["disabled_reasons"],
+            ["operator_authentication_required"],
+        )
+        self.assertFalse(
+            anonymous_body["managed_mode_readiness"]["executor"]["enabled"]
+        )
         self.assertNotIn(
             "Confidential pantry workflow.",
             json.dumps(anonymous_body),
@@ -11596,6 +11604,40 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 "root_intent_summary"
             ],
             "Confidential pantry workflow.",
+        )
+
+    def test_public_workspace_projection_does_not_refresh_hosted_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            _write_product_workspace_runs(runs_dir)
+            httpd, thread, base = _start(root / "dialogs", runs_dir=runs_dir)
+            httpd.operator_auth_enabled = True
+            httpd.operator_auth_username = "operator"
+            httpd.operator_auth_password_digest = operator_auth.password_digest(
+                "a" * 48
+            )
+            httpd.operator_auth_allowed_origin = "https://specgraph.space"
+            httpd.hosted_managed_execution_enabled = True
+            try:
+                with mock.patch(
+                    "viewer.specspace_v1_api.hosted_managed_execution.refresh_workspace"
+                ) as refresh_workspace:
+                    status, body = _get(
+                        f"{base}/api/v1/idea-to-spec-workspace?workspace=private-pantry"
+                    )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        refresh_workspace.assert_not_called()
+        self.assertEqual(
+            body["managed_mode_readiness"]["status"],
+            "read_only",
+        )
+        self.assertEqual(
+            body["managed_mode_readiness"]["disabled_reasons"],
+            ["operator_authentication_required"],
         )
 
     def test_idea_to_spec_workspace_root_does_not_embed_global_workspace_creation_state(

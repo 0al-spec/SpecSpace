@@ -70,12 +70,16 @@ Public examples:
 - published spec, artifact, metrics, and ontology projections.
 
 The public Product Workspace projection omits the private
-`root_intent_summary`. It may still expose public-safe presence, lifecycle, and
-readiness telemetry.
+SpecSpace-owned overlays entirely. It is built from provider/public artifacts
+and does not read workspace state hygiene, raw entry state, creation requests,
+hosted queue state, or trigger hosted executor polling. It may still expose
+public-safe lifecycle and readiness telemetry already present in the published
+provider artifacts.
 
 Operator-only examples:
 
 - every SpecSpace-owned raw state GET;
+- raw artifact content previews and workspace state hygiene;
 - raw idea entry requests;
 - clarification answers and repair drafts;
 - ontology decisions and approval intents;

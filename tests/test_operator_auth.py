@@ -104,6 +104,20 @@ def test_private_get_rejects_before_handler_reads_state_without_browser_prompt()
         _stop_server(server, thread)
 
 
+def test_sensitive_projection_gets_require_operator_access() -> None:
+    server, thread, base_url = _start_server()
+    try:
+        for path in (
+            "/api/v1/artifacts/content?path=runs/private.json",
+            "/api/v1/idea-to-spec-workspace-state-hygiene?workspace=private",
+        ):
+            error = _error(Request(f"{base_url}{path}"))
+            assert error.code == HTTPStatus.UNAUTHORIZED
+            assert error.payload["reason"] == "operator_authentication_required"
+    finally:
+        _stop_server(server, thread)
+
+
 def test_private_get_rejects_wrong_credentials_and_accepts_operator() -> None:
     server, thread, base_url = _start_server()
     try:
@@ -112,6 +126,12 @@ def test_private_get_rejects_wrong_credentials_and_accepts_operator() -> None:
             headers={"Authorization": _authorization(password="wrong")},
         )
         assert _error(wrong).code == HTTPStatus.UNAUTHORIZED
+
+        non_ascii = Request(
+            f"{base_url}/api/v1/real-idea-entry-requests",
+            headers={"Authorization": _authorization(username="é")},
+        )
+        assert _error(non_ascii).code == HTTPStatus.UNAUTHORIZED
 
         valid = Request(
             f"{base_url}/api/v1/real-idea-entry-requests",
@@ -229,6 +249,9 @@ class OperatorAuthContractTests(unittest.TestCase):
     def test_private_get_rejects_before_state_access(self) -> None:
         test_private_get_rejects_before_handler_reads_state_without_browser_prompt()
 
+    def test_sensitive_projection_gets_require_operator(self) -> None:
+        test_sensitive_projection_gets_require_operator_access()
+
     def test_private_get_accepts_only_operator_credentials(self) -> None:
         test_private_get_rejects_wrong_credentials_and_accepts_operator()
 
@@ -251,10 +274,12 @@ class OperatorAuthContractTests(unittest.TestCase):
     def test_private_state_reads_require_operator_access(self) -> None:
         private_paths = {
             "/api/v1/agent-workbench/conversations",
+            "/api/v1/artifacts/content",
             "/api/v1/idea-to-spec-candidate-approval-intents",
             "/api/v1/idea-to-spec-intake-clarification-answers",
             "/api/v1/idea-to-spec-repair-drafts",
             "/api/v1/idea-to-spec-repair-rerun-requests",
+            "/api/v1/idea-to-spec-workspace-state-hygiene",
             "/api/v1/operator-session",
             "/api/v1/product-workspace-creation-requests",
             "/api/v1/project-local-ontology-review-decisions",

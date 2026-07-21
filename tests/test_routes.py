@@ -339,10 +339,12 @@ def test_all_route_handlers_exist_on_viewer_handler() -> None:
 def test_private_state_get_routes_require_operator_access() -> None:
     private_paths = {
         "/api/v1/agent-workbench/conversations",
+        "/api/v1/artifacts/content",
         "/api/v1/idea-to-spec-candidate-approval-intents",
         "/api/v1/idea-to-spec-intake-clarification-answers",
         "/api/v1/idea-to-spec-repair-drafts",
         "/api/v1/idea-to-spec-repair-rerun-requests",
+        "/api/v1/idea-to-spec-workspace-state-hygiene",
         "/api/v1/ontology-owner-decision-acknowledgements",
         "/api/v1/operator-session",
         "/api/v1/product-workspace-creation-requests",

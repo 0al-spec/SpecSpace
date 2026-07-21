@@ -158,11 +158,9 @@ PUBLIC_GET_PATHS = frozenset(
     {
         "/api/v1/agent-surfaces",
         "/api/v1/artifacts",
-        "/api/v1/artifacts/content",
         "/api/v1/capabilities",
         "/api/v1/health",
         "/api/v1/idea-to-spec-workspace",
-        "/api/v1/idea-to-spec-workspace-state-hygiene",
         "/api/v1/implementation-work-index",
         "/api/v1/metrics",
         "/api/v1/ontology-compliance-review",

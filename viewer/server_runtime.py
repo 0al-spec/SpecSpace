@@ -537,6 +537,7 @@ def _operator_username(value: Any) -> str:
     if (
         not 1 <= len(username) <= 128
         or ":" in username
+        or not username.isascii()
         or any(ord(char) < 33 or ord(char) == 127 for char in username)
     ):
         raise ValueError("operator auth username is invalid")

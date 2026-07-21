@@ -71,10 +71,15 @@ def request_is_operator(
     ):
         return False
     username, password = credentials
-    return hmac.compare_digest(username, expected_username) and hmac.compare_digest(
-        password_digest(password),
-        expected_password_digest,
-    )
+    try:
+        username_bytes = username.encode("ascii")
+        expected_username_bytes = expected_username.encode("ascii")
+    except UnicodeEncodeError:
+        return False
+    return hmac.compare_digest(
+        username_bytes,
+        expected_username_bytes,
+    ) and hmac.compare_digest(password_digest(password), expected_password_digest)
 
 
 def _reject(

@@ -392,6 +392,11 @@ Response shape:
 
 Returns a bounded preview of one artifact from the catalog.
 
+This route is operator-only when single-operator access control is enabled.
+The catalog can include local review artifacts that are safe to inspect only
+inside the authenticated product console; anonymous clients must use the
+curated Product Workspace projection instead.
+
 Query parameters:
 
 - `path`: required safe relative artifact path.
@@ -1335,6 +1340,10 @@ the selected product workspace. The endpoint compares stored repair drafts,
 repair rerun requests, candidate approval intents, and SpecGraph handoff
 artifacts against the currently selected workspace, candidate, and repair
 session.
+
+This route is operator-only when single-operator access control is enabled.
+The anonymous Product Workspace projection does not read or embed this mutable
+state inventory.
 
 The endpoint accepts the same optional `?workspace=team-decision-log` selector
 as `/api/v1/idea-to-spec-workspace`. It reports state as `usable`, `missing`,
