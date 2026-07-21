@@ -173,7 +173,7 @@ def test_platform_publish_threads_external_state_profile() -> None:
     assert "SPECSPACE_EXTERNAL_STATE_TOKEN" not in workflow
 
 
-def test_production_smoke_defaults_to_bound_hosted_workspace() -> None:
+def test_production_smoke_checks_anonymous_bound_workspace_surface() -> None:
     workflow = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(
         encoding="utf-8"
     )
@@ -187,9 +187,5 @@ def test_production_smoke_defaults_to_bound_hosted_workspace() -> None:
         "'https://specgraph.tech/workspaces/hosted-operation-canary'"
         in workflow
     )
-    assert (
-        "vars.SPECSPACE_PRODUCT_WORKSPACE_MANAGED_MODE || "
-        "'hosted_managed_ready'"
-        in workflow
-    )
-    assert '--expect-managed-mode "$SPECSPACE_PRODUCT_WORKSPACE_MANAGED_MODE"' in workflow
+    assert "SPECSPACE_PRODUCT_WORKSPACE_MANAGED_MODE" not in workflow
+    assert "--expect-managed-mode read_only" in workflow

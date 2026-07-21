@@ -415,8 +415,7 @@ Expected for the current HTTP artifact deployment:
 - SpecSpace UI loads without sample fallback.
 - Runtime data reads go through `/api/v1/*`.
 
-For the current hosted-managed production profile, smoke the dedicated bound
-workspace:
+Smoke the anonymous public surface of the dedicated bound workspace:
 
 ```bash
 PYTHON="${PYTHON:-.venv/bin/python}"
@@ -424,15 +423,15 @@ PYTHON="${PYTHON:-.venv/bin/python}"
   --base-url https://specgraph.space \
   --workspace hosted-operation-canary \
   --artifact-base https://specgraph.tech/workspaces/hosted-operation-canary \
-  --expect-managed-mode hosted_managed_ready
+  --expect-managed-mode read_only
 ```
 
 This smoke verifies that `/hosted-operation-canary` is a SpecSpace Product Workspace,
 not the legacy ContextBuilder UI; that the Product Workspace API reads the
 workspace-specific static artifact base instead of the root SpecGraph showcase
-bundle; and that production reports `managed_mode_readiness.status =
-hosted_managed_ready` with a reachable allowlisted hosted executor. It also checks the
-presentation route `/hosted-operation-canary?view=demo` returns the SpecSpace shell
+bundle; and that an anonymous visitor sees only the `read_only` access surface.
+It also checks the presentation route `/hosted-operation-canary?view=demo`
+returns the SpecSpace shell
 without legacy ContextBuilder markers. The smoke also requires the
 single-operator boundary, proves anonymous raw-state GET and managed POST
 requests return `401`, and rejects private idea fields in the anonymous Product
@@ -440,12 +439,24 @@ Workspace projection. The production route renders the published product
 workspace state; locally generated demo candidates are covered by
 `make ui-e2e-product-demo`.
 
+The anonymous smoke intentionally does not attest the private hosted executor.
+To verify that operator-only surface without storing the password in GitHub,
+run an interactive probe from a trusted terminal; `curl` prompts for the
+password without placing it in shell history:
+
+```bash
+curl --user operator \
+  'https://specgraph.space/api/v1/idea-to-spec-workspace?workspace=hosted-operation-canary' \
+  | jq '.managed_mode_readiness | {status, mode, disabled_reasons}'
+```
+
+The hosted profile is ready only when that authenticated projection reports
+`status=hosted_managed_ready` and `mode=hosted_managed`.
+
 Use `--no-require-operator-auth` only to observe a pre-rollout deployment while
 it remains read-only. That opt-out is not production sign-off.
 
-For a production deployment intentionally configured without hosted execution,
-run the same checker against its published workspace with
-`--expect-managed-mode read_only`. The CI defaults can be overridden through
-`SPECSPACE_PRODUCT_WORKSPACE_ID`,
-`SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL`, and
-`SPECSPACE_PRODUCT_WORKSPACE_MANAGED_MODE` repository variables.
+CI always checks the anonymous `read_only` surface. Its workspace and artifact
+route can be overridden through `SPECSPACE_PRODUCT_WORKSPACE_ID` and
+`SPECSPACE_PRODUCT_WORKSPACE_ARTIFACT_BASE_URL` repository variables. Hosted
+executor readiness remains an authenticated operator check.
