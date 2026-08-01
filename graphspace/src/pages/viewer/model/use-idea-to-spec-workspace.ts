@@ -1217,6 +1217,29 @@ export type IdeaToSpecManagedOperationsObservability = {
   authorityBoundary: IdeaToSpecGuidedFlowBoundary;
 };
 
+export type IdeaToSpecPromotionReviewConfirmation = {
+  available: boolean;
+  status: string;
+  workspaceId: string | null;
+  operationId: string;
+  canAuthor: boolean;
+  operatorProfileBound: boolean;
+  confirmation: {
+    available: boolean;
+    status: string;
+    confirmationId: string | null;
+    issuedAt: string | null;
+    expiresAt: string | null;
+    predecessorRequestId: string | null;
+  };
+  boundInputs: readonly {
+    logicalRef: string;
+    sha256: string;
+  }[];
+  blockers: readonly string[];
+  nextSafeAction: string;
+};
+
 export type IdeaToSpecManagedModeReadiness = {
   available: boolean;
   surfaceId: string | null;
@@ -1643,6 +1666,7 @@ export type IdeaToSpecWorkspace = {
   guidedRepairPath: IdeaToSpecGuidedRepairPath;
   guidedApprovalPath: IdeaToSpecGuidedApprovalPath;
   managedOperations: IdeaToSpecManagedOperationsObservability;
+  promotionReviewConfirmation: IdeaToSpecPromotionReviewConfirmation;
   managedModeReadiness: IdeaToSpecManagedModeReadiness;
   realIdeaIntake: IdeaToSpecRealIdeaIntake;
   intake: {
@@ -4713,6 +4737,44 @@ function parseManagedOperationsObservability(
   };
 }
 
+function parsePromotionReviewConfirmation(
+  raw: unknown,
+): IdeaToSpecPromotionReviewConfirmation {
+  const surface = recordValue(raw);
+  const confirmation = recordValue(surface.confirmation);
+  return {
+    available: surface.available === true,
+    status: stringValue(surface.status, "missing"),
+    workspaceId: optionalString(surface.workspace_id),
+    operationId: stringValue(
+      surface.operation_id,
+      "promotion_review_execute",
+    ),
+    canAuthor: surface.can_author === true,
+    operatorProfileBound: surface.operator_profile_bound === true,
+    confirmation: {
+      available: confirmation.available === true,
+      status: stringValue(confirmation.status, "missing"),
+      confirmationId: optionalString(confirmation.confirmation_id),
+      issuedAt: optionalString(confirmation.issued_at),
+      expiresAt: optionalString(confirmation.expires_at),
+      predecessorRequestId: optionalString(
+        confirmation.predecessor_request_id,
+      ),
+    },
+    boundInputs: records(surface.bound_inputs).flatMap((item) => {
+      const logicalRef = optionalString(item.logical_ref);
+      const sha256 = optionalString(item.sha256);
+      return logicalRef && sha256 ? [{ logicalRef, sha256 }] : [];
+    }),
+    blockers: strings(surface.blockers),
+    nextSafeAction: stringValue(
+      surface.next_safe_action,
+      "Inspect promotion review confirmation prerequisites.",
+    ),
+  };
+}
+
 function parseManagedModeReadiness(raw: unknown): IdeaToSpecManagedModeReadiness {
   const surface = recordValue(raw);
   const executor = recordValue(surface.executor);
@@ -5460,6 +5522,36 @@ function managedModeReadinessBoundaryIsSafe(raw: unknown): boolean {
   return true;
 }
 
+function promotionReviewConfirmationBoundaryIsSafe(raw: unknown): boolean {
+  if (!isRecord(raw)) return true;
+  const boundary = recordValue(raw.authority_boundary);
+  const falseFlags = [
+    "confirmation_authoring_is_execution_authority",
+    "may_execute_platform",
+    "may_execute_git_service",
+    "may_mutate_candidate_artifacts",
+    "may_mutate_canonical_specs",
+    "may_write_ontology_package",
+    "may_accept_ontology_terms",
+    "may_create_git_branch",
+    "may_create_git_commit",
+    "may_push_candidate_branch",
+    "may_open_pull_request",
+    "may_merge_pull_request",
+    "may_publish_read_model",
+  ];
+  const knownMayFlags = new Set(
+    falseFlags.filter((flag) => flag.startsWith("may_")),
+  );
+  if (boundary.report_only !== true) return false;
+  for (const [flag, value] of Object.entries(boundary)) {
+    if (flag.startsWith("may_") && !knownMayFlags.has(flag) && value !== false) {
+      return false;
+    }
+  }
+  return falseFlags.every((flag) => boundary[flag] === false);
+}
+
 function guidedRepairPathBoundaryIsSafe(raw: unknown): boolean {
   if (!isRecord(raw)) return true;
   const boundary = recordValue(raw.authority_boundary);
@@ -5811,6 +5903,18 @@ export function parseIdeaToSpecWorkspace(
     !managedModeReadinessBoundaryIsSafe(raw.managed_mode_readiness)
   ) {
     return { kind: "parse-error", reason: "managed mode readiness boundary expanded", raw };
+  }
+  if (
+    isRecord(raw.promotion_review_confirmation) &&
+    !promotionReviewConfirmationBoundaryIsSafe(
+      raw.promotion_review_confirmation,
+    )
+  ) {
+    return {
+      kind: "parse-error",
+      reason: "promotion review confirmation boundary expanded",
+      raw,
+    };
   }
   if (
     isRecord(raw.guided_approval_path) &&
@@ -6282,6 +6386,9 @@ export function parseIdeaToSpecWorkspace(
       guidedApprovalPath: parseGuidedApprovalPath(raw.guided_approval_path),
       managedOperations: parseManagedOperationsObservability(
         raw.managed_operations_observability,
+      ),
+      promotionReviewConfirmation: parsePromotionReviewConfirmation(
+        raw.promotion_review_confirmation,
       ),
       managedModeReadiness: parseManagedModeReadiness(raw.managed_mode_readiness),
       realIdeaIntake: parseRealIdeaIntake(raw.real_idea_intake),

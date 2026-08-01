@@ -1602,6 +1602,7 @@ class ProductWorkspaceFileProvider:
         for rel, path in self._artifact_map().items():
             try:
                 size_bytes = path.stat().st_size
+                sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
             except OSError:
                 continue
             artifacts.append(
@@ -1611,6 +1612,7 @@ class ProductWorkspaceFileProvider:
                     "label": artifact_label(rel),
                     "group": "product_workspace",
                     "size_bytes": size_bytes,
+                    "sha256": sha256,
                 }
             )
         return HTTPStatus.OK, build_artifact_catalog(
@@ -2936,10 +2938,41 @@ class ProductWorkspaceHttpProvider:
 
     def _artifact_paths(self, manifest: dict[str, Any]) -> set[str]:
         manifest_paths = self.delegate._manifest_path_set(manifest)
+        initialization_filename = (
+            idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
+        )
+        initialization_path = f"runs/{initialization_filename}"
+        initialization = self._read_runs_json_path(manifest, initialization_path)
+        source_sha256 = self._manifest_sha256(manifest, initialization_path)
+        binding = product_workspace_binding.project_published_initialization_binding(
+            initialization,
+            workspace_id=self.workspace_id,
+            source_ref=initialization_path,
+            source_sha256=source_sha256 or "",
+        )
+        run_dir_ref = _text(
+            _record(binding.get("routing")).get("platform_default_run_dir_ref")
+        )
+        prefix = (
+            run_dir_ref
+            if binding.get("status") == "ready"
+            and binding.get("trusted") is True
+            and run_dir_ref == f"runs/{self.workspace_id}"
+            else "runs"
+        )
         return {
-            f"runs/{filename}"
+            (
+                initialization_path
+                if filename == initialization_filename
+                else f"{prefix}/{filename}"
+            )
             for filename in WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS
-            if f"runs/{filename}" in manifest_paths
+            if (
+                initialization_path
+                if filename == initialization_filename
+                else f"{prefix}/{filename}"
+            )
+            in manifest_paths
         }
 
     def health(self) -> dict[str, Any]:

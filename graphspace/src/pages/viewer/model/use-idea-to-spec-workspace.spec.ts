@@ -120,6 +120,94 @@ function minimalWorkspacePayload() {
 }
 
 describe("parseIdeaToSpecWorkspace guided approval path", () => {
+  it("parses authenticated promotion review confirmation state", () => {
+    const payload = minimalWorkspacePayload() as Record<string, unknown>;
+    payload.promotion_review_confirmation = {
+      artifact_kind: "specspace_promotion_review_confirmation_authoring",
+      schema_version: 1,
+      available: true,
+      status: "ready",
+      workspace_id: "pantry-control",
+      operation_id: "promotion_review_execute",
+      can_author: false,
+      operator_profile_bound: true,
+      confirmation: {
+        available: true,
+        status: "active",
+        confirmation_id:
+          "confirmation://pantry-control/promotion_review_execute/0123456789abcdef0123456789abcdef",
+        issued_at: "2026-08-02T10:00:00Z",
+        expires_at: "2026-08-02T10:10:00Z",
+        predecessor_request_id:
+          "managed-operation://pantry-control/promotion_execute_dry_run/0123456789abcdef01234567",
+      },
+      bound_inputs: [
+        {
+          logical_ref: "runs/graph_repository_promotion_request.json",
+          sha256: "1".repeat(64),
+        },
+      ],
+      blockers: [],
+      next_safe_action: "Request the separately allowlisted review operation.",
+      authority_boundary: {
+        report_only: true,
+        confirmation_authoring_is_execution_authority: false,
+        may_execute_platform: false,
+        may_execute_git_service: false,
+        may_mutate_candidate_artifacts: false,
+        may_mutate_canonical_specs: false,
+        may_write_ontology_package: false,
+        may_accept_ontology_terms: false,
+        may_create_git_branch: false,
+        may_create_git_commit: false,
+        may_push_candidate_branch: false,
+        may_open_pull_request: false,
+        may_merge_pull_request: false,
+        may_publish_read_model: false,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.data.promotionReviewConfirmation.status).toBe("ready");
+    expect(
+      parsed.data.promotionReviewConfirmation.confirmation.expiresAt,
+    ).toBe("2026-08-02T10:10:00Z");
+    expect(parsed.data.promotionReviewConfirmation.boundInputs).toHaveLength(1);
+  });
+
+  it("rejects promotion review confirmation authority expansion", () => {
+    const payload = minimalWorkspacePayload() as Record<string, unknown>;
+    payload.promotion_review_confirmation = {
+      authority_boundary: {
+        report_only: true,
+        confirmation_authoring_is_execution_authority: false,
+        may_execute_platform: false,
+        may_execute_git_service: false,
+        may_mutate_candidate_artifacts: false,
+        may_mutate_canonical_specs: false,
+        may_write_ontology_package: false,
+        may_accept_ontology_terms: false,
+        may_create_git_branch: false,
+        may_create_git_commit: false,
+        may_push_candidate_branch: false,
+        may_open_pull_request: true,
+        may_merge_pull_request: false,
+        may_publish_read_model: false,
+      },
+    };
+
+    const parsed = parseIdeaToSpecWorkspace(payload);
+
+    expect(parsed.kind).toBe("parse-error");
+    if (parsed.kind !== "parse-error") return;
+    expect(parsed.reason).toBe(
+      "promotion review confirmation boundary expanded",
+    );
+  });
+
   it("preserves fallback-free clarification template outcomes", () => {
     const parsed = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
 

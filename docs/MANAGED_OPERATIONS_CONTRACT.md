@@ -383,9 +383,24 @@ materialization, malformed reports, and timeout reports must not silently replac
 ready candidate, approval, promotion, or publication artifacts.
 
 Non-dry-run Git review execution requires explicit operator confirmation.
-Read-model publication requires merged review-status evidence but is not
-currently protected by an extra confirmation field. Dry-run promotion must not
-create worktrees, commits, pull requests, or read models.
+SpecSpace authors that confirmation through the operator-only
+`POST /api/v1/idea-to-spec-promotion-review-confirmation` endpoint. The browser
+sends only the selected workspace and an affirmative acknowledgement; SpecSpace
+derives the opaque operator profile and binds the ten-minute confirmation to the
+current durable workspace binding, promotion request, approval decision,
+execution plan, and one successful request-scoped promotion dry-run. Authoring
+does not enqueue Platform or open a pull request. Hosted enqueue reloads the
+active confirmation from durable state, and Platform independently revalidates
+and atomically consumes it. Expired, consumed, stale, foreign, or browser-shaped
+confirmation evidence is rejected.
+
+The first promotion dry-run after this contract is deployed must persist the
+three input digests in compact hosted request state. Older receipts without
+those digests cannot authorize a review and should be repeated through the
+existing replay-safe dry-run operation. Read-model publication requires merged
+review-status evidence but is not currently protected by a separate
+confirmation. Dry-run promotion must not create worktrees, commits, pull
+requests, or read models.
 
 ## Timeout Policy
 
@@ -409,7 +424,7 @@ The current regression suite should keep covering these categories:
 | Stale/replay | Cross-workspace or stale request/artifact refs block execution. |
 | Timeout/failure | Timeout and failed reports are visible and do not advance lifecycle. |
 | Dry-run guard | Promotion dry-run never opens PRs or writes read models. |
-| Non-dry-run guard | Promotion review and read-model publication require explicit confirmation and prior evidence. |
+| Non-dry-run guard | Promotion review requires authenticated, short-lived, digest-bound confirmation and successful dry-run evidence; read-model publication requires merged review evidence. |
 | Happy path | Playwright exercises a UI-started managed lifecycle through workspace, intake, clarification, repair, approval, and promotion handoffs. |
 
 When adding a new managed operation, update the registry first, then add route,

@@ -559,28 +559,115 @@ class HostedManagedExecutionTests(unittest.TestCase):
         with self.assertRaises(hosted_managed_execution.HostedExecutionError):
             hosted_managed_execution._compact_enqueue_record(report)
 
-    def test_confirmation_is_durable_evidence_without_execution_authority(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            runtime = SimpleNamespace(
-                repo_root=Path(temp_dir),
-                specspace_state_dir=Path(temp_dir) / "state",
-            )
-            ref = hosted_managed_execution._confirmation_ref(
-                runtime,
-                "pantry-control",
-                "promotion_review_execute",
-            )
-            path = runtime.specspace_state_dir / ref.removeprefix(
-                "specspace-state://"
-            )
-            payload = json.loads(path.read_text(encoding="utf-8"))
+    def test_compact_request_keeps_input_digests_for_later_confirmation(self) -> None:
+        report = {
+            "artifact_kind": "platform_hosted_managed_operation_enqueue_report",
+            "ok": True,
+            "request": {
+                "generated_at": "2026-07-10T00:00:00Z",
+                "operation": {"operation_id": "promotion_execute_dry_run"},
+                "workspace": {"workspace_id": "pantry-control"},
+                "workspace_binding": {
+                    "binding_id": "product-workspace-binding://pantry-control",
+                    "binding_revision_sha256": "2" * 64,
+                },
+                "inputs": [
+                    {
+                        "logical_ref": "runs/candidate_approval_decision.json",
+                        "sha256": "3" * 64,
+                        "size_bytes": 42,
+                    }
+                ],
+                "expected_output_reports": [],
+            },
+            "receipt": {
+                "status": "queued",
+                "attempt": 0,
+                "request_ref": (
+                    "managed-operation://pantry-control/"
+                    "promotion_execute_dry_run/0123456789abcdef01234567"
+                ),
+                "idempotency_key": "1" * 64,
+                "operation_id": "promotion_execute_dry_run",
+                "workspace_id": "pantry-control",
+                "output_reports": [],
+            },
+            "authority_boundary": {
+                "enqueue_is_execution_authority": False,
+                "queue_status_is_lifecycle_evidence": False,
+                "platform_output_reports_are_authoritative": True,
+            },
+        }
 
-        self.assertTrue(payload["confirmed"])
-        self.assertFalse(
-            payload["authority_boundary"]["hosted_request_state_is_execution_authority"]
+        record = hosted_managed_execution._compact_enqueue_record(report)
+
+        self.assertEqual(
+            record["input_digests"],
+            [
+                {
+                    "logical_ref": "runs/candidate_approval_decision.json",
+                    "sha256": "3" * 64,
+                }
+            ],
         )
-        self.assertFalse(
-            payload["authority_boundary"]["specspace_opens_pull_request"]
+
+    def test_promotion_review_enqueue_uses_existing_semantic_confirmation(self) -> None:
+        server, thread, base_url = self.start_stub()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                runtime = SimpleNamespace(
+                    repo_root=Path(temp_dir),
+                    specspace_state_dir=Path(temp_dir) / "state",
+                    runs_dir=Path(temp_dir) / "runs",
+                    hosted_managed_execution_enabled=True,
+                    hosted_managed_executor_url=base_url,
+                    hosted_managed_executor_token=TOKEN,
+                    hosted_managed_executor_timeout_seconds=2,
+                    hosted_managed_operation_allowlist={
+                        "promotion_review_execute"
+                    },
+                )
+                with patch.object(
+                    hosted_managed_execution.promotion_review_confirmation,
+                    "ready_confirmation",
+                    return_value=(
+                        {
+                            "confirmation_ref": (
+                                "specspace-state://confirmations/pantry-control/"
+                                "promotion_review_execute/"
+                                "0123456789abcdef0123456789abcdef.json"
+                            ),
+                            "operator_ref": "operator://specspace-basic-opaque",
+                        },
+                        {"status": "ready", "blockers": []},
+                    ),
+                ):
+                    status, response = hosted_managed_execution.enqueue_operation(
+                        runtime,
+                        operation_id="promotion_review_execute",
+                        workspace_id="pantry-control",
+                        payload={"workspace_id": "pantry-control"},
+                        workspace_binding=ready_binding(),
+                        workspace_payload={"artifacts": {}},
+                    )
+        finally:
+            server.shutdown()
+            thread.join(timeout=5)
+            server.server_close()
+
+        self.assertEqual(status, HTTPStatus.ACCEPTED)
+        self.assertEqual(response["status"], "execution_requested")
+        self.assertEqual(
+            PlatformStubHandler.received[-1]["confirmation_ref"],
+            (
+                "specspace-state://confirmations/pantry-control/"
+                "promotion_review_execute/"
+                "0123456789abcdef0123456789abcdef.json"
+            ),
+        )
+        self.assertEqual(
+            PlatformStubHandler.received[-1]["operator_ref"],
+            "operator://specspace-basic-opaque",
         )
 
     def test_managed_execution_routes_to_hosted_boundary_without_local_callback(self) -> None:

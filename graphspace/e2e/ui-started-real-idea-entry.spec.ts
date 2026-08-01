@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import {
@@ -28,11 +29,18 @@ const productDemoDisplayName = "Local Pantry Demo";
 const productDemoRawIdea =
   "Хочу приложение для домашнего контроля запасов еды.";
 const productDemoPublicSummary = "Local pantry demo";
+const e2eAppOrigin = new URL(
+  process.env.SPECSPACE_E2E_BASE_URL ??
+    `http://127.0.0.1:${process.env.SPECSPACE_E2E_PORT ?? "5175"}`,
+).origin;
+const e2eOperatorUsername = "operator";
+const e2eOperatorPassword = "specspace-e2e-operator-password-0123456789";
 
 test.describe.configure({ mode: "serial" });
 
 type SpecSpaceBackend = {
   baseUrl: string;
+  requestHeaders: Record<string, string>;
   runsDir: string;
   stateDir: string;
   tmpRoot: string;
@@ -75,6 +83,7 @@ type UiStartedIdeaScenario = {
   blockedAnswerContinuationPublished?: boolean;
   approvalPathPublished?: boolean;
   approvalPath?: Record<string, unknown>;
+  promotionReviewConfirmationReady?: boolean;
   managedEndpointPosts?: Record<string, unknown[]>;
   overviewStage?: ProductWorkspaceOverviewScenario;
 };
@@ -216,6 +225,7 @@ async function startSpecSpaceBackend(options: {
   hostedStateDurability?: "persistent" | "ephemeral";
   hostedOperationAllowlist?: string[];
   runsDir?: string;
+  enableOperatorAuth?: boolean;
 } = {}): Promise<SpecSpaceBackend> {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "specspace-ui-e2e-"));
   const dialogDir = path.join(tmpRoot, "dialogs");
@@ -230,6 +240,17 @@ async function startSpecSpaceBackend(options: {
   }
   const port = await freePort();
   const python = executablePythonForSubprocess(repoRoot);
+  const operatorAuthEnabled =
+    options.enableOperatorAuth ??
+    Boolean(options.enablePlatformExecution || options.hostedExecutorUrl);
+  const requestHeaders = operatorAuthEnabled
+    ? {
+        Authorization: `Basic ${Buffer.from(
+          `${e2eOperatorUsername}:${e2eOperatorPassword}`,
+        ).toString("base64")}`,
+        Origin: e2eAppOrigin,
+      }
+    : {};
   const child = spawn(
     python,
     [
@@ -271,6 +292,14 @@ async function startSpecSpaceBackend(options: {
       cwd: repoRoot,
       env: {
         ...process.env,
+        ...(operatorAuthEnabled
+          ? {
+              SPECSPACE_OPERATOR_AUTH_ENABLED: "true",
+              SPECSPACE_OPERATOR_AUTH_USERNAME: e2eOperatorUsername,
+              SPECSPACE_OPERATOR_AUTH_PASSWORD: e2eOperatorPassword,
+              SPECSPACE_OPERATOR_AUTH_ALLOWED_ORIGIN: e2eAppOrigin,
+            }
+          : {}),
         ...(options.hostedExecutorToken
           ? {
               SPECSPACE_HOSTED_MANAGED_EXECUTOR_TOKEN:
@@ -295,6 +324,7 @@ async function startSpecSpaceBackend(options: {
   }
   return {
     baseUrl,
+    requestHeaders,
     runsDir,
     stateDir,
     tmpRoot,
@@ -725,14 +755,18 @@ async function writeRealIdeaIntakeRuns(runsDir: string) {
   });
 }
 
-async function proxyRouteToBackend(route: Route, baseUrl: string) {
+async function proxyRouteToBackend(
+  route: Route,
+  baseUrl: string,
+  requestHeaders: Record<string, string> = {},
+) {
   const request = route.request();
   const sourceUrl = new URL(request.url());
   try {
     const response = await route.fetch({
       url: `${baseUrl}${sourceUrl.pathname}${sourceUrl.search}`,
       method: request.method(),
-      headers: request.headers(),
+      headers: { ...request.headers(), ...requestHeaders },
       postData: request.postData() ?? undefined,
     });
     await route.fulfill({ response });
@@ -747,7 +781,11 @@ async function proxyRouteToBackend(route: Route, baseUrl: string) {
   }
 }
 
-async function installRealBackendApiRoutes(page: Page, baseUrl: string) {
+async function installRealBackendApiRoutes(
+  page: Page,
+  baseUrl: string,
+  requestHeaders: Record<string, string> = {},
+) {
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === "/api/v1/runs-watch") {
@@ -759,7 +797,7 @@ async function installRealBackendApiRoutes(page: Page, baseUrl: string) {
       });
       return;
     }
-    await proxyRouteToBackend(route, baseUrl);
+    await proxyRouteToBackend(route, baseUrl, requestHeaders);
   });
 }
 
@@ -1762,6 +1800,25 @@ function safeManagedModeBoundary() {
   };
 }
 
+function safePromotionReviewConfirmationBoundary() {
+  return {
+    report_only: true,
+    confirmation_authoring_is_execution_authority: false,
+    may_execute_platform: false,
+    may_execute_git_service: false,
+    may_mutate_candidate_artifacts: false,
+    may_mutate_canonical_specs: false,
+    may_write_ontology_package: false,
+    may_accept_ontology_terms: false,
+    may_create_git_branch: false,
+    may_create_git_commit: false,
+    may_push_candidate_branch: false,
+    may_open_pull_request: false,
+    may_merge_pull_request: false,
+    may_publish_read_model: false,
+  };
+}
+
 function safeAnswerContinuationBoundary() {
   return {
     inspect_only: true,
@@ -2298,6 +2355,40 @@ function managedModeReadinessForScenario() {
   };
 }
 
+function promotionReviewConfirmationForScenario(
+  scenario: UiStartedIdeaScenario,
+) {
+  const ready = scenario.promotionReviewConfirmationReady === true;
+  return {
+    artifact_kind: "specspace_promotion_review_confirmation_authoring",
+    schema_version: 1,
+    available: true,
+    status: ready ? "ready" : "confirmation_needed",
+    workspace_id: workspaceId,
+    operation_id: "promotion_review_execute",
+    can_author: !ready,
+    operator_profile_bound: true,
+    confirmation: {
+      available: ready,
+      status: ready ? "active" : "missing",
+      confirmation_id: ready
+        ? `confirmation://${workspaceId}/promotion_review_execute/0123456789abcdef0123456789abcdef`
+        : null,
+      issued_at: ready ? "2026-08-02T00:00:00Z" : null,
+      expires_at: ready ? "2026-08-02T00:10:00Z" : null,
+      predecessor_request_id: ready
+        ? `managed-operation://${workspaceId}/promotion_execute_dry_run/0123456789abcdef01234567`
+        : null,
+    },
+    bound_inputs: [],
+    blockers: [],
+    next_safe_action: ready
+      ? "Request the separately allowlisted review operation."
+      : "Authorize review creation for the current successful promotion dry-run.",
+    authority_boundary: safePromotionReviewConfirmationBoundary(),
+  };
+}
+
 function defaultOverviewStageForScenario(
   scenario: UiStartedIdeaScenario,
 ): ProductWorkspaceOverviewScenario {
@@ -2347,10 +2438,45 @@ async function workspacePayload(
   payload.product_workspace_overview = productWorkspaceOverviewForScenario(
     scenario.overviewStage ?? defaultOverviewStageForScenario(scenario),
   );
-  payload.managed_operations_observability =
-    managedOperationsObservabilityForScenario(
-      scenario.overviewStage ?? defaultOverviewStageForScenario(scenario),
-    );
+  const managedOperations = managedOperationsObservabilityForScenario(
+    scenario.overviewStage ?? defaultOverviewStageForScenario(scenario),
+  );
+  if (scenario.approvalPath) {
+    const promotionReviewStatus = scenario.promotionReviewConfirmationReady
+      ? "ready_to_execute"
+      : "request_needed";
+    managedOperations.operations.push({
+      ...managedOperations.operations[0],
+      operation_id: "promotion_review_execute",
+      category: "promotion",
+      lifecycle_stage: "promotion_review_execution",
+      ui_stage: "Promotion review",
+      endpoint: "/api/v1/idea-to-spec-promotion-review/execute",
+      platform_command: ["product-promotion", "execute"],
+      status: promotionReviewStatus,
+      target_section: "idea-to-spec-controlled-promotion",
+      input_refs: [],
+      missing_input_refs: [],
+      requires_explicit_confirmation: true,
+      irreversible: true,
+    });
+    managedOperations.summary.operation_count += 1;
+    if (promotionReviewStatus === "ready_to_execute") {
+      managedOperations.summary.ready_to_execute_count += 1;
+    } else {
+      managedOperations.summary.request_needed_count += 1;
+    }
+    managedOperations.status_counts[promotionReviewStatus] =
+      (managedOperations.status_counts[promotionReviewStatus] ?? 0) + 1;
+    managedOperations.groups.push({
+      phase: "promotion",
+      label: "Promotion",
+      operation_ids: ["promotion_review_execute"],
+    });
+  }
+  payload.managed_operations_observability = managedOperations;
+  payload.promotion_review_confirmation =
+    promotionReviewConfirmationForScenario(scenario);
   payload.managed_mode_readiness = managedModeReadinessForScenario();
 
   if (!hasSubmittedEntry) {
@@ -2671,6 +2797,28 @@ async function installIdeaToSpecApiRoutes(
 
     if (path === "/api/v1/idea-to-spec-intake-clarification-answers") {
       await proxyRouteToBackend(route, backendBaseUrl);
+      return;
+    }
+
+    if (path === "/api/v1/idea-to-spec-promotion-review-confirmation") {
+      scenario.managedEndpointPosts ??= {};
+      let payload: unknown = {};
+      try {
+        payload = request.postDataJSON();
+      } catch {
+        payload = {};
+      }
+      scenario.managedEndpointPosts[path] ??= [];
+      scenario.managedEndpointPosts[path].push(payload);
+      scenario.promotionReviewConfirmationReady = true;
+      await route.fulfill({
+        status: 201,
+        json: {
+          ok: true,
+          created: true,
+          status: "ready",
+        },
+      });
       return;
     }
 
@@ -3175,7 +3323,11 @@ test("runs workspace initialization through SpecSpace backend managed execution"
   });
   try {
     await installRunsWatchMock(page);
-    await installRealBackendApiRoutes(page, backend.baseUrl);
+    await installRealBackendApiRoutes(
+      page,
+      backend.baseUrl,
+      backend.requestHeaders,
+    );
 
     await gotoAppRoot(page);
     await page.getByRole("button", { name: "Toggle Sidebar" }).click();
@@ -3407,8 +3559,24 @@ test("runs guided approval managed actions through backend endpoints", async ({
       "promotion_review_execution_needed",
     );
     await emitRunsChange(page);
+    await expect(
+      guidedApprovalPath.getByRole("button", {
+        name: "Authorize review creation",
+      }),
+    ).toBeEnabled();
+    await guidedApprovalPath.getByRole("button", {
+      name: "Authorize review creation",
+    }).click();
+    await expect(guidedApprovalPath).toContainText(
+      "Promotion review authorization: ready",
+    );
     await expect(guidedApprovalPath).toContainText("Open review PR");
-    await guidedApprovalPath.getByRole("button", { name: "Open review PR" }).click();
+    await expect(
+      guidedApprovalPath.getByRole("button", { name: "Open review PR" }),
+    ).toBeEnabled();
+    await guidedApprovalPath.getByRole("button", {
+      name: "Open review PR",
+    }).click();
     await expect(guidedApprovalPath).toContainText(
       "Promotion review execution: managed_promotion_review_execution_completed",
     );
@@ -3450,11 +3618,18 @@ test("runs guided approval managed actions through backend endpoints", async ({
     ).toMatchObject({ workspace_id: workspaceId });
     expect(
       scenario.managedEndpointPosts?.[
+        "/api/v1/idea-to-spec-promotion-review-confirmation"
+      ]?.[0],
+    ).toEqual({
+      workspace_id: workspaceId,
+      confirmed: true,
+    });
+    expect(
+      scenario.managedEndpointPosts?.[
         "/api/v1/idea-to-spec-promotion-review/execute"
       ]?.[0],
-    ).toMatchObject({
+    ).toEqual({
       workspace_id: workspaceId,
-      confirm_open_review: true,
     });
     expect(
       scenario.managedEndpointPosts?.[
@@ -3575,7 +3750,11 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
   try {
     await rm(specGraphRunDir, { recursive: true, force: true });
     await installRunsWatchMock(page);
-    await installRealBackendApiRoutes(page, backend.baseUrl);
+    await installRealBackendApiRoutes(
+      page,
+      backend.baseUrl,
+      backend.requestHeaders,
+    );
     await createWorkspaceRequestFromSidebar({
       page,
       displayName: productDemoDisplayName,
@@ -3595,6 +3774,7 @@ test("product demo harness: UI-started real idea reaches candidate with explicit
     await emitRunsChange(page);
     const workspaceResponse = await fetch(
       `${backend.baseUrl}/api/v1/idea-to-spec-workspace?workspace=${productDemoWorkspaceId}`,
+      { headers: backend.requestHeaders },
     );
     expect(workspaceResponse.ok).toBeTruthy();
     const workspacePayload = (await workspaceResponse.json()) as {

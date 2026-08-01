@@ -823,6 +823,14 @@ projection does not let the UI apply answers, run SpecGraph, run Platform, execu
 prompt agents, mutate candidate source artifacts, mutate canonical specs, write
 Ontology packages, accept Ontology terms, or create Git branches/commits.
 
+For an authenticated operator, the response also embeds
+`promotion_review_confirmation`. This private projection reports whether a
+short-lived semantic confirmation can be authored, is active, expired,
+consumed, stale, or blocked. It exposes only sanitized status, expiry,
+request/input evidence refs, blockers, and a closed authority boundary. The
+confirmation does not enable `promotion_review_execute`; the deployment
+allowlist remains a separate fail-closed gate.
+
 The response may also embed `workspace_initialization.execution_request` when
 Platform publishes
 `runs/product_workspace_initialization_execution_request.json`. This is a
@@ -1332,6 +1340,38 @@ SpecGraph should later consume this state through
 `make real-idea-intake-from-entry-request`, which writes a sanitized import
 preview and local-only real idea intake artifacts under the selected run
 directory.
+
+### `POST /api/v1/idea-to-spec-promotion-review-confirmation`
+
+Creates or reuses a private ten-minute confirmation for the current selected
+workspace. This route is operator-only and uses the standard same-origin JSON
+guard. The accepted browser payload is intentionally narrow:
+
+```json
+{
+  "workspace_id": "hosted-operation-canary",
+  "confirmed": true
+}
+```
+
+SpecSpace derives the operator profile server-side and rejects additional
+identity, digest, ref, or `may_*` fields. Before writing state it requires:
+
+- a trusted durable workspace binding;
+- current manifest digests for the promotion request, approval decision, and
+  execution plan;
+- the latest `promotion_execute_dry_run` receipt to be `succeeded` against the
+  same binding and input digests;
+- both request-scoped Platform/Git Service report refs and SHA-256 digests.
+
+The resulting `platform_hosted_promotion_review_confirmation` v1 record is
+stored under
+`specspace-state://confirmations/<workspace>/promotion_review_execute/` and is
+selected through a private pointer record. Authoring never contacts the queue,
+runs Platform, creates Git objects, opens a PR, or changes the deployment
+allowlist. `promotion_review_execute` later reloads this server-authored record;
+Platform performs independent digest validation and atomic consumption before
+enqueue.
 
 ### `GET /api/v1/idea-to-spec-workspace-state-hygiene`
 
