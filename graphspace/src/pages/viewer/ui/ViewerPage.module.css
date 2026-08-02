@@ -860,6 +860,64 @@
   max-width: calc(100vw - 40px);
 }
 
+.operatorAccessOverlay {
+  z-index: 20;
+  max-width: min(440px, calc(100vw - 2 * var(--gs-space-5)));
+}
+
+.operatorAccessNotice {
+  display: flex;
+  align-items: center;
+  gap: var(--gs-space-4);
+  color: var(--gs-ink);
+}
+
+.operatorAccessNotice > span {
+  display: grid;
+  gap: var(--gs-space-1);
+  min-width: 0;
+}
+
+.operatorAccessNotice strong {
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.operatorAccessNotice small {
+  color: var(--gs-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.operatorAccessButton {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: var(--gs-space-3) var(--gs-space-4);
+  border: 1px solid var(--gs-rule-mid);
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.operatorAccessButton:hover {
+  border-color: var(--gs-ink);
+  background: var(--gs-panel);
+}
+
+@media (max-width: 620px) {
+  .operatorAccessNotice {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .operatorAccessButton {
+    text-align: center;
+  }
+}
+
 .statusText {
   display: block;
   color: var(--gs-muted);

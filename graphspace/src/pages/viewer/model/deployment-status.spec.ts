@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  apiDeploymentStateFromHealth,
   describeDeploymentStatus,
+  operatorAuthenticationRequired,
+  operatorSessionHref,
   shouldUseLocalSpecPMLifecycle,
   shouldUseRunsWatch,
   type ApiDeploymentState,
@@ -22,6 +25,7 @@ describe("describeDeploymentStatus", () => {
       kind: "ok",
       deployment: deployment(),
       provider: "http",
+      operatorAccess: { enabled: false, authenticated: false },
     });
 
     expect(state.label).toBe("UI 0.0.1+c05f17d · API 0.0.1+c05f17d");
@@ -35,6 +39,7 @@ describe("describeDeploymentStatus", () => {
         uiImageRef: "ghcr.io/0al-spec/specspace-ui@sha256:" + "2".repeat(64),
       }),
       provider: "http",
+      operatorAccess: { enabled: false, authenticated: false },
     };
 
     const state = describeDeploymentStatus(ui(), api);
@@ -62,6 +67,7 @@ describe("shouldUseRunsWatch", () => {
       kind: "ok",
       deployment: deployment(),
       provider: "http",
+      operatorAccess: { enabled: false, authenticated: false },
     })).toBe(false);
   });
 
@@ -70,6 +76,7 @@ describe("shouldUseRunsWatch", () => {
       kind: "ok",
       deployment: deployment(),
       provider: "file",
+      operatorAccess: { enabled: false, authenticated: false },
     })).toBe(true);
   });
 
@@ -100,6 +107,7 @@ describe("shouldUseLocalSpecPMLifecycle", () => {
       kind: "ok",
       deployment: deployment(),
       provider: "http",
+      operatorAccess: { enabled: false, authenticated: false },
     })).toBe(false);
   });
 
@@ -108,6 +116,7 @@ describe("shouldUseLocalSpecPMLifecycle", () => {
       kind: "ok",
       deployment: deployment(),
       provider: "file",
+      operatorAccess: { enabled: false, authenticated: false },
     })).toBe(true);
   });
 
@@ -117,6 +126,51 @@ describe("shouldUseLocalSpecPMLifecycle", () => {
       kind: "network-error",
       error: new TypeError("Failed to fetch"),
     })).toBe(false);
+  });
+});
+
+describe("operator access", () => {
+  it("parses the backend health access-control projection", () => {
+    expect(apiDeploymentStateFromHealth({
+      provider: "file",
+      deployment: { version: "1.2.3" },
+      operator_access_control: {
+        enabled: true,
+        operator_authenticated: false,
+      },
+    })).toEqual({
+      kind: "ok",
+      deployment: {
+        version: "1.2.3",
+        commit: null,
+        createdAt: null,
+        apiImageRef: null,
+        uiImageRef: null,
+      },
+      provider: "file",
+      operatorAccess: { enabled: true, authenticated: false },
+    });
+  });
+
+  it("requires authentication only when the backend enables it without a session", () => {
+    expect(operatorAuthenticationRequired({
+      kind: "ok",
+      deployment: deployment(),
+      provider: "file",
+      operatorAccess: { enabled: true, authenticated: false },
+    })).toBe(true);
+    expect(operatorAuthenticationRequired({
+      kind: "ok",
+      deployment: deployment(),
+      provider: "file",
+      operatorAccess: { enabled: true, authenticated: true },
+    })).toBe(false);
+  });
+
+  it("encodes the complete local route for the backend login redirect", () => {
+    expect(operatorSessionHref("/pantry?view=demo#repair")).toBe(
+      "/api/v1/operator-session?return_to=%2Fpantry%3Fview%3Ddemo%23repair",
+    );
   });
 });
 

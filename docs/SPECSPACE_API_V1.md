@@ -18,7 +18,9 @@ profile documented in
 The route table is fail-closed: new GET routes default to operator-only, all
 POST/DELETE routes are operator-only, and public GET routes require an explicit
 inventory entry. `GET /api/v1/operator-session` is the browser login target for
-the native HTTP Basic session.
+the native HTTP Basic session. Its optional `return_to` query parameter accepts
+only a same-origin absolute path and redirects the authenticated browser back to
+that route; calls without it retain the JSON status response.
 
 `GET /api/v1/idea-to-spec-workspace` remains public, but anonymous responses
 omit private initial-idea text. Raw state endpoints such as

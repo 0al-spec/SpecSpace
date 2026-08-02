@@ -8,9 +8,19 @@ export type DeploymentInfo = {
   uiImageRef: string | null;
 };
 
+export type OperatorAccessInfo = {
+  enabled: boolean;
+  authenticated: boolean;
+};
+
 export type ApiDeploymentState =
   | { kind: "loading" }
-  | { kind: "ok"; deployment: DeploymentInfo; provider: string | null }
+  | {
+      kind: "ok";
+      deployment: DeploymentInfo;
+      provider: string | null;
+      operatorAccess: OperatorAccessInfo;
+    }
   | { kind: "http-error"; status: number; statusText: string }
   | { kind: "network-error"; error: unknown }
   | { kind: "invalid"; reason: string };
@@ -44,6 +54,28 @@ const normalizeDeploymentInfo = (raw: unknown): DeploymentInfo => {
   };
 };
 
+const normalizeOperatorAccess = (raw: unknown): OperatorAccessInfo => {
+  const record = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const enabled = record.enabled === true;
+  return {
+    enabled,
+    authenticated: enabled && record.operator_authenticated === true,
+  };
+};
+
+export function apiDeploymentStateFromHealth(body: unknown): ApiDeploymentState {
+  if (!body || typeof body !== "object") {
+    return { kind: "invalid", reason: "health response is not an object" };
+  }
+  const record = body as Record<string, unknown>;
+  return {
+    kind: "ok",
+    deployment: normalizeDeploymentInfo(record.deployment),
+    provider: normalizeText(record.provider),
+    operatorAccess: normalizeOperatorAccess(record.operator_access_control),
+  };
+}
+
 export const uiDeploymentInfo: DeploymentInfo = {
   version: import.meta.env.VITE_SPECSPACE_VERSION || FALLBACK_VERSION,
   commit: normalizeText(import.meta.env.VITE_SPECSPACE_RELEASE_COMMIT),
@@ -74,18 +106,8 @@ export function useApiDeploymentStatus(options: Options = {}): ApiDeploymentStat
         }
 
         const body: unknown = await response.json();
-        if (!body || typeof body !== "object") {
-          if (!cancelled) setState({ kind: "invalid", reason: "health response is not an object" });
-          return;
-        }
-
-        const record = body as Record<string, unknown>;
         if (!cancelled) {
-          setState({
-            kind: "ok",
-            deployment: normalizeDeploymentInfo(record.deployment),
-            provider: normalizeText(record.provider),
-          });
+          setState(apiDeploymentStateFromHealth(body));
         }
       })
       .catch((error: unknown) => {
@@ -174,4 +196,12 @@ export function shouldUseRunsWatch(api: ApiDeploymentState): boolean {
 
 export function shouldUseLocalSpecPMLifecycle(api: ApiDeploymentState): boolean {
   return api.kind === "ok" && api.provider !== "http";
+}
+
+export function operatorAuthenticationRequired(api: ApiDeploymentState): boolean {
+  return api.kind === "ok" && api.operatorAccess.enabled && !api.operatorAccess.authenticated;
+}
+
+export function operatorSessionHref(returnTo: string): string {
+  return `/api/v1/operator-session?return_to=${encodeURIComponent(returnTo)}`;
 }

@@ -51,11 +51,21 @@ When authentication is enabled:
 - failed authentication is handled before a request body or private state is
   read.
 
-Open `/api/v1/operator-session` in the browser to receive the native Basic Auth
-prompt and establish the operator session, then return to the Product
-Workspace. Other private API routes return `401` without triggering a browser
-prompt, so background requests cannot trap an anonymous public visitor in a
-login loop. The session endpoint returns no credential material.
+When the Product Workspace detects this profile without authenticated browser
+credentials, it shows an `Authenticate operator` action. The action opens
+`/api/v1/operator-session`, receives the native Basic Auth prompt, and returns
+to the same workspace route after successful authentication. Browsers on macOS
+may retain the credential in Keychain; SpecSpace frontend code never receives
+or stores the password.
+
+API clients may continue to call the session endpoint without a redirect and
+receive its JSON status. Browser entry may provide a percent-encoded
+`return_to` value containing a same-origin absolute path. External URLs,
+protocol-relative paths, backslashes, control characters, and oversized values
+are rejected before a `Location` header is emitted. Other private API routes
+return `401` without triggering a browser prompt, so background requests cannot
+trap an anonymous public visitor in a login loop. The session endpoint returns
+no credential material.
 
 ## Access Matrix
 

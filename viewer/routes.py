@@ -65,7 +65,10 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/exploration-proposal": RouteSpec("handle_exploration_proposal_get", pass_parsed=True),
     "/api/proposal-spec-trace-index": RouteSpec("handle_proposal_spec_trace_index_get"),
     "/api/v1/health": RouteSpec("handle_v1_health"),
-    "/api/v1/operator-session": RouteSpec("handle_v1_operator_session"),
+    "/api/v1/operator-session": RouteSpec(
+        "handle_v1_operator_session",
+        pass_parsed=True,
+    ),
     "/api/v1/capabilities": RouteSpec("handle_v1_capabilities"),
     "/api/v1/workspaces": RouteSpec("handle_v1_workspaces"),
     "/api/v1/spec-graph": RouteSpec("handle_v1_spec_graph", pass_parsed=True),
