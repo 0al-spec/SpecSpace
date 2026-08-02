@@ -39,6 +39,8 @@ DRY_RUN_REQUEST_RE = re.compile(
     r"^managed-operation://([a-z0-9][a-z0-9-]{1,62}[a-z0-9])/"
     r"promotion_execute_dry_run/([0-9a-f]{24})$"
 )
+# These names mirror platform.hosted-promotion-review-confirmation.v1 exactly;
+# the plural ontology-packages field is intentional.
 AUTHORITY_BOUNDARY = {
     "confirmation_is_execution_authority": False,
     "may_execute_platform": False,
@@ -139,6 +141,26 @@ def utc_now() -> datetime:
 
 def _iso(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _durable_confirmation_state_reasons(server: Any) -> list[str]:
+    configured = specspace_state_backend.backend(server)
+    if not isinstance(
+        configured,
+        specspace_state_backend.ExternalHTTPStateBackend,
+    ):
+        return ["promotion_review_confirmation_external_state_required"]
+    try:
+        health = configured.health()
+    except specspace_state_backend.StateBackendError:
+        return ["promotion_review_confirmation_state_unavailable"]
+    if health.get("ready") is not True:
+        return ["promotion_review_confirmation_state_unavailable"]
+    if health.get("restart_persistent") is not True:
+        return [
+            "promotion_review_confirmation_state_not_restart_persistent"
+        ]
+    return []
 
 
 def _pointer_key(workspace_id: str) -> str:
@@ -450,6 +472,8 @@ def workspace_projection(
     context: dict[str, Any] = {}
     context_reasons: list[str] = []
     confirmation_reasons: list[str] = []
+    state_reasons = _durable_confirmation_state_reasons(server)
+    context_reasons.extend(state_reasons)
     if workspace_id is None:
         context_reasons.append("promotion_review_confirmation_workspace_missing")
     if operator_ref is None:
@@ -462,11 +486,14 @@ def workspace_projection(
             hosted_execution=hosted_execution,
         )
         context_reasons.extend(current_context_reasons)
-        _pointer, record, record_reasons = _load_confirmation(
-            server,
-            workspace_id=workspace_id,
-        )
-        confirmation_reasons.extend(record_reasons)
+        if not state_reasons:
+            _pointer, record, record_reasons = _load_confirmation(
+                server,
+                workspace_id=workspace_id,
+            )
+            confirmation_reasons.extend(record_reasons)
+        else:
+            record = None
     else:
         pointer, record = None, None
 

@@ -935,6 +935,9 @@ export function IdeaToSpecWorkspacePanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           workspace_id: workspaceId,
+          ...(data.managedModeReadiness.mode === "hosted_managed"
+            ? {}
+            : { confirm_open_review: true }),
         }),
       });
       const body = (await response.json().catch(() => ({}))) as {
@@ -1230,6 +1233,9 @@ export function IdeaToSpecWorkspacePanel({
       managedPromotionDryRunStatus={managedPromotionDryRunStatus}
       managedPromotionReviewStatus={managedPromotionReviewStatus}
       managedReviewStatusStatus={managedReviewStatusStatus}
+      hostedPromotionReviewConfirmationRequired={
+        data.managedModeReadiness.mode === "hosted_managed"
+      }
       onExecute={executeCandidateApproval}
       onPromotionRequestExecute={executePromotionRequest}
       onPromotionExecute={executePromotionDryRun}
@@ -3710,6 +3716,7 @@ function GuidedApprovalPathSection({
   managedPromotionDryRunStatus,
   managedPromotionReviewStatus,
   managedReviewStatusStatus,
+  hostedPromotionReviewConfirmationRequired,
   onExecute,
   onPromotionRequestExecute,
   onPromotionExecute,
@@ -3766,6 +3773,7 @@ function GuidedApprovalPathSection({
   managedPromotionDryRunStatus?: string;
   managedPromotionReviewStatus?: string;
   managedReviewStatusStatus?: string;
+  hostedPromotionReviewConfirmationRequired: boolean;
   onExecute?: () => void;
   onPromotionRequestExecute?: () => void;
   onPromotionExecute?: () => void;
@@ -3814,9 +3822,11 @@ function GuidedApprovalPathSection({
       path.status !== "blocked") ||
     promotionReviewConfirmation.available;
   const showPromotionReviewConfirmation =
-    showManagedPromotionReviewExecution ||
-    managedPromotionDryRunStatus === "ready_to_execute";
+    hostedPromotionReviewConfirmationRequired &&
+    (showManagedPromotionReviewExecution ||
+      managedPromotionDryRunStatus === "ready_to_execute");
   const canAuthorPromotionReviewConfirmation =
+    hostedPromotionReviewConfirmationRequired &&
     !readOnly &&
     Boolean(promotionReviewConfirmationUrl) &&
     promotionReviewConfirmation.canAuthor &&
@@ -3826,7 +3836,8 @@ function GuidedApprovalPathSection({
     Boolean(promotionReviewExecuteUrl) &&
     showManagedPromotionReviewExecution &&
     path.state.promotionRequestOk === true &&
-    promotionReviewConfirmation.status === "ready" &&
+    (!hostedPromotionReviewConfirmationRequired ||
+      promotionReviewConfirmation.status === "ready") &&
     managedPromotionReviewStatus === "ready_to_execute" &&
     !promotionReviewExecutionState?.pending;
   const managedReviewStatusCanRun =
@@ -4024,9 +4035,9 @@ function GuidedApprovalPathSection({
                   : "Open review PR"}
               </button>
               <span className={styles.statusDetail}>
-                Requires both a current confirmation and a separately allowlisted
-                Platform non-dry-run promotion operation. The current deployment
-                allowlist remains authoritative.
+                {hostedPromotionReviewConfirmationRequired
+                  ? "Requires both a current confirmation and a separately allowlisted Platform non-dry-run promotion operation. The current deployment allowlist remains authoritative."
+                  : "Uses the local Platform executor with the explicit review confirmation required by its backend guard."}
               </span>
             </div>
           </>

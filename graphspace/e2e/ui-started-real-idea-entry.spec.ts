@@ -84,6 +84,7 @@ type UiStartedIdeaScenario = {
   approvalPathPublished?: boolean;
   approvalPath?: Record<string, unknown>;
   promotionReviewConfirmationReady?: boolean;
+  managedMode?: "read_only" | "backend_managed" | "hosted_managed";
   managedEndpointPosts?: Record<string, unknown[]>;
   overviewStage?: ProductWorkspaceOverviewScenario;
 };
@@ -2315,21 +2316,37 @@ function managedOperationsObservabilityForScenario(
   };
 }
 
-function managedModeReadinessForScenario() {
+function managedModeReadinessForScenario(scenario: UiStartedIdeaScenario) {
+  const mode = scenario.managedMode ?? "read_only";
+  const managed = mode !== "read_only";
+  const hosted = mode === "hosted_managed";
   return {
     available: true,
     surface_id: "specspace.managed-mode.readiness.v0.1",
     surface_kind: "managed_mode_readiness",
-    status: "read_only",
-    mode: "read_only",
-    next_safe_action: "Inspect workspace state or create request-only intents.",
-    disabled_reasons: ["platform_execution_disabled"],
+    status: managed
+      ? hosted
+        ? "hosted_managed_ready"
+        : "backend_managed_ready"
+      : "read_only",
+    mode,
+    next_safe_action: managed
+      ? "Run allowlisted managed operations."
+      : "Inspect workspace state or create request-only intents.",
+    disabled_reasons: managed ? [] : ["platform_execution_disabled"],
     executor: {
-      enabled: false,
-      configured: false,
+      enabled: managed,
+      configured: managed,
+      transport: hosted ? "hosted_queue" : managed ? "local_subprocess" : "disabled",
       platform_dir_configured: false,
       platform_cli_present: false,
       timeout_seconds: 120,
+      hosted_enabled: hosted,
+      hosted_service_configured: hosted,
+      hosted_service_reachable: hosted,
+      hosted_enabled_operation_ids: hosted ? ["promotion_review_execute"] : [],
+      hosted_service_operation_ids: hosted ? ["promotion_review_execute"] : [],
+      hosted_client_operation_ids: hosted ? ["promotion_review_execute"] : [],
     },
     operations: {
       registered_count: 12,
@@ -2442,9 +2459,7 @@ async function workspacePayload(
     scenario.overviewStage ?? defaultOverviewStageForScenario(scenario),
   );
   if (scenario.approvalPath) {
-    const promotionReviewStatus = scenario.promotionReviewConfirmationReady
-      ? "ready_to_execute"
-      : "request_needed";
+    const promotionReviewStatus = "ready_to_execute";
     managedOperations.operations.push({
       ...managedOperations.operations[0],
       operation_id: "promotion_review_execute",
@@ -2477,7 +2492,7 @@ async function workspacePayload(
   payload.managed_operations_observability = managedOperations;
   payload.promotion_review_confirmation =
     promotionReviewConfirmationForScenario(scenario);
-  payload.managed_mode_readiness = managedModeReadinessForScenario();
+  payload.managed_mode_readiness = managedModeReadinessForScenario(scenario);
 
   if (!hasSubmittedEntry) {
     payload.real_idea_intake = {
@@ -3511,6 +3526,7 @@ test("runs guided approval managed actions through backend endpoints", async ({
   const scenario: UiStartedIdeaScenario = {
     intakeExecutionPublished: true,
     answerContinuationPublished: true,
+    managedMode: "hosted_managed",
     managedEndpointPosts: {},
     approvalPath: managedApprovalPathForStage("approval_execution_needed"),
   };
@@ -3641,6 +3657,56 @@ test("runs guided approval managed actions through backend endpoints", async ({
         "/api/v1/idea-to-spec-read-model-publication/execute"
       ]?.[0],
     ).toMatchObject({ workspace_id: workspaceId });
+  } finally {
+    await backend.stop();
+  }
+});
+
+test("preserves explicit confirmation for local promotion review execution", async ({
+  page,
+}) => {
+  const backend = await startSpecSpaceBackend();
+  const scenario: UiStartedIdeaScenario = {
+    intakeExecutionPublished: true,
+    answerContinuationPublished: true,
+    managedMode: "backend_managed",
+    managedEndpointPosts: {},
+    approvalPath: managedApprovalPathForStage(
+      "promotion_review_execution_needed",
+    ),
+  };
+  try {
+    await installRunsWatchMock(page);
+    await installIdeaToSpecApiRoutes(page, backend.baseUrl, scenario);
+
+    await submitRawIdeaEntryFromUi(
+      page,
+      "A local decision log ready for promotion review.",
+      "Local promotion review",
+    );
+
+    const guidedApprovalPath = page.locator(
+      "#idea-to-spec-guided-approval-path",
+    );
+    await expect(
+      guidedApprovalPath.getByRole("button", {
+        name: "Authorize review creation",
+      }),
+    ).toHaveCount(0);
+    const openReview = guidedApprovalPath.getByRole("button", {
+      name: "Open review PR",
+    });
+    await expect(openReview).toBeEnabled();
+    await openReview.click();
+
+    expect(
+      scenario.managedEndpointPosts?.[
+        "/api/v1/idea-to-spec-promotion-review/execute"
+      ]?.[0],
+    ).toEqual({
+      workspace_id: workspaceId,
+      confirm_open_review: true,
+    });
   } finally {
     await backend.stop();
   }

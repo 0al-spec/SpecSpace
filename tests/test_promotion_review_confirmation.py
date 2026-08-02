@@ -74,6 +74,35 @@ class CatalogProvider:
         }
 
 
+class DurableTestStateBackend(
+    specspace_state_backend.ExternalHTTPStateBackend
+):
+    def __init__(
+        self,
+        state_dir: Path,
+        *,
+        ready: bool = True,
+        restart_persistent: bool = True,
+    ) -> None:
+        self._delegate = specspace_state_backend.FileStateBackend(state_dir)
+        self._ready = ready
+        self._restart_persistent = restart_persistent
+
+    def health(self) -> dict:
+        return {
+            "status": "ready" if self._ready else "unavailable",
+            "ready": self._ready,
+            "kind": "external_http",
+            "restart_persistent": self._restart_persistent,
+        }
+
+    def write_record(self, *args, **kwargs):
+        return self._delegate.write_record(*args, **kwargs)
+
+    def read_record(self, *args, **kwargs):
+        return self._delegate.read_record(*args, **kwargs)
+
+
 def hosted_execution(
     *,
     status: str = "succeeded",
@@ -121,8 +150,16 @@ def hosted_execution(
 
 
 class PromotionReviewConfirmationTests(unittest.TestCase):
-    def runtime(self, root: Path, *, authenticated: bool = True) -> SimpleNamespace:
-        return SimpleNamespace(
+    def runtime(
+        self,
+        root: Path,
+        *,
+        authenticated: bool = True,
+        durable_state: bool = True,
+        state_ready: bool = True,
+        restart_persistent: bool = True,
+    ) -> SimpleNamespace:
+        runtime = SimpleNamespace(
             repo_root=root,
             specspace_state_dir=root / "state",
             operator_auth_enabled=authenticated,
@@ -131,6 +168,13 @@ class PromotionReviewConfirmationTests(unittest.TestCase):
                 operator_auth.password_digest("secret") if authenticated else None
             ),
         )
+        if durable_state:
+            runtime.specspace_state_backend = DurableTestStateBackend(
+                runtime.specspace_state_dir,
+                ready=state_ready,
+                restart_persistent=restart_persistent,
+            )
+        return runtime
 
     def test_authors_exact_short_lived_platform_confirmation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -188,6 +232,14 @@ class PromotionReviewConfirmationTests(unittest.TestCase):
         self.assertEqual(
             confirmation["authority_boundary"],
             promotion_review_confirmation.AUTHORITY_BOUNDARY,
+        )
+        self.assertIn(
+            "may_write_ontology_packages",
+            confirmation["authority_boundary"],
+        )
+        self.assertNotIn(
+            "may_write_ontology_package",
+            confirmation["authority_boundary"],
         )
         issued_at = promotion_review_confirmation._parse_time(
             confirmation["issued_at"]
@@ -280,6 +332,56 @@ class PromotionReviewConfirmationTests(unittest.TestCase):
 
         self.assertEqual(status, HTTPStatus.CONFLICT)
         self.assertIn("authenticated_operator_profile_required", response["blockers"])
+
+    def test_requires_external_state_for_irreversible_confirmation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            runtime = self.runtime(Path(temp_dir), durable_state=False)
+            status, response = promotion_review_confirmation.author_confirmation(
+                runtime,
+                workspace_id=WORKSPACE_ID,
+                payload={"workspace_id": WORKSPACE_ID, "confirmed": True},
+                provider=CatalogProvider(),
+                binding=ready_binding(),
+                hosted_execution=hosted_execution(),
+            )
+
+        self.assertEqual(status, HTTPStatus.CONFLICT)
+        self.assertIn(
+            "promotion_review_confirmation_external_state_required",
+            response["blockers"],
+        )
+
+    def test_requires_healthy_restart_persistent_external_state(self) -> None:
+        cases = (
+            (
+                {"state_ready": False},
+                "promotion_review_confirmation_state_unavailable",
+            ),
+            (
+                {"restart_persistent": False},
+                "promotion_review_confirmation_state_not_restart_persistent",
+            ),
+        )
+        for runtime_options, expected_reason in cases:
+            with self.subTest(expected_reason=expected_reason):
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    runtime = self.runtime(Path(temp_dir), **runtime_options)
+                    status, response = (
+                        promotion_review_confirmation.author_confirmation(
+                            runtime,
+                            workspace_id=WORKSPACE_ID,
+                            payload={
+                                "workspace_id": WORKSPACE_ID,
+                                "confirmed": True,
+                            },
+                            provider=CatalogProvider(),
+                            binding=ready_binding(),
+                            hosted_execution=hosted_execution(),
+                        )
+                    )
+
+                self.assertEqual(status, HTTPStatus.CONFLICT)
+                self.assertIn(expected_reason, response["blockers"])
 
     def test_requires_dry_run_digests_for_current_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

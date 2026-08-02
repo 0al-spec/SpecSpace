@@ -935,6 +935,17 @@ describe("IdeaToSpecWorkspacePanel", () => {
       "Run non-dry-run product promotion execution when ready.";
     raw.guided_approval_path.state.promotion_request_ok = true;
     raw.guided_approval_path.state.promotion_execution_status = "completed";
+    raw.managed_mode_readiness = {
+      available: true,
+      status: "hosted_managed_ready",
+      mode: "hosted_managed",
+      authority_boundary: {
+        ...raw.guided_flow.authority_boundary,
+        managed_mode_readiness_is_authority: false,
+        may_run_shell: false,
+        may_publish_read_model: false,
+      },
+    };
     raw.promotion_review_confirmation = {
       artifact_kind: "specspace_promotion_review_confirmation_authoring",
       schema_version: 1,

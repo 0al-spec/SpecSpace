@@ -191,6 +191,10 @@ def test_managed_operation_registry_records_reviewed_artifact_edges() -> None:
 
     promotion_review = _operation("promotion_review_execute")
     assert "runs/graph_repository_execution_plan.json" in promotion_review.input_refs
+    assert (
+        "runs/product_candidate_promotion_execution_report.json"
+        not in promotion_review.input_refs
+    )
     assert promotion_review.output_reports == (
         "runs/product_candidate_promotion_execution_report.json",
         "runs/git_service_promotion_execution_report.json",

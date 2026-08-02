@@ -1357,6 +1357,9 @@ guard. The accepted browser payload is intentionally narrow:
 SpecSpace derives the operator profile server-side and rejects additional
 identity, digest, ref, or `may_*` fields. Before writing state it requires:
 
+- a healthy external state backend with durable lifecycle/CAS semantics across
+  restarts; file-backed or ephemeral state cannot authorize this irreversible
+  operation;
 - a trusted durable workspace binding;
 - current manifest digests for the promotion request, approval decision, and
   execution plan;
