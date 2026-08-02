@@ -73,6 +73,14 @@ npm run dev          # http://localhost:5175
 npm run lint:fsd     # Steiger architecture lint
 ```
 
+The development proxy targets SpecSpace API port `8001` by default. Isolated
+Mac profiles and browser tests can select a different loopback backend without
+rewriting Vite configuration:
+
+```sh
+SPECSPACE_API_PORT=8101 npm run dev -- --port 5275
+```
+
 ## Browser E2E
 
 UI-started product flows need a real browser check, not only API and render
