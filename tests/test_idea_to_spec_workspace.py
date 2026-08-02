@@ -8670,6 +8670,35 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(stale_status, HTTPStatus.NOT_FOUND)
         self.assertEqual(untrusted_status, HTTPStatus.NOT_FOUND)
 
+    def test_product_workspace_preview_refuses_replaced_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workspace_runs = root / "runs" / "pantry-control"
+            workspace_runs.mkdir(parents=True)
+            private_target = root / "private.yaml"
+            private_target.write_text("secret: must-not-be-read\n", encoding="utf-8")
+            replaced_path = workspace_runs / "candidate.yaml"
+            replaced_path.symlink_to(private_target)
+            provider = specspace_provider.ProductWorkspaceFileProvider(
+                delegate=specspace_provider.FileSpecGraphProvider(
+                    spec_nodes_dir=None,
+                    runs_dir=workspace_runs,
+                    specgraph_dir=root,
+                ),
+                workspace_id="pantry-control",
+            )
+            artifact_ref = "runs/pantry-control/candidate.yaml"
+
+            with mock.patch.object(
+                specspace_provider.ProductWorkspaceFileProvider,
+                "_content_artifact_map",
+                return_value={artifact_ref: replaced_path},
+            ):
+                status, body = provider.read_artifact_content(artifact_ref)
+
+        self.assertEqual(status, HTTPStatus.SERVICE_UNAVAILABLE)
+        self.assertEqual(body["reason"], "artifact_read_failed")
+
     def test_http_provider_reads_workspace_runs_from_manifest(self) -> None:
         workspace_artifacts = _workspace_artifacts()
         manifest = {

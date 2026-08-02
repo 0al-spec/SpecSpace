@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -63,6 +64,31 @@ DEFAULT_PRODUCT_WORKSPACE_IDS: frozenset[str] = frozenset(
     for workspace in DEFAULT_PRODUCT_WORKSPACE_CATALOG
     if isinstance(workspace.get("id"), str)
 )
+
+
+def _read_regular_file(path: Path, *, max_bytes: int) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise OSError("artifact is not a regular file")
+        if metadata.st_size > max_bytes:
+            raise OverflowError(metadata.st_size)
+        chunks: list[bytes] = []
+        remaining = max_bytes + 1
+        while remaining > 0:
+            chunk = os.read(descriptor, min(65536, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        content = b"".join(chunks)
+        if len(content) > max_bytes:
+            raise OverflowError(len(content))
+        return content
+    finally:
+        os.close(descriptor)
 
 
 def normalize_product_workspace_id(value: Any) -> str | None:
@@ -1341,24 +1367,27 @@ class FileSpecGraphProvider:
                 "path": safe_path,
             }
         try:
-            size_bytes = artifact_path.stat().st_size
-        except OSError as exc:
-            return HTTPStatus.SERVICE_UNAVAILABLE, {
-                "error": "Artifact could not be inspected.",
-                "reason": "artifact_stat_failed",
-                "path": safe_path,
-                "detail": str(exc),
-            }
-        if size_bytes > ARTIFACT_CONTENT_MAX_BYTES:
+            content = _read_regular_file(
+                artifact_path,
+                max_bytes=ARTIFACT_CONTENT_MAX_BYTES,
+            )
+        except OverflowError:
             return HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {
                 "error": "Artifact exceeds preview limit.",
                 "reason": "artifact_too_large",
                 "path": safe_path,
                 "max_bytes": ARTIFACT_CONTENT_MAX_BYTES,
             }
+        except OSError as exc:
+            return HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": "Artifact could not be read.",
+                "reason": "artifact_read_failed",
+                "path": safe_path,
+                "detail": str(exc),
+            }
         try:
-            text = artifact_path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError) as exc:
+            text = content.decode("utf-8")
+        except UnicodeDecodeError as exc:
             return HTTPStatus.SERVICE_UNAVAILABLE, {
                 "error": "Artifact could not be read.",
                 "reason": "artifact_read_failed",
@@ -1728,24 +1757,27 @@ class ProductWorkspaceFileProvider:
                 "workspace_id": self.workspace_id,
             }
         try:
-            size_bytes = artifact_path.stat().st_size
-        except OSError as exc:
-            return HTTPStatus.SERVICE_UNAVAILABLE, {
-                "error": "Artifact could not be inspected.",
-                "reason": "artifact_stat_failed",
-                "path": safe_path,
-                "detail": str(exc),
-            }
-        if size_bytes > ARTIFACT_CONTENT_MAX_BYTES:
+            content = _read_regular_file(
+                artifact_path,
+                max_bytes=ARTIFACT_CONTENT_MAX_BYTES,
+            )
+        except OverflowError:
             return HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {
                 "error": "Artifact exceeds preview limit.",
                 "reason": "artifact_too_large",
                 "path": safe_path,
                 "max_bytes": ARTIFACT_CONTENT_MAX_BYTES,
             }
+        except OSError as exc:
+            return HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": "Artifact could not be read.",
+                "reason": "artifact_read_failed",
+                "path": safe_path,
+                "detail": str(exc),
+            }
         try:
-            text = artifact_path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError) as exc:
+            text = content.decode("utf-8")
+        except UnicodeDecodeError as exc:
             return HTTPStatus.SERVICE_UNAVAILABLE, {
                 "error": "Artifact could not be read.",
                 "reason": "artifact_read_failed",
