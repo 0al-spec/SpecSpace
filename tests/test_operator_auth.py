@@ -91,6 +91,29 @@ def test_public_route_remains_anonymous() -> None:
         _stop_server(server, thread)
 
 
+def test_operator_profile_ref_is_opaque_stable_and_credential_bound() -> None:
+    server = SimpleNamespace(
+        operator_auth_enabled=True,
+        operator_auth_username=USERNAME,
+        operator_auth_password_digest=operator_auth.password_digest(PASSWORD),
+    )
+
+    first = operator_auth.operator_profile_ref(server)
+    second = operator_auth.operator_profile_ref(server)
+    rotated = operator_auth.operator_profile_ref(
+        SimpleNamespace(
+            operator_auth_enabled=True,
+            operator_auth_username=USERNAME,
+            operator_auth_password_digest=operator_auth.password_digest("b" * 48),
+        )
+    )
+
+    assert first == second
+    assert first is not None and first.startswith("operator://specspace-basic-")
+    assert USERNAME not in first.removeprefix("operator://")
+    assert rotated != first
+
+
 def test_private_get_rejects_before_handler_reads_state_without_browser_prompt() -> None:
     server, thread, base_url = _start_server()
     try:

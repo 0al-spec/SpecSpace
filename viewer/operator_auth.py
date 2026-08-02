@@ -82,6 +82,35 @@ def request_is_operator(
     ) and hmac.compare_digest(password_digest(password), expected_password_digest)
 
 
+def operator_profile_ref(server: OperatorAuthServer) -> str | None:
+    """Return an opaque identity for the configured single-operator profile."""
+
+    if getattr(server, "operator_auth_enabled", False) is not True:
+        return None
+    username = getattr(server, "operator_auth_username", None)
+    configured_password_digest = getattr(
+        server,
+        "operator_auth_password_digest",
+        None,
+    )
+    if not isinstance(username, str) or not isinstance(
+        configured_password_digest,
+        bytes,
+    ):
+        return None
+    try:
+        username_bytes = username.encode("ascii")
+    except UnicodeEncodeError:
+        return None
+    identity_digest = hashlib.sha256(
+        b"specspace-single-operator-profile-v1\0"
+        + username_bytes
+        + b"\0"
+        + configured_password_digest
+    ).hexdigest()[:32]
+    return f"operator://specspace-basic-{identity_digest}"
+
+
 def _reject(
     handler: OperatorAuthHandler,
     status: HTTPStatus,

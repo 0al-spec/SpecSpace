@@ -1,7 +1,7 @@
 # Idea-to-Spec Product Workspace Workplan
 
 Status: active planning
-Updated: 2026-07-18
+Updated: 2026-08-02
 
 ## Purpose
 
@@ -132,6 +132,43 @@ reinterpreting the producer contract.
 This is read-only review evidence. It is not an Idea Maturity score, runtime
 policy, automatic term acceptance, repair mutation, approval gate, or promotion
 authority.
+
+### 4. Authenticated Promotion Review Confirmation
+
+Status: SpecSpace authoring and consumer contract implemented; Platform rollout
+gates remain separate and the production operation remains disabled.
+
+Replace the old browser boolean used for non-dry-run promotion review with a
+server-authored semantic confirmation:
+
+```text
+authenticated operator acknowledgement
+  -> current durable workspace binding
+  -> current approval/promotion input digests
+  -> one successful request-scoped promotion dry-run
+  -> ten-minute SpecSpace-owned confirmation
+  -> separately allowlisted Platform promotion review request
+```
+
+Acceptance criteria:
+
+- the browser submits only `workspace_id` and `confirmed: true`; operator
+  identity, refs, and digests are derived by the authenticated backend;
+- the confirmation exactly matches
+  `platform.hosted-promotion-review-confirmation.v1`, is private, short-lived,
+  workspace-scoped, digest-pinned, and stored in durable external state;
+- stale inputs/binding, missing request-scoped reports, expired/consumed
+  confirmation, unknown authority fields, and old dry-run receipts without
+  input digests fail closed;
+- authoring does not enqueue Platform, execute Git Service, open a PR, or modify
+  the deployment allowlist;
+- Product Workspace distinguishes confirmation authoring from the separately
+  gated `Open review PR` action and keeps the latter disabled while
+  `promotion_review_execute` is not allowlisted.
+
+Next cross-repo slice: finish Platform reservation/enqueue gates and bounded
+clean-VM validation, then make a separate rollout decision. Do not enable the
+operation in production as part of this SpecSpace PR.
 
 ## Recently Closed
 

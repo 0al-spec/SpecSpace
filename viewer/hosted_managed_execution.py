@@ -15,14 +15,15 @@ import uuid
 
 from viewer import (
     managed_operations_registry,
+    promotion_review_confirmation,
     product_workspace_binding,
+    specspace_provider,
     specspace_state_backend,
 )
 
 
 STATE_FILENAME = "hosted_managed_operation_requests.json"
 STATE_KIND = "specspace_hosted_managed_operation_request_state"
-CONFIRMATION_DIR = "confirmations"
 ACTIVE_STATUSES = {"queued", "leased", "running"}
 TERMINAL_STATUSES = {"rejected", "succeeded", "failed", "timed_out", "quarantined"}
 REPLAY_SAFE_OPERATION_IDS = {"promotion_execute_dry_run", "review_status_execute"}
@@ -238,6 +239,26 @@ def _safe_output_reports(receipt: dict[str, Any]) -> list[dict[str, str]]:
     return reports
 
 
+def _safe_input_digests(request: dict[str, Any]) -> list[dict[str, str]]:
+    inputs: list[dict[str, str]] = []
+    for item in request.get("inputs", []):
+        if not isinstance(item, dict):
+            continue
+        logical_ref = _text(item.get("logical_ref"))
+        sha256 = _text(item.get("sha256"))
+        if (
+            logical_ref is None
+            or not logical_ref.startswith("runs/")
+            or ".." in Path(logical_ref).parts
+            or sha256 is None
+            or len(sha256) != 64
+            or any(character not in "0123456789abcdef" for character in sha256)
+        ):
+            continue
+        inputs.append({"logical_ref": logical_ref, "sha256": sha256})
+    return sorted(inputs, key=lambda item: item["logical_ref"])
+
+
 def _operator_ref(operation_id: str) -> str:
     if operation_id in REPLAY_SAFE_OPERATION_IDS:
         return f"operator://specspace-{uuid.uuid4().hex}"
@@ -294,6 +315,7 @@ def _compact_enqueue_record(report: dict[str, Any]) -> dict[str, Any]:
         "attempt": receipt.get("attempt") if isinstance(receipt.get("attempt"), int) else 0,
         "binding_id": _text(binding.get("binding_id")),
         "binding_revision_sha256": _text(binding.get("binding_revision_sha256")),
+        "input_digests": _safe_input_digests(request),
         "expected_output_reports": [
             item
             for item in request.get("expected_output_reports", [])
@@ -496,26 +518,6 @@ def _conditional_ref_available(
     return False
 
 
-def _confirmation_ref(server: Any, workspace_id: str, operation_id: str) -> str:
-    identifier = uuid.uuid4().hex
-    relative = Path(CONFIRMATION_DIR) / workspace_id / operation_id / f"{identifier}.json"
-    specspace_state_backend.write_state_record(
-        server,
-        relative.as_posix(),
-        workspace_id=workspace_id,
-        content={
-            "artifact_kind": "specspace_hosted_managed_operation_confirmation",
-            "schema_version": 1,
-            "workspace_id": workspace_id,
-            "operation_id": operation_id,
-            "confirmed": True,
-            "created_at": now_iso(),
-            "authority_boundary": authority_boundary(),
-        },
-    )
-    return f"specspace-state://{relative.as_posix()}"
-
-
 def enqueue_operation(
     server: Any,
     *,
@@ -556,11 +558,6 @@ def enqueue_operation(
         return HTTPStatus.FORBIDDEN, {
             "error": "Managed operation is not enabled by the SpecSpace deployment profile.",
             "reason": "hosted_managed_operation_not_allowlisted",
-        }
-    if operation.requires_explicit_confirmation and payload.get("confirm") is not True:
-        return HTTPStatus.CONFLICT, {
-            "error": "Managed operation requires explicit operator confirmation.",
-            "reason": "hosted_managed_operation_confirmation_required",
         }
     if operation_id == "workspace_initialization_execute":
         binding_ref = _text(payload.get("execution_request_ref")) or (
@@ -613,24 +610,37 @@ def enqueue_operation(
             workspace_payload=workspace_payload,
         )
     ]
-    try:
-        confirmation_ref = (
-            _confirmation_ref(server, workspace_id, operation_id)
-            if operation.requires_explicit_confirmation
-            else None
-        )
-    except specspace_state_backend.StateBackendError:
-        return HTTPStatus.SERVICE_UNAVAILABLE, {
-            "artifact_kind": "specspace_hosted_managed_operation_state_error",
-            "ok": False,
-            "status": "hosted_confirmation_state_unavailable",
-            "error": "SpecSpace could not persist the required confirmation.",
-            "workspace_id": workspace_id,
-            "operation_id": operation_id,
-            "may_have_enqueued": False,
-            "authority_boundary": authority_boundary(),
-        }
+    confirmation_ref: str | None = None
     operator_ref = _operator_ref(operation_id)
+    if operation.requires_explicit_confirmation:
+        if operation_id != promotion_review_confirmation.CONFIRMATION_OPERATION_ID:
+            return HTTPStatus.CONFLICT, {
+                "error": "Managed operation has no supported semantic confirmation contract.",
+                "reason": "hosted_managed_operation_confirmation_contract_missing",
+            }
+        provider = specspace_provider.provider_from_server(server, workspace_id)
+        hosted_execution = workspace_projection(
+            read_state(server, workspace_id=workspace_id),
+            workspace_id=workspace_id,
+        )
+        ready, confirmation_projection = (
+            promotion_review_confirmation.ready_confirmation(
+                server,
+                workspace_id=workspace_id,
+                provider=provider,
+                binding=binding,
+                hosted_execution=hosted_execution,
+            )
+        )
+        if ready is None:
+            return HTTPStatus.CONFLICT, {
+                "error": "Managed promotion review requires a current authenticated confirmation.",
+                "reason": "hosted_managed_operation_confirmation_required",
+                "confirmation_status": confirmation_projection.get("status"),
+                "blockers": confirmation_projection.get("blockers", []),
+            }
+        confirmation_ref = ready["confirmation_ref"]
+        operator_ref = ready["operator_ref"]
     request_payload = {
         "operation_id": operation_id,
         "workspace_id": workspace_id,

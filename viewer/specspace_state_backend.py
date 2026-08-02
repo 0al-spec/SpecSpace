@@ -411,6 +411,28 @@ class FileStateBackend:
             "content_sha256": content_sha256(content),
         }
 
+    def read_record(
+        self,
+        record_key: str,
+        *,
+        workspace_id: str,
+    ) -> dict[str, Any] | None:
+        record_key = validate_record_key(
+            record_key,
+            workspace_id=workspace_id,
+        )
+        content = _load_file(self.state_dir / record_key)
+        if content is None:
+            return None
+        return {
+            "workspace_id": workspace_id,
+            "record_key": record_key,
+            "revision": None,
+            "content_sha256": content_sha256(content),
+            "lifecycle_state": "active",
+            "content": content,
+        }
+
 
 @dataclass(frozen=True)
 class ExternalStateConfig:
@@ -914,4 +936,16 @@ def write_state_record(
         workspace_id=workspace_id,
         content=content,
         lifecycle_state=lifecycle_state,
+    )
+
+
+def read_state_record(
+    server: Any,
+    record_key: str,
+    *,
+    workspace_id: str,
+) -> dict[str, Any] | None:
+    return backend(server).read_record(
+        record_key,
+        workspace_id=workspace_id,
     )

@@ -95,6 +95,7 @@ type Props = {
   promotionRequestExecuteUrl?: string;
   promotionExecuteUrl?: string;
   promotionReviewExecuteUrl?: string;
+  promotionReviewConfirmationUrl?: string;
   reviewStatusExecuteUrl?: string;
   readModelPublicationExecuteUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
@@ -510,6 +511,7 @@ export function IdeaToSpecWorkspacePanel({
   promotionRequestExecuteUrl,
   promotionExecuteUrl,
   promotionReviewExecuteUrl,
+  promotionReviewConfirmationUrl,
   reviewStatusExecuteUrl,
   readModelPublicationExecuteUrl,
   projectLocalOntologyReviewDecisionsUrl,
@@ -590,6 +592,12 @@ export function IdeaToSpecWorkspacePanel({
     error: string | null;
   }>({ pending: false, status: null, error: null });
   const [promotionReviewExecutionState, setPromotionReviewExecutionState] =
+    useState<{
+      pending: boolean;
+      status: string | null;
+      error: string | null;
+    }>({ pending: false, status: null, error: null });
+  const [promotionReviewConfirmationState, setPromotionReviewConfirmationState] =
     useState<{
       pending: boolean;
       status: string | null;
@@ -927,7 +935,9 @@ export function IdeaToSpecWorkspacePanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           workspace_id: workspaceId,
-          confirm_open_review: true,
+          ...(data.managedModeReadiness.mode === "hosted_managed"
+            ? {}
+            : { confirm_open_review: true }),
         }),
       });
       const body = (await response.json().catch(() => ({}))) as {
@@ -966,6 +976,61 @@ export function IdeaToSpecWorkspacePanel({
           error instanceof Error
             ? error.message
             : "Managed promotion review execution failed.",
+      });
+    }
+  };
+  const authorPromotionReviewConfirmation = async () => {
+    const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
+    if (readOnly || !promotionReviewConfirmationUrl || !workspaceId) {
+      return;
+    }
+    setPromotionReviewConfirmationState({
+      pending: true,
+      status: null,
+      error: null,
+    });
+    try {
+      const response = await fetch(promotionReviewConfirmationUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          confirmed: true,
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        status?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok) {
+        const detail =
+          typeof body.error === "string"
+            ? body.error
+            : `Promotion review authorization failed with HTTP ${response.status}.`;
+        setPromotionReviewConfirmationState({
+          pending: false,
+          status: typeof body.status === "string" ? body.status : null,
+          error: detail,
+        });
+        return;
+      }
+      setPromotionReviewConfirmationState({
+        pending: false,
+        status:
+          typeof body.status === "string"
+            ? body.status
+            : "promotion_review_confirmation_ready",
+        error: null,
+      });
+      onWorkspaceRefreshRequest?.();
+    } catch (error) {
+      setPromotionReviewConfirmationState({
+        pending: false,
+        status: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Promotion review authorization failed.",
       });
     }
   };
@@ -1145,6 +1210,9 @@ export function IdeaToSpecWorkspacePanel({
   const managedReviewStatusStatus = data.managedOperations.operations.find(
     (operation) => operation.operationId === "review_status_execute",
   )?.status;
+  const managedPromotionReviewStatus = data.managedOperations.operations.find(
+    (operation) => operation.operationId === "promotion_review_execute",
+  )?.status;
   const guidedApprovalPathSection = (
     <GuidedApprovalPathSection
       path={data.guidedApprovalPath}
@@ -1152,20 +1220,28 @@ export function IdeaToSpecWorkspacePanel({
       promotionRequestExecuteUrl={promotionRequestExecuteUrl}
       promotionExecuteUrl={promotionExecuteUrl}
       promotionReviewExecuteUrl={promotionReviewExecuteUrl}
+      promotionReviewConfirmationUrl={promotionReviewConfirmationUrl}
       reviewStatusExecuteUrl={reviewStatusExecuteUrl}
       readModelPublicationExecuteUrl={readModelPublicationExecuteUrl}
       executionState={candidateApprovalExecutionState}
       promotionRequestExecutionState={promotionRequestExecutionState}
       promotionExecutionState={promotionExecutionState}
       promotionReviewExecutionState={promotionReviewExecutionState}
+      promotionReviewConfirmationState={promotionReviewConfirmationState}
       reviewStatusExecutionState={reviewStatusExecutionState}
       readModelPublicationExecutionState={readModelPublicationExecutionState}
       managedPromotionDryRunStatus={managedPromotionDryRunStatus}
+      managedPromotionReviewStatus={managedPromotionReviewStatus}
       managedReviewStatusStatus={managedReviewStatusStatus}
+      hostedPromotionReviewConfirmationRequired={
+        data.managedModeReadiness.mode === "hosted_managed"
+      }
       onExecute={executeCandidateApproval}
       onPromotionRequestExecute={executePromotionRequest}
       onPromotionExecute={executePromotionDryRun}
       onPromotionReviewExecute={executePromotionReview}
+      onPromotionReviewConfirmation={authorPromotionReviewConfirmation}
+      promotionReviewConfirmation={data.promotionReviewConfirmation}
       onReviewStatusExecute={executeReviewStatus}
       onReadModelPublicationExecute={executeReadModelPublication}
       readOnly={readOnly}
@@ -3627,29 +3703,36 @@ function GuidedApprovalPathSection({
   promotionRequestExecuteUrl,
   promotionExecuteUrl,
   promotionReviewExecuteUrl,
+  promotionReviewConfirmationUrl,
   reviewStatusExecuteUrl,
   readModelPublicationExecuteUrl,
   executionState,
   promotionRequestExecutionState,
   promotionExecutionState,
   promotionReviewExecutionState,
+  promotionReviewConfirmationState,
   reviewStatusExecutionState,
   readModelPublicationExecutionState,
   managedPromotionDryRunStatus,
+  managedPromotionReviewStatus,
   managedReviewStatusStatus,
+  hostedPromotionReviewConfirmationRequired,
   onExecute,
   onPromotionRequestExecute,
   onPromotionExecute,
   onPromotionReviewExecute,
+  onPromotionReviewConfirmation,
   onReviewStatusExecute,
   onReadModelPublicationExecute,
   readOnly = false,
+  promotionReviewConfirmation,
 }: {
   path: IdeaToSpecWorkspace["guidedApprovalPath"];
   executeUrl?: string;
   promotionRequestExecuteUrl?: string;
   promotionExecuteUrl?: string;
   promotionReviewExecuteUrl?: string;
+  promotionReviewConfirmationUrl?: string;
   reviewStatusExecuteUrl?: string;
   readModelPublicationExecuteUrl?: string;
   executionState?: {
@@ -3672,6 +3755,11 @@ function GuidedApprovalPathSection({
     status: string | null;
     error: string | null;
   };
+  promotionReviewConfirmationState?: {
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  };
   reviewStatusExecutionState?: {
     pending: boolean;
     status: string | null;
@@ -3683,14 +3771,18 @@ function GuidedApprovalPathSection({
     error: string | null;
   };
   managedPromotionDryRunStatus?: string;
+  managedPromotionReviewStatus?: string;
   managedReviewStatusStatus?: string;
+  hostedPromotionReviewConfirmationRequired: boolean;
   onExecute?: () => void;
   onPromotionRequestExecute?: () => void;
   onPromotionExecute?: () => void;
   onPromotionReviewExecute?: () => void;
+  onPromotionReviewConfirmation?: () => void;
   onReviewStatusExecute?: () => void;
   onReadModelPublicationExecute?: () => void;
   readOnly?: boolean;
+  promotionReviewConfirmation: IdeaToSpecWorkspace["promotionReviewConfirmation"];
 }) {
   const primaryHref = path.targetSection ? `#${path.targetSection}` : null;
   const approvalExecutionCanRetry =
@@ -3725,14 +3817,28 @@ function GuidedApprovalPathSection({
     path.state.promotionRequestOk === true &&
     !promotionExecutionState?.pending;
   const showManagedPromotionReviewExecution =
-    path.stage === "promotion_execution_needed" &&
-    path.state.promotionExecutionStatus !== null &&
-    path.status !== "blocked";
+    (path.stage === "promotion_execution_needed" &&
+      path.state.promotionExecutionStatus !== null &&
+      path.status !== "blocked") ||
+    promotionReviewConfirmation.available;
+  const showPromotionReviewConfirmation =
+    hostedPromotionReviewConfirmationRequired &&
+    (showManagedPromotionReviewExecution ||
+      managedPromotionDryRunStatus === "ready_to_execute");
+  const canAuthorPromotionReviewConfirmation =
+    hostedPromotionReviewConfirmationRequired &&
+    !readOnly &&
+    Boolean(promotionReviewConfirmationUrl) &&
+    promotionReviewConfirmation.canAuthor &&
+    !promotionReviewConfirmationState?.pending;
   const canRunManagedPromotionReviewExecution =
     !readOnly &&
     Boolean(promotionReviewExecuteUrl) &&
     showManagedPromotionReviewExecution &&
     path.state.promotionRequestOk === true &&
+    (!hostedPromotionReviewConfirmationRequired ||
+      promotionReviewConfirmation.status === "ready") &&
+    managedPromotionReviewStatus === "ready_to_execute" &&
     !promotionReviewExecutionState?.pending;
   const managedReviewStatusCanRun =
     managedReviewStatusStatus === "ready_to_execute" ||
@@ -3872,22 +3978,69 @@ function GuidedApprovalPathSection({
             </span>
           </div>
         ) : null}
+        {showPromotionReviewConfirmation ? (
+          <>
+            <div className={styles.draftControls}>
+              <button
+                className={styles.ackButton}
+                type="button"
+                disabled={!canAuthorPromotionReviewConfirmation}
+                onClick={onPromotionReviewConfirmation}
+              >
+                {promotionReviewConfirmationState?.pending
+                  ? "Authorizing review creation..."
+                  : promotionReviewConfirmation.status === "ready"
+                    ? "Review creation authorized"
+                    : "Authorize review creation"}
+              </button>
+              <span className={styles.statusDetail}>
+                Creates a short-lived confirmation bound to this operator profile,
+                workspace, promotion inputs, and successful dry-run. It does not enqueue
+                Platform or open a pull request.
+              </span>
+            </div>
+            <div className={styles.metaGrid}>
+              <Meta
+                label="Review authorization"
+                value={promotionReviewConfirmation.status.replace(/_/g, " ")}
+              />
+              <Meta
+                label="Expires"
+                value={promotionReviewConfirmation.confirmation.expiresAt}
+              />
+              <Meta
+                label="Dry-run request"
+                value={
+                  promotionReviewConfirmation.confirmation.predecessorRequestId
+                }
+              />
+              <Meta
+                label="Authorization blockers"
+                value={joined(promotionReviewConfirmation.blockers)}
+              />
+            </div>
+          </>
+        ) : null}
         {showManagedPromotionReviewExecution ? (
-          <div className={styles.draftControls}>
-            <button
-              className={styles.ackButton}
-              type="button"
-              disabled={!canRunManagedPromotionReviewExecution}
-              onClick={onPromotionReviewExecute}
-            >
-              {promotionReviewExecutionState?.pending
-                ? "Opening review PR..."
-                : "Open review PR"}
-            </button>
-            <span className={styles.statusDetail}>
-              SpecSpace backend will call the allowlisted Platform non-dry-run promotion execution.
-            </span>
-          </div>
+          <>
+            <div className={styles.draftControls}>
+              <button
+                className={styles.ackButton}
+                type="button"
+                disabled={!canRunManagedPromotionReviewExecution}
+                onClick={onPromotionReviewExecute}
+              >
+                {promotionReviewExecutionState?.pending
+                  ? "Opening review PR..."
+                  : "Open review PR"}
+              </button>
+              <span className={styles.statusDetail}>
+                {hostedPromotionReviewConfirmationRequired
+                  ? "Requires both a current confirmation and a separately allowlisted Platform non-dry-run promotion operation. The current deployment allowlist remains authoritative."
+                  : "Uses the local Platform executor with the explicit review confirmation required by its backend guard."}
+              </span>
+            </div>
+          </>
         ) : null}
         {showManagedReviewStatus ? (
           <div className={styles.draftControls}>
@@ -3963,6 +4116,16 @@ function GuidedApprovalPathSection({
         {promotionReviewExecutionState?.error ? (
           <span className={styles.statusDetail}>
             Promotion review execution failed · {promotionReviewExecutionState.error}
+          </span>
+        ) : null}
+        {promotionReviewConfirmationState?.status ? (
+          <span className={styles.statusDetail}>
+            Promotion review authorization: {promotionReviewConfirmationState.status}
+          </span>
+        ) : null}
+        {promotionReviewConfirmationState?.error ? (
+          <span className={styles.statusDetail}>
+            Promotion review authorization failed · {promotionReviewConfirmationState.error}
           </span>
         ) : null}
         {reviewStatusExecutionState?.status ? (

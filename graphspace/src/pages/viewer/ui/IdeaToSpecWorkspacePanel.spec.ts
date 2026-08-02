@@ -926,7 +926,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     );
   });
 
-  it("shows managed promotion review action after promotion dry-run evidence", () => {
+  it("shows separate confirmation and managed review actions after a dry-run", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.guided_approval_path.available = true;
     raw.guided_approval_path.stage = "promotion_execution_needed";
@@ -935,6 +935,94 @@ describe("IdeaToSpecWorkspacePanel", () => {
       "Run non-dry-run product promotion execution when ready.";
     raw.guided_approval_path.state.promotion_request_ok = true;
     raw.guided_approval_path.state.promotion_execution_status = "completed";
+    raw.managed_mode_readiness = {
+      available: true,
+      status: "hosted_managed_ready",
+      mode: "hosted_managed",
+      authority_boundary: {
+        ...raw.guided_flow.authority_boundary,
+        managed_mode_readiness_is_authority: false,
+        may_run_shell: false,
+        may_publish_read_model: false,
+      },
+    };
+    raw.promotion_review_confirmation = {
+      artifact_kind: "specspace_promotion_review_confirmation_authoring",
+      schema_version: 1,
+      available: true,
+      status: "ready",
+      workspace_id: "team-decision-log",
+      operation_id: "promotion_review_execute",
+      can_author: false,
+      operator_profile_bound: true,
+      confirmation: {
+        available: true,
+        status: "active",
+        confirmation_id:
+          "confirmation://team-decision-log/promotion_review_execute/0123456789abcdef0123456789abcdef",
+        issued_at: "2026-08-02T10:00:00Z",
+        expires_at: "2026-08-02T10:10:00Z",
+        predecessor_request_id:
+          "managed-operation://team-decision-log/promotion_execute_dry_run/0123456789abcdef01234567",
+      },
+      bound_inputs: [],
+      blockers: [],
+      next_safe_action: "Request the separately allowlisted review operation.",
+      authority_boundary: {
+        report_only: true,
+        confirmation_authoring_is_execution_authority: false,
+        may_execute_platform: false,
+        may_execute_git_service: false,
+        may_mutate_candidate_artifacts: false,
+        may_mutate_canonical_specs: false,
+        may_write_ontology_package: false,
+        may_accept_ontology_terms: false,
+        may_create_git_branch: false,
+        may_create_git_commit: false,
+        may_push_candidate_branch: false,
+        may_open_pull_request: false,
+        may_merge_pull_request: false,
+        may_publish_read_model: false,
+      },
+    };
+    const managedAuthorityBoundary = {
+      ...raw.guided_flow.authority_boundary,
+      managed_operations_observability_is_authority: false,
+      may_run_shell: false,
+      may_publish_read_model: false,
+    };
+    raw.managed_operations_observability = {
+      available: true,
+      surface_id: "specspace.managed-operations.observability.v0.1",
+      surface_kind: "managed_operations_observability",
+      summary: { operation_count: 1, ready_to_execute_count: 1 },
+      status_counts: { ready_to_execute: 1 },
+      groups: [],
+      operations: [
+        {
+          operation_id: "promotion_review_execute",
+          category: "promotion",
+          lifecycle_stage: "promotion",
+          ui_stage: "Guided promotion review",
+          endpoint: "/api/v1/idea-to-spec-promotion-review/execute",
+          platform_command: ["product-candidate-promotion", "execute"],
+          status: "ready_to_execute",
+          input_refs: [],
+          output_reports: [],
+          authority_boundary: managedAuthorityBoundary,
+        },
+      ],
+      authority_boundary: managedAuthorityBoundary,
+    };
+    const promotionReviewOperation =
+      raw.managed_operations_observability.operations.find(
+        (operation: { operation_id?: string }) =>
+          operation.operation_id === "promotion_review_execute",
+      );
+    if (!promotionReviewOperation) {
+      throw new Error("Promotion review operation must exist in the fixture");
+    }
+    promotionReviewOperation.status = "ready_to_execute";
     const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
     if (parsedWorkspace.kind !== "ok") {
       throw new Error("Modified idea-to-spec fixture must parse");
@@ -946,15 +1034,21 @@ describe("IdeaToSpecWorkspacePanel", () => {
         promotionExecuteUrl: "/api/v1/idea-to-spec-promotion/execute",
         promotionReviewExecuteUrl:
           "/api/v1/idea-to-spec-promotion-review/execute",
+        promotionReviewConfirmationUrl:
+          "/api/v1/idea-to-spec-promotion-review-confirmation",
       }),
     );
 
     expect(html).toContain(
       "Run non-dry-run product promotion execution when ready.",
     );
+    expect(html).toContain("Review creation authorized");
     expect(html).toContain("Open review PR");
     expect(html).toContain(
-      "SpecSpace backend will call the allowlisted Platform non-dry-run promotion execution.",
+      "It does not enqueue Platform or open a pull request.",
+    );
+    expect(html).toContain(
+      "The current deployment allowlist remains authoritative.",
     );
     expect(html).not.toContain("Run promotion dry-run");
   });

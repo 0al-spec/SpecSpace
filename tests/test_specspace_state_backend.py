@@ -234,6 +234,28 @@ class SpecSpaceStateBackendTests(unittest.TestCase):
                     content={"confirmed": True},
                 )
 
+    def test_file_backend_reads_dynamic_confirmation_record(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            backend = specspace_state_backend.FileStateBackend(Path(temp_dir))
+            record_key = (
+                "confirmations/workspace-a/"
+                "promotion_review_execute/confirmation.json"
+            )
+            written = backend.write_record(
+                record_key,
+                workspace_id="workspace-a",
+                content={"confirmed": True},
+            )
+
+            record = backend.read_record(
+                record_key,
+                workspace_id="workspace-a",
+            )
+
+        self.assertEqual(record["content"], {"confirmed": True})
+        self.assertEqual(record["content_sha256"], written["content_sha256"])
+        self.assertEqual(record["lifecycle_state"], "active")
+
     def test_external_backend_is_workspace_scoped_and_restart_persistent(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, state_service() as base_url:
             root = Path(temp_dir)

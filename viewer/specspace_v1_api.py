@@ -28,6 +28,7 @@ from viewer import (
     managed_operations_registry,
     ontology_acknowledgements,
     operator_auth,
+    promotion_review_confirmation,
     product_workspace_initialization_execution,
     product_workspace_binding,
     product_workspace_creation_requests,
@@ -1372,6 +1373,15 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
                 workspace_id=workspace_id,
             )
         )
+        payload["promotion_review_confirmation"] = (
+            promotion_review_confirmation.workspace_projection(
+                handler.server,
+                workspace_id=workspace_id,
+                provider=provider,
+                binding=payload["workspace_binding"],
+                hosted_execution=payload["hosted_managed_execution"],
+            )
+        )
         managed_mode_readiness = _managed_mode_readiness(
             server=handler.server,
             provider=provider,
@@ -2329,6 +2339,65 @@ def handle_v1_idea_to_spec_promotion_review_execute_post(
             payload,
             workspace_id=workspace_id,
         ),
+    )
+    json_response(handler, status, response)
+
+
+def handle_v1_idea_to_spec_promotion_review_confirmation_post(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    workspace_id = specspace_provider.normalize_product_workspace_id(
+        query_value(query_params(parsed), "workspace")
+    )
+    if workspace_id is None:
+        json_response(
+            handler,
+            HTTPStatus.BAD_REQUEST,
+            {
+                "error": "Promotion review confirmation requires a workspace.",
+                "reason": "promotion_review_confirmation_workspace_invalid",
+            },
+        )
+        return
+    provider = _provider(handler, workspace_id)
+    provider_status, workspace_payload = provider.read_idea_to_spec_workspace()
+    if provider_status != HTTPStatus.OK or not isinstance(workspace_payload, dict):
+        json_response(
+            handler,
+            provider_status,
+            {
+                "error": "Promotion review confirmation requires a readable workspace.",
+                "reason": "promotion_review_confirmation_workspace_unavailable",
+            },
+        )
+        return
+    local_binding = product_workspace_binding.discover_binding(
+        handler.server,
+        workspace_id=workspace_id,
+    )
+    binding = _select_workspace_binding(
+        local_binding,
+        workspace_payload.get("workspace_binding"),
+        workspace_id=workspace_id,
+    )
+    hosted_execution = hosted_managed_execution.workspace_projection(
+        hosted_managed_execution.read_state(
+            handler.server,
+            workspace_id=workspace_id,
+        ),
+        workspace_id=workspace_id,
+    )
+    status, response = promotion_review_confirmation.author_confirmation(
+        handler.server,
+        workspace_id=workspace_id,
+        payload=payload,
+        provider=provider,
+        binding=binding,
+        hosted_execution=hosted_execution,
     )
     json_response(handler, status, response)
 

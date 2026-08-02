@@ -4049,6 +4049,13 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
                 },
             )
             _write_product_workspace_runs(runs_dir)
+            candidate_path = (
+                "runs/"
+                + idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+            )
+            candidate_sha256 = hashlib.sha256(
+                (runs_dir / candidate_path.removeprefix("runs/")).read_bytes()
+            ).hexdigest()
             _write_json(
                 runs_dir / idea_to_spec_workspace.CANDIDATE_OVERVIEW_ARTIFACT,
                 {
@@ -4097,6 +4104,11 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
             paths,
         )
         self.assertNotIn("specs/nodes/SG-SPEC-BOOTSTRAP.yaml", paths)
+        by_path = {entry["path"]: entry for entry in catalog["artifacts"]}
+        self.assertEqual(
+            by_path[candidate_path]["sha256"],
+            candidate_sha256,
+        )
         self.assertEqual(catalog["source"]["workspace_id"], "team-decision-log")
 
     def test_product_http_workspace_artifact_content_enforces_preview_limit(
@@ -4170,6 +4182,79 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
 
                 self.assertEqual(status, HTTPStatus.NOT_FOUND)
                 self.assertEqual(body["reason"], "missing_product_workspace_artifact")
+
+    def test_product_http_workspace_catalog_uses_bound_run_artifact_digests(
+        self,
+    ) -> None:
+        workspace_id = "pantry-control"
+        initialization_path = (
+            "runs/"
+            + idea_to_spec_workspace.PLATFORM_PRODUCT_WORKSPACE_INITIALIZATION_EXECUTION_REPORT_ARTIFACT
+        )
+        bound_paths = {
+            f"runs/{workspace_id}/{filename}"
+            for filename in (
+                idea_to_spec_workspace.GRAPH_REPOSITORY_PROMOTION_REQUEST_ARTIFACT,
+                idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT,
+                idea_to_spec_workspace.GRAPH_REPOSITORY_EXECUTION_PLAN_ARTIFACT,
+            )
+        }
+        manifest = {
+            "artifact_kind": "specgraph_static_artifact_manifest",
+            "files": [
+                {
+                    "path": initialization_path,
+                    "sha256": "1" * 64,
+                    "size_bytes": 1,
+                },
+                *[
+                    {"path": path, "sha256": "2" * 64, "size_bytes": 2}
+                    for path in sorted(bound_paths)
+                ],
+                {
+                    "path": "runs/graph_repository_promotion_request.json",
+                    "sha256": "3" * 64,
+                    "size_bytes": 3,
+                },
+            ],
+        }
+        cache = specspace_provider.HttpArtifactCache(
+            manifest=manifest,
+            manifest_loaded_at=time.time(),
+        )
+        delegate = specspace_provider.HttpSpecGraphProvider(
+            base_url="https://artifact.test",
+            cache=cache,
+        )
+        provider = specspace_provider.ProductWorkspaceHttpProvider(
+            delegate=delegate,
+            workspace_id=workspace_id,
+        )
+        binding = {
+            "status": "ready",
+            "trusted": True,
+            "routing": {
+                "platform_default_run_dir_ref": f"runs/{workspace_id}",
+            },
+        }
+
+        with mock.patch.object(
+            specspace_provider.product_workspace_binding,
+            "project_published_initialization_binding",
+            return_value=binding,
+        ):
+            status, catalog = provider.read_artifact_catalog()
+
+        self.assertEqual(status, HTTPStatus.OK)
+        catalog_paths = {item["path"] for item in catalog["artifacts"]}
+        self.assertTrue(bound_paths.issubset(catalog_paths))
+        self.assertNotIn(
+            "runs/graph_repository_promotion_request.json",
+            catalog_paths,
+        )
+        by_path = {item["path"]: item for item in catalog["artifacts"]}
+        for path in bound_paths:
+            self.assertEqual(by_path[path]["sha256"], "2" * 64)
 
     def test_directory_health_distinguishes_unreadable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
