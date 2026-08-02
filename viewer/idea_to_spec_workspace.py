@@ -4379,10 +4379,45 @@ def _materialization_review_contract_trusted(
         return False
     authority_boundary = _record(report.get("authority_boundary"))
     privacy_boundary = _record(report.get("privacy_boundary"))
+    if report.get("artifact_kind") == "idea_to_spec_rerun_materialization":
+        required_authority = {
+            "may_execute_prompt_agent",
+            "may_apply_answers_to_source_artifacts",
+            "may_mutate_candidate_source_artifacts",
+            "may_mutate_canonical_specs",
+            "may_write_ontology_package",
+            "may_write_ontology_lockfile",
+            "may_accept_ontology_terms",
+            "may_mark_candidate_graph_accepted",
+            "may_create_branch_or_commit",
+            "may_open_pull_request",
+            "may_publish_read_model",
+        }
+        required_privacy = {
+            "raw_idea_text_published",
+            "raw_prompt_published",
+            "raw_model_output_published",
+            "raw_operator_note_published",
+        }
+    else:
+        required_authority = {
+            "may_execute_prompt_agent",
+            "may_mutate_candidate_source_artifacts",
+            "may_mutate_canonical_specs",
+            "may_write_ontology_package",
+            "may_write_ontology_lockfile",
+            "may_mark_candidate_graph_accepted",
+            "may_create_branch_or_commit",
+        }
+        required_privacy = {
+            "raw_intent_text_published",
+            "raw_prompt_published",
+            "raw_model_output_published",
+        }
     return (
-        bool(authority_boundary)
+        required_authority.issubset(authority_boundary)
         and all(value is False for value in authority_boundary.values())
-        and bool(privacy_boundary)
+        and required_privacy.issubset(privacy_boundary)
         and all(value is False for value in privacy_boundary.values())
     )
 
@@ -9279,7 +9314,7 @@ def build_idea_to_spec_workspace(
     )
     selected_materialization = (
         repaired_materialization
-        if repaired_surface_selected and repaired_materialization is not None
+        if repaired_surface_selected
         else materialization
     )
     selected_repair_session_journal = (

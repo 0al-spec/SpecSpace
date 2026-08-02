@@ -123,6 +123,7 @@ class RunsWatcher(PollingWatcher):
     THREAD_NAME: str = "runs-watcher-poll"
     _RUN_FILENAME_RE = re.compile(r"^\d{8}T\d{6}Z-SG-[A-Z]+-\d+-[0-9a-f]+\.json$")
     _WORKSPACE_DIR_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$")
+    _WATCHED_NESTED_DIRS = frozenset({"real_idea_smoke"})
     _WATCHED_ARTIFACT_NAMES = frozenset(
         {
             "spec_activity_feed.json",
@@ -166,6 +167,16 @@ class RunsWatcher(PollingWatcher):
         try:
             with os.scandir(workspace_entry.path) as artifacts:
                 for artifact in artifacts:
+                    if (
+                        artifact.is_dir(follow_symlinks=False)
+                        and artifact.name in RunsWatcher._WATCHED_NESTED_DIRS
+                    ):
+                        RunsWatcher._add_nested_workspace_artifacts(
+                            result,
+                            workspace_entry,
+                            artifact,
+                        )
+                        continue
                     if not artifact.is_file(follow_symlinks=False) or not artifact.name.endswith(
                         ".json"
                     ):
@@ -173,6 +184,27 @@ class RunsWatcher(PollingWatcher):
                     stat = artifact.stat(follow_symlinks=False)
                     result[
                         f"{workspace_entry.name}/{artifact.name}\0{stat.st_size}"
+                    ] = stat.st_mtime
+        except OSError:
+            pass
+
+    @staticmethod
+    def _add_nested_workspace_artifacts(
+        result: dict[str, float],
+        workspace_entry: os.DirEntry[str],
+        nested_entry: os.DirEntry[str],
+    ) -> None:
+        try:
+            with os.scandir(nested_entry.path) as artifacts:
+                for artifact in artifacts:
+                    if not artifact.is_file(follow_symlinks=False) or not artifact.name.endswith(
+                        ".json"
+                    ):
+                        continue
+                    stat = artifact.stat(follow_symlinks=False)
+                    result[
+                        f"{workspace_entry.name}/{nested_entry.name}/{artifact.name}"
+                        f"\0{stat.st_size}"
                     ] = stat.st_mtime
         except OSError:
             pass

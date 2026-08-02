@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
+import secrets
 import subprocess
 import sys
 import threading
@@ -67,6 +69,13 @@ def _file_sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(65536), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _input_digests_match(expected: dict[Path, str]) -> bool:
+    try:
+        return all(_file_sha256(path) == digest for path, digest in expected.items())
+    except OSError:
+        return False
 
 
 def _platform_script(server: Any) -> Path | None:
@@ -138,6 +147,8 @@ def _initialization_plan_error(
     *,
     selected_workspace_id: str,
     expected_workspace_root: Path,
+    expected_creation_request: Path,
+    expected_catalog: Path,
 ) -> dict[str, Any] | None:
     if plan is None:
         return {"error": "Workspace initialization plan is not valid JSON."}
@@ -149,6 +160,10 @@ def _initialization_plan_error(
     root = _text(workspace.get("workspace_root"))
     if root is None or Path(root).expanduser().resolve() != expected_workspace_root:
         return {"error": "Workspace initialization plan root mismatch."}
+    if _text(plan.get("creation_request_ref")) != str(expected_creation_request.resolve()):
+        return {"error": "Workspace initialization plan creation_request_ref mismatch."}
+    if _text(plan.get("catalog_ref")) != str(expected_catalog.resolve()):
+        return {"error": "Workspace initialization plan catalog_ref mismatch."}
     summary = _record(plan.get("summary"))
     if (
         plan.get("ok") is not True
@@ -336,7 +351,12 @@ def _prepare_initialization_request(
         workspace_root.relative_to(root_dir.resolve())
     except ValueError:
         return HTTPStatus.CONFLICT, {"error": "Workspace root escaped configured root."}
-    workspace_run_dir = (runs_dir / selected_workspace_id).resolve()
+    workspace_run_candidate = runs_dir / selected_workspace_id
+    if workspace_run_candidate.is_symlink():
+        return HTTPStatus.CONFLICT, {
+            "error": "Workspace run directory must not be a symlink."
+        }
+    workspace_run_dir = workspace_run_candidate.resolve()
     try:
         workspace_run_dir.relative_to(runs_dir.resolve())
     except ValueError:
@@ -344,6 +364,10 @@ def _prepare_initialization_request(
     workspace_run_dir.mkdir(parents=True, exist_ok=True)
     plan_path = workspace_run_dir / INITIALIZATION_PLAN_ARTIFACT
     request_path = workspace_run_dir / EXECUTION_REQUEST_ARTIFACT
+    if plan_path.is_symlink() or request_path.is_symlink():
+        return HTTPStatus.CONFLICT, {
+            "error": "Workspace initialization preparation artifacts must not be symlinks."
+        }
     plan_ref = f"runs/{selected_workspace_id}/{INITIALIZATION_PLAN_ARTIFACT}"
     request_ref = f"runs/{selected_workspace_id}/{EXECUTION_REQUEST_ARTIFACT}"
 
@@ -353,8 +377,18 @@ def _prepare_initialization_request(
     except (TypeError, ValueError):
         timeout_seconds = 120
 
-    plan = _read_json_object(plan_path) if plan_path.exists() else None
-    if plan is None:
+    try:
+        creation_digest = _file_sha256(creation_path)
+        catalog_digest = _file_sha256(catalog)
+    except OSError:
+        return HTTPStatus.CONFLICT, {
+            "error": "Workspace initialization preparation inputs are unavailable."
+        }
+
+    token = secrets.token_hex(8)
+    staged_plan_path = workspace_run_dir / f".{INITIALIZATION_PLAN_ARTIFACT}.{token}.tmp"
+    staged_request_path = workspace_run_dir / f".{EXECUTION_REQUEST_ARTIFACT}.{token}.tmp"
+    try:
         status, error = _run_preparation_command(
             platform_script=platform_script,
             timeout_seconds=timeout_seconds,
@@ -370,22 +404,29 @@ def _prepare_initialization_request(
                 "--path",
                 str(workspace_root),
                 "--output",
-                str(plan_path),
+                str(staged_plan_path),
             ],
         )
         if error is not None:
             return status, error
-        plan = _read_json_object(plan_path)
-    plan_error = _initialization_plan_error(
-        plan,
-        selected_workspace_id=selected_workspace_id,
-        expected_workspace_root=workspace_root,
-    )
-    if plan_error is not None:
-        return HTTPStatus.CONFLICT, plan_error
+        plan = _read_json_object(staged_plan_path)
+        plan_error = _initialization_plan_error(
+            plan,
+            selected_workspace_id=selected_workspace_id,
+            expected_workspace_root=workspace_root,
+            expected_creation_request=creation_path,
+            expected_catalog=catalog,
+        )
+        if plan_error is not None:
+            return HTTPStatus.CONFLICT, plan_error
+        if not _input_digests_match(
+            {creation_path: creation_digest, catalog: catalog_digest}
+        ):
+            return HTTPStatus.CONFLICT, {
+                "error": "Workspace initialization preparation inputs changed during planning."
+            }
+        os.replace(staged_plan_path, plan_path)
 
-    request = _read_json_object(request_path) if request_path.exists() else None
-    if request is None:
         status, error = _run_preparation_command(
             platform_script=platform_script,
             timeout_seconds=timeout_seconds,
@@ -397,20 +438,31 @@ def _prepare_initialization_request(
                 "--operator-ref",
                 "operator://specspace-local",
                 "--output",
-                str(request_path),
+                str(staged_request_path),
             ],
         )
         if error is not None:
             return status, error
-        request = _read_json_object(request_path)
-    request_error = _prepared_request_error(
-        request,
-        selected_workspace_id=selected_workspace_id,
-        plan_path=plan_path,
-        expected_workspace_root=workspace_root,
-    )
-    if request_error is not None:
-        return HTTPStatus.CONFLICT, request_error
+        request = _read_json_object(staged_request_path)
+        request_error = _prepared_request_error(
+            request,
+            selected_workspace_id=selected_workspace_id,
+            plan_path=plan_path,
+            expected_workspace_root=workspace_root,
+        )
+        if request_error is not None:
+            return HTTPStatus.CONFLICT, request_error
+        if not _input_digests_match(
+            {creation_path: creation_digest, catalog: catalog_digest}
+        ):
+            return HTTPStatus.CONFLICT, {
+                "error": "Workspace initialization preparation inputs changed during request generation."
+            }
+        os.replace(staged_request_path, request_path)
+    finally:
+        for temporary_path in (staged_plan_path, staged_request_path):
+            if temporary_path.exists() and not temporary_path.is_symlink():
+                temporary_path.unlink()
 
     return HTTPStatus.OK, {
         "artifact_kind": "specspace_workspace_initialization_preparation",

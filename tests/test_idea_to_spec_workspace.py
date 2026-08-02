@@ -1798,9 +1798,13 @@ def _materialization() -> dict:
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
         "authority_boundary": {
+            "may_execute_prompt_agent": False,
+            "may_mutate_candidate_source_artifacts": False,
             "may_create_branch_or_commit": False,
+            "may_mark_candidate_graph_accepted": False,
             "may_mutate_canonical_specs": False,
             "may_write_ontology_package": False,
+            "may_write_ontology_lockfile": False,
         },
         "privacy_boundary": {
             "raw_intent_text_published": False,
@@ -8772,6 +8776,73 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
 
         self.assertEqual(status, HTTPStatus.SERVICE_UNAVAILABLE)
         self.assertEqual(body["reason"], "artifact_read_failed")
+
+    def test_file_provider_resolves_reviewable_specs_under_configured_runs_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workspace_runs = root / "mounted-runs" / "pantry-control"
+            review_path = (
+                workspace_runs
+                / "materialized_candidate_specs"
+                / "CANDIDATE-PANTRY-CONTROL.yaml"
+            )
+            review_path.parent.mkdir(parents=True)
+            review_path.write_text("id: CANDIDATE-PANTRY-CONTROL\n", encoding="utf-8")
+            provider = specspace_provider.ProductWorkspaceFileProvider(
+                delegate=specspace_provider.FileSpecGraphProvider(
+                    spec_nodes_dir=None,
+                    runs_dir=workspace_runs,
+                    specgraph_dir=root,
+                ),
+                workspace_id="pantry-control",
+                artifact_run_dir_ref="runs/pantry-control",
+            )
+            materialization = _materialization()
+            materialization["materialized_files"] = [
+                {
+                    "candidate_node_id": "candidate-spec.pantry-control",
+                    "materialized_id": "CANDIDATE-PANTRY-CONTROL",
+                    "path": (
+                        "runs/pantry-control/materialized_candidate_specs/"
+                        "CANDIDATE-PANTRY-CONTROL.yaml"
+                    ),
+                }
+            ]
+
+            resolved = provider.delegate._resolve_reviewable_candidate_files(
+                materialization["materialized_files"],
+                artifact_run_dir_ref=provider.artifact_run_dir_ref,
+            )
+
+        self.assertEqual(resolved, [(materialization["materialized_files"][0]["path"], review_path)])
+
+    def test_repaired_handoff_does_not_reuse_standard_materialization(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts.pop(
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
+            None,
+        )
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertFalse(body["materialization"]["available"])
+        self.assertFalse(body["materialization"]["review_contract_trusted"])
+
+    def test_materialization_review_contract_requires_complete_boundaries(self) -> None:
+        materialization = _materialization()
+        del materialization["authority_boundary"]["may_write_ontology_lockfile"]
+
+        self.assertFalse(
+            idea_to_spec_workspace._materialization_review_contract_trusted(
+                materialization
+            )
+        )
 
     def test_http_provider_reads_workspace_runs_from_manifest(self) -> None:
         workspace_artifacts = _workspace_artifacts()
