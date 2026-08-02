@@ -31,6 +31,10 @@ type Props = {
     selectionHistory: ViewerSelectionHistoryControls;
   };
   status: {
+    operatorAccess: {
+      required: boolean;
+      href: string;
+    };
     deployment: {
       label: string;
       title: string;
@@ -55,6 +59,22 @@ export type ViewerSelectionHistoryControls = {
 export function ViewerChrome({ controls, status }: Props) {
   return (
     <>
+      {status.operatorAccess.required ? (
+        <Overlay anchor="top-right" className={styles.operatorAccessOverlay}>
+          <Panel tone="muted" padding="sm">
+            <div className={styles.operatorAccessNotice}>
+              <span>
+                <strong>Operator access required</strong>
+                <small>Authenticate to open private workspace state and managed actions.</small>
+              </span>
+              <a className={styles.operatorAccessButton} href={status.operatorAccess.href}>
+                Authenticate operator
+              </a>
+            </div>
+          </Panel>
+        </Overlay>
+      ) : null}
+
       {!controls.sidebarOpen ? (
         <div className={styles.canvasControlDock}>
           <PanelBtnRow>

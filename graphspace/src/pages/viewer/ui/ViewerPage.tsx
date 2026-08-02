@@ -70,6 +70,8 @@ import {
 } from "../model/spec-selection-history";
 import {
   describeDeploymentStatus,
+  operatorAuthenticationRequired,
+  operatorSessionHref,
   shouldUseLocalSpecPMLifecycle,
   shouldUseRunsWatch,
   uiDeploymentInfo,
@@ -525,6 +527,7 @@ export function ViewerPage({
     refreshKey: runsWatchVersion,
   });
   const deploymentStatus = describeDeploymentStatus(uiDeploymentInfo, apiDeploymentState);
+  const operatorReturnPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   const hyperpromptCompileCapability =
     capabilitiesState.kind === "ok"
       ? capabilitiesState.data.diagnostics.hyperpromptCompile
@@ -1861,6 +1864,10 @@ export function ViewerPage({
           selectionHistory: specSelectionHistoryControls,
         }}
         status={{
+          operatorAccess: {
+            required: operatorAuthenticationRequired(apiDeploymentState),
+            href: operatorSessionHref(operatorReturnPath),
+          },
           deployment: deploymentStatus,
           runsWatchVersion,
           recentKind: feedState.kind,

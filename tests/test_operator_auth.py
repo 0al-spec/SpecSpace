@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 from viewer import operator_auth, routes, server_runtime
 from viewer.http_response import json_response
@@ -33,6 +33,11 @@ class AccessControlTestHandler(ViewerHandler):
         payload = self.read_json_body()
         if payload is not None:
             json_response(self, HTTPStatus.OK, {"saved": True})
+
+
+class NoRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 def _authorization(username: str = USERNAME, password: str = PASSWORD) -> str:
@@ -188,6 +193,44 @@ def test_operator_session_provides_a_browser_login_target() -> None:
         _stop_server(server, thread)
 
 
+def test_operator_session_redirects_to_safe_same_origin_path() -> None:
+    server, thread, base_url = _start_server()
+    try:
+        request = Request(
+            f"{base_url}/api/v1/operator-session?return_to=%2Fnew-product%3Fview%3Ddemo%23repair",
+            headers={"Authorization": _authorization()},
+        )
+        opener = build_opener(NoRedirectHandler())
+        try:
+            opener.open(request, timeout=2)
+        except HTTPError as error:
+            assert error.code == HTTPStatus.SEE_OTHER
+            assert error.headers["Location"] == "/new-product?view=demo#repair"
+        else:
+            raise AssertionError("operator session redirect was unexpectedly followed")
+    finally:
+        _stop_server(server, thread)
+
+
+def test_operator_session_rejects_external_or_unsafe_return_paths() -> None:
+    server, thread, base_url = _start_server()
+    try:
+        for return_to in (
+            "https%3A%2F%2Fevil.example%2F",
+            "%2F%2Fevil.example%2F",
+            "%2Fworkspace%5C%5Cevil",
+        ):
+            request = Request(
+                f"{base_url}/api/v1/operator-session?return_to={return_to}",
+                headers={"Authorization": _authorization()},
+            )
+            error = _error(request)
+            assert error.code == HTTPStatus.BAD_REQUEST
+            assert error.payload["reason"] == "operator_return_path_invalid"
+    finally:
+        _stop_server(server, thread)
+
+
 def test_private_post_authenticates_before_parsing_body() -> None:
     server, thread, base_url = _start_server()
     try:
@@ -280,6 +323,12 @@ class OperatorAuthContractTests(unittest.TestCase):
 
     def test_operator_session_is_explicit_login_target(self) -> None:
         test_operator_session_provides_a_browser_login_target()
+
+    def test_operator_session_redirects_to_safe_path(self) -> None:
+        test_operator_session_redirects_to_safe_same_origin_path()
+
+    def test_operator_session_rejects_unsafe_paths(self) -> None:
+        test_operator_session_rejects_external_or_unsafe_return_paths()
 
     def test_private_post_authenticates_before_body_parse(self) -> None:
         test_private_post_authenticates_before_parsing_body()

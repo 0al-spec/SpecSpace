@@ -6,7 +6,7 @@ import os
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Protocol
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 from viewer import (
     agent_workbench,
@@ -1086,7 +1086,48 @@ def handle_v1_health(handler: SpecSpaceV1Handler) -> None:
     )
 
 
-def handle_v1_operator_session(handler: SpecSpaceV1Handler) -> None:
+def _operator_session_return_path(parsed: Any) -> tuple[str | None, str | None]:
+    return_to = query_value(query_params(parsed), "return_to", None)
+    if return_to is None:
+        return None, None
+    if (
+        not return_to
+        or len(return_to) > 2048
+        or not return_to.startswith("/")
+        or return_to.startswith("//")
+        or "\\" in return_to
+        or any(ord(character) < 32 or ord(character) == 127 for character in return_to)
+    ):
+        return None, "operator_return_path_invalid"
+    target = urlsplit(return_to)
+    if target.scheme or target.netloc or not target.path.startswith("/"):
+        return None, "operator_return_path_invalid"
+    return return_to, None
+
+
+def handle_v1_operator_session(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    return_to, return_error = _operator_session_return_path(parsed)
+    if return_error is not None:
+        json_response(
+            handler,
+            HTTPStatus.BAD_REQUEST,
+            {
+                "error": "Operator session return path must be a same-origin absolute path.",
+                "reason": return_error,
+            },
+        )
+        return
+    if return_to is not None:
+        json_response(
+            handler,
+            HTTPStatus.SEE_OTHER,
+            {
+                "authenticated": True,
+                "status": "operator_authenticated",
+            },
+            headers={"Location": return_to},
+        )
+        return
     json_response(
         handler,
         HTTPStatus.OK,
