@@ -274,7 +274,7 @@ function sha256(content: Buffer): string {
 async function gitSnapshot(repository: string): Promise<GitSnapshot> {
   const [head, status] = await Promise.all([
     execFileAsync("git", ["rev-parse", "HEAD"], { cwd: repository }),
-    execFileAsync("git", ["status", "--porcelain", "--untracked-files=no"], {
+    execFileAsync("git", ["status", "--porcelain", "--untracked-files=all"], {
       cwd: repository,
     }),
   ]);

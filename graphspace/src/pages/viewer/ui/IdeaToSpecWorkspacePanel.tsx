@@ -108,9 +108,11 @@ export function scopedInitializationExecutionRequestRef(
   preparedRef: string | null,
 ): string | null {
   const prefix = `runs/${workspaceId}/`;
+  const legacyRef = "runs/product_workspace_initialization_execution_request.json";
   const currentPreparedRef = preparedWorkspaceId === workspaceId ? preparedRef : null;
   for (const candidate of [currentPreparedRef, projectedRef]) {
     if (candidate?.startsWith(prefix)) return candidate;
+    if (candidate === projectedRef && candidate === legacyRef) return candidate;
   }
   return null;
 }

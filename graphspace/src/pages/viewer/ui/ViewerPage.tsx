@@ -1665,6 +1665,9 @@ export function ViewerPage({
             styles.utilityRail,
             selectedSpec || selectedGraphEdge ? styles.utilityRailWithInspector : "",
             utilityPanelExpanded ? styles.utilityRailExpanded : "",
+            utilityPanelExpanded && activeUtilityPanel === "idea-to-spec"
+              ? styles.ideaToSpecUtilityRailExpanded
+              : "",
           ]
             .filter(Boolean)
             .join(" ")}

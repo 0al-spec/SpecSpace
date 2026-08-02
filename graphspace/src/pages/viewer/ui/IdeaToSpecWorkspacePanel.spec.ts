@@ -55,6 +55,14 @@ describe("IdeaToSpecWorkspacePanel", () => {
         null,
       ),
     ).toBeNull();
+    expect(
+      scopedInitializationExecutionRequestRef(
+        "pantry-rotation",
+        "runs/product_workspace_initialization_execution_request.json",
+        null,
+        null,
+      ),
+    ).toBe("runs/product_workspace_initialization_execution_request.json");
   });
 
   it("makes bounded specification preview truncation explicit", () => {

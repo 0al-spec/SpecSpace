@@ -565,8 +565,6 @@
 }
 
 .utilityRailExpanded {
-  --idea-to-spec-summary-columns: 8;
-
   top: var(--gs-space-6);
   right: var(--gs-space-6);
   bottom: var(--gs-space-6);
@@ -577,6 +575,10 @@
   border-color: var(--gs-rule-mid);
   background: color-mix(in srgb, var(--gs-paper) 94%, transparent);
   box-shadow: 0 18px 60px rgb(0 0 0 / 24%);
+}
+
+.ideaToSpecUtilityRailExpanded {
+  --idea-to-spec-summary-columns: 8;
 }
 
 .utilityTitle {
@@ -998,8 +1000,6 @@
   }
 
   .utilityRailExpanded {
-    --idea-to-spec-summary-columns: 4;
-
     top: max(var(--gs-space-3), env(safe-area-inset-top, 0px));
     right: var(--gs-space-3);
     bottom: max(var(--gs-space-3), env(safe-area-inset-bottom, 0px));
@@ -1007,6 +1007,10 @@
     z-index: 1000;
     width: auto;
     max-height: none;
+  }
+
+  .ideaToSpecUtilityRailExpanded {
+    --idea-to-spec-summary-columns: 4;
   }
 
   .statusOverlay {
