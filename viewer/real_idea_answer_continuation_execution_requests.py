@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import secrets
 import threading
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
@@ -12,11 +15,17 @@ from typing import Any
 
 from viewer import specspace_provider, specspace_state_backend
 
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - local managed execution targets macOS/Linux.
+    fcntl = None  # type: ignore[assignment]
+
 EXECUTION_REQUEST_ARTIFACT_KIND = (
     "specspace_real_idea_answer_continuation_execution_request_state"
 )
 EXECUTION_REQUEST_SCHEMA_VERSION = 1
 EXECUTION_REQUEST_FILENAME = "real_idea_answer_continuation_execution_requests.json"
+EXECUTION_REQUEST_STATE_REF = f"specspace-state://{EXECUTION_REQUEST_FILENAME}"
 MAX_SUPERSEDED_PER_WORKSPACE = 20
 REQUEST_STATUSES = {"requested", "superseded", "consumed", "blocked"}
 FALSE_FIELDS = (
@@ -47,6 +56,22 @@ AUTHORITY_FALSE_FIELDS = (
 _STATE_LOCK = threading.Lock()
 
 
+@contextmanager
+def _state_file_lock(server: Any):
+    if fcntl is None:
+        yield
+        return
+    lock_path = state_path(server).with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as handle:
+        lock_path.chmod(0o600)
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 def state_path(server: Any) -> Path:
     state_dir = getattr(server, "specspace_state_dir", None)
     if state_dir is None:
@@ -63,7 +88,7 @@ def empty_state(path: Path | None = None) -> dict[str, Any]:
         "artifact_kind": EXECUTION_REQUEST_ARTIFACT_KIND,
         "schema_version": EXECUTION_REQUEST_SCHEMA_VERSION,
         "state_owner": "SpecSpace",
-        "state_path": str(path) if path is not None else EXECUTION_REQUEST_FILENAME,
+        "state_path": EXECUTION_REQUEST_STATE_REF,
         "selected_workspace_id": None,
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
@@ -129,13 +154,13 @@ def read_state(
     except specspace_state_backend.StateBackendError:
         return HTTPStatus.UNPROCESSABLE_ENTITY, {
             "error": f"{EXECUTION_REQUEST_FILENAME} is unreadable",
-            "path": str(path),
+            "state_ref": EXECUTION_REQUEST_STATE_REF,
         }
     if raw is None:
         return HTTPStatus.OK, _filtered_state(empty_state(path), workspace_id)
     state, error = normalize_state(raw, path)
     if error is not None:
-        error["path"] = str(path)
+        error["state_ref"] = EXECUTION_REQUEST_STATE_REF
         return HTTPStatus.UNPROCESSABLE_ENTITY, error
     assert state is not None
     return HTTPStatus.OK, _filtered_state(state, workspace_id)
@@ -239,7 +264,7 @@ def save_request(
         }
     operator_ref = _clean_text(payload.get("operator_ref")) or "operator://specspace-local"
 
-    with _STATE_LOCK:
+    with _STATE_LOCK, _state_file_lock(server):
         status_code, state = read_state(server)
         if status_code != HTTPStatus.OK:
             return status_code, state
@@ -304,6 +329,98 @@ def save_request(
         return HTTPStatus.OK, _filtered_state(state, workspace_id_value)
 
 
+def request_digest(request: dict[str, Any]) -> str:
+    encoded = json.dumps(
+        request,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+
+
+def claim_request_for_execution(
+    server: Any,
+    *,
+    workspace_id: str,
+    request_id: str,
+    expected_request_digest: str,
+) -> tuple[HTTPStatus, dict[str, Any]]:
+    with _STATE_LOCK, _state_file_lock(server):
+        status_code, state = read_state(server, workspace_id=workspace_id)
+        if status_code != HTTPStatus.OK:
+            return status_code, state
+        now = now_iso()
+        matched = False
+        digest_mismatch = False
+        updated: list[dict[str, Any]] = []
+        for item in state.get("requests", []):
+            if (
+                isinstance(item, dict)
+                and item.get("workspace_id") == workspace_id
+                and item.get("request_id") == request_id
+                and item.get("status") == "requested"
+            ):
+                if request_digest(item) != expected_request_digest:
+                    updated.append(item)
+                    digest_mismatch = True
+                else:
+                    updated.append(
+                        {
+                            **item,
+                            "status": "consumed",
+                            "consumed_at": now,
+                            "updated_at": now,
+                        }
+                    )
+                    matched = True
+            else:
+                updated.append(item)
+        if not matched:
+            if digest_mismatch:
+                return HTTPStatus.CONFLICT, {
+                    "error": (
+                        "Real idea answer continuation execution request changed "
+                        "after it was selected. Create or select the current request."
+                    ),
+                    "reason": "execution_request_digest_mismatch",
+                    "workspace_id": workspace_id,
+                    "request_id": request_id,
+                }
+            return HTTPStatus.CONFLICT, {
+                "error": (
+                    "Real idea answer continuation execution request is no longer "
+                    "active or has already been consumed."
+                ),
+                "workspace_id": workspace_id,
+                "request_id": request_id,
+            }
+        state["requests"] = _cap_superseded_history(updated)
+        _refresh_summary(state)
+        try:
+            specspace_state_backend.write_state(
+                server,
+                EXECUTION_REQUEST_FILENAME,
+                workspace_id=workspace_id,
+                state=state,
+            )
+        except specspace_state_backend.StateBackendConflict:
+            return HTTPStatus.CONFLICT, {
+                "error": "Answer continuation request state changed concurrently.",
+                "reason": "external_state_revision_conflict",
+            }
+        except specspace_state_backend.StateBackendUnavailable:
+            return HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": "External SpecSpace state is unavailable.",
+                "reason": "external_state_unavailable",
+            }
+        except specspace_state_backend.StateBackendError:
+            return HTTPStatus.UNPROCESSABLE_ENTITY, {
+                "error": "Answer continuation request state could not be persisted.",
+                "reason": "state_persistence_failed",
+            }
+        return HTTPStatus.OK, _filtered_state(state, workspace_id)
+
+
 def _normalize_existing_request(entry: dict[str, Any]) -> dict[str, Any] | None:
     workspace_id = specspace_provider.normalize_workspace_id(
         entry.get("workspace_id") if isinstance(entry.get("workspace_id"), str) else None
@@ -341,6 +458,7 @@ def _normalize_existing_request(entry: dict[str, Any]) -> dict[str, Any] | None:
         "created_at": _clean_text(entry.get("created_at")) or "unknown",
         "updated_at": _clean_text(entry.get("updated_at")) or _clean_text(entry.get("created_at")) or "unknown",
         "superseded_at": _clean_text(entry.get("superseded_at")),
+        "consumed_at": _clean_text(entry.get("consumed_at")),
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
         "consumer_boundary": empty_state()["consumer_boundary"],

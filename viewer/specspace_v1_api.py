@@ -592,6 +592,8 @@ def _managed_mode_readiness(
             disabled_reasons.append("platform_dir_not_configured")
         elif not platform_cli_present:
             disabled_reasons.append("platform_cli_missing")
+        if state_provider_external:
+            disabled_reasons.append("local_executor_requires_file_state_provider")
     if hosted_execution_enabled:
         if not hosted_service_configured:
             disabled_reasons.append("hosted_executor_not_configured")
@@ -632,6 +634,7 @@ def _managed_mode_readiness(
     local_executor_ready = (
         platform_execution_enabled
         and not hosted_execution_enabled
+        and not state_provider_external
         and platform_cli_present
         and state_dir_status["ready"]
         and runs_dir_status["ready"]

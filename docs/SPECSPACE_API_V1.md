@@ -1299,7 +1299,18 @@ Request:
 selected workspace. SpecSpace validates the matching SpecSpace-owned
 continuation request, local answer state, workspace initialization report,
 intake execution report, Platform checkout, and SpecGraph checkout before
-execution. On success Platform writes:
+execution. The local executor atomically claims the selected request digest and
+runs Platform against private, durable per-attempt copies of the request,
+answers, and input reports under the SpecSpace state directory. A concurrent
+replacement or replay is rejected. A durable per-workspace lease prevents two
+different continuation requests from publishing the same output concurrently
+and leaves recovery evidence after an unclean backend shutdown. Timeout ends the
+whole Platform process group, consumes the request, and preserves any previous
+successful output; the operator must create a new continuation request. If the
+process group cannot be confirmed stopped, SpecSpace records private ambiguous
+attempt evidence and blocks later continuation execution until manual recovery.
+On success, and only after validating the Platform report contract, SpecSpace
+publishes:
 
 ```text
 runs/platform_real_idea_answer_continuation_execution_report.json
@@ -1309,6 +1320,15 @@ The Product Workspace then refreshes from that execution report and the
 generated continuation artifacts. Deployments should point `--runs-dir` at the
 SpecGraph run directory used by Platform so generated continuation artifacts are
 visible to the same workspace provider.
+
+These consume-before-execute guarantees describe the local executor used by the
+Mac product profile. Hosted queue idempotency does not yet consume the source
+SpecSpace continuation request; that requires a separate durable hosted claim
+protocol before hosted continuation is treated as equivalent. The local
+subprocess executor therefore requires the file state backend and fails closed
+when the external HTTP state backend is configured. API responses expose only
+opaque private-state refs and a compact validated Platform projection, not local
+paths or subprocess output.
 
 Authority boundary:
 

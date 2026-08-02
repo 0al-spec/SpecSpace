@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import threading
 import time
@@ -29,7 +30,10 @@ from viewer import (
     idea_to_spec_workspace_state_hygiene,
     managed_operations_registry,
     operator_auth,
+    real_idea_answer_continuation_execution,
+    real_idea_answer_continuation_execution_requests,
     server,
+    specspace_state_backend,
     specspace_v1_api,
     specspace_provider,
 )
@@ -62,6 +66,76 @@ def _write_yaml(path: Path, data: dict) -> None:
 
 def _write_json(path: Path, data: dict) -> None:
     path.write_text(json.dumps(data), encoding="utf-8")
+
+
+def _write_continuation_execution_fixture(
+    root: Path,
+) -> tuple[Path, Path, Path, Path]:
+    runs_dir = root / "runs"
+    runs_dir.mkdir()
+    state_dir = root / "specspace-state"
+    state_dir.mkdir()
+    specgraph_dir = root / "SpecGraph"
+    specgraph_dir.mkdir()
+    (specgraph_dir / "Makefile").write_text(
+        "real-idea-intake-continue-from-specspace-answers:\n\t@true\n",
+        encoding="utf-8",
+    )
+    platform_dir = root / "Platform"
+    scripts_dir = platform_dir / "scripts"
+    scripts_dir.mkdir(parents=True)
+    (scripts_dir / "platform.py").write_text(
+        "raise SystemExit('continuation fixture must not execute Platform')\n",
+        encoding="utf-8",
+    )
+    _write_json(
+        runs_dir / "platform_product_workspace_initialization_execution_report.json",
+        {
+            "artifact_kind": (
+                "platform_product_workspace_initialization_execution_report"
+            ),
+            "ok": True,
+            "workspace": {"workspace_id": "pantry-rotation"},
+            "summary": {"status": "workspace_initialization_executed"},
+        },
+    )
+    _write_json(
+        runs_dir / "platform_real_idea_entry_intake_execution_report.json",
+        {
+            "artifact_kind": "platform_real_idea_entry_intake_execution_report",
+            "ok": True,
+            "summary": {
+                "status": "real_idea_entry_intake_executed",
+                "workspace_id": "pantry-rotation",
+            },
+            "authority_boundary": {
+                "executes_specgraph_make_target": True,
+                "executes_git_commands": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+            },
+        },
+    )
+    _write_json(
+        state_dir / "idea_to_spec_intake_clarification_answers.json",
+        {
+            "artifact_kind": "specspace_idea_intake_clarification_answer_state",
+            "schema_version": 1,
+            "state_owner": "SpecSpace",
+            "answers": [],
+        },
+    )
+    return runs_dir, state_dir, specgraph_dir, platform_dir
+
+
+def _private_state_ref_path(state_dir: Path, ref: str) -> Path:
+    prefix = "specspace-private-state://"
+    if not ref.startswith(prefix):
+        raise AssertionError(f"Expected an opaque private state ref, got {ref!r}")
+    relative = Path(ref.removeprefix(prefix))
+    if relative.is_absolute() or ".." in relative.parts:
+        raise AssertionError(f"Private state ref escaped its state directory: {ref!r}")
+    return state_dir / relative
 
 
 def _write_product_workspace_runs(
@@ -7741,7 +7815,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertEqual(
             body["state_path"],
-            str(state_dir / "real_idea_answer_continuation_execution_requests.json"),
+            "specspace-state://real_idea_answer_continuation_execution_requests.json",
         )
         self.assertEqual(body["selected_workspace_id"], "pantry-rotation")
         self.assertEqual(body["summary"]["request_count"], 0)
@@ -7755,6 +7829,35 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(
             (state_dir / "real_idea_answer_continuation_execution_requests.json").exists()
         )
+
+    def test_real_idea_answer_continuation_execution_request_error_hides_local_path(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "private-specspace-state"
+            state_dir.mkdir()
+            (state_dir / "real_idea_answer_continuation_execution_requests.json").write_text(
+                "not-json",
+                encoding="utf-8",
+            )
+            httpd, thread, base = _start(
+                root / "dialogs", specspace_state_dir=state_dir
+            )
+            try:
+                status, body = _get(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 422)
+        self.assertEqual(
+            body["state_ref"],
+            "specspace-state://real_idea_answer_continuation_execution_requests.json",
+        )
+        self.assertNotIn(str(root), json.dumps(body))
+        self.assertNotIn("path", body)
 
     def test_real_idea_answer_continuation_execution_requests_v1_posts_requested_execution(
         self,
@@ -7851,6 +7954,70 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertIn("may_apply_answers", body["error"])
         self.assertFalse(state_written)
 
+    def test_real_idea_answer_continuation_claim_rejects_replaced_request(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "specspace-state"
+            httpd, thread, base = _start(
+                root / "dialogs",
+                specspace_state_dir=state_dir,
+            )
+            try:
+                request_payload = {
+                    "workspace_id": "pantry-rotation",
+                    "request_id": "continuation.pantry-rotation.fixed",
+                    "answer_state_ref": (
+                        "specspace-state://idea_to_spec_intake_clarification_answers.json"
+                    ),
+                    "intake_execution_ref": (
+                        "runs/platform_real_idea_entry_intake_execution_report.json"
+                    ),
+                    "workspace_initialization_ref": (
+                        "runs/platform_product_workspace_initialization_execution_report.json"
+                    ),
+                }
+                first_status, first_body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation",
+                    request_payload,
+                )
+                selected = first_body["requests"][0]
+                selected_digest = (
+                    real_idea_answer_continuation_execution_requests.request_digest(
+                        selected
+                    )
+                )
+                replacement_status, _replacement_body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation",
+                    {
+                        **request_payload,
+                        "answer_template_ref": (
+                            "runs/pantry-rotation/real_idea_answer_template.json"
+                        ),
+                    },
+                )
+                claim_status, claim_body = (
+                    real_idea_answer_continuation_execution_requests.claim_request_for_execution(
+                        httpd,
+                        workspace_id="pantry-rotation",
+                        request_id="continuation.pantry-rotation.fixed",
+                        expected_request_digest=selected_digest,
+                    )
+                )
+                state_status, state_body = _get(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(first_status, 200)
+        self.assertEqual(replacement_status, 200)
+        self.assertEqual(claim_status, 409)
+        self.assertEqual(claim_body["reason"], "execution_request_digest_mismatch")
+        self.assertEqual(state_status, 200)
+        self.assertEqual(state_body["requests"][0]["status"], "requested")
+
     def test_real_idea_answer_continuation_execute_disabled_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -7875,6 +8042,267 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["authority_boundary"]["specspace_backend_executes_platform"]
         )
 
+    def test_continuation_local_executor_serializes_workspace_request_ids(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "state"
+            state_dir.mkdir()
+            local_server = mock.Mock(
+                platform_execution_enabled=True,
+                specspace_state_dir=state_dir,
+            )
+            local_server.specspace_state_backend = (
+                specspace_state_backend.FileStateBackend(state_dir)
+            )
+            started = threading.Event()
+            release = threading.Event()
+
+            def execute_locked(*_args: object, **_kwargs: object):
+                started.set()
+                self.assertTrue(release.wait(timeout=2))
+                return HTTPStatus.OK, {"ok": True, "status": "completed"}
+
+            with mock.patch.object(
+                real_idea_answer_continuation_execution,
+                "_execute_requested_continuation_locked",
+                side_effect=execute_locked,
+            ) as locked:
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    first = executor.submit(
+                        real_idea_answer_continuation_execution.execute_requested_continuation,
+                        local_server,
+                        {
+                            "workspace_id": "pantry-rotation",
+                            "request_id": "continuation.pantry-rotation.first",
+                        },
+                        workspace_id="pantry-rotation",
+                    )
+                    self.assertTrue(started.wait(timeout=1))
+                    second_status, second_body = (
+                        real_idea_answer_continuation_execution.execute_requested_continuation(
+                            local_server,
+                            {
+                                "workspace_id": "pantry-rotation",
+                                "request_id": "continuation.pantry-rotation.second",
+                            },
+                            workspace_id="pantry-rotation",
+                        )
+                    )
+                    release.set()
+                    first_status, first_body = first.result(timeout=2)
+
+            lease_path = (
+                state_dir
+                / ".managed-operation-leases"
+                / "pantry-rotation"
+                / "real-idea-answer-continuation.json"
+            )
+            lease_exists_after = lease_path.exists()
+
+        self.assertEqual(first_status, 200)
+        self.assertTrue(first_body["ok"])
+        self.assertEqual(second_status, 409)
+        self.assertEqual(
+            second_body["status"],
+            "workspace_execution_in_progress_or_recovery_required",
+        )
+        self.assertEqual(locked.call_count, 1)
+        self.assertFalse(lease_exists_after)
+
+    def test_continuation_local_executor_rejects_external_state_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "state"
+            state_dir.mkdir()
+            local_server = mock.Mock(
+                platform_execution_enabled=True,
+                specspace_state_dir=state_dir,
+            )
+            local_server.specspace_state_backend = (
+                specspace_state_backend.ExternalHTTPStateBackend(
+                    config=specspace_state_backend.ExternalStateConfig(
+                        base_url="https://state.invalid",
+                        token="not-used",
+                        timeout_seconds=0.1,
+                    ),
+                    materialization_root=state_dir / "materialized",
+                )
+            )
+
+            status, body = (
+                real_idea_answer_continuation_execution.execute_requested_continuation(
+                    local_server,
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "request_id": "continuation.pantry-rotation.external",
+                    },
+                    workspace_id="pantry-rotation",
+                )
+            )
+
+        self.assertEqual(status, 503)
+        self.assertEqual(body["status"], "platform_execution_unavailable")
+        self.assertIn(
+            "file state backend", body["summary"]["next_action"]
+        )
+
+    def test_continuation_unclean_failure_leaves_restart_recovery_lease(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "state"
+            state_dir.mkdir()
+            local_server = mock.Mock(
+                platform_execution_enabled=True,
+                specspace_state_dir=state_dir,
+            )
+            local_server.specspace_state_backend = (
+                specspace_state_backend.FileStateBackend(state_dir)
+            )
+            payload = {
+                "workspace_id": "pantry-rotation",
+                "request_id": "continuation.pantry-rotation.crash",
+            }
+            with mock.patch.object(
+                real_idea_answer_continuation_execution,
+                "_execute_requested_continuation_locked",
+                side_effect=RuntimeError("simulated backend crash"),
+            ) as locked:
+                with self.assertRaisesRegex(RuntimeError, "simulated backend crash"):
+                    real_idea_answer_continuation_execution.execute_requested_continuation(
+                        local_server,
+                        payload,
+                        workspace_id="pantry-rotation",
+                    )
+                status, body = (
+                    real_idea_answer_continuation_execution.execute_requested_continuation(
+                        local_server,
+                        payload,
+                        workspace_id="pantry-rotation",
+                    )
+                )
+            lease_path = _private_state_ref_path(
+                state_dir, body["operation_lease_ref"]
+            )
+            lease = json.loads(lease_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(status, 409)
+        self.assertEqual(
+            body["status"],
+            "workspace_execution_in_progress_or_recovery_required",
+        )
+        self.assertEqual(lease["status"], "recovery_required")
+        self.assertEqual(locked.call_count, 1)
+
+    def test_continuation_crash_after_consume_keeps_prepared_attempt_evidence(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir, state_dir, specgraph_dir, platform_dir = (
+                _write_continuation_execution_fixture(root)
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                request_status, request_body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "answer_state_ref": (
+                            "specspace-state://idea_to_spec_intake_clarification_answers.json"
+                        ),
+                        "intake_execution_ref": (
+                            "runs/platform_real_idea_entry_intake_execution_report.json"
+                        ),
+                        "workspace_initialization_ref": (
+                            "runs/platform_product_workspace_initialization_execution_report.json"
+                        ),
+                    },
+                )
+                request_id = request_body["requests"][0]["request_id"]
+                original_claim = (
+                    real_idea_answer_continuation_execution_requests.claim_request_for_execution
+                )
+
+                def claim_then_crash(*args: object, **kwargs: object):
+                    result = original_claim(*args, **kwargs)
+                    self.assertEqual(result[0], HTTPStatus.OK)
+                    raise RuntimeError("simulated crash after consume")
+
+                with (
+                    mock.patch.object(
+                        real_idea_answer_continuation_execution_requests,
+                        "claim_request_for_execution",
+                        side_effect=claim_then_crash,
+                    ),
+                    mock.patch.object(
+                        real_idea_answer_continuation_execution,
+                        "_run_platform_process",
+                    ) as run_platform,
+                ):
+                    with self.assertRaisesRegex(
+                        RuntimeError, "simulated crash after consume"
+                    ):
+                        real_idea_answer_continuation_execution.execute_requested_continuation(
+                            httpd,
+                            {
+                                "workspace_id": "pantry-rotation",
+                                "request_id": request_id,
+                            },
+                            workspace_id="pantry-rotation",
+                        )
+                state_status, state_body = _get(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation"
+                )
+                blocked_status, blocked_body = (
+                    real_idea_answer_continuation_execution.execute_requested_continuation(
+                        httpd,
+                        {
+                            "workspace_id": "pantry-rotation",
+                            "request_id": request_id,
+                        },
+                        workspace_id="pantry-rotation",
+                    )
+                )
+            finally:
+                _stop(httpd, thread)
+
+            attempt_dirs = list(
+                (
+                    state_dir
+                    / ".managed-operation-attempts"
+                    / "pantry-rotation"
+                ).glob("*")
+            )
+            self.assertEqual(len(attempt_dirs), 1)
+            attempt_report = json.loads(
+                (attempt_dirs[0] / "specspace-attempt-report.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            snapshot_mode = (
+                (attempt_dirs[0] / "execution-request.json").stat().st_mode & 0o777
+            )
+            lease_path = _private_state_ref_path(
+                state_dir, blocked_body["operation_lease_ref"]
+            )
+            lease = json.loads(lease_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(request_status, 200)
+        self.assertEqual(state_status, 200)
+        self.assertEqual(state_body["requests"][0]["status"], "consumed")
+        self.assertEqual(attempt_report["status"], "prepared")
+        self.assertFalse(attempt_report["executed"])
+        self.assertEqual(snapshot_mode, 0o600)
+        self.assertEqual(blocked_status, 409)
+        self.assertEqual(lease["status"], "recovery_required")
+        run_platform.assert_not_called()
+
     def test_real_idea_answer_continuation_execute_accepts_workspace_aliases(
         self,
     ) -> None:
@@ -7895,6 +8323,61 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertEqual(status, 503)
         self.assertEqual(body["status"], "platform_execution_unavailable")
+
+    def test_continuation_platform_report_requires_explicit_git_and_publication_flags(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report_path = root / "continuation-report.json"
+            request_path = root / "execution-request.json"
+            request_path.write_text("{}\n", encoding="utf-8")
+            base_report = {
+                "artifact_kind": (
+                    "platform_real_idea_answer_continuation_execution_report"
+                ),
+                "ok": True,
+                "dry_run": False,
+                "run_dir": "runs/pantry-rotation",
+                "workspace_id": "pantry-rotation",
+                "request_id": "continuation.pantry-rotation.authority",
+                "execution_request_ref": str(request_path),
+                "summary": {"status": "completed"},
+                "authority_boundary": {
+                    "executes_git_commands": False,
+                    "creates_git_commits": False,
+                    "opens_pull_requests": False,
+                    "merges_pull_requests": False,
+                    "publishes_read_models": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                    "mutates_canonical_specs": False,
+                    "publishes_private_artifacts": False,
+                },
+            }
+
+            for field in ("creates_git_commits", "publishes_read_models"):
+                for invalid_value in (None, True):
+                    with self.subTest(field=field, invalid_value=invalid_value):
+                        report = json.loads(json.dumps(base_report))
+                        if invalid_value is None:
+                            del report["authority_boundary"][field]
+                        else:
+                            report["authority_boundary"][field] = invalid_value
+                        _write_json(report_path, report)
+                        loaded, error = (
+                            real_idea_answer_continuation_execution._load_valid_platform_report(
+                                report_path,
+                                expected_run_dir="runs/pantry-rotation",
+                                expected_execution_request=request_path,
+                                expected_workspace_id="pantry-rotation",
+                                expected_request_id=(
+                                    "continuation.pantry-rotation.authority"
+                                ),
+                            )
+                        )
+                        self.assertIsNone(loaded)
+                        self.assertIn(f"{field}=false", error or "")
 
     def test_real_idea_answer_continuation_execute_runs_allowlisted_platform(
         self,
@@ -7921,23 +8404,34 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "import sys",
                         "from pathlib import Path",
                         "output = Path(sys.argv[sys.argv.index('--output') + 1])",
+                        "counter = output.parents[1] / 'continuation-platform-invocations.txt'",
+                        "count = int(counter.read_text()) if counter.exists() else 0",
+                        "counter.write_text(str(count + 1))",
                         "report = {",
                         "    'artifact_kind': 'platform_real_idea_answer_continuation_execution_report',",
                         "    'schema_version': 1,",
                         "    'ok': True,",
-                        "    'dry_run': True,",
+                        "    'dry_run': False,",
+                        "    'run_dir': 'runs/pantry-rotation',",
+                        "    'workspace_id': 'pantry-rotation',",
+                        "    'request_id': sys.argv[sys.argv.index('--request-id') + 1],",
+                        "    'execution_request_ref': sys.argv[sys.argv.index('--execution-request') + 1],",
                         "    'summary': {",
-                        "        'status': 'real_idea_answer_continuation_dry_run',",
+                        "        'status': 'completed',",
                         "        'workspace_id': 'pantry-rotation',",
                         "        'specgraph_executed': False,",
                         "    },",
                         "    'authority_boundary': {",
                         "        'executes_specgraph_make_target': False,",
                         "        'executes_git_commands': False,",
+                        "        'creates_git_commits': False,",
                         "        'opens_pull_requests': False,",
                         "        'publishes_read_models': False,",
                         "        'writes_ontology_packages': False,",
                         "        'accepts_ontology_terms': False,",
+                        "        'merges_pull_requests': False,",
+                        "        'mutates_canonical_specs': False,",
+                        "        'publishes_private_artifacts': False,",
                         "    },",
                         "}",
                         "output.write_text(json.dumps(report), encoding='utf-8')",
@@ -8009,19 +8503,81 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     },
                 )
                 request_id = _request_body["requests"][0]["request_id"]
-                status, body = _post(
-                    f"{base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
-                    {
-                        "workspace_id": "pantry-rotation",
-                        "request_id": request_id,
-                    },
+                execute_url = (
+                    f"{base}/api/v1/real-idea-answer-continuation/execute"
+                    "?workspace=pantry-rotation"
+                )
+                execute_payload = {
+                    "workspace_id": "pantry-rotation",
+                    "request_id": request_id,
+                }
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    execution_results = list(
+                        executor.map(
+                            lambda _index: _post(execute_url, execute_payload),
+                            range(2),
+                        )
+                    )
+                status, body = next(
+                    result for result in execution_results if result[0] == 200
+                )
+                concurrent_replay_status, concurrent_replay_body = next(
+                    result for result in execution_results if result[0] == 409
+                )
+                immediate_replay_status, immediate_replay_body = _post(
+                    execute_url,
+                    execute_payload,
                 )
                 report_file_exists = (
                     runs_dir
                     / "platform_real_idea_answer_continuation_execution_report.json"
                 ).is_file()
+                state_status, continuation_state = _get(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation"
+                )
             finally:
                 _stop(httpd, thread)
+
+            report_path = (
+                runs_dir
+                / "platform_real_idea_answer_continuation_execution_report.json"
+            )
+            report_digest_before_restart = hashlib.sha256(
+                report_path.read_bytes()
+            ).hexdigest()
+            restarted_httpd, restarted_thread, restarted_base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                replay_status, replay_body = _post(
+                    f"{restarted_base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "request_id": request_id,
+                    },
+                )
+            finally:
+                _stop(restarted_httpd, restarted_thread)
+            report_digest_after_restart = hashlib.sha256(
+                report_path.read_bytes()
+            ).hexdigest()
+            attempt_report_path = _private_state_ref_path(
+                state_dir, body["attempt_report_ref"]
+            )
+            request_snapshot_path = attempt_report_path.parent / "execution-request.json"
+            request_snapshot_exists = request_snapshot_path.is_file()
+            request_snapshot_mode = request_snapshot_path.stat().st_mode & 0o777
+            request_snapshot_inside_state = (
+                request_snapshot_path.resolve().is_relative_to(state_dir.resolve())
+            )
+            invocation_count = int(
+                (runs_dir / "continuation-platform-invocations.txt").read_text()
+            )
 
         self.assertEqual(request_status, 200)
         self.assertEqual(status, 200)
@@ -8033,12 +8589,44 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertEqual(body["workspace_id"], "pantry-rotation")
         self.assertEqual(body["request_id"], request_id)
+        self.assertTrue(
+            body["attempt_report_ref"].startswith("specspace-private-state://")
+        )
+        self.assertNotIn(str(root), json.dumps(body))
+        self.assertNotIn("stderr_tail", body)
+        self.assertNotIn("execution_request_ref", body["platform_report"])
         self.assertFalse(body["authority_boundary"]["browser_executes_platform"])
         self.assertTrue(
             body["authority_boundary"]["specspace_backend_executes_platform"]
         )
         self.assertFalse(body["authority_boundary"]["applies_answers"])
         self.assertTrue(report_file_exists)
+        self.assertEqual(state_status, 200)
+        self.assertEqual(continuation_state["summary"]["consumed_count"], 1)
+        self.assertEqual(continuation_state["summary"]["active_requested_count"], 0)
+        self.assertEqual(continuation_state["requests"][0]["status"], "consumed")
+        self.assertIsInstance(continuation_state["requests"][0]["consumed_at"], str)
+        self.assertEqual(replay_status, 409)
+        self.assertIn("No active real idea answer continuation", replay_body["error"])
+        self.assertEqual(concurrent_replay_status, 409)
+        self.assertTrue(
+            "already been consumed" in concurrent_replay_body.get("error", "")
+            or "No active real idea answer continuation"
+            in concurrent_replay_body.get("error", "")
+            or concurrent_replay_body.get("status")
+            == "workspace_execution_in_progress_or_recovery_required",
+            concurrent_replay_body,
+        )
+        self.assertEqual(immediate_replay_status, 409)
+        self.assertIn(
+            "No active real idea answer continuation",
+            immediate_replay_body["error"],
+        )
+        self.assertEqual(invocation_count, 1)
+        self.assertEqual(report_digest_after_restart, report_digest_before_restart)
+        self.assertTrue(request_snapshot_exists)
+        self.assertEqual(request_snapshot_mode, 0o600)
+        self.assertTrue(request_snapshot_inside_state)
 
     def test_real_idea_answer_continuation_execute_reports_timeout(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -8057,7 +8645,21 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             scripts_dir = platform_dir / "scripts"
             scripts_dir.mkdir(parents=True)
             (scripts_dir / "platform.py").write_text(
-                "import time\ntime.sleep(2)\n",
+                "\n".join(
+                    [
+                        "import subprocess",
+                        "import sys",
+                        "import time",
+                        "from pathlib import Path",
+                        "output = Path(sys.argv[sys.argv.index('--output') + 1])",
+                        "counter = output.parents[1] / 'continuation-platform-invocations.txt'",
+                        "count = int(counter.read_text()) if counter.exists() else 0",
+                        "counter.write_text(str(count + 1))",
+                        "marker = output.parents[1] / 'continuation-child-survived.txt'",
+                        "subprocess.Popen([sys.executable, '-c', f\"import time; from pathlib import Path; time.sleep(1.5); Path({str(marker)!r}).write_text('survived')\"])",
+                        "time.sleep(10)",
+                    ]
+                ),
                 encoding="utf-8",
             )
             _write_json(
@@ -8098,6 +8700,14 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     "answers": [],
                 },
             )
+            existing_report_path = (
+                runs_dir
+                / "platform_real_idea_answer_continuation_execution_report.json"
+            )
+            _write_json(existing_report_path, {"sentinel": "preserve-on-timeout"})
+            existing_report_digest = hashlib.sha256(
+                existing_report_path.read_bytes()
+            ).hexdigest()
             httpd, thread, base = _start(
                 root / "dialogs",
                 runs_dir=runs_dir,
@@ -8131,13 +8741,54 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "request_id": request_id,
                     },
                 )
+                immediate_replay_status, _immediate_replay_body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "request_id": request_id,
+                    },
+                )
+                state_status, continuation_state = _get(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation"
+                )
             finally:
                 _stop(httpd, thread)
+
+            time.sleep(2)
+            restarted_httpd, restarted_thread, restarted_base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                platform_execution_timeout_seconds=1,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                restart_replay_status, _restart_replay_body = _post(
+                    f"{restarted_base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "request_id": request_id,
+                    },
+                )
+            finally:
+                _stop(restarted_httpd, restarted_thread)
+            invocation_count = int(
+                (runs_dir / "continuation-platform-invocations.txt").read_text()
+            )
+            report_digest_after_timeout = hashlib.sha256(
+                existing_report_path.read_bytes()
+            ).hexdigest()
+            child_survived = (
+                runs_dir / "continuation-child-survived.txt"
+            ).exists()
 
         self.assertEqual(request_status, 200)
         self.assertEqual(status, 504)
         self.assertFalse(body["ok"])
         self.assertEqual(body["status"], "platform_execution_timeout")
+        self.assertTrue(body["process_group_terminated"])
         self.assertEqual(
             body["summary"]["status"],
             "managed_real_idea_answer_continuation_timeout",
@@ -8147,6 +8798,280 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["authority_boundary"]["specspace_backend_executes_platform"]
         )
         self.assertFalse(body["authority_boundary"]["executes_specgraph"])
+        self.assertEqual(state_status, 200)
+        self.assertEqual(continuation_state["requests"][0]["status"], "consumed")
+        self.assertEqual(continuation_state["summary"]["active_requested_count"], 0)
+        self.assertEqual(immediate_replay_status, 409)
+        self.assertEqual(restart_replay_status, 409)
+        self.assertEqual(invocation_count, 1)
+        self.assertEqual(report_digest_after_timeout, existing_report_digest)
+        self.assertFalse(child_survived)
+
+    def test_real_idea_answer_continuation_execute_consumes_changed_input_without_execution(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir, state_dir, specgraph_dir, platform_dir = (
+                _write_continuation_execution_fixture(root)
+            )
+            initialization_path = (
+                runs_dir
+                / "platform_product_workspace_initialization_execution_report.json"
+            )
+            original_claim = (
+                real_idea_answer_continuation_execution_requests.claim_request_for_execution
+            )
+
+            def claim_then_change_input(*args: object, **kwargs: object):
+                result = original_claim(*args, **kwargs)
+                _write_json(
+                    initialization_path,
+                    {
+                        "artifact_kind": (
+                            "platform_product_workspace_initialization_execution_report"
+                        ),
+                        "ok": True,
+                        "workspace": {"workspace_id": "pantry-rotation"},
+                        "summary": {"status": "workspace_initialization_executed"},
+                        "changed_after_snapshot": True,
+                    },
+                )
+                return result
+
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                request_status, request_body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "answer_state_ref": (
+                            "specspace-state://idea_to_spec_intake_clarification_answers.json"
+                        ),
+                        "intake_execution_ref": (
+                            "runs/platform_real_idea_entry_intake_execution_report.json"
+                        ),
+                        "workspace_initialization_ref": (
+                            "runs/platform_product_workspace_initialization_execution_report.json"
+                        ),
+                    },
+                )
+                request_id = request_body["requests"][0]["request_id"]
+                with (
+                    mock.patch.object(
+                        real_idea_answer_continuation_execution_requests,
+                        "claim_request_for_execution",
+                        side_effect=claim_then_change_input,
+                    ),
+                    mock.patch.object(
+                        real_idea_answer_continuation_execution,
+                        "_run_platform_process",
+                    ) as run_platform,
+                ):
+                    status, body = _post(
+                        f"{base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
+                        {
+                            "workspace_id": "pantry-rotation",
+                            "request_id": request_id,
+                        },
+                    )
+                state_status, continuation_state = _get(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation"
+                )
+            finally:
+                _stop(httpd, thread)
+
+            attempt_report = json.loads(
+                _private_state_ref_path(
+                    state_dir, body["attempt_report_ref"]
+                ).read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(request_status, 200)
+        self.assertEqual(status, 409)
+        self.assertEqual(body["status"], "execution_input_changed")
+        self.assertTrue(body["summary"]["retry_requires_new_request"])
+        self.assertEqual(state_status, 200)
+        self.assertEqual(continuation_state["requests"][0]["status"], "consumed")
+        self.assertEqual(attempt_report["status"], "input_snapshot_changed")
+        self.assertEqual(attempt_report["changed_input_count"], 1)
+        run_platform.assert_not_called()
+
+    def test_real_idea_answer_continuation_execute_blocks_after_ambiguous_timeout(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir, state_dir, specgraph_dir, platform_dir = (
+                _write_continuation_execution_fixture(root)
+            )
+            request_payload = {
+                "workspace_id": "pantry-rotation",
+                "answer_state_ref": (
+                    "specspace-state://idea_to_spec_intake_clarification_answers.json"
+                ),
+                "intake_execution_ref": (
+                    "runs/platform_real_idea_entry_intake_execution_report.json"
+                ),
+                "workspace_initialization_ref": (
+                    "runs/platform_product_workspace_initialization_execution_report.json"
+                ),
+            }
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                request_status, request_body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation",
+                    request_payload,
+                )
+                request_id = request_body["requests"][0]["request_id"]
+                with mock.patch.object(
+                    real_idea_answer_continuation_execution,
+                    "_run_platform_process",
+                    return_value=(None, "", "", True, False),
+                ) as run_platform:
+                    status, body = _post(
+                        f"{base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
+                        {
+                            "workspace_id": "pantry-rotation",
+                            "request_id": request_id,
+                        },
+                    )
+                    replacement_status, replacement_body = _post(
+                        f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation",
+                        request_payload,
+                    )
+                    replacement_request_id = next(
+                        item["request_id"]
+                        for item in replacement_body["requests"]
+                        if item["status"] == "requested"
+                    )
+                    blocked_status, blocked_body = _post(
+                        f"{base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
+                        {
+                            "workspace_id": "pantry-rotation",
+                            "request_id": replacement_request_id,
+                        },
+                    )
+            finally:
+                _stop(httpd, thread)
+
+            restarted_httpd, restarted_thread, restarted_base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                restart_status, restart_body = _post(
+                    f"{restarted_base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
+                    {
+                        "workspace_id": "pantry-rotation",
+                        "request_id": replacement_request_id,
+                    },
+                )
+            finally:
+                _stop(restarted_httpd, restarted_thread)
+
+            ambiguous_markers = list(
+                (state_dir / ".managed-operation-attempts" / "pantry-rotation").glob(
+                    "*/ambiguous.json"
+                )
+            )
+
+        self.assertEqual(request_status, 200)
+        self.assertEqual(status, 503)
+        self.assertEqual(body["status"], "platform_execution_ambiguous")
+        self.assertFalse(body["process_group_terminated"])
+        self.assertEqual(replacement_status, 200)
+        self.assertEqual(blocked_status, 409)
+        self.assertEqual(
+            blocked_body["status"], "ambiguous_execution_requires_recovery"
+        )
+        self.assertEqual(restart_status, 409)
+        self.assertEqual(
+            restart_body["status"], "ambiguous_execution_requires_recovery"
+        )
+        self.assertEqual(run_platform.call_count, 1)
+        self.assertEqual(len(ambiguous_markers), 1)
+
+    def test_continuation_process_timeout_does_not_wait_again_when_group_survives(
+        self,
+    ) -> None:
+        process = mock.Mock()
+        process.communicate.side_effect = subprocess.TimeoutExpired(
+            ["platform"],
+            1,
+            output="partial stdout",
+            stderr="partial stderr",
+        )
+        with (
+            mock.patch.object(
+                real_idea_answer_continuation_execution.subprocess,
+                "Popen",
+                return_value=process,
+            ),
+            mock.patch.object(
+                real_idea_answer_continuation_execution,
+                "_terminate_process_group",
+                return_value=False,
+            ),
+        ):
+            completed, stdout, stderr, timed_out, terminated = (
+                real_idea_answer_continuation_execution._run_platform_process(
+                    ["platform"],
+                    cwd=Path("."),
+                    timeout_seconds=1,
+                )
+            )
+
+        self.assertIsNone(completed)
+        self.assertEqual(stdout, "partial stdout")
+        self.assertEqual(stderr, "partial stderr")
+        self.assertTrue(timed_out)
+        self.assertFalse(terminated)
+        self.assertEqual(process.communicate.call_count, 1)
+
+    def test_continuation_termination_checks_children_after_parent_exit(self) -> None:
+        process = mock.Mock(pid=4242)
+        process.wait.return_value = 0
+        process.poll.return_value = 0
+        with (
+            mock.patch.object(real_idea_answer_continuation_execution.os, "killpg") as killpg,
+            mock.patch.object(
+                real_idea_answer_continuation_execution,
+                "_wait_for_process_group_exit",
+                side_effect=[False, True],
+            ) as wait_for_group,
+        ):
+            terminated = (
+                real_idea_answer_continuation_execution._terminate_process_group(process)
+            )
+
+        self.assertTrue(terminated)
+        self.assertEqual(
+            killpg.call_args_list,
+            [
+                mock.call(4242, real_idea_answer_continuation_execution.signal.SIGTERM),
+                mock.call(4242, real_idea_answer_continuation_execution.signal.SIGKILL),
+            ],
+        )
+        self.assertEqual(wait_for_group.call_count, 2)
 
     def test_real_idea_answer_continuation_execute_skips_missing_answer_state_when_not_required(
         self,
@@ -8174,12 +9099,31 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "import sys",
                         "from pathlib import Path",
                         "output = Path(sys.argv[sys.argv.index('--output') + 1])",
+                        "counter = output.parents[1] / 'continuation-platform-invocations.txt'",
+                        "count = int(counter.read_text()) if counter.exists() else 0",
+                        "counter.write_text(str(count + 1))",
                         "report = {",
                         "  'artifact_kind': 'platform_real_idea_answer_continuation_execution_report',",
                         "  'ok': True,",
+                        "  'dry_run': False,",
+                        "  'run_dir': 'runs/pantry-rotation',",
+                        "  'workspace_id': 'pantry-rotation',",
+                        "  'request_id': sys.argv[sys.argv.index('--request-id') + 1],",
+                        "  'execution_request_ref': sys.argv[sys.argv.index('--execution-request') + 1],",
                         "  'continuation_mode': 'clarification_not_required',",
                         "  'summary': {'status': 'completed', 'specgraph_executed': True},",
-                        "  'authority_boundary': {'executes_specgraph_make_target': True},",
+                        "  'authority_boundary': {",
+                        "    'executes_specgraph_make_target': True,",
+                        "    'executes_git_commands': False,",
+                        "    'creates_git_commits': False,",
+                        "    'opens_pull_requests': False,",
+                        "    'merges_pull_requests': False,",
+                        "    'publishes_read_models': False,",
+                        "    'writes_ontology_packages': False,",
+                        "    'accepts_ontology_terms': False,",
+                        "    'mutates_canonical_specs': False,",
+                        "    'publishes_private_artifacts': False,",
+                        "  },",
                         "}",
                         "output.write_text(json.dumps(report), encoding='utf-8')",
                         "print(json.dumps(report))",
@@ -8275,8 +9219,34 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     f"{base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
                     {"workspace_id": "pantry-rotation", "request_id": request_id},
                 )
+                immediate_replay_status, _immediate_replay_body = _post(
+                    f"{base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
+                    {"workspace_id": "pantry-rotation", "request_id": request_id},
+                )
+                state_status, continuation_state = _get(
+                    f"{base}/api/v1/real-idea-answer-continuation-execution-requests?workspace=pantry-rotation"
+                )
             finally:
                 _stop(httpd, thread)
+
+            restarted_httpd, restarted_thread, restarted_base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                restart_replay_status, _restart_replay_body = _post(
+                    f"{restarted_base}/api/v1/real-idea-answer-continuation/execute?workspace=pantry-rotation",
+                    {"workspace_id": "pantry-rotation", "request_id": request_id},
+                )
+            finally:
+                _stop(restarted_httpd, restarted_thread)
+            invocation_count = int(
+                (runs_dir / "continuation-platform-invocations.txt").read_text()
+            )
 
         self.assertEqual(request_status, 200)
         self.assertEqual(status, 200)
@@ -8285,6 +9255,11 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["platform_report"]["continuation_mode"],
             "clarification_not_required",
         )
+        self.assertEqual(immediate_replay_status, 409)
+        self.assertEqual(restart_replay_status, 409)
+        self.assertEqual(state_status, 200)
+        self.assertEqual(continuation_state["requests"][0]["status"], "consumed")
+        self.assertEqual(invocation_count, 1)
 
     def test_real_idea_answer_continuation_execute_requires_answer_state(
         self,
@@ -12009,6 +12984,57 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         dumped = json.dumps(readiness)
         self.assertNotIn(str(platform_dir), dumped)
         self.assertNotIn(str(state_dir), dumped)
+
+    def test_managed_mode_readiness_rejects_local_executor_with_external_state(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "state"
+            platform_dir = root / "Platform"
+            (platform_dir / "scripts").mkdir(parents=True)
+            (platform_dir / "scripts" / "platform.py").write_text(
+                "#!/usr/bin/env python3\n",
+                encoding="utf-8",
+            )
+            state_dir.mkdir()
+            _write_product_workspace_runs(runs_dir)
+            external_backend = mock.Mock(kind="external_http")
+            external_backend.health.return_value = {
+                "status": "ready",
+                "ready": True,
+                "kind": "external_http",
+                "restart_persistent": True,
+            }
+            external_backend.read.return_value = None
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+            )
+            try:
+                with mock.patch.object(
+                    specspace_state_backend,
+                    "backend",
+                    return_value=external_backend,
+                ):
+                    status, body = _get(
+                        f"{base}/api/v1/idea-to-spec-workspace?workspace=team-decision-log"
+                    )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200)
+        readiness = body["managed_mode_readiness"]
+        self.assertEqual(readiness["status"], "backend_managed_misconfigured")
+        self.assertIn(
+            "local_executor_requires_file_state_provider",
+            readiness["disabled_reasons"],
+        )
+        self.assertFalse(readiness["executor"]["configured"])
 
     def test_idea_to_spec_workspace_managed_mode_readiness_reports_unavailable_provider(
         self,

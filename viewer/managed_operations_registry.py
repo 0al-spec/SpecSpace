@@ -154,8 +154,8 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         ),
         idempotency_key="execution_request.request_id",
         overwrite_policy="Refuses stale continuation requests and preserves existing ready artifacts on failed materialization.",
-        timeout_policy="Bounded by platform_execution_timeout_seconds; timeout returns managed continuation report with executed=false.",
-        replay_policy="The request is consumed before Platform execution; retry after timeout or failure requires a new UI continuation request.",
+        timeout_policy="Local execution is process-group bounded by platform_execution_timeout_seconds; timeout terminates in-group descendants, preserves prior authoritative output, and retains a recovery lease when termination is ambiguous.",
+        replay_policy="The file-backed local executor serializes the workspace with a durable lease and atomically consumes the selected request digest before Platform execution; retry after timeout or failure requires a new UI request. Hosted source-request claiming remains a separate queue protocol concern.",
         expected_ui_states=_COMMON_EARLY_STATES,
     ),
     ManagedOperation(

@@ -375,6 +375,23 @@ invoking Platform; after timeout or failure, retry requires a newly submitted UI
 request/intent rather than resubmitting the same request id. Stale or
 cross-workspace state must remain `stale` or `blocked`, not `ready_to_execute`.
 
+For real-idea continuation, the local executor atomically compares and consumes
+the selected request digest, gives Platform immutable per-attempt input copies,
+keeps those copies in private SpecSpace state for restart-safe evidence, and
+publishes output only after validating the authoritative report. A durable
+per-workspace lease serializes different request ids and remains as recovery
+evidence after an unclean backend shutdown. Hosted
+queue idempotency is not a substitute for consuming the source request: hosted
+continuation needs its own durable claim/lease protocol before it can advertise
+the same replay guarantee. A local timeout that cannot confirm termination of
+the full process group leaves durable ambiguous evidence and blocks further
+continuation execution until an operator performs explicit recovery.
+The local executor is available only with the file state backend; an external
+HTTP state deployment must use the separate hosted claim/lease protocol.
+Allowlisted local wrappers must remain synchronous and must not daemonize or
+escape the process group; detached execution belongs behind the hosted queue
+contract instead.
+
 ## Overwrite Policy
 
 Managed operations should preserve durable successful evidence unless the same
