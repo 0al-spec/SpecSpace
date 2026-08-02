@@ -1515,8 +1515,10 @@ def _artifact_data(artifacts: dict[str, Any], filename: str) -> dict[str, Any] |
 def _artifact_status(
     artifacts: dict[str, Any],
     filename: str,
+    *,
+    run_dir_ref: str = "runs",
 ) -> dict[str, Any]:
-    path = f"runs/{filename}"
+    path = f"{run_dir_ref}/{filename}"
     value = artifacts.get(filename)
     contract_error = _artifact_contract_error(value, filename)
     if contract_error is not None:
@@ -3371,8 +3373,8 @@ def _real_idea_intake_projection(
         status = "active_candidate_ready"
         next_action = "Continue with repair, ontology review, and promotion readiness."
     elif active_candidate_available:
-        status = "blocked"
-        next_action = "Inspect active candidate readiness before continuing."
+        status = "active_candidate_review_required"
+        next_action = "Review and repair the active candidate before approval."
     elif candidate_source_ready:
         status = "candidate_source_ready"
         next_action = "Build or inspect the active idea-to-spec candidate."
@@ -3466,7 +3468,13 @@ def _real_idea_intake_projection(
         "next_action": next_action,
         "blockers": (
             sorted(set(blockers))
-            if status in {"blocked", "needs_clarification", "answers_ready"}
+            if status
+            in {
+                "blocked",
+                "needs_clarification",
+                "answers_ready",
+                "active_candidate_review_required",
+            }
             else []
         ),
         "clarification_progress": {
@@ -7834,6 +7842,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         "continuation_ready",
         "candidate_source_ready",
         "active_candidate_ready",
+        "active_candidate_review_required",
     }:
         idea_intake_stage_status = "completed"
     elif real_intake_status == "blocked":
@@ -7846,6 +7855,7 @@ def _guided_flow(payload: dict[str, Any]) -> dict[str, Any]:
         "continuation_ready",
         "candidate_source_ready",
         "active_candidate_ready",
+        "active_candidate_review_required",
     }:
         intake_clarification_stage_status = "completed"
     elif real_intake_status == "blocked":
@@ -9000,6 +9010,19 @@ def build_idea_to_spec_workspace(
     artifacts: dict[str, Any],
     source: dict[str, Any],
 ) -> dict[str, Any]:
+    source = dict(source)
+    declared_run_dir_ref = _optional_text(source.get("artifact_run_dir_ref"))
+    run_dir_ref = declared_run_dir_ref or "runs"
+    if (
+        declared_run_dir_ref is not None
+        and run_dir_ref != "runs"
+        and re.fullmatch(r"runs/[a-z0-9][a-z0-9-]{0,62}", run_dir_ref) is None
+    ):
+        source["artifact_run_dir_ref"] = None
+        source["trusted"] = False
+        source["reason"] = "invalid_artifact_run_dir_ref"
+        artifacts = {}
+        run_dir_ref = "runs"
     active_candidate = _artifact_data(artifacts, ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT)
     intake = _artifact_data(artifacts, IDEA_EVENT_STORMING_INTAKE_ARTIFACT)
     intake_clarification_requests = _artifact_data(
@@ -9166,24 +9189,36 @@ def build_idea_to_spec_workspace(
         artifacts, idea_maturity.IDEA_MATURITY_METRICS_VALIDATION_REPORT_ARTIFACT
     )
     statuses = {
-        key: _artifact_status(artifacts, filename)
+        key: _artifact_status(artifacts, filename, run_dir_ref=run_dir_ref)
         for filename, key in ARTIFACT_KEYS.items()
     }
     direct_template_status = _artifact_status(
-        artifacts, REAL_IDEA_ANSWER_TEMPLATE_DIRECT_ARTIFACT
+        artifacts,
+        REAL_IDEA_ANSWER_TEMPLATE_DIRECT_ARTIFACT,
+        run_dir_ref=run_dir_ref,
     )
     statuses["real_idea_answer_template"] = (
         direct_template_status
         if direct_template_status["available"]
-        else _artifact_status(artifacts, REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT)
+        else _artifact_status(
+            artifacts,
+            REAL_IDEA_ANSWER_TEMPLATE_ARTIFACT,
+            run_dir_ref=run_dir_ref,
+        )
     )
     direct_authoring_status = _artifact_status(
-        artifacts, REAL_IDEA_ANSWER_AUTHORING_REPORT_DIRECT_ARTIFACT
+        artifacts,
+        REAL_IDEA_ANSWER_AUTHORING_REPORT_DIRECT_ARTIFACT,
+        run_dir_ref=run_dir_ref,
     )
     statuses["real_idea_answer_authoring_report"] = (
         direct_authoring_status
         if direct_authoring_status["available"]
-        else _artifact_status(artifacts, REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT)
+        else _artifact_status(
+            artifacts,
+            REAL_IDEA_ANSWER_AUTHORING_REPORT_ARTIFACT,
+            run_dir_ref=run_dir_ref,
+        )
     )
     for status_key, direct_filename, legacy_filename in (
         (
@@ -9202,11 +9237,19 @@ def build_idea_to_spec_workspace(
             REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
         ),
     ):
-        direct_status = _artifact_status(artifacts, direct_filename)
+        direct_status = _artifact_status(
+            artifacts,
+            direct_filename,
+            run_dir_ref=run_dir_ref,
+        )
         statuses[status_key] = (
             direct_status
             if direct_status["available"]
-            else _artifact_status(artifacts, legacy_filename)
+            else _artifact_status(
+                artifacts,
+                legacy_filename,
+                run_dir_ref=run_dir_ref,
+            )
         )
     source_workspace_id = _optional_text(source.get("workspace_id"))
     if not _candidate_matches_workspace(active_candidate, source_workspace_id):

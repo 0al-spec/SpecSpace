@@ -1450,11 +1450,12 @@ class ProductWorkspaceFileProvider:
 
     delegate: FileSpecGraphProvider
     workspace_id: str
+    artifact_run_dir_ref: str | None = None
 
     kind = "file-product-workspace"
 
     def _source(self, *, surface: str) -> dict[str, Any]:
-        return {
+        source = {
             "provider": self.kind,
             "workspace_id": self.workspace_id,
             "surface": surface,
@@ -1466,6 +1467,9 @@ class ProductWorkspaceFileProvider:
             if self.delegate.specgraph_dir is not None
             else None,
         }
+        if self.artifact_run_dir_ref is not None:
+            source["artifact_run_dir_ref"] = self.artifact_run_dir_ref
+        return source
 
     def _workspace_unavailable(self, surface: str) -> tuple[HTTPStatus, dict[str, Any]]:
         return (
@@ -3626,12 +3630,19 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
     if runs_dir is None:
         runs_dir = specgraph_surfaces.runs_dir_from_context(spec_dir, specgraph_dir)
     if normalized_workspace_id is not None and normalized_workspace_id != BOOTSTRAP_WORKSPACE_ID:
-        bound_runs_dir = product_workspace_binding.workspace_runs_dir(
+        artifact_run_dir_ref = None
+        binding = product_workspace_binding.discover_binding(
             server,
             workspace_id=normalized_workspace_id,
         )
-        if bound_runs_dir is not None:
-            runs_dir = bound_runs_dir
+        if binding.get("status") == "ready":
+            bound_runs_dir = product_workspace_binding.workspace_runs_dir(
+                server,
+                workspace_id=normalized_workspace_id,
+            )
+            if bound_runs_dir is not None:
+                runs_dir = bound_runs_dir
+            artifact_run_dir_ref = f"runs/{normalized_workspace_id}"
     file_provider = FileSpecGraphProvider(
         spec_nodes_dir=spec_dir,
         runs_dir=runs_dir,
@@ -3641,6 +3652,7 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
         return ProductWorkspaceFileProvider(
             delegate=file_provider,
             workspace_id=normalized_workspace_id,
+            artifact_run_dir_ref=artifact_run_dir_ref,
         )
     return file_provider
 

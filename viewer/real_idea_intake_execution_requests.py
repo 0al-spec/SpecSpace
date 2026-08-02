@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import secrets
 import threading
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
 from viewer import specspace_provider, specspace_state_backend
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - local managed execution targets macOS/Linux.
+    fcntl = None  # type: ignore[assignment]
 
 EXECUTION_REQUEST_ARTIFACT_KIND = "specspace_real_idea_intake_execution_request_state"
 EXECUTION_REQUEST_SCHEMA_VERSION = 1
@@ -42,6 +50,22 @@ AUTHORITY_FALSE_FIELDS = (
     "canonical_mutations_allowed",
 )
 _STATE_LOCK = threading.Lock()
+
+
+@contextmanager
+def _state_file_lock(server: Any):
+    if fcntl is None:
+        yield
+        return
+    lock_path = state_path(server).with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as handle:
+        lock_path.chmod(0o600)
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def state_path(server: Any) -> Path:
@@ -343,6 +367,83 @@ def mark_request_consumed(
         if not matched:
             return HTTPStatus.CONFLICT, {
                 "error": "Real idea intake execution request is no longer active or has already been consumed.",
+                "workspace_id": workspace_id,
+                "request_id": request_id,
+            }
+        state["requests"] = _cap_superseded_history(updated)
+        _refresh_summary(state)
+        persistence_error = _persist_state(
+            server,
+            state,
+            workspace_id=workspace_id,
+        )
+        if persistence_error is not None:
+            return persistence_error
+        return HTTPStatus.OK, _filtered_state(state, workspace_id)
+
+
+def request_digest(request: dict[str, Any]) -> str:
+    encoded = json.dumps(
+        request,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+
+
+def claim_request_for_execution(
+    server: Any,
+    *,
+    workspace_id: str,
+    request_id: str,
+    expected_request_digest: str,
+) -> tuple[HTTPStatus, dict[str, Any]]:
+    with _STATE_LOCK, _state_file_lock(server):
+        status_code, state = read_state(server, workspace_id=workspace_id)
+        if status_code != HTTPStatus.OK:
+            return status_code, state
+        now = now_iso()
+        matched = False
+        digest_mismatch = False
+        updated: list[dict[str, Any]] = []
+        for item in state.get("requests", []):
+            if (
+                isinstance(item, dict)
+                and item.get("workspace_id") == workspace_id
+                and item.get("request_id") == request_id
+                and item.get("status") == "requested"
+            ):
+                if request_digest(item) != expected_request_digest:
+                    updated.append(item)
+                    digest_mismatch = True
+                else:
+                    updated.append(
+                        {
+                            **item,
+                            "status": "consumed",
+                            "consumed_at": now,
+                            "updated_at": now,
+                        }
+                    )
+                    matched = True
+            else:
+                updated.append(item)
+        if not matched:
+            if digest_mismatch:
+                return HTTPStatus.CONFLICT, {
+                    "error": (
+                        "Real idea intake execution request changed after it was "
+                        "selected. Create or select the current request."
+                    ),
+                    "reason": "execution_request_digest_mismatch",
+                    "workspace_id": workspace_id,
+                    "request_id": request_id,
+                }
+            return HTTPStatus.CONFLICT, {
+                "error": (
+                    "Real idea intake execution request is no longer active or has "
+                    "already been consumed."
+                ),
                 "workspace_id": workspace_id,
                 "request_id": request_id,
             }
