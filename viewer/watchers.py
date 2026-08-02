@@ -122,6 +122,7 @@ class RunsWatcher(PollingWatcher):
     KEEPALIVE_TIMEOUT: float = 14.0
     THREAD_NAME: str = "runs-watcher-poll"
     _RUN_FILENAME_RE = re.compile(r"^\d{8}T\d{6}Z-SG-[A-Z]+-\d+-[0-9a-f]+\.json$")
+    _WORKSPACE_DIR_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$")
     _WATCHED_ARTIFACT_NAMES = frozenset(
         {
             "spec_activity_feed.json",
@@ -140,6 +141,12 @@ class RunsWatcher(PollingWatcher):
         try:
             with os.scandir(self._runs_dir) as entries:
                 for entry in entries:
+                    if (
+                        entry.is_dir(follow_symlinks=False)
+                        and self._WORKSPACE_DIR_RE.fullmatch(entry.name)
+                    ):
+                        self._add_workspace_artifacts(result, entry)
+                        continue
                     if not entry.is_file():
                         continue
                     if (
@@ -150,3 +157,22 @@ class RunsWatcher(PollingWatcher):
         except OSError:
             pass
         return result
+
+    @staticmethod
+    def _add_workspace_artifacts(
+        result: dict[str, float],
+        workspace_entry: os.DirEntry[str],
+    ) -> None:
+        try:
+            with os.scandir(workspace_entry.path) as artifacts:
+                for artifact in artifacts:
+                    if not artifact.is_file(follow_symlinks=False) or not artifact.name.endswith(
+                        ".json"
+                    ):
+                        continue
+                    stat = artifact.stat(follow_symlinks=False)
+                    result[
+                        f"{workspace_entry.name}/{artifact.name}\0{stat.st_size}"
+                    ] = stat.st_mtime
+        except OSError:
+            pass
