@@ -618,7 +618,8 @@ export function IdeaToSpecWorkspacePanel({
       pending: boolean;
       status: string | null;
       error: string | null;
-    }>({ pending: false, status: null, error: null });
+      workspaceId: string | null;
+    }>({ pending: false, status: null, error: null, workspaceId: null });
   const [workspaceInitializationPreparationState, setWorkspaceInitializationPreparationState] =
     useState<{
       pending: boolean;
@@ -644,6 +645,17 @@ export function IdeaToSpecWorkspacePanel({
   useEffect(() => {
     if (selectedWorkspaceStateKey === null) return;
     if (
+      workspaceInitializationExecutionState.workspaceId !== null &&
+      workspaceInitializationExecutionState.workspaceId !== selectedWorkspaceStateKey
+    ) {
+      setWorkspaceInitializationExecutionState({
+        pending: false,
+        status: null,
+        error: null,
+        workspaceId: null,
+      });
+    }
+    if (
       workspaceInitializationPreparationState.workspaceId !== null &&
       workspaceInitializationPreparationState.workspaceId !== selectedWorkspaceStateKey
     ) {
@@ -657,6 +669,7 @@ export function IdeaToSpecWorkspacePanel({
     }
   }, [
     selectedWorkspaceStateKey,
+    workspaceInitializationExecutionState.workspaceId,
     workspaceInitializationPreparationState.workspaceId,
   ]);
   const [candidateApprovalExecutionState, setCandidateApprovalExecutionState] =
@@ -732,6 +745,10 @@ export function IdeaToSpecWorkspacePanel({
   }
 
   const { data } = state;
+  const visibleWorkspaceInitializationExecutionState =
+    workspaceInitializationExecutionState.workspaceId === selectedWorkspaceStateKey
+      ? workspaceInitializationExecutionState
+      : { pending: false, status: null, error: null, workspaceId: null };
   const frame = data.candidateGraph.activeFrame.project
     ? data.candidateGraph.activeFrame
     : data.intake.activeFrame;
@@ -800,6 +817,7 @@ export function IdeaToSpecWorkspacePanel({
       pending: true,
       status: null,
       error: null,
+      workspaceId,
     });
     try {
       const response = await fetch(productWorkspaceInitializationExecuteUrl, {
@@ -815,6 +833,12 @@ export function IdeaToSpecWorkspacePanel({
         status?: unknown;
         error?: unknown;
       };
+      if (
+        !workspacePreparationResponseIsCurrent(
+          workspaceId,
+          selectedWorkspaceStateKeyRef.current,
+        )
+      ) return;
       if (!response.ok) {
         const detail =
           typeof body.error === "string"
@@ -824,6 +848,7 @@ export function IdeaToSpecWorkspacePanel({
           pending: false,
           status: typeof body.status === "string" ? body.status : null,
           error: detail,
+          workspaceId,
         });
         return;
       }
@@ -836,13 +861,21 @@ export function IdeaToSpecWorkspacePanel({
               ? body.status
               : "managed_initialization_executed",
         error: null,
+        workspaceId,
       });
       onWorkspaceRefreshRequest?.();
     } catch (error) {
+      if (
+        !workspacePreparationResponseIsCurrent(
+          workspaceId,
+          selectedWorkspaceStateKeyRef.current,
+        )
+      ) return;
       setWorkspaceInitializationExecutionState({
         pending: false,
         status: null,
         error: error instanceof Error ? error.message : "Managed initialization failed.",
+        workspaceId,
       });
     }
   };
@@ -1360,7 +1393,7 @@ export function IdeaToSpecWorkspacePanel({
       executeUrl={productWorkspaceInitializationExecuteUrl}
       preparationState={workspaceInitializationPreparationState}
       workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
-      executionState={workspaceInitializationExecutionState}
+      executionState={visibleWorkspaceInitializationExecutionState}
       onPrepare={prepareWorkspaceInitialization}
       onExecute={executeWorkspaceInitialization}
       readOnly={readOnly}

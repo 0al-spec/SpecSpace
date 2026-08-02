@@ -456,9 +456,12 @@ def _published_requests_payload(
         server,
         workspace_id,
     )
-    status, content = provider.read_artifact_content(
-        _workspace_run_ref(provider, REQUESTS_PATH)
-    )
+    status: int = HTTPStatus.NOT_FOUND
+    content: dict[str, Any] = {}
+    for ref in _workspace_run_refs(provider, REQUESTS_PATH):
+        status, content = provider.read_artifact_content(ref)
+        if status != HTTPStatus.NOT_FOUND:
+            break
     if status != HTTPStatus.OK:
         return {}, {
             "error": "Intake clarification requests artifact is not readable.",
@@ -485,13 +488,16 @@ def _published_answer_template_payload(
         server,
         workspace_id,
     )
-    status, content = provider.read_artifact_content(
-        _workspace_run_ref(provider, ANSWER_TEMPLATE_DIRECT_PATH)
-    )
-    if status == HTTPStatus.NOT_FOUND:
-        status, content = provider.read_artifact_content(
-            _workspace_run_ref(provider, ANSWER_TEMPLATE_PATH)
-        )
+    status: int = HTTPStatus.NOT_FOUND
+    content: dict[str, Any] = {}
+    for ref in _workspace_run_refs(
+        provider,
+        ANSWER_TEMPLATE_DIRECT_PATH,
+        ANSWER_TEMPLATE_PATH,
+    ):
+        status, content = provider.read_artifact_content(ref)
+        if status != HTTPStatus.NOT_FOUND:
+            break
     if status == HTTPStatus.NOT_FOUND:
         return {}, None
     if status != HTTPStatus.OK:
@@ -517,11 +523,17 @@ def _published_answer_template_payload(
     return data, None
 
 
-def _workspace_run_ref(provider: Any, ref: str) -> str:
+def _workspace_run_refs(provider: Any, *refs: str) -> tuple[str, ...]:
     run_dir_ref = _text(getattr(provider, "artifact_run_dir_ref", None))
-    if run_dir_ref is None or not ref.startswith("runs/"):
-        return ref
-    return f"{run_dir_ref.rstrip('/')}/{ref.removeprefix('runs/')}"
+    candidates: list[str] = []
+    if run_dir_ref is not None:
+        candidates.extend(
+            f"{run_dir_ref.rstrip('/')}/{ref.removeprefix('runs/')}"
+            for ref in refs
+            if ref.startswith("runs/")
+        )
+    candidates.extend(refs)
+    return tuple(dict.fromkeys(candidates))
 
 
 def _template_target_for_request(

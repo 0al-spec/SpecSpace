@@ -4228,6 +4228,30 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
             max_bytes=specspace_provider.ARTIFACT_CONTENT_MAX_BYTES,
         )
 
+    def test_product_http_workspace_exposes_scoped_run_ref_with_legacy_fallback(
+        self,
+    ) -> None:
+        delegate = specspace_provider.HttpSpecGraphProvider(
+            base_url="https://artifact.test",
+            cache=specspace_provider.HttpArtifactCache(),
+        )
+        provider = specspace_provider.ProductWorkspaceHttpProvider(
+            delegate=delegate,
+            workspace_id="pantry-rotation",
+        )
+
+        self.assertEqual(provider.artifact_run_dir_ref, "runs/pantry-rotation")
+        self.assertEqual(
+            idea_to_spec_intake_clarification_answers._workspace_run_refs(
+                provider,
+                "runs/idea_intake_clarification_requests.json",
+            ),
+            (
+                "runs/pantry-rotation/idea_intake_clarification_requests.json",
+                "runs/idea_intake_clarification_requests.json",
+            ),
+        )
+
     def test_product_http_workspace_does_not_preview_candidate_seed_raw_json(
         self,
     ) -> None:

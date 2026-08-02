@@ -303,10 +303,19 @@ async function privateState(
 function workspaceRequest(
   state: Record<string, unknown>,
 ): Record<string, unknown> {
+  const activeRequest = record(state.active_request);
+  if (activeRequest.workspace_id === workspaceId) return activeRequest;
   const requests = Array.isArray(state.requests) ? state.requests : [];
-  const request = requests.find(
-    (item) => record(item).workspace_id === workspaceId,
-  );
+  const request = requests
+    .filter((item) => record(item).workspace_id === workspaceId)
+    .map(record)
+    .sort((left, right) =>
+      String(
+        right.updated_at ?? right.created_at ?? right.request_id ?? "",
+      ).localeCompare(
+        String(left.updated_at ?? left.created_at ?? left.request_id ?? ""),
+      ),
+    )[0];
   if (!request) throw new Error(`No persisted request for ${workspaceId}.`);
   return record(request);
 }
@@ -517,6 +526,12 @@ async function assertPublicSafeOutputs(
   return evidence;
 }
 
+test.afterEach(async () => {
+  if (process.env.SPECSPACE_MAC_RESTART_E2E === "1") {
+    await runProfile("stop");
+  }
+});
+
 test("preserves a UI-started specification workspace across a Mac profile restart", async ({
   page,
 }) => {
@@ -677,6 +692,10 @@ test("preserves a UI-started specification workspace across a Mac profile restar
         execution_evidence: executionEvidence,
         specgraph_git: { before: gitBefore, after: gitAfter },
         raw_idea_public_leak: false,
+        raw_idea_leak_scan: {
+          match: "exact",
+          scope: "candidate, materialized specifications, and Platform execution reports",
+        },
         team_decision_log_fallback: false,
         restart_continuity: "verified",
         authority_boundary: {
